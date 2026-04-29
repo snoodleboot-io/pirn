@@ -53,6 +53,7 @@ class KafkaEmitter(Emitter):
                 raise ImportError(
                     "KafkaEmitter requires aiokafka; install via `pip install pirn[kafka]`"
                 ) from exc
+            assert self._bootstrap is not None, "bootstrap_servers required when no producer"
             self._producer = AIOKafkaProducer(
                 bootstrap_servers=self._bootstrap,
             )

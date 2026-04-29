@@ -55,6 +55,7 @@ class KafkaTrigger:
                 raise ImportError(
                     "KafkaTrigger requires aiokafka; install via `pip install pirn[kafka]`"
                 ) from exc
+            assert self._bootstrap is not None, "bootstrap_servers required when no consumer"
             self._consumer = AIOKafkaConsumer(
                 self._topic,
                 bootstrap_servers=self._bootstrap,

@@ -71,7 +71,7 @@ class DuckDBHistory:
             ) from exc
 
         self._path = path
-        self._conn = connection or duckdb.connect(path)
+        self._conn = connection or duckdb.connect(path)  # type: ignore[attr-defined]
         self._initialized = False
 
     def _ensure_init(self) -> None:

@@ -119,10 +119,10 @@ async def replay_run(
     if parameter_overrides:
         params.update(parameter_overrides)
 
-    request = RunRequest(
-        parameters=params,
-        **({"run_id": new_run_id} if new_run_id else {}),
-    )
+    if new_run_id is not None:
+        request = RunRequest(parameters=params, run_id=new_run_id)
+    else:
+        request = RunRequest(parameters=params)
     return await tapestry.run(request)
 
 
