@@ -12,6 +12,7 @@ Phase 2 changes from Phase 1
 from __future__ import annotations
 
 import uuid
+from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
@@ -88,13 +89,14 @@ class RunContext:
         terminals_requested: list[str],
         dispatcher_name: str,
         parameters: dict[str, Any] | None = None,
+        traceback_filter: Callable[[str], str] | None = None,
     ) -> None:
         self.run_id = run_id
         self.terminals_requested = terminals_requested
         self.dispatcher_name = dispatcher_name
         self.parameters: dict[str, Any] = parameters or {}
         self.status = StatusManager(run_id)
-        self.exceptions = ExceptionManager(run_id)
+        self.exceptions = ExceptionManager(run_id, traceback_filter=traceback_filter)
         self.lineage: list[KnotLineage] = []
         self.skipped: list[str] = []
         self.started_at = datetime.now(UTC)

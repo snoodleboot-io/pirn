@@ -20,6 +20,7 @@ Schema notes
 from __future__ import annotations
 
 import asyncio
+import re
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
@@ -94,6 +95,14 @@ CREATE INDEX IF NOT EXISTS idx_lineage_inputs_hash ON lineage_inputs(input_hash)
 """
 
 
+# ------------------------------------------------------------- DSN sanitizer
+
+
+def _sanitize_dsn(dsn: str) -> str:
+    """Replace credentials in a DSN with <redacted> for safe logging/display."""
+    return re.sub(r'(://)[^@]+(@)', r'\1<redacted>\2', dsn)
+
+
 # ------------------------------------------------------------- Pool helper
 
 
@@ -104,7 +113,11 @@ class _LazyPool:
         if pool is None and dsn is None:
             raise TypeError("provide either pool= or dsn=")
         self._pool = pool
-        self._dsn = dsn
+        # Store DSN via closure — keeps it off the instance dict so it does
+        # not appear in asyncpg traceback frames.
+        _dsn = dsn
+        self._get_dsn: Callable[[], str | None] = lambda: _dsn
+        self._dsn_display = _sanitize_dsn(dsn) if dsn else None
 
     async def get(self) -> Any:
         if self._pool is None:
@@ -115,11 +128,18 @@ class _LazyPool:
                     "PostgresStore/PostgresHistory require asyncpg; install "
                     "via `pip install pirn[postgres]`"
                 ) from exc
-            self._pool = await asyncpg.create_pool(self._dsn)
+            dsn = self._get_dsn()
+            try:
+                self._pool = await asyncpg.create_pool(dsn)
+            except Exception as exc:
+                # Re-raise with sanitized message so the password never appears
+                # in ExceptionRecord.traceback_text.
+                safe_msg = _sanitize_dsn(str(exc))
+                raise type(exc)(safe_msg) from None
         return self._pool
 
     async def close(self) -> None:
-        if self._pool is not None and self._dsn is not None:
+        if self._pool is not None and self._get_dsn() is not None:
             # Only close pools we created ourselves.
             await self._pool.close()
             self._pool = None

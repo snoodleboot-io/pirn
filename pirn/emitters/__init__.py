@@ -13,7 +13,7 @@ The emitter protocol is intentionally narrow: ``on_status``,
 they care about.
 """
 
-from pirn.emitters.base import Emitter
+from pirn.emitters.base import Emitter, EmitterErrorPolicy
 from pirn.emitters.kafka import KafkaEmitter
 from pirn.emitters.log import LogEmitter
 from pirn.emitters.otel import OpenTelemetryEmitter
@@ -22,6 +22,7 @@ from pirn.emitters.webhook import WebhookEmitter
 
 __all__ = [
     "Emitter",
+    "EmitterErrorPolicy",
     "KafkaEmitter",
     "LogEmitter",
     "OpenTelemetryEmitter",

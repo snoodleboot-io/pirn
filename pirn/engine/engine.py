@@ -21,6 +21,8 @@ parents are resolved and dispatches them concurrently via
 from __future__ import annotations
 
 import asyncio
+import logging
+from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
@@ -32,10 +34,13 @@ from pirn.core.knot import Knot
 from pirn.core.lineage import KnotLineage
 from pirn.core.parameter import Parameter
 from pirn.core.result import Err, Ok, Result, Skipped
+from pirn.emitters.base import EmitterErrorPolicy
 from pirn.engine.dispatcher import Dispatcher, LocalDispatcher
 from pirn.engine.shed import Shed
 from pirn.managers.exceptions import RebindableException
 from pirn.managers.status import KnotState
+
+_log = logging.getLogger(__name__)
 
 
 class Engine:
@@ -52,6 +57,8 @@ class Engine:
         data_store: DataStore,
         emitters: list[Any] | None = None,
         extensible_store: Any = None,
+        traceback_filter: Callable[[str], str] | None = None,
+        emitter_error_policy: EmitterErrorPolicy = EmitterErrorPolicy.WARN,
     ) -> RunResult:
         shed = Shed.from_terminals(terminals)
 
@@ -60,6 +67,7 @@ class Engine:
             terminals_requested=[t.knot_id for t in terminals],
             dispatcher_name=self._dispatcher.name,
             parameters=dict(request.parameters),
+            traceback_filter=traceback_filter,
         )
 
         # Wire emitters' on_status to the StatusManager.  Async emitters
@@ -97,6 +105,7 @@ class Engine:
                 emitters=emitters,
                 pending_new=pending_new,
                 request=request,
+                emitter_error_policy=emitter_error_policy,
             )
         finally:
             if extensible_store is not None and subscribe_token is not None:
@@ -111,6 +120,7 @@ class Engine:
         emitters: list[Any],
         pending_new: list[Knot],
         request: RunRequest,
+        emitter_error_policy: EmitterErrorPolicy = EmitterErrorPolicy.WARN,
     ) -> RunResult:
 
         # Bind parameters.  Setup-time errors propagate; recovery is the
@@ -242,19 +252,31 @@ class Engine:
             for record in run_result.lineage:
                 try:
                     await emitter.on_lineage(record)
-                except Exception:
-                    # Emitter failures must not break the run.  In Phase 4
-                    # this routes through a structured logger; for now
-                    # we swallow.
-                    pass
+                except Exception as exc:
+                    self._handle_emitter_error(emitter, "on_lineage", exc, emitter_error_policy)
             try:
                 await emitter.on_run_result(run_result)
-            except Exception:
-                pass
+            except Exception as exc:
+                self._handle_emitter_error(emitter, "on_run_result", exc, emitter_error_policy)
 
         return run_result
 
     # ------------------------------------------------------------- helpers
+
+    def _handle_emitter_error(
+        self,
+        emitter: Any,
+        event_type: str,
+        exc: Exception,
+        policy: EmitterErrorPolicy,
+    ) -> None:
+        if policy is EmitterErrorPolicy.IGNORE:
+            return
+        if policy is EmitterErrorPolicy.WARN:
+            _log.warning("emitter %r failed on %s: %s", emitter, event_type, exc)
+            return
+        # RAISE
+        raise exc
 
     def _subscribe_emitters_to_status(
         self,

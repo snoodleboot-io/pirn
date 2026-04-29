@@ -15,6 +15,11 @@ from __future__ import annotations
 import pickle
 from typing import Any
 
+from pirn.backends._signing import sign as _sign
+from pirn.backends._signing import verify as _verify
+
+_PICKLE_PROTOCOL = 5
+
 
 class S3DataStore:
     """``DataStore`` backed by an S3 bucket via aioboto3.
@@ -32,12 +37,14 @@ class S3DataStore:
         region: str | None = None,
         endpoint_url: str | None = None,
         session: Any = None,
+        signing_key: bytes | None = None,
     ) -> None:
         self._bucket = bucket
         self._prefix = prefix
         self._region = region
         self._endpoint_url = endpoint_url
         self._session = session
+        self._signing_key = signing_key
 
     def _key(self, content_hash: str) -> str:
         clean = content_hash.removeprefix("sha256:")
@@ -65,7 +72,9 @@ class S3DataStore:
 
     async def put(self, content_hash: str, value: Any) -> None:
         session = await self._client()
-        payload = pickle.dumps(value)
+        payload = pickle.dumps(value, protocol=_PICKLE_PROTOCOL)
+        if self._signing_key is not None:
+            payload = _sign(payload, self._signing_key)
         async with self._s3(session) as s3:
             await s3.put_object(
                 Bucket=self._bucket,
@@ -89,6 +98,8 @@ class S3DataStore:
                     raise KeyError(content_hash) from exc
                 raise
             payload = await response["Body"].read()
+        if self._signing_key is not None:
+            payload = _verify(payload, self._signing_key)
         return pickle.loads(payload)
 
     async def has(self, content_hash: str) -> bool:

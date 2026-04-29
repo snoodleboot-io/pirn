@@ -17,12 +17,46 @@ Phase 2 changes from Phase 1
 
 from __future__ import annotations
 
+import re as _re
 import traceback
 import uuid
+from collections.abc import Callable
 from datetime import UTC, datetime
 from threading import Lock
 
 from pydantic import BaseModel, ConfigDict, Field
+
+_SECRET_PATTERNS = [
+    _re.compile(r'(://)[^@\s"\']+(@)'),
+    _re.compile(r'(?i)\b(password|passwd|api_?key|token|secret|auth)\s*[=:]\s*\S+'),
+    _re.compile(r'(?i)(Authorization:\s*\w+\s+)\S+'),
+]
+
+
+def redact_common_secrets(text: str) -> str:
+    """Replace common credential patterns in a traceback with <redacted>.
+
+    Pass this as ``traceback_filter`` to ``ExceptionManager`` or
+    ``Tapestry`` to reduce the risk of credentials appearing in stored
+    exception records.
+
+    Patterns matched:
+
+    * DSN credentials: ``postgresql://user:pass@host`` → ``postgresql://<redacted>@host``
+    * Named credential assignments: ``password=s3cr3t``, ``api_key=xyz``, etc.
+    * Authorization header values: ``Authorization: Bearer <token>``
+    """
+    # DSN credentials
+    text = _re.sub(r'(://)[^@\s"\']+(@)', r'\1<redacted>\2', text)
+    # Named credential assignments
+    text = _re.sub(
+        r'(?i)\b(password|passwd|api_?key|token|secret|auth)\s*[=:]\s*\S+',
+        r'\1=<redacted>',
+        text,
+    )
+    # Authorization header values
+    text = _re.sub(r'(?i)(Authorization:\s*\w+\s+)\S+', r'\1<redacted>', text)
+    return text
 
 
 class ExceptionRecord(BaseModel):
@@ -73,8 +107,13 @@ class RebindableException(Exception):
 class ExceptionManager:
     """Per-run store of captured exceptions."""
 
-    def __init__(self, run_id: str) -> None:
+    def __init__(
+        self,
+        run_id: str,
+        traceback_filter: Callable[[str], str] | None = None,
+    ) -> None:
         self._run_id = run_id
+        self._traceback_filter = traceback_filter
         self._records: list[ExceptionRecord] = []
         self._by_id: dict[str, ExceptionRecord] = {}
         self._lock = Lock()
@@ -94,6 +133,8 @@ class ExceptionManager:
         else:
             exc_type = type(exc).__name__
             traceback_text = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+        if self._traceback_filter is not None:
+            traceback_text = self._traceback_filter(traceback_text)
         rec = ExceptionRecord(
             run_id=self._run_id,
             knot_id=knot_id,

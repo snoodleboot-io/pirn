@@ -17,6 +17,11 @@ import pickle
 from pathlib import Path
 from typing import Any
 
+from pirn.backends._signing import sign as _sign
+from pirn.backends._signing import verify as _verify
+
+_PICKLE_PROTOCOL = 5
+
 
 class LocalDiskDataStore:
     """``DataStore`` backed by a directory tree on local disk.
@@ -29,9 +34,10 @@ class LocalDiskDataStore:
     so the calling event loop isn't blocked on disk IO.
     """
 
-    def __init__(self, root: str | Path) -> None:
+    def __init__(self, root: str | Path, *, signing_key: bytes | None = None) -> None:
         self._root = Path(root)
         self._root.mkdir(parents=True, exist_ok=True)
+        self._signing_key = signing_key
 
     def _path(self, content_hash: str) -> Path:
         # Strip the "sha256:" prefix for cleaner paths.
@@ -42,9 +48,14 @@ class LocalDiskDataStore:
         return self._root / prefix / f"{clean}.pkl"
 
     def _serialize(self, value: Any) -> bytes:
-        return pickle.dumps(value)
+        payload = pickle.dumps(value, protocol=_PICKLE_PROTOCOL)
+        if self._signing_key is not None:
+            payload = _sign(payload, self._signing_key)
+        return payload
 
     def _deserialize(self, payload: bytes) -> Any:
+        if self._signing_key is not None:
+            payload = _verify(payload, self._signing_key)
         return pickle.loads(payload)
 
     async def put(self, content_hash: str, value: Any) -> None:

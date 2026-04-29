@@ -136,6 +136,11 @@ class PipelineSpec(BaseModel):
     name: str | None = None
     description: str | None = None
     allow_callable_refs: bool = False
+    allowed_module_prefixes: list[str] | None = Field(
+        default=None,
+        description="When allow_callable_refs is True, only callable refs whose module path "
+        "starts with one of these prefixes may be imported. None means no restriction.",
+    )
     nodes: list[NodeSpecUnion] = Field(default_factory=list)
 
     @property

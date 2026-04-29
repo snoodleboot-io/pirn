@@ -9,9 +9,12 @@ kwargs (parents and config values).
 
 from __future__ import annotations
 
+import re
 from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+_KNOT_ID_RE = re.compile(r'^[a-zA-Z0-9_\-\.:]{1,256}$')
 
 
 class ErrorPolicy(StrEnum):
@@ -49,6 +52,17 @@ class KnotConfig(BaseModel):
         description="Stable identifier for this knot.  Required.",
         min_length=1,
     )
+
+    @field_validator('id')
+    @classmethod
+    def validate_id_characters(cls, v: str) -> str:
+        if not _KNOT_ID_RE.match(v):
+            raise ValueError(
+                f"knot id {v!r} contains invalid characters. "
+                "Allowed: alphanumeric, underscore, hyphen, dot, colon. Max length: 256. "
+                "Null bytes, path separators, whitespace, and control characters are not permitted."
+            )
+        return v
     validate_io: bool = Field(
         default=True,
         description="If True, inputs and outputs are validated against "

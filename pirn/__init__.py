@@ -35,6 +35,7 @@ from pirn.core.result import Err, Ok, Result, Skipped
 # raise ImportError only when *used*.
 from pirn.emitters import (
     Emitter,
+    EmitterErrorPolicy,
     KafkaEmitter,
     LogEmitter,
     OpenTelemetryEmitter,
@@ -47,6 +48,7 @@ from pirn.managers.exceptions import (
     ExceptionManager,
     ExceptionRecord,
     RebindableException,
+    redact_common_secrets,
 )
 from pirn.managers.status import KnotState, StatusEvent, StatusManager
 from pirn.nodes import (
@@ -115,6 +117,7 @@ __all__ = [
     "ExceptionManager",
     "ExceptionRecord",
     "RebindableException",
+    "redact_common_secrets",
     "StatusManager",
     "StatusEvent",
     "KnotState",
@@ -140,6 +143,7 @@ __all__ = [
     "load_pipeline",
     # Phase 3 — emitters
     "Emitter",
+    "EmitterErrorPolicy",
     "LogEmitter",
     "KafkaEmitter",
     "ValKeyEmitter",

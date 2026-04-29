@@ -28,6 +28,10 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from pirn.backends import TapestrySnapshot
+from pirn.backends._signing import sign as _sign
+from pirn.backends._signing import verify as _verify
+
+_PICKLE_PROTOCOL = 5
 
 if TYPE_CHECKING:
     from pirn.core.knot import Knot
@@ -277,9 +281,11 @@ class ValKeyDataStore:
         client: Any = None,
         config: Any = None,
         ttl_seconds: int | None = None,
+        signing_key: bytes | None = None,
     ) -> None:
         self._client = _LazyClient(client=client, config=config)
         self._ttl = ttl_seconds
+        self._signing_key = signing_key
 
     def _key(self, content_hash: str) -> str:
         return f"{self._PREFIX}{content_hash}"
@@ -288,7 +294,9 @@ class ValKeyDataStore:
         from glide import ExpirySet, ExpiryType
 
         client = await self._client.get()
-        payload = pickle.dumps(value)
+        payload = pickle.dumps(value, protocol=_PICKLE_PROTOCOL)
+        if self._signing_key is not None:
+            payload = _sign(payload, self._signing_key)
         if self._ttl is not None:
             expiry = ExpirySet(ExpiryType.SEC, self._ttl)
             await client.set(self._key(content_hash), payload, expiry=expiry)
@@ -300,6 +308,8 @@ class ValKeyDataStore:
         payload = await client.get(self._key(content_hash))
         if payload is None:
             raise KeyError(content_hash)
+        if self._signing_key is not None:
+            payload = _verify(payload, self._signing_key)
         return pickle.loads(payload)
 
     async def has(self, content_hash: str) -> bool:
