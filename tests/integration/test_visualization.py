@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
-from pirn import KnotConfig, Parameter, RunRequest, Tapestry, knot
-from pirn.viz import html_for_run, mermaid_for_run, mermaid_for_tapestry
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
+from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
+from pirn.tapestry import Tapestry
+from pirn.viz.html import html_for_run
+from pirn.viz.mermaid import mermaid_for_run, mermaid_for_tapestry
 
 
 @knot
@@ -49,10 +54,9 @@ def test_mermaid_for_tapestry_renders_edges():
 
 def test_mermaid_for_tapestry_sanitizes_special_characters_in_ids():
     with Tapestry() as t:
-        Parameter("x", int, _config=KnotConfig(id="my-knot.with:special/chars"))
+        Parameter("x", int, _config=KnotConfig(id="my-knot.with:special.chars"))
     output = mermaid_for_tapestry(t)
-    # All hyphens/dots/colons/slashes get mapped to underscores so the
-    # node id is a valid mermaid identifier.
+    # Hyphens/dots/colons get mapped to underscores so the node id is a valid mermaid identifier.
     assert "my_knot_with_special_chars" in output
 
 
@@ -161,7 +165,7 @@ async def test_html_for_run_handles_empty_lineage():
     # the engine produce zero lineage, so build a result manually.
     from datetime import UTC, datetime
 
-    from pirn.core.context import RunResult
+    from pirn.core.run_result import RunResult
 
     result = RunResult(
         run_id="empty",

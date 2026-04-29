@@ -20,10 +20,11 @@ import json
 from collections.abc import AsyncIterator
 from typing import Any
 
-from pirn.core.context import RunRequest
+from pirn.core.run_request import RunRequest
+from pirn.triggers.base import Trigger
 
 
-class KafkaTrigger:
+class KafkaTrigger(Trigger):
     """Trigger backed by an aiokafka consumer."""
 
     def __init__(

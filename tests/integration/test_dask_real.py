@@ -8,7 +8,11 @@ from __future__ import annotations
 
 import pytest
 
-from pirn import KnotConfig, Parameter, RunRequest, Tapestry, knot
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
+from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
+from pirn.tapestry import Tapestry
 
 pytestmark = pytest.mark.needs_dask
 
@@ -37,7 +41,7 @@ async def _add(x: int, y: int) -> int:
 
 
 async def test_dask_dispatcher_runs_single_knot(dask_client):
-    from pirn.engine.dask_dispatcher import DaskDispatcher
+    from pirn.engine.dispatchers.dask_dispatcher import DaskDispatcher
 
     dispatcher = DaskDispatcher(client=dask_client)
     with Tapestry(dispatcher=dispatcher) as t:
@@ -50,7 +54,7 @@ async def test_dask_dispatcher_runs_single_knot(dask_client):
 
 
 async def test_dask_dispatcher_runs_multi_knot_pipeline(dask_client):
-    from pirn.engine.dask_dispatcher import DaskDispatcher
+    from pirn.engine.dispatchers.dask_dispatcher import DaskDispatcher
 
     dispatcher = DaskDispatcher(client=dask_client)
     with Tapestry(dispatcher=dispatcher) as t:
@@ -64,7 +68,7 @@ async def test_dask_dispatcher_runs_multi_knot_pipeline(dask_client):
 
 
 async def test_dask_dispatcher_result_has_correct_dispatcher_name(dask_client):
-    from pirn.engine.dask_dispatcher import DaskDispatcher
+    from pirn.engine.dispatchers.dask_dispatcher import DaskDispatcher
 
     dispatcher = DaskDispatcher(client=dask_client)
     with Tapestry(dispatcher=dispatcher) as t:

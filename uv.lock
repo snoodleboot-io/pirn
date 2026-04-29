@@ -1642,6 +1642,7 @@ dependencies = [
     { name = "asyncpg" },
     { name = "pydantic" },
     { name = "pyyaml" },
+    { name = "sweet-tea" },
     { name = "valkey-glide" },
 ]
 
@@ -1748,6 +1749,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.5" },
     { name = "starlette", marker = "extra == 'all'", specifier = ">=0.36" },
     { name = "starlette", marker = "extra == 'http'", specifier = ">=0.36" },
+    { name = "sweet-tea", specifier = ">=0.2.46" },
     { name = "valkey-glide", specifier = ">=2.3.1" },
     { name = "valkey-glide", marker = "extra == 'all'", specifier = ">=2.0" },
     { name = "valkey-glide", marker = "extra == 'valkey'", specifier = ">=2.0" },
@@ -2512,6 +2514,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/81/69/17425771797c36cded50b7fe44e850315d039f28b15901ab44839e70b593/starlette-1.0.0.tar.gz", hash = "sha256:6a4beaf1f81bb472fd19ea9b918b50dc3a77a6f2e190a12954b25e6ed5eea149", size = 2655289, upload-time = "2026-03-22T18:29:46.779Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/0b/c9/584bc9651441b4ba60cc4d557d8a547b5aff901af35bda3a4ee30c819b82/starlette-1.0.0-py3-none-any.whl", hash = "sha256:d3ec55e0bb321692d275455ddfd3df75fff145d009685eb40dc91fc66b03d38b", size = 72651, upload-time = "2026-03-22T18:29:45.111Z" },
+]
+
+[[package]]
+name = "sweet-tea"
+version = "0.2.46"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ad/c9/9f16baa7f50a0b63af8f65c7ba0b32c9c4b4eaa209cd641de4d72de0cf6c/sweet_tea-0.2.46.tar.gz", hash = "sha256:a8f8c6abe9b0819be5783a7761ddc529e2b17e581abbbe75c6b8e2a6f5eb9dcb", size = 93421, upload-time = "2026-03-19T21:56:52.187Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8f/f1/6183083f081743db25db237f2fdf2d1a887472a2e994173b10a4d022e17b/sweet_tea-0.2.46-py3-none-any.whl", hash = "sha256:017d14dd89b763eb5df1397393e818d79ddbeef61eb690b19a28dffc207c1c82", size = 24458, upload-time = "2026-03-19T21:56:50.917Z" },
 ]
 
 [[package]]

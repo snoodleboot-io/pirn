@@ -15,8 +15,12 @@ import os
 
 import pytest
 
-from pirn import KnotConfig, Parameter, RunRequest, Tapestry, knot
-from pirn.backends.sqlite import SQLiteHistory
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
+from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
+from pirn.tapestry import Tapestry
+from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 
 
 @knot
@@ -59,7 +63,7 @@ def test_bench_postgres_lineage_100(benchmark):
 
     import asyncpg
 
-    from pirn.backends.postgres import PostgresHistory
+    from pirn.backends.postgres.postgres_history import PostgresHistory
 
     async def run():
         pool = await asyncpg.create_pool(dsn)
@@ -79,7 +83,7 @@ def test_bench_postgres_lineage_1000(benchmark):
 
     import asyncpg
 
-    from pirn.backends.postgres import PostgresHistory
+    from pirn.backends.postgres.postgres_history import PostgresHistory
 
     async def run():
         pool = await asyncpg.create_pool(dsn)

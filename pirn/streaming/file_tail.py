@@ -6,8 +6,10 @@ import asyncio
 from collections.abc import AsyncIterator
 from pathlib import Path
 
+from pirn.streaming.base import StreamingSource
 
-class FileTailSource:
+
+class FileTailSource(StreamingSource):
     """Tails a file like ``tail -f``; yields each new line.
 
     Useful for log-processing pipelines.  The source seeks to the end

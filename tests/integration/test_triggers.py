@@ -9,15 +9,16 @@ from typing import Any
 
 import pytest
 
-from pirn import KnotConfig, Parameter, Tapestry, knot
-from pirn.core.context import RunRequest
-from pirn.triggers import (
-    CronTrigger,
-    KafkaTrigger,
-    ValKeyTrigger,
-    WebhookTrigger,
-    run_forever,
-)
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
+from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
+from pirn.tapestry import Tapestry
+from pirn.triggers.base import Trigger, run_forever
+from pirn.triggers.cron import CronTrigger
+from pirn.triggers.http import WebhookTrigger
+from pirn.triggers.kafka import KafkaTrigger
+from pirn.triggers.valkey import ValKeyTrigger
 
 # ============================================================ CronTrigger
 

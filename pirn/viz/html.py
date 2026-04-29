@@ -24,7 +24,7 @@ from collections import defaultdict
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pirn.core.context import RunResult
+    from pirn.core.run_result import RunResult
 
 
 def html_for_run(result: RunResult, title: str | None = None) -> str:
@@ -78,6 +78,27 @@ def html_for_run(result: RunResult, title: str | None = None) -> str:
 # ============================================================ layout
 
 
+def _get_depth(
+    kid: str,
+    depth: dict[str, int],
+    parents: dict[str, list[str]],
+    all_ids: set[str],
+    visiting: set[str],
+) -> int:
+    if kid in depth:
+        return depth[kid]
+    if kid in visiting:
+        return 0
+    visiting.add(kid)
+    if not parents.get(kid):
+        d = 0
+    else:
+        d = 1 + max(_get_depth(p, depth, parents, all_ids, visiting) for p in parents[kid] if p in all_ids)
+    visiting.discard(kid)
+    depth[kid] = d
+    return d
+
+
 def _layer_nodes(nodes, edges) -> list[list[str]]:
     """Group nodes into layers by longest path from a root."""
     parents: dict[str, list[str]] = defaultdict(list)
@@ -86,23 +107,8 @@ def _layer_nodes(nodes, edges) -> list[list[str]]:
     all_ids = {n["id"] for n in nodes}
 
     depth: dict[str, int] = {}
-
-    def get_depth(kid: str, visiting: set[str]) -> int:
-        if kid in depth:
-            return depth[kid]
-        if kid in visiting:
-            return 0  # cycle guard; shouldn't happen for valid runs
-        visiting.add(kid)
-        if not parents.get(kid):
-            d = 0
-        else:
-            d = 1 + max(get_depth(p, visiting) for p in parents[kid] if p in all_ids)
-        visiting.discard(kid)
-        depth[kid] = d
-        return d
-
     for kid in all_ids:
-        get_depth(kid, set())
+        _get_depth(kid, depth, parents, all_ids, set())
 
     by_depth: dict[int, list[str]] = defaultdict(list)
     for kid, d in depth.items():

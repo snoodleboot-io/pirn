@@ -20,11 +20,13 @@ from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from pirn.backends import RunHistory, TapestryStore
-    from pirn.core.context import RunRequest, RunResult
+    from pirn.backends.base.run_history import RunHistory
+    from pirn.backends.base.tapestry_store import TapestryStore
+    from pirn.core.run_request import RunRequest
+    from pirn.core.run_result import RunResult
     from pirn.core.knot import Knot
-    from pirn.emitters.base import EmitterErrorPolicy
-    from pirn.engine.dispatcher import Dispatcher
+    from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
+    from pirn.engine.dispatchers.dispatcher import Dispatcher
 
 
 # ContextVar carrying the active tapestry inside a `with` block.  None when
@@ -64,12 +66,10 @@ class Tapestry:
         traceback_filter: Callable[[str], str] | None = None,
     ) -> None:
         # Defer imports to avoid a circular at module load time.
-        from pirn.backends.in_memory import (
-            InMemoryDataStore,
-            InMemoryHistory,
-            InMemoryStore,
-        )
-        from pirn.engine.dispatcher import LocalDispatcher
+        from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
+        from pirn.backends.in_memory.in_memory_history import InMemoryHistory
+        from pirn.backends.in_memory.in_memory_store import InMemoryStore
+        from pirn.engine.dispatchers.local_dispatcher import LocalDispatcher
 
         from pirn.emitters.base import EmitterErrorPolicy as _EEP
 
@@ -162,7 +162,7 @@ class Tapestry:
         protocol (``InMemoryStore`` does; the SQLite/Postgres/ValKey
         stores do not yet).
         """
-        from pirn.core.context import RunRequest as _RR
+        from pirn.core.run_request import RunRequest as _RR
         from pirn.core.knot import Knot as _Knot
         from pirn.engine.engine import Engine
 

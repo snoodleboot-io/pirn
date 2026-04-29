@@ -35,27 +35,27 @@ from typing import Any
 
 import yaml
 
-from pirn.core.config import ErrorPolicy, KnotConfig
-from pirn.core.knot import Knot, KnotFactory
+from pirn.core.error_policy import ErrorPolicy
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot import Knot
+from pirn.core.knot_factory import KnotFactory, knot
 from pirn.core.parameter import Parameter
 from pirn.nodes.aggregator import Aggregator
-from pirn.nodes.branch import Branch
-from pirn.nodes.gate import Gate
+from pirn.nodes.branch.branch import Branch
+from pirn.nodes.gate.gate import Gate
 from pirn.nodes.map_ import Map
 from pirn.nodes.reduce_ import Reduce
 from pirn.tapestry import Tapestry
-from pirn.yaml_loader.spec import (
-    AggregatorSpec,
-    BranchSpec,
-    GateSpec,
-    KnotSpec,
-    MapSpec,
-    ParameterSpec,
-    PipelineSpec,
-    ReduceSpec,
-    SinkSpec,
-    SourceSpec,
-)
+from pirn.yaml_loader.specs.aggregator_spec import AggregatorSpec
+from pirn.yaml_loader.specs.branch_spec import BranchSpec
+from pirn.yaml_loader.specs.gate_spec import GateSpec
+from pirn.yaml_loader.specs.knot_spec import KnotSpec
+from pirn.yaml_loader.specs.map_spec import MapSpec
+from pirn.yaml_loader.specs.parameter_spec import ParameterSpec
+from pirn.yaml_loader.specs.pipeline_spec import PipelineSpec
+from pirn.yaml_loader.specs.reduce_spec import ReduceSpec
+from pirn.yaml_loader.specs.sink_spec import SinkSpec
+from pirn.yaml_loader.specs.source_spec import SourceSpec
 
 
 def load_pipeline(
@@ -194,25 +194,16 @@ def _build_node(
         return Parameter(**kwargs)
 
     if isinstance(node_spec, SourceSpec):
-        # A source's callable is wrapped to produce no-arg process().
         callable_obj = _resolve_callable(
             node_spec.callable, known, pipeline_spec.allow_callable_refs, allowed_module_prefixes
         )
-        # Dynamically build a Source subclass whose process is the callable.
-        from pirn.nodes.source import Source
-
-        async def proc(self) -> Any:
-            res = callable_obj()
-            if hasattr(res, "__await__"):
-                return await res
-            return res
-
-        cls = type(
-            f"Source_{node_spec.id}",
-            (Source,),
-            {"process": proc, "__module__": __name__},
-        )
-        return cls(_config=cfg, tapestry=tapestry)
+        if isinstance(callable_obj, KnotFactory):
+            factory = callable_obj
+        elif isinstance(callable_obj, type) and issubclass(callable_obj, Knot):
+            return callable_obj(_config=cfg, tapestry=tapestry)
+        else:
+            factory = knot(callable_obj)
+        return factory(_config=cfg, tapestry=tapestry)
 
     if isinstance(node_spec, (KnotSpec, SinkSpec)):
         callable_obj = _resolve_callable(
@@ -233,7 +224,7 @@ def _build_node(
         if isinstance(callable_obj, KnotFactory):
             return callable_obj(**kwargs)
         # Plain function — wrap with @knot.
-        from pirn.core.knot import knot as _knot_decorator
+        from pirn.core.knot_factory import knot as _knot_decorator
 
         factory = _knot_decorator(callable_obj)
         return factory(**kwargs)
@@ -310,11 +301,10 @@ def _resolve_callable(
 ) -> Callable[..., Any]:
     """Resolve a string reference to a callable.
 
-    Strict order:
-    1. If ``ref`` is in ``known``, return it.
-    2. Otherwise, if ``allow_imports`` is True and ``ref`` looks like a
-       dotted path, check the allowlist and import.
-    3. Otherwise, raise.
+    Resolution order (first match wins):
+    1. ``known`` dict — per-call overrides, highest priority.
+    2. ``KnotRegistry`` — globally pre-registered @knot factories/classes.
+    3. Dotted-path import — only when ``allow_callable_refs=True``.
     """
     if ref in known:
         obj = known[ref]
@@ -322,9 +312,14 @@ def _resolve_callable(
             raise TypeError(f"known_callables[{ref!r}] is not callable")
         return obj
 
+    from pirn.yaml_loader.knot_registry import KnotRegistry
+
+    if KnotRegistry.has(ref):
+        return KnotRegistry.get_class(ref)
+
     if not allow_imports:
         raise ValueError(
-            f"reference {ref!r} not in known_callables; set "
+            f"reference {ref!r} not in known_callables or KnotRegistry; set "
             f"allow_callable_refs=True to enable dotted-path imports"
         )
 

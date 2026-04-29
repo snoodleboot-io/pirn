@@ -10,8 +10,11 @@ from __future__ import annotations
 
 import pytest
 
-from pirn import KnotConfig, Parameter, knot
-from pirn.engine.shed import Shed, ShedError
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
+from pirn.engine.shed.shed import Shed
+from pirn.engine.shed.shed_error import ShedError
 
 
 @knot

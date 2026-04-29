@@ -13,10 +13,11 @@ import json
 from collections.abc import AsyncIterator
 from typing import Any
 
-from pirn.core.context import RunRequest
+from pirn.core.run_request import RunRequest
+from pirn.triggers.base import Trigger
 
 
-class ValKeyTrigger:
+class ValKeyTrigger(Trigger):
     """Trigger backed by a ValKey pub/sub subscription."""
 
     def __init__(

@@ -51,10 +51,11 @@ import time
 from collections.abc import AsyncIterator
 from typing import Any
 
-from pirn.core.context import RunRequest
+from pirn.core.run_request import RunRequest
+from pirn.triggers.base import Trigger
 
 
-class WebhookTrigger:
+class WebhookTrigger(Trigger):
     """HTTP-driven trigger; exposes a Starlette app for serving."""
 
     def __init__(
@@ -94,50 +95,54 @@ class WebhookTrigger:
             self._app = self._build_app()
         return self._app
 
+    async def _handle_request(self, request: Any) -> Any:
+        try:
+            from starlette.responses import JSONResponse
+        except ImportError as exc:
+            raise ImportError(
+                "WebhookTrigger requires starlette; install via `pip install pirn[http]`"
+            ) from exc
+
+        if self._auth_token is not None:
+            auth_header = request.headers.get("Authorization", "")
+            if not auth_header.startswith("Bearer "):
+                return JSONResponse({"error": "unauthorized"}, status_code=401)
+            provided = auth_header[len("Bearer "):]
+            if not _hmac.compare_digest(provided, self._auth_token):
+                return JSONResponse({"error": "unauthorized"}, status_code=401)
+
+        if self._rate_limit_rpm is not None:
+            client_ip = request.client.host if request.client else "unknown"
+            window = self._rate_windows[client_ip]
+            now = time.monotonic()
+            while window and now - window[0] > 60.0:
+                window.popleft()
+            if len(window) >= self._rate_limit_rpm:
+                return JSONResponse({"error": "rate limit exceeded"}, status_code=429)
+            window.append(now)
+
+        try:
+            body = await request.body()
+            payload = json.loads(body) if body else {}
+            run_request = self._builder(payload, request)
+        except Exception as exc:
+            return JSONResponse(
+                {"error": f"failed to build RunRequest: {exc}"},
+                status_code=400,
+            )
+        await self._queue.put(run_request)
+        return JSONResponse({"run_id": run_request.run_id, "queued": True})
+
     def _build_app(self) -> Any:
         try:
             from starlette.applications import Starlette
-            from starlette.responses import JSONResponse
             from starlette.routing import Route
         except ImportError as exc:
             raise ImportError(
                 "WebhookTrigger requires starlette; install via `pip install pirn[http]`"
             ) from exc
 
-        async def handler(request):
-            # Bearer token authentication
-            if self._auth_token is not None:
-                auth_header = request.headers.get("Authorization", "")
-                if not auth_header.startswith("Bearer "):
-                    return JSONResponse({"error": "unauthorized"}, status_code=401)
-                provided = auth_header[len("Bearer "):]
-                if not _hmac.compare_digest(provided, self._auth_token):
-                    return JSONResponse({"error": "unauthorized"}, status_code=401)
-
-            # Per-IP sliding-window rate limiting
-            if self._rate_limit_rpm is not None:
-                client_ip = request.client.host if request.client else "unknown"
-                window = self._rate_windows[client_ip]
-                now = time.monotonic()
-                while window and now - window[0] > 60.0:
-                    window.popleft()
-                if len(window) >= self._rate_limit_rpm:
-                    return JSONResponse({"error": "rate limit exceeded"}, status_code=429)
-                window.append(now)
-
-            try:
-                body = await request.body()
-                payload = json.loads(body) if body else {}
-                run_request = self._builder(payload, request)
-            except Exception as exc:
-                return JSONResponse(
-                    {"error": f"failed to build RunRequest: {exc}"},
-                    status_code=400,
-                )
-            await self._queue.put(run_request)
-            return JSONResponse({"run_id": run_request.run_id, "queued": True})
-
-        return Starlette(routes=[Route(self._path, handler, methods=["POST"])])
+        return Starlette(routes=[Route(self._path, self._handle_request, methods=["POST"])])
 
     async def stream(self) -> AsyncIterator[RunRequest]:
         while not self._closed:

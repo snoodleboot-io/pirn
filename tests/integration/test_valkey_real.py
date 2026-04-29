@@ -14,7 +14,9 @@ import os
 
 import pytest
 
-from pirn import KnotConfig, Parameter, knot
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
 
 pytestmark = pytest.mark.needs_valkey
 
@@ -66,7 +68,7 @@ async def _double(x: int) -> int:
 
 
 async def test_valkey_store_aregister_writes_hash_and_membership(valkey_client):
-    from pirn.backends.valkey import ValKeyStore
+    from pirn.backends.valkey.valkey_store import ValKeyStore
 
     store = ValKeyStore(client=valkey_client)
     p = Parameter("x", int, _config=KnotConfig(id="px"))
@@ -82,7 +84,7 @@ async def test_valkey_store_aregister_writes_hash_and_membership(valkey_client):
 
 
 async def test_valkey_store_local_cache_serves_get(valkey_client):
-    from pirn.backends.valkey import ValKeyStore
+    from pirn.backends.valkey.valkey_store import ValKeyStore
 
     store = ValKeyStore(client=valkey_client)
     p = Parameter("x", int, _config=KnotConfig(id="px"))
@@ -92,7 +94,7 @@ async def test_valkey_store_local_cache_serves_get(valkey_client):
 
 
 async def test_valkey_store_rejects_duplicate_id_different_instance(valkey_client):
-    from pirn.backends.valkey import ValKeyStore
+    from pirn.backends.valkey.valkey_store import ValKeyStore
 
     store = ValKeyStore(client=valkey_client)
     p1 = Parameter("x", int, _config=KnotConfig(id="dup"))
@@ -103,7 +105,7 @@ async def test_valkey_store_rejects_duplicate_id_different_instance(valkey_clien
 
 
 async def test_valkey_store_idempotent_same_instance(valkey_client):
-    from pirn.backends.valkey import ValKeyStore
+    from pirn.backends.valkey.valkey_store import ValKeyStore
 
     store = ValKeyStore(client=valkey_client)
     p = Parameter("x", int, _config=KnotConfig(id="px"))
@@ -116,7 +118,7 @@ async def test_valkey_store_idempotent_same_instance(valkey_client):
 
 
 async def test_valkey_data_store_put_and_get_round_trips(valkey_client):
-    from pirn.backends.valkey import ValKeyDataStore
+    from pirn.backends.valkey.valkey_data_store import ValKeyDataStore
 
     ds = ValKeyDataStore(client=valkey_client)
     await ds.put("sha256:abc", {"key": "value"})
@@ -125,7 +127,7 @@ async def test_valkey_data_store_put_and_get_round_trips(valkey_client):
 
 
 async def test_valkey_data_store_has_present_and_missing(valkey_client):
-    from pirn.backends.valkey import ValKeyDataStore
+    from pirn.backends.valkey.valkey_data_store import ValKeyDataStore
 
     ds = ValKeyDataStore(client=valkey_client)
     assert not await ds.has("sha256:missing")
@@ -134,7 +136,7 @@ async def test_valkey_data_store_has_present_and_missing(valkey_client):
 
 
 async def test_valkey_data_store_scrub_removes_key(valkey_client):
-    from pirn.backends.valkey import ValKeyDataStore
+    from pirn.backends.valkey.valkey_data_store import ValKeyDataStore
 
     ds = ValKeyDataStore(client=valkey_client)
     await ds.put("sha256:scrubme", "value")
@@ -143,7 +145,7 @@ async def test_valkey_data_store_scrub_removes_key(valkey_client):
 
 
 async def test_valkey_data_store_get_missing_raises_keyerror(valkey_client):
-    from pirn.backends.valkey import ValKeyDataStore
+    from pirn.backends.valkey.valkey_data_store import ValKeyDataStore
 
     ds = ValKeyDataStore(client=valkey_client)
     with pytest.raises(KeyError):
@@ -152,7 +154,7 @@ async def test_valkey_data_store_get_missing_raises_keyerror(valkey_client):
 
 async def test_valkey_data_store_ttl_actually_expires(valkey_client):
     """TTL expiry requires a real server — a mock can't verify this."""
-    from pirn.backends.valkey import ValKeyDataStore
+    from pirn.backends.valkey.valkey_data_store import ValKeyDataStore
 
     ds = ValKeyDataStore(client=valkey_client, ttl_seconds=1)
     await ds.put("sha256:expiring", "gone soon")
@@ -164,7 +166,7 @@ async def test_valkey_data_store_ttl_actually_expires(valkey_client):
 
 async def test_valkey_data_store_concurrent_put_get(valkey_client):
     """100 parallel puts followed by 100 gets must all round-trip."""
-    from pirn.backends.valkey import ValKeyDataStore
+    from pirn.backends.valkey.valkey_data_store import ValKeyDataStore
 
     ds = ValKeyDataStore(client=valkey_client)
     hashes = [f"sha256:concurrent_{i}" for i in range(100)]

@@ -26,19 +26,27 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
-from pirn.backends import DataStore, RunHistory
-from pirn.core.config import ErrorPolicy
-from pirn.core.context import RunContext, RunRequest, RunResult
+from pirn.backends.base.data_store import DataStore
+from pirn.backends.base.run_history import RunHistory
+from pirn.core.error_policy import ErrorPolicy
+from pirn.core.run_context import RunContext
+from pirn.core.run_request import RunRequest
+from pirn.core.run_result import RunResult
 from pirn.core.hashing import content_hash
 from pirn.core.knot import Knot
 from pirn.core.lineage import KnotLineage
 from pirn.core.parameter import Parameter
-from pirn.core.result import Err, Ok, Result, Skipped
-from pirn.emitters.base import EmitterErrorPolicy
-from pirn.engine.dispatcher import Dispatcher, LocalDispatcher
-from pirn.engine.shed import Shed
-from pirn.managers.exceptions import RebindableException
-from pirn.managers.status import KnotState
+from pirn.core.err import Err
+from pirn.core.ok import Ok
+from pirn.core.result import Result
+from pirn.core.skipped import Skipped
+from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
+from pirn.engine.dispatchers.dispatcher import Dispatcher
+from pirn.engine.dispatchers.local_dispatcher import LocalDispatcher
+from pirn.engine.shed.shed import Shed
+from pirn.managers.rebindable_exception import RebindableException
+from pirn.managers.knot_state import KnotState
+from pirn.engine._emitter_subscriber import _EmitterSubscriber
 
 _log = logging.getLogger(__name__)
 
@@ -83,7 +91,7 @@ class Engine:
         pending_new: list[Knot] = []
         subscribe_token = None
         if extensible_store is not None:
-            from pirn.backends.subscribe import SubscribableStore
+            from pirn.backends.base.subscribable_store import SubscribableStore
 
             if not isinstance(extensible_store, SubscribableStore):
                 raise TypeError(
@@ -91,10 +99,7 @@ class Engine:
                     "the InMemoryStore is the reference implementation"
                 )
 
-            def _on_new_knot(knot: Knot) -> None:
-                pending_new.append(knot)
-
-            subscribe_token = extensible_store.subscribe(_on_new_knot)
+            subscribe_token = extensible_store.subscribe(pending_new.append)
 
         try:
             return await self._execute_loop(
@@ -298,23 +303,8 @@ class Engine:
             ctx._emitter_tasks = []  # type: ignore[attr-defined]
         emitter_tasks: list[Any] = ctx._emitter_tasks  # type: ignore[attr-defined]
 
-        def make_subscriber(emitter: Any):
-            def subscriber(event):
-                async def _wrapped():
-                    try:
-                        await emitter.on_status(event)
-                    except Exception:
-                        pass
-
-                task = loop.create_task(_wrapped())
-                emitter_tasks.append(task)
-                # Drop completed tasks so the list doesn't grow unbounded.
-                emitter_tasks[:] = [t for t in emitter_tasks if not t.done()]
-
-            return subscriber
-
         for emitter in emitters:
-            ctx.status.subscribe(make_subscriber(emitter))
+            ctx.status.subscribe(_EmitterSubscriber(emitter, loop, emitter_tasks))
 
     def _bind_parameters(self, shed: Shed, ctx: RunContext) -> None:
         for knot in shed.knots.values():
@@ -345,7 +335,8 @@ class Engine:
         across runs.  Raise ``ShedError`` clearly so the user can
         correct the registration order.
         """
-        from pirn.engine.shed import Edge, ShedError
+        from pirn.engine.shed.edge import Edge
+        from pirn.engine.shed.shed_error import ShedError
 
         added: set[str] = set()
         # First pass: filter to genuinely new knots.
@@ -392,7 +383,8 @@ class Engine:
             added.add(k.knot_id)
 
         # Cycle re-check — same algorithm Shed uses internally.
-        if shed._has_cycle():
+        from pirn.engine.shed.shed import _detect_cycle
+        if _detect_cycle(list(shed.knots.keys()), shed.children_by_parent):
             raise ShedError("cycle detected after mid-run merge")
 
         return added

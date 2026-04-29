@@ -14,24 +14,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, TypeAdapter
+from pydantic import TypeAdapter
 
-from pirn.core.config import KnotConfig
+from pirn.core.knot_config import KnotConfig
 from pirn.core.knot import Knot
-
-_UNSET = object()
-
-
-class ParameterSpec(BaseModel):
-    """Declarative description of a parameter.  Validated, serialisable."""
-
-    model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
-
-    name: str
-    type_: Any
-    has_default: bool = False
-    default: Any = None
-    description: str | None = None
+from pirn.core.parameter_spec import ParameterSpec
+from pirn.core.sentinels._unset import _Unset
+from pirn.exceptions.unbound_parameter_error import UnboundParameterError
 
 
 class Parameter(Knot):
@@ -46,7 +35,7 @@ class Parameter(Knot):
         name: str,
         type_: Any,
         *,
-        default: Any = _UNSET,
+        default: Any = _Unset,
         description: str | None = None,
         _config: KnotConfig | None = None,
         tapestry: Any = None,
@@ -54,7 +43,7 @@ class Parameter(Knot):
         # Parameter has no `process` parameters, so the standard Knot
         # introspection would find nothing to validate.  We bypass most of
         # it and set up our own state.
-        has_default = default is not _UNSET
+        has_default = default is not _Unset
         spec = ParameterSpec(
             name=name,
             type_=type_,
@@ -78,7 +67,7 @@ class Parameter(Knot):
         self._mutable_input_adapters = {}
         self._mutable_output_adapter = adapter
         self._mutable_spec = spec
-        self._mutable_value: Any = _UNSET
+        self._mutable_value: Any = _Unset
 
         # Self-register.
         from pirn.tapestry import _CURRENT_TAPESTRY
@@ -127,9 +116,9 @@ class Parameter(Knot):
         """
         self._mutable_value = value
 
-    async def process(self) -> Any:
-        if self._mutable_value is not _UNSET:
+    async def process(self, **_: Any) -> Any:
+        if self._mutable_value is not _Unset:
             return self._mutable_value
         if self.has_default:
             return self.default
-        raise RuntimeError(f"Parameter {self.name!r} has no value bound and no default")
+        raise UnboundParameterError(f"Parameter {self.name!r} has no value bound and no default")

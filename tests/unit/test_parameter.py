@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from pirn import KnotConfig, Parameter, Tapestry
+from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.tapestry import Tapestry
 
 
 def test_parameter_basics():

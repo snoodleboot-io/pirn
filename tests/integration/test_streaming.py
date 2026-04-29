@@ -10,14 +10,18 @@ from typing import Any
 
 import pytest
 
-from pirn import KnotConfig, Parameter, Tapestry, knot
-from pirn.streaming import (
-    FileTailSource,
-    IterableSource,
-    KafkaStreamingSource,
-    StreamingSource,
-    run_stream,
-)
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
+from pirn.tapestry import Tapestry
+from pirn.streaming.base import StreamingSource, run_stream
+from pirn.streaming.file_tail import FileTailSource
+from pirn.streaming.iterable import IterableSource
+
+try:
+    from pirn.streaming.kafka import KafkaStreamingSource
+except ImportError:
+    KafkaStreamingSource = None  # type: ignore[assignment]
 
 # ============================================================ IterableSource
 

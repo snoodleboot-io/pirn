@@ -20,6 +20,7 @@ from __future__ import annotations
 from typing import Any
 
 from pirn.core.lineage import KnotLineage
+from pirn.backends.base.run_history import RunHistory
 
 _DDL = """
 CREATE TABLE IF NOT EXISTS runs (
@@ -55,7 +56,7 @@ CREATE TABLE IF NOT EXISTS lineage_inputs (
 """
 
 
-class DuckDBHistory:
+class DuckDBHistory(RunHistory):
     """``RunHistory`` backed by DuckDB.
 
     Provide either an existing connection or a path; ``:memory:`` for
@@ -124,7 +125,7 @@ class DuckDBHistory:
         ).fetchall()
         if not rows:
             return None
-        from pirn.core.context import RunResult
+        from pirn.core.run_result import RunResult
 
         return RunResult.model_validate_json(rows[0][0])
 

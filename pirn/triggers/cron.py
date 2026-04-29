@@ -22,10 +22,11 @@ from collections.abc import AsyncIterator, Callable
 from datetime import UTC, datetime, time, timedelta
 from typing import Any
 
-from pirn.core.context import RunRequest
+from pirn.core.run_request import RunRequest
+from pirn.triggers.base import Trigger
 
 
-class CronTrigger:
+class CronTrigger(Trigger):
     """Time-based trigger."""
 
     def __init__(

@@ -13,7 +13,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pirn.core.context import RunResult
+    from pirn.core.run_result import RunResult
     from pirn.tapestry import Tapestry
 
 

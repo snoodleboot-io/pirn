@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from pirn.core.config import KnotConfig
+from pirn.core.knot_config import KnotConfig
 
 
 def make_config(id: str) -> KnotConfig:

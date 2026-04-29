@@ -17,11 +17,12 @@ from typing import Any
 
 from pirn.backends._signing import sign as _sign
 from pirn.backends._signing import verify as _verify
+from pirn.backends.base.data_store import DataStore
 
 _PICKLE_PROTOCOL = 5
 
 
-class S3DataStore:
+class S3DataStore(DataStore):
     """``DataStore`` backed by an S3 bucket via aioboto3.
 
     Each value is one S3 object at ``s3://{bucket}/{prefix}{hash}``.

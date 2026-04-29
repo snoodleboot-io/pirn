@@ -1,27 +1,17 @@
-"""Emitter protocol and a no-op base class."""
+"""Emitter base class."""
 
 from __future__ import annotations
 
-from enum import StrEnum
 from typing import TYPE_CHECKING
 
+from pirn.emitters.emitter_error_policy import EmitterErrorPolicy  # canonical location
+
 if TYPE_CHECKING:
-    from pirn.core.context import RunResult
+    from pirn.core.run_result import RunResult
     from pirn.core.lineage import KnotLineage
-    from pirn.managers.status import StatusEvent
+    from pirn.managers.status_event import StatusEvent
 
-
-class EmitterErrorPolicy(StrEnum):
-    """How the engine reacts when an emitter raises during a run.
-
-    * ``WARN`` — log a warning and continue (default).
-    * ``IGNORE`` — swallow the error silently.
-    * ``RAISE`` — propagate the exception, aborting run finalisation.
-    """
-
-    WARN = "warn"
-    IGNORE = "ignore"
-    RAISE = "raise"
+__all__ = ["EmitterErrorPolicy", "Emitter"]
 
 
 class Emitter:

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pirn.managers.exceptions import ExceptionManager
+from pirn.managers.exception_manager import ExceptionManager
 
 
 def test_records_an_exception():
@@ -56,7 +56,7 @@ def test_rebindable_exception_carries_original_type_and_traceback():
     the manager: the carried ``original_exc_type`` and
     ``original_traceback_text`` surface on the new record rather than
     the wrapper's own type and frames."""
-    from pirn.managers.exceptions import RebindableException
+    from pirn.managers.rebindable_exception import RebindableException
 
     em = ExceptionManager(run_id="r1")
     exc = RebindableException(

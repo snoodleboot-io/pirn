@@ -26,10 +26,10 @@ from typing import Any
 
 from pydantic import BaseModel
 
-# Sentinel for "value could not be hashed deterministically".  When emitted
-# to a lineage record this still flows through; downstream tools that join
-# on hashes will simply not match unhashable values to other runs.
-UNHASHABLE = "unhashable"
+class _Unhashable(Exception):
+    """Internal sentinel used by ``_canonicalise`` to bail on opaque values."""
+
+    SENTINEL = "unhashable"
 
 
 def content_hash(value: Any) -> str:
@@ -53,14 +53,10 @@ def content_hash(value: Any) -> str:
     try:
         canonical = _canonicalise(value)
     except _Unhashable:
-        return f"sha256:{UNHASHABLE}:{type(value).__name__}"
+        return f"sha256:{_Unhashable.SENTINEL}:{type(value).__name__}"
     payload = json.dumps(canonical, separators=(",", ":"), sort_keys=False).encode("utf-8")
     digest = hashlib.sha256(payload).hexdigest()
     return f"sha256:{digest}"
-
-
-class _Unhashable(Exception):
-    """Internal sentinel used by ``_canonicalise`` to bail on opaque values."""
 
 
 def _canonicalise(value: Any) -> Any:

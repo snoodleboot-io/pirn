@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from pirn.backends import signing_key_from_env
+from pirn.backends.signing_key import signing_key_from_env
 from pirn.backends._signing import sign, verify
 from pirn.backends.disk import LocalDiskDataStore
 
@@ -226,7 +226,7 @@ async def test_s3_no_signing_key_works_as_before() -> None:
 
 @pytest.mark.asyncio
 async def test_valkey_round_trip_with_signing_key() -> None:
-    from pirn.backends.valkey import ValKeyDataStore
+    from pirn.backends.valkey.valkey_data_store import ValKeyDataStore
 
     stored: dict[str, bytes] = {}
 
@@ -242,7 +242,7 @@ async def test_valkey_round_trip_with_signing_key() -> None:
 
 @pytest.mark.asyncio
 async def test_valkey_tampered_payload_raises() -> None:
-    from pirn.backends.valkey import ValKeyDataStore
+    from pirn.backends.valkey.valkey_data_store import ValKeyDataStore
 
     stored: dict[str, bytes] = {}
 
@@ -263,7 +263,7 @@ async def test_valkey_tampered_payload_raises() -> None:
 
 @pytest.mark.asyncio
 async def test_valkey_no_signing_key_works_as_before() -> None:
-    from pirn.backends.valkey import ValKeyDataStore
+    from pirn.backends.valkey.valkey_data_store import ValKeyDataStore
 
     stored: dict[str, bytes] = {}
 

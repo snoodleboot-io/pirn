@@ -8,7 +8,11 @@ from __future__ import annotations
 
 import pytest
 
-from pirn import KnotConfig, Parameter, RunRequest, Tapestry, knot
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
+from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
+from pirn.tapestry import Tapestry
 
 pytestmark = pytest.mark.needs_ray
 
@@ -27,7 +31,7 @@ async def _double(x: int) -> int:
 
 
 async def test_ray_dispatcher_runs_pipeline(ray_runtime):
-    from pirn.engine.ray_dispatcher import RayDispatcher
+    from pirn.engine.dispatchers.ray_dispatcher import RayDispatcher
 
     dispatcher = RayDispatcher(ray_module=ray_runtime)
     with Tapestry(dispatcher=dispatcher) as t:
@@ -40,7 +44,7 @@ async def test_ray_dispatcher_runs_pipeline(ray_runtime):
 
 
 async def test_ray_dispatcher_result_has_correct_dispatcher_name(ray_runtime):
-    from pirn.engine.ray_dispatcher import RayDispatcher
+    from pirn.engine.dispatchers.ray_dispatcher import RayDispatcher
 
     dispatcher = RayDispatcher(ray_module=ray_runtime)
     with Tapestry(dispatcher=dispatcher) as t:

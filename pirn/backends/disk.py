@@ -19,11 +19,28 @@ from typing import Any
 
 from pirn.backends._signing import sign as _sign
 from pirn.backends._signing import verify as _verify
+from pirn.backends.base.data_store import DataStore
 
 _PICKLE_PROTOCOL = 5
 
 
-class LocalDiskDataStore:
+def _disk_write(path: Path, payload: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(payload)
+
+
+def _disk_read(path: Path, content_hash: str) -> bytes:
+    if not path.exists():
+        raise KeyError(content_hash)
+    return path.read_bytes()
+
+
+def _disk_unlink(path: Path) -> None:
+    if path.exists():
+        path.unlink()
+
+
+class LocalDiskDataStore(DataStore):
     """``DataStore`` backed by a directory tree on local disk.
 
     Pickle is used because we control both writers and readers; users
@@ -61,22 +78,11 @@ class LocalDiskDataStore:
     async def put(self, content_hash: str, value: Any) -> None:
         path = self._path(content_hash)
         payload = self._serialize(value)
-
-        def _write() -> None:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(payload)
-
-        await asyncio.to_thread(_write)
+        await asyncio.to_thread(_disk_write, path, payload)
 
     async def get(self, content_hash: str) -> Any:
         path = self._path(content_hash)
-
-        def _read() -> bytes:
-            if not path.exists():
-                raise KeyError(content_hash)
-            return path.read_bytes()
-
-        payload = await asyncio.to_thread(_read)
+        payload = await asyncio.to_thread(_disk_read, path, content_hash)
         return self._deserialize(payload)
 
     async def has(self, content_hash: str) -> bool:
@@ -85,9 +91,4 @@ class LocalDiskDataStore:
 
     async def scrub(self, content_hash: str) -> None:
         path = self._path(content_hash)
-
-        def _unlink() -> None:
-            if path.exists():
-                path.unlink()
-
-        await asyncio.to_thread(_unlink)
+        await asyncio.to_thread(_disk_unlink, path)

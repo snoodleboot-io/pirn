@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from typing import ClassVar
 
-from pirn import KnotConfig, Parameter, RunRequest, Sink, Tapestry
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
+from pirn.core.parameter import Parameter
+from pirn.nodes.sink import Sink
+from pirn.tapestry import Tapestry
 
 
 class CaptureSink(Sink):
@@ -12,7 +16,7 @@ class CaptureSink(Sink):
 
     received: ClassVar[list] = []
 
-    async def process(self, payload: dict) -> None:
+    async def process(self, payload: dict, **_: Any) -> None:
         type(self).received.append(payload)
 
 

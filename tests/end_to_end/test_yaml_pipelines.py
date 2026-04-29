@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from pirn import RunRequest, knot, load_pipeline
+from pirn.core.run_request import RunRequest
+from pirn.core.knot_factory import knot
+from pirn.yaml_loader.loader import load_pipeline
 
 
 @knot
@@ -122,8 +124,8 @@ async def test_yaml_with_branch():
         known_callables={"pick": lambda d: d["kind"]},
     )
     result = await tapestry.run(RunRequest())
-    assert result.outputs["route/a"] == {"kind": "a"}
-    assert "route/b" in result.skipped
+    assert result.outputs["route:a"] == {"kind": "a"}
+    assert "route:b" in result.skipped
 
 
 async def test_yaml_missing_known_callable_raises():

@@ -6,8 +6,10 @@ import json
 from collections.abc import AsyncIterator
 from typing import Any
 
+from pirn.streaming.base import StreamingSource
 
-class KafkaStreamingSource:
+
+class KafkaStreamingSource(StreamingSource):
     """Streams messages from a Kafka topic as values for a long-running run.
 
     Each message becomes one value; downstream knots see it bound to

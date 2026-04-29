@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from pirn.backends.postgres import _sanitize_dsn
+from pirn.backends.postgres._lazy_pool import _sanitize_dsn
 
 
 def test_sanitize_dsn_with_user_and_password() -> None:
@@ -36,7 +36,7 @@ async def test_create_pool_error_does_not_leak_password(monkeypatch: pytest.Monk
 
     monkeypatch.setattr(asyncpg, "create_pool", _fake_create_pool)
 
-    from pirn.backends.postgres import _LazyPool
+    from pirn.backends.postgres._lazy_pool import _LazyPool
 
     lazy = _LazyPool(dsn=dsn)
     with pytest.raises(OSError) as exc_info:

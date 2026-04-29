@@ -16,7 +16,10 @@ import uuid
 
 import pytest
 
-from pirn import KnotConfig, Parameter, Tapestry, knot
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
+from pirn.tapestry import Tapestry
 
 pytestmark = pytest.mark.needs_kafka
 
@@ -122,7 +125,8 @@ async def test_kafka_trigger_consumes_real_messages():
 async def test_kafka_emitter_publishes_status_event_to_topic():
     """Emit a status event; consume from the topic and verify the JSON."""
     from pirn.emitters.kafka import KafkaEmitter
-    from pirn.managers.status import KnotState, StatusEvent
+    from pirn.managers.knot_state import KnotState
+    from pirn.managers.status_event import StatusEvent
 
     bootstrap = _bootstrap()
     topic = _unique_topic()

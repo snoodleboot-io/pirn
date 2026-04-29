@@ -7,7 +7,7 @@ by output hash.
 Typical workflow::
 
     from pirn import replay_run, compare_runs
-    from pirn.backends.sqlite import SQLiteHistory
+    from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 
     history = SQLiteHistory("pirn.db")
     t = build_tapestry(history=history)
@@ -36,8 +36,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from pirn.backends import RunHistory
-    from pirn.core.context import RunResult
+    from pirn.backends.base.run_history import RunHistory
+    from pirn.core.run_result import RunResult
     from pirn.tapestry import Tapestry
 
 
@@ -109,7 +109,7 @@ async def replay_run(
     Raises:
         KeyError: If *run_id* is not found in *history*.
     """
-    from pirn.core.context import RunRequest
+    from pirn.core.run_request import RunRequest
 
     original: RunResult = await history.get_run(run_id)
     if original is None:

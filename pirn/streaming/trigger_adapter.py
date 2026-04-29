@@ -25,7 +25,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from typing import Any
 
-from pirn.core.context import RunRequest
+from pirn.core.run_request import RunRequest
 from pirn.streaming.base import StreamingSource
 
 
