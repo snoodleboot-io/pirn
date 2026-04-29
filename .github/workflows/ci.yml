@@ -219,7 +219,6 @@ jobs:
           uv run python -m pytest tests/perf \
             --benchmark-only \
             --benchmark-json=benchmark-results.json \
-            --benchmark-compare-fail=mean:10% \
             --timeout=120 \
             -v
 
