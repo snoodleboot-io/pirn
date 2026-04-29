@@ -42,7 +42,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install dev dependencies
-        run: uv sync --group dev
+        run: uv sync --extra dev --group dev
 
       - name: Ruff lint
         run: uv run ruff check --output-format=github .
@@ -59,7 +59,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12", "3.13"]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v4
 
@@ -68,6 +68,8 @@ jobs:
         with:
           enable-cache: true
           python-version: ${{ matrix.python-version }}
+          python-version-file: ""
+          allow-python-prereleases: true
 
       - name: Install dependencies
         run: uv sync --all-extras

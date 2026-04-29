@@ -33,6 +33,7 @@ tapestry-check = "pirn.check:main"
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
+    "pytest-cov>=4.0",
     "mutmut>=2.5,<3",
     "ruff>=0.5",
     "pyright>=1.1",
