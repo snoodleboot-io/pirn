@@ -32,3 +32,8 @@ class RunHistory:
         raise NotImplementedError(
             f"{type(self).__name__} must implement query_lineage_by_knot_id()"
         )
+
+    async def query_runs_by_actor(self, actor: str) -> list[Any]:
+        raise NotImplementedError(
+            f"{type(self).__name__} must implement query_runs_by_actor()"
+        )

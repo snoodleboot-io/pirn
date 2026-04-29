@@ -42,7 +42,7 @@ class KafkaTrigger(Trigger):
         self._topic = topic
         self._bootstrap = bootstrap_servers
         self._group_id = group_id
-        self._builder = request_builder or _default_request_builder
+        self._builder = request_builder or KafkaTrigger.__default_request_builder
 
     @property
     def name(self) -> str:
@@ -78,17 +78,17 @@ class KafkaTrigger(Trigger):
                 pass
 
 
-def _default_request_builder(msg: Any) -> RunRequest:
-    """Default mapping: message value (bytes) → JSON → parameters dict."""
-    raw = msg.value
-    if isinstance(raw, bytes):
-        raw = raw.decode("utf-8")
-    if isinstance(raw, str):
-        params = json.loads(raw)
-    else:
-        params = raw  # already a dict
-    if not isinstance(params, dict):
-        raise TypeError(
-            f"KafkaTrigger: expected JSON object for message value, got {type(params).__name__}"
-        )
-    return RunRequest(parameters=params)
+    @staticmethod
+    def __default_request_builder(msg: Any) -> RunRequest:
+        raw = msg.value
+        if isinstance(raw, bytes):
+            raw = raw.decode("utf-8")
+        if isinstance(raw, str):
+            params = json.loads(raw)
+        else:
+            params = raw
+        if not isinstance(params, dict):
+            raise TypeError(
+                f"KafkaTrigger: expected JSON object for message value, got {type(params).__name__}"
+            )
+        return RunRequest(parameters=params)

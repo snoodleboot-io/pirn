@@ -12,11 +12,6 @@ if TYPE_CHECKING:
     from pirn.core.result import Result
 
 
-def _run_in_thread(knot: Knot, inputs: dict[str, Any]) -> Result[Any]:
-    """Worker-thread entry point.  Runs knot(inputs) in a fresh event loop."""
-    return asyncio.run(knot(inputs))
-
-
 class ThreadDispatcher(Dispatcher):
     """Run knots in a global thread pool.
 
@@ -24,6 +19,10 @@ class ThreadDispatcher(Dispatcher):
     loop.  asyncio.run spins a fresh event loop per knot inside the
     worker thread — cost is per-knot and small.
     """
+
+    @staticmethod
+    def __run_in_thread(knot: Knot, inputs: dict[str, Any]) -> Result[Any]:
+        return asyncio.run(knot(inputs))
 
     def __init__(self, max_workers: int | None = None) -> None:
         self._executor = ThreadPoolExecutor(
@@ -37,7 +36,7 @@ class ThreadDispatcher(Dispatcher):
 
     async def dispatch(self, knot: Knot, inputs: Mapping[str, Any]) -> Result[Any]:
         loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(self._executor, _run_in_thread, knot, dict(inputs))
+        return await loop.run_in_executor(self._executor, ThreadDispatcher.__run_in_thread, knot, dict(inputs))
 
     def shutdown(self, wait: bool = True) -> None:
         """Shut down the underlying pool.  Safe to call multiple times."""

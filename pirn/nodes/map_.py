@@ -63,7 +63,7 @@ class Map(Knot):
             raise TypeError("Map requires _config=KnotConfig(id=...)")
 
         # 'each' should be a class (Knot subclass) or a @knot factory.
-        if not _is_knot_factory(each):
+        if not Map.__is_knot_factory(each):
             raise TypeError("Map: 'each' must be a Knot subclass or a @knot factory")
 
         self._mutable_each = each
@@ -83,6 +83,16 @@ class Map(Knot):
             target.register(self)
 
         self._frozen = True
+
+    @staticmethod
+    def __is_knot_factory(obj: Any) -> bool:
+        if isinstance(obj, type) and issubclass(obj, Knot):
+            return True
+        return isinstance(obj, KnotFactory)
+
+    @staticmethod
+    def __construct_inner(each: Any, kwargs: dict[str, Any]) -> Knot:
+        return each(**kwargs)
 
     async def process(self, over: Sequence[Any], **_: Any) -> list[Any]:
         if not isinstance(over, (list, tuple)):
@@ -106,7 +116,7 @@ class Map(Knot):
         validate_io = self._mutable_config.validate_io
         error_policy = self._mutable_config.error_policy
 
-        coros = [_run_one(i, e, map_id, each, bind_name, shared, validate_io, error_policy) for i, e in enumerate(over)]
+        coros = [Map.__run_one(i, e, map_id, each, bind_name, shared, validate_io, error_policy, Map.__construct_inner) for i, e in enumerate(over)]
         results = await asyncio.gather(*coros)
 
         # If any inner failed, surface that — the Map result is a list of
@@ -133,40 +143,29 @@ class Map(Knot):
                 )
         return final
 
-
-async def _run_one(
-    index: int,
-    element: Any,
-    map_id: str,
-    each: Any,
-    bind_name: str,
-    shared: dict[str, Any],
-    validate_io: bool,
-    error_policy: Any,
-) -> Any:
-    inner_kwargs = dict(shared)
-    inner_kwargs[bind_name] = element
-    inner_kwargs["_config"] = KnotConfig(
-        id=f"{map_id}:{index}",
-        validate_io=validate_io,
-        error_policy=error_policy,
-    )
-    inner_kwargs["tapestry"] = None
-    knot_instance = _construct_inner(each, inner_kwargs)
-    inner_inputs: dict[str, Any] = {bind_name: element}
-    for name, value in shared.items():
-        if not isinstance(value, Knot):
-            inner_inputs[name] = value
-    return await knot_instance(inner_inputs)
-
-
-def _is_knot_factory(obj: Any) -> bool:
-    """True if obj is a Knot subclass or a KnotFactory."""
-    if isinstance(obj, type) and issubclass(obj, Knot):
-        return True
-    return isinstance(obj, KnotFactory)
-
-
-def _construct_inner(each: Any, kwargs: dict[str, Any]) -> Knot:
-    """Construct an inner Knot from a Knot subclass or a KnotFactory."""
-    return each(**kwargs)
+    @staticmethod
+    async def __run_one(
+        index: int,
+        element: Any,
+        map_id: str,
+        each: Any,
+        bind_name: str,
+        shared: dict[str, Any],
+        validate_io: bool,
+        error_policy: Any,
+        construct_inner: Any,
+    ) -> Any:
+        inner_kwargs = dict(shared)
+        inner_kwargs[bind_name] = element
+        inner_kwargs["_config"] = KnotConfig(
+            id=f"{map_id}:{index}",
+            validate_io=validate_io,
+            error_policy=error_policy,
+        )
+        inner_kwargs["tapestry"] = None
+        knot_instance = construct_inner(each, inner_kwargs)
+        inner_inputs: dict[str, Any] = {bind_name: element}
+        for name, value in shared.items():
+            if not isinstance(value, Knot):
+                inner_inputs[name] = value
+        return await knot_instance(inner_inputs)

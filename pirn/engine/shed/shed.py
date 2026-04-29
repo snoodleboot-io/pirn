@@ -10,37 +10,6 @@ if TYPE_CHECKING:
     from pirn.core.knot import Knot
 
 
-def _visit_dfs(
-    kid: str,
-    color: dict[str, int],
-    children_by_parent: dict[str, list[str]],
-) -> bool:
-    """Single DFS step for cycle detection.  0=white, 1=grey, 2=black."""
-    color[kid] = 1
-    for child_id in children_by_parent.get(kid, []):
-        state = color.get(child_id, 0)
-        if state == 1:
-            return True
-        if state == 0 and _visit_dfs(child_id, color, children_by_parent):
-            return True
-    color[kid] = 2
-    return False
-
-
-def _detect_cycle(knot_ids: list[str], children_by_parent: dict[str, list[str]]) -> bool:
-    """DFS cycle detection over the knot graph.
-
-    Takes explicit parameters rather than closing over instance state,
-    keeping it testable in isolation.
-    """
-    color: dict[str, int] = {kid: 0 for kid in knot_ids}
-
-    for kid in list(color.keys()):
-        if color[kid] == 0 and _visit_dfs(kid, color, children_by_parent):
-            return True
-    return False
-
-
 class Shed:
     """An immutable-after-construction view of a knot subgraph.
 
@@ -50,6 +19,31 @@ class Shed:
     """
 
     __slots__ = ("children_by_parent", "edges_by_child", "knots")
+
+    @staticmethod
+    def __visit_dfs(
+        kid: str,
+        color: dict[str, int],
+        children_by_parent: dict[str, list[str]],
+    ) -> bool:
+        """Single DFS step for cycle detection.  0=white, 1=grey, 2=black."""
+        color[kid] = 1
+        for child_id in children_by_parent.get(kid, []):
+            state = color.get(child_id, 0)
+            if state == 1:
+                return True
+            if state == 0 and Shed._Shed__visit_dfs(child_id, color, children_by_parent):
+                return True
+        color[kid] = 2
+        return False
+
+    @staticmethod
+    def __detect_cycle(knot_ids: list[str], children_by_parent: dict[str, list[str]]) -> bool:
+        color: dict[str, int] = {kid: 0 for kid in knot_ids}
+        for kid in list(color.keys()):
+            if color[kid] == 0 and Shed._Shed__visit_dfs(kid, color, children_by_parent):
+                return True
+        return False
 
     def __init__(self) -> None:
         self.knots: dict[str, Knot] = {}
@@ -85,7 +79,7 @@ class Shed:
                 queue.append(parent)
             s.edges_by_child[knot.knot_id] = edges
 
-        if _detect_cycle(list(s.knots.keys()), s.children_by_parent):
+        if Shed.__detect_cycle(list(s.knots.keys()), s.children_by_parent):
             raise ShedError("cycle detected in shed")
 
         return s
@@ -167,7 +161,7 @@ class Shed:
             self.edges_by_child[k.knot_id] = edges
             added.add(k.knot_id)
 
-        if _detect_cycle(list(self.knots.keys()), self.children_by_parent):
+        if Shed.__detect_cycle(list(self.knots.keys()), self.children_by_parent):
             for kid in added:
                 self.knots.pop(kid, None)
                 self.edges_by_child.pop(kid, None)

@@ -21,11 +21,14 @@ class InMemoryHistory(RunHistory):
         self._lineage_by_output: dict[str, list[KnotLineage]] = {}
         self._lineage_by_input: dict[str, list[KnotLineage]] = {}
         self._lineage_by_knot: dict[str, list[KnotLineage]] = {}
+        self._runs_by_actor: dict[str, list[Any]] = {}
         self._lock = Lock()
 
     async def record_run(self, result: Any) -> None:
         with self._lock:
             self._runs[result.run_id] = result
+            if result.actor is not None:
+                self._runs_by_actor.setdefault(result.actor, []).append(result)
             for rec in result.lineage:
                 self._lineage_by_knot.setdefault(rec.knot_id, []).append(rec)
                 if rec.output_hash:
@@ -48,3 +51,7 @@ class InMemoryHistory(RunHistory):
     async def query_lineage_by_knot_id(self, knot_id: str) -> list[KnotLineage]:
         with self._lock:
             return list(self._lineage_by_knot.get(knot_id, []))
+
+    async def query_runs_by_actor(self, actor: str) -> list[Any]:
+        with self._lock:
+            return list(self._runs_by_actor.get(actor, []))

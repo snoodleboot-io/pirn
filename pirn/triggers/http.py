@@ -67,7 +67,7 @@ class WebhookTrigger(Trigger):
         rate_limit_rpm: int | None = None,
     ) -> None:
         self._path = path
-        self._builder = request_builder or _default_request_builder
+        self._builder = request_builder or WebhookTrigger.__default_request_builder
         self._auth_token = auth_token
         self._rate_limit_rpm = rate_limit_rpm
         self._rate_windows: dict = collections.defaultdict(collections.deque)
@@ -161,8 +161,8 @@ class WebhookTrigger(Trigger):
         await self._queue.put(self._SENTINEL)
 
 
-def _default_request_builder(payload: dict, request: Any) -> RunRequest:
-    """Default: payload is the parameters dict."""
-    if not isinstance(payload, dict):
-        raise TypeError(f"WebhookTrigger: expected JSON object body, got {type(payload).__name__}")
-    return RunRequest(parameters=payload)
+    @staticmethod
+    def __default_request_builder(payload: dict, request: Any) -> RunRequest:
+        if not isinstance(payload, dict):
+            raise TypeError(f"WebhookTrigger: expected JSON object body, got {type(payload).__name__}")
+        return RunRequest(parameters=payload)

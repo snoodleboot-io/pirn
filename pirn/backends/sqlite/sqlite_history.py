@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from pirn.backends.base.run_history import RunHistory
@@ -67,7 +68,14 @@ class SQLiteHistory(RunHistory):
         );
         CREATE INDEX IF NOT EXISTS idx_lineage_inputs_hash ON lineage_inputs(input_hash);
     """
-    _schema_version = 1
+    _schema_version = 2
+
+    @staticmethod
+    def __migrate_v2(conn: Any) -> None:
+        """Add 7-W provenance columns to the runs table."""
+        for col in ("actor TEXT", "trigger TEXT", "environment_json TEXT", "runtime_info_json TEXT"):
+            conn.execute(f"ALTER TABLE runs ADD COLUMN {col}")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_runs_actor ON runs(actor)")
 
     def __init__(self, *, path: str = ":memory:", connection: Any = None) -> None:
         import sqlite3
@@ -79,7 +87,10 @@ class SQLiteHistory(RunHistory):
         if self._initialized:
             return
         self._conn.executescript(self._schema_version_ddl + self._history_ddl)
-        apply_migrations(self._conn, "history", self._schema_version)
+        apply_migrations(
+            self._conn, "history", self._schema_version,
+            {2: self.__migrate_v2},
+        )
         self._conn.commit()
         self._initialized = True
 
@@ -87,14 +98,19 @@ class SQLiteHistory(RunHistory):
         self._ensure_init()
         self._conn.execute(
             """INSERT OR REPLACE INTO runs
-               (run_id, succeeded, started_at, finished_at, dispatcher, payload_json)
-               VALUES (?, ?, ?, ?, ?, ?)""",
+               (run_id, succeeded, started_at, finished_at, dispatcher,
+                actor, trigger, environment_json, runtime_info_json, payload_json)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 result.run_id,
                 1 if result.succeeded else 0,
                 result.started_at.isoformat(),
                 result.finished_at.isoformat(),
                 result.dispatcher,
+                result.actor,
+                result.trigger,
+                json.dumps(result.environment),
+                json.dumps(result.runtime_info),
                 result.model_dump_json(),
             ),
         )
@@ -162,6 +178,14 @@ class SQLiteHistory(RunHistory):
             "SELECT payload_json FROM lineage WHERE knot_id = ?", (knot_id,)
         )
         return [KnotLineage.model_validate_json(r[0]) for r in cursor.fetchall()]
+
+    async def query_runs_by_actor(self, actor: str) -> list[Any]:
+        self._ensure_init()
+        from pirn.core.run_result import RunResult
+        cursor = self._conn.execute(
+            "SELECT payload_json FROM runs WHERE actor = ?", (actor,)
+        )
+        return [RunResult.model_validate_json(r[0]) for r in cursor.fetchall()]
 
     def close(self) -> None:
         self._conn.close()

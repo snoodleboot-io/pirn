@@ -53,7 +53,7 @@ class PostgresHistory(RunHistory):
         );
         CREATE INDEX IF NOT EXISTS idx_lineage_inputs_hash ON lineage_inputs(input_hash);
     """
-    _schema_version = 1
+    _schema_version = 2
 
     def __init__(self, *, pool: Any = None, dsn: str | None = None) -> None:
         self._pool = _LazyPool(pool=pool, dsn=dsn)
@@ -78,8 +78,9 @@ class PostgresHistory(RunHistory):
             "SELECT version FROM pirn_schema_version WHERE component = $1", "history"
         )
         current = row["version"] if row else 0
-        for _v in range(current, self._schema_version):
-            pass  # future: _migrate_v_to_{v+1}(conn)
+        for v in range(current, self._schema_version):
+            if v + 1 == 2:
+                await self.__migrate_v2(conn)
         await conn.execute(
             """INSERT INTO pirn_schema_version (component, version)
                VALUES ($1, $2)
@@ -88,26 +89,45 @@ class PostgresHistory(RunHistory):
             self._schema_version,
         )
 
+    @staticmethod
+    async def __migrate_v2(conn: Any) -> None:
+        """Add 7-W provenance columns to the runs table."""
+        for col in ("actor TEXT", "trigger TEXT", "environment_json TEXT", "runtime_info_json TEXT"):
+            await conn.execute(f"ALTER TABLE runs ADD COLUMN IF NOT EXISTS {col}")
+        await conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_runs_actor ON runs(actor)"
+        )
+
     async def record_run(self, result: Any) -> None:
+        import json
         await self._ensure_init()
         pool = await self._pool.get()
         async with pool.acquire() as conn:
             async with conn.transaction():
                 await conn.execute(
                     """INSERT INTO runs
-                       (run_id, succeeded, started_at, finished_at, dispatcher, payload_json)
-                       VALUES ($1, $2, $3, $4, $5, $6::jsonb)
+                       (run_id, succeeded, started_at, finished_at, dispatcher,
+                        actor, trigger, environment_json, runtime_info_json, payload_json)
+                       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)
                        ON CONFLICT (run_id) DO UPDATE SET
                          succeeded = EXCLUDED.succeeded,
                          started_at = EXCLUDED.started_at,
                          finished_at = EXCLUDED.finished_at,
                          dispatcher = EXCLUDED.dispatcher,
+                         actor = EXCLUDED.actor,
+                         trigger = EXCLUDED.trigger,
+                         environment_json = EXCLUDED.environment_json,
+                         runtime_info_json = EXCLUDED.runtime_info_json,
                          payload_json = EXCLUDED.payload_json""",
                     result.run_id,
                     result.succeeded,
                     result.started_at,
                     result.finished_at,
                     result.dispatcher,
+                    result.actor,
+                    result.trigger,
+                    json.dumps(result.environment),
+                    json.dumps(result.runtime_info),
                     result.model_dump_json(),
                 )
                 if result.lineage:
@@ -184,6 +204,16 @@ class PostgresHistory(RunHistory):
                 "SELECT payload_json FROM lineage WHERE knot_id = $1", knot_id
             )
         return [KnotLineage.model_validate_json(r["payload_json"]) for r in rows]
+
+    async def query_runs_by_actor(self, actor: str) -> list[Any]:
+        await self._ensure_init()
+        pool = await self._pool.get()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT payload_json FROM runs WHERE actor = $1", actor
+            )
+        from pirn.core.run_result import RunResult
+        return [RunResult.model_validate_json(r["payload_json"]) for r in rows]
 
     async def close(self) -> None:
         await self._pool.close()

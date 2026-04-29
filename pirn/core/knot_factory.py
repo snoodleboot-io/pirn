@@ -46,36 +46,37 @@ class KnotFactory:
     def __repr__(self) -> str:
         return f"<KnotFactory for {self.fn.__qualname__}>"
 
+    @staticmethod
+    def __make_async_process(fn: Callable[..., Any]) -> Callable[..., Any]:
+        @functools.wraps(fn)
+        async def process(self, **kwargs: Any) -> Any:
+            return await fn(**kwargs)
 
-def _make_async_process(fn: Callable[..., Any]) -> Callable[..., Any]:
-    @functools.wraps(fn)
-    async def process(self, **kwargs: Any) -> Any:
-        return await fn(**kwargs)
+        return process
 
-    return process
+    @staticmethod
+    def __make_sync_process(fn: Callable[..., Any]) -> Callable[..., Any]:
+        @functools.wraps(fn)
+        async def process(self, **kwargs: Any) -> Any:
+            return await asyncio.to_thread(fn, **kwargs)
 
+        return process
 
-def _make_sync_process(fn: Callable[..., Any]) -> Callable[..., Any]:
-    @functools.wraps(fn)
-    async def process(self, **kwargs: Any) -> Any:
-        return await asyncio.to_thread(fn, **kwargs)
-
-    return process
-
-
-def _make_knot_factory(fn: Callable[..., Any]) -> KnotFactory:
-    process = _make_async_process(fn) if asyncio.iscoroutinefunction(fn) else _make_sync_process(fn)
-    cls = type(
-        fn.__name__,
-        (Knot,),
-        {
-            "process": process,
-            "__module__": fn.__module__,
-            "__qualname__": fn.__qualname__,
-            "__doc__": fn.__doc__,
-        },
-    )
-    return KnotFactory(fn=fn, knot_class=cls)
+    @classmethod
+    def create(cls, fn: Callable[..., Any]) -> "KnotFactory":
+        """Build a KnotFactory for ``fn``, generating the Knot subclass."""
+        make_process = cls.__make_async_process if asyncio.iscoroutinefunction(fn) else cls.__make_sync_process
+        knot_cls = type(
+            fn.__name__,
+            (Knot,),
+            {
+                "process": make_process(fn),
+                "__module__": fn.__module__,
+                "__qualname__": fn.__qualname__,
+                "__doc__": fn.__doc__,
+            },
+        )
+        return cls(fn=fn, knot_class=knot_cls)
 
 
 def knot(
@@ -101,26 +102,7 @@ def knot(
     instantiation if needed.
     """
     if func is not None:
-        return _make_knot_factory(func)
-    return _make_knot_factory
+        return KnotFactory.create(func)
+    return KnotFactory.create
 
 
-def _pending_record(knot_id: str, exc: BaseException) -> Any:
-    """Build a placeholder ExceptionRecord for an Err produced in isolation.
-
-    The engine catches the Err and re-registers the record against the live
-    ExceptionManager (which assigns a real id and run_id).  We use a
-    placeholder here because at __call__ time the knot has no manager in
-    scope — the engine owns that.
-    """
-    import traceback as _tb
-
-    from pirn.managers.exception_record import ExceptionRecord
-
-    return ExceptionRecord(
-        run_id="<unbound>",
-        knot_id=knot_id,
-        exc_type=type(exc).__name__,
-        message=str(exc),
-        traceback_text="".join(_tb.format_exception(type(exc), exc, exc.__traceback__)),
-    )

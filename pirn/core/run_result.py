@@ -33,6 +33,25 @@ class RunResult(BaseModel):
     finished_at: datetime
     dispatcher: str = Field(..., description="Name of the dispatcher used for this run.")
 
+    # 7 W's — run-level provenance
+    actor: str | None = Field(
+        None,
+        description="Who initiated the run (user id, service account, API key label).",
+    )
+    environment: dict[str, str] = Field(
+        default_factory=dict,
+        description="Where the run executed — hostname, region, deployment env, etc.",
+    )
+    trigger: str | None = Field(
+        None,
+        description="Why the run was initiated — trigger type and identifier, e.g. "
+        "'webhook:order-placed' or 'manual'.",
+    )
+    runtime_info: dict[str, str] = Field(
+        default_factory=dict,
+        description="By what means — Python version, pirn version, platform.",
+    )
+
     @property
     def succeeded(self) -> bool:
         return not self.exceptions

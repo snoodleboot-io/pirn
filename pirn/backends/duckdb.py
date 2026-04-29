@@ -22,13 +22,24 @@ from typing import Any
 from pirn.core.lineage import KnotLineage
 from pirn.backends.base.run_history import RunHistory
 
-_DDL = """
+class DuckDBHistory(RunHistory):
+    """``RunHistory`` backed by DuckDB.
+
+    Provide either an existing connection or a path; ``:memory:`` for
+    transient analytics, a file path for durable history.
+    """
+
+    __ddl = """
 CREATE TABLE IF NOT EXISTS runs (
     run_id VARCHAR PRIMARY KEY,
     succeeded BOOLEAN NOT NULL,
     started_at TIMESTAMP NOT NULL,
     finished_at TIMESTAMP NOT NULL,
     dispatcher VARCHAR NOT NULL,
+    actor VARCHAR,
+    trigger VARCHAR,
+    environment_json VARCHAR,
+    runtime_info_json VARCHAR,
     payload_json VARCHAR NOT NULL
 );
 CREATE TABLE IF NOT EXISTS lineage (
@@ -55,14 +66,6 @@ CREATE TABLE IF NOT EXISTS lineage_inputs (
 );
 """
 
-
-class DuckDBHistory(RunHistory):
-    """``RunHistory`` backed by DuckDB.
-
-    Provide either an existing connection or a path; ``:memory:`` for
-    transient analytics, a file path for durable history.
-    """
-
     def __init__(self, *, path: str = ":memory:", connection: Any = None) -> None:
         try:
             import duckdb
@@ -78,19 +81,24 @@ class DuckDBHistory(RunHistory):
     def _ensure_init(self) -> None:
         if self._initialized:
             return
-        self._conn.execute(_DDL)
+        self._conn.execute(DuckDBHistory.__ddl)
         self._initialized = True
 
     async def record_run(self, result: Any) -> None:
+        import json
         self._ensure_init()
         self._conn.execute(
-            "INSERT OR REPLACE INTO runs VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT OR REPLACE INTO runs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 result.run_id,
                 result.succeeded,
                 result.started_at,
                 result.finished_at,
                 result.dispatcher,
+                result.actor,
+                result.trigger,
+                json.dumps(result.environment),
+                json.dumps(result.runtime_info),
                 result.model_dump_json(),
             ),
         )
@@ -171,6 +179,14 @@ class DuckDBHistory(RunHistory):
             (knot_class,),
         ).fetchall()
         return [KnotLineage.model_validate_json(row[0]) for row in rows]
+
+    async def query_runs_by_actor(self, actor: str) -> list[Any]:
+        self._ensure_init()
+        from pirn.core.run_result import RunResult
+        rows = self._conn.execute(
+            "SELECT payload_json FROM runs WHERE actor = ?", (actor,)
+        ).fetchall()
+        return [RunResult.model_validate_json(row[0]) for row in rows]
 
     async def run_count(self) -> int:
         """Total number of recorded runs."""

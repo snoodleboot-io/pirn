@@ -22,6 +22,7 @@ classifiers = [
 ]
 dependencies = [
     "asyncpg>=0.31.0",
+    "cloudpickle>=3.0",
     "pydantic>=2.0",
     "pyyaml>=6.0",
     "sweet-tea>=0.2.46",
@@ -47,6 +48,8 @@ duckdb = ["duckdb>=0.10"]
 postgres = ["asyncpg>=0.29"]
 valkey = ["valkey-glide>=2.0"]
 s3 = ["aioboto3>=12.0"]
+gcs = ["gcloud-aio-storage>=9.0"]
+azure = ["azure-storage-blob>=12.0"]
 # Distributed dispatchers.
 dask = ["dask[distributed]>=2024.1"]
 ray = ["ray>=2.9"]
@@ -62,6 +65,8 @@ all = [
     "asyncpg>=0.29",
     "valkey-glide>=2.0",
     "aioboto3>=12.0",
+    "gcloud-aio-storage>=9.0",
+    "azure-storage-blob>=12.0",
     "dask[distributed]>=2024.1",
     "ray>=2.9",
     "celery>=5.3",

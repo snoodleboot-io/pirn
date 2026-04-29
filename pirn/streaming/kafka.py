@@ -43,7 +43,7 @@ class KafkaStreamingSource(StreamingSource):
         self._topic = topic
         self._bootstrap = bootstrap_servers
         self._group_id = group_id
-        self._decoder = decoder or _default_decoder
+        self._decoder = decoder or KafkaStreamingSource.__default_decoder
         self._name = name
 
     @property
@@ -84,11 +84,11 @@ class KafkaStreamingSource(StreamingSource):
                 pass
 
 
-def _default_decoder(msg: Any) -> Any:
-    """Default: message value (bytes) → JSON-decoded value."""
-    raw = msg.value
-    if isinstance(raw, bytes):
-        raw = raw.decode("utf-8")
-    if isinstance(raw, str):
-        return json.loads(raw)
-    return raw
+    @staticmethod
+    def __default_decoder(msg: Any) -> Any:
+        raw = msg.value
+        if isinstance(raw, bytes):
+            raw = raw.decode("utf-8")
+        if isinstance(raw, str):
+            return json.loads(raw)
+        return raw

@@ -44,14 +44,10 @@ from pirn.core.err import Err
 from pirn.core.ok import Ok
 from pirn.core.result import Result
 from pirn.core.optional import Optional
+from pirn.managers.exception_record import ExceptionRecord
 
 if TYPE_CHECKING:
     from pirn.tapestry import Tapestry
-
-
-# Reserved kwarg names.  These cannot be parameter names on user process()
-# methods.  We check at construction time and raise if violated.
-_RESERVED_KWARGS = frozenset({"_config", "tapestry"})
 
 
 class Knot:
@@ -66,6 +62,8 @@ class Knot:
     # read it directly without falling back to getattr() probing for
     # instances under construction.
     _frozen: bool = False
+
+    _reserved_kwargs: frozenset[str] = frozenset({"_config", "tapestry"})
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
@@ -118,7 +116,7 @@ class Knot:
         # Partition unknown kwargs: extra Knot-valued ones are implicit parents
         # (ordering dependencies whose output is not used directly); extra
         # non-Knot ones are always errors.
-        unknown = set(kwargs) - declared - _RESERVED_KWARGS
+        unknown = set(kwargs) - declared - Knot._reserved_kwargs
         if unknown:
             if accepts_implicit:
                 bad_config = {k for k in unknown if not isinstance(kwargs[k], Knot)}
@@ -252,21 +250,18 @@ class Knot:
             try:
                 kwargs = self._validate_inputs(kwargs)
             except ValidationError as exc:
-                from pirn.core.knot_factory import _pending_record
-                return Err(record=_pending_record(config.id, exc))
+                return Err(record=ExceptionRecord.for_knot(config.id, exc))
 
         try:
             result = await self.process(**kwargs)
         except BaseException as exc:
-            from pirn.core.knot_factory import _pending_record
-            return Err(record=_pending_record(config.id, exc))
+            return Err(record=ExceptionRecord.for_knot(config.id, exc))
 
         if config.validate_io and self._mutable_output_adapter is not None:
             try:
                 result = self._mutable_output_adapter.validate_python(result)
             except ValidationError as exc:
-                from pirn.core.knot_factory import _pending_record
-                return Err(record=_pending_record(config.id, exc))
+                return Err(record=ExceptionRecord.for_knot(config.id, exc))
 
         return Ok(value=result)
 
@@ -293,7 +288,7 @@ class Knot:
                 inspect.Parameter.VAR_KEYWORD,
             ):
                 continue
-            if name in _RESERVED_KWARGS:
+            if name in Knot._reserved_kwargs:
                 # Authors should not name a process parameter `_config` or
                 # `tapestry`; we forbid it at construction.
                 raise TypeError(

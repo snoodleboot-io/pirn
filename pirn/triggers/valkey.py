@@ -33,7 +33,7 @@ class ValKeyTrigger(Trigger):
         self._client = client
         self._channel = channel
         self._config = config
-        self._builder = request_builder or _default_request_builder
+        self._builder = request_builder or ValKeyTrigger.__default_request_builder
         self._closed = False
 
     @property
@@ -69,17 +69,17 @@ class ValKeyTrigger(Trigger):
         self._closed = True
 
 
-def _default_request_builder(msg: Any) -> RunRequest:
-    """Default: message body is JSON; decoded into RunRequest parameters."""
-    body = getattr(msg, "message", msg)
-    if isinstance(body, bytes):
-        body = body.decode("utf-8")
-    if isinstance(body, str):
-        params = json.loads(body)
-    else:
-        params = body
-    if not isinstance(params, dict):
-        raise TypeError(
-            f"ValKeyTrigger: expected JSON object for message, got {type(params).__name__}"
-        )
-    return RunRequest(parameters=params)
+    @staticmethod
+    def __default_request_builder(msg: Any) -> RunRequest:
+        body = getattr(msg, "message", msg)
+        if isinstance(body, bytes):
+            body = body.decode("utf-8")
+        if isinstance(body, str):
+            params = json.loads(body)
+        else:
+            params = body
+        if not isinstance(params, dict):
+            raise TypeError(
+                f"ValKeyTrigger: expected JSON object for message, got {type(params).__name__}"
+            )
+        return RunRequest(parameters=params)

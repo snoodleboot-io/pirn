@@ -14,42 +14,6 @@ if TYPE_CHECKING:
     from pirn.managers.status_event import StatusEvent
 
 
-def _check_url_for_ssrf(url: str) -> None:
-    """Raise ValueError if the URL resolves to a private/loopback address."""
-    parsed = urllib.parse.urlparse(url)
-    if parsed.scheme not in ("http", "https"):
-        raise ValueError(
-            f"WebhookEmitter: URL scheme {parsed.scheme!r} is not permitted; "
-            "use http or https"
-        )
-    host = parsed.hostname
-    if host is None:
-        raise ValueError(f"WebhookEmitter: could not parse hostname from URL {url!r}")
-    try:
-        addr = ipaddress.ip_address(host)
-        if addr.is_private or addr.is_loopback or addr.is_link_local:
-            raise ValueError(
-                f"WebhookEmitter: URL {url!r} resolves to a private/loopback address "
-                f"({addr}); set block_private_ips=False to allow this"
-            )
-    except ValueError as exc:
-        if "private" in str(exc) or "loopback" in str(exc):
-            raise
-        # Not an IP address — hostname; skip IP check (DNS resolution at
-        # construction time would be too expensive and may not be stable)
-        pass
-
-
-def _check_url_scheme(url: str) -> None:
-    """Raise ValueError if the URL scheme is not http or https."""
-    parsed = urllib.parse.urlparse(url)
-    if parsed.scheme not in ("http", "https"):
-        raise ValueError(
-            f"WebhookEmitter: URL scheme {parsed.scheme!r} is not permitted; "
-            "use http or https"
-        )
-
-
 class WebhookEmitter(Emitter):
     """POSTs each event as JSON to one or more URLs.
 
@@ -108,9 +72,40 @@ class WebhookEmitter(Emitter):
         for url in (url_status, url_lineage, url_result):
             if url is not None:
                 if block_private_ips:
-                    _check_url_for_ssrf(url)
+                    self.__check_url_for_ssrf(url)
                 else:
-                    _check_url_scheme(url)
+                    self.__check_url_scheme(url)
+
+    @staticmethod
+    def __check_url_for_ssrf(url: str) -> None:
+        parsed = urllib.parse.urlparse(url)
+        if parsed.scheme not in ("http", "https"):
+            raise ValueError(
+                f"WebhookEmitter: URL scheme {parsed.scheme!r} is not permitted; "
+                "use http or https"
+            )
+        host = parsed.hostname
+        if host is None:
+            raise ValueError(f"WebhookEmitter: could not parse hostname from URL {url!r}")
+        try:
+            addr = ipaddress.ip_address(host)
+            if addr.is_private or addr.is_loopback or addr.is_link_local:
+                raise ValueError(
+                    f"WebhookEmitter: URL {url!r} resolves to a private/loopback address "
+                    f"({addr}); set block_private_ips=False to allow this"
+                )
+        except ValueError as exc:
+            if "private" in str(exc) or "loopback" in str(exc):
+                raise
+
+    @staticmethod
+    def __check_url_scheme(url: str) -> None:
+        parsed = urllib.parse.urlparse(url)
+        if parsed.scheme not in ("http", "https"):
+            raise ValueError(
+                f"WebhookEmitter: URL scheme {parsed.scheme!r} is not permitted; "
+                "use http or https"
+            )
 
     async def _ensure_client(self) -> Any:
         if self._client is None:
