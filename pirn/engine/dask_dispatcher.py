@@ -45,8 +45,7 @@ class DaskDispatcher:
             from dask.distributed import Client, LocalCluster
         except ImportError as exc:
             raise ImportError(
-                "DaskDispatcher requires dask[distributed]; install via "
-                "`pip install pirn[dask]`"
+                "DaskDispatcher requires dask[distributed]; install via `pip install pirn[dask]`"
             ) from exc
         cluster = LocalCluster(**kwargs)
         return cls(client=Client(cluster, asynchronous=True))
@@ -67,9 +66,7 @@ class DaskDispatcher:
             self._client = await Client(self._scheduler, asynchronous=True)
         return self._client
 
-    async def dispatch(
-        self, knot: Knot, inputs: Mapping[str, Any]
-    ) -> Result[Any]:
+    async def dispatch(self, knot: Knot, inputs: Mapping[str, Any]) -> Result[Any]:
         client = await self._ensure_client()
         # Submit a task that calls the knot and returns its Result.
         # Dask's Client.submit takes the function and its args; we wrap
@@ -78,9 +75,9 @@ class DaskDispatcher:
         future = client.submit(_dask_run_knot, knot, dict(inputs))
         # Awaiting the future converts it from a Dask future to the
         # actual return value (or re-raises an exception).
-        return await asyncio.wrap_future(future) if not hasattr(
-            future, "__await__"
-        ) else await future
+        return (
+            await asyncio.wrap_future(future) if not hasattr(future, "__await__") else await future
+        )
 
     async def shutdown(self) -> None:
         if self._client is not None:

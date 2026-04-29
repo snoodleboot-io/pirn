@@ -11,8 +11,11 @@ from pirn.managers.exceptions import ExceptionRecord
 
 def _record():
     return ExceptionRecord(
-        run_id="r", knot_id="k", exc_type="ValueError",
-        message="boom", traceback_text="tb",
+        run_id="r",
+        knot_id="k",
+        exc_type="ValueError",
+        message="boom",
+        traceback_text="tb",
     )
 
 

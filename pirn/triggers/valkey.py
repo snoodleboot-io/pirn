@@ -45,8 +45,7 @@ class ValKeyTrigger:
                 from glide import GlideClient
             except ImportError as exc:
                 raise ImportError(
-                    "ValKeyTrigger requires valkey-glide; install via "
-                    "`pip install pirn[valkey]`"
+                    "ValKeyTrigger requires valkey-glide; install via `pip install pirn[valkey]`"
                 ) from exc
             # The user's config must include pubsub_subscriptions for
             # this trigger to receive messages; we don't attempt to
@@ -80,7 +79,6 @@ def _default_request_builder(msg: Any) -> RunRequest:
         params = body
     if not isinstance(params, dict):
         raise TypeError(
-            f"ValKeyTrigger: expected JSON object for message, "
-            f"got {type(params).__name__}"
+            f"ValKeyTrigger: expected JSON object for message, got {type(params).__name__}"
         )
     return RunRequest(parameters=params)

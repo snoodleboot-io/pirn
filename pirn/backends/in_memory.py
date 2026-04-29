@@ -42,8 +42,7 @@ class InMemoryStore:
             existing = self._knots.get(knot.knot_id)
             if existing is not None and existing is not knot:
                 raise ValueError(
-                    f"knot id {knot.knot_id!r} already registered with a "
-                    f"different instance"
+                    f"knot id {knot.knot_id!r} already registered with a different instance"
                 )
             is_new = existing is None
             self._knots[knot.knot_id] = knot
@@ -106,9 +105,7 @@ class InMemoryHistory:
             for rec in result.lineage:
                 self._lineage_by_knot.setdefault(rec.knot_id, []).append(rec)
                 if rec.output_hash:
-                    self._lineage_by_output.setdefault(rec.output_hash, []).append(
-                        rec
-                    )
+                    self._lineage_by_output.setdefault(rec.output_hash, []).append(rec)
                 for input_hash in rec.parent_input_hashes.values():
                     self._lineage_by_input.setdefault(input_hash, []).append(rec)
 
@@ -116,21 +113,15 @@ class InMemoryHistory:
         with self._lock:
             return self._runs.get(run_id)
 
-    async def query_lineage_by_output_hash(
-        self, output_hash: str
-    ) -> list[KnotLineage]:
+    async def query_lineage_by_output_hash(self, output_hash: str) -> list[KnotLineage]:
         with self._lock:
             return list(self._lineage_by_output.get(output_hash, []))
 
-    async def query_lineage_by_input_hash(
-        self, input_hash: str
-    ) -> list[KnotLineage]:
+    async def query_lineage_by_input_hash(self, input_hash: str) -> list[KnotLineage]:
         with self._lock:
             return list(self._lineage_by_input.get(input_hash, []))
 
-    async def query_lineage_by_knot_id(
-        self, knot_id: str
-    ) -> list[KnotLineage]:
+    async def query_lineage_by_knot_id(self, knot_id: str) -> list[KnotLineage]:
         with self._lock:
             return list(self._lineage_by_knot.get(knot_id, []))
 

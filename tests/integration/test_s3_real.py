@@ -34,9 +34,7 @@ def _s3_env():
     secret_key = os.environ.get("PIRN_TEST_S3_SECRET_KEY")
     bucket = os.environ.get("PIRN_TEST_S3_BUCKET")
     if not all([endpoint, access_key, secret_key, bucket]):
-        pytest.skip(
-            "PIRN_TEST_S3_ENDPOINT / ACCESS_KEY / SECRET_KEY / BUCKET not set"
-        )
+        pytest.skip("PIRN_TEST_S3_ENDPOINT / ACCESS_KEY / SECRET_KEY / BUCKET not set")
     return {
         "endpoint": endpoint,
         "access_key": access_key,

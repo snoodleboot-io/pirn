@@ -47,8 +47,7 @@ class WebhookEmitter(Emitter):
                 import httpx
             except ImportError as exc:
                 raise ImportError(
-                    "WebhookEmitter requires httpx; install via "
-                    "`pip install pirn[http]`"
+                    "WebhookEmitter requires httpx; install via `pip install pirn[http]`"
                 ) from exc
             self._client = httpx.AsyncClient(timeout=self._timeout)
         return self._client

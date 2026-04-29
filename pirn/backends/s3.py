@@ -55,16 +55,18 @@ class S3DataStore:
                 import aioboto3
             except ImportError as exc:
                 raise ImportError(
-                    "S3DataStore requires aioboto3; install via "
-                    "`pip install pirn[s3]`"
+                    "S3DataStore requires aioboto3; install via `pip install pirn[s3]`"
                 ) from exc
             self._session = aioboto3.Session()
         return self._session
 
+    def _s3(self, session: Any) -> Any:
+        return session.client("s3", region_name=self._region, endpoint_url=self._endpoint_url)
+
     async def put(self, content_hash: str, value: Any) -> None:
         session = await self._client()
         payload = pickle.dumps(value)
-        async with session.client("s3", region_name=self._region, endpoint_url=self._endpoint_url) as s3:
+        async with self._s3(session) as s3:
             await s3.put_object(
                 Bucket=self._bucket,
                 Key=self._key(content_hash),
@@ -73,7 +75,7 @@ class S3DataStore:
 
     async def get(self, content_hash: str) -> Any:
         session = await self._client()
-        async with session.client("s3", region_name=self._region, endpoint_url=self._endpoint_url) as s3:
+        async with self._s3(session) as s3:
             try:
                 response = await s3.get_object(
                     Bucket=self._bucket,
@@ -91,7 +93,7 @@ class S3DataStore:
 
     async def has(self, content_hash: str) -> bool:
         session = await self._client()
-        async with session.client("s3", region_name=self._region, endpoint_url=self._endpoint_url) as s3:
+        async with self._s3(session) as s3:
             try:
                 await s3.head_object(
                     Bucket=self._bucket,
@@ -103,7 +105,7 @@ class S3DataStore:
 
     async def scrub(self, content_hash: str) -> None:
         session = await self._client()
-        async with session.client("s3", region_name=self._region, endpoint_url=self._endpoint_url) as s3:
+        async with self._s3(session) as s3:
             await s3.delete_object(
                 Bucket=self._bucket,
                 Key=self._key(content_hash),

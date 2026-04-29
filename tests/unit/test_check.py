@@ -1,7 +1,5 @@
 """Tests for pirn.check — static tapestry validation."""
 
-import pytest
-
 from pirn import KnotConfig, Parameter, Tapestry, knot
 from pirn.check import ValidationIssue, validate_tapestry
 

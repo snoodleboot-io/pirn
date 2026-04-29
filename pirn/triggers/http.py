@@ -73,8 +73,7 @@ class WebhookTrigger:
             from starlette.routing import Route
         except ImportError as exc:
             raise ImportError(
-                "WebhookTrigger requires starlette; install via "
-                "`pip install pirn[http]`"
+                "WebhookTrigger requires starlette; install via `pip install pirn[http]`"
             ) from exc
 
         async def handler(request):
@@ -112,8 +111,5 @@ class WebhookTrigger:
 def _default_request_builder(payload: dict, request: Any) -> RunRequest:
     """Default: payload is the parameters dict."""
     if not isinstance(payload, dict):
-        raise TypeError(
-            f"WebhookTrigger: expected JSON object body, "
-            f"got {type(payload).__name__}"
-        )
+        raise TypeError(f"WebhookTrigger: expected JSON object body, got {type(payload).__name__}")
     return RunRequest(parameters=payload)

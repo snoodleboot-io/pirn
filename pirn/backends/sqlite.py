@@ -108,8 +108,8 @@ def _apply_sqlite_migrations(conn: Any, component: str, target: int) -> None:
         (component,),
     ).fetchone()
     current = row[0] if row else 0
-    for v in range(current, target):
-        pass  # _migrate_{v}_to_{v+1}(conn) goes here when needed
+    for _v in range(current, target):
+        pass  # _migrate_{_v}_to_{_v+1}(conn) goes here when needed
     conn.execute(
         "INSERT OR REPLACE INTO pirn_schema_version (component, version) VALUES (?, ?)",
         (component, target),
@@ -152,9 +152,7 @@ class SQLiteStore:
         try:
             import sqlite3
         except ImportError as exc:  # pragma: no cover
-            raise ImportError(
-                "SQLiteStore requires the standard library sqlite3 module"
-            ) from exc
+            raise ImportError("SQLiteStore requires the standard library sqlite3 module") from exc
 
         self._path = path
         self._conn = connection or sqlite3.connect(path)
@@ -179,15 +177,12 @@ class SQLiteStore:
         existing = self._live.get(knot.knot_id)
         if existing is not None and existing is not knot:
             raise ValueError(
-                f"knot id {knot.knot_id!r} already registered with a "
-                f"different instance"
+                f"knot id {knot.knot_id!r} already registered with a different instance"
             )
         self._live[knot.knot_id] = knot
 
         config_json = knot.config.model_dump_json()
-        parents_json = json.dumps(
-            {name: parent.knot_id for name, parent in knot.parents.items()}
-        )
+        parents_json = json.dumps({name: parent.knot_id for name, parent in knot.parents.items()})
         knot_class = f"{type(knot).__module__}.{type(knot).__qualname__}"
         now = datetime.now(UTC).isoformat()
 
@@ -312,9 +307,7 @@ class SQLiteHistory:
 
     async def get_run(self, run_id: str) -> Any:
         self._ensure_init()
-        cursor = self._conn.execute(
-            "SELECT payload_json FROM runs WHERE run_id = ?", (run_id,)
-        )
+        cursor = self._conn.execute("SELECT payload_json FROM runs WHERE run_id = ?", (run_id,))
         row = cursor.fetchone()
         if row is None:
             return None
@@ -322,9 +315,7 @@ class SQLiteHistory:
 
         return RunResult.model_validate_json(row[0])
 
-    async def query_lineage_by_output_hash(
-        self, output_hash: str
-    ) -> list[KnotLineage]:
+    async def query_lineage_by_output_hash(self, output_hash: str) -> list[KnotLineage]:
         self._ensure_init()
         cursor = self._conn.execute(
             "SELECT payload_json FROM lineage WHERE output_hash = ?",
@@ -332,9 +323,7 @@ class SQLiteHistory:
         )
         return [KnotLineage.model_validate_json(row[0]) for row in cursor.fetchall()]
 
-    async def query_lineage_by_input_hash(
-        self, input_hash: str
-    ) -> list[KnotLineage]:
+    async def query_lineage_by_input_hash(self, input_hash: str) -> list[KnotLineage]:
         self._ensure_init()
         cursor = self._conn.execute(
             """SELECT l.payload_json FROM lineage l

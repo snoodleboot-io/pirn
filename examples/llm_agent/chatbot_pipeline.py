@@ -24,14 +24,12 @@ Run with:
     uv run python examples/llm_agent/chatbot_pipeline.py
 """
 
-
 import asyncio
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from pirn import KnotConfig, Parameter, RunRequest, Tapestry, knot
 from pirn.backends.sqlite import SQLiteHistory
-
 
 # ----------------------------------------------------------------- models
 
@@ -46,18 +44,18 @@ class ParsedMessage:
 
 @dataclass
 class Intent:
-    label: str          # e.g. "question", "command", "chitchat", "complaint"
+    label: str  # e.g. "question", "command", "chitchat", "complaint"
     confidence: float
 
 
 @dataclass
 class Entities:
-    items: list[dict]   # [{"type": "PRODUCT", "value": "Pro plan"}, ...]
+    items: list[dict]  # [{"type": "PRODUCT", "value": "Pro plan"}, ...]
 
 
 @dataclass
 class RetrievedContext:
-    chunks: list[str]   # relevant knowledge-base excerpts
+    chunks: list[str]  # relevant knowledge-base excerpts
     source_ids: list[str]
 
 
@@ -265,27 +263,39 @@ async def log_turn(
 def build_tapestry(history=None) -> Tapestry:
     with Tapestry(history=history) as t:
         message_text = Parameter("message_text", str, _config=KnotConfig(id="message_text"))
-        user_id      = Parameter("user_id", str,      _config=KnotConfig(id="user_id"))
-        session_id   = Parameter("session_id", str,   _config=KnotConfig(id="session_id"))
-        turn_number  = Parameter("turn_number", int,  _config=KnotConfig(id="turn_number"))
-        history_str  = Parameter("conversation_history", str, _config=KnotConfig(id="history_str"))
+        user_id = Parameter("user_id", str, _config=KnotConfig(id="user_id"))
+        session_id = Parameter("session_id", str, _config=KnotConfig(id="session_id"))
+        turn_number = Parameter("turn_number", int, _config=KnotConfig(id="turn_number"))
+        history_str = Parameter("conversation_history", str, _config=KnotConfig(id="history_str"))
 
-        parsed   = parse_message(
-            message_text=message_text, user_id=user_id,
-            session_id=session_id, turn_number=turn_number,
+        parsed = parse_message(
+            message_text=message_text,
+            user_id=user_id,
+            session_id=session_id,
+            turn_number=turn_number,
             _config=KnotConfig(id="parse"),
         )
-        intent   = classify_intent(parsed=parsed,   _config=KnotConfig(id="intent"))
-        entities = extract_entities(parsed=parsed,  _config=KnotConfig(id="entities"))
-        context  = retrieve_context(parsed=parsed, intent=intent, entities=entities, _config=KnotConfig(id="retrieve"))
-        safety   = check_safety(parsed=parsed,     _config=KnotConfig(id="safety"))
+        intent = classify_intent(parsed=parsed, _config=KnotConfig(id="intent"))
+        entities = extract_entities(parsed=parsed, _config=KnotConfig(id="entities"))
+        context = retrieve_context(
+            parsed=parsed, intent=intent, entities=entities, _config=KnotConfig(id="retrieve")
+        )
+        safety = check_safety(parsed=parsed, _config=KnotConfig(id="safety"))
         response = generate_response(
-            parsed=parsed, context=context, safety=safety,
+            parsed=parsed,
+            context=context,
+            safety=safety,
             conversation_history=history_str,
             _config=KnotConfig(id="generate"),
         )
         post_process(response=response, context=context, _config=KnotConfig(id="post_process"))
-        log_turn(parsed=parsed, intent=intent, safety=safety, response=response, _config=KnotConfig(id="log"))
+        log_turn(
+            parsed=parsed,
+            intent=intent,
+            safety=safety,
+            response=response,
+            _config=KnotConfig(id="log"),
+        )
     return t
 
 
@@ -306,16 +316,20 @@ async def main() -> None:
 
     for i, (message, user_id, session_id) in enumerate(turns, start=1):
         print(f"\nTurn {i}: {message!r}")
-        result = await t.run(RunRequest(parameters={
-            "message_text": message,
-            "user_id": user_id,
-            "session_id": session_id,
-            "turn_number": i,
-            "conversation_history": conversation,
-        }))
+        result = await t.run(
+            RunRequest(
+                parameters={
+                    "message_text": message,
+                    "user_id": user_id,
+                    "session_id": session_id,
+                    "turn_number": i,
+                    "conversation_history": conversation,
+                }
+            )
+        )
 
         for rec in result.lineage:
-            icon = "✓" if rec.outcome == "ok" else ("–" if rec.outcome == "skipped" else "✗")
+            icon = "✓" if rec.outcome == "ok" else ("-" if rec.outcome == "skipped" else "✗")
             print(f"  {icon} {rec.knot_id:<20} {rec.outcome}")
 
         if result.outputs.get("post_process"):

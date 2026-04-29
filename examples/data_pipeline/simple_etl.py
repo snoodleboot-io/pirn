@@ -8,7 +8,6 @@ Run with:
     uv run python examples/data_pipeline/simple_etl.py
 """
 
-
 import asyncio
 import csv
 import io
@@ -17,7 +16,6 @@ from dataclasses import dataclass
 
 from pirn import KnotConfig, Parameter, RunRequest, Tapestry, knot
 from pirn.backends.sqlite import SQLiteHistory
-
 
 # ----------------------------------------------------------------- models
 
@@ -69,12 +67,14 @@ async def clean(raw: RawDataset, drop_nulls: bool) -> CleanDataset:
         if drop_nulls and any(v.strip() == "" for v in row.values()):
             dropped += 1
             continue
-        cleaned.append({
-            "id":     int(row["id"]),
-            "name":   row["name"].strip().title(),
-            "amount": float(row["amount"]),
-            "region": row["region"].strip().upper(),
-        })
+        cleaned.append(
+            {
+                "id": int(row["id"]),
+                "name": row["name"].strip().title(),
+                "amount": float(row["amount"]),
+                "region": row["region"].strip().upper(),
+            }
+        )
     return CleanDataset(rows=cleaned, dropped=dropped, source=raw.source)
 
 
@@ -84,11 +84,13 @@ async def enrich(clean_data: CleanDataset, fx_rate: float) -> EnrichedDataset:
     region_map = {"US": "americas", "CA": "americas", "GB": "emea", "DE": "emea", "JP": "apac"}
     enriched = []
     for row in clean_data.rows:
-        enriched.append({
-            **row,
-            "amount_usd":   round(row["amount"] * fx_rate, 2),
-            "region_group": region_map.get(row["region"], "other"),
-        })
+        enriched.append(
+            {
+                **row,
+                "amount_usd": round(row["amount"] * fx_rate, 2),
+                "region_group": region_map.get(row["region"], "other"),
+            }
+        )
     return EnrichedDataset(rows=enriched, new_columns=["amount_usd", "region_group"])
 
 
@@ -115,16 +117,21 @@ async def load(enriched: EnrichedDataset, db_path: str, table_name: str) -> Load
 
 def build_tapestry(history=None) -> Tapestry:
     with Tapestry(history=history) as t:
-        source_csv = Parameter("source_csv", str,   _config=KnotConfig(id="source_csv"))
-        drop_nulls = Parameter("drop_nulls", bool,  _config=KnotConfig(id="drop_nulls"))
-        fx_rate    = Parameter("fx_rate", float,    _config=KnotConfig(id="fx_rate"))
-        db_path    = Parameter("db_path", str,      _config=KnotConfig(id="db_path"))
-        table_name = Parameter("table_name", str,   _config=KnotConfig(id="table_name"))
+        source_csv = Parameter("source_csv", str, _config=KnotConfig(id="source_csv"))
+        drop_nulls = Parameter("drop_nulls", bool, _config=KnotConfig(id="drop_nulls"))
+        fx_rate = Parameter("fx_rate", float, _config=KnotConfig(id="fx_rate"))
+        db_path = Parameter("db_path", str, _config=KnotConfig(id="db_path"))
+        table_name = Parameter("table_name", str, _config=KnotConfig(id="table_name"))
 
-        raw      = extract(source_csv=source_csv,   _config=KnotConfig(id="extract"))
-        cleaned  = clean(raw=raw, drop_nulls=drop_nulls, _config=KnotConfig(id="clean"))
+        raw = extract(source_csv=source_csv, _config=KnotConfig(id="extract"))
+        cleaned = clean(raw=raw, drop_nulls=drop_nulls, _config=KnotConfig(id="clean"))
         enriched = enrich(clean_data=cleaned, fx_rate=fx_rate, _config=KnotConfig(id="enrich"))
-        load(enriched=enriched, db_path=db_path, table_name=table_name, _config=KnotConfig(id="load"))
+        load(
+            enriched=enriched,
+            db_path=db_path,
+            table_name=table_name,
+            _config=KnotConfig(id="load"),
+        )
     return t
 
 
@@ -146,37 +153,49 @@ async def main() -> None:
     t = build_tapestry(history=history)
 
     print("Run 1 — full pipeline")
-    result = await t.run(RunRequest(parameters={
-        "source_csv":  SAMPLE_CSV,
-        "drop_nulls":  True,
-        "fx_rate":     1.08,
-        "db_path":     ":memory:",
-        "table_name":  "sales",
-    }))
+    result = await t.run(
+        RunRequest(
+            parameters={
+                "source_csv": SAMPLE_CSV,
+                "drop_nulls": True,
+                "fx_rate": 1.08,
+                "db_path": ":memory:",
+                "table_name": "sales",
+            }
+        )
+    )
     load_result = result.outputs["load"]
     print(f"  Loaded {load_result.rows_written} rows into '{load_result.table}'")
     for rec in result.lineage:
         print(f"  {rec.knot_id:<12} outcome={rec.outcome}")
 
     print("\nRun 2 — same inputs, all knots should be cached (skipped)")
-    result2 = await t.run(RunRequest(parameters={
-        "source_csv":  SAMPLE_CSV,
-        "drop_nulls":  True,
-        "fx_rate":     1.08,
-        "db_path":     ":memory:",
-        "table_name":  "sales",
-    }))
+    result2 = await t.run(
+        RunRequest(
+            parameters={
+                "source_csv": SAMPLE_CSV,
+                "drop_nulls": True,
+                "fx_rate": 1.08,
+                "db_path": ":memory:",
+                "table_name": "sales",
+            }
+        )
+    )
     for rec in result2.lineage:
         print(f"  {rec.knot_id:<12} outcome={rec.outcome}")
 
     print("\nRun 3 — new FX rate, only enrich+load re-run")
-    result3 = await t.run(RunRequest(parameters={
-        "source_csv":  SAMPLE_CSV,
-        "drop_nulls":  True,
-        "fx_rate":     1.12,   # changed
-        "db_path":     ":memory:",
-        "table_name":  "sales",
-    }))
+    result3 = await t.run(
+        RunRequest(
+            parameters={
+                "source_csv": SAMPLE_CSV,
+                "drop_nulls": True,
+                "fx_rate": 1.12,  # changed
+                "db_path": ":memory:",
+                "table_name": "sales",
+            }
+        )
+    )
     for rec in result3.lineage:
         print(f"  {rec.knot_id:<12} outcome={rec.outcome}")
 

@@ -124,9 +124,7 @@ async def test_postgres_history_record_run_inserts_runs_row():
     await history.record_run(result)
 
     # Find the INSERT INTO runs.
-    insert_runs = [
-        (q, a) for q, a in pool.executes if "INSERT INTO runs" in q
-    ]
+    insert_runs = [(q, a) for q, a in pool.executes if "INSERT INTO runs" in q]
     assert len(insert_runs) == 1
     _, args = insert_runs[0]
     # First arg is run_id.
@@ -188,9 +186,7 @@ async def test_postgres_history_get_run_decodes_payload_when_present():
     def matcher(query, args):
         return "FROM runs" in query and args == (result.run_id,)
 
-    pool.canned_rows.append(
-        (matcher, _FakeRow(payload_json=result.model_dump_json()))
-    )
+    pool.canned_rows.append((matcher, _FakeRow(payload_json=result.model_dump_json())))
     history = PostgresHistory(pool=pool)
     fetched = await history.get_run(result.run_id)
     assert fetched is not None
@@ -212,9 +208,7 @@ async def test_postgres_history_query_by_input_hash_uses_join():
     pool = _FakePool()
     history = PostgresHistory(pool=pool)
     await history.query_lineage_by_input_hash("sha256:test")
-    fetches = [
-        (q, a) for q, a in pool.fetches if "JOIN lineage_inputs" in q
-    ]
+    fetches = [(q, a) for q, a in pool.fetches if "JOIN lineage_inputs" in q]
     assert len(fetches) == 1
 
 

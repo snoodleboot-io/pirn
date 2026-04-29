@@ -42,8 +42,7 @@ class ValKeyEmitter(Emitter):
                 from glide import GlideClient
             except ImportError as exc:
                 raise ImportError(
-                    "ValKeyEmitter requires valkey-glide; install via "
-                    "`pip install pirn[valkey]`"
+                    "ValKeyEmitter requires valkey-glide; install via `pip install pirn[valkey]`"
                 ) from exc
             self._client = await GlideClient.create(self._config)
         return self._client

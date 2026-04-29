@@ -65,8 +65,10 @@ class Reduce(Knot):
         # ``(iterable, /, start=0)`` — total params 2, required 1 → whole.
         sig = inspect.signature(combine)
         required = [
-            p for p in sig.parameters.values()
-            if p.kind in (
+            p
+            for p in sig.parameters.values()
+            if p.kind
+            in (
                 inspect.Parameter.POSITIONAL_OR_KEYWORD,
                 inspect.Parameter.POSITIONAL_ONLY,
             )
@@ -78,15 +80,9 @@ class Reduce(Knot):
         elif n_required == 2:
             self._mutable_form = "pairwise"
             if initial is _UNSET:
-                raise TypeError(
-                    "Reduce: pairwise combine (2 required args) requires "
-                    "'initial'"
-                )
+                raise TypeError("Reduce: pairwise combine (2 required args) requires 'initial'")
         else:
-            raise TypeError(
-                f"Reduce: 'combine' must take 1 or 2 required args, "
-                f"got {n_required}"
-            )
+            raise TypeError(f"Reduce: 'combine' must take 1 or 2 required args, got {n_required}")
 
         self._mutable_combine = combine
         self._mutable_initial = initial

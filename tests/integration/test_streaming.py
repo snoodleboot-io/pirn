@@ -221,11 +221,13 @@ class _FakeKafkaConsumer:
 
 async def test_kafka_streaming_source_yields_decoded_messages():
     """Default decoder treats value as JSON; verify that pipeline."""
-    consumer = _FakeKafkaConsumer([
-        _FakeKafkaMessage(b"42"),
-        _FakeKafkaMessage(b'{"x": 1}'),
-        _FakeKafkaMessage(b'"hello"'),
-    ])
+    consumer = _FakeKafkaConsumer(
+        [
+            _FakeKafkaMessage(b"42"),
+            _FakeKafkaMessage(b'{"x": 1}'),
+            _FakeKafkaMessage(b'"hello"'),
+        ]
+    )
     source = KafkaStreamingSource(
         consumer=consumer,
         parameter_name="payload",
@@ -235,10 +237,12 @@ async def test_kafka_streaming_source_yields_decoded_messages():
 
 
 async def test_kafka_streaming_source_custom_decoder():
-    consumer = _FakeKafkaConsumer([
-        _FakeKafkaMessage(b"foo"),
-        _FakeKafkaMessage(b"bar"),
-    ])
+    consumer = _FakeKafkaConsumer(
+        [
+            _FakeKafkaMessage(b"foo"),
+            _FakeKafkaMessage(b"bar"),
+        ]
+    )
 
     def decode(msg: Any) -> str:
         return msg.value.decode().upper()

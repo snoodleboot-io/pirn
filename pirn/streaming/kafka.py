@@ -58,8 +58,7 @@ class KafkaStreamingSource:
                 from aiokafka import AIOKafkaConsumer
             except ImportError as exc:
                 raise ImportError(
-                    "KafkaStreamingSource requires aiokafka; install via "
-                    "`pip install pirn[kafka]`"
+                    "KafkaStreamingSource requires aiokafka; install via `pip install pirn[kafka]`"
                 ) from exc
             self._consumer = AIOKafkaConsumer(
                 self._topic,

@@ -51,7 +51,8 @@ async def test_branch_selects_tool_path():
 async def test_branch_selects_resp_path():
     with Tapestry() as t:
         msg = Parameter(
-            "msg", dict,
+            "msg",
+            dict,
             default={"type": "resp", "text": "hi"},
             _config=KnotConfig(id="msg"),
         )
@@ -73,7 +74,8 @@ async def test_branch_selects_resp_path():
 async def test_branch_outputs_skipped_have_lineage():
     with Tapestry() as t:
         msg = Parameter(
-            "msg", dict,
+            "msg",
+            dict,
             default={"type": "tool", "name": "x"},
             _config=KnotConfig(id="msg"),
         )
@@ -105,7 +107,8 @@ def test_branch_rejects_duplicate_branches():
     p = Parameter("x", int)
     with pytest.raises(TypeError, match="duplicate"):
         Branch(
-            input=p, selector=lambda x: "a",
+            input=p,
+            selector=lambda x: "a",
             branches=("a", "a"),
             _config=KnotConfig(id="b"),
         )
@@ -114,7 +117,8 @@ def test_branch_rejects_duplicate_branches():
 def test_branch_getitem_unknown_raises():
     p = Parameter("x", int)
     b = Branch(
-        input=p, selector=lambda x: "a",
+        input=p,
+        selector=lambda x: "a",
         branches=("a", "b"),
         _config=KnotConfig(id="b"),
     )

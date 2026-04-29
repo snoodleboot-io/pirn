@@ -70,9 +70,7 @@ class RayDispatcher:
             ray.init(ignore_reinit_error=True)
         self._initialized = True
 
-    async def dispatch(
-        self, knot: Knot, inputs: Mapping[str, Any]
-    ) -> Result[Any]:
+    async def dispatch(self, knot: Knot, inputs: Mapping[str, Any]) -> Result[Any]:
         self._ensure_init()
         ray = self._ensure_ray()
 

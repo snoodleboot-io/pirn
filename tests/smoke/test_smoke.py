@@ -33,6 +33,7 @@ def test_node_public_surface():
         Sink,
         Source,
     )
+
     for cls in (Source, Sink, Aggregator, Branch, BranchOutput, Gate, Map, Reduce):
         assert isinstance(cls, type)
 
@@ -46,6 +47,7 @@ def test_backend_public_surface():
         RunHistory,
         TapestryStore,
     )
+
     # Protocols are runtime_checkable; instances of the InMemory variants
     # should satisfy isinstance.
     assert isinstance(InMemoryStore(), TapestryStore)
@@ -99,8 +101,12 @@ def test_phase3_emitter_public_surface():
     )
 
     for cls in (
-        Emitter, LogEmitter, KafkaEmitter,
-        ValKeyEmitter, WebhookEmitter, OpenTelemetryEmitter,
+        Emitter,
+        LogEmitter,
+        KafkaEmitter,
+        ValKeyEmitter,
+        WebhookEmitter,
+        OpenTelemetryEmitter,
     ):
         assert isinstance(cls, type)
 

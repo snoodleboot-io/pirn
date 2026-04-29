@@ -46,10 +46,10 @@ class KnotDiff:
     """Per-knot comparison between two runs."""
 
     knot_id: str
-    left_outcome: str | None    # outcome in the first run, or None if absent
-    right_outcome: str | None   # outcome in the second run, or None if absent
-    left_hash: str | None       # output_hash in the first run
-    right_hash: str | None      # output_hash in the second run
+    left_outcome: str | None  # outcome in the first run, or None if absent
+    right_outcome: str | None  # outcome in the second run, or None if absent
+    left_hash: str | None  # output_hash in the first run
+    right_hash: str | None  # output_hash in the second run
 
     @property
     def changed(self) -> bool:

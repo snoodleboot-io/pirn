@@ -53,8 +53,7 @@ class KafkaTrigger:
                 from aiokafka import AIOKafkaConsumer
             except ImportError as exc:
                 raise ImportError(
-                    "KafkaTrigger requires aiokafka; install via "
-                    "`pip install pirn[kafka]`"
+                    "KafkaTrigger requires aiokafka; install via `pip install pirn[kafka]`"
                 ) from exc
             self._consumer = AIOKafkaConsumer(
                 self._topic,
@@ -88,7 +87,6 @@ def _default_request_builder(msg: Any) -> RunRequest:
         params = raw  # already a dict
     if not isinstance(params, dict):
         raise TypeError(
-            f"KafkaTrigger: expected JSON object for message value, "
-            f"got {type(params).__name__}"
+            f"KafkaTrigger: expected JSON object for message value, got {type(params).__name__}"
         )
     return RunRequest(parameters=params)

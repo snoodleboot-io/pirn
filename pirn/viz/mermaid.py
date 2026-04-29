@@ -86,9 +86,7 @@ def mermaid_for_run(result: RunResult) -> str:
             if edge in seen_edges:
                 continue
             seen_edges.add(edge)
-            lines.append(
-                f"    {_safe_node_id(parent_kid)} --> {_safe_node_id(rec.knot_id)}"
-            )
+            lines.append(f"    {_safe_node_id(parent_kid)} --> {_safe_node_id(rec.knot_id)}")
 
     # Apply classes per node.
     for kid, outcome in outcomes.items():

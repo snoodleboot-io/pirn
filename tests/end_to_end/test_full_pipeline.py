@@ -117,7 +117,9 @@ async def test_pipeline_with_gate_closed_skips_downstream():
         )
 
         enriched = Map(
-            over=records, each=enrich, bind="record",
+            over=records,
+            each=enrich,
+            bind="record",
             _config=KnotConfig(id="enriched"),
         )
         total = Reduce(

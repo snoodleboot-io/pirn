@@ -51,8 +51,7 @@ class KafkaEmitter(Emitter):
                 from aiokafka import AIOKafkaProducer
             except ImportError as exc:
                 raise ImportError(
-                    "KafkaEmitter requires aiokafka; install via "
-                    "`pip install pirn[kafka]`"
+                    "KafkaEmitter requires aiokafka; install via `pip install pirn[kafka]`"
                 ) from exc
             self._producer = AIOKafkaProducer(
                 bootstrap_servers=self._bootstrap,

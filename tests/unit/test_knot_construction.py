@@ -39,15 +39,19 @@ class StringFilter(Knot):
 
 def test_construction_requires_config():
     with pytest.raises(TypeError, match="_config"):
-        Add(a=Parameter("x", int, _config=KnotConfig(id="x")),
-            b=Parameter("y", int, _config=KnotConfig(id="y")))
+        Add(
+            a=Parameter("x", int, _config=KnotConfig(id="x")),
+            b=Parameter("y", int, _config=KnotConfig(id="y")),
+        )
 
 
 def test_construction_requires_knotconfig_instance():
     with pytest.raises(TypeError, match="KnotConfig"):
-        Add(_config="not a KnotConfig",
+        Add(
+            _config="not a KnotConfig",
             a=Parameter("x", int, _config=KnotConfig(id="x")),
-            b=Parameter("y", int, _config=KnotConfig(id="y")))
+            b=Parameter("y", int, _config=KnotConfig(id="y")),
+        )
 
 
 def test_id_is_required():
@@ -223,7 +227,8 @@ def test_explicit_error_policy():
     p = Parameter("x", int, _config=KnotConfig(id="x"))
     q = Parameter("y", int, _config=KnotConfig(id="y"))
     a = Add(
-        a=p, b=q,
+        a=p,
+        b=q,
         _config=KnotConfig(id="a", error_policy=ErrorPolicy.RECEIVE_ERRORS),
     )
     assert a.config.error_policy is ErrorPolicy.RECEIVE_ERRORS

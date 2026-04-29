@@ -15,7 +15,7 @@ import asyncio
 import pytest
 
 from pirn import KnotConfig, Parameter, RunRequest, Tapestry, knot
-from pirn.managers.status import KnotState, StatusEvent
+from pirn.managers.status import StatusEvent
 
 
 def _noop_emitter(event: StatusEvent) -> None:

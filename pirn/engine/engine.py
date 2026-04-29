@@ -141,9 +141,7 @@ class Engine:
                     self._bind_parameters(shed, ctx)
                     order = shed.topological_order()
                     # Mark ids that completed already as not-remaining.
-                    remaining = {
-                        kid for kid in order if kid not in results
-                    }
+                    remaining = {kid for kid in order if kid not in results}
 
             ready = [
                 kid
@@ -164,27 +162,19 @@ class Engine:
                 if isinstance(decision, Skipped):
                     results[kid] = decision
                     ctx.skipped.append(kid)
-                    ctx.status.transition(
-                        kid, KnotState.SKIPPED, decision.reason
-                    )
-                    self._record_lineage(
-                        ctx, knot, results, decision, started=ctx.started_at
-                    )
+                    ctx.status.transition(kid, KnotState.SKIPPED, decision.reason)
+                    self._record_lineage(ctx, knot, results, decision, started=ctx.started_at)
                     continue
 
                 if isinstance(decision, Err):
                     # REQUIRE_ALL_PARENTS: synthetic Err.
                     results[kid] = decision
                     ctx.status.transition(kid, KnotState.FAILED, "missing parent")
-                    self._record_lineage(
-                        ctx, knot, results, decision, started=ctx.started_at
-                    )
+                    self._record_lineage(ctx, knot, results, decision, started=ctx.started_at)
                     continue
 
                 # decision is the resolved input dict.
-                tasks[kid] = asyncio.create_task(
-                    self._dispatch_with_timing(knot, decision)
-                )
+                tasks[kid] = asyncio.create_task(self._dispatch_with_timing(knot, decision))
 
             for kid, task in tasks.items():
                 result, parent_hashes, started_at = await task
@@ -240,9 +230,7 @@ class Engine:
                     order = shed.topological_order()
                     remaining |= added_ids
 
-        outputs = {
-            kid: r.value for kid, r in results.items() if isinstance(r, Ok)
-        }
+        outputs = {kid: r.value for kid, r in results.items() if isinstance(r, Ok)}
 
         run_result = ctx.finalize(outputs)
         await history.record_run(run_result)
@@ -315,8 +303,7 @@ class Engine:
                     bound = knot.default
                 else:
                     raise RuntimeError(
-                        f"parameter {knot.name!r} has no value supplied and "
-                        f"no default"
+                        f"parameter {knot.name!r} has no value supplied and no default"
                     )
                 knot.bind_value(bound)
 
@@ -340,9 +327,7 @@ class Engine:
 
         added: set[str] = set()
         # First pass: filter to genuinely new knots.
-        truly_new = [
-            k for k in new_knots if k.knot_id not in shed.knots
-        ]
+        truly_new = [k for k in new_knots if k.knot_id not in shed.knots]
         if not truly_new:
             return added
 
@@ -380,9 +365,7 @@ class Engine:
                         name=input_name,
                     )
                 )
-                shed.children_by_parent.setdefault(parent.knot_id, []).append(
-                    k.knot_id
-                )
+                shed.children_by_parent.setdefault(parent.knot_id, []).append(k.knot_id)
             shed.edges_by_child[k.knot_id] = edges
             added.add(k.knot_id)
 
@@ -392,9 +375,7 @@ class Engine:
 
         return added
 
-    def _all_parents_resolved(
-        self, shed: Shed, knot_id: str, results: dict[str, Any]
-    ) -> bool:
+    def _all_parents_resolved(self, shed: Shed, knot_id: str, results: dict[str, Any]) -> bool:
         for edge in shed.parents_of(knot_id):
             if edge.parent_id not in results:
                 return False
@@ -430,17 +411,11 @@ class Engine:
 
         if policy is ErrorPolicy.REQUIRE_ALL_PARENTS:
             if any_skipped or any_err:
-                err = RuntimeError(
-                    f"knot {knot.knot_id!r}: REQUIRE_ALL_PARENTS not satisfied"
-                )
+                err = RuntimeError(f"knot {knot.knot_id!r}: REQUIRE_ALL_PARENTS not satisfied")
                 rec = ctx.exceptions.record(knot.knot_id, err)
                 return Err(record=rec)
             # All parents are Ok at this point (we returned otherwise above).
-            return {
-                name: r.value
-                for name, r in parent_results.items()
-                if isinstance(r, Ok)
-            }
+            return {name: r.value for name, r in parent_results.items() if isinstance(r, Ok)}
 
         if policy is ErrorPolicy.SKIP_IF_PARENT_FAILED:
             if any_skipped or any_err:
@@ -452,11 +427,7 @@ class Engine:
                     },
                 )
             # All parents are Ok at this point (we returned otherwise above).
-            return {
-                name: r.value
-                for name, r in parent_results.items()
-                if isinstance(r, Ok)
-            }
+            return {name: r.value for name, r in parent_results.items() if isinstance(r, Ok)}
 
         # RECEIVE_ERRORS: pass Result objects through unchanged.
         return dict(parent_results)
@@ -475,9 +446,7 @@ class Engine:
         # For RECEIVE_ERRORS knots the inputs may be Result objects; we
         # hash them as they are (they're already canonicalisable).  For
         # other policies inputs are raw values.
-        parent_hashes = {
-            name: content_hash(value) for name, value in inputs.items()
-        }
+        parent_hashes = {name: content_hash(value) for name, value in inputs.items()}
         started_at = datetime.now(UTC)
         result = await self._dispatcher.dispatch(knot, inputs)
         return result, parent_hashes, started_at

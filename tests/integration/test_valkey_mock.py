@@ -46,6 +46,7 @@ class _FakeGlideClient:
         if expiry is not None:
             # Accept both raw ints (legacy) and ExpirySet objects.
             from glide import ExpirySet
+
             if isinstance(expiry, ExpirySet):
                 self.ttls[key] = int(expiry.value)
             else:

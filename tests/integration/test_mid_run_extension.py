@@ -100,8 +100,7 @@ async def test_extensible_run_picks_up_knot_added_during_run():
     async def _registrar(x: int) -> int:
         # Register a new dependent knot mid-run.  The child consumes
         # this very knot's output.
-        Parameter("downstream_input", int, default=99,
-                  tapestry=t, _config=KnotConfig(id="late"))
+        Parameter("downstream_input", int, default=99, tapestry=t, _config=KnotConfig(id="late"))
         return x
 
     with t:
@@ -121,8 +120,11 @@ async def test_extensible_run_picks_up_knot_added_during_run():
     @knot
     async def _registrar2(x: int) -> int:
         Parameter(
-            "downstream_input", int, default=99,
-            tapestry=t2, _config=KnotConfig(id="late"),
+            "downstream_input",
+            int,
+            default=99,
+            tapestry=t2,
+            _config=KnotConfig(id="late"),
         )
         return x
 
@@ -202,16 +204,22 @@ async def test_extensible_run_with_non_subscribable_store_raises():
     implement the SubscribableStore protocol must error clearly."""
 
     class NotSubscribable:
-        def register(self, knot): pass
-        def get(self, knot_id): return None
-        def all(self): return []
+        def register(self, knot):
+            pass
+
+        def get(self, knot_id):
+            return None
+
+        def all(self):
+            return []
+
         def snapshot(self):
             from pirn.backends import TapestrySnapshot
+
             return TapestrySnapshot(knot_ids=[])
 
     t = Tapestry(store=NotSubscribable())
-    p = Parameter("x", int, default=1,
-                  tapestry=t, _config=KnotConfig(id="px"))
+    p = Parameter("x", int, default=1, tapestry=t, _config=KnotConfig(id="px"))
 
     with pytest.raises(TypeError, match="subscribe"):
         await t.run(
@@ -229,8 +237,7 @@ async def test_non_extensible_run_ignores_late_knots():
 
     @knot
     async def _registrar(x: int) -> int:
-        Parameter("late", int, default=99,
-                  tapestry=t, _config=KnotConfig(id="late"))
+        Parameter("late", int, default=99, tapestry=t, _config=KnotConfig(id="late"))
         return x * 2
 
     with t:

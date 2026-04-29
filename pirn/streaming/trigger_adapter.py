@@ -56,9 +56,7 @@ class StreamingSourceTrigger:
             if self._builder is not None:
                 yield self._builder(value)
             else:
-                yield RunRequest(
-                    parameters={self._source.parameter_name: value}
-                )
+                yield RunRequest(parameters={self._source.parameter_name: value})
 
     async def close(self) -> None:
         await self._source.close()

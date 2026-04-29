@@ -93,9 +93,7 @@ async def test_postgres_history_query_by_output_hash_finds_run(pg_pool):
     result = await _run_simple_pipeline(history)
 
     # Find any knot that produced an output hash.
-    output_hash = next(
-        rec.output_hash for rec in result.lineage if rec.output_hash
-    )
+    output_hash = next(rec.output_hash for rec in result.lineage if rec.output_hash)
     rows = await history.query_lineage_by_output_hash(output_hash)
     assert len(rows) >= 1
     assert any(r.run_id == result.run_id for r in rows)
@@ -109,9 +107,7 @@ async def test_postgres_history_query_by_output_hash_finds_duplicates(pg_pool):
     result1 = await _run_simple_pipeline(history, value=5)
     result2 = await _run_simple_pipeline(history, value=5)
 
-    output_hash = next(
-        rec.output_hash for rec in result1.lineage if rec.output_hash
-    )
+    output_hash = next(rec.output_hash for rec in result1.lineage if rec.output_hash)
     rows = await history.query_lineage_by_output_hash(output_hash)
     run_ids = {r.run_id for r in rows}
     assert result1.run_id in run_ids

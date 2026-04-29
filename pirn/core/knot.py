@@ -70,6 +70,7 @@ class Optional:
                 ...
     """
 
+
 class Knot(ABC):
     """Abstract base class for all units of work in a pirn pipeline.
 
@@ -299,11 +300,7 @@ class Knot(ABC):
             input_adapters[name] = TypeAdapter(ann)
 
         ret = hints.get("return", sig.return_annotation)
-        output_adapter = (
-            None
-            if ret is inspect.Signature.empty or ret is None
-            else TypeAdapter(ret)
-        )
+        output_adapter = None if ret is inspect.Signature.empty or ret is None else TypeAdapter(ret)
         return input_adapters, output_adapter
 
     def _validate_inputs(self, kwargs: dict[str, Any]) -> dict[str, Any]:
@@ -318,8 +315,7 @@ class Knot(ABC):
     def __setattr__(self, name: str, value: Any) -> None:
         if self._frozen and not name.startswith("_mutable_"):
             raise AttributeError(
-                f"Knot {type(self).__name__}({self.knot_id!r}) is immutable; "
-                f"cannot set {name!r}"
+                f"Knot {type(self).__name__}({self.knot_id!r}) is immutable; cannot set {name!r}"
             )
         object.__setattr__(self, name, value)
 

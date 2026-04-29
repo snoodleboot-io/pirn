@@ -28,9 +28,7 @@ if TYPE_CHECKING:
 # ContextVar carrying the active tapestry inside a `with` block.  None when
 # no tapestry context is active.  Async-safe because contextvars are
 # task-local in asyncio.
-_CURRENT_TAPESTRY: ContextVar[Tapestry | None] = ContextVar(
-    "pirn_current_tapestry", default=None
-)
+_CURRENT_TAPESTRY: ContextVar[Tapestry | None] = ContextVar("pirn_current_tapestry", default=None)
 
 
 class Tapestry:
@@ -173,9 +171,7 @@ class Tapestry:
                 "inside `with Tapestry() as t:` or pass `terminals=`."
             )
 
-        active_emitters = (
-            self._emitters if emitters is None else list(emitters)
-        )
+        active_emitters = self._emitters if emitters is None else list(emitters)
 
         engine = Engine(dispatcher=dispatcher or self._dispatcher)
         return await engine.execute(

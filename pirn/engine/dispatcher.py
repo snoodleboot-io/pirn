@@ -27,9 +27,7 @@ class Dispatcher(Protocol):
     @property
     def name(self) -> str: ...
 
-    async def dispatch(
-        self, knot: Knot, inputs: Mapping[str, Any]
-    ) -> Result[Any]: ...
+    async def dispatch(self, knot: Knot, inputs: Mapping[str, Any]) -> Result[Any]: ...
 
 
 class LocalDispatcher:
@@ -43,9 +41,7 @@ class LocalDispatcher:
     def name(self) -> str:
         return "LocalDispatcher"
 
-    async def dispatch(
-        self, knot: Knot, inputs: Mapping[str, Any]
-    ) -> Result[Any]:
+    async def dispatch(self, knot: Knot, inputs: Mapping[str, Any]) -> Result[Any]:
         return await knot(inputs)
 
 
@@ -73,16 +69,12 @@ class ThreadDispatcher:
     def name(self) -> str:
         return "ThreadDispatcher"
 
-    async def dispatch(
-        self, knot: Knot, inputs: Mapping[str, Any]
-    ) -> Result[Any]:
+    async def dispatch(self, knot: Knot, inputs: Mapping[str, Any]) -> Result[Any]:
         loop = asyncio.get_running_loop()
         # Submit the knot's __call__ to the pool by wrapping it in a sync
         # helper that spins a fresh event loop.  The helper returns the
         # Result directly.
-        return await loop.run_in_executor(
-            self._executor, _run_in_thread, knot, dict(inputs)
-        )
+        return await loop.run_in_executor(self._executor, _run_in_thread, knot, dict(inputs))
 
     def shutdown(self, wait: bool = True) -> None:
         """Shut down the underlying pool.  Safe to call multiple times."""

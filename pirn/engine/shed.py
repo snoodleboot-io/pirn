@@ -94,9 +94,7 @@ class Shed:
 
             # Insert.
             if knot.knot_id in s.knots and s.knots[knot.knot_id] is not knot:
-                raise ShedError(
-                    f"two distinct knots share id {knot.knot_id!r}"
-                )
+                raise ShedError(f"two distinct knots share id {knot.knot_id!r}")
             s.knots[knot.knot_id] = knot
             s.children_by_parent.setdefault(knot.knot_id, [])
 
@@ -109,9 +107,7 @@ class Shed:
                         name=input_name,
                     )
                 )
-                s.children_by_parent.setdefault(parent.knot_id, []).append(
-                    knot.knot_id
-                )
+                s.children_by_parent.setdefault(parent.knot_id, []).append(knot.knot_id)
                 queue.append(parent)
             s.edges_by_child[knot.knot_id] = edges
 
@@ -146,16 +142,10 @@ class Shed:
         return list(self.children_by_parent.get(knot_id, []))
 
     def roots(self) -> list[Knot]:
-        return [
-            k for k in self.knots.values() if not self.edges_by_child.get(k.knot_id)
-        ]
+        return [k for k in self.knots.values() if not self.edges_by_child.get(k.knot_id)]
 
     def leaves(self) -> list[Knot]:
-        return [
-            k
-            for k in self.knots.values()
-            if not self.children_by_parent.get(k.knot_id)
-        ]
+        return [k for k in self.knots.values() if not self.children_by_parent.get(k.knot_id)]
 
     def topological_order(self) -> list[str]:
         """Kahn's algorithm; stable order within each layer for determinism."""
@@ -201,9 +191,7 @@ class Shed:
             existing = self.knots[knot.knot_id]
             if existing is knot:
                 return False
-            raise ShedError(
-                f"two distinct knots share id {knot.knot_id!r}"
-            )
+            raise ShedError(f"two distinct knots share id {knot.knot_id!r}")
 
         # BFS from this knot to absorb any new ancestors too.
         added: set[str] = set()
@@ -212,9 +200,7 @@ class Shed:
             k = queue.popleft()
             if k.knot_id in self.knots:
                 if self.knots[k.knot_id] is not k:
-                    raise ShedError(
-                        f"two distinct knots share id {k.knot_id!r}"
-                    )
+                    raise ShedError(f"two distinct knots share id {k.knot_id!r}")
                 continue
             assert isinstance(k, _Knot)
             self.knots[k.knot_id] = k
@@ -228,9 +214,7 @@ class Shed:
                         name=input_name,
                     )
                 )
-                self.children_by_parent.setdefault(parent.knot_id, []).append(
-                    k.knot_id
-                )
+                self.children_by_parent.setdefault(parent.knot_id, []).append(k.knot_id)
                 queue.append(parent)
             self.edges_by_child[k.knot_id] = edges
             added.add(k.knot_id)
@@ -245,9 +229,7 @@ class Shed:
                     while kid in parent_kids:
                         parent_kids.remove(kid)
                 self.children_by_parent.pop(kid, None)
-            raise ShedError(
-                f"absorbing knot {knot.knot_id!r} would introduce a cycle"
-            )
+            raise ShedError(f"absorbing knot {knot.knot_id!r} would introduce a cycle")
 
         return bool(added)
 

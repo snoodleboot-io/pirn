@@ -1,9 +1,17 @@
 """Tests for pirn.replay — replay_run and compare_runs."""
 
-import asyncio
 import pytest
 
-from pirn import KnotConfig, Parameter, RunRequest, Tapestry, knot, compare_runs, replay_run, KnotDiff
+from pirn import (
+    KnotConfig,
+    KnotDiff,
+    Parameter,
+    RunRequest,
+    Tapestry,
+    compare_runs,
+    knot,
+    replay_run,
+)
 from pirn.backends.sqlite import SQLiteHistory
 
 
@@ -61,8 +69,8 @@ async def test_replay_run_with_override_changes_output():
         parameter_overrides={"x": 10},
     )
 
-    assert replayed.outputs["double"] == 20   # 10 * 2
-    assert replayed.outputs["add"] == 23      # 20 + 3
+    assert replayed.outputs["double"] == 20  # 10 * 2
+    assert replayed.outputs["add"] == 23  # 20 + 3
 
 
 @pytest.mark.asyncio

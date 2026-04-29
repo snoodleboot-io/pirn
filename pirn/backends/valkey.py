@@ -51,8 +51,7 @@ class _LazyClient:
                 from glide import GlideClient
             except ImportError as exc:
                 raise ImportError(
-                    "ValKey backends require valkey-glide; install via "
-                    "`pip install pirn[valkey]`"
+                    "ValKey backends require valkey-glide; install via `pip install pirn[valkey]`"
                 ) from exc
             self._client = await GlideClient.create(self._config)
         return self._client
@@ -93,16 +92,13 @@ class ValKeyStore:
         existing = self._live.get(knot.knot_id)
         if existing is not None and existing is not knot:
             raise ValueError(
-                f"knot id {knot.knot_id!r} already registered with a "
-                f"different instance"
+                f"knot id {knot.knot_id!r} already registered with a different instance"
             )
         self._live[knot.knot_id] = knot
 
         client = await self._client.get()
         config_json = knot.config.model_dump_json()
-        parents_json = json.dumps(
-            {name: parent.knot_id for name, parent in knot.parents.items()}
-        )
+        parents_json = json.dumps({name: parent.knot_id for name, parent in knot.parents.items()})
         knot_class = f"{type(knot).__module__}.{type(knot).__qualname__}"
         knot_key = f"{self._KNOT_KEY_PREFIX}{knot.knot_id}"
 
@@ -138,8 +134,7 @@ class ValKeyStore:
         existing = self._live.get(knot.knot_id)
         if existing is not None and existing is not knot:
             raise ValueError(
-                f"knot id {knot.knot_id!r} already registered with a "
-                f"different instance"
+                f"knot id {knot.knot_id!r} already registered with a different instance"
             )
         self._live[knot.knot_id] = knot
 
@@ -152,9 +147,7 @@ class ValKeyStore:
         # cache makes get() / all() / snapshot() work immediately.
         # Holding a strong reference to the task prevents the GC from
         # collecting it before the async write completes.
-        self._pending_register_tasks.append(
-            asyncio.ensure_future(self.aregister(knot))
-        )
+        self._pending_register_tasks.append(asyncio.ensure_future(self.aregister(knot)))
 
     async def close(self) -> None:
         """Drain any pending background register tasks and release resources.
@@ -173,6 +166,7 @@ class ValKeyStore:
             except asyncio.CancelledError:
                 pass
             self._listener_task = None
+        await self._client.close()
 
     def get(self, knot_id: str) -> Knot | None:
         return self._live.get(knot_id)
@@ -214,7 +208,6 @@ class ValKeyStore:
             from glide import (
                 GlideClient,
                 GlideClientConfiguration,
-                NodeAddress,
             )
             from glide.config import (
                 PubSubChannelModes,
@@ -241,9 +234,7 @@ class ValKeyStore:
                     pass
 
         subscriptions = PubSubSubscriptions(
-            channels_and_patterns={
-                PubSubChannelModes.Exact: {self._REGISTRATIONS_CHANNEL}
-            },
+            channels_and_patterns={PubSubChannelModes.Exact: {self._REGISTRATIONS_CHANNEL}},
             callback=_msg_callback,
             context=None,
         )
@@ -259,12 +250,6 @@ class ValKeyStore:
             pass
         finally:
             await sub_client.close()
-
-    async def close(self) -> None:
-        if self._listener_task is not None:
-            self._listener_task.cancel()
-            self._listener_task = None
-        await self._client.close()
 
 
 # ----------------------------------------------------------- DataStore

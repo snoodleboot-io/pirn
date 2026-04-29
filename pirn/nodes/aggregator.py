@@ -53,8 +53,7 @@ class Aggregator(Knot):
         for name, value in parents.items():
             if not isinstance(value, Knot):
                 raise TypeError(
-                    f"Aggregator: parent {name!r} must be a Knot, "
-                    f"got {type(value).__name__}"
+                    f"Aggregator: parent {name!r} must be a Knot, got {type(value).__name__}"
                 )
 
         # Stash combine and the parent set on _mutable_ slots.  We bypass

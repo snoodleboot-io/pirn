@@ -79,6 +79,7 @@ def test_map_requires_bind_string():
 
 async def test_map_with_shared_config_value():
     """Non-Knot shared kwargs are forwarded to each inner construction."""
+
     @knot
     async def label(value: int, prefix: str) -> str:
         return f"{prefix}{value}"

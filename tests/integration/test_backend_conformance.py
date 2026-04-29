@@ -282,8 +282,10 @@ async def test_lineage_hashes_stable_across_backends():
     pytest.importorskip("duckdb")
     in_mem = await collect_hashes(InMemoryHistory)
     from pirn.backends.sqlite import SQLiteHistory
+
     sqlite = await collect_hashes(SQLiteHistory)
     from pirn.backends.duckdb import DuckDBHistory
+
     duck = await collect_hashes(DuckDBHistory)
 
     assert in_mem == sqlite == duck

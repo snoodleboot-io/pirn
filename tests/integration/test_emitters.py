@@ -76,9 +76,7 @@ async def test_log_emitter_records_status(caplog):
     emitter = LogEmitter()
     with caplog.at_level(logging.INFO, logger="pirn"):
         await emitter.on_status(_status_event(state=KnotState.RUNNING))
-    assert any(
-        "knot k: running" in record.message for record in caplog.records
-    )
+    assert any("knot k: running" in record.message for record in caplog.records)
 
 
 async def test_log_emitter_records_lineage(caplog):
@@ -126,9 +124,7 @@ async def test_log_emitter_with_payload_includes_full_json(caplog):
     emitter = LogEmitter(with_payload=True)
     with caplog.at_level(logging.INFO, logger="pirn"):
         await emitter.on_lineage(_lineage_record())
-    record = next(
-        r for r in caplog.records if "lineage r/k: ok" in r.message
-    )
+    record = next(r for r in caplog.records if "lineage r/k: ok" in r.message)
     assert getattr(record, "pirn_payload", None) is not None
 
 
@@ -406,6 +402,7 @@ async def test_emitters_receive_events_via_tapestry():
 
     # Give scheduled status tasks a moment to drain.
     import asyncio
+
     await asyncio.sleep(0.05)
 
     assert emitter.results == [result]

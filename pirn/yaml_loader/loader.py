@@ -68,9 +68,7 @@ def load_pipeline(
     """
     raw = yaml.safe_load(yaml_text)
     if not isinstance(raw, dict):
-        raise ValueError(
-            "YAML pipeline must be a mapping at the top level"
-        )
+        raise ValueError("YAML pipeline must be a mapping at the top level")
     spec = PipelineSpec.model_validate(raw)
 
     tapestry = tapestry or Tapestry()
@@ -119,9 +117,7 @@ def _topo_order_specs(spec: PipelineSpec) -> list[Any]:
     for child, parents in deps.items():
         for p in parents:
             if p not in by_id:
-                raise ValueError(
-                    f"node {child!r} references unknown parent {p!r}"
-                )
+                raise ValueError(f"node {child!r} references unknown parent {p!r}")
             in_degree[child] += 1
             children[p].append(child)
 
@@ -214,9 +210,7 @@ def _build_node(
         return factory(**kwargs)
 
     if isinstance(node_spec, AggregatorSpec):
-        combine = _resolve_callable(
-            node_spec.combine, known, pipeline_spec.allow_callable_refs
-        )
+        combine = _resolve_callable(node_spec.combine, known, pipeline_spec.allow_callable_refs)
         kwargs = {
             "combine": combine,
             "_config": cfg,
@@ -227,9 +221,7 @@ def _build_node(
         return Aggregator(**kwargs)
 
     if isinstance(node_spec, BranchSpec):
-        selector = _resolve_callable(
-            node_spec.selector, known, pipeline_spec.allow_callable_refs
-        )
+        selector = _resolve_callable(node_spec.selector, known, pipeline_spec.allow_callable_refs)
         return Branch(
             input=built[node_spec.input],
             selector=selector,
@@ -239,9 +231,7 @@ def _build_node(
         )
 
     if isinstance(node_spec, GateSpec):
-        predicate = _resolve_callable(
-            node_spec.predicate, known, pipeline_spec.allow_callable_refs
-        )
+        predicate = _resolve_callable(node_spec.predicate, known, pipeline_spec.allow_callable_refs)
         return Gate(
             input=built[node_spec.input],
             predicate=predicate,
@@ -250,9 +240,7 @@ def _build_node(
         )
 
     if isinstance(node_spec, MapSpec):
-        each = _resolve_callable(
-            node_spec.each, known, pipeline_spec.allow_callable_refs
-        )
+        each = _resolve_callable(node_spec.each, known, pipeline_spec.allow_callable_refs)
         # Resolve shared kwargs that reference other knots (loose-mode
         # ergonomics: a value matching a built knot id becomes that knot).
         shared: dict[str, Any] = {}
@@ -271,9 +259,7 @@ def _build_node(
         )
 
     if isinstance(node_spec, ReduceSpec):
-        combine = _resolve_callable(
-            node_spec.combine, known, pipeline_spec.allow_callable_refs
-        )
+        combine = _resolve_callable(node_spec.combine, known, pipeline_spec.allow_callable_refs)
         kwargs = {
             "of": built[node_spec.of],
             "combine": combine,
@@ -302,12 +288,8 @@ def _resolve_callable(
     """
     if ref in known:
         obj = known[ref]
-        if not callable(obj) and not (
-            isinstance(obj, type) and issubclass(obj, Knot)
-        ):
-            raise TypeError(
-                f"known_callables[{ref!r}] is not callable"
-            )
+        if not callable(obj) and not (isinstance(obj, type) and issubclass(obj, Knot)):
+            raise TypeError(f"known_callables[{ref!r}] is not callable")
         return obj
 
     if not allow_imports:
@@ -317,17 +299,12 @@ def _resolve_callable(
         )
 
     if "." not in ref:
-        raise ValueError(
-            f"reference {ref!r} is not a dotted path and not in "
-            f"known_callables"
-        )
+        raise ValueError(f"reference {ref!r} is not a dotted path and not in known_callables")
 
     module_path, _, attr = ref.rpartition(".")
     module = importlib.import_module(module_path)
     obj = getattr(module, attr)
-    if not callable(obj) and not (
-        isinstance(obj, type) and issubclass(obj, Knot)
-    ):
+    if not callable(obj) and not (isinstance(obj, type) and issubclass(obj, Knot)):
         raise TypeError(f"resolved {ref!r} is not callable")
     return obj
 

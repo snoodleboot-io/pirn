@@ -16,7 +16,7 @@ import uuid
 
 import pytest
 
-from pirn import KnotConfig, Parameter, RunRequest, Tapestry, knot
+from pirn import KnotConfig, Parameter, Tapestry, knot
 
 pytestmark = pytest.mark.needs_kafka
 
@@ -51,9 +51,7 @@ async def _produce(bootstrap: str, topic: str, messages: list[dict]) -> None:
     await producer.start()
     try:
         for msg in messages:
-            await producer.send_and_wait(
-                topic, json.dumps(msg).encode("utf-8")
-            )
+            await producer.send_and_wait(topic, json.dumps(msg).encode("utf-8"))
     finally:
         await producer.stop()
 
@@ -61,7 +59,6 @@ async def _produce(bootstrap: str, topic: str, messages: list[dict]) -> None:
 async def _consume_n(bootstrap: str, topic: str, group: str, n: int) -> list[bytes]:
     """Consume exactly n messages from the beginning of a topic."""
     from aiokafka import AIOKafkaConsumer
-    from aiokafka.structs import TopicPartition
 
     consumer = AIOKafkaConsumer(
         topic,

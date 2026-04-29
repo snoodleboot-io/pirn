@@ -67,8 +67,7 @@ class DuckDBHistory:
             import duckdb
         except ImportError as exc:
             raise ImportError(
-                "DuckDBHistory requires the duckdb package; install via "
-                "`pip install pirn[duckdb]`"
+                "DuckDBHistory requires the duckdb package; install via `pip install pirn[duckdb]`"
             ) from exc
 
         self._path = path
@@ -129,9 +128,7 @@ class DuckDBHistory:
 
         return RunResult.model_validate_json(rows[0][0])
 
-    async def query_lineage_by_output_hash(
-        self, output_hash: str
-    ) -> list[KnotLineage]:
+    async def query_lineage_by_output_hash(self, output_hash: str) -> list[KnotLineage]:
         self._ensure_init()
         rows = self._conn.execute(
             "SELECT payload_json FROM lineage WHERE output_hash = ?",
@@ -139,9 +136,7 @@ class DuckDBHistory:
         ).fetchall()
         return [KnotLineage.model_validate_json(row[0]) for row in rows]
 
-    async def query_lineage_by_input_hash(
-        self, input_hash: str
-    ) -> list[KnotLineage]:
+    async def query_lineage_by_input_hash(self, input_hash: str) -> list[KnotLineage]:
         self._ensure_init()
         rows = self._conn.execute(
             """SELECT l.payload_json FROM lineage l

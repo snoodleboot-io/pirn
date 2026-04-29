@@ -40,7 +40,9 @@ async def test_aggregator_with_three_parents():
         z = Parameter("z", int, default=3)
         Aggregator(
             combine=lambda a, b, c: a + b + c,
-            a=x, b=y, c=z,
+            a=x,
+            b=y,
+            c=z,
             _config=KnotConfig(id="agg"),
         )
     result = await t.run(RunRequest())

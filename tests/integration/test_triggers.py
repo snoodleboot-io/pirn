@@ -165,10 +165,12 @@ class _FakeKafkaConsumer:
 
 
 async def test_kafka_trigger_decodes_json_message_to_request():
-    consumer = _FakeKafkaConsumer([
-        _FakeKafkaMessage(b'{"x": 5}'),
-        _FakeKafkaMessage(b'{"x": 10}'),
-    ])
+    consumer = _FakeKafkaConsumer(
+        [
+            _FakeKafkaMessage(b'{"x": 5}'),
+            _FakeKafkaMessage(b'{"x": 10}'),
+        ]
+    )
     trigger = KafkaTrigger(consumer=consumer)
     requests = []
     async for r in trigger.stream():
@@ -177,7 +179,7 @@ async def test_kafka_trigger_decodes_json_message_to_request():
 
 
 async def test_kafka_trigger_rejects_non_object_payload():
-    consumer = _FakeKafkaConsumer([_FakeKafkaMessage(b'[1, 2, 3]')])
+    consumer = _FakeKafkaConsumer([_FakeKafkaMessage(b"[1, 2, 3]")])
     trigger = KafkaTrigger(consumer=consumer)
     with pytest.raises(TypeError, match="JSON object"):
         async for _ in trigger.stream():
@@ -230,10 +232,12 @@ class _FakeValKeyClient:
 
 
 async def test_valkey_trigger_decodes_messages_until_closed():
-    client = _FakeValKeyClient([
-        _FakeValKeyMessage(b'{"a": 1}'),
-        _FakeValKeyMessage(b'{"a": 2}'),
-    ])
+    client = _FakeValKeyClient(
+        [
+            _FakeValKeyMessage(b'{"a": 1}'),
+            _FakeValKeyMessage(b'{"a": 2}'),
+        ]
+    )
     trigger = ValKeyTrigger(client=client)
 
     captured = []

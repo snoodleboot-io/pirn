@@ -15,15 +15,13 @@ Run with:
     uv run python examples/data_pipeline/complex_analytics.py
 """
 
-
 import asyncio
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date, timedelta
 
 from pirn import KnotConfig, Parameter, RunRequest, Tapestry, knot
 from pirn.backends.sqlite import SQLiteHistory
-
 
 # ----------------------------------------------------------------- models
 
@@ -157,7 +155,7 @@ async def aggregate_by_region(joined: JoinedDataset) -> RegionMetrics:
     for row in joined.order_rows:
         r = by_region.setdefault(row["region"], {"revenue": 0.0, "orders": 0})
         r["revenue"] += row["amount"]
-        r["orders"]  += 1
+        r["orders"] += 1
     # Attach session counts (simplified: split evenly)
     sessions = len({r["session_id"] for r in joined.event_rows})
     per_region = max(1, sessions // max(1, len(by_region)))
@@ -173,7 +171,7 @@ async def aggregate_by_cohort(joined: JoinedDataset) -> CohortMetrics:
     for row in joined.order_rows:
         c = by_cohort.setdefault(row["cohort"], {"revenue": 0.0, "orders": 0})
         c["revenue"] += row["amount"]
-        c["orders"]  += 1
+        c["orders"] += 1
     total = sum(c["orders"] for c in by_cohort.values()) or 1
     for c in by_cohort.values():
         c["retention"] = round(c["orders"] / total, 3)
@@ -193,7 +191,7 @@ async def build_report(
         default="N/A",
     )
     total_revenue = sum(r["revenue"] for r in region_metrics.by_region.values())
-    total_orders  = sum(r["orders"]  for r in region_metrics.by_region.values())
+    total_orders = sum(r["orders"] for r in region_metrics.by_region.values())
     return DailyReport(
         date=region_metrics.date,
         total_revenue=round(total_revenue, 2),
@@ -211,15 +209,22 @@ async def build_report(
 def build_tapestry(history=None) -> Tapestry:
     with Tapestry(history=history) as t:
         run_date = Parameter("run_date", str, _config=KnotConfig(id="run_date"))
-        seed     = Parameter("seed", int,     _config=KnotConfig(id="seed"))
+        seed = Parameter("seed", int, _config=KnotConfig(id="seed"))
 
-        orders  = ingest_orders(run_date=run_date, seed=seed, _config=KnotConfig(id="orders"))
-        events  = ingest_events(run_date=run_date, seed=seed, _config=KnotConfig(id="events"))
-        users   = ingest_users(run_date=run_date,  seed=seed, _config=KnotConfig(id="users"))
-        joined  = join_datasets(orders=orders, events=events, users=users, _config=KnotConfig(id="join"))
+        orders = ingest_orders(run_date=run_date, seed=seed, _config=KnotConfig(id="orders"))
+        events = ingest_events(run_date=run_date, seed=seed, _config=KnotConfig(id="events"))
+        users = ingest_users(run_date=run_date, seed=seed, _config=KnotConfig(id="users"))
+        joined = join_datasets(
+            orders=orders, events=events, users=users, _config=KnotConfig(id="join")
+        )
         regions = aggregate_by_region(joined=joined, _config=KnotConfig(id="regions"))
         cohorts = aggregate_by_cohort(joined=joined, _config=KnotConfig(id="cohorts"))
-        build_report(region_metrics=regions, cohort_metrics=cohorts, joined=joined, _config=KnotConfig(id="report"))
+        build_report(
+            region_metrics=regions,
+            cohort_metrics=cohorts,
+            joined=joined,
+            _config=KnotConfig(id="report"),
+        )
     return t
 
 

@@ -79,16 +79,16 @@ def _canonicalise(value: Any) -> Any:
     if isinstance(value, BaseModel):
         # Model JSON, then re-canonicalise the resulting dict so nested
         # non-Pydantic values are handled consistently.
-        return {"__model__": value.__class__.__name__, "data": _canonicalise(
-            value.model_dump(mode="json")
-        )}
+        return {
+            "__model__": value.__class__.__name__,
+            "data": _canonicalise(value.model_dump(mode="json")),
+        }
     if isinstance(value, Mapping):
         # Sort by str(key) for determinism.  Keys must serialise to strings
         # in JSON anyway.
         return {
             "__map__": [
-                [_canonicalise(k), _canonicalise(value[k])]
-                for k in sorted(value.keys(), key=str)
+                [_canonicalise(k), _canonicalise(value[k])] for k in sorted(value.keys(), key=str)
             ]
         }
     if isinstance(value, (set, frozenset, Set)):

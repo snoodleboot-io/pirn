@@ -63,9 +63,7 @@ class Map(Knot):
 
         # 'each' should be a class (Knot subclass) or a @knot factory.
         if not _is_knot_factory(each):
-            raise TypeError(
-                "Map: 'each' must be a Knot subclass or a @knot factory"
-            )
+            raise TypeError("Map: 'each' must be a Knot subclass or a @knot factory")
 
         self._mutable_each = each
         self._mutable_bind = bind
@@ -165,8 +163,7 @@ class Map(Knot):
                 continue
             elif isinstance(r, _Err):
                 raise RuntimeError(
-                    f"Map: inner knot failed: "
-                    f"{r.record.exc_type}: {r.record.message}"
+                    f"Map: inner knot failed: {r.record.exc_type}: {r.record.message}"
                 )
         return final
 

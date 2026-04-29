@@ -21,7 +21,6 @@ from dataclasses import dataclass
 
 from pirn import KnotConfig, Parameter, RunRequest, Tapestry, knot
 
-
 # ----------------------------------------------------------------- models
 
 
@@ -137,19 +136,19 @@ async def send_notification(user: UserProfile, response: ApiResponse) -> None:
 
 def build_tapestry() -> Tapestry:
     with Tapestry() as t:
-        raw_body = Parameter("raw_body", str,       _config=KnotConfig(id="raw_body"))
-        hdrs     = Parameter("headers_json", str,   _config=KnotConfig(id="headers_json"))
-        scope    = Parameter("required_scope", str, _config=KnotConfig(id="scope"))
+        raw_body = Parameter("raw_body", str, _config=KnotConfig(id="raw_body"))
+        hdrs = Parameter("headers_json", str, _config=KnotConfig(id="headers_json"))
+        scope = Parameter("required_scope", str, _config=KnotConfig(id="scope"))
 
-        req   = parse_request(raw_body=raw_body, headers_json=hdrs, _config=KnotConfig(id="parse"))
-        auth  = authenticate(request=req,              _config=KnotConfig(id="auth"))
+        req = parse_request(raw_body=raw_body, headers_json=hdrs, _config=KnotConfig(id="parse"))
+        auth = authenticate(request=req, _config=KnotConfig(id="auth"))
         authz = authorise(auth=auth, required_scope=scope, _config=KnotConfig(id="authz"))
-        body  = validate_body(request=req, auth=authz, _config=KnotConfig(id="validate"))
-        user  = fetch_user(auth=authz,                 _config=KnotConfig(id="fetch_user"))
-        acct  = fetch_account(auth=authz,              _config=KnotConfig(id="fetch_account"))
-        resp  = process(body=body, user=user, account=acct, _config=KnotConfig(id="process"))
-        audit_log(request=req, response=resp,          _config=KnotConfig(id="audit"))
-        send_notification(user=user, response=resp,    _config=KnotConfig(id="notify"))
+        body = validate_body(request=req, auth=authz, _config=KnotConfig(id="validate"))
+        user = fetch_user(auth=authz, _config=KnotConfig(id="fetch_user"))
+        acct = fetch_account(auth=authz, _config=KnotConfig(id="fetch_account"))
+        resp = process(body=body, user=user, account=acct, _config=KnotConfig(id="process"))
+        audit_log(request=req, response=resp, _config=KnotConfig(id="audit"))
+        send_notification(user=user, response=resp, _config=KnotConfig(id="notify"))
     return t
 
 
@@ -160,23 +159,31 @@ async def main() -> None:
     t = build_tapestry()
 
     print("=== Successful request ===")
-    result = await t.run(RunRequest(parameters={
-        "raw_body":       json.dumps({"action": "summarise", "text": "Hello"}),
-        "headers_json":   json.dumps({"Authorization": "Bearer valid-token-xyz"}),
-        "required_scope": "write",
-    }))
+    result = await t.run(
+        RunRequest(
+            parameters={
+                "raw_body": json.dumps({"action": "summarise", "text": "Hello"}),
+                "headers_json": json.dumps({"Authorization": "Bearer valid-token-xyz"}),
+                "required_scope": "write",
+            }
+        )
+    )
     for rec in result.lineage:
-        icon = "✓" if rec.outcome == "ok" else ("–" if rec.outcome == "skipped" else "✗")
+        icon = "✓" if rec.outcome == "ok" else ("-" if rec.outcome == "skipped" else "✗")
         print(f"  {icon} {rec.knot_id:<20} {rec.outcome}")
 
     print("\n=== Auth failure (no token) ===")
-    result2 = await t.run(RunRequest(parameters={
-        "raw_body":       json.dumps({"action": "summarise"}),
-        "headers_json":   json.dumps({}),
-        "required_scope": "write",
-    }))
+    result2 = await t.run(
+        RunRequest(
+            parameters={
+                "raw_body": json.dumps({"action": "summarise"}),
+                "headers_json": json.dumps({}),
+                "required_scope": "write",
+            }
+        )
+    )
     for rec in result2.lineage:
-        icon = "✓" if rec.outcome == "ok" else ("–" if rec.outcome == "skipped" else "✗")
+        icon = "✓" if rec.outcome == "ok" else ("-" if rec.outcome == "skipped" else "✗")
         print(f"  {icon} {rec.knot_id:<20} {rec.outcome}")
 
 

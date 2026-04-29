@@ -175,8 +175,8 @@ class PostgresStore:
             component,
         )
         current = row["version"] if row else 0
-        for v in range(current, target):
-            pass  # _migrate_{v}_to_{v+1}(conn) goes here when needed
+        for _v in range(current, target):
+            pass  # _migrate_{_v}_to_{_v+1}(conn) goes here when needed
         await conn.execute(
             """INSERT INTO pirn_schema_version (component, version)
                VALUES ($1, $2)
@@ -191,16 +191,13 @@ class PostgresStore:
         existing = self._live.get(knot.knot_id)
         if existing is not None and existing is not knot:
             raise ValueError(
-                f"knot id {knot.knot_id!r} already registered with a "
-                f"different instance"
+                f"knot id {knot.knot_id!r} already registered with a different instance"
             )
         self._live[knot.knot_id] = knot
 
         await self._ensure_init()
         config_json = knot.config.model_dump_json()
-        parents_json = json.dumps(
-            {name: parent.knot_id for name, parent in knot.parents.items()}
-        )
+        parents_json = json.dumps({name: parent.knot_id for name, parent in knot.parents.items()})
         knot_class = f"{type(knot).__module__}.{type(knot).__qualname__}"
 
         pool = await self._pool.get()
@@ -410,18 +407,14 @@ class PostgresHistory:
         await self._ensure_init()
         pool = await self._pool.get()
         async with pool.acquire() as conn:
-            row = await conn.fetchrow(
-                "SELECT payload_json FROM runs WHERE run_id = $1", run_id
-            )
+            row = await conn.fetchrow("SELECT payload_json FROM runs WHERE run_id = $1", run_id)
         if row is None:
             return None
         from pirn.core.context import RunResult
 
         return RunResult.model_validate_json(row["payload_json"])
 
-    async def query_lineage_by_output_hash(
-        self, output_hash: str
-    ) -> list[KnotLineage]:
+    async def query_lineage_by_output_hash(self, output_hash: str) -> list[KnotLineage]:
         await self._ensure_init()
         pool = await self._pool.get()
         async with pool.acquire() as conn:
@@ -431,9 +424,7 @@ class PostgresHistory:
             )
         return [KnotLineage.model_validate_json(row["payload_json"]) for row in rows]
 
-    async def query_lineage_by_input_hash(
-        self, input_hash: str
-    ) -> list[KnotLineage]:
+    async def query_lineage_by_input_hash(self, input_hash: str) -> list[KnotLineage]:
         await self._ensure_init()
         pool = await self._pool.get()
         async with pool.acquire() as conn:
@@ -450,9 +441,7 @@ class PostgresHistory:
         await self._ensure_init()
         pool = await self._pool.get()
         async with pool.acquire() as conn:
-            rows = await conn.fetch(
-                "SELECT payload_json FROM lineage WHERE knot_id = $1", knot_id
-            )
+            rows = await conn.fetch("SELECT payload_json FROM lineage WHERE knot_id = $1", knot_id)
         return [KnotLineage.model_validate_json(row["payload_json"]) for row in rows]
 
     async def close(self) -> None:

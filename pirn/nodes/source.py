@@ -42,7 +42,8 @@ class Source(Knot):
         # Sources have no inputs; reject any non-framework kwargs to give
         # a clear error.
         bad = {
-            k for k in kwargs
+            k
+            for k in kwargs
             if k not in {"_config", "tapestry"} and isinstance(kwargs[k], Knot) is not False
         }
         # Actually any non-reserved kwarg is an error for a Source — they

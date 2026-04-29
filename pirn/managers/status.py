@@ -61,9 +61,7 @@ class StatusManager:
         Subscribers run after the lock is released so a slow subscriber
         cannot block other transitions.
         """
-        event = StatusEvent(
-            run_id=self._run_id, knot_id=knot_id, state=state, detail=detail
-        )
+        event = StatusEvent(run_id=self._run_id, knot_id=knot_id, state=state, detail=detail)
         with self._lock:
             self._states[knot_id] = state
             self._events.append(event)

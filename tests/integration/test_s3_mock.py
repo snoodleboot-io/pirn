@@ -52,7 +52,9 @@ class _FakeSession:
         self.s3 = _FakeS3Client()
 
     @asynccontextmanager
-    async def client(self, service: str, region_name: str | None = None, endpoint_url: str | None = None):
+    async def client(
+        self, service: str, region_name: str | None = None, endpoint_url: str | None = None
+    ):
         assert service == "s3"
         yield self.s3
 

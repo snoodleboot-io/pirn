@@ -47,9 +47,7 @@ def html_for_run(result: RunResult, title: str | None = None) -> str:
     ]
 
     by_output = {
-        rec.output_hash: rec.knot_id
-        for rec in result.lineage
-        if rec.output_hash is not None
+        rec.output_hash: rec.knot_id for rec in result.lineage if rec.output_hash is not None
     }
     edges = []
     for rec in result.lineage:
@@ -142,7 +140,7 @@ def _render_summary(result) -> str:
         f'<span class="value">{html.escape(result.run_id)}</span></div>'
         f'<div><span class="label">Status:</span> '
         f'<span class="value status-{status_class}">'
-        f'{status_label}</span></div>'
+        f"{status_label}</span></div>"
         f'<div><span class="label">Duration:</span> '
         f'<span class="value">{result.duration_seconds:.2f}s</span></div>'
         f'<div><span class="label">Dispatcher:</span> '
@@ -181,8 +179,8 @@ def _render_svg(nodes, edges, coords) -> str:
         y1 += 20  # bottom of the parent box
         y2 -= 20  # top of the child box
         parts.append(
-            f'<path d="M {x1},{y1} C {x1},{(y1+y2)/2} '
-            f'{x2},{(y1+y2)/2} {x2},{y2}" class="edge" />'
+            f'<path d="M {x1},{y1} C {x1},{(y1 + y2) / 2} '
+            f'{x2},{(y1 + y2) / 2} {x2},{y2}" class="edge" />'
         )
 
     # Nodes.

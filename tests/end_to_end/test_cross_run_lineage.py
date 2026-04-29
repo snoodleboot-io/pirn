@@ -45,9 +45,7 @@ async def test_cross_run_query_by_output_hash():
     await t.run(RunRequest(parameters={"x": 6}))
 
     last = await t.run(RunRequest(parameters={"x": 5}))
-    target_hash = next(
-        rec.output_hash for rec in last.lineage if rec.knot_id == "sq"
-    )
+    target_hash = next(rec.output_hash for rec in last.lineage if rec.knot_id == "sq")
     matches = await t.history.query_lineage_by_output_hash(target_hash)
     # Five total runs of x=5 (3 + 1 last), all match.
     assert len([m for m in matches if m.knot_id == "sq"]) == 4

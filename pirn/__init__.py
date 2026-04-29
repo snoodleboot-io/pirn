@@ -59,6 +59,7 @@ from pirn.nodes import (
     Sink,
     Source,
 )
+from pirn.replay import KnotDiff, compare_runs, replay_run
 from pirn.streaming import (
     FileTailSource,
     IterableSource,
@@ -77,7 +78,6 @@ from pirn.triggers import (
 )
 from pirn.viz import html_for_run, mermaid_for_run, mermaid_for_tapestry
 from pirn.yaml_loader import PipelineSpec, load_pipeline
-from pirn.replay import KnotDiff, compare_runs, replay_run
 
 __version__ = "0.3.0"
 

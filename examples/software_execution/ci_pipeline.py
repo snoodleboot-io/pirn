@@ -21,7 +21,6 @@ from dataclasses import dataclass
 from pirn import KnotConfig, Parameter, RunRequest, Tapestry, knot
 from pirn.backends.sqlite import SQLiteHistory
 
-
 # ----------------------------------------------------------------- models
 
 
@@ -99,7 +98,8 @@ async def run_integration_tests(source: CheckoutResult, tc: QualityReport) -> Te
         raise RuntimeError(f"integration tests blocked: {tc.issues} type error(s)")
     t0 = time.monotonic()
     await asyncio.sleep(0.08)
-    return TestReport("integration", passed=48, failed=0, duration_ms=(time.monotonic() - t0) * 1000)
+    elapsed_ms = (time.monotonic() - t0) * 1000
+    return TestReport("integration", passed=48, failed=0, duration_ms=elapsed_ms)
 
 
 @knot
@@ -132,17 +132,19 @@ async def deploy(artifact: BuildArtifact, environment: str) -> DeployReceipt:
 
 def build_tapestry(history=None) -> Tapestry:
     with Tapestry(history=history) as t:
-        branch  = Parameter("branch", str,       _config=KnotConfig(id="branch"))
-        sha     = Parameter("commit_sha", str,   _config=KnotConfig(id="sha"))
-        env     = Parameter("environment", str,  _config=KnotConfig(id="env"))
+        branch = Parameter("branch", str, _config=KnotConfig(id="branch"))
+        sha = Parameter("commit_sha", str, _config=KnotConfig(id="sha"))
+        env = Parameter("environment", str, _config=KnotConfig(id="env"))
 
-        source  = checkout(branch=branch, commit_sha=sha,     _config=KnotConfig(id="checkout"))
-        lint    = run_lint(source=source,                      _config=KnotConfig(id="lint"))
-        tc      = run_typecheck(source=source,                 _config=KnotConfig(id="typecheck"))
-        unit    = run_unit_tests(source=source, lint=lint,    _config=KnotConfig(id="unit_tests"))
-        integ   = run_integration_tests(source=source, tc=tc, _config=KnotConfig(id="integ_tests"))
-        art     = build_image(source=source, unit=unit, integration=integ, _config=KnotConfig(id="build"))
-        deploy(artifact=art, environment=env,                 _config=KnotConfig(id="deploy"))
+        source = checkout(branch=branch, commit_sha=sha, _config=KnotConfig(id="checkout"))
+        lint = run_lint(source=source, _config=KnotConfig(id="lint"))
+        tc = run_typecheck(source=source, _config=KnotConfig(id="typecheck"))
+        unit = run_unit_tests(source=source, lint=lint, _config=KnotConfig(id="unit_tests"))
+        integ = run_integration_tests(source=source, tc=tc, _config=KnotConfig(id="integ_tests"))
+        art = build_image(
+            source=source, unit=unit, integration=integ, _config=KnotConfig(id="build")
+        )
+        deploy(artifact=art, environment=env, _config=KnotConfig(id="deploy"))
     return t
 
 
@@ -153,17 +155,21 @@ async def main() -> None:
     history = SQLiteHistory()
     t = build_tapestry(history=history)
 
-    result = await t.run(RunRequest(parameters={
-        "branch": "main",
-        "commit_sha": "abc123def456",
-        "environment": "staging",
-    }))
+    result = await t.run(
+        RunRequest(
+            parameters={
+                "branch": "main",
+                "commit_sha": "abc123def456",
+                "environment": "staging",
+            }
+        )
+    )
 
     duration = (result.finished_at - result.started_at).total_seconds()
     print(f"Run {'succeeded' if result.succeeded else 'FAILED'} in {duration:.2f}s\n")
 
     for rec in result.lineage:
-        icon = "✓" if rec.outcome == "ok" else ("–" if rec.outcome == "skipped" else "✗")
+        icon = "✓" if rec.outcome == "ok" else ("-" if rec.outcome == "skipped" else "✗")
         print(f"  {icon} {rec.knot_id:<20} {rec.outcome}")
 
     if result.succeeded:

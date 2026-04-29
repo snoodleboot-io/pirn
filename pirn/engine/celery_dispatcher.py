@@ -60,8 +60,7 @@ class CeleryDispatcher:
                 from celery import Celery
             except ImportError as exc:
                 raise ImportError(
-                    "CeleryDispatcher requires celery; install via "
-                    "`pip install pirn[celery]`"
+                    "CeleryDispatcher requires celery; install via `pip install pirn[celery]`"
                 ) from exc
             self._app = Celery(
                 "pirn",
@@ -75,9 +74,7 @@ class CeleryDispatcher:
             )
         return self._app
 
-    async def dispatch(
-        self, knot: Knot, inputs: Mapping[str, Any]
-    ) -> Result[Any]:
+    async def dispatch(self, knot: Knot, inputs: Mapping[str, Any]) -> Result[Any]:
         app = self._ensure_app()
         async_result = app.send_task(
             PIRN_CELERY_TASK_NAME,
@@ -106,6 +103,7 @@ def register_celery_worker_task(app: Any) -> None:
         )
         register_celery_worker_task(app)
     """
+
     @app.task(name=PIRN_CELERY_TASK_NAME)
     def _run_knot(knot: Knot, inputs: dict[str, Any]) -> Result[Any]:
         return asyncio.run(knot(inputs))

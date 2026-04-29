@@ -37,13 +37,9 @@ class CronTrigger:
         max_runs: int | None = None,
     ) -> None:
         if every_seconds is None and at_times is None:
-            raise TypeError(
-                "CronTrigger requires either every_seconds= or at_times="
-            )
+            raise TypeError("CronTrigger requires either every_seconds= or at_times=")
         if every_seconds is not None and at_times is not None:
-            raise TypeError(
-                "CronTrigger: pass either every_seconds= or at_times=, not both"
-            )
+            raise TypeError("CronTrigger: pass either every_seconds= or at_times=, not both")
 
         self._every_seconds = every_seconds
         self._at_times = sorted(at_times or [])

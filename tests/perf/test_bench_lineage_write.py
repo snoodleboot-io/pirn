@@ -58,6 +58,7 @@ def test_bench_postgres_lineage_100(benchmark):
         pytest.skip("PIRN_TEST_POSTGRES_URL not set")
 
     import asyncpg
+
     from pirn.backends.postgres import PostgresHistory
 
     async def run():
@@ -77,6 +78,7 @@ def test_bench_postgres_lineage_1000(benchmark):
         pytest.skip("PIRN_TEST_POSTGRES_URL not set")
 
     import asyncpg
+
     from pirn.backends.postgres import PostgresHistory
 
     async def run():

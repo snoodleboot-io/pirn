@@ -93,9 +93,7 @@ class ExceptionManager:
             traceback_text = exc.original_traceback_text
         else:
             exc_type = type(exc).__name__
-            traceback_text = "".join(
-                traceback.format_exception(type(exc), exc, exc.__traceback__)
-            )
+            traceback_text = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
         rec = ExceptionRecord(
             run_id=self._run_id,
             knot_id=knot_id,

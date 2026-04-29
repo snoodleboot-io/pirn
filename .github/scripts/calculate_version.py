@@ -20,7 +20,6 @@ import sys
 import urllib.request
 from datetime import datetime
 
-
 PACKAGE_NAME = os.environ.get("PACKAGE_NAME", "pirn").strip()
 MAJOR_VERSION = int(os.environ.get("MAJOR_VERSION", "0").strip() or "0")
 GITHUB_REF = os.environ.get("GITHUB_REF", "").strip()
@@ -70,9 +69,8 @@ def calculate_version() -> tuple[str, bool, bool]:
 
     should_publish_testpypi = is_pr and is_pr_to_main and GITHUB_EVENT_ACTION != "closed"
     should_publish_pypi = (
-        (is_pr and GITHUB_EVENT_ACTION == "closed" and is_pr_to_main)
-        or is_main_push
-    )
+        is_pr and GITHUB_EVENT_ACTION == "closed" and is_pr_to_main
+    ) or is_main_push
 
     pypi = get_pypi_version(PACKAGE_NAME)
     if pypi is None:
@@ -92,8 +90,10 @@ def calculate_version() -> tuple[str, bool, bool]:
         stamp = datetime.now().strftime("%H%M%S")
         version = f"{MAJOR_VERSION}.{new_minor}.0.dev{stamp}"
 
-    print(f"GITHUB_REF={GITHUB_REF!r} EVENT={GITHUB_EVENT_NAME!r} "
-          f"ACTION={GITHUB_EVENT_ACTION!r} BASE={GITHUB_BASE_REF!r}")
+    print(
+        f"GITHUB_REF={GITHUB_REF!r} EVENT={GITHUB_EVENT_NAME!r} "
+        f"ACTION={GITHUB_EVENT_ACTION!r} BASE={GITHUB_BASE_REF!r}"
+    )
     print(f"is_pr={is_pr} pr_to_main={is_pr_to_main} pr_number={pr_number}")
     print(f"testpypi={should_publish_testpypi} pypi={should_publish_pypi}")
     print(f"Version: {version}")

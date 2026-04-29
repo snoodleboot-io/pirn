@@ -30,7 +30,7 @@ from typing import Any
 
 @dataclass
 class ValidationIssue:
-    severity: str   # "error" or "warning"
+    severity: str  # "error" or "warning"
     knot_id: str | None
     message: str
 
@@ -80,10 +80,13 @@ def validate_tapestry(tapestry: Any) -> ValidationResult:
         seen_ids[k.knot_id] = seen_ids.get(k.knot_id, 0) + 1
     for knot_id, count in seen_ids.items():
         if count > 1:
-            result.issues.append(ValidationIssue(
-                "error", knot_id,
-                f"knot id appears {count} times — ids must be unique",
-            ))
+            result.issues.append(
+                ValidationIssue(
+                    "error",
+                    knot_id,
+                    f"knot id appears {count} times — ids must be unique",
+                )
+            )
 
     # 2. Cycle detection (DFS)
     adj: dict[str, list[str]] = {k.knot_id: list(k.parents.keys()) for k in knots}
@@ -98,10 +101,13 @@ def validate_tapestry(tapestry: Any) -> ValidationResult:
                 continue  # parameter nodes are not in adj
             if color[parent_id] == GREY and parent_id not in cycle_reported:
                 cycle_reported.add(parent_id)
-                result.issues.append(ValidationIssue(
-                    "error", node,
-                    f"cycle detected: {node!r} → {parent_id!r}",
-                ))
+                result.issues.append(
+                    ValidationIssue(
+                        "error",
+                        node,
+                        f"cycle detected: {node!r} → {parent_id!r}",
+                    )
+                )
                 return True
             if color[parent_id] == WHITE:
                 dfs(parent_id)
@@ -115,7 +121,6 @@ def validate_tapestry(tapestry: Any) -> ValidationResult:
     # 3. Unreachable terminal check — warn about knots with no dependants
     #    (these are sinks / side-effect nodes and are fine, but knots that
     #    are neither terminals nor parents of any other knot may be orphans)
-    all_ids = {k.knot_id for k in knots}
     referenced_as_parent: set[str] = set()
     for k in knots:
         referenced_as_parent.update(k.parents.keys())
@@ -125,18 +130,19 @@ def validate_tapestry(tapestry: Any) -> ValidationResult:
     # (intentional sink).  Warn only if there are more than one non-parameter
     # terminal — a tapestry should typically have one or a few explicit sinks.
     from pirn.core.parameter import Parameter
+
     non_param_knots = [k for k in knots if not isinstance(k, Parameter)]
-    terminals = [
-        k for k in non_param_knots
-        if k.knot_id not in referenced_as_parent
-    ]
+    terminals = [k for k in non_param_knots if k.knot_id not in referenced_as_parent]
     if len(terminals) > 3:
-        result.issues.append(ValidationIssue(
-            "warning", None,
-            f"{len(terminals)} terminal knots found — ensure this is intentional: "
-            + ", ".join(k.knot_id for k in terminals[:5])
-            + ("…" if len(terminals) > 5 else ""),
-        ))
+        result.issues.append(
+            ValidationIssue(
+                "warning",
+                None,
+                f"{len(terminals)} terminal knots found — ensure this is intentional: "
+                + ", ".join(k.knot_id for k in terminals[:5])
+                + ("…" if len(terminals) > 5 else ""),
+            )
+        )
 
     return result
 
@@ -145,8 +151,7 @@ def _load_factory(spec: str) -> Any:
     """Import ``module:function`` and return the callable."""
     if ":" not in spec:
         print(
-            f"error: expected MODULE:FUNCTION, got {spec!r}\n"
-            "example: mymodule:build_tapestry",
+            f"error: expected MODULE:FUNCTION, got {spec!r}\nexample: mymodule:build_tapestry",
             file=sys.stderr,
         )
         sys.exit(2)

@@ -132,6 +132,4 @@ class Parameter(Knot):
             return self._mutable_value
         if self.has_default:
             return self.default
-        raise RuntimeError(
-            f"Parameter {self.name!r} has no value bound and no default"
-        )
+        raise RuntimeError(f"Parameter {self.name!r} has no value bound and no default")
