@@ -365,7 +365,7 @@ function renderSidebar() {
   const count = TAPESTRIES.length;
   document.getElementById('sidebar-count').textContent =
     count === 0 ? 'No tapestries found'
-                : `${count} tapestry${count === 1 ? '' : 'ies'}`;
+                : `${count} tapestr${count === 1 ? 'y' : 'ies'}`;
 
   const ul = document.getElementById('tapestry-list');
   ul.innerHTML = '';
