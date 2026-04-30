@@ -132,23 +132,53 @@ The key thing this example illustrates is that pirn's dependency graph naturally
 uv run python examples/llm_agent/agent_loop.py
 ```
 
-An agentic loop where the graph grows dynamically at runtime based on what the agent decides to do next. The loop is expressed as a `LoopSubTapestry` — a base class that separates iteration into two pure functions:
+An agentic session over multiple messages where the execution graph grows dynamically at runtime. There is no pre-planned loop structure — each `AgentPlanner` knot runs, decides what actions to take, and registers those knots directly into the running extensible tapestry using `get_current_store()`. Data flows through real parent edges; there is no shared mutable state blob.
 
-- **`step(state)`** — planning: read state, decide the next actions, build and return the inner tapestry for this cycle. Return `None` to terminate.
-- **`fold(state, result)`** — reduction: integrate the cycle's `RunResult` back into state. Check termination conditions here.
+The shape of one iteration:
 
-The framework threads them: `step → run → fold → step → run → fold → …` until `step` returns `None`.
+```
+AgentPlanner → action_0, action_1, ... (run concurrently)
+             → Aggregator(all actions)
+             → AgentDecider(results=aggregator, ctx=planner)
+```
 
-Inside each cycle, an `ActionDispatcher` (a `SubTapestry`) builds a fresh graph on the fly — one knot per planned action (`run_tool_call`, `run_mcp_call`, or `SubAgentRunner`) — and runs them all concurrently. Results fold back into the scratchpad so later iterations see what earlier ones produced and plan differently.
+`AgentDecider` integrates the results, updates the immutable `SessionContext`, and either registers the next `AgentPlanner` (more work to do) or a `_SessionFinalizer` (session complete). The final output is always at the well-known knot id `session_complete`.
 
-All three action types reach a different depth in the explorer:
-- `tool_call` nodes are leaf knots — drill in and see a single execution record
-- `mcp_call` nodes are leaf knots with simulated async I/O
-- `subagent` nodes (`SubAgentRunner`) are themselves `SubTapestry` — drill in and see their own inner two-step pipeline
+Three action types demonstrate different graph depths:
+- `run_tool_call` / `run_mcp_call` — leaf knots; inspect timing and output directly
+- `SubAgentRunner` — a `SubTapestry`; drill into it to see its own `prepare → execute` inner pipeline
 
-A per-run seed (`run_seed`) is passed in with each task so the same task produces a structurally different graph on each re-run. Drill into the `AgentLoop` node in the explorer: each iteration is a separate inner run you can navigate to independently.
+Knot IDs use a message-content slug (`whats_the_weather__m1i1`) so you can immediately read what each planner was working on in the explorer. A random `run_seed` is picked each run, producing a structurally different graph every time.
 
-This is the right starting point if you want to model real agent workloads — tool dispatch, MCP calls, spawned subagents — where the execution plan is unknown until runtime.
+This is the right starting point for modelling real agent workloads where the execution plan is unknown until runtime.
+
+---
+
+## document_analysis
+
+```bash
+uv run python examples/document_analysis/document_analysis.py
+```
+
+A document analysis pipeline that demonstrates subclassing `Knot` directly rather than using the `@knot` decorator. All processing nodes are class-based — typed, named, and composable through inheritance.
+
+The pipeline runs four parallel analysis branches from a shared `TextNormaliser` output, then converges into a single `AnalysisReport`:
+
+```
+DocumentLoader ──► TextNormaliser ──┬──► SentimentScorer  ──┐
+                                    ├──► ReadabilityScorer   ├──► AnalysisReport
+                                    ├──► KeywordExtractor    │
+                                    └──► TopicClassifier   ──┘
+```
+
+Key patterns shown:
+
+- **Base class with shared helpers** — `_BaseAnalyser(Knot)` provides `_freq()`, `_tfidf()`, and `_avg_word_len()` used by all four analyser subclasses. Shared logic lives in the class, not repeated across `process()` methods.
+- **Config injection via process() args** — `KeywordExtractor` declares `max_keywords: int` in its `process()` signature; passing `max_keywords=10` at construction time stores it as a config constant.
+- **Pure class-level state** — `SentimentScorer` and `TopicClassifier` keep their lexicons and signal dictionaries as class attributes, shared across all instances.
+- **Input validation in `process()`** — `DocumentLoader` trims and validates its inputs, raising `ValueError` on empty title or body.
+
+Three sample articles (science, finance, health) are analysed in sequence against the same tapestry. Run it and open the explorer to see the parallel branch structure and per-knot timing.
 
 ---
 

@@ -30,3 +30,33 @@ result = await t.run(RunRequest(parameters={"x": 5}))
       show_source: false
       members_order: source
       heading_level: 3
+
+---
+
+## get_current_store
+
+```python
+from pirn.tapestry import get_current_store
+```
+
+Returns the `TapestryStore` of the currently-executing extensible run, or `None` when called outside an extensible run.
+
+Call this inside a knot's `process()` to register successor knots into the running tapestry. The engine picks them up between waves — this is the mechanism for building dynamic DAGs where the graph structure is determined by runtime output.
+
+```python
+from pirn.tapestry import get_current_store
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
+
+class RouterKnot(Knot):
+    async def process(self, result: dict, **_) -> dict:
+        store = get_current_store()
+        if store is not None:
+            if result["needs_enrichment"]:
+                store.register(EnrichKnot(data=self, _config=KnotConfig(id="enrich")))
+            else:
+                store.register(FinaliseKnot(data=self, _config=KnotConfig(id="finalise")))
+        return result
+```
+
+Requires `extensible=True` on the enclosing `tapestry.run()` call. In a non-extensible run this always returns `None` and registered knots are silently dropped.

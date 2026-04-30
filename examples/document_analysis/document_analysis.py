@@ -12,7 +12,7 @@ Pipeline shape:
                                         └──► TopicClassifier   ──┘
 
 Run with:
-    uv run python examples/document_analysis/pipeline.py
+    uv run python examples/document_analysis/document_analysis.py
 """
 
 from __future__ import annotations
