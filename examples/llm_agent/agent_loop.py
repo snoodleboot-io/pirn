@@ -45,8 +45,8 @@ from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry, get_current_store
 
 MAX_ITERATIONS_PER_MSG = 4
-MAX_TOTAL_ITERATIONS   = 20
-SESSION_COMPLETE_ID    = "session_complete"
+MAX_TOTAL_ITERATIONS = 20
+SESSION_COMPLETE_ID = "session_complete"
 
 
 # ----------------------------------------------------------------- state models
@@ -205,18 +205,26 @@ def plan_next_actions(ctx: SessionContext) -> list[PlannedAction]:
         actions.append(PlannedAction("mcp_call", "fetch_url", {"url": "https://example.com"}))
 
     if not actions:
-        actions.append(rng.choice([
-            PlannedAction("mcp_call", "web_search", {"query": task[:60]}),
-            PlannedAction("tool_call", "get_weather", {"location": "London"}),
-            PlannedAction("subagent", "analyse", {"context": task}),
-        ]))
+        actions.append(
+            rng.choice(
+                [
+                    PlannedAction("mcp_call", "web_search", {"query": task[:60]}),
+                    PlannedAction("tool_call", "get_weather", {"location": "London"}),
+                    PlannedAction("subagent", "analyse", {"context": task}),
+                ]
+            )
+        )
 
     msg_types = {s.action_type for s in msg_steps}
     if rng.random() < 0.35 and len(actions) < 4 and "subagent" not in msg_types:
-        actions.append(rng.choice([
-            PlannedAction("mcp_call", "web_search", {"query": f"{task[:30]} latest"}),
-            PlannedAction("tool_call", "calculate", {"expression": "100 * 1.035 ** 5"}),
-        ]))
+        actions.append(
+            rng.choice(
+                [
+                    PlannedAction("mcp_call", "web_search", {"query": f"{task[:30]} latest"}),
+                    PlannedAction("tool_call", "calculate", {"expression": "100 * 1.035 ** 5"}),
+                ]
+            )
+        )
 
     return actions
 
@@ -229,8 +237,13 @@ async def run_tool_call(action: PlannedAction, ctx: SessionContext, **_) -> Step
     """Execute a local tool function."""
     rng = _rng(ctx, extra=action.name)
     output = _fake_tool(action.name, action.args, rng)
-    return StepResult(iteration=ctx.iteration, msg_idx=ctx.msg_idx,
-                      action_type="tool_call", name=action.name, output=output)
+    return StepResult(
+        iteration=ctx.iteration,
+        msg_idx=ctx.msg_idx,
+        action_type="tool_call",
+        name=action.name,
+        output=output,
+    )
 
 
 @knot
@@ -239,8 +252,13 @@ async def run_mcp_call(action: PlannedAction, ctx: SessionContext, **_) -> StepR
     await asyncio.sleep(0)
     rng = _rng(ctx, extra=action.name)
     output = _fake_mcp(action.name, action.args, rng)
-    return StepResult(iteration=ctx.iteration, msg_idx=ctx.msg_idx,
-                      action_type="mcp_call", name=action.name, output=output)
+    return StepResult(
+        iteration=ctx.iteration,
+        msg_idx=ctx.msg_idx,
+        action_type="mcp_call",
+        name=action.name,
+        output=output,
+    )
 
 
 class SubAgentRunner(SubTapestry):
@@ -264,9 +282,13 @@ class SubAgentRunner(SubTapestry):
             execute_subagent(prepared=ctx_knot, _config=KnotConfig(id="subagent_output"))
 
         result = await self._run_inner(inner)
-        return StepResult(iteration=ctx.iteration, msg_idx=ctx.msg_idx,
-                          action_type="subagent", name=action.name,
-                          output=result.outputs["subagent_output"])
+        return StepResult(
+            iteration=ctx.iteration,
+            msg_idx=ctx.msg_idx,
+            action_type="subagent",
+            name=action.name,
+            output=result.outputs["subagent_output"],
+        )
 
 
 # ----------------------------------------------------------------- planner knot
@@ -293,14 +315,17 @@ class AgentPlanner(Knot):
         for i, action in enumerate(actions):
             node_id = f"{prefix}__act_{i}"
             if action.action_type == "tool_call":
-                ak: Knot = run_tool_call(action=action, ctx=self,
-                                         _config=KnotConfig(id=node_id, validate_io=False))
+                ak: Knot = run_tool_call(
+                    action=action, ctx=self, _config=KnotConfig(id=node_id, validate_io=False)
+                )
             elif action.action_type == "mcp_call":
-                ak = run_mcp_call(action=action, ctx=self,
-                                  _config=KnotConfig(id=node_id, validate_io=False))
+                ak = run_mcp_call(
+                    action=action, ctx=self, _config=KnotConfig(id=node_id, validate_io=False)
+                )
             else:
-                ak = SubAgentRunner(action=action, ctx=self,
-                                    _config=KnotConfig(id=node_id, validate_io=False))
+                ak = SubAgentRunner(
+                    action=action, ctx=self, _config=KnotConfig(id=node_id, validate_io=False)
+                )
             store.register(ak)
             action_knots[f"r{i}"] = ak
 
@@ -389,8 +414,9 @@ class _SessionFinalizer(Knot):
 def build_tapestry(*, initial_ctx: SessionContext | None = None, history=None) -> Tapestry:
     t = Tapestry(history=history)
     seed_ctx = initial_ctx or make_session()
-    first_planner = AgentPlanner(ctx=seed_ctx,
-                                 _config=KnotConfig(id=_planner_id(seed_ctx), validate_io=False))
+    first_planner = AgentPlanner(
+        ctx=seed_ctx, _config=KnotConfig(id=_planner_id(seed_ctx), validate_io=False)
+    )
     t.store.register(first_planner)
     return t
 
@@ -447,7 +473,7 @@ async def main() -> None:
         steps_summary = "  ".join(
             f"{_TYPE_ICON.get(s.action_type, '·')}{s.name}" for s in msg_steps
         )
-        print(f"[{i+1}] {msg[:70]}")
+        print(f"[{i + 1}] {msg[:70]}")
         print(f"     {steps_summary}")
         print(f"     → {response[:100]}")
         print()

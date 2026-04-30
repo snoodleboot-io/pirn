@@ -58,6 +58,7 @@ END = "end"
 
 # ── Next ──────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class Next:
     """One successor to spawn from a continuation.
@@ -77,6 +78,7 @@ class Next:
 
 # ── Built-in terminal ─────────────────────────────────────────────────────────
 
+
 class _EndKnot(Knot):
     """Terminal knot — registered when a continuation returns Next('end').
 
@@ -90,6 +92,7 @@ class _EndKnot(Knot):
 
 
 # ── WithContinuation ──────────────────────────────────────────────────────────
+
 
 class WithContinuation(Knot):
     """Runs after a wrapped knot, calls a continuation, and spawns successors.
@@ -151,6 +154,7 @@ class WithContinuation(Knot):
 
 
 # ── continues() ───────────────────────────────────────────────────────────────
+
 
 def continues(
     knot: Knot,

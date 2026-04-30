@@ -54,8 +54,8 @@ class NormalisedText:
 
 @dataclass
 class SentimentScore:
-    label: str          # "positive" | "neutral" | "negative"
-    score: float        # -1.0 … +1.0
+    label: str  # "positive" | "neutral" | "negative"
+    score: float  # -1.0 … +1.0
     positive_hits: int
     negative_hits: int
 
@@ -63,7 +63,7 @@ class SentimentScore:
 @dataclass
 class ReadabilityScore:
     grade_level: float  # US grade level approximation
-    ease: float         # Flesch reading-ease 0-100
+    ease: float  # Flesch reading-ease 0-100
     avg_sentence_length: float
     avg_word_length: float
 
@@ -171,10 +171,7 @@ class _BaseAnalyser(Knot):
         freq = self._freq(words)
         total = sum(freq.values()) or 1
         # Simplified TF score; no IDF corpus — penalise very common short words.
-        scored = {
-            w: (c / total) * math.log(1 + len(w))
-            for w, c in freq.items()
-        }
+        scored = {w: (c / total) * math.log(1 + len(w)) for w, c in freq.items()}
         return sorted(scored.items(), key=lambda x: x[1], reverse=True)[:top]
 
     def _avg_word_len(self, words: list[str]) -> float:
@@ -212,8 +209,9 @@ class SentimentScorer(_BaseAnalyser):
             label = "negative"
         else:
             label = "neutral"
-        return SentimentScore(label=label, score=round(raw, 3),
-                              positive_hits=pos, negative_hits=neg)
+        return SentimentScore(
+            label=label, score=round(raw, 3), positive_hits=pos, negative_hits=neg
+        )
 
 
 class ReadabilityScorer(_BaseAnalyser):
@@ -341,11 +339,13 @@ class AnalysisReport(Knot):
 
 def build_tapestry(history=None) -> Tapestry:
     with Tapestry(history=history) as t:
-        title  = Parameter("title",  str, _config=KnotConfig(id="title"))
-        body   = Parameter("body",   str, _config=KnotConfig(id="body"))
+        title = Parameter("title", str, _config=KnotConfig(id="title"))
+        body = Parameter("body", str, _config=KnotConfig(id="body"))
         source = Parameter("source", str, _config=KnotConfig(id="source"))
         loader = DocumentLoader(
-            title=title, body=body, source=source,
+            title=title,
+            body=body,
+            source=source,
             _config=KnotConfig(id="loader"),
         )
         normalised = TextNormaliser(

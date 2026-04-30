@@ -82,9 +82,7 @@ def test_planner_varies_across_seeds():
     msg = MESSAGES[0]
     plans = set()
     for seed in range(1, 8):
-        ctx = SessionContext(
-            messages=(msg,), run_seed=seed, iteration=1, msg_iteration=1
-        )
+        ctx = SessionContext(messages=(msg,), run_seed=seed, iteration=1, msg_iteration=1)
         actions = plan_next_actions(ctx)
         plans.add(tuple((a.action_type, a.name) for a in actions))
     assert len(plans) >= 2, f"Planner produced no variation: {plans}"
