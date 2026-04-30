@@ -94,7 +94,7 @@ class Map(Knot):
     def __construct_inner(each: Any, kwargs: dict[str, Any]) -> Knot:
         return each(**kwargs)
 
-    async def process(self, over: Sequence[Any], **_: Any) -> list[Any]:
+    async def process(self, over: Sequence[Any], **_: Any) -> list[Any]:  # type: ignore[override]
         if not isinstance(over, (list, tuple)):
             # Allow any Sequence but materialise; we need length and
             # repeated iteration.

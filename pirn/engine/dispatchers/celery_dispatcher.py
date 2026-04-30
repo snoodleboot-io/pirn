@@ -107,4 +107,3 @@ def register_celery_worker_task(app: Any) -> None:
     """
 
     app.task(name=CeleryDispatcher._task_name)(_run_knot_sync)
-    return _run_knot_sync

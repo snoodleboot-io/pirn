@@ -79,4 +79,6 @@ class KnotRegistry:
     @classmethod
     def clear(cls) -> None:
         """Remove all pirn-registered entries (primarily for test isolation)."""
-        Registry.clear()
+        registry = Registry._Registry__registry  # type: ignore[attr-defined]
+        if isinstance(registry, dict):
+            registry.pop(cls._LIBRARY, None)

@@ -49,7 +49,7 @@ class Gate(Knot):
 
         self._frozen = True
 
-    async def process(self, input: Any, **_: Any) -> Any:
+    async def process(self, input: Any, **_: Any) -> Any:  # type: ignore[override]
         if self._mutable_predicate(input):
             return input
         raise _GateClosed

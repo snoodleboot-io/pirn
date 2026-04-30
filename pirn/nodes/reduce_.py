@@ -101,7 +101,7 @@ class Reduce(Knot):
 
         self._frozen = True
 
-    async def process(self, of: list[Any], **_: Any) -> Any:
+    async def process(self, of: list[Any], **_: Any) -> Any:  # type: ignore[override]
         if self._mutable_form == "whole":
             return self._mutable_combine(of)
         # Pairwise.

@@ -81,7 +81,7 @@ class Branch(Knot):
     def branch_names(self) -> tuple[str, ...]:
         return self._mutable_branch_names
 
-    async def process(self, input: Any, **_: Any) -> str:
+    async def process(self, input: Any, **_: Any) -> str:  # type: ignore[override]
         chosen = self._mutable_selector(input)
         if chosen not in self._mutable_branch_names:
             raise RuntimeError(

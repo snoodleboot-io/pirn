@@ -10,6 +10,32 @@ if TYPE_CHECKING:
     from pirn.core.knot import Knot
 
 
+def _visit_dfs(
+    kid: str,
+    color: dict[str, int],
+    children_by_parent: dict[str, list[str]],
+) -> bool:
+    """Single DFS step for cycle detection.  0=white, 1=grey, 2=black."""
+    color[kid] = 1
+    for child_id in children_by_parent.get(kid, []):
+        state = color.get(child_id, 0)
+        if state == 1:
+            return True
+        if state == 0 and _visit_dfs(child_id, color, children_by_parent):
+            return True
+    color[kid] = 2
+    return False
+
+
+def detect_cycle(knot_ids: list[str], children_by_parent: dict[str, list[str]]) -> bool:
+    """Return True if the graph contains a cycle."""
+    color: dict[str, int] = {kid: 0 for kid in knot_ids}
+    for kid in list(color.keys()):
+        if color[kid] == 0 and _visit_dfs(kid, color, children_by_parent):
+            return True
+    return False
+
+
 class Shed:
     """An immutable-after-construction view of a knot subgraph.
 
@@ -19,31 +45,6 @@ class Shed:
     """
 
     __slots__ = ("children_by_parent", "edges_by_child", "knots")
-
-    @staticmethod
-    def __visit_dfs(
-        kid: str,
-        color: dict[str, int],
-        children_by_parent: dict[str, list[str]],
-    ) -> bool:
-        """Single DFS step for cycle detection.  0=white, 1=grey, 2=black."""
-        color[kid] = 1
-        for child_id in children_by_parent.get(kid, []):
-            state = color.get(child_id, 0)
-            if state == 1:
-                return True
-            if state == 0 and Shed._Shed__visit_dfs(child_id, color, children_by_parent):
-                return True
-        color[kid] = 2
-        return False
-
-    @staticmethod
-    def __detect_cycle(knot_ids: list[str], children_by_parent: dict[str, list[str]]) -> bool:
-        color: dict[str, int] = {kid: 0 for kid in knot_ids}
-        for kid in list(color.keys()):
-            if color[kid] == 0 and Shed._Shed__visit_dfs(kid, color, children_by_parent):
-                return True
-        return False
 
     def __init__(self) -> None:
         self.knots: dict[str, Knot] = {}
@@ -79,7 +80,7 @@ class Shed:
                 queue.append(parent)
             s.edges_by_child[knot.knot_id] = edges
 
-        if Shed.__detect_cycle(list(s.knots.keys()), s.children_by_parent):
+        if detect_cycle(list(s.knots.keys()), s.children_by_parent):
             raise ShedError("cycle detected in shed")
 
         return s
@@ -172,8 +173,3 @@ class Shed:
             raise ShedError(f"absorbing knot {knot.knot_id!r} would introduce a cycle")
 
         return bool(added)
-
-
-def detect_cycle(knot_ids: list[str], children_by_parent: dict[str, list[str]]) -> bool:
-    """Return True if the graph contains a cycle."""
-    return Shed._Shed__detect_cycle(knot_ids, children_by_parent)

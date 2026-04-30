@@ -45,7 +45,7 @@ class BranchOutput(Knot):
 
         self._frozen = True
 
-    async def process(self, chosen: str, passthrough: Any, **_: Any) -> Any:
+    async def process(self, chosen: str, passthrough: Any, **_: Any) -> Any:  # type: ignore[override]
         if chosen == self._mutable_branch_name:
             return passthrough
         raise _BranchNotSelected(self._mutable_branch_name)
