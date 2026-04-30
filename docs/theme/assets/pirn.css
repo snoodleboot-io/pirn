@@ -400,6 +400,15 @@ a:hover { color: var(--teal); text-decoration: underline; text-underline-offset:
 
 .content p { margin: 0 0 16px; font-size: 0.9rem; }
 
+.content img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin: 16px 0;
+}
+
 .content ul, .content ol {
   margin: 0 0 16px 20px;
   font-size: 0.9rem;
