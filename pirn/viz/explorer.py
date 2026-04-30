@@ -128,10 +128,12 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .btn:hover        { border-color: var(--purple); color: var(--text); }
 .btn.active       { background: rgba(157,0,255,0.2); border-color: var(--purple); color: var(--purple-hi); }
 .btn.active-hist  { background: rgba(255,102,0,0.15); border-color: var(--orange); color: var(--orange-hi); }
+.btn-theme { border-color: var(--text-dim); color: var(--text); font-size: 13px; padding: 3px 9px; }
+.btn-theme:hover { border-color: var(--orange); color: var(--orange); }
 #stats { font-size: 9px; color: var(--text-dim); white-space: nowrap; }
 
-#graph { flex: 1; position: relative; background: var(--bg); overflow: hidden; }
-#graph-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+#loom { flex: 1; position: relative; background: var(--bg); overflow: hidden; }
+#loom-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 
 /* ── Run overlay bar ───────────────────────────────────────────────────── */
 #run-bar {
@@ -194,8 +196,8 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 
 /* ── D3 node/edge styles ───────────────────────────────────────────────── */
 .node-group { cursor: pointer; }
-.edge-path  { fill: none; stroke: var(--purple); stroke-width: 1.5px; stroke-opacity: 0.55; }
-.edge-label { fill: var(--orange); font-size: 9px; font-family: inherit; pointer-events: none; }
+.thread-path  { fill: none; stroke: var(--purple); stroke-width: 1.5px; stroke-opacity: 0.55; }
+.thread-label { fill: var(--orange); font-size: 9px; font-family: inherit; pointer-events: none; }
 .node-class { fill: var(--orange); font-size: 9px; font-family: inherit; pointer-events: none; }
 .node-id    { fill: var(--text);   font-size: 11px; font-family: inherit; font-weight: 600; pointer-events: none; }
 .node-outcome-badge { font-size: 9px; font-family: inherit; pointer-events: none; }
@@ -252,11 +254,11 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
       <button class="btn active" id="btn-vertical"   onclick="setOrientation('vertical')">&#x21D3; Vertical</button>
       <button class="btn"        id="btn-horizontal" onclick="setOrientation('horizontal')">&#x21D2; Horizontal</button>
       <button class="btn" id="btn-history" onclick="toggleHistory()">&#x23F3; Execution History</button>
-      <button class="btn" id="btn-theme"   onclick="toggleTheme()" title="Switch to light mode">&#x2600;&#xFE0F;</button>
+      <button class="btn btn-theme" id="btn-theme" onclick="toggleTheme()" title="Switch to light mode">&#x2600; Light</button>
       <div id="stats"></div>
     </div>
 
-    <div id="graph">
+    <div id="loom">
       <div id="empty-state">
         <div class="empty-icon">&#x25C6;</div>
         <div>Select a tapestry from the left</div>
@@ -398,7 +400,7 @@ function selectTapestry(t, save = true) {
 function updateStats(t) {
   document.getElementById('stats').textContent =
     t.error ? '⚠ parse error'
-    : `${t.nodes.length} knot${t.nodes.length === 1 ? '' : 's'} · ${t.edges.length} edge${t.edges.length === 1 ? '' : 's'}`;
+    : `${t.nodes.length} knot${t.nodes.length === 1 ? '' : 's'} · ${t.edges.length} thread${t.edges.length === 1 ? '' : 's'}`;
 }
 
 // ── Orientation ───────────────────────────────────────────────────────────────
@@ -430,7 +432,7 @@ function setThemeSilent(t) {
   document.documentElement.setAttribute('data-theme', t);
   const btn = document.getElementById('btn-theme');
   if (btn) {
-    btn.textContent = t === 'dark' ? '☀' : '☾';
+    btn.innerHTML = t === 'dark' ? '&#x2600; Light' : '&#x263D; Dark';
     btn.title = t === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
   }
 }
@@ -593,14 +595,14 @@ function showTooltip(event, node) {
   const outEdges = t.edges.filter(e => e.source === node.id);
   if (inEdges.length) {
     const s = inEdges.map(e => e.label ? `<span>${esc(e.label)}</span>←${esc(e.source)}` : esc(e.source)).join(', ');
-    document.getElementById('tt-inputs').innerHTML = `inputs: ${s}`;
+    document.getElementById('tt-inputs').innerHTML = `receives from: ${s}`;
     document.getElementById('tt-inputs').style.display = '';
   } else {
     document.getElementById('tt-inputs').style.display = 'none';
   }
   if (outEdges.length) {
     const s = outEdges.map(e => `<span>${esc(e.target)}</span>`).join(', ');
-    document.getElementById('tt-outputs').innerHTML = `feeds: ${s}`;
+    document.getElementById('tt-outputs').innerHTML = `passes to: ${s}`;
     document.getElementById('tt-outputs').style.display = '';
   } else {
     document.getElementById('tt-outputs').style.display = 'none';
@@ -682,11 +684,11 @@ function computeLayout(nodes, edges) {
 function renderGraph() {
   if (!current) return;
   const tapestry = current;
-  const container = document.getElementById('graph');
+  const container = document.getElementById('loom');
   const W = container.clientWidth, H = container.clientHeight;
 
-  d3.select('#graph-svg').remove();
-  const svg = d3.select('#graph').append('svg').attr('id', 'graph-svg');
+  d3.select('#loom-svg').remove();
+  const svg = d3.select('#loom').append('svg').attr('id', 'loom-svg');
 
   if (tapestry.error) {
     svg.append('text').attr('class','error-msg').attr('x',W/2).attr('y',H/2).attr('text-anchor','middle').text(`Parse error: ${tapestry.error}`);
@@ -761,11 +763,11 @@ function renderGraph() {
       sx=s.x+NODE_W/2; sy=s.y; tx2=t.x-NODE_W/2; ty2=t.y;
       cx1=(sx+tx2)/2; cy1=sy; cx2=cx1; cy2=ty2;
     }
-    edgeG.append('path').attr('class','edge-path')
+    edgeG.append('path').attr('class','thread-path')
       .attr('d',`M${sx},${sy} C${cx1},${cy1} ${cx2},${cy2} ${tx2},${ty2}`)
       .attr('marker-end','url(#arrow)');
     if (e.label) {
-      edgeG.append('text').attr('class','edge-label')
+      edgeG.append('text').attr('class','thread-label')
         .attr('x',(sx+tx2)/2).attr('y',(sy+ty2)/2-5).attr('text-anchor','middle').text(e.label);
     }
   }
