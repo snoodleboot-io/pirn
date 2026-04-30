@@ -173,35 +173,27 @@ sequenceDiagram
     E->>E: RunContext(run_id, parameters)
     E->>EM: subscribe on_status to StatusManager
 
-    loop Wave loop
-        E->>E: _bind_parameters
-        E->>E: topological_order()
-        E->>E: find ready knots
-
-        loop Per ready knot
-            E->>E: _decide(knot, results)
-            alt inputs resolved
-                E->>E: asyncio.create_task(_dispatch_with_timing)
-                E->>D: dispatcher.dispatch(knot, inputs)
-                D->>K: await knot(inputs)
-                K->>K: validate_inputs
-                K->>K: await knot.process(**kwargs)
-                K-->>D: Ok(value) | Err(record)
-                D-->>E: Result
-                E->>DS: data_store.put(hash, value)
-                E->>EM: StatusManager → on_status (async task)
-            else Skipped or synthetic Err
-                E->>E: record directly
-            end
-            E->>E: _record_lineage → KnotLineage
+    loop Per wave - repeat until no knots remain
+        E->>E: find ready knots (all parents resolved)
+        E->>E: _decide(knot, results) per knot
+        alt inputs resolved
+            E->>D: dispatcher.dispatch(knot, inputs)
+            D->>K: await knot(inputs)
+            K->>K: validate + process
+            K-->>D: Ok(value) or Err(record)
+            D-->>E: Result
+            E->>DS: data_store.put(hash, value)
+            E->>EM: on_status via StatusManager
+        else Skipped or synthetic Err
+            E->>E: record directly
         end
-
+        E->>E: _record_lineage per knot
         E->>E: remaining -= ready
     end
 
-    E->>E: ctx.finalize(outputs) → RunResult
+    E->>E: ctx.finalize(outputs)
     E->>H: history.record_run(RunResult)
-    E->>EM: emitter.on_lineage × N
+    E->>EM: emitter.on_lineage x N
     E->>EM: emitter.on_run_result
     E-->>T: RunResult
     T-->>U: RunResult

@@ -13,21 +13,21 @@ pirn is structured in three layers, each with a clean boundary:
 
 ```mermaid
 graph TD
-    subgraph L1["Layer 1 — User API"]
+    subgraph L1[Layer 1 - User API]
         Knot["Knot / @knot decorator"]
         Tap["Tapestry"]
         Cfg["KnotConfig / ErrorPolicy"]
         Param["Parameter"]
     end
 
-    subgraph L2["Layer 2 — Execution Engine"]
+    subgraph L2[Layer 2 - Execution Engine]
         Engine["Engine"]
         Shed["Shed (graph)"]
         Dispatcher["Dispatcher protocol"]
         RunCtx["RunContext / StatusManager"]
     end
 
-    subgraph L3["Layer 3 — Backends"]
+    subgraph L3[Layer 3 - Backends]
         TapStore["TapestryStore"]
         History["RunHistory"]
         DataSt["DataStore"]
@@ -133,20 +133,20 @@ Every value that flows through a pipeline is identified by `sha256:<hex-digest>`
 
 ```mermaid
 graph TD
-    subgraph User["User API"]
+    subgraph User[User API]
         KnotCls["Knot (ABC)<br/>pirn/core/knot.py"]
         KnotDec["@knot decorator"]
         Tap["Tapestry<br/>pirn/tapestry.py"]
         KnotCfg["KnotConfig / ErrorPolicy"]
     end
 
-    subgraph Graph["Pipeline Graph"]
+    subgraph Graph[Pipeline Graph]
         Shed2["Shed<br/>pirn/engine/shed.py"]
         Edge["Edge (Pydantic)"]
         ParamK["Parameter"]
     end
 
-    subgraph Exec["Execution"]
+    subgraph Exec[Execution]
         Engine2["Engine<br/>pirn/engine/engine.py"]
         LocalDisp["LocalDispatcher"]
         ThreadDisp["ThreadDispatcher"]
@@ -155,20 +155,20 @@ graph TD
         RayDisp["RayDispatcher"]
     end
 
-    subgraph Storage["Storage Backends"]
+    subgraph Storage[Storage Backends]
         TapStore2["TapestryStore"]
         RunHist["RunHistory"]
         DataSt2["DataStore"]
     end
 
-    subgraph Obs["Observability"]
+    subgraph Obs[Observability]
         EmitterP["Emitter protocol"]
         LogE["LogEmitter"]
         OtelE["OpenTelemetryEmitter"]
         KafkaE["KafkaEmitter"]
     end
 
-    subgraph Trig["Triggers + Streaming"]
+    subgraph Trig[Triggers and Streaming]
         TrigP["Trigger protocol"]
         SrcP["StreamingSource protocol"]
         CronT["CronTrigger"]
