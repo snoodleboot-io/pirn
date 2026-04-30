@@ -105,5 +105,3 @@ def knot(
     if func is not None:
         return KnotFactory.create(func)
     return KnotFactory.create
-
-

@@ -37,9 +37,19 @@ def html_for_tapestry(tapestry: Tapestry, title: str | None = None) -> str:
     title = title or "pirn pipeline"
     knots = tapestry._store.all()
 
-    nodes = [{"id": k.knot_id, "class": _short(type(k).__qualname__), "outcome": "pending",
-               "duration_ms": 0, "output_hash": "", "config_hash": "", "error_record_id": "", "skip_reason": ""}
-             for k in knots]
+    nodes = [
+        {
+            "id": k.knot_id,
+            "class": _short(type(k).__qualname__),
+            "outcome": "pending",
+            "duration_ms": 0,
+            "output_hash": "",
+            "config_hash": "",
+            "error_record_id": "",
+            "skip_reason": "",
+        }
+        for k in knots
+    ]
 
     edges = []
     for k in knots:
@@ -54,7 +64,7 @@ def html_for_tapestry(tapestry: Tapestry, title: str | None = None) -> str:
         f'<div class="summary">'
         f'<span class="label">pipeline</span> {html.escape(title)}'
         f' &nbsp;·&nbsp; <span class="label">knots</span> {len(knots)}'
-        f'</div>'
+        f"</div>"
     )
     return _DOCUMENT.format(title=html.escape(title), summary=summary, svg=svg, css=_CSS, js=_JS)
 
@@ -125,7 +135,9 @@ def _get_depth(
     if not parents.get(kid):
         d = 0
     else:
-        d = 1 + max(_get_depth(p, depth, parents, all_ids, visiting) for p in parents[kid] if p in all_ids)
+        d = 1 + max(
+            _get_depth(p, depth, parents, all_ids, visiting) for p in parents[kid] if p in all_ids
+        )
     visiting.discard(kid)
     depth[kid] = d
     return d

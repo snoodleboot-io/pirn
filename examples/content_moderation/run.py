@@ -19,18 +19,18 @@ from pirn.yaml_loader.loader import load_pipeline
 YAML_PATH = Path(__file__).parent / "tapestry.yaml"
 
 SAMPLES = [
-    ("Clean text",      "The quick brown fox jumps over the lazy dog."),
-    ("Profanity",       "This is badword content that is offensive."),
-    ("PII — email",     "Please contact alice@example.com for support."),
-    ("PII — phone",     "Call us on 555-867-5309 any time."),
+    ("Clean text", "The quick brown fox jumps over the lazy dog."),
+    ("Profanity", "This is badword content that is offensive."),
+    ("PII — email", "Please contact alice@example.com for support."),
+    ("PII — phone", "Call us on 555-867-5309 any time."),
     ("High caps/toxic", "BADWORD SPAM THIS IS OFFENSIVE SPAM BADWORD!!!"),
-    ("Unknown lang",    "Hélas, il était une fois dans un pays lointain…"),
+    ("Unknown lang", "Hélas, il était une fois dans un pays lointain…"),
 ]
 
 
 async def main() -> None:
     tapestry = load_pipeline(YAML_PATH.read_text())
-    history  = SQLiteHistory()
+    history = SQLiteHistory()
 
     for label, text in SAMPLES:
         print(f"\n── {label} ──")

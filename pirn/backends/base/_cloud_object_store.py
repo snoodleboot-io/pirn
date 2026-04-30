@@ -31,6 +31,7 @@ class _CloudObjectStore(DataStore):
 
     def _serialize(self, value: Any) -> bytes:
         import cloudpickle
+
         payload = cloudpickle.dumps(value)
         if self.__signer is not None:
             payload = self.__signer.sign(payload)
@@ -38,6 +39,7 @@ class _CloudObjectStore(DataStore):
 
     def _deserialize(self, payload: bytes) -> Any:
         import cloudpickle
+
         if self.__signer is not None:
             payload = self.__signer.verify(payload)
         return cloudpickle.loads(payload)

@@ -55,13 +55,9 @@ class _Signer:
         does not match.
         """
         if len(payload) < self.__digest_size:
-            raise ValueError(
-                "payload too short to contain a signature — possible tampering"
-            )
+            raise ValueError("payload too short to contain a signature — possible tampering")
         sig, raw = payload[: self.__digest_size], payload[self.__digest_size :]
         expected = hmac.new(self.__key, raw, hashlib.sha256).digest()
         if not hmac.compare_digest(sig, expected):
-            raise ValueError(
-                "HMAC signature mismatch — payload may have been tampered with"
-            )
+            raise ValueError("HMAC signature mismatch — payload may have been tampered with")
         return raw

@@ -35,7 +35,5 @@ class ExceptionRecord(BaseModel):
             knot_id=knot_id,
             exc_type=type(exc).__name__,
             message=str(exc),
-            traceback_text="".join(
-                traceback.format_exception(type(exc), exc, exc.__traceback__)
-            ),
+            traceback_text="".join(traceback.format_exception(type(exc), exc, exc.__traceback__)),
         )

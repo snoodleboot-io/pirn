@@ -50,6 +50,7 @@ class RunContext:
                 return "unknown"
 
         import cloudpickle
+
         self.runtime_info: dict[str, str] = {
             "python_version": sys.version,
             "pirn_version": _pkg_version("pirn"),

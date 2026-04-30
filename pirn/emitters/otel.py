@@ -102,13 +102,14 @@ class OpenTelemetryEmitter(Emitter):
         finally:
             span.end(end_time=int(result.finished_at.timestamp() * 1e9))
 
-
     @staticmethod
     def __status_error() -> Any:
         from opentelemetry.trace import Status, StatusCode
+
         return Status(StatusCode.ERROR)
 
     @staticmethod
     def __status_unset() -> Any:
         from opentelemetry.trace import Status, StatusCode
+
         return Status(StatusCode.UNSET)

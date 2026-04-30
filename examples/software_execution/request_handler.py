@@ -161,6 +161,7 @@ def build_tapestry() -> Tapestry:
 
 async def main() -> None:
     from pirn.backends.sqlite.sqlite_history import SQLiteHistory
+
     history = SQLiteHistory()
 
     t = build_tapestry()

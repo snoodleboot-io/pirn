@@ -69,11 +69,13 @@ def _scan_runs(folder: Path) -> list[dict[str, Any]]:
 
 def _load_runs_from_db(db_path: Path, limit: int = 200) -> list[dict[str, Any]]:
     import sqlite3
+
     try:
         conn = sqlite3.connect(str(db_path))
-        tables = {r[0] for r in conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        ).fetchall()}
+        tables = {
+            r[0]
+            for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+        }
         if "runs" not in tables or "lineage" not in tables:
             conn.close()
             return []
@@ -90,8 +92,17 @@ def _load_runs_from_db(db_path: Path, limit: int = 200) -> list[dict[str, Any]]:
 
         result: list[dict[str, Any]] = []
         for row in rows:
-            (run_id, succeeded, started_at, finished_at,
-             dispatcher, actor, trigger, env_json, rt_json) = row
+            (
+                run_id,
+                succeeded,
+                started_at,
+                finished_at,
+                dispatcher,
+                actor,
+                trigger,
+                env_json,
+                rt_json,
+            ) = row
 
             duration_ms = _duration_ms(started_at, finished_at)
 
@@ -106,10 +117,17 @@ def _load_runs_from_db(db_path: Path, limit: int = 200) -> list[dict[str, Any]]:
 
             knots: dict[str, Any] = {}
             for lr in lineage_rows:
-                (kid, kclass, outcome,
-                 k_start, k_end,
-                 err_id, skip_reason, output_hash,
-                 config_hash) = lr
+                (
+                    kid,
+                    kclass,
+                    outcome,
+                    k_start,
+                    k_end,
+                    err_id,
+                    skip_reason,
+                    output_hash,
+                    config_hash,
+                ) = lr
                 knots[kid] = {
                     "outcome": outcome,
                     "class": kclass.split(".")[-1],
@@ -123,29 +141,34 @@ def _load_runs_from_db(db_path: Path, limit: int = 200) -> list[dict[str, Any]]:
                 }
 
             import json as _json
+
             # Load exceptions keyed by id from the run payload_json
             try:
-                run_payload = _json.loads(conn.execute(
-                    "SELECT payload_json FROM runs WHERE run_id=?", (run_id,)
-                ).fetchone()[0])
+                run_payload = _json.loads(
+                    conn.execute(
+                        "SELECT payload_json FROM runs WHERE run_id=?", (run_id,)
+                    ).fetchone()[0]
+                )
                 exceptions = {e["id"]: e for e in run_payload.get("exceptions", [])}
             except Exception:
                 exceptions = {}
 
-            result.append({
-                "run_id": run_id,
-                "succeeded": bool(succeeded),
-                "started_at": str(started_at),
-                "finished_at": str(finished_at),
-                "duration_ms": duration_ms,
-                "dispatcher": dispatcher or "",
-                "actor": actor or "",
-                "trigger": trigger or "",
-                "environment": _json.loads(env_json) if env_json else {},
-                "runtime_info": _json.loads(rt_json) if rt_json else {},
-                "knots": knots,
-                "exceptions": exceptions,
-            })
+            result.append(
+                {
+                    "run_id": run_id,
+                    "succeeded": bool(succeeded),
+                    "started_at": str(started_at),
+                    "finished_at": str(finished_at),
+                    "duration_ms": duration_ms,
+                    "dispatcher": dispatcher or "",
+                    "actor": actor or "",
+                    "trigger": trigger or "",
+                    "environment": _json.loads(env_json) if env_json else {},
+                    "runtime_info": _json.loads(rt_json) if rt_json else {},
+                    "knots": knots,
+                    "exceptions": exceptions,
+                }
+            )
 
         conn.close()
         return result
@@ -155,11 +178,13 @@ def _load_runs_from_db(db_path: Path, limit: int = 200) -> list[dict[str, Any]]:
 
 def _duration_ms(start: Any, end: Any) -> int:
     try:
+
         def _parse(s: Any) -> datetime:
             s = str(s).replace(" ", "T")
             if s.endswith("+00:00") or s.endswith("Z"):
                 s = s.removesuffix("Z").removesuffix("+00:00")
             return datetime.fromisoformat(s).replace(tzinfo=UTC)
+
         return max(0, int((_parse(end) - _parse(start)).total_seconds() * 1000))
     except Exception:
         return 0
@@ -167,8 +192,7 @@ def _duration_ms(start: Any, end: Any) -> int:
 
 def _is_ignored(path: Path) -> bool:
     return any(
-        part in {"__pycache__", ".git", ".venv", "node_modules", ".tox"}
-        for part in path.parts
+        part in {"__pycache__", ".git", ".venv", "node_modules", ".tox"} for part in path.parts
     )
 
 
@@ -185,11 +209,13 @@ def _tapestry_to_graph(tapestry: Any, name: str, source: str) -> TapestryGraph:
     nodes: list[dict[str, str]] = []
     edges: list[dict[str, str]] = []
     for knot in tapestry._store.all():
-        nodes.append({
-            "id": knot.knot_id,
-            "class": type(knot).__name__,
-            "description": _knot_description(knot),
-        })
+        nodes.append(
+            {
+                "id": knot.knot_id,
+                "class": type(knot).__name__,
+                "description": _knot_description(knot),
+            }
+        )
         for input_name, parent in knot.parents.items():
             edges.append({"source": parent.knot_id, "target": knot.knot_id, "label": input_name})
     return TapestryGraph(name=name, source=source, nodes=nodes, edges=edges)
@@ -199,9 +225,11 @@ def _scan_yaml(path: Path, root: Path) -> TapestryGraph | None:
     source = str(path.relative_to(root))
     try:
         import yaml as _yaml
+
         raw = _yaml.safe_load(path.read_text())
         name = (raw or {}).get("name") or path.stem
         from pirn.yaml_loader.loader import load_pipeline
+
         tapestry = load_pipeline(path.read_text())
         return _tapestry_to_graph(tapestry, name, source)
     except Exception as exc:

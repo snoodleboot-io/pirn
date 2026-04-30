@@ -21,7 +21,7 @@ class KnotConfig(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    _knot_id_re: ClassVar[re.Pattern[str]] = re.compile(r'^[a-zA-Z0-9_\-\.:]{1,256}$')
+    _knot_id_re: ClassVar[re.Pattern[str]] = re.compile(r"^[a-zA-Z0-9_\-\.:]{1,256}$")
 
     id: str = Field(
         ...,
@@ -29,7 +29,7 @@ class KnotConfig(BaseModel):
         min_length=1,
     )
 
-    @field_validator('id')
+    @field_validator("id")
     @classmethod
     def validate_id_characters(cls, v: str) -> str:
         if not cls._knot_id_re.match(v):

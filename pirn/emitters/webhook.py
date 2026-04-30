@@ -81,8 +81,7 @@ class WebhookEmitter(Emitter):
         parsed = urllib.parse.urlparse(url)
         if parsed.scheme not in ("http", "https"):
             raise ValueError(
-                f"WebhookEmitter: URL scheme {parsed.scheme!r} is not permitted; "
-                "use http or https"
+                f"WebhookEmitter: URL scheme {parsed.scheme!r} is not permitted; use http or https"
             )
         host = parsed.hostname
         if host is None:
@@ -103,8 +102,7 @@ class WebhookEmitter(Emitter):
         parsed = urllib.parse.urlparse(url)
         if parsed.scheme not in ("http", "https"):
             raise ValueError(
-                f"WebhookEmitter: URL scheme {parsed.scheme!r} is not permitted; "
-                "use http or https"
+                f"WebhookEmitter: URL scheme {parsed.scheme!r} is not permitted; use http or https"
             )
 
     async def _ensure_client(self) -> Any:

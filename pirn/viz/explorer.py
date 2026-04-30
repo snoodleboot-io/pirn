@@ -25,12 +25,16 @@ from pathlib import Path
 def generate_explorer_html(folder: str | Path) -> str:
     folder = Path(folder).resolve()
     from pirn.viz._scanner import scan_folder
+
     tapestries, runs = scan_folder(folder)
-    data = json.dumps({
-        "tapestries": [t.to_dict() for t in tapestries],
-        "runs": runs,
-        "folder": str(folder),
-    }, indent=2)
+    data = json.dumps(
+        {
+            "tapestries": [t.to_dict() for t in tapestries],
+            "runs": runs,
+            "folder": str(folder),
+        },
+        indent=2,
+    )
     return _TEMPLATE.replace("__EXPLORER_DATA__", data)
 
 

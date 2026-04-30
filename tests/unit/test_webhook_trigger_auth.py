@@ -12,6 +12,7 @@ from pirn.triggers.http import WebhookTrigger
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _client(trigger: WebhookTrigger) -> TestClient:
     return TestClient(trigger.app, raise_server_exceptions=True)
 
@@ -19,6 +20,7 @@ def _client(trigger: WebhookTrigger) -> TestClient:
 # ---------------------------------------------------------------------------
 # Bearer token authentication
 # ---------------------------------------------------------------------------
+
 
 class TestBearerTokenAuth:
     TOKEN = "test-secret-token"
@@ -67,6 +69,7 @@ class TestBearerTokenAuth:
 # ---------------------------------------------------------------------------
 # Rate limiting
 # ---------------------------------------------------------------------------
+
 
 class TestRateLimiting:
     def test_requests_within_limit_succeed(self):

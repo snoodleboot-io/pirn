@@ -68,7 +68,6 @@ class ValKeyTrigger(Trigger):
     async def close(self) -> None:
         self._closed = True
 
-
     @staticmethod
     def __default_request_builder(msg: Any) -> RunRequest:
         body = getattr(msg, "message", msg)

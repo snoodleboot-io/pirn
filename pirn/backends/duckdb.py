@@ -87,6 +87,7 @@ CREATE TABLE IF NOT EXISTS lineage_inputs (
 
     async def record_run(self, result: Any) -> None:
         import json
+
         self._ensure_init()
         self._conn.execute(
             "INSERT OR REPLACE INTO runs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -184,6 +185,7 @@ CREATE TABLE IF NOT EXISTS lineage_inputs (
     async def query_runs_by_actor(self, actor: str) -> list[Any]:
         self._ensure_init()
         from pirn.core.run_result import RunResult
+
         rows = self._conn.execute(
             "SELECT payload_json FROM runs WHERE actor = ?", (actor,)
         ).fetchall()

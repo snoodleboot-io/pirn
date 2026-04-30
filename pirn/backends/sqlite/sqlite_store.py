@@ -41,6 +41,7 @@ class SQLiteStore(TapestryStore):
 
     def __init__(self, *, path: str = ":memory:", connection: Any = None) -> None:
         import sqlite3
+
         self._path = path
         self._conn = connection or sqlite3.connect(path)
         self._live: dict[str, Knot] = {}
@@ -66,9 +67,7 @@ class SQLiteStore(TapestryStore):
         self._live[knot.knot_id] = knot
 
         config_json = knot.config.model_dump_json()
-        parents_json = json.dumps(
-            {name: parent.knot_id for name, parent in knot.parents.items()}
-        )
+        parents_json = json.dumps({name: parent.knot_id for name, parent in knot.parents.items()})
         knot_class = f"{type(knot).__module__}.{type(knot).__qualname__}"
         now = datetime.now(UTC).isoformat()
 

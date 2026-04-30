@@ -95,12 +95,11 @@ class PostgresHistory(RunHistory):
         cols = ("actor TEXT", "trigger TEXT", "environment_json TEXT", "runtime_info_json TEXT")
         for col in cols:
             await conn.execute(f"ALTER TABLE runs ADD COLUMN IF NOT EXISTS {col}")
-        await conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_runs_actor ON runs(actor)"
-        )
+        await conn.execute("CREATE INDEX IF NOT EXISTS idx_runs_actor ON runs(actor)")
 
     async def record_run(self, result: Any) -> None:
         import json
+
         await self._ensure_init()
         pool = await self._pool.get()
         async with pool.acquire() as conn:
@@ -143,10 +142,18 @@ class PostgresHistory(RunHistory):
                              payload_json = EXCLUDED.payload_json""",
                         [
                             (
-                                rec.run_id, rec.knot_id, rec.knot_class,
-                                rec.knot_config_hash, rec.output_hash, rec.outcome,
-                                rec.error_record_id, rec.skip_reason, rec.dispatcher,
-                                rec.started_at, rec.finished_at, rec.model_dump_json(),
+                                rec.run_id,
+                                rec.knot_id,
+                                rec.knot_class,
+                                rec.knot_config_hash,
+                                rec.output_hash,
+                                rec.outcome,
+                                rec.error_record_id,
+                                rec.skip_reason,
+                                rec.dispatcher,
+                                rec.started_at,
+                                rec.finished_at,
+                                rec.model_dump_json(),
                             )
                             for rec in result.lineage
                         ],
@@ -168,12 +175,11 @@ class PostgresHistory(RunHistory):
         await self._ensure_init()
         pool = await self._pool.get()
         async with pool.acquire() as conn:
-            row = await conn.fetchrow(
-                "SELECT payload_json FROM runs WHERE run_id = $1", run_id
-            )
+            row = await conn.fetchrow("SELECT payload_json FROM runs WHERE run_id = $1", run_id)
         if row is None:
             return None
         from pirn.core.run_result import RunResult
+
         return RunResult.model_validate_json(row["payload_json"])
 
     async def query_lineage_by_output_hash(self, output_hash: str) -> list[KnotLineage]:
@@ -201,19 +207,16 @@ class PostgresHistory(RunHistory):
         await self._ensure_init()
         pool = await self._pool.get()
         async with pool.acquire() as conn:
-            rows = await conn.fetch(
-                "SELECT payload_json FROM lineage WHERE knot_id = $1", knot_id
-            )
+            rows = await conn.fetch("SELECT payload_json FROM lineage WHERE knot_id = $1", knot_id)
         return [KnotLineage.model_validate_json(r["payload_json"]) for r in rows]
 
     async def query_runs_by_actor(self, actor: str) -> list[Any]:
         await self._ensure_init()
         pool = await self._pool.get()
         async with pool.acquire() as conn:
-            rows = await conn.fetch(
-                "SELECT payload_json FROM runs WHERE actor = $1", actor
-            )
+            rows = await conn.fetch("SELECT payload_json FROM runs WHERE actor = $1", actor)
         from pirn.core.run_result import RunResult
+
         return [RunResult.model_validate_json(r["payload_json"]) for r in rows]
 
     async def close(self) -> None:

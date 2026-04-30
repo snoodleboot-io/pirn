@@ -172,3 +172,8 @@ class Shed:
             raise ShedError(f"absorbing knot {knot.knot_id!r} would introduce a cycle")
 
         return bool(added)
+
+
+def detect_cycle(knot_ids: list[str], children_by_parent: dict[str, list[str]]) -> bool:
+    """Return True if the graph contains a cycle."""
+    return Shed._Shed__detect_cycle(knot_ids, children_by_parent)

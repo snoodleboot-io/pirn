@@ -21,8 +21,7 @@ class _LazyClient:
                 from glide import GlideClient
             except ImportError as exc:
                 raise ImportError(
-                    "ValKey backends require valkey-glide; install via "
-                    "`pip install pirn[valkey]`"
+                    "ValKey backends require valkey-glide; install via `pip install pirn[valkey]`"
                 ) from exc
             self._client = await GlideClient.create(self._config)
         return self._client

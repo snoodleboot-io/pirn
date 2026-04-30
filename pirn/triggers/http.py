@@ -107,7 +107,7 @@ class WebhookTrigger(Trigger):
             auth_header = request.headers.get("Authorization", "")
             if not auth_header.startswith("Bearer "):
                 return JSONResponse({"error": "unauthorized"}, status_code=401)
-            provided = auth_header[len("Bearer "):]
+            provided = auth_header[len("Bearer ") :]
             if not _hmac.compare_digest(provided, self._auth_token):
                 return JSONResponse({"error": "unauthorized"}, status_code=401)
 
@@ -159,7 +159,6 @@ class WebhookTrigger(Trigger):
     async def close(self) -> None:
         self._closed = True
         await self._queue.put(self._SENTINEL)
-
 
     @staticmethod
     def __default_request_builder(payload: dict, request: Any) -> RunRequest:

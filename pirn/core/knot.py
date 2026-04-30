@@ -272,9 +272,7 @@ class Knot:
 
     @classmethod
     def _has_var_keyword(cls, sig: inspect.Signature) -> bool:
-        return any(
-            p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
-        )
+        return any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values())
 
     @classmethod
     def _declared_input_names(cls, sig: inspect.Signature) -> set[str]:
@@ -358,4 +356,3 @@ class Knot:
 
     def __eq__(self, other: object) -> bool:
         return self is other
-

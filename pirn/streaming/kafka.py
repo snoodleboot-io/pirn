@@ -83,7 +83,6 @@ class KafkaStreamingSource(StreamingSource):
             except Exception:
                 pass
 
-
     @staticmethod
     def __default_decoder(msg: Any) -> Any:
         raw = msg.value

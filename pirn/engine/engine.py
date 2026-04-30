@@ -383,8 +383,9 @@ class Engine:
             added.add(k.knot_id)
 
         # Cycle re-check — same algorithm Shed uses internally.
-        from pirn.engine.shed.shed import _detect_cycle
-        if _detect_cycle(list(shed.knots.keys()), shed.children_by_parent):
+        from pirn.engine.shed.shed import detect_cycle
+
+        if detect_cycle(list(shed.knots.keys()), shed.children_by_parent):
             raise ShedError("cycle detected after mid-run merge")
 
         return added

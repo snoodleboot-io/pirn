@@ -83,6 +83,7 @@ class SQLiteHistory(RunHistory):
 
     def __init__(self, *, path: str = "pirn.db", connection: Any = None) -> None:
         import sqlite3
+
         self._path = path
         self._conn = connection or sqlite3.connect(path)
         self._initialized = False
@@ -92,7 +93,9 @@ class SQLiteHistory(RunHistory):
             return
         self._conn.executescript(self._schema_version_ddl + self._history_ddl)
         apply_migrations(
-            self._conn, "history", self._schema_version,
+            self._conn,
+            "history",
+            self._schema_version,
             {2: self.__migrate_v2},
         )
         self._conn.commit()
@@ -127,10 +130,18 @@ class SQLiteHistory(RunHistory):
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 [
                     (
-                        rec.run_id, rec.knot_id, rec.knot_class, rec.knot_config_hash,
-                        rec.output_hash, rec.outcome, rec.error_record_id, rec.skip_reason,
-                        rec.dispatcher, rec.started_at.isoformat(),
-                        rec.finished_at.isoformat(), rec.model_dump_json(),
+                        rec.run_id,
+                        rec.knot_id,
+                        rec.knot_class,
+                        rec.knot_config_hash,
+                        rec.output_hash,
+                        rec.outcome,
+                        rec.error_record_id,
+                        rec.skip_reason,
+                        rec.dispatcher,
+                        rec.started_at.isoformat(),
+                        rec.finished_at.isoformat(),
+                        rec.model_dump_json(),
                     )
                     for rec in result.lineage
                 ],
@@ -150,13 +161,12 @@ class SQLiteHistory(RunHistory):
 
     async def get_run(self, run_id: str) -> Any:
         self._ensure_init()
-        cursor = self._conn.execute(
-            "SELECT payload_json FROM runs WHERE run_id = ?", (run_id,)
-        )
+        cursor = self._conn.execute("SELECT payload_json FROM runs WHERE run_id = ?", (run_id,))
         row = cursor.fetchone()
         if row is None:
             return None
         from pirn.core.run_result import RunResult
+
         return RunResult.model_validate_json(row[0])
 
     async def query_lineage_by_output_hash(self, output_hash: str) -> list[KnotLineage]:
@@ -186,9 +196,8 @@ class SQLiteHistory(RunHistory):
     async def query_runs_by_actor(self, actor: str) -> list[Any]:
         self._ensure_init()
         from pirn.core.run_result import RunResult
-        cursor = self._conn.execute(
-            "SELECT payload_json FROM runs WHERE actor = ?", (actor,)
-        )
+
+        cursor = self._conn.execute("SELECT payload_json FROM runs WHERE actor = ?", (actor,))
         return [RunResult.model_validate_json(r[0]) for r in cursor.fetchall()]
 
     def close(self) -> None:

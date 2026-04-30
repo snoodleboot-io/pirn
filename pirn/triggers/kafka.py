@@ -77,7 +77,6 @@ class KafkaTrigger(Trigger):
             except Exception:
                 pass
 
-
     @staticmethod
     def __default_request_builder(msg: Any) -> RunRequest:
         raw = msg.value

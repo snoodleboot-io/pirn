@@ -88,9 +88,7 @@ class PostgresStore(TapestryStore, SubscribableStore):
 
         await self._ensure_init()
         config_json = knot.config.model_dump_json()
-        parents_json = json.dumps(
-            {name: parent.knot_id for name, parent in knot.parents.items()}
-        )
+        parents_json = json.dumps({name: parent.knot_id for name, parent in knot.parents.items()})
         knot_class = f"{type(knot).__module__}.{type(knot).__qualname__}"
 
         pool = await self._pool.get()

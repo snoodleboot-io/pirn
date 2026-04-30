@@ -33,12 +33,14 @@ class ValKeyDataStore(DataStore):
 
     async def put(self, content_hash: str, value: Any) -> None:
         import cloudpickle
+
         client = await self._client.get()
         payload = cloudpickle.dumps(value)
         if self.__signer is not None:
             payload = self.__signer.sign(payload)
         if self._ttl is not None:
             from glide import ExpirySet, ExpiryType
+
             expiry = ExpirySet(ExpiryType.SEC, self._ttl)
             await client.set(self._key(content_hash), payload, expiry=expiry)
         else:
@@ -46,6 +48,7 @@ class ValKeyDataStore(DataStore):
 
     async def get(self, content_hash: str) -> Any:
         import cloudpickle
+
         client = await self._client.get()
         payload = await client.get(self._key(content_hash))
         if payload is None:

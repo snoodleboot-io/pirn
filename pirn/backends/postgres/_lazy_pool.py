@@ -12,7 +12,7 @@ class _LazyPool:
 
     @staticmethod
     def __sanitize_dsn(dsn: str) -> str:
-        return re.sub(r'(://)[^@]+(@)', r'\1<redacted>\2', dsn)
+        return re.sub(r"(://)[^@]+(@)", r"\1<redacted>\2", dsn)
 
     def __init__(self, pool: Any = None, dsn: str | None = None) -> None:
         if pool is None and dsn is None:

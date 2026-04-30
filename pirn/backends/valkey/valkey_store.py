@@ -44,9 +44,7 @@ class ValKeyStore(TapestryStore, SubscribableStore):
 
         client = await self._client.get()
         config_json = knot.config.model_dump_json()
-        parents_json = json.dumps(
-            {name: parent.knot_id for name, parent in knot.parents.items()}
-        )
+        parents_json = json.dumps({name: parent.knot_id for name, parent in knot.parents.items()})
         knot_class = f"{type(knot).__module__}.{type(knot).__qualname__}"
         knot_key = f"{self._knot_key_prefix}{knot.knot_id}"
 

@@ -12,19 +12,22 @@ from pirn.core.knot_factory import knot
 
 # ── Domain types ─────────────────────────────────────────────────────────────
 
+
 @dataclass(frozen=True)
 class ContentFlags:
     """Structured output from the classifier stage."""
+
     has_profanity: bool
     has_pii: bool
-    toxicity_score: float   # 0.0-1.0
+    toxicity_score: float  # 0.0-1.0
     language: str
 
 
 @dataclass(frozen=True)
 class ModerationDecision:
     """Final moderation verdict."""
-    action: str             # "allow" | "warn" | "block"
+
+    action: str  # "allow" | "warn" | "block"
     reason: str
     score: float
 
@@ -33,9 +36,9 @@ class ModerationDecision:
 
 _PROFANITY = {"badword", "spam", "offensive"}
 _PII_PATTERN = re.compile(
-    r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"    # email
-    r"|\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b"                      # phone
-    r"|\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b"               # card
+    r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"  # email
+    r"|\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b"  # phone
+    r"|\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b"  # card
 )
 
 

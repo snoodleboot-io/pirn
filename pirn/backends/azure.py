@@ -65,9 +65,7 @@ class AzureBlobDataStore(_CloudObjectStore):
             return BlobServiceClient.from_connection_string(self._connection_string)
         if self._account_url is not None:
             return BlobServiceClient(self._account_url, credential=self._credential)
-        raise ValueError(
-            "AzureBlobDataStore requires either connection_string or account_url"
-        )
+        raise ValueError("AzureBlobDataStore requires either connection_string or account_url")
 
     async def _put_bytes(self, key: str, payload: bytes) -> None:
         async with self.__service_client() as svc:

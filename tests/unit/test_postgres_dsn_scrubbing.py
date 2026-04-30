@@ -7,6 +7,7 @@ import pytest
 
 def test_sanitize_dsn_with_user_and_password() -> None:
     from pirn.backends.postgres._lazy_pool import _LazyPool
+
     pool = _LazyPool(dsn="postgresql://user:s3cr3t@host/db")
     assert pool._dsn_display == "postgresql://<redacted>@host/db"
     assert "s3cr3t" not in pool._dsn_display
@@ -14,6 +15,7 @@ def test_sanitize_dsn_with_user_and_password() -> None:
 
 def test_sanitize_dsn_without_credentials() -> None:
     from pirn.backends.postgres._lazy_pool import _LazyPool
+
     dsn = "postgresql://host/db"
     pool = _LazyPool(dsn=dsn)
     assert pool._dsn_display == dsn
@@ -21,6 +23,7 @@ def test_sanitize_dsn_without_credentials() -> None:
 
 def test_sanitize_dsn_with_port_and_options() -> None:
     from pirn.backends.postgres._lazy_pool import _LazyPool
+
     pool = _LazyPool(dsn="postgresql://user:pass@host:5432/db?sslmode=require")
     assert pool._dsn_display == "postgresql://<redacted>@host:5432/db?sslmode=require"
     assert "pass" not in pool._dsn_display

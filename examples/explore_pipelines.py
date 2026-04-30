@@ -53,6 +53,7 @@ def main() -> None:
     print(f"Written:  {OUTPUT}")
 
     import webbrowser
+
     webbrowser.open(OUTPUT.as_uri())
     print("Opened in browser.")
 

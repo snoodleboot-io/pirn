@@ -118,8 +118,15 @@ class Map(Knot):
 
         coros = [
             Map.__run_one(
-                i, e, map_id, each, bind_name, shared,
-                validate_io, error_policy, Map.__construct_inner
+                i,
+                e,
+                map_id,
+                each,
+                bind_name,
+                shared,
+                validate_io,
+                error_policy,
+                Map.__construct_inner,
             )
             for i, e in enumerate(over)
         ]
