@@ -1,4 +1,5 @@
 <div id="hero" class="pirn-hero">
+<img src="pirn_logo.png" alt="pirn" class="pirn-hero-logo">
 <h1>pirn</h1>
 <p class="pirn-tagline">A pipeline framework where everything is a knot.</p>
 </div>
