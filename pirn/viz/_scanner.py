@@ -196,14 +196,16 @@ def _tapestry_to_graph(tapestry: Any, name: str, source: str) -> TapestryGraph:
 
 
 def _scan_yaml(path: Path, root: Path) -> TapestryGraph | None:
-    name = path.stem
     source = str(path.relative_to(root))
     try:
+        import yaml as _yaml
+        raw = _yaml.safe_load(path.read_text())
+        name = (raw or {}).get("name") or path.stem
         from pirn.yaml_loader.loader import load_pipeline
-        tapestry = load_pipeline(str(path))
+        tapestry = load_pipeline(path.read_text())
         return _tapestry_to_graph(tapestry, name, source)
     except Exception as exc:
-        return TapestryGraph(name=name, source=source, error=str(exc))
+        return TapestryGraph(name=path.stem, source=source, error=str(exc))
 
 
 _BUILDER_NAMES = ("build_tapestry", "build_pipeline", "create_tapestry", "create_pipeline")
