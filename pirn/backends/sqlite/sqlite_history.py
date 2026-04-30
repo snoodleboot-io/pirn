@@ -71,15 +71,27 @@ class SQLiteHistory(RunHistory):
         );
         CREATE INDEX IF NOT EXISTS idx_lineage_inputs_hash ON lineage_inputs(input_hash);
     """
-    _schema_version = 2
+    _schema_version = 3
 
     @staticmethod
     def __migrate_v2(conn: Any) -> None:
         """Add 7-W provenance columns to the runs table."""
-        cols = ("actor TEXT", "trigger TEXT", "environment_json TEXT", "runtime_info_json TEXT")
+        cols = (
+            "actor TEXT",
+            "trigger TEXT",
+            "environment_json TEXT",
+            "runtime_info_json TEXT",
+        )
         for col in cols:
             conn.execute(f"ALTER TABLE runs ADD COLUMN {col}")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_runs_actor ON runs(actor)")
+
+    @staticmethod
+    def __migrate_v3(conn: Any) -> None:
+        """Add nesting columns for SubTapestry parent linking."""
+        conn.execute("ALTER TABLE runs ADD COLUMN parent_run_id TEXT")
+        conn.execute("ALTER TABLE runs ADD COLUMN parent_knot_id TEXT")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_runs_parent ON runs(parent_run_id)")
 
     def __init__(self, *, path: str = "pirn.db", connection: Any = None) -> None:
         import sqlite3
@@ -96,7 +108,7 @@ class SQLiteHistory(RunHistory):
             self._conn,
             "history",
             self._schema_version,
-            {2: self.__migrate_v2},
+            {2: self.__migrate_v2, 3: self.__migrate_v3},
         )
         self._conn.commit()
         self._initialized = True
@@ -106,8 +118,9 @@ class SQLiteHistory(RunHistory):
         self._conn.execute(
             """INSERT OR REPLACE INTO runs
                (run_id, succeeded, started_at, finished_at, dispatcher,
-                actor, trigger, environment_json, runtime_info_json, payload_json)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                actor, trigger, environment_json, runtime_info_json,
+                parent_run_id, parent_knot_id, payload_json)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 result.run_id,
                 1 if result.succeeded else 0,
@@ -118,6 +131,8 @@ class SQLiteHistory(RunHistory):
                 result.trigger,
                 json.dumps(result.environment),
                 json.dumps(result.runtime_info),
+                result.parent_run_id,
+                result.parent_knot_id,
                 result.model_dump_json(),
             ),
         )
@@ -198,6 +213,15 @@ class SQLiteHistory(RunHistory):
         from pirn.core.run_result import RunResult
 
         cursor = self._conn.execute("SELECT payload_json FROM runs WHERE actor = ?", (actor,))
+        return [RunResult.model_validate_json(r[0]) for r in cursor.fetchall()]
+
+    async def children_of(self, run_id: str) -> list[Any]:
+        self._ensure_init()
+        from pirn.core.run_result import RunResult
+
+        cursor = self._conn.execute(
+            "SELECT payload_json FROM runs WHERE parent_run_id = ?", (run_id,)
+        )
         return [RunResult.model_validate_json(r[0]) for r in cursor.fetchall()]
 
     def close(self) -> None:

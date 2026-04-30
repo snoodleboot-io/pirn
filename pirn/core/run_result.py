@@ -33,6 +33,21 @@ class RunResult(BaseModel):
     finished_at: datetime
     dispatcher: str = Field(..., description="Name of the dispatcher used for this run.")
 
+    # Nesting — set when this run was spawned by a SubTapestry knot
+    run_path: str = Field(
+        default="",
+        description="Materialized path identifying this run's position in the nesting hierarchy. "
+        "Format: /{run_id} for root runs. Set by Tapestry.run().",
+    )
+    parent_run_id: str | None = Field(
+        None,
+        description="run_id of the outer run that spawned this run via a SubTapestry knot.",
+    )
+    parent_knot_id: str | None = Field(
+        None,
+        description="knot_id of the SubTapestry knot in the parent run that triggered this run.",
+    )
+
     # 7 W's — run-level provenance
     actor: str | None = Field(
         None,

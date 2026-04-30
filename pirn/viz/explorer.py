@@ -282,9 +282,112 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 }
 #empty-state.hidden { display: none; }
 .empty-icon { font-size: 42px; line-height: 1; }
+
+/* SubTapestry node — double border */
+.node-sub-tapestry rect.node-inner-border {
+  fill: none; stroke-width: 1px; pointer-events: none;
+}
+.node-sub-tapestry .drill-icon { pointer-events: none; }
+.node-sub-tapestry .drill-icon rect { fill: none; stroke: var(--orange); }
+
+/* Breadcrumb */
+.breadcrumb-link { cursor: pointer; color: var(--purple-hi); }
+.breadcrumb-link:hover { text-decoration: underline; }
+.breadcrumb-sep { color: var(--text-dim); margin: 0 4px; }
+
+/* Drill button in knot detail */
+.kd-drill-btn {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  margin-top: 10px; padding: 7px 12px;
+  background: rgba(255,102,0,0.12); border: 1px solid var(--orange);
+  color: var(--orange-hi); border-radius: 20px; cursor: pointer;
+  font-size: 11px; font-weight: 600; font-family: inherit; width: 100%;
+}
+.kd-drill-btn:hover { background: rgba(255,102,0,0.22); }
+
+/* Back button in topbar */
+#btn-back {
+  display: none;
+  align-items: center; gap: 5px;
+  padding: 4px 12px 4px 9px;
+  background: transparent;
+  border: 1px solid var(--orange);
+  border-radius: 20px;
+  color: var(--orange-hi);
+  font-size: 12px; font-family: inherit; font-weight: 600;
+  cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  transition: background 0.15s;
+}
+#btn-back:hover { background: rgba(255,102,0,0.12); }
+#btn-back .back-arrow { font-size: 12px; line-height: 1; display: flex; align-items: center; }
+#btn-back.visible { display: inline-flex; }
+
+/* ── Mobile hamburger / overlay controls ──────────────────────────────── */
+#btn-menu, #btn-hist-mobile {
+  display: none;
+  padding: 5px 10px; font-size: 16px; line-height: 1;
+  background: var(--panel); border: 1px solid var(--border);
+  color: var(--text); border-radius: 4px; cursor: pointer; flex-shrink: 0;
+}
+#sidebar-overlay, #history-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+  z-index: 200; backdrop-filter: blur(2px);
+}
+#sidebar-overlay.visible, #history-overlay.visible { display: block; }
+
+/* ── Mobile breakpoint ────────────────────────────────────────────────── */
+@media (max-width: 700px) {
+  /* Show hamburger + history icon; hide static ctrl labels */
+  #btn-menu, #btn-hist-mobile { display: inline-flex; align-items: center; justify-content: center; }
+  .ctrl-label { display: none; }
+  #btn-vertical, #btn-horizontal { padding: 4px 7px; font-size: 9px; }
+  #stats { display: none; }
+
+  /* Sidebar slides in as a drawer over the graph */
+  #sidebar {
+    position: fixed; top: 0; left: 0; bottom: 0; z-index: 201;
+    width: 240px; transform: translateX(-100%);
+    transition: transform 0.22s ease;
+    border-right: 1px solid var(--border);
+  }
+  #sidebar.mobile-open { transform: translateX(0); }
+
+  /* History panel slides in from the right as a drawer */
+  #history-panel {
+    position: fixed; top: 0; right: 0; bottom: 0; z-index: 201;
+    width: 280px; transform: translateX(100%);
+    transition: transform 0.22s ease; border-left: 1px solid var(--border);
+  }
+  #history-panel.open {
+    width: 280px; transform: translateX(0);
+  }
+
+  /* Main takes full width */
+  #main { width: 100%; }
+
+  /* Topbar: tighter, all controls still accessible */
+  #topbar { padding: 0 8px; gap: 6px; height: 46px; flex-wrap: nowrap; }
+  #tapestry-title { font-size: 11px; min-width: 0; }
+
+  /* Knot detail: full-width on small screens */
+  #knot-detail.visible { width: 100%; }
+
+  /* Run bar: slightly taller for finger tap */
+  #run-bar { height: 40px; padding: 0 10px; }
+
+  /* Larger tap targets for node groups */
+  .node-group { touch-action: none; }
+
+  /* Slightly larger tap target on mobile */
+  #btn-back.visible { padding: 6px 14px; }
+}
 </style>
 </head>
 <body>
+<!-- Overlay backdrops (mobile) -->
+<div id="sidebar-overlay"  onclick="closeMobileSidebar()"></div>
+<div id="history-overlay"  onclick="closeMobileHistory()"></div>
+
 <div id="app">
   <!-- Left sidebar -->
   <div id="sidebar">
@@ -299,11 +402,14 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   <!-- Centre -->
   <div id="main">
     <div id="topbar">
+      <button id="btn-menu" onclick="openMobileSidebar()" title="Pipelines">&#x2630;</button>
       <span id="tapestry-title">Select a tapestry</span>
+      <button id="btn-back" onclick="drillBack()" title="Go up  (Esc)"><span class="back-arrow">&#x2039;</span> Back</button>
       <span class="ctrl-label">ORIENTATION</span>
       <button class="btn active" id="btn-vertical"   onclick="setOrientation('vertical')">&#x21D3; Vertical</button>
       <button class="btn"        id="btn-horizontal" onclick="setOrientation('horizontal')">&#x21D2; Horizontal</button>
       <button class="btn" id="btn-history" onclick="toggleHistory()">&#x23F3; Execution History</button>
+      <button id="btn-hist-mobile" onclick="toggleHistory()" title="Execution History">&#x23F3;</button>
       <button class="btn btn-theme" id="btn-theme" onclick="toggleTheme()" title="Switch to light mode">&#x263D; Dark</button>
       <div id="stats"></div>
     </div>
@@ -366,9 +472,31 @@ let selectedRun  = null;
 let theme        = 'dark';
 let savedRunIds  = {};  // tapestry name → run_id
 let pinnedNode   = null;
+let navStack     = [];  // [{tapestry, run, label}]
+const RUNS_BY_ID = {};
+RUNS.forEach(r => { RUNS_BY_ID[r.run_id] = r; });
 
 const NODE_W = 160, NODE_H = 52, GAP_X = 80, GAP_Y = 72;
 const LS_KEY = 'pirn-explorer-v2';
+
+// ── Mobile drawer helpers ─────────────────────────────────────────────────────
+function openMobileSidebar() {
+  document.getElementById('sidebar').classList.add('mobile-open');
+  document.getElementById('sidebar-overlay').classList.add('visible');
+}
+function closeMobileSidebar() {
+  document.getElementById('sidebar').classList.remove('mobile-open');
+  document.getElementById('sidebar-overlay').classList.remove('visible');
+}
+function closeMobileHistory() {
+  historyOpen = false;
+  document.getElementById('history-panel').classList.remove('open');
+  document.getElementById('history-overlay').classList.remove('visible');
+  document.getElementById('btn-history').classList.remove('active-hist');
+  updateRunBar();
+  renderGraph();
+  saveState();
+}
 
 // ── Persistence ───────────────────────────────────────────────────────────────
 function saveState() {
@@ -431,8 +559,11 @@ function renderSidebar() {
 }
 
 function selectTapestry(t, save = true) {
+  navStack    = [];
+  updateBreadcrumb();
   current     = t;
   selectedRun = null;
+  closeMobileSidebar();
 
   // Restore saved run for this tapestry
   if (historyOpen) {
@@ -504,6 +635,7 @@ function openHistory(save = true) {
   historyOpen = true;
   document.getElementById('history-panel').classList.add('open');
   document.getElementById('btn-history').classList.add('active-hist');
+  if (window.innerWidth <= 700) document.getElementById('history-overlay').classList.add('visible');
   if (current) {
     // Auto-select saved run, or fall back to the first run
     if (!selectedRun) {
@@ -784,6 +916,13 @@ function showKnotDetail(node) {
     }
   }
 
+  // Drill-in button for SubTapestry nodes
+  const childRunId = selectedRun && selectedRun.child_run_ids && selectedRun.child_run_ids[node.id];
+  const childRun = childRunId && RUNS_BY_ID[childRunId];
+  if (childRun) {
+    html += `<button class="kd-drill-btn" onclick="drillIn('${esc(node.id)}')">Open inner pipeline</button>`;
+  }
+
   html += `</div>`;
   el.innerHTML = html;
   el.classList.add('visible');
@@ -806,6 +945,105 @@ function positionTooltip(event) {
 
 function hideTooltip() { ttEl.classList.remove('visible'); }
 document.addEventListener('mousemove', e => { if (ttEl.classList.contains('visible')) positionTooltip(e); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (navStack.length) { drillBack(); }
+    else { hideKnotDetail(); hideTooltip(); }
+  }
+});
+
+// Swipe-right from left edge to go back (mobile)
+(function() {
+  let t0x = null;
+  document.addEventListener('touchstart', e => {
+    if (e.touches[0].clientX < 40) t0x = e.touches[0].clientX;
+    else t0x = null;
+  }, { passive: true });
+  document.addEventListener('touchend', e => {
+    if (t0x !== null) {
+      const dx = e.changedTouches[0].clientX - t0x;
+      if (dx > 60) { if (navStack.length) drillBack(); }
+      t0x = null;
+    }
+  }, { passive: true });
+})();
+
+// ── SubTapestry drill-down navigation ─────────────────────────────────────────
+function synthTapestryFromRun(run, parentKnotId) {
+  const nodes = Object.entries(run.knots).map(([kid, k]) => ({
+    id: kid,
+    class: k.class,
+    description: '',
+    is_sub_tapestry: !!(run.child_run_ids && run.child_run_ids[kid]),
+  }));
+
+  const outputHashToId = {};
+  for (const [kid, k] of Object.entries(run.knots)) {
+    if (k.output_hash) outputHashToId[k.output_hash] = kid;
+  }
+  const edges = [], seen = new Set();
+  for (const [kid, k] of Object.entries(run.knots)) {
+    for (const [inputName, hash] of Object.entries(k.parent_input_hashes || {})) {
+      const parentId = outputHashToId[hash];
+      if (parentId && parentId !== kid) {
+        const key = parentId + '→' + kid;
+        if (!seen.has(key)) { seen.add(key); edges.push({source: parentId, target: kid, label: inputName}); }
+      }
+    }
+  }
+
+  return {name: parentKnotId + ' (inner)', source: '(drill-down)', nodes, edges, error: null, _synthetic: true};
+}
+
+function drillIn(nodeId) {
+  if (!selectedRun) return;
+  const childRunId = selectedRun.child_run_ids && selectedRun.child_run_ids[nodeId];
+  if (!childRunId) return;
+  const childRun = RUNS_BY_ID[childRunId];
+  if (!childRun) return;
+  navStack.push({tapestry: current, run: selectedRun, label: current.name});
+  current = synthTapestryFromRun(childRun, nodeId);
+  selectedRun = childRun;
+  updateBreadcrumb();
+  renderGraph();
+  updateRunBar();
+  if (historyOpen) renderRunList(current);
+  hideKnotDetail();
+}
+
+function drillBack() {
+  if (!navStack.length) return;
+  const {tapestry, run} = navStack.pop();
+  current = tapestry;
+  selectedRun = run;
+  updateBreadcrumb();
+  renderGraph();
+  updateRunBar();
+  if (historyOpen) renderRunList(current);
+}
+
+function drillBackTo(stackIdx) {
+  while (navStack.length > stackIdx + 1) navStack.pop();
+  drillBack();
+}
+
+function updateBreadcrumb() {
+  const titleEl = document.getElementById('tapestry-title');
+  const backBtn = document.getElementById('btn-back');
+  if (!navStack.length) {
+    titleEl.textContent = current ? current.name : 'Select a tapestry';
+    backBtn.classList.remove('visible');
+  } else {
+    let html = '';
+    navStack.forEach((frame, i) => {
+      html += `<span class="breadcrumb-link" onclick="drillBackTo(${i})">${esc(frame.label)}</span>`;
+      html += `<span class="breadcrumb-sep">/</span>`;
+    });
+    html += `<span>${esc(current ? current.name : '')}</span>`;
+    titleEl.innerHTML = html;
+    backBtn.classList.add('visible');
+  }
+}
 
 // ── Layout ────────────────────────────────────────────────────────────────────
 function computeLayout(nodes, edges) {
@@ -884,17 +1122,27 @@ function renderGraph() {
 
   const isDark = theme !== 'light';
   if (isDark) {
-    mkGrad('ng-base',    [['0%','#3a0a00'],['45%','#1a0a2e'],['100%','#200040']]);
-    mkGrad('ng-hover',   [['0%','#5a1200'],['45%','#2d1050'],['100%','#3a0070']]);
-    mkGrad('ng-ok',      [['0%','#002a12'],['45%','#0a1a1a'],['100%','#10003a']]);
-    mkGrad('ng-err',     [['0%','#2a0000'],['45%','#1a0a1a'],['100%','#20003a']]);
-    mkGrad('ng-skipped', [['0%','#141414'],['45%','#111118'],['100%','#18181a']]);
+    mkGrad('ng-base',        [['0%','#3a0a00'],['45%','#1a0a2e'],['100%','#200040']]);
+    mkGrad('ng-hover',       [['0%','#5a1200'],['45%','#2d1050'],['100%','#3a0070']]);
+    mkGrad('ng-ok',          [['0%','#002a12'],['45%','#0a1a1a'],['100%','#10003a']]);
+    mkGrad('ng-err',         [['0%','#2a0000'],['45%','#1a0a1a'],['100%','#20003a']]);
+    mkGrad('ng-skipped',     [['0%','#141414'],['45%','#111118'],['100%','#18181a']]);
+    // SubTapestry variants — orange warmth woven into each outcome
+    mkGrad('ng-base-sub',    [['0%','#3a1800'],['45%','#2a0e1a'],['100%','#1a0030']]);
+    mkGrad('ng-ok-sub',      [['0%','#1a2a00'],['45%','#1a1800'],['100%','#0e0020']]);
+    mkGrad('ng-err-sub',     [['0%','#3a0800'],['45%','#2a0800'],['100%','#1a0020']]);
+    mkGrad('ng-skipped-sub', [['0%','#221408'],['45%','#1a1210'],['100%','#141018']]);
   } else {
-    mkGrad('ng-base',    [['0%','#f0e4ff'],['50%','#fdf0e8'],['100%','#ffe8d4']]);
-    mkGrad('ng-hover',   [['0%','#e0caff'],['50%','#fce0c8'],['100%','#ffd4b8']]);
-    mkGrad('ng-ok',      [['0%','#d4fae8'],['50%','#eafaf0'],['100%','#f0fff6']]);
-    mkGrad('ng-err',     [['0%','#ffd4d4'],['50%','#ffeaea'],['100%','#fff4f4']]);
-    mkGrad('ng-skipped', [['0%','#e8e8f0'],['50%','#f0f0f8'],['100%','#f8f8fc']]);
+    mkGrad('ng-base',        [['0%','#f0e4ff'],['50%','#fdf0e8'],['100%','#ffe8d4']]);
+    mkGrad('ng-hover',       [['0%','#e0caff'],['50%','#fce0c8'],['100%','#ffd4b8']]);
+    mkGrad('ng-ok',          [['0%','#d4fae8'],['50%','#eafaf0'],['100%','#f0fff6']]);
+    mkGrad('ng-err',         [['0%','#ffd4d4'],['50%','#ffeaea'],['100%','#fff4f4']]);
+    mkGrad('ng-skipped',     [['0%','#e8e8f0'],['50%','#f0f0f8'],['100%','#f8f8fc']]);
+    // SubTapestry variants — warm amber tint over each outcome
+    mkGrad('ng-base-sub',    [['0%','#ffe8c8'],['50%','#fff0dc'],['100%','#ffecd0']]);
+    mkGrad('ng-ok-sub',      [['0%','#d4f0c8'],['50%','#eaf8dc'],['100%','#f4fce8']]);
+    mkGrad('ng-err-sub',     [['0%','#ffd8c0'],['50%','#ffece0'],['100%','#fff4ec']]);
+    mkGrad('ng-skipped-sub', [['0%','#ede0d0'],['50%','#f4ece0'],['100%','#faf4ec']]);
   }
 
   const arrowColor = isDark ? '#9d00ff' : '#6600cc';
@@ -971,14 +1219,26 @@ function renderGraph() {
       }
     }
 
+    const isSubTapestry = !!(n.is_sub_tapestry);
+    if (isSubTapestry) gradId += '-sub';
     const ng = nodeG.append('g')
-      .attr('class','node-group')
+      .attr('class', isSubTapestry ? 'node-group node-sub-tapestry' : 'node-group')
       .attr('transform',`translate(${pos.x-NODE_W/2},${pos.y-NODE_H/2})`)
       .attr('opacity', opacity);
 
     const rect = ng.append('rect')
       .attr('width',NODE_W).attr('height',NODE_H).attr('rx',9)
       .attr('fill',`url(#${gradId})`).attr('stroke',stroke).attr('stroke-width',strokeW);
+
+    // Dashed inner border marks SubTapestry nodes as drillable
+    if (isSubTapestry) {
+      ng.append('rect').attr('class','node-inner-border')
+        .attr('width',NODE_W-8).attr('height',NODE_H-8).attr('rx',6)
+        .attr('x',4).attr('y',4)
+        .attr('stroke',isDark ? '#ff8c33' : '#c84400').attr('stroke-width',1)
+        .attr('stroke-dasharray','3,2')
+        .attr('fill','none').attr('opacity',0.6);
+    }
 
     ng.append('text').attr('class','node-class')
       .attr('x',NODE_W/2).attr('y',18).attr('text-anchor','middle')
@@ -987,6 +1247,13 @@ function renderGraph() {
     ng.append('text').attr('class','node-id')
       .attr('x',NODE_W/2).attr('y',36).attr('text-anchor','middle')
       .text(n.id.length>17 ? n.id.slice(0,16)+'…' : n.id);
+
+    // Drill indicator top-left corner — nested-box SVG icon
+    if (isSubTapestry) {
+      const ico = ng.append('g').attr('class','drill-icon').attr('transform','translate(11,10)');
+      ico.append('rect').attr('width',12).attr('height',9).attr('rx',2).attr('stroke-width',1.5);
+      ico.append('rect').attr('x',3).attr('y',2.5).attr('width',6).attr('height',4).attr('rx',1).attr('stroke-width',1.2);
+    }
 
     if (badge) {
       const badgeColor = badge==='✓' ? c.ok : badge==='✗' ? c.err : c.skip;
@@ -1009,6 +1276,13 @@ function renderGraph() {
         event.stopPropagation();
         hideTooltip();
         toggleKnotDetail(n);
+      })
+      .on('dblclick', function(event) {
+        event.stopPropagation();
+        hideTooltip();
+        hideKnotDetail();
+        const childRunId = selectedRun && selectedRun.child_run_ids && selectedRun.child_run_ids[n.id];
+        if (childRunId && RUNS_BY_ID[childRunId]) drillIn(n.id);
       });
   }
 }

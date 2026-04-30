@@ -8,6 +8,7 @@ Run with:
     uv run python examples/data_pipeline/simple_etl.py
 """
 
+from pathlib import Path
 import asyncio
 import csv
 import io
@@ -153,7 +154,7 @@ id,name,amount,region
 
 
 async def main() -> None:
-    history = SQLiteHistory()
+    history = SQLiteHistory(path=str(Path(__file__).parent.parent / "pirn.db"))
     t = build_tapestry(history=history)
 
     print("Run 1 — full pipeline")

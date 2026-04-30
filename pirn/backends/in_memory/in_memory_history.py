@@ -22,6 +22,7 @@ class InMemoryHistory(RunHistory):
         self._lineage_by_input: dict[str, list[KnotLineage]] = {}
         self._lineage_by_knot: dict[str, list[KnotLineage]] = {}
         self._runs_by_actor: dict[str, list[Any]] = {}
+        self._runs_by_parent: dict[str, list[Any]] = {}
         self._lock = Lock()
 
     async def record_run(self, result: Any) -> None:
@@ -29,6 +30,8 @@ class InMemoryHistory(RunHistory):
             self._runs[result.run_id] = result
             if result.actor is not None:
                 self._runs_by_actor.setdefault(result.actor, []).append(result)
+            if result.parent_run_id is not None:
+                self._runs_by_parent.setdefault(result.parent_run_id, []).append(result)
             for rec in result.lineage:
                 self._lineage_by_knot.setdefault(rec.knot_id, []).append(rec)
                 if rec.output_hash:
@@ -55,3 +58,7 @@ class InMemoryHistory(RunHistory):
     async def query_runs_by_actor(self, actor: str) -> list[Any]:
         with self._lock:
             return list(self._runs_by_actor.get(actor, []))
+
+    async def children_of(self, run_id: str) -> list[Any]:
+        with self._lock:
+            return list(self._runs_by_parent.get(run_id, []))

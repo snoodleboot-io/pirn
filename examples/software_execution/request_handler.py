@@ -14,6 +14,7 @@ Run with:
     uv run python examples/software_execution/request_handler.py
 """
 
+from pathlib import Path
 import asyncio
 import json
 import time
@@ -162,7 +163,7 @@ def build_tapestry() -> Tapestry:
 async def main() -> None:
     from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 
-    history = SQLiteHistory()
+    history = SQLiteHistory(path=str(Path(__file__).parent.parent / "pirn.db"))
 
     t = build_tapestry()
 

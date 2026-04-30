@@ -145,6 +145,8 @@ class Tapestry:
         extensible: bool = False,
         emitter_error_policy: EmitterErrorPolicy | None = None,
         traceback_filter: Callable[[str], str] | None = None,
+        _parent_run_id: str | None = None,
+        _parent_knot_id: str | None = None,
     ) -> RunResult:
         """Execute the tapestry against a ``RunRequest``.
 
@@ -196,6 +198,8 @@ class Tapestry:
             extensible_store=self._store if extensible else None,
             traceback_filter=active_filter,
             emitter_error_policy=active_policy,
+            parent_run_id=_parent_run_id,
+            parent_knot_id=_parent_knot_id,
         )
 
     def add_emitter(self, emitter: Any) -> None:

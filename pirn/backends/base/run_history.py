@@ -35,3 +35,7 @@ class RunHistory:
 
     async def query_runs_by_actor(self, actor: str) -> list[Any]:
         raise NotImplementedError(f"{type(self).__name__} must implement query_runs_by_actor()")
+
+    async def children_of(self, run_id: str) -> list[Any]:
+        """Return all runs whose parent_run_id matches run_id."""
+        raise NotImplementedError(f"{type(self).__name__} must implement children_of()")

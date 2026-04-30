@@ -14,6 +14,7 @@ Run with:
     uv run python examples/software_execution/ci_pipeline.py
 """
 
+from pathlib import Path
 import asyncio
 import time
 from dataclasses import dataclass
@@ -156,7 +157,7 @@ def build_tapestry(history=None) -> Tapestry:
 
 
 async def main() -> None:
-    history = SQLiteHistory()
+    history = SQLiteHistory(path=str(Path(__file__).parent.parent / "pirn.db"))
     t = build_tapestry(history=history)
 
     result = await t.run(

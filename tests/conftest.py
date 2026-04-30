@@ -41,3 +41,29 @@ def tapestry():
     from pirn.tapestry import Tapestry
 
     return Tapestry()
+
+
+@pytest.fixture
+def make_failed_run_result():
+    """A RunResult with one exception record — used to test SubTapestryError."""
+    from datetime import UTC, datetime
+
+    from pirn.core.run_result import RunResult
+    from pirn.managers.exception_record import ExceptionRecord
+
+    exc = ExceptionRecord(
+        run_id="r",
+        knot_id="fail",
+        exc_type="RuntimeError",
+        message="inner failure",
+        traceback_text="",
+    )
+    return RunResult(
+        run_id="r",
+        terminals_requested=["fail"],
+        outputs={},
+        exceptions=[exc],
+        started_at=datetime.now(UTC),
+        finished_at=datetime.now(UTC),
+        dispatcher="local",
+    )

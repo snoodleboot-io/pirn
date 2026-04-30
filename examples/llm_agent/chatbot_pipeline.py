@@ -24,6 +24,7 @@ Run with:
     uv run python examples/llm_agent/chatbot_pipeline.py
 """
 
+from pathlib import Path
 import asyncio
 import json
 from dataclasses import dataclass
@@ -307,7 +308,7 @@ def build_tapestry(history=None) -> Tapestry:
 
 
 async def main() -> None:
-    history = SQLiteHistory()
+    history = SQLiteHistory(path=str(Path(__file__).parent.parent / "pirn.db"))
     t = build_tapestry(history=history)
 
     conversation = ""

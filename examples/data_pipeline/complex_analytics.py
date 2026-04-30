@@ -15,6 +15,7 @@ Run with:
     uv run python examples/data_pipeline/complex_analytics.py
 """
 
+from pathlib import Path
 import asyncio
 import random
 from dataclasses import dataclass
@@ -236,7 +237,7 @@ def build_tapestry(history=None) -> Tapestry:
 
 
 async def main() -> None:
-    history = SQLiteHistory()
+    history = SQLiteHistory(path=str(Path(__file__).parent.parent / "pirn.db"))
     t = build_tapestry(history=history)
 
     today = date.today()

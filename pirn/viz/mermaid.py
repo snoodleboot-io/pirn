@@ -31,14 +31,21 @@ def mermaid_for_tapestry(tapestry: Tapestry) -> str:
     """Render a tapestry's structure as Mermaid graph syntax.
 
     No status overlay; just the topology.  Use ``mermaid_for_run`` for
-    a status-colored variant.
+    a status-colored variant.  SubTapestry knots use the Mermaid
+    subroutine shape (double brackets) to signal they contain an inner
+    pipeline.
     """
+    from pirn.nodes.sub_tapestry import SubTapestry
+
     knots = tapestry.store.all()
     lines = ["graph TD"]
     for knot in knots:
         node_id = _safe_node_id(knot.knot_id)
         label = _node_label(knot.knot_id, type(knot).__name__)
-        lines.append(f'    {node_id}["{label}"]')
+        if isinstance(knot, SubTapestry):
+            lines.append(f'    {node_id}[["{label}"]]')
+        else:
+            lines.append(f'    {node_id}["{label}"]')
     for knot in knots:
         for parent in knot.parents.values():
             parent_id = _safe_node_id(parent.knot_id)
