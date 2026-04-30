@@ -223,13 +223,13 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .tt-outcome-err  { color: var(--err); font-weight: 700; }
 .tt-outcome-skip { color: var(--skip); font-weight: 700; }
 
-/* ── Knot detail panel (between sidebar and loom) ─────────────────────── */
+/* ── Knot detail panel (overlays loom, left edge) ─────────────────────── */
 #knot-detail {
+  position: absolute; left: 0; top: 0; bottom: 0; z-index: 10;
   width: 0; overflow: hidden;
-  background: var(--sidebar); border-right: 1px solid var(--border);
-  display: flex; flex-direction: column;
+  background: var(--sidebar);
+  box-shadow: 2px 0 12px rgba(0,0,0,0.4);
   transition: width 0.2s ease;
-  flex-shrink: 0;
   font-size: 11px;
 }
 #knot-detail.visible { width: 220px; overflow-y: auto; }
@@ -270,9 +270,6 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
     <ul id="tapestry-list"></ul>
   </div>
 
-  <!-- Knot detail panel -->
-  <div id="knot-detail"></div>
-
   <!-- Centre -->
   <div id="main">
     <div id="topbar">
@@ -286,6 +283,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
     </div>
 
     <div id="loom">
+      <div id="knot-detail"></div>
       <div id="empty-state">
         <div class="empty-icon">&#x25C6;</div>
         <div>Select a tapestry from the left</div>
@@ -341,6 +339,7 @@ let historyOpen  = false;
 let selectedRun  = null;
 let theme        = 'dark';
 let savedRunIds  = {};  // tapestry name → run_id
+let pinnedNode   = null;
 
 const NODE_W = 160, NODE_H = 52, GAP_X = 80, GAP_Y = 72;
 const LS_KEY = 'pirn-explorer-v2';
@@ -662,7 +661,13 @@ function _ttRow(id, val, prefix) {
 }
 
 // ── Pinned knot detail (sidebar) ──────────────────────────────────────────────
+function toggleKnotDetail(node) {
+  if (pinnedNode && pinnedNode.id === node.id) { hideKnotDetail(); return; }
+  showKnotDetail(node);
+}
+
 function showKnotDetail(node) {
+  pinnedNode = node;
   const el = document.getElementById('knot-detail');
   let html = `<div id="knot-detail-inner">
     <div class="kd-header">
@@ -721,6 +726,7 @@ function showKnotDetail(node) {
 }
 
 function hideKnotDetail() {
+  pinnedNode = null;
   const el = document.getElementById('knot-detail');
   el.classList.remove('visible');
   el.innerHTML = '';
@@ -842,7 +848,7 @@ function renderGraph() {
   // ── Zoom ──────────────────────────────────────────────────────────────────
   const zoom = d3.zoom().scaleExtent([0.08,5])
     .on('zoom', e => { g.attr('transform', e.transform); hideTooltip(); });
-  svg.call(zoom).on('click', hideTooltip);
+  svg.call(zoom).on('click', () => { hideTooltip(); hideKnotDetail(); });
   const g = svg.append('g');
 
   const { positions } = computeLayout(tapestry.nodes, tapestry.edges);
@@ -938,7 +944,7 @@ function renderGraph() {
       .on('click', function(event) {
         event.stopPropagation();
         hideTooltip();
-        showKnotDetail(n);
+        toggleKnotDetail(n);
       });
   }
 }
