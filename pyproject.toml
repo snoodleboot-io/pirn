@@ -30,7 +30,7 @@ dependencies = [
 ]
 
 [project.scripts]
-tapestry-check = "pirn.check:main"
+tapestry-check = "pirn.check.main:main"
 pirn-explore   = "pirn.viz._explore_cli:main"
 
 [project.optional-dependencies]
