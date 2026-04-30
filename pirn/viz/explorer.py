@@ -223,19 +223,19 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .tt-outcome-err  { color: var(--err); font-weight: 700; }
 .tt-outcome-skip { color: var(--skip); font-weight: 700; }
 
-/* ── Knot detail panel (pinned in sidebar on click) ───────────────────── */
+/* ── Knot detail panel (between sidebar and loom) ─────────────────────── */
 #knot-detail {
-  border-top: 1px solid var(--border);
-  padding: 12px 14px;
-  font-size: 11px;
-  display: none;
+  width: 0; overflow: hidden;
+  background: var(--sidebar); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  transition: width 0.2s ease;
   flex-shrink: 0;
-  overflow-y: auto;
-  max-height: 40vh;
+  font-size: 11px;
 }
-#knot-detail.visible { display: block; }
+#knot-detail.visible { width: 220px; overflow-y: auto; }
 #knot-detail::-webkit-scrollbar { width: 3px; }
 #knot-detail::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+#knot-detail-inner { padding: 12px 14px; min-width: 220px; }
 .kd-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; }
 .kd-close { font-size: 13px; cursor: pointer; color: var(--text-dim); line-height: 1; flex-shrink: 0; margin-left: 6px; }
 .kd-close:hover { color: var(--text); }
@@ -268,8 +268,10 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
       <div id="sidebar-count"></div>
     </div>
     <ul id="tapestry-list"></ul>
-    <div id="knot-detail"></div>
   </div>
+
+  <!-- Knot detail panel -->
+  <div id="knot-detail"></div>
 
   <!-- Centre -->
   <div id="main">
@@ -662,7 +664,7 @@ function _ttRow(id, val, prefix) {
 // ── Pinned knot detail (sidebar) ──────────────────────────────────────────────
 function showKnotDetail(node) {
   const el = document.getElementById('knot-detail');
-  let html = `
+  let html = `<div id="knot-detail-inner">`;
     <div class="kd-header">
       <div>
         <div class="kd-class">${esc(node.class)}</div>
@@ -713,6 +715,7 @@ function showKnotDetail(node) {
     if (host) html += `<div class="kd-row">host: <span>${esc(host)}</span></div>`;
   }
 
+  html += `</div>`;
   el.innerHTML = html;
   el.classList.add('visible');
 }
