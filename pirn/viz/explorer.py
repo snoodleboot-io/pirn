@@ -304,7 +304,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
       <button class="btn active" id="btn-vertical"   onclick="setOrientation('vertical')">&#x21D3; Vertical</button>
       <button class="btn"        id="btn-horizontal" onclick="setOrientation('horizontal')">&#x21D2; Horizontal</button>
       <button class="btn" id="btn-history" onclick="toggleHistory()">&#x23F3; Execution History</button>
-      <button class="btn btn-theme" id="btn-theme" onclick="toggleTheme()" title="Switch to light mode">&#x2600; Light</button>
+      <button class="btn btn-theme" id="btn-theme" onclick="toggleTheme()" title="Switch to light mode">&#x263D; Dark</button>
       <div id="stats"></div>
     </div>
 
@@ -490,7 +490,7 @@ function setThemeSilent(t) {
   document.documentElement.setAttribute('data-theme', t);
   const btn = document.getElementById('btn-theme');
   if (btn) {
-    btn.innerHTML = t === 'dark' ? '&#x2600; Light' : '&#x263D; Dark';
+    btn.innerHTML = t === 'dark' ? '&#x263D; Dark' : '&#x2600; Light';
     btn.title = t === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
   }
 }

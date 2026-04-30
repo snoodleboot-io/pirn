@@ -111,7 +111,7 @@ jobs:
         run: |
           uv run python -m pytest tests/integration \
             --real \
-            -m "needs_postgres or needs_valkey or needs_kafka or needs_s3 or needs_celery or needs_dask or needs_ray" \
+            -m "needs_postgres or needs_valkey or needs_kafka or needs_s3 or needs_celery" \
             --junitxml=test-results/real-backends.xml \
             --timeout=120 \
             -v

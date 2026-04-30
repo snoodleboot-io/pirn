@@ -133,10 +133,20 @@ jobs:
 
       - name: Run mock integration tests
         # --real is NOT passed: real-backend tests skip automatically
+        # needs_dask / needs_ray use LocalCluster — excluded here; run separately below with higher timeout
         run: |
           uv run python -m pytest tests/integration \
+            --ignore=tests/integration/test_dask_real.py \
+            --ignore=tests/integration/test_ray_real.py \
             --junitxml=test-results/integration-mock.xml \
             --timeout=60 \
+            -v
+
+      - name: Run Dask / Ray integration tests
+        run: |
+          uv run python -m pytest tests/integration/test_dask_real.py tests/integration/test_ray_real.py \
+            --junitxml=test-results/integration-dask-ray.xml \
+            --timeout=300 \
             -v
 
       - name: Upload test results

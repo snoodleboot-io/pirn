@@ -1,6 +1,9 @@
-# pirn
+<p align="center">
+  <img src="docs/pirn_logo.png" alt="pirn" width="120">
+</p>
 
-A pipeline framework where everything is a knot.
+<h1 align="center">pirn</h1>
+<p align="center">A pipeline framework where everything is a knot.</p>
 
 `pirn` builds typed, async, observable data and computation pipelines. You wire
 work into a *tapestry* of *knots*, run it, and get back a structured result —
