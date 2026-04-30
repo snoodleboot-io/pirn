@@ -15,7 +15,7 @@
 </head>
 <body>
 
-  <aside class="sidebar" id="sidebar">
+  <aside class="sidebar{% if page.meta and page.meta.hide and 'navigation' in page.meta.hide %} hidden{% endif %}" id="sidebar">
     <div class="sidebar-header">
       <a href="{{ '.'|url }}" class="brand">
         <img src="{{ 'pirn_logo.png'|url }}" alt="pirn logo" class="brand-logo">
@@ -65,7 +65,7 @@
     </div>
   </aside>
 
-  <div class="layout">
+  <div class="layout{% if page.meta and page.meta.hide and 'navigation' in page.meta.hide %} full-width{% endif %}">
     <header class="topbar">
       <button class="topbar-menu-btn" id="menu-toggle" aria-label="Toggle menu">
         <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18">
@@ -120,7 +120,7 @@
           {{ page.content }}
         </article>
 
-        {% if page.toc %}
+        {% if page.toc and not (page.meta and page.meta.hide and 'toc' in page.meta.hide) %}
         <aside class="toc-sidebar" aria-label="On this page">
           <div class="toc-label">On this page</div>
           <nav class="toc-nav">

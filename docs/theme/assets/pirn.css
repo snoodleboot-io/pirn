@@ -731,7 +731,8 @@ a:hover { color: var(--teal); text-decoration: underline; text-underline-offset:
   border: none;
   padding: 0;
   margin: 0 0 16px;
-  letter-spacing: -0.04em;
+  letter-spacing: 0.08em;
+  text-transform: lowercase;
   background: var(--grad-text);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -1046,3 +1047,9 @@ pre:hover .copy-btn { opacity: 1; }
 
 /* Active TOC link */
 .toc-link.active-toc { color: var(--teal) !important; }
+
+/* ── Hide frontmatter support ──────────────────────────────────────────── */
+.sidebar.hidden { display: none; }
+.layout.full-width { margin-left: 0; }
+.layout.full-width .content-wrap { max-width: 960px; }
+.layout.full-width .content { padding-right: 0; max-width: 100%; }
