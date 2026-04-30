@@ -98,7 +98,8 @@ def _load_runs_from_db(db_path: Path, limit: int = 200) -> list[dict[str, Any]]:
             lineage_rows = conn.execute(
                 """SELECT knot_id, knot_class, outcome,
                           started_at, finished_at,
-                          error_record_id, skip_reason, output_hash
+                          error_record_id, skip_reason, output_hash,
+                          knot_config_hash
                    FROM lineage WHERE run_id = ?""",
                 (run_id,),
             ).fetchall()
@@ -107,17 +108,30 @@ def _load_runs_from_db(db_path: Path, limit: int = 200) -> list[dict[str, Any]]:
             for lr in lineage_rows:
                 (kid, kclass, outcome,
                  k_start, k_end,
-                 err_id, skip_reason, output_hash) = lr
+                 err_id, skip_reason, output_hash,
+                 config_hash) = lr
                 knots[kid] = {
                     "outcome": outcome,
                     "class": kclass.split(".")[-1],
+                    "started_at": str(k_start) if k_start else "",
+                    "finished_at": str(k_end) if k_end else "",
                     "duration_ms": _duration_ms(k_start, k_end),
                     "output_hash": output_hash or "",
+                    "knot_config_hash": config_hash or "",
                     "error_record_id": err_id or "",
                     "skip_reason": skip_reason or "",
                 }
 
             import json as _json
+            # Load exceptions keyed by id from the run payload_json
+            try:
+                run_payload = _json.loads(conn.execute(
+                    "SELECT payload_json FROM runs WHERE run_id=?", (run_id,)
+                ).fetchone()[0])
+                exceptions = {e["id"]: e for e in run_payload.get("exceptions", [])}
+            except Exception:
+                exceptions = {}
+
             result.append({
                 "run_id": run_id,
                 "succeeded": bool(succeeded),
@@ -130,6 +144,7 @@ def _load_runs_from_db(db_path: Path, limit: int = 200) -> list[dict[str, Any]]:
                 "environment": _json.loads(env_json) if env_json else {},
                 "runtime_info": _json.loads(rt_json) if rt_json else {},
                 "knots": knots,
+                "exceptions": exceptions,
             })
 
         conn.close()

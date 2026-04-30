@@ -236,16 +236,38 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 #knot-detail::-webkit-scrollbar { width: 3px; }
 #knot-detail::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 #knot-detail-inner { padding: 12px 14px; min-width: 220px; }
-.kd-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; }
-.kd-close { font-size: 13px; cursor: pointer; color: var(--text-dim); line-height: 1; flex-shrink: 0; margin-left: 6px; }
+.kd-header { display: flex; justify-content: flex-end; margin-bottom: 6px; }
+.kd-close { font-size: 13px; cursor: pointer; color: var(--text-dim); line-height: 1; }
 .kd-close:hover { color: var(--text); }
-.kd-class { color: var(--orange); font-size: 9px; margin-bottom: 2px; }
-.kd-id    { color: var(--purple-hi); font-size: 12px; font-weight: 700; word-break: break-all; margin-bottom: 5px; }
-.kd-desc  { color: var(--text-dim); font-size: 9px; font-style: italic; line-height: 1.4; margin-bottom: 8px; }
-.kd-divider { border: none; border-top: 1px solid var(--border); margin: 7px 0; }
-.kd-row { color: var(--text-dim); font-size: 9px; margin-top: 3px; line-height: 1.5; }
-.kd-row span { color: var(--text); }
-.kd-section { font-size: 8px; font-weight: 700; color: var(--text-dim); letter-spacing: 0.08em; text-transform: uppercase; margin: 8px 0 4px; }
+.kd-divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
+.kd-w-desc { color: var(--text-dim); font-size: 9px; font-style: italic; line-height: 1.4; margin: 3px 0 6px 0; }
+
+/* 7W row: label + value in a compact two-column layout */
+.kd-w-row {
+  display: grid; grid-template-columns: 38px 1fr; gap: 4px;
+  margin-bottom: 5px; align-items: start;
+}
+.kd-w-label {
+  font-size: 8px; font-weight: 700; letter-spacing: 0.07em;
+  color: var(--orange); padding-top: 1px; white-space: nowrap;
+}
+.kd-w-value { font-size: 10px; color: var(--text); word-break: break-word; line-height: 1.45; }
+.kd-w-dim   { color: var(--text-dim); font-size: 9px; }
+.w-ok   { color: var(--ok);     font-weight: 700; }
+.w-err  { color: var(--err);    font-weight: 700; }
+.w-skip { color: var(--skip);   font-weight: 700; }
+.kd-hash     { font-size: 8px; color: var(--text-dim); font-family: monospace; margin-top: 3px; word-break: break-all; }
+.kd-exc-type { font-size: 10px; font-weight: 700; color: var(--err); margin-top: 4px; }
+.kd-exc-msg  { font-size: 9px; color: var(--text); margin-top: 2px; line-height: 1.4; word-break: break-word; }
+.kd-exc-tb   {
+  font-size: 8px; color: var(--text-dim); font-family: monospace;
+  margin-top: 6px; padding: 6px 8px;
+  background: rgba(0,0,0,0.25); border-radius: 4px;
+  border-left: 2px solid var(--err);
+  white-space: pre-wrap; word-break: break-all;
+  max-height: 180px; overflow-y: auto; line-height: 1.4;
+}
+:root[data-theme="light"] .kd-exc-tb { background: #fff0f0; }
 
 /* ── Empty state ───────────────────────────────────────────────────────── */
 #empty-state {
@@ -669,55 +691,93 @@ function toggleKnotDetail(node) {
 function showKnotDetail(node) {
   pinnedNode = node;
   const el = document.getElementById('knot-detail');
-  let html = `<div id="knot-detail-inner">
-    <div class="kd-header">
-      <div>
-        <div class="kd-class">${esc(node.class)}</div>
-        <div class="kd-id">${esc(node.id)}</div>
-      </div>
-      <span class="kd-close" onclick="hideKnotDetail()">&#x2715;</span>
-    </div>`;
-  if (node.description) html += `<div class="kd-desc">${esc(node.description)}</div>`;
-
-  const t = current;
+  const t  = current;
   const inEdges  = t.edges.filter(e => e.target === node.id);
   const outEdges = t.edges.filter(e => e.source === node.id);
-  if (inEdges.length || outEdges.length) {
-    html += `<hr class="kd-divider">`;
-    if (inEdges.length) {
-      html += `<div class="kd-section">Receives from</div>`;
-      inEdges.forEach(e => {
-        html += `<div class="kd-row">${e.label ? `<span>${esc(e.label)}</span> ← ` : ''}${esc(e.source)}</div>`;
-      });
-    }
-    if (outEdges.length) {
-      html += `<div class="kd-section">Passes to</div>`;
-      outEdges.forEach(e => {
-        html += `<div class="kd-row">${esc(e.target)}</div>`;
-      });
-    }
+  const k = selectedRun ? selectedRun.knots[node.id] : null;
+  const r = selectedRun;
+
+  // ── Header ────────────────────────────────────────────────────────────
+  let html = `<div id="knot-detail-inner">
+    <div class="kd-header">
+      <span class="kd-close" onclick="hideKnotDetail()">&#x2715;</span>
+    </div>`;
+
+  // ── 7W rows ───────────────────────────────────────────────────────────
+  function w(label, value, cls) {
+    if (!value && value !== 0) return '';
+    return `<div class="kd-w-row">
+      <span class="kd-w-label">${label}</span>
+      <span class="kd-w-value${cls ? ' ' + cls : ''}">${value}</span>
+    </div>`;
   }
 
-  if (selectedRun) {
-    const k = selectedRun.knots[node.id];
-    html += `<hr class="kd-divider"><div class="kd-section">Last run</div>`;
-    if (k) {
-      const ocCls = k.outcome === 'ok' ? 'tt-outcome-ok' : k.outcome === 'err' ? 'tt-outcome-err' : 'tt-outcome-skip';
-      const ocCh  = k.outcome === 'ok' ? '✓ ok' : k.outcome === 'err' ? '✗ err' : '⊘ skipped';
-      html += `<div class="kd-row">outcome: <span class="${ocCls}">${ocCh}</span></div>`;
-      if (k.duration_ms != null) html += `<div class="kd-row">duration: <span>${k.duration_ms} ms</span></div>`;
-      if (k.output_hash)    html += `<div class="kd-row">hash: <span>${esc(k.output_hash.slice(0,28))}…</span></div>`;
-      if (k.skip_reason)    html += `<div class="kd-row">skipped: <span>${esc(k.skip_reason)}</span></div>`;
-      if (k.error_record_id) html += `<div class="kd-row">error id: <span>${esc(k.error_record_id)}</span></div>`;
-    } else {
-      html += `<div class="kd-row" style="color:var(--text-dim)">not in this run</div>`;
+  // WHAT — always present
+  const ocCls = !k ? '' : k.outcome === 'ok' ? 'w-ok' : k.outcome === 'err' ? 'w-err' : 'w-skip';
+  const ocBadge = !k ? '' : k.outcome === 'ok' ? '✓ ok' : k.outcome === 'err' ? '✗ err' : '⊘ skipped';
+  const whatVal = k
+    ? `<span class="${ocCls}">${ocBadge}</span> <span class="kd-w-dim">${esc(node.class)}</span>`
+    : `<span class="kd-w-dim">${esc(node.class)}</span>`;
+  html += `<div class="kd-w-row"><span class="kd-w-label">WHAT</span><div class="kd-w-value">${esc(node.id)}<br>${whatVal}</div></div>`;
+  if (node.description) html += `<div class="kd-w-desc">${esc(node.description)}</div>`;
+
+  // HOW — connections (always present)
+  let howParts = [];
+  inEdges.forEach(e  => howParts.push(`<span class="kd-w-dim">← ${esc(e.label || e.source)}</span>`));
+  outEdges.forEach(e => howParts.push(`<span class="kd-w-dim">→ ${esc(e.target)}</span>`));
+  if (howParts.length) {
+    html += `<div class="kd-w-row"><span class="kd-w-label">HOW</span><div class="kd-w-value">${howParts.join('<br>')}</div></div>`;
+  }
+
+  if (r) {
+    html += `<hr class="kd-divider">`;
+
+    // WHO
+    html += w('WHO', esc(r.actor) || '—');
+
+    // WHEN — knot-level timing if available, else run timing
+    const kWhen = k && k.started_at
+      ? `${fmtTime(k.started_at)}<br><span class="kd-w-dim">${fmtDuration(k.duration_ms)}</span>`
+      : `${fmtTime(r.started_at)}<br><span class="kd-w-dim">${fmtDuration(r.duration_ms)} total</span>`;
+    html += `<div class="kd-w-row"><span class="kd-w-label">WHEN</span><div class="kd-w-value">${kWhen}</div></div>`;
+
+    // WHERE
+    const host = r.environment && r.environment.hostname;
+    html += w('WHERE', host ? esc(host) : '');
+
+    // HOW (execution) — dispatcher
+    html += w('HOW', esc(r.dispatcher));
+
+    // WHY — trigger + skip reason
+    const why = [r.trigger, k && k.skip_reason ? `cached: ${k.skip_reason}` : ''].filter(Boolean).join(' · ');
+    html += w('WHY', why ? esc(why) : '');
+
+    // WHICH — versions + config hash
+    const rt = r.runtime_info || {};
+    const pyVer = rt.python_version ? rt.python_version.split(' ').slice(0,2).join(' ') : '';
+    const pirnVer = rt.pirn_version ? `pirn ${rt.pirn_version}` : '';
+    const cfgHash = k && k.knot_config_hash ? `cfg ${k.knot_config_hash.slice(0,10)}…` : '';
+    const which = [pyVer, pirnVer, cfgHash].filter(Boolean).join('<br>');
+    if (which) html += `<div class="kd-w-row"><span class="kd-w-label">WHICH</span><div class="kd-w-value kd-w-dim">${which}</div></div>`;
+
+    html += `<hr class="kd-divider">`;
+
+    // Output hash
+    if (k && k.output_hash) {
+      html += `<div class="kd-hash" title="${esc(k.output_hash)}">out&nbsp;${esc(k.output_hash.slice(0,22))}…</div>`;
     }
-    html += `<hr class="kd-divider"><div class="kd-section">Run</div>`;
-    html += `<div class="kd-row">id: <span>${esc(selectedRun.run_id.slice(0,24))}…</span></div>`;
-    if (selectedRun.dispatcher) html += `<div class="kd-row">dispatcher: <span>${esc(selectedRun.dispatcher)}</span></div>`;
-    if (selectedRun.actor)      html += `<div class="kd-row">actor: <span>${esc(selectedRun.actor)}</span></div>`;
-    const host = selectedRun.environment && selectedRun.environment.hostname;
-    if (host) html += `<div class="kd-row">host: <span>${esc(host)}</span></div>`;
+
+    // Error detail
+    if (k && k.error_record_id) {
+      const exc = r.exceptions && r.exceptions[k.error_record_id];
+      if (exc) {
+        html += `<div class="kd-exc-type">${esc(exc.exc_type)}</div>`;
+        html += `<div class="kd-exc-msg">${esc(exc.message)}</div>`;
+        html += `<pre class="kd-exc-tb">${esc(exc.traceback_text)}</pre>`;
+      } else {
+        html += `<div class="kd-hash w-err">err&nbsp;${esc(k.error_record_id.slice(0,22))}…</div>`;
+      }
+    }
   }
 
   html += `</div>`;
