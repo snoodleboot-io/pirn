@@ -114,6 +114,8 @@ nodes:
 
 ## llm_agent
 
+### chatbot_pipeline.py
+
 ```bash
 uv run python examples/llm_agent/chatbot_pipeline.py
 ```
@@ -123,6 +125,25 @@ A production-style chatbot backend modelled as a pirn tapestry. Each stage of ha
 The LLM calls use a fake Anthropic client by default so the example runs without any API key or network access. To wire in the real SDK, replace `_fake_llm_call()` with an `anthropic.AsyncAnthropic` call and set `ANTHROPIC_API_KEY` in your environment.
 
 The key thing this example illustrates is that pirn's dependency graph naturally encodes the latency-optimal execution order for an LLM pipeline — you do not have to manually orchestrate which calls can overlap. The lineage also gives you a full record of every turn: inputs, outputs, timing, and any errors, without writing any instrumentation code.
+
+### agent_loop.py
+
+```bash
+uv run python examples/llm_agent/agent_loop.py
+```
+
+An agentic loop where the tapestry's graph grows dynamically at runtime based on what the agent decides to do. The key idea: the topology is not fixed at build time — it is constructed fresh for every iteration based on the agent's plan and the accumulated state from previous iterations.
+
+The agent holds a global `AgentState` — task, scratchpad of prior results, iteration count — and works through it iteratively. At each iteration, a planner reads the state and decides what to do next; an `ActionDispatcher` (itself a `SubTapestry`) constructs the matching knots on the fly — `run_tool_call`, `run_mcp_call`, or `SubAgentRunner` — wires them up, and runs them concurrently. Results fold back into the scratchpad. Later iterations see what earlier ones produced and plan differently.
+
+All three action types reach a different depth in the explorer:
+- `tool_call` nodes are leaf knots — drill in and see a single execution record
+- `mcp_call` nodes are leaf knots with simulated async I/O
+- `subagent` nodes (`SubAgentRunner`) are themselves `SubTapestry` — drill in and see their own inner two-step pipeline
+
+A per-run seed (`run_seed`) is passed in with each task so the same task produces a structurally different graph on each re-run. Look at six consecutive runs in the explorer: the `AgentLoop` node is the same outer shape, but drill in and each iteration's dispatcher contains a different combination of action nodes.
+
+This is the right starting point if you want to model real agent workloads — tool dispatch, MCP calls, spawned subagents — where the execution plan is unknown until runtime.
 
 ---
 
