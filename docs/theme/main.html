@@ -17,7 +17,7 @@
 
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
-      <a href="{{ config.site_url or '/' }}" class="brand">
+      <a href="{{ '.'|url }}" class="brand">
         <img src="{{ 'pirn_logo.png'|url }}" alt="pirn logo" class="brand-logo">
         <span class="brand-name">pirn</span>
       </a>
@@ -45,7 +45,7 @@
               </div>
             </div>
           {% elif item.is_page %}
-            <a href="{{ item.url }}" class="nav-link{% if item.active %} active{% endif %}" data-depth="{{ depth }}">
+            <a href="{{ item.url|url }}" class="nav-link{% if item.active %} active{% endif %}" data-depth="{{ depth }}">
               {{ item.title }}
             </a>
           {% endif %}
@@ -140,7 +140,7 @@
       {% if page.next_page or page.previous_page %}
       <nav class="page-nav" aria-label="Page navigation">
         {% if page.previous_page %}
-        <a href="{{ page.previous_page.url }}" class="page-nav-link page-nav-prev">
+        <a href="{{ page.previous_page.url|url }}" class="page-nav-link page-nav-prev">
           <span class="page-nav-label">Previous</span>
           <span class="page-nav-title">← {{ page.previous_page.title }}</span>
         </a>
@@ -148,7 +148,7 @@
         <div></div>
         {% endif %}
         {% if page.next_page %}
-        <a href="{{ page.next_page.url }}" class="page-nav-link page-nav-next">
+        <a href="{{ page.next_page.url|url }}" class="page-nav-link page-nav-next">
           <span class="page-nav-label">Next</span>
           <span class="page-nav-title">{{ page.next_page.title }} →</span>
         </a>
