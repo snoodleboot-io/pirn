@@ -109,11 +109,12 @@ def _fake_tool(name: str, args: dict, rng: random.Random) -> str:
     if name == "calculate":
         expr = args.get("expression", "0")
         try:
-            return f"{expr} = {eval(expr, {'__builtins__': {}})}"  # noqa: S307
+            return f"{expr} = {eval(expr, {'__builtins__': {}})}"
         except Exception:
             return f"could not evaluate: {expr}"
     if name == "read_file":
-        return f"[contents of {args.get('path', '?')}]: lorem ipsum policy text paragraph {rng.randint(1, 9)}"
+        n = rng.randint(1, 9)
+        return f"[contents of {args.get('path', '?')}]: lorem ipsum policy text paragraph {n}"
     return f"[tool:{name}] ok"
 
 
@@ -138,14 +139,16 @@ def _fake_mcp(name: str, args: dict, rng: random.Random) -> str:
                 return v
         return "No matching article found."
     if name == "fetch_url":
-        return f"[page content from {args.get('url', '?')}]: retrieved {rng.randint(200, 800)} words"
+        words = rng.randint(200, 800)
+        return f"[page content from {args.get('url', '?')}]: retrieved {words} words"
     return f"[mcp:{name}] ok"
 
 
 def _fake_subagent(name: str, args: dict, context: str, rng: random.Random) -> str:
     if name == "summarise":
         words = rng.randint(40, 120)
-        return f"Summary ({words} words): {context[:80]}… Key points: {rng.randint(2, 5)} identified."
+        pts = rng.randint(2, 5)
+        return f"Summary ({words} words): {context[:80]}… Key points: {pts} identified."
     if name == "draft_email":
         tone = rng.choice(["professional", "empathetic", "concise"])
         return f"[{tone} email draft] Dear customer, regarding your request: {context[:60]}…"
@@ -335,7 +338,7 @@ class AgentDecider(Knot):
         # Resolved when a synthesis subagent ran.
         if results and results[-1].action_type == "subagent":
             new_ctx = new_ctx.evolve(
-                responses=new_ctx.responses + (results[-1].output,),
+                responses=(*new_ctx.responses, results[-1].output),
                 msg_idx=new_ctx.msg_idx + 1,
                 msg_iteration=0,
             )
@@ -345,7 +348,8 @@ class AgentDecider(Knot):
             if len(msg_steps) >= 2 and rng.random() < 0.5:
                 ctx_str = " | ".join(s.output for s in msg_steps[-3:])
                 new_ctx = new_ctx.evolve(
-                    responses=new_ctx.responses + (
+                    responses=(
+                        *new_ctx.responses,
                         f"Resolved after {new_ctx.msg_iteration} iterations: {ctx_str[:120]}",
                     ),
                     msg_idx=new_ctx.msg_idx + 1,
@@ -358,10 +362,16 @@ class AgentDecider(Knot):
 
         if not new_ctx.done and new_ctx.iteration < MAX_TOTAL_ITERATIONS:
             next_id = _planner_id(new_ctx)
-            store.register(AgentPlanner(ctx=self, _config=KnotConfig(id=next_id, validate_io=False)))
+            store.register(
+                AgentPlanner(ctx=self, _config=KnotConfig(id=next_id, validate_io=False))
+            )
         else:
-            store.register(_SessionFinalizer(state=self,
-                                             _config=KnotConfig(id=SESSION_COMPLETE_ID, validate_io=False)))
+            store.register(
+                _SessionFinalizer(
+                    state=self,
+                    _config=KnotConfig(id=SESSION_COMPLETE_ID, validate_io=False),
+                )
+            )
 
         return new_ctx
 
@@ -432,7 +442,7 @@ async def main() -> None:
     final: SessionContext = result.outputs[SESSION_COMPLETE_ID]
     print(f"{len(final.messages)} messages · {final.iteration} total iterations\n")
 
-    for i, (msg, response) in enumerate(zip(final.messages, final.responses)):
+    for i, (msg, response) in enumerate(zip(final.messages, final.responses, strict=True)):
         msg_steps = [s for s in final.scratchpad if s.msg_idx == i]
         steps_summary = "  ".join(
             f"{_TYPE_ICON.get(s.action_type, '·')}{s.name}" for s in msg_steps

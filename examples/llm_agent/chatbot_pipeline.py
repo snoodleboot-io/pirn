@@ -24,10 +24,10 @@ Run with:
     uv run python examples/llm_agent/chatbot_pipeline.py
 """
 
-from pathlib import Path
 import asyncio
 import json
 from dataclasses import dataclass
+from pathlib import Path
 
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.core.knot_config import KnotConfig

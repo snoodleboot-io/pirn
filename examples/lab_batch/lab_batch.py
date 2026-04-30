@@ -37,8 +37,8 @@ from pirn.tapestry import Tapestry
 
 REFERENCE_RANGES = {
     "haemoglobin": (120.0, 180.0),  # g/L
-    "white_cells": (4.0, 11.0),  # ×10⁹/L
-    "platelets": (150.0, 400.0),  # ×10⁹/L
+    "white_cells": (4.0, 11.0),  # x10^9/L
+    "platelets": (150.0, 400.0),  # x10^9/L
     "creatinine": (60.0, 110.0),  # µmol/L
     "glucose": (3.9, 6.1),  # mmol/L
 }

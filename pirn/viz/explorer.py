@@ -1039,7 +1039,7 @@ function drillIn(nodeId, iterIdx) {
   if (!childRunId) return;
   const childRun = RUNS_BY_ID[childRunId];
   if (!childRun) return;
-  const label = childIds.length > 1 ? `${current.name} › ${nodeId} iter ${idx + 1}` : current.name;
+  const label = childIds.length > 1 ? `${current.name} > ${nodeId} iter ${idx + 1}` : current.name;
   navStack.push({tapestry: current, run: selectedRun, label: label, node_id: nodeId});
   current = synthTapestryFromRun(childRun, nodeId);
   selectedRun = childRun;

@@ -30,11 +30,11 @@ class Map:
     invocations run concurrently.  Output type is list[T].
     """
 
-    def __init__(self, source: "Knot") -> None:
+    def __init__(self, source: Knot) -> None:
         self._source = source
 
     @property
-    def source(self) -> "Knot":
+    def source(self) -> Knot:
         return self._source
 
 
@@ -46,11 +46,11 @@ class ZipMap:
     is list[T].
     """
 
-    def __init__(self, source: "Knot") -> None:
+    def __init__(self, source: Knot) -> None:
         self._source = source
 
     @property
-    def source(self) -> "Knot":
+    def source(self) -> Knot:
         return self._source
 
 
@@ -63,9 +63,9 @@ class DictMap:
     entry.  Output type is list[T].
     """
 
-    def __init__(self, source: "Knot") -> None:
+    def __init__(self, source: Knot) -> None:
         self._source = source
 
     @property
-    def source(self) -> "Knot":
+    def source(self) -> Knot:
         return self._source

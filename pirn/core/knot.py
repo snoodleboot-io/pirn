@@ -416,15 +416,15 @@ class Knot:
         elif sole_type is ZipMap:
             names = list(mapped.keys())
             collections = [kwargs[n] for n in names]
-            for n, coll in zip(names, collections):
+            for n, coll in zip(names, collections, strict=True):
                 if not isinstance(coll, (list, tuple)):
                     raise MapTypeError(
                         f"{type(self).__name__}({self.knot_id!r}): ZipMap input "
                         f"{n!r} requires a list or tuple, got {type(coll).__name__!r}"
                     )
             coros = [
-                self.process(**{**kwargs, **dict(zip(names, elements))})
-                for elements in zip(*collections)
+                self.process(**{**kwargs, **dict(zip(names, elements, strict=False))})
+                for elements in zip(*collections, strict=False)
             ]
 
         else:  # DictMap

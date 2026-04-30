@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "examples" / "llm_agent"))
-from agent_loop import SESSION_COMPLETE_ID, SessionContext, build_tapestry, make_session  # noqa: E402
+from agent_loop import SESSION_COMPLETE_ID, SessionContext, build_tapestry, make_session  # noqa: I001
 
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 

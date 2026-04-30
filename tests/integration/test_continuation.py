@@ -73,7 +73,6 @@ async def test_continuation_branches():
 
 
 async def test_missing_pool_action_raises():
-    import pytest
     with Tapestry() as t:
         q = Parameter("query", str, _config=KnotConfig(id="q4"))
         f = fetch(query=q, _config=KnotConfig(id="fetch4"))

@@ -151,15 +151,15 @@ class LoopSubTapestry(SubTapestry, Generic[S]):
     directly.
     """
 
-    def step(self, state: S) -> "tuple[Tapestry, S] | None":
+    def step(self, state: S) -> tuple[Tapestry, S] | None:
         """Build the next iteration's graph, or return None to terminate."""
         raise NotImplementedError(f"{type(self).__name__} must implement step()")
 
-    def fold(self, state: S, result: "RunResult") -> S:
+    def fold(self, state: S, result: RunResult) -> S:
         """Integrate an iteration's result into state."""
         raise NotImplementedError(f"{type(self).__name__} must implement fold()")
 
-    def step_id(self, state: S, _idx: int) -> str:
+    def step_id(self, state: S, idx: int) -> str:
         """Return the knot ID for the upcoming step at *idx* (1-based).
 
         Override to produce domain-meaningful IDs.  The default is

@@ -59,7 +59,7 @@ class Transaction:
 class CoreRisk:
     """Velocity, amount, and account-history based risk signal — always present."""
 
-    score: float  # 0.0–1.0
+    score: float  # 0.0-1.0
     velocity_flag: bool  # >5 transactions in 10 min
     amount_flag: bool  # unusually large for this account
 
@@ -84,7 +84,7 @@ class GeoSignal:
 class BureauSignal:
     """Third-party fraud bureau lookup score."""
 
-    bureau_score: float  # 0.0–1.0 (higher = more likely fraud)
+    bureau_score: float  # 0.0-1.0 (higher = more likely fraud)
     blacklisted: bool
 
 

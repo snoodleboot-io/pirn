@@ -23,7 +23,7 @@ import re
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.core.knot import Knot
@@ -31,7 +31,6 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
-
 
 # ----------------------------------------------------------------- data models
 
@@ -64,7 +63,7 @@ class SentimentScore:
 @dataclass
 class ReadabilityScore:
     grade_level: float  # US grade level approximation
-    ease: float         # Flesch reading-ease 0–100
+    ease: float         # Flesch reading-ease 0-100
     avg_sentence_length: float
     avg_word_length: float
 
@@ -221,7 +220,7 @@ class ReadabilityScorer(_BaseAnalyser):
     """Flesch reading-ease approximation.
 
     Uses average sentence length and average syllable count (estimated
-    from vowel runs) to produce a 0–100 ease score and a US grade level.
+    from vowel runs) to produce a 0-100 ease score and a US grade level.
     """
 
     _VOWELS = re.compile(r"[aeiou]+")
@@ -266,7 +265,7 @@ class TopicClassifier(_BaseAnalyser):
     signals matched vs. total signal hits across all topics.
     """
 
-    _TOPICS: dict[str, frozenset[str]] = {
+    _TOPICS: ClassVar[dict[str, frozenset[str]]] = {
         "technology": frozenset(
             "software hardware algorithm data model neural network ai machine "
             "learning cloud computing platform api code programming developer "

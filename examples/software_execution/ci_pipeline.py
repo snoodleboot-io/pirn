@@ -14,10 +14,10 @@ Run with:
     uv run python examples/software_execution/ci_pipeline.py
 """
 
-from pathlib import Path
 import asyncio
 import time
 from dataclasses import dataclass
+from pathlib import Path
 
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.core.knot_config import KnotConfig

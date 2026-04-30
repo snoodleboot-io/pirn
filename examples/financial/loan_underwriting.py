@@ -53,7 +53,7 @@ class Application:
     applicant: str
     requested_amount: float
     annual_income: float
-    credit_score: int  # 300–850
+    credit_score: int  # 300-850
     existing_debt: float
     employment_years: float
 
@@ -270,9 +270,10 @@ async def main() -> None:
 
     print("\n── Loan underwriting decisions ──")
     print(
-        f"{'APP':<8} {'APPLICANT':<16} {'TRACK':<12} {'RESULT':<10} {'AMOUNT':>10}  {'RATE':>6}  CONDITIONS"
+        f"{'APP':<8} {'APPLICANT':<16} {'TRACK':<12} {'RESULT':<10}"
+        f" {'AMOUNT':>10}  {'RATE':>6}  CONDITIONS"
     )
-    print("─" * 90)
+    print("-" * 90)
 
     for app in APPLICATIONS:
         result = await t.run(RunRequest(parameters={"app": app}))
@@ -283,7 +284,8 @@ async def main() -> None:
             rate = f"{d.interest_rate:.2f}%" if d.approved else "—"
             conds = "; ".join(d.conditions) if d.conditions else "—"
             print(
-                f"{app.app_id:<8} {app.applicant:<16} {d.track:<12} {status:<10} {amount}  {rate:>6}  {conds}"
+                f"{app.app_id:<8} {app.applicant:<16} {d.track:<12}"
+                f" {status:<10} {amount}  {rate:>6}  {conds}"
             )
         else:
             exc = result.exceptions[0] if result.exceptions else None
