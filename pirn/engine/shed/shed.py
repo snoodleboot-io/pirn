@@ -162,7 +162,7 @@ class Shed:
             self.edges_by_child[k.knot_id] = edges
             added.add(k.knot_id)
 
-        if Shed.__detect_cycle(list(self.knots.keys()), self.children_by_parent):
+        if detect_cycle(list(self.knots.keys()), self.children_by_parent):
             for kid in added:
                 self.knots.pop(kid, None)
                 self.edges_by_child.pop(kid, None)
