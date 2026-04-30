@@ -1,6 +1,17 @@
 (function () {
   'use strict';
 
+  // ── Sidebar scroll persistence ───────────────────────────────────────────
+  const sidebarNav = document.querySelector('.sidebar-nav');
+  if (sidebarNav) {
+    const saved = sessionStorage.getItem('sidebarScroll');
+    if (saved) sidebarNav.scrollTop = parseInt(saved, 10);
+
+    window.addEventListener('beforeunload', () => {
+      sessionStorage.setItem('sidebarScroll', sidebarNav.scrollTop);
+    });
+  }
+
   // ── Search ──────────────────────────────────────────────────────────────
   const overlay = document.getElementById('search-overlay');
   const modalInput = document.getElementById('search-modal-input');

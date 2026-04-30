@@ -409,6 +409,14 @@ a:hover { color: var(--teal); text-decoration: underline; text-underline-offset:
   margin: 16px 0;
 }
 
+.content .pirn-hero img,
+.content .pirn-hero-logo {
+  border: none;
+  border-radius: 0;
+  background: none;
+  margin: 0 auto 24px;
+}
+
 .content ul, .content ol {
   margin: 0 0 16px 20px;
   font-size: 0.9rem;
@@ -1054,3 +1062,18 @@ pre:hover .copy-btn { opacity: 1; }
 .layout.full-width { margin-left: 0; }
 .layout.full-width .content-wrap { max-width: 960px; }
 .layout.full-width .content { padding-right: 0; max-width: 100%; }
+
+/* ── Permalink anchors ─────────────────────────────────────────────────── */
+.content .headerlink {
+  opacity: 0;
+  margin-left: 6px;
+  font-size: 0.75em;
+  color: var(--text-faint);
+  text-decoration: none;
+  transition: opacity 0.15s;
+}
+
+.content h1:hover .headerlink,
+.content h2:hover .headerlink,
+.content h3:hover .headerlink,
+.content h4:hover .headerlink { opacity: 1; }
