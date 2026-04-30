@@ -86,6 +86,18 @@ Click a run to overlay its outcomes on the graph. Failed knots turn red, skipped
 
 ---
 
+## SubTapestry drill-down
+
+SubTapestry nodes are visually distinct in the explorer: they carry a dashed inner border and a nested-box icon in the top-left corner, and use a warm amber gradient instead of the standard purple.
+
+When a run is selected and a SubTapestry node has a recorded inner run, the knot detail panel shows an **Open inner pipeline** button. Click it — or double-click the node directly — to drill into the inner tapestry graph.
+
+The inner pipeline opens with its own node graph and execution history. The breadcrumb trail at the top shows where you are; click any ancestor or use the **‹ Back** button to navigate back up. On mobile, swipe right from the left edge of the screen to go back.
+
+The history panel updates as you navigate — it always shows runs that match the currently visible pipeline level.
+
+---
+
 ## Light mode
 
 The explorer defaults to dark mode. Click the **Dark** button in the top right to switch to light mode.
