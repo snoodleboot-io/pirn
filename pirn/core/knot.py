@@ -32,46 +32,24 @@ explicitly.
 
 from __future__ import annotations
 
-import asyncio
-import functools
 import inspect
-from abc import ABC, abstractmethod
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, get_type_hints
 
 from pydantic import TypeAdapter, ValidationError
 
-from pirn.core.config import KnotConfig
-from pirn.core.result import Err, Ok, Result
+from pirn.core.err import Err
+from pirn.core.knot_config import KnotConfig
+from pirn.core.ok import Ok
+from pirn.core.optional import Optional
+from pirn.core.result import Result
+from pirn.managers.exception_record import ExceptionRecord
 
 if TYPE_CHECKING:
     from pirn.tapestry import Tapestry
 
 
-# Reserved kwarg names.  These cannot be parameter names on user process()
-# methods.  We check at construction time and raise if violated.
-_RESERVED_KWARGS = frozenset({"_config", "tapestry"})
-
-
-class Optional:
-    """Mixin: a knot whose failure or skip propagates as ``Skipped`` to
-    children rather than as ``Err``.
-
-    Children using ``SKIP_IF_PARENT_FAILED`` still skip; children using
-    ``REQUIRE_ALL_PARENTS`` still fail synthetically; but the distinction
-    matters for visualisations, status reporting, and ``RECEIVE_ERRORS``
-    knots that want to detect "the parent opted out" vs "the parent
-    crashed".
-
-    Use as a mixin on a Knot subclass::
-
-        class FetchPrefs(Optional, Knot):
-            async def process(self, user_id: str) -> dict:
-                ...
-    """
-
-
-class Knot(ABC):
+class Knot:
     """Abstract base class for all units of work in a pirn pipeline.
 
     Subclass and implement ``process``.  The framework's ``__call__`` is
@@ -83,6 +61,33 @@ class Knot(ABC):
     # read it directly without falling back to getattr() probing for
     # instances under construction.
     _frozen: bool = False
+
+    _reserved_kwargs: frozenset[str] = frozenset({"_config", "tapestry"})
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        if "process" in cls.__dict__:
+            # follow_wrapped=False: inspect the actual method body, not the
+            # user's original function via __wrapped__.  @knot-generated methods
+            # have **kwargs in their body; user class overrides must have **_.
+            sig = inspect.signature(cls.__dict__["process"], follow_wrapped=False)
+            has_var_pos = False
+            has_var_kw = False
+            for param in sig.parameters.values():
+                if param.kind == inspect.Parameter.VAR_POSITIONAL:
+                    has_var_pos = True
+                if param.kind == inspect.Parameter.VAR_KEYWORD:
+                    has_var_kw = True
+            if has_var_pos:
+                raise TypeError(
+                    f"{cls.__name__}.process may not declare *args; "
+                    "pirn calls process() exclusively with keyword arguments"
+                )
+            if not has_var_kw:
+                raise TypeError(
+                    f"{cls.__name__}.process must include '**_: Any' to absorb "
+                    "implicit dependencies; add it after all named parameters"
+                )
 
     def __init__(self, **kwargs: Any) -> None:
         # Pull framework-reserved kwargs out first.
@@ -101,19 +106,34 @@ class Knot(ABC):
         explicit_tapestry: Tapestry | None = kwargs.pop("tapestry", None)
 
         # Validate the remaining kwargs against process()'s signature.
+        # follow_wrapped=True: for @knot classes, inspect the user's original
+        # function so declared input names reflect its real parameter names.
         sig = self._process_signature()
         declared = self._declared_input_names(sig)
+        accepts_implicit = self._has_var_keyword(sig)
 
-        # Reject kwargs that don't match any declared input.
-        unknown = set(kwargs) - declared - _RESERVED_KWARGS
+        # Partition unknown kwargs: extra Knot-valued ones are implicit parents
+        # (ordering dependencies whose output is not used directly); extra
+        # non-Knot ones are always errors.
+        unknown = set(kwargs) - declared - Knot._reserved_kwargs
         if unknown:
-            raise TypeError(
-                f"{type(self).__name__}({config.id!r}): unknown kwarg(s) "
-                f"{sorted(unknown)!r}; declared inputs are {sorted(declared)!r}"
-            )
+            if accepts_implicit:
+                bad_config = {k for k in unknown if not isinstance(kwargs[k], Knot)}
+                if bad_config:
+                    raise TypeError(
+                        f"{type(self).__name__}({config.id!r}): unknown non-Knot "
+                        f"kwarg(s) {sorted(bad_config)!r}; only Knot parents may "
+                        "be passed as implicit dependencies"
+                    )
+                # Remaining unknowns are all Knot-valued — accepted as implicit parents.
+            else:
+                raise TypeError(
+                    f"{type(self).__name__}({config.id!r}): unknown kwarg(s) "
+                    f"{sorted(unknown)!r}; declared inputs are {sorted(declared)!r}. "
+                    "To wire implicit dependencies add '**_: Any' to process()"
+                )
 
-        # Reject missing kwargs (every declared input must be supplied —
-        # parents or constants, the framework doesn't care which).
+        # Reject missing explicit inputs.
         missing = declared - set(kwargs)
         if missing:
             raise TypeError(
@@ -121,12 +141,13 @@ class Knot(ABC):
                 f"input(s) {sorted(missing)!r}"
             )
 
-        # Partition kwargs into parents (Knot values) and configs (others).
+        # Partition kwargs: explicit parents/configs (named in process) and
+        # implicit parents (extra Knot kwargs absorbed by **_).
         parents: dict[str, Knot] = {}
         config_values: dict[str, Any] = {}
         for name, value in kwargs.items():
             if isinstance(value, Knot):
-                parents[name] = value
+                parents[name] = value  # explicit and implicit parents both stored here
             else:
                 config_values[name] = value
 
@@ -197,13 +218,15 @@ class Knot(ABC):
 
     # ------------------------------------------------------------- user-impl
 
-    @abstractmethod
-    async def process(self, *args: Any, **kwargs: Any) -> Any:
+    async def process(self, **kwargs: Any) -> Any:
         """Implement this.  This is the one method users override.
 
         Type annotations on parameters and return are honoured for
         validation when ``validate_io`` is True.
+        The engine always calls process() with keyword arguments; *args
+        is never passed and must not appear in overriding signatures.
         """
+        raise NotImplementedError(f"{type(self).__name__} must implement process()")
 
     # -------------------------------------------------------------- runtime
 
@@ -226,18 +249,18 @@ class Knot(ABC):
             try:
                 kwargs = self._validate_inputs(kwargs)
             except ValidationError as exc:
-                return Err(record=_pending_record(config.id, exc))
+                return Err(record=ExceptionRecord.for_knot(config.id, exc))
 
         try:
             result = await self.process(**kwargs)
         except BaseException as exc:
-            return Err(record=_pending_record(config.id, exc))
+            return Err(record=ExceptionRecord.for_knot(config.id, exc))
 
         if config.validate_io and self._mutable_output_adapter is not None:
             try:
                 result = self._mutable_output_adapter.validate_python(result)
             except ValidationError as exc:
-                return Err(record=_pending_record(config.id, exc))
+                return Err(record=ExceptionRecord.for_knot(config.id, exc))
 
         return Ok(value=result)
 
@@ -246,6 +269,10 @@ class Knot(ABC):
     @classmethod
     def _process_signature(cls) -> inspect.Signature:
         return inspect.signature(cls.process)
+
+    @classmethod
+    def _has_var_keyword(cls, sig: inspect.Signature) -> bool:
+        return any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values())
 
     @classmethod
     def _declared_input_names(cls, sig: inspect.Signature) -> set[str]:
@@ -258,7 +285,7 @@ class Knot(ABC):
                 inspect.Parameter.VAR_KEYWORD,
             ):
                 continue
-            if name in _RESERVED_KWARGS:
+            if name in Knot._reserved_kwargs:
                 # Authors should not name a process parameter `_config` or
                 # `tapestry`; we forbid it at construction.
                 raise TypeError(
@@ -329,115 +356,3 @@ class Knot(ABC):
 
     def __eq__(self, other: object) -> bool:
         return self is other
-
-
-# ---------------------------------------------------------------- decorator
-
-
-def knot(
-    func: Callable[..., Any] | None = None,
-) -> Any:
-    """Promote a function into a Knot factory.
-
-    The returned object is callable like the original function, but the
-    call site constructs a Knot instance::
-
-        @knot
-        async def double(x: int) -> int:
-            return x * 2
-
-        # Construct an instance — looks like a normal call.
-        d = double(x=p, _config=KnotConfig(id="double"))
-
-    Sync functions are auto-wrapped via ``asyncio.to_thread``; the
-    function's signature becomes the knot's input contract.
-
-    The factory exposes the original function as ``.fn`` for introspection,
-    and the generated Knot subclass as ``.knot_class`` for explicit
-    instantiation if needed.
-    """
-
-    def make_factory(fn: Callable[..., Any]) -> KnotFactory:
-        is_coro = asyncio.iscoroutinefunction(fn)
-
-        if is_coro:
-
-            @functools.wraps(fn)
-            async def process(self, *args: Any, **kwargs: Any) -> Any:
-                return await fn(*args, **kwargs)
-        else:
-
-            @functools.wraps(fn)
-            async def process(self, *args: Any, **kwargs: Any) -> Any:
-                return await asyncio.to_thread(fn, *args, **kwargs)
-
-        cls = type(
-            fn.__name__,
-            (Knot,),
-            {
-                "process": process,
-                "__module__": fn.__module__,
-                "__qualname__": fn.__qualname__,
-                "__doc__": fn.__doc__,
-            },
-        )
-        return KnotFactory(fn=fn, knot_class=cls)
-
-    if func is not None:
-        return make_factory(func)
-    return make_factory
-
-
-class KnotFactory:
-    """Callable that constructs a ``Knot`` instance per invocation.
-
-    Returned by ``@knot``.  Calling a factory ``f(**kwargs)`` constructs
-    one of the underlying knot class.  Exposes the original function as
-    ``.fn`` and the generated Knot subclass as ``.knot_class`` for
-    introspection (used by the YAML loader, ``Map``'s ``each=`` handling,
-    etc.).
-
-    A real class — not a function with attached attributes — so callers
-    can ``isinstance(obj, KnotFactory)`` instead of probing for a magic
-    attribute.
-    """
-
-    def __init__(self, fn: Callable[..., Any], knot_class: type[Knot]) -> None:
-        self.fn = fn
-        self.knot_class = knot_class
-        # Mirror common function-object metadata so introspection tools
-        # (help(), Sphinx autodoc, etc.) see the original function's name
-        # and docstring on the factory.
-        self.__name__ = fn.__name__
-        self.__doc__ = fn.__doc__
-        self.__wrapped__ = fn
-
-    def __call__(self, **kwargs: Any) -> Knot:
-        return self.knot_class(**kwargs)
-
-    def __repr__(self) -> str:
-        return f"<KnotFactory for {self.fn.__qualname__}>"
-
-
-# ------------------------------------------------------------ pending record
-
-
-def _pending_record(knot_id: str, exc: BaseException) -> Any:
-    """Build a placeholder ExceptionRecord for an Err produced in isolation.
-
-    The engine catches the Err and re-registers the record against the live
-    ExceptionManager (which assigns a real id and run_id).  We use a
-    placeholder here because at __call__ time the knot has no manager in
-    scope — the engine owns that.
-    """
-    import traceback as _tb
-
-    from pirn.managers.exceptions import ExceptionRecord
-
-    return ExceptionRecord(
-        run_id="<unbound>",
-        knot_id=knot_id,
-        exc_type=type(exc).__name__,
-        message=str(exc),
-        traceback_text="".join(_tb.format_exception(type(exc), exc, exc.__traceback__)),
-    )

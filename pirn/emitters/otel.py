@@ -20,9 +20,9 @@ from typing import TYPE_CHECKING, Any
 from pirn.emitters.base import Emitter
 
 if TYPE_CHECKING:
-    from pirn.core.context import RunResult
     from pirn.core.lineage import KnotLineage
-    from pirn.managers.status import StatusEvent
+    from pirn.core.run_result import RunResult
+    from pirn.managers.status_event import StatusEvent
 
 
 class OpenTelemetryEmitter(Emitter):
@@ -77,9 +77,9 @@ class OpenTelemetryEmitter(Emitter):
             if record.skip_reason:
                 span.set_attribute("pirn.skip_reason", record.skip_reason)
             if record.outcome == "err":
-                span.set_status(_otel_status_error())
+                span.set_status(self.__status_error())
             elif record.outcome == "skipped":
-                span.set_status(_otel_status_unset())
+                span.set_status(self.__status_unset())
         finally:
             span.end(end_time=int(record.finished_at.timestamp() * 1e9))
 
@@ -98,20 +98,18 @@ class OpenTelemetryEmitter(Emitter):
                 ",".join(result.terminals_requested),
             )
             if not result.succeeded:
-                span.set_status(_otel_status_error())
+                span.set_status(self.__status_error())
         finally:
             span.end(end_time=int(result.finished_at.timestamp() * 1e9))
 
+    @staticmethod
+    def __status_error() -> Any:
+        from opentelemetry.trace import Status, StatusCode
 
-def _otel_status_error() -> Any:
-    """Build OTel ``Status(StatusCode.ERROR)`` lazily."""
-    from opentelemetry.trace import Status, StatusCode
+        return Status(StatusCode.ERROR)
 
-    return Status(StatusCode.ERROR)
+    @staticmethod
+    def __status_unset() -> Any:
+        from opentelemetry.trace import Status, StatusCode
 
-
-def _otel_status_unset() -> Any:
-    """Build OTel ``Status(StatusCode.UNSET)`` lazily."""
-    from opentelemetry.trace import Status, StatusCode
-
-    return Status(StatusCode.UNSET)
+        return Status(StatusCode.UNSET)

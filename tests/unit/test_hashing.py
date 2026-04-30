@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from pirn import content_hash
+from pirn.core.hashing import content_hash
 
 
 def test_primitives_stable():

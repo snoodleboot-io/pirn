@@ -18,25 +18,3 @@ Concrete sources:
 
 The engine's streaming mode is opt-in via ``Tapestry.run_stream(...)``.
 """
-
-from pirn.streaming.base import StreamingSource, run_stream
-from pirn.streaming.iterable import IterableSource
-
-# Optional sources — guarded import; users without the dep get a
-# helpful ImportError on first use.
-try:
-    from pirn.streaming.kafka import KafkaStreamingSource
-except ImportError:
-    KafkaStreamingSource = None  # type: ignore[assignment]
-
-from pirn.streaming.file_tail import FileTailSource
-from pirn.streaming.trigger_adapter import StreamingSourceTrigger
-
-__all__ = [
-    "FileTailSource",
-    "IterableSource",
-    "KafkaStreamingSource",
-    "StreamingSource",
-    "StreamingSourceTrigger",
-    "run_stream",
-]

@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import pytest
 
-from pirn import KnotConfig, Parameter, Tapestry, current_tapestry, knot
-from pirn.tapestry import _CURRENT_TAPESTRY
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
+from pirn.tapestry import _CURRENT_TAPESTRY, Tapestry, current_tapestry
 
 
 @knot
@@ -93,7 +95,7 @@ async def test_run_with_no_terminals_raises():
 
 async def test_run_explicit_terminals():
     """Specify terminals manually rather than via inferred leaves."""
-    from pirn import RunRequest
+    from pirn.core.run_request import RunRequest
 
     with Tapestry() as t:
         p = Parameter("x", int)

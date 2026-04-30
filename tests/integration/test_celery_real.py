@@ -17,7 +17,11 @@ import time
 
 import pytest
 
-from pirn import KnotConfig, Parameter, RunRequest, Tapestry, knot
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 pytestmark = pytest.mark.needs_celery
 
@@ -34,7 +38,7 @@ def celery_worker():
     worker_script = """
 import sys
 from celery import Celery
-from pirn.engine.celery_dispatcher import register_celery_worker_task
+from pirn.engine.dispatchers.celery_dispatcher import register_celery_worker_task
 
 broker = sys.argv[1]
 app = Celery("pirn_test", broker=broker, backend=broker)
@@ -67,7 +71,7 @@ async def _double(x: int) -> int:
 async def test_celery_dispatcher_runs_pipeline(celery_worker):
     from celery import Celery
 
-    from pirn.engine.celery_dispatcher import register_celery_worker_task
+    from pirn.engine.dispatchers.celery_dispatcher import register_celery_worker_task
 
     app = Celery("pirn_test", broker=_BROKER, backend=_BROKER)
     app.conf.update(
@@ -77,7 +81,7 @@ async def test_celery_dispatcher_runs_pipeline(celery_worker):
     )
     register_celery_worker_task(app)
 
-    from pirn.engine.celery_dispatcher import CeleryDispatcher
+    from pirn.engine.dispatchers.celery_dispatcher import CeleryDispatcher
 
     dispatcher = CeleryDispatcher(app=app)
     with Tapestry(dispatcher=dispatcher) as t:
@@ -92,7 +96,10 @@ async def test_celery_dispatcher_runs_pipeline(celery_worker):
 async def test_celery_dispatcher_result_has_correct_dispatcher_name(celery_worker):
     from celery import Celery
 
-    from pirn.engine.celery_dispatcher import CeleryDispatcher, register_celery_worker_task
+    from pirn.engine.dispatchers.celery_dispatcher import (
+        CeleryDispatcher,
+        register_celery_worker_task,
+    )
 
     app = Celery("pirn_test", broker=_BROKER, backend=_BROKER)
     app.conf.update(

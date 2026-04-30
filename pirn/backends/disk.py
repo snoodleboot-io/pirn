@@ -1,6 +1,6 @@
 """Local disk ``DataStore``.
 
-Values are pickled and stored under
+Values are cloudpickled and stored under
 ``{root}/{prefix}/{rest_of_hash}.pkl``.  The first 2 hex chars of the
 hash form the prefix directory so a single hash directory doesn't
 accumulate millions of entries on a busy run history.
@@ -8,75 +8,63 @@ accumulate millions of entries on a busy run history.
 Suitable for single-host deployments that want durable values across
 runs.  Pair with ``SQLiteHistory`` or ``DuckDBHistory`` for the
 matching lineage records.
+
+MinIO note: MinIO is S3-compatible — use ``S3DataStore(endpoint_url=...)``
+rather than this class for MinIO deployments.
 """
 
 from __future__ import annotations
 
 import asyncio
-import pickle
 from pathlib import Path
-from typing import Any
+
+from pirn.backends._signer import _Signer
+from pirn.backends.base._cloud_object_store import _CloudObjectStore
 
 
-class LocalDiskDataStore:
+class LocalDiskDataStore(_CloudObjectStore):
     """``DataStore`` backed by a directory tree on local disk.
 
-    Pickle is used because we control both writers and readers; users
-    who want JSON-only blobs can subclass and override ``_serialize`` /
-    ``_deserialize``.
+    cloudpickle is used because we control both writers and readers and
+    need to handle arbitrary Python objects including lambdas and closures.
+    Users who want JSON-only blobs can subclass and override
+    ``_serialize`` / ``_deserialize``.
 
-    All operations run in the default executor (``asyncio.to_thread``)
-    so the calling event loop isn't blocked on disk IO.
+    All IO runs in the default executor (``asyncio.to_thread``) so the
+    calling event loop isn't blocked on disk IO.
     """
 
-    def __init__(self, root: str | Path) -> None:
+    def __init__(self, root: str | Path, *, signer: _Signer | None = None) -> None:
+        super().__init__(signer=signer)
         self._root = Path(root)
         self._root.mkdir(parents=True, exist_ok=True)
 
-    def _path(self, content_hash: str) -> Path:
-        # Strip the "sha256:" prefix for cleaner paths.
+    def _object_key(self, content_hash: str) -> str:
         clean = content_hash.removeprefix("sha256:")
-        # Shard by 2-char prefix so we don't get millions of files in
-        # one directory.
         prefix = clean[:2] if len(clean) >= 2 else "_"
-        return self._root / prefix / f"{clean}.pkl"
+        return str(self._root / prefix / f"{clean}.pkl")
 
-    def _serialize(self, value: Any) -> bytes:
-        return pickle.dumps(value)
+    async def _put_bytes(self, key: str, payload: bytes) -> None:
+        await asyncio.to_thread(self.__write, Path(key), payload)
 
-    def _deserialize(self, payload: bytes) -> Any:
-        return pickle.loads(payload)
+    async def _get_bytes(self, key: str) -> bytes:
+        return await asyncio.to_thread(self.__read, Path(key), key)
 
-    async def put(self, content_hash: str, value: Any) -> None:
-        path = self._path(content_hash)
-        payload = self._serialize(value)
+    async def _has_key(self, key: str) -> bool:
+        return await asyncio.to_thread(Path(key).exists)
 
-        def _write() -> None:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(payload)
+    async def _delete_key(self, key: str) -> None:
+        await asyncio.to_thread(self.__unlink, Path(key))
 
-        await asyncio.to_thread(_write)
+    def __write(self, path: Path, payload: bytes) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(payload)
 
-    async def get(self, content_hash: str) -> Any:
-        path = self._path(content_hash)
+    def __read(self, path: Path, key: str) -> bytes:
+        if not path.exists():
+            raise KeyError(key)
+        return path.read_bytes()
 
-        def _read() -> bytes:
-            if not path.exists():
-                raise KeyError(content_hash)
-            return path.read_bytes()
-
-        payload = await asyncio.to_thread(_read)
-        return self._deserialize(payload)
-
-    async def has(self, content_hash: str) -> bool:
-        path = self._path(content_hash)
-        return await asyncio.to_thread(path.exists)
-
-    async def scrub(self, content_hash: str) -> None:
-        path = self._path(content_hash)
-
-        def _unlink() -> None:
-            if path.exists():
-                path.unlink()
-
-        await asyncio.to_thread(_unlink)
+    def __unlink(self, path: Path) -> None:
+        if path.exists():
+            path.unlink()

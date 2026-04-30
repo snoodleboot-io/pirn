@@ -21,21 +21,34 @@ parents are resolved and dispatches them concurrently via
 from __future__ import annotations
 
 import asyncio
+import logging
+from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
-from pirn.backends import DataStore, RunHistory
-from pirn.core.config import ErrorPolicy
-from pirn.core.context import RunContext, RunRequest, RunResult
+from pirn.backends.base.data_store import DataStore
+from pirn.backends.base.run_history import RunHistory
+from pirn.core.err import Err
+from pirn.core.error_policy import ErrorPolicy
 from pirn.core.hashing import content_hash
 from pirn.core.knot import Knot
 from pirn.core.lineage import KnotLineage
+from pirn.core.ok import Ok
 from pirn.core.parameter import Parameter
-from pirn.core.result import Err, Ok, Result, Skipped
-from pirn.engine.dispatcher import Dispatcher, LocalDispatcher
-from pirn.engine.shed import Shed
-from pirn.managers.exceptions import RebindableException
-from pirn.managers.status import KnotState
+from pirn.core.result import Result
+from pirn.core.run_context import RunContext
+from pirn.core.run_request import RunRequest
+from pirn.core.run_result import RunResult
+from pirn.core.skipped import Skipped
+from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
+from pirn.engine._emitter_subscriber import _EmitterSubscriber
+from pirn.engine.dispatchers.dispatcher import Dispatcher
+from pirn.engine.dispatchers.local_dispatcher import LocalDispatcher
+from pirn.engine.shed.shed import Shed
+from pirn.managers.knot_state import KnotState
+from pirn.managers.rebindable_exception import RebindableException
+
+_log = logging.getLogger(__name__)
 
 
 class Engine:
@@ -52,6 +65,8 @@ class Engine:
         data_store: DataStore,
         emitters: list[Any] | None = None,
         extensible_store: Any = None,
+        traceback_filter: Callable[[str], str] | None = None,
+        emitter_error_policy: EmitterErrorPolicy = EmitterErrorPolicy.WARN,
     ) -> RunResult:
         shed = Shed.from_terminals(terminals)
 
@@ -60,6 +75,7 @@ class Engine:
             terminals_requested=[t.knot_id for t in terminals],
             dispatcher_name=self._dispatcher.name,
             parameters=dict(request.parameters),
+            traceback_filter=traceback_filter,
         )
 
         # Wire emitters' on_status to the StatusManager.  Async emitters
@@ -75,7 +91,7 @@ class Engine:
         pending_new: list[Knot] = []
         subscribe_token = None
         if extensible_store is not None:
-            from pirn.backends.subscribe import SubscribableStore
+            from pirn.backends.base.subscribable_store import SubscribableStore
 
             if not isinstance(extensible_store, SubscribableStore):
                 raise TypeError(
@@ -83,10 +99,7 @@ class Engine:
                     "the InMemoryStore is the reference implementation"
                 )
 
-            def _on_new_knot(knot: Knot) -> None:
-                pending_new.append(knot)
-
-            subscribe_token = extensible_store.subscribe(_on_new_knot)
+            subscribe_token = extensible_store.subscribe(pending_new.append)
 
         try:
             return await self._execute_loop(
@@ -97,6 +110,7 @@ class Engine:
                 emitters=emitters,
                 pending_new=pending_new,
                 request=request,
+                emitter_error_policy=emitter_error_policy,
             )
         finally:
             if extensible_store is not None and subscribe_token is not None:
@@ -111,6 +125,7 @@ class Engine:
         emitters: list[Any],
         pending_new: list[Knot],
         request: RunRequest,
+        emitter_error_policy: EmitterErrorPolicy = EmitterErrorPolicy.WARN,
     ) -> RunResult:
 
         # Bind parameters.  Setup-time errors propagate; recovery is the
@@ -242,19 +257,31 @@ class Engine:
             for record in run_result.lineage:
                 try:
                     await emitter.on_lineage(record)
-                except Exception:
-                    # Emitter failures must not break the run.  In Phase 4
-                    # this routes through a structured logger; for now
-                    # we swallow.
-                    pass
+                except Exception as exc:
+                    self._handle_emitter_error(emitter, "on_lineage", exc, emitter_error_policy)
             try:
                 await emitter.on_run_result(run_result)
-            except Exception:
-                pass
+            except Exception as exc:
+                self._handle_emitter_error(emitter, "on_run_result", exc, emitter_error_policy)
 
         return run_result
 
     # ------------------------------------------------------------- helpers
+
+    def _handle_emitter_error(
+        self,
+        emitter: Any,
+        event_type: str,
+        exc: Exception,
+        policy: EmitterErrorPolicy,
+    ) -> None:
+        if policy is EmitterErrorPolicy.IGNORE:
+            return
+        if policy is EmitterErrorPolicy.WARN:
+            _log.warning("emitter %r failed on %s: %s", emitter, event_type, exc)
+            return
+        # RAISE
+        raise exc
 
     def _subscribe_emitters_to_status(
         self,
@@ -276,23 +303,8 @@ class Engine:
             ctx._emitter_tasks = []  # type: ignore[attr-defined]
         emitter_tasks: list[Any] = ctx._emitter_tasks  # type: ignore[attr-defined]
 
-        def make_subscriber(emitter: Any):
-            def subscriber(event):
-                async def _wrapped():
-                    try:
-                        await emitter.on_status(event)
-                    except Exception:
-                        pass
-
-                task = loop.create_task(_wrapped())
-                emitter_tasks.append(task)
-                # Drop completed tasks so the list doesn't grow unbounded.
-                emitter_tasks[:] = [t for t in emitter_tasks if not t.done()]
-
-            return subscriber
-
         for emitter in emitters:
-            ctx.status.subscribe(make_subscriber(emitter))
+            ctx.status.subscribe(_EmitterSubscriber(emitter, loop, emitter_tasks))
 
     def _bind_parameters(self, shed: Shed, ctx: RunContext) -> None:
         for knot in shed.knots.values():
@@ -323,7 +335,8 @@ class Engine:
         across runs.  Raise ``ShedError`` clearly so the user can
         correct the registration order.
         """
-        from pirn.engine.shed import Edge, ShedError
+        from pirn.engine.shed.edge import Edge
+        from pirn.engine.shed.shed_error import ShedError
 
         added: set[str] = set()
         # First pass: filter to genuinely new knots.
@@ -370,7 +383,9 @@ class Engine:
             added.add(k.knot_id)
 
         # Cycle re-check — same algorithm Shed uses internally.
-        if shed._has_cycle():
+        from pirn.engine.shed.shed import detect_cycle
+
+        if detect_cycle(list(shed.knots.keys()), shed.children_by_parent):
             raise ShedError("cycle detected after mid-run merge")
 
         return added

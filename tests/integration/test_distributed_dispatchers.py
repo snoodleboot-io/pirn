@@ -12,15 +12,15 @@ from typing import Any
 
 import pytest
 
-from pirn import KnotConfig, knot
 from pirn.core.knot import Knot
-from pirn.core.result import Ok
-from pirn.engine.celery_dispatcher import (
-    PIRN_CELERY_TASK_NAME,
-    CeleryDispatcher,
-)
-from pirn.engine.dask_dispatcher import DaskDispatcher
-from pirn.engine.ray_dispatcher import RayDispatcher
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.ok import Ok
+from pirn.engine.dispatchers.celery_dispatcher import CeleryDispatcher
+from pirn.engine.dispatchers.dask_dispatcher import DaskDispatcher
+from pirn.engine.dispatchers.ray_dispatcher import RayDispatcher
+
+PIRN_CELERY_TASK_NAME = CeleryDispatcher._task_name
 
 # ---------------------------------------------------- Dask fake client
 
@@ -246,7 +246,7 @@ async def test_celery_dispatcher_uses_correct_task_name():
     knot = _build_knot()
     # Register the task handler on the fake app so we get a real result
     # back.  We use the standard registration helper from production.
-    from pirn.engine.celery_dispatcher import register_celery_worker_task
+    from pirn.engine.dispatchers.celery_dispatcher import register_celery_worker_task
 
     register_celery_worker_task(app)
     result = await d.dispatch(knot, {})
@@ -265,7 +265,7 @@ async def test_celery_worker_task_runs_knot():
     import concurrent.futures
 
     app = _FakeCeleryApp()
-    from pirn.engine.celery_dispatcher import register_celery_worker_task
+    from pirn.engine.dispatchers.celery_dispatcher import register_celery_worker_task
 
     register_celery_worker_task(app)
     handler = app.task_handlers[PIRN_CELERY_TASK_NAME]

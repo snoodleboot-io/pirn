@@ -5,8 +5,10 @@ from __future__ import annotations
 from collections.abc import AsyncIterable, AsyncIterator, Iterable
 from typing import Any
 
+from pirn.streaming.base import StreamingSource
 
-class IterableSource:
+
+class IterableSource(StreamingSource):
     """Streaming source over an arbitrary iterable (sync or async).
 
     Useful for tests and for adapting any data source you can express

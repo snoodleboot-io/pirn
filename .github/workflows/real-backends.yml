@@ -40,17 +40,6 @@ jobs:
           --health-timeout 1s
           --health-retries 30
 
-      minio:
-        image: minio/minio:latest
-        ports: ["9000:9000"]
-        env:
-          MINIO_ROOT_USER: pirn
-          MINIO_ROOT_PASSWORD: pirntestpassword
-        options: >-
-          --health-cmd "curl -f http://localhost:9000/minio/health/live"
-          --health-interval 1s
-          --health-timeout 1s
-          --health-retries 30
 
     env:
       PIRN_TEST_POSTGRES_URL: postgresql://pirn:pirn@localhost:5432/pirn_test
@@ -79,8 +68,20 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-extras
 
-      # Redpanda runs via docker run — service containers don't support
-      # the startup flags Redpanda requires.
+      # MinIO and Redpanda run via docker run — service containers don't
+      # support custom startup commands that these images require.
+      - name: Start MinIO
+        run: |
+          docker run -d --name minio \
+            -p 9000:9000 \
+            -e MINIO_ROOT_USER=pirn \
+            -e MINIO_ROOT_PASSWORD=pirntestpassword \
+            minio/minio:latest server /data
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:9000/minio/health/live > /dev/null 2>&1 && break
+            sleep 1
+          done
+
       - name: Start Redpanda
         run: |
           docker run -d --name redpanda \
@@ -110,7 +111,7 @@ jobs:
         run: |
           uv run python -m pytest tests/integration \
             --real \
-            -m "needs_postgres or needs_valkey or needs_kafka or needs_s3 or needs_celery or needs_dask or needs_ray" \
+            -m "needs_postgres or needs_valkey or needs_kafka or needs_s3 or needs_celery" \
             --junitxml=test-results/real-backends.xml \
             --timeout=120 \
             -v

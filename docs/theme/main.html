@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en" data-path="{{ page.url }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="{{ config.site_description }}">
+  <title>{% if page.title %}{{ page.title }} — {% endif %}{{ config.site_name }}</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="{{ 'assets/pirn.css'|url }}">
+  {% if config.extra_css %}{% for css in config.extra_css %}<link rel="stylesheet" href="{{ css|url }}">{% endfor %}{% endif %}
+</head>
+<body>
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <a href="{{ '.'|url }}" class="brand">
+        <img src="{{ 'pirn_logo.png'|url }}" alt="pirn logo" class="brand-logo">
+        <span class="brand-name">pirn</span>
+      </a>
+    </div>
+
+    <div class="sidebar-search">
+      <div class="search-box">
+        <svg class="search-icon" viewBox="0 0 16 16" fill="none">
+          <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <input type="text" id="search-input" placeholder="Search docs..." autocomplete="off" spellcheck="false">
+        <kbd class="search-kbd">⌘K</kbd>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav" aria-label="Documentation">
+      {% macro render_nav(items, depth=0) %}
+        {% for item in items %}
+          {% if item.is_section %}
+            <div class="nav-section{% if item.active %} active{% endif %}" data-depth="{{ depth }}">
+              <div class="nav-section-label">{{ item.title }}</div>
+              <div class="nav-section-body">
+                {{ render_nav(item.children, depth + 1) }}
+              </div>
+            </div>
+          {% elif item.is_page %}
+            <a href="{{ item.url|url }}" class="nav-link{% if item.active %} active{% endif %}" data-depth="{{ depth }}">
+              {{ item.title }}
+            </a>
+          {% endif %}
+        {% endfor %}
+      {% endmacro %}
+      {{ render_nav(nav) }}
+    </nav>
+
+    <div class="sidebar-footer">
+      <a href="{{ config.repo_url }}" class="sidebar-footer-link" target="_blank" rel="noopener">
+        <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
+          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+        </svg>
+        GitHub
+      </a>
+      <span class="sidebar-footer-version">v{{ config.site_description or '' }}</span>
+    </div>
+  </aside>
+
+  <div class="layout">
+    <header class="topbar">
+      <button class="topbar-menu-btn" id="menu-toggle" aria-label="Toggle menu">
+        <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18">
+          <rect y="3" width="20" height="2" rx="1"/>
+          <rect y="9" width="20" height="2" rx="1"/>
+          <rect y="15" width="20" height="2" rx="1"/>
+        </svg>
+      </button>
+
+      {% if page.toc %}
+      <nav class="breadcrumbs" aria-label="Breadcrumbs">
+        {% set ns = namespace(found=false) %}
+        {% for item in nav %}
+          {% if not ns.found %}
+            {% if item.is_section %}
+              {% for child in item.children %}
+                {% if child.is_page and child.active %}
+                  <span class="breadcrumb-section">{{ item.title }}</span>
+                  <span class="breadcrumb-sep">/</span>
+                  <span class="breadcrumb-current">{{ page.title }}</span>
+                  {% set ns.found = true %}
+                {% endif %}
+              {% endfor %}
+            {% elif item.is_page and item.active %}
+              <span class="breadcrumb-current">{{ page.title }}</span>
+              {% set ns.found = true %}
+            {% endif %}
+          {% endif %}
+        {% endfor %}
+      </nav>
+      {% endif %}
+
+      <div class="topbar-right">
+        {% if config.repo_url %}
+        <a href="{{ config.repo_url }}" class="topbar-link" target="_blank" rel="noopener" aria-label="View source on GitHub">
+          <svg viewBox="0 0 16 16" fill="currentColor" width="16" height="16">
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+          </svg>
+        </a>
+        {% endif %}
+      </div>
+    </header>
+
+    <main class="main" id="main-content">
+      <div class="content-wrap">
+        <article class="content" role="main">
+          {{ page.content }}
+        </article>
+
+        {% if page.toc %}
+        <aside class="toc-sidebar" aria-label="On this page">
+          <div class="toc-label">On this page</div>
+          <nav class="toc-nav">
+            {% for toc_item in page.toc %}
+              <a href="#{{ toc_item.id }}" class="toc-link toc-h{{ toc_item.level }}">{{ toc_item.title }}</a>
+              {% if toc_item.children %}
+                {% for child in toc_item.children %}
+                  <a href="#{{ child.id }}" class="toc-link toc-h{{ child.level }}">{{ child.title }}</a>
+                {% endfor %}
+              {% endif %}
+            {% endfor %}
+          </nav>
+        </aside>
+        {% endif %}
+      </div>
+
+      {% if page.next_page or page.previous_page %}
+      <nav class="page-nav" aria-label="Page navigation">
+        {% if page.previous_page %}
+        <a href="{{ page.previous_page.url|url }}" class="page-nav-link page-nav-prev">
+          <span class="page-nav-label">Previous</span>
+          <span class="page-nav-title">← {{ page.previous_page.title }}</span>
+        </a>
+        {% else %}
+        <div></div>
+        {% endif %}
+        {% if page.next_page %}
+        <a href="{{ page.next_page.url|url }}" class="page-nav-link page-nav-next">
+          <span class="page-nav-label">Next</span>
+          <span class="page-nav-title">{{ page.next_page.title }} →</span>
+        </a>
+        {% endif %}
+      </nav>
+      {% endif %}
+    </main>
+  </div>
+
+  <!-- Search overlay -->
+  <div class="search-overlay" id="search-overlay" aria-hidden="true">
+    <div class="search-modal">
+      <div class="search-modal-header">
+        <svg class="search-icon-lg" viewBox="0 0 16 16" fill="none">
+          <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <input type="text" id="search-modal-input" placeholder="Search documentation..." autocomplete="off">
+        <button class="search-close" id="search-close" aria-label="Close search">
+          <kbd>Esc</kbd>
+        </button>
+      </div>
+      <div class="search-results" id="search-results">
+        <div class="search-hint">Type to search across all pages</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="{{ 'assets/pirn.js'|url }}"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      themeVariables: {
+        background: '#12121E',
+        primaryColor: '#1E1E35',
+        primaryTextColor: '#D0D0E8',
+        primaryBorderColor: '#2E2E50',
+        lineColor: '#22C5D8',
+        secondaryColor: '#181828',
+        tertiaryColor: '#20203A',
+        edgeLabelBackground: '#12121E',
+        clusterBkg: '#181828',
+        clusterBorder: '#2E2E50',
+        titleColor: '#D0D0E8',
+        nodeTextColor: '#D0D0E8',
+        fontFamily: 'JetBrains Mono, monospace',
+      }
+    });
+  </script>
+</body>
+</html>

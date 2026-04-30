@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import pytest
 
-from pirn import KnotConfig, Parameter, Reduce, RunRequest, Tapestry
+from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.nodes.reduce_ import Reduce
+from pirn.tapestry import Tapestry
 
 
 async def test_reduce_whole_list_with_sum():

@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Awaitable, Callable
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pirn.core.context import RunRequest, RunResult
+    from pirn.core.run_request import RunRequest
+    from pirn.core.run_result import RunResult
     from pirn.tapestry import Tapestry
 
 
@@ -15,8 +16,7 @@ _OnResult = Callable[["RunRequest", "RunResult"], Awaitable[None]]
 _OnError = Callable[["RunRequest", BaseException], Awaitable[None]]
 
 
-@runtime_checkable
-class Trigger(Protocol):
+class Trigger:
     """Yields ``RunRequest``s as external events arrive.
 
     Implementations are async generators.  They open whatever
@@ -29,11 +29,14 @@ class Trigger(Protocol):
     """
 
     @property
-    def name(self) -> str: ...
+    def name(self) -> str:
+        raise NotImplementedError(f"{type(self).__name__} must implement name")
 
-    def stream(self) -> AsyncIterator[RunRequest]: ...
+    def stream(self) -> AsyncIterator[RunRequest]:
+        raise NotImplementedError(f"{type(self).__name__} must implement stream()")
 
-    async def close(self) -> None: ...
+    async def close(self) -> None:
+        raise NotImplementedError(f"{type(self).__name__} must implement close()")
 
 
 async def run_forever(

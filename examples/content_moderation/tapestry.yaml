@@ -1,0 +1,72 @@
+name: content_moderation
+description: >
+  Multi-stage content moderation pipeline. Raw text flows through
+  normalisation, parallel signal extraction (language, profanity, PII,
+  toxicity), classification, policy decision, and audit logging.
+
+allow_callable_refs: true
+allowed_module_prefixes:
+  - examples.content_moderation.knots
+
+nodes:
+  # ── Inputs ────────────────────────────────────────────────────────────────
+  - id: raw_text
+    type: parameter
+    type_: str
+
+  # ── Normalisation ─────────────────────────────────────────────────────────
+  - id: normalise
+    type: knot
+    callable: examples.content_moderation.knots.normalise
+    parents:
+      raw_text: raw_text
+
+  # ── Parallel signal extraction ────────────────────────────────────────────
+  - id: detect_language
+    type: knot
+    callable: examples.content_moderation.knots.detect_language
+    parents:
+      text: normalise
+
+  - id: check_profanity
+    type: knot
+    callable: examples.content_moderation.knots.check_profanity
+    parents:
+      text: normalise
+
+  - id: check_pii
+    type: knot
+    callable: examples.content_moderation.knots.check_pii
+    parents:
+      text: normalise
+
+  - id: score_toxicity
+    type: knot
+    callable: examples.content_moderation.knots.score_toxicity
+    parents:
+      text: normalise
+
+  # ── Classification ────────────────────────────────────────────────────────
+  - id: classify
+    type: knot
+    callable: examples.content_moderation.knots.classify
+    parents:
+      has_profanity:   check_profanity
+      has_pii:         check_pii
+      toxicity_score:  score_toxicity
+      language:        detect_language
+
+  # ── Policy decision ───────────────────────────────────────────────────────
+  - id: decide
+    type: knot
+    callable: examples.content_moderation.knots.decide
+    parents:
+      flags: classify
+
+  # ── Audit ─────────────────────────────────────────────────────────────────
+  - id: audit_log
+    type: knot
+    callable: examples.content_moderation.knots.audit_log
+    parents:
+      raw_text: raw_text
+      decision: decide

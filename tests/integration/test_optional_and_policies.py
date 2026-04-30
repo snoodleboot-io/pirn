@@ -2,22 +2,22 @@
 
 from __future__ import annotations
 
-from pirn import (
-    ErrorPolicy,
-    Knot,
-    KnotConfig,
-    Optional,
-    Parameter,
-    RunRequest,
-    Tapestry,
-    knot,
-)
+from typing import Any
+
+from pirn.core.error_policy import ErrorPolicy
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.optional import Optional
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 
 class FetchOptional(Optional, Knot):
     """An optional knot that always fails; downstream should see Skipped."""
 
-    async def process(self, x: int) -> int:
+    async def process(self, x: int, **_: Any) -> int:
         raise RuntimeError("not available")
 
 
@@ -56,14 +56,15 @@ async def test_optional_failure_propagates_as_skipped():
 
 async def test_receive_errors_policy_gets_results_directly():
     """RECEIVE_ERRORS: the knot's process() receives Result objects."""
-    from pirn import Err, Ok
+    from pirn.core.err import Err
+    from pirn.core.ok import Ok
 
     @knot
     async def boom(x: int) -> int:
         raise ValueError("boom")
 
     class HandleAny(Knot):
-        async def process(self, x: object) -> str:
+        async def process(self, x: object, **_: Any) -> str:
             if isinstance(x, Ok):
                 return f"ok:{x.value}"
             if isinstance(x, Err):

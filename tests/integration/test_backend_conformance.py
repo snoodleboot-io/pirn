@@ -26,19 +26,17 @@ from typing import Any
 
 import pytest
 
-from pirn import (
-    KnotConfig,
-    Parameter,
-    RunRequest,
-    Tapestry,
-    knot,
-)
-from pirn.backends import DataStore, RunHistory, TapestryStore
-from pirn.backends.in_memory import (
-    InMemoryDataStore,
-    InMemoryHistory,
-    InMemoryStore,
-)
+from pirn.backends.base.data_store import DataStore
+from pirn.backends.base.run_history import RunHistory
+from pirn.backends.base.tapestry_store import TapestryStore
+from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
+from pirn.backends.in_memory.in_memory_history import InMemoryHistory
+from pirn.backends.in_memory.in_memory_store import InMemoryStore
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 # --------------------------------------------------- backend factories
 #
@@ -60,13 +58,13 @@ def _in_memory_data_store() -> DataStore:
 
 
 def _sqlite_store() -> TapestryStore:
-    from pirn.backends.sqlite import SQLiteStore
+    from pirn.backends.sqlite.sqlite_store import SQLiteStore
 
     return SQLiteStore(path=":memory:")
 
 
 def _sqlite_history() -> RunHistory:
-    from pirn.backends.sqlite import SQLiteHistory
+    from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 
     return SQLiteHistory(path=":memory:")
 
@@ -281,7 +279,7 @@ async def test_lineage_hashes_stable_across_backends():
 
     pytest.importorskip("duckdb")
     in_mem = await collect_hashes(InMemoryHistory)
-    from pirn.backends.sqlite import SQLiteHistory
+    from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 
     sqlite = await collect_hashes(SQLiteHistory)
     from pirn.backends.duckdb import DuckDBHistory

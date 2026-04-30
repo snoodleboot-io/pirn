@@ -7,7 +7,11 @@ across run boundaries with no extra plumbing.
 
 from __future__ import annotations
 
-from pirn import KnotConfig, Parameter, RunRequest, Tapestry, knot
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 
 @knot

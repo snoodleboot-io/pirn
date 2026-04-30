@@ -13,6 +13,16 @@ Strict mode (default): any ``callable``, ``selector``, ``predicate``,
 Loose mode (``PipelineSpec.allow_callable_refs=True``): same references
 may be dotted paths that the loader imports at load time.
 
+Import allowlist (``allowed_module_prefixes``): when loose mode is
+enabled, the optional ``allowed_module_prefixes`` parameter (accepted by
+both ``load_pipeline`` and ``PipelineSpec``) restricts which module
+paths may be imported.  A callable ref is permitted only when its module
+path equals one of the prefixes or starts with ``<prefix>.``.  When the
+list is ``None``, any import is allowed (with a warning).  The spec-
+level list and the caller-supplied list are merged: both must grant
+access (i.e. the effective allowlist is the intersection; if either
+source supplies ``None`` the other source's list is used as-is).
+
 The loader returns the populated ``Tapestry``; the caller picks
 terminals and runs.
 """
@@ -25,27 +35,27 @@ from typing import Any
 
 import yaml
 
-from pirn.core.config import ErrorPolicy, KnotConfig
-from pirn.core.knot import Knot, KnotFactory
+from pirn.core.error_policy import ErrorPolicy
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import KnotFactory, knot
 from pirn.core.parameter import Parameter
 from pirn.nodes.aggregator import Aggregator
-from pirn.nodes.branch import Branch
-from pirn.nodes.gate import Gate
+from pirn.nodes.branch.branch import Branch
+from pirn.nodes.gate.gate import Gate
 from pirn.nodes.map_ import Map
 from pirn.nodes.reduce_ import Reduce
 from pirn.tapestry import Tapestry
-from pirn.yaml_loader.spec import (
-    AggregatorSpec,
-    BranchSpec,
-    GateSpec,
-    KnotSpec,
-    MapSpec,
-    ParameterSpec,
-    PipelineSpec,
-    ReduceSpec,
-    SinkSpec,
-    SourceSpec,
-)
+from pirn.yaml_loader.specs.aggregator_spec import AggregatorSpec
+from pirn.yaml_loader.specs.branch_spec import BranchSpec
+from pirn.yaml_loader.specs.gate_spec import GateSpec
+from pirn.yaml_loader.specs.knot_spec import KnotSpec
+from pirn.yaml_loader.specs.map_spec import MapSpec
+from pirn.yaml_loader.specs.parameter_spec import ParameterSpec
+from pirn.yaml_loader.specs.pipeline_spec import PipelineSpec
+from pirn.yaml_loader.specs.reduce_spec import ReduceSpec
+from pirn.yaml_loader.specs.sink_spec import SinkSpec
+from pirn.yaml_loader.specs.source_spec import SourceSpec
 
 
 def load_pipeline(
@@ -53,6 +63,7 @@ def load_pipeline(
     *,
     tapestry: Tapestry | None = None,
     known_callables: Mapping[str, Any] | None = None,
+    allowed_module_prefixes: list[str] | None = None,
 ) -> Tapestry:
     """Load a YAML pipeline into a tapestry.
 
@@ -65,6 +76,11 @@ def load_pipeline(
     known_callables:
         Map of name -> callable, used in strict mode.  YAML references
         the names; the loader looks them up here.
+    allowed_module_prefixes:
+        When ``allow_callable_refs=True``, only callable refs whose
+        module path equals one of these prefixes or starts with
+        ``<prefix>.`` may be imported.  ``None`` means no restriction
+        from the caller side (the spec-level list still applies).
     """
     raw = yaml.safe_load(yaml_text)
     if not isinstance(raw, dict):
@@ -74,12 +90,24 @@ def load_pipeline(
     tapestry = tapestry or Tapestry()
     known = dict(known_callables or {})
 
+    # Merge caller-supplied and spec-level allowlists.
+    # If both are non-None, use the intersection (union of restrictions).
+    # If only one is non-None, use that one.
+    effective_prefixes: list[str] | None
+    if allowed_module_prefixes is not None and spec.allowed_module_prefixes is not None:
+        spec_set = set(spec.allowed_module_prefixes)
+        effective_prefixes = [p for p in allowed_module_prefixes if p in spec_set]
+    elif allowed_module_prefixes is not None:
+        effective_prefixes = allowed_module_prefixes
+    else:
+        effective_prefixes = spec.allowed_module_prefixes
+
     # Topologically order specs so each is built only after its parents.
     ordered = _topo_order_specs(spec)
 
     built: dict[str, Knot] = {}
     for node_spec in ordered:
-        knot = _build_node(node_spec, built, spec, known, tapestry)
+        knot = _build_node(node_spec, built, spec, known, tapestry, effective_prefixes)
         if knot is not None:
             built[node_spec.id] = knot
 
@@ -143,6 +171,7 @@ def _build_node(
     pipeline_spec: PipelineSpec,
     known: dict[str, Any],
     tapestry: Tapestry,
+    allowed_module_prefixes: list[str] | None = None,
 ) -> Knot | None:
     cfg = KnotConfig(
         id=node_spec.id,
@@ -165,29 +194,20 @@ def _build_node(
         return Parameter(**kwargs)
 
     if isinstance(node_spec, SourceSpec):
-        # A source's callable is wrapped to produce no-arg process().
         callable_obj = _resolve_callable(
-            node_spec.callable, known, pipeline_spec.allow_callable_refs
+            node_spec.callable, known, pipeline_spec.allow_callable_refs, allowed_module_prefixes
         )
-        # Dynamically build a Source subclass whose process is the callable.
-        from pirn.nodes.source import Source
-
-        async def proc(self) -> Any:
-            res = callable_obj()
-            if hasattr(res, "__await__"):
-                return await res
-            return res
-
-        cls = type(
-            f"Source_{node_spec.id}",
-            (Source,),
-            {"process": proc, "__module__": __name__},
-        )
-        return cls(_config=cfg, tapestry=tapestry)
+        if isinstance(callable_obj, KnotFactory):
+            factory = callable_obj
+        elif isinstance(callable_obj, type) and issubclass(callable_obj, Knot):
+            return callable_obj(_config=cfg, tapestry=tapestry)
+        else:
+            factory = knot(callable_obj)
+        return factory(_config=cfg, tapestry=tapestry)
 
     if isinstance(node_spec, (KnotSpec, SinkSpec)):
         callable_obj = _resolve_callable(
-            node_spec.callable, known, pipeline_spec.allow_callable_refs
+            node_spec.callable, known, pipeline_spec.allow_callable_refs, allowed_module_prefixes
         )
         # Build kwargs: parents (resolved from built) + config values.
         kwargs: dict[str, Any] = {"_config": cfg, "tapestry": tapestry}
@@ -204,13 +224,15 @@ def _build_node(
         if isinstance(callable_obj, KnotFactory):
             return callable_obj(**kwargs)
         # Plain function — wrap with @knot.
-        from pirn.core.knot import knot as _knot_decorator
+        from pirn.core.knot_factory import knot as _knot_decorator
 
         factory = _knot_decorator(callable_obj)
         return factory(**kwargs)
 
     if isinstance(node_spec, AggregatorSpec):
-        combine = _resolve_callable(node_spec.combine, known, pipeline_spec.allow_callable_refs)
+        combine = _resolve_callable(
+            node_spec.combine, known, pipeline_spec.allow_callable_refs, allowed_module_prefixes
+        )
         kwargs = {
             "combine": combine,
             "_config": cfg,
@@ -221,7 +243,9 @@ def _build_node(
         return Aggregator(**kwargs)
 
     if isinstance(node_spec, BranchSpec):
-        selector = _resolve_callable(node_spec.selector, known, pipeline_spec.allow_callable_refs)
+        selector = _resolve_callable(
+            node_spec.selector, known, pipeline_spec.allow_callable_refs, allowed_module_prefixes
+        )
         return Branch(
             input=built[node_spec.input],
             selector=selector,
@@ -231,7 +255,9 @@ def _build_node(
         )
 
     if isinstance(node_spec, GateSpec):
-        predicate = _resolve_callable(node_spec.predicate, known, pipeline_spec.allow_callable_refs)
+        predicate = _resolve_callable(
+            node_spec.predicate, known, pipeline_spec.allow_callable_refs, allowed_module_prefixes
+        )
         return Gate(
             input=built[node_spec.input],
             predicate=predicate,
@@ -240,7 +266,9 @@ def _build_node(
         )
 
     if isinstance(node_spec, MapSpec):
-        each = _resolve_callable(node_spec.each, known, pipeline_spec.allow_callable_refs)
+        each = _resolve_callable(
+            node_spec.each, known, pipeline_spec.allow_callable_refs, allowed_module_prefixes
+        )
         # Resolve shared kwargs that reference other knots (loose-mode
         # ergonomics: a value matching a built knot id becomes that knot).
         shared: dict[str, Any] = {}
@@ -259,7 +287,9 @@ def _build_node(
         )
 
     if isinstance(node_spec, ReduceSpec):
-        combine = _resolve_callable(node_spec.combine, known, pipeline_spec.allow_callable_refs)
+        combine = _resolve_callable(
+            node_spec.combine, known, pipeline_spec.allow_callable_refs, allowed_module_prefixes
+        )
         kwargs = {
             "of": built[node_spec.of],
             "combine": combine,
@@ -277,14 +307,14 @@ def _resolve_callable(
     ref: str,
     known: dict[str, Any],
     allow_imports: bool,
+    allowed_module_prefixes: list[str] | None = None,
 ) -> Callable[..., Any]:
     """Resolve a string reference to a callable.
 
-    Strict order:
-    1. If ``ref`` is in ``known``, return it.
-    2. Otherwise, if ``allow_imports`` is True and ``ref`` looks like a
-       dotted path, import and return.
-    3. Otherwise, raise.
+    Resolution order (first match wins):
+    1. ``known`` dict — per-call overrides, highest priority.
+    2. ``KnotRegistry`` — globally pre-registered @knot factories/classes.
+    3. Dotted-path import — only when ``allow_callable_refs=True``.
     """
     if ref in known:
         obj = known[ref]
@@ -292,9 +322,14 @@ def _resolve_callable(
             raise TypeError(f"known_callables[{ref!r}] is not callable")
         return obj
 
+    from pirn.yaml_loader.knot_registry import KnotRegistry
+
+    if KnotRegistry.has(ref):
+        return KnotRegistry.get_class(ref)
+
     if not allow_imports:
         raise ValueError(
-            f"reference {ref!r} not in known_callables; set "
+            f"reference {ref!r} not in known_callables or KnotRegistry; set "
             f"allow_callable_refs=True to enable dotted-path imports"
         )
 
@@ -302,6 +337,18 @@ def _resolve_callable(
         raise ValueError(f"reference {ref!r} is not a dotted path and not in known_callables")
 
     module_path, _, attr = ref.rpartition(".")
+
+    if allowed_module_prefixes is not None:
+        if not any(
+            module_path == p or module_path.startswith(p + ".") for p in allowed_module_prefixes
+        ):
+            raise ValueError(
+                f"callable ref {ref!r} resolves to module {module_path!r} which is not in "
+                f"allowed_module_prefixes {allowed_module_prefixes!r}; "
+                f"set allow_callable_refs=True and add the module prefix to "
+                f"allowed_module_prefixes to permit this import"
+            )
+
     module = importlib.import_module(module_path)
     obj = getattr(module, attr)
     if not callable(obj) and not (isinstance(obj, type) and issubclass(obj, Knot)):

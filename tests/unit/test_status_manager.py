@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from pirn.managers.status import KnotState, StatusManager
+from pirn.managers.knot_state import KnotState
+from pirn.managers.status_manager import StatusManager
 
 
 def test_initial_state_is_pending():

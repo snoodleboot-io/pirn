@@ -6,8 +6,10 @@ import json
 from collections.abc import AsyncIterator
 from typing import Any
 
+from pirn.streaming.base import StreamingSource
 
-class KafkaStreamingSource:
+
+class KafkaStreamingSource(StreamingSource):
     """Streams messages from a Kafka topic as values for a long-running run.
 
     Each message becomes one value; downstream knots see it bound to
@@ -41,7 +43,7 @@ class KafkaStreamingSource:
         self._topic = topic
         self._bootstrap = bootstrap_servers
         self._group_id = group_id
-        self._decoder = decoder or _default_decoder
+        self._decoder = decoder or KafkaStreamingSource.__default_decoder
         self._name = name
 
     @property
@@ -81,12 +83,11 @@ class KafkaStreamingSource:
             except Exception:
                 pass
 
-
-def _default_decoder(msg: Any) -> Any:
-    """Default: message value (bytes) → JSON-decoded value."""
-    raw = msg.value
-    if isinstance(raw, bytes):
-        raw = raw.decode("utf-8")
-    if isinstance(raw, str):
-        return json.loads(raw)
-    return raw
+    @staticmethod
+    def __default_decoder(msg: Any) -> Any:
+        raw = msg.value
+        if isinstance(raw, bytes):
+            raw = raw.decode("utf-8")
+        if isinstance(raw, str):
+            return json.loads(raw)
+        return raw

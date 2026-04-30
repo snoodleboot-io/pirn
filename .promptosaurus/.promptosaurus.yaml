@@ -25,5 +25,7 @@ spec:
 variant: verbose
 active_personas:
   - backend_software_engineer
-  - frontend_software_engineer
-  - architect
+  - qa_tester
+  - security_engineer
+  - product_manager
+  - technical_writer

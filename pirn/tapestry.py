@@ -15,14 +15,18 @@ is an internal collaborator, not something users construct directly.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from pirn.backends import RunHistory, TapestryStore
-    from pirn.core.context import RunRequest, RunResult
+    from pirn.backends.base.run_history import RunHistory
+    from pirn.backends.base.tapestry_store import TapestryStore
     from pirn.core.knot import Knot
-    from pirn.engine.dispatcher import Dispatcher
+    from pirn.core.run_request import RunRequest
+    from pirn.core.run_result import RunResult
+    from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
+    from pirn.engine.dispatchers.dispatcher import Dispatcher
 
 
 # ContextVar carrying the active tapestry inside a `with` block.  None when
@@ -58,20 +62,23 @@ class Tapestry:
         data_store: Any = None,  # DataStore protocol; deferred import
         dispatcher: Dispatcher | None = None,
         emitters: list[Any] | None = None,
+        emitter_error_policy: EmitterErrorPolicy | None = None,
+        traceback_filter: Callable[[str], str] | None = None,
     ) -> None:
         # Defer imports to avoid a circular at module load time.
-        from pirn.backends.in_memory import (
-            InMemoryDataStore,
-            InMemoryHistory,
-            InMemoryStore,
-        )
-        from pirn.engine.dispatcher import LocalDispatcher
+        from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
+        from pirn.backends.in_memory.in_memory_history import InMemoryHistory
+        from pirn.backends.in_memory.in_memory_store import InMemoryStore
+        from pirn.emitters.base import EmitterErrorPolicy as _EEP
+        from pirn.engine.dispatchers.local_dispatcher import LocalDispatcher
 
         self._store = store or InMemoryStore()
         self._history = history or InMemoryHistory()
         self._data_store = data_store or InMemoryDataStore()
         self._dispatcher = dispatcher or LocalDispatcher()
         self._emitters: list[Any] = list(emitters or [])
+        self._emitter_error_policy: _EEP = emitter_error_policy or _EEP.WARN
+        self._traceback_filter: Callable[[str], str] | None = traceback_filter
 
         # Token returned by ContextVar.set, used to reset on __exit__.
         self._token: Any = None
@@ -136,6 +143,8 @@ class Tapestry:
         dispatcher: Dispatcher | None = None,
         emitters: list[Any] | None = None,
         extensible: bool = False,
+        emitter_error_policy: EmitterErrorPolicy | None = None,
+        traceback_filter: Callable[[str], str] | None = None,
     ) -> RunResult:
         """Execute the tapestry against a ``RunRequest``.
 
@@ -152,8 +161,8 @@ class Tapestry:
         protocol (``InMemoryStore`` does; the SQLite/Postgres/ValKey
         stores do not yet).
         """
-        from pirn.core.context import RunRequest as _RR
         from pirn.core.knot import Knot as _Knot
+        from pirn.core.run_request import RunRequest as _RR
         from pirn.engine.engine import Engine
 
         request = request or _RR()
@@ -172,6 +181,10 @@ class Tapestry:
             )
 
         active_emitters = self._emitters if emitters is None else list(emitters)
+        active_policy = (
+            emitter_error_policy if emitter_error_policy is not None else self._emitter_error_policy
+        )
+        active_filter = traceback_filter if traceback_filter is not None else self._traceback_filter
 
         engine = Engine(dispatcher=dispatcher or self._dispatcher)
         return await engine.execute(
@@ -181,6 +194,8 @@ class Tapestry:
             data_store=self._data_store,
             emitters=active_emitters,
             extensible_store=self._store if extensible else None,
+            traceback_filter=active_filter,
+            emitter_error_policy=active_policy,
         )
 
     def add_emitter(self, emitter: Any) -> None:

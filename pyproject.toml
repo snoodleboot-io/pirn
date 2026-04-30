@@ -9,7 +9,7 @@ description = "A pipeline framework where everything is a knot."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
-authors = [{ name = "pirn contributors" }]
+authors = [{ name = "snoodleboot, LLC" }]
 keywords = ["pipeline", "dag", "workflow", "async", "graph", "lineage"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -21,13 +21,17 @@ classifiers = [
     "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-    "aiokafka>=0.13.0",
+    "asyncpg>=0.31.0",
+    "cloudpickle>=3.0",
     "pydantic>=2.0",
     "pyyaml>=6.0",
+    "sweet-tea>=0.2.46",
+    "valkey-glide>=2.3.1",
 ]
 
 [project.scripts]
-tapestry-check = "pirn.check:main"
+tapestry-check = "pirn.check.main:main"
+pirn-explore   = "pirn.viz._explore_cli:main"
 
 [project.optional-dependencies]
 dev = [
@@ -37,6 +41,7 @@ dev = [
     "mutmut>=2.5,<3",
     "ruff>=0.5",
     "pyright>=1.1",
+    "cyclonedx-bom>=4.0",
 ]
 # Persistence backends — install the ones for your deployment shape.
 sqlite = ["aiosqlite>=0.19"]
@@ -44,12 +49,15 @@ duckdb = ["duckdb>=0.10"]
 postgres = ["asyncpg>=0.29"]
 valkey = ["valkey-glide>=2.0"]
 s3 = ["aioboto3>=12.0"]
+gcs = ["gcloud-aio-storage>=9.0"]
+azure = ["azure-storage-blob>=12.0"]
 # Distributed dispatchers.
 dask = ["dask[distributed]>=2024.1"]
+docs = ["mkdocs>=1.6", "mkdocstrings[python]>=0.25", "pymdown-extensions>=10.0"]
 ray = ["ray>=2.9"]
 celery = ["celery>=5.3"]
 # Triggers / emitters.
-kafka = ["aiokafka>=0.10"]
+kafka = ["aiokafka>=0.13.0"]
 http = ["httpx>=0.26", "starlette>=0.36"]
 otel = ["opentelemetry-api>=1.20", "opentelemetry-sdk>=1.20"]
 # Convenience aggregate.
@@ -59,10 +67,12 @@ all = [
     "asyncpg>=0.29",
     "valkey-glide>=2.0",
     "aioboto3>=12.0",
+    "gcloud-aio-storage>=9.0",
+    "azure-storage-blob>=12.0",
     "dask[distributed]>=2024.1",
     "ray>=2.9",
     "celery>=5.3",
-    "aiokafka>=0.10",
+    "aiokafka>=0.13.0",
     "httpx>=0.26",
     "starlette>=0.36",
     "opentelemetry-api>=1.20",
@@ -109,6 +119,9 @@ select = ["E", "F", "I", "B", "UP", "RUF"]
 # The public API's __all__ is grouped semantically (with comments), not
 # alphabetically — readability over sort order.
 "pirn/__init__.py" = ["RUF022"]
+# Template files — E501 is meaningless inside multi-line HTML/JS/CSS strings.
+"pirn/viz/explorer.py" = ["E501"]
+"pirn/viz/html.py" = ["E501"]
 
 [tool.pyright]
 # Phase 3 backends and dispatchers depend on optional packages

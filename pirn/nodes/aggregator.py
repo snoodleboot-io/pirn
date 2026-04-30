@@ -31,8 +31,8 @@ import asyncio
 from collections.abc import Callable
 from typing import Any
 
-from pirn.core.config import KnotConfig
 from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
 
 
 class Aggregator(Knot):

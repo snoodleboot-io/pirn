@@ -9,12 +9,3 @@
   hover tooltips, and outcome filtering.  Save to a file and open
   in a browser; no server needed.
 """
-
-from pirn.viz.html import html_for_run
-from pirn.viz.mermaid import mermaid_for_run, mermaid_for_tapestry
-
-__all__ = [
-    "html_for_run",
-    "mermaid_for_run",
-    "mermaid_for_tapestry",
-]

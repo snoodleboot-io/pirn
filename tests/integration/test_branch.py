@@ -4,14 +4,12 @@ from __future__ import annotations
 
 import pytest
 
-from pirn import (
-    Branch,
-    KnotConfig,
-    Parameter,
-    RunRequest,
-    Tapestry,
-    knot,
-)
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.nodes.branch.branch import Branch
+from pirn.tapestry import Tapestry
 
 
 @knot
@@ -88,9 +86,9 @@ async def test_branch_outputs_skipped_have_lineage():
 
     result = await t.run(RunRequest())
     by_id = {rec.knot_id: rec for rec in result.lineage}
-    assert by_id["route/tool"].outcome == "ok"
-    assert by_id["route/resp"].outcome == "skipped"
-    assert by_id["route/resp"].skip_reason == "branch_not_selected"
+    assert by_id["route:tool"].outcome == "ok"
+    assert by_id["route:resp"].outcome == "skipped"
+    assert by_id["route:resp"].skip_reason == "branch_not_selected"
 
 
 def test_branch_requires_known_input_kwarg():

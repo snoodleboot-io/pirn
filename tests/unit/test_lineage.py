@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
-from pirn import KnotLineage
+from pirn.core.lineage import KnotLineage
 
 
 def _make(**overrides):

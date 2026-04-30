@@ -15,7 +15,11 @@ import os
 
 import pytest
 
-from pirn import KnotConfig, Parameter, RunRequest, Tapestry, knot
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 pytestmark = pytest.mark.needs_postgres
 
@@ -66,7 +70,7 @@ async def _run_simple_pipeline(history, value: int = 5):
 
 
 async def test_postgres_history_record_run_and_get_round_trips(pg_pool):
-    from pirn.backends.postgres import PostgresHistory
+    from pirn.backends.postgres.postgres_history import PostgresHistory
 
     history = PostgresHistory(pool=pg_pool)
     result = await _run_simple_pipeline(history)
@@ -79,7 +83,7 @@ async def test_postgres_history_record_run_and_get_round_trips(pg_pool):
 
 
 async def test_postgres_history_get_run_returns_none_for_missing(pg_pool):
-    from pirn.backends.postgres import PostgresHistory
+    from pirn.backends.postgres.postgres_history import PostgresHistory
 
     history = PostgresHistory(pool=pg_pool)
     await history._ensure_init()
@@ -87,7 +91,7 @@ async def test_postgres_history_get_run_returns_none_for_missing(pg_pool):
 
 
 async def test_postgres_history_query_by_output_hash_finds_run(pg_pool):
-    from pirn.backends.postgres import PostgresHistory
+    from pirn.backends.postgres.postgres_history import PostgresHistory
 
     history = PostgresHistory(pool=pg_pool)
     result = await _run_simple_pipeline(history)
@@ -100,7 +104,7 @@ async def test_postgres_history_query_by_output_hash_finds_run(pg_pool):
 
 
 async def test_postgres_history_query_by_output_hash_finds_duplicates(pg_pool):
-    from pirn.backends.postgres import PostgresHistory
+    from pirn.backends.postgres.postgres_history import PostgresHistory
 
     history = PostgresHistory(pool=pg_pool)
     # Two runs with the same input produce the same output hash.
@@ -115,7 +119,7 @@ async def test_postgres_history_query_by_output_hash_finds_duplicates(pg_pool):
 
 
 async def test_postgres_history_query_by_input_hash_uses_join(pg_pool):
-    from pirn.backends.postgres import PostgresHistory
+    from pirn.backends.postgres.postgres_history import PostgresHistory
 
     history = PostgresHistory(pool=pg_pool)
     result = await _run_simple_pipeline(history)
@@ -129,7 +133,7 @@ async def test_postgres_history_query_by_input_hash_uses_join(pg_pool):
 
 
 async def test_postgres_history_query_by_knot_id(pg_pool):
-    from pirn.backends.postgres import PostgresHistory
+    from pirn.backends.postgres.postgres_history import PostgresHistory
 
     history = PostgresHistory(pool=pg_pool)
     result = await _run_simple_pipeline(history)
@@ -141,7 +145,7 @@ async def test_postgres_history_query_by_knot_id(pg_pool):
 
 async def test_postgres_history_concurrent_writes(pg_pool):
     """100 parallel record_run calls must all succeed without contention."""
-    from pirn.backends.postgres import PostgresHistory
+    from pirn.backends.postgres.postgres_history import PostgresHistory
 
     history = PostgresHistory(pool=pg_pool)
     await history._ensure_init()
@@ -169,7 +173,7 @@ async def test_postgres_history_persistence_across_connections(pg_pool):
     """
     dsn = os.environ.get("PIRN_TEST_POSTGRES_URL")
 
-    from pirn.backends.postgres import PostgresHistory
+    from pirn.backends.postgres.postgres_history import PostgresHistory
 
     history1 = PostgresHistory(pool=pg_pool)
     result = await _run_simple_pipeline(history1)
@@ -191,7 +195,7 @@ async def test_postgres_history_persistence_across_connections(pg_pool):
 
 
 async def test_postgres_store_register_round_trips(pg_pool):
-    from pirn.backends.postgres import PostgresStore
+    from pirn.backends.postgres.postgres_store import PostgresStore
 
     store = PostgresStore(pool=pg_pool)
     p = Parameter("x", int, _config=KnotConfig(id="x"))
@@ -204,7 +208,7 @@ async def test_postgres_store_register_round_trips(pg_pool):
 
 async def test_postgres_store_register_handles_id_conflict_idempotent(pg_pool):
     """Registering the same knot instance twice is idempotent."""
-    from pirn.backends.postgres import PostgresStore
+    from pirn.backends.postgres.postgres_store import PostgresStore
 
     store = PostgresStore(pool=pg_pool)
     with Tapestry(store=store) as t:
@@ -217,7 +221,7 @@ async def test_postgres_store_register_raises_on_id_conflict_different_instance(
     pg_pool,
 ):
     """Registering a different knot with the same id must raise."""
-    from pirn.backends.postgres import PostgresStore
+    from pirn.backends.postgres.postgres_store import PostgresStore
 
     store = PostgresStore(pool=pg_pool)
     with Tapestry(store=store):

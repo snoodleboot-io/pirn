@@ -24,7 +24,49 @@ from collections import defaultdict
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pirn.core.context import RunResult
+    from pirn.core.run_result import RunResult
+    from pirn.tapestry import Tapestry
+
+
+def html_for_tapestry(tapestry: Tapestry, title: str | None = None) -> str:
+    """Render a ``Tapestry`` structure to a standalone HTML document.
+
+    Shows the pipeline graph before a run — all nodes in neutral (pending)
+    color with no outcome data.  Useful for inspecting topology.
+    """
+    title = title or "pirn pipeline"
+    knots = tapestry._store.all()
+
+    nodes = [
+        {
+            "id": k.knot_id,
+            "class": _short(type(k).__qualname__),
+            "outcome": "pending",
+            "duration_ms": 0,
+            "output_hash": "",
+            "config_hash": "",
+            "error_record_id": "",
+            "skip_reason": "",
+        }
+        for k in knots
+    ]
+
+    edges = []
+    for k in knots:
+        for _input_name, parent in k.parents.items():
+            edges.append({"from": parent.knot_id, "to": k.knot_id})
+
+    layers = _layer_nodes(nodes, edges)
+    coords = _assign_coordinates(layers)
+    svg = _render_svg(nodes, edges, coords)
+
+    summary = (
+        f'<div class="summary">'
+        f'<span class="label">pipeline</span> {html.escape(title)}'
+        f' &nbsp;·&nbsp; <span class="label">knots</span> {len(knots)}'
+        f"</div>"
+    )
+    return _DOCUMENT.format(title=html.escape(title), summary=summary, svg=svg, css=_CSS, js=_JS)
 
 
 def html_for_run(result: RunResult, title: str | None = None) -> str:
@@ -78,6 +120,29 @@ def html_for_run(result: RunResult, title: str | None = None) -> str:
 # ============================================================ layout
 
 
+def _get_depth(
+    kid: str,
+    depth: dict[str, int],
+    parents: dict[str, list[str]],
+    all_ids: set[str],
+    visiting: set[str],
+) -> int:
+    if kid in depth:
+        return depth[kid]
+    if kid in visiting:
+        return 0
+    visiting.add(kid)
+    if not parents.get(kid):
+        d = 0
+    else:
+        d = 1 + max(
+            _get_depth(p, depth, parents, all_ids, visiting) for p in parents[kid] if p in all_ids
+        )
+    visiting.discard(kid)
+    depth[kid] = d
+    return d
+
+
 def _layer_nodes(nodes, edges) -> list[list[str]]:
     """Group nodes into layers by longest path from a root."""
     parents: dict[str, list[str]] = defaultdict(list)
@@ -86,23 +151,8 @@ def _layer_nodes(nodes, edges) -> list[list[str]]:
     all_ids = {n["id"] for n in nodes}
 
     depth: dict[str, int] = {}
-
-    def get_depth(kid: str, visiting: set[str]) -> int:
-        if kid in depth:
-            return depth[kid]
-        if kid in visiting:
-            return 0  # cycle guard; shouldn't happen for valid runs
-        visiting.add(kid)
-        if not parents.get(kid):
-            d = 0
-        else:
-            d = 1 + max(get_depth(p, visiting) for p in parents[kid] if p in all_ids)
-        visiting.discard(kid)
-        depth[kid] = d
-        return d
-
     for kid in all_ids:
-        get_depth(kid, set())
+        _get_depth(kid, depth, parents, all_ids, set())
 
     by_depth: dict[int, list[str]] = defaultdict(list)
     for kid, d in depth.items():

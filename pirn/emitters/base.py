@@ -1,13 +1,17 @@
-"""Emitter protocol and a no-op base class."""
+"""Emitter base class."""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from pirn.emitters.emitter_error_policy import EmitterErrorPolicy  # canonical location
+
 if TYPE_CHECKING:
-    from pirn.core.context import RunResult
     from pirn.core.lineage import KnotLineage
-    from pirn.managers.status import StatusEvent
+    from pirn.core.run_result import RunResult
+    from pirn.managers.status_event import StatusEvent
+
+__all__ = ["Emitter", "EmitterErrorPolicy"]
 
 
 class Emitter:

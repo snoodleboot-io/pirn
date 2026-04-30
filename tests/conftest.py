@@ -38,6 +38,6 @@ def pytest_collection_modifyitems(config, items):
 
 @pytest.fixture
 def tapestry():
-    from pirn import Tapestry
+    from pirn.tapestry import Tapestry
 
     return Tapestry()

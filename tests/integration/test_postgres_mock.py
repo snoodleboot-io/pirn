@@ -16,8 +16,12 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from typing import Any
 
-from pirn import KnotConfig, Parameter, RunRequest, Tapestry, knot
-from pirn.backends.postgres import PostgresHistory
+from pirn.backends.postgres.postgres_history import PostgresHistory
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 # -------------------------------------------------- fake asyncpg pool
 
@@ -93,7 +97,7 @@ async def _double(x: int) -> int:
 async def _make_run_result(value: int) -> Any:
     """Build a real RunResult by running a pipeline against an InMemory
     history, then return that result for use against the fake pool."""
-    from pirn.backends.in_memory import InMemoryHistory
+    from pirn.backends.in_memory.in_memory_history import InMemoryHistory
 
     h = InMemoryHistory()
     with Tapestry(history=h) as t:

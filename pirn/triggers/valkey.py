@@ -13,10 +13,11 @@ import json
 from collections.abc import AsyncIterator
 from typing import Any
 
-from pirn.core.context import RunRequest
+from pirn.core.run_request import RunRequest
+from pirn.triggers.base import Trigger
 
 
-class ValKeyTrigger:
+class ValKeyTrigger(Trigger):
     """Trigger backed by a ValKey pub/sub subscription."""
 
     def __init__(
@@ -32,7 +33,7 @@ class ValKeyTrigger:
         self._client = client
         self._channel = channel
         self._config = config
-        self._builder = request_builder or _default_request_builder
+        self._builder = request_builder or ValKeyTrigger.__default_request_builder
         self._closed = False
 
     @property
@@ -67,18 +68,17 @@ class ValKeyTrigger:
     async def close(self) -> None:
         self._closed = True
 
-
-def _default_request_builder(msg: Any) -> RunRequest:
-    """Default: message body is JSON; decoded into RunRequest parameters."""
-    body = getattr(msg, "message", msg)
-    if isinstance(body, bytes):
-        body = body.decode("utf-8")
-    if isinstance(body, str):
-        params = json.loads(body)
-    else:
-        params = body
-    if not isinstance(params, dict):
-        raise TypeError(
-            f"ValKeyTrigger: expected JSON object for message, got {type(params).__name__}"
-        )
-    return RunRequest(parameters=params)
+    @staticmethod
+    def __default_request_builder(msg: Any) -> RunRequest:
+        body = getattr(msg, "message", msg)
+        if isinstance(body, bytes):
+            body = body.decode("utf-8")
+        if isinstance(body, str):
+            params = json.loads(body)
+        else:
+            params = body
+        if not isinstance(params, dict):
+            raise TypeError(
+                f"ValKeyTrigger: expected JSON object for message, got {type(params).__name__}"
+            )
+        return RunRequest(parameters=params)

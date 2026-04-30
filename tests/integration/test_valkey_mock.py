@@ -11,8 +11,11 @@ import pickle
 
 import pytest
 
-from pirn import KnotConfig, Parameter, knot
-from pirn.backends.valkey import ValKeyDataStore, ValKeyStore
+from pirn.backends.valkey.valkey_data_store import ValKeyDataStore
+from pirn.backends.valkey.valkey_store import ValKeyStore
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
 
 # ---------------------------------------------------- fake glide client
 
@@ -206,7 +209,7 @@ async def test_valkey_data_store_no_ttl_when_unspecified():
 
 async def test_valkey_data_store_round_trips_complex_objects():
     """Pickle handles arbitrary Python objects; test a few shapes."""
-    from pirn import KnotLineage
+    from pirn.core.lineage import KnotLineage
 
     client = _FakeGlideClient()
     ds = ValKeyDataStore(client=client)

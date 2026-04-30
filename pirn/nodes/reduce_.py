@@ -35,8 +35,8 @@ import inspect
 from collections.abc import Callable
 from typing import Any
 
-from pirn.core.config import KnotConfig
 from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
 
 _UNSET = object()
 
@@ -101,7 +101,7 @@ class Reduce(Knot):
 
         self._frozen = True
 
-    async def process(self, of: list[Any]) -> Any:
+    async def process(self, of: list[Any], **_: Any) -> Any:  # type: ignore[override]
         if self._mutable_form == "whole":
             return self._mutable_combine(of)
         # Pairwise.

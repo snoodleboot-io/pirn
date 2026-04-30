@@ -11,15 +11,13 @@ import asyncio
 
 import pytest
 
-from pirn import (
-    InMemoryStore,
-    KnotConfig,
-    Parameter,
-    RunRequest,
-    Tapestry,
-    knot,
-)
-from pirn.engine.shed import ShedError
+from pirn.backends.in_memory.in_memory_store import InMemoryStore
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.engine.shed.shed_error import ShedError
+from pirn.tapestry import Tapestry
 
 # ---------------------------------------------------- store subscribe API
 
@@ -214,7 +212,7 @@ async def test_extensible_run_with_non_subscribable_store_raises():
             return []
 
         def snapshot(self):
-            from pirn.backends import TapestrySnapshot
+            from pirn.backends.base.tapestry_snapshot import TapestrySnapshot
 
             return TapestrySnapshot(knot_ids=[])
 

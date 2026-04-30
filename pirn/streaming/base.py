@@ -19,10 +19,10 @@ focused.
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Awaitable, Callable
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from pirn.core.context import RunResult
+    from pirn.core.run_result import RunResult
     from pirn.tapestry import Tapestry
 
 
@@ -31,8 +31,7 @@ _OnResult = Callable[[Any, "RunResult"], Awaitable[None]]
 _OnError = Callable[[Any, BaseException], Awaitable[None]]
 
 
-@runtime_checkable
-class StreamingSource(Protocol):
+class StreamingSource:
     """Yields a sequence of values over time.
 
     Each yielded value gets bound to the parameter named ``parameter_name``
@@ -41,16 +40,19 @@ class StreamingSource(Protocol):
     """
 
     @property
-    def name(self) -> str: ...
+    def name(self) -> str:
+        raise NotImplementedError(f"{type(self).__name__} must implement name")
 
     @property
     def parameter_name(self) -> str:
         """The parameter name that downstream knots consume."""
-        ...
+        raise NotImplementedError(f"{type(self).__name__} must implement parameter_name")
 
-    def stream(self) -> AsyncIterator[Any]: ...
+    def stream(self) -> AsyncIterator[Any]:
+        raise NotImplementedError(f"{type(self).__name__} must implement stream()")
 
-    async def close(self) -> None: ...
+    async def close(self) -> None:
+        raise NotImplementedError(f"{type(self).__name__} must implement close()")
 
 
 async def run_stream(
@@ -76,7 +78,7 @@ async def run_stream(
     source is the *primary* input and other parameters are constants
     for the run.
     """
-    from pirn.core.context import RunRequest
+    from pirn.core.run_request import RunRequest
 
     base_params = dict(extra_parameters or {})
     try:

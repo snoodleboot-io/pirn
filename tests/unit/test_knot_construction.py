@@ -7,30 +7,30 @@ construction-time validation.
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
-from pirn import (
-    ErrorPolicy,
-    Knot,
-    KnotConfig,
-    Optional,
-    Parameter,
-    Tapestry,
-    knot,
-)
+from pirn.core.error_policy import ErrorPolicy
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.optional import Optional
+from pirn.core.parameter import Parameter
+from pirn.tapestry import Tapestry
 
 # ---------------------------------------------------------------- subclass
 
 
 class Add(Knot):
-    async def process(self, a: int, b: int) -> int:
+    async def process(self, a: int, b: int, **_: Any) -> int:
         return a + b
 
 
 class StringFilter(Knot):
     """One parent, one config — exercises the partition rule."""
 
-    async def process(self, items: list[str], pattern: str) -> list[str]:
+    async def process(self, items: list[str], pattern: str, **_: Any) -> list[str]:
         return [s for s in items if pattern in s]
 
 
@@ -106,11 +106,20 @@ def test_missing_required_input_fails_at_construction():
         Add(a=p, _config=KnotConfig(id="add"))  # b is missing
 
 
-def test_unknown_kwarg_fails_at_construction():
+def test_unknown_knot_kwarg_accepted_as_implicit_dep():
+    """A Knot-valued kwarg not in process signature is an implicit parent."""
     p = Parameter("x", int, _config=KnotConfig(id="x"))
     q = Parameter("y", int, _config=KnotConfig(id="y"))
-    with pytest.raises(TypeError, match="unknown kwarg"):
-        Add(a=p, b=q, c=p, _config=KnotConfig(id="add"))
+    node = Add(a=p, b=q, c=p, _config=KnotConfig(id="add"))
+    assert "c" in node.parents
+
+
+def test_unknown_non_knot_kwarg_fails_at_construction():
+    """A non-Knot unknown kwarg is always an error, even with **_."""
+    p = Parameter("x", int, _config=KnotConfig(id="x"))
+    q = Parameter("y", int, _config=KnotConfig(id="y"))
+    with pytest.raises(TypeError, match="unknown non-Knot kwarg"):
+        Add(a=p, b=q, c=42, _config=KnotConfig(id="add"))
 
 
 def test_config_validation_at_construction():
@@ -152,7 +161,7 @@ def test_decorator_factory_exposes_fn_and_class():
 
 def test_optional_mixin_marks_class():
     class Opt(Optional, Knot):
-        async def process(self, x: int) -> int:
+        async def process(self, x: int, **_: Any) -> int:
             return x
 
     p = Parameter("x", int, _config=KnotConfig(id="x"))
