@@ -11,6 +11,9 @@ from pirn.core.lineage import KnotLineage
 class SQLiteHistory(RunHistory):
     """RunHistory backed by SQLite.
 
+    Persists to ``pirn.db`` in the current working directory by default.
+    Pass ``path=":memory:"`` explicitly for a transient in-process store.
+
     All methods are async to satisfy the interface but use blocking
     sqlite3 underneath — SQLite is fast enough for single-host scenarios
     that an async wrapper adds no real concurrency benefit.
@@ -77,7 +80,7 @@ class SQLiteHistory(RunHistory):
             conn.execute(f"ALTER TABLE runs ADD COLUMN {col}")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_runs_actor ON runs(actor)")
 
-    def __init__(self, *, path: str = ":memory:", connection: Any = None) -> None:
+    def __init__(self, *, path: str = "pirn.db", connection: Any = None) -> None:
         import sqlite3
         self._path = path
         self._conn = connection or sqlite3.connect(path)

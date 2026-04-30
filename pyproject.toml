@@ -31,6 +31,7 @@ dependencies = [
 
 [project.scripts]
 tapestry-check = "pirn.check:main"
+pirn-explore   = "pirn.viz._explore_cli:main"
 
 [project.optional-dependencies]
 dev = [

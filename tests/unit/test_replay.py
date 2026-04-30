@@ -32,7 +32,7 @@ def build_tapestry(history=None):
 
 @pytest.mark.asyncio
 async def test_replay_run_produces_same_result():
-    history = SQLiteHistory()
+    history = SQLiteHistory(path=":memory:")
     t = build_tapestry(history=history)
 
     params = {"x": 5, "b": 3}
@@ -51,7 +51,7 @@ async def test_replay_run_produces_same_result():
 
 @pytest.mark.asyncio
 async def test_replay_run_with_override_changes_output():
-    history = SQLiteHistory()
+    history = SQLiteHistory(path=":memory:")
     t = build_tapestry(history=history)
 
     params = {"x": 5, "b": 3}
@@ -71,7 +71,7 @@ async def test_replay_run_with_override_changes_output():
 
 @pytest.mark.asyncio
 async def test_replay_run_raises_for_unknown_run_id():
-    history = SQLiteHistory()
+    history = SQLiteHistory(path=":memory:")
     t = build_tapestry(history=history)
 
     with pytest.raises(KeyError, match="not found"):
@@ -85,7 +85,7 @@ async def test_replay_run_raises_for_unknown_run_id():
 
 @pytest.mark.asyncio
 async def test_replay_run_accepts_custom_run_id():
-    history = SQLiteHistory()
+    history = SQLiteHistory(path=":memory:")
     t = build_tapestry(history=history)
 
     params = {"x": 2, "b": 1}
@@ -107,7 +107,7 @@ async def test_replay_run_accepts_custom_run_id():
 
 @pytest.mark.asyncio
 async def test_compare_runs_identical_shows_no_changes():
-    history = SQLiteHistory()
+    history = SQLiteHistory(path=":memory:")
     t = build_tapestry(history=history)
 
     params = {"x": 3, "b": 7}
@@ -120,7 +120,7 @@ async def test_compare_runs_identical_shows_no_changes():
 
 @pytest.mark.asyncio
 async def test_compare_runs_detects_changed_output():
-    history = SQLiteHistory()
+    history = SQLiteHistory(path=":memory:")
     t = build_tapestry(history=history)
 
     r1 = await t.run(RunRequest(parameters={"x": 3, "b": 1}))
@@ -136,7 +136,7 @@ async def test_compare_runs_detects_changed_output():
 
 @pytest.mark.asyncio
 async def test_compare_runs_unchanged_knot_not_flagged():
-    history = SQLiteHistory()
+    history = SQLiteHistory(path=":memory:")
     t = build_tapestry(history=history)
 
     # Only b changes — double is unaffected

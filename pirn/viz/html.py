@@ -25,6 +25,38 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from pirn.core.run_result import RunResult
+    from pirn.tapestry import Tapestry
+
+
+def html_for_tapestry(tapestry: Tapestry, title: str | None = None) -> str:
+    """Render a ``Tapestry`` structure to a standalone HTML document.
+
+    Shows the pipeline graph before a run — all nodes in neutral (pending)
+    color with no outcome data.  Useful for inspecting topology.
+    """
+    title = title or "pirn pipeline"
+    knots = tapestry._store.all()
+
+    nodes = [{"id": k.knot_id, "class": _short(type(k).__qualname__), "outcome": "pending",
+               "duration_ms": 0, "output_hash": "", "config_hash": "", "error_record_id": "", "skip_reason": ""}
+             for k in knots]
+
+    edges = []
+    for k in knots:
+        for input_name, parent in k.parents.items():
+            edges.append({"from": parent.knot_id, "to": k.knot_id})
+
+    layers = _layer_nodes(nodes, edges)
+    coords = _assign_coordinates(layers)
+    svg = _render_svg(nodes, edges, coords)
+
+    summary = (
+        f'<div class="summary">'
+        f'<span class="label">pipeline</span> {html.escape(title)}'
+        f' &nbsp;·&nbsp; <span class="label">knots</span> {len(knots)}'
+        f'</div>'
+    )
+    return _DOCUMENT.format(title=html.escape(title), summary=summary, svg=svg, css=_CSS, js=_JS)
 
 
 def html_for_run(result: RunResult, title: str | None = None) -> str:

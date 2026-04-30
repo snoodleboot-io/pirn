@@ -38,19 +38,19 @@ async def _run_n(history, n: int) -> None:
 
 @pytest.mark.benchmark(group="lineage-sqlite")
 def test_bench_sqlite_lineage_10(benchmark):
-    history = SQLiteHistory()
+    history = SQLiteHistory(path=":memory:")
     benchmark(lambda: asyncio.run(_run_n(history, 10)))
 
 
 @pytest.mark.benchmark(group="lineage-sqlite")
 def test_bench_sqlite_lineage_100(benchmark):
-    history = SQLiteHistory()
+    history = SQLiteHistory(path=":memory:")
     benchmark(lambda: asyncio.run(_run_n(history, 100)))
 
 
 @pytest.mark.benchmark(group="lineage-sqlite")
 def test_bench_sqlite_lineage_1000(benchmark):
-    history = SQLiteHistory()
+    history = SQLiteHistory(path=":memory:")
     benchmark(lambda: asyncio.run(_run_n(history, 1000)))
 
 
