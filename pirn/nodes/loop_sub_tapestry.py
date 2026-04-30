@@ -64,7 +64,7 @@ _TERMINAL_ID = "__loop_terminal__"
 class _LoopTerminal(Knot):
     """Identity knot — marks loop completion and surfaces the final state."""
 
-    async def process(self, state: Any, **_: Any) -> Any:
+    async def process(self, state: Any, **_: Any) -> Any:  # type: ignore[override]
         return state
 
 
@@ -101,7 +101,7 @@ class _IterationChainKnot(SubTapestry):
         if _outer_history is not None:
             object.__setattr__(self, "_mutable_outer_history", _outer_history)
 
-    async def process(self, state: Any, **_: Any) -> Any:
+    async def process(self, state: Any, **_: Any) -> Any:  # type: ignore[override]
         loop: LoopSubTapestry = object.__getattribute__(self, "_mutable_loop_sub")  # type: ignore[type-arg]
         iter_tapestry: Tapestry = object.__getattribute__(self, "_mutable_iter_tapestry")
         iteration_idx: int = object.__getattribute__(self, "_mutable_iteration_idx")
@@ -168,7 +168,7 @@ class LoopSubTapestry(SubTapestry, Generic[S]):
         """
         return f"step_{idx}"
 
-    async def process(self, state: Any, **_: Any) -> Any:
+    async def process(self, state: Any, **_: Any) -> Any:  # type: ignore[override]
         from pirn.tapestry import Tapestry
 
         first_outcome = self.step(state)

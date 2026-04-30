@@ -13,8 +13,8 @@ from typing import Any
 class TapestryGraph:
     name: str
     source: str
-    nodes: list[dict[str, str]] = field(default_factory=list)
-    edges: list[dict[str, str]] = field(default_factory=list)
+    nodes: list[dict[str, Any]] = field(default_factory=list)
+    edges: list[dict[str, Any]] = field(default_factory=list)
     error: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
@@ -157,7 +157,7 @@ def _load_runs_from_db(db_path: Path, limit: int = 200) -> list[dict[str, Any]]:
 
             # Load exceptions keyed by id from the run payload_json, and
             # extract child_run_ids: {knot_id: run_id} from outputs.
-            child_run_ids: dict[str, str] = {}
+            child_run_ids: dict[str, Any] = {}
             try:
                 run_payload = _json.loads(
                     conn.execute(
@@ -266,8 +266,8 @@ def _knot_description(knot: Any) -> str:
 def _tapestry_to_graph(tapestry: Any, name: str, source: str) -> TapestryGraph:
     from pirn.nodes.sub_tapestry import SubTapestry as _SubTapestry
 
-    nodes: list[dict[str, str]] = []
-    edges: list[dict[str, str]] = []
+    nodes: list[dict[str, Any]] = []
+    edges: list[dict[str, Any]] = []
     for knot in tapestry._store.all():
         nodes.append(
             {

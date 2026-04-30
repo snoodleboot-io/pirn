@@ -120,7 +120,7 @@ class WithContinuation(Knot):
         # precedence if they supply their own "end" knot.
         object.__setattr__(self, "_mutable_pool", {END: _EndKnot, **pool})
 
-    async def process(self, result: Any, **_: Any) -> Any:
+    async def process(self, result: Any, **_: Any) -> Any:  # type: ignore[override]
         fn: ContinuationFn = object.__getattribute__(self, "_mutable_fn")
         pool: Pool = object.__getattribute__(self, "_mutable_pool")
 
