@@ -32,6 +32,7 @@ explicitly.
 
 from __future__ import annotations
 
+import asyncio
 import inspect
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, get_type_hints
@@ -44,6 +45,7 @@ from pirn.core.ok import Ok
 from pirn.core.optional import Optional
 from pirn.core.result import Result
 from pirn.managers.exception_record import ExceptionRecord
+from pirn.nodes.map_markers import DictMap, Map, MapTypeError, ZipMap
 
 if TYPE_CHECKING:
     from pirn.tapestry import Tapestry
@@ -104,6 +106,49 @@ class Knot:
             )
 
         explicit_tapestry: Tapestry | None = kwargs.pop("tapestry", None)
+
+        # Detect and extract distribution markers (Map, ZipMap, DictMap) first,
+        # before signature validation, so markers on declared inputs are treated
+        # as Knot parents rather than non-Knot config errors.
+        mapped_inputs: dict[str, type] = {}
+        marker_sources: dict[str, Any] = {}
+        resolved_kwargs: dict[str, Any] = {}
+        for name, value in kwargs.items():
+            if isinstance(value, (Map, ZipMap, DictMap)):
+                mapped_inputs[name] = type(value)
+                marker_sources[name] = value.source
+                resolved_kwargs[name] = value.source
+            else:
+                resolved_kwargs[name] = value
+        kwargs = resolved_kwargs
+
+        # Validate marker consistency.
+        if mapped_inputs:
+            marker_types = set(mapped_inputs.values())
+            if len(marker_types) > 1:
+                raise TypeError(
+                    f"{type(self).__name__}({config.id!r}): cannot mix "
+                    "Map, ZipMap, and DictMap markers on the same knot"
+                )
+            sole_type = next(iter(marker_types))
+            if sole_type is Map and len(mapped_inputs) > 1:
+                raise TypeError(
+                    f"{type(self).__name__}({config.id!r}): multiple Map-annotated "
+                    "inputs would produce a cross-product; use ZipMap to zip "
+                    "multiple collections element-wise"
+                )
+            if sole_type is DictMap and len(mapped_inputs) != 2:
+                raise TypeError(
+                    f"{type(self).__name__}({config.id!r}): DictMap requires exactly "
+                    "two annotated inputs (key-receiver and value-receiver)"
+                )
+            if sole_type is DictMap:
+                dict_sources = list(marker_sources.values())
+                if dict_sources[0] is not dict_sources[1]:
+                    raise TypeError(
+                        f"{type(self).__name__}({config.id!r}): both DictMap inputs "
+                        "must reference the same source knot"
+                    )
 
         # Validate the remaining kwargs against process()'s signature.
         # follow_wrapped=True: for @knot classes, inspect the user's original
@@ -175,6 +220,7 @@ class Knot:
         self._mutable_config_values = config_values
         self._mutable_input_adapters = input_adapters
         self._mutable_output_adapter = output_adapter
+        self._mutable_mapped_inputs: dict[str, type] = mapped_inputs
 
         # Self-register with the active tapestry (if any) or with the
         # explicitly passed one.  Done last so the knot is fully built
@@ -244,6 +290,16 @@ class Knot:
         # but be explicit).
         kwargs: dict[str, Any] = dict(self._mutable_config_values)
         kwargs.update(parent_results)
+
+        # Fan-out path: one or more inputs are distribution markers.
+        # Must happen before input validation — the collection type does not
+        # match the declared per-element type.
+        if self._mutable_mapped_inputs:
+            try:
+                outputs = await self._fan_out(kwargs)
+            except BaseException as exc:
+                return Err(record=ExceptionRecord.for_knot(config.id, exc))
+            return Ok(value=outputs)
 
         if config.validate_io:
             try:
@@ -336,6 +392,55 @@ class Knot:
             adapter = self._mutable_input_adapters.get(name)
             out[name] = adapter.validate_python(value) if adapter else value
         return out
+
+    async def _fan_out(self, kwargs: dict[str, Any]) -> list[Any]:
+        """Execute process() once per element, returning list[output].
+
+        Raises MapTypeError if a collection has the wrong type.
+        Propagates the first process() exception (cancels remaining tasks).
+        """
+        mapped = self._mutable_mapped_inputs
+        sole_type = next(iter(mapped.values()))
+
+        if sole_type is Map:
+            (input_name,) = mapped.keys()
+            collection = kwargs[input_name]
+            if not isinstance(collection, (list, tuple)):
+                raise MapTypeError(
+                    f"{type(self).__name__}({self.knot_id!r}): Map requires a list "
+                    f"or tuple, got {type(collection).__name__!r}. "
+                    "To use a set, sort it into a list upstream."
+                )
+            coros = [self.process(**{**kwargs, input_name: element}) for element in collection]
+
+        elif sole_type is ZipMap:
+            names = list(mapped.keys())
+            collections = [kwargs[n] for n in names]
+            for n, coll in zip(names, collections):
+                if not isinstance(coll, (list, tuple)):
+                    raise MapTypeError(
+                        f"{type(self).__name__}({self.knot_id!r}): ZipMap input "
+                        f"{n!r} requires a list or tuple, got {type(coll).__name__!r}"
+                    )
+            coros = [
+                self.process(**{**kwargs, **dict(zip(names, elements))})
+                for elements in zip(*collections)
+            ]
+
+        else:  # DictMap
+            (key_name, val_name) = mapped.keys()
+            the_dict = kwargs[key_name]  # both inputs resolve to the same dict
+            if not isinstance(the_dict, dict):
+                raise MapTypeError(
+                    f"{type(self).__name__}({self.knot_id!r}): DictMap requires a "
+                    f"dict, got {type(the_dict).__name__!r}"
+                )
+            coros = [
+                self.process(**{**kwargs, key_name: k, val_name: v}) for k, v in the_dict.items()
+            ]
+
+        results = await asyncio.gather(*coros)
+        return list(results)
 
     # ------------------------------------------------------------- mutation
 

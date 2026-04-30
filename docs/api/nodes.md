@@ -9,7 +9,9 @@ Specialised node classes beyond the base `Knot`.
 | `Aggregator` | N parents combined via a `combine` callable |
 | `Branch` | One input + selector → tagged path; non-selected paths are skipped |
 | `Gate` | One input + predicate → pass through or skip |
-| `Map` | Wraps an inner knot, applying it per-element of a parent's list |
+| `Map` | Distribute a knot over an ordered collection (list/tuple) |
+| `ZipMap` | Distribute a knot over multiple collections element-wise |
+| `DictMap` | Distribute a knot over the entries of a dict |
 | `Reduce` | Folds a list parent into one value (whole-list or pairwise) |
 | `SubTapestry` | A knot whose execution body is a complete inner tapestry pipeline |
 
@@ -111,26 +113,52 @@ publish(data=quality_gate, _config=KnotConfig(id="publish"))
 
 ---
 
-## Map
+## Map / ZipMap / DictMap
 
-::: pirn.nodes.map_.Map
+Distribution markers placed at wiring time on a knot's input arguments.
+They are **not knots** — they are plain Python objects that instruct the
+engine to fan a knot out over a collection.  The annotated knot appears in
+the graph and lineage as itself; its `process` signature is typed for a
+single element.
+
+::: pirn.nodes.map_markers.Map
     options:
       show_source: false
-      members_order: source
+      heading_level: 3
+
+::: pirn.nodes.map_markers.ZipMap
+    options:
+      show_source: false
+      heading_level: 3
+
+::: pirn.nodes.map_markers.DictMap
+    options:
+      show_source: false
       heading_level: 3
 
 ### Example
 
 ```python
-from pirn import Map, KnotConfig
+from pirn.nodes.map_markers import Map, ZipMap, DictMap
+from pirn import KnotConfig
 
-enriched = Map(
-    over=record_ids_knot,    # produces list[str]
-    each=enrich_record,      # applied to each element
-    bind="record_id",        # name to bind each element to in process()
-    _config=KnotConfig(id="enriched"),
-)
+# Map: fan over a single ordered collection
+analysed = analyse_sample(sample=Map(batch), _config=KnotConfig(id="analyse"))
+
+# ZipMap: zip two collections element-wise
+result = process_pair(a=ZipMap(knot_a), b=ZipMap(knot_b), _config=KnotConfig(id="pairs"))
+
+# DictMap: iterate over dict entries (first annotated input = key, second = value)
+entries = process_entry(k=DictMap(lookup), v=DictMap(lookup), _config=KnotConfig(id="entries"))
 ```
+
+**Rules:**
+- `Map` requires a `list` or `tuple`; any other type raises `MapTypeError`.
+- Multiple `Map` annotations on different inputs of the same knot is a
+  construction-time `TypeError` (cross-product).
+- `Map` and `ZipMap` cannot be mixed on the same knot.
+- Both `DictMap` inputs must reference the same source knot.
+- Output type is always `list[T]`.
 
 **See also:** [`examples/lab_batch/lab_batch.py`](../../examples/lab_batch/lab_batch.py) — batch pathology sample processing with chained Maps.
 

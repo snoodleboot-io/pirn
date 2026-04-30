@@ -30,17 +30,17 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
-from pirn.nodes.map_ import Map
+from pirn.nodes.map_markers import Map
 from pirn.tapestry import Tapestry
 
 # ----------------------------------------------------------------- models
 
 REFERENCE_RANGES = {
-    "haemoglobin":  (120.0, 180.0),   # g/L
-    "white_cells":  (4.0,   11.0),    # ×10⁹/L
-    "platelets":    (150.0, 400.0),   # ×10⁹/L
-    "creatinine":   (60.0,  110.0),   # µmol/L
-    "glucose":      (3.9,   6.1),     # mmol/L
+    "haemoglobin": (120.0, 180.0),  # g/L
+    "white_cells": (4.0, 11.0),  # ×10⁹/L
+    "platelets": (150.0, 400.0),  # ×10⁹/L
+    "creatinine": (60.0, 110.0),  # µmol/L
+    "glucose": (3.9, 6.1),  # mmol/L
 }
 
 
@@ -49,7 +49,7 @@ class RawSample:
     sample_id: str
     patient_id: str
     collected_at: str
-    measurements: dict[str, float]   # biomarker → raw value
+    measurements: dict[str, float]  # biomarker → raw value
 
 
 @dataclass
@@ -57,15 +57,15 @@ class AnalysedSample:
     sample_id: str
     patient_id: str
     measurements: dict[str, float]
-    flags: list[str]                 # biomarkers outside reference range
-    critical: bool                   # any value critically abnormal
+    flags: list[str]  # biomarkers outside reference range
+    critical: bool  # any value critically abnormal
 
 
 @dataclass
 class SampleReport:
     sample_id: str
     patient_id: str
-    status: str                      # "normal" | "flagged" | "critical"
+    status: str  # "normal" | "flagged" | "critical"
     flags: list[str]
     narrative: str
 
@@ -154,21 +154,8 @@ def build_tapestry(history=None) -> Tapestry:
     with Tapestry(history=history) as t:
         batch = Parameter("batch", list, _config=KnotConfig(id="batch"))
 
-        # Map applies analyse_sample to every RawSample in the batch,
-        # then generate_report to every AnalysedSample — chained via
-        # intermediate Map nodes.
-        analysed = Map(
-            over=batch,
-            each=analyse_sample,
-            bind="sample",
-            _config=KnotConfig(id="analyse"),
-        )
-        reports = Map(
-            over=analysed,
-            each=generate_report,
-            bind="analysed",
-            _config=KnotConfig(id="report"),
-        )
+        analysed = analyse_sample(sample=Map(batch), _config=KnotConfig(id="analyse"))
+        reports = generate_report(analysed=Map(analysed), _config=KnotConfig(id="report"))
         summarise_batch(reports=reports, _config=KnotConfig(id="summary"))
     return t
 
@@ -182,17 +169,19 @@ def _make_batch(seed: int, n: int) -> list[RawSample]:
     for i in range(n):
         measurements = {
             "haemoglobin": rng.gauss(145, 20),
-            "white_cells":  rng.gauss(7.0, 2.5),
-            "platelets":    rng.gauss(260, 60),
-            "creatinine":   rng.gauss(82, 18),
-            "glucose":      rng.gauss(5.2, 1.4),
+            "white_cells": rng.gauss(7.0, 2.5),
+            "platelets": rng.gauss(260, 60),
+            "creatinine": rng.gauss(82, 18),
+            "glucose": rng.gauss(5.2, 1.4),
         }
-        samples.append(RawSample(
-            sample_id=f"S{seed:02d}-{i+1:03d}",
-            patient_id=f"P{rng.randint(1000, 9999)}",
-            collected_at="2026-04-30T07:00:00Z",
-            measurements={k: round(v, 2) for k, v in measurements.items()},
-        ))
+        samples.append(
+            RawSample(
+                sample_id=f"S{seed:02d}-{i + 1:03d}",
+                patient_id=f"P{rng.randint(1000, 9999)}",
+                collected_at="2026-04-30T07:00:00Z",
+                measurements={k: round(v, 2) for k, v in measurements.items()},
+            )
+        )
     return samples
 
 

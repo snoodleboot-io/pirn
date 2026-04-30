@@ -66,6 +66,7 @@ class Parameter(Knot):
         self._mutable_config_values = {}
         self._mutable_input_adapters = {}
         self._mutable_output_adapter = adapter
+        self._mutable_mapped_inputs: dict[str, type] = {}
         self._mutable_spec = spec
         self._mutable_value: Any = _Unset
 

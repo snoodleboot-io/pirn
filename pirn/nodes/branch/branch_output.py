@@ -36,6 +36,7 @@ class BranchOutput(Knot):
         self._mutable_config_values = {}
         self._mutable_input_adapters = {}
         self._mutable_output_adapter = None
+        self._mutable_mapped_inputs: dict = {}
 
         from pirn.tapestry import _CURRENT_TAPESTRY
 

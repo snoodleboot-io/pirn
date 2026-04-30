@@ -134,7 +134,14 @@ uv run python examples/lab_batch/lab_batch.py
 
 A pathology lab receives batches of patient samples, each containing multiple individual samples. Every sample must be independently analysed against reference ranges for five biomarkers and a per-sample report generated, then all reports are aggregated into a batch summary.
 
-The central concept here is `Map` — it applies the same multi-step analysis to every element in the list concurrently, without you having to write a loop or manage concurrency. Each element runs in parallel, and each has its own entry in the lineage so you can see exactly which samples flagged which biomarkers. Two batches are run (morning and afternoon), producing varied outcomes across both.
+The central concept here is the `Map` distribution marker — place it on a knot's input to fan the knot out over every element in the collection concurrently, without writing a loop or managing concurrency:
+
+```python
+analysed = analyse_sample(sample=Map(batch), _config=KnotConfig(id="analyse"))
+reports  = generate_report(analysed=Map(analysed), _config=KnotConfig(id="report"))
+```
+
+The knot appears in the graph and lineage as itself (`analyse_sample`, not `Map`). Its `process` method is typed for a single element; the engine handles the fan-out. Output is `list[T]`. Two batches are run (morning and afternoon), producing varied outcomes across both.
 
 ---
 
