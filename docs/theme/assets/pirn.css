@@ -734,10 +734,10 @@ a:hover { color: var(--teal); text-decoration: underline; text-underline-offset:
   letter-spacing: 0.08em;
   text-transform: lowercase;
   background: linear-gradient(90deg, #22C5D8 0%, #C43878 50%, #E8622A 100%);
-  background-size: 200% auto;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  display: inline-block;
 }
 
 .content .pirn-hero .tagline, .content .pirn-tagline {
