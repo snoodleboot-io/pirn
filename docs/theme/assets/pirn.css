@@ -739,7 +739,7 @@ a:hover { color: var(--teal); text-decoration: underline; text-underline-offset:
   background-clip: text;
 }
 
-.content .pirn-hero .tagline {
+.content .pirn-hero .tagline, .content .pirn-tagline {
   font-size: 1rem;
   color: var(--text-dim);
   max-width: 500px;

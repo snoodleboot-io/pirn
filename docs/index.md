@@ -1,9 +1,3 @@
----
-hide:
-  - navigation
-  - toc
----
-
 <div id="hero" class="pirn-hero">
 <h1>pirn</h1>
 <p class="pirn-tagline">A pipeline framework where everything is a knot.</p>
