@@ -134,20 +134,20 @@ Every value that flows through a pipeline is identified by `sha256:<hex-digest>`
 ```mermaid
 graph TD
     subgraph User[User API]
-        KnotCls["Knot (ABC)<br/>pirn/core/knot.py"]
+        KnotCls["Knot ABC"]
         KnotDec["@knot decorator"]
-        Tap["Tapestry<br/>pirn/tapestry.py"]
+        Tap["Tapestry"]
         KnotCfg["KnotConfig / ErrorPolicy"]
     end
 
     subgraph Graph[Pipeline Graph]
-        Shed2["Shed<br/>pirn/engine/shed.py"]
+        Shed2["Shed"]
         Edge["Edge (Pydantic)"]
         ParamK["Parameter"]
     end
 
     subgraph Exec[Execution]
-        Engine2["Engine<br/>pirn/engine/engine.py"]
+        Engine2["Engine"]
         LocalDisp["LocalDispatcher"]
         ThreadDisp["ThreadDispatcher"]
         CeleryDisp["CeleryDispatcher"]

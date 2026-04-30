@@ -17,12 +17,12 @@ The pipeline graph looks like this:
 
 ```mermaid
 graph LR
-    text["text<br/>(Parameter)"]
-    score["score_text<br/>(Knot)"]
-    route["route<br/>(Branch)"]
-    handle_ok["handle_clean<br/>(Knot)"]
-    handle_toxic["handle_toxic<br/>(Knot)"]
-    audit["audit_log<br/>(Sink)"]
+    text([text])
+    score[score_text]
+    route{route}
+    handle_ok[handle_clean]
+    handle_toxic[handle_toxic]
+    audit([audit_log])
 
     text --> score
     score --> route
