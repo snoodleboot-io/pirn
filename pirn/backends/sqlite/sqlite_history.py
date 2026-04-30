@@ -91,9 +91,7 @@ class SQLiteHistory(RunHistory):
         """Add nesting columns for SubTapestry parent linking."""
         conn.execute("ALTER TABLE runs ADD COLUMN parent_run_id TEXT")
         conn.execute("ALTER TABLE runs ADD COLUMN parent_knot_id TEXT")
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_runs_parent ON runs(parent_run_id)"
-        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_runs_parent ON runs(parent_run_id)")
 
     def __init__(self, *, path: str = "pirn.db", connection: Any = None) -> None:
         import sqlite3
@@ -178,9 +176,7 @@ class SQLiteHistory(RunHistory):
 
     async def get_run(self, run_id: str) -> Any:
         self._ensure_init()
-        cursor = self._conn.execute(
-            "SELECT payload_json FROM runs WHERE run_id = ?", (run_id,)
-        )
+        cursor = self._conn.execute("SELECT payload_json FROM runs WHERE run_id = ?", (run_id,))
         row = cursor.fetchone()
         if row is None:
             return None
@@ -216,9 +212,7 @@ class SQLiteHistory(RunHistory):
         self._ensure_init()
         from pirn.core.run_result import RunResult
 
-        cursor = self._conn.execute(
-            "SELECT payload_json FROM runs WHERE actor = ?", (actor,)
-        )
+        cursor = self._conn.execute("SELECT payload_json FROM runs WHERE actor = ?", (actor,))
         return [RunResult.model_validate_json(r[0]) for r in cursor.fetchall()]
 
     async def children_of(self, run_id: str) -> list[Any]:

@@ -53,8 +53,7 @@ class SubTapestryError(Exception):
         self.inner_result = inner_result
         n = len(inner_result.exceptions)
         super().__init__(
-            f"inner pipeline failed with {n} exception(s); "
-            f"run_id={inner_result.run_id!r}"
+            f"inner pipeline failed with {n} exception(s); run_id={inner_result.run_id!r}"
         )
 
 
@@ -104,9 +103,7 @@ class SubTapestry(Knot):
         from pirn.backends.in_memory.in_memory_history import InMemoryHistory
         from pirn.core.run_request import RunRequest
 
-        outer_history: RunHistory | None = object.__getattribute__(
-            self, "_mutable_outer_history"
-        )
+        outer_history: RunHistory | None = object.__getattribute__(self, "_mutable_outer_history")
         # Inject the outer history into the inner tapestry so inner runs are
         # recorded to the same store and appear in the explorer.
         if outer_history is not None and not isinstance(outer_history, InMemoryHistory):
