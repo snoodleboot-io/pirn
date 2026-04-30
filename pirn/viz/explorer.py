@@ -252,7 +252,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
       <button class="btn active" id="btn-vertical"   onclick="setOrientation('vertical')">&#x21D3; Vertical</button>
       <button class="btn"        id="btn-horizontal" onclick="setOrientation('horizontal')">&#x21D2; Horizontal</button>
       <button class="btn" id="btn-history" onclick="toggleHistory()">&#x23F3; Execution History</button>
-      <button class="btn" id="btn-theme"   onclick="toggleTheme()" title="Toggle light/dark mode">&#9788;</button>
+      <button class="btn" id="btn-theme"   onclick="toggleTheme()" title="Switch to light mode">&#x2600;&#xFE0F;</button>
       <div id="stats"></div>
     </div>
 
@@ -429,8 +429,10 @@ function setThemeSilent(t) {
   theme = t;
   document.documentElement.setAttribute('data-theme', t);
   const btn = document.getElementById('btn-theme');
-  btn.textContent = t === 'dark' ? '☀' : '☾';
-  btn.title = t === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+  if (btn) {
+    btn.textContent = t === 'dark' ? '☀' : '☾';
+    btn.title = t === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+  }
 }
 
 // ── History panel ─────────────────────────────────────────────────────────────
