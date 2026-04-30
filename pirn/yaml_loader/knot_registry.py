@@ -76,9 +76,3 @@ class KnotRegistry:
                 return e.class_def
         raise KeyError(f"KnotRegistry: no knot registered under {name!r}")
 
-    @classmethod
-    def clear(cls) -> None:
-        """Remove all pirn-registered entries (primarily for test isolation)."""
-        registry = Registry._Registry__registry  # type: ignore[attr-defined]
-        if isinstance(registry, dict):
-            registry.pop(cls._LIBRARY, None)
