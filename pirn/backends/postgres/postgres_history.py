@@ -24,6 +24,10 @@ class PostgresHistory(RunHistory):
             started_at TIMESTAMPTZ NOT NULL,
             finished_at TIMESTAMPTZ NOT NULL,
             dispatcher TEXT NOT NULL,
+            actor TEXT,
+            trigger TEXT,
+            environment_json TEXT,
+            runtime_info_json TEXT,
             payload_json JSONB NOT NULL
         );
         CREATE TABLE IF NOT EXISTS lineage (
