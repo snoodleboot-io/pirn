@@ -664,7 +664,7 @@ function _ttRow(id, val, prefix) {
 // ── Pinned knot detail (sidebar) ──────────────────────────────────────────────
 function showKnotDetail(node) {
   const el = document.getElementById('knot-detail');
-  let html = `<div id="knot-detail-inner">`;
+  let html = `<div id="knot-detail-inner">
     <div class="kd-header">
       <div>
         <div class="kd-class">${esc(node.class)}</div>
