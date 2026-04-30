@@ -267,7 +267,6 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 
     <div id="run-bar">
       <span id="run-bar-label"></span>
-      <span id="run-bar-clear" onclick="clearRun()">&#x2715; clear</span>
     </div>
   </div>
 
@@ -314,6 +313,7 @@ let orientation  = 'vertical';
 let historyOpen  = false;
 let selectedRun  = null;
 let theme        = 'dark';
+let savedRunIds  = {};  // tapestry name → run_id
 
 const NODE_W = 160, NODE_H = 52, GAP_X = 80, GAP_Y = 72;
 const LS_KEY = 'pirn-explorer-v2';
@@ -325,7 +325,7 @@ function saveState() {
       tapestry: current ? current.name : null,
       orientation,
       historyOpen,
-      runId: selectedRun ? selectedRun.run_id : null,
+      savedRunIds,
       theme,
     }));
   } catch (_) {}
@@ -347,17 +347,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (s.theme)       setThemeSilent(s.theme);
   if (s.orientation) setOrientationSilent(s.orientation);
-  if (s.historyOpen) openHistory();
+  if (s.savedRunIds) savedRunIds = s.savedRunIds;
 
   const resume = s.tapestry && TAPESTRIES.find(t => t.name === s.tapestry);
   const first  = resume || (TAPESTRIES.length ? TAPESTRIES[0] : null);
   if (first) {
     selectTapestry(first, /*save=*/false);
-    if (s.runId) {
-      const run = RUNS.find(r => r.run_id === s.runId);
-      if (run) selectRun(run, /*save=*/false);
-    }
   }
+  if (s.historyOpen) openHistory(/*save=*/false);
+  else if (first) renderGraph(); // ensure graph renders even without history
 });
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
@@ -383,8 +381,15 @@ function renderSidebar() {
 function selectTapestry(t, save = true) {
   current     = t;
   selectedRun = null;
-  updateRunBar();
 
+  // Restore saved run for this tapestry
+  if (historyOpen) {
+    const savedId = savedRunIds[t.name];
+    const runs    = runsForTapestry(t);
+    selectedRun   = (savedId && runs.find(r => r.run_id === savedId)) || runs[0] || null;
+  }
+
+  updateRunBar();
   document.querySelectorAll('.tapestry-item').forEach((el, i) => {
     el.classList.toggle('active', TAPESTRIES[i] === t);
   });
@@ -442,18 +447,31 @@ function toggleHistory() {
   historyOpen ? closeHistory() : openHistory();
 }
 
-function openHistory() {
+function openHistory(save = true) {
   historyOpen = true;
   document.getElementById('history-panel').classList.add('open');
   document.getElementById('btn-history').classList.add('active-hist');
-  if (current) renderRunList(current);
-  saveState();
+  if (current) {
+    // Auto-select saved run, or fall back to the first run
+    if (!selectedRun) {
+      const savedId = savedRunIds[current.name];
+      const runs    = runsForTapestry(current);
+      selectedRun   = (savedId && runs.find(r => r.run_id === savedId)) || runs[0] || null;
+    }
+    renderRunList(current);
+    updateRunBar();
+    renderGraph();
+  }
+  if (save) saveState();
 }
 
 function closeHistory() {
   historyOpen = false;
+  selectedRun = null;
   document.getElementById('history-panel').classList.remove('open');
   document.getElementById('btn-history').classList.remove('active-hist');
+  updateRunBar();
+  renderGraph();
   saveState();
 }
 
@@ -513,20 +531,13 @@ function renderRunList(tapestry) {
 // ── Run selection ─────────────────────────────────────────────────────────────
 function selectRun(run, save = true) {
   selectedRun = run;
+  if (current && run) savedRunIds[current.name] = run.run_id;
   document.querySelectorAll('.run-item').forEach((el, i) => {
     const runs = runsForTapestry(current);
     el.classList.toggle('active', runs[i] === run);
   });
   updateRunBar();
   if (save) saveState();
-  renderGraph();
-}
-
-function clearRun() {
-  selectedRun = null;
-  document.querySelectorAll('.run-item').forEach(el => el.classList.remove('active'));
-  updateRunBar();
-  saveState();
   renderGraph();
 }
 
