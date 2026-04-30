@@ -30,7 +30,7 @@ SAMPLES = [
 
 async def main() -> None:
     tapestry = load_pipeline(YAML_PATH.read_text())
-    history = SQLiteHistory()
+    history = SQLiteHistory(path=str(Path(__file__).parent.parent / "pirn.db"))
 
     for label, text in SAMPLES:
         print(f"\n── {label} ──")

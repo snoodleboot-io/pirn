@@ -82,6 +82,8 @@ handle_tool(payload=route["tool_call"], _config=KnotConfig(id="handle_tool"))
 handle_resp(payload=route["response"], _config=KnotConfig(id="handle_resp"))
 ```
 
+**See also:** [`examples/financial/loan_underwriting.py`](../../examples/financial/loan_underwriting.py) — Branch + Aggregator for loan underwriting track routing.
+
 ---
 
 ## Gate
@@ -129,6 +131,8 @@ enriched = Map(
     _config=KnotConfig(id="enriched"),
 )
 ```
+
+**See also:** [`examples/lab_batch/lab_batch.py`](../../examples/lab_batch/lab_batch.py) — batch pathology sample processing with chained Maps.
 
 ---
 

@@ -231,7 +231,7 @@ def _print_run(label: str, result: RunResult) -> None:
 
 
 async def main() -> None:
-    history = SQLiteHistory(path=str(Path(__file__).parent / "pirn.db"))
+    history = SQLiteHistory(path=str(Path(__file__).parent.parent / "pirn.db"))
     t = build_tapestry(history=history)
 
     happy_order = Order(

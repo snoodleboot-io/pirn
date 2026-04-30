@@ -123,3 +123,39 @@ A production-style chatbot backend modelled as a pirn tapestry. Each stage of ha
 The LLM calls use a fake Anthropic client by default so the example runs without any API key or network access. To wire in the real SDK, replace `_fake_llm_call()` with an `anthropic.AsyncAnthropic` call and set `ANTHROPIC_API_KEY` in your environment.
 
 The key thing this example illustrates is that pirn's dependency graph naturally encodes the latency-optimal execution order for an LLM pipeline — you do not have to manually orchestrate which calls can overlap. The lineage also gives you a full record of every turn: inputs, outputs, timing, and any errors, without writing any instrumentation code.
+
+---
+
+## lab_batch
+
+```bash
+uv run python examples/lab_batch/lab_batch.py
+```
+
+A pathology lab receives batches of patient samples, each containing multiple individual samples. Every sample must be independently analysed against reference ranges for five biomarkers and a per-sample report generated, then all reports are aggregated into a batch summary.
+
+The central concept here is `Map` — it applies the same multi-step analysis to every element in the list concurrently, without you having to write a loop or manage concurrency. Each element runs in parallel, and each has its own entry in the lineage so you can see exactly which samples flagged which biomarkers. Two batches are run (morning and afternoon), producing varied outcomes across both.
+
+---
+
+## financial
+
+### fraud_detection.py
+
+```bash
+uv run python examples/financial/fraud_detection.py
+```
+
+A fraud pipeline that runs a required core risk analysis on every transaction, then enriches the decision with three supplementary signals — device fingerprinting, geolocation cross-reference, and a third-party fraud bureau lookup. Any of these optional sources can be absent or unavailable (rate limits, no device ID for mobile web, etc.) without stopping the pipeline.
+
+This demonstrates `RECEIVE_ERRORS` error policy: the `decide` knot receives all its parents as `Result` objects rather than unwrapped values. It checks each optional signal with `isinstance(signal, Ok)` and uses the value only when it arrived. The five test transactions cover a range: clean approval, review cases, a mobile checkout with no device ID, a high-risk country transaction, and a blocked case. Open the explorer to see which nodes show `err` vs `skipped` vs `ok` across the runs.
+
+### loan_underwriting.py
+
+```bash
+uv run python examples/financial/loan_underwriting.py
+```
+
+A loan application is risk-assessed, then routed to one of three underwriting tracks (prime / near-prime / subprime) based on credit score, debt-to-income ratio, and employment history. Each track runs its own approval logic and produces a decision. An `Aggregator` collects all three tracks — exactly one will be `Ok`, the other two `Skipped` — and merges them into a final decision record.
+
+This is the `Branch` + `Aggregator` pattern: one result fans out into multiple possible flows, only one executes, and they converge back. The six test applications deliberately span all three tracks and include declines. In the explorer, the Branch node and its three outputs are visible in the graph — you can see `ok` on the selected track and `skipped` on the others for each run.
