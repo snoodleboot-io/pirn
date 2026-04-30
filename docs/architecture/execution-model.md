@@ -213,12 +213,12 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-    A[terminals list] --> B[BFS walk\nfrom terminals\nvia knot.parents]
-    B --> C[Collect all\nreachable knots]
-    C --> D[Build edge\nindices]
+    A[terminals list] --> B["BFS walk<br/>from terminals<br/>via knot.parents"]
+    B --> C["Collect all<br/>reachable knots"]
+    C --> D["Build edge<br/>indices"]
     D --> E[DFS cycle check]
     E -->|cycle found| F[ShedError raised]
-    E -->|no cycle| G[Kahn topological\norder + sort]
+    E -->|no cycle| G["Kahn topological<br/>order + sort"]
     G --> H[Shed ready]
 ```
 
