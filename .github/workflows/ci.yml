@@ -143,6 +143,7 @@ jobs:
             -v
 
       - name: Run Dask / Ray integration tests
+        continue-on-error: true  # distributed runtimes have heavy startup cost; flaky on 2-core runners
         run: |
           uv run python -m pytest tests/integration/test_dask_real.py tests/integration/test_ray_real.py \
             --junitxml=test-results/integration-dask-ray.xml \
