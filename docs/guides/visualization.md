@@ -106,7 +106,6 @@ The inner pipeline opens with its own node graph and execution history. The brea
 
 *The inner pipeline of `ValidateOrder` — `check_inventory` and `authorize_payment` — with its own node outcomes and breadcrumb navigation showing the path back to the outer tapestry.*
 
-
 The history panel updates as you navigate — it always shows runs that match the currently visible pipeline level.
 
 ---
