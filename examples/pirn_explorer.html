@@ -1,0 +1,4374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>pirn explorer</title>
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:          #0d0d0d;
+  --sidebar:     #0f0f1a;
+  --panel:       #0c0c1e;
+  --border:      #1e1e3a;
+  --purple:      #9d00ff;
+  --purple-lo:   #6600bb;
+  --purple-hi:   #cc44ff;
+  --orange:      #ff6600;
+  --orange-hi:   #ff8c33;
+  --text:        #e0e0ff;
+  --text-dim:    #777;
+  --ok:          #00cc66;
+  --err:         #ff3333;
+  --skip:        #666;
+  --tooltip-bg:  #08081a;
+  --tooltip-bd:  #9d00ff;
+}
+
+:root[data-theme="light"] {
+  --bg:          #f4f4f8;
+  --sidebar:     #ffffff;
+  --panel:       #f0f0f8;
+  --border:      #d0d0e0;
+  --purple:      #6600cc;
+  --purple-lo:   #4400aa;
+  --purple-hi:   #8800ee;
+  --orange:      #c84400;
+  --orange-hi:   #e05000;
+  --text:        #1a1a2e;
+  --text-dim:    #55557a;
+  --ok:          #007a3d;
+  --err:         #bb1111;
+  --skip:        #777;
+  --tooltip-bg:  #ffffff;
+  --tooltip-bd:  #6600cc;
+}
+
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'JetBrains Mono', 'Fira Code', monospace; overflow: hidden; }
+#app { display: flex; height: 100vh; }
+
+/* ── Left sidebar ──────────────────────────────────────────────────────── */
+#sidebar {
+  width: 220px; min-width: 180px; max-width: 300px;
+  background: var(--sidebar); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden; resize: horizontal;
+}
+#sidebar-header { padding: 14px 14px 10px; border-bottom: 1px solid var(--border); }
+#sidebar-title  { font-size: 15px; font-weight: 700; color: var(--purple); letter-spacing: 0.04em; }
+#sidebar-folder { font-size: 9px; color: var(--text-dim); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#sidebar-count  { font-size: 9px; color: var(--text-dim); margin-top: 2px; }
+#tapestry-list  { list-style: none; overflow-y: auto; flex: 1; padding: 6px 0; }
+#tapestry-list::-webkit-scrollbar { width: 3px; }
+#tapestry-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.tapestry-item {
+  padding: 9px 14px; cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: background 0.12s, border-color 0.12s;
+  font-size: 11px; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tapestry-item:hover  { background: rgba(157,0,255,0.08); border-left-color: var(--purple-lo); }
+.tapestry-item.active { background: rgba(157,0,255,0.15); border-left-color: var(--purple); color: var(--purple-hi); }
+.tapestry-item .item-source { display: block; font-size: 8px; color: var(--text-dim); margin-top: 2px; }
+.tapestry-item.has-error .item-name { color: var(--err); }
+
+/* ── Centre: topbar + graph ────────────────────────────────────────────── */
+#main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+
+#topbar {
+  height: 46px; min-height: 46px;
+  background: var(--sidebar); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 16px; gap: 10px; flex-shrink: 0;
+}
+#tapestry-title { font-size: 12px; font-weight: 600; color: var(--text); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ctrl-label { font-size: 9px; color: var(--text-dim); margin-right: 2px; }
+.btn {
+  padding: 4px 10px; font-size: 10px; font-family: inherit;
+  background: var(--panel); border: 1px solid var(--border);
+  color: var(--text-dim); border-radius: 4px; cursor: pointer; transition: all 0.12s; white-space: nowrap;
+}
+.btn:hover        { border-color: var(--purple); color: var(--text); }
+.btn.active       { background: rgba(157,0,255,0.2); border-color: var(--purple); color: var(--purple-hi); }
+.btn.active-hist  { background: rgba(255,102,0,0.15); border-color: var(--orange); color: var(--orange-hi); }
+.btn-theme { border-color: var(--text-dim); color: var(--text); font-size: 13px; padding: 3px 9px; }
+.btn-theme:hover { border-color: var(--orange); color: var(--orange); }
+#stats { font-size: 9px; color: var(--text-dim); white-space: nowrap; }
+
+#loom { flex: 1; position: relative; background: var(--bg); overflow: hidden; }
+#loom-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+/* ── Run overlay bar ───────────────────────────────────────────────────── */
+#run-bar {
+  height: 34px; min-height: 34px;
+  background: rgba(255,102,0,0.08); border-top: 1px solid rgba(255,102,0,0.3);
+  display: flex; align-items: center; padding: 0 14px; gap: 10px; flex-shrink: 0;
+  display: none;
+}
+#run-bar.visible { display: flex; }
+#run-bar-label { font-size: 10px; color: var(--orange); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#run-bar-clear { font-size: 10px; color: var(--text-dim); cursor: pointer; padding: 2px 6px; border: 1px solid var(--border); border-radius: 3px; }
+#run-bar-clear:hover { border-color: var(--orange); color: var(--orange); }
+
+/* ── Right history panel ───────────────────────────────────────────────── */
+#history-panel {
+  width: 0; overflow: hidden;
+  background: var(--sidebar); border-left: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  transition: width 0.2s ease;
+  flex-shrink: 0;
+}
+#history-panel.open { width: 300px; }
+
+#history-header {
+  padding: 12px 14px 10px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+}
+#history-header-title { font-size: 11px; font-weight: 700; color: var(--orange); flex: 1; white-space: nowrap; }
+#history-close { font-size: 14px; cursor: pointer; color: var(--text-dim); line-height: 1; }
+#history-close:hover { color: var(--text); }
+
+#history-run-count { font-size: 9px; color: var(--text-dim); padding: 6px 14px; border-bottom: 1px solid var(--border); white-space: nowrap; flex-shrink: 0; }
+
+#run-list { overflow-y: auto; flex: 1; }
+#run-list::-webkit-scrollbar { width: 3px; }
+#run-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.run-item {
+  padding: 10px 14px; cursor: pointer;
+  border-left: 3px solid transparent;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.12s;
+}
+.run-item:hover  { background: rgba(255,102,0,0.07); }
+.run-item.active { background: rgba(255,102,0,0.12); border-left-color: var(--orange); }
+
+.run-item-header { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.run-status { font-size: 11px; font-weight: 700; }
+.run-status.ok  { color: var(--ok); }
+.run-status.err { color: var(--err); }
+.run-time { font-size: 10px; color: var(--text); flex: 1; }
+.run-duration { font-size: 9px; color: var(--text-dim); white-space: nowrap; }
+.run-id { font-size: 8px; color: var(--text-dim); }
+.run-knot-summary { font-size: 9px; color: var(--text-dim); display: flex; gap: 8px; margin-top: 3px; }
+.run-knot-summary .ok-count   { color: var(--ok); }
+.run-knot-summary .err-count  { color: var(--err); }
+.run-knot-summary .skip-count { color: var(--skip); }
+
+.no-runs { padding: 20px 14px; font-size: 11px; color: var(--text-dim); text-align: center; line-height: 1.6; }
+
+/* ── D3 node/edge styles ───────────────────────────────────────────────── */
+.node-group { cursor: pointer; }
+.thread-path  { fill: none; stroke: var(--purple); stroke-width: 1.5px; stroke-opacity: 0.55; }
+.thread-label { fill: var(--orange); font-size: 9px; font-family: inherit; pointer-events: none; }
+.node-class { fill: var(--orange); font-size: 9px; font-family: inherit; pointer-events: none; }
+.node-id    { fill: var(--text);   font-size: 11px; font-family: inherit; font-weight: 600; pointer-events: none; }
+.node-outcome-badge { font-size: 9px; font-family: inherit; pointer-events: none; }
+.empty-msg { fill: var(--text-dim); font-size: 13px; font-family: inherit; }
+.error-msg { fill: var(--err);      font-size: 12px; font-family: inherit; }
+
+/* ── Tooltip ───────────────────────────────────────────────────────────── */
+#tooltip {
+  position: fixed; pointer-events: none; opacity: 0; z-index: 9999;
+  background: var(--tooltip-bg); border: 1px solid var(--tooltip-bd); border-radius: 8px;
+  padding: 10px 14px; font-size: 11px; color: var(--text); max-width: 300px;
+  transition: opacity 0.1s;
+  box-shadow: 0 0 18px rgba(157,0,255,0.2), 0 4px 16px rgba(0,0,0,0.25);
+}
+#tooltip.visible { opacity: 1; }
+.tt-class   { color: var(--orange);     font-size: 9px;  margin-bottom: 2px; }
+.tt-id      { color: var(--purple-hi);  font-size: 13px; font-weight: 700; margin-bottom: 4px; word-break: break-all; }
+.tt-desc    { color: var(--text-dim);   font-size: 9px;  font-style: italic; margin-bottom: 7px; line-height: 1.4; }
+.tt-divider { border: none; border-top: 1px solid var(--border); margin: 7px 0; }
+.tt-row     { color: var(--text-dim);   font-size: 9px;  margin-top: 3px; line-height: 1.5; }
+.tt-row span { color: var(--text); }
+.tt-outcome-ok   { color: var(--ok);  font-weight: 700; }
+.tt-outcome-err  { color: var(--err); font-weight: 700; }
+.tt-outcome-skip { color: var(--skip); font-weight: 700; }
+
+/* ── Knot detail panel (overlays loom, left edge) ─────────────────────── */
+#knot-detail {
+  position: absolute; left: 0; top: 0; bottom: 0; z-index: 10;
+  width: 0; overflow: hidden;
+  background: var(--sidebar);
+  box-shadow: 2px 0 12px rgba(0,0,0,0.4);
+  transition: width 0.2s ease;
+  font-size: 11px;
+}
+#knot-detail.visible { width: 220px; overflow-y: auto; }
+#knot-detail::-webkit-scrollbar { width: 3px; }
+#knot-detail::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+#knot-detail-inner { padding: 12px 14px; min-width: 220px; }
+.kd-header { display: flex; justify-content: flex-end; margin-bottom: 6px; }
+.kd-close { font-size: 13px; cursor: pointer; color: var(--text-dim); line-height: 1; }
+.kd-close:hover { color: var(--text); }
+.kd-divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
+.kd-w-desc { color: var(--text-dim); font-size: 9px; font-style: italic; line-height: 1.4; margin: 3px 0 6px 0; }
+
+/* 7W row: label + value in a compact two-column layout */
+.kd-w-row {
+  display: grid; grid-template-columns: 38px 1fr; gap: 4px;
+  margin-bottom: 5px; align-items: start;
+}
+.kd-w-label {
+  font-size: 8px; font-weight: 700; letter-spacing: 0.07em;
+  color: var(--orange); padding-top: 1px; white-space: nowrap;
+}
+.kd-w-value { font-size: 10px; color: var(--text); word-break: break-word; line-height: 1.45; }
+.kd-w-dim   { color: var(--text-dim); font-size: 9px; }
+.w-ok   { color: var(--ok);     font-weight: 700; }
+.w-err  { color: var(--err);    font-weight: 700; }
+.w-skip { color: var(--skip);   font-weight: 700; }
+.kd-hash     { font-size: 8px; color: var(--text-dim); font-family: monospace; margin-top: 3px; word-break: break-all; }
+.kd-exc-type { font-size: 10px; font-weight: 700; color: var(--err); margin-top: 4px; }
+.kd-exc-msg  { font-size: 9px; color: var(--text); margin-top: 2px; line-height: 1.4; word-break: break-word; }
+.kd-exc-tb   {
+  font-size: 8px; color: var(--text-dim); font-family: monospace;
+  margin-top: 6px; padding: 6px 8px;
+  background: rgba(0,0,0,0.25); border-radius: 4px;
+  border-left: 2px solid var(--err);
+  white-space: pre-wrap; word-break: break-all;
+  max-height: 180px; overflow-y: auto; line-height: 1.4;
+}
+:root[data-theme="light"] .kd-exc-tb { background: #fff0f0; }
+
+/* ── Empty state ───────────────────────────────────────────────────────── */
+#empty-state {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 10px; color: var(--text-dim); font-size: 13px; pointer-events: none;
+}
+#empty-state.hidden { display: none; }
+.empty-icon { font-size: 42px; line-height: 1; }
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- Left sidebar -->
+  <div id="sidebar">
+    <div id="sidebar-header">
+      <div id="sidebar-title">&#x25C6; pirn explorer</div>
+      <div id="sidebar-folder"></div>
+      <div id="sidebar-count"></div>
+    </div>
+    <ul id="tapestry-list"></ul>
+  </div>
+
+  <!-- Centre -->
+  <div id="main">
+    <div id="topbar">
+      <span id="tapestry-title">Select a tapestry</span>
+      <span class="ctrl-label">ORIENTATION</span>
+      <button class="btn active" id="btn-vertical"   onclick="setOrientation('vertical')">&#x21D3; Vertical</button>
+      <button class="btn"        id="btn-horizontal" onclick="setOrientation('horizontal')">&#x21D2; Horizontal</button>
+      <button class="btn" id="btn-history" onclick="toggleHistory()">&#x23F3; Execution History</button>
+      <button class="btn btn-theme" id="btn-theme" onclick="toggleTheme()" title="Switch to light mode">&#x263D; Dark</button>
+      <div id="stats"></div>
+    </div>
+
+    <div id="loom">
+      <div id="knot-detail"></div>
+      <div id="empty-state">
+        <div class="empty-icon">&#x25C6;</div>
+        <div>Select a tapestry from the left</div>
+      </div>
+    </div>
+
+    <div id="run-bar">
+      <span id="run-bar-label"></span>
+    </div>
+  </div>
+
+  <!-- Right history panel -->
+  <div id="history-panel">
+    <div id="history-header">
+      <span id="history-header-title">&#x23F3; Execution History</span>
+      <span id="history-close" onclick="toggleHistory()">&#x2715;</span>
+    </div>
+    <div id="history-run-count"></div>
+    <div id="run-list"></div>
+  </div>
+</div>
+
+<div id="tooltip">
+  <div class="tt-class" id="tt-class"></div>
+  <div class="tt-id"    id="tt-id"></div>
+  <div class="tt-desc"  id="tt-desc"></div>
+  <hr  class="tt-divider" id="tt-run-divider" style="display:none">
+  <div class="tt-row"   id="tt-outcome"></div>
+  <div class="tt-row"   id="tt-duration"></div>
+  <div class="tt-row"   id="tt-hash"></div>
+  <div class="tt-row"   id="tt-skip"></div>
+  <div class="tt-row"   id="tt-err-rec"></div>
+  <hr  class="tt-divider" id="tt-run-meta-divider" style="display:none">
+  <div class="tt-row"   id="tt-run-id"></div>
+  <div class="tt-row"   id="tt-run-dispatcher"></div>
+  <div class="tt-row"   id="tt-run-actor"></div>
+  <div class="tt-row"   id="tt-run-host"></div>
+  <div class="tt-row"   id="tt-run-python"></div>
+  <div class="tt-row"   id="tt-run-pirn"></div>
+  <div class="tt-row"   id="tt-inputs"></div>
+  <div class="tt-row"   id="tt-outputs"></div>
+</div>
+
+<script>
+const DATA        = {
+  "tapestries": [
+    {
+      "name": "content_moderation",
+      "source": "content_moderation/tapestry.yaml",
+      "nodes": [
+        {
+          "id": "raw_text",
+          "class": "Parameter",
+          "description": "A knot that produces a parameter's value at run start."
+        },
+        {
+          "id": "normalise",
+          "class": "normalise",
+          "description": "Strip and lowercase the input text."
+        },
+        {
+          "id": "check_pii",
+          "class": "check_pii",
+          "description": "Return True if the text contains personally identifiable information."
+        },
+        {
+          "id": "check_profanity",
+          "class": "check_profanity",
+          "description": "Return True if the text contains known profanity."
+        },
+        {
+          "id": "detect_language",
+          "class": "detect_language",
+          "description": "Detect language from character set (stub: returns 'en' or 'unknown')."
+        },
+        {
+          "id": "score_toxicity",
+          "class": "score_toxicity",
+          "description": "Compute a simple heuristic toxicity score (0.0 - 1.0)."
+        },
+        {
+          "id": "classify",
+          "class": "classify",
+          "description": "Combine individual signals into a structured ContentFlags record."
+        },
+        {
+          "id": "decide",
+          "class": "decide",
+          "description": "Apply moderation policy and return a final decision."
+        },
+        {
+          "id": "audit_log",
+          "class": "audit_log",
+          "description": "Emit an audit log entry and return a summary string."
+        }
+      ],
+      "edges": [
+        {
+          "source": "raw_text",
+          "target": "normalise",
+          "label": "raw_text"
+        },
+        {
+          "source": "normalise",
+          "target": "check_pii",
+          "label": "text"
+        },
+        {
+          "source": "normalise",
+          "target": "check_profanity",
+          "label": "text"
+        },
+        {
+          "source": "normalise",
+          "target": "detect_language",
+          "label": "text"
+        },
+        {
+          "source": "normalise",
+          "target": "score_toxicity",
+          "label": "text"
+        },
+        {
+          "source": "check_profanity",
+          "target": "classify",
+          "label": "has_profanity"
+        },
+        {
+          "source": "check_pii",
+          "target": "classify",
+          "label": "has_pii"
+        },
+        {
+          "source": "score_toxicity",
+          "target": "classify",
+          "label": "toxicity_score"
+        },
+        {
+          "source": "detect_language",
+          "target": "classify",
+          "label": "language"
+        },
+        {
+          "source": "classify",
+          "target": "decide",
+          "label": "flags"
+        },
+        {
+          "source": "raw_text",
+          "target": "audit_log",
+          "label": "raw_text"
+        },
+        {
+          "source": "decide",
+          "target": "audit_log",
+          "label": "decision"
+        }
+      ],
+      "error": null
+    },
+    {
+      "name": "complex_analytics",
+      "source": "data_pipeline/complex_analytics.py",
+      "nodes": [
+        {
+          "id": "run_date",
+          "class": "Parameter",
+          "description": "A knot that produces a parameter's value at run start."
+        },
+        {
+          "id": "seed",
+          "class": "Parameter",
+          "description": "A knot that produces a parameter's value at run start."
+        },
+        {
+          "id": "orders",
+          "class": "ingest_orders",
+          "description": "Fetch orders from the transactional database."
+        },
+        {
+          "id": "events",
+          "class": "ingest_events",
+          "description": "Fetch clickstream events from the analytics store."
+        },
+        {
+          "id": "users",
+          "class": "ingest_users",
+          "description": "Fetch user activity counts from the user service."
+        },
+        {
+          "id": "join",
+          "class": "join_datasets",
+          "description": "Combine the three snapshots into a single joined dataset."
+        },
+        {
+          "id": "regions",
+          "class": "aggregate_by_region",
+          "description": "Compute per-region revenue, order count, and session count."
+        },
+        {
+          "id": "cohorts",
+          "class": "aggregate_by_cohort",
+          "description": "Compute per-cohort revenue and retention."
+        },
+        {
+          "id": "report",
+          "class": "build_report",
+          "description": "Merge metrics into the final daily report."
+        }
+      ],
+      "edges": [
+        {
+          "source": "run_date",
+          "target": "orders",
+          "label": "run_date"
+        },
+        {
+          "source": "seed",
+          "target": "orders",
+          "label": "seed"
+        },
+        {
+          "source": "run_date",
+          "target": "events",
+          "label": "run_date"
+        },
+        {
+          "source": "seed",
+          "target": "events",
+          "label": "seed"
+        },
+        {
+          "source": "run_date",
+          "target": "users",
+          "label": "run_date"
+        },
+        {
+          "source": "seed",
+          "target": "users",
+          "label": "seed"
+        },
+        {
+          "source": "orders",
+          "target": "join",
+          "label": "orders"
+        },
+        {
+          "source": "events",
+          "target": "join",
+          "label": "events"
+        },
+        {
+          "source": "users",
+          "target": "join",
+          "label": "users"
+        },
+        {
+          "source": "join",
+          "target": "regions",
+          "label": "joined"
+        },
+        {
+          "source": "join",
+          "target": "cohorts",
+          "label": "joined"
+        },
+        {
+          "source": "regions",
+          "target": "report",
+          "label": "region_metrics"
+        },
+        {
+          "source": "cohorts",
+          "target": "report",
+          "label": "cohort_metrics"
+        },
+        {
+          "source": "join",
+          "target": "report",
+          "label": "joined"
+        }
+      ],
+      "error": null
+    },
+    {
+      "name": "simple_etl",
+      "source": "data_pipeline/simple_etl.py",
+      "nodes": [
+        {
+          "id": "source_csv",
+          "class": "Parameter",
+          "description": "A knot that produces a parameter's value at run start."
+        },
+        {
+          "id": "drop_nulls",
+          "class": "Parameter",
+          "description": "A knot that produces a parameter's value at run start."
+        },
+        {
+          "id": "fx_rate",
+          "class": "Parameter",
+          "description": "A knot that produces a parameter's value at run start."
+        },
+        {
+          "id": "db_path",
+          "class": "Parameter",
+          "description": "A knot that produces a parameter's value at run start."
+        },
+        {
+          "id": "table_name",
+          "class": "Parameter",
+          "description": "A knot that produces a parameter's value at run start."
+        },
+        {
+          "id": "extract",
+          "class": "extract",
+          "description": "Parse CSV text into a list of dicts."
+        },
+        {
+          "id": "clean",
+          "class": "clean",
+          "description": "Drop rows with null values in key columns and normalise types."
+        },
+        {
+          "id": "enrich",
+          "class": "enrich",
+          "description": "Add derived columns: amount_usd and region_group."
+        },
+        {
+          "id": "load",
+          "class": "load",
+          "description": "Write the enriched rows to a SQLite table."
+        }
+      ],
+      "edges": [
+        {
+          "source": "source_csv",
+          "target": "extract",
+          "label": "source_csv"
+        },
+        {
+          "source": "extract",
+          "target": "clean",
+          "label": "raw"
+        },
+        {
+          "source": "drop_nulls",
+          "target": "clean",
+          "label": "drop_nulls"
+        },
+        {
+          "source": "clean",
+          "target": "enrich",
+          "label": "clean_data"
+        },
+        {
+          "source": "fx_rate",
+          "target": "enrich",
+          "label": "fx_rate"
+        },
+        {
+          "source": "enrich",
+          "target": "load",
+          "label": "enriched"
+        },
+        {
+          "source": "db_path",
+          "target": "load",
+          "label": "db_path"
+        },
+        {
+          "source": "table_name",
+          "target": "load",
+          "label": "table_name"
+        }
+      ],
+      "error": null
+    },
+    {
+      "name": "chatbot_pipeline",
+      "source": "llm_agent/chatbot_pipeline.py",
+      "nodes": [
+        {
+          "id": "message_text",
+          "class": "Parameter",
+          "description": "A knot that produces a parameter's value at run start."
+        },
+        {
+          "id": "user_id",
+          "class": "Parameter",
+          "description": "A knot that produces a parameter's value at run start."
+        },
+        {
+          "id": "session_id",
+          "class": "Parameter",
+          "description": "A knot that produces a parameter's value at run start."
+        },
+        {
+          "id": "turn_number",
+          "class": "Parameter",
+          "description": "A knot that produces a parameter's value at run start."
+        },
+        {
+          "id": "history_str",
+          "class": "Parameter",
+          "description": "A knot that produces a parameter's value at run start."
+        },
+        {
+          "id": "parse",
+          "class": "parse_message",
+          "description": "Normalise the incoming message."
+        },
+        {
+          "id": "intent",
+          "class": "classify_intent",
+          "description": "Classify the user's intent using a fast LLM call."
+        },
+        {
+          "id": "entities",
+          "class": "extract_entities",
+          "description": "Extract named entities from the message."
+        },
+        {
+          "id": "retrieve",
+          "class": "retrieve_context",
+          "description": "Retrieve relevant knowledge-base chunks (RAG)."
+        },
+        {
+          "id": "safety",
+          "class": "check_safety",
+          "description": "Run a safety / moderation check on the user message."
+        },
+        {
+          "id": "generate",
+          "class": "generate_response",
+          "description": "Generate the assistant response with the LLM."
+        },
+        {
+          "id": "post_process",
+          "class": "post_process",
+          "description": "Append source citations and apply output formatting."
+        },
+        {
+          "id": "log",
+          "class": "log_turn",
+          "description": "Persist structured turn metadata for analytics and debugging."
+        }
+      ],
+      "edges": [
+        {
+          "source": "message_text",
+          "target": "parse",
+          "label": "message_text"
+        },
+        {
+          "source": "user_id",
+          "target": "parse",
+          "label": "user_id"
+        },
+        {
+          "source": "session_id",
+          "target": "parse",
+          "label": "session_id"
+        },
+        {
+          "source": "turn_number",
+          "target": "parse",
+          "label": "turn_number"
+        },
+        {
+          "source": "parse",
+          "target": "intent",
+          "label": "parsed"
+        },
+        {
+          "source": "parse",
+          "target": "entities",
+          "label": "parsed"
+        },
+        {
+          "source": "parse",
+          "target": "retrieve",
+          "label": "parsed"
+        },
+        {
+          "source": "intent",
+          "target": "retrieve",
+          "label": "intent"
+        },
+        {
+          "source": "entities",
+          "target": "retrieve",
+          "label": "entities"
+        },
+        {
+          "source": "parse",
+          "target": "safety",
+          "label": "parsed"
+        },
+        {
+          "source": "parse",
+          "target": "generate",
+          "label": "parsed"
+        },
+        {
+          "source": "retrieve",
+          "target": "generate",
+          "label": "context"
+        },
+        {
+          "source": "safety",
+          "target": "generate",
+          "label": "safety"
+        },
+        {
+          "source": "history_str",
+          "target": "generate",
+          "label": "conversation_history"
+        },
+        {
+          "source": "generate",
+          "target": "post_process",
+          "label": "response"
+        },
+        {
+          "source": "retrieve",
+          "target": "post_process",
+          "label": "context"
+        },
+        {
+          "source": "parse",
+          "target": "log",
+          "label": "parsed"
+        },
+        {
+          "source": "intent",
+          "target": "log",
+          "label": "intent"
+        },
+        {
+          "source": "safety",
+          "target": "log",
+          "label": "safety"
+        },
+        {
+          "source": "generate",
+          "target": "log",
+          "label": "response"
+        }
+      ],
+      "error": null
+    },
+    {
+      "name": "ci_pipeline",
+      "source": "software_execution/ci_pipeline.py",
+      "nodes": [
+        {
+          "id": "branch",
+          "class": "Parameter",
+          "description": "A knot that produces a parameter's value at run start."
+        },
+        {
+          "id": "sha",
+          "class": "Parameter",
+          "description": "A knot that produces a parameter's value at run start."
+        },
+        {
+          "id": "env",
+          "class": "Parameter",
+          "description": "A knot that produces a parameter's value at run start."
+        },
+        {
+          "id": "checkout",
+          "class": "checkout",
+          "description": "Clone the repo at the given commit."
+        },
+        {
+          "id": "lint",
+          "class": "run_lint",
+          "description": ""
+        },
+        {
+          "id": "typecheck",
+          "class": "run_typecheck",
+          "description": ""
+        },
+        {
+          "id": "unit_tests",
+          "class": "run_unit_tests",
+          "description": ""
+        },
+        {
+          "id": "integ_tests",
+          "class": "run_integration_tests",
+          "description": ""
+        },
+        {
+          "id": "build",
+          "class": "build_image",
+          "description": ""
+        },
+        {
+          "id": "deploy",
+          "class": "deploy",
+          "description": ""
+        }
+      ],
+      "edges": [
+        {
+          "source": "branch",
+          "target": "checkout",
+          "label": "branch"
+        },
+        {
+          "source": "sha",
+          "target": "checkout",
+          "label": "commit_sha"
+        },
+        {
+          "source": "checkout",
+          "target": "lint",
+          "label": "source"
+        },
+        {
+          "source": "checkout",
+          "target": "typecheck",
+          "label": "source"
+        },
+        {
+          "source": "checkout",
+          "target": "unit_tests",
+          "label": "source"
+        },
+        {
+          "source": "lint",
+          "target": "unit_tests",
+          "label": "lint"
+        },
+        {
+          "source": "checkout",
+          "target": "integ_tests",
+          "label": "source"
+        },
+        {
+          "source": "typecheck",
+          "target": "integ_tests",
+          "label": "tc"
+        },
+        {
+          "source": "checkout",
+          "target": "build",
+          "label": "source"
+        },
+        {
+          "source": "unit_tests",
+          "target": "build",
+          "label": "unit"
+        },
+        {
+          "source": "integ_tests",
+          "target": "build",
+          "label": "integration"
+        },
+        {
+          "source": "build",
+          "target": "deploy",
+          "label": "artifact"
+        },
+        {
+          "source": "env",
+          "target": "deploy",
+          "label": "environment"
+        }
+      ],
+      "error": null
+    },
+    {
+      "name": "request_handler",
+      "source": "software_execution/request_handler.py",
+      "nodes": [
+        {
+          "id": "raw_body",
+          "class": "Parameter",
+          "description": "A knot that produces a parameter's value at run start."
+        },
+        {
+          "id": "headers_json",
+          "class": "Parameter",
+          "description": "A knot that produces a parameter's value at run start."
+        },
+        {
+          "id": "scope",
+          "class": "Parameter",
+          "description": "A knot that produces a parameter's value at run start."
+        },
+        {
+          "id": "parse",
+          "class": "parse_request",
+          "description": ""
+        },
+        {
+          "id": "auth",
+          "class": "authenticate",
+          "description": "Verify the Bearer token. Raises on failure \u2014 downstream knots skip."
+        },
+        {
+          "id": "authz",
+          "class": "authorise",
+          "description": ""
+        },
+        {
+          "id": "validate",
+          "class": "validate_body",
+          "description": ""
+        },
+        {
+          "id": "fetch_user",
+          "class": "fetch_user",
+          "description": ""
+        },
+        {
+          "id": "fetch_account",
+          "class": "fetch_account",
+          "description": ""
+        },
+        {
+          "id": "process",
+          "class": "process",
+          "description": ""
+        },
+        {
+          "id": "audit",
+          "class": "audit_log",
+          "description": ""
+        },
+        {
+          "id": "notify",
+          "class": "send_notification",
+          "description": ""
+        }
+      ],
+      "edges": [
+        {
+          "source": "raw_body",
+          "target": "parse",
+          "label": "raw_body"
+        },
+        {
+          "source": "headers_json",
+          "target": "parse",
+          "label": "headers_json"
+        },
+        {
+          "source": "parse",
+          "target": "auth",
+          "label": "request"
+        },
+        {
+          "source": "auth",
+          "target": "authz",
+          "label": "auth"
+        },
+        {
+          "source": "scope",
+          "target": "authz",
+          "label": "required_scope"
+        },
+        {
+          "source": "parse",
+          "target": "validate",
+          "label": "request"
+        },
+        {
+          "source": "authz",
+          "target": "validate",
+          "label": "auth"
+        },
+        {
+          "source": "authz",
+          "target": "fetch_user",
+          "label": "auth"
+        },
+        {
+          "source": "authz",
+          "target": "fetch_account",
+          "label": "auth"
+        },
+        {
+          "source": "validate",
+          "target": "process",
+          "label": "body"
+        },
+        {
+          "source": "fetch_user",
+          "target": "process",
+          "label": "user"
+        },
+        {
+          "source": "fetch_account",
+          "target": "process",
+          "label": "account"
+        },
+        {
+          "source": "parse",
+          "target": "audit",
+          "label": "request"
+        },
+        {
+          "source": "process",
+          "target": "audit",
+          "label": "response"
+        },
+        {
+          "source": "fetch_user",
+          "target": "notify",
+          "label": "user"
+        },
+        {
+          "source": "process",
+          "target": "notify",
+          "label": "response"
+        }
+      ],
+      "error": null
+    }
+  ],
+  "runs": [
+    {
+      "run_id": "run-7f59c08a98b14e5e92f3fa5864e77120",
+      "succeeded": true,
+      "started_at": "2026-04-30T01:50:58.519092+00:00",
+      "finished_at": "2026-04-30T01:50:58.525544+00:00",
+      "duration_ms": 6,
+      "dispatcher": "LocalDispatcher",
+      "actor": "",
+      "trigger": "",
+      "environment": {
+        "hostname": "snoodleboot"
+      },
+      "runtime_info": {
+        "python_version": "3.14.3 (main, Mar 20 2026, 00:34:32) [Clang 22.1.1 ]",
+        "pirn_version": "0.3.0",
+        "cloudpickle_version": "3.1.2",
+        "cloudpickle_pickle_protocol": "5",
+        "platform": "linux"
+      },
+      "knots": {
+        "audit_log": {
+          "outcome": "ok",
+          "class": "audit_log",
+          "started_at": "2026-04-30T01:50:58.525128+00:00",
+          "finished_at": "2026-04-30T01:50:58.525514+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:be4ab00a9d63457284310f3143d23275e5671c11457d394d842d7c9d7c9baebc",
+          "knot_config_hash": "sha256:5cadeef501c9408e7de6c3396c3aa9d37e37f6eea08868e59ad0f6e8da680982",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "check_pii": {
+          "outcome": "ok",
+          "class": "check_pii",
+          "started_at": "2026-04-30T01:50:58.522277+00:00",
+          "finished_at": "2026-04-30T01:50:58.523266+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa",
+          "knot_config_hash": "sha256:737154e3badadebe2b58ed960d80cc41cfdda56d3ee88b3c63ff1aa0d91d020d",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "check_profanity": {
+          "outcome": "ok",
+          "class": "check_profanity",
+          "started_at": "2026-04-30T01:50:58.522355+00:00",
+          "finished_at": "2026-04-30T01:50:58.523370+00:00",
+          "duration_ms": 1,
+          "output_hash": "sha256:fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa",
+          "knot_config_hash": "sha256:7f5e9a110f4de50d864dea5dd2cf24c9698fdbe4c2143ea33b36e09057789831",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "classify": {
+          "outcome": "ok",
+          "class": "classify",
+          "started_at": "2026-04-30T01:50:58.524132+00:00",
+          "finished_at": "2026-04-30T01:50:58.524515+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:ContentFlags",
+          "knot_config_hash": "sha256:cd8bf7976b014a93a510df618e89d7bf82b4a1bea065b82755a5d8322559fa7a",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "decide": {
+          "outcome": "ok",
+          "class": "decide",
+          "started_at": "2026-04-30T01:50:58.524604+00:00",
+          "finished_at": "2026-04-30T01:50:58.525030+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:ModerationDecision",
+          "knot_config_hash": "sha256:56f41c72980a5b2b5f3f4618df8f3854f107942df40dd845d874a55b73af1296",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "detect_language": {
+          "outcome": "ok",
+          "class": "detect_language",
+          "started_at": "2026-04-30T01:50:58.522408+00:00",
+          "finished_at": "2026-04-30T01:50:58.523450+00:00",
+          "duration_ms": 1,
+          "output_hash": "sha256:50eac10e7966a04e139902940a2a8e129a4597574c709cb8d01939ace56ff9c3",
+          "knot_config_hash": "sha256:88685ae487cbdc97a901a0f88be02732ac4a95d151c76d278d509687d1eb5292",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "normalise": {
+          "outcome": "ok",
+          "class": "normalise",
+          "started_at": "2026-04-30T01:50:58.521576+00:00",
+          "finished_at": "2026-04-30T01:50:58.522083+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:8576544cf0a4bd001c1e7e6f45248ad9df672c10f6b2f717f80c488372a96d28",
+          "knot_config_hash": "sha256:d27777c70aa513321748c8aa51f2d4534f6c48b434cc2e113ad96766cf66f626",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "raw_text": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:50:58.521309+00:00",
+          "finished_at": "2026-04-30T01:50:58.521473+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:f35293c1113ed79f4337503bab2dab4348e456aea51622088f954cda46f1690c",
+          "knot_config_hash": "sha256:eefd1fc19339e8dea1e6805555ec0585639dc9d039ddfad15c2e8df42d6ec741",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "score_toxicity": {
+          "outcome": "ok",
+          "class": "score_toxicity",
+          "started_at": "2026-04-30T01:50:58.522455+00:00",
+          "finished_at": "2026-04-30T01:50:58.524004+00:00",
+          "duration_ms": 1,
+          "output_hash": "sha256:8aed642bf5118b9d3c859bd4be35ecac75b6e873cce34e7b6f554b06f75550d7",
+          "knot_config_hash": "sha256:1aeb61ed9c71fea3d652e2a3580ba593fa9a81ae4b2704be1498f10a0f0622d3",
+          "error_record_id": "",
+          "skip_reason": ""
+        }
+      },
+      "exceptions": {}
+    },
+    {
+      "run_id": "run-e6cc0e5b926f42f89f851ada1138c8da",
+      "succeeded": true,
+      "started_at": "2026-04-30T01:50:58.510470+00:00",
+      "finished_at": "2026-04-30T01:50:58.515598+00:00",
+      "duration_ms": 5,
+      "dispatcher": "LocalDispatcher",
+      "actor": "",
+      "trigger": "",
+      "environment": {
+        "hostname": "snoodleboot"
+      },
+      "runtime_info": {
+        "python_version": "3.14.3 (main, Mar 20 2026, 00:34:32) [Clang 22.1.1 ]",
+        "pirn_version": "0.3.0",
+        "cloudpickle_version": "3.1.2",
+        "cloudpickle_pickle_protocol": "5",
+        "platform": "linux"
+      },
+      "knots": {
+        "audit_log": {
+          "outcome": "ok",
+          "class": "audit_log",
+          "started_at": "2026-04-30T01:50:58.515193+00:00",
+          "finished_at": "2026-04-30T01:50:58.515560+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:7215cbfadb4da45aa1a1ccc64b519609d4ecba0493ce79ccbe4ceb719cfec26d",
+          "knot_config_hash": "sha256:5cadeef501c9408e7de6c3396c3aa9d37e37f6eea08868e59ad0f6e8da680982",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "check_pii": {
+          "outcome": "ok",
+          "class": "check_pii",
+          "started_at": "2026-04-30T01:50:58.512929+00:00",
+          "finished_at": "2026-04-30T01:50:58.513857+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa",
+          "knot_config_hash": "sha256:737154e3badadebe2b58ed960d80cc41cfdda56d3ee88b3c63ff1aa0d91d020d",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "check_profanity": {
+          "outcome": "ok",
+          "class": "check_profanity",
+          "started_at": "2026-04-30T01:50:58.512997+00:00",
+          "finished_at": "2026-04-30T01:50:58.513959+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b",
+          "knot_config_hash": "sha256:7f5e9a110f4de50d864dea5dd2cf24c9698fdbe4c2143ea33b36e09057789831",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "classify": {
+          "outcome": "ok",
+          "class": "classify",
+          "started_at": "2026-04-30T01:50:58.514244+00:00",
+          "finished_at": "2026-04-30T01:50:58.514644+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:ContentFlags",
+          "knot_config_hash": "sha256:cd8bf7976b014a93a510df618e89d7bf82b4a1bea065b82755a5d8322559fa7a",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "decide": {
+          "outcome": "ok",
+          "class": "decide",
+          "started_at": "2026-04-30T01:50:58.514720+00:00",
+          "finished_at": "2026-04-30T01:50:58.515106+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:ModerationDecision",
+          "knot_config_hash": "sha256:56f41c72980a5b2b5f3f4618df8f3854f107942df40dd845d874a55b73af1296",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "detect_language": {
+          "outcome": "ok",
+          "class": "detect_language",
+          "started_at": "2026-04-30T01:50:58.513047+00:00",
+          "finished_at": "2026-04-30T01:50:58.514049+00:00",
+          "duration_ms": 1,
+          "output_hash": "sha256:50eac10e7966a04e139902940a2a8e129a4597574c709cb8d01939ace56ff9c3",
+          "knot_config_hash": "sha256:88685ae487cbdc97a901a0f88be02732ac4a95d151c76d278d509687d1eb5292",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "normalise": {
+          "outcome": "ok",
+          "class": "normalise",
+          "started_at": "2026-04-30T01:50:58.512270+00:00",
+          "finished_at": "2026-04-30T01:50:58.512770+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:f9e60c628a220523df3c94414fb517bdac68e0e543ca12f4e2bf2cbfced08f24",
+          "knot_config_hash": "sha256:d27777c70aa513321748c8aa51f2d4534f6c48b434cc2e113ad96766cf66f626",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "raw_text": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:50:58.512096+00:00",
+          "finished_at": "2026-04-30T01:50:58.512211+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:51454b59a5c2c89ae52242db0b73f5e2a739cece571c1695f568bc0dec1fc894",
+          "knot_config_hash": "sha256:eefd1fc19339e8dea1e6805555ec0585639dc9d039ddfad15c2e8df42d6ec741",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "score_toxicity": {
+          "outcome": "ok",
+          "class": "score_toxicity",
+          "started_at": "2026-04-30T01:50:58.513108+00:00",
+          "finished_at": "2026-04-30T01:50:58.514130+00:00",
+          "duration_ms": 1,
+          "output_hash": "sha256:d0ff5974b6aa52cf562bea5921840c032a860a91a3512f7fe8f768f6bbe005f6",
+          "knot_config_hash": "sha256:1aeb61ed9c71fea3d652e2a3580ba593fa9a81ae4b2704be1498f10a0f0622d3",
+          "error_record_id": "",
+          "skip_reason": ""
+        }
+      },
+      "exceptions": {}
+    },
+    {
+      "run_id": "run-c45970fe26f64f249d62f63c695de902",
+      "succeeded": true,
+      "started_at": "2026-04-30T01:50:58.501678+00:00",
+      "finished_at": "2026-04-30T01:50:58.506973+00:00",
+      "duration_ms": 5,
+      "dispatcher": "LocalDispatcher",
+      "actor": "",
+      "trigger": "",
+      "environment": {
+        "hostname": "snoodleboot"
+      },
+      "runtime_info": {
+        "python_version": "3.14.3 (main, Mar 20 2026, 00:34:32) [Clang 22.1.1 ]",
+        "pirn_version": "0.3.0",
+        "cloudpickle_version": "3.1.2",
+        "cloudpickle_pickle_protocol": "5",
+        "platform": "linux"
+      },
+      "knots": {
+        "audit_log": {
+          "outcome": "ok",
+          "class": "audit_log",
+          "started_at": "2026-04-30T01:50:58.506445+00:00",
+          "finished_at": "2026-04-30T01:50:58.506945+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:714fc9a22e3da922b6115555c8a3c050091dc716e6f4595eba48e8f959ca48c6",
+          "knot_config_hash": "sha256:5cadeef501c9408e7de6c3396c3aa9d37e37f6eea08868e59ad0f6e8da680982",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "check_pii": {
+          "outcome": "ok",
+          "class": "check_pii",
+          "started_at": "2026-04-30T01:50:58.503713+00:00",
+          "finished_at": "2026-04-30T01:50:58.504867+00:00",
+          "duration_ms": 1,
+          "output_hash": "sha256:b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b",
+          "knot_config_hash": "sha256:737154e3badadebe2b58ed960d80cc41cfdda56d3ee88b3c63ff1aa0d91d020d",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "check_profanity": {
+          "outcome": "ok",
+          "class": "check_profanity",
+          "started_at": "2026-04-30T01:50:58.503790+00:00",
+          "finished_at": "2026-04-30T01:50:58.504962+00:00",
+          "duration_ms": 1,
+          "output_hash": "sha256:fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa",
+          "knot_config_hash": "sha256:7f5e9a110f4de50d864dea5dd2cf24c9698fdbe4c2143ea33b36e09057789831",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "classify": {
+          "outcome": "ok",
+          "class": "classify",
+          "started_at": "2026-04-30T01:50:58.505150+00:00",
+          "finished_at": "2026-04-30T01:50:58.505745+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:ContentFlags",
+          "knot_config_hash": "sha256:cd8bf7976b014a93a510df618e89d7bf82b4a1bea065b82755a5d8322559fa7a",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "decide": {
+          "outcome": "ok",
+          "class": "decide",
+          "started_at": "2026-04-30T01:50:58.505856+00:00",
+          "finished_at": "2026-04-30T01:50:58.506320+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:ModerationDecision",
+          "knot_config_hash": "sha256:56f41c72980a5b2b5f3f4618df8f3854f107942df40dd845d874a55b73af1296",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "detect_language": {
+          "outcome": "ok",
+          "class": "detect_language",
+          "started_at": "2026-04-30T01:50:58.503848+00:00",
+          "finished_at": "2026-04-30T01:50:58.505005+00:00",
+          "duration_ms": 1,
+          "output_hash": "sha256:50eac10e7966a04e139902940a2a8e129a4597574c709cb8d01939ace56ff9c3",
+          "knot_config_hash": "sha256:88685ae487cbdc97a901a0f88be02732ac4a95d151c76d278d509687d1eb5292",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "normalise": {
+          "outcome": "ok",
+          "class": "normalise",
+          "started_at": "2026-04-30T01:50:58.503013+00:00",
+          "finished_at": "2026-04-30T01:50:58.503517+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:ba4bbe2ab0e910f090592e1c93ea1174aabcd28a66386dd003c0fc3f67ab21e2",
+          "knot_config_hash": "sha256:d27777c70aa513321748c8aa51f2d4534f6c48b434cc2e113ad96766cf66f626",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "raw_text": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:50:58.502872+00:00",
+          "finished_at": "2026-04-30T01:50:58.502965+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:5ccbb462fef5733b043b0a31f52785e9fc39446298dab8d6e14b877e170a5b47",
+          "knot_config_hash": "sha256:eefd1fc19339e8dea1e6805555ec0585639dc9d039ddfad15c2e8df42d6ec741",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "score_toxicity": {
+          "outcome": "ok",
+          "class": "score_toxicity",
+          "started_at": "2026-04-30T01:50:58.503898+00:00",
+          "finished_at": "2026-04-30T01:50:58.505050+00:00",
+          "duration_ms": 1,
+          "output_hash": "sha256:8aed642bf5118b9d3c859bd4be35ecac75b6e873cce34e7b6f554b06f75550d7",
+          "knot_config_hash": "sha256:1aeb61ed9c71fea3d652e2a3580ba593fa9a81ae4b2704be1498f10a0f0622d3",
+          "error_record_id": "",
+          "skip_reason": ""
+        }
+      },
+      "exceptions": {}
+    },
+    {
+      "run_id": "run-586b9d7f02584be2a8ab64c803a48923",
+      "succeeded": true,
+      "started_at": "2026-04-30T01:50:58.493711+00:00",
+      "finished_at": "2026-04-30T01:50:58.498035+00:00",
+      "duration_ms": 4,
+      "dispatcher": "LocalDispatcher",
+      "actor": "",
+      "trigger": "",
+      "environment": {
+        "hostname": "snoodleboot"
+      },
+      "runtime_info": {
+        "python_version": "3.14.3 (main, Mar 20 2026, 00:34:32) [Clang 22.1.1 ]",
+        "pirn_version": "0.3.0",
+        "cloudpickle_version": "3.1.2",
+        "cloudpickle_pickle_protocol": "5",
+        "platform": "linux"
+      },
+      "knots": {
+        "audit_log": {
+          "outcome": "ok",
+          "class": "audit_log",
+          "started_at": "2026-04-30T01:50:58.497522+00:00",
+          "finished_at": "2026-04-30T01:50:58.497999+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:8aca9c838125a0cf438855022ea845e46ad03454d33bbdece31b0ba2971148ec",
+          "knot_config_hash": "sha256:5cadeef501c9408e7de6c3396c3aa9d37e37f6eea08868e59ad0f6e8da680982",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "check_pii": {
+          "outcome": "ok",
+          "class": "check_pii",
+          "started_at": "2026-04-30T01:50:58.495902+00:00",
+          "finished_at": "2026-04-30T01:50:58.496554+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b",
+          "knot_config_hash": "sha256:737154e3badadebe2b58ed960d80cc41cfdda56d3ee88b3c63ff1aa0d91d020d",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "check_profanity": {
+          "outcome": "ok",
+          "class": "check_profanity",
+          "started_at": "2026-04-30T01:50:58.495960+00:00",
+          "finished_at": "2026-04-30T01:50:58.496669+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa",
+          "knot_config_hash": "sha256:7f5e9a110f4de50d864dea5dd2cf24c9698fdbe4c2143ea33b36e09057789831",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "classify": {
+          "outcome": "ok",
+          "class": "classify",
+          "started_at": "2026-04-30T01:50:58.496889+00:00",
+          "finished_at": "2026-04-30T01:50:58.497163+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:ContentFlags",
+          "knot_config_hash": "sha256:cd8bf7976b014a93a510df618e89d7bf82b4a1bea065b82755a5d8322559fa7a",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "decide": {
+          "outcome": "ok",
+          "class": "decide",
+          "started_at": "2026-04-30T01:50:58.497221+00:00",
+          "finished_at": "2026-04-30T01:50:58.497453+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:ModerationDecision",
+          "knot_config_hash": "sha256:56f41c72980a5b2b5f3f4618df8f3854f107942df40dd845d874a55b73af1296",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "detect_language": {
+          "outcome": "ok",
+          "class": "detect_language",
+          "started_at": "2026-04-30T01:50:58.495997+00:00",
+          "finished_at": "2026-04-30T01:50:58.496735+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:50eac10e7966a04e139902940a2a8e129a4597574c709cb8d01939ace56ff9c3",
+          "knot_config_hash": "sha256:88685ae487cbdc97a901a0f88be02732ac4a95d151c76d278d509687d1eb5292",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "normalise": {
+          "outcome": "ok",
+          "class": "normalise",
+          "started_at": "2026-04-30T01:50:58.495399+00:00",
+          "finished_at": "2026-04-30T01:50:58.495788+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:fd397f7e261a8f934e5af7dfb2d5eb72776cce4ad89794e12ea76ac87f8dbb33",
+          "knot_config_hash": "sha256:d27777c70aa513321748c8aa51f2d4534f6c48b434cc2e113ad96766cf66f626",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "raw_text": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:50:58.495228+00:00",
+          "finished_at": "2026-04-30T01:50:58.495340+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:dbda13c1f3af9459882c399316a7f55a7d1ada327ffc5607b7736208994717a2",
+          "knot_config_hash": "sha256:eefd1fc19339e8dea1e6805555ec0585639dc9d039ddfad15c2e8df42d6ec741",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "score_toxicity": {
+          "outcome": "ok",
+          "class": "score_toxicity",
+          "started_at": "2026-04-30T01:50:58.496031+00:00",
+          "finished_at": "2026-04-30T01:50:58.496803+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:8aed642bf5118b9d3c859bd4be35ecac75b6e873cce34e7b6f554b06f75550d7",
+          "knot_config_hash": "sha256:1aeb61ed9c71fea3d652e2a3580ba593fa9a81ae4b2704be1498f10a0f0622d3",
+          "error_record_id": "",
+          "skip_reason": ""
+        }
+      },
+      "exceptions": {}
+    },
+    {
+      "run_id": "run-12fb18dff11f463981a11e4dc71dcacc",
+      "succeeded": true,
+      "started_at": "2026-04-30T01:50:58.486592+00:00",
+      "finished_at": "2026-04-30T01:50:58.490799+00:00",
+      "duration_ms": 4,
+      "dispatcher": "LocalDispatcher",
+      "actor": "",
+      "trigger": "",
+      "environment": {
+        "hostname": "snoodleboot"
+      },
+      "runtime_info": {
+        "python_version": "3.14.3 (main, Mar 20 2026, 00:34:32) [Clang 22.1.1 ]",
+        "pirn_version": "0.3.0",
+        "cloudpickle_version": "3.1.2",
+        "cloudpickle_pickle_protocol": "5",
+        "platform": "linux"
+      },
+      "knots": {
+        "audit_log": {
+          "outcome": "ok",
+          "class": "audit_log",
+          "started_at": "2026-04-30T01:50:58.490461+00:00",
+          "finished_at": "2026-04-30T01:50:58.490769+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:50a9822c15b8e794cabe66a5ce006eb74a308b9dadd1a3678ab823e32328130d",
+          "knot_config_hash": "sha256:5cadeef501c9408e7de6c3396c3aa9d37e37f6eea08868e59ad0f6e8da680982",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "check_pii": {
+          "outcome": "ok",
+          "class": "check_pii",
+          "started_at": "2026-04-30T01:50:58.488651+00:00",
+          "finished_at": "2026-04-30T01:50:58.489416+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa",
+          "knot_config_hash": "sha256:737154e3badadebe2b58ed960d80cc41cfdda56d3ee88b3c63ff1aa0d91d020d",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "check_profanity": {
+          "outcome": "ok",
+          "class": "check_profanity",
+          "started_at": "2026-04-30T01:50:58.488703+00:00",
+          "finished_at": "2026-04-30T01:50:58.489487+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b",
+          "knot_config_hash": "sha256:7f5e9a110f4de50d864dea5dd2cf24c9698fdbe4c2143ea33b36e09057789831",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "classify": {
+          "outcome": "ok",
+          "class": "classify",
+          "started_at": "2026-04-30T01:50:58.489669+00:00",
+          "finished_at": "2026-04-30T01:50:58.489989+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:ContentFlags",
+          "knot_config_hash": "sha256:cd8bf7976b014a93a510df618e89d7bf82b4a1bea065b82755a5d8322559fa7a",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "decide": {
+          "outcome": "ok",
+          "class": "decide",
+          "started_at": "2026-04-30T01:50:58.490056+00:00",
+          "finished_at": "2026-04-30T01:50:58.490400+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:ModerationDecision",
+          "knot_config_hash": "sha256:56f41c72980a5b2b5f3f4618df8f3854f107942df40dd845d874a55b73af1296",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "detect_language": {
+          "outcome": "ok",
+          "class": "detect_language",
+          "started_at": "2026-04-30T01:50:58.488741+00:00",
+          "finished_at": "2026-04-30T01:50:58.489537+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:50eac10e7966a04e139902940a2a8e129a4597574c709cb8d01939ace56ff9c3",
+          "knot_config_hash": "sha256:88685ae487cbdc97a901a0f88be02732ac4a95d151c76d278d509687d1eb5292",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "normalise": {
+          "outcome": "ok",
+          "class": "normalise",
+          "started_at": "2026-04-30T01:50:58.488261+00:00",
+          "finished_at": "2026-04-30T01:50:58.488537+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:ba53ff2f42ba549a8b978036addb408835e89e3a652f48936fdcb52145d55897",
+          "knot_config_hash": "sha256:d27777c70aa513321748c8aa51f2d4534f6c48b434cc2e113ad96766cf66f626",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "raw_text": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:50:58.488172+00:00",
+          "finished_at": "2026-04-30T01:50:58.488233+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:8eee7246d4321f03f8601df42e8c2b130be0de528a565590fcd2f01f19c42eeb",
+          "knot_config_hash": "sha256:eefd1fc19339e8dea1e6805555ec0585639dc9d039ddfad15c2e8df42d6ec741",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "score_toxicity": {
+          "outcome": "ok",
+          "class": "score_toxicity",
+          "started_at": "2026-04-30T01:50:58.488771+00:00",
+          "finished_at": "2026-04-30T01:50:58.489601+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:1e9d7c27c8bbc8ddf0055c93e064a62fa995d177fee28cc8fa949bc8a4db06f4",
+          "knot_config_hash": "sha256:1aeb61ed9c71fea3d652e2a3580ba593fa9a81ae4b2704be1498f10a0f0622d3",
+          "error_record_id": "",
+          "skip_reason": ""
+        }
+      },
+      "exceptions": {}
+    },
+    {
+      "run_id": "run-1234eef56fd3479a91be8b5fa47b2356",
+      "succeeded": true,
+      "started_at": "2026-04-30T01:50:58.467094+00:00",
+      "finished_at": "2026-04-30T01:50:58.480103+00:00",
+      "duration_ms": 13,
+      "dispatcher": "LocalDispatcher",
+      "actor": "",
+      "trigger": "",
+      "environment": {
+        "hostname": "snoodleboot"
+      },
+      "runtime_info": {
+        "python_version": "3.14.3 (main, Mar 20 2026, 00:34:32) [Clang 22.1.1 ]",
+        "pirn_version": "0.3.0",
+        "cloudpickle_version": "3.1.2",
+        "cloudpickle_pickle_protocol": "5",
+        "platform": "linux"
+      },
+      "knots": {
+        "audit_log": {
+          "outcome": "ok",
+          "class": "audit_log",
+          "started_at": "2026-04-30T01:50:58.479773+00:00",
+          "finished_at": "2026-04-30T01:50:58.480073+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:a24a5e97eb7e5ba760ae670a773a2712626eca167c59f5a42cbfd7d16938c677",
+          "knot_config_hash": "sha256:5cadeef501c9408e7de6c3396c3aa9d37e37f6eea08868e59ad0f6e8da680982",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "check_pii": {
+          "outcome": "ok",
+          "class": "check_pii",
+          "started_at": "2026-04-30T01:50:58.477684+00:00",
+          "finished_at": "2026-04-30T01:50:58.478497+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa",
+          "knot_config_hash": "sha256:737154e3badadebe2b58ed960d80cc41cfdda56d3ee88b3c63ff1aa0d91d020d",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "check_profanity": {
+          "outcome": "ok",
+          "class": "check_profanity",
+          "started_at": "2026-04-30T01:50:58.477718+00:00",
+          "finished_at": "2026-04-30T01:50:58.478530+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa",
+          "knot_config_hash": "sha256:7f5e9a110f4de50d864dea5dd2cf24c9698fdbe4c2143ea33b36e09057789831",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "classify": {
+          "outcome": "ok",
+          "class": "classify",
+          "started_at": "2026-04-30T01:50:58.478628+00:00",
+          "finished_at": "2026-04-30T01:50:58.479071+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:ContentFlags",
+          "knot_config_hash": "sha256:cd8bf7976b014a93a510df618e89d7bf82b4a1bea065b82755a5d8322559fa7a",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "decide": {
+          "outcome": "ok",
+          "class": "decide",
+          "started_at": "2026-04-30T01:50:58.479150+00:00",
+          "finished_at": "2026-04-30T01:50:58.479699+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:ModerationDecision",
+          "knot_config_hash": "sha256:56f41c72980a5b2b5f3f4618df8f3854f107942df40dd845d874a55b73af1296",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "detect_language": {
+          "outcome": "ok",
+          "class": "detect_language",
+          "started_at": "2026-04-30T01:50:58.478104+00:00",
+          "finished_at": "2026-04-30T01:50:58.478552+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:50eac10e7966a04e139902940a2a8e129a4597574c709cb8d01939ace56ff9c3",
+          "knot_config_hash": "sha256:88685ae487cbdc97a901a0f88be02732ac4a95d151c76d278d509687d1eb5292",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "normalise": {
+          "outcome": "ok",
+          "class": "normalise",
+          "started_at": "2026-04-30T01:50:58.476267+00:00",
+          "finished_at": "2026-04-30T01:50:58.477624+00:00",
+          "duration_ms": 1,
+          "output_hash": "sha256:63920d140872c31a1884770f97ad9fa61d7d9181bf817165132d3bf5ba3dafa6",
+          "knot_config_hash": "sha256:d27777c70aa513321748c8aa51f2d4534f6c48b434cc2e113ad96766cf66f626",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "raw_text": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:50:58.476086+00:00",
+          "finished_at": "2026-04-30T01:50:58.476221+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:765edb5686064cf5532dd17ee1e837f7eae3a05e164ad2158216a58209d0130f",
+          "knot_config_hash": "sha256:eefd1fc19339e8dea1e6805555ec0585639dc9d039ddfad15c2e8df42d6ec741",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "score_toxicity": {
+          "outcome": "ok",
+          "class": "score_toxicity",
+          "started_at": "2026-04-30T01:50:58.478139+00:00",
+          "finished_at": "2026-04-30T01:50:58.478586+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:8aed642bf5118b9d3c859bd4be35ecac75b6e873cce34e7b6f554b06f75550d7",
+          "knot_config_hash": "sha256:1aeb61ed9c71fea3d652e2a3580ba593fa9a81ae4b2704be1498f10a0f0622d3",
+          "error_record_id": "",
+          "skip_reason": ""
+        }
+      },
+      "exceptions": {}
+    },
+    {
+      "run_id": "run-7330d1d3012d498c979bea518282fda7",
+      "succeeded": false,
+      "started_at": "2026-04-30T01:08:26.772152+00:00",
+      "finished_at": "2026-04-30T01:08:26.777732+00:00",
+      "duration_ms": 5,
+      "dispatcher": "LocalDispatcher",
+      "actor": "",
+      "trigger": "",
+      "environment": {
+        "hostname": "snoodleboot"
+      },
+      "runtime_info": {
+        "python_version": "3.14.3 (main, Mar 20 2026, 00:34:32) [Clang 22.1.1 ]",
+        "pirn_version": "0.3.0",
+        "cloudpickle_version": "3.1.2",
+        "cloudpickle_pickle_protocol": "5",
+        "platform": "linux"
+      },
+      "knots": {
+        "audit": {
+          "outcome": "skipped",
+          "class": "audit_log",
+          "started_at": "2026-04-30T01:08:26.772152+00:00",
+          "finished_at": "2026-04-30T01:08:26.777620+00:00",
+          "duration_ms": 5,
+          "output_hash": "",
+          "knot_config_hash": "sha256:2ff79d27df9cacfb0ef7cc2061669205c689e294d685314db42a46544122fc3d",
+          "error_record_id": "",
+          "skip_reason": "parent_failed_or_skipped"
+        },
+        "auth": {
+          "outcome": "err",
+          "class": "authenticate",
+          "started_at": "2026-04-30T01:08:26.775375+00:00",
+          "finished_at": "2026-04-30T01:08:26.776926+00:00",
+          "duration_ms": 1,
+          "output_hash": "",
+          "knot_config_hash": "sha256:e9eee7c247a913f838b75e7b109aed8b6f03a70ee0ccc90d6e9f446b0d42c7b4",
+          "error_record_id": "exc-f96672371861449a9ae2302177c7d0d9",
+          "skip_reason": ""
+        },
+        "authz": {
+          "outcome": "skipped",
+          "class": "authorise",
+          "started_at": "2026-04-30T01:08:26.772152+00:00",
+          "finished_at": "2026-04-30T01:08:26.777122+00:00",
+          "duration_ms": 4,
+          "output_hash": "",
+          "knot_config_hash": "sha256:7147c700e796a312a43760aea462ada138c7eacc8301818c02f0c8ca295a83ba",
+          "error_record_id": "",
+          "skip_reason": "parent_failed_or_skipped"
+        },
+        "fetch_account": {
+          "outcome": "skipped",
+          "class": "fetch_account",
+          "started_at": "2026-04-30T01:08:26.772152+00:00",
+          "finished_at": "2026-04-30T01:08:26.777243+00:00",
+          "duration_ms": 5,
+          "output_hash": "",
+          "knot_config_hash": "sha256:0f2e1860202ea76c4432cd0e873fda2013b14a4e8b5d6fab2bad0e01f54e1dcd",
+          "error_record_id": "",
+          "skip_reason": "parent_failed_or_skipped"
+        },
+        "fetch_user": {
+          "outcome": "skipped",
+          "class": "fetch_user",
+          "started_at": "2026-04-30T01:08:26.772152+00:00",
+          "finished_at": "2026-04-30T01:08:26.777332+00:00",
+          "duration_ms": 5,
+          "output_hash": "",
+          "knot_config_hash": "sha256:b97e6a38d22feaf9209e0ae56ce393aedd8c2dc1d270506b9b9120c55136309f",
+          "error_record_id": "",
+          "skip_reason": "parent_failed_or_skipped"
+        },
+        "headers_json": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:08:26.774784+00:00",
+          "finished_at": "2026-04-30T01:08:26.774972+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:c89a148be40e6752261e3038609a4b68de22fa3bfdaf32f884edffb8480b9bbe",
+          "knot_config_hash": "sha256:efb41e50e6bc8a157a383f3cccedc37e677d61840ff738c0a978cae2cccd1e0d",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "notify": {
+          "outcome": "skipped",
+          "class": "send_notification",
+          "started_at": "2026-04-30T01:08:26.772152+00:00",
+          "finished_at": "2026-04-30T01:08:26.777705+00:00",
+          "duration_ms": 5,
+          "output_hash": "",
+          "knot_config_hash": "sha256:4a3206cadc307b45cdcd84511a5be8f15218c2395b0a1c9a516ff2ee06eaa892",
+          "error_record_id": "",
+          "skip_reason": "parent_failed_or_skipped"
+        },
+        "parse": {
+          "outcome": "ok",
+          "class": "parse_request",
+          "started_at": "2026-04-30T01:08:26.775200+00:00",
+          "finished_at": "2026-04-30T01:08:26.775320+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:ParsedRequest",
+          "knot_config_hash": "sha256:7ae55ac2a83923c65efb2acf4b4cd47d5cec1b142956269af4a50b7e69fc3997",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "process": {
+          "outcome": "skipped",
+          "class": "process",
+          "started_at": "2026-04-30T01:08:26.772152+00:00",
+          "finished_at": "2026-04-30T01:08:26.777529+00:00",
+          "duration_ms": 5,
+          "output_hash": "",
+          "knot_config_hash": "sha256:e9626cc2e691ba04dba1a2198063c2ce9b38e5f570c0a52ea9deb752b0d40e8e",
+          "error_record_id": "",
+          "skip_reason": "parent_failed_or_skipped"
+        },
+        "raw_body": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:08:26.774810+00:00",
+          "finished_at": "2026-04-30T01:08:26.775059+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:5f0ed770ee59a58f7960409e7fc8ca3cd92de058238cb76745ac1532f8c78895",
+          "knot_config_hash": "sha256:68752741718de4ce7211dec304e7b94a2c51cc3a60118e8bdf5219cd390bda48",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "scope": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:08:26.774820+00:00",
+          "finished_at": "2026-04-30T01:08:26.775123+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:bc2434a12fecfa191ab66b56a67f8fe2507216b76be96a72b1f866562cdc3567",
+          "knot_config_hash": "sha256:8709eea2bc0ae2edfbce77237b3acd172aa72b297af062e206e6473573597695",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "validate": {
+          "outcome": "skipped",
+          "class": "validate_body",
+          "started_at": "2026-04-30T01:08:26.772152+00:00",
+          "finished_at": "2026-04-30T01:08:26.777411+00:00",
+          "duration_ms": 5,
+          "output_hash": "",
+          "knot_config_hash": "sha256:73b60e2d6c13ca8cbe55729077d6afc6e6359a55c076c386bda6c10febf881bc",
+          "error_record_id": "",
+          "skip_reason": "parent_failed_or_skipped"
+        }
+      },
+      "exceptions": {
+        "exc-f96672371861449a9ae2302177c7d0d9": {
+          "id": "exc-f96672371861449a9ae2302177c7d0d9",
+          "run_id": "run-7330d1d3012d498c979bea518282fda7",
+          "knot_id": "auth",
+          "exc_type": "PermissionError",
+          "message": "401: missing or invalid token",
+          "traceback_text": "Traceback (most recent call last):\n  File \"/home/john_aven/Documents/software/pirn/pirn/core/knot.py\", line 256, in __call__\n    result = await self.process(**kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/john_aven/Documents/software/pirn/pirn/core/knot_factory.py\", line 53, in process\n    return await fn(**kwargs)\n           ^^^^^^^^^^^^^^^^^^\n  File \"/home/john_aven/Documents/software/pirn/examples/software_execution/request_handler.py\", line 81, in authenticate\n    raise PermissionError(\"401: missing or invalid token\")\nPermissionError: 401: missing or invalid token\n",
+          "occurred_at": "2026-04-30T01:08:26.776810Z"
+        }
+      }
+    },
+    {
+      "run_id": "run-dec8be82cf85496bbadf299879c96324",
+      "succeeded": true,
+      "started_at": "2026-04-30T01:08:26.713554+00:00",
+      "finished_at": "2026-04-30T01:08:26.762492+00:00",
+      "duration_ms": 48,
+      "dispatcher": "LocalDispatcher",
+      "actor": "",
+      "trigger": "",
+      "environment": {
+        "hostname": "snoodleboot"
+      },
+      "runtime_info": {
+        "python_version": "3.14.3 (main, Mar 20 2026, 00:34:32) [Clang 22.1.1 ]",
+        "pirn_version": "0.3.0",
+        "cloudpickle_version": "3.1.2",
+        "cloudpickle_pickle_protocol": "5",
+        "platform": "linux"
+      },
+      "knots": {
+        "audit": {
+          "outcome": "ok",
+          "class": "audit_log",
+          "started_at": "2026-04-30T01:08:26.758599+00:00",
+          "finished_at": "2026-04-30T01:08:26.761020+00:00",
+          "duration_ms": 2,
+          "output_hash": "sha256:74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+          "knot_config_hash": "sha256:2ff79d27df9cacfb0ef7cc2061669205c689e294d685314db42a46544122fc3d",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "auth": {
+          "outcome": "ok",
+          "class": "authenticate",
+          "started_at": "2026-04-30T01:08:26.721860+00:00",
+          "finished_at": "2026-04-30T01:08:26.727153+00:00",
+          "duration_ms": 5,
+          "output_hash": "sha256:unhashable:AuthToken",
+          "knot_config_hash": "sha256:e9eee7c247a913f838b75e7b109aed8b6f03a70ee0ccc90d6e9f446b0d42c7b4",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "authz": {
+          "outcome": "ok",
+          "class": "authorise",
+          "started_at": "2026-04-30T01:08:26.727196+00:00",
+          "finished_at": "2026-04-30T01:08:26.727234+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:AuthToken",
+          "knot_config_hash": "sha256:7147c700e796a312a43760aea462ada138c7eacc8301818c02f0c8ca295a83ba",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "fetch_account": {
+          "outcome": "ok",
+          "class": "fetch_account",
+          "started_at": "2026-04-30T01:08:26.727268+00:00",
+          "finished_at": "2026-04-30T01:08:26.735660+00:00",
+          "duration_ms": 8,
+          "output_hash": "sha256:unhashable:Account",
+          "knot_config_hash": "sha256:0f2e1860202ea76c4432cd0e873fda2013b14a4e8b5d6fab2bad0e01f54e1dcd",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "fetch_user": {
+          "outcome": "ok",
+          "class": "fetch_user",
+          "started_at": "2026-04-30T01:08:26.727287+00:00",
+          "finished_at": "2026-04-30T01:08:26.737853+00:00",
+          "duration_ms": 10,
+          "output_hash": "sha256:unhashable:UserProfile",
+          "knot_config_hash": "sha256:b97e6a38d22feaf9209e0ae56ce393aedd8c2dc1d270506b9b9120c55136309f",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "headers_json": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:08:26.721475+00:00",
+          "finished_at": "2026-04-30T01:08:26.721634+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:b224a053439f1323b1e983f7dbe0d1b5c398ef03ba988a257d662b8b0cdb5415",
+          "knot_config_hash": "sha256:efb41e50e6bc8a157a383f3cccedc37e677d61840ff738c0a978cae2cccd1e0d",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "notify": {
+          "outcome": "ok",
+          "class": "send_notification",
+          "started_at": "2026-04-30T01:08:26.758651+00:00",
+          "finished_at": "2026-04-30T01:08:26.762432+00:00",
+          "duration_ms": 3,
+          "output_hash": "sha256:74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+          "knot_config_hash": "sha256:4a3206cadc307b45cdcd84511a5be8f15218c2395b0a1c9a516ff2ee06eaa892",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "parse": {
+          "outcome": "ok",
+          "class": "parse_request",
+          "started_at": "2026-04-30T01:08:26.721745+00:00",
+          "finished_at": "2026-04-30T01:08:26.721833+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:ParsedRequest",
+          "knot_config_hash": "sha256:7ae55ac2a83923c65efb2acf4b4cd47d5cec1b142956269af4a50b7e69fc3997",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "process": {
+          "outcome": "ok",
+          "class": "process",
+          "started_at": "2026-04-30T01:08:26.737936+00:00",
+          "finished_at": "2026-04-30T01:08:26.758462+00:00",
+          "duration_ms": 20,
+          "output_hash": "sha256:unhashable:ApiResponse",
+          "knot_config_hash": "sha256:e9626cc2e691ba04dba1a2198063c2ce9b38e5f570c0a52ea9deb752b0d40e8e",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "raw_body": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:08:26.721490+00:00",
+          "finished_at": "2026-04-30T01:08:26.721683+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:aa68d8fd6442a525e24663d4ee2e9be8e4b495d601679780a144b41f44bc2693",
+          "knot_config_hash": "sha256:68752741718de4ce7211dec304e7b94a2c51cc3a60118e8bdf5219cd390bda48",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "scope": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:08:26.721498+00:00",
+          "finished_at": "2026-04-30T01:08:26.721709+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:bc2434a12fecfa191ab66b56a67f8fe2507216b76be96a72b1f866562cdc3567",
+          "knot_config_hash": "sha256:8709eea2bc0ae2edfbce77237b3acd172aa72b297af062e206e6473573597695",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "validate": {
+          "outcome": "ok",
+          "class": "validate_body",
+          "started_at": "2026-04-30T01:08:26.727298+00:00",
+          "finished_at": "2026-04-30T01:08:26.737895+00:00",
+          "duration_ms": 10,
+          "output_hash": "sha256:0b0fb0b7cfc1fc5529d3e4de587f339f10c7849105a9509eeffb7a3aa82377fd",
+          "knot_config_hash": "sha256:73b60e2d6c13ca8cbe55729077d6afc6e6359a55c076c386bda6c10febf881bc",
+          "error_record_id": "",
+          "skip_reason": ""
+        }
+      },
+      "exceptions": {}
+    },
+    {
+      "run_id": "run-d7b36c07bb9744719ca065646c6ff3cf",
+      "succeeded": true,
+      "started_at": "2026-04-30T01:02:44.283084+00:00",
+      "finished_at": "2026-04-30T01:02:44.382901+00:00",
+      "duration_ms": 99,
+      "dispatcher": "LocalDispatcher",
+      "actor": "",
+      "trigger": "",
+      "environment": {
+        "hostname": "snoodleboot"
+      },
+      "runtime_info": {
+        "python_version": "3.14.3 (main, Mar 20 2026, 00:34:32) [Clang 22.1.1 ]",
+        "pirn_version": "0.3.0",
+        "cloudpickle_version": "3.1.2",
+        "cloudpickle_pickle_protocol": "5",
+        "platform": "linux"
+      },
+      "knots": {
+        "entities": {
+          "outcome": "ok",
+          "class": "extract_entities",
+          "started_at": "2026-04-30T01:02:44.286393+00:00",
+          "finished_at": "2026-04-30T01:02:44.317741+00:00",
+          "duration_ms": 31,
+          "output_hash": "sha256:unhashable:Entities",
+          "knot_config_hash": "sha256:8acf5f326182c5bacc6aaeb8986d250fc05baade00411f9caf5fe93dae50462e",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "generate": {
+          "outcome": "ok",
+          "class": "generate_response",
+          "started_at": "2026-04-30T01:02:44.348867+00:00",
+          "finished_at": "2026-04-30T01:02:44.379755+00:00",
+          "duration_ms": 30,
+          "output_hash": "sha256:unhashable:GeneratedResponse",
+          "knot_config_hash": "sha256:0719f81b870710c29295ab1455246a3796058203d3635ad7d5b3ee4ee24f05f4",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "history_str": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:44.285627+00:00",
+          "finished_at": "2026-04-30T01:02:44.285834+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:d63ce379f6e5ddca6af921f4b4005ddace8c037f1e56343b60d730b1bb67e17b",
+          "knot_config_hash": "sha256:a78396702c5cf3b4f36aaa09f41f11b564aedf7d42015102ea4d2b656cd1687c",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "intent": {
+          "outcome": "ok",
+          "class": "classify_intent",
+          "started_at": "2026-04-30T01:02:44.286438+00:00",
+          "finished_at": "2026-04-30T01:02:44.317882+00:00",
+          "duration_ms": 31,
+          "output_hash": "sha256:unhashable:Intent",
+          "knot_config_hash": "sha256:1f8036347c64cb7db3711b3d8a577b305836345384eb59cd202a1875f76f3ed3",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "log": {
+          "outcome": "ok",
+          "class": "log_turn",
+          "started_at": "2026-04-30T01:02:44.380027+00:00",
+          "finished_at": "2026-04-30T01:02:44.382707+00:00",
+          "duration_ms": 2,
+          "output_hash": "sha256:unhashable:TurnLog",
+          "knot_config_hash": "sha256:451cacb45ceef2dbd9a44b6857fda3f9289fcd2e987caf82b7fe1e51fc97e7bb",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "message_text": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:44.285652+00:00",
+          "finished_at": "2026-04-30T01:02:44.285921+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:f1872753907347e6e463ac2d91fb35186818a156a6cf161d199a48590b892d97",
+          "knot_config_hash": "sha256:f3a535cdc66d6078db3954eeb34eb47fc9cd83241d4d51e4dcaef8b3759c0d4a",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "parse": {
+          "outcome": "ok",
+          "class": "parse_message",
+          "started_at": "2026-04-30T01:02:44.286200+00:00",
+          "finished_at": "2026-04-30T01:02:44.286309+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:ParsedMessage",
+          "knot_config_hash": "sha256:7ae55ac2a83923c65efb2acf4b4cd47d5cec1b142956269af4a50b7e69fc3997",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "post_process": {
+          "outcome": "ok",
+          "class": "post_process",
+          "started_at": "2026-04-30T01:02:44.380127+00:00",
+          "finished_at": "2026-04-30T01:02:44.382856+00:00",
+          "duration_ms": 2,
+          "output_hash": "sha256:unhashable:PostProcessedResponse",
+          "knot_config_hash": "sha256:807713edfbb502fd3c70848d98a1db281ad778f59f177c9ede10266b23aafdbd",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "retrieve": {
+          "outcome": "ok",
+          "class": "retrieve_context",
+          "started_at": "2026-04-30T01:02:44.318120+00:00",
+          "finished_at": "2026-04-30T01:02:44.348628+00:00",
+          "duration_ms": 30,
+          "output_hash": "sha256:unhashable:RetrievedContext",
+          "knot_config_hash": "sha256:8b251b565c0b771fc007d33fd5e1985592e58898c56fc9f7c923964afd24c10c",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "safety": {
+          "outcome": "ok",
+          "class": "check_safety",
+          "started_at": "2026-04-30T01:02:44.286461+00:00",
+          "finished_at": "2026-04-30T01:02:44.317975+00:00",
+          "duration_ms": 31,
+          "output_hash": "sha256:unhashable:SafetyResult",
+          "knot_config_hash": "sha256:2f3dca77a847adf63f213e1dd6fe2c0d6d55193d172cb867806c2835a9d55701",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "session_id": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:44.285661+00:00",
+          "finished_at": "2026-04-30T01:02:44.285985+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:56bedbf05d1aa1c602b1046eb598ff3b1705b25ce59af0dc49143cec3e995a06",
+          "knot_config_hash": "sha256:8e83d1b83950c2008c866eee4b0e5180299e16c5df640729e3c9a7c568562b17",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "turn_number": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:44.285669+00:00",
+          "finished_at": "2026-04-30T01:02:44.286050+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a",
+          "knot_config_hash": "sha256:a13e7fd8d59bc7ca9654230bb6b95285516c82e42ebf027241073db20c6b24d0",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "user_id": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:44.285677+00:00",
+          "finished_at": "2026-04-30T01:02:44.286100+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:6396a4f5b2623f1c05ba216596ed20602d1a64074edd128355eadb76b5f1aeba",
+          "knot_config_hash": "sha256:c8408a7d15ee9e10e7bc8331a5d8907d066ed01d5e73d46555d7d0e95cc86b2a",
+          "error_record_id": "",
+          "skip_reason": ""
+        }
+      },
+      "exceptions": {}
+    },
+    {
+      "run_id": "run-52ccb20bae884688a70c33aba4e3954e",
+      "succeeded": false,
+      "started_at": "2026-04-30T01:02:44.208664+00:00",
+      "finished_at": "2026-04-30T01:02:44.277532+00:00",
+      "duration_ms": 68,
+      "dispatcher": "LocalDispatcher",
+      "actor": "",
+      "trigger": "",
+      "environment": {
+        "hostname": "snoodleboot"
+      },
+      "runtime_info": {
+        "python_version": "3.14.3 (main, Mar 20 2026, 00:34:32) [Clang 22.1.1 ]",
+        "pirn_version": "0.3.0",
+        "cloudpickle_version": "3.1.2",
+        "cloudpickle_pickle_protocol": "5",
+        "platform": "linux"
+      },
+      "knots": {
+        "entities": {
+          "outcome": "ok",
+          "class": "extract_entities",
+          "started_at": "2026-04-30T01:02:44.212435+00:00",
+          "finished_at": "2026-04-30T01:02:44.243767+00:00",
+          "duration_ms": 31,
+          "output_hash": "sha256:unhashable:Entities",
+          "knot_config_hash": "sha256:8acf5f326182c5bacc6aaeb8986d250fc05baade00411f9caf5fe93dae50462e",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "generate": {
+          "outcome": "err",
+          "class": "generate_response",
+          "started_at": "2026-04-30T01:02:44.274995+00:00",
+          "finished_at": "2026-04-30T01:02:44.277107+00:00",
+          "duration_ms": 2,
+          "output_hash": "",
+          "knot_config_hash": "sha256:0719f81b870710c29295ab1455246a3796058203d3635ad7d5b3ee4ee24f05f4",
+          "error_record_id": "exc-bc7e0e92f14848049a037be1e8f6f19b",
+          "skip_reason": ""
+        },
+        "history_str": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:44.211672+00:00",
+          "finished_at": "2026-04-30T01:02:44.211888+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:a3f71752edb79171694b00e0fa38def1e25cb8dc8d9ad1969a5fa356fba78e4f",
+          "knot_config_hash": "sha256:a78396702c5cf3b4f36aaa09f41f11b564aedf7d42015102ea4d2b656cd1687c",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "intent": {
+          "outcome": "ok",
+          "class": "classify_intent",
+          "started_at": "2026-04-30T01:02:44.212481+00:00",
+          "finished_at": "2026-04-30T01:02:44.243915+00:00",
+          "duration_ms": 31,
+          "output_hash": "sha256:unhashable:Intent",
+          "knot_config_hash": "sha256:1f8036347c64cb7db3711b3d8a577b305836345384eb59cd202a1875f76f3ed3",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "log": {
+          "outcome": "skipped",
+          "class": "log_turn",
+          "started_at": "2026-04-30T01:02:44.208664+00:00",
+          "finished_at": "2026-04-30T01:02:44.277355+00:00",
+          "duration_ms": 68,
+          "output_hash": "",
+          "knot_config_hash": "sha256:451cacb45ceef2dbd9a44b6857fda3f9289fcd2e987caf82b7fe1e51fc97e7bb",
+          "error_record_id": "",
+          "skip_reason": "parent_failed_or_skipped"
+        },
+        "message_text": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:44.211700+00:00",
+          "finished_at": "2026-04-30T01:02:44.211979+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:1c929aa15b3c9e6d206cb79d3ba343635fc5c06242688390ebb1c309f366692c",
+          "knot_config_hash": "sha256:f3a535cdc66d6078db3954eeb34eb47fc9cd83241d4d51e4dcaef8b3759c0d4a",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "parse": {
+          "outcome": "ok",
+          "class": "parse_message",
+          "started_at": "2026-04-30T01:02:44.212246+00:00",
+          "finished_at": "2026-04-30T01:02:44.212352+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:ParsedMessage",
+          "knot_config_hash": "sha256:7ae55ac2a83923c65efb2acf4b4cd47d5cec1b142956269af4a50b7e69fc3997",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "post_process": {
+          "outcome": "skipped",
+          "class": "post_process",
+          "started_at": "2026-04-30T01:02:44.208664+00:00",
+          "finished_at": "2026-04-30T01:02:44.277503+00:00",
+          "duration_ms": 68,
+          "output_hash": "",
+          "knot_config_hash": "sha256:807713edfbb502fd3c70848d98a1db281ad778f59f177c9ede10266b23aafdbd",
+          "error_record_id": "",
+          "skip_reason": "parent_failed_or_skipped"
+        },
+        "retrieve": {
+          "outcome": "ok",
+          "class": "retrieve_context",
+          "started_at": "2026-04-30T01:02:44.244171+00:00",
+          "finished_at": "2026-04-30T01:02:44.274820+00:00",
+          "duration_ms": 30,
+          "output_hash": "sha256:unhashable:RetrievedContext",
+          "knot_config_hash": "sha256:8b251b565c0b771fc007d33fd5e1985592e58898c56fc9f7c923964afd24c10c",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "safety": {
+          "outcome": "ok",
+          "class": "check_safety",
+          "started_at": "2026-04-30T01:02:44.212505+00:00",
+          "finished_at": "2026-04-30T01:02:44.244021+00:00",
+          "duration_ms": 31,
+          "output_hash": "sha256:unhashable:SafetyResult",
+          "knot_config_hash": "sha256:2f3dca77a847adf63f213e1dd6fe2c0d6d55193d172cb867806c2835a9d55701",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "session_id": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:44.211710+00:00",
+          "finished_at": "2026-04-30T01:02:44.212040+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:56bedbf05d1aa1c602b1046eb598ff3b1705b25ce59af0dc49143cec3e995a06",
+          "knot_config_hash": "sha256:8e83d1b83950c2008c866eee4b0e5180299e16c5df640729e3c9a7c568562b17",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "turn_number": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:44.211717+00:00",
+          "finished_at": "2026-04-30T01:02:44.212105+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:4e07408562bedb8b60ce05c1decfe3ad16b72230967de01f640b7e4729b49fce",
+          "knot_config_hash": "sha256:a13e7fd8d59bc7ca9654230bb6b95285516c82e42ebf027241073db20c6b24d0",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "user_id": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:44.211726+00:00",
+          "finished_at": "2026-04-30T01:02:44.212151+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:6396a4f5b2623f1c05ba216596ed20602d1a64074edd128355eadb76b5f1aeba",
+          "knot_config_hash": "sha256:c8408a7d15ee9e10e7bc8331a5d8907d066ed01d5e73d46555d7d0e95cc86b2a",
+          "error_record_id": "",
+          "skip_reason": ""
+        }
+      },
+      "exceptions": {
+        "exc-bc7e0e92f14848049a037be1e8f6f19b": {
+          "id": "exc-bc7e0e92f14848049a037be1e8f6f19b",
+          "run_id": "run-52ccb20bae884688a70c33aba4e3954e",
+          "knot_id": "generate",
+          "exc_type": "PermissionError",
+          "message": "Safety block: Blocked pattern: 'ignore previous'",
+          "traceback_text": "Traceback (most recent call last):\n  File \"/home/john_aven/Documents/software/pirn/pirn/core/knot.py\", line 256, in __call__\n    result = await self.process(**kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/john_aven/Documents/software/pirn/pirn/core/knot_factory.py\", line 53, in process\n    return await fn(**kwargs)\n           ^^^^^^^^^^^^^^^^^^\n  File \"/home/john_aven/Documents/software/pirn/examples/llm_agent/chatbot_pipeline.py\", line 209, in generate_response\n    raise PermissionError(f\"Safety block: {safety.reason}\")\nPermissionError: Safety block: Blocked pattern: 'ignore previous'\n",
+          "occurred_at": "2026-04-30T01:02:44.276972Z"
+        }
+      }
+    },
+    {
+      "run_id": "run-ff1c16e6ad8a4e1f9066ba2067a849de",
+      "succeeded": true,
+      "started_at": "2026-04-30T01:02:44.099918+00:00",
+      "finished_at": "2026-04-30T01:02:44.201210+00:00",
+      "duration_ms": 101,
+      "dispatcher": "LocalDispatcher",
+      "actor": "",
+      "trigger": "",
+      "environment": {
+        "hostname": "snoodleboot"
+      },
+      "runtime_info": {
+        "python_version": "3.14.3 (main, Mar 20 2026, 00:34:32) [Clang 22.1.1 ]",
+        "pirn_version": "0.3.0",
+        "cloudpickle_version": "3.1.2",
+        "cloudpickle_pickle_protocol": "5",
+        "platform": "linux"
+      },
+      "knots": {
+        "entities": {
+          "outcome": "ok",
+          "class": "extract_entities",
+          "started_at": "2026-04-30T01:02:44.103202+00:00",
+          "finished_at": "2026-04-30T01:02:44.134531+00:00",
+          "duration_ms": 31,
+          "output_hash": "sha256:unhashable:Entities",
+          "knot_config_hash": "sha256:8acf5f326182c5bacc6aaeb8986d250fc05baade00411f9caf5fe93dae50462e",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "generate": {
+          "outcome": "ok",
+          "class": "generate_response",
+          "started_at": "2026-04-30T01:02:44.166629+00:00",
+          "finished_at": "2026-04-30T01:02:44.197481+00:00",
+          "duration_ms": 30,
+          "output_hash": "sha256:unhashable:GeneratedResponse",
+          "knot_config_hash": "sha256:0719f81b870710c29295ab1455246a3796058203d3635ad7d5b3ee4ee24f05f4",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "history_str": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:44.102217+00:00",
+          "finished_at": "2026-04-30T01:02:44.102408+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:b7c879f8e5534db544e6fe658873804edf0691e60808c8752490e1ce503076d5",
+          "knot_config_hash": "sha256:a78396702c5cf3b4f36aaa09f41f11b564aedf7d42015102ea4d2b656cd1687c",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "intent": {
+          "outcome": "ok",
+          "class": "classify_intent",
+          "started_at": "2026-04-30T01:02:44.103247+00:00",
+          "finished_at": "2026-04-30T01:02:44.135081+00:00",
+          "duration_ms": 31,
+          "output_hash": "sha256:unhashable:Intent",
+          "knot_config_hash": "sha256:1f8036347c64cb7db3711b3d8a577b305836345384eb59cd202a1875f76f3ed3",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "log": {
+          "outcome": "ok",
+          "class": "log_turn",
+          "started_at": "2026-04-30T01:02:44.197798+00:00",
+          "finished_at": "2026-04-30T01:02:44.200538+00:00",
+          "duration_ms": 2,
+          "output_hash": "sha256:unhashable:TurnLog",
+          "knot_config_hash": "sha256:451cacb45ceef2dbd9a44b6857fda3f9289fcd2e987caf82b7fe1e51fc97e7bb",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "message_text": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:44.102243+00:00",
+          "finished_at": "2026-04-30T01:02:44.102498+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:7ddc747ffb508bdd24a18c4ec77d268ecf429a976ec68562c2cfd1adf6b36aed",
+          "knot_config_hash": "sha256:f3a535cdc66d6078db3954eeb34eb47fc9cd83241d4d51e4dcaef8b3759c0d4a",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "parse": {
+          "outcome": "ok",
+          "class": "parse_message",
+          "started_at": "2026-04-30T01:02:44.102850+00:00",
+          "finished_at": "2026-04-30T01:02:44.103059+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:ParsedMessage",
+          "knot_config_hash": "sha256:7ae55ac2a83923c65efb2acf4b4cd47d5cec1b142956269af4a50b7e69fc3997",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "post_process": {
+          "outcome": "ok",
+          "class": "post_process",
+          "started_at": "2026-04-30T01:02:44.197902+00:00",
+          "finished_at": "2026-04-30T01:02:44.201055+00:00",
+          "duration_ms": 3,
+          "output_hash": "sha256:unhashable:PostProcessedResponse",
+          "knot_config_hash": "sha256:807713edfbb502fd3c70848d98a1db281ad778f59f177c9ede10266b23aafdbd",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "retrieve": {
+          "outcome": "ok",
+          "class": "retrieve_context",
+          "started_at": "2026-04-30T01:02:44.135553+00:00",
+          "finished_at": "2026-04-30T01:02:44.166344+00:00",
+          "duration_ms": 30,
+          "output_hash": "sha256:unhashable:RetrievedContext",
+          "knot_config_hash": "sha256:8b251b565c0b771fc007d33fd5e1985592e58898c56fc9f7c923964afd24c10c",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "safety": {
+          "outcome": "ok",
+          "class": "check_safety",
+          "started_at": "2026-04-30T01:02:44.103278+00:00",
+          "finished_at": "2026-04-30T01:02:44.135321+00:00",
+          "duration_ms": 32,
+          "output_hash": "sha256:unhashable:SafetyResult",
+          "knot_config_hash": "sha256:2f3dca77a847adf63f213e1dd6fe2c0d6d55193d172cb867806c2835a9d55701",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "session_id": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:44.102257+00:00",
+          "finished_at": "2026-04-30T01:02:44.102595+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:56bedbf05d1aa1c602b1046eb598ff3b1705b25ce59af0dc49143cec3e995a06",
+          "knot_config_hash": "sha256:8e83d1b83950c2008c866eee4b0e5180299e16c5df640729e3c9a7c568562b17",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "turn_number": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:44.102268+00:00",
+          "finished_at": "2026-04-30T01:02:44.102679+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
+          "knot_config_hash": "sha256:a13e7fd8d59bc7ca9654230bb6b95285516c82e42ebf027241073db20c6b24d0",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "user_id": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:44.102278+00:00",
+          "finished_at": "2026-04-30T01:02:44.102748+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:6396a4f5b2623f1c05ba216596ed20602d1a64074edd128355eadb76b5f1aeba",
+          "knot_config_hash": "sha256:c8408a7d15ee9e10e7bc8331a5d8907d066ed01d5e73d46555d7d0e95cc86b2a",
+          "error_record_id": "",
+          "skip_reason": ""
+        }
+      },
+      "exceptions": {}
+    },
+    {
+      "run_id": "run-9a7ddaefd2ef4ece821083c3876f6bad",
+      "succeeded": true,
+      "started_at": "2026-04-30T01:02:43.988048+00:00",
+      "finished_at": "2026-04-30T01:02:44.091471+00:00",
+      "duration_ms": 103,
+      "dispatcher": "LocalDispatcher",
+      "actor": "",
+      "trigger": "",
+      "environment": {
+        "hostname": "snoodleboot"
+      },
+      "runtime_info": {
+        "python_version": "3.14.3 (main, Mar 20 2026, 00:34:32) [Clang 22.1.1 ]",
+        "pirn_version": "0.3.0",
+        "cloudpickle_version": "3.1.2",
+        "cloudpickle_pickle_protocol": "5",
+        "platform": "linux"
+      },
+      "knots": {
+        "entities": {
+          "outcome": "ok",
+          "class": "extract_entities",
+          "started_at": "2026-04-30T01:02:43.996188+00:00",
+          "finished_at": "2026-04-30T01:02:44.027001+00:00",
+          "duration_ms": 30,
+          "output_hash": "sha256:unhashable:Entities",
+          "knot_config_hash": "sha256:8acf5f326182c5bacc6aaeb8986d250fc05baade00411f9caf5fe93dae50462e",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "generate": {
+          "outcome": "ok",
+          "class": "generate_response",
+          "started_at": "2026-04-30T01:02:44.058220+00:00",
+          "finished_at": "2026-04-30T01:02:44.088818+00:00",
+          "duration_ms": 30,
+          "output_hash": "sha256:unhashable:GeneratedResponse",
+          "knot_config_hash": "sha256:0719f81b870710c29295ab1455246a3796058203d3635ad7d5b3ee4ee24f05f4",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "history_str": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:43.995758+00:00",
+          "finished_at": "2026-04-30T01:02:43.995919+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:12ae32cb1ec02d01eda3581b127c1fee3b0dc53572ed6baf239721a03d82e126",
+          "knot_config_hash": "sha256:a78396702c5cf3b4f36aaa09f41f11b564aedf7d42015102ea4d2b656cd1687c",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "intent": {
+          "outcome": "ok",
+          "class": "classify_intent",
+          "started_at": "2026-04-30T01:02:43.996216+00:00",
+          "finished_at": "2026-04-30T01:02:44.027144+00:00",
+          "duration_ms": 30,
+          "output_hash": "sha256:unhashable:Intent",
+          "knot_config_hash": "sha256:1f8036347c64cb7db3711b3d8a577b305836345384eb59cd202a1875f76f3ed3",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "log": {
+          "outcome": "ok",
+          "class": "log_turn",
+          "started_at": "2026-04-30T01:02:44.088934+00:00",
+          "finished_at": "2026-04-30T01:02:44.091323+00:00",
+          "duration_ms": 2,
+          "output_hash": "sha256:unhashable:TurnLog",
+          "knot_config_hash": "sha256:451cacb45ceef2dbd9a44b6857fda3f9289fcd2e987caf82b7fe1e51fc97e7bb",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "message_text": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:43.995772+00:00",
+          "finished_at": "2026-04-30T01:02:43.995973+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:a64621d3587e525951e7056011dd9007f5ef340245c51ce93bc08cf1ad334a34",
+          "knot_config_hash": "sha256:f3a535cdc66d6078db3954eeb34eb47fc9cd83241d4d51e4dcaef8b3759c0d4a",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "parse": {
+          "outcome": "ok",
+          "class": "parse_message",
+          "started_at": "2026-04-30T01:02:43.996078+00:00",
+          "finished_at": "2026-04-30T01:02:43.996154+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:ParsedMessage",
+          "knot_config_hash": "sha256:7ae55ac2a83923c65efb2acf4b4cd47d5cec1b142956269af4a50b7e69fc3997",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "post_process": {
+          "outcome": "ok",
+          "class": "post_process",
+          "started_at": "2026-04-30T01:02:44.088979+00:00",
+          "finished_at": "2026-04-30T01:02:44.091440+00:00",
+          "duration_ms": 2,
+          "output_hash": "sha256:unhashable:PostProcessedResponse",
+          "knot_config_hash": "sha256:807713edfbb502fd3c70848d98a1db281ad778f59f177c9ede10266b23aafdbd",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "retrieve": {
+          "outcome": "ok",
+          "class": "retrieve_context",
+          "started_at": "2026-04-30T01:02:44.027357+00:00",
+          "finished_at": "2026-04-30T01:02:44.058026+00:00",
+          "duration_ms": 30,
+          "output_hash": "sha256:unhashable:RetrievedContext",
+          "knot_config_hash": "sha256:8b251b565c0b771fc007d33fd5e1985592e58898c56fc9f7c923964afd24c10c",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "safety": {
+          "outcome": "ok",
+          "class": "check_safety",
+          "started_at": "2026-04-30T01:02:43.996230+00:00",
+          "finished_at": "2026-04-30T01:02:44.027261+00:00",
+          "duration_ms": 31,
+          "output_hash": "sha256:unhashable:SafetyResult",
+          "knot_config_hash": "sha256:2f3dca77a847adf63f213e1dd6fe2c0d6d55193d172cb867806c2835a9d55701",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "session_id": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:43.995779+00:00",
+          "finished_at": "2026-04-30T01:02:43.996000+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:56bedbf05d1aa1c602b1046eb598ff3b1705b25ce59af0dc49143cec3e995a06",
+          "knot_config_hash": "sha256:8e83d1b83950c2008c866eee4b0e5180299e16c5df640729e3c9a7c568562b17",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "turn_number": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:43.995783+00:00",
+          "finished_at": "2026-04-30T01:02:43.996021+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+          "knot_config_hash": "sha256:a13e7fd8d59bc7ca9654230bb6b95285516c82e42ebf027241073db20c6b24d0",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "user_id": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:43.995786+00:00",
+          "finished_at": "2026-04-30T01:02:43.996040+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:6396a4f5b2623f1c05ba216596ed20602d1a64074edd128355eadb76b5f1aeba",
+          "knot_config_hash": "sha256:c8408a7d15ee9e10e7bc8331a5d8907d066ed01d5e73d46555d7d0e95cc86b2a",
+          "error_record_id": "",
+          "skip_reason": ""
+        }
+      },
+      "exceptions": {}
+    },
+    {
+      "run_id": "run-e7528cac8abd46f9afff6eb83e99b123",
+      "succeeded": true,
+      "started_at": "2026-04-30T01:02:43.256216+00:00",
+      "finished_at": "2026-04-30T01:02:43.590699+00:00",
+      "duration_ms": 334,
+      "dispatcher": "LocalDispatcher",
+      "actor": "",
+      "trigger": "",
+      "environment": {
+        "hostname": "snoodleboot"
+      },
+      "runtime_info": {
+        "python_version": "3.14.3 (main, Mar 20 2026, 00:34:32) [Clang 22.1.1 ]",
+        "pirn_version": "0.3.0",
+        "cloudpickle_version": "3.1.2",
+        "cloudpickle_pickle_protocol": "5",
+        "platform": "linux"
+      },
+      "knots": {
+        "branch": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:43.264289+00:00",
+          "finished_at": "2026-04-30T01:02:43.264453+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:e4a9e4d8baa71a9d8ebf56ec8ae3ea1e82be9f96ae6fe89e36d701d4a5337f30",
+          "knot_config_hash": "sha256:d4df6ee33e4f5b23172ff893c620da11de9e19488ff51454dd003e8606c914f2",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "build": {
+          "outcome": "ok",
+          "class": "build_image",
+          "started_at": "2026-04-30T01:02:43.438211+00:00",
+          "finished_at": "2026-04-30T01:02:43.539203+00:00",
+          "duration_ms": 100,
+          "output_hash": "sha256:unhashable:BuildArtifact",
+          "knot_config_hash": "sha256:5d626733ad91dac6d83167b94033d6fda30acb84e2eff4a39a983dd2e5851524",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "checkout": {
+          "outcome": "ok",
+          "class": "checkout",
+          "started_at": "2026-04-30T01:02:43.264572+00:00",
+          "finished_at": "2026-04-30T01:02:43.315240+00:00",
+          "duration_ms": 50,
+          "output_hash": "sha256:unhashable:CheckoutResult",
+          "knot_config_hash": "sha256:c57c4861bf0da945d1f7568dd8265ead396def2edc1c250c888aef3552cf2109",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "deploy": {
+          "outcome": "ok",
+          "class": "deploy",
+          "started_at": "2026-04-30T01:02:43.539426+00:00",
+          "finished_at": "2026-04-30T01:02:43.590585+00:00",
+          "duration_ms": 51,
+          "output_hash": "sha256:unhashable:DeployReceipt",
+          "knot_config_hash": "sha256:40830409e32b632e485655e26d5740d8085dc7e2728b09e79b77dec8251121f3",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "env": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:43.264303+00:00",
+          "finished_at": "2026-04-30T01:02:43.264503+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:975349610aa483aed84dc060ea8b27c9c8bdae4068fb35a7468cedf9791bf0a8",
+          "knot_config_hash": "sha256:597513e4b4a0e2cce45d45fd09d64935de8706c576becff6625c0b1c2e477bb7",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "integ_tests": {
+          "outcome": "ok",
+          "class": "run_integration_tests",
+          "started_at": "2026-04-30T01:02:43.357186+00:00",
+          "finished_at": "2026-04-30T01:02:43.438049+00:00",
+          "duration_ms": 80,
+          "output_hash": "sha256:unhashable:TestReport",
+          "knot_config_hash": "sha256:2c22c0705cabfe17cda5aac49b1c6be65a38890ecaba34d96f657ccef327e060",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "lint": {
+          "outcome": "ok",
+          "class": "run_lint",
+          "started_at": "2026-04-30T01:02:43.315375+00:00",
+          "finished_at": "2026-04-30T01:02:43.346192+00:00",
+          "duration_ms": 30,
+          "output_hash": "sha256:unhashable:QualityReport",
+          "knot_config_hash": "sha256:6bfb8bf2e8eeca5f0235e7fef09b91a65986c3c71fa150c55d5d6176e6f091eb",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "sha": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:43.264312+00:00",
+          "finished_at": "2026-04-30T01:02:43.264529+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:6554713d10baea85b90e94baac1d6570a277da030592b28a7265e45f464d3f54",
+          "knot_config_hash": "sha256:ffa6f034cf5bdd55e0cc8269492ed0c51ad024be939f494901d84f4793b632b6",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "typecheck": {
+          "outcome": "ok",
+          "class": "run_typecheck",
+          "started_at": "2026-04-30T01:02:43.315437+00:00",
+          "finished_at": "2026-04-30T01:02:43.356973+00:00",
+          "duration_ms": 41,
+          "output_hash": "sha256:unhashable:QualityReport",
+          "knot_config_hash": "sha256:4bffdb1175e05a3bb9221a54fca5c921313046a771cdf42cbe4065407327c619",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "unit_tests": {
+          "outcome": "ok",
+          "class": "run_unit_tests",
+          "started_at": "2026-04-30T01:02:43.357264+00:00",
+          "finished_at": "2026-04-30T01:02:43.438131+00:00",
+          "duration_ms": 80,
+          "output_hash": "sha256:unhashable:TestReport",
+          "knot_config_hash": "sha256:f47b8ff66f8dc82ce21c6431125bf0465eb4560f09474f3473c7fc890c8f4f85",
+          "error_record_id": "",
+          "skip_reason": ""
+        }
+      },
+      "exceptions": {}
+    },
+    {
+      "run_id": "run-7a16dbc140b8487b94590b98376d96f6",
+      "succeeded": true,
+      "started_at": "2026-04-30T01:02:42.961449+00:00",
+      "finished_at": "2026-04-30T01:02:42.988421+00:00",
+      "duration_ms": 26,
+      "dispatcher": "LocalDispatcher",
+      "actor": "",
+      "trigger": "",
+      "environment": {
+        "hostname": "snoodleboot"
+      },
+      "runtime_info": {
+        "python_version": "3.14.3 (main, Mar 20 2026, 00:34:32) [Clang 22.1.1 ]",
+        "pirn_version": "0.3.0",
+        "cloudpickle_version": "3.1.2",
+        "cloudpickle_pickle_protocol": "5",
+        "platform": "linux"
+      },
+      "knots": {
+        "cohorts": {
+          "outcome": "ok",
+          "class": "aggregate_by_cohort",
+          "started_at": "2026-04-30T01:02:42.987417+00:00",
+          "finished_at": "2026-04-30T01:02:42.987959+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:CohortMetrics",
+          "knot_config_hash": "sha256:f42184bd1eef83f61c55378e2320c97d0aa20d26e4f907fad9c854d48d377446",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "events": {
+          "outcome": "ok",
+          "class": "ingest_events",
+          "started_at": "2026-04-30T01:02:42.965066+00:00",
+          "finished_at": "2026-04-30T01:02:42.982722+00:00",
+          "duration_ms": 17,
+          "output_hash": "sha256:unhashable:EventsSnapshot",
+          "knot_config_hash": "sha256:97c8c4d8a36e96e4054d65136ea053c06ff3980235fda033413ce0708ebf8c99",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "join": {
+          "outcome": "ok",
+          "class": "join_datasets",
+          "started_at": "2026-04-30T01:02:42.987105+00:00",
+          "finished_at": "2026-04-30T01:02:42.987282+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:JoinedDataset",
+          "knot_config_hash": "sha256:78ebd157301a39f9a9f06ea15b14c23ff3d362e69c3d0e84754d3843b3c2a4dc",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "orders": {
+          "outcome": "ok",
+          "class": "ingest_orders",
+          "started_at": "2026-04-30T01:02:42.965133+00:00",
+          "finished_at": "2026-04-30T01:02:42.986763+00:00",
+          "duration_ms": 21,
+          "output_hash": "sha256:unhashable:OrdersSnapshot",
+          "knot_config_hash": "sha256:1fc0367da5b79e65065401c961c13d86ab4fb07c24b86d337fe5ea5003547d94",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "regions": {
+          "outcome": "ok",
+          "class": "aggregate_by_region",
+          "started_at": "2026-04-30T01:02:42.987580+00:00",
+          "finished_at": "2026-04-30T01:02:42.988087+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:RegionMetrics",
+          "knot_config_hash": "sha256:2d4b3d21a65e0618ac5d58ca08779974a66ab583e98a7770ea7aed70997f8f5c",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "report": {
+          "outcome": "ok",
+          "class": "build_report",
+          "started_at": "2026-04-30T01:02:42.988199+00:00",
+          "finished_at": "2026-04-30T01:02:42.988384+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:DailyReport",
+          "knot_config_hash": "sha256:cc5e55d4d8d5a08bf8b28abd9f160d907adb63efdeccf067ba3ed363b64c952d",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "run_date": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:42.964418+00:00",
+          "finished_at": "2026-04-30T01:02:42.964707+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:7395bcacfac421fd365c0dcd5a36299f4257fbadc0838632abf5bb2ee2d4c343",
+          "knot_config_hash": "sha256:69c14a23287c57f3389a4105987fcbe9ba8780408f2ffca8b336c55de9cbf1dd",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "seed": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:42.964445+00:00",
+          "finished_at": "2026-04-30T01:02:42.964898+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+          "knot_config_hash": "sha256:116a819f99dceb8c37efefedc371b61122463b66bcf06ed656959f6f99dc2fb0",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "users": {
+          "outcome": "ok",
+          "class": "ingest_users",
+          "started_at": "2026-04-30T01:02:42.965171+00:00",
+          "finished_at": "2026-04-30T01:02:42.986940+00:00",
+          "duration_ms": 21,
+          "output_hash": "sha256:unhashable:UsersSnapshot",
+          "knot_config_hash": "sha256:9ca99e16d2300ef4fcfa38f01ba7208a149780caa6de9f1027e1f4addfd5d1b8",
+          "error_record_id": "",
+          "skip_reason": ""
+        }
+      },
+      "exceptions": {}
+    },
+    {
+      "run_id": "run-ba6428eb47c447f8a29c47ebfc709ba9",
+      "succeeded": true,
+      "started_at": "2026-04-30T01:02:42.931521+00:00",
+      "finished_at": "2026-04-30T01:02:42.956152+00:00",
+      "duration_ms": 24,
+      "dispatcher": "LocalDispatcher",
+      "actor": "",
+      "trigger": "",
+      "environment": {
+        "hostname": "snoodleboot"
+      },
+      "runtime_info": {
+        "python_version": "3.14.3 (main, Mar 20 2026, 00:34:32) [Clang 22.1.1 ]",
+        "pirn_version": "0.3.0",
+        "cloudpickle_version": "3.1.2",
+        "cloudpickle_pickle_protocol": "5",
+        "platform": "linux"
+      },
+      "knots": {
+        "cohorts": {
+          "outcome": "ok",
+          "class": "aggregate_by_cohort",
+          "started_at": "2026-04-30T01:02:42.955294+00:00",
+          "finished_at": "2026-04-30T01:02:42.955746+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:CohortMetrics",
+          "knot_config_hash": "sha256:f42184bd1eef83f61c55378e2320c97d0aa20d26e4f907fad9c854d48d377446",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "events": {
+          "outcome": "ok",
+          "class": "ingest_events",
+          "started_at": "2026-04-30T01:02:42.933326+00:00",
+          "finished_at": "2026-04-30T01:02:42.949657+00:00",
+          "duration_ms": 16,
+          "output_hash": "sha256:unhashable:EventsSnapshot",
+          "knot_config_hash": "sha256:97c8c4d8a36e96e4054d65136ea053c06ff3980235fda033413ce0708ebf8c99",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "join": {
+          "outcome": "ok",
+          "class": "join_datasets",
+          "started_at": "2026-04-30T01:02:42.954983+00:00",
+          "finished_at": "2026-04-30T01:02:42.955162+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:JoinedDataset",
+          "knot_config_hash": "sha256:78ebd157301a39f9a9f06ea15b14c23ff3d362e69c3d0e84754d3843b3c2a4dc",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "orders": {
+          "outcome": "ok",
+          "class": "ingest_orders",
+          "started_at": "2026-04-30T01:02:42.933364+00:00",
+          "finished_at": "2026-04-30T01:02:42.954692+00:00",
+          "duration_ms": 21,
+          "output_hash": "sha256:unhashable:OrdersSnapshot",
+          "knot_config_hash": "sha256:1fc0367da5b79e65065401c961c13d86ab4fb07c24b86d337fe5ea5003547d94",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "regions": {
+          "outcome": "ok",
+          "class": "aggregate_by_region",
+          "started_at": "2026-04-30T01:02:42.955437+00:00",
+          "finished_at": "2026-04-30T01:02:42.955850+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:RegionMetrics",
+          "knot_config_hash": "sha256:2d4b3d21a65e0618ac5d58ca08779974a66ab583e98a7770ea7aed70997f8f5c",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "report": {
+          "outcome": "ok",
+          "class": "build_report",
+          "started_at": "2026-04-30T01:02:42.955946+00:00",
+          "finished_at": "2026-04-30T01:02:42.956101+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:DailyReport",
+          "knot_config_hash": "sha256:cc5e55d4d8d5a08bf8b28abd9f160d907adb63efdeccf067ba3ed363b64c952d",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "run_date": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:42.933065+00:00",
+          "finished_at": "2026-04-30T01:02:42.933184+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:5e870eaebb9b98b6adee1aaccd25c29b1e353988a1f116cc9b113ad46c2b48c5",
+          "knot_config_hash": "sha256:69c14a23287c57f3389a4105987fcbe9ba8780408f2ffca8b336c55de9cbf1dd",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "seed": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:42.933082+00:00",
+          "finished_at": "2026-04-30T01:02:42.933248+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:73475cb40a568e8da8a045ced110137e159f890ac4da883b6b17dc651b3a8049",
+          "knot_config_hash": "sha256:116a819f99dceb8c37efefedc371b61122463b66bcf06ed656959f6f99dc2fb0",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "users": {
+          "outcome": "ok",
+          "class": "ingest_users",
+          "started_at": "2026-04-30T01:02:42.933385+00:00",
+          "finished_at": "2026-04-30T01:02:42.954841+00:00",
+          "duration_ms": 21,
+          "output_hash": "sha256:unhashable:UsersSnapshot",
+          "knot_config_hash": "sha256:9ca99e16d2300ef4fcfa38f01ba7208a149780caa6de9f1027e1f4addfd5d1b8",
+          "error_record_id": "",
+          "skip_reason": ""
+        }
+      },
+      "exceptions": {}
+    },
+    {
+      "run_id": "run-60b0dfdae5e04e86960ab9c89cfd9b1d",
+      "succeeded": true,
+      "started_at": "2026-04-30T01:02:42.893530+00:00",
+      "finished_at": "2026-04-30T01:02:42.923458+00:00",
+      "duration_ms": 29,
+      "dispatcher": "LocalDispatcher",
+      "actor": "",
+      "trigger": "",
+      "environment": {
+        "hostname": "snoodleboot"
+      },
+      "runtime_info": {
+        "python_version": "3.14.3 (main, Mar 20 2026, 00:34:32) [Clang 22.1.1 ]",
+        "pirn_version": "0.3.0",
+        "cloudpickle_version": "3.1.2",
+        "cloudpickle_pickle_protocol": "5",
+        "platform": "linux"
+      },
+      "knots": {
+        "cohorts": {
+          "outcome": "ok",
+          "class": "aggregate_by_cohort",
+          "started_at": "2026-04-30T01:02:42.922934+00:00",
+          "finished_at": "2026-04-30T01:02:42.923199+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:CohortMetrics",
+          "knot_config_hash": "sha256:f42184bd1eef83f61c55378e2320c97d0aa20d26e4f907fad9c854d48d377446",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "events": {
+          "outcome": "ok",
+          "class": "ingest_events",
+          "started_at": "2026-04-30T01:02:42.901557+00:00",
+          "finished_at": "2026-04-30T01:02:42.917735+00:00",
+          "duration_ms": 16,
+          "output_hash": "sha256:unhashable:EventsSnapshot",
+          "knot_config_hash": "sha256:97c8c4d8a36e96e4054d65136ea053c06ff3980235fda033413ce0708ebf8c99",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "join": {
+          "outcome": "ok",
+          "class": "join_datasets",
+          "started_at": "2026-04-30T01:02:42.922758+00:00",
+          "finished_at": "2026-04-30T01:02:42.922882+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:JoinedDataset",
+          "knot_config_hash": "sha256:78ebd157301a39f9a9f06ea15b14c23ff3d362e69c3d0e84754d3843b3c2a4dc",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "orders": {
+          "outcome": "ok",
+          "class": "ingest_orders",
+          "started_at": "2026-04-30T01:02:42.901595+00:00",
+          "finished_at": "2026-04-30T01:02:42.922543+00:00",
+          "duration_ms": 20,
+          "output_hash": "sha256:unhashable:OrdersSnapshot",
+          "knot_config_hash": "sha256:1fc0367da5b79e65065401c961c13d86ab4fb07c24b86d337fe5ea5003547d94",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "regions": {
+          "outcome": "ok",
+          "class": "aggregate_by_region",
+          "started_at": "2026-04-30T01:02:42.923007+00:00",
+          "finished_at": "2026-04-30T01:02:42.923276+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:RegionMetrics",
+          "knot_config_hash": "sha256:2d4b3d21a65e0618ac5d58ca08779974a66ab583e98a7770ea7aed70997f8f5c",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "report": {
+          "outcome": "ok",
+          "class": "build_report",
+          "started_at": "2026-04-30T01:02:42.923321+00:00",
+          "finished_at": "2026-04-30T01:02:42.923433+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:DailyReport",
+          "knot_config_hash": "sha256:cc5e55d4d8d5a08bf8b28abd9f160d907adb63efdeccf067ba3ed363b64c952d",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "run_date": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:42.901285+00:00",
+          "finished_at": "2026-04-30T01:02:42.901443+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:1811323e973bb8cbdf52eb73ef9776a62d63851d774a31b40e0740c990f47112",
+          "knot_config_hash": "sha256:69c14a23287c57f3389a4105987fcbe9ba8780408f2ffca8b336c55de9cbf1dd",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "seed": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:42.901300+00:00",
+          "finished_at": "2026-04-30T01:02:42.901504+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:44c8031cb036a7350d8b9b8603af662a4b9cdbd2f96e8d5de5af435c9c35da69",
+          "knot_config_hash": "sha256:116a819f99dceb8c37efefedc371b61122463b66bcf06ed656959f6f99dc2fb0",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "users": {
+          "outcome": "ok",
+          "class": "ingest_users",
+          "started_at": "2026-04-30T01:02:42.901614+00:00",
+          "finished_at": "2026-04-30T01:02:42.922680+00:00",
+          "duration_ms": 21,
+          "output_hash": "sha256:unhashable:UsersSnapshot",
+          "knot_config_hash": "sha256:9ca99e16d2300ef4fcfa38f01ba7208a149780caa6de9f1027e1f4addfd5d1b8",
+          "error_record_id": "",
+          "skip_reason": ""
+        }
+      },
+      "exceptions": {}
+    },
+    {
+      "run_id": "run-1f3ffcbe5ddc40e88db248fcb6d6d54b",
+      "succeeded": true,
+      "started_at": "2026-04-30T01:02:42.700398+00:00",
+      "finished_at": "2026-04-30T01:02:42.703403+00:00",
+      "duration_ms": 3,
+      "dispatcher": "LocalDispatcher",
+      "actor": "",
+      "trigger": "",
+      "environment": {
+        "hostname": "snoodleboot"
+      },
+      "runtime_info": {
+        "python_version": "3.14.3 (main, Mar 20 2026, 00:34:32) [Clang 22.1.1 ]",
+        "pirn_version": "0.3.0",
+        "cloudpickle_version": "3.1.2",
+        "cloudpickle_pickle_protocol": "5",
+        "platform": "linux"
+      },
+      "knots": {
+        "clean": {
+          "outcome": "ok",
+          "class": "clean",
+          "started_at": "2026-04-30T01:02:42.702770+00:00",
+          "finished_at": "2026-04-30T01:02:42.702875+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:CleanDataset",
+          "knot_config_hash": "sha256:1f687efb3abea558a791a28feed891fea7050b9812cc5131b74fdf9e3032f34b",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "db_path": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:42.702096+00:00",
+          "finished_at": "2026-04-30T01:02:42.702241+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:29b2bebab70ed3ba54083278ba16c2e842f0f4596d05a0cc55ff6eeb6d837d8a",
+          "knot_config_hash": "sha256:6d86ee90820a89880d83f2f6233a7de83fea32e696ae88e415240e5b3a28b87c",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "drop_nulls": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:42.702118+00:00",
+          "finished_at": "2026-04-30T01:02:42.702312+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b",
+          "knot_config_hash": "sha256:6845e5c921d56809b45febef583977a6154465c654e6f7b6996ed286995d4d5d",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "enrich": {
+          "outcome": "ok",
+          "class": "enrich",
+          "started_at": "2026-04-30T01:02:42.702927+00:00",
+          "finished_at": "2026-04-30T01:02:42.703016+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:EnrichedDataset",
+          "knot_config_hash": "sha256:5d3d90b6fff94e8d8aedee4e478dcc4ae79f7e9b7bdbb3601b824630a9ddfa9b",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "extract": {
+          "outcome": "ok",
+          "class": "extract",
+          "started_at": "2026-04-30T01:02:42.702528+00:00",
+          "finished_at": "2026-04-30T01:02:42.702697+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:RawDataset",
+          "knot_config_hash": "sha256:bd5a2f7a0d4e003e5d6567a29ff8837d99d4f721c5c0dae05a393acc65203260",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "fx_rate": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:42.702127+00:00",
+          "finished_at": "2026-04-30T01:02:42.702364+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:d72c6e9cf20da8c31ac4f040ef135702d47c889b5a520bd14a54e911d13607c4",
+          "knot_config_hash": "sha256:04df98ba4dc2df53251c758b504c5b05c4a7d072452c92b6ddbe64054639f60b",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "load": {
+          "outcome": "ok",
+          "class": "load",
+          "started_at": "2026-04-30T01:02:42.703066+00:00",
+          "finished_at": "2026-04-30T01:02:42.703375+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:LoadResult",
+          "knot_config_hash": "sha256:a50ecea1d960b962c322e8a3556232a8b8090dfe4ea8260abf75801ff2a3b9dc",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "source_csv": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:42.702133+00:00",
+          "finished_at": "2026-04-30T01:02:42.702408+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:f15f29a37bd27d00d668180ed0c5294c895d89c711d14e15e61b8eaf6153ca3f",
+          "knot_config_hash": "sha256:24b1001bee4e015a220a79dddd956d035cbca6839dc526a56f64f7366a0d6495",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "table_name": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:42.702138+00:00",
+          "finished_at": "2026-04-30T01:02:42.702457+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:1c239a8ac4a447efcf1db26d4825bfa6b1468a0b9ba92bd61a843bbbfc87b26b",
+          "knot_config_hash": "sha256:ffe42705dc59cd2412063aabe8a9937bfa6ff97432150bc27e9e8ca8679639d7",
+          "error_record_id": "",
+          "skip_reason": ""
+        }
+      },
+      "exceptions": {}
+    },
+    {
+      "run_id": "run-8b683cc226544d749fd6ee4358244d6f",
+      "succeeded": true,
+      "started_at": "2026-04-30T01:02:42.695134+00:00",
+      "finished_at": "2026-04-30T01:02:42.697727+00:00",
+      "duration_ms": 2,
+      "dispatcher": "LocalDispatcher",
+      "actor": "",
+      "trigger": "",
+      "environment": {
+        "hostname": "snoodleboot"
+      },
+      "runtime_info": {
+        "python_version": "3.14.3 (main, Mar 20 2026, 00:34:32) [Clang 22.1.1 ]",
+        "pirn_version": "0.3.0",
+        "cloudpickle_version": "3.1.2",
+        "cloudpickle_pickle_protocol": "5",
+        "platform": "linux"
+      },
+      "knots": {
+        "clean": {
+          "outcome": "ok",
+          "class": "clean",
+          "started_at": "2026-04-30T01:02:42.697042+00:00",
+          "finished_at": "2026-04-30T01:02:42.697126+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:CleanDataset",
+          "knot_config_hash": "sha256:1f687efb3abea558a791a28feed891fea7050b9812cc5131b74fdf9e3032f34b",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "db_path": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:42.696536+00:00",
+          "finished_at": "2026-04-30T01:02:42.696674+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:29b2bebab70ed3ba54083278ba16c2e842f0f4596d05a0cc55ff6eeb6d837d8a",
+          "knot_config_hash": "sha256:6d86ee90820a89880d83f2f6233a7de83fea32e696ae88e415240e5b3a28b87c",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "drop_nulls": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:42.696553+00:00",
+          "finished_at": "2026-04-30T01:02:42.696735+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b",
+          "knot_config_hash": "sha256:6845e5c921d56809b45febef583977a6154465c654e6f7b6996ed286995d4d5d",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "enrich": {
+          "outcome": "ok",
+          "class": "enrich",
+          "started_at": "2026-04-30T01:02:42.697179+00:00",
+          "finished_at": "2026-04-30T01:02:42.697275+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:EnrichedDataset",
+          "knot_config_hash": "sha256:5d3d90b6fff94e8d8aedee4e478dcc4ae79f7e9b7bdbb3601b824630a9ddfa9b",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "extract": {
+          "outcome": "ok",
+          "class": "extract",
+          "started_at": "2026-04-30T01:02:42.696891+00:00",
+          "finished_at": "2026-04-30T01:02:42.696998+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:RawDataset",
+          "knot_config_hash": "sha256:bd5a2f7a0d4e003e5d6567a29ff8837d99d4f721c5c0dae05a393acc65203260",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "fx_rate": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:42.696559+00:00",
+          "finished_at": "2026-04-30T01:02:42.696781+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:2af765db0219612b34a92b3043fb46afcac1c3df9cb094c6b992ff82f84b7441",
+          "knot_config_hash": "sha256:04df98ba4dc2df53251c758b504c5b05c4a7d072452c92b6ddbe64054639f60b",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "load": {
+          "outcome": "ok",
+          "class": "load",
+          "started_at": "2026-04-30T01:02:42.697336+00:00",
+          "finished_at": "2026-04-30T01:02:42.697696+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:LoadResult",
+          "knot_config_hash": "sha256:a50ecea1d960b962c322e8a3556232a8b8090dfe4ea8260abf75801ff2a3b9dc",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "source_csv": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:42.696571+00:00",
+          "finished_at": "2026-04-30T01:02:42.696815+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:f15f29a37bd27d00d668180ed0c5294c895d89c711d14e15e61b8eaf6153ca3f",
+          "knot_config_hash": "sha256:24b1001bee4e015a220a79dddd956d035cbca6839dc526a56f64f7366a0d6495",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "table_name": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:42.696577+00:00",
+          "finished_at": "2026-04-30T01:02:42.696846+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:1c239a8ac4a447efcf1db26d4825bfa6b1468a0b9ba92bd61a843bbbfc87b26b",
+          "knot_config_hash": "sha256:ffe42705dc59cd2412063aabe8a9937bfa6ff97432150bc27e9e8ca8679639d7",
+          "error_record_id": "",
+          "skip_reason": ""
+        }
+      },
+      "exceptions": {}
+    },
+    {
+      "run_id": "run-9eb6f7d62b3c4a758a8ee96b9071cd5a",
+      "succeeded": true,
+      "started_at": "2026-04-30T01:02:42.654222+00:00",
+      "finished_at": "2026-04-30T01:02:42.663021+00:00",
+      "duration_ms": 8,
+      "dispatcher": "LocalDispatcher",
+      "actor": "",
+      "trigger": "",
+      "environment": {
+        "hostname": "snoodleboot"
+      },
+      "runtime_info": {
+        "python_version": "3.14.3 (main, Mar 20 2026, 00:34:32) [Clang 22.1.1 ]",
+        "pirn_version": "0.3.0",
+        "cloudpickle_version": "3.1.2",
+        "cloudpickle_pickle_protocol": "5",
+        "platform": "linux"
+      },
+      "knots": {
+        "clean": {
+          "outcome": "ok",
+          "class": "clean",
+          "started_at": "2026-04-30T01:02:42.662608+00:00",
+          "finished_at": "2026-04-30T01:02:42.662684+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:CleanDataset",
+          "knot_config_hash": "sha256:1f687efb3abea558a791a28feed891fea7050b9812cc5131b74fdf9e3032f34b",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "db_path": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:42.662129+00:00",
+          "finished_at": "2026-04-30T01:02:42.662301+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:29b2bebab70ed3ba54083278ba16c2e842f0f4596d05a0cc55ff6eeb6d837d8a",
+          "knot_config_hash": "sha256:6d86ee90820a89880d83f2f6233a7de83fea32e696ae88e415240e5b3a28b87c",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "drop_nulls": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:42.662143+00:00",
+          "finished_at": "2026-04-30T01:02:42.662356+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b",
+          "knot_config_hash": "sha256:6845e5c921d56809b45febef583977a6154465c654e6f7b6996ed286995d4d5d",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "enrich": {
+          "outcome": "ok",
+          "class": "enrich",
+          "started_at": "2026-04-30T01:02:42.662709+00:00",
+          "finished_at": "2026-04-30T01:02:42.662773+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:EnrichedDataset",
+          "knot_config_hash": "sha256:5d3d90b6fff94e8d8aedee4e478dcc4ae79f7e9b7bdbb3601b824630a9ddfa9b",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "extract": {
+          "outcome": "ok",
+          "class": "extract",
+          "started_at": "2026-04-30T01:02:42.662459+00:00",
+          "finished_at": "2026-04-30T01:02:42.662571+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:RawDataset",
+          "knot_config_hash": "sha256:bd5a2f7a0d4e003e5d6567a29ff8837d99d4f721c5c0dae05a393acc65203260",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "fx_rate": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:42.662152+00:00",
+          "finished_at": "2026-04-30T01:02:42.662388+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:2af765db0219612b34a92b3043fb46afcac1c3df9cb094c6b992ff82f84b7441",
+          "knot_config_hash": "sha256:04df98ba4dc2df53251c758b504c5b05c4a7d072452c92b6ddbe64054639f60b",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "load": {
+          "outcome": "ok",
+          "class": "load",
+          "started_at": "2026-04-30T01:02:42.662797+00:00",
+          "finished_at": "2026-04-30T01:02:42.663005+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:unhashable:LoadResult",
+          "knot_config_hash": "sha256:a50ecea1d960b962c322e8a3556232a8b8090dfe4ea8260abf75801ff2a3b9dc",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "source_csv": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:42.662157+00:00",
+          "finished_at": "2026-04-30T01:02:42.662410+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:f15f29a37bd27d00d668180ed0c5294c895d89c711d14e15e61b8eaf6153ca3f",
+          "knot_config_hash": "sha256:24b1001bee4e015a220a79dddd956d035cbca6839dc526a56f64f7366a0d6495",
+          "error_record_id": "",
+          "skip_reason": ""
+        },
+        "table_name": {
+          "outcome": "ok",
+          "class": "Parameter",
+          "started_at": "2026-04-30T01:02:42.662160+00:00",
+          "finished_at": "2026-04-30T01:02:42.662429+00:00",
+          "duration_ms": 0,
+          "output_hash": "sha256:1c239a8ac4a447efcf1db26d4825bfa6b1468a0b9ba92bd61a843bbbfc87b26b",
+          "knot_config_hash": "sha256:ffe42705dc59cd2412063aabe8a9937bfa6ff97432150bc27e9e8ca8679639d7",
+          "error_record_id": "",
+          "skip_reason": ""
+        }
+      },
+      "exceptions": {}
+    }
+  ],
+  "folder": "/home/john_aven/Documents/software/pirn/examples"
+};
+const TAPESTRIES  = DATA.tapestries;
+const RUNS        = DATA.runs;
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let current      = null;
+let orientation  = 'vertical';
+let historyOpen  = false;
+let selectedRun  = null;
+let theme        = 'dark';
+let savedRunIds  = {};  // tapestry name → run_id
+let pinnedNode   = null;
+
+const NODE_W = 160, NODE_H = 52, GAP_X = 80, GAP_Y = 72;
+const LS_KEY = 'pirn-explorer-v2';
+
+// ── Persistence ───────────────────────────────────────────────────────────────
+function saveState() {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify({
+      tapestry: current ? current.name : null,
+      orientation,
+      historyOpen,
+      savedRunIds,
+      theme,
+    }));
+  } catch (_) {}
+}
+
+function loadState() {
+  try { return JSON.parse(localStorage.getItem(LS_KEY) || '{}'); }
+  catch (_) { return {}; }
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+setThemeSilent('dark'); // apply before paint; overridden by saved pref below
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('sidebar-folder').textContent = DATA.folder;
+  renderSidebar();
+
+  const s = loadState();
+
+  if (s.theme)       setThemeSilent(s.theme);
+  if (s.orientation) setOrientationSilent(s.orientation);
+  if (s.savedRunIds) savedRunIds = s.savedRunIds;
+
+  const resume = s.tapestry && TAPESTRIES.find(t => t.name === s.tapestry);
+  const first  = resume || (TAPESTRIES.length ? TAPESTRIES[0] : null);
+  if (first) {
+    selectTapestry(first, /*save=*/false);
+  }
+  if (s.historyOpen) openHistory(/*save=*/false);
+  else if (first) renderGraph(); // ensure graph renders even without history
+});
+
+// ── Sidebar ───────────────────────────────────────────────────────────────────
+function renderSidebar() {
+  const count = TAPESTRIES.length;
+  document.getElementById('sidebar-count').textContent =
+    count === 0 ? 'No tapestries found'
+                : `${count} tapestr${count === 1 ? 'y' : 'ies'}`;
+
+  const ul = document.getElementById('tapestry-list');
+  ul.innerHTML = '';
+  TAPESTRIES.forEach(t => {
+    const li = document.createElement('li');
+    li.className = 'tapestry-item' + (t.error ? ' has-error' : '');
+    li.innerHTML =
+      `<span class="item-name">${esc(t.name)}</span>` +
+      `<span class="item-source">${esc(t.source)}</span>`;
+    li.addEventListener('click', () => selectTapestry(t));
+    ul.appendChild(li);
+  });
+}
+
+function selectTapestry(t, save = true) {
+  current     = t;
+  selectedRun = null;
+
+  // Restore saved run for this tapestry
+  if (historyOpen) {
+    const savedId = savedRunIds[t.name];
+    const runs    = runsForTapestry(t);
+    selectedRun   = (savedId && runs.find(r => r.run_id === savedId)) || runs[0] || null;
+  }
+
+  updateRunBar();
+  document.querySelectorAll('.tapestry-item').forEach((el, i) => {
+    el.classList.toggle('active', TAPESTRIES[i] === t);
+  });
+  document.getElementById('tapestry-title').textContent = t.name;
+  updateStats(t);
+  document.getElementById('empty-state').classList.add('hidden');
+  hideTooltip();
+  hideKnotDetail();
+  if (historyOpen) renderRunList(t);
+  if (save) saveState();
+  renderGraph();
+}
+
+function updateStats(t) {
+  document.getElementById('stats').textContent =
+    t.error ? '⚠ parse error'
+    : `${t.nodes.length} knot${t.nodes.length === 1 ? '' : 's'} · ${t.edges.length} thread${t.edges.length === 1 ? '' : 's'}`;
+}
+
+// ── Orientation ───────────────────────────────────────────────────────────────
+function setOrientation(o) {
+  setOrientationSilent(o);
+  saveState();
+  if (current) renderGraph();
+}
+
+function setOrientationSilent(o) {
+  orientation = o;
+  document.getElementById('btn-vertical').classList.toggle('active',   o === 'vertical');
+  document.getElementById('btn-horizontal').classList.toggle('active', o === 'horizontal');
+}
+
+// ── Theme ─────────────────────────────────────────────────────────────────────
+function toggleTheme() {
+  setTheme(theme === 'dark' ? 'light' : 'dark');
+}
+
+function setTheme(t) {
+  setThemeSilent(t);
+  saveState();
+  if (current) renderGraph();
+}
+
+function setThemeSilent(t) {
+  theme = t;
+  document.documentElement.setAttribute('data-theme', t);
+  const btn = document.getElementById('btn-theme');
+  if (btn) {
+    btn.innerHTML = t === 'dark' ? '&#x263D; Dark' : '&#x2600; Light';
+    btn.title = t === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+  }
+}
+
+// ── History panel ─────────────────────────────────────────────────────────────
+function toggleHistory() {
+  historyOpen ? closeHistory() : openHistory();
+}
+
+function openHistory(save = true) {
+  historyOpen = true;
+  document.getElementById('history-panel').classList.add('open');
+  document.getElementById('btn-history').classList.add('active-hist');
+  if (current) {
+    // Auto-select saved run, or fall back to the first run
+    if (!selectedRun) {
+      const savedId = savedRunIds[current.name];
+      const runs    = runsForTapestry(current);
+      selectedRun   = (savedId && runs.find(r => r.run_id === savedId)) || runs[0] || null;
+    }
+    renderRunList(current);
+    updateRunBar();
+    renderGraph();
+  }
+  if (save) saveState();
+}
+
+function closeHistory() {
+  historyOpen = false;
+  selectedRun = null;
+  document.getElementById('history-panel').classList.remove('open');
+  document.getElementById('btn-history').classList.remove('active-hist');
+  updateRunBar();
+  renderGraph();
+  saveState();
+}
+
+function runsForTapestry(tapestry) {
+  const nodeIds = new Set(tapestry.nodes.map(n => n.id));
+  return RUNS.filter(r => {
+    const runKnots = Object.keys(r.knots);
+    if (!runKnots.length) return false;
+    const overlap = runKnots.filter(k => nodeIds.has(k)).length;
+    return overlap / runKnots.length >= 0.4;
+  });
+}
+
+function renderRunList(tapestry) {
+  const runs = runsForTapestry(tapestry);
+  const countEl = document.getElementById('history-run-count');
+  countEl.textContent = runs.length
+    ? `${runs.length} run${runs.length === 1 ? '' : 's'} recorded`
+    : 'No recorded runs for this tapestry';
+
+  const listEl = document.getElementById('run-list');
+  listEl.innerHTML = '';
+
+  if (!runs.length) {
+    listEl.innerHTML = `<div class="no-runs">No runs found.<br>Run the tapestry to record execution history.</div>`;
+    return;
+  }
+
+  runs.forEach(r => {
+    const okCount   = Object.values(r.knots).filter(k => k.outcome === 'ok').length;
+    const errCount  = Object.values(r.knots).filter(k => k.outcome === 'err').length;
+    const skipCount = Object.values(r.knots).filter(k => k.outcome === 'skipped').length;
+    const statusCls = r.succeeded ? 'ok' : 'err';
+    const statusCh  = r.succeeded ? '✓' : '✗';
+    const ts        = fmtTime(r.started_at);
+    const dur       = fmtDuration(r.duration_ms);
+
+    const el = document.createElement('div');
+    el.className = 'run-item' + (selectedRun && selectedRun.run_id === r.run_id ? ' active' : '');
+    el.innerHTML = `
+      <div class="run-item-header">
+        <span class="run-status ${statusCls}">${statusCh}</span>
+        <span class="run-time">${esc(ts)}</span>
+        <span class="run-duration">${esc(dur)}</span>
+      </div>
+      <div class="run-id">${esc(r.run_id.slice(0, 32))}…</div>
+      <div class="run-knot-summary">
+        <span class="ok-count">✓ ${okCount}</span>
+        ${errCount  ? `<span class="err-count">✗ ${errCount}</span>`   : ''}
+        ${skipCount ? `<span class="skip-count">⊘ ${skipCount}</span>` : ''}
+      </div>`;
+    el.addEventListener('click', () => selectRun(r));
+    listEl.appendChild(el);
+  });
+}
+
+// ── Run selection ─────────────────────────────────────────────────────────────
+function selectRun(run, save = true) {
+  selectedRun = run;
+  if (current && run) savedRunIds[current.name] = run.run_id;
+  document.querySelectorAll('.run-item').forEach((el, i) => {
+    const runs = runsForTapestry(current);
+    el.classList.toggle('active', runs[i] === run);
+  });
+  updateRunBar();
+  if (save) saveState();
+  renderGraph();
+}
+
+function updateRunBar() {
+  const bar = document.getElementById('run-bar');
+  if (selectedRun) {
+    bar.classList.add('visible');
+    document.getElementById('run-bar-label').textContent =
+      `Viewing run ${selectedRun.run_id.slice(0, 20)}…  ·  ${fmtTime(selectedRun.started_at)}  ·  ${fmtDuration(selectedRun.duration_ms)}`;
+  } else {
+    bar.classList.remove('visible');
+  }
+}
+
+// ── Tooltip ───────────────────────────────────────────────────────────────────
+const ttEl = document.getElementById('tooltip');
+
+function showTooltip(event, node) {
+  document.getElementById('tt-class').textContent = node.class;
+  document.getElementById('tt-id').textContent    = node.id;
+  _ttRow('tt-desc', node.description, '');
+
+  const runDivider     = document.getElementById('tt-run-divider');
+  const runMetaDivider = document.getElementById('tt-run-meta-divider');
+
+  if (selectedRun) {
+    const k = selectedRun.knots[node.id];
+    runDivider.style.display = '';
+
+    if (k) {
+      const ocCls = k.outcome === 'ok' ? 'tt-outcome-ok' : k.outcome === 'err' ? 'tt-outcome-err' : 'tt-outcome-skip';
+      const ocCh  = k.outcome === 'ok' ? '✓ ok' : k.outcome === 'err' ? '✗ err' : '⊘ skipped';
+      document.getElementById('tt-outcome').innerHTML  = `outcome: <span class="${ocCls}">${ocCh}</span>`;
+      document.getElementById('tt-outcome').style.display = '';
+      _ttRow('tt-duration', k.duration_ms != null ? `${k.duration_ms} ms` : '', 'duration: ');
+      _ttRow('tt-hash',     k.output_hash ? k.output_hash.slice(0, 28) + '…' : '', 'hash: ');
+      _ttRow('tt-skip',     k.skip_reason,    'skipped: ');
+      _ttRow('tt-err-rec',  k.error_record_id, 'error id: ');
+    } else {
+      ['tt-outcome','tt-duration','tt-hash','tt-skip','tt-err-rec'].forEach(id => {
+        document.getElementById(id).style.display = 'none';
+      });
+    }
+
+    runMetaDivider.style.display = '';
+    _ttRow('tt-run-id',         selectedRun.run_id.slice(0, 28) + '…', 'run: ');
+    _ttRow('tt-run-dispatcher', selectedRun.dispatcher,  'dispatcher: ');
+    _ttRow('tt-run-actor',      selectedRun.actor,       'actor: ');
+    _ttRow('tt-run-host',       selectedRun.environment && selectedRun.environment.hostname, 'host: ');
+    _ttRow('tt-run-python',     selectedRun.runtime_info && selectedRun.runtime_info.python_version
+                                  ? selectedRun.runtime_info.python_version.split(' ')[0] + ' ' + selectedRun.runtime_info.python_version.split(' ')[1]
+                                  : '', 'python: ');
+    _ttRow('tt-run-pirn',       selectedRun.runtime_info && selectedRun.runtime_info.pirn_version, 'pirn: ');
+  } else {
+    runDivider.style.display     = 'none';
+    runMetaDivider.style.display = 'none';
+    ['tt-outcome','tt-duration','tt-hash','tt-skip','tt-err-rec',
+     'tt-run-id','tt-run-dispatcher','tt-run-actor','tt-run-host','tt-run-python','tt-run-pirn'].forEach(id => {
+      document.getElementById(id).style.display = 'none';
+    });
+  }
+
+  // Edge labels (inputs/outputs)
+  const t = current;
+  const inEdges  = t.edges.filter(e => e.target === node.id);
+  const outEdges = t.edges.filter(e => e.source === node.id);
+  if (inEdges.length) {
+    const s = inEdges.map(e => e.label ? `<span>${esc(e.label)}</span>←${esc(e.source)}` : esc(e.source)).join(', ');
+    document.getElementById('tt-inputs').innerHTML = `receives from: ${s}`;
+    document.getElementById('tt-inputs').style.display = '';
+  } else {
+    document.getElementById('tt-inputs').style.display = 'none';
+  }
+  if (outEdges.length) {
+    const s = outEdges.map(e => `<span>${esc(e.target)}</span>`).join(', ');
+    document.getElementById('tt-outputs').innerHTML = `passes to: ${s}`;
+    document.getElementById('tt-outputs').style.display = '';
+  } else {
+    document.getElementById('tt-outputs').style.display = 'none';
+  }
+
+  positionTooltip(event);
+  ttEl.classList.add('visible');
+}
+
+function _ttRow(id, val, prefix) {
+  const el = document.getElementById(id);
+  if (val) {
+    el.innerHTML = `${prefix}<span>${esc(String(val))}</span>`;
+    el.style.display = '';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+// ── Pinned knot detail (sidebar) ──────────────────────────────────────────────
+function toggleKnotDetail(node) {
+  if (pinnedNode && pinnedNode.id === node.id) { hideKnotDetail(); return; }
+  showKnotDetail(node);
+}
+
+function showKnotDetail(node) {
+  pinnedNode = node;
+  const el = document.getElementById('knot-detail');
+  const t  = current;
+  const inEdges  = t.edges.filter(e => e.target === node.id);
+  const outEdges = t.edges.filter(e => e.source === node.id);
+  const k = selectedRun ? selectedRun.knots[node.id] : null;
+  const r = selectedRun;
+
+  // ── Header ────────────────────────────────────────────────────────────
+  let html = `<div id="knot-detail-inner">
+    <div class="kd-header">
+      <span class="kd-close" onclick="hideKnotDetail()">&#x2715;</span>
+    </div>`;
+
+  // ── 7W rows ───────────────────────────────────────────────────────────
+  function w(label, value, cls) {
+    if (!value && value !== 0) return '';
+    return `<div class="kd-w-row">
+      <span class="kd-w-label">${label}</span>
+      <span class="kd-w-value${cls ? ' ' + cls : ''}">${value}</span>
+    </div>`;
+  }
+
+  // WHAT — always present
+  const ocCls = !k ? '' : k.outcome === 'ok' ? 'w-ok' : k.outcome === 'err' ? 'w-err' : 'w-skip';
+  const ocBadge = !k ? '' : k.outcome === 'ok' ? '✓ ok' : k.outcome === 'err' ? '✗ err' : '⊘ skipped';
+  const whatVal = k
+    ? `<span class="${ocCls}">${ocBadge}</span> <span class="kd-w-dim">${esc(node.class)}</span>`
+    : `<span class="kd-w-dim">${esc(node.class)}</span>`;
+  html += `<div class="kd-w-row"><span class="kd-w-label">WHAT</span><div class="kd-w-value">${esc(node.id)}<br>${whatVal}</div></div>`;
+  if (node.description) html += `<div class="kd-w-desc">${esc(node.description)}</div>`;
+
+  // HOW — connections (always present)
+  let howParts = [];
+  inEdges.forEach(e  => howParts.push(`<span class="kd-w-dim">← ${esc(e.label || e.source)}</span>`));
+  outEdges.forEach(e => howParts.push(`<span class="kd-w-dim">→ ${esc(e.target)}</span>`));
+  if (howParts.length) {
+    html += `<div class="kd-w-row"><span class="kd-w-label">HOW</span><div class="kd-w-value">${howParts.join('<br>')}</div></div>`;
+  }
+
+  if (r) {
+    html += `<hr class="kd-divider">`;
+
+    // WHO
+    html += w('WHO', esc(r.actor) || '—');
+
+    // WHEN — knot-level timing if available, else run timing
+    const kWhen = k && k.started_at
+      ? `${fmtTime(k.started_at)}<br><span class="kd-w-dim">${fmtDuration(k.duration_ms)}</span>`
+      : `${fmtTime(r.started_at)}<br><span class="kd-w-dim">${fmtDuration(r.duration_ms)} total</span>`;
+    html += `<div class="kd-w-row"><span class="kd-w-label">WHEN</span><div class="kd-w-value">${kWhen}</div></div>`;
+
+    // WHERE
+    const host = r.environment && r.environment.hostname;
+    html += w('WHERE', host ? esc(host) : '');
+
+    // HOW (execution) — dispatcher
+    html += w('HOW', esc(r.dispatcher));
+
+    // WHY — trigger + skip reason
+    const why = [r.trigger, k && k.skip_reason ? `cached: ${k.skip_reason}` : ''].filter(Boolean).join(' · ');
+    html += w('WHY', why ? esc(why) : '');
+
+    // WHICH — versions + config hash
+    const rt = r.runtime_info || {};
+    const pyVer = rt.python_version ? rt.python_version.split(' ').slice(0,2).join(' ') : '';
+    const pirnVer = rt.pirn_version ? `pirn ${rt.pirn_version}` : '';
+    const cfgHash = k && k.knot_config_hash ? `cfg ${k.knot_config_hash.slice(0,10)}…` : '';
+    const which = [pyVer, pirnVer, cfgHash].filter(Boolean).join('<br>');
+    if (which) html += `<div class="kd-w-row"><span class="kd-w-label">WHICH</span><div class="kd-w-value kd-w-dim">${which}</div></div>`;
+
+    html += `<hr class="kd-divider">`;
+
+    // Output hash
+    if (k && k.output_hash) {
+      html += `<div class="kd-hash" title="${esc(k.output_hash)}">out&nbsp;${esc(k.output_hash.slice(0,22))}…</div>`;
+    }
+
+    // Error detail
+    if (k && k.error_record_id) {
+      const exc = r.exceptions && r.exceptions[k.error_record_id];
+      if (exc) {
+        html += `<div class="kd-exc-type">${esc(exc.exc_type)}</div>`;
+        html += `<div class="kd-exc-msg">${esc(exc.message)}</div>`;
+        html += `<pre class="kd-exc-tb">${esc(exc.traceback_text)}</pre>`;
+      } else {
+        html += `<div class="kd-hash w-err">err&nbsp;${esc(k.error_record_id.slice(0,22))}…</div>`;
+      }
+    }
+  }
+
+  html += `</div>`;
+  el.innerHTML = html;
+  el.classList.add('visible');
+}
+
+function hideKnotDetail() {
+  pinnedNode = null;
+  const el = document.getElementById('knot-detail');
+  el.classList.remove('visible');
+  el.innerHTML = '';
+}
+
+function positionTooltip(event) {
+  const PAD = 14, tw = ttEl.offsetWidth || 240, th = ttEl.offsetHeight || 120;
+  let x = event.clientX + PAD, y = event.clientY + PAD;
+  if (x + tw > window.innerWidth  - PAD) x = event.clientX - tw - PAD;
+  if (y + th > window.innerHeight - PAD) y = event.clientY - th - PAD;
+  ttEl.style.left = x + 'px'; ttEl.style.top = y + 'px';
+}
+
+function hideTooltip() { ttEl.classList.remove('visible'); }
+document.addEventListener('mousemove', e => { if (ttEl.classList.contains('visible')) positionTooltip(e); });
+
+// ── Layout ────────────────────────────────────────────────────────────────────
+function computeLayout(nodes, edges) {
+  if (!nodes.length) return { positions: new Map() };
+
+  const childMap = new Map(nodes.map(n => [n.id, []]));
+  const inDeg    = new Map(nodes.map(n => [n.id, 0]));
+  for (const e of edges) {
+    if (childMap.has(e.source) && inDeg.has(e.target)) {
+      childMap.get(e.source).push(e.target);
+      inDeg.set(e.target, inDeg.get(e.target) + 1);
+    }
+  }
+
+  const layer = new Map(nodes.map(n => [n.id, 0]));
+  const queue = nodes.filter(n => inDeg.get(n.id) === 0).map(n => n.id);
+  const order = [];
+  while (queue.length) {
+    const id = queue.shift(); order.push(id);
+    for (const ch of (childMap.get(id) || [])) {
+      layer.set(ch, Math.max(layer.get(ch), layer.get(id) + 1));
+      inDeg.set(ch, inDeg.get(ch) - 1);
+      if (inDeg.get(ch) === 0) queue.push(ch);
+    }
+  }
+  for (const n of nodes) if (!order.includes(n.id)) order.push(n.id);
+
+  const maxL  = Math.max(...[...layer.values()], 0);
+  const groups = Array.from({ length: maxL + 1 }, () => []);
+  for (const id of order) groups[layer.get(id) ?? 0].push(id);
+
+  const pos = new Map();
+  if (orientation === 'vertical') {
+    for (let l = 0; l < groups.length; l++) {
+      const g = groups[l], span = g.length * NODE_W + (g.length - 1) * GAP_X;
+      for (let i = 0; i < g.length; i++)
+        pos.set(g[i], { x: -span/2 + i*(NODE_W+GAP_X) + NODE_W/2, y: l*(NODE_H+GAP_Y) });
+    }
+  } else {
+    for (let l = 0; l < groups.length; l++) {
+      const g = groups[l], span = g.length * NODE_H + (g.length - 1) * GAP_Y;
+      for (let i = 0; i < g.length; i++)
+        pos.set(g[i], { x: l*(NODE_W+GAP_X), y: -span/2 + i*(NODE_H+GAP_Y) + NODE_H/2 });
+    }
+  }
+  return { positions: pos };
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function renderGraph() {
+  if (!current) return;
+  const tapestry = current;
+  const container = document.getElementById('loom');
+  const W = container.clientWidth, H = container.clientHeight;
+
+  d3.select('#loom-svg').remove();
+  const svg = d3.select('#loom').append('svg').attr('id', 'loom-svg');
+
+  if (tapestry.error) {
+    svg.append('text').attr('class','error-msg').attr('x',W/2).attr('y',H/2).attr('text-anchor','middle').text(`Parse error: ${tapestry.error}`);
+    return;
+  }
+  if (!tapestry.nodes.length) {
+    svg.append('text').attr('class','empty-msg').attr('x',W/2).attr('y',H/2).attr('text-anchor','middle').text('No knots found');
+    return;
+  }
+
+  // ── Defs ──────────────────────────────────────────────────────────────────
+  const defs = svg.append('defs');
+
+  function mkGrad(id, stops) {
+    const g = defs.append('linearGradient').attr('id', id)
+      .attr('x1','0%').attr('y1','100%').attr('x2','100%').attr('y2','0%');
+    stops.forEach(([off, col]) => g.append('stop').attr('offset', off).attr('stop-color', col));
+  }
+
+  const isDark = theme !== 'light';
+  if (isDark) {
+    mkGrad('ng-base',    [['0%','#3a0a00'],['45%','#1a0a2e'],['100%','#200040']]);
+    mkGrad('ng-hover',   [['0%','#5a1200'],['45%','#2d1050'],['100%','#3a0070']]);
+    mkGrad('ng-ok',      [['0%','#002a12'],['45%','#0a1a1a'],['100%','#10003a']]);
+    mkGrad('ng-err',     [['0%','#2a0000'],['45%','#1a0a1a'],['100%','#20003a']]);
+    mkGrad('ng-skipped', [['0%','#141414'],['45%','#111118'],['100%','#18181a']]);
+  } else {
+    mkGrad('ng-base',    [['0%','#f0e4ff'],['50%','#fdf0e8'],['100%','#ffe8d4']]);
+    mkGrad('ng-hover',   [['0%','#e0caff'],['50%','#fce0c8'],['100%','#ffd4b8']]);
+    mkGrad('ng-ok',      [['0%','#d4fae8'],['50%','#eafaf0'],['100%','#f0fff6']]);
+    mkGrad('ng-err',     [['0%','#ffd4d4'],['50%','#ffeaea'],['100%','#fff4f4']]);
+    mkGrad('ng-skipped', [['0%','#e8e8f0'],['50%','#f0f0f8'],['100%','#f8f8fc']]);
+  }
+
+  const arrowColor = isDark ? '#9d00ff' : '#6600cc';
+  const filt = defs.append('filter').attr('id','glow').attr('x','-30%').attr('y','-30%').attr('width','160%').attr('height','160%');
+  filt.append('feGaussianBlur').attr('stdDeviation','3').attr('result','blur');
+  const mg = filt.append('feMerge');
+  mg.append('feMergeNode').attr('in','blur');
+  mg.append('feMergeNode').attr('in','SourceGraphic');
+
+  defs.append('marker').attr('id','arrow')
+    .attr('viewBox','0 -5 10 10').attr('refX',9).attr('refY',0)
+    .attr('markerWidth',6).attr('markerHeight',6).attr('orient','auto')
+    .append('path').attr('d','M0,-5L10,0L0,5').attr('fill', arrowColor);
+
+  // ── Zoom ──────────────────────────────────────────────────────────────────
+  const zoom = d3.zoom().scaleExtent([0.08,5])
+    .on('zoom', e => { g.attr('transform', e.transform); hideTooltip(); });
+  svg.call(zoom).on('click', () => { hideTooltip(); hideKnotDetail(); });
+  const g = svg.append('g');
+
+  const { positions } = computeLayout(tapestry.nodes, tapestry.edges);
+
+  const xs = [...positions.values()].map(p=>p.x), ys = [...positions.values()].map(p=>p.y);
+  const minX=Math.min(...xs)-NODE_W/2, maxX=Math.max(...xs)+NODE_W/2;
+  const minY=Math.min(...ys)-NODE_H/2, maxY=Math.max(...ys)+NODE_H/2;
+  const gW=maxX-minX, gH=maxY-minY;
+  const sc = Math.min(1, Math.min((W-80)/gW, (H-80)/gH));
+  svg.call(zoom.transform, d3.zoomIdentity.translate(W/2-sc*(minX+gW/2), H/2-sc*(minY+gH/2)).scale(sc));
+
+  // ── Edges ─────────────────────────────────────────────────────────────────
+  const edgeG = g.append('g');
+  for (const e of tapestry.edges) {
+    const s = positions.get(e.source), t = positions.get(e.target);
+    if (!s || !t) continue;
+    let sx, sy, tx2, ty2, cx1, cy1, cx2, cy2;
+    if (orientation === 'vertical') {
+      sx=s.x; sy=s.y+NODE_H/2; tx2=t.x; ty2=t.y-NODE_H/2;
+      cx1=sx; cy1=(sy+ty2)/2; cx2=tx2; cy2=cy1;
+    } else {
+      sx=s.x+NODE_W/2; sy=s.y; tx2=t.x-NODE_W/2; ty2=t.y;
+      cx1=(sx+tx2)/2; cy1=sy; cx2=cx1; cy2=ty2;
+    }
+    edgeG.append('path').attr('class','thread-path')
+      .attr('d',`M${sx},${sy} C${cx1},${cy1} ${cx2},${cy2} ${tx2},${ty2}`)
+      .attr('marker-end','url(#arrow)');
+    if (e.label) {
+      edgeG.append('text').attr('class','thread-label')
+        .attr('x',(sx+tx2)/2).attr('y',(sy+ty2)/2-5).attr('text-anchor','middle').text(e.label);
+    }
+  }
+
+  // ── Nodes ─────────────────────────────────────────────────────────────────
+  const nodeG = g.append('g');
+  for (const n of tapestry.nodes) {
+    const pos = positions.get(n.id);
+    if (!pos) continue;
+
+    // Determine outcome style
+    const c = {
+      base:    isDark ? '#9d00ff' : '#6600cc',
+      ok:      isDark ? '#00cc66' : '#007a3d',
+      err:     isDark ? '#ff3333' : '#bb1111',
+      skip:    isDark ? '#555'    : '#888',
+    };
+    let gradId = 'ng-base', stroke = c.base, strokeW = 1.5, opacity = 1, badge = '';
+    if (selectedRun) {
+      const k = selectedRun.knots[n.id];
+      if (k) {
+        if      (k.outcome === 'ok')      { gradId='ng-ok';      stroke=c.ok;   badge='✓'; }
+        else if (k.outcome === 'err')     { gradId='ng-err';     stroke=c.err;  badge='✗'; }
+        else if (k.outcome === 'skipped') { gradId='ng-skipped'; stroke=c.skip; badge='⊘'; }
+      } else {
+        opacity = 0.3;
+      }
+    }
+
+    const ng = nodeG.append('g')
+      .attr('class','node-group')
+      .attr('transform',`translate(${pos.x-NODE_W/2},${pos.y-NODE_H/2})`)
+      .attr('opacity', opacity);
+
+    const rect = ng.append('rect')
+      .attr('width',NODE_W).attr('height',NODE_H).attr('rx',9)
+      .attr('fill',`url(#${gradId})`).attr('stroke',stroke).attr('stroke-width',strokeW);
+
+    ng.append('text').attr('class','node-class')
+      .attr('x',NODE_W/2).attr('y',18).attr('text-anchor','middle')
+      .text(n.class.length>22 ? n.class.slice(0,21)+'…' : n.class);
+
+    ng.append('text').attr('class','node-id')
+      .attr('x',NODE_W/2).attr('y',36).attr('text-anchor','middle')
+      .text(n.id.length>17 ? n.id.slice(0,16)+'…' : n.id);
+
+    if (badge) {
+      const badgeColor = badge==='✓' ? c.ok : badge==='✗' ? c.err : c.skip;
+      ng.append('text').attr('class','node-outcome-badge')
+        .attr('x',NODE_W-8).attr('y',14).attr('text-anchor','end').attr('fill',badgeColor)
+        .text(badge);
+    }
+
+    ng.on('mouseenter', function(event) {
+      if (opacity > 0.5) {
+        rect.attr('fill',`url(#ng-hover)`).attr('stroke-width',2).attr('filter','url(#glow)');
+      }
+      showTooltip(event, n);
+    }).on('mousemove', positionTooltip)
+      .on('mouseleave', function() {
+        rect.attr('fill',`url(#${gradId})`).attr('stroke-width',strokeW).attr('filter',null);
+        hideTooltip();
+      })
+      .on('click', function(event) {
+        event.stopPropagation();
+        hideTooltip();
+        toggleKnotDetail(n);
+      });
+  }
+}
+
+// ── Formatting ────────────────────────────────────────────────────────────────
+function fmtDuration(ms) {
+  if (ms == null) return '';
+  if (ms < 1000) return `${ms}ms`;
+  if (ms < 60000) return `${(ms/1000).toFixed(2)}s`;
+  return `${Math.floor(ms/60000)}m ${Math.floor((ms%60000)/1000)}s`;
+}
+
+function fmtTime(iso) {
+  try {
+    const d = new Date(iso.replace(' ','T'));
+    return d.toLocaleString(undefined, {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  } catch (_) { return iso; }
+}
+
+function esc(s) {
+  return String(s||'')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>

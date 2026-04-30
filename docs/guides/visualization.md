@@ -21,33 +21,44 @@ The generated `pirn_explorer.html` is a self-contained file with no server depen
 
 ## The explorer UI
 
+![pirn explorer overview](../assets/screenshots/explorer-overview.png)
+
+The explorer opens with a pipeline list on the left, an interactive DAG canvas in the center, and controls along the top.
+
+### Pipeline list
+
+The left sidebar lists all tapestries discovered in the scanned directory. Click any pipeline to load its graph. Each entry shows the pipeline name and the source file it came from.
+
+![LLM agent pipeline](../assets/screenshots/explorer-pipeline-llm-agent.png)
+
+*The `chatbot_pipeline` — a multi-step LLM agent with intent classification, entity extraction, safety checking, retrieval, and response generation.*
+
 ### Loom view
 
-The main panel displays your pipeline graph as an interactive directed acyclic graph. Nodes (knots) are rendered with their ids and types. Edges (threads) show the dependency direction from parent to child. The layout uses a longest-path algorithm so the flow reads left to right.
+The main canvas displays the pipeline as an interactive directed acyclic graph. Nodes show the knot id and class. Orange edge labels show the parameter name flowing between knots.
 
 **Interactions:**
-- Click a node to open the knot detail panel.
-- Hover to see the knot id, class, and outcome badge.
-- Drag nodes to rearrange; the graph re-renders edges automatically.
-- Use the outcome filter buttons to show only `ok`, `err`, or `skipped` knots.
+- Scroll to zoom, drag to pan.
+- Click any node to open the knot detail panel.
+- Use the orientation toggle to switch between vertical and horizontal layouts.
 
-### Tapestry list
+![Complex analytics pipeline](../assets/screenshots/explorer-pipeline-complex-analytics.png)
 
-The left sidebar lists all tapestries discovered in the scanned directory. Click a tapestry name to load its loom view and associated run history.
+*The `complex_analytics` pipeline — a data processing graph with fan-out and aggregation steps.*
 
-### Execution history panel
+### Orientation toggle
 
-The right sidebar shows the run history for the selected tapestry — each run listed with its `run_id`, timestamp, duration, and overall status (`succeeded` / `failed`). Click a run to overlay its outcomes on the loom view. Failed knots turn red; skipped knots turn grey; successful knots glow purple.
+Switch between vertical (top-down) and horizontal (left-right) layout depending on the shape of your pipeline.
 
-### Theme toggle
-
-The explorer matches the pirn design system — dark by default with a light mode toggle in the top right. The dark palette uses the same `--purple: #9d00ff` and `--orange: #ff6600` accent colours as these docs.
+![Horizontal layout](../assets/screenshots/explorer-horizontal-layout.png)
 
 ---
 
 ## Knot detail panel
 
-Clicking a knot in the loom view opens the knot detail panel. This panel implements **7W provenance**:
+Click any node in the graph to open the knot detail panel. This implements **7W provenance** — showing what the knot is, how it connects to the rest of the graph, and (when a run is selected) the full execution record.
+
+![Knot detail panel](../assets/screenshots/explorer-knot-detail.png)
 
 | W | Field | Description |
 |---|-------|-------------|
@@ -61,14 +72,33 @@ Clicking a knot in the loom view opens the knot detail panel. This panel impleme
 
 ### Error details
 
-When a knot has `outcome == "err"`, the detail panel shows:
+When a knot has `outcome == "err"`, the detail panel shows the exception type, message, and full formatted traceback. If a traceback filter was applied (e.g. `redact_common_secrets`), the stored traceback is already redacted.
 
-- `exc_type` — the exception class name.
-- `message` — the exception message.
-- `traceback_text` — the full formatted traceback.
-- `error_record_id` — the stable id of the `ExceptionRecord` for cross-referencing.
+---
 
-If a traceback filter was applied (e.g. `redact_common_secrets`), the stored traceback shown here is already redacted.
+## Execution history panel
+
+Click **Execution History** in the top bar to open the history panel. It shows all recorded runs for the selected pipeline — each with its `run_id`, timestamp, duration, and overall status.
+
+![Execution history panel](../assets/screenshots/explorer-history-panel.png)
+
+Click a run to overlay its outcomes on the graph. Failed knots turn red, skipped knots grey, successful knots glow purple.
+
+---
+
+## Light mode
+
+The explorer defaults to dark mode. Click the **Dark** button in the top right to switch to light mode.
+
+![Light mode](../assets/screenshots/explorer-light-mode.png)
+
+---
+
+## Content moderation example
+
+![Content moderation pipeline](../assets/screenshots/explorer-pipeline-content-moderation.png)
+
+*The `content_moderation` pipeline — normalises input text then fans out to PII detection, profanity checking, language detection, and toxicity scoring before making a routing decision.*
 
 ---
 
@@ -102,23 +132,9 @@ graph LR
     d --> answer
 ```
 
-Embed directly in a Markdown file:
-
-````markdown
-```mermaid
-graph LR
-    param_x["x\n(Parameter)"]
-    ...
-```
-````
-
 ### `mermaid_for_run(result)`
 
-Generates Mermaid syntax with knot outcomes overlaid via class assignments. Nodes are coloured by outcome:
-
-- `ok` → green fill
-- `err` → red fill
-- `skipped` → grey fill
+Generates Mermaid syntax with knot outcomes overlaid. Nodes are coloured by outcome — `ok` green, `err` red, `skipped` grey. Useful for embedding execution traces in incident reports or CI artifacts.
 
 ```python
 from pirn import mermaid_for_run
@@ -127,20 +143,13 @@ result = await tapestry.run(RunRequest(parameters={"x": 5}))
 print(mermaid_for_run(result))
 ```
 
-Useful for documenting past runs or embedding execution traces in incident reports.
-
 ---
 
 ## HTML export
 
 ### `html_for_run(result)`
 
-Generates a self-contained HTML file with an SVG rendering of the run graph. Features:
-
-- Status colours (green/red/grey) per knot outcome.
-- Hover tooltips showing `knot_id`, `knot_class`, `outcome`, content hashes, and duration.
-- Filter buttons to show/hide knots by outcome.
-- Longest-path layout — no server, no external assets.
+Generates a self-contained HTML file with the run graph and outcome overlays — status colours, hover tooltips with content hashes and duration, and outcome filter buttons.
 
 ```python
 from pirn import html_for_run
@@ -152,44 +161,12 @@ Path("run.html").write_text(html_for_run(result))
 
 ### `html_for_tapestry(tapestry)`
 
-Generates a self-contained HTML file showing the tapestry structure without run outcomes. Use it for documentation, architecture reviews, or sharing pipeline designs.
+Generates a self-contained HTML file showing the tapestry structure without run outcomes. Use it for documentation, architecture reviews, or sharing pipeline designs before running.
 
 ```python
 from pirn import html_for_tapestry
 
 Path("tapestry.html").write_text(html_for_tapestry(tapestry))
-```
-
----
-
-## Example workflow
-
-Generate visualizations as part of a CI pipeline:
-
-```python
-import asyncio
-from pathlib import Path
-from pirn import mermaid_for_tapestry, html_for_run
-
-
-async def ci_run():
-    # Build tapestry
-    with Tapestry() as t:
-        ...
-
-    # Export structure diagram for docs
-    Path("docs/diagrams/pipeline.md").write_text(
-        "```mermaid\n" + mermaid_for_tapestry(t) + "\n```"
-    )
-
-    # Run and export HTML trace
-    result = await t.run(RunRequest(parameters={...}))
-    Path("artifacts/run-trace.html").write_text(html_for_run(result))
-
-    return result
-
-
-asyncio.run(ci_run())
 ```
 
 ---
