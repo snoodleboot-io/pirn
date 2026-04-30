@@ -76,7 +76,12 @@ class SQLiteHistory(RunHistory):
     @staticmethod
     def __migrate_v2(conn: Any) -> None:
         """Add 7-W provenance columns to the runs table."""
-        cols = ("actor TEXT", "trigger TEXT", "environment_json TEXT", "runtime_info_json TEXT")
+        cols = (
+            "actor TEXT",
+            "trigger TEXT",
+            "environment_json TEXT",
+            "runtime_info_json TEXT",
+        )
         for col in cols:
             conn.execute(f"ALTER TABLE runs ADD COLUMN {col}")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_runs_actor ON runs(actor)")
@@ -173,7 +178,9 @@ class SQLiteHistory(RunHistory):
 
     async def get_run(self, run_id: str) -> Any:
         self._ensure_init()
-        cursor = self._conn.execute("SELECT payload_json FROM runs WHERE run_id = ?", (run_id,))
+        cursor = self._conn.execute(
+            "SELECT payload_json FROM runs WHERE run_id = ?", (run_id,)
+        )
         row = cursor.fetchone()
         if row is None:
             return None
@@ -209,7 +216,9 @@ class SQLiteHistory(RunHistory):
         self._ensure_init()
         from pirn.core.run_result import RunResult
 
-        cursor = self._conn.execute("SELECT payload_json FROM runs WHERE actor = ?", (actor,))
+        cursor = self._conn.execute(
+            "SELECT payload_json FROM runs WHERE actor = ?", (actor,)
+        )
         return [RunResult.model_validate_json(r[0]) for r in cursor.fetchall()]
 
     async def children_of(self, run_id: str) -> list[Any]:
