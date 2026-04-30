@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -11,7 +10,6 @@ from pirn.core.knot_config import KnotConfig
 from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
 from pirn.managers.exception_manager import ExceptionManager
 from pirn.managers.redact import redact_common_secrets
-
 
 # ---------------------------------------------------------------------------
 # redact_common_secrets
@@ -124,8 +122,8 @@ async def test_emitter_policy_ignore_swallows_error(caplog: pytest.LogCaptureFix
 @pytest.mark.asyncio
 async def test_emitter_policy_warn_logs_warning(caplog: pytest.LogCaptureFixture) -> None:
     """WARN policy: warning is logged, run still succeeds."""
-    from pirn.tapestry import Tapestry
     from pirn.core.knot_factory import knot
+    from pirn.tapestry import Tapestry
 
     @knot
     def source_knot() -> int:
@@ -147,8 +145,8 @@ async def test_emitter_policy_warn_logs_warning(caplog: pytest.LogCaptureFixture
 @pytest.mark.asyncio
 async def test_emitter_policy_raise_propagates_exception() -> None:
     """RAISE policy: the emitter's exception propagates out of run()."""
-    from pirn.tapestry import Tapestry
     from pirn.core.knot_factory import knot
+    from pirn.tapestry import Tapestry
 
     @knot
     def source_knot() -> int:

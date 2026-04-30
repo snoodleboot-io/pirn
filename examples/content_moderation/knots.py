@@ -10,7 +10,6 @@ from dataclasses import dataclass
 
 from pirn.core.knot_factory import knot
 
-
 # ── Domain types ─────────────────────────────────────────────────────────────
 
 @dataclass(frozen=True)
@@ -18,7 +17,7 @@ class ContentFlags:
     """Structured output from the classifier stage."""
     has_profanity: bool
     has_pii: bool
-    toxicity_score: float   # 0.0–1.0
+    toxicity_score: float   # 0.0-1.0
     language: str
 
 
@@ -68,7 +67,7 @@ def check_pii(text: str) -> bool:
 
 @knot
 def score_toxicity(text: str) -> float:
-    """Compute a simple heuristic toxicity score (0.0 – 1.0)."""
+    """Compute a simple heuristic toxicity score (0.0 - 1.0)."""
     bad_words = sum(1 for w in re.findall(r"\w+", text) if w in _PROFANITY)
     caps_ratio = sum(1 for c in text if c.isupper()) / max(len(text), 1)
     return min(1.0, bad_words * 0.4 + caps_ratio * 0.3)

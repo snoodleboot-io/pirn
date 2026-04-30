@@ -51,8 +51,8 @@ class BranchOutput(Knot):
         raise _BranchNotSelected(self._mutable_branch_name)
 
     async def __call__(self, parent_results: Any) -> Any:
-        from pirn.core.skipped import Skipped as _Skipped
         from pirn.core.err import Err as _Err
+        from pirn.core.skipped import Skipped as _Skipped
 
         result = await super().__call__(parent_results)
         if isinstance(result, _Err) and result.record.exc_type == "_BranchNotSelected":

@@ -16,4 +16,4 @@ T = TypeVar("T")
 
 Result = Ok[T] | Err | Skipped
 
-__all__ = ["Ok", "Err", "Skipped", "Result"]
+__all__ = ["Err", "Ok", "Result", "Skipped"]

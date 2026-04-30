@@ -12,15 +12,15 @@ from typing import Any
 
 import pytest
 
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
-from pirn.core.knot import Knot
 from pirn.core.ok import Ok
 from pirn.engine.dispatchers.celery_dispatcher import CeleryDispatcher
-
-PIRN_CELERY_TASK_NAME = CeleryDispatcher._task_name
 from pirn.engine.dispatchers.dask_dispatcher import DaskDispatcher
 from pirn.engine.dispatchers.ray_dispatcher import RayDispatcher
+
+PIRN_CELERY_TASK_NAME = CeleryDispatcher._task_name
 
 # ---------------------------------------------------- Dask fake client
 

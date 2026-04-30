@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
 from pirn.nodes.sink import Sink
 from pirn.tapestry import Tapestry
 

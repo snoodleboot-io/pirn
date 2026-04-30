@@ -5,12 +5,12 @@ from __future__ import annotations
 import threading
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
-from pirn.tapestry import Tapestry
+from pirn.core.run_request import RunRequest
 from pirn.engine.dispatchers.local_dispatcher import LocalDispatcher
 from pirn.engine.dispatchers.thread_dispatcher import ThreadDispatcher
+from pirn.tapestry import Tapestry
 
 
 @knot

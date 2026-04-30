@@ -33,17 +33,16 @@ explicitly.
 from __future__ import annotations
 
 import inspect
-
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, get_type_hints
 
 from pydantic import TypeAdapter, ValidationError
 
-from pirn.core.knot_config import KnotConfig
 from pirn.core.err import Err
+from pirn.core.knot_config import KnotConfig
 from pirn.core.ok import Ok
-from pirn.core.result import Result
 from pirn.core.optional import Optional
+from pirn.core.result import Result
 from pirn.managers.exception_record import ExceptionRecord
 
 if TYPE_CHECKING:

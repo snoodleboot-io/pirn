@@ -16,8 +16,8 @@ from typing import Any
 
 from pydantic import TypeAdapter
 
-from pirn.core.knot_config import KnotConfig
 from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter_spec import ParameterSpec
 from pirn.core.sentinels._unset import _Unset
 from pirn.exceptions.unbound_parameter_error import UnboundParameterError

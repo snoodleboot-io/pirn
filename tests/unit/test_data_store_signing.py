@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import base64
-import os
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
@@ -96,7 +95,7 @@ async def test_disk_unsigned_payload_raises_when_signer_set(tmp_path: Any) -> No
     await unsigned_store.put("sha256:abc123", {"x": 1})
 
     signed_store = LocalDiskDataStore(tmp_path, signer=_SIGNER)
-    with pytest.raises(ValueError, match="too short|HMAC signature mismatch"):
+    with pytest.raises(ValueError, match=r"too short|HMAC signature mismatch"):
         await signed_store.get("sha256:abc123")
 
 

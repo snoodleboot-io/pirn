@@ -7,13 +7,15 @@ construction-time validation.
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from pirn.core.error_policy import ErrorPolicy
-from pirn.core.knot_config import KnotConfig
 from pirn.core.knot import Knot
-from pirn.core.optional import Optional
+from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
+from pirn.core.optional import Optional
 from pirn.core.parameter import Parameter
 from pirn.tapestry import Tapestry
 

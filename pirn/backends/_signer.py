@@ -23,7 +23,7 @@ class _Signer:
         self.__key = key
 
     @classmethod
-    def from_env(cls, var: str = "PIRN_SIGNING_KEY") -> "_Signer":
+    def from_env(cls, var: str = "PIRN_SIGNING_KEY") -> _Signer:
         """Construct a _Signer from a base64-encoded key in an environment variable.
 
         Raises ``ValueError`` if the variable is unset or empty.

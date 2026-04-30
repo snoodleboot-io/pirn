@@ -8,20 +8,20 @@ import logging
 import pytest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
-from pirn.core.run_result import RunResult
 from pirn.core.knot_factory import knot
 from pirn.core.lineage import KnotLineage
 from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.core.run_result import RunResult
 from pirn.emitters.base import Emitter
 from pirn.emitters.kafka import KafkaEmitter
 from pirn.emitters.log import LogEmitter
 from pirn.emitters.otel import OpenTelemetryEmitter
 from pirn.emitters.valkey import ValKeyEmitter
 from pirn.emitters.webhook import WebhookEmitter
-from pirn.tapestry import Tapestry
 from pirn.managers.knot_state import KnotState
 from pirn.managers.status_event import StatusEvent
+from pirn.tapestry import Tapestry
 
 # ============================================================ helpers
 

@@ -19,8 +19,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from pirn.core.lineage import KnotLineage
 from pirn.backends.base.run_history import RunHistory
+from pirn.core.lineage import KnotLineage
+
 
 class DuckDBHistory(RunHistory):
     """``RunHistory`` backed by DuckDB.

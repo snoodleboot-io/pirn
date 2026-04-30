@@ -26,6 +26,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
+
 class _Unhashable(Exception):
     """Internal sentinel used by ``_canonicalise`` to bail on opaque values."""
 

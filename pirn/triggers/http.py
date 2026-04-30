@@ -164,5 +164,7 @@ class WebhookTrigger(Trigger):
     @staticmethod
     def __default_request_builder(payload: dict, request: Any) -> RunRequest:
         if not isinstance(payload, dict):
-            raise TypeError(f"WebhookTrigger: expected JSON object body, got {type(payload).__name__}")
+            raise TypeError(
+                f"WebhookTrigger: expected JSON object body, got {type(payload).__name__}"
+            )
         return RunRequest(parameters=payload)

@@ -16,9 +16,9 @@ import os
 import pytest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 pytestmark = pytest.mark.needs_postgres

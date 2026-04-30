@@ -10,11 +10,11 @@ from typing import Any
 import pytest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
-from pirn.triggers.base import Trigger, run_forever
+from pirn.triggers.base import run_forever
 from pirn.triggers.cron import CronTrigger
 from pirn.triggers.http import WebhookTrigger
 from pirn.triggers.kafka import KafkaTrigger

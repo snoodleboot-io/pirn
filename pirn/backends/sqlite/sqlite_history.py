@@ -76,7 +76,8 @@ class SQLiteHistory(RunHistory):
     @staticmethod
     def __migrate_v2(conn: Any) -> None:
         """Add 7-W provenance columns to the runs table."""
-        for col in ("actor TEXT", "trigger TEXT", "environment_json TEXT", "runtime_info_json TEXT"):
+        cols = ("actor TEXT", "trigger TEXT", "environment_json TEXT", "runtime_info_json TEXT")
+        for col in cols:
             conn.execute(f"ALTER TABLE runs ADD COLUMN {col}")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_runs_actor ON runs(actor)")
 

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from pirn.core.run_request import RunRequest
 from pirn.core.knot_factory import knot
+from pirn.core.run_request import RunRequest
 from pirn.yaml_loader.loader import load_pipeline
 
 

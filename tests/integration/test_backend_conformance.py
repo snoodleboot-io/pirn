@@ -26,17 +26,17 @@ from typing import Any
 
 import pytest
 
-from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
-from pirn.core.knot_factory import knot
-from pirn.core.parameter import Parameter
-from pirn.tapestry import Tapestry
 from pirn.backends.base.data_store import DataStore
 from pirn.backends.base.run_history import RunHistory
 from pirn.backends.base.tapestry_store import TapestryStore
 from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
 from pirn.backends.in_memory.in_memory_history import InMemoryHistory
 from pirn.backends.in_memory.in_memory_store import InMemoryStore
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 # --------------------------------------------------- backend factories
 #

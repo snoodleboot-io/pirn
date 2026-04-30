@@ -24,7 +24,7 @@ class ExceptionRecord(BaseModel):
     occurred_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     @classmethod
-    def for_knot(cls, knot_id: str, exc: BaseException) -> "ExceptionRecord":
+    def for_knot(cls, knot_id: str, exc: BaseException) -> ExceptionRecord:
         """Build a placeholder record for an Err produced outside a run context.
 
         The engine re-registers it against the live ExceptionManager (which

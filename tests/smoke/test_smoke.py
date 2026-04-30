@@ -11,8 +11,8 @@ def test_package_imports():
 
 def test_core_public_surface():
     from pirn.core.knot import Knot
-    from pirn.core.optional import Optional
     from pirn.core.knot_factory import knot
+    from pirn.core.optional import Optional
 
     # Spot-check that they are the right kinds of things.
     assert isinstance(Knot, type)
@@ -73,9 +73,9 @@ def test_yaml_public_surface():
 async def test_quickstart_example():
     """The simplest possible pipeline; mirrors the README quickstart."""
     from pirn.core.knot_config import KnotConfig
-    from pirn.core.run_request import RunRequest
     from pirn.core.knot_factory import knot
     from pirn.core.parameter import Parameter
+    from pirn.core.run_request import RunRequest
     from pirn.tapestry import Tapestry
 
     @knot

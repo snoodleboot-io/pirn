@@ -35,8 +35,8 @@ import inspect
 from collections.abc import Callable
 from typing import Any
 
-from pirn.core.knot_config import KnotConfig
 from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
 
 _UNSET = object()
 

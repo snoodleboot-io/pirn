@@ -36,8 +36,8 @@ from typing import Any
 import yaml
 
 from pirn.core.error_policy import ErrorPolicy
-from pirn.core.knot_config import KnotConfig
 from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import KnotFactory, knot
 from pirn.core.parameter import Parameter
 from pirn.nodes.aggregator import Aggregator
@@ -230,7 +230,9 @@ def _build_node(
         return factory(**kwargs)
 
     if isinstance(node_spec, AggregatorSpec):
-        combine = _resolve_callable(node_spec.combine, known, pipeline_spec.allow_callable_refs, allowed_module_prefixes)
+        combine = _resolve_callable(
+            node_spec.combine, known, pipeline_spec.allow_callable_refs, allowed_module_prefixes
+        )
         kwargs = {
             "combine": combine,
             "_config": cfg,
@@ -241,7 +243,9 @@ def _build_node(
         return Aggregator(**kwargs)
 
     if isinstance(node_spec, BranchSpec):
-        selector = _resolve_callable(node_spec.selector, known, pipeline_spec.allow_callable_refs, allowed_module_prefixes)
+        selector = _resolve_callable(
+            node_spec.selector, known, pipeline_spec.allow_callable_refs, allowed_module_prefixes
+        )
         return Branch(
             input=built[node_spec.input],
             selector=selector,
@@ -251,7 +255,9 @@ def _build_node(
         )
 
     if isinstance(node_spec, GateSpec):
-        predicate = _resolve_callable(node_spec.predicate, known, pipeline_spec.allow_callable_refs, allowed_module_prefixes)
+        predicate = _resolve_callable(
+            node_spec.predicate, known, pipeline_spec.allow_callable_refs, allowed_module_prefixes
+        )
         return Gate(
             input=built[node_spec.input],
             predicate=predicate,
@@ -260,7 +266,9 @@ def _build_node(
         )
 
     if isinstance(node_spec, MapSpec):
-        each = _resolve_callable(node_spec.each, known, pipeline_spec.allow_callable_refs, allowed_module_prefixes)
+        each = _resolve_callable(
+            node_spec.each, known, pipeline_spec.allow_callable_refs, allowed_module_prefixes
+        )
         # Resolve shared kwargs that reference other knots (loose-mode
         # ergonomics: a value matching a built knot id becomes that knot).
         shared: dict[str, Any] = {}
@@ -279,7 +287,9 @@ def _build_node(
         )
 
     if isinstance(node_spec, ReduceSpec):
-        combine = _resolve_callable(node_spec.combine, known, pipeline_spec.allow_callable_refs, allowed_module_prefixes)
+        combine = _resolve_callable(
+            node_spec.combine, known, pipeline_spec.allow_callable_refs, allowed_module_prefixes
+        )
         kwargs = {
             "of": built[node_spec.of],
             "combine": combine,
@@ -335,8 +345,8 @@ def _resolve_callable(
             raise ValueError(
                 f"callable ref {ref!r} resolves to module {module_path!r} which is not in "
                 f"allowed_module_prefixes {allowed_module_prefixes!r}; "
-                f"set allow_callable_refs=True and add the module prefix to allowed_module_prefixes "
-                f"to permit this import"
+                f"set allow_callable_refs=True and add the module prefix to "
+                f"allowed_module_prefixes to permit this import"
             )
 
     module = importlib.import_module(module_path)

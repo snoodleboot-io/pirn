@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 from pirn.viz.html import html_for_run
 from pirn.viz.mermaid import mermaid_for_run, mermaid_for_tapestry

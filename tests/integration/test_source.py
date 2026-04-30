@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.core.knot import Knot
 from pirn.nodes.source import Source
 from pirn.tapestry import Tapestry
 

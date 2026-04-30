@@ -7,7 +7,7 @@ implement the four raw-bytes IO primitives.
 
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from pirn.backends.base.data_store import DataStore
 
@@ -26,7 +26,7 @@ class _CloudObjectStore(DataStore):
         _delete_key(key)          async
     """
 
-    def __init__(self, *, signer: "_Signer | None" = None) -> None:
+    def __init__(self, *, signer: _Signer | None = None) -> None:
         self.__signer = signer
 
     def _serialize(self, value: Any) -> bytes:

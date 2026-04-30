@@ -1,11 +1,11 @@
 """Tests for pirn.check — static tapestry validation."""
 
+from pirn.check.validation_issue import ValidationIssue
+from pirn.check.validator import validate_tapestry
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
 from pirn.tapestry import Tapestry
-from pirn.check.validator import validate_tapestry
-from pirn.check.validation_issue import ValidationIssue
 
 
 @knot

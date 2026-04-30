@@ -22,9 +22,9 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from pirn.backends.base.run_history import RunHistory
     from pirn.backends.base.tapestry_store import TapestryStore
+    from pirn.core.knot import Knot
     from pirn.core.run_request import RunRequest
     from pirn.core.run_result import RunResult
-    from pirn.core.knot import Knot
     from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
     from pirn.engine.dispatchers.dispatcher import Dispatcher
 
@@ -69,9 +69,8 @@ class Tapestry:
         from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
         from pirn.backends.in_memory.in_memory_history import InMemoryHistory
         from pirn.backends.in_memory.in_memory_store import InMemoryStore
-        from pirn.engine.dispatchers.local_dispatcher import LocalDispatcher
-
         from pirn.emitters.base import EmitterErrorPolicy as _EEP
+        from pirn.engine.dispatchers.local_dispatcher import LocalDispatcher
 
         self._store = store or InMemoryStore()
         self._history = history or InMemoryHistory()
@@ -162,8 +161,8 @@ class Tapestry:
         protocol (``InMemoryStore`` does; the SQLite/Postgres/ValKey
         stores do not yet).
         """
-        from pirn.core.run_request import RunRequest as _RR
         from pirn.core.knot import Knot as _Knot
+        from pirn.core.run_request import RunRequest as _RR
         from pirn.engine.engine import Engine
 
         request = request or _RR()
@@ -182,7 +181,9 @@ class Tapestry:
             )
 
         active_emitters = self._emitters if emitters is None else list(emitters)
-        active_policy = emitter_error_policy if emitter_error_policy is not None else self._emitter_error_policy
+        active_policy = (
+            emitter_error_policy if emitter_error_policy is not None else self._emitter_error_policy
+        )
         active_filter = traceback_filter if traceback_filter is not None else self._traceback_filter
 
         engine = Engine(dispatcher=dispatcher or self._dispatcher)

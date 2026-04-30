@@ -13,10 +13,10 @@ import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
-from pirn.tapestry import Tapestry
 from pirn.streaming.base import StreamingSource, run_stream
 from pirn.streaming.file_tail import FileTailSource
 from pirn.streaming.iterable import IterableSource
+from pirn.tapestry import Tapestry
 
 try:
     from pirn.streaming.kafka import KafkaStreamingSource

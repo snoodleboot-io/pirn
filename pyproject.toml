@@ -118,6 +118,9 @@ select = ["E", "F", "I", "B", "UP", "RUF"]
 # The public API's __all__ is grouped semantically (with comments), not
 # alphabetically — readability over sort order.
 "pirn/__init__.py" = ["RUF022"]
+# Template files — E501 is meaningless inside multi-line HTML/JS/CSS strings.
+"pirn/viz/explorer.py" = ["E501"]
+"pirn/viz/html.py" = ["E501"]
 
 [tool.pyright]
 # Phase 3 backends and dispatchers depend on optional packages

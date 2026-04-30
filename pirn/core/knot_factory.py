@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import asyncio
 import functools
-
 from collections.abc import Callable
 from typing import Any
 
@@ -63,9 +62,11 @@ class KnotFactory:
         return process
 
     @classmethod
-    def create(cls, fn: Callable[..., Any]) -> "KnotFactory":
+    def create(cls, fn: Callable[..., Any]) -> KnotFactory:
         """Build a KnotFactory for ``fn``, generating the Knot subclass."""
-        make_process = cls.__make_async_process if asyncio.iscoroutinefunction(fn) else cls.__make_sync_process
+        make_process = (
+            cls.__make_async_process if asyncio.iscoroutinefunction(fn) else cls.__make_sync_process
+        )
         knot_cls = type(
             fn.__name__,
             (Knot,),

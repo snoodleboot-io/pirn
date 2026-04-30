@@ -43,7 +43,7 @@ def html_for_tapestry(tapestry: Tapestry, title: str | None = None) -> str:
 
     edges = []
     for k in knots:
-        for input_name, parent in k.parents.items():
+        for _input_name, parent in k.parents.items():
             edges.append({"from": parent.knot_id, "to": k.knot_id})
 
     layers = _layer_nodes(nodes, edges)

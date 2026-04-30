@@ -122,7 +122,7 @@ class PostgresStore(TapestryStore, SubscribableStore):
             asyncio.run(self.aregister(knot))
         else:
             self._live[knot.knot_id] = knot
-            asyncio.ensure_future(self.aregister(knot))
+            _task = asyncio.ensure_future(self.aregister(knot))  # noqa: RUF006
 
     def get(self, knot_id: str) -> Knot | None:
         return self._live.get(knot_id)

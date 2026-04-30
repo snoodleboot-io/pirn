@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING
 from pirn.emitters.base import Emitter
 
 if TYPE_CHECKING:
-    from pirn.core.run_result import RunResult
     from pirn.core.lineage import KnotLineage
+    from pirn.core.run_result import RunResult
     from pirn.managers.status_event import StatusEvent
 
 

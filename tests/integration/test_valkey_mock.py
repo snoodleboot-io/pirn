@@ -11,11 +11,11 @@ import pickle
 
 import pytest
 
+from pirn.backends.valkey.valkey_data_store import ValKeyDataStore
+from pirn.backends.valkey.valkey_store import ValKeyStore
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
-from pirn.backends.valkey.valkey_data_store import ValKeyDataStore
-from pirn.backends.valkey.valkey_store import ValKeyStore
 
 # ---------------------------------------------------- fake glide client
 

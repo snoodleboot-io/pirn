@@ -36,7 +36,9 @@ class ThreadDispatcher(Dispatcher):
 
     async def dispatch(self, knot: Knot, inputs: Mapping[str, Any]) -> Result[Any]:
         loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(self._executor, ThreadDispatcher.__run_in_thread, knot, dict(inputs))
+        return await loop.run_in_executor(
+            self._executor, ThreadDispatcher.__run_in_thread, knot, dict(inputs)
+        )
 
     def shutdown(self, wait: bool = True) -> None:
         """Shut down the underlying pool.  Safe to call multiple times."""

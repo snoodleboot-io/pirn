@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -158,8 +158,8 @@ def _duration_ms(start: Any, end: Any) -> int:
         def _parse(s: Any) -> datetime:
             s = str(s).replace(" ", "T")
             if s.endswith("+00:00") or s.endswith("Z"):
-                s = s.rstrip("Z").rstrip("+00:00")
-            return datetime.fromisoformat(s).replace(tzinfo=timezone.utc)
+                s = s.removesuffix("Z").removesuffix("+00:00")
+            return datetime.fromisoformat(s).replace(tzinfo=UTC)
         return max(0, int((_parse(end) - _parse(start)).total_seconds() * 1000))
     except Exception:
         return 0

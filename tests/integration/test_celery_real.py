@@ -18,9 +18,9 @@ import time
 import pytest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 pytestmark = pytest.mark.needs_celery
@@ -96,7 +96,10 @@ async def test_celery_dispatcher_runs_pipeline(celery_worker):
 async def test_celery_dispatcher_result_has_correct_dispatcher_name(celery_worker):
     from celery import Celery
 
-    from pirn.engine.dispatchers.celery_dispatcher import CeleryDispatcher, register_celery_worker_task
+    from pirn.engine.dispatchers.celery_dispatcher import (
+        CeleryDispatcher,
+        register_celery_worker_task,
+    )
 
     app = Celery("pirn_test", broker=_BROKER, backend=_BROKER)
     app.conf.update(

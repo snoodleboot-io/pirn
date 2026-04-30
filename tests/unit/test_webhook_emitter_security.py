@@ -9,7 +9,6 @@ import pytest
 
 from pirn.emitters.webhook import WebhookEmitter
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -73,7 +72,7 @@ async def test_ssl_context_passed_as_verify_to_httpx() -> None:
 
 def test_non_http_scheme_raises_at_construction() -> None:
     """A non-http/https scheme raises ValueError immediately."""
-    with pytest.raises(ValueError, match="scheme.*not permitted"):
+    with pytest.raises(ValueError, match=r"scheme.*not permitted"):
         WebhookEmitter(url_status="ftp://example.com/hook")
 
 

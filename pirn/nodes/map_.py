@@ -37,8 +37,8 @@ import asyncio
 from collections.abc import Sequence
 from typing import Any
 
-from pirn.core.knot_config import KnotConfig
 from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import KnotFactory
 
 
@@ -116,7 +116,13 @@ class Map(Knot):
         validate_io = self._mutable_config.validate_io
         error_policy = self._mutable_config.error_policy
 
-        coros = [Map.__run_one(i, e, map_id, each, bind_name, shared, validate_io, error_policy, Map.__construct_inner) for i, e in enumerate(over)]
+        coros = [
+            Map.__run_one(
+                i, e, map_id, each, bind_name, shared,
+                validate_io, error_policy, Map.__construct_inner
+            )
+            for i, e in enumerate(over)
+        ]
         results = await asyncio.gather(*coros)
 
         # If any inner failed, surface that — the Map result is a list of
