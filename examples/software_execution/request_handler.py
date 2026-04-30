@@ -160,6 +160,9 @@ def build_tapestry() -> Tapestry:
 
 
 async def main() -> None:
+    from pirn.backends.sqlite.sqlite_history import SQLiteHistory
+    history = SQLiteHistory()
+
     t = build_tapestry()
 
     print("=== Successful request ===")
@@ -172,6 +175,7 @@ async def main() -> None:
             }
         )
     )
+    await history.record_run(result)
     for rec in result.lineage:
         icon = "✓" if rec.outcome == "ok" else ("-" if rec.outcome == "skipped" else "✗")
         print(f"  {icon} {rec.knot_id:<20} {rec.outcome}")
@@ -186,6 +190,7 @@ async def main() -> None:
             }
         )
     )
+    await history.record_run(result2)
     for rec in result2.lineage:
         icon = "✓" if rec.outcome == "ok" else ("-" if rec.outcome == "skipped" else "✗")
         print(f"  {icon} {rec.knot_id:<20} {rec.outcome}")

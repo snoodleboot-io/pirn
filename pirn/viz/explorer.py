@@ -223,6 +223,30 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .tt-outcome-err  { color: var(--err); font-weight: 700; }
 .tt-outcome-skip { color: var(--skip); font-weight: 700; }
 
+/* ── Knot detail panel (pinned in sidebar on click) ───────────────────── */
+#knot-detail {
+  border-top: 1px solid var(--border);
+  padding: 12px 14px;
+  font-size: 11px;
+  display: none;
+  flex-shrink: 0;
+  overflow-y: auto;
+  max-height: 40vh;
+}
+#knot-detail.visible { display: block; }
+#knot-detail::-webkit-scrollbar { width: 3px; }
+#knot-detail::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.kd-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; }
+.kd-close { font-size: 13px; cursor: pointer; color: var(--text-dim); line-height: 1; flex-shrink: 0; margin-left: 6px; }
+.kd-close:hover { color: var(--text); }
+.kd-class { color: var(--orange); font-size: 9px; margin-bottom: 2px; }
+.kd-id    { color: var(--purple-hi); font-size: 12px; font-weight: 700; word-break: break-all; margin-bottom: 5px; }
+.kd-desc  { color: var(--text-dim); font-size: 9px; font-style: italic; line-height: 1.4; margin-bottom: 8px; }
+.kd-divider { border: none; border-top: 1px solid var(--border); margin: 7px 0; }
+.kd-row { color: var(--text-dim); font-size: 9px; margin-top: 3px; line-height: 1.5; }
+.kd-row span { color: var(--text); }
+.kd-section { font-size: 8px; font-weight: 700; color: var(--text-dim); letter-spacing: 0.08em; text-transform: uppercase; margin: 8px 0 4px; }
+
 /* ── Empty state ───────────────────────────────────────────────────────── */
 #empty-state {
   position: absolute; inset: 0;
@@ -244,6 +268,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
       <div id="sidebar-count"></div>
     </div>
     <ul id="tapestry-list"></ul>
+    <div id="knot-detail"></div>
   </div>
 
   <!-- Centre -->
@@ -397,6 +422,7 @@ function selectTapestry(t, save = true) {
   updateStats(t);
   document.getElementById('empty-state').classList.add('hidden');
   hideTooltip();
+  hideKnotDetail();
   if (historyOpen) renderRunList(t);
   if (save) saveState();
   renderGraph();
@@ -633,6 +659,70 @@ function _ttRow(id, val, prefix) {
   }
 }
 
+// ── Pinned knot detail (sidebar) ──────────────────────────────────────────────
+function showKnotDetail(node) {
+  const el = document.getElementById('knot-detail');
+  let html = `
+    <div class="kd-header">
+      <div>
+        <div class="kd-class">${esc(node.class)}</div>
+        <div class="kd-id">${esc(node.id)}</div>
+      </div>
+      <span class="kd-close" onclick="hideKnotDetail()">&#x2715;</span>
+    </div>`;
+  if (node.description) html += `<div class="kd-desc">${esc(node.description)}</div>`;
+
+  const t = current;
+  const inEdges  = t.edges.filter(e => e.target === node.id);
+  const outEdges = t.edges.filter(e => e.source === node.id);
+  if (inEdges.length || outEdges.length) {
+    html += `<hr class="kd-divider">`;
+    if (inEdges.length) {
+      html += `<div class="kd-section">Receives from</div>`;
+      inEdges.forEach(e => {
+        html += `<div class="kd-row">${e.label ? `<span>${esc(e.label)}</span> ← ` : ''}${esc(e.source)}</div>`;
+      });
+    }
+    if (outEdges.length) {
+      html += `<div class="kd-section">Passes to</div>`;
+      outEdges.forEach(e => {
+        html += `<div class="kd-row">${esc(e.target)}</div>`;
+      });
+    }
+  }
+
+  if (selectedRun) {
+    const k = selectedRun.knots[node.id];
+    html += `<hr class="kd-divider"><div class="kd-section">Last run</div>`;
+    if (k) {
+      const ocCls = k.outcome === 'ok' ? 'tt-outcome-ok' : k.outcome === 'err' ? 'tt-outcome-err' : 'tt-outcome-skip';
+      const ocCh  = k.outcome === 'ok' ? '✓ ok' : k.outcome === 'err' ? '✗ err' : '⊘ skipped';
+      html += `<div class="kd-row">outcome: <span class="${ocCls}">${ocCh}</span></div>`;
+      if (k.duration_ms != null) html += `<div class="kd-row">duration: <span>${k.duration_ms} ms</span></div>`;
+      if (k.output_hash)    html += `<div class="kd-row">hash: <span>${esc(k.output_hash.slice(0,28))}…</span></div>`;
+      if (k.skip_reason)    html += `<div class="kd-row">skipped: <span>${esc(k.skip_reason)}</span></div>`;
+      if (k.error_record_id) html += `<div class="kd-row">error id: <span>${esc(k.error_record_id)}</span></div>`;
+    } else {
+      html += `<div class="kd-row" style="color:var(--text-dim)">not in this run</div>`;
+    }
+    html += `<hr class="kd-divider"><div class="kd-section">Run</div>`;
+    html += `<div class="kd-row">id: <span>${esc(selectedRun.run_id.slice(0,24))}…</span></div>`;
+    if (selectedRun.dispatcher) html += `<div class="kd-row">dispatcher: <span>${esc(selectedRun.dispatcher)}</span></div>`;
+    if (selectedRun.actor)      html += `<div class="kd-row">actor: <span>${esc(selectedRun.actor)}</span></div>`;
+    const host = selectedRun.environment && selectedRun.environment.hostname;
+    if (host) html += `<div class="kd-row">host: <span>${esc(host)}</span></div>`;
+  }
+
+  el.innerHTML = html;
+  el.classList.add('visible');
+}
+
+function hideKnotDetail() {
+  const el = document.getElementById('knot-detail');
+  el.classList.remove('visible');
+  el.innerHTML = '';
+}
+
 function positionTooltip(event) {
   const PAD = 14, tw = ttEl.offsetWidth || 240, th = ttEl.offsetHeight || 120;
   let x = event.clientX + PAD, y = event.clientY + PAD;
@@ -841,6 +931,11 @@ function renderGraph() {
       .on('mouseleave', function() {
         rect.attr('fill',`url(#${gradId})`).attr('stroke-width',strokeW).attr('filter',null);
         hideTooltip();
+      })
+      .on('click', function(event) {
+        event.stopPropagation();
+        hideTooltip();
+        showKnotDetail(n);
       });
   }
 }
