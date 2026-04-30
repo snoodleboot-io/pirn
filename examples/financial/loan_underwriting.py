@@ -53,7 +53,7 @@ class Application:
     applicant: str
     requested_amount: float
     annual_income: float
-    credit_score: int        # 300–850
+    credit_score: int  # 300-850
     existing_debt: float
     employment_years: float
 
@@ -61,9 +61,9 @@ class Application:
 @dataclass
 class RiskProfile:
     app_id: str
-    tier: str                # "prime" | "near_prime" | "subprime"
-    dti_ratio: float         # debt-to-income
-    ltv_ratio: float         # loan-to-value (amount / income)
+    tier: str  # "prime" | "near_prime" | "subprime"
+    dti_ratio: float  # debt-to-income
+    ltv_ratio: float  # loan-to-value (amount / income)
     credit_score: int
 
 
@@ -168,7 +168,9 @@ async def subprime_underwrite(app: Application, profile: RiskProfile) -> Underwr
         offered_amount=round(max_amount * 0.8, 2) if approved else 0,
         interest_rate=14.5 if approved else 0,
         term_months=120,
-        conditions=["manual review required", "higher rate tier"] if approved else ["declined: insufficient creditworthiness"],
+        conditions=["manual review required", "higher rate tier"]
+        if approved
+        else ["declined: insufficient creditworthiness"],
     )
 
 
@@ -207,7 +209,7 @@ def _merge_decisions(
 
 def build_tapestry(history=None) -> Tapestry:
     with Tapestry(history=history) as t:
-        app     = Parameter("app", Application, _config=KnotConfig(id="app"))
+        app = Parameter("app", Application, _config=KnotConfig(id="app"))
         profile = assess_risk(app=app, _config=KnotConfig(id="profile"))
 
         router = Branch(
@@ -253,12 +255,12 @@ def build_tapestry(history=None) -> Tapestry:
 
 
 APPLICATIONS = [
-    Application("APP-001", "Sarah Chen",    250_000, 95_000,  760, 12_000,  8.0),
-    Application("APP-002", "Marcus Webb",   180_000, 62_000,  680, 18_000,  3.5),
-    Application("APP-003", "Priya Nair",    120_000, 38_000,  640, 22_000,  1.5),
-    Application("APP-004", "James Okafor",  200_000, 48_000,  590, 35_000,  0.5),
-    Application("APP-005", "Elena Vasquez", 320_000, 110_000, 800,  8_000, 12.0),
-    Application("APP-006", "Tom Briggs",     80_000, 28_000,  545, 41_000,  2.0),
+    Application("APP-001", "Sarah Chen", 250_000, 95_000, 760, 12_000, 8.0),
+    Application("APP-002", "Marcus Webb", 180_000, 62_000, 680, 18_000, 3.5),
+    Application("APP-003", "Priya Nair", 120_000, 38_000, 640, 22_000, 1.5),
+    Application("APP-004", "James Okafor", 200_000, 48_000, 590, 35_000, 0.5),
+    Application("APP-005", "Elena Vasquez", 320_000, 110_000, 800, 8_000, 12.0),
+    Application("APP-006", "Tom Briggs", 80_000, 28_000, 545, 41_000, 2.0),
 ]
 
 
@@ -267,8 +269,11 @@ async def main() -> None:
     t = build_tapestry(history=history)
 
     print("\n── Loan underwriting decisions ──")
-    print(f"{'APP':<8} {'APPLICANT':<16} {'TRACK':<12} {'RESULT':<10} {'AMOUNT':>10}  {'RATE':>6}  CONDITIONS")
-    print("─" * 90)
+    print(
+        f"{'APP':<8} {'APPLICANT':<16} {'TRACK':<12} {'RESULT':<10}"
+        f" {'AMOUNT':>10}  {'RATE':>6}  CONDITIONS"
+    )
+    print("-" * 90)
 
     for app in APPLICATIONS:
         result = await t.run(RunRequest(parameters={"app": app}))
@@ -276,9 +281,12 @@ async def main() -> None:
             d: FinalDecision = result.outputs["decision"]
             status = "APPROVED" if d.approved else "DECLINED"
             amount = f"£{d.offered_amount:>9,.0f}" if d.approved else f"{'—':>10}"
-            rate   = f"{d.interest_rate:.2f}%" if d.approved else "—"
-            conds  = "; ".join(d.conditions) if d.conditions else "—"
-            print(f"{app.app_id:<8} {app.applicant:<16} {d.track:<12} {status:<10} {amount}  {rate:>6}  {conds}")
+            rate = f"{d.interest_rate:.2f}%" if d.approved else "—"
+            conds = "; ".join(d.conditions) if d.conditions else "—"
+            print(
+                f"{app.app_id:<8} {app.applicant:<16} {d.track:<12}"
+                f" {status:<10} {amount}  {rate:>6}  {conds}"
+            )
         else:
             exc = result.exceptions[0] if result.exceptions else None
             msg = exc.message[:50] if exc else "unknown error"

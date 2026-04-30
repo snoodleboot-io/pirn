@@ -13,8 +13,8 @@ from typing import Any
 class TapestryGraph:
     name: str
     source: str
-    nodes: list[dict[str, str]] = field(default_factory=list)
-    edges: list[dict[str, str]] = field(default_factory=list)
+    nodes: list[dict[str, Any]] = field(default_factory=list)
+    edges: list[dict[str, Any]] = field(default_factory=list)
     error: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
@@ -113,13 +113,17 @@ def _load_runs_from_db(db_path: Path, limit: int = 200) -> list[dict[str, Any]]:
                 """SELECT knot_id, knot_class, outcome,
                           started_at, finished_at,
                           error_record_id, skip_reason, output_hash,
-                          knot_config_hash
+                          knot_config_hash, payload_json
                    FROM lineage WHERE run_id = ?""",
                 (run_id,),
             ).fetchall()
 
+            import json as _json
+
             knots: dict[str, Any] = {}
             for lr in lineage_rows:
+                if lr[0] == "__loop_terminal__":
+                    continue
                 (
                     kid,
                     kclass,
@@ -130,7 +134,14 @@ def _load_runs_from_db(db_path: Path, limit: int = 200) -> list[dict[str, Any]]:
                     skip_reason,
                     output_hash,
                     config_hash,
+                    payload_json,
                 ) = lr
+                parent_knot_ids: dict[str, str] = {}
+                try:
+                    payload = _json.loads(payload_json) if payload_json else {}
+                    parent_knot_ids = payload.get("extra", {}).get("parent_knot_ids", {})
+                except Exception:
+                    pass
                 knots[kid] = {
                     "outcome": outcome,
                     "class": kclass.split(".")[-1],
@@ -141,13 +152,12 @@ def _load_runs_from_db(db_path: Path, limit: int = 200) -> list[dict[str, Any]]:
                     "knot_config_hash": config_hash or "",
                     "error_record_id": err_id or "",
                     "skip_reason": skip_reason or "",
+                    "parent_knot_ids": parent_knot_ids,
                 }
-
-            import json as _json
 
             # Load exceptions keyed by id from the run payload_json, and
             # extract child_run_ids: {knot_id: run_id} from outputs.
-            child_run_ids: dict[str, str] = {}
+            child_run_ids: dict[str, Any] = {}
             try:
                 run_payload = _json.loads(
                     conn.execute(
@@ -160,6 +170,28 @@ def _load_runs_from_db(db_path: Path, limit: int = 200) -> list[dict[str, Any]]:
                         child_run_ids[knot_id] = val["run_id"]
             except Exception:
                 exceptions = {}
+
+            # Also reverse-lookup child runs via parent_run_id / parent_knot_id
+            # so SubTapestry nodes that return plain objects (not RunResult) still
+            # get drill-down links in the explorer.  Collect all child runs per
+            # knot to support loops (multiple _run_inner calls per knot).
+            try:
+                child_rows = conn.execute(
+                    "SELECT parent_knot_id, run_id FROM runs"
+                    " WHERE parent_run_id=? AND parent_knot_id IS NOT NULL"
+                    " ORDER BY started_at",
+                    (run_id,),
+                ).fetchall()
+                for child_knot_id, child_rid in child_rows:
+                    existing = child_run_ids.get(child_knot_id)
+                    if existing is None:
+                        child_run_ids[child_knot_id] = child_rid
+                    elif isinstance(existing, str):
+                        child_run_ids[child_knot_id] = [existing, child_rid]
+                    else:
+                        existing.append(child_rid)
+            except Exception:
+                pass
 
             # Fetch parent_input_hashes per knot from lineage_inputs.
             if "lineage_inputs" in tables:
@@ -234,8 +266,8 @@ def _knot_description(knot: Any) -> str:
 def _tapestry_to_graph(tapestry: Any, name: str, source: str) -> TapestryGraph:
     from pirn.nodes.sub_tapestry import SubTapestry as _SubTapestry
 
-    nodes: list[dict[str, str]] = []
-    edges: list[dict[str, str]] = []
+    nodes: list[dict[str, Any]] = []
+    edges: list[dict[str, Any]] = []
     for knot in tapestry._store.all():
         nodes.append(
             {

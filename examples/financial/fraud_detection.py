@@ -58,14 +58,16 @@ class Transaction:
 @dataclass
 class CoreRisk:
     """Velocity, amount, and account-history based risk signal — always present."""
-    score: float           # 0.0–1.0
-    velocity_flag: bool    # >5 transactions in 10 min
-    amount_flag: bool      # unusually large for this account
+
+    score: float  # 0.0-1.0
+    velocity_flag: bool  # >5 transactions in 10 min
+    amount_flag: bool  # unusually large for this account
 
 
 @dataclass
 class DeviceSignal:
     """Device fingerprint match against known fraud devices."""
+
     known_fraud_device: bool
     device_age_days: int
 
@@ -73,6 +75,7 @@ class DeviceSignal:
 @dataclass
 class GeoSignal:
     """Country-of-transaction vs. account home-country cross-reference."""
+
     country_mismatch: bool
     high_risk_country: bool
 
@@ -80,14 +83,15 @@ class GeoSignal:
 @dataclass
 class BureauSignal:
     """Third-party fraud bureau lookup score."""
-    bureau_score: float    # 0.0–1.0 (higher = more likely fraud)
+
+    bureau_score: float  # 0.0-1.0 (higher = more likely fraud)
     blacklisted: bool
 
 
 @dataclass
 class FraudDecision:
     txn_id: str
-    verdict: str           # "approved" | "review" | "blocked"
+    verdict: str  # "approved" | "review" | "blocked"
     score: float
     reasons: list[str]
     signals_used: list[str]
@@ -231,10 +235,10 @@ def build_tapestry(history=None) -> Tapestry:
     with Tapestry(history=history) as t:
         txn = Parameter("txn", Transaction, _config=KnotConfig(id="txn"))
 
-        core   = core_analysis(txn=txn,  _config=KnotConfig(id="core"))
-        device = device_check(txn=txn,   _config=KnotConfig(id="device"))
-        geo    = geo_check(txn=txn,      _config=KnotConfig(id="geo"))
-        bureau = bureau_check(txn=txn,   _config=KnotConfig(id="bureau"))
+        core = core_analysis(txn=txn, _config=KnotConfig(id="core"))
+        device = device_check(txn=txn, _config=KnotConfig(id="device"))
+        geo = geo_check(txn=txn, _config=KnotConfig(id="geo"))
+        bureau = bureau_check(txn=txn, _config=KnotConfig(id="bureau"))
 
         decide(
             txn=txn,
@@ -257,11 +261,11 @@ def build_tapestry(history=None) -> Tapestry:
 _VERDICT_ICON = {"approved": "✓", "review": "⚠", "blocked": "✗"}
 
 TRANSACTIONS = [
-    Transaction("TXN-001", "ACC-001", 85.00,   "Amazon UK",    "GB", "DEV-aaa"),
-    Transaction("TXN-002", "ACC-001", 3500.00,  "Luxury Goods", "AE", "DEV-bbb"),
-    Transaction("TXN-003", "ACC-002", 12.99,    "Netflix",      "US", None),
-    Transaction("TXN-004", "ACC-003", 250.00,   "Electronics",  "RU", "DEV-ccc"),
-    Transaction("TXN-005", "ACC-002", 9999.00,  "Wire Transfer","NG", "DEV-ddd"),
+    Transaction("TXN-001", "ACC-001", 85.00, "Amazon UK", "GB", "DEV-aaa"),
+    Transaction("TXN-002", "ACC-001", 3500.00, "Luxury Goods", "AE", "DEV-bbb"),
+    Transaction("TXN-003", "ACC-002", 12.99, "Netflix", "US", None),
+    Transaction("TXN-004", "ACC-003", 250.00, "Electronics", "RU", "DEV-ccc"),
+    Transaction("TXN-005", "ACC-002", 9999.00, "Wire Transfer", "NG", "DEV-ddd"),
 ]
 
 
@@ -284,11 +288,14 @@ async def main() -> None:
             reasons = ", ".join(d.reasons) if d.reasons else "—"
             # Show which optional signals were unavailable
             unavailable = [
-                k for k in ("device", "geo", "bureau")
+                k
+                for k in ("device", "geo", "bureau")
                 if any(e.knot_id == k for e in result.exceptions)
             ]
             note = f"  (no {', '.join(unavailable)})" if unavailable else ""
-            print(f"{icon} {txn.txn_id:<8} {d.verdict:<10} {d.score:<7} {signals:<28} {reasons}{note}")
+            print(
+                f"{icon} {txn.txn_id:<8} {d.verdict:<10} {d.score:<7} {signals:<28} {reasons}{note}"
+            )
         else:
             exc = result.exceptions[0]
             print(f"✗ {txn.txn_id:<8} PIPELINE FAILED  {exc.knot_id}: {exc.message[:40]}")

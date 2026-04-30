@@ -9,9 +9,13 @@ Specialised node classes beyond the base `Knot`.
 | `Aggregator` | N parents combined via a `combine` callable |
 | `Branch` | One input + selector → tagged path; non-selected paths are skipped |
 | `Gate` | One input + predicate → pass through or skip |
-| `Map` | Wraps an inner knot, applying it per-element of a parent's list |
+| `Map` | Distribute a knot over an ordered collection (list/tuple) |
+| `ZipMap` | Distribute a knot over multiple collections element-wise |
+| `DictMap` | Distribute a knot over the entries of a dict |
 | `Reduce` | Folds a list parent into one value (whole-list or pairwise) |
 | `SubTapestry` | A knot whose execution body is a complete inner tapestry pipeline |
+| `WithContinuation` | Wraps a knot and spawns successors based on its output at runtime |
+| `LoopSubTapestry` | Iterative SubTapestry: iterations as knots in one extensible run |
 
 ---
 
@@ -111,26 +115,52 @@ publish(data=quality_gate, _config=KnotConfig(id="publish"))
 
 ---
 
-## Map
+## Map / ZipMap / DictMap
 
-::: pirn.nodes.map_.Map
+Distribution markers placed at wiring time on a knot's input arguments.
+They are **not knots** — they are plain Python objects that instruct the
+engine to fan a knot out over a collection.  The annotated knot appears in
+the graph and lineage as itself; its `process` signature is typed for a
+single element.
+
+::: pirn.nodes.map_markers.Map
     options:
       show_source: false
-      members_order: source
+      heading_level: 3
+
+::: pirn.nodes.map_markers.ZipMap
+    options:
+      show_source: false
+      heading_level: 3
+
+::: pirn.nodes.map_markers.DictMap
+    options:
+      show_source: false
       heading_level: 3
 
 ### Example
 
 ```python
-from pirn import Map, KnotConfig
+from pirn.nodes.map_markers import Map, ZipMap, DictMap
+from pirn import KnotConfig
 
-enriched = Map(
-    over=record_ids_knot,    # produces list[str]
-    each=enrich_record,      # applied to each element
-    bind="record_id",        # name to bind each element to in process()
-    _config=KnotConfig(id="enriched"),
-)
+# Map: fan over a single ordered collection
+analysed = analyse_sample(sample=Map(batch), _config=KnotConfig(id="analyse"))
+
+# ZipMap: zip two collections element-wise
+result = process_pair(a=ZipMap(knot_a), b=ZipMap(knot_b), _config=KnotConfig(id="pairs"))
+
+# DictMap: iterate over dict entries (first annotated input = key, second = value)
+entries = process_entry(k=DictMap(lookup), v=DictMap(lookup), _config=KnotConfig(id="entries"))
 ```
+
+**Rules:**
+- `Map` requires a `list` or `tuple`; any other type raises `MapTypeError`.
+- Multiple `Map` annotations on different inputs of the same knot is a
+  construction-time `TypeError` (cross-product).
+- `Map` and `ZipMap` cannot be mixed on the same knot.
+- Both `DictMap` inputs must reference the same source knot.
+- Output type is always `list[T]`.
 
 **See also:** [`examples/lab_batch/lab_batch.py`](../../examples/lab_batch/lab_batch.py) — batch pathology sample processing with chained Maps.
 
@@ -229,3 +259,76 @@ except SubTapestryError as e:
 ```
 
 **See also:** [`examples/pipeline_composition/sub_tapestry.py`](../../examples/pipeline_composition/sub_tapestry.py), [Visualization — SubTapestry drill-down](../guides/visualization.md#subtapestry-drill-down)
+
+---
+
+## WithContinuation / continues()
+
+Attaches dynamic next-step logic to any knot without modifying it. The continuation is a plain function that receives the knot's output and returns a `list[Next]` — one entry per successor to spawn into the running extensible tapestry. Always returns at least one entry; use `Next("end")` to terminate explicitly.
+
+```python
+from pirn.nodes.continuation import Next, continues
+
+POOL = {
+    "summarise": SummariseKnot,
+    "web_search": WebSearchKnot,
+}
+
+def router(result: SearchResult) -> list[Next]:
+    if result.confidence < 0.6:
+        return [Next("web_search", {"query": result.original_query})]
+    return [Next("summarise", {"text": result.content})]
+
+search = WebSearchKnot(query=q, _config=KnotConfig(id="search"))
+continues(search, fn=router, pool=POOL)
+```
+
+`continues()` returns a `WithContinuation` knot wired immediately after the wrapped knot. Must be used inside an extensible tapestry run — in a non-extensible run the continuation fires but spawned knots are silently dropped.
+
+`Next` fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `action` | `str` | Key in the pool, or `"end"` for the built-in terminal |
+| `inputs` | `dict` | Constructor kwargs for the spawned knot |
+| `id` | `str \| None` | Override auto-generated knot id |
+
+---
+
+## LoopSubTapestry
+
+An iterative `SubTapestry` where all iterations execute as knots within a single extensible inner run, connected by real data edges. Use when the number of iterations is unknown until runtime and each iteration's structure may depend on the previous result.
+
+Subclass and implement:
+
+- **`step(state) -> tuple[Tapestry, S] | None`** — plan the next iteration's inner graph. Return `None` to terminate.
+- **`fold(state, result) -> S`** — integrate the iteration's `RunResult` into state.
+- **`step_id(state, idx) -> str`** — optional; override for domain-meaningful iteration knot IDs (default: `step_{idx}`).
+
+```python
+from pirn.nodes.loop_sub_tapestry import LoopSubTapestry
+from pirn.tapestry import Tapestry
+from pirn.core.knot_config import KnotConfig
+
+class Refiner(LoopSubTapestry[RefinementState]):
+
+    def step(self, state: RefinementState) -> tuple[Tapestry, RefinementState] | None:
+        if state.converged or state.rounds >= MAX_ROUNDS:
+            return None
+        state.rounds += 1
+        with Tapestry() as t:
+            RefineKnot(data=state.current, _config=KnotConfig(id="refine"))
+        return t, state
+
+    def fold(self, state: RefinementState, result: RunResult) -> RefinementState:
+        state.current = result.outputs["refine"]
+        state.converged = _has_converged(state.current)
+        return state
+
+    def step_id(self, state: RefinementState, idx: int) -> str:
+        return f"refine_round_{idx}"
+```
+
+Each iteration is a knot in one loop run; the knots are chained by real parent edges so lineage and the explorer reflect the true sequential (or parallel) execution history. Drill into any iteration knot to see its inner tapestry.
+
+**See also:** [`examples/llm_agent/agent_loop.py`](../../examples/llm_agent/agent_loop.py) — dynamic DAG agent loop built on extensible tapestry and `get_current_store()`.

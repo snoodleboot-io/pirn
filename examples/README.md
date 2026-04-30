@@ -114,6 +114,8 @@ nodes:
 
 ## llm_agent
 
+### chatbot_pipeline.py
+
 ```bash
 uv run python examples/llm_agent/chatbot_pipeline.py
 ```
@@ -123,6 +125,60 @@ A production-style chatbot backend modelled as a pirn tapestry. Each stage of ha
 The LLM calls use a fake Anthropic client by default so the example runs without any API key or network access. To wire in the real SDK, replace `_fake_llm_call()` with an `anthropic.AsyncAnthropic` call and set `ANTHROPIC_API_KEY` in your environment.
 
 The key thing this example illustrates is that pirn's dependency graph naturally encodes the latency-optimal execution order for an LLM pipeline — you do not have to manually orchestrate which calls can overlap. The lineage also gives you a full record of every turn: inputs, outputs, timing, and any errors, without writing any instrumentation code.
+
+### agent_loop.py
+
+```bash
+uv run python examples/llm_agent/agent_loop.py
+```
+
+An agentic session over multiple messages where the execution graph grows dynamically at runtime. There is no pre-planned loop structure — each `AgentPlanner` knot runs, decides what actions to take, and registers those knots directly into the running extensible tapestry using `get_current_store()`. Data flows through real parent edges; there is no shared mutable state blob.
+
+The shape of one iteration:
+
+```
+AgentPlanner → action_0, action_1, ... (run concurrently)
+             → Aggregator(all actions)
+             → AgentDecider(results=aggregator, ctx=planner)
+```
+
+`AgentDecider` integrates the results, updates the immutable `SessionContext`, and either registers the next `AgentPlanner` (more work to do) or a `_SessionFinalizer` (session complete). The final output is always at the well-known knot id `session_complete`.
+
+Three action types demonstrate different graph depths:
+- `run_tool_call` / `run_mcp_call` — leaf knots; inspect timing and output directly
+- `SubAgentRunner` — a `SubTapestry`; drill into it to see its own `prepare → execute` inner pipeline
+
+Knot IDs use a message-content slug (`whats_the_weather__m1i1`) so you can immediately read what each planner was working on in the explorer. A random `run_seed` is picked each run, producing a structurally different graph every time.
+
+This is the right starting point for modelling real agent workloads where the execution plan is unknown until runtime.
+
+---
+
+## document_analysis
+
+```bash
+uv run python examples/document_analysis/document_analysis.py
+```
+
+A document analysis pipeline that demonstrates subclassing `Knot` directly rather than using the `@knot` decorator. All processing nodes are class-based — typed, named, and composable through inheritance.
+
+The pipeline runs four parallel analysis branches from a shared `TextNormaliser` output, then converges into a single `AnalysisReport`:
+
+```
+DocumentLoader ──► TextNormaliser ──┬──► SentimentScorer  ──┐
+                                    ├──► ReadabilityScorer   ├──► AnalysisReport
+                                    ├──► KeywordExtractor    │
+                                    └──► TopicClassifier   ──┘
+```
+
+Key patterns shown:
+
+- **Base class with shared helpers** — `_BaseAnalyser(Knot)` provides `_freq()`, `_tfidf()`, and `_avg_word_len()` used by all four analyser subclasses. Shared logic lives in the class, not repeated across `process()` methods.
+- **Config injection via process() args** — `KeywordExtractor` declares `max_keywords: int` in its `process()` signature; passing `max_keywords=10` at construction time stores it as a config constant.
+- **Pure class-level state** — `SentimentScorer` and `TopicClassifier` keep their lexicons and signal dictionaries as class attributes, shared across all instances.
+- **Input validation in `process()`** — `DocumentLoader` trims and validates its inputs, raising `ValueError` on empty title or body.
+
+Three sample articles (science, finance, health) are analysed in sequence against the same tapestry. Run it and open the explorer to see the parallel branch structure and per-knot timing.
 
 ---
 
@@ -134,7 +190,14 @@ uv run python examples/lab_batch/lab_batch.py
 
 A pathology lab receives batches of patient samples, each containing multiple individual samples. Every sample must be independently analysed against reference ranges for five biomarkers and a per-sample report generated, then all reports are aggregated into a batch summary.
 
-The central concept here is `Map` — it applies the same multi-step analysis to every element in the list concurrently, without you having to write a loop or manage concurrency. Each element runs in parallel, and each has its own entry in the lineage so you can see exactly which samples flagged which biomarkers. Two batches are run (morning and afternoon), producing varied outcomes across both.
+The central concept here is the `Map` distribution marker — place it on a knot's input to fan the knot out over every element in the collection concurrently, without writing a loop or managing concurrency:
+
+```python
+analysed = analyse_sample(sample=Map(batch), _config=KnotConfig(id="analyse"))
+reports  = generate_report(analysed=Map(analysed), _config=KnotConfig(id="report"))
+```
+
+The knot appears in the graph and lineage as itself (`analyse_sample`, not `Map`). Its `process` method is typed for a single element; the engine handles the fan-out. Output is `list[T]`. Two batches are run (morning and afternoon), producing varied outcomes across both.
 
 ---
 

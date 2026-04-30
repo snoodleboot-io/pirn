@@ -171,15 +171,20 @@ losing the lineage graph.
 
 Beyond `Knot`, pirn ships a handful of specialised classes:
 
-| Class        | Shape                                                              |
-|--------------|--------------------------------------------------------------------|
-| `Source`     | zero parents → produces a value (file, DB query, fetch, …)         |
-| `Sink`       | terminal consumer; output conventionally `None`                    |
-| `Aggregator` | N parents combined via a `combine` callable                        |
-| `Branch`     | one input + selector → tagged path; non-selected paths are skipped |
-| `Gate`       | one input + predicate → pass through or skip                       |
-| `Map`        | wraps an inner knot, applying it per-element of a parent's list    |
-| `Reduce`     | folds a list parent into one value (whole-list or pairwise)        |
+| Class              | Shape                                                              |
+|--------------------|--------------------------------------------------------------------|
+| `Source`           | zero parents → produces a value (file, DB query, fetch, …)         |
+| `Sink`             | terminal consumer; output conventionally `None`                    |
+| `Aggregator`       | N parents combined via a `combine` callable                        |
+| `Branch`           | one input + selector → tagged path; non-selected paths are skipped |
+| `Gate`             | one input + predicate → pass through or skip                       |
+| `Map`              | fan a knot over every element of a parent's list                   |
+| `ZipMap`           | fan a knot over multiple collections element-wise                  |
+| `DictMap`          | fan a knot over the entries of a dict                              |
+| `Reduce`           | folds a list parent into one value (whole-list or pairwise)        |
+| `SubTapestry`      | a knot whose execution body is a complete inner tapestry           |
+| `WithContinuation` | wraps a knot; spawns successors based on its output at runtime     |
+| `LoopSubTapestry`  | iterative SubTapestry; iterations are knots in one extensible run  |
 
 `Optional` is a mixin (not a node).
 
@@ -315,22 +320,52 @@ await run_stream(source, tapestry)
 trigger-based machinery from a stream, wrap with
 `StreamingSourceTrigger`.
 
-## Mid-run extension
+## Mid-run extension and dynamic DAGs
 
-For dynamic pipelines (e.g., a knot decides to spawn N more knots
-based on its output), opt into **extensible** runs:
+For dynamic pipelines where a knot decides what comes next based on its
+own output, opt into **extensible** runs:
 
 ```python
-result = await tapestry.run(
-    RunRequest(parameters={"x": 5}),
-    extensible=True,
-)
+result = await tapestry.run(extensible=True)
 ```
 
-When extensible, knots registered to the store while the run is in
-progress get merged into the running shed, and execute if reachable
-from a terminal. Requires a store that supports change notification
-(`InMemoryStore` does; `SQLiteStore` doesn't yet — Phase 4).
+Inside any knot's `process()`, call `get_current_store()` to register
+successor knots into the running tapestry. The engine picks them up
+between waves:
+
+```python
+from pirn.tapestry import get_current_store
+
+class PlannerKnot(Knot):
+    async def process(self, ctx: Context, **_) -> Context:
+        store = get_current_store()
+        if store is not None:
+            for action in plan_actions(ctx):
+                store.register(ActionKnot(ctx=self, action=action,
+                                          _config=KnotConfig(id=action.id)))
+        return ctx
+```
+
+Successor knots wired to `self` receive the planner's output as a real
+data edge — the lineage reflects the true parent/child relationship, not
+a shared state blob.
+
+For continuation-style logic (deterministic next-steps attached to an
+existing knot without modifying it), use `continues()`:
+
+```python
+from pirn.nodes.continuation import Next, continues
+
+def router(result) -> list[Next]:
+    if result.score > 0.8:
+        return [Next("publish", {"data": result.content})]
+    return [Next("review", {"data": result.content})]
+
+continues(score_knot, fn=router, pool={"publish": PublishKnot, "review": ReviewKnot})
+```
+
+Requires `InMemoryStore` (the default). `SQLiteStore` and other
+persistent stores do not yet support mid-run extension.
 
 ## Visualization
 

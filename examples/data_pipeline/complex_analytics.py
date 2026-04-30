@@ -15,11 +15,11 @@ Run with:
     uv run python examples/data_pipeline/complex_analytics.py
 """
 
-from pathlib import Path
 import asyncio
 import random
 from dataclasses import dataclass
 from datetime import date, timedelta
+from pathlib import Path
 
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.core.knot_config import KnotConfig

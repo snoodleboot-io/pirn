@@ -16,7 +16,6 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
-from pirn.engine.shed.shed_error import ShedError
 from pirn.tapestry import Tapestry
 
 # ---------------------------------------------------- store subscribe API
@@ -140,17 +139,15 @@ async def test_extensible_run_picks_up_knot_added_during_run():
     assert result2.outputs["late"] == 99
 
 
-async def test_extensible_run_rejects_knot_whose_parent_finished():
-    """If a new knot depends on a knot that already produced a result,
-    the merge raises ``ShedError``.
+async def test_extensible_run_accepts_knot_whose_parent_finished():
+    """A new knot whose parent has already completed is accepted and runs
+    immediately in the next wave, using the cached result.
 
-    This is the strict design: the engine refuses to schedule a
-    newcomer whose parent has already completed because doing so
-    silently would either re-run the parent (wasteful, breaks lineage)
-    or use the cached result without the user being aware that they
-    constructed a race condition.  The error directs the user to
-    register dependents *before* their parents run — typically by
-    constructing the dependent inside the same wave.
+    This is the sequential chain pattern used by ``LoopSubTapestry``:
+    each iteration registers the next *after* the current one finishes,
+    so the new knot's parent is always in the completed results dict.
+    The engine resolves the input from the cached result rather than
+    re-running the parent.
     """
     parent_done = asyncio.Event()
     can_finish_other = asyncio.Event()
@@ -160,15 +157,11 @@ async def test_extensible_run_rejects_knot_whose_parent_finished():
 
     @knot
     async def _quick(x: int) -> int:
-        # Finish quickly; we'll register a knot depending on this
-        # before the run as a whole completes.
         parent_done.set()
         return x * 2
 
     @knot
     async def _slow_other(x: int) -> int:
-        # This knot keeps the run alive long enough for the late
-        # registration to land.
         await can_finish_other.wait()
         return x
 
@@ -178,23 +171,22 @@ async def test_extensible_run_rejects_knot_whose_parent_finished():
 
     async def add_late_dependent():
         await parent_done.wait()
-        # Yield so the engine has a chance to record `quick`'s result
-        # in the results dict before we register the dependent.
+        # Yield so the engine records `quick`'s result before we register.
         await asyncio.sleep(0.01)
         with t:
             _add_ten(x=quick, _config=KnotConfig(id="late_dependent"))
-        # Now allow the run to finish.
         can_finish_other.set()
 
     adder = asyncio.create_task(add_late_dependent())
 
-    with pytest.raises(ShedError, match="already completed"):
-        await t.run(
-            RunRequest(parameters={"x": 1}),
-            terminals=[quick, other],
-            extensible=True,
-        )
+    result = await t.run(
+        RunRequest(parameters={"x": 1}),
+        terminals=[quick, other],
+        extensible=True,
+    )
     await adder
+    # quick = 1*2 = 2; late_dependent = 2+10 = 12
+    assert result.outputs["late_dependent"] == 12
 
 
 async def test_extensible_run_with_non_subscribable_store_raises():

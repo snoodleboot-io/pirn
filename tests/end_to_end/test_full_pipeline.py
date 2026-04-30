@@ -8,7 +8,7 @@ from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.gate.gate import Gate
-from pirn.nodes.map_ import Map
+from pirn.nodes.map_markers import Map
 from pirn.nodes.reduce_ import Reduce
 from pirn.tapestry import Tapestry
 
@@ -47,12 +47,7 @@ async def test_realistic_data_pipeline():
         )
         threshold = Parameter("threshold", int, default=10)
 
-        enriched = Map(
-            over=records,
-            each=enrich,
-            bind="record",
-            _config=KnotConfig(id="enriched"),
-        )
+        enriched = enrich(record=Map(records), _config=KnotConfig(id="enriched"))
 
         total_score = Reduce(
             of=enriched,
@@ -114,12 +109,7 @@ async def test_pipeline_with_gate_closed_skips_downstream():
             default=[{"base": 0, "tag": "x"}],
         )
 
-        enriched = Map(
-            over=records,
-            each=enrich,
-            bind="record",
-            _config=KnotConfig(id="enriched"),
-        )
+        enriched = enrich(record=Map(records), _config=KnotConfig(id="enriched"))
         total = Reduce(
             of=enriched,
             combine=lambda items: sum(it["score"] for it in items),

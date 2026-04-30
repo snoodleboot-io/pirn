@@ -43,7 +43,7 @@ from pirn.core.parameter import Parameter
 from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.branch.branch import Branch
 from pirn.nodes.gate.gate import Gate
-from pirn.nodes.map_ import Map
+from pirn.nodes.map_markers import Map
 from pirn.nodes.reduce_ import Reduce
 from pirn.tapestry import Tapestry
 from pirn.yaml_loader.specs.aggregator_spec import AggregatorSpec
@@ -269,21 +269,21 @@ def _build_node(
         each = _resolve_callable(
             node_spec.each, known, pipeline_spec.allow_callable_refs, allowed_module_prefixes
         )
-        # Resolve shared kwargs that reference other knots (loose-mode
-        # ergonomics: a value matching a built knot id becomes that knot).
+        # Resolve shared kwargs; string values matching a built knot id become
+        # that knot (loose-mode ergonomics).
         shared: dict[str, Any] = {}
         for k, v in node_spec.shared.items():
             if isinstance(v, str) and v in built:
                 shared[k] = built[v]
             else:
                 shared[k] = v
-        return Map(
-            over=built[node_spec.over],
-            each=each,
-            bind=node_spec.bind,
+        # Translate old `type: map` YAML into the new annotation-based API:
+        # each(bind_name=Map(over_knot), **shared, _config=cfg, tapestry=tapestry)
+        return each(
+            **{node_spec.bind: Map(built[node_spec.over])},
+            **shared,
             _config=cfg,
             tapestry=tapestry,
-            **shared,
         )
 
     if isinstance(node_spec, ReduceSpec):

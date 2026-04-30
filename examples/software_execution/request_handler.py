@@ -14,11 +14,11 @@ Run with:
     uv run python examples/software_execution/request_handler.py
 """
 
-from pathlib import Path
 import asyncio
 import json
 import time
 from dataclasses import dataclass
+from pathlib import Path
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot

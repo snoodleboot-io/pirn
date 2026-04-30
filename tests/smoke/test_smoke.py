@@ -25,12 +25,12 @@ def test_node_public_surface():
     from pirn.nodes.branch.branch import Branch
     from pirn.nodes.branch.branch_output import BranchOutput
     from pirn.nodes.gate.gate import Gate
-    from pirn.nodes.map_ import Map
+    from pirn.nodes.map_markers import DictMap, Map, ZipMap
     from pirn.nodes.reduce_ import Reduce
     from pirn.nodes.sink import Sink
     from pirn.nodes.source import Source
 
-    for cls in (Source, Sink, Aggregator, Branch, BranchOutput, Gate, Map, Reduce):
+    for cls in (Source, Sink, Aggregator, Branch, BranchOutput, Gate, Map, ZipMap, DictMap, Reduce):
         assert isinstance(cls, type)
 
 
