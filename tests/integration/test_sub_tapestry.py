@@ -199,8 +199,8 @@ async def test_inner_run_parent_knot_id_set_automatically():
     inner_result = outer_result.outputs["sub"]
 
     assert inner_result.parent_knot_id == "sub"
-    # parent_run_id is None unless the user explicitly provides it
-    assert inner_result.parent_run_id is None
+    # parent_run_id is inherited from the outer run via context variable
+    assert inner_result.parent_run_id == outer_result.run_id
 
 
 async def test_children_of_empty_when_no_inner_runs():

@@ -1,28 +1,26 @@
-"""Example: Agentic loop with dynamic graph construction and global state.
+"""Example: Agentic session as a true dynamic DAG.
 
-An agent receives a task and works through it iteratively.  At each iteration
-it consults the current state (including everything accumulated so far), plans
-the next set of actions, builds a fresh inner tapestry whose topology depends
-on those actions, executes it, and folds the results back into state.
+A single session receives a sequence of messages and works through them
+iteratively.  The whole session is ONE extensible run — the graph grows with
+each iteration as knots register their successors directly.
 
-The graph changes shape every iteration and every run:
+Architecture:
 
-- The planner uses a seeded RNG so different tasks (and even the same task on
-  different runs) choose different action types and counts.
-- Action types: ``tool_call`` (local function), ``mcp_call`` (simulated remote
-  service), ``subagent`` (its own inner-inner tapestry with sub-steps).
-- An outer SubTapestry (AgentLoop) owns the iteration loop and the state.
-- An inner SubTapestry (ActionDispatcher) builds a dynamic graph per iteration —
-  one knot per planned action, running concurrently.
+    AgentPlanner → action_0, action_1, ... (concurrent)
+                 → Aggregator(all actions)
+                 → AgentDecider(results=aggregator, ctx=self)
 
-Because history is forwarded, the pirn explorer shows:
-- The outer run with a single AgentLoop node
-- Drill into AgentLoop → one DispatchIteration node per iteration
-- Drill into any DispatchIteration → the actual action knots that ran
+    AgentDecider: integrates results, then either
+        → next AgentPlanner(ctx=self)      (more work to do)
+        → _SessionFinalizer(state=self)    (session complete)
 
-Running the six tasks at the bottom produces six structurally different runs.
-Re-running produces different paths because the RNG is seeded from a counter
-that advances each call.
+Every knot is a direct node in a single extensible tapestry run.  Data flows
+through real parent edges — there is no shared mutable state blob.
+
+Action types:
+- ``tool_call``  — local function (weather, calculator)
+- ``mcp_call``   — simulated remote service (web search, knowledge base)
+- ``subagent``   — inner tapestry with its own two-step pipeline
 
 Run with:
     uv run python examples/llm_agent/agent_loop.py
@@ -33,54 +31,71 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import random
-from dataclasses import dataclass, field
+import re
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
-from pirn.core.run_request import RunRequest
 from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
+from pirn.tapestry import Tapestry, get_current_store
 
-MAX_ITERATIONS = 5
+MAX_ITERATIONS_PER_MSG = 4
+MAX_TOTAL_ITERATIONS   = 20
+SESSION_COMPLETE_ID    = "session_complete"
+
 
 # ----------------------------------------------------------------- state models
 
 
-@dataclass
+@dataclass(frozen=True)
 class StepResult:
     iteration: int
+    msg_idx: int
     action_type: str  # "tool_call" | "mcp_call" | "subagent"
     name: str
     output: str
 
 
-@dataclass
-class AgentState:
-    task: str
-    run_seed: int  # advances per re-run of the same task
+@dataclass(frozen=True)
+class SessionContext:
+    messages: tuple[str, ...]
+    run_seed: int
+    msg_idx: int = 0
+    msg_iteration: int = 0
     iteration: int = 0
-    scratchpad: list[StepResult] = field(default_factory=list)
-    done: bool = False
-    final_answer: str | None = None
+    scratchpad: tuple[StepResult, ...] = ()
+    responses: tuple[str, ...] = ()
+
+    @property
+    def current_message(self) -> str:
+        return self.messages[self.msg_idx]
+
+    @property
+    def done(self) -> bool:
+        return self.msg_idx >= len(self.messages)
+
+    def evolve(self, **changes) -> SessionContext:
+        return replace(self, **changes)
 
 
 @dataclass
 class PlannedAction:
     action_type: str  # "tool_call" | "mcp_call" | "subagent"
-    name: str  # e.g. "get_weather", "web_search", "summarise"
+    name: str
     args: dict
 
 
 # ----------------------------------------------------------------- fake back-ends
 
 
-def _rng(state: AgentState, extra: str = "") -> random.Random:
-    """Deterministic RNG seeded from task + run_seed + iteration + extra."""
-    key = f"{state.task}|{state.run_seed}|{state.iteration}|{extra}"
+def _rng(ctx: SessionContext, extra: str = "") -> random.Random:
+    """Deterministic RNG seeded from current message + run_seed + iteration."""
+    key = f"{ctx.current_message}|{ctx.run_seed}|{ctx.iteration}|{extra}"
     seed = int(hashlib.md5(key.encode()).hexdigest(), 16) % (2**32)
     return random.Random(seed)
 
@@ -123,18 +138,14 @@ def _fake_mcp(name: str, args: dict, rng: random.Random) -> str:
                 return v
         return "No matching article found."
     if name == "fetch_url":
-        return (
-            f"[page content from {args.get('url', '?')}]: retrieved {rng.randint(200, 800)} words"
-        )
+        return f"[page content from {args.get('url', '?')}]: retrieved {rng.randint(200, 800)} words"
     return f"[mcp:{name}] ok"
 
 
 def _fake_subagent(name: str, args: dict, context: str, rng: random.Random) -> str:
     if name == "summarise":
         words = rng.randint(40, 120)
-        return (
-            f"Summary ({words} words): {context[:80]}… Key points: {rng.randint(2, 5)} identified."
-        )
+        return f"Summary ({words} words): {context[:80]}… Key points: {rng.randint(2, 5)} identified."
     if name == "draft_email":
         tone = rng.choice(["professional", "empathetic", "concise"])
         return f"[{tone} email draft] Dear customer, regarding your request: {context[:60]}…"
@@ -147,77 +158,62 @@ def _fake_subagent(name: str, args: dict, context: str, rng: random.Random) -> s
 # ----------------------------------------------------------------- planner
 
 
-def plan_next_actions(state: AgentState) -> list[PlannedAction]:
-    """
-    Decide what to do next based on task and scratchpad.
+def plan_next_actions(ctx: SessionContext) -> list[PlannedAction]:
+    """Plan the next actions for the current message.
 
-    Uses an RNG seeded from task + run_seed + iteration so:
-    - The same task produces different plans across re-runs (run_seed increments).
-    - Within a run, the plan evolves as the scratchpad grows.
-    - Earlier iterations tend to gather data; later ones tend to synthesise.
+    Seeds the RNG from (current_message, run_seed, iteration) so the same
+    message with a different seed produces a different action mix.  Later
+    iterations lean toward synthesis; earlier ones gather data in parallel.
     """
-    rng = _rng(state, extra="plan")
-    task = state.task.lower()
-    it = state.iteration
-    scraped_types = {s.action_type for s in state.scratchpad}
+    rng = _rng(ctx, extra="plan")
+    task = ctx.current_message.lower()
+    msg_steps = [s for s in ctx.scratchpad if s.msg_idx == ctx.msg_idx]
 
-    # If we already have data from prior iterations, move to synthesis.
-    if state.scratchpad and it >= 2:
-        # Probabilistically decide we're done or need one more synthesis step.
-        if rng.random() < 0.55 or it >= MAX_ITERATIONS - 1:
-            # Build a final synthesis action over everything accumulated.
-            context = " | ".join(s.output for s in state.scratchpad[-3:])
+    if msg_steps and ctx.msg_iteration >= 2:
+        if rng.random() < 0.6 or ctx.msg_iteration >= MAX_ITERATIONS_PER_MSG - 1:
+            context = " | ".join(s.output for s in msg_steps[-3:])
             return [PlannedAction("subagent", "summarise", {"context": context})]
 
-    # First or second iteration: gather data.
     actions: list[PlannedAction] = []
 
-    # Choose action mix based on task keywords + RNG.
     if "weather" in task:
         locs = ["London", "Tokyo", "New York", "Paris", "Berlin"]
-        n_locs = rng.randint(1, min(3, 1 + it))  # more locations in later iters
+        n_locs = rng.randint(1, min(3, 1 + ctx.msg_iteration))
         chosen = rng.sample(locs, n_locs)
-        actions += [PlannedAction("tool_call", "get_weather", {"location": l}) for l in chosen]
+        actions += [PlannedAction("tool_call", "get_weather", {"location": loc}) for loc in chosen]
 
     if any(w in task for w in ["calculat", "percent", "interest", "cost"]):
         expr = rng.choice(["150 * 1.2", "5000 * 0.035 * 10", "280 * 0.15", "99 * 12"])
         actions.append(PlannedAction("tool_call", "calculate", {"expression": expr}))
 
     if any(w in task for w in ["research", "find", "look up", "search"]):
-        query = task[:60]
-        # Sometimes use web_search (MCP), sometimes kb_search (MCP).
         mcp_name = rng.choice(["web_search", "kb_search"])
-        actions.append(PlannedAction("mcp_call", mcp_name, {"query": query}))
+        actions.append(PlannedAction("mcp_call", mcp_name, {"query": task[:60]}))
 
     if any(w in task for w in ["policy", "refund", "cancel", "plan"]):
         actions.append(PlannedAction("mcp_call", "kb_search", {"query": task[:50]}))
 
     if any(w in task for w in ["write", "draft", "email", "report", "summarise", "summary"]):
-        context = " | ".join(s.output for s in state.scratchpad) or task
+        context = " | ".join(s.output for s in msg_steps) or task
         sub_name = rng.choice(["summarise", "draft_email", "analyse"])
         actions.append(PlannedAction("subagent", sub_name, {"context": context[:200]}))
 
     if any(w in task for w in ["url", "page", "fetch", "scrape"]):
         actions.append(PlannedAction("mcp_call", "fetch_url", {"url": "https://example.com"}))
 
-    # Ensure there's always at least one action.
     if not actions:
-        fallback = rng.choice(
-            [
-                PlannedAction("mcp_call", "web_search", {"query": task[:60]}),
-                PlannedAction("tool_call", "get_weather", {"location": "London"}),
-                PlannedAction("subagent", "analyse", {"context": task}),
-            ]
-        )
-        actions.append(fallback)
+        actions.append(rng.choice([
+            PlannedAction("mcp_call", "web_search", {"query": task[:60]}),
+            PlannedAction("tool_call", "get_weather", {"location": "London"}),
+            PlannedAction("subagent", "analyse", {"context": task}),
+        ]))
 
-    # Optionally add an extra parallel action for variety.
-    if rng.random() < 0.35 and len(actions) < 4 and "subagent" not in scraped_types:
-        extras = [
+    msg_types = {s.action_type for s in msg_steps}
+    if rng.random() < 0.35 and len(actions) < 4 and "subagent" not in msg_types:
+        actions.append(rng.choice([
             PlannedAction("mcp_call", "web_search", {"query": f"{task[:30]} latest"}),
             PlannedAction("tool_call", "calculate", {"expression": "100 * 1.035 ** 5"}),
-        ]
-        actions.append(rng.choice(extras))
+        ]))
 
     return actions
 
@@ -226,239 +222,173 @@ def plan_next_actions(state: AgentState) -> list[PlannedAction]:
 
 
 @knot
-async def run_tool_call(action: PlannedAction, state: AgentState, **_) -> StepResult:
+async def run_tool_call(action: PlannedAction, ctx: SessionContext, **_) -> StepResult:
     """Execute a local tool function."""
-    rng = _rng(state, extra=action.name)
+    rng = _rng(ctx, extra=action.name)
     output = _fake_tool(action.name, action.args, rng)
-    return StepResult(
-        iteration=state.iteration,
-        action_type="tool_call",
-        name=action.name,
-        output=output,
-    )
+    return StepResult(iteration=ctx.iteration, msg_idx=ctx.msg_idx,
+                      action_type="tool_call", name=action.name, output=output)
 
 
 @knot
-async def run_mcp_call(action: PlannedAction, state: AgentState, **_) -> StepResult:
+async def run_mcp_call(action: PlannedAction, ctx: SessionContext, **_) -> StepResult:
     """Execute a remote MCP service call (simulated)."""
-    await asyncio.sleep(0)  # yield — represents async I/O
-    rng = _rng(state, extra=action.name)
+    await asyncio.sleep(0)
+    rng = _rng(ctx, extra=action.name)
     output = _fake_mcp(action.name, action.args, rng)
-    return StepResult(
-        iteration=state.iteration,
-        action_type="mcp_call",
-        name=action.name,
-        output=output,
-    )
+    return StepResult(iteration=ctx.iteration, msg_idx=ctx.msg_idx,
+                      action_type="mcp_call", name=action.name, output=output)
 
 
 class SubAgentRunner(SubTapestry):
-    """Run a sub-agent as its own inner tapestry.
+    """Run a sub-agent as its own inner tapestry (prepare_context → execute_subagent)."""
 
-    The sub-agent builds a two-step inner pipeline:
-        prepare_context → execute_subagent
-    so it shows up as a drill-down target in the explorer.
-    """
-
-    async def process(self, action: PlannedAction, state: AgentState, **_) -> StepResult:  # type: ignore[override]
-        rng = _rng(state, extra=action.name)
-        context = action.args.get("context", state.task)
+    async def process(self, action: PlannedAction, ctx: SessionContext, **_) -> StepResult:  # type: ignore[override]
+        rng = _rng(ctx, extra=action.name)
+        context = action.args.get("context", ctx.current_message)
 
         @knot
         async def prepare_context(raw: str, **__) -> str:
             return raw[:300].strip()
 
         @knot
-        async def execute_subagent(ctx: str, **__) -> str:
-            return _fake_subagent(action.name, action.args, ctx, rng)
+        async def execute_subagent(prepared: str, **__) -> str:
+            return _fake_subagent(action.name, action.args, prepared, rng)
 
         with Tapestry() as inner:
-            raw_p = Parameter(
-                "raw",
-                str,
-                default=context,
-                _config=KnotConfig(id="context_input"),
-            )
+            raw_p = Parameter("raw", str, default=context, _config=KnotConfig(id="context_input"))
             ctx_knot = prepare_context(raw=raw_p, _config=KnotConfig(id="prepare"))
-            execute_subagent(ctx=ctx_knot, _config=KnotConfig(id="subagent_output"))
+            execute_subagent(prepared=ctx_knot, _config=KnotConfig(id="subagent_output"))
 
         result = await self._run_inner(inner)
-        output = result.outputs["subagent_output"]
-        return StepResult(
-            iteration=state.iteration,
-            action_type="subagent",
-            name=action.name,
-            output=output,
+        return StepResult(iteration=ctx.iteration, msg_idx=ctx.msg_idx,
+                          action_type="subagent", name=action.name,
+                          output=result.outputs["subagent_output"])
+
+
+# ----------------------------------------------------------------- planner knot
+
+
+class AgentPlanner(Knot):
+    """Plans the next set of actions and registers them directly into the running tapestry.
+
+    Outputs the updated context (with bumped iteration counters) so that action
+    knots wired to ``ctx=self`` receive it as a data input.
+    """
+
+    async def process(self, ctx: SessionContext, **_) -> SessionContext:  # type: ignore[override]
+        new_ctx = ctx.evolve(iteration=ctx.iteration + 1, msg_iteration=ctx.msg_iteration + 1)
+        actions = plan_next_actions(new_ctx)
+
+        store = get_current_store()
+        if store is None:
+            return new_ctx
+
+        prefix = self.knot_id
+        action_knots: dict[str, Knot] = {}
+
+        for i, action in enumerate(actions):
+            node_id = f"{prefix}__act_{i}"
+            if action.action_type == "tool_call":
+                ak: Knot = run_tool_call(action=action, ctx=self,
+                                         _config=KnotConfig(id=node_id, validate_io=False))
+            elif action.action_type == "mcp_call":
+                ak = run_mcp_call(action=action, ctx=self,
+                                  _config=KnotConfig(id=node_id, validate_io=False))
+            else:
+                ak = SubAgentRunner(action=action, ctx=self,
+                                    _config=KnotConfig(id=node_id, validate_io=False))
+            store.register(ak)
+            action_knots[f"r{i}"] = ak
+
+        agg = Aggregator(
+            combine=lambda **kw: list(kw.values()),
+            _config=KnotConfig(id=f"{prefix}__agg", validate_io=False),
+            **action_knots,
         )
+        store.register(agg)
+
+        decider = AgentDecider(
+            results=agg,
+            ctx=self,
+            _config=KnotConfig(id=f"{prefix}__decide", validate_io=False),
+        )
+        store.register(decider)
+
+        return new_ctx
 
 
-# ----------------------------------------------------------------- dispatcher
+# ----------------------------------------------------------------- decider knot
 
 
-class ActionDispatcher(SubTapestry):
-    """Per-iteration dynamic graph.
+class AgentDecider(Knot):
+    """Integrates action results, updates context, and spawns the next planner or terminal.
 
-    Receives the list of planned actions and builds one knot per action —
-    the knot type (ToolCallKnot / MCPCallKnot / SubAgentRunner) depends on
-    action_type.  All action knots run concurrently via asyncio.gather
-    inside the inner tapestry engine.
-
-    The inner graph is different for every iteration and every run.
+    ``results`` arrives from the aggregator (a real data edge).
+    ``ctx`` arrives from the planner that spawned this decider (a real data edge).
     """
 
-    async def process(  # type: ignore[override]
-        self,
-        actions: list[PlannedAction],
-        state: AgentState,
-        **_,
-    ) -> list[StepResult]:
-        with Tapestry() as inner:
-            result_knots: dict[str, object] = {}
+    async def process(self, results: list[StepResult], ctx: SessionContext, **_) -> SessionContext:  # type: ignore[override]
+        new_scratchpad = ctx.scratchpad + tuple(results)
+        new_ctx = ctx.evolve(scratchpad=new_scratchpad)
 
-            for i, action in enumerate(actions):
-                node_id = f"{action.action_type}_{action.name}_{i}"
-                action_p = Parameter(
-                    f"action_{i}",
-                    PlannedAction,
-                    default=action,
-                    _config=KnotConfig(id=f"action_input_{i}"),
-                )
-                state_p = Parameter(
-                    f"state_{i}",
-                    AgentState,
-                    default=state,
-                    _config=KnotConfig(id=f"state_input_{i}"),
-                )
-
-                if action.action_type == "tool_call":
-                    k = run_tool_call(
-                        action=action_p,
-                        state=state_p,
-                        _config=KnotConfig(id=node_id, validate_io=False),
-                    )
-                elif action.action_type == "mcp_call":
-                    k = run_mcp_call(
-                        action=action_p,
-                        state=state_p,
-                        _config=KnotConfig(id=node_id, validate_io=False),
-                    )
-                else:  # subagent
-                    k = SubAgentRunner(
-                        action=action_p,
-                        state=state_p,
-                        _config=KnotConfig(id=node_id, validate_io=False),
-                    )
-                result_knots[node_id] = k
-
-            # Aggregate all results into a list.
-            Aggregator(
-                combine=lambda **kw: list(kw.values()),
-                _config=KnotConfig(id="collected", validate_io=False),
-                **result_knots,
+        # Resolved when a synthesis subagent ran.
+        if results and results[-1].action_type == "subagent":
+            new_ctx = new_ctx.evolve(
+                responses=new_ctx.responses + (results[-1].output,),
+                msg_idx=new_ctx.msg_idx + 1,
+                msg_iteration=0,
             )
-
-        dispatch_result = await self._run_inner(inner)
-        return dispatch_result.outputs["collected"]
-
-
-# ----------------------------------------------------------------- agent loop
-
-
-class AgentLoop(SubTapestry):
-    """Iterative agentic loop with global state.
-
-    Each iteration:
-      1. Plans the next actions by consulting state.task + state.scratchpad.
-      2. Builds and runs a fresh ActionDispatcher (inner tapestry).
-      3. Folds new StepResults into state.scratchpad.
-      4. Checks whether we're done.
-
-    The same task re-run with an incremented run_seed produces different plans
-    because the planner's RNG is seeded from (task, run_seed, iteration).
-    """
-
-    async def process(self, state: AgentState, **_) -> AgentState:  # type: ignore[override]
-        for _ in range(MAX_ITERATIONS):
-            state.iteration += 1
-
-            # Plan next actions — result depends on state contents + RNG.
-            actions = plan_next_actions(state)
-
-            # Build a named dispatcher for this iteration.
-            dispatcher_id = f"iteration_{state.iteration}"
-            with Tapestry() as iter_tapestry:
-                actions_p = Parameter(
-                    "actions",
-                    list,
-                    default=actions,
-                    _config=KnotConfig(id="planned_actions"),
-                )
-                state_p = Parameter(
-                    "state",
-                    AgentState,
-                    default=state,
-                    _config=KnotConfig(id="current_state"),
-                )
-                ActionDispatcher(
-                    actions=actions_p,
-                    state=state_p,
-                    _config=KnotConfig(id=dispatcher_id, validate_io=False),
+        else:
+            rng = _rng(new_ctx, extra="termination")
+            msg_steps = [s for s in new_scratchpad if s.msg_idx == new_ctx.msg_idx]
+            if len(msg_steps) >= 2 and rng.random() < 0.5:
+                ctx_str = " | ".join(s.output for s in msg_steps[-3:])
+                new_ctx = new_ctx.evolve(
+                    responses=new_ctx.responses + (
+                        f"Resolved after {new_ctx.msg_iteration} iterations: {ctx_str[:120]}",
+                    ),
+                    msg_idx=new_ctx.msg_idx + 1,
+                    msg_iteration=0,
                 )
 
-            iter_result = await self._run_inner(iter_tapestry)
-            new_results: list[StepResult] = iter_result.outputs[dispatcher_id]
-            state.scratchpad.extend(new_results)
+        store = get_current_store()
+        if store is None:
+            return new_ctx
 
-            # Check termination: if the last action was a synthesis subagent, we're done.
-            if new_results and new_results[-1].action_type == "subagent":
-                last = new_results[-1]
-                state.done = True
-                state.final_answer = last.output
-                break
+        if not new_ctx.done and new_ctx.iteration < MAX_TOTAL_ITERATIONS:
+            next_id = _planner_id(new_ctx)
+            store.register(AgentPlanner(ctx=self, _config=KnotConfig(id=next_id, validate_io=False)))
+        else:
+            store.register(_SessionFinalizer(state=self,
+                                             _config=KnotConfig(id=SESSION_COMPLETE_ID, validate_io=False)))
 
-            # Also stop if we've gathered enough data and the RNG says so.
-            rng = _rng(state, extra="termination")
-            if len(state.scratchpad) >= 3 and rng.random() < 0.5:
-                final_ctx = " | ".join(s.output for s in state.scratchpad[-3:])
-                state.done = True
-                state.final_answer = f"Task complete after {state.iteration} iterations. Key findings: {final_ctx[:150]}"
-                break
+        return new_ctx
 
-        if not state.done:
-            state.done = True
-            state.final_answer = (
-                f"Max iterations reached. Partial result from {len(state.scratchpad)} steps."
-            )
 
+class _SessionFinalizer(Knot):
+    """Terminal knot — surfaces the final session context as the run output."""
+
+    async def process(self, state: SessionContext, **_) -> SessionContext:  # type: ignore[override]
         return state
 
 
-# ----------------------------------------------------------------- outer tapestry
+# ----------------------------------------------------------------- tapestry
 
 
-def build_tapestry(history=None) -> Tapestry:
-    with Tapestry(history=history) as t:
-        state = Parameter("state", AgentState, _config=KnotConfig(id="initial_state"))
-        AgentLoop(
-            state=state,
-            _config=KnotConfig(id="agent_loop", validate_io=False),
-        )
+def build_tapestry(*, initial_ctx: SessionContext | None = None, history=None) -> Tapestry:
+    t = Tapestry(history=history)
+    seed_ctx = initial_ctx or make_session()
+    first_planner = AgentPlanner(ctx=seed_ctx,
+                                 _config=KnotConfig(id=_planner_id(seed_ctx), validate_io=False))
+    t.store.register(first_planner)
     return t
 
 
-# ----------------------------------------------------------------- tasks
+# ----------------------------------------------------------------- conversation
 
 
-# run_seed increments so re-running the same task produces a different graph.
-_RUN_COUNTER: dict[str, int] = {}
-
-
-def _make_state(task: str) -> AgentState:
-    _RUN_COUNTER[task] = _RUN_COUNTER.get(task, 0) + 1
-    return AgentState(task=task, run_seed=_RUN_COUNTER[task])
-
-
-TASKS = [
+MESSAGES = [
     "What's the weather forecast for my trip to London and Tokyo?",
     "Calculate the compound interest on £5000 at 3.5% for 10 years",
     "Research the latest developments in quantum computing and summarise for me",
@@ -468,35 +398,48 @@ TASKS = [
 ]
 
 
+def _planner_id(ctx: SessionContext) -> str:
+    """Short human-readable ID for an AgentPlanner from message content + position."""
+    words = re.sub(r"[^a-z0-9\s]", "", ctx.current_message.lower()).split()[:3]
+    slug = "_".join(words)
+    return f"{slug}__m{ctx.msg_idx + 1}i{ctx.msg_iteration + 1}"
+
+
+def make_session(run_seed: int = 1) -> SessionContext:
+    return SessionContext(messages=tuple(MESSAGES), run_seed=run_seed)
+
+
 # ----------------------------------------------------------------- main
 
 
 async def main() -> None:
     history = SQLiteHistory(path=str(Path(__file__).parent.parent / "pirn.db"))
-    t = build_tapestry(history=history)
+    ctx = make_session(run_seed=random.randint(1, 2**31))
+    t = build_tapestry(initial_ctx=ctx, history=history)
 
     _TYPE_ICON = {"tool_call": "⚙", "mcp_call": "🌐", "subagent": "🤖"}
 
-    print("\n── Agentic loop ──\n")
+    print("\n── Agent session ──\n")
 
-    for task in TASKS:
-        state = _make_state(task)
-        result = await t.run(RunRequest(parameters={"state": state}))
+    result = await t.run(extensible=True)
 
-        if not result.succeeded:
-            exc = result.exceptions[0] if result.exceptions else None
-            print(f"✗  {task[:55]}")
-            print(f"   FAILED: {exc.knot_id if exc else '?'}: {exc.message[:60] if exc else ''}\n")
-            continue
+    if not result.succeeded:
+        exc = result.exceptions[0] if result.exceptions else None
+        print(f"FAILED: {exc.knot_id if exc else '?'}: {exc.message[:80] if exc else ''}")
+        history.close()
+        return
 
-        final: AgentState = result.outputs["agent_loop"]
+    final: SessionContext = result.outputs[SESSION_COMPLETE_ID]
+    print(f"{len(final.messages)} messages · {final.iteration} total iterations\n")
+
+    for i, (msg, response) in enumerate(zip(final.messages, final.responses)):
+        msg_steps = [s for s in final.scratchpad if s.msg_idx == i]
         steps_summary = "  ".join(
-            f"{_TYPE_ICON.get(s.action_type, '·')}{s.name}" for s in final.scratchpad
+            f"{_TYPE_ICON.get(s.action_type, '·')}{s.name}" for s in msg_steps
         )
-        print(f"✓  {task[:60]}")
-        print(f"   {final.iteration} iter · {len(final.scratchpad)} steps · {steps_summary}")
-        if final.final_answer:
-            print(f"   → {final.final_answer[:100]}")
+        print(f"[{i+1}] {msg[:70]}")
+        print(f"     {steps_summary}")
+        print(f"     → {response[:100]}")
         print()
 
     history.close()

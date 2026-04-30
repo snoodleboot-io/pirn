@@ -132,16 +132,21 @@ The key thing this example illustrates is that pirn's dependency graph naturally
 uv run python examples/llm_agent/agent_loop.py
 ```
 
-An agentic loop where the tapestry's graph grows dynamically at runtime based on what the agent decides to do. The key idea: the topology is not fixed at build time — it is constructed fresh for every iteration based on the agent's plan and the accumulated state from previous iterations.
+An agentic loop where the graph grows dynamically at runtime based on what the agent decides to do next. The loop is expressed as a `LoopSubTapestry` — a base class that separates iteration into two pure functions:
 
-The agent holds a global `AgentState` — task, scratchpad of prior results, iteration count — and works through it iteratively. At each iteration, a planner reads the state and decides what to do next; an `ActionDispatcher` (itself a `SubTapestry`) constructs the matching knots on the fly — `run_tool_call`, `run_mcp_call`, or `SubAgentRunner` — wires them up, and runs them concurrently. Results fold back into the scratchpad. Later iterations see what earlier ones produced and plan differently.
+- **`step(state)`** — planning: read state, decide the next actions, build and return the inner tapestry for this cycle. Return `None` to terminate.
+- **`fold(state, result)`** — reduction: integrate the cycle's `RunResult` back into state. Check termination conditions here.
+
+The framework threads them: `step → run → fold → step → run → fold → …` until `step` returns `None`.
+
+Inside each cycle, an `ActionDispatcher` (a `SubTapestry`) builds a fresh graph on the fly — one knot per planned action (`run_tool_call`, `run_mcp_call`, or `SubAgentRunner`) — and runs them all concurrently. Results fold back into the scratchpad so later iterations see what earlier ones produced and plan differently.
 
 All three action types reach a different depth in the explorer:
 - `tool_call` nodes are leaf knots — drill in and see a single execution record
 - `mcp_call` nodes are leaf knots with simulated async I/O
 - `subagent` nodes (`SubAgentRunner`) are themselves `SubTapestry` — drill in and see their own inner two-step pipeline
 
-A per-run seed (`run_seed`) is passed in with each task so the same task produces a structurally different graph on each re-run. Look at six consecutive runs in the explorer: the `AgentLoop` node is the same outer shape, but drill in and each iteration's dispatcher contains a different combination of action nodes.
+A per-run seed (`run_seed`) is passed in with each task so the same task produces a structurally different graph on each re-run. Drill into the `AgentLoop` node in the explorer: each iteration is a separate inner run you can navigate to independently.
 
 This is the right starting point if you want to model real agent workloads — tool dispatch, MCP calls, spawned subagents — where the execution plan is unknown until runtime.
 

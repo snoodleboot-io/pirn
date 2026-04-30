@@ -348,18 +348,14 @@ class Engine:
         if not truly_new:
             return added
 
-        # Second pass: validate that no new knot depends on a knot that
-        # already produced a result.  Walk recursively because a new
-        # knot's parents may themselves be newly arrived.
+        # Second pass: validate that every parent is resolvable — either it
+        # already has a result (sequential chain pattern, e.g. LoopSubTapestry)
+        # or it is in the shed / also newly arrived.
         new_ids = {k.knot_id for k in truly_new}
         for k in truly_new:
             for parent in k.parents.values():
                 if parent.knot_id in results:
-                    raise ShedError(
-                        f"knot {k.knot_id!r} arrived mid-run but its parent "
-                        f"{parent.knot_id!r} has already completed; "
-                        f"register dependent knots before their parents run"
-                    )
+                    continue  # parent completed; result is available — valid
                 if parent.knot_id not in shed.knots and parent.knot_id not in new_ids:
                     raise ShedError(
                         f"knot {k.knot_id!r} arrived mid-run but its parent "
@@ -534,6 +530,8 @@ class Engine:
         # facing fields).  Otherwise we hash a sentinel.
         cfg_hash = content_hash(knot.config.model_dump(mode="json"))
 
+        parent_knot_ids = {name: pk.knot_id for name, pk in knot.parents.items()}
+
         record = KnotLineage(
             run_id=ctx.run_id,
             knot_id=knot.knot_id,
@@ -547,5 +545,6 @@ class Engine:
             dispatcher=ctx.dispatcher_name,
             started_at=started or ctx.started_at,
             finished_at=datetime.now(UTC),
+            extra={"parent_knot_ids": parent_knot_ids} if parent_knot_ids else {},
         )
         ctx.add_lineage(record)

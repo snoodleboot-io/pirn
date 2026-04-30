@@ -304,6 +304,8 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   font-size: 11px; font-weight: 600; font-family: inherit; width: 100%;
 }
 .kd-drill-btn:hover { background: rgba(255,102,0,0.22); }
+.kd-iter-label { font-size: 10px; color: var(--fg-dim); margin-top: 10px; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.05em; }
+.kd-iter-btn { margin-top: 4px; }
 
 /* Back button in topbar */
 #btn-back {
@@ -661,12 +663,24 @@ function closeHistory() {
 }
 
 function runsForTapestry(tapestry) {
+  if (navStack.length > 0) {
+    // Drilled in: only show child runs of the parent run through the drilled node.
+    const frame = navStack[navStack.length - 1];
+    return RUNS.filter(r =>
+      r.parent_run_id === frame.run.run_id &&
+      r.parent_knot_id === frame.node_id
+    );
+  }
+  // Top level: node-overlap heuristic, top-level runs only.
   const nodeIds = new Set(tapestry.nodes.map(n => n.id));
   return RUNS.filter(r => {
+    if (r.parent_run_id) return false;
     const runKnots = Object.keys(r.knots);
     if (!runKnots.length) return false;
     const overlap = runKnots.filter(k => nodeIds.has(k)).length;
-    return overlap / runKnots.length >= 0.4;
+    // Use the smaller set as denominator so extensible/dynamic runs match
+    // when the static graph is just the seed of a larger live graph.
+    return overlap / Math.min(runKnots.length, nodeIds.size) >= 0.4;
   });
 }
 
@@ -916,11 +930,20 @@ function showKnotDetail(node) {
     }
   }
 
-  // Drill-in button for SubTapestry nodes
-  const childRunId = selectedRun && selectedRun.child_run_ids && selectedRun.child_run_ids[node.id];
-  const childRun = childRunId && RUNS_BY_ID[childRunId];
-  if (childRun) {
-    html += `<button class="kd-drill-btn" onclick="drillIn('${esc(node.id)}')">Open inner pipeline</button>`;
+  // Drill-in button(s) for SubTapestry nodes
+  const childEntry = selectedRun && selectedRun.child_run_ids && selectedRun.child_run_ids[node.id];
+  if (childEntry) {
+    const childIds = Array.isArray(childEntry) ? childEntry : [childEntry];
+    if (childIds.length === 1 && RUNS_BY_ID[childIds[0]]) {
+      html += `<button class="kd-drill-btn" onclick="drillIn('${esc(node.id)}', 0)">Open inner pipeline</button>`;
+    } else if (childIds.length > 1) {
+      html += `<div class="kd-iter-label">Iterations:</div>`;
+      childIds.forEach((rid, i) => {
+        if (RUNS_BY_ID[rid]) {
+          html += `<button class="kd-drill-btn kd-iter-btn" onclick="drillIn('${esc(node.id)}', ${i})">Iteration ${i + 1}</button>`;
+        }
+      });
+    }
   }
 
   html += `</div>`;
@@ -974,17 +997,28 @@ function synthTapestryFromRun(run, parentKnotId) {
     id: kid,
     class: k.class,
     description: '',
-    is_sub_tapestry: !!(run.child_run_ids && run.child_run_ids[kid]),
+    is_sub_tapestry: !!(run.child_run_ids && run.child_run_ids[kid] != null &&
+      (Array.isArray(run.child_run_ids[kid]) ? run.child_run_ids[kid].length > 0 : true)),
   }));
 
-  const outputHashToId = {};
-  for (const [kid, k] of Object.entries(run.knots)) {
-    if (k.output_hash) outputHashToId[k.output_hash] = kid;
-  }
   const edges = [], seen = new Set();
   for (const [kid, k] of Object.entries(run.knots)) {
-    for (const [inputName, hash] of Object.entries(k.parent_input_hashes || {})) {
-      const parentId = outputHashToId[hash];
+    // Prefer explicit parent_knot_ids (always correct, works for unhashable values).
+    // Fall back to output-hash matching for older runs without parent_knot_ids.
+    const byId = k.parent_knot_ids || {};
+    const byHash = {};
+    if (!Object.keys(byId).length) {
+      const outputHashToId = {};
+      for (const [nid, nk] of Object.entries(run.knots)) {
+        if (nk.output_hash) outputHashToId[nk.output_hash] = nid;
+      }
+      for (const [inputName, hash] of Object.entries(k.parent_input_hashes || {})) {
+        const parentId = outputHashToId[hash];
+        if (parentId) byHash[inputName] = parentId;
+      }
+    }
+    const sources = Object.keys(byId).length ? byId : byHash;
+    for (const [inputName, parentId] of Object.entries(sources)) {
       if (parentId && parentId !== kid) {
         const key = parentId + '→' + kid;
         if (!seen.has(key)) { seen.add(key); edges.push({source: parentId, target: kid, label: inputName}); }
@@ -995,13 +1029,18 @@ function synthTapestryFromRun(run, parentKnotId) {
   return {name: parentKnotId + ' (inner)', source: '(drill-down)', nodes, edges, error: null, _synthetic: true};
 }
 
-function drillIn(nodeId) {
+function drillIn(nodeId, iterIdx) {
   if (!selectedRun) return;
-  const childRunId = selectedRun.child_run_ids && selectedRun.child_run_ids[nodeId];
+  const entry = selectedRun.child_run_ids && selectedRun.child_run_ids[nodeId];
+  if (!entry) return;
+  const childIds = Array.isArray(entry) ? entry : [entry];
+  const idx = (iterIdx == null) ? 0 : iterIdx;
+  const childRunId = childIds[idx];
   if (!childRunId) return;
   const childRun = RUNS_BY_ID[childRunId];
   if (!childRun) return;
-  navStack.push({tapestry: current, run: selectedRun, label: current.name});
+  const label = childIds.length > 1 ? `${current.name} › ${nodeId} iter ${idx + 1}` : current.name;
+  navStack.push({tapestry: current, run: selectedRun, label: label, node_id: nodeId});
   current = synthTapestryFromRun(childRun, nodeId);
   selectedRun = childRun;
   updateBreadcrumb();
@@ -1095,7 +1134,11 @@ function computeLayout(nodes, edges) {
 // ── Render ────────────────────────────────────────────────────────────────────
 function renderGraph() {
   if (!current) return;
-  const tapestry = current;
+  // For dynamic/extensible runs the executed graph is richer than the static
+  // seed tapestry.  Use the run's lineage-derived graph when available.
+  const tapestry = (selectedRun && Object.keys(selectedRun.knots).length > current.nodes.length)
+    ? synthTapestryFromRun(selectedRun)
+    : current;
   const container = document.getElementById('loom');
   const W = container.clientWidth, H = container.clientHeight;
 
@@ -1281,8 +1324,9 @@ function renderGraph() {
         event.stopPropagation();
         hideTooltip();
         hideKnotDetail();
-        const childRunId = selectedRun && selectedRun.child_run_ids && selectedRun.child_run_ids[n.id];
-        if (childRunId && RUNS_BY_ID[childRunId]) drillIn(n.id);
+        const childEntry = selectedRun && selectedRun.child_run_ids && selectedRun.child_run_ids[n.id];
+        const firstId = childEntry && (Array.isArray(childEntry) ? childEntry[0] : childEntry);
+        if (firstId && RUNS_BY_ID[firstId]) drillIn(n.id, 0);
       });
   }
 }

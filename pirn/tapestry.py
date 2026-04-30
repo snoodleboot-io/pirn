@@ -34,6 +34,39 @@ if TYPE_CHECKING:
 # task-local in asyncio.
 _CURRENT_TAPESTRY: ContextVar[Tapestry | None] = ContextVar("pirn_current_tapestry", default=None)
 
+# ContextVar carrying the run_id of the currently-executing outer run.
+# Set by Tapestry.run() so that SubTapestry._run_inner() can link inner
+# runs to the correct outer run without requiring process() to know it.
+_CURRENT_RUN_ID: ContextVar[str | None] = ContextVar("pirn_current_run_id", default=None)
+
+# ContextVar carrying the history of the currently-executing run.  Set by
+# Tapestry.run() so that SubTapestry nodes constructed dynamically mid-run
+# (outside any `with Tapestry():` block) can still inherit the outer history
+# and record their inner runs to the same store.
+_CURRENT_HISTORY: ContextVar[Any] = ContextVar("pirn_current_history", default=None)
+
+# ContextVar carrying the store of the currently-executing extensible run.
+# Set only when extensible=True.  Knots can call get_current_store() during
+# process() to register new knots into the running tapestry — the engine
+# picks them up between waves.  None in non-extensible runs.
+_CURRENT_STORE: ContextVar[TapestryStore | None] = ContextVar("pirn_current_store", default=None)
+
+
+def get_current_store() -> TapestryStore | None:
+    """Return the store of the currently-executing extensible tapestry run.
+
+    Returns ``None`` when called outside an extensible run.  Use this inside
+    a knot's ``process()`` to register successor knots into the running
+    tapestry — the engine picks them up between waves.
+
+    Example::
+
+        store = get_current_store()
+        if store is not None:
+            store.register(NextKnot(data=self, _config=KnotConfig(id="next")))
+    """
+    return _CURRENT_STORE.get(None)
+
 
 class Tapestry:
     """The workspace holding a set of knots and orchestrating their runs.
@@ -189,18 +222,26 @@ class Tapestry:
         active_filter = traceback_filter if traceback_filter is not None else self._traceback_filter
 
         engine = Engine(dispatcher=dispatcher or self._dispatcher)
-        return await engine.execute(
-            terminals=chosen,
-            request=request,
-            history=self._history,
-            data_store=self._data_store,
-            emitters=active_emitters,
-            extensible_store=self._store if extensible else None,
-            traceback_filter=active_filter,
-            emitter_error_policy=active_policy,
-            parent_run_id=_parent_run_id,
-            parent_knot_id=_parent_knot_id,
-        )
+        token_run_id = _CURRENT_RUN_ID.set(request.run_id)
+        token_store = _CURRENT_STORE.set(self._store if extensible else None)
+        token_history = _CURRENT_HISTORY.set(self._history)
+        try:
+            return await engine.execute(
+                terminals=chosen,
+                request=request,
+                history=self._history,
+                data_store=self._data_store,
+                emitters=active_emitters,
+                extensible_store=self._store if extensible else None,
+                traceback_filter=active_filter,
+                emitter_error_policy=active_policy,
+                parent_run_id=_parent_run_id,
+                parent_knot_id=_parent_knot_id,
+            )
+        finally:
+            _CURRENT_RUN_ID.reset(token_run_id)
+            _CURRENT_STORE.reset(token_store)
+            _CURRENT_HISTORY.reset(token_history)
 
     def add_emitter(self, emitter: Any) -> None:
         """Append an emitter to this tapestry's default emitter list.

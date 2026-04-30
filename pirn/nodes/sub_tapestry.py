@@ -91,6 +91,7 @@ class SubTapestry(Knot):
         tapestry: Tapestry,
         *,
         parent_run_id: str | None = None,
+        extensible: bool = False,
     ) -> RunResult:
         """Run the inner tapestry and return its ``RunResult``.
 
@@ -102,17 +103,29 @@ class SubTapestry(Knot):
         """
         from pirn.backends.in_memory.in_memory_history import InMemoryHistory
         from pirn.core.run_request import RunRequest
+        from pirn.tapestry import _CURRENT_HISTORY, _CURRENT_RUN_ID
 
         outer_history: RunHistory | None = object.__getattribute__(self, "_mutable_outer_history")
+        # Knots constructed dynamically mid-run (outside a `with Tapestry():` block)
+        # have no outer history at construction time.  Fall back to the context var
+        # set by the enclosing Tapestry.run() call.
+        if outer_history is None:
+            outer_history = _CURRENT_HISTORY.get(None)
         # Inject the outer history into the inner tapestry so inner runs are
         # recorded to the same store and appear in the explorer.
         if outer_history is not None and not isinstance(outer_history, InMemoryHistory):
             tapestry._history = outer_history
 
+        # If no explicit parent_run_id was supplied, inherit from the context
+        # var set by the enclosing Tapestry.run() call.
+        if parent_run_id is None:
+            parent_run_id = _CURRENT_RUN_ID.get(None)
+
         result = await tapestry.run(
             RunRequest(),
             _parent_run_id=parent_run_id,
             _parent_knot_id=self.knot_id,
+            extensible=extensible,
         )
         if not result.succeeded:
             raise SubTapestryError(result)
