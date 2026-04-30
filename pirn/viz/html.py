@@ -23,8 +23,9 @@ import html
 from collections import defaultdict
 from typing import TYPE_CHECKING
 
+from pirn.core.run_result import RunResult
+
 if TYPE_CHECKING:
-    from pirn.core.run_result import RunResult
     from pirn.tapestry import Tapestry
 
 
@@ -37,6 +38,8 @@ def html_for_tapestry(tapestry: Tapestry, title: str | None = None) -> str:
     title = title or "pirn pipeline"
     knots = tapestry._store.all()
 
+    from pirn.nodes.sub_tapestry import SubTapestry
+
     nodes = [
         {
             "id": k.knot_id,
@@ -47,6 +50,7 @@ def html_for_tapestry(tapestry: Tapestry, title: str | None = None) -> str:
             "config_hash": "",
             "error_record_id": "",
             "skip_reason": "",
+            "is_sub_tapestry": isinstance(k, SubTapestry),
         }
         for k in knots
     ]
@@ -84,6 +88,7 @@ def html_for_run(result: RunResult, title: str | None = None) -> str:
             "config_hash": rec.knot_config_hash,
             "error_record_id": rec.error_record_id or "",
             "skip_reason": rec.skip_reason or "",
+            "is_sub_tapestry": isinstance(result.outputs.get(rec.knot_id), RunResult),
         }
         for rec in result.lineage
     ]
@@ -237,6 +242,8 @@ def _render_svg(nodes, edges, coords) -> str:
     for node in nodes:
         x, y = coords[node["id"]]
         cls = f"node node-{node['outcome']}"
+        if node.get("is_sub_tapestry"):
+            cls += " sub-tapestry"
         parts.append(
             f'<g transform="translate({x},{y})" class="{cls}" '
             f'data-knot-id="{html.escape(node["id"])}" '

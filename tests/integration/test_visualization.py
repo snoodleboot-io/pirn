@@ -6,6 +6,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
+from pirn.core.run_result import RunResult
 from pirn.tapestry import Tapestry
 from pirn.viz.html import html_for_run
 from pirn.viz.mermaid import mermaid_for_run, mermaid_for_tapestry
@@ -182,3 +183,72 @@ async def test_html_for_run_handles_empty_lineage():
     html = html_for_run(result)
     assert html.startswith("<!doctype html>")
     assert "empty run" in html
+
+
+# ============================================================ SubTapestry viz
+
+
+async def test_mermaid_for_tapestry_uses_subroutine_shape_for_sub_tapestry():
+    from typing import Any
+
+    from pirn.nodes.sub_tapestry import SubTapestry
+
+    class _Inner(SubTapestry):
+        async def process(self, x: int, **_: Any) -> None:  # type: ignore[override]
+            pass
+
+    with Tapestry() as t:
+        p = Parameter("x", int, default=1, _config=KnotConfig(id="x"))
+        _Inner(x=p, _config=KnotConfig(id="sub"))
+
+    output = mermaid_for_tapestry(t)
+    # [[label]] is Mermaid's subroutine (double-bracket) shape
+    assert "sub[[" in output
+
+
+async def test_mermaid_for_tapestry_regular_knot_uses_normal_shape():
+    with Tapestry() as t:
+        Parameter("x", int, default=1, _config=KnotConfig(id="x"))
+        _double(x=Parameter("x", int, _config=KnotConfig(id="x2")), _config=KnotConfig(id="d"))
+
+    output = mermaid_for_tapestry(t)
+    assert 'd["' in output or "d[" in output
+
+
+async def test_html_for_tapestry_marks_sub_tapestry_node():
+    from typing import Any
+
+    from pirn.nodes.sub_tapestry import SubTapestry
+    from pirn.viz.html import html_for_tapestry
+
+    class _Inner(SubTapestry):
+        async def process(self, x: int, **_: Any) -> None:  # type: ignore[override]
+            pass
+
+    with Tapestry() as t:
+        p = Parameter("x", int, default=1, _config=KnotConfig(id="x"))
+        _Inner(x=p, _config=KnotConfig(id="sub"))
+
+    output = html_for_tapestry(t)
+    assert "sub-tapestry" in output
+
+
+async def test_html_for_run_marks_sub_tapestry_node():
+    from typing import Any
+
+    from pirn.nodes.sub_tapestry import SubTapestry
+
+    class _Doubler(SubTapestry):
+        async def process(self, value: int, **_: Any) -> RunResult:
+            with Tapestry() as inner:
+                p = Parameter("v", int, default=value)
+                _double(x=p, _config=KnotConfig(id="out"))
+            return await self._run_inner(inner)
+
+    with Tapestry() as t:
+        src = Parameter("v", int, default=3, _config=KnotConfig(id="src"))
+        _Doubler(value=src, _config=KnotConfig(id="sub", validate_io=False))
+
+    result = await t.run(RunRequest())
+    output = html_for_run(result)
+    assert "sub-tapestry" in output

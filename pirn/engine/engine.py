@@ -67,6 +67,8 @@ class Engine:
         extensible_store: Any = None,
         traceback_filter: Callable[[str], str] | None = None,
         emitter_error_policy: EmitterErrorPolicy = EmitterErrorPolicy.WARN,
+        parent_run_id: str | None = None,
+        parent_knot_id: str | None = None,
     ) -> RunResult:
         shed = Shed.from_terminals(terminals)
 
@@ -76,6 +78,8 @@ class Engine:
             dispatcher_name=self._dispatcher.name,
             parameters=dict(request.parameters),
             traceback_filter=traceback_filter,
+            parent_run_id=parent_run_id,
+            parent_knot_id=parent_knot_id,
         )
 
         # Wire emitters' on_status to the StatusManager.  Async emitters

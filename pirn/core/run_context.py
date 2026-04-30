@@ -26,6 +26,8 @@ class RunContext:
         actor: str | None = None,
         environment: dict[str, str] | None = None,
         trigger: str | None = None,
+        parent_run_id: str | None = None,
+        parent_knot_id: str | None = None,
     ) -> None:
         self.run_id = run_id
         self.terminals_requested = terminals_requested
@@ -36,6 +38,8 @@ class RunContext:
         self.lineage: list[KnotLineage] = []
         self.skipped: list[str] = []
         self.started_at = datetime.now(UTC)
+        self.parent_run_id = parent_run_id
+        self.parent_knot_id = parent_knot_id
 
         # 7 W's — Who, Where, Why
         self.actor = actor
@@ -65,6 +69,9 @@ class RunContext:
     def finalize(self, outputs: dict[str, Any]) -> RunResult:
         return RunResult(
             run_id=self.run_id,
+            run_path=f"/{self.run_id}",
+            parent_run_id=self.parent_run_id,
+            parent_knot_id=self.parent_knot_id,
             terminals_requested=self.terminals_requested,
             outputs=outputs,
             skipped=self.skipped,

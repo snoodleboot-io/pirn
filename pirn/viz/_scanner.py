@@ -83,7 +83,8 @@ def _load_runs_from_db(db_path: Path, limit: int = 200) -> list[dict[str, Any]]:
         rows = conn.execute(
             """SELECT run_id, succeeded, started_at, finished_at,
                       dispatcher, actor, trigger,
-                      environment_json, runtime_info_json
+                      environment_json, runtime_info_json,
+                      parent_run_id, parent_knot_id
                FROM runs
                ORDER BY started_at DESC
                LIMIT ?""",
@@ -102,6 +103,8 @@ def _load_runs_from_db(db_path: Path, limit: int = 200) -> list[dict[str, Any]]:
                 trigger,
                 env_json,
                 rt_json,
+                parent_run_id,
+                parent_knot_id,
             ) = row
 
             duration_ms = _duration_ms(started_at, finished_at)
@@ -142,7 +145,9 @@ def _load_runs_from_db(db_path: Path, limit: int = 200) -> list[dict[str, Any]]:
 
             import json as _json
 
-            # Load exceptions keyed by id from the run payload_json
+            # Load exceptions keyed by id from the run payload_json, and
+            # extract child_run_ids: {knot_id: run_id} from outputs.
+            child_run_ids: dict[str, str] = {}
             try:
                 run_payload = _json.loads(
                     conn.execute(
@@ -150,8 +155,26 @@ def _load_runs_from_db(db_path: Path, limit: int = 200) -> list[dict[str, Any]]:
                     ).fetchone()[0]
                 )
                 exceptions = {e["id"]: e for e in run_payload.get("exceptions", [])}
+                for knot_id, val in run_payload.get("outputs", {}).items():
+                    if isinstance(val, dict) and "run_id" in val:
+                        child_run_ids[knot_id] = val["run_id"]
             except Exception:
                 exceptions = {}
+
+            # Fetch parent_input_hashes per knot from lineage_inputs.
+            if "lineage_inputs" in tables:
+                try:
+                    li_rows = conn.execute(
+                        "SELECT knot_id, input_name, input_hash"
+                        " FROM lineage_inputs WHERE run_id = ?",
+                        (run_id,),
+                    ).fetchall()
+                    for kid, input_name, input_hash in li_rows:
+                        if kid in knots:
+                            pih = knots[kid].setdefault("parent_input_hashes", {})
+                            pih[input_name] = input_hash
+                except Exception:
+                    pass
 
             result.append(
                 {
@@ -167,6 +190,9 @@ def _load_runs_from_db(db_path: Path, limit: int = 200) -> list[dict[str, Any]]:
                     "runtime_info": _json.loads(rt_json) if rt_json else {},
                     "knots": knots,
                     "exceptions": exceptions,
+                    "parent_run_id": parent_run_id or None,
+                    "parent_knot_id": parent_knot_id or None,
+                    "child_run_ids": child_run_ids,
                 }
             )
 
@@ -206,6 +232,8 @@ def _knot_description(knot: Any) -> str:
 
 
 def _tapestry_to_graph(tapestry: Any, name: str, source: str) -> TapestryGraph:
+    from pirn.nodes.sub_tapestry import SubTapestry as _SubTapestry
+
     nodes: list[dict[str, str]] = []
     edges: list[dict[str, str]] = []
     for knot in tapestry._store.all():
@@ -214,6 +242,7 @@ def _tapestry_to_graph(tapestry: Any, name: str, source: str) -> TapestryGraph:
                 "id": knot.knot_id,
                 "class": type(knot).__name__,
                 "description": _knot_description(knot),
+                "is_sub_tapestry": isinstance(knot, _SubTapestry),
             }
         )
         for input_name, parent in knot.parents.items():
@@ -243,11 +272,19 @@ def _scan_python(path: Path, root: Path) -> list[TapestryGraph]:
     source = str(path.relative_to(root))
     results: list[TapestryGraph] = []
     try:
-        spec = importlib.util.spec_from_file_location(f"_pirn_scan_{path.stem}", path)
+        import sys as _sys
+
+        mod_name = f"_pirn_scan_{path.stem}"
+        spec = importlib.util.spec_from_file_location(mod_name, path)
         if spec is None or spec.loader is None:
             return []
         module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)  # type: ignore[union-attr]
+        # Register in sys.modules so @dataclass (Python 3.14+) can resolve cls.__module__.
+        _sys.modules[mod_name] = module
+        try:
+            spec.loader.exec_module(module)  # type: ignore[union-attr]
+        finally:
+            _sys.modules.pop(mod_name, None)
 
         from pirn.tapestry import Tapestry
 
