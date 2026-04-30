@@ -75,4 +75,3 @@ class KnotRegistry:
             if e.key == name.lower() and e.library == cls._LIBRARY:
                 return e.class_def
         raise KeyError(f"KnotRegistry: no knot registered under {name!r}")
-
