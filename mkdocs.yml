@@ -1,0 +1,77 @@
+site_name: pirn
+site_description: "A pipeline framework where everything is a knot."
+site_url: https://pirn.dev
+repo_url: https://github.com/pirn/pirn
+repo_name: pirn/pirn
+
+theme:
+  name: null
+  custom_dir: docs/theme
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [pirn]
+          options:
+            show_source: false
+            members_order: source
+            docstring_style: google
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+      use_pygments: true
+      noclasses: false
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.details
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Quickstart: getting-started/quickstart.md
+    - Concepts: getting-started/concepts.md
+    - First Pipeline: getting-started/first-pipeline.md
+  - Guides:
+    - YAML Pipelines: guides/yaml-pipelines.md
+    - Error Handling: guides/error-handling.md
+    - Backends: guides/backends.md
+    - Deployment: guides/deployment.md
+    - Observability: guides/observability.md
+    - Visualization: guides/visualization.md
+  - Architecture:
+    - Overview: architecture/overview.md
+    - Execution Model: architecture/execution-model.md
+    - Extension Points: architecture/extension-points.md
+  - API Reference:
+    - Tapestry: api/tapestry.md
+    - Core: api/core.md
+    - Nodes: api/nodes.md
+    - Backends: api/backends.md
+    - Dispatchers: api/dispatchers.md
+    - Triggers: api/triggers.md
+    - Emitters: api/emitters.md
+    - Streaming: api/streaming.md
+    - YAML Loader: api/yaml-loader.md
+    - Visualization: api/visualization.md
+  - Cookbook:
+    - Fan-Out with Map: cookbook/fan-out.md
+    - Branching Pipelines: cookbook/branching.md
+    - Streaming Sources: cookbook/streaming.md
+    - Testing Patterns: cookbook/testing-patterns.md

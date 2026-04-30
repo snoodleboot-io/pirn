@@ -22,7 +22,7 @@ async def dask_client():
     pytest.importorskip("dask.distributed")
     from dask.distributed import Client, LocalCluster
 
-    cluster = LocalCluster(n_workers=2, threads_per_worker=1, asynchronous=True)
+    cluster = LocalCluster(n_workers=2, threads_per_worker=1, processes=False, asynchronous=True)
     await cluster
     client = await Client(cluster, asynchronous=True)
     yield client
