@@ -1,8 +1,8 @@
 site_name: pirn
 site_description: "A pipeline framework where everything is a knot."
 site_url: https://pirn.dev
-repo_url: https://github.com/pirn/pirn
-repo_name: pirn/pirn
+repo_url: https://github.com/snoodleboot-io/pirn
+repo_name: snoodleboot-io/pirn
 
 theme:
   name: null
