@@ -3,7 +3,7 @@
 **Date:** 2026-05-01
 **Component:** `sweet_tea/registry.py`
 **Severity:** Latent — bites only when `typed_entries(lookup_type=Parent)` is called *before* every `register(child_class, ...)` is finished, which is the exact pattern `AbstractFactory[Parent]` uses.
-**Filed from:** pirn (`feat/domain-knot-libraries` branch) while wiring `KnotRegistry`/`AbstractFactory[Knot]`-style lookup against newly-defined `Knot` subclasses.
+**Filed from:** pirn (`feat/domain-knot-libraries` branch) while wiring `AbstractInverterFactory[Knot]` lookup against newly-defined `Knot` subclasses. (`AbstractInverterFactory[T]` already exists and is what we use; this request only addresses the cache invalidation defect.)
 
 ---
 

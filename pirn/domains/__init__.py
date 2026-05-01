@@ -5,7 +5,7 @@ collection of knots for a specific problem domain. Discovery happens at
 import time of the top-level :mod:`pirn` package via
 ``sweet_tea.registry.Registry.fill_registry()``; every Knot subclass below
 becomes resolvable by name through
-:class:`pirn.yaml_loader.knot_resolver.KnotResolver`.
+:class:`sweet_tea.abstract_inverter_factory.AbstractInverterFactory[Knot]`.
 
 - ``pirn.domains.data``        — Data Engineering / Analytics Engineering
 - ``pirn.domains.agents``      — Agentic Pipelines / Patterns

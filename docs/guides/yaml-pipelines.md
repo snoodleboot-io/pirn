@@ -206,7 +206,7 @@ Registry.fill_registry(module="myapp")   # scan your entire package
 tapestry = load_pipeline(yaml_text)      # no known_callables needed
 ```
 
-The YAML loader resolves any name registered with `Registry.fill_registry()` automatically through `KnotResolver`. Pirn calls `fill_registry()` on its own tree at import time, so every built-in Knot is already resolvable by name. **For your own knots, you must call** `Registry.fill_registry()` **from your project's package init** — otherwise the loader will not find them.
+The YAML loader resolves any name registered with `Registry.fill_registry()` automatically through `AbstractInverterFactory[Knot]`. Pirn calls `fill_registry()` on its own tree at import time, so every built-in Knot is already resolvable by name. **For your own knots, you must call** `Registry.fill_registry()` **from your project's package init** — otherwise the loader will not find them.
 
 ```python
 # myapp/__init__.py
@@ -227,12 +227,14 @@ Registry.register("route_selector", route_selector.knot_class, library="myapp")
 
 `known_callables` remains supported as a per-call override with the highest priority — useful in tests or when the same callable has multiple pipeline-specific aliases.
 
-To restrict resolution to your own library only, build a scoped resolver and pass it into `load_pipeline` (advanced):
+To look up a Knot class directly with library scoping, use sweet_tea's `AbstractInverterFactory[Knot]`:
 
 ```python
-from pirn.yaml_loader.knot_resolver import KnotResolver
+from sweet_tea.abstract_inverter_factory import AbstractInverterFactory
+from pirn.core.knot import Knot
 
-resolver = KnotResolver(library="myapp")   # only resolves classes you registered
+knot_class = AbstractInverterFactory[Knot].create("my_knot", library="myapp")
+instance   = knot_class(**kwargs)
 ```
 
 ---

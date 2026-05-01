@@ -313,8 +313,10 @@ def _resolve_callable(
 
     Resolution order (first match wins):
     1. ``known`` dict — per-call overrides, highest priority.
-    2. ``KnotResolver`` — sweet_tea registry, populated by
-       ``Registry.fill_registry()`` at package import.
+    2. ``AbstractInverterFactory[Knot]`` — sweet_tea typed lookup over the
+       global registry, populated by ``Registry.fill_registry()`` at package
+       import time. Returns the class definition (lazy construction; the
+       loader supplies kwargs later).
     3. Dotted-path import — only when ``allow_callable_refs=True``.
     """
     if ref in known:
@@ -323,18 +325,21 @@ def _resolve_callable(
             raise TypeError(f"known_callables[{ref!r}] is not callable")
         return obj
 
-    from pirn.yaml_loader.knot_resolver import KnotResolver
+    from sweet_tea.abstract_inverter_factory import AbstractInverterFactory
+    from sweet_tea.sweet_tea_error import SweetTeaError
 
-    resolver = KnotResolver()
-    if resolver.has(ref):
-        return resolver.get_class(ref)
+    try:
+        return AbstractInverterFactory[Knot].create(ref)
+    except SweetTeaError:
+        # Not registered as a Knot — fall through to dotted-path resolution.
+        pass
 
     if not allow_imports:
         raise ValueError(
-            f"reference {ref!r} not in known_callables or sweet_tea Registry; "
-            "set allow_callable_refs=True to enable dotted-path imports, or "
-            "call Registry.fill_registry() in your project so your knots are "
-            "auto-discovered"
+            f"reference {ref!r} not in known_callables and not registered as a Knot "
+            "in sweet_tea's Registry; set allow_callable_refs=True to enable "
+            "dotted-path imports, or call Registry.fill_registry() in your "
+            "project so your knots are auto-discovered"
         )
 
     if "." not in ref:

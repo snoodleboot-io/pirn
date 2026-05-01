@@ -16,6 +16,11 @@ without ``import`` boilerplate::
       - id: read
         callable: object_store_read_source
 
+YAML name resolution goes through
+:class:`sweet_tea.abstract_inverter_factory.AbstractInverterFactory[Knot]`
+— sweet_tea's typed factory that returns the class definition (rather than
+instantiating it), so the loader can supply construction kwargs later.
+
 User projects: register your own knots
 --------------------------------------
 If you define your own :class:`Knot` subclasses outside the pirn package
@@ -29,9 +34,8 @@ classes are auto-discovered too::
     Registry.fill_registry()  # scans my_company/ and registers every class
 
 After that, your knots are resolvable by name from YAML pipelines just like
-pirn's built-ins. To restrict YAML resolution to your library only, pass
-``library="my_company"`` to :class:`pirn.yaml_loader.knot_resolver.KnotResolver`
-when building the loader.
+pirn's built-ins. To restrict resolution to your library only, look up via
+``AbstractInverterFactory[Knot].create(name, library="my_company")``.
 """
 from sweet_tea.registry import Registry
 

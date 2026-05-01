@@ -238,9 +238,9 @@ Combines multiple parent outputs via a merge function.
 
 ---
 
-## Knot resolution: `Registry.fill_registry` + `KnotResolver`
+## Knot resolution: `Registry.fill_registry` + `AbstractInverterFactory[Knot]`
 
-Pirn delegates Knot registration entirely to `sweet_tea.registry.Registry`. At import time, pirn auto-registers every Knot subclass defined under the `pirn` package via `Registry.fill_registry()`. The YAML loader resolves YAML `callable: <name>` strings through `KnotResolver`, which queries that registry filtered to `Knot` subclasses.
+Pirn delegates Knot registration entirely to `sweet_tea.registry.Registry`. At import time, pirn auto-registers every Knot subclass defined under the `pirn` package via `Registry.fill_registry()`. The YAML loader resolves YAML `callable: <name>` strings through `sweet_tea.abstract_inverter_factory.AbstractInverterFactory[Knot]`, which performs a typed lookup against the registry and returns the class definition (instantiation is deferred so the loader can pass its assembled kwargs).
 
 **For your own knots**, call `Registry.fill_registry()` from your project's package init:
 
@@ -264,12 +264,13 @@ from sweet_tea.registry import Registry
 Registry.register("my_alias", MyKnot, library="myapp")
 ```
 
-To scope the loader to a specific library, build a `KnotResolver` with a `library=` filter:
+To scope a manual lookup to a specific library, pass `library=` to `AbstractInverterFactory[Knot].create`:
 
 ```python
-from pirn.yaml_loader.knot_resolver import KnotResolver
+from sweet_tea.abstract_inverter_factory import AbstractInverterFactory
+from pirn.core.knot import Knot
 
-resolver = KnotResolver(library="myapp")
+knot_class = AbstractInverterFactory[Knot].create("my_knot", library="myapp")
 ```
 
 `known_callables` passed to `load_pipeline` still takes priority over the registry-based resolution.
