@@ -18,6 +18,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
@@ -96,7 +97,11 @@ awkward = ["awkward>=2.5"]
 # Tier 2 — single-machine native frames (CPU)
 polars     = ["polars>=0.20"]
 datafusion = ["datafusion>=40.0"]
-datatable  = ["datatable>=1.1"]
+# NOTE: Datatable (H2O.ai) and Vaex are intentionally NOT shipped as
+# pirn extras. Both projects are effectively in maintenance mode and
+# have not produced wheels for recent Python releases (Vaex stops at
+# 3.11, Datatable at 3.10). Their workloads are covered by Polars and
+# DuckDB at Tier 2 and by Dask/Ray at Tier 3.
 
 # Tier 2-GPU
 # NOTE: cuDF (NVIDIA Rapids) requires CUDA at install time and only
@@ -109,18 +114,20 @@ datatable  = ["datatable>=1.1"]
 # import time and fail with an actionable message if it's missing.
 
 # Tier 2.5 — out-of-core / drop-in distributed
-vaex  = ["vaex>=4.17"]
-modin = ["modin>=0.30"]
+# Pinned below 3.14 until upstream ships 3.14 wheels.
+modin = ["modin>=0.30; python_version<'3.14'"]
 
 # Tier 3 — push-down / lazy / distributed
 ibis    = ["ibis-framework>=9.0"]
-spark   = ["pyspark>=3.5"]
+spark   = ["pyspark>=4.0"]
 ray-data = ["ray[data]>=2.10"]
 # Note: existing `dask` extra above already covers Dask.
 
 # Tier 3 — streaming dataflow
-pathway = ["pathway>=0.13"]
-bytewax = ["bytewax>=0.21"]
+# Pathway and Bytewax both ship Rust-built wheels and currently target
+# 3.13 and below. Pinned until upstream catches up to 3.14.
+pathway = ["pathway>=0.13; python_version<'3.14'"]
+bytewax = ["bytewax>=0.21; python_version<'3.14'"]
 
 # Tier 4 — specialized
 lance = ["pylance>=0.18"]
@@ -142,7 +149,7 @@ all-frames = [
 # Convenience aggregate for the lazy/push-down tier.
 all-lazy = [
     "ibis-framework>=9.0",
-    "pyspark>=3.5",
+    "pyspark>=4.0",
     "ray[data]>=2.10",
     "dask[distributed]>=2024.1",
 ]
@@ -169,9 +176,23 @@ hubspot    = ["hubspot-api-client>=8.0"]
 stripe    = ["stripe>=7.0"]
 github    = ["PyGithub>=2.0"]
 jira      = ["atlassian-python-api>=3.0"]
+zendesk   = ["zenpy>=2.0"]
+twilio    = ["twilio>=8.0"]
 shopify   = ["ShopifyAPI>=12.0"]
 datadog   = ["datadog-api-client>=2.0"]
 prometheus = ["prometheus-client>=0.19"]
+grafana   = ["httpx>=0.26"]
+google-analytics = ["google-analytics-data>=0.18"]
+mixpanel  = ["mixpanel>=4.10"]
+amplitude = ["amplitude-analytics>=1.1"]
+
+# BI / data-catalog connectors (pirn/domains/connectors/bi_catalog/).
+# dbt artifacts is stdlib-only — no extra needed.
+fivetran      = ["httpx>=0.26"]
+airbyte       = ["httpx>=0.26"]
+datahub       = ["httpx>=0.26"]
+open-metadata = ["httpx>=0.26"]
+alation       = ["httpx>=0.26"]
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Convenience aggregates.

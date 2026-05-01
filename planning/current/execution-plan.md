@@ -189,10 +189,14 @@ Follow-up Tier-2 engines (in subsequent slices, only on demonstrated demand):
 - [ ] DuckDB in-process (`pirn/domains/data/frames/duckdb/`)
 - [ ] DataFusion (`pirn/domains/data/frames/datafusion/`)
 - [ ] PyArrow native ops (`pirn/domains/data/frames/pyarrow/`)
-- [ ] Datatable (`pirn/domains/data/frames/datatable/`)
 - [ ] cuDF (Tier 2-GPU; `pirn/domains/data/frames/cudf/`)
-- [ ] Vaex (Tier 2.5; `pirn/domains/data/frames/vaex/`)
-- [ ] Modin (Tier 2.5; `pirn/domains/data/frames/modin/`)
+- [ ] Modin (Tier 2.5; `pirn/domains/data/frames/modin/`) — sub-pinned
+  to Python <3.14 until upstream ships wheels.
+
+**Removed from plan:** Vaex and Datatable — both effectively in
+maintenance mode (Vaex stops at Python 3.11; Datatable at 3.10). Their
+niche is covered by Polars and DuckDB at Tier 2 and by Dask/Ray at
+Tier 3.
 
 ### Tier 3 — Push-down / lazy / distributed (start with Ibis)
 
@@ -569,12 +573,174 @@ the `slow` marker via `addopts = "-m 'not slow and not mutation'"` in
 5. **`SCD Types 1/2/7` / `CDC Debezium`** — design follows the
    medallion shape; can land once the SubTapestry+DataBatch
    serialisation path is fixed.
-6. **Streaming (Pathway, Bytewax)** — no Python 3.14 wheels yet for
-   either; deferred until upstream catches up.
-7. **Vaex / Modin / Datatable Tier-2** — same Python 3.14 wheel
-   constraint.
+6. **Streaming (Pathway, Bytewax)** — sub-pinned to Python <3.14 in
+   pyproject extras. The integration code can land now (against 3.13
+   in CI) and is gated by the install marker; users on 3.14 simply
+   don't get the extra. Pin lifts when upstream ships 3.14 wheels.
+7. **Modin Tier-2.5** — same sub-pin policy. Vaex and Datatable
+   removed from the plan permanently (maintenance-mode upstream;
+   superseded by Polars/DuckDB).
 8. **PySpark Tier-3** — implementation pattern is established by Dask
    and Ray; deferred for the inevitable Java-runtime dependency review.
 9. **Extended SaaS / storage / streaming / BI / observability
    connectors** — extension of the existing 7 priority + 6 extended
    database connectors. Pattern is mechanical.
+
+---
+
+## Conventions & Refactor Backlog
+
+Findings from the post-Phase-2 convention review. Three batches with a
+clear prerequisite chain. YAGNI items (~20% of session output that
+shipped without consumer demand — Alation, Azure Service Bus,
+speculative SaaS clients) are intentionally accepted: this is a
+foundational library; broad surface coverage is the point.
+
+### Batch 1 — Session cleanup (this session's mess)
+
+**Scope:** fix what was introduced in Phase 2 stabilisation. Tight,
+mechanical, no architectural change.
+
+- [ ] **UPPER_SNAKE → lower_snake ClassVar rename.** python.md forbids
+  constants — value names must be lower-snake even at class scope.
+  Affected files (5):
+  - `pirn/domains/connectors/bi_catalog/dbt_artifacts_reader.py`
+    — `_MANIFEST_FILENAME`, `_RUN_RESULTS_FILENAME`
+  - `pirn/domains/data/frames/pyarrow/pyarrow_aggregate.py`
+    — `_ALLOWED_FUNCTIONS`, `_IDENTIFIER_PATTERN`
+  - `pirn/domains/data/frames/pyarrow/pyarrow_join.py`
+    — `_ALLOWED_HOW`, `_IDENTIFIER_PATTERN`
+  - `pirn/domains/data/lazy/spark/spark_aggregate.py`
+    — `_ALLOWED_FNS`, `_IDENT_RE`
+  - `pirn/domains/data/lazy/spark/spark_join.py`
+    — `_ALLOWED_HOW`, `_IDENT_RE`
+- [ ] **`SparkCompute` dead `try/except BaseException: raise` block** —
+  remove ([spark_compute.py:71-80](../../pirn/domains/data/lazy/spark/spark_compute.py#L71-L80)).
+- [ ] **Move `from pyspark.sql import functions as F` import** out of
+  `SparkAggregate.process` hot path
+  ([spark_aggregate.py:114](../../pirn/domains/data/lazy/spark/spark_aggregate.py#L114)).
+- [ ] **`SparkCompute` driver-OOM safety** — add docstring warning;
+  optionally add `max_rows` parameter that calls
+  `frame.limit(max_rows + 1).collect()` and raises if exceeded.
+- [ ] **Split `SparkCompute` → `SparkWriteSink` + `SparkCollectSink`**
+  (SRP fix). One sink, one job.
+- [ ] **Lift `_validate_key` from S3/GCS/AzureBlob stores → `ObjectStore`
+  base** (DRY).
+- [ ] **Lift `_validate_query_placeholders` from snowflake/mssql/oracle/
+  mysql pools → `DatabaseConnectionPool` base** (DRY).
+- [ ] **Create `IdentifierValidator` utility class** with
+  `validate_column(name)` and `validate_columns(names)` — replace the
+  identifier regex copy-pasted across 8+ transform files (PyArrow agg/
+  join, DataFusion agg/join, Polars agg/join, Spark agg/join,
+  medallion). DRY.
+- [ ] **Lift DSN-scrubbed connect-failure pattern** — `_safe_connect(self,
+  callable)` helper on each pool's base class so the boilerplate
+  `try/except → scrubber.scrub → re-raise` collapses to one call.
+
+### Batch 2 — Pre-existing convention cleanup
+
+**Scope:** legitimate refactor of code that predates this session.
+Should be its own conservative PR or set of PRs (one area at a time).
+
+- [ ] **Module-level UPPER constants → lower_snake or relocate.** Real
+  violations:
+  - `pirn/core/hashing.py:33` — `SENTINEL` (inside `_Unhashable`)
+  - `pirn/domains/connectors/dsn_scrubber.py:26` — `_REDACTED`
+  - `pirn/nodes/loop_sub_tapestry.py:61` — `_TERMINAL_ID`
+  - `pirn/nodes/continuation.py:56,12` — `END`, `POOL`
+  - `pirn/nodes/reduce_.py:41` — `_UNSET = object()`
+  - `pirn/viz/html.py:282,334,380` — `_CSS`, `_JS`, `_DOCUMENT`
+  - `pirn/viz/explorer.py:41` — `_TEMPLATE`
+  - `pirn/viz/mermaid.py:22` — `_CLASS_DEFS`
+  - `pirn/viz/_scanner.py:300` — `_BUILDER_NAMES`
+- [ ] **Acceptable Python idioms — no change:** `TypeVar` (`_T`, `T`,
+  `S`), `ContextVar` singletons in `tapestry.py`, `enum.Enum` members.
+  Document the carve-out in conventions if it isn't already.
+- [ ] **Wrap module-level free functions into classes.** ~30 free
+  helpers across `pirn/replay.py`, `pirn/tapestry.py`,
+  `pirn/triggers/base.py`, `pirn/streaming/base.py`,
+  `pirn/yaml_loader/loader.py`, `pirn/engine/shed/shed.py`,
+  `pirn/engine/dispatchers/{dask,celery}_dispatcher.py`, and
+  `pirn/viz/{mermaid,_scanner,html,_explore_cli}.py`. Suggested classes:
+  `PipelineLoader`, `TapestryGraphScanner`, `MermaidRenderer`,
+  `TapestryHtmlRenderer`, `CycleDetector`. **Decorators (`knot`,
+  `connection_config`)** are exempt — decorators are conventionally
+  module-level functions in Python.
+- [ ] **`PirnOpaqueValue` mixin.** The opaque
+  `__get_pydantic_core_schema__` body is duplicated identically across
+  ~12 types (interfaces + wrapper dataclasses). Mixin replaces the
+  copies.
+
+### Batch 3 — Option D ApiClient refactor (architectural)
+
+**Scope:** replace the generic `request(method, path, ...)` with a
+facade-plus-capability-mixin design. This is a deliberate breaking
+change, larger arc, gets its own ticket.
+
+- [ ] **Define capability interfaces** (small, single-purpose):
+  - `TableSource` — `async fetch_page(cursor) → tuple[rows, next_cursor]`
+  - `EventEmitter` — `async emit(event_type, properties) → None`
+  - `MetadataCatalog` — `async list_entities(filter) → AsyncIterator[Entity]`
+  - `RecordWriter` — `async write_records(records) → int`
+- [ ] **Keep `ApiClient` as the lifecycle base** — `close()` and the
+  opaque pydantic schema, nothing else.
+- [ ] **Migrate the 21 ApiClient subclasses** to expose vendor-typed
+  methods + opt into capability mixins where they fit. Generic
+  `request()` stays as a deprecated escape hatch for one minor version,
+  then is removed.
+- [ ] **Update consumer Knots** to depend on capability interfaces, not
+  on concrete connectors. SubTapestries that ingest from any
+  `TableSource` become reusable across vendors.
+
+### Sequencing
+
+- Batch 1 lands first (cleanup of this session's output) — quick,
+  unblocks contributing-style guides referencing the patterns.
+- Batch 2 is a pure refactor; can land in parallel with Batch 3 design
+  but should be done before Batch 3 starts touching the same files.
+- Batch 3 is the architectural fix and changes ~21 connectors. Plan it
+  as a design doc first, then a phased migration.
+
+### YAGNI carve-out (intentional, not a backlog item)
+
+Roughly 20% of Phase 2 connectors shipped without a current consumer
+Knot or test path:
+
+- `AzureServiceBusBroker` (no usable local emulator yet)
+- `AlationClient` (enterprise-only, no free tier)
+- 11 SaaS clients (no real test paths without sandbox accounts)
+- 6 BI/catalog connectors (some have Docker images, some don't)
+
+Accepted as the cost of foundational-library coverage. They will be
+documented in `docs/KNOWN_TESTING_GAPS.md` so future maintainers know
+which paths are stub-only and which can be tested in CI.
+
+### Milestone: Security Review (post-cleanup)
+
+Once Batches 1–3 are complete, do a full security analysis of the
+codebase against the six engineering bars:
+
+1. **Secure** — parameterised queries everywhere, no `shell=True`,
+   allowlists at boundaries, constant-time secret compares, TLS for
+   credentialed network I/O.
+2. **No leaks** — secrets/tokens/keys/PHI/PII never in logs; DSNs
+   scrubbed via `DsnScrubber`; signed URLs and refresh tokens
+   redacted in audit emissions.
+3. **Sanitisation at log boundaries** — sensitive dataclass fields
+   redacted in `__repr__` (`sensitive_fields` ClassVar pattern);
+   explicit `to_audit_dict()` for sanctioned audit emission; raw
+   payload logging is opt-in only.
+4. **Auth surfaces** — every connector's auth flow reviewed for
+   token-refresh handling, credential cache lifetime, and clean
+   teardown on `close()`.
+5. **Input validation at trust boundaries** — every Source/Sink that
+   accepts user-supplied identifiers (table names, column names,
+   paths, queries) validates against the existing identifier regex
+   and path-traversal rules.
+6. **Dependency hygiene** — `cyclonedx-bom` SBOM diffed against the
+   prior Phase-2 baseline; any new transitive vulnerabilities flagged
+   for upgrade or pin.
+
+Deliverable: `planning/current/security-review-{date}.md` with one
+section per bar, findings + severity + owner. Blocking issues fixed
+before merge; non-blocking tracked as their own follow-ups.
