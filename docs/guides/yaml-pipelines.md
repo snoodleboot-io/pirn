@@ -206,19 +206,34 @@ Registry.fill_registry(module="myapp")   # scan your entire package
 tapestry = load_pipeline(yaml_text)      # no known_callables needed
 ```
 
-The YAML loader checks `KnotRegistry` automatically after `known_callables`, so any class registered via `fill_registry` is resolved by name.
-
-For `@knot`-decorated functions (which produce factories, not importable classes), register them explicitly:
+The YAML loader resolves any name registered with `Registry.fill_registry()` automatically through `KnotResolver`. Pirn calls `fill_registry()` on its own tree at import time, so every built-in Knot is already resolvable by name. **For your own knots, you must call** `Registry.fill_registry()` **from your project's package init** — otherwise the loader will not find them.
 
 ```python
-from pirn.yaml_loader.knot_registry import KnotRegistry
+# myapp/__init__.py
+from sweet_tea.registry import Registry
+
+Registry.fill_registry()   # scans myapp/ and registers every class defined in it
+```
+
+For `@knot`-decorated functions (which produce factories, not importable classes), register the underlying knot class explicitly:
+
+```python
+from sweet_tea.registry import Registry
 from myapp.knots import score_text, route_selector
 
-KnotRegistry.register("score_text", score_text)
-KnotRegistry.register("route_selector", route_selector)
+Registry.register("score_text", score_text.knot_class, library="myapp")
+Registry.register("route_selector", route_selector.knot_class, library="myapp")
 ```
 
 `known_callables` remains supported as a per-call override with the highest priority — useful in tests or when the same callable has multiple pipeline-specific aliases.
+
+To restrict resolution to your own library only, build a scoped resolver and pass it into `load_pipeline` (advanced):
+
+```python
+from pirn.yaml_loader.knot_resolver import KnotResolver
+
+resolver = KnotResolver(library="myapp")   # only resolves classes you registered
+```
 
 ---
 

@@ -1,7 +1,11 @@
 """Pirn domain knot libraries.
 
-Each subpackage under ``pirn.domains`` ships a curated, KnotRegistry-registered
-collection of knots for a specific problem domain:
+Each subpackage under ``pirn.domains`` ships a curated, auto-discovered
+collection of knots for a specific problem domain. Discovery happens at
+import time of the top-level :mod:`pirn` package via
+``sweet_tea.registry.Registry.fill_registry()``; every Knot subclass below
+becomes resolvable by name through
+:class:`pirn.yaml_loader.knot_resolver.KnotResolver`.
 
 - ``pirn.domains.data``        — Data Engineering / Analytics Engineering
 - ``pirn.domains.agents``      — Agentic Pipelines / Patterns
@@ -17,6 +21,10 @@ only the domains you use::
     pip install pirn[data]
     pip install pirn[health,signal]
     pip install pirn[all-domains]
+
+User projects that define their own ``Knot`` subclasses must call
+``Registry.fill_registry()`` from their own package init for those classes
+to appear in the resolver — pirn only auto-discovers its own tree.
 """
 
 __all__: list[str] = []

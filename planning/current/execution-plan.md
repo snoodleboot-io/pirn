@@ -77,6 +77,20 @@ Backends from the priority tier are now wrapped in `Source` / `Sink` knot subcla
 - [x] `ConnectorKnotRegistration` — registers all six knots with `KnotRegistry` under the `connectors.*` namespace
 - [x] **Acceptance test (ATDD):** real `Tapestry` running file → transform → sqlite end-to-end via Layer-1+Layer-2 composition; lineage records all three knots as `ok`
 
+### Cleanup pass: drop custom registry, use sweet_tea natively
+
+The Layer-2 work as initially shipped wrapped registration in custom code — it shouldn't have. sweet_tea already provides `Registry.fill_registry()` (auto-discovery) and `AbstractFactory[T]` (typed lookup). The custom `KnotRegistry` and `ConnectorKnotRegistration` classes were re-implementing that machinery, with the wrong library name (`pirn.knots`) and a manufactured `connectors.*` namespace that doesn't belong in registration keys.
+
+- [x] Drop `pirn/yaml_loader/knot_registry.py` (custom abstract-factory wrapper)
+- [x] Drop `pirn/domains/connectors/connector_knot_registration.py` (custom prefix-namespaced registration)
+- [x] New `pirn/yaml_loader/knot_resolver.py` — minimal `KnotResolver` class that uses `sweet_tea.base_factory.BaseFactory._generate_key_variations` for key handling and `Registry.typed_entries(lookup_type=Knot)` for typed lookup
+- [x] Migrate `pirn/yaml_loader/loader.py:_resolve_callable` to use `KnotResolver`
+- [x] `pirn/__init__.py` calls `Registry.fill_registry()` at import — every Knot subclass under the pirn package becomes resolvable by class name (CamelCase, snake_case, no-underscore variations all work)
+- [x] Documented that user projects must call `Registry.fill_registry()` from their own package init for their custom Knots to appear in resolution — `pirn/__init__.py` docstring + `docs/guides/yaml-pipelines.md` + `docs/api/yaml-loader.md`
+- [x] **Upstream issue filed** at `planning/current/sweet_tea_change_request.md` — sweet_tea's `Registry.typed_entries(lookup_type=T)` cache is not invalidated when subsequent `register()` calls add new T-subclasses. Three `KnotResolver` tests are marked `xfail` until that fix lands; they will turn `xpass` automatically once it does.
+
+**Result:** 370 unit tests pass + 1 integration acceptance test pass + 3 `xfail` tied to the upstream issue.
+
 ### Databases — Extended tier
 - [ ] `connectors/databases/bigquery.py` — `BigQueryConnector`
 - [ ] `connectors/databases/snowflake.py` — `SnowflakeConnector`

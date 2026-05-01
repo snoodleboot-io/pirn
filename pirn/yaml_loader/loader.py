@@ -313,7 +313,8 @@ def _resolve_callable(
 
     Resolution order (first match wins):
     1. ``known`` dict — per-call overrides, highest priority.
-    2. ``KnotRegistry`` — globally pre-registered @knot factories/classes.
+    2. ``KnotResolver`` — sweet_tea registry, populated by
+       ``Registry.fill_registry()`` at package import.
     3. Dotted-path import — only when ``allow_callable_refs=True``.
     """
     if ref in known:
@@ -322,15 +323,18 @@ def _resolve_callable(
             raise TypeError(f"known_callables[{ref!r}] is not callable")
         return obj
 
-    from pirn.yaml_loader.knot_registry import KnotRegistry
+    from pirn.yaml_loader.knot_resolver import KnotResolver
 
-    if KnotRegistry.has(ref):
-        return KnotRegistry.get_class(ref)
+    resolver = KnotResolver()
+    if resolver.has(ref):
+        return resolver.get_class(ref)
 
     if not allow_imports:
         raise ValueError(
-            f"reference {ref!r} not in known_callables or KnotRegistry; set "
-            f"allow_callable_refs=True to enable dotted-path imports"
+            f"reference {ref!r} not in known_callables or sweet_tea Registry; "
+            "set allow_callable_refs=True to enable dotted-path imports, or "
+            "call Registry.fill_registry() in your project so your knots are "
+            "auto-discovered"
         )
 
     if "." not in ref:
