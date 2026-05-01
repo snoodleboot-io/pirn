@@ -39,4 +39,8 @@ class S3Config(ConnectionConfig):
     multipart_threshold: int = 8 * 1024 * 1024
     chunk_size: int = 1 << 20
 
-    sensitive_fields: ClassVar[tuple[str, ...]] = ()
+    sensitive_fields: ClassVar[tuple[str, ...]] = (
+        "access_key_id",
+        "secret_access_key",
+        "session_token",
+    )

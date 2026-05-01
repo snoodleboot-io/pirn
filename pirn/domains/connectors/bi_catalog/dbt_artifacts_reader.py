@@ -70,12 +70,28 @@ class DbtArtifactsReader(MetadataCatalog):
                 "DbtArtifactsReader requires either config= or pre-loaded "
                 "manifest=/run_results="
             )
+        if config is not None and config.target_path is not None:
+            self._validate_target_path(config.target_path)
         self._config = config
         self._manifest = dict(manifest) if manifest is not None else None
         self._run_results = (
             dict(run_results) if run_results is not None else None
         )
         self._logger = logging.getLogger(self.__class__.__module__)
+
+    @staticmethod
+    def _validate_target_path(target_path: str) -> None:
+        """Reject ``target_path`` values that could escape the dbt directory.
+
+        ``..`` segments are refused outright. Defence-in-depth — the
+        operator owns this config but a misconfiguration could otherwise
+        let ``_artifact_path`` resolve outside the intended dbt project.
+        """
+        if any(part == ".." for part in target_path.split(os.sep)):
+            raise ValueError(
+                "DbtArtifactsReader: config.target_path must not contain "
+                "'..' segments"
+            )
 
     @property
     def config(self) -> DbtArtifactsConfig | None:
