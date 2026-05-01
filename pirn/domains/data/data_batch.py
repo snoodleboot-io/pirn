@@ -6,6 +6,9 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Mapping
 
+from pydantic import GetCoreSchemaHandler
+from pydantic_core import CoreSchema, core_schema
+
 from pirn.domains.data.data_schema import DataSchema
 
 
@@ -59,4 +62,27 @@ class DataBatch:
             schema=schema,
             source_uri=self.source_uri,
             fetched_at=self.fetched_at,
+        )
+
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls, source_type: Any, handler: GetCoreSchemaHandler
+    ) -> CoreSchema:
+        """Treat as opaque to pydantic so the contained :class:`DataSchema`
+        (with its ``Mapping[str, type]`` columns) doesn't trigger the
+        default serialiser. Pirn IO validation only needs
+        ``isinstance(value, DataBatch)``; content-addressing flattens the
+        rows into a stable summary.
+        """
+        return core_schema.is_instance_schema(
+            cls,
+            serialization=core_schema.plain_serializer_function_ser_schema(
+                lambda v: {
+                    "row_count": v.row_count,
+                    "source_uri": v.source_uri,
+                    "fetched_at": v.fetched_at.isoformat(),
+                    "rows": [dict(r) for r in v.rows],
+                },
+                when_used="always",
+            ),
         )

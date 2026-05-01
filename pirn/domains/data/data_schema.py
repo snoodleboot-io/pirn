@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Mapping
+from typing import Any, Mapping
+
+from pydantic import GetCoreSchemaHandler
+from pydantic_core import CoreSchema, core_schema
 
 
 @dataclass(frozen=True)
@@ -54,4 +57,25 @@ class DataSchema:
             columns=merged,
             primary_keys=self.primary_keys,
             nullable=self.nullable,
+        )
+
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls, source_type: Any, handler: GetCoreSchemaHandler
+    ) -> CoreSchema:
+        """Treat as opaque: ``columns`` holds Python ``type`` objects which
+        pydantic's default JSON serialiser can't dump. Pirn IO validation
+        just checks ``isinstance(value, DataSchema)``; content-addressing
+        serialises via a stable summary that converts types to their names.
+        """
+        return core_schema.is_instance_schema(
+            cls,
+            serialization=core_schema.plain_serializer_function_ser_schema(
+                lambda v: {
+                    "columns": {k: t.__name__ for k, t in v.columns.items()},
+                    "primary_keys": list(v.primary_keys),
+                    "nullable": list(v.nullable),
+                },
+                when_used="always",
+            ),
         )

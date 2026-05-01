@@ -53,5 +53,18 @@ class DatabaseConnectionPool:
         (asyncpg, aiosqlite, DuckDB, …) that are not pydantic-compatible.
         Pirn IO validation just needs ``isinstance(value, DatabaseConnectionPool)``;
         this short-circuit avoids pydantic descending into engine internals.
+
+        A dedicated serialiser emits a stable string token in place of the
+        pool — the live connection pool is *deliberately* identity-based,
+        so two pools that point at the same backend hash the same iff
+        they are the same Python object. This keeps pirn's content-
+        addressing cache from refusing to serialise the pool while not
+        introducing spurious cache hits across truly different pools.
         """
-        return core_schema.is_instance_schema(cls)
+        return core_schema.is_instance_schema(
+            cls,
+            serialization=core_schema.plain_serializer_function_ser_schema(
+                lambda v: f"<{type(v).__name__}@{id(v):x}>",
+                when_used="always",
+            ),
+        )

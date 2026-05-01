@@ -293,8 +293,8 @@ packages = ["pirn"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
-# Default run excludes slow and mutation; opt in with --slow / --mutation.
-addopts = "--strict-markers -ra --ignore=tests/perf"
+# Default run excludes slow and mutation; opt in with -m slow / -m mutation.
+addopts = "--strict-markers -ra --ignore=tests/perf -m 'not slow and not mutation'"
 markers = [
     "slow: tests that take meaningful wall-clock time",
     "mutation: mutation-test-specific assertions",

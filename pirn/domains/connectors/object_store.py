@@ -53,6 +53,14 @@ class ObjectStore:
         """Tell pydantic to treat object stores as opaque.
 
         Concrete stores wrap engine-specific clients (boto3, gcs, …) that
-        are not pydantic-compatible.
+        are not pydantic-compatible. A dedicated serialiser emits a
+        stable string token so pirn's content-addressing cache can hash
+        the store without descending into the live engine state.
         """
-        return core_schema.is_instance_schema(cls)
+        return core_schema.is_instance_schema(
+            cls,
+            serialization=core_schema.plain_serializer_function_ser_schema(
+                lambda v: f"<{type(v).__name__}@{id(v):x}>",
+                when_used="always",
+            ),
+        )

@@ -1,0 +1,45 @@
+"""Tests for :class:`ElandDataFrame` adapter."""
+
+from __future__ import annotations
+
+from typing import Any
+
+import pytest
+from pydantic import TypeAdapter
+
+from pirn.domains.data.specialized.eland.eland_dataframe import ElandDataFrame
+
+
+class _FakeElandFrame:
+    """Stand-in for a real ``eland.DataFrame``."""
+
+    def __init__(self, name: str = "fake") -> None:
+        self.name = name
+
+
+class TestElandDataFrameConstruction:
+    def test_default_metadata(self) -> None:
+        handle = ElandDataFrame(frame=_FakeElandFrame())
+        assert handle.source_uri == ""
+        assert handle.fetched_at is not None
+
+    def test_propagates_source_uri(self) -> None:
+        handle = ElandDataFrame(frame=_FakeElandFrame(), source_uri="elasticsearch://orders")
+        assert handle.source_uri == "elasticsearch://orders"
+
+    def test_frame_attribute_round_trips(self) -> None:
+        inner = _FakeElandFrame(name="payload")
+        handle = ElandDataFrame(frame=inner)
+        assert handle.frame is inner
+
+
+class TestElandDataFramePydanticSchema:
+    def test_is_instance_schema_passes_for_real_instance(self) -> None:
+        adapter: TypeAdapter[Any] = TypeAdapter(ElandDataFrame)
+        handle = ElandDataFrame(frame=_FakeElandFrame())
+        assert adapter.validate_python(handle) is handle
+
+    def test_is_instance_schema_rejects_other_types(self) -> None:
+        adapter: TypeAdapter[Any] = TypeAdapter(ElandDataFrame)
+        with pytest.raises(Exception):
+            adapter.validate_python({"frame": "no"})

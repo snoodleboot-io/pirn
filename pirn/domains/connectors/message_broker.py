@@ -47,5 +47,16 @@ class MessageBroker:
     def __get_pydantic_core_schema__(
         cls, source_type: Any, handler: GetCoreSchemaHandler
     ) -> CoreSchema:
-        """Tell pydantic to treat brokers as opaque (engine-specific clients)."""
-        return core_schema.is_instance_schema(cls)
+        """Tell pydantic to treat brokers as opaque (engine-specific clients).
+
+        Includes a stable identity-based serialiser so pirn's
+        content-addressing cache can hash a broker reference without
+        descending into live engine state.
+        """
+        return core_schema.is_instance_schema(
+            cls,
+            serialization=core_schema.plain_serializer_function_ser_schema(
+                lambda v: f"<{type(v).__name__}@{id(v):x}>",
+                when_used="always",
+            ),
+        )
