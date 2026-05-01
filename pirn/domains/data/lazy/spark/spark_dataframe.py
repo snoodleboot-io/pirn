@@ -1,9 +1,10 @@
 """``SparkDataFrame`` — Tier-3 adapter wrapping a ``pyspark.sql.DataFrame``.
 
 Spark DataFrames are lazy: ``filter``, ``groupBy``, ``join``, etc. all
-extend the logical plan. Materialisation happens only when the terminal
-sink (:class:`SparkCompute`) calls ``collect``, ``write.save``, or
-similar. The wrapper carries the deferred frame plus lineage metadata.
+extend the logical plan. Materialisation happens only when a terminal
+sink (:class:`SparkCollectSink` or :class:`SparkWriteSink`) calls
+``collect`` or ``write.save``. The wrapper carries the deferred frame
+plus lineage metadata.
 
 PySpark version constraint: ``pyspark>=4.0`` is required for Python 3.13+;
 ``pyspark>=3.5`` is acceptable on older Pythons. See ``pyproject.toml``

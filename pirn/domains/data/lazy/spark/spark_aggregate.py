@@ -10,19 +10,19 @@ deferred.
 
 from __future__ import annotations
 
-import re
 from collections.abc import Mapping, Sequence
 from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.domains.data.identifier_validator import IdentifierValidator
 from pirn.domains.data.lazy.spark.spark_dataframe import SparkDataFrame
 
 
 class SparkAggregate(Knot):
     """Group rows and apply Spark aggregation functions. Output is deferred."""
 
-    _ALLOWED_FNS: ClassVar[frozenset[str]] = frozenset(
+    _allowed_fns: ClassVar[frozenset[str]] = frozenset(
         {
             "sum",
             "min",
@@ -33,9 +33,6 @@ class SparkAggregate(Knot):
             "first",
             "last",
         }
-    )
-    _IDENT_RE: ClassVar[re.Pattern[str]] = re.compile(
-        r"^[A-Za-z_][A-Za-z0-9_]*$"
     )
 
     def __init__(
@@ -48,34 +45,22 @@ class SparkAggregate(Knot):
         **kwargs: Any,
     ) -> None:
         try:
-            import pyspark.sql  # noqa: F401
+            from pyspark.sql import functions as spark_functions
         except ImportError as exc:
             raise ImportError(
                 "SparkAggregate requires pyspark; install with `pip install pirn[spark]`"
             ) from exc
-        if isinstance(by, (str, bytes)) or not isinstance(by, Sequence):
-            raise TypeError(
-                "SparkAggregate: by must be a sequence of column names"
-            )
-        if not by:
-            raise ValueError("SparkAggregate: by must be non-empty")
-        for column in by:
-            if not isinstance(column, str) or not self._IDENT_RE.match(column):
-                raise ValueError(
-                    f"SparkAggregate: invalid group-by column name {column!r}"
-                )
+        self._spark_functions = spark_functions
+        IdentifierValidator.validate_columns("SparkAggregate.by", by)
         if not isinstance(aggs, Mapping) or not aggs:
             raise TypeError(
                 "SparkAggregate: aggs must be a non-empty mapping of "
                 "output_col -> (input_col, fn)"
             )
         for output_col, spec in aggs.items():
-            if not isinstance(output_col, str) or not self._IDENT_RE.match(
-                output_col
-            ):
-                raise ValueError(
-                    f"SparkAggregate: invalid output column name {output_col!r}"
-                )
+            IdentifierValidator.validate_column(
+                "SparkAggregate: output column", output_col
+            )
             if (
                 not isinstance(spec, tuple)
                 or len(spec) != 2
@@ -87,14 +72,14 @@ class SparkAggregate(Knot):
                     "(input_col, fn) — both strings"
                 )
             input_col, fn = spec
-            if not self._IDENT_RE.match(input_col):
-                raise ValueError(
-                    f"SparkAggregate: invalid input column name {input_col!r}"
-                )
-            if fn not in self._ALLOWED_FNS:
+            IdentifierValidator.validate_column(
+                f"SparkAggregate: aggs[{output_col!r}] input column",
+                input_col,
+            )
+            if fn not in self._allowed_fns:
                 raise ValueError(
                     f"SparkAggregate: aggs[{output_col!r}] fn must be one of "
-                    f"{sorted(self._ALLOWED_FNS)!r}, got {fn!r}"
+                    f"{sorted(self._allowed_fns)!r}, got {fn!r}"
                 )
         self._by: tuple[str, ...] = tuple(by)
         self._aggs: dict[str, tuple[str, str]] = {
@@ -111,11 +96,9 @@ class SparkAggregate(Knot):
         return dict(self._aggs)
 
     async def process(self, frame: SparkDataFrame, **_: Any) -> SparkDataFrame:
-        from pyspark.sql import functions as F
-
         agg_columns = []
         for output_col, (input_col, fn) in self._aggs.items():
-            spark_fn = getattr(F, fn)
+            spark_fn = getattr(self._spark_functions, fn)
             agg_columns.append(spark_fn(input_col).alias(output_col))
         grouped = frame.frame.groupBy(*self._by)
         aggregated = grouped.agg(*agg_columns)

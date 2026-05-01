@@ -131,16 +131,6 @@ class AzureBlobStore(ObjectStore):
 
         return _iter()
 
-    def _validate_key(self, key: str) -> None:
-        if not key:
-            raise ValueError("key must be non-empty")
-        if "\x00" in key:
-            raise ValueError("key contains NUL byte")
-        if key.startswith("/"):
-            raise ValueError("key must not start with '/'")
-        parts = key.split("/")
-        if any(p == ".." for p in parts):
-            raise ValueError("key must not contain '..' segments")
 
     async def _ensure_client(self) -> Any:
         if self._client is not None:

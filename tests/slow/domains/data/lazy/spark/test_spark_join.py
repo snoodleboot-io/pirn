@@ -172,7 +172,7 @@ def test_construct_rejects_invalid_column_name(_spark_session) -> None:
             query="SELECT 1 AS x",
             _config=KnotConfig(id="b"),
         )
-        with pytest.raises(ValueError, match="invalid"):
+        with pytest.raises(ValueError, match="not a plain identifier"):
             SparkJoin(
                 left=a,
                 right=b,

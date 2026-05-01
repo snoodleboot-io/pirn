@@ -123,7 +123,6 @@ class ShopifyClient(ApiClient):
         try:
             client = await asyncio.to_thread(_connect)
         except Exception as exc:
-            safe_message = self._scrubber.scrub(str(exc))
-            raise type(exc)(safe_message) from None
+            self._reraise_scrubbed(exc)
         self._logger.debug("shopify.connect")
         return client

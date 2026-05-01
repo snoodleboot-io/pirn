@@ -1,5 +1,5 @@
 """``SparkExecutionReceipt`` — audit record returned by
-:class:`pirn.domains.data.lazy.spark.spark_compute.SparkCompute` after a
+:class:`pirn.domains.data.lazy.spark.spark_write_sink.SparkWriteSink` after a
 deferred Spark plan has been materialised.
 
 The receipt is treated as opaque to pydantic IO validation: a

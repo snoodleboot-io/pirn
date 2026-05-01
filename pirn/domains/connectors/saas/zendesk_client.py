@@ -88,8 +88,7 @@ class ZendeskClient(ApiClient):
         except RuntimeError:
             raise
         except Exception as exc:
-            safe_message = self._scrubber.scrub(str(exc))
-            raise type(exc)(safe_message) from None
+            self._reraise_scrubbed(exc)
 
     async def close(self) -> None:
         if self._client is not None:
@@ -133,7 +132,6 @@ class ZendeskClient(ApiClient):
         try:
             client = await asyncio.to_thread(Zenpy, **creds)
         except Exception as exc:
-            safe_message = self._scrubber.scrub(str(exc))
-            raise type(exc)(safe_message) from None
+            self._reraise_scrubbed(exc)
         self._logger.debug("zendesk.connect")
         return client

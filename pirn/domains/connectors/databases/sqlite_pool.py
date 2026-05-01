@@ -8,7 +8,6 @@ with :class:`pirn.domains.connectors.database_connection_pool.DatabaseConnection
 from __future__ import annotations
 
 import logging
-import re
 from typing import Any, Iterable
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
@@ -22,7 +21,6 @@ class SqlitePool(DatabaseConnectionPool):
         self._config = config
         self._connection: Any = None
         self._closed = False
-        self._inline_param_re = re.compile(r"\{[^}]*\}|%[sd]")
         self._logger = logging.getLogger(self.__class__.__module__)
 
     @property
@@ -86,20 +84,6 @@ class SqlitePool(DatabaseConnectionPool):
             return [tuple(r) for r in rows]
         finally:
             await cursor.close()
-
-    def _reject_inline_interpolation(self, query: str) -> None:
-        """Refuse queries that look format-stringed.
-
-        Defence-in-depth — the primary protection is that every entry-point
-        takes parameters as a separate argument. ``{...}`` / ``%s`` markers
-        in raw SQL are almost certainly a bug because pirn uses ``?``
-        (qmark) placeholders for SQLite.
-        """
-        if self._inline_param_re.search(query):
-            raise ValueError(
-                "SqlitePool: query contains '{...}' or '%s' interpolation "
-                "markers. Use '?' placeholders and pass parameters separately."
-            )
 
     async def _open_connection(self) -> Any:
         try:

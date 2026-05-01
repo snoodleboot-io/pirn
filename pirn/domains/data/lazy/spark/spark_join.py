@@ -7,19 +7,19 @@ nothing is executed until the terminal sink materialises the plan.
 
 from __future__ import annotations
 
-import re
 from collections.abc import Sequence
 from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.domains.data.identifier_validator import IdentifierValidator
 from pirn.domains.data.lazy.spark.spark_dataframe import SparkDataFrame
 
 
 class SparkJoin(Knot):
     """Binary join over two :class:`SparkDataFrame` parents."""
 
-    _ALLOWED_HOW: ClassVar[tuple[str, ...]] = (
+    _allowed_how: ClassVar[tuple[str, ...]] = (
         "inner",
         "left",
         "right",
@@ -27,9 +27,6 @@ class SparkJoin(Knot):
         "leftsemi",
         "leftanti",
         "cross",
-    )
-    _IDENT_RE: ClassVar[re.Pattern[str]] = re.compile(
-        r"^[A-Za-z_][A-Za-z0-9_]*$"
     )
 
     def __init__(
@@ -50,9 +47,9 @@ class SparkJoin(Knot):
             raise ImportError(
                 "SparkJoin requires pyspark; install with `pip install pirn[spark]`"
             ) from exc
-        if how not in self._ALLOWED_HOW:
+        if how not in self._allowed_how:
             raise ValueError(
-                f"SparkJoin: how must be one of {list(self._ALLOWED_HOW)}, "
+                f"SparkJoin: how must be one of {list(self._allowed_how)}, "
                 f"got {how!r}"
             )
         if how == "cross":
@@ -86,29 +83,20 @@ class SparkJoin(Knot):
         self._how = how
         super().__init__(left=left, right=right, _config=_config, **kwargs)
 
-    @classmethod
+    @staticmethod
     def _validate_columns(
-        cls, label: str, columns: str | Sequence[str] | None
+        label: str, columns: str | Sequence[str] | None
     ) -> None:
         if columns is None:
             return
         if isinstance(columns, str):
-            if not cls._IDENT_RE.match(columns):
-                raise ValueError(
-                    f"SparkJoin: invalid {label} column name {columns!r}"
-                )
+            IdentifierValidator.validate_column(f"SparkJoin: {label}", columns)
             return
         if not isinstance(columns, Sequence):
             raise TypeError(
                 f"SparkJoin: {label} must be a string or sequence of strings"
             )
-        if not columns:
-            raise ValueError(f"SparkJoin: {label} must be non-empty")
-        for column in columns:
-            if not isinstance(column, str) or not cls._IDENT_RE.match(column):
-                raise ValueError(
-                    f"SparkJoin: invalid {label} column name {column!r}"
-                )
+        IdentifierValidator.validate_columns(f"SparkJoin: {label}", columns)
 
     @staticmethod
     def _sequence_length(columns: str | Sequence[str]) -> int:

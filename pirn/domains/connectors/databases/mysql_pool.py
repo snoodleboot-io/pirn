@@ -9,7 +9,6 @@ reject only ``{...}``-style brace interpolation; ``%s`` is allowed.
 from __future__ import annotations
 
 import logging
-import re
 from typing import Any, Iterable
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
@@ -29,6 +28,8 @@ class MySQLPool(DatabaseConnectionPool):
     only ``{...}``-style brace interpolation is rejected here.
     """
 
+    _inline_interpolation_pattern = r"\{[^}]*\}"
+
     def __init__(
         self,
         config: MySQLConfig | None = None,
@@ -45,9 +46,6 @@ class MySQLPool(DatabaseConnectionPool):
         self._config = config
         self._pool = pool
         self._closed = False
-        # MySQL: ``%s`` is the standard placeholder, not interpolation.
-        # Reject only brace-style ``{...}`` substitution.
-        self._inline_param_re = re.compile(r"\{[^}]*\}")
         self._scrubber = DsnScrubber()
         self._logger = logging.getLogger(self.__class__.__module__)
 
@@ -149,13 +147,6 @@ class MySQLPool(DatabaseConnectionPool):
         finally:
             await pool.release(connection)
 
-    def _reject_inline_interpolation(self, query: str) -> None:
-        if self._inline_param_re.search(query):
-            raise ValueError(
-                "MySQLPool: query contains '{...}' brace interpolation. "
-                "Use '%s' placeholders and pass parameters separately."
-            )
-
     async def _ensure_pool(self) -> Any:
         if self._closed:
             raise RuntimeError("MySQLPool is closed")
@@ -189,7 +180,6 @@ class MySQLPool(DatabaseConnectionPool):
         try:
             pool = await aiomysql.create_pool(**kwargs)
         except Exception as exc:
-            safe_message = self._scrubber.scrub(str(exc))
-            raise type(exc)(safe_message) from None
+            self._reraise_scrubbed(exc)
         self._logger.debug("mysql.connect")
         return pool

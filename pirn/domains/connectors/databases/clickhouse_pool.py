@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import re
 from typing import Any, Iterable
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
@@ -23,7 +22,13 @@ class ClickhousePool(DatabaseConnectionPool):
     The ``clickhouse_connect.Client`` already manages an HTTP connection
     pool internally; ``acquire`` returns the shared client and ``release``
     is a no-op.
+
+    Parameter style: ClickHouse uses ``{name:Type}`` parameterised
+    queries — that is the driver's bind syntax, not interpolation, so
+    brace markers are accepted. ``%s`` interpolation is still rejected.
     """
+
+    _inline_interpolation_pattern = r"\{[^}:]+\}|%[sd]"
 
     def __init__(
         self,
@@ -36,7 +41,6 @@ class ClickhousePool(DatabaseConnectionPool):
         self._config = config
         self._client = client
         self._closed = False
-        self._inline_param_re = re.compile(r"\{[^}]*\}|%[sd]")
         self._scrubber = DsnScrubber()
         self._logger = logging.getLogger(self.__class__.__module__)
 
@@ -123,17 +127,6 @@ class ClickhousePool(DatabaseConnectionPool):
 
         await asyncio.to_thread(_run)
 
-    def _reject_inline_interpolation(self, query: str) -> None:
-        # ClickHouse uses ``{name:Type}`` for typed parameters — looks like
-        # an f-string. Use a stricter regex that only flags ``{<bare>}``
-        # without a colon, plus the ``%s`` style marker.
-        if re.search(r"\{[^}:]+\}|%[sd]", query):
-            raise ValueError(
-                "ClickhousePool: query contains '{name}' or '%s' interpolation "
-                "markers. Use '{name:Type}' typed placeholders and pass "
-                "parameters separately."
-            )
-
     @staticmethod
     def _normalise_params(parameters: Iterable[Any] | None) -> Any:
         if parameters is None:
@@ -179,7 +172,6 @@ class ClickhousePool(DatabaseConnectionPool):
                 clickhouse_connect.get_client, **kwargs
             )
         except Exception as exc:
-            safe_message = self._scrubber.scrub(str(exc))
-            raise type(exc)(safe_message) from None
+            self._reraise_scrubbed(exc)
         self._logger.debug("clickhouse.connect")
         return client

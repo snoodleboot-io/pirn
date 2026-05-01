@@ -17,7 +17,7 @@ from pirn.domains.data.lazy.dask.dask_dataframe import DaskDataFrame
 class DaskJoin(Knot):
     """Binary merge over two :class:`DaskDataFrame` parents."""
 
-    _ALLOWED_HOW: tuple[str, ...] = (
+    _allowed_how: tuple[str, ...] = (
         "inner", "left", "right", "outer", "cross",
     )
 
@@ -33,9 +33,9 @@ class DaskJoin(Knot):
         how: str = "inner",
         **kwargs: Any,
     ) -> None:
-        if how not in self._ALLOWED_HOW:
+        if how not in self._allowed_how:
             raise ValueError(
-                f"DaskJoin: how must be one of {list(self._ALLOWED_HOW)}, "
+                f"DaskJoin: how must be one of {list(self._allowed_how)}, "
                 f"got {how!r}"
             )
         if how == "cross":

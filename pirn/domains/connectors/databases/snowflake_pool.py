@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import re
 from typing import Any, Iterable
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
@@ -37,7 +36,6 @@ class SnowflakePool(DatabaseConnectionPool):
         self._config = config
         self._client = client
         self._closed = False
-        self._inline_param_re = re.compile(r"\{[^}]*\}|%[sd]")
         self._scrubber = DsnScrubber()
         self._logger = logging.getLogger(self.__class__.__module__)
 
@@ -117,14 +115,6 @@ class SnowflakePool(DatabaseConnectionPool):
 
         return await asyncio.to_thread(_run)
 
-    def _reject_inline_interpolation(self, query: str) -> None:
-        if self._inline_param_re.search(query):
-            raise ValueError(
-                "SnowflakePool: query contains '{...}' or '%s' interpolation "
-                "markers. Use ':name' (or qmark) placeholders and pass "
-                "parameters separately."
-            )
-
     async def _ensure_client(self) -> Any:
         if self._closed:
             raise RuntimeError("SnowflakePool is closed")
@@ -163,7 +153,6 @@ class SnowflakePool(DatabaseConnectionPool):
                 snowflake.connector.connect, **kwargs
             )
         except Exception as exc:
-            safe_message = self._scrubber.scrub(str(exc))
-            raise type(exc)(safe_message) from None
+            self._reraise_scrubbed(exc)
         self._logger.debug("snowflake.connect")
         return client

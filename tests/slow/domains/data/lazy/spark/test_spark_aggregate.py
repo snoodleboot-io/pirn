@@ -91,7 +91,7 @@ def test_construct_rejects_invalid_column_name(_spark_session) -> None:
             query=_orders_query(),
             _config=KnotConfig(id="s"),
         )
-        with pytest.raises(ValueError, match="invalid"):
+        with pytest.raises(ValueError, match="not a plain identifier"):
             SparkAggregate(
                 frame=src,
                 by=("region; DROP TABLE x",),

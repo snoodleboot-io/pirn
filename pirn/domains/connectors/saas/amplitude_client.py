@@ -134,7 +134,6 @@ class AmplitudeClient(ApiClient):
         try:
             client = await asyncio.to_thread(Amplitude, self._config.api_key)
         except Exception as exc:
-            safe_message = self._scrubber.scrub(str(exc))
-            raise type(exc)(safe_message) from None
+            self._reraise_scrubbed(exc)
         self._logger.debug("amplitude.connect")
         return client

@@ -9,7 +9,6 @@ because it does not support server-side prepared statements.
 from __future__ import annotations
 
 import logging
-import re
 from typing import Any, Iterable
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
@@ -31,7 +30,6 @@ class RedshiftPool(DatabaseConnectionPool):
         self._config = config
         self._pool = pool
         self._closed = False
-        self._inline_param_re = re.compile(r"\{[^}]*\}|%[sd]")
         self._scrubber = DsnScrubber()
         self._logger = logging.getLogger(self.__class__.__module__)
 
@@ -72,14 +70,6 @@ class RedshiftPool(DatabaseConnectionPool):
         pool = await self._ensure_pool()
         await pool.executemany(query, [tuple(a) for a in args_seq])
 
-    def _reject_inline_interpolation(self, query: str) -> None:
-        if self._inline_param_re.search(query):
-            raise ValueError(
-                "RedshiftPool: query contains '{...}' or '%s' interpolation "
-                "markers. Use '$1, $2, ...' placeholders and pass parameters "
-                "separately."
-            )
-
     async def _ensure_pool(self) -> Any:
         if self._closed:
             raise RuntimeError("RedshiftPool is closed")
@@ -119,7 +109,6 @@ class RedshiftPool(DatabaseConnectionPool):
                     **kwargs,
                 )
         except Exception as exc:
-            safe_message = self._scrubber.scrub(str(exc))
-            raise type(exc)(safe_message) from None
+            self._reraise_scrubbed(exc)
         self._logger.debug("redshift.connect")
         return pool

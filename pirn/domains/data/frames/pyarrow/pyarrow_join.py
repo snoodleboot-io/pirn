@@ -13,18 +13,18 @@ metadata is preserved on the left side via :meth:`PyarrowDataBatch.with_table`.
 
 from __future__ import annotations
 
-import re
 from typing import Any, ClassVar, Sequence
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.data.frames.pyarrow.pyarrow_data_batch import PyarrowDataBatch
+from pirn.domains.data.identifier_validator import IdentifierValidator
 
 
 class PyarrowJoin(Knot):
     """Binary join over two :class:`PyarrowDataBatch` parents."""
 
-    _ALLOWED_HOW: ClassVar[tuple[str, ...]] = (
+    _allowed_how: ClassVar[tuple[str, ...]] = (
         "inner",
         "left outer",
         "right outer",
@@ -34,7 +34,6 @@ class PyarrowJoin(Knot):
         "left anti",
         "right anti",
     )
-    _IDENTIFIER_PATTERN: ClassVar[str] = r"^[A-Za-z_][A-Za-z0-9_]*$"
 
     def __init__(
         self,
@@ -48,9 +47,9 @@ class PyarrowJoin(Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if how not in self._ALLOWED_HOW:
+        if how not in self._allowed_how:
             raise ValueError(
-                f"PyarrowJoin: how must be one of {list(self._ALLOWED_HOW)}, got {how!r}"
+                f"PyarrowJoin: how must be one of {list(self._allowed_how)}, got {how!r}"
             )
         if on is not None and (left_on is not None or right_on is not None):
             raise TypeError(
@@ -66,10 +65,9 @@ class PyarrowJoin(Knot):
                 "PyarrowJoin: provide on=<column(s)> for matching keys, "
                 "or both left_on= and right_on= for differently-named keys"
             )
-        identifier_re = re.compile(self._IDENTIFIER_PATTERN)
-        self._on = self._coerce_keys("on", on, identifier_re)
-        self._left_on = self._coerce_keys("left_on", left_on, identifier_re)
-        self._right_on = self._coerce_keys("right_on", right_on, identifier_re)
+        self._on = self._coerce_keys("on", on)
+        self._left_on = self._coerce_keys("left_on", left_on)
+        self._right_on = self._coerce_keys("right_on", right_on)
         if (
             self._left_on is not None
             and self._right_on is not None
@@ -111,7 +109,6 @@ class PyarrowJoin(Knot):
     def _coerce_keys(
         label: str,
         value: str | Sequence[str] | None,
-        identifier_re: re.Pattern[str],
     ) -> tuple[str, ...] | None:
         if value is None:
             return None
@@ -123,15 +120,5 @@ class PyarrowJoin(Knot):
             raise TypeError(
                 f"PyarrowJoin: {label}= must be a column name or a sequence of column names"
             )
-        if not keys:
-            raise ValueError(f"PyarrowJoin: {label}= must be non-empty")
-        for column in keys:
-            if not isinstance(column, str) or not column:
-                raise TypeError(
-                    f"PyarrowJoin: every column in {label}= must be a non-empty string"
-                )
-            if not identifier_re.match(column):
-                raise ValueError(
-                    f"PyarrowJoin: {label}= column {column!r} is not a plain identifier"
-                )
+        IdentifierValidator.validate_columns(f"PyarrowJoin: {label}=", keys)
         return keys

@@ -35,8 +35,8 @@ class DbtArtifactsReader:
       provided; missing artifacts raise at load time.
     """
 
-    _MANIFEST_FILENAME: ClassVar[str] = "manifest.json"
-    _RUN_RESULTS_FILENAME: ClassVar[str] = "run_results.json"
+    _manifest_filename: ClassVar[str] = "manifest.json"
+    _run_results_filename: ClassVar[str] = "run_results.json"
 
     def __init__(
         self,
@@ -65,14 +65,14 @@ class DbtArtifactsReader:
         """Return the parsed ``manifest.json`` contents."""
         if self._manifest is not None:
             return dict(self._manifest)
-        path = self._artifact_path(self._MANIFEST_FILENAME)
+        path = self._artifact_path(self._manifest_filename)
         return await asyncio.to_thread(self._read_json_file, path)
 
     async def load_run_results(self) -> dict:
         """Return the parsed ``run_results.json`` contents."""
         if self._run_results is not None:
             return dict(self._run_results)
-        path = self._artifact_path(self._RUN_RESULTS_FILENAME)
+        path = self._artifact_path(self._run_results_filename)
         return await asyncio.to_thread(self._read_json_file, path)
 
     def _artifact_path(self, filename: str) -> str:

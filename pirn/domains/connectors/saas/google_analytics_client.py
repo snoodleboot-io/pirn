@@ -146,7 +146,6 @@ class GoogleAnalyticsClient(ApiClient):
                 BetaAnalyticsDataClient, **kwargs
             )
         except Exception as exc:
-            safe_message = self._scrubber.scrub(str(exc))
-            raise type(exc)(safe_message) from None
+            self._reraise_scrubbed(exc)
         self._logger.debug("google_analytics.connect")
         return client

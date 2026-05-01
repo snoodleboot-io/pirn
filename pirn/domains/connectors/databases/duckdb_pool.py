@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import re
 from typing import Any, Iterable
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
@@ -23,7 +22,6 @@ class DuckdbPool(DatabaseConnectionPool):
         self._config = config
         self._connection: Any = None
         self._closed = False
-        self._inline_param_re = re.compile(r"\{[^}]*\}|%[sd]")
         self._logger = logging.getLogger(self.__class__.__module__)
 
     @property
@@ -71,13 +69,6 @@ class DuckdbPool(DatabaseConnectionPool):
             return [tuple(r) for r in cursor.fetchall()]
 
         return await asyncio.to_thread(_run)
-
-    def _reject_inline_interpolation(self, query: str) -> None:
-        if self._inline_param_re.search(query):
-            raise ValueError(
-                "DuckdbPool: query contains '{...}' or '%s' interpolation "
-                "markers. Use '?' placeholders and pass parameters separately."
-            )
 
     async def _open_connection(self) -> Any:
         try:

@@ -18,18 +18,18 @@ the by-columns at the front in their original order.
 
 from __future__ import annotations
 
-import re
 from typing import Any, ClassVar, Mapping, Sequence
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.data.frames.pyarrow.pyarrow_data_batch import PyarrowDataBatch
+from pirn.domains.data.identifier_validator import IdentifierValidator
 
 
 class PyarrowAggregate(Knot):
     """Group rows by ``by`` and apply PyArrow aggregation kernels."""
 
-    _ALLOWED_FUNCTIONS: ClassVar[frozenset[str]] = frozenset(
+    _allowed_functions: ClassVar[frozenset[str]] = frozenset(
         {
             "sum",
             "min",
@@ -43,7 +43,6 @@ class PyarrowAggregate(Knot):
             "all",
         }
     )
-    _IDENTIFIER_PATTERN: ClassVar[str] = r"^[A-Za-z_][A-Za-z0-9_]*$"
 
     def __init__(
         self,
@@ -54,22 +53,7 @@ class PyarrowAggregate(Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        identifier_re = re.compile(self._IDENTIFIER_PATTERN)
-        if not isinstance(by, Sequence) or isinstance(by, (str, bytes)):
-            raise TypeError(
-                "PyarrowAggregate: by must be a sequence of column names"
-            )
-        if not by:
-            raise ValueError("PyarrowAggregate: by must be non-empty")
-        for column in by:
-            if not isinstance(column, str) or not column:
-                raise TypeError(
-                    "PyarrowAggregate: every entry in by must be a non-empty string"
-                )
-            if not identifier_re.match(column):
-                raise ValueError(
-                    f"PyarrowAggregate: by entry {column!r} is not a plain identifier"
-                )
+        IdentifierValidator.validate_columns("PyarrowAggregate.by", by)
         if not isinstance(aggs, Mapping):
             raise TypeError(
                 "PyarrowAggregate: aggs must be a Mapping"
@@ -78,14 +62,9 @@ class PyarrowAggregate(Knot):
         if not aggs:
             raise ValueError("PyarrowAggregate: aggs must be non-empty")
         for output, spec in aggs.items():
-            if not isinstance(output, str) or not output:
-                raise TypeError(
-                    "PyarrowAggregate: aggs keys must be non-empty strings"
-                )
-            if not identifier_re.match(output):
-                raise ValueError(
-                    f"PyarrowAggregate: output column {output!r} is not a plain identifier"
-                )
+            IdentifierValidator.validate_column(
+                "PyarrowAggregate: output column", output
+            )
             if (
                 not isinstance(spec, tuple)
                 or len(spec) != 2
@@ -97,20 +76,15 @@ class PyarrowAggregate(Knot):
                     "(input_column, aggregation_function)"
                 )
             input_column, function_name = spec
-            if not input_column:
-                raise ValueError(
-                    f"PyarrowAggregate: aggs[{output!r}] input_column must be non-empty"
-                )
-            if not identifier_re.match(input_column):
-                raise ValueError(
-                    f"PyarrowAggregate: aggs[{output!r}] input_column "
-                    f"{input_column!r} is not a plain identifier"
-                )
-            if function_name not in self._ALLOWED_FUNCTIONS:
+            IdentifierValidator.validate_column(
+                f"PyarrowAggregate: aggs[{output!r}] input_column",
+                input_column,
+            )
+            if function_name not in self._allowed_functions:
                 raise ValueError(
                     f"PyarrowAggregate: aggs[{output!r}] function "
                     f"{function_name!r} is not supported; allowed: "
-                    f"{sorted(self._ALLOWED_FUNCTIONS)}"
+                    f"{sorted(self._allowed_functions)}"
                 )
         self._by: tuple[str, ...] = tuple(by)
         self._aggs: dict[str, tuple[str, str]] = dict(aggs)

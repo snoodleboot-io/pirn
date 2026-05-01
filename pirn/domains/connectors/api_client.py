@@ -44,6 +44,18 @@ class ApiClient:
             f"{type(self).__name__} must implement close()"
         )
 
+    def _reraise_scrubbed(self, exc: BaseException) -> None:
+        """Re-raise ``exc`` with credential markers scrubbed from the message.
+
+        Concrete clients construct ``self._scrubber`` (a
+        :class:`pirn.domains.connectors.dsn_scrubber.DsnScrubber`) in their
+        ``__init__``. This helper centralises the
+        ``raise type(exc)(scrubber.scrub(str(exc))) from None`` pattern so
+        every concrete client's connect/auth ``except`` block stays a
+        single line.
+        """
+        raise type(exc)(self._scrubber.scrub(str(exc))) from None
+
     @classmethod
     def __get_pydantic_core_schema__(
         cls, source_type: Any, handler: GetCoreSchemaHandler

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import re
 from typing import Any, Iterable
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
@@ -30,7 +29,6 @@ class MssqlPool(DatabaseConnectionPool):
         self._config = config
         self._pool = pool
         self._closed = False
-        self._inline_param_re = re.compile(r"\{[^}]*\}|%[sd]")
         self._scrubber = DsnScrubber()
         self._logger = logging.getLogger(self.__class__.__module__)
 
@@ -132,13 +130,6 @@ class MssqlPool(DatabaseConnectionPool):
         finally:
             await pool.release(connection)
 
-    def _reject_inline_interpolation(self, query: str) -> None:
-        if self._inline_param_re.search(query):
-            raise ValueError(
-                "MssqlPool: query contains '{...}' or '%s' interpolation "
-                "markers. Use '?' placeholders and pass parameters separately."
-            )
-
     async def _ensure_pool(self) -> Any:
         if self._closed:
             raise RuntimeError("MssqlPool is closed")
@@ -166,7 +157,6 @@ class MssqlPool(DatabaseConnectionPool):
         try:
             pool = await aioodbc.create_pool(**kwargs)
         except Exception as exc:
-            safe_message = self._scrubber.scrub(str(exc))
-            raise type(exc)(safe_message) from None
+            self._reraise_scrubbed(exc)
         self._logger.debug("mssql.connect")
         return pool

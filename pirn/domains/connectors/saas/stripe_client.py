@@ -108,7 +108,6 @@ class StripeClient(ApiClient):
             factory = getattr(stripe, "StripeClient")
             client = await asyncio.to_thread(factory, **kwargs)
         except Exception as exc:
-            safe_message = self._scrubber.scrub(str(exc))
-            raise type(exc)(safe_message) from None
+            self._reraise_scrubbed(exc)
         self._logger.debug("stripe.connect")
         return client

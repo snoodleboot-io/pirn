@@ -69,8 +69,7 @@ class TwilioClient(ApiClient):
         try:
             return await asyncio.to_thread(_run)
         except Exception as exc:
-            safe_message = self._scrubber.scrub(str(exc))
-            raise type(exc)(safe_message) from None
+            self._reraise_scrubbed(exc)
 
     async def close(self) -> None:
         if self._client is not None:
@@ -113,7 +112,6 @@ class TwilioClient(ApiClient):
                 **kwargs,
             )
         except Exception as exc:
-            safe_message = self._scrubber.scrub(str(exc))
-            raise type(exc)(safe_message) from None
+            self._reraise_scrubbed(exc)
         self._logger.debug("twilio.connect")
         return client
