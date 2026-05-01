@@ -43,7 +43,10 @@ dev = [
     "pyright>=1.1",
     "cyclonedx-bom>=4.0",
 ]
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Persistence backends — install the ones for your deployment shape.
+# ─────────────────────────────────────────────────────────────────────────────
 sqlite = ["aiosqlite>=0.19"]
 duckdb = ["duckdb>=0.10"]
 postgres = ["asyncpg>=0.29"]
@@ -51,17 +54,116 @@ valkey = ["valkey-glide>=2.0"]
 s3 = ["aioboto3>=12.0"]
 gcs = ["gcloud-aio-storage>=9.0"]
 azure = ["azure-storage-blob>=12.0"]
+
 # Distributed dispatchers.
 dask = ["dask[distributed]>=2024.1"]
 docs = ["mkdocs>=1.6", "mkdocstrings[python]>=0.25", "pymdown-extensions>=10.0"]
 ray = ["ray>=2.9"]
 celery = ["celery>=5.3"]
+
 # Triggers / emitters.
 kafka = ["aiokafka>=0.13.0"]
 http = ["httpx>=0.26", "starlette>=0.36"]
 otel = ["opentelemetry-api>=1.20", "opentelemetry-sdk>=1.20"]
-# Convenience aggregate.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Domain knot libraries (pirn/domains/*) — heavy deps isolated per domain.
+# ─────────────────────────────────────────────────────────────────────────────
+data    = ["pandas>=2.0", "pyarrow>=14.0"]
+agents  = []  # no heavy core deps; LLM/memory/tool providers are user-supplied
+ml      = ["numpy>=1.26", "pandas>=2.0", "scikit-learn>=1.4"]
+health  = [
+    "pydicom>=2.4",
+    "mne>=1.6",
+    "nibabel>=5.2",
+    "pyfaidx>=0.7",
+    "pysam>=0.22",
+    "fhir.resources>=7.1",
+]
+signal  = ["scipy>=1.12", "pywavelets>=1.5", "librosa>=0.10"]
+oilgas  = ["segyio>=1.9", "lasio>=0.31"]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Additional connector extras (pirn/domains/connectors/) — per backend.
+# Reuses existing persistence extras (postgres, sqlite, duckdb, s3, gcs,
+# azure, kafka, valkey) where the underlying library is the same.
+# ─────────────────────────────────────────────────────────────────────────────
+mysql      = ["aiomysql>=0.2"]
+bigquery   = ["google-cloud-bigquery>=3.0"]
+snowflake  = ["snowflake-connector-python>=3.0"]
+redshift   = ["asyncpg>=0.29"]                  # PostgreSQL wire protocol
+clickhouse = ["clickhouse-connect>=0.7"]
+databricks = ["databricks-sql-connector>=3.0"]
+mssql      = ["aioodbc>=0.5"]
+oracle     = ["python-oracledb>=2.0"]
+kinesis    = ["aioboto3>=12.0"]
+pubsub     = ["google-cloud-pubsub>=2.0"]
+rabbitmq   = ["aio-pika>=9.0"]
+azure-servicebus = ["azure-servicebus>=7.0"]
+salesforce = ["simple-salesforce>=1.12"]
+hubspot    = ["hubspot-api-client>=8.0"]
+stripe    = ["stripe>=7.0"]
+github    = ["PyGithub>=2.0"]
+jira      = ["atlassian-python-api>=3.0"]
+shopify   = ["ShopifyAPI>=12.0"]
+datadog   = ["datadog-api-client>=2.0"]
+prometheus = ["prometheus-client>=0.19"]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Convenience aggregates.
+# ─────────────────────────────────────────────────────────────────────────────
+all-db = [
+    "aiosqlite>=0.19",
+    "duckdb>=0.10",
+    "asyncpg>=0.29",
+    "aiomysql>=0.2",
+    "google-cloud-bigquery>=3.0",
+    "snowflake-connector-python>=3.0",
+    "clickhouse-connect>=0.7",
+    "databricks-sql-connector>=3.0",
+    "aioodbc>=0.5",
+    "python-oracledb>=2.0",
+]
+all-storage = [
+    "aioboto3>=12.0",
+    "gcloud-aio-storage>=9.0",
+    "azure-storage-blob>=12.0",
+]
+all-stream = [
+    "aiokafka>=0.13.0",
+    "google-cloud-pubsub>=2.0",
+    "aio-pika>=9.0",
+    "azure-servicebus>=7.0",
+    "valkey-glide>=2.0",
+]
+all-saas = [
+    "simple-salesforce>=1.12",
+    "hubspot-api-client>=8.0",
+    "stripe>=7.0",
+    "PyGithub>=2.0",
+    "atlassian-python-api>=3.0",
+    "ShopifyAPI>=12.0",
+]
+all-observability = [
+    "opentelemetry-api>=1.20",
+    "opentelemetry-sdk>=1.20",
+    "datadog-api-client>=2.0",
+    "prometheus-client>=0.19",
+]
+all-domains = [
+    # data
+    "pandas>=2.0", "pyarrow>=14.0",
+    # ml
+    "numpy>=1.26", "scikit-learn>=1.4",
+    # health
+    "pydicom>=2.4", "mne>=1.6", "nibabel>=5.2", "pyfaidx>=0.7", "pysam>=0.22", "fhir.resources>=7.1",
+    # signal
+    "scipy>=1.12", "pywavelets>=1.5", "librosa>=0.10",
+    # oilgas
+    "segyio>=1.9", "lasio>=0.31",
+]
 all = [
+    # persistence backends
     "aiosqlite>=0.19",
     "duckdb>=0.10",
     "asyncpg>=0.29",
@@ -69,14 +171,51 @@ all = [
     "aioboto3>=12.0",
     "gcloud-aio-storage>=9.0",
     "azure-storage-blob>=12.0",
+    # dispatchers
     "dask[distributed]>=2024.1",
     "ray>=2.9",
     "celery>=5.3",
+    # triggers / emitters
     "aiokafka>=0.13.0",
     "httpx>=0.26",
     "starlette>=0.36",
     "opentelemetry-api>=1.20",
     "opentelemetry-sdk>=1.20",
+    # additional connectors
+    "aiomysql>=0.2",
+    "google-cloud-bigquery>=3.0",
+    "snowflake-connector-python>=3.0",
+    "clickhouse-connect>=0.7",
+    "databricks-sql-connector>=3.0",
+    "aioodbc>=0.5",
+    "python-oracledb>=2.0",
+    "google-cloud-pubsub>=2.0",
+    "aio-pika>=9.0",
+    "azure-servicebus>=7.0",
+    "simple-salesforce>=1.12",
+    "hubspot-api-client>=8.0",
+    "stripe>=7.0",
+    "PyGithub>=2.0",
+    "atlassian-python-api>=3.0",
+    "ShopifyAPI>=12.0",
+    "datadog-api-client>=2.0",
+    "prometheus-client>=0.19",
+    # domain extras
+    "pandas>=2.0",
+    "pyarrow>=14.0",
+    "numpy>=1.26",
+    "scikit-learn>=1.4",
+    "pydicom>=2.4",
+    "mne>=1.6",
+    "nibabel>=5.2",
+    "pyfaidx>=0.7",
+    "pysam>=0.22",
+    "fhir.resources>=7.1",
+    "scipy>=1.12",
+    "pywavelets>=1.5",
+    "librosa>=0.10",
+    "segyio>=1.9",
+    "lasio>=0.31",
 ]
 
 [tool.hatch.build.targets.wheel]
