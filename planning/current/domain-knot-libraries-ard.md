@@ -309,3 +309,121 @@ Phase 6: pirn.domains.oilgas   (independent of phases 4/5)
  10. examples/oilgas/petrophysics_workflow.py
  11. tests/domains/oilgas/
 ```
+
+---
+
+## Decision: Tiered Data-Domain Architecture (Position B)
+
+### Context
+
+Pirn's data domain originally shipped a single `DataBatch` contract: a
+``tuple[Mapping[str, Any], ...]`` flowing between Knots. That works for
+small batches and pure-Python pipelines but cannot:
+
+- Operate efficiently on medium/large data (no columnar layout, no
+  vectorisation, GC-heavy iteration)
+- Use GPU acceleration (cuDF)
+- Run out-of-core (Vaex, Modin/Dask)
+- Distribute across a cluster (PySpark, Ray Data, Dask)
+- Push computation down into the engine where the data already lives
+  (Ibis, raw SQL, Snowflake/BigQuery/Redshift native execution)
+- Stream (Pathway, Bytewax)
+- Handle specialized layouts (Xarray for n-dim labelled, Awkward for
+  jagged, Lance for ML/realtime, Eland for Elasticsearch)
+
+Three positions were considered:
+
+| Position | Description | Tradeoff |
+|----------|-------------|----------|
+| A | Pirn is a data engine — re-implement every transform per backend | Massive duplication; reinvents existing tools |
+| B | Pirn is a graph orchestrator; the engine does the work | Lots of small library-native wrappers; users pick their engine; pirn captures lineage |
+| C | Pirn defines a Frame interface; backends implement it | Cleaner in theory; in practice always chases LCD and loses each engine's distinct power |
+
+### Decision: Position B + parallel transform sets per tier
+
+Pirn is an orchestrator. Knots wrap library-native operations. Different
+tiers of the data domain use different engines; transforms are NOT
+shared via a unified `Frame` interface — each tier is its own implementation
+because each engine's idioms are a feature, not a bug.
+
+**Efficiency mandate.** The platform must perform well even when users
+make poor choices. Tier-1 dict knots emit warnings or refuse oversized
+inputs; tier-2/3 knots prefer zero-copy bridges (Arrow) when crossing
+tier boundaries; documentation actively steers users toward the right
+tier for their data size and shape.
+
+### Tier model
+
+| Tier | Contract | Use cases | Engines |
+|------|----------|-----------|---------|
+| **0** | Foundational columnar / specialized layouts | zero-copy bridge between tiers, scientific/jagged data | PyArrow, Awkward, Xarray |
+| **1** | `DataBatch` (`tuple[dict, ...]`) | small batches, fixtures, validation, glue | pure Python (current) |
+| **2** | Single-machine native frames | medium data, columnar speed, in-process SQL | Polars (start), Pandas, DuckDB, DataFusion, Datatable |
+| **2-GPU** | GPU frames | GPU-accelerated single-machine | cuDF |
+| **2.5** | Out-of-core / drop-in distributed | larger-than-memory single machine, transparent scale-out | Vaex, Modin |
+| **3** | Push-down expressions / lazy plans | warehouse data, distributed clusters, lazy execution | Ibis (start), PySpark, Ray Data, Dask |
+| **3-stream** | Streaming dataflow | continuous, event-driven, watermark-driven | Pathway, Bytewax (and existing Kafka/Valkey connectors as sources/sinks) |
+| **4** | Specialized | per-domain native format | Lance (ML/realtime), Eland (Elasticsearch), Xarray (geoscience), Awkward (HEP) |
+
+**Validation as a cross-cutting concern.** Quality knots can plug into:
+- Pirn's existing pure-Python validators (Tier 1, already shipped)
+- Pandera (Tier 2 on Pandas/Polars)
+- Great Expectations (Tier 2/3, broader coverage)
+
+### Package layout
+
+```
+pirn/domains/data/
+  data_batch.py, data_schema.py, …          # Tier 1 contracts (current)
+  transforms/                                 # Tier 1 transforms (current)
+  quality/                                    # Tier 1 quality (current)
+  frames/
+    polars/                                   # Tier 2 — Polars (first)
+    pandas/                                   # Tier 2 — Pandas
+    duckdb/                                   # Tier 2 — DuckDB in-process
+    datafusion/                               # Tier 2 — DataFusion
+    pyarrow/                                  # Tier 0/2 — Arrow bridge
+    cudf/                                     # Tier 2-GPU — cuDF
+    vaex/                                     # Tier 2.5 — Vaex
+    modin/                                    # Tier 2.5 — Modin
+  lazy/
+    ibis/                                     # Tier 3 — Ibis (first)
+    spark/                                    # Tier 3 — PySpark
+    ray/                                      # Tier 3 — Ray Data
+    dask/                                     # Tier 3 — Dask
+  streaming/
+    pathway/                                  # Tier 3-stream — Pathway
+    bytewax/                                  # Tier 3-stream — Bytewax
+  specialized/
+    lance/                                    # Tier 4 — Lance
+    eland/                                    # Tier 4 — Elasticsearch
+  validation/
+    pandera/                                  # Tier 2 schema-first
+    great_expectations/                       # Tier 2/3 broader
+```
+
+(`pirn.domains.health.signal.oilgas` continue to use Tier 0 specialized
+formats — Xarray for MRI/EEG, Awkward for HEP-style jagged data — they
+sit alongside this catalog.)
+
+### First implementations of each tier
+
+To prove the pattern without committing to all engines at once, pick
+one engine per tier as the first implementation. The rest follow only
+when there's demonstrated user need.
+
+- **Tier 2 first:** Polars. Fast, Rust-backed, expressive lazy API,
+  straightforward conversion to/from Arrow.
+- **Tier 3 first:** Ibis. Broadest backend coverage, matches the
+  orchestrator framing, doesn't lock pirn to any one warehouse.
+
+### Open follow-ups
+
+- Specific knot catalog per tier (Polars Filter, Polars Aggregate,
+  Ibis Filter, Ibis GroupByAggregate, …) — to be detailed in
+  `domain-knot-specializations.md` updates.
+- Cross-tier bridging knots (e.g. `DataBatchToPolars`,
+  `PolarsToArrow`) — needed once we have ≥ 2 tiers in flight.
+- Validation framework integration shape (does pirn expose pandera
+  schemas as a `QualityCheck` source? same for GE?) — design call
+  pending the first Tier-2 implementation.

@@ -144,35 +144,110 @@ The Layer-2 work as initially shipped wrapped registration in custom code — it
 
 ---
 
-## Block 3 — `pirn.domains.data`
+## Block 3 — `pirn.domains.data` (tiered)
 
-- [x] `pirn/domains/data/data_schema.py` — `DataSchema` (one class per file)
+> See ARD: **Decision: Tiered Data-Domain Architecture (Position B)** for the
+> rationale. Pirn is an orchestrator; engines do the work; transforms are
+> NOT shared via a unified `Frame` interface. Each tier is its own
+> implementation.
+
+### Tier 1 — `DataBatch` (dict-based, pure Python; small batches/glue only) — DONE
+
+Contracts
+- [x] `pirn/domains/data/data_schema.py` — `DataSchema`
 - [x] `pirn/domains/data/data_batch.py` — `DataBatch`
 - [x] `pirn/domains/data/quality_check.py` — `QualityCheck`
 - [x] `pirn/domains/data/quality_report.py` — `QualityReport`
 - [x] `pirn/domains/data/data_profile.py` — `DataProfile` + `ColumnProfile`
-- [ ] `pirn/domains/data/sources.py` — `SqlSource`, `FileSource`, `ApiSource`, `StreamSource`
-- [ ] `pirn/domains/data/transforms.py` — `Rename`, `Cast`, `Filter`, `Deduplicate`, `Normalize`, `Join`, `Pivot`, `Unpivot`, `Aggregate`, `WindowCalc`
-- [x] `pirn/domains/data/quality/schema_validator.py` — `SchemaValidator` (presence/type/null checks per column)
-- [x] `pirn/domains/data/quality/row_count_gate.py` — `RowCountGate` (min/max bounds)
-- [x] `pirn/domains/data/quality/null_rate_gate.py` — `NullRateGate` (per-column null-rate thresholds)
-- [x] `pirn/domains/data/quality/freshness_gate.py` — `FreshnessGate` (max-age on a timestamp column)
-- [x] `pirn/domains/data/quality/profiler.py` — `Profiler` (emits `DataProfile`, observation-only)
-- [x] **Acceptance test:** real `Tapestry` running extract → `SchemaValidator`+`RowCountGate` → `Gate(predicate=lambda r: r.passed)` → `DatabaseExecuteSink` end-to-end. Happy path writes the rows; invalid path halts at the Gate, sink reports `skipped` in lineage, DB stays empty. (`tests/integration/domains/data/test_quality_pipeline_acceptance.py`)
-- [x] **Quality knots are `Knot` subclasses, not `Gate` subclasses.** They emit `QualityReport`/`DataProfile` for assessment; the user composes a `Gate(input=report, predicate=lambda r: r.passed, ...)` for halt-on-failure. Documented in `SchemaValidator` docstring as the standard pattern.
-- [ ] `pirn/domains/data/sinks.py` — `SqlSink`, `FileSink`, `DataCatalogSink`
-- [ ] `pirn/domains/data/specializations/ingestion.py` — `FullRefreshExtract`, `WatermarkIncrementalExtract`, `AppendOnlyIngest`, `CDC_DebeziumConsumer`, `APIPagedExtract`, `PartitionedDateRangeExtract`
-- [ ] `pirn/domains/data/specializations/medallion.py` — `BronzeRawIngest`, `SilverCleanTransform`, `GoldAggregation`
-- [ ] `pirn/domains/data/specializations/scd.py` — SCD Types 0–7 (all variants)
-- [ ] `pirn/domains/data/specializations/dedup.py` — `ExactDeduplicator`, `FuzzyDeduplicator`, `ProximityDeduplicator`
-- [ ] `pirn/domains/data/specializations/time_series.py` — `TimeSeriesResampler`, `LagFeatureGenerator`, `RollingStatsPipeline`, etc.
-- [ ] `pirn/domains/data/specializations/quality.py` — `RowCountTrendGate`, `ValueDistributionShiftDetector`, `DataProfiler`, etc.
-- [ ] `pirn/domains/data/specializations/feature_engineering.py` — `DerivedColumnGenerator`, `BinningEncoder`, `GeoEnricher`, etc.
-- [ ] `pirn/domains/data/specializations/analytics_eng.py` — `DimensionTableLoader`, `FactTableLoader`, `BridgeTableBuilder`, etc.
-- [ ] `pirn/domains/data/__init__.py` — imports all modules; `KnotRegistry.register()` for all knots
-- [ ] `examples/data_engineering/incremental_etl.py` — full SqlSource → gates → transforms → SqlSink example
-- [ ] `tests/domains/data/unit/` — unit tests per module with stub DataBatch inputs
-- [ ] `tests/domains/data/integration/` — end-to-end ETL example pipeline against SQLite
+
+Generic transforms (one class per file under `pirn/domains/data/transforms/`)
+- [x] `Rename`, `Cast`, `Filter`, `Deduplicate`, `Normalize`, `Aggregate`
+- [x] Aggregate dispatch via `AggregateSpec` (own file)
+- [x] Normalize rule via `NormalizeColumnRule` (own file)
+- *(Join / Pivot / Unpivot / WindowCalc intentionally NOT shipped at Tier 1 — see ARD efficiency mandate; build at Tier 2 directly)*
+
+Quality (one class per file under `pirn/domains/data/quality/`)
+- [x] `SchemaValidator`, `RowCountGate`, `NullRateGate`, `FreshnessGate`, `Profiler`
+- [x] Acceptance test: extract → `SchemaValidator`+`RowCountGate` → `Gate(predicate=lambda r: r.passed)` → `DatabaseExecuteSink`. Happy path writes rows; invalid path halts at the Gate, sink reports `skipped` in lineage, DB stays empty.
+
+### Tier 2 — Single-machine native frames (start with Polars)
+
+- [ ] `pirn/domains/data/frames/polars/polars_data_batch.py` — adapter type wrapping a `polars.DataFrame`
+- [ ] `pirn/domains/data/frames/polars/rename.py` — `PolarsRename`
+- [ ] `pirn/domains/data/frames/polars/cast.py` — `PolarsCast`
+- [ ] `pirn/domains/data/frames/polars/filter.py` — `PolarsFilter`
+- [ ] `pirn/domains/data/frames/polars/deduplicate.py` — `PolarsDeduplicate`
+- [ ] `pirn/domains/data/frames/polars/aggregate.py` — `PolarsAggregate`
+- [ ] `pirn/domains/data/frames/polars/join.py` — `PolarsJoin`
+- [ ] `pirn/domains/data/frames/polars/pivot.py` + `unpivot.py`
+- [ ] `pirn/domains/data/frames/polars/window_calc.py` — `PolarsWindowCalc`
+- [ ] Bridge knots: `pirn/domains/data/frames/polars/bridges/data_batch_to_polars.py` and `polars_to_data_batch.py` (Arrow zero-copy where possible)
+- [ ] Acceptance test: real Tapestry — `LocalFilesystemReadSource` → `BytesToPolars` → polars filter/aggregate → `PolarsToParquetSink`
+
+Follow-up Tier-2 engines (in subsequent slices, only on demonstrated demand):
+- [ ] Pandas (`pirn/domains/data/frames/pandas/`)
+- [ ] DuckDB in-process (`pirn/domains/data/frames/duckdb/`)
+- [ ] DataFusion (`pirn/domains/data/frames/datafusion/`)
+- [ ] PyArrow native ops (`pirn/domains/data/frames/pyarrow/`)
+- [ ] Datatable (`pirn/domains/data/frames/datatable/`)
+- [ ] cuDF (Tier 2-GPU; `pirn/domains/data/frames/cudf/`)
+- [ ] Vaex (Tier 2.5; `pirn/domains/data/frames/vaex/`)
+- [ ] Modin (Tier 2.5; `pirn/domains/data/frames/modin/`)
+
+### Tier 3 — Push-down / lazy / distributed (start with Ibis)
+
+- [ ] `pirn/domains/data/lazy/ibis/ibis_table.py` — wrapper for `ibis.Table`
+- [ ] `pirn/domains/data/lazy/ibis/source.py` — `IbisSource(connection, table)`
+- [ ] `pirn/domains/data/lazy/ibis/filter.py` — `IbisFilter`
+- [ ] `pirn/domains/data/lazy/ibis/group_by_aggregate.py` — `IbisGroupByAggregate`
+- [ ] `pirn/domains/data/lazy/ibis/join.py` — `IbisJoin`
+- [ ] `pirn/domains/data/lazy/ibis/window.py` — `IbisWindow`
+- [ ] `pirn/domains/data/lazy/ibis/sink.py` — `IbisToTable` (compiles, executes server-side)
+- [ ] Acceptance test: Postgres source → IbisFilter → IbisGroupByAggregate → IbisToTable; assert one compiled SQL query hits the database, no rows enter Python
+
+Follow-up Tier-3 engines:
+- [ ] PySpark (`pirn/domains/data/lazy/spark/`)
+- [ ] Ray Data (`pirn/domains/data/lazy/ray/`)
+- [ ] Dask (`pirn/domains/data/lazy/dask/`)
+
+### Tier 3 — Streaming dataflow
+
+- [ ] Pathway integration (`pirn/domains/data/streaming/pathway/`)
+- [ ] Bytewax integration (`pirn/domains/data/streaming/bytewax/`)
+- [ ] Acceptance test: Kafka source → Bytewax windowed aggregation → Postgres sink
+
+### Tier 4 — Specialized formats
+
+- [ ] Lance (`pirn/domains/data/specialized/lance/`) — ML/realtime, vector-friendly
+- [ ] Eland (`pirn/domains/data/specialized/eland/`) — Elasticsearch DataFrame API
+
+### Validation framework integrations (cross-tier)
+
+- [ ] Pandera (`pirn/domains/data/validation/pandera/`) — schema-first, Pandas/Polars-native
+- [ ] Great Expectations (`pirn/domains/data/validation/great_expectations/`) — broader checks
+- [ ] Bridge: convert pandera failures into pirn `QualityReport` instances; same for GE Suite results
+
+### Sources & Sinks (data-domain wrappers around connectors)
+
+- [ ] `pirn/domains/data/sources/file_source.py`, `api_source.py`, `stream_source.py` (`SqlSource` already covered by Tier-2/3 engines)
+- [ ] `pirn/domains/data/sinks/file_sink.py`, `data_catalog_sink.py`
+
+### Specializations (53 from PRD; built on top of Tier 2/3 — NOT Tier 1)
+
+- [ ] `specializations/ingestion.py` — Full/Watermark/AppendOnly/CDC/APIPaged/PartitionedDateRange
+- [ ] `specializations/medallion.py` — Bronze/Silver/Gold
+- [ ] `specializations/scd.py` — SCD Types 0–7
+- [ ] `specializations/dedup.py` — Exact/Fuzzy/Proximity
+- [ ] `specializations/time_series.py` — Resampler/Lag/RollingStats
+- [ ] `specializations/quality.py` — TrendGate/DistributionShiftDetector
+- [ ] `specializations/feature_engineering.py` — DerivedColumn/Binning/GeoEnricher
+- [ ] `specializations/analytics_eng.py` — DimensionTable/FactTable/BridgeTable
+
+### Examples & integration tests
+
+- [ ] `examples/data_engineering/incremental_etl.py` — full SqlSource → quality → transforms → SqlSink
+- [ ] `tests/integration/domains/data/test_polars_pipeline.py`
+- [ ] `tests/integration/domains/data/test_ibis_pushdown_acceptance.py` (Postgres-real)
 
 ---
 

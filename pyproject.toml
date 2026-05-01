@@ -84,6 +84,63 @@ signal  = ["scipy>=1.12", "pywavelets>=1.5", "librosa>=0.10"]
 oilgas  = ["segyio>=1.9", "lasio>=0.31"]
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Tiered data-domain engines — see ARD: Tiered Data-Domain Architecture.
+# Each tier is its own opt-in. Tier-1 (DataBatch, dict-based) ships with
+# the `data` extra above; the rest layer on top.
+# ─────────────────────────────────────────────────────────────────────────────
+# Tier 0 — foundational columnar / specialized layouts
+arrow   = ["pyarrow>=14.0"]
+xarray  = ["xarray>=2024.0"]
+awkward = ["awkward>=2.5"]
+
+# Tier 2 — single-machine native frames (CPU)
+polars     = ["polars>=0.20"]
+datafusion = ["datafusion>=40.0"]
+datatable  = ["datatable>=1.1"]
+
+# Tier 2-GPU
+cudf = ["cudf-cu12>=24.0"]   # NVIDIA Rapids; CUDA 12 build by default
+
+# Tier 2.5 — out-of-core / drop-in distributed
+vaex  = ["vaex>=4.17"]
+modin = ["modin>=0.30"]
+
+# Tier 3 — push-down / lazy / distributed
+ibis    = ["ibis-framework>=9.0"]
+spark   = ["pyspark>=3.5"]
+ray-data = ["ray[data]>=2.10"]
+# Note: existing `dask` extra above already covers Dask.
+
+# Tier 3 — streaming dataflow
+pathway = ["pathway>=0.13"]
+bytewax = ["bytewax>=0.21"]
+
+# Tier 4 — specialized
+lance = ["pylance>=0.18"]
+eland = ["eland>=8.13"]
+
+# Validation frameworks (cross-tier; integrate with quality knots)
+pandera           = ["pandera>=0.20"]
+great-expectations = ["great-expectations>=0.18"]
+
+# Convenience aggregate that pulls every Tier-2 single-machine CPU frame engine.
+all-frames = [
+    "polars>=0.20",
+    "pandas>=2.0",
+    "pyarrow>=14.0",
+    "duckdb>=0.10",
+    "datafusion>=40.0",
+]
+
+# Convenience aggregate for the lazy/push-down tier.
+all-lazy = [
+    "ibis-framework>=9.0",
+    "pyspark>=3.5",
+    "ray[data]>=2.10",
+    "dask[distributed]>=2024.1",
+]
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Additional connector extras (pirn/domains/connectors/) — per backend.
 # Reuses existing persistence extras (postgres, sqlite, duckdb, s3, gcs,
 # azure, kafka, valkey) where the underlying library is the same.

@@ -43,6 +43,18 @@ All seven libraries ship inside the `pirn` package as `pirn/domains/<name>/`. He
 
 ## Domain 1: `pirn.domains.data` — Data Engineering / Analytics Engineering
 
+> **Architecture note:** The data domain is *tiered*. Pirn is an
+> orchestrator; engines do the work. Knots are thin wrappers around
+> library-native operations (Polars, Ibis, Pandas, DuckDB, PySpark, Ray,
+> Pathway, Bytewax, Lance, Eland, …). Each tier has its own parallel
+> transform set — pirn deliberately does not unify them under a single
+> `Frame` interface, because each engine's idioms (lazy expressions,
+> push-down, vectorisation) are part of why users pick that engine.
+> Tier 1 (`DataBatch`, dict-based) is a fallback for small batches and
+> glue, *not* the default. See ARD: **Decision: Tiered Data-Domain
+> Architecture (Position B)** for the full tier model and engine roster.
+
+
 ### Problem
 
 ETL/ELT pipelines are pirn's most natural fit, yet users must reinvent extract/transform/load wiring every time. There is no shared vocabulary for data quality, schema validation, partitioning, or incremental loading.
