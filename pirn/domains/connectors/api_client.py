@@ -1,16 +1,24 @@
 """Interface for async HTTP-based SaaS API connectors.
 
 Concrete implementations (Salesforce, HubSpot, Stripe, GitHub, ...)
-inherit from :class:`ApiClient` and override every method. Following
-the existing pirn interface convention (see
-:class:`DatabaseConnectionPool`, :class:`MessageBroker`,
-:class:`ObjectStore`) — base methods raise :class:`NotImplementedError`
-naming the concrete subclass that failed to implement them.
+inherit from :class:`ApiClient` for lifecycle management
+(``close()``) and credential-safe error reporting
+(``_reraise_scrubbed``). The preferred way to interact with a
+connector is via:
 
-Pagination is intentionally NOT part of the interface — every SaaS API
-uses a different pagination shape (cursor, offset, page-token, Link
-header, nextRecordsUrl, ...). Concrete connectors expose their own
-pagination helpers on top of :meth:`request`.
+1. **Vendor-typed methods.** Each connector exposes domain-specific
+   methods (``StripeClient.list_charges``, ``GitHubClient.get_repo``,
+   ``SalesforceClient.soql``).
+2. **Capability mixins** in
+   :mod:`pirn.domains.connectors.capabilities` (``TableSource``,
+   ``EventEmitter``, ``MetadataCatalog``, ``RecordWriter``,
+   ``MetricQuery``). Knots accept capability types — any connector
+   that satisfies the capability is interchangeable.
+
+The legacy :meth:`request` method is a generic, string-typed escape
+hatch retained for backward compatibility. New code should prefer
+vendor methods or capability calls; ``request`` will be deprecated
+in a future release once every existing call site has migrated.
 """
 
 from __future__ import annotations
@@ -39,7 +47,15 @@ class ApiClient(PirnOpaqueValue):
         body: Mapping[str, Any] | None = None,
         headers: Mapping[str, str] | None = None,
     ) -> Any:
-        """Send an authenticated HTTP request and return the parsed body."""
+        """Send an authenticated HTTP request and return the parsed body.
+
+        .. deprecated::
+            Use vendor-typed methods or
+            :mod:`pirn.domains.connectors.capabilities` mixins instead.
+            ``request`` is retained as a generic escape hatch for cases
+            the typed surface does not yet cover; new code should
+            avoid it.
+        """
         raise NotImplementedError(
             f"{type(self).__name__} must implement request()"
         )

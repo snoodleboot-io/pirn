@@ -674,23 +674,90 @@ Should be its own conservative PR or set of PRs (one area at a time).
 ### Batch 3 — Option D ApiClient refactor (architectural)
 
 **Scope:** replace the generic `request(method, path, ...)` with a
-facade-plus-capability-mixin design. This is a deliberate breaking
-change, larger arc, gets its own ticket.
+facade-plus-capability-mixin design. Migration is **additive** — the
+legacy `request` method stays as a deprecated escape hatch so existing
+tests and call sites keep working.
 
-- [ ] **Define capability interfaces** (small, single-purpose):
-  - `TableSource` — `async fetch_page(cursor) → tuple[rows, next_cursor]`
-  - `EventEmitter` — `async emit(event_type, properties) → None`
-  - `MetadataCatalog` — `async list_entities(filter) → AsyncIterator[Entity]`
+- [x] **Capability interfaces created** in
+  `pirn/domains/connectors/capabilities/`:
+  - `TableSource` — `async fetch_page(cursor, *, page_size) → (rows, next_cursor)`
+  - `EventEmitter` — `async emit(event)` and default `emit_many(events)`
+  - `MetadataCatalog` — `async list_entities(entity_type, *, filter)` and `describe_entity(id)`
   - `RecordWriter` — `async write_records(records) → int`
-- [ ] **Keep `ApiClient` as the lifecycle base** — `close()` and the
-  opaque pydantic schema, nothing else.
-- [ ] **Migrate the 21 ApiClient subclasses** to expose vendor-typed
-  methods + opt into capability mixins where they fit. Generic
-  `request()` stays as a deprecated escape hatch for one minor version,
-  then is removed.
-- [ ] **Update consumer Knots** to depend on capability interfaces, not
-  on concrete connectors. SubTapestries that ingest from any
-  `TableSource` become reusable across vendors.
+  - `MetricQuery` — `async query(query, *, start, end, step)`
+- [x] **`ApiClient.request` marked as legacy escape hatch** in docstring;
+  remains the entry path for connectors that have not yet been migrated.
+- [x] **Exemplar migrations:** `StripeClient` (TableSource over
+  `list_charges`/`list_customers` + vendor-typed methods),
+  `MixpanelClient` (EventEmitter over `track` + vendor-typed `track` /
+  `import_data`).
+
+#### Connector → capability mapping (Batch 3.5 plan)
+
+The remaining 19 ApiClient subclasses + the 2 non-ApiClient connectors
+will gain capability implementations + vendor-typed methods according
+to this map. Each connector keeps its existing `request()` for
+backward compatibility.
+
+**TableSource** (14 connectors):
+- `SalesforceClient` (SOQL → fetch_page)
+- `HubSpotClient` (CRM lists)
+- `ShopifyClient` (orders, products)
+- `GitHubClient` (issues, repos)
+- `JiraClient` (search)
+- `ZendeskClient` (tickets, users)
+- `GoogleAnalyticsClient` (run_report rows)
+- `FivetranClient` (connectors list)
+- `AirbyteClient` (connections, sync history)
+- `DataHubClient` (entities)
+- `OpenMetadataClient` (entities)
+- `AlationClient` (entities)
+- `DatadogClient` (metrics list)
+- `StripeClient` (✓ done)
+
+**EventEmitter** (3 connectors):
+- `MixpanelClient` (✓ done)
+- `AmplitudeClient` (track)
+- `DatadogClient` (custom metric push — optional second capability)
+
+**MetadataCatalog** (4 connectors):
+- `DataHubClient`
+- `OpenMetadataClient`
+- `AlationClient`
+- `DbtArtifactsReader` (manifest entities — note: not an `ApiClient`)
+
+**RecordWriter** (3-4 connectors):
+- `HubSpotClient` (create contacts / companies)
+- `SalesforceClient` (insert records)
+- `ZendeskClient` (create tickets)
+- `TwilioClient` (send SMS — debatable; treat as RecordWriter where
+  each message is a record)
+
+**MetricQuery** (3 connectors):
+- `PrometheusClient`
+- `GrafanaClient`
+- `DatadogClient` (query API)
+
+**No capability** (vendor-only methods):
+- `OpenTelemetryEmitter` — already has its own typed `emit_span`; not
+  an `ApiClient`.
+- Connectors with extreme vendor-specific APIs that don't fit any
+  capability stay request()-only until a capability covers them.
+
+#### Batch 3.5 — bulk migration
+
+- [ ] Spawn parallel agents (~3 waves of 5-7 connectors each) to add
+  vendor-typed methods + capability inheritance + capability adapter
+  methods to each connector. Each migration is additive — don't break
+  the existing `request()` path or its tests.
+- [ ] Add unit tests for each new vendor-typed method and each
+  capability adapter (one happy-path test per method, using the same
+  injected stub clients the existing tests already use).
+- [ ] **Update consumer Knots** to depend on capability interfaces.
+  Identify which knots currently consume connectors via `request()`
+  and offer an upgrade path. (Currently zero such knots — the
+  capability interfaces let new ingestion-style SubTapestries be
+  vendor-agnostic from day one.)
 
 ### Sequencing
 

@@ -1,10 +1,15 @@
 """Mixpanel ingestion connector wrapping the sync ``mixpanel.Mixpanel`` SDK.
 
 The official ``mixpanel`` SDK is synchronous and ingestion-only; calls
-run in a worker thread via :func:`asyncio.to_thread` so the connector
-cooperates with pirn's async runtime without blocking the event loop.
-The generic :meth:`request` interface dispatches based on ``path`` to
-the matching SDK method (``track``, ``import_data``).
+run in a worker thread via :func:`asyncio.to_thread`. The connector
+exposes:
+
+1. The :class:`EventEmitter` capability — :meth:`emit` accepts a
+   single Mixpanel-shaped event (``{"distinct_id", "event", "properties"}``)
+   and forwards it to ``Mixpanel.track``.
+2. The vendor-typed :meth:`track` and :meth:`import_data` methods.
+3. The legacy :meth:`request` escape hatch with ``method="POST"`` and
+   ``path="/track"`` or ``"/import"``.
 """
 
 from __future__ import annotations
@@ -14,11 +19,12 @@ import logging
 from typing import Any, Mapping
 
 from pirn.domains.connectors.api_client import ApiClient
+from pirn.domains.connectors.capabilities.event_emitter import EventEmitter
 from pirn.domains.connectors.dsn_scrubber import DsnScrubber
 from pirn.domains.connectors.saas.mixpanel_config import MixpanelConfig
 
 
-class MixpanelClient(ApiClient):
+class MixpanelClient(ApiClient, EventEmitter):
     """Async wrapper over a sync ``mixpanel.Mixpanel`` client."""
 
     def __init__(
@@ -40,6 +46,44 @@ class MixpanelClient(ApiClient):
     @property
     def config(self) -> MixpanelConfig | None:
         return self._config
+
+    async def emit(self, event: Mapping[str, Any]) -> None:
+        """:class:`EventEmitter` adapter — forwards to :meth:`track`.
+
+        ``event`` requires keys ``distinct_id`` and ``event``;
+        ``properties`` is optional.
+        """
+        if "distinct_id" not in event or "event" not in event:
+            raise ValueError(
+                "MixpanelClient.emit: event requires 'distinct_id' and "
+                "'event' keys"
+            )
+        await self.track(
+            distinct_id=event["distinct_id"],
+            event_name=event["event"],
+            properties=event.get("properties"),
+        )
+
+    async def track(
+        self,
+        *,
+        distinct_id: str,
+        event_name: str,
+        properties: Mapping[str, Any] | None = None,
+    ) -> None:
+        """Vendor-typed wrapper around ``Mixpanel.track``."""
+        client = await self._ensure_client()
+        properties_arg: dict[str, Any] = (
+            dict(properties) if properties is not None else {}
+        )
+        await asyncio.to_thread(
+            client.track, distinct_id, event_name, properties_arg
+        )
+
+    async def import_data(self, **payload: Any) -> Any:
+        """Vendor-typed wrapper around ``Mixpanel.import_data``."""
+        client = await self._ensure_client()
+        return await asyncio.to_thread(client.import_data, **payload)
 
     async def request(
         self,

@@ -1,9 +1,20 @@
 """Stripe SaaS connector wrapping the synchronous ``stripe`` SDK.
 
-Stripe's modern Python SDK ships a per-instance ``stripe.StripeClient``
-that supports a generic ``raw_request`` escape hatch — used here to map
-onto the :class:`ApiClient` interface. The SDK is synchronous; calls
-run in a worker thread via :func:`asyncio.to_thread`.
+Stripe's modern Python SDK ships a per-instance ``stripe.StripeClient``.
+The connector exposes:
+
+1. **Vendor-typed methods** for the most common reads
+   (:meth:`list_charges`, :meth:`list_customers`).
+2. The :class:`TableSource` capability, which routes ``fetch_page`` to
+   ``list_charges`` by default. Override the default by passing
+   ``object_type=`` to the constructor for a different Stripe list
+   endpoint.
+3. The legacy :meth:`request` escape hatch (forwards to
+   ``stripe.StripeClient.raw_request``) for cases the typed surface
+   does not cover.
+
+The SDK is synchronous; calls run in a worker thread via
+:func:`asyncio.to_thread`.
 """
 
 from __future__ import annotations
@@ -13,11 +24,12 @@ import logging
 from typing import Any, Mapping
 
 from pirn.domains.connectors.api_client import ApiClient
+from pirn.domains.connectors.capabilities.table_source import TableSource
 from pirn.domains.connectors.dsn_scrubber import DsnScrubber
 from pirn.domains.connectors.saas.stripe_config import StripeConfig
 
 
-class StripeClient(ApiClient):
+class StripeClient(ApiClient, TableSource):
     """Async wrapper over the sync ``stripe.StripeClient``."""
 
     def __init__(
@@ -25,20 +37,92 @@ class StripeClient(ApiClient):
         config: StripeConfig | None = None,
         *,
         client: Any = None,
+        object_type: str = "charges",
     ) -> None:
         if config is None and client is None:
             raise TypeError(
                 "StripeClient requires either config= or client="
             )
+        if not isinstance(object_type, str) or not object_type:
+            raise ValueError(
+                "StripeClient: object_type must be a non-empty string"
+            )
         self._config = config
         self._client = client
         self._closed = False
+        self._object_type = object_type
         self._scrubber = DsnScrubber()
         self._logger = logging.getLogger(self.__class__.__module__)
 
     @property
     def config(self) -> StripeConfig | None:
         return self._config
+
+    @property
+    def object_type(self) -> str:
+        return self._object_type
+
+    async def list_charges(
+        self,
+        *,
+        starting_after: str | None = None,
+        limit: int | None = None,
+    ) -> tuple[list[Mapping[str, Any]], str | None]:
+        """Vendor-typed read of Stripe charges.
+
+        Returns ``(charges, next_cursor)`` where ``next_cursor`` is the
+        id of the last charge if Stripe says more pages remain, else
+        ``None``. ``starting_after`` is Stripe's cursor parameter.
+        """
+        return await self._list_object(
+            "charges", starting_after=starting_after, limit=limit
+        )
+
+    async def list_customers(
+        self,
+        *,
+        starting_after: str | None = None,
+        limit: int | None = None,
+    ) -> tuple[list[Mapping[str, Any]], str | None]:
+        """Vendor-typed read of Stripe customers (same shape as :meth:`list_charges`)."""
+        return await self._list_object(
+            "customers", starting_after=starting_after, limit=limit
+        )
+
+    async def fetch_page(
+        self,
+        cursor: str | None = None,
+        *,
+        page_size: int | None = None,
+    ) -> tuple[list[Mapping[str, Any]], str | None]:
+        """:class:`TableSource` adapter — pages the configured ``object_type``."""
+        return await self._list_object(
+            self._object_type,
+            starting_after=cursor,
+            limit=page_size,
+        )
+
+    async def _list_object(
+        self,
+        object_type: str,
+        *,
+        starting_after: str | None,
+        limit: int | None,
+    ) -> tuple[list[Mapping[str, Any]], str | None]:
+        params: dict[str, Any] = {}
+        if starting_after is not None:
+            params["starting_after"] = starting_after
+        if limit is not None:
+            params["limit"] = limit
+        response = await self.request(
+            "GET", f"/v1/{object_type}", params=params or None
+        )
+        rows = list(response.get("data") or ())
+        has_more = bool(response.get("has_more"))
+        next_cursor = (
+            rows[-1].get("id") if has_more and rows else None
+        )
+        return rows, next_cursor
 
     async def request(
         self,
