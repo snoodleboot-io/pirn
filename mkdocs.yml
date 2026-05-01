@@ -49,6 +49,7 @@ nav:
     - Concepts: getting-started/concepts.md
     - First Pipeline: getting-started/first-pipeline.md
   - Guides:
+    - Knot Registration: guides/knot-registration.md
     - YAML Pipelines: guides/yaml-pipelines.md
     - Error Handling: guides/error-handling.md
     - Backends: guides/backends.md

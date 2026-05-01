@@ -195,18 +195,7 @@ The loader's `_resolve_callable` checks `known_callables` first. In strict mode,
 
 ### Auto-discovery with `fill_registry`
 
-For `Knot` subclasses, use `sweet_tea`'s `fill_registry` at your application entry point. It recursively scans the package and registers every `Knot` subclass it finds — no manual dict required:
-
-```python
-# main.py (or wherever your app starts)
-from sweet_tea.registry import Registry
-
-Registry.fill_registry(module="myapp")   # scan your entire package
-
-tapestry = load_pipeline(yaml_text)      # no known_callables needed
-```
-
-The YAML loader resolves any name registered with `Registry.fill_registry()` automatically through `AbstractInverterFactory[Knot]`. Pirn calls `fill_registry()` on its own tree at import time, so every built-in Knot is already resolvable by name. **For your own knots, you must call** `Registry.fill_registry()` **from your project's package init** — otherwise the loader will not find them.
+Pirn calls `Registry.fill_registry()` on its own tree at import time, so every built-in pirn Knot is resolvable by name out of the box. **For your own knots, you must call** `Registry.fill_registry()` **from your project's package init** — otherwise the loader will not find them:
 
 ```python
 # myapp/__init__.py
@@ -215,27 +204,11 @@ from sweet_tea.registry import Registry
 Registry.fill_registry()   # scans myapp/ and registers every class defined in it
 ```
 
-For `@knot`-decorated functions (which produce factories, not importable classes), register the underlying knot class explicitly:
+After that, any `Knot` subclass under `myapp/` is resolvable from YAML by its snake-case class name, with no `known_callables` argument needed.
 
-```python
-from sweet_tea.registry import Registry
-from myapp.knots import score_text, route_selector
+`known_callables` remains supported as a per-call override with the highest priority — useful in tests or when the same callable needs multiple pipeline-specific aliases.
 
-Registry.register("score_text", score_text.knot_class, library="myapp")
-Registry.register("route_selector", route_selector.knot_class, library="myapp")
-```
-
-`known_callables` remains supported as a per-call override with the highest priority — useful in tests or when the same callable has multiple pipeline-specific aliases.
-
-To look up a Knot class directly with library scoping, use sweet_tea's `AbstractInverterFactory[Knot]`:
-
-```python
-from sweet_tea.abstract_inverter_factory import AbstractInverterFactory
-from pirn.core.knot import Knot
-
-knot_class = AbstractInverterFactory[Knot].create("my_knot", library="myapp")
-instance   = knot_class(**kwargs)
-```
+**For the full registration story** — manual `Registry.register` calls, registering `@knot`-decorated factories, library scoping, troubleshooting, and lifecycle rules — see the [Knot Registration guide](knot-registration.md).
 
 ---
 
