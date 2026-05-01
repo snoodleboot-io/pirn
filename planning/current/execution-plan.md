@@ -54,6 +54,29 @@
 
 **Priority tier total:** 7 connectors, 134 unit tests, all green. 327 total unit tests pass with no regressions.
 
+### Conventions refactor (Layer 1)
+
+The original priority-tier shipping violated multiple project conventions; this work was redone:
+
+- [x] One class per file (28 single-class source files — 14 Config + 14 backend; protocols.py split into 4 interface files; data/types.py split into 4 contract files; valkey split into 3 files including the message Record)
+- [x] Interface pattern not Protocol — base classes raise `NotImplementedError(f"{type(self).__name__} must implement X()")`, matching `pirn/streaming/base.py`, `pirn/triggers/base.py`, `pirn/backends/base/run_history.py`
+- [x] No module-level constants — every regex pattern and lookup tuple now lives as instance attributes initialised in `__init__`
+- [x] Free functions moved into classes — `scrub_dsn` → `DsnScrubber.scrub`, `require_extra` → `ExtrasLoader.require`, `_validate_key` → `S3Store._validate_key`
+- [x] SOLID — Config and behaviour split (separate XConfig + XPool/XStore/XBroker classes in separate files); backends inherit from interfaces (DIP); each class has a single responsibility
+
+### Layer 2: connector Knots (real pirn integration)
+
+Backends from the priority tier are now wrapped in `Source` / `Sink` knot subclasses so they actually compose into a `Tapestry` and register with `KnotRegistry` for YAML pipelines:
+
+- [x] `ObjectStoreReadSource` (Source) — reads bytes at a configured key
+- [x] `ObjectStoreWriteSink` (Sink) — writes parent's bytes to a configured key
+- [x] `ObjectStoreListSource` (Source) — lists keys under a prefix
+- [x] `DatabaseQuerySource` (Source) — runs parameterised SELECT, returns rows
+- [x] `DatabaseExecuteSink` (Sink) — runs parameterised INSERT/UPDATE per row
+- [x] `MessageBrokerPublishSink` (Sink) — publishes parent's bytes to a topic
+- [x] `ConnectorKnotRegistration` — registers all six knots with `KnotRegistry` under the `connectors.*` namespace
+- [x] **Acceptance test (ATDD):** real `Tapestry` running file → transform → sqlite end-to-end via Layer-1+Layer-2 composition; lineage records all three knots as `ok`
+
 ### Databases — Extended tier
 - [ ] `connectors/databases/bigquery.py` — `BigQueryConnector`
 - [ ] `connectors/databases/snowflake.py` — `SnowflakeConnector`
