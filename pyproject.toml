@@ -95,7 +95,7 @@ redshift   = ["asyncpg>=0.29"]                  # PostgreSQL wire protocol
 clickhouse = ["clickhouse-connect>=0.7"]
 databricks = ["databricks-sql-connector>=3.0"]
 mssql      = ["aioodbc>=0.5"]
-oracle     = ["python-oracledb>=2.0"]
+oracle     = ["oracledb>=2.0"]
 kinesis    = ["aioboto3>=12.0"]
 pubsub     = ["google-cloud-pubsub>=2.0"]
 rabbitmq   = ["aio-pika>=9.0"]
@@ -122,7 +122,10 @@ all-db = [
     "clickhouse-connect>=0.7",
     "databricks-sql-connector>=3.0",
     "aioodbc>=0.5",
-    "python-oracledb>=2.0",
+    # Oracle (oracledb) is intentionally NOT in all-db so the convenience
+    # aggregate stays installable in environments without Oracle Instant
+    # Client / wheels for every (Python, OS) combination. Users who need
+    # Oracle install ``pirn[oracle]`` directly.
 ]
 all-storage = [
     "aioboto3>=12.0",
@@ -188,7 +191,8 @@ all = [
     "clickhouse-connect>=0.7",
     "databricks-sql-connector>=3.0",
     "aioodbc>=0.5",
-    "python-oracledb>=2.0",
+    # Oracle excluded from "all" for the same reason as "all-db" — see comment
+    # there. Install ``pirn[oracle]`` directly when needed.
     "google-cloud-pubsub>=2.0",
     "aio-pika>=9.0",
     "azure-servicebus>=7.0",
@@ -220,6 +224,7 @@ all = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["pirn"]
+
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
