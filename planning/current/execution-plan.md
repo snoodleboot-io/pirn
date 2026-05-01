@@ -146,10 +146,20 @@ The Layer-2 work as initially shipped wrapped registration in custom code — it
 
 ## Block 3 — `pirn.domains.data`
 
-- [ ] `pirn/domains/data/types.py` — `DataBatch`, `DataSchema`, `QualityReport`, `QualityCheck`
+- [x] `pirn/domains/data/data_schema.py` — `DataSchema` (one class per file)
+- [x] `pirn/domains/data/data_batch.py` — `DataBatch`
+- [x] `pirn/domains/data/quality_check.py` — `QualityCheck`
+- [x] `pirn/domains/data/quality_report.py` — `QualityReport`
+- [x] `pirn/domains/data/data_profile.py` — `DataProfile` + `ColumnProfile`
 - [ ] `pirn/domains/data/sources.py` — `SqlSource`, `FileSource`, `ApiSource`, `StreamSource`
 - [ ] `pirn/domains/data/transforms.py` — `Rename`, `Cast`, `Filter`, `Deduplicate`, `Normalize`, `Join`, `Pivot`, `Unpivot`, `Aggregate`, `WindowCalc`
-- [ ] `pirn/domains/data/quality.py` — `SchemaValidator`, `RowCountGate`, `NullRateGate`, `FreshnessGate`, `Profiler`
+- [x] `pirn/domains/data/quality/schema_validator.py` — `SchemaValidator` (presence/type/null checks per column)
+- [x] `pirn/domains/data/quality/row_count_gate.py` — `RowCountGate` (min/max bounds)
+- [x] `pirn/domains/data/quality/null_rate_gate.py` — `NullRateGate` (per-column null-rate thresholds)
+- [x] `pirn/domains/data/quality/freshness_gate.py` — `FreshnessGate` (max-age on a timestamp column)
+- [x] `pirn/domains/data/quality/profiler.py` — `Profiler` (emits `DataProfile`, observation-only)
+- [x] **Acceptance test:** real `Tapestry` running extract → `SchemaValidator`+`RowCountGate` → `Gate(predicate=lambda r: r.passed)` → `DatabaseExecuteSink` end-to-end. Happy path writes the rows; invalid path halts at the Gate, sink reports `skipped` in lineage, DB stays empty. (`tests/integration/domains/data/test_quality_pipeline_acceptance.py`)
+- [x] **Quality knots are `Knot` subclasses, not `Gate` subclasses.** They emit `QualityReport`/`DataProfile` for assessment; the user composes a `Gate(input=report, predicate=lambda r: r.passed, ...)` for halt-on-failure. Documented in `SchemaValidator` docstring as the standard pattern.
 - [ ] `pirn/domains/data/sinks.py` — `SqlSink`, `FileSink`, `DataCatalogSink`
 - [ ] `pirn/domains/data/specializations/ingestion.py` — `FullRefreshExtract`, `WatermarkIncrementalExtract`, `AppendOnlyIngest`, `CDC_DebeziumConsumer`, `APIPagedExtract`, `PartitionedDateRangeExtract`
 - [ ] `pirn/domains/data/specializations/medallion.py` — `BronzeRawIngest`, `SilverCleanTransform`, `GoldAggregation`
