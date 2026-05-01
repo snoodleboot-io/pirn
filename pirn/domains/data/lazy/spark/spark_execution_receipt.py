@@ -14,12 +14,11 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
-from pydantic import GetCoreSchemaHandler
-from pydantic_core import CoreSchema, core_schema
+from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 
 @dataclass(frozen=True)
-class SparkExecutionReceipt:
+class SparkExecutionReceipt(PirnOpaqueValue):
     """Lineage-friendly summary of one Tier-3 Spark execution.
 
     Attributes
@@ -41,20 +40,11 @@ class SparkExecutionReceipt:
     output_path: str | None
     completed_at: datetime = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
-    @classmethod
-    def __get_pydantic_core_schema__(
-        cls, source_type: Any, handler: GetCoreSchemaHandler
-    ) -> CoreSchema:
-        """Treat as opaque to pydantic; serialise to a primitive dict."""
-        return core_schema.is_instance_schema(
-            cls,
-            serialization=core_schema.plain_serializer_function_ser_schema(
-                lambda v: {
-                    "succeeded": v.succeeded,
-                    "row_count": v.row_count,
-                    "output_path": v.output_path,
-                    "completed_at": v.completed_at.isoformat(),
-                },
-                when_used="always",
-            ),
-        )
+    def _pirn_audit_dict(self) -> dict[str, Any]:
+        """Flatten to a primitive dict for pydantic serialisation."""
+        return {
+            "succeeded": self.succeeded,
+            "row_count": self.row_count,
+            "output_path": self.output_path,
+            "completed_at": self.completed_at.isoformat(),
+        }

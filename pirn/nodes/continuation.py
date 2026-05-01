@@ -9,7 +9,7 @@ Example::
 
     from pirn.nodes.continuation import Next, continues
 
-    POOL = {
+    pool = {
         "summarise": SummariseKnot,
         "web_search": WebSearchKnot,
     }
@@ -20,7 +20,7 @@ Example::
         return [Next("summarise", {"text": result.content})]
 
     search = WebSearchKnot(query=q, _config=KnotConfig(id="search"))
-    continues(search, fn=router, pool=POOL)
+    continues(search, fn=router, pool=pool)
 
 The continuation runs after ``search`` completes, calls ``router`` with the
 result, and registers whatever it returns into the running extensible tapestry.
@@ -41,7 +41,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -51,9 +51,6 @@ from pirn.tapestry import get_current_store
 
 Pool = dict[str, type[Knot]]
 ContinuationFn = Callable[[Any], "list[Next]"]
-
-# Built-in action name — always available without registering in a pool.
-END = "end"
 
 
 # ── Next ──────────────────────────────────────────────────────────────────────
@@ -106,6 +103,9 @@ class WithContinuation(Knot):
     explicit via ``Next("end")``, which registers a built-in ``_EndKnot``.
     """
 
+    # Built-in action name — always available without registering in a pool.
+    _end: ClassVar[str] = "end"
+
     def __init__(
         self,
         result: Knot,
@@ -118,7 +118,7 @@ class WithContinuation(Knot):
         object.__setattr__(self, "_mutable_fn", fn)
         # Built-in end action is always available; user pool entries take
         # precedence if they supply their own "end" knot.
-        object.__setattr__(self, "_mutable_pool", {END: _EndKnot, **pool})
+        object.__setattr__(self, "_mutable_pool", {WithContinuation._end: _EndKnot, **pool})
 
     async def process(self, result: Any, **_: Any) -> Any:  # type: ignore[override]
         fn: ContinuationFn = object.__getattribute__(self, "_mutable_fn")

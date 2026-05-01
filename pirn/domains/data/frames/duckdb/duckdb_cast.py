@@ -21,6 +21,7 @@ from typing import Any, Mapping
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.data.frames.duckdb.duckdb_data_batch import DuckdbDataBatch
+from pirn.domains.data.identifier_validator import IdentifierValidator
 
 
 class DuckdbCast(Knot):
@@ -70,14 +71,11 @@ class DuckdbCast(Knot):
         }
         if not applicable:
             return batch
-        identifier_re = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
         fragments: list[str] = []
         for column in batch.relation.columns:
-            if not identifier_re.match(column):
-                raise ValueError(
-                    f"DuckdbCast: refusing to cast — upstream column name "
-                    f"{column!r} is not a plain identifier"
-                )
+            IdentifierValidator.validate_column(
+                "DuckdbCast: upstream column", column
+            )
             if column in applicable:
                 fragments.append(
                     f'CAST("{column}" AS {applicable[column]}) AS "{column}"'

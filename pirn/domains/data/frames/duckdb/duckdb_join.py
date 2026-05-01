@@ -21,12 +21,12 @@ passed straight through; sanitise user-derived input before passing.
 
 from __future__ import annotations
 
-import re
 from typing import Any, Sequence
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.data.frames.duckdb.duckdb_data_batch import DuckdbDataBatch
+from pirn.domains.data.identifier_validator import IdentifierValidator
 
 
 class DuckdbJoin(Knot):
@@ -63,7 +63,6 @@ class DuckdbJoin(Knot):
                 raise TypeError(
                     "DuckdbJoin: pass either on= or condition=, not both"
                 )
-        identifier_re = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
         coerced_on: tuple[str, ...] | None = None
         if on is not None:
             if isinstance(on, str):
@@ -74,17 +73,7 @@ class DuckdbJoin(Knot):
                 raise TypeError(
                     "DuckdbJoin: on= must be a column name or a sequence of column names"
                 )
-            if not coerced_on:
-                raise ValueError("DuckdbJoin: on= must be non-empty")
-            for column in coerced_on:
-                if not isinstance(column, str) or not column:
-                    raise TypeError(
-                        "DuckdbJoin: every column in on= must be a non-empty string"
-                    )
-                if not identifier_re.match(column):
-                    raise ValueError(
-                        f"DuckdbJoin: on= column {column!r} is not a plain identifier"
-                    )
+            IdentifierValidator.validate_columns("DuckdbJoin: on=", coerced_on)
         if condition is not None:
             if not isinstance(condition, str) or not condition.strip():
                 raise TypeError(

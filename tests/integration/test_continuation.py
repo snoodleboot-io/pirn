@@ -4,7 +4,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
-from pirn.nodes.continuation import END, Next, continues
+from pirn.nodes.continuation import Next, WithContinuation, continues
 from pirn.tapestry import Tapestry
 
 
@@ -45,7 +45,7 @@ async def test_end_terminates_explicitly():
     with Tapestry() as t:
         q = Parameter("query", str, _config=KnotConfig(id="q2"))
         f = fetch(query=q, _config=KnotConfig(id="fetch2"))
-        continues(f, fn=lambda _: [Next(END)], pool={})
+        continues(f, fn=lambda _: [Next(WithContinuation._end)], pool={})
 
     r = await t.run(RunRequest(parameters={"query": "x"}), extensible=True)
     assert r.succeeded, [(e.knot_id, e.message) for e in r.exceptions]

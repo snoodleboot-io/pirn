@@ -6,18 +6,22 @@ to load a full object into memory.
 
 from __future__ import annotations
 
-from typing import Any, AsyncIterator
+from typing import AsyncIterator
 
-from pydantic import GetCoreSchemaHandler
-from pydantic_core import CoreSchema, core_schema
+from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 
-class ObjectStore:
+class ObjectStore(PirnOpaqueValue):
     """Interface every connector object-store implementation must satisfy.
 
     Implementations:
       - :class:`pirn.domains.connectors.object_storage.local_filesystem_store.LocalFilesystemStore`
       - :class:`pirn.domains.connectors.object_storage.s3_store.S3Store`
+
+    Pydantic treats stores as opaque (see
+    :class:`pirn.core.pirn_opaque_value.PirnOpaqueValue`); the default
+    identity-keyed serialiser keeps content-addressing cache stable
+    without descending into engine internals (boto3, gcs, ...).
     """
 
     async def get(self, key: str) -> AsyncIterator[bytes]:
@@ -69,21 +73,3 @@ class ObjectStore:
         if any(p == ".." for p in parts):
             raise ValueError("key must not contain '..' segments")
 
-    @classmethod
-    def __get_pydantic_core_schema__(
-        cls, source_type: Any, handler: GetCoreSchemaHandler
-    ) -> CoreSchema:
-        """Tell pydantic to treat object stores as opaque.
-
-        Concrete stores wrap engine-specific clients (boto3, gcs, …) that
-        are not pydantic-compatible. A dedicated serialiser emits a
-        stable string token so pirn's content-addressing cache can hash
-        the store without descending into the live engine state.
-        """
-        return core_schema.is_instance_schema(
-            cls,
-            serialization=core_schema.plain_serializer_function_ser_schema(
-                lambda v: f"<{type(v).__name__}@{id(v):x}>",
-                when_used="always",
-            ),
-        )

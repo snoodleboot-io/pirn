@@ -13,12 +13,12 @@ upstream data exfiltration via crafted column names.
 
 from __future__ import annotations
 
-import re
 from typing import Any, Mapping
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.data.frames.duckdb.duckdb_data_batch import DuckdbDataBatch
+from pirn.domains.data.identifier_validator import IdentifierValidator
 
 
 class DuckdbRename(Knot):
@@ -60,13 +60,10 @@ class DuckdbRename(Knot):
         # Validate every column name we're about to interpolate. Upstream
         # column names could in principle be crafted; refuse anything that
         # is not a bare identifier.
-        identifier_re = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
         for column in batch.relation.columns:
-            if not identifier_re.match(column):
-                raise ValueError(
-                    f"DuckdbRename: refusing to rename — upstream column "
-                    f"name {column!r} is not a plain identifier"
-                )
+            IdentifierValidator.validate_column(
+                "DuckdbRename: upstream column", column
+            )
         fragments: list[str] = []
         for column in batch.relation.columns:
             if column in applicable:

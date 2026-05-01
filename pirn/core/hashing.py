@@ -30,7 +30,7 @@ from pydantic import BaseModel
 class _Unhashable(Exception):
     """Internal sentinel used by ``_canonicalise`` to bail on opaque values."""
 
-    SENTINEL = "unhashable"
+    sentinel = "unhashable"
 
 
 def content_hash(value: Any) -> str:
@@ -54,7 +54,7 @@ def content_hash(value: Any) -> str:
     try:
         canonical = _canonicalise(value)
     except _Unhashable:
-        return f"sha256:{_Unhashable.SENTINEL}:{type(value).__name__}"
+        return f"sha256:{_Unhashable.sentinel}:{type(value).__name__}"
     payload = json.dumps(canonical, separators=(",", ":"), sort_keys=False).encode("utf-8")
     digest = hashlib.sha256(payload).hexdigest()
     return f"sha256:{digest}"

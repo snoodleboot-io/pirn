@@ -45,7 +45,7 @@ Example::
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -57,8 +57,6 @@ if TYPE_CHECKING:
     from pirn.tapestry import Tapestry
 
 S = TypeVar("S")
-
-_TERMINAL_ID = "__loop_terminal__"
 
 
 class _LoopTerminal(Knot):
@@ -130,7 +128,9 @@ class _IterationChainKnot(SubTapestry):
             )
             store.register(next_knot)
         else:
-            store.register(_LoopTerminal(state=self, _config=KnotConfig(id=_TERMINAL_ID)))
+            store.register(
+                _LoopTerminal(state=self, _config=KnotConfig(id=LoopSubTapestry._terminal_id))
+            )
 
         return new_state
 
@@ -150,6 +150,8 @@ class LoopSubTapestry(SubTapestry, Generic[S]):
     injection, and run recording.  Subclasses never call ``_run_inner``
     directly.
     """
+
+    _terminal_id: ClassVar[str] = "__loop_terminal__"
 
     def step(self, state: S) -> tuple[Tapestry, S] | None:
         """Build the next iteration's graph, or return None to terminate."""
@@ -193,4 +195,4 @@ class LoopSubTapestry(SubTapestry, Generic[S]):
         loop_t._store.register(first_knot)
 
         loop_result = await self._run_inner(loop_t, extensible=True)
-        return loop_result.outputs[_TERMINAL_ID]
+        return loop_result.outputs[LoopSubTapestry._terminal_id]

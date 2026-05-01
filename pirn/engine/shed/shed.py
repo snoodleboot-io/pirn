@@ -10,30 +10,48 @@ if TYPE_CHECKING:
     from pirn.core.knot import Knot
 
 
-def _visit_dfs(
-    kid: str,
-    color: dict[str, int],
-    children_by_parent: dict[str, list[str]],
-) -> bool:
-    """Single DFS step for cycle detection.  0=white, 1=grey, 2=black."""
-    color[kid] = 1
-    for child_id in children_by_parent.get(kid, []):
-        state = color.get(child_id, 0)
-        if state == 1:
-            return True
-        if state == 0 and _visit_dfs(child_id, color, children_by_parent):
-            return True
-    color[kid] = 2
-    return False
+class CycleDetector:
+    """DFS-based cycle detector for knot subgraphs.
+
+    Stateless utility wrapping the three-color DFS: 0=white, 1=grey,
+    2=black.  Exposed as static methods so call sites do not need to
+    instantiate the detector.
+    """
+
+    @staticmethod
+    def _visit_dfs(
+        kid: str,
+        color: dict[str, int],
+        children_by_parent: dict[str, list[str]],
+    ) -> bool:
+        """Single DFS step for cycle detection.  0=white, 1=grey, 2=black."""
+        color[kid] = 1
+        for child_id in children_by_parent.get(kid, []):
+            state = color.get(child_id, 0)
+            if state == 1:
+                return True
+            if state == 0 and CycleDetector._visit_dfs(child_id, color, children_by_parent):
+                return True
+        color[kid] = 2
+        return False
+
+    @staticmethod
+    def detect(knot_ids: list[str], children_by_parent: dict[str, list[str]]) -> bool:
+        """Return True if the graph contains a cycle."""
+        color: dict[str, int] = {kid: 0 for kid in knot_ids}
+        for kid in list(color.keys()):
+            if color[kid] == 0 and CycleDetector._visit_dfs(kid, color, children_by_parent):
+                return True
+        return False
 
 
 def detect_cycle(knot_ids: list[str], children_by_parent: dict[str, list[str]]) -> bool:
-    """Return True if the graph contains a cycle."""
-    color: dict[str, int] = {kid: 0 for kid in knot_ids}
-    for kid in list(color.keys()):
-        if color[kid] == 0 and _visit_dfs(kid, color, children_by_parent):
-            return True
-    return False
+    """Return True if the graph contains a cycle.
+
+    Thin wrapper kept for external callers; delegates to
+    ``CycleDetector.detect``.
+    """
+    return CycleDetector.detect(knot_ids, children_by_parent)
 
 
 class Shed:
@@ -80,7 +98,7 @@ class Shed:
                 queue.append(parent)
             s.edges_by_child[knot.knot_id] = edges
 
-        if detect_cycle(list(s.knots.keys()), s.children_by_parent):
+        if CycleDetector.detect(list(s.knots.keys()), s.children_by_parent):
             raise ShedError("cycle detected in shed")
 
         return s
@@ -162,7 +180,7 @@ class Shed:
             self.edges_by_child[k.knot_id] = edges
             added.add(k.knot_id)
 
-        if detect_cycle(list(self.knots.keys()), self.children_by_parent):
+        if CycleDetector.detect(list(self.knots.keys()), self.children_by_parent):
             for kid in added:
                 self.knots.pop(kid, None)
                 self.edges_by_child.pop(kid, None)

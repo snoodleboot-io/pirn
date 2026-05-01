@@ -17,12 +17,18 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
-from pydantic import GetCoreSchemaHandler
-from pydantic_core import CoreSchema, core_schema
+from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 
-class ApiClient:
-    """Interface every SaaS connector must satisfy."""
+class ApiClient(PirnOpaqueValue):
+    """Interface every SaaS connector must satisfy.
+
+    Pydantic treats clients as opaque (see
+    :class:`pirn.core.pirn_opaque_value.PirnOpaqueValue`); the default
+    identity-keyed serialiser keeps content-addressing cache stable
+    without descending into vendor SDKs (Salesforce, GitHub, Stripe,
+    ...).
+    """
 
     async def request(
         self,
@@ -56,26 +62,3 @@ class ApiClient:
         """
         raise type(exc)(self._scrubber.scrub(str(exc))) from None
 
-    @classmethod
-    def __get_pydantic_core_schema__(
-        cls, source_type: Any, handler: GetCoreSchemaHandler
-    ) -> CoreSchema:
-        """Tell pydantic to treat clients as opaque.
-
-        Concrete clients wrap vendor SDKs (Salesforce, GitHub, Stripe,
-        ...) that are not pydantic-compatible. Pirn IO validation just
-        needs ``isinstance(value, ApiClient)``; this short-circuit
-        avoids pydantic descending into vendor internals.
-
-        A dedicated serialiser emits a stable identity-based string
-        token so pirn's content-addressing cache can serialise the
-        client without introducing spurious cache hits across truly
-        different clients.
-        """
-        return core_schema.is_instance_schema(
-            cls,
-            serialization=core_schema.plain_serializer_function_ser_schema(
-                lambda v: f"<{type(v).__name__}@{id(v):x}>",
-                when_used="always",
-            ),
-        )

@@ -6,16 +6,20 @@ from __future__ import annotations
 
 from typing import Any, AsyncIterator
 
-from pydantic import GetCoreSchemaHandler
-from pydantic_core import CoreSchema, core_schema
+from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 
-class MessageBroker:
+class MessageBroker(PirnOpaqueValue):
     """Interface every connector broker implementation must satisfy.
 
     Implementations:
       - :class:`pirn.domains.connectors.streaming.kafka_broker.KafkaBroker`
       - :class:`pirn.domains.connectors.streaming.valkey_stream_broker.ValkeyStreamBroker`
+
+    Pydantic treats brokers as opaque (see
+    :class:`pirn.core.pirn_opaque_value.PirnOpaqueValue`); the default
+    identity-keyed serialiser keeps content-addressing cache stable
+    without descending into live engine state.
     """
 
     async def publish(
@@ -43,20 +47,3 @@ class MessageBroker:
             f"{type(self).__name__} must implement consume()"
         )
 
-    @classmethod
-    def __get_pydantic_core_schema__(
-        cls, source_type: Any, handler: GetCoreSchemaHandler
-    ) -> CoreSchema:
-        """Tell pydantic to treat brokers as opaque (engine-specific clients).
-
-        Includes a stable identity-based serialiser so pirn's
-        content-addressing cache can hash a broker reference without
-        descending into live engine state.
-        """
-        return core_schema.is_instance_schema(
-            cls,
-            serialization=core_schema.plain_serializer_function_ser_schema(
-                lambda v: f"<{type(v).__name__}@{id(v):x}>",
-                when_used="always",
-            ),
-        )

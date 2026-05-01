@@ -17,6 +17,7 @@ import polars as pl
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.data.frames.polars.polars_data_batch import PolarsDataBatch
+from pirn.domains.data.identifier_validator import IdentifierValidator
 
 
 class PolarsAggregate(Knot):
@@ -31,17 +32,7 @@ class PolarsAggregate(Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(by, Sequence) or isinstance(by, (str, bytes)):
-            raise TypeError(
-                "PolarsAggregate: by must be a sequence of column names"
-            )
-        if not by:
-            raise ValueError("PolarsAggregate: by must be non-empty")
-        for column in by:
-            if not isinstance(column, str) or not column:
-                raise TypeError(
-                    "PolarsAggregate: every entry in by must be a non-empty string"
-                )
+        IdentifierValidator.validate_columns("PolarsAggregate.by", by)
         if not isinstance(aggs, Sequence) or isinstance(aggs, (str, bytes)):
             raise TypeError(
                 "PolarsAggregate: aggs must be a sequence of polars.Expr"

@@ -23,7 +23,7 @@ class DsnScrubber:
     arbitrary input — non-DSN strings pass through.
     """
 
-    _REDACTED = "<redacted>"
+    _redacted = "<redacted>"
 
     def __init__(self) -> None:
         # Compile once per instance — avoids module-level state and lets
@@ -35,6 +35,6 @@ class DsnScrubber:
 
     def scrub(self, value: str) -> str:
         """Return ``value`` with inline credentials replaced by ``<redacted>``."""
-        out = self._password_re.sub(rf"\1{self._REDACTED}\2", value)
-        out = self._token_re.sub(rf"\1{self._REDACTED}", out)
+        out = self._password_re.sub(rf"\1{self._redacted}\2", value)
+        out = self._token_re.sub(rf"\1{self._redacted}", out)
         return out

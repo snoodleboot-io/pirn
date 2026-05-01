@@ -23,12 +23,12 @@ defence; callers passing untrusted user input must still sanitise.
 
 from __future__ import annotations
 
-import re
 from typing import Any, Mapping, Sequence
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.data.frames.duckdb.duckdb_data_batch import DuckdbDataBatch
+from pirn.domains.data.identifier_validator import IdentifierValidator
 
 
 class DuckdbAggregate(Knot):
@@ -43,35 +43,15 @@ class DuckdbAggregate(Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(by, Sequence) or isinstance(by, (str, bytes)):
-            raise TypeError(
-                "DuckdbAggregate: by must be a sequence of column names"
-            )
-        if not by:
-            raise ValueError("DuckdbAggregate: by must be non-empty")
-        identifier_re = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-        for column in by:
-            if not isinstance(column, str) or not column:
-                raise TypeError(
-                    "DuckdbAggregate: every entry in by must be a non-empty string"
-                )
-            if not identifier_re.match(column):
-                raise ValueError(
-                    f"DuckdbAggregate: by entry {column!r} is not a plain identifier"
-                )
+        IdentifierValidator.validate_columns("DuckdbAggregate.by", by)
         if not isinstance(aggs, Mapping) or not aggs:
             raise TypeError(
                 "DuckdbAggregate: aggs must be a non-empty Mapping[output_name, expression]"
             )
         for output, expression in aggs.items():
-            if not isinstance(output, str) or not output:
-                raise TypeError(
-                    "DuckdbAggregate: aggs keys must be non-empty strings"
-                )
-            if not identifier_re.match(output):
-                raise ValueError(
-                    f"DuckdbAggregate: output column {output!r} is not a plain identifier"
-                )
+            IdentifierValidator.validate_column(
+                "DuckdbAggregate: output column", output
+            )
             if not isinstance(expression, str) or not expression.strip():
                 raise TypeError(
                     f"DuckdbAggregate: aggs[{output!r}] must be a non-empty SQL expression string"

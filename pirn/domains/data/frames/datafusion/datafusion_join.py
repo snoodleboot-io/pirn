@@ -18,7 +18,6 @@ preserved on the left side.
 
 from __future__ import annotations
 
-import re
 from typing import Any, Sequence
 
 from pirn.core.knot import Knot
@@ -26,6 +25,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.domains.data.frames.datafusion.datafusion_data_batch import (
     DatafusionDataBatch,
 )
+from pirn.domains.data.identifier_validator import IdentifierValidator
 
 
 class DatafusionJoin(Knot):
@@ -62,10 +62,9 @@ class DatafusionJoin(Knot):
                 "DatafusionJoin: provide on=<column(s)> for matching keys, "
                 "or both left_on= and right_on= for differently-named keys"
             )
-        identifier_re = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-        self._on = self._coerce_keys("on", on, identifier_re)
-        self._left_on = self._coerce_keys("left_on", left_on, identifier_re)
-        self._right_on = self._coerce_keys("right_on", right_on, identifier_re)
+        self._on = self._coerce_keys("on", on)
+        self._left_on = self._coerce_keys("left_on", left_on)
+        self._right_on = self._coerce_keys("right_on", right_on)
         if (
             self._left_on is not None
             and self._right_on is not None
@@ -102,7 +101,6 @@ class DatafusionJoin(Knot):
     def _coerce_keys(
         label: str,
         value: str | Sequence[str] | None,
-        identifier_re: re.Pattern[str],
     ) -> tuple[str, ...] | None:
         if value is None:
             return None
@@ -114,15 +112,5 @@ class DatafusionJoin(Knot):
             raise TypeError(
                 f"DatafusionJoin: {label}= must be a column name or a sequence of column names"
             )
-        if not keys:
-            raise ValueError(f"DatafusionJoin: {label}= must be non-empty")
-        for column in keys:
-            if not isinstance(column, str) or not column:
-                raise TypeError(
-                    f"DatafusionJoin: every column in {label}= must be a non-empty string"
-                )
-            if not identifier_re.match(column):
-                raise ValueError(
-                    f"DatafusionJoin: {label}= column {column!r} is not a plain identifier"
-                )
+        IdentifierValidator.validate_columns(f"DatafusionJoin: {label}=", keys)
         return keys

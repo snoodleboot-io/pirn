@@ -18,6 +18,7 @@ from typing import Any, Sequence
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.data.frames.polars.polars_data_batch import PolarsDataBatch
+from pirn.domains.data.identifier_validator import IdentifierValidator
 
 
 class PolarsJoin(Knot):
@@ -48,9 +49,9 @@ class PolarsJoin(Knot):
                 )
         else:
             self._validate_keys(on, left_on, right_on)
-        self._on = self._coerce_keys(on)
-        self._left_on = self._coerce_keys(left_on)
-        self._right_on = self._coerce_keys(right_on)
+        self._on = self._coerce_keys("on", on)
+        self._left_on = self._coerce_keys("left_on", left_on)
+        self._right_on = self._coerce_keys("right_on", right_on)
         self._how = how
         self._suffix = suffix
         super().__init__(left=left, right=right, _config=_config, **kwargs)
@@ -95,10 +96,18 @@ class PolarsJoin(Knot):
 
     @staticmethod
     def _coerce_keys(
+        label: str,
         value: str | Sequence[str] | None,
     ) -> tuple[str, ...] | None:
         if value is None:
             return None
         if isinstance(value, str):
-            return (value,)
-        return tuple(value)
+            keys: tuple[str, ...] = (value,)
+        elif isinstance(value, Sequence) and not isinstance(value, bytes):
+            keys = tuple(value)
+        else:
+            raise TypeError(
+                f"PolarsJoin: {label}= must be a column name or a sequence of column names"
+            )
+        IdentifierValidator.validate_columns(f"PolarsJoin: {label}=", keys)
+        return keys

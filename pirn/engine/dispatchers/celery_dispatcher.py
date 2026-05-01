@@ -14,9 +14,9 @@ caveats (only run trusted code).
 
 Construction:
 
-* ``CeleryDispatcher(app=<celery.Celery>)`` — inject an app
+* ``CeleryDispatcher(app=<celery.Celery>)`` - inject an app
   configured with the right serializer.
-* ``CeleryDispatcher(broker_url="...", backend_url="...")`` — build
+* ``CeleryDispatcher(broker_url="...", backend_url="...")`` - build
   one lazily.
 """
 
@@ -28,10 +28,6 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.result import Result
-
-
-def _run_knot_sync(knot: Knot, inputs: dict[str, Any]) -> Result[Any]:
-    return asyncio.run(knot(inputs))
 
 
 class CeleryDispatcher:
@@ -85,12 +81,33 @@ class CeleryDispatcher:
         # Celery's get() is blocking; bridge to async.
         return await asyncio.to_thread(async_result.get)
 
+    @staticmethod
+    def _run_knot_sync(knot: Knot, inputs: dict[str, Any]) -> Result[Any]:
+        """Worker-side entry point that runs a knot synchronously.
+
+        Celery worker processes have no event loop, so we spin one up
+        via ``asyncio.run``.  Implemented as ``@staticmethod`` so it
+        belongs to the dispatcher class while remaining picklable: the
+        Celery worker resolves it by qualified name through a normal
+        import of ``pirn.engine.dispatchers.celery_dispatcher``.
+        """
+        return asyncio.run(knot(inputs))
+
+    @classmethod
+    def register_worker_task(cls, app: Any) -> None:
+        """Register the ``pirn.run_knot`` task on a Celery app.
+
+        Call this from the Celery worker's startup code so workers know
+        how to run knots.
+        """
+        app.task(name=cls._task_name)(cls._run_knot_sync)
+
 
 def register_celery_worker_task(app: Any) -> None:
     """Register the ``pirn.run_knot`` task on a Celery app.
 
-    Call this from the Celery worker's startup code so workers know how
-    to run knots:
+    Thin wrapper around :meth:`CeleryDispatcher.register_worker_task`
+    kept as a top-level entry for external worker bootstraps:
 
     .. code-block:: python
 
@@ -105,5 +122,4 @@ def register_celery_worker_task(app: Any) -> None:
         )
         register_celery_worker_task(app)
     """
-
-    app.task(name=CeleryDispatcher._task_name)(_run_knot_sync)
+    CeleryDispatcher.register_worker_task(app)

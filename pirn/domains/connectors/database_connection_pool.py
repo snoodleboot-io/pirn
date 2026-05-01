@@ -13,17 +13,21 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from pydantic import GetCoreSchemaHandler
-from pydantic_core import CoreSchema, core_schema
+from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 
-class DatabaseConnectionPool:
+class DatabaseConnectionPool(PirnOpaqueValue):
     """Interface every connector pool implementation must satisfy.
 
     Implementations:
       - :class:`pirn.domains.connectors.databases.sqlite_pool.SqlitePool`
       - :class:`pirn.domains.connectors.databases.duckdb_pool.DuckdbPool`
       - :class:`pirn.domains.connectors.databases.postgres_pool.PostgresPool`
+
+    Pydantic treats pools as opaque (see
+    :class:`pirn.core.pirn_opaque_value.PirnOpaqueValue`); the default
+    identity-keyed serialiser keeps content-addressing cache stable
+    without descending into live engine state.
     """
 
     async def acquire(self) -> Any:
@@ -84,28 +88,3 @@ class DatabaseConnectionPool:
                 f"markers. {hint}"
             )
 
-    @classmethod
-    def __get_pydantic_core_schema__(
-        cls, source_type: Any, handler: GetCoreSchemaHandler
-    ) -> CoreSchema:
-        """Tell pydantic to treat pools as opaque.
-
-        Concrete pool implementations wrap engine-specific clients
-        (asyncpg, aiosqlite, DuckDB, …) that are not pydantic-compatible.
-        Pirn IO validation just needs ``isinstance(value, DatabaseConnectionPool)``;
-        this short-circuit avoids pydantic descending into engine internals.
-
-        A dedicated serialiser emits a stable string token in place of the
-        pool — the live connection pool is *deliberately* identity-based,
-        so two pools that point at the same backend hash the same iff
-        they are the same Python object. This keeps pirn's content-
-        addressing cache from refusing to serialise the pool while not
-        introducing spurious cache hits across truly different pools.
-        """
-        return core_schema.is_instance_schema(
-            cls,
-            serialization=core_schema.plain_serializer_function_ser_schema(
-                lambda v: f"<{type(v).__name__}@{id(v):x}>",
-                when_used="always",
-            ),
-        )

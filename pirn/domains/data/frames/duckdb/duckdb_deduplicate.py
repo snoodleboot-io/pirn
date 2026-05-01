@@ -15,12 +15,12 @@ the window plan natively in C++.
 
 from __future__ import annotations
 
-import re
 from typing import Any, Sequence
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.data.frames.duckdb.duckdb_data_batch import DuckdbDataBatch
+from pirn.domains.data.identifier_validator import IdentifierValidator
 
 
 class DuckdbDeduplicate(Knot):
@@ -34,22 +34,7 @@ class DuckdbDeduplicate(Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(keys, Sequence) or isinstance(keys, (str, bytes)):
-            raise TypeError(
-                "DuckdbDeduplicate: keys must be a sequence of column names"
-            )
-        if not keys:
-            raise ValueError("DuckdbDeduplicate: keys must be non-empty")
-        identifier_re = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-        for key in keys:
-            if not isinstance(key, str) or not key:
-                raise TypeError(
-                    "DuckdbDeduplicate: every entry in keys must be a non-empty string"
-                )
-            if not identifier_re.match(key):
-                raise ValueError(
-                    f"DuckdbDeduplicate: key {key!r} is not a plain identifier"
-                )
+        IdentifierValidator.validate_columns("DuckdbDeduplicate.keys", keys)
         self._keys: tuple[str, ...] = tuple(keys)
         super().__init__(batch=batch, _config=_config, **kwargs)
 
@@ -58,13 +43,10 @@ class DuckdbDeduplicate(Knot):
         return self._keys
 
     async def process(self, batch: DuckdbDataBatch, **_: Any) -> DuckdbDataBatch:
-        identifier_re = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
         for column in batch.relation.columns:
-            if not identifier_re.match(column):
-                raise ValueError(
-                    f"DuckdbDeduplicate: upstream column name {column!r} "
-                    "is not a plain identifier; refusing to dedup"
-                )
+            IdentifierValidator.validate_column(
+                "DuckdbDeduplicate: upstream column", column
+            )
         partition = ", ".join(f'"{key}"' for key in self._keys)
         original_columns = ", ".join(f'"{column}"' for column in batch.relation.columns)
         # Two-stage plan:

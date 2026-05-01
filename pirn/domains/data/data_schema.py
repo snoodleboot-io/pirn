@@ -5,12 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Mapping
 
-from pydantic import GetCoreSchemaHandler
-from pydantic_core import CoreSchema, core_schema
+from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 
 @dataclass(frozen=True)
-class DataSchema:
+class DataSchema(PirnOpaqueValue):
     """Declarative schema for a tabular :class:`DataBatch`.
 
     Attributes
@@ -59,23 +58,17 @@ class DataSchema:
             nullable=self.nullable,
         )
 
-    @classmethod
-    def __get_pydantic_core_schema__(
-        cls, source_type: Any, handler: GetCoreSchemaHandler
-    ) -> CoreSchema:
-        """Treat as opaque: ``columns`` holds Python ``type`` objects which
-        pydantic's default JSON serialiser can't dump. Pirn IO validation
-        just checks ``isinstance(value, DataSchema)``; content-addressing
-        serialises via a stable summary that converts types to their names.
+    def _pirn_audit_dict(self) -> dict[str, Any]:
+        """Flatten to a primitive dict for pydantic serialisation.
+
+        ``columns`` holds Python ``type`` objects which pydantic's
+        default JSON serialiser can't dump; here we convert each type
+        to its name. Pirn IO validation just checks
+        ``isinstance(value, DataSchema)``; content-addressing serialises
+        via this stable summary.
         """
-        return core_schema.is_instance_schema(
-            cls,
-            serialization=core_schema.plain_serializer_function_ser_schema(
-                lambda v: {
-                    "columns": {k: t.__name__ for k, t in v.columns.items()},
-                    "primary_keys": list(v.primary_keys),
-                    "nullable": list(v.nullable),
-                },
-                when_used="always",
-            ),
-        )
+        return {
+            "columns": {k: t.__name__ for k, t in self.columns.items()},
+            "primary_keys": list(self.primary_keys),
+            "nullable": list(self.nullable),
+        }
