@@ -6,6 +6,9 @@ from __future__ import annotations
 
 from typing import Any, AsyncIterator
 
+from pydantic import GetCoreSchemaHandler
+from pydantic_core import CoreSchema, core_schema
+
 
 class MessageBroker:
     """Interface every connector broker implementation must satisfy.
@@ -39,3 +42,10 @@ class MessageBroker:
         raise NotImplementedError(
             f"{type(self).__name__} must implement consume()"
         )
+
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls, source_type: Any, handler: GetCoreSchemaHandler
+    ) -> CoreSchema:
+        """Tell pydantic to treat brokers as opaque (engine-specific clients)."""
+        return core_schema.is_instance_schema(cls)

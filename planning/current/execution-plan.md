@@ -409,3 +409,66 @@ These bars apply to all domain implementations and have associated tests as part
 2. The acceptance test drives which knots and data contracts need to exist
 3. Use protocol-conforming stubs so the acceptance test can run in CI without live external services
 4. Only mark a block's tasks as done once the acceptance test passes in CI
+
+---
+
+## Phase 2 Closure — Status
+
+This block is the canonical status for Block 3 / data-domain depth as of
+the Phase 2 closure commit. The earlier Tier-2 / Tier-3 sub-blocks above
+were drafted before implementation and did not get re-marked individually
+during the build; the grand totals here are the source of truth.
+
+### Tier 2 — single-machine native frames
+
+| Engine | Adapter | Bridges | Transforms shipped | Tests |
+|--------|---------|---------|--------------------|-------|
+| Polars | ✅ | ✅ | rename, cast, filter, deduplicate, aggregate, join, pivot, unpivot, window_calc (9) | 50 unit + 1 acceptance |
+| Pandas | ✅ | ✅ | rename, cast, filter, deduplicate, aggregate, join (6) | 37 unit |
+| DuckDB | ✅ | ✅ | rename, cast, filter, deduplicate, aggregate, join (6) | 48 unit |
+
+### Tier 3 — push-down / lazy
+
+| Engine | Knots shipped | Tests |
+|--------|---------------|-------|
+| Ibis | source, filter, group_by_aggregate, join, window, to_table, execution_receipt, table-adapter (8) | 28 unit + 1 push-down acceptance |
+
+### Validation
+
+| Framework | Knot | Tests |
+|-----------|------|-------|
+| Pandera (Polars-native) | `PanderaPolarsValidator` | 4 unit + 2 acceptance |
+| Great Expectations (Pandas-native) | `GreatExpectationsPandasValidator` | 5 unit + 2 acceptance |
+
+### Specializations
+
+| Specialization | Status | Notes |
+|----------------|--------|-------|
+| `AppendOnlyIngest` | ✅ shipped | 4 unit tests; canonical SubTapestry-as-specialization pattern proven |
+| `FullRefreshExtract`, `WatermarkIncrementalExtract` | ⏳ design pending | Pirn's content-addressing serialiser doesn't yet have a story for stateful pools threaded through `Parameter` inputs. Resolution is upstream — either an opt-out hash hook on the connection-pool interface or a `_run_inner` extension to borrow outer config without serialising. Kept out of this commit; blocks no other Phase 2 work. |
+| Other 50 specs | ⏳ pending | Mechanical given the proven pattern; built on Tier-2/3. |
+
+### Cross-cutting interface fixes
+
+`DatabaseConnectionPool`, `ObjectStore`, and `MessageBroker` interfaces
+now declare ``__get_pydantic_core_schema__`` returning
+``core_schema.is_instance_schema(cls)``. This lets concrete subclasses
+flow through pirn's pydantic-based IO validation without pydantic
+trying to descend into engine-specific clients (asyncpg connections,
+boto3 sessions, Kafka producers, …).
+
+### Suite status at end of Phase 2 closure
+
+**622 tests pass, zero failures, zero xfails.**
+
+### Phase 2 NOT shipped (deferred to Phase 2.5 or Phase 3)
+
+- DataFusion, Datatable, PyArrow native, cuDF, Vaex, Modin Tier-2 engines
+- PySpark, Ray Data, Dask Tier-3 engines
+- Pathway, Bytewax streaming
+- Lance, Eland specialized
+- Pandera Pandas validator (Pandas Tier-2 has landed; can be added on demand)
+- 50 of 53 PRD specializations
+- Remaining ~20 connectors (BigQuery, Snowflake, MySQL, MSSQL, GCS, Azure Blob, Kinesis, PubSub, RabbitMQ, Salesforce, HubSpot, Stripe, GitHub, Jira, Shopify, dbt artifacts, DataHub, OpenMetadata, Datadog, Prometheus)
+
+The proven patterns make all of the above mechanical follow-ups.

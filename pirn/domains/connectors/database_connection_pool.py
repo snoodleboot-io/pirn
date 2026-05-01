@@ -12,6 +12,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from pydantic import GetCoreSchemaHandler
+from pydantic_core import CoreSchema, core_schema
+
 
 class DatabaseConnectionPool:
     """Interface every connector pool implementation must satisfy.
@@ -39,3 +42,16 @@ class DatabaseConnectionPool:
         raise NotImplementedError(
             f"{type(self).__name__} must implement close()"
         )
+
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls, source_type: Any, handler: GetCoreSchemaHandler
+    ) -> CoreSchema:
+        """Tell pydantic to treat pools as opaque.
+
+        Concrete pool implementations wrap engine-specific clients
+        (asyncpg, aiosqlite, DuckDB, …) that are not pydantic-compatible.
+        Pirn IO validation just needs ``isinstance(value, DatabaseConnectionPool)``;
+        this short-circuit avoids pydantic descending into engine internals.
+        """
+        return core_schema.is_instance_schema(cls)

@@ -6,7 +6,10 @@ to load a full object into memory.
 
 from __future__ import annotations
 
-from typing import AsyncIterator
+from typing import Any, AsyncIterator
+
+from pydantic import GetCoreSchemaHandler
+from pydantic_core import CoreSchema, core_schema
 
 
 class ObjectStore:
@@ -42,3 +45,14 @@ class ObjectStore:
         raise NotImplementedError(
             f"{type(self).__name__} must implement list()"
         )
+
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls, source_type: Any, handler: GetCoreSchemaHandler
+    ) -> CoreSchema:
+        """Tell pydantic to treat object stores as opaque.
+
+        Concrete stores wrap engine-specific clients (boto3, gcs, …) that
+        are not pydantic-compatible.
+        """
+        return core_schema.is_instance_schema(cls)
