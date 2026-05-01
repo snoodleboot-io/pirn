@@ -34,21 +34,25 @@
 
 ## Block 2 — `pirn.domains.connectors` (prerequisite for data + ML integration tests)
 
-### Protocols
-- [ ] `pirn/domains/connectors/protocols.py` — `FileFormat`, `DatabaseConnectionPool`, `ConnectionConfig`
+### Protocols & shared infrastructure
+- [x] `pirn/domains/connectors/protocols.py` — `DatabaseConnectionPool`, `ObjectStore`, `MessageBroker`, `FileFormat` runtime-checkable Protocols
+- [x] `pirn/domains/connectors/_config.py` — `ConnectionConfig` base + `@connection_config` decorator + `scrub_dsn()` helper (DSN/query-string credential redaction)
+- [x] Tests: 12 protocol-conformance + 24 ConnectionConfig redaction tests (incl. `__repr__`/`str`/`f-string`/`caplog`/`to_audit_dict()` no-leak coverage)
 
 ### Databases — Priority tier (needed for Phase 3 integration tests)
-- [ ] `connectors/databases/postgres.py` — `PostgresConnector` (`asyncpg`)
-- [ ] `connectors/databases/sqlite.py` — `SQLiteConnector` (`aiosqlite`)
-- [ ] `connectors/databases/duckdb.py` — `DuckDBConnector` (`duckdb`)
+- [x] `connectors/databases/sqlite.py` — `SQLitePool` (`aiosqlite`) — 11 tests incl. injection resistance + parameterized-query enforcement
+- [x] `connectors/databases/duckdb.py` — `DuckDBPool` (`duckdb`) — 9 tests incl. read-only mode + injection resistance
+- [x] `connectors/databases/postgres.py` — `PostgresPool` (`asyncpg`) — 17 tests with stub asyncpg pool incl. connect-error DSN scrubbing
 
 ### Object Storage — Priority tier
-- [ ] `connectors/object_storage/s3.py` — `S3Connector` (`aioboto3`)
-- [ ] `connectors/object_storage/local.py` — `LocalFilesystemConnector`
+- [x] `connectors/object_storage/local.py` — `LocalFilesystemStore` — 21 tests incl. path-traversal rejection (NUL bytes, `..`, absolute paths)
+- [x] `connectors/object_storage/s3.py` — `S3Store` (`aioboto3`) — 15 tests with stub boto client incl. key validation + secret redaction
 
 ### Streaming — Priority tier
-- [ ] `connectors/streaming/kafka.py` — `KafkaConnector` (`confluent-kafka`)
-- [ ] `connectors/streaming/valkey.py` — `ValkeyStreamConnector` (`valkey-py`)
+- [x] `connectors/streaming/kafka.py` — `KafkaBroker` (`aiokafka`) — 12 tests with stub producer/consumer
+- [x] `connectors/streaming/valkey.py` — `ValkeyStreamBroker` (`valkey`) — 13 tests with stub client (XADD/XREADGROUP/XACK roundtrip)
+
+**Priority tier total:** 7 connectors, 134 unit tests, all green. 327 total unit tests pass with no regressions.
 
 ### Databases — Extended tier
 - [ ] `connectors/databases/bigquery.py` — `BigQueryConnector`

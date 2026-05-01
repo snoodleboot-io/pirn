@@ -3,15 +3,12 @@
 Install with::
 
     pip install 'pirn[oilgas]'
-
-Covers seismic (SEG-Y), well/petrophysics (LAS), reservoir engineering
-(ECLIPSE/CMG), production operations (SCADA/PRODML), facilities integrity,
-and geospatial. See ``planning/current/domain-knot-libraries-prd.md`` for the
-full catalog.
 """
 
-from pirn.domains._extras import require_extra
+from pirn.domains.extras_loader import ExtrasLoader
 
-require_extra("oilgas", ["segyio", "lasio"])
+
+ExtrasLoader("oilgas", ["segyio", "lasio"]).require()
+
 
 __all__: list[str] = []

@@ -7,8 +7,10 @@ Install with::
 See ``planning/current/domain-knot-libraries-prd.md`` for the full catalog.
 """
 
-from pirn.domains._extras import require_extra
+from pirn.domains.extras_loader import ExtrasLoader
 
-require_extra("ml", ["numpy", "pandas", "sklearn"])
+
+ExtrasLoader("ml", ["numpy", "pandas", "sklearn"]).require()
+
 
 __all__: list[str] = []
