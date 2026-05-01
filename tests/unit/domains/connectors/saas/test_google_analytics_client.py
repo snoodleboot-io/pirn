@@ -12,6 +12,7 @@ from typing import Any
 import pytest
 
 from pirn.domains.connectors.api_client import ApiClient
+from pirn.domains.connectors.capabilities.table_source import TableSource
 from pirn.domains.connectors.saas.google_analytics_client import (
     GoogleAnalyticsClient,
 )
@@ -135,3 +136,121 @@ class TestConfigSafety:
         d = cfg.to_audit_dict()
         assert d["service_account_json"] == "<redacted>"
         assert d["property_id"] == "123"
+
+
+# ────────────────────────────────────────────────────────── capability surface
+
+
+def test_implements_table_source() -> None:
+    client = GoogleAnalyticsClient(client=FakeGoogleAnalyticsClient())
+    assert isinstance(client, TableSource)
+
+
+def test_construction_rejects_non_mapping_report_request() -> None:
+    with pytest.raises(ValueError, match="report_request must be a Mapping"):
+        GoogleAnalyticsClient(
+            client=FakeGoogleAnalyticsClient(),
+            report_request=[],  # type: ignore[arg-type]
+        )
+
+
+def test_report_request_property_returns_copy() -> None:
+    request = {"property": "properties/123"}
+    client = GoogleAnalyticsClient(
+        client=FakeGoogleAnalyticsClient(), report_request=request
+    )
+    assert client.report_request == {"property": "properties/123"}
+
+
+class TestRunReport:
+    async def test_run_report_forwards_body(self) -> None:
+        fake = FakeGoogleAnalyticsClient()
+        client = GoogleAnalyticsClient(client=fake)
+
+        body = {"property": "properties/9", "dateRanges": [{}]}
+        result = await client.run_report(body)
+
+        assert fake.run_report_calls == [body]
+        assert result["request"] == body
+
+    async def test_run_report_rejects_non_mapping(self) -> None:
+        client = GoogleAnalyticsClient(client=FakeGoogleAnalyticsClient())
+        with pytest.raises(ValueError, match="must be a Mapping"):
+            await client.run_report([])  # type: ignore[arg-type]
+
+
+class TestFetchPage:
+    async def test_fetch_page_uses_report_request_with_pagination(
+        self,
+    ) -> None:
+        fake = FakeGoogleAnalyticsClient()
+        fake.run_report = lambda req: {  # type: ignore[method-assign]
+            "rows": [{"v": i} for i in range(3)],
+            "request": dict(req),
+        }
+        client = GoogleAnalyticsClient(
+            client=fake,
+            report_request={"property": "properties/1"},
+        )
+
+        rows, next_cursor = await client.fetch_page(page_size=3)
+
+        assert rows == [{"v": 0}, {"v": 1}, {"v": 2}]
+        assert next_cursor == "3"
+
+    async def test_fetch_page_full_page_advances_cursor(self) -> None:
+        fake = FakeGoogleAnalyticsClient()
+        captured: list[dict[str, Any]] = []
+
+        def _run_report(req: dict[str, Any]) -> dict[str, Any]:
+            captured.append(dict(req))
+            return {"rows": [{"v": i} for i in range(2)]}
+
+        fake.run_report = _run_report  # type: ignore[method-assign]
+        client = GoogleAnalyticsClient(
+            client=fake,
+            report_request={"property": "properties/1"},
+        )
+
+        rows, next_cursor = await client.fetch_page(
+            cursor="10", page_size=2
+        )
+
+        assert rows == [{"v": 0}, {"v": 1}]
+        assert next_cursor == "12"
+        assert captured[0]["offset"] == 10
+        assert captured[0]["limit"] == 2
+        assert captured[0]["property"] == "properties/1"
+
+    async def test_fetch_page_partial_terminates(self) -> None:
+        fake = FakeGoogleAnalyticsClient()
+        fake.run_report = lambda req: {"rows": [{"v": 0}]}  # type: ignore[method-assign]
+        client = GoogleAnalyticsClient(
+            client=fake,
+            report_request={"property": "properties/1"},
+        )
+
+        rows, next_cursor = await client.fetch_page(page_size=10)
+
+        assert rows == [{"v": 0}]
+        assert next_cursor is None
+
+    async def test_fetch_page_empty_terminates(self) -> None:
+        fake = FakeGoogleAnalyticsClient()
+        fake.run_report = lambda req: {"rows": []}  # type: ignore[method-assign]
+        client = GoogleAnalyticsClient(
+            client=fake,
+            report_request={"property": "properties/1"},
+        )
+
+        rows, next_cursor = await client.fetch_page()
+
+        assert rows == []
+        assert next_cursor is None
+
+    async def test_fetch_page_without_report_request_raises(self) -> None:
+        client = GoogleAnalyticsClient(client=FakeGoogleAnalyticsClient())
+        with pytest.raises(
+            RuntimeError, match="no report_request configured"
+        ):
+            await client.fetch_page()

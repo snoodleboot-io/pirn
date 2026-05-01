@@ -6,11 +6,15 @@ Uses an injected stub client that mirrors the ``call_api`` slice of
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any
 
 import pytest
 
 from pirn.domains.connectors.api_client import ApiClient
+from pirn.domains.connectors.capabilities.event_emitter import EventEmitter
+from pirn.domains.connectors.capabilities.metric_query import MetricQuery
+from pirn.domains.connectors.capabilities.table_source import TableSource
 from pirn.domains.connectors.observability.datadog_client import DatadogClient
 from pirn.domains.connectors.observability.datadog_config import DatadogConfig
 
@@ -163,3 +167,183 @@ class TestCredentialSafety:
         assert d["api_key"] == "<redacted>"
         assert d["app_key"] == "<redacted>"
         assert d["site"] == "datadoghq.com"
+
+
+# ──────────────────────────────────────────────────────── capabilities
+
+
+def test_implements_table_source() -> None:
+    client = DatadogClient(client=FakeDatadog())
+    assert isinstance(client, TableSource)
+
+
+def test_implements_event_emitter() -> None:
+    client = DatadogClient(client=FakeDatadog())
+    assert isinstance(client, EventEmitter)
+
+
+def test_implements_metric_query() -> None:
+    client = DatadogClient(client=FakeDatadog())
+    assert isinstance(client, MetricQuery)
+
+
+def test_default_resource_is_metrics() -> None:
+    client = DatadogClient(client=FakeDatadog())
+    assert client.resource == "metrics"
+
+
+def test_resource_must_be_non_empty() -> None:
+    with pytest.raises(ValueError, match="resource"):
+        DatadogClient(client=FakeDatadog(), resource="")
+
+
+# ─────────────────────────────────────────────────── TableSource adapter
+
+
+@pytest.mark.asyncio
+class TestFetchPage:
+    async def test_first_page_uses_zero_index(self) -> None:
+        fake = FakeDatadog()
+        fake.response = {
+            "data": [{"id": "m1"}, {"id": "m2"}],
+            "meta": {"page": {"has_more": True}},
+        }
+        client = DatadogClient(client=fake)
+        rows, next_cursor = await client.fetch_page(page_size=2)
+        assert rows == [{"id": "m1"}, {"id": "m2"}]
+        assert next_cursor == "1"
+        method, path, opts = fake.calls[0]
+        assert method == "GET"
+        assert path == "/api/v1/metrics"
+        assert opts["query_params"] == {
+            "page[number]": 0,
+            "page[size]": 2,
+        }
+
+    async def test_cursor_advances_page_number(self) -> None:
+        fake = FakeDatadog()
+        fake.response = {
+            "data": [{"id": "m3"}],
+            "meta": {"page": {"has_more": False}},
+        }
+        client = DatadogClient(client=fake)
+        rows, next_cursor = await client.fetch_page(cursor="2")
+        assert rows == [{"id": "m3"}]
+        assert next_cursor is None
+        assert fake.calls[0][2]["query_params"]["page[number]"] == 2
+
+    async def test_invalid_cursor_raises(self) -> None:
+        client = DatadogClient(client=FakeDatadog())
+        with pytest.raises(ValueError, match="invalid cursor"):
+            await client.fetch_page(cursor="not-a-number")
+
+    async def test_resource_routed_to_path(self) -> None:
+        fake = FakeDatadog()
+        fake.response = {"data": []}
+        client = DatadogClient(client=fake, resource="events")
+        await client.fetch_page()
+        assert fake.calls[0][1] == "/api/v1/events"
+
+
+# ─────────────────────────────────────────────────── EventEmitter adapter
+
+
+@pytest.mark.asyncio
+class TestEmit:
+    async def test_emit_routes_to_submit_metric(self) -> None:
+        fake = FakeDatadog()
+        client = DatadogClient(client=fake)
+        await client.emit(
+            {
+                "metric": "system.cpu.user",
+                "points": [[1700000000, 0.42]],
+                "tags": ["env:dev"],
+            }
+        )
+        method, path, opts = fake.calls[0]
+        assert method == "POST"
+        assert path == "/api/v1/series"
+        assert opts["body"] == {
+            "series": [
+                {
+                    "metric": "system.cpu.user",
+                    "points": [[1700000000, 0.42]],
+                    "tags": ["env:dev"],
+                }
+            ]
+        }
+
+    async def test_emit_requires_metric_and_points(self) -> None:
+        client = DatadogClient(client=FakeDatadog())
+        with pytest.raises(ValueError, match="metric"):
+            await client.emit({"points": []})
+        with pytest.raises(ValueError, match="metric"):
+            await client.emit({"metric": "x"})
+
+    async def test_submit_metric_without_tags(self) -> None:
+        fake = FakeDatadog()
+        client = DatadogClient(client=fake)
+        await client.submit_metric(
+            "app.requests", [[1700000000, 1]],
+        )
+        body = fake.calls[0][2]["body"]
+        assert body == {
+            "series": [
+                {"metric": "app.requests", "points": [[1700000000, 1]]}
+            ]
+        }
+
+    async def test_submit_metric_rejects_empty_name(self) -> None:
+        client = DatadogClient(client=FakeDatadog())
+        with pytest.raises(ValueError, match="name"):
+            await client.submit_metric("", [[1700000000, 1]])
+
+
+# ─────────────────────────────────────────────────── MetricQuery adapter
+
+
+@pytest.mark.asyncio
+class TestQuery:
+    async def test_query_converts_datetimes_to_timestamps(self) -> None:
+        fake = FakeDatadog()
+        fake.response = {"series": []}
+        client = DatadogClient(client=fake)
+        start = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        end = datetime(2024, 1, 2, tzinfo=timezone.utc)
+        result = await client.query(
+            "avg:system.cpu.user{*}", start=start, end=end
+        )
+        assert result == {"series": []}
+        method, path, opts = fake.calls[0]
+        assert method == "GET"
+        assert path == "/api/v1/query"
+        assert opts["query_params"] == {
+            "from": int(start.timestamp()),
+            "to": int(end.timestamp()),
+            "query": "avg:system.cpu.user{*}",
+        }
+
+    async def test_query_requires_start_and_end(self) -> None:
+        client = DatadogClient(client=FakeDatadog())
+        with pytest.raises(ValueError, match="start and end"):
+            await client.query("system.cpu.user")
+
+    async def test_query_rejects_empty_query(self) -> None:
+        client = DatadogClient(client=FakeDatadog())
+        with pytest.raises(ValueError, match="query"):
+            await client.query(
+                "",
+                start=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                end=datetime(2024, 1, 2, tzinfo=timezone.utc),
+            )
+
+    async def test_query_metrics_passes_params(self) -> None:
+        fake = FakeDatadog()
+        fake.response = {"series": [{"name": "cpu"}]}
+        client = DatadogClient(client=fake)
+        start = datetime(2024, 6, 1, tzinfo=timezone.utc)
+        end = datetime(2024, 6, 2, tzinfo=timezone.utc)
+        result = await client.query_metrics(
+            "system.cpu.user", start=start, end=end
+        )
+        assert result == {"series": [{"name": "cpu"}]}

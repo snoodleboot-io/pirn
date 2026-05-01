@@ -8,19 +8,31 @@ injecting an already-authorised ``client=``.
 
 The generic :meth:`request` forwards method/path/params/body/headers to
 ``httpx.AsyncClient.request`` and returns the parsed JSON body.
+
+In addition to :meth:`request`, the client implements:
+
+* :class:`TableSource` — :meth:`fetch_page` pages over the configured
+  ``entity_type`` using Alation's ``skip``/``limit`` offset pagination.
+* :class:`MetadataCatalog` — :meth:`list_entities` is an async iterator
+  that pages internally, and :meth:`describe_entity` GETs the
+  per-entity URL.
 """
 
 from __future__ import annotations
 
 import logging
-from typing import Any, Mapping
+from typing import Any, AsyncIterator, Mapping
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.bi_catalog.alation_config import AlationConfig
+from pirn.domains.connectors.capabilities.metadata_catalog import (
+    MetadataCatalog,
+)
+from pirn.domains.connectors.capabilities.table_source import TableSource
 from pirn.domains.connectors.dsn_scrubber import DsnScrubber
 
 
-class AlationClient(ApiClient):
+class AlationClient(ApiClient, TableSource, MetadataCatalog):
     """Concrete :class:`ApiClient` backed by ``httpx.AsyncClient``."""
 
     def __init__(
@@ -28,20 +40,115 @@ class AlationClient(ApiClient):
         config: AlationConfig | None = None,
         *,
         client: Any = None,
+        entity_type: str = "data",
     ) -> None:
         if config is None and client is None:
             raise TypeError(
                 "AlationClient requires either config= or client="
             )
+        if not isinstance(entity_type, str) or not entity_type:
+            raise ValueError(
+                "AlationClient: entity_type must be a non-empty string"
+            )
         self._config = config
         self._client = client
         self._closed = False
+        self._entity_type = entity_type
         self._scrubber = DsnScrubber()
         self._logger = logging.getLogger(self.__class__.__module__)
 
     @property
     def config(self) -> AlationConfig | None:
         return self._config
+
+    @property
+    def entity_type(self) -> str:
+        return self._entity_type
+
+    async def fetch_page(
+        self,
+        cursor: str | None = None,
+        *,
+        page_size: int | None = None,
+    ) -> tuple[list[Mapping[str, Any]], str | None]:
+        """:class:`TableSource` adapter — pages the configured entity_type."""
+        return await self._list_resource(
+            self._entity_type, cursor=cursor, limit=page_size
+        )
+
+    async def list_entities(
+        self,
+        entity_type: str,
+        *,
+        filter: Mapping[str, Any] | None = None,
+    ) -> AsyncIterator[Mapping[str, Any]]:
+        """:class:`MetadataCatalog` adapter — paginates internally."""
+        cursor: str | None = None
+        while True:
+            rows, next_cursor = await self._list_resource(
+                entity_type, cursor=cursor, limit=None
+            )
+            for entity in rows:
+                if filter is None or self._matches_filter(entity, filter):
+                    yield entity
+            if next_cursor is None:
+                return
+            cursor = next_cursor
+
+    async def describe_entity(
+        self,
+        entity_id: str,
+    ) -> Mapping[str, Any]:
+        """GET ``/integration/v1/{entity_type}/{entity_id}``."""
+        return await self.request(
+            "GET",
+            f"/integration/v1/{self._entity_type}/{entity_id}",
+        )
+
+    async def _list_resource(
+        self,
+        entity_type: str,
+        *,
+        cursor: str | None,
+        limit: int | None,
+    ) -> tuple[list[Mapping[str, Any]], str | None]:
+        skip = int(cursor) if cursor else 0
+        page_limit = limit if limit is not None else 100
+        params: dict[str, Any] = {
+            "skip": skip,
+            "limit": page_limit,
+        }
+        response = await self.request(
+            "GET",
+            f"/integration/v1/{entity_type}",
+            params=params,
+        )
+        rows = self._extract_rows(response)
+        next_offset = skip + page_limit
+        next_cursor = (
+            str(next_offset) if len(rows) == page_limit else None
+        )
+        return rows, next_cursor
+
+    @staticmethod
+    def _extract_rows(response: Any) -> list[Mapping[str, Any]]:
+        if isinstance(response, list):
+            return list(response)
+        if isinstance(response, Mapping):
+            for key in ("items", "data", "results"):
+                value = response.get(key)
+                if isinstance(value, list):
+                    return list(value)
+        return []
+
+    @staticmethod
+    def _matches_filter(
+        entity: Mapping[str, Any], filter: Mapping[str, Any]
+    ) -> bool:
+        for key, value in filter.items():
+            if entity.get(key) != value:
+                return False
+        return True
 
     async def request(
         self,

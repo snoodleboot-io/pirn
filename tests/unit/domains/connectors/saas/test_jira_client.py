@@ -11,6 +11,7 @@ from typing import Any
 import pytest
 
 from pirn.domains.connectors.api_client import ApiClient
+from pirn.domains.connectors.capabilities.table_source import TableSource
 from pirn.domains.connectors.saas.jira_client import JiraClient
 from pirn.domains.connectors.saas.jira_config import JiraConfig
 
@@ -172,3 +173,136 @@ class TestCredentialSafety:
         d = cfg.to_audit_dict()
         assert d["api_token"] == "<redacted>"
         assert d["username"] == "alice@acme.com"
+
+
+# ────────────────────────────────────────────────────────── capability surface
+
+
+def test_implements_table_source() -> None:
+    client = JiraClient(client=FakeJira())
+    assert isinstance(client, TableSource)
+
+
+def test_construction_rejects_empty_jql() -> None:
+    with pytest.raises(ValueError, match="jql must be a non-empty"):
+        JiraClient(client=FakeJira(), jql="")
+
+
+def test_jql_property_defaults_to_none() -> None:
+    client = JiraClient(client=FakeJira())
+    assert client.jql is None
+
+
+def test_jql_property_reflects_constructor() -> None:
+    client = JiraClient(client=FakeJira(), jql="project=PIRN")
+    assert client.jql == "project=PIRN"
+
+
+@pytest.mark.asyncio
+class TestSearch:
+    async def test_search_passes_params_and_advances_cursor(self) -> None:
+        fake = FakeJira()
+        fake.responses["/search"] = {
+            "issues": [{"key": "PIRN-1"}, {"key": "PIRN-2"}],
+            "total": 10,
+            "startAt": 0,
+            "maxResults": 2,
+        }
+        client = JiraClient(client=fake)
+
+        rows, next_cursor = await client.search(
+            "project=PIRN", start_at=0, max_results=2
+        )
+
+        assert rows == [{"key": "PIRN-1"}, {"key": "PIRN-2"}]
+        assert next_cursor == "2"
+        method, path, params = fake.calls[0]
+        assert method == "GET"
+        assert path == "/search"
+        assert params == {
+            "jql": "project=PIRN",
+            "startAt": 0,
+            "maxResults": 2,
+        }
+
+    async def test_search_terminates_when_exhausted(self) -> None:
+        fake = FakeJira()
+        fake.responses["/search"] = {
+            "issues": [{"key": "PIRN-9"}],
+            "total": 5,
+            "startAt": 4,
+            "maxResults": 2,
+        }
+        client = JiraClient(client=fake)
+
+        rows, next_cursor = await client.search(
+            "project=PIRN", start_at=4, max_results=2
+        )
+
+        assert rows == [{"key": "PIRN-9"}]
+        assert next_cursor is None
+
+    async def test_search_rejects_empty_jql(self) -> None:
+        client = JiraClient(client=FakeJira())
+        with pytest.raises(ValueError, match="jql must be a non-empty"):
+            await client.search("")
+
+
+@pytest.mark.asyncio
+class TestFetchPage:
+    async def test_fetch_page_uses_constructor_jql(self) -> None:
+        fake = FakeJira()
+        fake.responses["/search"] = {
+            "issues": [{"key": "PIRN-1"}],
+            "total": 100,
+            "startAt": 0,
+            "maxResults": 50,
+        }
+        client = JiraClient(client=fake, jql="project=PIRN")
+
+        rows, next_cursor = await client.fetch_page()
+
+        assert rows == [{"key": "PIRN-1"}]
+        assert next_cursor == "50"
+        _, _, params = fake.calls[0]
+        assert params == {
+            "jql": "project=PIRN",
+            "startAt": 0,
+            "maxResults": 50,
+        }
+
+    async def test_fetch_page_advances_cursor(self) -> None:
+        fake = FakeJira()
+        fake.responses["/search"] = {
+            "issues": [{"key": "PIRN-51"}],
+            "total": 100,
+            "startAt": 50,
+            "maxResults": 50,
+        }
+        client = JiraClient(client=fake, jql="project=PIRN")
+
+        rows, next_cursor = await client.fetch_page(cursor="50")
+
+        assert rows == [{"key": "PIRN-51"}]
+        assert next_cursor is None
+        _, _, params = fake.calls[0]
+        assert params["startAt"] == 50
+
+    async def test_fetch_page_honours_page_size(self) -> None:
+        fake = FakeJira()
+        fake.responses["/search"] = {
+            "issues": [],
+            "total": 0,
+            "startAt": 0,
+            "maxResults": 25,
+        }
+        client = JiraClient(client=fake, jql="project=PIRN")
+
+        await client.fetch_page(page_size=25)
+        _, _, params = fake.calls[0]
+        assert params["maxResults"] == 25
+
+    async def test_fetch_page_without_jql_raises(self) -> None:
+        client = JiraClient(client=FakeJira())
+        with pytest.raises(RuntimeError, match="no jql configured"):
+            await client.fetch_page()

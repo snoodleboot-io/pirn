@@ -11,6 +11,8 @@ from typing import Any
 import pytest
 
 from pirn.domains.connectors.api_client import ApiClient
+from pirn.domains.connectors.capabilities.record_writer import RecordWriter
+from pirn.domains.connectors.capabilities.table_source import TableSource
 from pirn.domains.connectors.saas.salesforce_client import SalesforceClient
 from pirn.domains.connectors.saas.salesforce_config import SalesforceConfig
 
@@ -163,3 +165,140 @@ class TestCredentialSafety:
         assert "topsecret-token" not in text
         assert "oauth-shh" not in text
         assert "<redacted>" in text
+
+
+# ───────────────────────────────────────────────────────── capability mixins
+
+
+def test_implements_table_source_and_record_writer() -> None:
+    client = SalesforceClient(client=FakeSalesforceClient())
+    assert isinstance(client, TableSource)
+    assert isinstance(client, RecordWriter)
+
+
+def test_construction_rejects_empty_soql_query() -> None:
+    with pytest.raises(ValueError, match="soql_query"):
+        SalesforceClient(client=FakeSalesforceClient(), soql_query="")
+
+
+def test_construction_rejects_empty_sobject_type() -> None:
+    with pytest.raises(ValueError, match="sobject_type"):
+        SalesforceClient(client=FakeSalesforceClient(), sobject_type="")
+
+
+def test_default_sobject_type_is_account() -> None:
+    client = SalesforceClient(client=FakeSalesforceClient())
+    assert client.sobject_type == "Account"
+
+
+@pytest.mark.asyncio
+class TestFetchPage:
+    async def test_fetch_page_initial_done(self) -> None:
+        fake = FakeSalesforceClient()
+        fake.query_response = {
+            "records": [{"Id": "001"}, {"Id": "002"}],
+            "done": True,
+        }
+        client = SalesforceClient(
+            client=fake, soql_query="SELECT Id FROM Account"
+        )
+        rows, cursor = await client.fetch_page()
+        assert rows == [{"Id": "001"}, {"Id": "002"}]
+        assert cursor is None
+        assert fake.queries == ["SELECT Id FROM Account"]
+
+    async def test_fetch_page_returns_next_records_url(self) -> None:
+        fake = FakeSalesforceClient()
+        fake.query_response = {
+            "records": [{"Id": "001"}],
+            "done": False,
+            "nextRecordsUrl": "/services/data/v59.0/query/01g000-2000",
+        }
+        client = SalesforceClient(
+            client=fake, soql_query="SELECT Id FROM Account"
+        )
+        rows, cursor = await client.fetch_page()
+        assert rows == [{"Id": "001"}]
+        assert cursor == "/services/data/v59.0/query/01g000-2000"
+
+    async def test_fetch_page_with_cursor_uses_url_directly(self) -> None:
+        fake = FakeSalesforceClient()
+        fake.restful_response = {
+            "records": [{"Id": "003"}],
+            "done": True,
+        }
+        client = SalesforceClient(
+            client=fake, soql_query="SELECT Id FROM Account"
+        )
+        rows, cursor = await client.fetch_page(
+            "/services/data/v59.0/query/01g000-2000"
+        )
+        assert rows == [{"Id": "003"}]
+        assert cursor is None
+        # When cursor is supplied, it goes through restful (non-SOQL path)
+        assert fake.restful_calls[0]["path"] == (
+            "/services/data/v59.0/query/01g000-2000"
+        )
+
+    async def test_fetch_page_without_query_or_cursor_raises(self) -> None:
+        client = SalesforceClient(client=FakeSalesforceClient())
+        with pytest.raises(RuntimeError, match="no soql_query"):
+            await client.fetch_page()
+
+
+@pytest.mark.asyncio
+class TestSoqlIterator:
+    async def test_soql_yields_all_rows_across_pages(self) -> None:
+        fake = FakeSalesforceClient()
+        fake.query_response = {
+            "records": [{"Id": "001"}, {"Id": "002"}],
+            "done": False,
+            "nextRecordsUrl": "/services/data/v59.0/query/next-1",
+        }
+        fake.restful_response = {
+            "records": [{"Id": "003"}],
+            "done": True,
+        }
+        client = SalesforceClient(client=fake)
+        collected: list[Any] = []
+        async for row in client.soql("SELECT Id FROM Account"):
+            collected.append(row)
+        assert collected == [{"Id": "001"}, {"Id": "002"}, {"Id": "003"}]
+
+    async def test_soql_rejects_empty_query(self) -> None:
+        client = SalesforceClient(client=FakeSalesforceClient())
+        with pytest.raises(ValueError, match="non-empty"):
+            async for _ in client.soql(""):
+                pass
+
+
+@pytest.mark.asyncio
+class TestWriteRecords:
+    async def test_write_records_posts_each_record(self) -> None:
+        fake = FakeSalesforceClient()
+        client = SalesforceClient(client=fake, sobject_type="Contact")
+        count = await client.write_records(
+            [{"Name": "Alice"}, {"Name": "Bob"}]
+        )
+        assert count == 2
+        assert len(fake.restful_calls) == 2
+        assert fake.restful_calls[0]["method"] == "POST"
+        assert fake.restful_calls[0]["path"] == "/sobjects/Contact"
+        assert fake.restful_calls[0]["json"] == {"Name": "Alice"}
+        assert fake.restful_calls[1]["json"] == {"Name": "Bob"}
+
+    async def test_write_records_default_sobject_type_is_account(
+        self,
+    ) -> None:
+        fake = FakeSalesforceClient()
+        client = SalesforceClient(client=fake)
+        count = await client.write_records([{"Name": "Acme"}])
+        assert count == 1
+        assert fake.restful_calls[0]["path"] == "/sobjects/Account"
+
+    async def test_write_records_empty_returns_zero(self) -> None:
+        fake = FakeSalesforceClient()
+        client = SalesforceClient(client=fake)
+        count = await client.write_records([])
+        assert count == 0
+        assert fake.restful_calls == []

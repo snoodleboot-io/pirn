@@ -5,19 +5,34 @@ when ``config.token`` is provided. The generic :meth:`request` forwards
 method/path/params/body/headers to ``client.request`` and returns the
 parsed JSON body — both REST endpoints and the ``/api/graphql`` endpoint
 return JSON, so a single shape suffices.
+
+In addition to :meth:`request`, the client implements:
+
+* :class:`TableSource` — :meth:`fetch_page` pages over the configured
+  ``entity_type`` using DataHub's offset-based search.
+* :class:`MetadataCatalog` — :meth:`list_entities` is an async iterator
+  that pages internally, and :meth:`describe_entity` GETs
+  ``/entity/{urn}``.
+* Vendor-typed :meth:`search_entities` returning
+  ``(entities, next_cursor)`` so callers that already know they're on
+  DataHub can read the typed surface.
 """
 
 from __future__ import annotations
 
 import logging
-from typing import Any, Mapping
+from typing import Any, AsyncIterator, Mapping
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.bi_catalog.datahub_config import DataHubConfig
+from pirn.domains.connectors.capabilities.metadata_catalog import (
+    MetadataCatalog,
+)
+from pirn.domains.connectors.capabilities.table_source import TableSource
 from pirn.domains.connectors.dsn_scrubber import DsnScrubber
 
 
-class DataHubClient(ApiClient):
+class DataHubClient(ApiClient, TableSource, MetadataCatalog):
     """Concrete :class:`ApiClient` backed by ``httpx.AsyncClient``."""
 
     def __init__(
@@ -25,20 +40,109 @@ class DataHubClient(ApiClient):
         config: DataHubConfig | None = None,
         *,
         client: Any = None,
+        entity_type: str = "dataset",
     ) -> None:
         if config is None and client is None:
             raise TypeError(
                 "DataHubClient requires either config= or client="
             )
+        if not isinstance(entity_type, str) or not entity_type:
+            raise ValueError(
+                "DataHubClient: entity_type must be a non-empty string"
+            )
         self._config = config
         self._client = client
         self._closed = False
+        self._entity_type = entity_type
         self._scrubber = DsnScrubber()
         self._logger = logging.getLogger(self.__class__.__module__)
 
     @property
     def config(self) -> DataHubConfig | None:
         return self._config
+
+    @property
+    def entity_type(self) -> str:
+        return self._entity_type
+
+    async def search_entities(
+        self,
+        entity_type: str,
+        query: str = "*",
+        *,
+        start: int = 0,
+        count: int = 100,
+    ) -> tuple[list[Mapping[str, Any]], str | None]:
+        """Vendor-typed offset/limit search over DataHub entities.
+
+        Returns ``(entities, next_cursor)`` where ``next_cursor`` is
+        ``str(start + count)`` if more results remain, else ``None``.
+        """
+        params: dict[str, Any] = {
+            "entity": entity_type,
+            "query": query,
+            "start": start,
+            "count": count,
+        }
+        response = await self.request(
+            "GET", "/entities", params=params
+        )
+        entities = list(response.get("entities") or ())
+        total = int(response.get("total") or 0)
+        next_offset = start + count
+        next_cursor = str(next_offset) if next_offset < total else None
+        return entities, next_cursor
+
+    async def fetch_page(
+        self,
+        cursor: str | None = None,
+        *,
+        page_size: int | None = None,
+    ) -> tuple[list[Mapping[str, Any]], str | None]:
+        """:class:`TableSource` adapter — pages the configured entity_type."""
+        start = int(cursor) if cursor else 0
+        count = page_size if page_size is not None else 100
+        return await self.search_entities(
+            self._entity_type, "*", start=start, count=count
+        )
+
+    async def list_entities(
+        self,
+        entity_type: str,
+        *,
+        filter: Mapping[str, Any] | None = None,
+    ) -> AsyncIterator[Mapping[str, Any]]:
+        """:class:`MetadataCatalog` adapter — paginates internally."""
+        cursor: str | None = None
+        while True:
+            entities, next_cursor = await self.search_entities(
+                entity_type,
+                "*",
+                start=int(cursor) if cursor else 0,
+                count=100,
+            )
+            for entity in entities:
+                if filter is None or self._matches_filter(entity, filter):
+                    yield entity
+            if next_cursor is None:
+                return
+            cursor = next_cursor
+
+    async def describe_entity(
+        self,
+        entity_id: str,
+    ) -> Mapping[str, Any]:
+        """GET ``/entity/{urn}`` and return the parsed JSON body."""
+        return await self.request("GET", f"/entity/{entity_id}")
+
+    @staticmethod
+    def _matches_filter(
+        entity: Mapping[str, Any], filter: Mapping[str, Any]
+    ) -> bool:
+        for key, value in filter.items():
+            if entity.get(key) != value:
+                return False
+        return True
 
     async def request(
         self,

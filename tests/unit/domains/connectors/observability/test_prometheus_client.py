@@ -6,11 +6,13 @@ server needed.
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any
 
 import pytest
 
 from pirn.domains.connectors.api_client import ApiClient
+from pirn.domains.connectors.capabilities.metric_query import MetricQuery
 from pirn.domains.connectors.observability.prometheus_client import (
     PrometheusClient,
 )
@@ -177,3 +179,95 @@ class TestCredentialSafety:
         d = cfg.to_audit_dict()
         assert d["bearer_token"] == "<redacted>"
         assert d["base_url"] == "http://prometheus:9090"
+
+
+# ──────────────────────────────────────────────────────── capabilities
+
+
+def test_implements_metric_query() -> None:
+    client = PrometheusClient(client=FakeHttpx())
+    assert isinstance(client, MetricQuery)
+
+
+# ─────────────────────────────────────────────────── MetricQuery adapter
+
+
+@pytest.mark.asyncio
+class TestQuery:
+    async def test_instant_query_when_start_omitted(self) -> None:
+        fake = FakeHttpx()
+        fake.response = {
+            "status": "success",
+            "data": {"resultType": "vector", "result": []},
+        }
+        client = PrometheusClient(client=fake)
+        result = await client.query("up")
+        assert result == fake.response
+        method, path, opts = fake.calls[0]
+        assert method == "GET"
+        assert path == "/api/v1/query"
+        assert opts["params"] == {"query": "up"}
+
+    async def test_instant_query_with_time(self) -> None:
+        fake = FakeHttpx()
+        fake.response = {"status": "success", "data": {"result": []}}
+        client = PrometheusClient(client=fake)
+        ts = datetime(2024, 6, 1, 12, 0, tzinfo=timezone.utc)
+        await client.query_instant("up", time=ts)
+        assert fake.calls[0][2]["params"] == {
+            "query": "up",
+            "time": int(ts.timestamp()),
+        }
+
+    async def test_range_query_when_start_provided(self) -> None:
+        fake = FakeHttpx()
+        fake.response = {
+            "status": "success",
+            "data": {"resultType": "matrix", "result": []},
+        }
+        client = PrometheusClient(client=fake)
+        start = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        end = datetime(2024, 1, 2, tzinfo=timezone.utc)
+        result = await client.query("up", start=start, end=end, step="30s")
+        assert result == fake.response
+        method, path, opts = fake.calls[0]
+        assert method == "GET"
+        assert path == "/api/v1/query_range"
+        assert opts["params"] == {
+            "query": "up",
+            "start": int(start.timestamp()),
+            "end": int(end.timestamp()),
+            "step": "30s",
+        }
+
+    async def test_range_query_default_step(self) -> None:
+        fake = FakeHttpx()
+        fake.response = {"status": "success", "data": {"result": []}}
+        client = PrometheusClient(client=fake)
+        start = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        end = datetime(2024, 1, 2, tzinfo=timezone.utc)
+        await client.query("up", start=start, end=end)
+        assert fake.calls[0][2]["params"]["step"] == "60s"
+
+    async def test_range_query_requires_end_when_start_set(self) -> None:
+        client = PrometheusClient(client=FakeHttpx())
+        with pytest.raises(ValueError, match="end is required"):
+            await client.query(
+                "up",
+                start=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            )
+
+    async def test_query_rejects_empty(self) -> None:
+        client = PrometheusClient(client=FakeHttpx())
+        with pytest.raises(ValueError, match="query"):
+            await client.query("")
+
+    async def test_query_range_rejects_empty_step(self) -> None:
+        client = PrometheusClient(client=FakeHttpx())
+        with pytest.raises(ValueError, match="step"):
+            await client.query_range(
+                "up",
+                start=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                end=datetime(2024, 1, 2, tzinfo=timezone.utc),
+                step="",
+            )

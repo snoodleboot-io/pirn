@@ -3,20 +3,33 @@
 ``Zenpy`` is sync; calls run in a worker thread via
 :func:`asyncio.to_thread` so the connector cooperates with pirn's async
 runtime without blocking the event loop on slow Zendesk calls.
+
+The connector exposes:
+
+1. **Vendor-typed methods** for the most common reads
+   (:meth:`list_tickets`, :meth:`list_users`).
+2. The :class:`TableSource` capability — ``fetch_page`` pages the
+   constructor's ``resource`` (default ``"tickets"``) over Zendesk's
+   cursor-based pagination API.
+3. The :class:`RecordWriter` capability — ``write_records`` POSTs each
+   record as a ticket via ``/api/v2/tickets.json``.
+4. The legacy :meth:`request` escape hatch.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Mapping
+from typing import Any, Iterable, Mapping
 
 from pirn.domains.connectors.api_client import ApiClient
+from pirn.domains.connectors.capabilities.record_writer import RecordWriter
+from pirn.domains.connectors.capabilities.table_source import TableSource
 from pirn.domains.connectors.dsn_scrubber import DsnScrubber
 from pirn.domains.connectors.saas.zendesk_config import ZendeskConfig
 
 
-class ZendeskClient(ApiClient):
+class ZendeskClient(ApiClient, TableSource, RecordWriter):
     """Concrete :class:`ApiClient` backed by ``zenpy``.
 
     zenpy's :class:`Zenpy` class composes domain helpers (tickets,
@@ -32,18 +45,101 @@ class ZendeskClient(ApiClient):
         config: ZendeskConfig | None = None,
         *,
         client: Any = None,
+        resource: str = "tickets",
     ) -> None:
         if config is None and client is None:
             raise TypeError("ZendeskClient requires either config= or client=")
+        if not isinstance(resource, str) or not resource:
+            raise ValueError(
+                "ZendeskClient: resource must be a non-empty string"
+            )
         self._config = config
         self._client = client
         self._closed = False
+        self._resource = resource
         self._scrubber = DsnScrubber()
         self._logger = logging.getLogger(self.__class__.__module__)
 
     @property
     def config(self) -> ZendeskConfig | None:
         return self._config
+
+    @property
+    def resource(self) -> str:
+        return self._resource
+
+    async def fetch_page(
+        self,
+        cursor: str | None = None,
+        *,
+        page_size: int | None = None,
+    ) -> tuple[list[Mapping[str, Any]], str | None]:
+        """:class:`TableSource` adapter — pages the configured resource."""
+        return await self._list_resource(
+            self._resource, cursor=cursor, page_size=page_size
+        )
+
+    async def list_tickets(
+        self,
+        *,
+        cursor: str | None = None,
+        page_size: int | None = None,
+    ) -> tuple[list[Mapping[str, Any]], str | None]:
+        """Vendor-typed read of Zendesk tickets."""
+        return await self._list_resource(
+            "tickets", cursor=cursor, page_size=page_size
+        )
+
+    async def list_users(
+        self,
+        *,
+        cursor: str | None = None,
+        page_size: int | None = None,
+    ) -> tuple[list[Mapping[str, Any]], str | None]:
+        """Vendor-typed read of Zendesk users."""
+        return await self._list_resource(
+            "users", cursor=cursor, page_size=page_size
+        )
+
+    async def _list_resource(
+        self,
+        resource: str,
+        *,
+        cursor: str | None,
+        page_size: int | None,
+    ) -> tuple[list[Mapping[str, Any]], str | None]:
+        params: dict[str, Any] = {}
+        if cursor is not None:
+            params["page[after]"] = cursor
+        if page_size is not None:
+            params["page[size]"] = page_size
+        response = await self.request(
+            "GET",
+            f"/api/v2/{resource}.json",
+            params=params or None,
+        )
+        rows: list[Mapping[str, Any]] = []
+        next_cursor: str | None = None
+        if isinstance(response, Mapping):
+            rows = list(response.get(resource) or ())
+            meta = response.get("meta")
+            if isinstance(meta, Mapping) and meta.get("has_more"):
+                after_cursor = meta.get("after_cursor")
+                if after_cursor is not None:
+                    next_cursor = str(after_cursor)
+        return rows, next_cursor
+
+    async def write_records(
+        self,
+        records: Iterable[Mapping[str, Any]],
+    ) -> int:
+        """POST each record as a ticket via ``/api/v2/tickets.json``."""
+        materialised = list(records)
+        for record in materialised:
+            await self.request(
+                "POST", "/api/v2/tickets.json", body=record
+            )
+        return len(materialised)
 
     async def request(
         self,

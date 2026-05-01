@@ -13,6 +13,10 @@ from pirn.domains.connectors.bi_catalog.open_metadata_client import (
 from pirn.domains.connectors.bi_catalog.open_metadata_config import (
     OpenMetadataConfig,
 )
+from pirn.domains.connectors.capabilities.metadata_catalog import (
+    MetadataCatalog,
+)
+from pirn.domains.connectors.capabilities.table_source import TableSource
 
 
 class FakeResponse:
@@ -113,3 +117,190 @@ class TestLifecycle:
         await client.close()
         with pytest.raises(RuntimeError, match="closed"):
             await client.request("GET", "/v1/tables")
+
+
+def test_implements_table_source_and_metadata_catalog() -> None:
+    client = OpenMetadataClient(client=FakeHttpx())
+    assert isinstance(client, TableSource)
+    assert isinstance(client, MetadataCatalog)
+
+
+def test_default_entity_type_is_tables() -> None:
+    client = OpenMetadataClient(client=FakeHttpx())
+    assert client.entity_type == "tables"
+
+
+def test_blank_entity_type_rejected() -> None:
+    with pytest.raises(ValueError, match="entity_type"):
+        OpenMetadataClient(client=FakeHttpx(), entity_type="")
+
+
+@pytest.mark.asyncio
+class TestVendorTypedListings:
+    async def test_list_tables_passes_paging_params(self) -> None:
+        fake = FakeHttpx()
+        cfg = OpenMetadataConfig(
+            host_url="https://om.acme.com", jwt_token="jwt"
+        )
+        fake.responses[
+            ("GET", "https://om.acme.com/api/v1/tables")
+        ] = {
+            "data": [{"name": "t1"}, {"name": "t2"}],
+            "paging": {"after": "next-token"},
+        }
+        client = OpenMetadataClient(cfg, client=fake)
+
+        rows, cursor = await client.list_tables(after="prev", limit=2)
+
+        assert rows == [{"name": "t1"}, {"name": "t2"}]
+        assert cursor == "next-token"
+        assert fake.calls[0]["params"] == {"after": "prev", "limit": 2}
+
+    async def test_list_dashboards_targets_dashboards_url(self) -> None:
+        fake = FakeHttpx()
+        cfg = OpenMetadataConfig(
+            host_url="https://om.acme.com", jwt_token="jwt"
+        )
+        fake.responses[
+            ("GET", "https://om.acme.com/api/v1/dashboards")
+        ] = {"data": [{"name": "d1"}], "paging": {}}
+        client = OpenMetadataClient(cfg, client=fake)
+
+        rows, cursor = await client.list_dashboards()
+
+        assert rows == [{"name": "d1"}]
+        assert cursor is None
+        assert fake.calls[0]["url"].endswith("/api/v1/dashboards")
+
+
+@pytest.mark.asyncio
+class TestFetchPage:
+    async def test_uses_configured_entity_type(self) -> None:
+        fake = FakeHttpx()
+        cfg = OpenMetadataConfig(
+            host_url="https://om.acme.com", jwt_token="jwt"
+        )
+        fake.responses[
+            ("GET", "https://om.acme.com/api/v1/tables")
+        ] = {"data": [{"id": 1}], "paging": {"after": "x"}}
+        client = OpenMetadataClient(cfg, client=fake)
+
+        rows, cursor = await client.fetch_page(
+            cursor="prev", page_size=10
+        )
+
+        assert rows == [{"id": 1}]
+        assert cursor == "x"
+        assert fake.calls[0]["params"] == {"after": "prev", "limit": 10}
+
+    async def test_no_paging_after_returns_none_cursor(self) -> None:
+        fake = FakeHttpx()
+        cfg = OpenMetadataConfig(
+            host_url="https://om.acme.com", jwt_token="jwt"
+        )
+        fake.responses[
+            ("GET", "https://om.acme.com/api/v1/tables")
+        ] = {"data": [{"id": 1}], "paging": {}}
+        client = OpenMetadataClient(cfg, client=fake)
+
+        _, cursor = await client.fetch_page()
+
+        assert cursor is None
+
+
+@pytest.mark.asyncio
+class TestListEntities:
+    async def test_paginates_internally(self) -> None:
+        fake = FakeHttpx()
+        cfg = OpenMetadataConfig(
+            host_url="https://om.acme.com", jwt_token="jwt"
+        )
+        page_calls = {"count": 0}
+
+        async def request_request(
+            method: str,
+            url: str,
+            *,
+            params: Any = None,
+            json: Any = None,
+            headers: Any = None,
+        ) -> Any:
+            fake.calls.append(
+                {
+                    "method": method,
+                    "url": url,
+                    "params": params,
+                    "json": json,
+                    "headers": headers,
+                }
+            )
+            page_calls["count"] += 1
+            if page_calls["count"] == 1:
+                return _FakeJson(
+                    {
+                        "data": [{"name": "t1"}],
+                        "paging": {"after": "tok2"},
+                    }
+                )
+            return _FakeJson(
+                {"data": [{"name": "t2"}], "paging": {}}
+            )
+
+        fake.request = request_request  # type: ignore[assignment]
+        client = OpenMetadataClient(cfg, client=fake)
+
+        results = []
+        async for entity in client.list_entities("tables"):
+            results.append(entity)
+
+        assert results == [{"name": "t1"}, {"name": "t2"}]
+        assert page_calls["count"] == 2
+
+    async def test_filter_applied(self) -> None:
+        fake = FakeHttpx()
+        cfg = OpenMetadataConfig(
+            host_url="https://om.acme.com", jwt_token="jwt"
+        )
+        fake.responses[
+            ("GET", "https://om.acme.com/api/v1/tables")
+        ] = {
+            "data": [
+                {"name": "t1", "tier": "gold"},
+                {"name": "t2", "tier": "bronze"},
+            ],
+            "paging": {},
+        }
+        client = OpenMetadataClient(cfg, client=fake)
+
+        results = []
+        async for entity in client.list_entities(
+            "tables", filter={"tier": "gold"}
+        ):
+            results.append(entity)
+
+        assert results == [{"name": "t1", "tier": "gold"}]
+
+
+@pytest.mark.asyncio
+class TestDescribeEntity:
+    async def test_calls_entities_endpoint(self) -> None:
+        fake = FakeHttpx()
+        cfg = OpenMetadataConfig(
+            host_url="https://om.acme.com", jwt_token="jwt"
+        )
+        fake.responses[
+            ("GET", "https://om.acme.com/api/v1/entities/abc-123")
+        ] = {"id": "abc-123", "name": "thing"}
+        client = OpenMetadataClient(cfg, client=fake)
+
+        result = await client.describe_entity("abc-123")
+
+        assert result == {"id": "abc-123", "name": "thing"}
+
+
+class _FakeJson:
+    def __init__(self, payload: Any) -> None:
+        self._payload = payload
+
+    def json(self) -> Any:
+        return self._payload

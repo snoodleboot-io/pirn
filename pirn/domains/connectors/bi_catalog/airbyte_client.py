@@ -3,6 +3,14 @@
 Uses ``httpx.AsyncClient`` with a bearer-token ``Authorization`` header.
 ``request`` forwards method/path/params/body/headers to ``client.request``
 and returns the parsed JSON body.
+
+In addition to :meth:`request`, the client implements:
+
+* :class:`TableSource` — :meth:`fetch_page` pages over the configured
+  ``resource`` (``connections``, ``workspaces``, ...) using Airbyte
+  Cloud's POST-based listing.
+* Vendor-typed shortcuts :meth:`list_connections` and
+  :meth:`list_workspaces`.
 """
 
 from __future__ import annotations
@@ -12,10 +20,11 @@ from typing import Any, Mapping
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.bi_catalog.airbyte_config import AirbyteConfig
+from pirn.domains.connectors.capabilities.table_source import TableSource
 from pirn.domains.connectors.dsn_scrubber import DsnScrubber
 
 
-class AirbyteClient(ApiClient):
+class AirbyteClient(ApiClient, TableSource):
     """Concrete :class:`ApiClient` backed by ``httpx.AsyncClient``."""
 
     def __init__(
@@ -23,20 +32,84 @@ class AirbyteClient(ApiClient):
         config: AirbyteConfig | None = None,
         *,
         client: Any = None,
+        resource: str = "connections",
     ) -> None:
         if config is None and client is None:
             raise TypeError(
                 "AirbyteClient requires either config= or client="
             )
+        if not isinstance(resource, str) or not resource:
+            raise ValueError(
+                "AirbyteClient: resource must be a non-empty string"
+            )
         self._config = config
         self._client = client
         self._closed = False
+        self._resource = resource
         self._scrubber = DsnScrubber()
         self._logger = logging.getLogger(self.__class__.__module__)
 
     @property
     def config(self) -> AirbyteConfig | None:
         return self._config
+
+    @property
+    def resource(self) -> str:
+        return self._resource
+
+    async def list_connections(
+        self,
+        *,
+        cursor: str | None = None,
+        limit: int | None = None,
+    ) -> tuple[list[Mapping[str, Any]], str | None]:
+        """Vendor-typed read of Airbyte connections."""
+        return await self._list_resource(
+            "connections", cursor=cursor, limit=limit
+        )
+
+    async def list_workspaces(
+        self,
+        *,
+        cursor: str | None = None,
+        limit: int | None = None,
+    ) -> tuple[list[Mapping[str, Any]], str | None]:
+        """Vendor-typed read of Airbyte workspaces."""
+        return await self._list_resource(
+            "workspaces", cursor=cursor, limit=limit
+        )
+
+    async def fetch_page(
+        self,
+        cursor: str | None = None,
+        *,
+        page_size: int | None = None,
+    ) -> tuple[list[Mapping[str, Any]], str | None]:
+        """:class:`TableSource` adapter — pages the configured resource."""
+        return await self._list_resource(
+            self._resource, cursor=cursor, limit=page_size
+        )
+
+    async def _list_resource(
+        self,
+        resource: str,
+        *,
+        cursor: str | None,
+        limit: int | None,
+    ) -> tuple[list[Mapping[str, Any]], str | None]:
+        body: dict[str, Any] = {}
+        if limit is not None:
+            body["limit"] = limit
+        if cursor is not None:
+            body["cursor"] = cursor
+        response = await self.request(
+            "POST",
+            f"/v1/{resource}/list",
+            body=body or None,
+        )
+        rows = list(response.get("data") or ())
+        next_cursor = response.get("next_cursor")
+        return rows, next_cursor if next_cursor else None
 
     async def request(
         self,

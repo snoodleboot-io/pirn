@@ -6,21 +6,28 @@ Prometheus exposes a JSON HTTP API at ``/api/v1/query``,
 Python process — it is not a query client. For querying we use
 :mod:`httpx` directly (installed via the ``pirn[http]`` extra and shared
 with the rest of pirn's HTTP plumbing).
+
+The connector implements :class:`MetricQuery`. ``query`` routes to the
+instant endpoint when ``start`` is omitted and to the range endpoint
+otherwise. Vendor-typed :meth:`query_instant` and :meth:`query_range`
+expose the raw shape directly.
 """
 
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import Any, Mapping
 
 from pirn.domains.connectors.api_client import ApiClient
+from pirn.domains.connectors.capabilities.metric_query import MetricQuery
 from pirn.domains.connectors.dsn_scrubber import DsnScrubber
 from pirn.domains.connectors.observability.prometheus_config import (
     PrometheusConfig,
 )
 
 
-class PrometheusClient(ApiClient):
+class PrometheusClient(ApiClient, MetricQuery):
     """Concrete :class:`ApiClient` for the Prometheus HTTP query API."""
 
     def __init__(
@@ -42,6 +49,84 @@ class PrometheusClient(ApiClient):
     @property
     def config(self) -> PrometheusConfig | None:
         return self._config
+
+    async def query(
+        self,
+        query: str,
+        *,
+        start: datetime | None = None,
+        end: datetime | None = None,
+        step: str | None = None,
+    ) -> Mapping[str, Any]:
+        """:class:`MetricQuery` adapter — picks instant vs range.
+
+        - Instant query (``/api/v1/query``) when ``start`` is None.
+        - Range query (``/api/v1/query_range``) when ``start`` is set;
+          ``end`` defaults to ``start`` if omitted, and ``step``
+          defaults to ``"60s"``.
+        """
+        if not isinstance(query, str) or not query:
+            raise ValueError(
+                "PrometheusClient.query: query must be non-empty"
+            )
+        if start is None:
+            return await self.query_instant(query, time=end)
+        if end is None:
+            raise ValueError(
+                "PrometheusClient.query: end is required when start is set"
+            )
+        return await self.query_range(
+            query, start=start, end=end, step=step or "60s"
+        )
+
+    async def query_instant(
+        self,
+        query: str,
+        *,
+        time: datetime | None = None,
+    ) -> Mapping[str, Any]:
+        """Vendor-typed instant query against ``/api/v1/query``."""
+        if not isinstance(query, str) or not query:
+            raise ValueError(
+                "PrometheusClient.query_instant: query must be non-empty"
+            )
+        params: dict[str, Any] = {"query": query}
+        if time is not None:
+            params["time"] = int(time.timestamp())
+        response = await self.request("GET", "/api/v1/query", params=params)
+        if not isinstance(response, Mapping):
+            return {"data": response}
+        return response
+
+    async def query_range(
+        self,
+        query: str,
+        *,
+        start: datetime,
+        end: datetime,
+        step: str = "60s",
+    ) -> Mapping[str, Any]:
+        """Vendor-typed range query against ``/api/v1/query_range``."""
+        if not isinstance(query, str) or not query:
+            raise ValueError(
+                "PrometheusClient.query_range: query must be non-empty"
+            )
+        if not isinstance(step, str) or not step:
+            raise ValueError(
+                "PrometheusClient.query_range: step must be non-empty"
+            )
+        params = {
+            "query": query,
+            "start": int(start.timestamp()),
+            "end": int(end.timestamp()),
+            "step": step,
+        }
+        response = await self.request(
+            "GET", "/api/v1/query_range", params=params
+        )
+        if not isinstance(response, Mapping):
+            return {"data": response}
+        return response
 
     async def request(
         self,

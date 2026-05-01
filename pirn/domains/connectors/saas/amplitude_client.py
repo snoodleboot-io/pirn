@@ -3,9 +3,15 @@
 The official ``amplitude-analytics`` SDK is synchronous and
 ingestion-only; calls run in a worker thread via
 :func:`asyncio.to_thread` so the connector cooperates with pirn's async
-runtime without blocking the event loop. The generic :meth:`request`
-interface dispatches based on ``path`` (``/track``) to the matching SDK
-method.
+runtime without blocking the event loop.
+
+The connector exposes:
+
+1. **Vendor-typed methods** — :meth:`track`.
+2. The :class:`EventEmitter` capability — :meth:`emit` accepts
+   ``{"user_id", "event"|"event_type", "properties"?}`` and forwards to
+   :meth:`track`.
+3. The legacy :meth:`request` escape hatch (``POST /track``).
 """
 
 from __future__ import annotations
@@ -15,11 +21,12 @@ import logging
 from typing import Any, Mapping
 
 from pirn.domains.connectors.api_client import ApiClient
+from pirn.domains.connectors.capabilities.event_emitter import EventEmitter
 from pirn.domains.connectors.dsn_scrubber import DsnScrubber
 from pirn.domains.connectors.saas.amplitude_config import AmplitudeConfig
 
 
-class AmplitudeClient(ApiClient):
+class AmplitudeClient(ApiClient, EventEmitter):
     """Async wrapper over a sync ``amplitude.Amplitude`` client."""
 
     def __init__(
@@ -41,6 +48,58 @@ class AmplitudeClient(ApiClient):
     @property
     def config(self) -> AmplitudeConfig | None:
         return self._config
+
+    async def emit(self, event: Mapping[str, Any]) -> None:
+        """:class:`EventEmitter` adapter — forwards to :meth:`track`.
+
+        ``event`` requires a ``user_id`` and an event-name key
+        (``event_type`` preferred, ``event`` accepted as a synonym).
+        ``properties`` is optional.
+        """
+        if "user_id" not in event:
+            raise ValueError(
+                "AmplitudeClient.emit: event requires 'user_id'"
+            )
+        event_type = event.get("event_type")
+        if event_type is None:
+            event_type = event.get("event")
+        if event_type is None:
+            raise ValueError(
+                "AmplitudeClient.emit: event requires 'event_type' or 'event'"
+            )
+        await self.track(
+            user_id=event["user_id"],
+            event_type=event_type,
+            properties=event.get("properties"),
+        )
+
+    async def track(
+        self,
+        *,
+        user_id: str,
+        event_type: str,
+        properties: Mapping[str, Any] | None = None,
+    ) -> None:
+        """Vendor-typed wrapper around ``Amplitude.track``."""
+        if not isinstance(user_id, str) or not user_id:
+            raise ValueError(
+                "AmplitudeClient.track: user_id must be a non-empty string"
+            )
+        if not isinstance(event_type, str) or not event_type:
+            raise ValueError(
+                "AmplitudeClient.track: event_type must be a non-empty string"
+            )
+        amplitude_event = await self._build_event(
+            {
+                "event": event_type,
+                "user_id": user_id,
+                "properties": (
+                    dict(properties) if properties is not None else None
+                ),
+            }
+        )
+        client = await self._ensure_client()
+        await asyncio.to_thread(client.track, amplitude_event)
 
     async def request(
         self,

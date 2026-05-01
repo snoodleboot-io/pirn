@@ -3,6 +3,14 @@
 ``atlassian.Jira`` is sync; calls run in a worker thread via
 :func:`asyncio.to_thread` so the connector cooperates with pirn's async
 runtime without blocking the event loop on slow Jira calls.
+
+The connector exposes:
+
+1. **Vendor-typed methods** (:meth:`search`).
+2. The :class:`TableSource` capability — ``fetch_page`` runs the
+   constructor's ``jql`` and pages via Jira's offset cursor
+   (``startAt`` + ``maxResults``).
+3. The legacy :meth:`request` escape hatch.
 """
 
 from __future__ import annotations
@@ -12,11 +20,12 @@ import logging
 from typing import Any, Mapping
 
 from pirn.domains.connectors.api_client import ApiClient
+from pirn.domains.connectors.capabilities.table_source import TableSource
 from pirn.domains.connectors.dsn_scrubber import DsnScrubber
 from pirn.domains.connectors.saas.jira_config import JiraConfig
 
 
-class JiraClient(ApiClient):
+class JiraClient(ApiClient, TableSource):
     """Concrete :class:`ApiClient` backed by ``atlassian-python-api``.
 
     The Jira SDK exposes ``client.get(path, params=...)``,
@@ -30,18 +39,106 @@ class JiraClient(ApiClient):
         config: JiraConfig | None = None,
         *,
         client: Any = None,
+        jql: str | None = None,
     ) -> None:
         if config is None and client is None:
             raise TypeError("JiraClient requires either config= or client=")
+        if jql is not None and (not isinstance(jql, str) or not jql):
+            raise ValueError(
+                "JiraClient: jql must be a non-empty string"
+            )
         self._config = config
         self._client = client
         self._closed = False
+        self._jql = jql
         self._scrubber = DsnScrubber()
         self._logger = logging.getLogger(self.__class__.__module__)
 
     @property
     def config(self) -> JiraConfig | None:
         return self._config
+
+    @property
+    def jql(self) -> str | None:
+        return self._jql
+
+    async def search(
+        self,
+        jql: str,
+        *,
+        start_at: int = 0,
+        max_results: int = 50,
+    ) -> tuple[list[Mapping[str, Any]], str | None]:
+        """Vendor-typed search — return ``(issues, next_cursor)``.
+
+        ``next_cursor`` is ``str(start_at + max_results)`` if more rows
+        remain, else ``None``.
+        """
+        if not isinstance(jql, str) or not jql:
+            raise ValueError(
+                "JiraClient.search: jql must be a non-empty string"
+            )
+        return await self._search(
+            jql, start_at=start_at, max_results=max_results
+        )
+
+    async def fetch_page(
+        self,
+        cursor: str | None = None,
+        *,
+        page_size: int | None = None,
+    ) -> tuple[list[Mapping[str, Any]], str | None]:
+        """:class:`TableSource` adapter — pages the constructor's ``jql``."""
+        if self._jql is None:
+            raise RuntimeError(
+                "JiraClient.fetch_page: no jql configured"
+            )
+        start_at = int(cursor) if cursor else 0
+        max_results = page_size or 50
+        return await self._search(
+            self._jql, start_at=start_at, max_results=max_results
+        )
+
+    async def _search(
+        self,
+        jql: str,
+        *,
+        start_at: int,
+        max_results: int,
+    ) -> tuple[list[Mapping[str, Any]], str | None]:
+        response = await self.request(
+            "GET",
+            "/search",
+            params={
+                "jql": jql,
+                "startAt": start_at,
+                "maxResults": max_results,
+            },
+        )
+        return self._extract_page(response, start_at, max_results)
+
+    @staticmethod
+    def _extract_page(
+        response: Any,
+        start_at: int,
+        max_results: int,
+    ) -> tuple[list[Mapping[str, Any]], str | None]:
+        if not isinstance(response, Mapping):
+            return [], None
+        issues = list(response.get("issues") or ())
+        total = response.get("total")
+        response_start = response.get("startAt", start_at)
+        response_max = response.get("maxResults", max_results)
+        try:
+            start_int = int(response_start)
+            max_int = int(response_max)
+        except (TypeError, ValueError):
+            start_int = start_at
+            max_int = max_results
+        next_offset = start_int + max_int
+        if isinstance(total, int) and next_offset < total:
+            return issues, str(next_offset)
+        return issues, None
 
     async def request(
         self,

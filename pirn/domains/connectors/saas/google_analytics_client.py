@@ -4,9 +4,17 @@ The official ``google-analytics-data`` SDK is synchronous; calls run in a
 worker thread via :func:`asyncio.to_thread` so the connector cooperates
 with pirn's async runtime without blocking the event loop. The generic
 :meth:`request` interface dispatches based on ``path`` to the matching
-SDK method (``run_report``, ``run_realtime_report``, ...). Pagination,
-when needed, is the caller's responsibility and is expressed by reissuing
-``request`` with the appropriate offset / page token in ``body``.
+SDK method (``run_report``, ``run_realtime_report``, ...).
+
+The connector exposes:
+
+1. **Vendor-typed methods** — :meth:`run_report` wraps the SDK's
+   ``run_report`` for callers who already have a fully-formed
+   ``RunReportRequest`` body.
+2. The :class:`TableSource` capability — :meth:`fetch_page` runs the
+   constructor's ``report_request`` and pages via ``offset`` /
+   ``limit``.
+3. The legacy :meth:`request` escape hatch.
 """
 
 from __future__ import annotations
@@ -17,13 +25,14 @@ import logging
 from typing import Any, Mapping
 
 from pirn.domains.connectors.api_client import ApiClient
+from pirn.domains.connectors.capabilities.table_source import TableSource
 from pirn.domains.connectors.dsn_scrubber import DsnScrubber
 from pirn.domains.connectors.saas.google_analytics_config import (
     GoogleAnalyticsConfig,
 )
 
 
-class GoogleAnalyticsClient(ApiClient):
+class GoogleAnalyticsClient(ApiClient, TableSource):
     """Async wrapper over a sync ``BetaAnalyticsDataClient``."""
 
     def __init__(
@@ -31,20 +40,85 @@ class GoogleAnalyticsClient(ApiClient):
         config: GoogleAnalyticsConfig | None = None,
         *,
         client: Any = None,
+        report_request: Mapping[str, Any] | None = None,
     ) -> None:
         if config is None and client is None:
             raise TypeError(
                 "GoogleAnalyticsClient requires either config= or client="
             )
+        if report_request is not None and not isinstance(
+            report_request, Mapping
+        ):
+            raise ValueError(
+                "GoogleAnalyticsClient: report_request must be a Mapping"
+            )
         self._config = config
         self._client = client
         self._closed = False
+        self._report_request = (
+            dict(report_request) if report_request is not None else None
+        )
         self._scrubber = DsnScrubber()
         self._logger = logging.getLogger(self.__class__.__module__)
 
     @property
     def config(self) -> GoogleAnalyticsConfig | None:
         return self._config
+
+    @property
+    def report_request(self) -> Mapping[str, Any] | None:
+        return self._report_request
+
+    async def run_report(self, request: Mapping[str, Any]) -> Any:
+        """Vendor-typed wrapper around ``BetaAnalyticsDataClient.run_report``.
+
+        Forwards through :meth:`request` (``POST /runReport``) so the
+        legacy escape hatch and the typed surface share one path.
+        """
+        if not isinstance(request, Mapping):
+            raise ValueError(
+                "GoogleAnalyticsClient.run_report: request must be a Mapping"
+            )
+        return await self.request("POST", "runReport", body=request)
+
+    async def fetch_page(
+        self,
+        cursor: str | None = None,
+        *,
+        page_size: int | None = None,
+    ) -> tuple[list[Mapping[str, Any]], str | None]:
+        """:class:`TableSource` adapter — pages ``self.report_request``.
+
+        ``cursor`` encodes the GA4 ``offset``. ``page_size`` becomes the
+        ``limit``. ``next_cursor`` is ``str(offset + len(rows))`` while
+        the response is full (``len(rows) == limit``); otherwise ``None``.
+        """
+        if self._report_request is None:
+            raise RuntimeError(
+                "GoogleAnalyticsClient.fetch_page: no report_request configured"
+            )
+        offset = int(cursor) if cursor else 0
+        limit = page_size or 1000
+        body = dict(self._report_request)
+        body["offset"] = offset
+        body["limit"] = limit
+        response = await self.request("POST", "runReport", body=body)
+        rows = self._extract_rows(response)
+        next_cursor = (
+            str(offset + len(rows)) if len(rows) == limit else None
+        )
+        return rows, next_cursor
+
+    @staticmethod
+    def _extract_rows(response: Any) -> list[Mapping[str, Any]]:
+        if isinstance(response, Mapping):
+            rows = response.get("rows")
+            if isinstance(rows, list):
+                return [row for row in rows if isinstance(row, Mapping)]
+        rows_attr = getattr(response, "rows", None)
+        if isinstance(rows_attr, list):
+            return [row for row in rows_attr if isinstance(row, Mapping)]
+        return []
 
     async def request(
         self,

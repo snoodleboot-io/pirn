@@ -3,6 +3,13 @@
 Uses ``httpx.AsyncClient`` with HTTP Basic auth (``api_key`` / ``api_secret``).
 The generic :meth:`request` forwards ``method``/``path``/``params``/``body``/
 ``headers`` to ``client.request`` and returns the parsed JSON body.
+
+In addition to :meth:`request`, the client implements:
+
+* :class:`TableSource` — :meth:`fetch_page` pages over the configured
+  ``resource`` (``connectors``, ``groups``, ``users``) using Fivetran's
+  cursor-based pagination.
+* Vendor-typed shortcuts :meth:`list_connectors` and :meth:`list_groups`.
 """
 
 from __future__ import annotations
@@ -12,10 +19,11 @@ from typing import Any, Mapping
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.bi_catalog.fivetran_config import FivetranConfig
+from pirn.domains.connectors.capabilities.table_source import TableSource
 from pirn.domains.connectors.dsn_scrubber import DsnScrubber
 
 
-class FivetranClient(ApiClient):
+class FivetranClient(ApiClient, TableSource):
     """Concrete :class:`ApiClient` backed by ``httpx.AsyncClient``."""
 
     def __init__(
@@ -23,20 +31,83 @@ class FivetranClient(ApiClient):
         config: FivetranConfig | None = None,
         *,
         client: Any = None,
+        resource: str = "connectors",
     ) -> None:
         if config is None and client is None:
             raise TypeError(
                 "FivetranClient requires either config= or client="
             )
+        if not isinstance(resource, str) or not resource:
+            raise ValueError(
+                "FivetranClient: resource must be a non-empty string"
+            )
         self._config = config
         self._client = client
         self._closed = False
+        self._resource = resource
         self._scrubber = DsnScrubber()
         self._logger = logging.getLogger(self.__class__.__module__)
 
     @property
     def config(self) -> FivetranConfig | None:
         return self._config
+
+    @property
+    def resource(self) -> str:
+        return self._resource
+
+    async def list_connectors(
+        self,
+        *,
+        cursor: str | None = None,
+        limit: int | None = None,
+    ) -> tuple[list[Mapping[str, Any]], str | None]:
+        """Vendor-typed read of Fivetran connectors."""
+        return await self._list_resource(
+            "connectors", cursor=cursor, limit=limit
+        )
+
+    async def list_groups(
+        self,
+        *,
+        cursor: str | None = None,
+        limit: int | None = None,
+    ) -> tuple[list[Mapping[str, Any]], str | None]:
+        """Vendor-typed read of Fivetran groups."""
+        return await self._list_resource(
+            "groups", cursor=cursor, limit=limit
+        )
+
+    async def fetch_page(
+        self,
+        cursor: str | None = None,
+        *,
+        page_size: int | None = None,
+    ) -> tuple[list[Mapping[str, Any]], str | None]:
+        """:class:`TableSource` adapter — pages the configured resource."""
+        return await self._list_resource(
+            self._resource, cursor=cursor, limit=page_size
+        )
+
+    async def _list_resource(
+        self,
+        resource: str,
+        *,
+        cursor: str | None,
+        limit: int | None,
+    ) -> tuple[list[Mapping[str, Any]], str | None]:
+        params: dict[str, Any] = {}
+        if cursor is not None:
+            params["cursor"] = cursor
+        if limit is not None:
+            params["limit"] = limit
+        response = await self.request(
+            "GET", f"/{resource}", params=params or None
+        )
+        data = response.get("data") or {}
+        rows = list(data.get("items") or ())
+        next_cursor = data.get("next_cursor")
+        return rows, next_cursor if next_cursor else None
 
     async def request(
         self,

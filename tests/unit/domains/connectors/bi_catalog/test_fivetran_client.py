@@ -14,6 +14,7 @@ import pytest
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.bi_catalog.fivetran_client import FivetranClient
 from pirn.domains.connectors.bi_catalog.fivetran_config import FivetranConfig
+from pirn.domains.connectors.capabilities.table_source import TableSource
 
 
 # ──────────────────────────────────────────────────────────── fake client
@@ -143,3 +144,102 @@ class TestLifecycle:
         await client.close()
         with pytest.raises(RuntimeError, match="closed"):
             await client.request("GET", "/connectors")
+
+
+# ─────────────────────────────────────────────────────── table source surface
+
+
+def test_implements_table_source() -> None:
+    client = FivetranClient(client=FakeHttpx())
+    assert isinstance(client, TableSource)
+
+
+def test_default_resource_is_connectors() -> None:
+    client = FivetranClient(client=FakeHttpx())
+    assert client.resource == "connectors"
+
+
+def test_blank_resource_rejected() -> None:
+    with pytest.raises(ValueError, match="resource"):
+        FivetranClient(client=FakeHttpx(), resource="")
+
+
+@pytest.mark.asyncio
+class TestFetchPage:
+    async def test_fetch_page_returns_rows_and_next_cursor(self) -> None:
+        fake = FakeHttpx()
+        cfg = FivetranConfig(
+            api_key="k",
+            api_secret="s",
+            base_url="https://api.fivetran.com/v1",
+        )
+        fake.responses[
+            ("GET", "https://api.fivetran.com/v1/connectors")
+        ] = {
+            "data": {
+                "items": [{"id": "abc"}, {"id": "def"}],
+                "next_cursor": "tok2",
+            }
+        }
+        client = FivetranClient(cfg, client=fake)
+
+        rows, cursor = await client.fetch_page(
+            cursor="tok1", page_size=10
+        )
+
+        assert rows == [{"id": "abc"}, {"id": "def"}]
+        assert cursor == "tok2"
+        assert fake.calls[0]["params"] == {"cursor": "tok1", "limit": 10}
+
+    async def test_fetch_page_no_next_cursor_returns_none(self) -> None:
+        fake = FakeHttpx()
+        cfg = FivetranConfig(
+            api_key="k",
+            api_secret="s",
+            base_url="https://api.fivetran.com/v1",
+        )
+        fake.responses[
+            ("GET", "https://api.fivetran.com/v1/connectors")
+        ] = {"data": {"items": [{"id": "abc"}]}}
+        client = FivetranClient(cfg, client=fake)
+
+        _, cursor = await client.fetch_page()
+
+        assert cursor is None
+
+
+@pytest.mark.asyncio
+class TestVendorTypedListings:
+    async def test_list_connectors_targets_connectors(self) -> None:
+        fake = FakeHttpx()
+        cfg = FivetranConfig(
+            api_key="k",
+            api_secret="s",
+            base_url="https://api.fivetran.com/v1",
+        )
+        fake.responses[
+            ("GET", "https://api.fivetran.com/v1/connectors")
+        ] = {"data": {"items": [{"id": "abc"}]}}
+        client = FivetranClient(cfg, client=fake)
+
+        rows, _ = await client.list_connectors(limit=5)
+
+        assert rows == [{"id": "abc"}]
+        assert fake.calls[0]["url"].endswith("/connectors")
+
+    async def test_list_groups_targets_groups(self) -> None:
+        fake = FakeHttpx()
+        cfg = FivetranConfig(
+            api_key="k",
+            api_secret="s",
+            base_url="https://api.fivetran.com/v1",
+        )
+        fake.responses[
+            ("GET", "https://api.fivetran.com/v1/groups")
+        ] = {"data": {"items": [{"id": "g1"}]}}
+        client = FivetranClient(cfg, client=fake)
+
+        rows, _ = await client.list_groups()
+
+        assert rows == [{"id": "g1"}]
+        assert fake.calls[0]["url"].endswith("/groups")

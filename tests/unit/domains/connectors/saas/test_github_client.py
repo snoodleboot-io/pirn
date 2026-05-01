@@ -12,6 +12,7 @@ from typing import Any
 import pytest
 
 from pirn.domains.connectors.api_client import ApiClient
+from pirn.domains.connectors.capabilities.table_source import TableSource
 from pirn.domains.connectors.saas.github_client import GitHubClient
 from pirn.domains.connectors.saas.github_config import GitHubConfig
 
@@ -144,3 +145,148 @@ class TestCredentialSafety:
         d = cfg.to_audit_dict()
         assert d["private_key"] == "<redacted>"
         assert d["app_id"] == "123"
+
+
+# ────────────────────────────────────────────────────────── capability surface
+
+
+def test_implements_table_source() -> None:
+    client = GitHubClient(client=FakeGithubClient())
+    assert isinstance(client, TableSource)
+
+
+def test_construction_rejects_empty_resource() -> None:
+    with pytest.raises(ValueError, match="resource must be a non-empty"):
+        GitHubClient(client=FakeGithubClient(), resource="")
+
+
+def test_resource_property_defaults_to_issues() -> None:
+    client = GitHubClient(client=FakeGithubClient())
+    assert client.resource == "issues"
+
+
+def test_resource_property_reflects_constructor() -> None:
+    client = GitHubClient(client=FakeGithubClient(), resource="repos")
+    assert client.resource == "repos"
+
+
+@pytest.mark.asyncio
+class TestVendorTypedReads:
+    async def test_list_repos_passes_owner_and_pagination(self) -> None:
+        fake = FakeGithubClient()
+        fake.requester.response = (
+            {},
+            [{"id": 1}, {"id": 2}, {"id": 3}],
+        )
+        client = GitHubClient(client=fake)
+
+        rows, next_cursor = await client.list_repos(
+            "octocat", page=1, per_page=3
+        )
+
+        assert rows == [{"id": 1}, {"id": 2}, {"id": 3}]
+        assert next_cursor == "2"
+        method, url, params, _, _ = fake.requester.calls[0]
+        assert method == "GET"
+        assert url == "/users/octocat/repos"
+        assert params == {"page": 1, "per_page": 3}
+
+    async def test_list_repos_partial_page_terminates(self) -> None:
+        fake = FakeGithubClient()
+        fake.requester.response = ({}, [{"id": 1}])
+        client = GitHubClient(client=fake)
+
+        rows, next_cursor = await client.list_repos(
+            "octocat", page=4, per_page=10
+        )
+
+        assert rows == [{"id": 1}]
+        assert next_cursor is None
+
+    async def test_list_repos_empty_terminates(self) -> None:
+        fake = FakeGithubClient()
+        fake.requester.response = ({}, [])
+        client = GitHubClient(client=fake)
+
+        rows, next_cursor = await client.list_repos("octocat")
+
+        assert rows == []
+        assert next_cursor is None
+
+    async def test_list_repos_rejects_empty_owner(self) -> None:
+        client = GitHubClient(client=FakeGithubClient())
+        with pytest.raises(ValueError, match="owner must be a non-empty"):
+            await client.list_repos("")
+
+    async def test_list_issues_targets_repo_path(self) -> None:
+        fake = FakeGithubClient()
+        fake.requester.response = ({}, [{"number": 1}, {"number": 2}])
+        client = GitHubClient(client=fake)
+
+        rows, next_cursor = await client.list_issues(
+            "octocat", "spoon", page=1, per_page=2
+        )
+
+        assert rows == [{"number": 1}, {"number": 2}]
+        assert next_cursor == "2"
+        _, url, params, _, _ = fake.requester.calls[0]
+        assert url == "/repos/octocat/spoon/issues"
+        assert params == {"page": 1, "per_page": 2}
+
+    async def test_list_issues_rejects_empty_args(self) -> None:
+        client = GitHubClient(client=FakeGithubClient())
+        with pytest.raises(ValueError, match="owner must be a non-empty"):
+            await client.list_issues("", "spoon")
+        with pytest.raises(ValueError, match="repo must be a non-empty"):
+            await client.list_issues("octocat", "")
+
+
+@pytest.mark.asyncio
+class TestFetchPage:
+    async def test_fetch_page_pages_default_resource(self) -> None:
+        fake = FakeGithubClient()
+        fake.requester.response = ({}, [{"id": 1}, {"id": 2}])
+        client = GitHubClient(client=fake)
+
+        rows, next_cursor = await client.fetch_page(page_size=2)
+
+        assert rows == [{"id": 1}, {"id": 2}]
+        assert next_cursor == "2"
+        _, url, params, _, _ = fake.requester.calls[0]
+        assert url == "/issues"
+        assert params == {"page": 1, "per_page": 2}
+
+    async def test_fetch_page_uses_cursor(self) -> None:
+        fake = FakeGithubClient()
+        fake.requester.response = ({}, [{"id": 9}])
+        client = GitHubClient(client=fake, resource="repos")
+
+        rows, next_cursor = await client.fetch_page(
+            cursor="3", page_size=1
+        )
+
+        assert rows == [{"id": 9}]
+        assert next_cursor == "4"
+        _, url, params, _, _ = fake.requester.calls[0]
+        assert url == "/repos"
+        assert params == {"page": 3, "per_page": 1}
+
+    async def test_fetch_page_full_page_advances_cursor(self) -> None:
+        fake = FakeGithubClient()
+        fake.requester.response = ({}, [{"id": i} for i in range(30)])
+        client = GitHubClient(client=fake)
+
+        rows, next_cursor = await client.fetch_page()
+
+        assert len(rows) == 30
+        assert next_cursor == "2"
+
+    async def test_fetch_page_empty_terminates(self) -> None:
+        fake = FakeGithubClient()
+        fake.requester.response = ({}, [])
+        client = GitHubClient(client=fake)
+
+        rows, next_cursor = await client.fetch_page(cursor="5")
+
+        assert rows == []
+        assert next_cursor is None

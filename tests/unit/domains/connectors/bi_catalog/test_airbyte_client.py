@@ -9,6 +9,7 @@ import pytest
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.bi_catalog.airbyte_client import AirbyteClient
 from pirn.domains.connectors.bi_catalog.airbyte_config import AirbyteConfig
+from pirn.domains.connectors.capabilities.table_source import TableSource
 
 
 class FakeResponse:
@@ -121,3 +122,95 @@ class TestLifecycle:
         await client.close()
         with pytest.raises(RuntimeError, match="closed"):
             await client.request("GET", "/sources")
+
+
+def test_implements_table_source() -> None:
+    client = AirbyteClient(client=FakeHttpx())
+    assert isinstance(client, TableSource)
+
+
+def test_default_resource_is_connections() -> None:
+    client = AirbyteClient(client=FakeHttpx())
+    assert client.resource == "connections"
+
+
+def test_blank_resource_rejected() -> None:
+    with pytest.raises(ValueError, match="resource"):
+        AirbyteClient(client=FakeHttpx(), resource="")
+
+
+@pytest.mark.asyncio
+class TestFetchPage:
+    async def test_fetch_page_posts_to_list_endpoint(self) -> None:
+        fake = FakeHttpx()
+        cfg = AirbyteConfig(
+            base_url="https://api.airbyte.com",
+            access_token="tok",
+        )
+        fake.responses[
+            ("POST", "https://api.airbyte.com/v1/connections/list")
+        ] = {
+            "data": [{"id": "c1"}, {"id": "c2"}],
+            "next_cursor": "next-tok",
+        }
+        client = AirbyteClient(cfg, client=fake)
+
+        rows, cursor = await client.fetch_page(
+            cursor="prev-tok", page_size=20
+        )
+
+        assert rows == [{"id": "c1"}, {"id": "c2"}]
+        assert cursor == "next-tok"
+        assert fake.calls[0]["method"] == "POST"
+        assert fake.calls[0]["json"] == {
+            "limit": 20,
+            "cursor": "prev-tok",
+        }
+
+    async def test_fetch_page_no_next_cursor_returns_none(self) -> None:
+        fake = FakeHttpx()
+        cfg = AirbyteConfig(
+            base_url="https://api.airbyte.com", access_token="tok"
+        )
+        fake.responses[
+            ("POST", "https://api.airbyte.com/v1/connections/list")
+        ] = {"data": [{"id": "c1"}]}
+        client = AirbyteClient(cfg, client=fake)
+
+        _, cursor = await client.fetch_page()
+
+        assert cursor is None
+
+
+@pytest.mark.asyncio
+class TestVendorTypedListings:
+    async def test_list_connections(self) -> None:
+        fake = FakeHttpx()
+        cfg = AirbyteConfig(
+            base_url="https://api.airbyte.com", access_token="tok"
+        )
+        fake.responses[
+            ("POST", "https://api.airbyte.com/v1/connections/list")
+        ] = {"data": [{"id": "c1"}]}
+        client = AirbyteClient(cfg, client=fake)
+
+        rows, _ = await client.list_connections(limit=5)
+
+        assert rows == [{"id": "c1"}]
+        assert fake.calls[0]["url"].endswith("/v1/connections/list")
+        assert fake.calls[0]["json"] == {"limit": 5}
+
+    async def test_list_workspaces(self) -> None:
+        fake = FakeHttpx()
+        cfg = AirbyteConfig(
+            base_url="https://api.airbyte.com", access_token="tok"
+        )
+        fake.responses[
+            ("POST", "https://api.airbyte.com/v1/workspaces/list")
+        ] = {"data": [{"id": "w1"}]}
+        client = AirbyteClient(cfg, client=fake)
+
+        rows, _ = await client.list_workspaces()
+
+        assert rows == [{"id": "w1"}]
+        assert fake.calls[0]["url"].endswith("/v1/workspaces/list")

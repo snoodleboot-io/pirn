@@ -16,6 +16,7 @@ from typing import Any
 import pytest
 
 from pirn.domains.connectors.api_client import ApiClient
+from pirn.domains.connectors.capabilities.event_emitter import EventEmitter
 from pirn.domains.connectors.saas.amplitude_config import AmplitudeConfig
 
 
@@ -162,3 +163,113 @@ class TestConfigSafety:
         d = cfg.to_audit_dict()
         assert d["api_key"] == "<redacted>"
         assert d["secret_key"] == "<redacted>"
+
+
+# ────────────────────────────────────────────────────────── capability surface
+
+
+def test_implements_event_emitter() -> None:
+    client = AmplitudeClient(client=FakeAmplitudeClient())
+    assert isinstance(client, EventEmitter)
+
+
+class TestTrack:
+    async def test_track_builds_base_event(self) -> None:
+        fake = FakeAmplitudeClient()
+        client = AmplitudeClient(client=fake)
+
+        await client.track(
+            user_id="u1",
+            event_type="signup",
+            properties={"plan": "pro"},
+        )
+
+        assert len(fake.tracked) == 1
+        event = fake.tracked[0]
+        assert event.event_type == "signup"
+        assert event.user_id == "u1"
+        assert event.event_properties == {"plan": "pro"}
+
+    async def test_track_without_properties(self) -> None:
+        fake = FakeAmplitudeClient()
+        client = AmplitudeClient(client=fake)
+
+        await client.track(user_id="u1", event_type="open")
+
+        event = fake.tracked[0]
+        assert event.event_type == "open"
+        assert event.user_id == "u1"
+        assert event.event_properties is None
+
+    async def test_track_rejects_empty_user_id(self) -> None:
+        client = AmplitudeClient(client=FakeAmplitudeClient())
+        with pytest.raises(ValueError, match="user_id"):
+            await client.track(user_id="", event_type="x")
+
+    async def test_track_rejects_empty_event_type(self) -> None:
+        client = AmplitudeClient(client=FakeAmplitudeClient())
+        with pytest.raises(ValueError, match="event_type"):
+            await client.track(user_id="u1", event_type="")
+
+
+class TestEmit:
+    async def test_emit_with_event_type_key(self) -> None:
+        fake = FakeAmplitudeClient()
+        client = AmplitudeClient(client=fake)
+
+        await client.emit(
+            {
+                "user_id": "u1",
+                "event_type": "signup",
+                "properties": {"plan": "pro"},
+            }
+        )
+
+        event = fake.tracked[0]
+        assert event.event_type == "signup"
+        assert event.user_id == "u1"
+        assert event.event_properties == {"plan": "pro"}
+
+    async def test_emit_with_event_synonym(self) -> None:
+        fake = FakeAmplitudeClient()
+        client = AmplitudeClient(client=fake)
+
+        await client.emit({"user_id": "u2", "event": "open"})
+
+        event = fake.tracked[0]
+        assert event.event_type == "open"
+        assert event.user_id == "u2"
+
+    async def test_emit_returns_none(self) -> None:
+        fake = FakeAmplitudeClient()
+        client = AmplitudeClient(client=fake)
+        result = await client.emit(
+            {"user_id": "u", "event_type": "x"}
+        )
+        assert result is None
+
+    async def test_emit_requires_user_id(self) -> None:
+        client = AmplitudeClient(client=FakeAmplitudeClient())
+        with pytest.raises(ValueError, match="user_id"):
+            await client.emit({"event_type": "signup"})
+
+    async def test_emit_requires_event_type_or_event(self) -> None:
+        client = AmplitudeClient(client=FakeAmplitudeClient())
+        with pytest.raises(ValueError, match="event_type"):
+            await client.emit({"user_id": "u"})
+
+
+class TestEmitMany:
+    async def test_emit_many_returns_count(self) -> None:
+        fake = FakeAmplitudeClient()
+        client = AmplitudeClient(client=fake)
+
+        count = await client.emit_many(
+            [
+                {"user_id": "u1", "event_type": "a"},
+                {"user_id": "u2", "event_type": "b"},
+            ]
+        )
+
+        assert count == 2
+        assert len(fake.tracked) == 2

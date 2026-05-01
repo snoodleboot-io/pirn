@@ -12,6 +12,7 @@ from typing import Any
 import pytest
 
 from pirn.domains.connectors.api_client import ApiClient
+from pirn.domains.connectors.capabilities.record_writer import RecordWriter
 from pirn.domains.connectors.saas.twilio_client import TwilioClient
 from pirn.domains.connectors.saas.twilio_config import TwilioConfig
 
@@ -148,3 +149,100 @@ class TestCredentialSafety:
         assert d["auth_token"] == "<redacted>"
         assert d["account_sid"] == "AC123"
         assert d["region"] == "ie1"
+
+
+# ────────────────────────────────────────────────────────── capability surface
+
+
+def test_implements_record_writer() -> None:
+    client = TwilioClient(client=FakeTwilioClient())
+    assert isinstance(client, RecordWriter)
+
+
+@pytest.mark.asyncio
+class TestSendSms:
+    async def test_send_sms_posts_message(self) -> None:
+        fake = FakeTwilioClient()
+        cfg = TwilioConfig(account_sid="AC1", auth_token="tok")
+        client = TwilioClient(config=cfg, client=fake)
+
+        result = await client.send_sms(
+            from_number="+15550001",
+            to="+15550002",
+            body="hello",
+        )
+
+        assert result == {"sid": "SM123", "status": "queued"}
+        method, uri, params, data, _ = fake.calls[0]
+        assert method == "POST"
+        assert uri == "/2010-04-01/Accounts/AC1/Messages.json"
+        assert params is None
+        assert data == {
+            "From": "+15550001",
+            "To": "+15550002",
+            "Body": "hello",
+        }
+
+    async def test_send_sms_uses_account_placeholder_without_config(
+        self,
+    ) -> None:
+        fake = FakeTwilioClient()
+        client = TwilioClient(client=fake)
+
+        await client.send_sms(
+            from_number="+1", to="+2", body="hi"
+        )
+
+        _, uri, _, _, _ = fake.calls[0]
+        assert uri == "/2010-04-01/Accounts/Account/Messages.json"
+
+    async def test_send_sms_rejects_empty_args(self) -> None:
+        client = TwilioClient(client=FakeTwilioClient())
+        with pytest.raises(ValueError, match="from_number"):
+            await client.send_sms(from_number="", to="+2", body="hi")
+        with pytest.raises(ValueError, match="to must be"):
+            await client.send_sms(from_number="+1", to="", body="hi")
+        with pytest.raises(ValueError, match="body must be"):
+            await client.send_sms(from_number="+1", to="+2", body="")
+
+
+@pytest.mark.asyncio
+class TestWriteRecords:
+    async def test_write_records_sends_each_message(self) -> None:
+        fake = FakeTwilioClient()
+        cfg = TwilioConfig(account_sid="AC1", auth_token="tok")
+        client = TwilioClient(config=cfg, client=fake)
+
+        count = await client.write_records(
+            [
+                {"from": "+1", "to": "+2", "body": "hello"},
+                {"from": "+1", "to": "+3", "body": "world"},
+            ]
+        )
+
+        assert count == 2
+        assert len(fake.calls) == 2
+        _, _, _, data0, _ = fake.calls[0]
+        _, _, _, data1, _ = fake.calls[1]
+        assert data0 == {"From": "+1", "To": "+2", "Body": "hello"}
+        assert data1 == {"From": "+1", "To": "+3", "Body": "world"}
+
+    async def test_write_records_empty_returns_zero(self) -> None:
+        fake = FakeTwilioClient()
+        cfg = TwilioConfig(account_sid="AC1", auth_token="tok")
+        client = TwilioClient(config=cfg, client=fake)
+
+        count = await client.write_records([])
+
+        assert count == 0
+        assert fake.calls == []
+
+    async def test_write_records_rejects_missing_keys(self) -> None:
+        fake = FakeTwilioClient()
+        cfg = TwilioConfig(account_sid="AC1", auth_token="tok")
+        client = TwilioClient(config=cfg, client=fake)
+
+        with pytest.raises(ValueError, match="'from', 'to', and 'body'"):
+            await client.write_records(
+                [{"from": "+1", "to": "+2"}]
+            )

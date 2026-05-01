@@ -11,6 +11,8 @@ from typing import Any
 import pytest
 
 from pirn.domains.connectors.api_client import ApiClient
+from pirn.domains.connectors.capabilities.record_writer import RecordWriter
+from pirn.domains.connectors.capabilities.table_source import TableSource
 from pirn.domains.connectors.saas.hubspot_client import HubSpotClient
 from pirn.domains.connectors.saas.hubspot_config import HubSpotConfig
 
@@ -127,3 +129,100 @@ class TestCredentialSafety:
         assert "pat-leaks" not in text
         assert "hapikey-leaks" not in text
         assert "<redacted>" in text
+
+
+# ───────────────────────────────────────────────────────── capability mixins
+
+
+def test_implements_table_source_and_record_writer() -> None:
+    client = HubSpotClient(client=FakeHubSpotClient())
+    assert isinstance(client, TableSource)
+    assert isinstance(client, RecordWriter)
+
+
+def test_default_object_type_is_contacts() -> None:
+    client = HubSpotClient(client=FakeHubSpotClient())
+    assert client.object_type == "contacts"
+
+
+def test_construction_rejects_empty_object_type() -> None:
+    with pytest.raises(ValueError, match="object_type"):
+        HubSpotClient(client=FakeHubSpotClient(), object_type="")
+
+
+@pytest.mark.asyncio
+class TestFetchPage:
+    async def test_fetch_page_initial_no_paging(self) -> None:
+        fake = FakeHubSpotClient()
+        fake.response = {"results": [{"id": "1"}, {"id": "2"}]}
+        client = HubSpotClient(client=fake)
+        rows, cursor = await client.fetch_page()
+        assert rows == [{"id": "1"}, {"id": "2"}]
+        assert cursor is None
+        assert fake.calls[0]["method"] == "GET"
+        assert fake.calls[0]["path"] == "/crm/v3/objects/contacts"
+
+    async def test_fetch_page_returns_after_cursor(self) -> None:
+        fake = FakeHubSpotClient()
+        fake.response = {
+            "results": [{"id": "1"}],
+            "paging": {"next": {"after": "tok-42"}},
+        }
+        client = HubSpotClient(client=fake, object_type="companies")
+        rows, cursor = await client.fetch_page(page_size=50)
+        assert rows == [{"id": "1"}]
+        assert cursor == "tok-42"
+        assert fake.calls[0]["path"] == "/crm/v3/objects/companies"
+        assert fake.calls[0]["qs"] == {"limit": 50}
+
+    async def test_fetch_page_with_cursor_passes_after(self) -> None:
+        fake = FakeHubSpotClient()
+        fake.response = {"results": []}
+        client = HubSpotClient(client=fake)
+        await client.fetch_page("tok-7", page_size=25)
+        assert fake.calls[0]["qs"] == {"after": "tok-7", "limit": 25}
+
+
+@pytest.mark.asyncio
+class TestListObjects:
+    async def test_list_objects_passes_object_type(self) -> None:
+        fake = FakeHubSpotClient()
+        fake.response = {"results": [{"id": "x"}]}
+        client = HubSpotClient(client=fake)
+        rows, cursor = await client.list_objects("deals", limit=10)
+        assert rows == [{"id": "x"}]
+        assert cursor is None
+        assert fake.calls[0]["path"] == "/crm/v3/objects/deals"
+        assert fake.calls[0]["qs"] == {"limit": 10}
+
+    async def test_list_objects_rejects_empty_type(self) -> None:
+        client = HubSpotClient(client=FakeHubSpotClient())
+        with pytest.raises(ValueError, match="object_type"):
+            await client.list_objects("")
+
+
+@pytest.mark.asyncio
+class TestWriteRecords:
+    async def test_write_records_posts_each_to_object_path(self) -> None:
+        fake = FakeHubSpotClient()
+        client = HubSpotClient(client=fake, object_type="contacts")
+        count = await client.write_records(
+            [
+                {"properties": {"email": "a@b"}},
+                {"properties": {"email": "c@d"}},
+            ]
+        )
+        assert count == 2
+        assert len(fake.calls) == 2
+        assert fake.calls[0]["method"] == "POST"
+        assert fake.calls[0]["path"] == "/crm/v3/objects/contacts"
+        assert fake.calls[0]["body"] == {
+            "properties": {"email": "a@b"}
+        }
+
+    async def test_write_records_empty_returns_zero(self) -> None:
+        fake = FakeHubSpotClient()
+        client = HubSpotClient(client=fake)
+        count = await client.write_records([])
+        assert count == 0
+        assert fake.calls == []

@@ -4,21 +4,34 @@ Uses ``httpx.AsyncClient`` with a bearer-token ``Authorization`` header
 populated from ``config.jwt_token``. The generic :meth:`request` forwards
 method/path/params/body/headers to ``client.request`` and returns the
 parsed JSON body.
+
+In addition to :meth:`request`, the client implements:
+
+* :class:`TableSource` — :meth:`fetch_page` pages over the configured
+  ``entity_type`` using OpenMetadata's ``after`` cursor.
+* :class:`MetadataCatalog` — :meth:`list_entities` is an async iterator
+  that pages internally, and :meth:`describe_entity` GETs
+  ``/api/v1/entities/{id}``.
+* Vendor-typed shortcuts :meth:`list_tables` and :meth:`list_dashboards`.
 """
 
 from __future__ import annotations
 
 import logging
-from typing import Any, Mapping
+from typing import Any, AsyncIterator, Mapping
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.bi_catalog.open_metadata_config import (
     OpenMetadataConfig,
 )
+from pirn.domains.connectors.capabilities.metadata_catalog import (
+    MetadataCatalog,
+)
+from pirn.domains.connectors.capabilities.table_source import TableSource
 from pirn.domains.connectors.dsn_scrubber import DsnScrubber
 
 
-class OpenMetadataClient(ApiClient):
+class OpenMetadataClient(ApiClient, TableSource, MetadataCatalog):
     """Concrete :class:`ApiClient` backed by ``httpx.AsyncClient``."""
 
     def __init__(
@@ -26,20 +39,122 @@ class OpenMetadataClient(ApiClient):
         config: OpenMetadataConfig | None = None,
         *,
         client: Any = None,
+        entity_type: str = "tables",
     ) -> None:
         if config is None and client is None:
             raise TypeError(
                 "OpenMetadataClient requires either config= or client="
             )
+        if not isinstance(entity_type, str) or not entity_type:
+            raise ValueError(
+                "OpenMetadataClient: entity_type must be a non-empty string"
+            )
         self._config = config
         self._client = client
         self._closed = False
+        self._entity_type = entity_type
         self._scrubber = DsnScrubber()
         self._logger = logging.getLogger(self.__class__.__module__)
 
     @property
     def config(self) -> OpenMetadataConfig | None:
         return self._config
+
+    @property
+    def entity_type(self) -> str:
+        return self._entity_type
+
+    async def list_tables(
+        self,
+        *,
+        after: str | None = None,
+        limit: int | None = None,
+    ) -> tuple[list[Mapping[str, Any]], str | None]:
+        """Vendor-typed read of OpenMetadata tables."""
+        return await self._list_resource(
+            "tables", after=after, limit=limit
+        )
+
+    async def list_dashboards(
+        self,
+        *,
+        after: str | None = None,
+        limit: int | None = None,
+    ) -> tuple[list[Mapping[str, Any]], str | None]:
+        """Vendor-typed read of OpenMetadata dashboards."""
+        return await self._list_resource(
+            "dashboards", after=after, limit=limit
+        )
+
+    async def fetch_page(
+        self,
+        cursor: str | None = None,
+        *,
+        page_size: int | None = None,
+    ) -> tuple[list[Mapping[str, Any]], str | None]:
+        """:class:`TableSource` adapter — pages the configured entity_type."""
+        return await self._list_resource(
+            self._entity_type, after=cursor, limit=page_size
+        )
+
+    async def list_entities(
+        self,
+        entity_type: str,
+        *,
+        filter: Mapping[str, Any] | None = None,
+    ) -> AsyncIterator[Mapping[str, Any]]:
+        """:class:`MetadataCatalog` adapter — paginates internally."""
+        cursor: str | None = None
+        while True:
+            rows, next_cursor = await self._list_resource(
+                entity_type, after=cursor, limit=None
+            )
+            for entity in rows:
+                if filter is None or self._matches_filter(entity, filter):
+                    yield entity
+            if next_cursor is None:
+                return
+            cursor = next_cursor
+
+    async def describe_entity(
+        self,
+        entity_id: str,
+    ) -> Mapping[str, Any]:
+        """GET ``/api/v1/entities/{id}``."""
+        return await self.request(
+            "GET", f"/api/v1/entities/{entity_id}"
+        )
+
+    async def _list_resource(
+        self,
+        entity_type: str,
+        *,
+        after: str | None,
+        limit: int | None,
+    ) -> tuple[list[Mapping[str, Any]], str | None]:
+        params: dict[str, Any] = {}
+        if after is not None:
+            params["after"] = after
+        if limit is not None:
+            params["limit"] = limit
+        response = await self.request(
+            "GET",
+            f"/api/v1/{entity_type}",
+            params=params or None,
+        )
+        rows = list(response.get("data") or ())
+        paging = response.get("paging") or {}
+        next_cursor = paging.get("after")
+        return rows, next_cursor if next_cursor else None
+
+    @staticmethod
+    def _matches_filter(
+        entity: Mapping[str, Any], filter: Mapping[str, Any]
+    ) -> bool:
+        for key, value in filter.items():
+            if entity.get(key) != value:
+                return False
+        return True
 
     async def request(
         self,
