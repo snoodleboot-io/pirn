@@ -99,7 +99,14 @@ datafusion = ["datafusion>=40.0"]
 datatable  = ["datatable>=1.1"]
 
 # Tier 2-GPU
-cudf = ["cudf-cu12>=24.0"]   # NVIDIA Rapids; CUDA 12 build by default
+# NOTE: cuDF (NVIDIA Rapids) requires CUDA at install time and only
+# publishes Linux x86_64 wheels for systems with a compatible GPU stack.
+# Including it in pirn's optional-extras would cause uv's universal
+# resolution to fail on non-GPU hosts (and on Windows/macOS entirely).
+# Users with CUDA install it directly:
+#     pip install 'cudf-cu12>=24.0'
+# Pirn's Tier 2-GPU knots, when they land, will detect cuDF lazily at
+# import time and fail with an actionable message if it's missing.
 
 # Tier 2.5 — out-of-core / drop-in distributed
 vaex  = ["vaex>=4.17"]
