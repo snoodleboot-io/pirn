@@ -77,3 +77,24 @@ class DataBatch(PirnOpaqueValue):
             "fetched_at": self.fetched_at.isoformat(),
             "rows": [dict(r) for r in self.rows],
         }
+
+    def __pirn_canonical__(self) -> dict[str, Any]:
+        """Sanctioned canonical form for :func:`pirn.core.hashing.content_hash`.
+
+        Returned dict is fully JSON-serialisable: ``schema.columns`` is
+        flattened to ``{name: type-name}`` so the otherwise-opaque
+        :class:`type` values do not blow up the hasher. The audit dict
+        deliberately omits the schema (pydantic IO already validates the
+        boundary); content-addressing keeps it so two structurally
+        identical batches with the same column types hash equally.
+        """
+        return {
+            "row_count": self.row_count,
+            "source_uri": self.source_uri,
+            "fetched_at": self.fetched_at.isoformat(),
+            "rows": [dict(r) for r in self.rows],
+            "schema_columns": {
+                name: column_type.__name__
+                for name, column_type in self.schema.columns.items()
+            },
+        }

@@ -1,0 +1,77 @@
+"""``SafetyGate`` — regex deny-list check on a message or response."""
+
+from __future__ import annotations
+
+import re
+from collections.abc import Sequence
+from typing import Any
+
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
+from pirn.domains.agents.types.agent_message import AgentMessage
+from pirn.domains.agents.types.agent_response import AgentResponse
+
+
+class SafetyGate(Knot):
+    """Returns ``True`` when ``message.content`` matches no deny pattern.
+
+    ``deny_patterns`` is a sequence of regex strings; a match against
+    any of them flips the gate to ``False`` (not safe). Patterns are
+    compiled at construction with ``re.IGNORECASE``. Both
+    :class:`AgentMessage` and :class:`AgentResponse` are accepted on
+    the input — anything else fails fast.
+    """
+
+    def __init__(
+        self,
+        *,
+        message: Knot,
+        deny_patterns: Sequence[str],
+        _config: KnotConfig,
+        **kwargs: Any,
+    ) -> None:
+        if not isinstance(deny_patterns, Sequence) or isinstance(
+            deny_patterns, (str, bytes)
+        ):
+            raise TypeError(
+                "SafetyGate: deny_patterns must be a sequence of regex strings"
+            )
+        compiled: list[re.Pattern[str]] = []
+        for index, pattern in enumerate(deny_patterns):
+            if not isinstance(pattern, str) or not pattern:
+                raise ValueError(
+                    f"SafetyGate: deny_patterns[{index}] must be a non-empty "
+                    f"string, got {pattern!r}"
+                )
+            try:
+                compiled.append(re.compile(pattern, flags=re.IGNORECASE))
+            except re.error as exc:
+                raise ValueError(
+                    f"SafetyGate: deny_patterns[{index}] is not a valid regex: "
+                    f"{exc}"
+                ) from exc
+        super().__init__(
+            message=message,
+            deny_patterns=tuple(deny_patterns),
+            _config=_config,
+            **kwargs,
+        )
+        self._mutable_compiled = tuple(compiled)
+
+    async def process(
+        self,
+        message: AgentMessage | AgentResponse,
+        deny_patterns: tuple[str, ...],
+        **_: Any,
+    ) -> bool:
+        if not isinstance(message, (AgentMessage, AgentResponse)):
+            raise TypeError(
+                "SafetyGate: message must be an AgentMessage or AgentResponse, "
+                f"got {type(message).__name__}"
+            )
+        del deny_patterns  # consumed at construction; compiled patterns used here
+        content = message.content
+        for pattern in self._mutable_compiled:
+            if pattern.search(content):
+                return False
+        return True

@@ -1,0 +1,77 @@
+"""Tests for :class:`LagFeatureGenerator`."""
+
+from __future__ import annotations
+
+import pytest
+
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.run_request import RunRequest
+from pirn.domains.ml.specializations.feature_engineering.lag_feature_generator import (
+    LagFeatureGenerator,
+)
+from pirn.domains.ml.types.data_split import DataSplit
+from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.tapestry import Tapestry
+
+
+@knot
+async def emit_split() -> DataSplit:
+    train = MLDataset(
+        name="ts:train",
+        feature_names=("t", "value"),
+        target_name="y",
+        row_count=80,
+    )
+    test = MLDataset(
+        name="ts:test",
+        feature_names=("t", "value"),
+        target_name="y",
+        row_count=20,
+    )
+    return DataSplit(train=train, test=test)
+
+
+class TestConstruction:
+    def test_rejects_empty_columns(self) -> None:
+        with Tapestry():
+            split = emit_split(_config=KnotConfig(id="split"))
+            with pytest.raises(ValueError, match="columns"):
+                LagFeatureGenerator(
+                    split=split,
+                    time_column="t",
+                    columns=(),
+                    _config=KnotConfig(id="bad"),
+                )
+
+    def test_rejects_lag_below_one(self) -> None:
+        with Tapestry():
+            split = emit_split(_config=KnotConfig(id="split"))
+            with pytest.raises(ValueError, match="lag"):
+                LagFeatureGenerator(
+                    split=split,
+                    time_column="t",
+                    columns=("value",),
+                    lags=(0,),
+                    _config=KnotConfig(id="bad"),
+                )
+
+
+class TestHappyPath:
+    async def test_appends_lag_feature_names(self) -> None:
+        with Tapestry() as t:
+            split = emit_split(_config=KnotConfig(id="split"))
+            LagFeatureGenerator(
+                split=split,
+                time_column="t",
+                columns=("value",),
+                lags=(1, 7),
+                _config=KnotConfig(id="lag"),
+            )
+        result = await t.run(RunRequest())
+        assert result.succeeded
+        out = result.outputs["lag"]
+        assert isinstance(out, DataSplit)
+        assert "value_lag_1" in out.train.feature_names
+        assert "value_lag_7" in out.train.feature_names
+        assert "value_lag_1" in out.test.feature_names

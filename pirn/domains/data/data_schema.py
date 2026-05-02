@@ -72,3 +72,20 @@ class DataSchema(PirnOpaqueValue):
             "primary_keys": list(self.primary_keys),
             "nullable": list(self.nullable),
         }
+
+    def __pirn_canonical__(self) -> dict[str, Any]:
+        """Sanctioned canonical form for :func:`pirn.core.hashing.content_hash`.
+
+        Mirrors :meth:`_pirn_audit_dict` but is the explicit hook the
+        hasher prefers. Keeping both methods avoids forcing every
+        existing pydantic-serialisation call site through the canonical
+        path (and vice versa).
+        """
+        return {
+            "columns": {
+                name: column_type.__name__
+                for name, column_type in self.columns.items()
+            },
+            "primary_keys": list(self.primary_keys),
+            "nullable": list(self.nullable),
+        }

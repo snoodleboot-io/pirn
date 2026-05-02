@@ -1,0 +1,92 @@
+"""Tests for :class:`GraphRAGPipeline`."""
+
+from __future__ import annotations
+
+import pytest
+
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
+from pirn.domains.agents.specializations.rag.graph_rag_pipeline import (
+    GraphRAGPipeline,
+)
+from pirn.domains.agents.types.agent_response import AgentResponse
+from pirn.tapestry import Tapestry
+from tests.unit.domains.agents.specializations.conftest import (
+    StubLLMProvider,
+    StubMemoryStore,
+)
+
+
+@pytest.mark.asyncio
+class TestGraphRAGPipelineConstruction:
+    async def test_rejects_non_memory_store(self) -> None:
+        llm = StubLLMProvider(["x"])
+        with pytest.raises(
+            TypeError, match="graph_memory must be a MemoryStore"
+        ):
+            with Tapestry():
+                GraphRAGPipeline(
+                    query="q",
+                    graph_memory="not-a-store",  # type: ignore[arg-type]
+                    llm=llm,
+                    _config=KnotConfig(id="grag"),
+                )
+
+    async def test_rejects_zero_hop_count(self) -> None:
+        memory = StubMemoryStore([{"id": 1}])
+        llm = StubLLMProvider(["x"])
+        with pytest.raises(ValueError, match="hop_count"):
+            with Tapestry():
+                GraphRAGPipeline(
+                    query="q",
+                    graph_memory=memory,
+                    llm=llm,
+                    hop_count=0,
+                    _config=KnotConfig(id="grag"),
+                )
+
+
+@pytest.mark.asyncio
+class TestGraphRAGPipelineHappyPath:
+    async def test_subgraph_passed_to_llm(self) -> None:
+        memory = StubMemoryStore(
+            [
+                {
+                    "type": "entity",
+                    "id": "alice",
+                    "label": "Person",
+                    "attrs": {"role": "engineer"},
+                },
+                {
+                    "type": "relation",
+                    "src": "alice",
+                    "dst": "acme",
+                    "rel": "works_at",
+                },
+                {
+                    "type": "entity",
+                    "id": "acme",
+                    "label": "Company",
+                    "attrs": {},
+                },
+            ]
+        )
+        llm = StubLLMProvider(["Alice works at Acme."])
+        with Tapestry() as t:
+            GraphRAGPipeline(
+                query="where does alice work",
+                graph_memory=memory,
+                llm=llm,
+                hop_count=2,
+                _config=KnotConfig(id="grag"),
+            )
+        result = await t.run(RunRequest())
+        assert result.succeeded
+        response = result.outputs["grag"]
+        assert isinstance(response, AgentResponse)
+        assert response.content == "Alice works at Acme."
+        prompt_body = llm.calls[0][-1]["content"]
+        assert "alice" in prompt_body
+        assert "acme" in prompt_body
+        assert "works_at" in prompt_body
+        assert "hops=2" in prompt_body

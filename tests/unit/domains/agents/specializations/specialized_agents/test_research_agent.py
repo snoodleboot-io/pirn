@@ -1,0 +1,74 @@
+"""Tests for :class:`ResearchAgent`."""
+
+from __future__ import annotations
+
+import pytest
+
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
+from pirn.domains.agents.specializations.specialized_agents.research_agent import (  # noqa: E501
+    ResearchAgent,
+)
+from pirn.domains.agents.types.agent_response import AgentResponse
+from pirn.tapestry import Tapestry
+from tests.unit.domains.agents.specializations.conftest import (
+    StubLLMProvider,
+    StubTool,
+)
+
+
+@pytest.mark.asyncio
+class TestResearchAgentConstruction:
+    async def test_rejects_non_tool(self) -> None:
+        llm = StubLLMProvider(["Final Answer: ok"])
+        with pytest.raises(TypeError, match="search_tool must be a Tool"):
+            with Tapestry():
+                ResearchAgent(
+                    topic="quantum",
+                    llm=llm,
+                    search_tool="not-a-tool",  # type: ignore[arg-type]
+                    _config=KnotConfig(id="research"),
+                )
+
+    async def test_rejects_zero_max_searches(self) -> None:
+        llm = StubLLMProvider(["Final Answer: ok"])
+        tool = StubTool(name="search")
+        with pytest.raises(ValueError, match="max_searches"):
+            with Tapestry():
+                ResearchAgent(
+                    topic="quantum",
+                    llm=llm,
+                    search_tool=tool,
+                    max_searches=0,
+                    _config=KnotConfig(id="research"),
+                )
+
+
+@pytest.mark.asyncio
+class TestResearchAgentHappyPath:
+    async def test_uses_tool_then_summarises(self) -> None:
+        llm = StubLLMProvider(
+            [
+                "Action: search\nAction Input: quantum computing 2024",
+                "Final Answer: Quantum computing reached 1000 qubits in 2024.",
+            ]
+        )
+        tool = StubTool(
+            name="search",
+            handler="IBM announces 1000-qubit chip",
+        )
+        with Tapestry() as t:
+            ResearchAgent(
+                topic="quantum computing breakthroughs",
+                llm=llm,
+                search_tool=tool,
+                max_searches=4,
+                _config=KnotConfig(id="research"),
+            )
+        result = await t.run(RunRequest())
+        assert result.succeeded
+        response = result.outputs["research"]
+        assert isinstance(response, AgentResponse)
+        assert response.finish_reason == "stop"
+        assert "1000 qubits" in response.content
+        assert tool.invocations == [{"input": "quantum computing 2024"}]

@@ -63,18 +63,22 @@ class TestExtrasLoaderRequire:
 
 class TestDomainImportGuards:
     """Domains that require extras must raise an actionable ImportError when
-    those extras are missing. The data domain intentionally defers its
-    ExtrasLoader call to the pandas-bound submodules, so it is excluded
-    from this parametrised set."""
+    those extras are missing.
+
+    The data, ml, agents, health, signal, and oilgas domains all defer
+    their ExtrasLoader calls to dependency-bound submodules (so the bare
+    package import stays clean for orchestration-only consumers). The
+    ``connectors`` domain follows the same pattern. Each has a positive
+    "imports cleanly without extras" test below.
+
+    No domain currently calls ExtrasLoader at package-init time. The
+    parametrised test below stays parametrised to make adding a new
+    eager-extras-checking domain a one-row change in the future.
+    """
 
     @pytest.mark.parametrize(
         ("domain", "blocked", "extra"),
-        [
-            ("ml",     "numpy",   "ml"),
-            ("health", "pydicom", "health"),
-            ("signal", "scipy",   "signal"),
-            ("oilgas", "segyio",  "oilgas"),
-        ],
+        [],
     )
     def test_missing_dep_raises_install_hint(
         self, domain: str, blocked: str, extra: str
@@ -101,6 +105,27 @@ class TestDomainImportGuards:
         # submodules, so the package import itself stays clean.
         sys.modules.pop("pirn.domains.data", None)
         import pirn.domains.data  # noqa: F401
+
+    def test_ml_namespace_imports_without_extras(self) -> None:
+        # The ml domain defers its ExtrasLoader call to dependency-bound
+        # submodules; the package import itself stays clean so the
+        # orchestration-only core (interfaces, types, data_prep,
+        # features, training, evaluation, deployment) is usable
+        # without numpy / pandas / scikit-learn installed.
+        sys.modules.pop("pirn.domains.ml", None)
+        import pirn.domains.ml  # noqa: F401
+
+    def test_health_namespace_imports_without_extras(self) -> None:
+        sys.modules.pop("pirn.domains.health", None)
+        import pirn.domains.health  # noqa: F401
+
+    def test_signal_namespace_imports_without_extras(self) -> None:
+        sys.modules.pop("pirn.domains.signal", None)
+        import pirn.domains.signal  # noqa: F401
+
+    def test_oilgas_namespace_imports_without_extras(self) -> None:
+        sys.modules.pop("pirn.domains.oilgas", None)
+        import pirn.domains.oilgas  # noqa: F401
 
     def test_domains_namespace_always_imports(self) -> None:
         sys.modules.pop("pirn.domains", None)

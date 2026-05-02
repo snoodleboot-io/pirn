@@ -26,7 +26,10 @@ async def pool() -> SqlitePool:
     p = SqlitePool(SqliteConfig(database=":memory:"))
     await p.execute(
         "CREATE TABLE source_orders ("
-        "  id INTEGER PRIMARY KEY,"
+        # No PK on the source so the deliberate id=2 duplicate below
+        # passes through to bronze, where silver_dedup is responsible
+        # for collapsing it.
+        "  id INTEGER,"
         "  region TEXT,"
         "  amount REAL"
         ")"

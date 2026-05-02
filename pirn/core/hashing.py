@@ -68,7 +68,28 @@ def _canonicalise(value: Any) -> Any:
     serialised.  Without the tags, ``{"x": 1}`` and ``["x", 1]`` could in
     principle hash the same after JSON serialisation; with the tags they
     cannot.
+
+    Two extension hooks are honoured ahead of the built-in branches:
+
+    * ``__pirn_canonical__()`` — sanctioned, type-controlled hook. A type
+      that wants explicit control over its content-hash form returns a
+      primitive (dict / list / str / int / etc.) and ``_canonicalise``
+      recurses into the result. This is the preferred form because it is
+      cheap (no pydantic round-trip) and makes the canonical shape
+      visible at the call site of the hook.
+    * Pydantic-aware fallback for types declaring
+      ``__get_pydantic_core_schema__`` but **not** subclassing
+      ``BaseModel`` (e.g. frozen dataclasses backed by
+      :class:`PirnOpaqueValue`). ``TypeAdapter.dump_python`` honours the
+      type's custom serialiser, producing a JSON-friendly dict that we
+      then canonicalise normally. Without this branch the canonicaliser
+      walks dataclass ``type`` fields and hits ``_Unhashable`` for
+      anything containing a ``Mapping[str, type]`` (DataSchema columns).
     """
+    # Sanctioned hook takes precedence over every other branch — types
+    # control their canonical form explicitly when this is defined.
+    if hasattr(value, "__pirn_canonical__"):
+        return _canonicalise(value.__pirn_canonical__())
     if value is None or isinstance(value, (bool, int, float, str)):
         return value
     if isinstance(value, bytes):
@@ -80,6 +101,22 @@ def _canonicalise(value: Any) -> Any:
             "__model__": value.__class__.__name__,
             "data": _canonicalise(value.model_dump(mode="json")),
         }
+    # Pydantic-aware fallback for non-``BaseModel`` types declaring a
+    # custom core schema. Excludes containers so the dedicated branches
+    # below remain authoritative.
+    if (
+        not isinstance(value, (list, tuple, dict, set, frozenset))
+        and hasattr(type(value), "__get_pydantic_core_schema__")
+    ):
+        try:
+            from pydantic import TypeAdapter
+
+            adapter = TypeAdapter(type(value))
+            return _canonicalise(adapter.dump_python(value, mode="json"))
+        except Exception:
+            # Fall through to the container/Mapping/Sequence branches
+            # below; if those also fail we end up at ``_Unhashable``.
+            pass
     if isinstance(value, Mapping):
         # Sort by str(key) for determinism.  Keys must serialise to strings
         # in JSON anyway.

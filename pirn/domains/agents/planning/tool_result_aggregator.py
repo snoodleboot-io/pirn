@@ -1,0 +1,52 @@
+"""``ToolResultAggregator`` — merge a sequence of :class:`ToolResult`s into a mapping."""
+
+from __future__ import annotations
+
+from collections.abc import Sequence
+from typing import Any
+
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
+from pirn.domains.agents.types.tool_result import ToolResult
+
+
+class ToolResultAggregator(Knot):
+    """Reduces a sequence of :class:`ToolResult` to a context-friendly dict.
+
+    Successful results become ``{call_id: result}`` entries; failed
+    results become ``{call_id: {"error": <message>}}`` so downstream
+    knots see a uniform mapping shape they can splice into the agent
+    context.
+    """
+
+    def __init__(
+        self,
+        *,
+        results: Knot,
+        _config: KnotConfig,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(results=results, _config=_config, **kwargs)
+
+    async def process(
+        self,
+        results: Sequence[ToolResult],
+        **_: Any,
+    ) -> dict[str, Any]:
+        if not isinstance(results, Sequence) or isinstance(results, (str, bytes)):
+            raise TypeError(
+                "ToolResultAggregator: results must be a sequence of "
+                f"ToolResult, got {type(results).__name__}"
+            )
+        aggregated: dict[str, Any] = {}
+        for index, result in enumerate(results):
+            if not isinstance(result, ToolResult):
+                raise TypeError(
+                    f"ToolResultAggregator: results[{index}] must be a "
+                    f"ToolResult, got {type(result).__name__}"
+                )
+            if result.error is None:
+                aggregated[result.call_id] = result.result
+            else:
+                aggregated[result.call_id] = {"error": result.error}
+        return aggregated
