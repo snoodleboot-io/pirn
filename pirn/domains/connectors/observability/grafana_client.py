@@ -243,6 +243,7 @@ class GrafanaClient(ApiClient, TableSource, MetricQuery):
             if callable(aclose):
                 await aclose()
             self._client = None
+        self._clear_credentials()
         self._closed = True
         self._logger.debug("grafana.close")
 

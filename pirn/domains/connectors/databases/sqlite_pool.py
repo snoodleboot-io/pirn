@@ -41,6 +41,7 @@ class SqlitePool(DatabaseConnectionPool):
         if self._connection is not None:
             await self._connection.close()
             self._connection = None
+        self._clear_credentials()
         self._closed = True
         self._logger.debug("sqlite.close")
 

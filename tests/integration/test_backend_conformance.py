@@ -79,7 +79,7 @@ def _duckdb_history() -> RunHistory:
 def _disk_data_store(tmp_path: Path) -> DataStore:
     from pirn.backends.disk import LocalDiskDataStore
 
-    return LocalDiskDataStore(tmp_path)
+    return LocalDiskDataStore(tmp_path, allow_unsigned=True)
 
 
 # --------------------------------------------------- TapestryStore tests

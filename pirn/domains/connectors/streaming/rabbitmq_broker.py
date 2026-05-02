@@ -52,6 +52,7 @@ class RabbitMQBroker(MessageBroker):
                 await close_result
         self._channel = None
         self._connection = None
+        self._clear_credentials()
         self._closed = True
         self._logger.debug("rabbitmq.close")
 

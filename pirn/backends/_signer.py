@@ -43,6 +43,17 @@ class _Signer:
             )
         return cls(base64.b64decode(raw))
 
+    @classmethod
+    def test_signer(cls) -> _Signer:
+        """Return a deterministic signer for unit tests.
+
+        Tests that exercise the signing path use this so they don't need
+        env-var setup or real key material. **Never use in production.**
+        Production signers must come from :meth:`from_env` or a manual
+        construction with a per-deployment key.
+        """
+        return cls(b"pirn-test-signer-key-not-for-production")
+
     def sign(self, payload: bytes) -> bytes:
         """Prepend a 32-byte HMAC-SHA256 signature to payload."""
         sig = hmac.new(self.__key, payload, hashlib.sha256).digest()

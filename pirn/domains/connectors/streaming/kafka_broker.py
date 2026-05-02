@@ -37,6 +37,7 @@ class KafkaBroker(MessageBroker):
         if self._producer is not None and hasattr(self._producer, "stop"):
             await self._producer.stop()
         self._producer = None
+        self._clear_credentials()
         self._closed = True
         self._logger.debug("kafka.close")
 

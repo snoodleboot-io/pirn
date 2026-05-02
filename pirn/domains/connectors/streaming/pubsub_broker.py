@@ -52,6 +52,7 @@ class PubSubBroker(MessageBroker):
                 await result
         self._publisher = None
         self._subscriber = None
+        self._clear_credentials()
         self._closed = True
         self._logger.debug("pubsub.close")
 

@@ -42,6 +42,7 @@ class DuckdbPool(DatabaseConnectionPool):
         if self._connection is not None:
             await asyncio.to_thread(self._connection.close)
             self._connection = None
+        self._clear_credentials()
         self._closed = True
         self._logger.debug("duckdb.close")
 

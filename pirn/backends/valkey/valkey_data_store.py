@@ -23,7 +23,16 @@ class ValKeyDataStore(DataStore):
         config: Any = None,
         ttl_seconds: int | None = None,
         signer: _Signer | None = None,
+        allow_unsigned: bool = False,
     ) -> None:
+        if signer is None and not allow_unsigned:
+            raise ValueError(
+                "ValKeyDataStore: refusing to construct an unsigned store. "
+                "cloudpickle.loads on attacker-controlled bytes is a "
+                "remote-code-execution sink. Pass a `signer=` (production) "
+                "or `allow_unsigned=True` (single-tenant dev / test only) "
+                "to acknowledge the trust-boundary assumption."
+            )
         self._client = _LazyClient(client=client, config=config)
         self._ttl = ttl_seconds
         self.__signer = signer

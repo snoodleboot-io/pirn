@@ -38,8 +38,9 @@ class AzureBlobDataStore(_CloudObjectStore):
         credential: Any = None,
         client: Any = None,
         signer: _Signer | None = None,
+        allow_unsigned: bool = False,
     ) -> None:
-        super().__init__(signer=signer)
+        super().__init__(signer=signer, allow_unsigned=allow_unsigned)
         self._container = container
         self._prefix = prefix
         self._connection_string = connection_string

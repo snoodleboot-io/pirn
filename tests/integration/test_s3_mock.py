@@ -64,7 +64,7 @@ class _FakeSession:
 
 async def test_s3_data_store_put_writes_to_correct_key():
     session = _FakeSession()
-    ds = S3DataStore(bucket="mybucket", session=session)
+    ds = S3DataStore(bucket="mybucket", session=session, allow_unsigned=True)
     await ds.put("sha256:abc123", {"x": 1})
 
     assert "pirn/data/abc123" in session.s3.objects
@@ -74,28 +74,28 @@ async def test_s3_data_store_put_writes_to_correct_key():
 
 async def test_s3_data_store_custom_prefix():
     session = _FakeSession()
-    ds = S3DataStore(bucket="mybucket", prefix="myproject/", session=session)
+    ds = S3DataStore(bucket="mybucket", prefix="myproject/", session=session, allow_unsigned=True)
     await ds.put("sha256:abc", "v")
     assert "myproject/abc" in session.s3.objects
 
 
 async def test_s3_data_store_get_round_trips():
     session = _FakeSession()
-    ds = S3DataStore(bucket="b", session=session)
+    ds = S3DataStore(bucket="b", session=session, allow_unsigned=True)
     await ds.put("sha256:k", [1, 2, 3])
     assert await ds.get("sha256:k") == [1, 2, 3]
 
 
 async def test_s3_data_store_get_missing_raises_keyerror():
     session = _FakeSession()
-    ds = S3DataStore(bucket="b", session=session)
+    ds = S3DataStore(bucket="b", session=session, allow_unsigned=True)
     with pytest.raises(KeyError):
         await ds.get("sha256:nope")
 
 
 async def test_s3_data_store_has_reflects_presence():
     session = _FakeSession()
-    ds = S3DataStore(bucket="b", session=session)
+    ds = S3DataStore(bucket="b", session=session, allow_unsigned=True)
     assert not await ds.has("sha256:k")
     await ds.put("sha256:k", 1)
     assert await ds.has("sha256:k")
@@ -103,7 +103,7 @@ async def test_s3_data_store_has_reflects_presence():
 
 async def test_s3_data_store_scrub_deletes():
     session = _FakeSession()
-    ds = S3DataStore(bucket="b", session=session)
+    ds = S3DataStore(bucket="b", session=session, allow_unsigned=True)
     await ds.put("sha256:k", "v")
     await ds.scrub("sha256:k")
     assert not await ds.has("sha256:k")
@@ -113,7 +113,7 @@ async def test_s3_data_store_strips_sha256_prefix_from_keys():
     """Keys in S3 should be the hex digest, not the 'sha256:' prefix —
     cleaner to read in S3 console."""
     session = _FakeSession()
-    ds = S3DataStore(bucket="b", session=session)
+    ds = S3DataStore(bucket="b", session=session, allow_unsigned=True)
     await ds.put("sha256:deadbeef", "v")
     assert "pirn/data/deadbeef" in session.s3.objects
     assert "pirn/data/sha256:deadbeef" not in session.s3.objects

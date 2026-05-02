@@ -189,6 +189,7 @@ class OpenMetadataClient(ApiClient, TableSource, MetadataCatalog):
             if callable(aclose_fn):
                 await aclose_fn()
             self._client = None
+        self._clear_credentials()
         self._closed = True
         self._logger.debug("open_metadata.close")
 

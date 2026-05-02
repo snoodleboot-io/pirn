@@ -47,3 +47,14 @@ class MessageBroker(PirnOpaqueValue):
             f"{type(self).__name__} must implement consume()"
         )
 
+    def _clear_credentials(self) -> None:
+        """Drop the in-memory credential reference held by the broker.
+
+        Concrete brokers should call this from ``close()`` after tearing
+        down the live producer/consumer. It nulls ``self._config`` so
+        any credential strings (SASL passwords, AWS keys, connection
+        strings) become garbage-collectable as soon as the caller drops
+        the broker reference.
+        """
+        self._config = None
+

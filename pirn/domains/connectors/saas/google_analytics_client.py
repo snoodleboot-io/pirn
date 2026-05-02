@@ -157,6 +157,7 @@ class GoogleAnalyticsClient(ApiClient, TableSource):
             elif callable(client_close):
                 await asyncio.to_thread(client_close)
             self._client = None
+        self._clear_credentials()
         self._closed = True
         self._logger.debug("google_analytics.close")
 

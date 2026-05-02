@@ -34,6 +34,7 @@ class ValkeyStreamBroker(MessageBroker):
             if hasattr(close_result, "__await__"):
                 await close_result
         self._client = None
+        self._clear_credentials()
         self._closed = True
         self._logger.debug("valkey.close")
 

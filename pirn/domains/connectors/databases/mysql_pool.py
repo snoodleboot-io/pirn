@@ -74,6 +74,7 @@ class MySQLPool(DatabaseConnectionPool):
                 if hasattr(result, "__await__"):
                     await result
             self._pool = None
+        self._clear_credentials()
         self._closed = True
         self._logger.debug("mysql.close")
 

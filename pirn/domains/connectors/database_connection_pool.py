@@ -69,6 +69,18 @@ class DatabaseConnectionPool(PirnOpaqueValue):
         """
         raise type(exc)(self._scrubber.scrub(str(exc))) from None
 
+    def _clear_credentials(self) -> None:
+        """Drop the in-memory credential reference held by the pool.
+
+        Concrete pools should call this from ``close()`` after tearing
+        down the live connection. It nulls ``self._config`` so the
+        credential string (password, token, key) becomes garbage-
+        collectable as soon as the caller drops the pool reference.
+        Long-running processes that hold pool references after
+        ``close()`` benefit; default deployments are unaffected.
+        """
+        self._config = None
+
     def _reject_inline_interpolation(self, query: str) -> None:
         """Reject Python-string interpolation markers in raw SQL.
 

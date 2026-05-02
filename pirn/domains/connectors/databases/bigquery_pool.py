@@ -58,6 +58,7 @@ class BigqueryPool(DatabaseConnectionPool):
             if callable(close_fn):
                 await asyncio.to_thread(close_fn)
             self._client = None
+        self._clear_credentials()
         self._closed = True
         self._logger.debug("bigquery.close")
 

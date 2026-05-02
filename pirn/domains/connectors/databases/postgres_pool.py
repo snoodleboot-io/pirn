@@ -43,6 +43,7 @@ class PostgresPool(DatabaseConnectionPool):
         if self._pool is not None:
             await self._pool.close()
             self._pool = None
+        self._clear_credentials()
         self._closed = True
         self._logger.debug("postgres.close")
 

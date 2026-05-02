@@ -69,8 +69,13 @@ class OpenTelemetryEmitter:
     async def close(self) -> None:
         """Idempotent shutdown — releases the tracer reference."""
         self._tracer = None
+        self._clear_credentials()
         self._closed = True
         self._logger.debug("opentelemetry.close")
+
+    def _clear_credentials(self) -> None:
+        """Drop the in-memory config reference (no inheritance available)."""
+        self._config = None
 
     async def _ensure_tracer(self) -> Any:
         if self._closed:

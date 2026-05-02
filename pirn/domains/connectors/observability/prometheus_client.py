@@ -173,6 +173,7 @@ class PrometheusClient(ApiClient, MetricQuery):
             if callable(aclose):
                 await aclose()
             self._client = None
+        self._clear_credentials()
         self._closed = True
         self._logger.debug("prometheus.close")
 

@@ -68,6 +68,7 @@ def s3_store(request):
         region=env["region"],
         endpoint_url=env["endpoint"],
         session=session,
+        allow_unsigned=True,
     )
 
 

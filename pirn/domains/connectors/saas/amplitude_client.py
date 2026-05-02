@@ -148,6 +148,7 @@ class AmplitudeClient(ApiClient, EventEmitter):
             if callable(shutdown_fn):
                 await asyncio.to_thread(shutdown_fn)
             self._client = None
+        self._clear_credentials()
         self._closed = True
         self._logger.debug("amplitude.close")
 

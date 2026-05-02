@@ -91,7 +91,7 @@ async def test_disk_tampered_payload_raises(tmp_path: Any) -> None:
 
 @pytest.mark.asyncio
 async def test_disk_unsigned_payload_raises_when_signer_set(tmp_path: Any) -> None:
-    unsigned_store = LocalDiskDataStore(tmp_path)
+    unsigned_store = LocalDiskDataStore(tmp_path, allow_unsigned=True)
     await unsigned_store.put("sha256:abc123", {"x": 1})
 
     signed_store = LocalDiskDataStore(tmp_path, signer=_SIGNER)
@@ -101,18 +101,24 @@ async def test_disk_unsigned_payload_raises_when_signer_set(tmp_path: Any) -> No
 
 @pytest.mark.asyncio
 async def test_disk_no_signer_works(tmp_path: Any) -> None:
-    store = LocalDiskDataStore(tmp_path)
+    store = LocalDiskDataStore(tmp_path, allow_unsigned=True)
     await store.put("sha256:abc123", [1, 2, 3])
     assert await store.get("sha256:abc123") == [1, 2, 3]
 
 
 @pytest.mark.asyncio
 async def test_disk_uses_cloudpickle(tmp_path: Any) -> None:
-    store = LocalDiskDataStore(tmp_path)
+    store = LocalDiskDataStore(tmp_path, allow_unsigned=True)
     await store.put("sha256:abc123", 42)
     path = Path(store._object_key("sha256:abc123"))
     raw = path.read_bytes()
     assert raw[0:1] == b"\x80"
+
+
+def test_disk_refuses_unsigned_without_explicit_opt_in(tmp_path: Any) -> None:
+    """Constructing without signer or allow_unsigned must raise."""
+    with pytest.raises(ValueError, match="refusing to construct an unsigned"):
+        LocalDiskDataStore(tmp_path)
 
 
 # ------------------------------------------------------------------ S3DataStore
@@ -203,9 +209,18 @@ async def test_s3_no_signer_works() -> None:
     mock_session = MagicMock()
     mock_session.client = MagicMock(return_value=ctx)
 
-    store = S3DataStore(bucket="test-bucket", session=mock_session)
+    store = S3DataStore(
+        bucket="test-bucket", session=mock_session, allow_unsigned=True
+    )
     await store.put("sha256:abc", 99)
     assert await store.get("sha256:abc") == 99
+
+
+def test_s3_refuses_unsigned_without_explicit_opt_in() -> None:
+    from pirn.backends.s3 import S3DataStore
+
+    with pytest.raises(ValueError, match="refusing to construct an unsigned"):
+        S3DataStore(bucket="test-bucket")
 
 
 # ------------------------------------------------------------------ ValKeyDataStore
@@ -255,6 +270,24 @@ async def test_valkey_no_signer_works() -> None:
     mock_client.set = AsyncMock(side_effect=lambda k, v, **kw: stored.__setitem__(k, v))
     mock_client.get = AsyncMock(side_effect=lambda k: stored.get(k))
 
-    store = ValKeyDataStore(client=mock_client)
+    store = ValKeyDataStore(client=mock_client, allow_unsigned=True)
     await store.put("sha256:abc", [1, 2])
     assert await store.get("sha256:abc") == [1, 2]
+
+
+def test_valkey_refuses_unsigned_without_explicit_opt_in() -> None:
+    from pirn.backends.valkey.valkey_data_store import ValKeyDataStore
+
+    mock_client = AsyncMock()
+    with pytest.raises(ValueError, match="refusing to construct an unsigned"):
+        ValKeyDataStore(client=mock_client)
+
+
+def test_signer_test_helper_returns_consistent_signer() -> None:
+    """test_signer() must return a deterministic signer for unit tests."""
+    a = _Signer.test_signer()
+    b = _Signer.test_signer()
+    payload = b"some payload"
+    # Same key → same signature → cross-instance verify must succeed.
+    signed = a.sign(payload)
+    assert b.verify(signed) == payload

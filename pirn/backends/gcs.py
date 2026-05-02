@@ -35,8 +35,9 @@ class GCSDataStore(_CloudObjectStore):
         service_file: str | None = None,
         session: Any = None,
         signer: _Signer | None = None,
+        allow_unsigned: bool = False,
     ) -> None:
-        super().__init__(signer=signer)
+        super().__init__(signer=signer, allow_unsigned=allow_unsigned)
         self._bucket = bucket
         self._prefix = prefix
         self._service_file = service_file

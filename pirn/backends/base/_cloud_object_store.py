@@ -1,8 +1,15 @@
 """Shared serialization base for object-store-backed DataStores.
 
 All cloud and local-disk DataStore implementations inherit from this class.
-It handles cloudpickle serialization and optional HMAC signing; subclasses
-implement the four raw-bytes IO primitives.
+It handles cloudpickle serialization and HMAC signing; subclasses implement
+the four raw-bytes IO primitives.
+
+.. note::
+    ``cloudpickle.loads`` on attacker-controlled bytes is a remote-code-
+    execution sink. Pirn refuses to construct an unsigned store unless
+    the caller explicitly passes ``allow_unsigned=True`` to acknowledge
+    that the cache backing is in the same trust boundary as the pirn
+    process. Production deployments MUST pass a real ``signer``.
 """
 
 from __future__ import annotations
@@ -26,7 +33,20 @@ class _CloudObjectStore(DataStore):
         _delete_key(key)          async
     """
 
-    def __init__(self, *, signer: _Signer | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        signer: _Signer | None = None,
+        allow_unsigned: bool = False,
+    ) -> None:
+        if signer is None and not allow_unsigned:
+            raise ValueError(
+                f"{type(self).__name__}: refusing to construct an unsigned "
+                "store. cloudpickle.loads on attacker-controlled bytes is a "
+                "remote-code-execution sink. Pass a `signer=` (production) "
+                "or `allow_unsigned=True` (single-tenant dev / test only) "
+                "to acknowledge the trust-boundary assumption."
+            )
         self.__signer = signer
 
     def _serialize(self, value: Any) -> bytes:
