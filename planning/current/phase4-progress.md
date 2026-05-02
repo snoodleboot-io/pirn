@@ -180,19 +180,19 @@ Alignment formats:
 
 ---
 
-## Remaining — Block 9 Documentation & Polish
+## Block 9 Documentation & Polish — COMPLETE ✓
 
-- [ ] `docs/domains/data.md`
-- [ ] `docs/domains/agents.md`
-- [ ] `docs/domains/ml.md`
-- [ ] `docs/domains/health.md`
-- [ ] `docs/domains/signal.md`
-- [ ] `docs/domains/oilgas.md`
-- [ ] `docs/connectors/index.md` — connector matrix
-- [ ] `docs/contributing/domain-knots.md` — style guide
-- [ ] Update `README.md`
-- [ ] `CHANGELOG.md` entry
-- [ ] mkdocs nav updated
+- [x] `docs/domains/data.md`
+- [x] `docs/domains/agents.md`
+- [x] `docs/domains/ml.md`
+- [x] `docs/domains/health.md`
+- [x] `docs/domains/signal.md`
+- [x] `docs/domains/oilgas.md`
+- [x] `docs/connectors/index.md` — connector matrix
+- [x] `docs/contributing/domain-knots.md` — style guide
+- [x] Update `README.md`
+- [x] `CHANGELOG.md` entry
+- [x] mkdocs nav updated
 
 ---
 
