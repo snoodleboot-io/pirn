@@ -77,7 +77,7 @@ class BcfFormat(BatchFileFormat):
             variant_file = pysam.VariantFile(tmp_path, "rb")
             try:
                 for variant in variant_file:
-                    records.append(_record_from_variant(variant))
+                    records.append(BcfFormat._record_from_variant(variant))
             finally:
                 variant_file.close()
             return records
@@ -106,7 +106,7 @@ class BcfFormat(BatchFileFormat):
             writer = pysam.VariantFile(tmp_path, "wb", header=header)
             try:
                 for record in materialised:
-                    writer.write(_variant_from_record(writer, record))
+                    writer.write(BcfFormat._variant_from_record(writer, record))
             finally:
                 writer.close()
             with open(tmp_path, "rb") as handle:
@@ -169,81 +169,82 @@ class BcfFormat(BatchFileFormat):
         return pysam
 
 
-def _record_from_variant(variant: Any) -> Mapping[str, Any]:
-    qual: float | None
-    if variant.qual is None:
-        qual = None
-    else:
-        qual = float(variant.qual)
-    info: dict[str, Any] = {}
-    for key, value in variant.info.items():
-        if isinstance(value, tuple):
-            info[key] = ",".join(str(item) for item in value)
-        elif value is None:
-            continue
-        elif isinstance(value, bool):
-            info[key] = value
+    @staticmethod
+    def _record_from_variant(variant: Any) -> Mapping[str, Any]:
+        qual: float | None
+        if variant.qual is None:
+            qual = None
         else:
-            info[key] = str(value)
-    if variant.alts is None:
-        alt = ""
-    else:
-        alt = ",".join(variant.alts)
-    if variant.filter.keys():
-        filter_value = ";".join(variant.filter.keys())
-    else:
-        filter_value = "."
-    return {
-        "chrom": variant.chrom,
-        "pos": variant.pos,
-        "id": variant.id if variant.id is not None else ".",
-        "ref": variant.ref if variant.ref is not None else "",
-        "alt": alt,
-        "qual": qual,
-        "filter": filter_value,
-        "info": info,
-    }
+            qual = float(variant.qual)
+        info: dict[str, Any] = {}
+        for key, value in variant.info.items():
+            if isinstance(value, tuple):
+                info[key] = ",".join(str(item) for item in value)
+            elif value is None:
+                continue
+            elif isinstance(value, bool):
+                info[key] = value
+            else:
+                info[key] = str(value)
+        if variant.alts is None:
+            alt = ""
+        else:
+            alt = ",".join(variant.alts)
+        if variant.filter.keys():
+            filter_value = ";".join(variant.filter.keys())
+        else:
+            filter_value = "."
+        return {
+            "chrom": variant.chrom,
+            "pos": variant.pos,
+            "id": variant.id if variant.id is not None else ".",
+            "ref": variant.ref if variant.ref is not None else "",
+            "alt": alt,
+            "qual": qual,
+            "filter": filter_value,
+            "info": info,
+        }
 
-
-def _variant_from_record(writer: Any, record: Mapping[str, Any]) -> Any:
-    chrom = record.get("chrom")
-    pos = record.get("pos")
-    ref = record.get("ref")
-    alt = record.get("alt")
-    if not isinstance(chrom, str) or not chrom:
-        raise ValueError("BcfFormat: 'chrom' must be a non-empty string")
-    if not isinstance(pos, int) or isinstance(pos, bool):
-        raise TypeError("BcfFormat: 'pos' must be int")
-    if not isinstance(ref, str) or not ref:
-        raise ValueError("BcfFormat: 'ref' must be a non-empty string")
-    if not isinstance(alt, str) or not alt:
-        raise ValueError("BcfFormat: 'alt' must be a non-empty string")
-    alts = tuple(alt.split(","))
-    new_record = writer.new_record()
-    new_record.chrom = chrom
-    new_record.pos = pos
-    record_id = record.get("id", ".")
-    if record_id is not None and record_id != ".":
-        new_record.id = record_id
-    new_record.ref = ref
-    new_record.alts = alts
-    qual = record.get("qual")
-    if qual is not None:
-        if not isinstance(qual, (int, float)) or isinstance(qual, bool):
-            raise TypeError(
-                "BcfFormat: 'qual' must be float, int, or None"
-            )
-        new_record.qual = float(qual)
-    filt = record.get("filter")
-    if isinstance(filt, str) and filt and filt != ".":
-        for token in filt.split(";"):
-            if token:
-                new_record.filter.add(token)
-    info = record.get("info") or {}
-    if not isinstance(info, Mapping):
-        raise TypeError("BcfFormat: 'info' must be a mapping")
-    for key, value in info.items():
-        if value is None or value is False:
-            continue
-        new_record.info[key] = value
-    return new_record
+    @staticmethod
+    def _variant_from_record(writer: Any, record: Mapping[str, Any]) -> Any:
+        chrom = record.get("chrom")
+        pos = record.get("pos")
+        ref = record.get("ref")
+        alt = record.get("alt")
+        if not isinstance(chrom, str) or not chrom:
+            raise ValueError("BcfFormat: 'chrom' must be a non-empty string")
+        if not isinstance(pos, int) or isinstance(pos, bool):
+            raise TypeError("BcfFormat: 'pos' must be int")
+        if not isinstance(ref, str) or not ref:
+            raise ValueError("BcfFormat: 'ref' must be a non-empty string")
+        if not isinstance(alt, str) or not alt:
+            raise ValueError("BcfFormat: 'alt' must be a non-empty string")
+        alts = tuple(alt.split(","))
+        new_record = writer.new_record()
+        new_record.chrom = chrom
+        new_record.pos = pos
+        record_id = record.get("id", ".")
+        if record_id is not None and record_id != ".":
+            new_record.id = record_id
+        new_record.ref = ref
+        new_record.alts = alts
+        qual = record.get("qual")
+        if qual is not None:
+            if not isinstance(qual, (int, float)) or isinstance(qual, bool):
+                raise TypeError(
+                    "BcfFormat: 'qual' must be float, int, or None"
+                )
+            new_record.qual = float(qual)
+        filt = record.get("filter")
+        if isinstance(filt, str) and filt and filt != ".":
+            for token in filt.split(";"):
+                if token:
+                    new_record.filter.add(token)
+        info = record.get("info") or {}
+        if not isinstance(info, Mapping):
+            raise TypeError("BcfFormat: 'info' must be a mapping")
+        for key, value in info.items():
+            if value is None or value is False:
+                continue
+            new_record.info[key] = value
+        return new_record

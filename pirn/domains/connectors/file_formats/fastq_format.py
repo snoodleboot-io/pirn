@@ -75,13 +75,13 @@ class FastqFormat(StreamingFileFormat):
                 buffered.extend(chunk)
                 pending.extend(_drain_lines(final=False))
                 while len(pending) >= 4:
-                    record = _build_record(pending[:4])
+                    record = FastqFormat._build_record(pending[:4])
                     del pending[:4]
                     yield record
 
             pending.extend(_drain_lines(final=True))
             while len(pending) >= 4:
-                record = _build_record(pending[:4])
+                record = FastqFormat._build_record(pending[:4])
                 del pending[:4]
                 yield record
             if pending:
@@ -148,34 +148,34 @@ class FastqFormat(StreamingFileFormat):
 
         return _iter()
 
-
-def _build_record(lines: list[str]) -> Mapping[str, Any]:
-    header_line, sequence_line, separator_line, quality_line = lines
-    if not header_line.startswith("@"):
-        raise ValueError(
-            "FastqFormat: expected header line to start with '@', got "
-            f"{header_line!r}"
-        )
-    if not separator_line.startswith("+"):
-        raise ValueError(
-            "FastqFormat: expected separator line to start with '+', "
-            f"got {separator_line!r}"
-        )
-    if len(quality_line) != len(sequence_line):
-        raise ValueError(
-            "FastqFormat: quality length "
-            f"({len(quality_line)}) does not match sequence length "
-            f"({len(sequence_line)})"
-        )
-    header = header_line[1:].lstrip()
-    if not header:
-        raise ValueError("FastqFormat: header line missing seq_id")
-    split = header.split(None, 1)
-    seq_id = split[0]
-    description = split[1] if len(split) == 2 else ""
-    return {
-        "seq_id": seq_id,
-        "description": description,
-        "sequence": sequence_line,
-        "quality": quality_line,
-    }
+    @staticmethod
+    def _build_record(lines: list[str]) -> Mapping[str, Any]:
+        header_line, sequence_line, separator_line, quality_line = lines
+        if not header_line.startswith("@"):
+            raise ValueError(
+                "FastqFormat: expected header line to start with '@', got "
+                f"{header_line!r}"
+            )
+        if not separator_line.startswith("+"):
+            raise ValueError(
+                "FastqFormat: expected separator line to start with '+', "
+                f"got {separator_line!r}"
+            )
+        if len(quality_line) != len(sequence_line):
+            raise ValueError(
+                "FastqFormat: quality length "
+                f"({len(quality_line)}) does not match sequence length "
+                f"({len(sequence_line)})"
+            )
+        header = header_line[1:].lstrip()
+        if not header:
+            raise ValueError("FastqFormat: header line missing seq_id")
+        split = header.split(None, 1)
+        seq_id = split[0]
+        description = split[1] if len(split) == 2 else ""
+        return {
+            "seq_id": seq_id,
+            "description": description,
+            "sequence": sequence_line,
+            "quality": quality_line,
+        }

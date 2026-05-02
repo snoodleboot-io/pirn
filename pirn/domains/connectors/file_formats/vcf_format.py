@@ -95,7 +95,7 @@ class VcfFormat(StreamingFileFormat):
                         continue
                     if not line:
                         continue
-                    yield _parse_data_row(line)
+                    yield VcfFormat._parse_data_row(line)
 
             for line in _drain_lines(final=True):
                 if line.startswith("##"):
@@ -105,7 +105,7 @@ class VcfFormat(StreamingFileFormat):
                     continue
                 if not line:
                     continue
-                yield _parse_data_row(line)
+                yield VcfFormat._parse_data_row(line)
 
             # No-op: presence of column header isn't required for parsing
             # data rows but we capture the flag for future strictness.
@@ -126,133 +126,132 @@ class VcfFormat(StreamingFileFormat):
             )
             yield header.encode(encoding)
             async for record in records:
-                yield _serialize_data_row(record).encode(encoding)
+                yield VcfFormat._serialize_data_row(record).encode(encoding)
 
         return _iter()
 
-
-def _parse_data_row(line: str) -> Mapping[str, Any]:
-    fields = line.split("\t")
-    if len(fields) < 8:
-        raise ValueError(
-            "VcfFormat: data row must have at least 8 tab-separated "
-            f"fields (CHROM..INFO); got {len(fields)}"
+    @staticmethod
+    def _parse_data_row(line: str) -> Mapping[str, Any]:
+        fields = line.split("\t")
+        if len(fields) < 8:
+            raise ValueError(
+                "VcfFormat: data row must have at least 8 tab-separated "
+                f"fields (CHROM..INFO); got {len(fields)}"
+            )
+        chrom, pos_text, identifier, ref, alt, qual_text, filt, info_text = (
+            fields[:8]
         )
-    chrom, pos_text, identifier, ref, alt, qual_text, filt, info_text = (
-        fields[:8]
-    )
-    try:
-        pos = int(pos_text)
-    except ValueError as exc:
-        raise ValueError(
-            f"VcfFormat: POS must be integer, got {pos_text!r}"
-        ) from exc
-    qual: float | None
-    if qual_text == "." or qual_text == "":
-        qual = None
-    else:
         try:
-            qual = float(qual_text)
+            pos = int(pos_text)
         except ValueError as exc:
             raise ValueError(
-                f"VcfFormat: QUAL must be float or '.', got {qual_text!r}"
+                f"VcfFormat: POS must be integer, got {pos_text!r}"
             ) from exc
-    info = _parse_info_field(info_text)
-    return {
-        "chrom": chrom,
-        "pos": pos,
-        "id": identifier,
-        "ref": ref,
-        "alt": alt,
-        "qual": qual,
-        "filter": filt,
-        "info": info,
-    }
-
-
-def _parse_info_field(info_text: str) -> Mapping[str, Any]:
-    if info_text == "" or info_text == ".":
-        return {}
-    info: dict[str, Any] = {}
-    for entry in info_text.split(";"):
-        if not entry:
-            continue
-        if "=" in entry:
-            key, value = entry.split("=", 1)
-            info[key] = value
+        qual: float | None
+        if qual_text == "." or qual_text == "":
+            qual = None
         else:
-            # Flag-style fields are represented as boolean True.
-            info[entry] = True
-    return info
+            try:
+                qual = float(qual_text)
+            except ValueError as exc:
+                raise ValueError(
+                    f"VcfFormat: QUAL must be float or '.', got {qual_text!r}"
+                ) from exc
+        info = VcfFormat._parse_info_field(info_text)
+        return {
+            "chrom": chrom,
+            "pos": pos,
+            "id": identifier,
+            "ref": ref,
+            "alt": alt,
+            "qual": qual,
+            "filter": filt,
+            "info": info,
+        }
 
+    @staticmethod
+    def _parse_info_field(info_text: str) -> Mapping[str, Any]:
+        if info_text == "" or info_text == ".":
+            return {}
+        info: dict[str, Any] = {}
+        for entry in info_text.split(";"):
+            if not entry:
+                continue
+            if "=" in entry:
+                key, value = entry.split("=", 1)
+                info[key] = value
+            else:
+                info[entry] = True
+        return info
 
-def _serialize_data_row(record: Mapping[str, Any]) -> str:
-    chrom = record.get("chrom")
-    if not isinstance(chrom, str) or not chrom:
-        raise ValueError(
-            "VcfFormat: 'chrom' must be a non-empty string"
-        )
-    pos = record.get("pos")
-    if not isinstance(pos, int) or isinstance(pos, bool):
-        raise TypeError("VcfFormat: 'pos' must be int")
-    identifier = record.get("id", ".")
-    if identifier is None:
-        identifier = "."
-    if not isinstance(identifier, str):
-        raise TypeError("VcfFormat: 'id' must be str")
-    ref = record.get("ref")
-    if not isinstance(ref, str) or not ref:
-        raise ValueError(
-            "VcfFormat: 'ref' must be a non-empty string"
-        )
-    alt = record.get("alt")
-    if not isinstance(alt, str) or not alt:
-        raise ValueError(
-            "VcfFormat: 'alt' must be a non-empty string"
-        )
-    qual = record.get("qual")
-    if qual is None:
-        qual_text = "."
-    elif isinstance(qual, (int, float)) and not isinstance(qual, bool):
-        qual_text = f"{float(qual):g}"
-    else:
-        raise TypeError(
-            "VcfFormat: 'qual' must be float, int, or None"
-        )
-    filt = record.get("filter", ".")
-    if filt is None:
-        filt = "."
-    if not isinstance(filt, str):
-        raise TypeError("VcfFormat: 'filter' must be str")
-    info = record.get("info", {})
-    if info is None:
-        info = {}
-    if not isinstance(info, Mapping):
-        raise TypeError(
-            "VcfFormat: 'info' must be a mapping (dict-like)"
-        )
-    info_text = _serialize_info_field(info)
-    return (
-        f"{chrom}\t{pos}\t{identifier}\t{ref}\t{alt}\t"
-        f"{qual_text}\t{filt}\t{info_text}\n"
-    )
-
-
-def _serialize_info_field(info: Mapping[str, Any]) -> str:
-    if not info:
-        return "."
-    parts: list[str] = []
-    for key, value in info.items():
-        if not isinstance(key, str) or not key:
+    @staticmethod
+    def _serialize_data_row(record: Mapping[str, Any]) -> str:
+        chrom = record.get("chrom")
+        if not isinstance(chrom, str) or not chrom:
             raise ValueError(
-                "VcfFormat: every INFO key must be a non-empty string"
+                "VcfFormat: 'chrom' must be a non-empty string"
             )
-        if value is True:
-            parts.append(key)
-        elif value is False or value is None:
-            continue
+        pos = record.get("pos")
+        if not isinstance(pos, int) or isinstance(pos, bool):
+            raise TypeError("VcfFormat: 'pos' must be int")
+        identifier = record.get("id", ".")
+        if identifier is None:
+            identifier = "."
+        if not isinstance(identifier, str):
+            raise TypeError("VcfFormat: 'id' must be str")
+        ref = record.get("ref")
+        if not isinstance(ref, str) or not ref:
+            raise ValueError(
+                "VcfFormat: 'ref' must be a non-empty string"
+            )
+        alt = record.get("alt")
+        if not isinstance(alt, str) or not alt:
+            raise ValueError(
+                "VcfFormat: 'alt' must be a non-empty string"
+            )
+        qual = record.get("qual")
+        if qual is None:
+            qual_text = "."
+        elif isinstance(qual, (int, float)) and not isinstance(qual, bool):
+            qual_text = f"{float(qual):g}"
         else:
-            parts.append(f"{key}={value}")
-    if not parts:
-        return "."
-    return ";".join(parts)
+            raise TypeError(
+                "VcfFormat: 'qual' must be float, int, or None"
+            )
+        filt = record.get("filter", ".")
+        if filt is None:
+            filt = "."
+        if not isinstance(filt, str):
+            raise TypeError("VcfFormat: 'filter' must be str")
+        info = record.get("info", {})
+        if info is None:
+            info = {}
+        if not isinstance(info, Mapping):
+            raise TypeError(
+                "VcfFormat: 'info' must be a mapping (dict-like)"
+            )
+        info_text = VcfFormat._serialize_info_field(info)
+        return (
+            f"{chrom}\t{pos}\t{identifier}\t{ref}\t{alt}\t"
+            f"{qual_text}\t{filt}\t{info_text}\n"
+        )
+
+    @staticmethod
+    def _serialize_info_field(info: Mapping[str, Any]) -> str:
+        if not info:
+            return "."
+        parts: list[str] = []
+        for key, value in info.items():
+            if not isinstance(key, str) or not key:
+                raise ValueError(
+                    "VcfFormat: every INFO key must be a non-empty string"
+                )
+            if value is True:
+                parts.append(key)
+            elif value is False or value is None:
+                continue
+            else:
+                parts.append(f"{key}={value}")
+        if not parts:
+            return "."
+        return ";".join(parts)
