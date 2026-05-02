@@ -24,17 +24,18 @@ import struct
 from collections.abc import Iterable, Mapping
 from typing import Any
 
+from typing import ClassVar
+
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
-
-# General Header Block 1 is 32 bytes per the SEG-D rev 3 spec.
-_GH1_SIZE = 32
 
 
 class SegdFormat(BatchFileFormat):
     """SEG-D decoder. Segpy is used when available; pure-Python fallback
     reads the 32-byte General Header Block 1 only."""
+
+    _gh1_size: ClassVar[int] = 32  # General Header Block 1 per SEG-D rev 3
 
     @property
     def name(self) -> str:
@@ -48,10 +49,10 @@ class SegdFormat(BatchFileFormat):
                 "SegdFormat: payload must be bytes, got "
                 f"{type(payload).__name__}"
             )
-        if len(payload) < _GH1_SIZE:
+        if len(payload) < SegdFormat._gh1_size:
             raise ValueError(
                 f"SegdFormat: payload too short — need at least "
-                f"{_GH1_SIZE} bytes for General Header Block 1, "
+                f"{SegdFormat._gh1_size} bytes for General Header Block 1, "
                 f"got {len(payload)}"
             )
         return self._decode_minimal(payload)
@@ -61,7 +62,7 @@ class SegdFormat(BatchFileFormat):
         cls, payload: bytes
     ) -> list[dict[str, Any]]:
         """Pure-Python General Header Block 1 parser (SEG-D rev 3)."""
-        header = payload[:_GH1_SIZE]
+        header = payload[:SegdFormat._gh1_size]
         # Bytes 0-1: File Number (BCD, 4 digits)
         # Bytes 2-3: Format Code (BCD)
         # Bytes 4-9: General Constants

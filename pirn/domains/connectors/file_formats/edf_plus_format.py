@@ -66,8 +66,10 @@ class EdfPlusFormat(EdfFormat):
                             "text": str(text),
                         }
                     )
-        except Exception:
-            return annotations
+        except Exception as exc:
+            raise ValueError(
+                f"EdfPlusFormat: failed to read annotations: {exc}"
+            ) from exc
         return annotations
 
     @staticmethod
@@ -84,5 +86,7 @@ class EdfPlusFormat(EdfFormat):
                     float(ann.get("duration", -1.0)),
                     str(ann.get("text", "")),
                 )
-            except Exception:
-                pass
+            except Exception as exc:
+                raise ValueError(
+                    f"EdfPlusFormat: failed to write annotation {ann!r}: {exc}"
+                ) from exc

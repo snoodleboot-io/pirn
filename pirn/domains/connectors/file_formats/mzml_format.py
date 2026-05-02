@@ -19,6 +19,7 @@ Install: ``pip install pirn[health]``.
 
 from __future__ import annotations
 
+import base64
 from collections.abc import Iterable, Mapping
 from typing import Any
 
@@ -175,7 +176,6 @@ class MzmlFormat(BatchFileFormat):
         binary_array_list = etree.SubElement(
             spec_el, "binaryDataArrayList", count="2"
         )
-        import base64
 
         for arr, accession, array_name in (
             (mz_arr, "MS:1000514", "m/z array"),

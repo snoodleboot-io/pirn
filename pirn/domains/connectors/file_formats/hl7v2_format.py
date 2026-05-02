@@ -25,10 +25,6 @@ from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 
-# PID field indices (1-based) that carry PHI.
-_PHI_PID_FIELDS: frozenset[int] = frozenset({5, 7, 11})
-
-
 class Hl7v2Format(BatchFileFormat):
     """Whole-file HL7 v2 encoder/decoder backed by ``hl7``.
 
@@ -39,6 +35,11 @@ class Hl7v2Format(BatchFileFormat):
     _phi_keywords: ClassVar[frozenset[str]] = frozenset(
         {"patient_name", "date_of_birth", "address"}
     )
+
+    # PID field indices (1-based) that carry PHI under HIPAA.
+    # 3=Patient Identifier List (MRN), 5=Name, 7=DOB, 11=Address,
+    # 18=Account Number, 19=SSN, 20=Driver's License.
+    _phi_pid_fields: ClassVar[frozenset[int]] = frozenset({3, 5, 7, 11, 18, 19, 20})
 
     @property
     def name(self) -> str:
@@ -91,7 +92,7 @@ class Hl7v2Format(BatchFileFormat):
             fields: list[str] = []
             for i in range(1, len(segment)):
                 raw_field = str(segment[i])
-                if seg_id == "PID" and i in _PHI_PID_FIELDS:
+                if seg_id == "PID" and i in cls._phi_pid_fields:
                     fields.append("[REDACTED]")
                 else:
                     fields.append(raw_field)

@@ -18,39 +18,12 @@ from __future__ import annotations
 import io
 import os
 import tempfile
-from html.parser import HTMLParser
 from typing import Any, Iterable, Mapping
 
+from pirn.domains.connectors.file_formats._html_stripper import _HtmlStripper
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
-
-
-class _HtmlStripper(HTMLParser):
-    """Tiny HTML-to-text fallback for EPUB chapter bodies."""
-
-    def __init__(self) -> None:
-        super().__init__(convert_charrefs=True)
-        self._parts: list[str] = []
-
-    def handle_data(self, data: str) -> None:
-        self._parts.append(data)
-
-    def handle_starttag(
-        self, tag: str, attrs: list[tuple[str, str | None]]
-    ) -> None:
-        if tag in {"p", "br", "div", "li", "h1", "h2", "h3", "h4", "h5", "h6"}:
-            self._parts.append("\n")
-
-    def handle_endtag(self, tag: str) -> None:
-        if tag in {"p", "div", "li", "h1", "h2", "h3", "h4", "h5", "h6"}:
-            self._parts.append("\n")
-
-    def text(self) -> str:
-        joined = "".join(self._parts)
-        return "\n".join(
-            line.strip() for line in joined.splitlines() if line.strip()
-        )
 
 
 class EpubFormat(BatchFileFormat):

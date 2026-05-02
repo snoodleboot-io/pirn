@@ -20,6 +20,8 @@ Install: ``pip install pirn[safetensors]``.
 
 from __future__ import annotations
 
+import json
+import struct
 from collections.abc import Iterable, Mapping
 from typing import Any
 
@@ -168,9 +170,6 @@ class SafetensorsFormat(BatchFileFormat):
         # Header layout: u64 little-endian header length + JSON header bytes.
         if len(payload) < 8:
             return {}
-        import json
-        import struct
-
         (header_length,) = struct.unpack("<Q", payload[:8])
         if header_length == 0 or 8 + header_length > len(payload):
             return {}

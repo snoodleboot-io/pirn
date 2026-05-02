@@ -24,9 +24,6 @@ from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 
-_FHIR_NS = "http://hl7.org/fhir"
-
-
 class FhirXmlFormat(BatchFileFormat):
     """Whole-file FHIR XML Bundle encoder/decoder.
 
@@ -36,6 +33,7 @@ class FhirXmlFormat(BatchFileFormat):
     ``identifier_hash``.
     """
 
+    _fhir_ns: ClassVar[str] = "http://hl7.org/fhir"
     _phi_keywords: ClassVar[frozenset[str]] = frozenset(
         {
             "name",
@@ -60,8 +58,8 @@ class FhirXmlFormat(BatchFileFormat):
         records: list[dict[str, Any]] = []
         local_tag = self._local(root.tag)
         if local_tag == "Bundle":
-            for entry_el in root.findall(f"{{{_FHIR_NS}}}entry"):
-                resource_el = entry_el.find(f"{{{_FHIR_NS}}}resource")
+            for entry_el in root.findall(f"{{{FhirXmlFormat._fhir_ns}}}entry"):
+                resource_el = entry_el.find(f"{{{FhirXmlFormat._fhir_ns}}}resource")
                 if resource_el is None:
                     continue
                 children = list(resource_el)
@@ -79,36 +77,38 @@ class FhirXmlFormat(BatchFileFormat):
         self._load_fhir()
         lxml_etree = self._load_lxml()
         materialised = [dict(r) for r in records]
-        nsmap = {None: _FHIR_NS}
-        bundle_el = lxml_etree.Element(f"{{{_FHIR_NS}}}Bundle", nsmap=nsmap)
+        nsmap = {None: FhirXmlFormat._fhir_ns}
+        bundle_el = lxml_etree.Element(f"{{{FhirXmlFormat._fhir_ns}}}Bundle", nsmap=nsmap)
         lxml_etree.SubElement(
-            bundle_el, f"{{{_FHIR_NS}}}type"
+            bundle_el, f"{{{FhirXmlFormat._fhir_ns}}}type"
         ).set("value", "collection")
         for record in materialised:
             entry_el = lxml_etree.SubElement(
-                bundle_el, f"{{{_FHIR_NS}}}entry"
+                bundle_el, f"{{{FhirXmlFormat._fhir_ns}}}entry"
             )
             resource_wrapper = lxml_etree.SubElement(
-                entry_el, f"{{{_FHIR_NS}}}resource"
+                entry_el, f"{{{FhirXmlFormat._fhir_ns}}}resource"
             )
             resource_type = record.get("resource_type", "Resource")
+            self._validate_xml_ncname(str(resource_type))
             res_el = lxml_etree.SubElement(
-                resource_wrapper, f"{{{_FHIR_NS}}}{resource_type}"
+                resource_wrapper, f"{{{FhirXmlFormat._fhir_ns}}}{resource_type}"
             )
             if record.get("resource_id"):
-                id_el = lxml_etree.SubElement(res_el, f"{{{_FHIR_NS}}}id")
+                id_el = lxml_etree.SubElement(res_el, f"{{{FhirXmlFormat._fhir_ns}}}id")
                 id_el.set("value", str(record["resource_id"]))
             if record.get("status"):
                 st_el = lxml_etree.SubElement(
-                    res_el, f"{{{_FHIR_NS}}}status"
+                    res_el, f"{{{FhirXmlFormat._fhir_ns}}}status"
                 )
                 st_el.set("value", str(record["status"]))
             data = record.get("data", {})
             for key, value in data.items():
                 if key in ("resourceType", "id", "status", "identifier_hash"):
                     continue
+                self._validate_xml_ncname(str(key))
                 child_el = lxml_etree.SubElement(
-                    res_el, f"{{{_FHIR_NS}}}{key}"
+                    res_el, f"{{{FhirXmlFormat._fhir_ns}}}{key}"
                 )
                 child_el.set("value", str(value) if value is not None else "")
         return lxml_etree.tostring(
@@ -151,6 +151,17 @@ class FhirXmlFormat(BatchFileFormat):
             "status": status,
             "data": data,
         }
+
+    @staticmethod
+    def _validate_xml_ncname(name: str) -> None:
+        """Raise ValueError if *name* is not a valid XML NCName."""
+        import re
+        if not re.fullmatch(r"[a-zA-Z_][a-zA-Z0-9._\-]*", name):
+            raise ValueError(
+                f"FhirXmlFormat: value {name!r} is not a valid XML element "
+                "name (NCName). Must start with a letter or underscore and "
+                "contain only alphanumerics, '.', '-', '_'."
+            )
 
     @staticmethod
     def _local(tag: str) -> str:

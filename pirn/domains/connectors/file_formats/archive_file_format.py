@@ -128,6 +128,28 @@ class ArchiveFileFormat(FileFormat):
         return _iter()
 
     @staticmethod
+    def _validate_member_path(name: str) -> None:
+        """Raise ValueError if *name* is unsafe to use as an archive member path."""
+        if not name:
+            raise ValueError(
+                "ArchiveFileFormat: archive member path must be non-empty"
+            )
+        if "\x00" in name:
+            raise ValueError(
+                f"ArchiveFileFormat: archive member path contains NUL byte: {name!r}"
+            )
+        import os.path as _osp
+        if _osp.isabs(name):
+            raise ValueError(
+                f"ArchiveFileFormat: archive member path must be relative, got {name!r}"
+            )
+        parts = name.replace("\\", "/").split("/")
+        if ".." in parts:
+            raise ValueError(
+                f"ArchiveFileFormat: archive member path contains '..' component: {name!r}"
+            )
+
+    @staticmethod
     def _group_by_member(
         records: list[Mapping[str, Any]],
     ) -> dict[str, list[Mapping[str, Any]]]:
@@ -139,6 +161,7 @@ class ArchiveFileFormat(FileFormat):
                     "ArchiveFileFormat: every record must have a non-empty "
                     "'_archive_member' string field"
                 )
+            ArchiveFileFormat._validate_member_path(member)
             inner_record = {
                 k: v for k, v in record.items() if k != "_archive_member"
             }
@@ -161,6 +184,7 @@ class ArchiveFileFormat(FileFormat):
                 ) -> AsyncIterator[bytes]:
                     yield data
 
+                ArchiveFileFormat._validate_member_path(member_name)
                 async for record in await inner.read(_byte_iter()):
                     yield {"_archive_member": member_name, **record}
 
@@ -198,6 +222,7 @@ class ArchiveFileFormat(FileFormat):
                 ) -> AsyncIterator[bytes]:
                     yield data
 
+                ArchiveFileFormat._validate_member_path(member_name)
                 async for record in await inner.read(_byte_iter()):
                     yield {"_archive_member": member_name, **record}
         finally:

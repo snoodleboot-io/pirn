@@ -81,20 +81,21 @@ class GribFormat(BatchFileFormat):
         )
 
     @staticmethod
+    def _get_grib_key(msg: Any, eccodes: Any, key: str, default: Any = "") -> Any:
+        try:
+            return eccodes.codes_get(msg, key)
+        except Exception:
+            return default
+
+    @staticmethod
     def _extract_message(msg: Any, eccodes: Any) -> dict[str, Any]:
         import numpy as np
 
-        def _get(key: str, default: Any = "") -> Any:
-            try:
-                return eccodes.codes_get(msg, key)
-            except Exception:
-                return default
-
-        short_name = str(_get("shortName", ""))
-        name = str(_get("name", ""))
-        type_of_level = str(_get("typeOfLevel", ""))
-        level = _get("level", 0)
-        step_range = str(_get("stepRange", ""))
+        short_name = str(GribFormat._get_grib_key(msg, eccodes, "shortName", ""))
+        name = str(GribFormat._get_grib_key(msg, eccodes, "name", ""))
+        type_of_level = str(GribFormat._get_grib_key(msg, eccodes, "typeOfLevel", ""))
+        level = GribFormat._get_grib_key(msg, eccodes, "level", 0)
+        step_range = str(GribFormat._get_grib_key(msg, eccodes, "stepRange", ""))
 
         try:
             values = eccodes.codes_get_values(msg)

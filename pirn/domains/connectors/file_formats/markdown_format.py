@@ -116,24 +116,12 @@ class MarkdownFormat(BatchFileFormat):
         in_heading = False
         in_heading_level = 0
 
-        def _flush() -> None:
-            if current_title is None and not body_lines:
-                return
-            text_value = "\n".join(body_lines).strip()
-            records.append(
-                {
-                    "text": text_value,
-                    "level": current_level,
-                    "title": current_title,
-                }
-            )
-
         index = 0
         while index < len(tokens):
             token = tokens[index]
             if token.type == "heading_open":
                 # Close previous section before starting a new one.
-                _flush()
+                MarkdownFormat._flush_section(records, current_title, current_level, body_lines)
                 body_lines = []
                 in_heading = True
                 in_heading_level = int(token.tag[1:])
@@ -154,8 +142,25 @@ class MarkdownFormat(BatchFileFormat):
                 index += 1
                 continue
             index += 1
-        _flush()
+        MarkdownFormat._flush_section(records, current_title, current_level, body_lines)
         return records
+
+    @staticmethod
+    def _flush_section(
+        records: list[Mapping[str, Any]],
+        current_title: str | None,
+        current_level: int,
+        body_lines: list[str],
+    ) -> None:
+        if current_title is None and not body_lines:
+            return
+        records.append(
+            {
+                "text": "\n".join(body_lines).strip(),
+                "level": current_level,
+                "title": current_title,
+            }
+        )
 
     @staticmethod
     def _records_by_paragraph(

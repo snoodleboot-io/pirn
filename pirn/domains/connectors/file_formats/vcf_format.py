@@ -69,25 +69,9 @@ class VcfFormat(StreamingFileFormat):
             buffered = bytearray()
             saw_column_header = False
 
-            def _drain_lines(final: bool) -> list[str]:
-                lines: list[str] = []
-                while True:
-                    newline_index = buffered.find(b"\n")
-                    if newline_index == -1:
-                        break
-                    raw_line = bytes(buffered[:newline_index])
-                    del buffered[: newline_index + 1]
-                    lines.append(raw_line.decode(encoding).rstrip("\r"))
-                if final and buffered:
-                    lines.append(
-                        bytes(buffered).decode(encoding).rstrip("\r")
-                    )
-                    buffered.clear()
-                return lines
-
             async for chunk in body:
                 buffered.extend(chunk)
-                for line in _drain_lines(final=False):
+                for line in VcfFormat._drain_lines(buffered, encoding, final=False):
                     if line.startswith("##"):
                         continue
                     if line.startswith("#"):
@@ -97,7 +81,7 @@ class VcfFormat(StreamingFileFormat):
                         continue
                     yield VcfFormat._parse_data_row(line)
 
-            for line in _drain_lines(final=True):
+            for line in VcfFormat._drain_lines(buffered, encoding, final=True):
                 if line.startswith("##"):
                     continue
                 if line.startswith("#"):
@@ -129,6 +113,21 @@ class VcfFormat(StreamingFileFormat):
                 yield VcfFormat._serialize_data_row(record).encode(encoding)
 
         return _iter()
+
+    @staticmethod
+    def _drain_lines(buffered: bytearray, encoding: str, final: bool) -> list[str]:
+        lines: list[str] = []
+        while True:
+            newline_index = buffered.find(b"\n")
+            if newline_index == -1:
+                break
+            raw_line = bytes(buffered[:newline_index])
+            del buffered[: newline_index + 1]
+            lines.append(raw_line.decode(encoding).rstrip("\r"))
+        if final and buffered:
+            lines.append(bytes(buffered).decode(encoding).rstrip("\r"))
+            buffered.clear()
+        return lines
 
     @staticmethod
     def _parse_data_row(line: str) -> Mapping[str, Any]:

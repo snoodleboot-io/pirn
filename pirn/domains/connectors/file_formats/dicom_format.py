@@ -61,6 +61,7 @@ class DicomFormat(BatchFileFormat):
     # audited record surface would defeat the purpose of the carve-out.
     _phi_keywords: ClassVar[frozenset[str]] = frozenset(
         {
+            # Direct identifiers
             "PatientName",
             "PatientBirthDate",
             "PatientAddress",
@@ -73,6 +74,20 @@ class DicomFormat(BatchFileFormat):
             "ResponsiblePersonRole",
             "ResponsibleOrganization",
             "PatientID",  # raw — emitted separately as patient_id_hash
+            "IssuerOfPatientID",
+            # Free-text fields routinely containing PHI
+            "PatientComments",
+            "AdditionalPatientHistory",
+            "MedicalAlerts",
+            "Allergies",
+            "SmokingStatus",
+            # HIPAA Safe Harbor quasi-identifiers (categories 3, 9, 10, 16)
+            "EthnicGroup",
+            "Occupation",
+            "PatientAge",
+            "PatientWeight",
+            "PatientSize",
+            "PatientBodyMassIndex",
         }
     )
 

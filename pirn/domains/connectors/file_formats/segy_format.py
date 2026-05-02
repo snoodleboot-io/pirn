@@ -67,8 +67,7 @@ class SegyFormat(BatchFileFormat):
                     header = {}
                     for key in f.header[idx].keys():
                         header[str(key)] = int(f.header[idx][key])
-                    import struct as _struct
-                    data = _struct.pack(
+                    data = struct.pack(
                         f">{len(trace)}f", *trace.tolist()
                     )
                     records.append(

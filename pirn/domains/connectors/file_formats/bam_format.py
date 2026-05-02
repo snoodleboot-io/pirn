@@ -26,14 +26,7 @@ from typing import Any
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
-from pirn.domains.connectors.file_formats.sam_format import (
-    _alignment_to_record,
-    _build_header,
-    _make_tempfile_path,
-    _record_to_alignment,
-    _safe_unlink,
-    _write_tempfile,
-)
+from pirn.domains.connectors.file_formats._sam_utils import _SamUtils
 
 
 class BamFormat(BatchFileFormat):
@@ -78,38 +71,38 @@ class BamFormat(BatchFileFormat):
         self, payload: bytes
     ) -> Iterable[Mapping[str, Any]]:
         pysam = self._load_pysam()
-        path = _write_tempfile(payload, suffix=".bam")
+        path = _SamUtils.write_tempfile(payload, suffix=".bam")
         try:
             handle = pysam.AlignmentFile(path, "rb")
             try:
                 records: list[Mapping[str, Any]] = []
                 for alignment in handle:
-                    records.append(_alignment_to_record(alignment, handle))
+                    records.append(_SamUtils.alignment_to_record(alignment, handle))
                 return records
             finally:
                 handle.close()
         finally:
-            _safe_unlink(path)
+            _SamUtils.safe_unlink(path)
 
     async def _encode_full(
         self, records: Iterable[Mapping[str, Any]]
     ) -> bytes:
         pysam = self._load_pysam()
         materialised: list[Mapping[str, Any]] = list(records)
-        header = _build_header(pysam, self._header_lines, materialised)
-        path = _make_tempfile_path(suffix=".bam")
+        header = _SamUtils.build_header(pysam, self._header_lines, materialised)
+        path = _SamUtils.make_tempfile_path(suffix=".bam")
         try:
             handle = pysam.AlignmentFile(path, "wb", header=header)
             try:
                 for record in materialised:
-                    alignment = _record_to_alignment(pysam, record, handle)
+                    alignment = _SamUtils.record_to_alignment(pysam, record, handle)
                     handle.write(alignment)
             finally:
                 handle.close()
             with open(path, "rb") as fh:
                 return fh.read()
         finally:
-            _safe_unlink(path)
+            _SamUtils.safe_unlink(path)
 
     @staticmethod
     def _load_pysam() -> Any:

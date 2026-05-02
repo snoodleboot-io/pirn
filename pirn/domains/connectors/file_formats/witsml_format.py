@@ -15,19 +15,20 @@ Install: ``pip install pirn[oilgas]``.
 
 from __future__ import annotations
 
+import io
 from collections.abc import Iterable, Mapping
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 
-_WITSML_NS = "http://www.witsml.org/schemas/1series"
-_WITSML_VERSION = "1.4.1.1"
-
 
 class WitsmlFormat(BatchFileFormat):
     """Whole-file WITSML encoder/decoder."""
+
+    _witsml_ns: ClassVar[str] = "http://www.witsml.org/schemas/1series"
+    _witsml_version: ClassVar[str] = "1.4.1.1"
 
     @property
     def name(self) -> str:
@@ -37,8 +38,6 @@ class WitsmlFormat(BatchFileFormat):
         self, payload: bytes
     ) -> Iterable[Mapping[str, Any]]:
         defusedxml = self._load_defusedxml()
-        import io
-
         tree = defusedxml.ElementTree.parse(io.BytesIO(payload))
         root = tree.getroot()
         records: list[dict[str, Any]] = []
@@ -59,12 +58,13 @@ class WitsmlFormat(BatchFileFormat):
         materialised = [dict(r) for r in records]
         root = lxml_etree.Element(
             "wellLogs",
-            attrib={"version": _WITSML_VERSION},
-            nsmap={None: _WITSML_NS},
+            attrib={"version": self._witsml_version},
+            nsmap={None: self._witsml_ns},
         )
         for record in materialised:
             item_el = lxml_etree.SubElement(root, "wellLog")
             for key, value in record.items():
+                self._validate_xml_ncname(str(key))
                 child = lxml_etree.SubElement(item_el, str(key))
                 child.text = str(value) if value is not None else ""
         return lxml_etree.tostring(
@@ -97,6 +97,17 @@ class WitsmlFormat(BatchFileFormat):
         if not result and element.text and element.text.strip():
             result[cls._strip_ns(element.tag)] = element.text.strip()
         return result
+
+    @staticmethod
+    def _validate_xml_ncname(name: str) -> None:
+        """Raise ValueError if *name* is not a valid XML NCName."""
+        import re
+        if not re.fullmatch(r"[a-zA-Z_][a-zA-Z0-9._\-]*", name):
+            raise ValueError(
+                f"WitsmlFormat: record key {name!r} is not a valid XML "
+                "element name (NCName). Keys must start with a letter or "
+                "underscore and contain only alphanumerics, '.', '-', '_'."
+            )
 
     @staticmethod
     def _strip_ns(tag: str) -> str:

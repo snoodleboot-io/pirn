@@ -80,6 +80,9 @@ class MatlabMatFormat(BatchFileFormat):
         self, payload: bytes
     ) -> Iterable[Mapping[str, Any]]:
         scipy_io, np = self._load_scipy_numpy()
+        # scipy.io.loadmat may invoke pickle for MATLAB object arrays (cell
+        # arrays containing arbitrary MATLAB objects). Do not load untrusted
+        # .mat files without additional validation at the call site.
         loaded = scipy_io.loadmat(io.BytesIO(payload))
         if self._variable_name not in loaded:
             raise ValueError(

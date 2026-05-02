@@ -55,31 +55,15 @@ class FastqFormat(StreamingFileFormat):
             buffered = bytearray()
             pending: list[str] = []
 
-            def _drain_lines(final: bool) -> list[str]:
-                lines: list[str] = []
-                while True:
-                    newline_index = buffered.find(b"\n")
-                    if newline_index == -1:
-                        break
-                    raw_line = bytes(buffered[:newline_index])
-                    del buffered[: newline_index + 1]
-                    lines.append(raw_line.decode(encoding).rstrip("\r"))
-                if final and buffered:
-                    lines.append(
-                        bytes(buffered).decode(encoding).rstrip("\r")
-                    )
-                    buffered.clear()
-                return lines
-
             async for chunk in body:
                 buffered.extend(chunk)
-                pending.extend(_drain_lines(final=False))
+                pending.extend(FastqFormat._drain_lines(buffered, encoding, final=False))
                 while len(pending) >= 4:
                     record = FastqFormat._build_record(pending[:4])
                     del pending[:4]
                     yield record
 
-            pending.extend(_drain_lines(final=True))
+            pending.extend(FastqFormat._drain_lines(buffered, encoding, final=True))
             while len(pending) >= 4:
                 record = FastqFormat._build_record(pending[:4])
                 del pending[:4]
@@ -147,6 +131,21 @@ class FastqFormat(StreamingFileFormat):
                 yield payload.encode(encoding)
 
         return _iter()
+
+    @staticmethod
+    def _drain_lines(buffered: bytearray, encoding: str, final: bool) -> list[str]:
+        lines: list[str] = []
+        while True:
+            newline_index = buffered.find(b"\n")
+            if newline_index == -1:
+                break
+            raw_line = bytes(buffered[:newline_index])
+            del buffered[: newline_index + 1]
+            lines.append(raw_line.decode(encoding).rstrip("\r"))
+        if final and buffered:
+            lines.append(bytes(buffered).decode(encoding).rstrip("\r"))
+            buffered.clear()
+        return lines
 
     @staticmethod
     def _build_record(lines: list[str]) -> Mapping[str, Any]:

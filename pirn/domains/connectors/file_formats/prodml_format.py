@@ -15,18 +15,19 @@ Install: ``pip install pirn[oilgas]``.
 
 from __future__ import annotations
 
+import io
 from collections.abc import Iterable, Mapping
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 
-_PRODML_NS = "http://www.prodml.org/schemas/1series"
-
 
 class ProdmlFormat(BatchFileFormat):
     """Whole-file PRODML encoder/decoder."""
+
+    _prodml_ns: ClassVar[str] = "http://www.prodml.org/schemas/1series"
 
     @property
     def name(self) -> str:
@@ -36,8 +37,6 @@ class ProdmlFormat(BatchFileFormat):
         self, payload: bytes
     ) -> Iterable[Mapping[str, Any]]:
         defusedxml = self._load_defusedxml()
-        import io
-
         tree = defusedxml.ElementTree.parse(io.BytesIO(payload))
         root = tree.getroot()
         records: list[dict[str, Any]] = []
@@ -58,11 +57,12 @@ class ProdmlFormat(BatchFileFormat):
         materialised = [dict(r) for r in records]
         root = lxml_etree.Element(
             "prodmlObjects",
-            nsmap={None: _PRODML_NS},
+            nsmap={None: self._prodml_ns},
         )
         for record in materialised:
             item_el = lxml_etree.SubElement(root, "prodmlObject")
             for key, value in record.items():
+                self._validate_xml_ncname(str(key))
                 child = lxml_etree.SubElement(item_el, str(key))
                 child.text = str(value) if value is not None else ""
         return lxml_etree.tostring(
@@ -88,6 +88,17 @@ class ProdmlFormat(BatchFileFormat):
         if not result and element.text and element.text.strip():
             result[cls._strip_ns(element.tag)] = element.text.strip()
         return result
+
+    @staticmethod
+    def _validate_xml_ncname(name: str) -> None:
+        """Raise ValueError if *name* is not a valid XML NCName."""
+        import re
+        if not re.fullmatch(r"[a-zA-Z_][a-zA-Z0-9._\-]*", name):
+            raise ValueError(
+                f"ProdmlFormat: record key {name!r} is not a valid XML "
+                "element name (NCName). Keys must start with a letter or "
+                "underscore and contain only alphanumerics, '.', '-', '_'."
+            )
 
     @staticmethod
     def _strip_ns(tag: str) -> str:

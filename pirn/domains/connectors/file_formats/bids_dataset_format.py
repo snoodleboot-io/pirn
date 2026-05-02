@@ -57,6 +57,7 @@ class BidsDatasetFormat(BatchFileFormat):
             for info in zf.infolist():
                 if info.is_dir():
                     continue
+                self._validate_member_path(info.filename)
                 content = zf.read(info.filename)
                 records.append(
                     {
@@ -74,6 +75,7 @@ class BidsDatasetFormat(BatchFileFormat):
         with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
             for record in records:
                 path = record["relative_path"]
+                self._validate_member_path(path)
                 content = record["content"]
                 if not isinstance(content, (bytes, bytearray)):
                     raise TypeError(
@@ -82,6 +84,28 @@ class BidsDatasetFormat(BatchFileFormat):
                     )
                 zf.writestr(path, bytes(content))
         return buf.getvalue()
+
+    @staticmethod
+    def _validate_member_path(name: str) -> None:
+        """Raise ValueError if *name* is unsafe (path traversal / absolute)."""
+        if not name:
+            raise ValueError(
+                "BidsDatasetFormat: member path must be non-empty"
+            )
+        if "\x00" in name:
+            raise ValueError(
+                f"BidsDatasetFormat: member path contains NUL byte: {name!r}"
+            )
+        import os.path as _osp
+        if _osp.isabs(name):
+            raise ValueError(
+                f"BidsDatasetFormat: member path must be relative, got {name!r}"
+            )
+        parts = name.replace("\\", "/").split("/")
+        if ".." in parts:
+            raise ValueError(
+                f"BidsDatasetFormat: member path contains '..' component: {name!r}"
+            )
 
     @staticmethod
     def _validate_bids_if_available(

@@ -178,13 +178,33 @@ class EdfFormat(BatchFileFormat):
     @staticmethod
     def _apply_phi_redaction(writer: Any) -> None:
         """Set patient/admin fields to [REDACTED] in the EDF header."""
-        try:
-            writer.setPatientCode("[REDACTED]")
-            writer.setPatientName("[REDACTED]")
-            writer.setBirthDate("")
-            writer.setAdmincode("[REDACTED]")
-        except Exception:
-            pass  # Not all pyedflib versions expose all setters
+        import warnings
+
+        _setters = [
+            ("setPatientCode", "[REDACTED]"),
+            ("setPatientName", "[REDACTED]"),
+            ("setBirthDate", ""),
+            ("setAdmincode", "[REDACTED]"),
+        ]
+        applied = 0
+        for method_name, value in _setters:
+            try:
+                getattr(writer, method_name)(value)
+                applied += 1
+            except AttributeError:
+                warnings.warn(
+                    f"EdfFormat: pyedflib writer does not expose {method_name!r}; "
+                    "PHI field not redacted. Upgrade pyedflib or do not call encode "
+                    "with PHI-bearing records.",
+                    RuntimeWarning,
+                    stacklevel=4,
+                )
+        if applied == 0:
+            raise RuntimeError(
+                "EdfFormat: none of the PHI-redaction setters are available on "
+                "this pyedflib version. Cannot safely encode records — install a "
+                "supported pyedflib version (>=1.0)."
+            )
 
     @staticmethod
     def _write_annotations(

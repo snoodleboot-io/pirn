@@ -23,12 +23,11 @@ import io
 from collections.abc import Iterable, Mapping
 from typing import Any
 
+from typing import ClassVar
+
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
-
-_ODM_NS = "http://www.cdisc.org/ns/odm/v1.3"
-_DEF_NS = "http://www.cdisc.org/ns/def/v2.0"
 
 
 class DefineXmlFormat(BatchFileFormat):
@@ -37,6 +36,9 @@ class DefineXmlFormat(BatchFileFormat):
     No PHI is present in Define-XML — it contains only structural
     metadata about clinical trial datasets.
     """
+
+    _odm_ns: ClassVar[str] = "http://www.cdisc.org/ns/odm/v1.3"
+    _def_ns: ClassVar[str] = "http://www.cdisc.org/ns/def/v2.0"
 
     @property
     def name(self) -> str:
@@ -49,7 +51,7 @@ class DefineXmlFormat(BatchFileFormat):
         tree = defusedxml.ElementTree.parse(io.BytesIO(payload))
         root = tree.getroot()
         records: list[dict[str, Any]] = []
-        for item_def in root.iter(f"{{{_ODM_NS}}}ItemDef"):
+        for item_def in root.iter(f"{{{DefineXmlFormat._odm_ns}}}ItemDef"):
             records.append(self._item_def_to_record(item_def))
         return records
 
@@ -59,25 +61,25 @@ class DefineXmlFormat(BatchFileFormat):
         lxml_etree = self._load_lxml()
         materialised = [dict(r) for r in records]
         nsmap = {
-            None: _ODM_NS,
-            "def": _DEF_NS,
+            None: DefineXmlFormat._odm_ns,
+            "def": DefineXmlFormat._def_ns,
         }
         root = lxml_etree.Element(
-            f"{{{_ODM_NS}}}ODM",
+            f"{{{DefineXmlFormat._odm_ns}}}ODM",
             nsmap=nsmap,
         )
         root.set("FileType", "Snapshot")
         root.set("Granularity", "Metadata")
-        study = lxml_etree.SubElement(root, f"{{{_ODM_NS}}}Study")
+        study = lxml_etree.SubElement(root, f"{{{DefineXmlFormat._odm_ns}}}Study")
         study.set("OID", "STUDY.1")
         meta = lxml_etree.SubElement(
-            study, f"{{{_ODM_NS}}}MetaDataVersion"
+            study, f"{{{DefineXmlFormat._odm_ns}}}MetaDataVersion"
         )
         meta.set("OID", "MDV.1")
         meta.set("Name", "MetaDataVersion")
         for record in materialised:
             item_def = lxml_etree.SubElement(
-                meta, f"{{{_ODM_NS}}}ItemDef"
+                meta, f"{{{DefineXmlFormat._odm_ns}}}ItemDef"
             )
             item_def.set("OID", record.get("oid") or "")
             item_def.set("Name", record.get("name") or "")
@@ -88,10 +90,10 @@ class DefineXmlFormat(BatchFileFormat):
             label = record.get("label")
             if label is not None:
                 desc = lxml_etree.SubElement(
-                    item_def, f"{{{_ODM_NS}}}Description"
+                    item_def, f"{{{DefineXmlFormat._odm_ns}}}Description"
                 )
                 trans = lxml_etree.SubElement(
-                    desc, f"{{{_ODM_NS}}}TranslatedText"
+                    desc, f"{{{DefineXmlFormat._odm_ns}}}TranslatedText"
                 )
                 trans.text = str(label)
         return lxml_etree.tostring(
@@ -114,9 +116,9 @@ class DefineXmlFormat(BatchFileFormat):
             except ValueError:
                 length = None
         label: str | None = None
-        desc_el = item_def.find(f"{{{_ODM_NS}}}Description")
+        desc_el = item_def.find(f"{{{DefineXmlFormat._odm_ns}}}Description")
         if desc_el is not None:
-            trans_el = desc_el.find(f"{{{_ODM_NS}}}TranslatedText")
+            trans_el = desc_el.find(f"{{{DefineXmlFormat._odm_ns}}}TranslatedText")
             if trans_el is not None and trans_el.text:
                 label = trans_el.text.strip() or None
         return {
