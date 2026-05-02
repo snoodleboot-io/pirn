@@ -76,3 +76,14 @@ nav:
     - Branching Pipelines: cookbook/branching.md
     - Streaming Sources: cookbook/streaming.md
     - Testing Patterns: cookbook/testing-patterns.md
+  - Domains:
+    - Data: domains/data.md
+    - Agents: domains/agents.md
+    - ML: domains/ml.md
+    - Health: domains/health.md
+    - Signal: domains/signal.md
+    - Oil & Gas: domains/oilgas.md
+  - Connectors:
+    - Format Matrix: connectors/index.md
+  - Contributing:
+    - Domain Knots: contributing/domain-knots.md
