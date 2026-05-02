@@ -275,7 +275,7 @@ class DicomFormat(BatchFileFormat):
             return ()
         try:
             array = dataset.pixel_array
-        except Exception:
+        except (AttributeError, KeyError, ValueError, TypeError):
             rows = int(getattr(dataset, "Rows", 0) or 0)
             columns = int(getattr(dataset, "Columns", 0) or 0)
             return (rows, columns) if rows and columns else ()
