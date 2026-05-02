@@ -91,6 +91,7 @@ oilgas  = ["segyio>=1.9", "lasio>=0.31"]
 # ─────────────────────────────────────────────────────────────────────────────
 # Tier 0 — foundational columnar / specialized layouts
 arrow   = ["pyarrow>=14.0"]
+parquet = ["pyarrow>=14.0"]
 xarray  = ["xarray>=2024.0"]
 awkward = ["awkward>=2.5"]
 
@@ -132,6 +133,18 @@ bytewax = ["bytewax>=0.21; python_version<'3.14'"]
 # Tier 4 — specialized
 lance = ["pylance>=0.18"]
 eland = ["eland>=8.13"]
+
+# Lakehouse table formats — see pirn/domains/data/lakehouse/.
+# Each is gated behind its own extra so installing pirn without the
+# vendor SDK works fine. Hudi's Python ecosystem is read-only as of
+# mid-2026; production writes require the Spark/Java writer.
+delta   = ["deltalake>=0.17"]
+iceberg = ["pyiceberg>=0.6"]
+# TODO: Hudi Python writer is not yet on PyPI under a stable name.
+# When ``hudi-python``/``pyhudi`` reaches a stable release, declare it
+# here. For now ``pirn[hudi]`` is a no-op marker — the read path uses
+# pyarrow (already pulled in via ``pirn[data]``).
+hudi    = []
 
 # Validation frameworks (cross-tier; integrate with quality knots)
 pandera           = ["pandera>=0.20"]
@@ -185,6 +198,23 @@ grafana   = ["httpx>=0.26"]
 google-analytics = ["google-analytics-data>=0.18"]
 mixpanel  = ["mixpanel>=4.10"]
 amplitude = ["amplitude-analytics>=1.1"]
+
+# Compression codecs for CompressedFileFormat (pirn/domains/connectors/
+# file_formats/codecs/). gzip and bzip2 are stdlib — no extra needed.
+zstd   = ["zstandard>=0.22"]
+snappy = ["python-snappy>=0.7"]
+lz4    = ["lz4>=4.3"]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# File format extras (pirn/domains/connectors/file_formats/).
+# Each tabular file format with non-trivial deps gets its own extra so
+# the core install stays small.
+# ─────────────────────────────────────────────────────────────────────────────
+avro    = ["fastavro>=1.9"]
+orc     = ["pyarrow>=14.0"]
+feather = ["pyarrow>=14.0"]
+xlsx    = ["openpyxl>=3.1", "xlsxwriter>=3.2"]
+ods     = ["odfpy>=1.4"]
 
 # BI / data-catalog connectors (pirn/domains/connectors/bi_catalog/).
 # dbt artifacts is stdlib-only — no extra needed.
