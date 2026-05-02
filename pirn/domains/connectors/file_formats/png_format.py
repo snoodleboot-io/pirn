@@ -37,10 +37,6 @@ from pirn.domains.connectors.file_formats.batch_file_format import (
 class PngFormat(BatchFileFormat):
     """Whole-file PNG encoder/decoder."""
 
-    def __init__(self) -> None:
-        # No configuration knobs — PNG defaults are universally sane.
-        pass
-
     @property
     def name(self) -> str:
         return "png"

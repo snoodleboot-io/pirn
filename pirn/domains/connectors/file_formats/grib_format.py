@@ -55,7 +55,7 @@ class GribFormat(BatchFileFormat):
                 while True:
                     try:
                         msg = eccodes.codes_grib_new_from_file(fh)
-                    except Exception:
+                    except (EOFError, OSError, RuntimeError):
                         break
                     if msg is None:
                         break
@@ -65,7 +65,7 @@ class GribFormat(BatchFileFormat):
                     finally:
                         try:
                             eccodes.codes_release(msg)
-                        except Exception:
+                        except (RuntimeError, OSError):
                             pass
         finally:
             if os.path.exists(tmp_path):
@@ -84,7 +84,7 @@ class GribFormat(BatchFileFormat):
     def _get_grib_key(msg: Any, eccodes: Any, key: str, default: Any = "") -> Any:
         try:
             return eccodes.codes_get(msg, key)
-        except Exception:
+        except (KeyError, RuntimeError, ValueError):
             return default
 
     @staticmethod
@@ -100,7 +100,7 @@ class GribFormat(BatchFileFormat):
         try:
             values = eccodes.codes_get_values(msg)
             values_bytes = np.asarray(values, dtype=np.float64).tobytes()
-        except Exception:
+        except (RuntimeError, ValueError, AttributeError, MemoryError):
             values_bytes = b""
 
         return {

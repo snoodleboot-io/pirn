@@ -135,7 +135,7 @@ class SegyFormat(BatchFileFormat):
                         for key, val in header.items():
                             try:
                                 f.header[idx].update({key: int(val)})
-                            except Exception:
+                            except (ValueError, TypeError, KeyError):
                                 pass
             result = Path(tmp_path).read_bytes()
         finally:

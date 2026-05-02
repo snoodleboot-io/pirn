@@ -77,7 +77,7 @@ class TfSavedModelFormat(BatchFileFormat):
         if signatures is not None:
             try:
                 signature_keys = [str(key) for key in signatures]
-            except Exception:
+            except (AttributeError, TypeError):
                 signature_keys = []
         record: dict[str, Any] = {
             "saved_model_path": tmpdir.name,

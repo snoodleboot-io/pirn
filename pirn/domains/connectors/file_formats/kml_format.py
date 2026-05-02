@@ -25,6 +25,8 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from typing import Any
 
+from typing import ClassVar
+
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
@@ -33,8 +35,8 @@ from pirn.domains.connectors.file_formats.batch_file_format import (
 class KmlFormat(BatchFileFormat):
     """Whole-document KML encoder/decoder."""
 
-    _kml_namespace: str = "http://www.opengis.net/kml/2.2"
-    _supported_geometries: frozenset[str] = frozenset(
+    _kml_namespace: ClassVar[str] = "http://www.opengis.net/kml/2.2"
+    _supported_geometries: ClassVar[frozenset[str]] = frozenset(
         {"Point", "LineString", "Polygon"}
     )
 

@@ -57,7 +57,7 @@ class FitsFormat(BatchFileFormat):
                 if hdu.data is not None:
                     try:
                         data_bytes = hdu.data.tobytes()
-                    except Exception:
+                    except (AttributeError, ValueError, MemoryError, TypeError):
                         data_bytes = None
                 records.append(
                     {
@@ -88,7 +88,7 @@ class FitsFormat(BatchFileFormat):
                 ):
                     try:
                         hdu_header[key] = value
-                    except Exception:
+                    except (ValueError, KeyError, TypeError):
                         pass
             if data_bytes is not None and isinstance(data_bytes, (bytes, bytearray)):
                 import numpy as np

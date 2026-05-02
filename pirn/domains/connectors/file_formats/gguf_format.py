@@ -160,10 +160,7 @@ class GgufFormat(BatchFileFormat):
                 writer.write_kv_data_to_file()
                 writer.write_tensors_to_file()
             finally:
-                try:
-                    writer.close()
-                except Exception:
-                    pass
+                writer.close()
             with open(tmp_path, "rb") as fh:
                 return fh.read()
         finally:
@@ -180,7 +177,7 @@ class GgufFormat(BatchFileFormat):
         if callable(contents):
             try:
                 return contents()
-            except Exception:
+            except (RuntimeError, TypeError, ValueError):
                 pass
         for attr in ("value", "parts"):
             value = getattr(field, attr, None)

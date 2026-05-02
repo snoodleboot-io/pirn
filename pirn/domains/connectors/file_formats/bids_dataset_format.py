@@ -129,6 +129,13 @@ class BidsDatasetFormat(BatchFileFormat):
                 from bids import BIDSLayout
 
                 BIDSLayout(str(root), validate=False)
-            except Exception:
-                # Validation is best-effort; do not fail the read
+            except ImportError:
                 pass
+            except Exception as exc:
+                import warnings
+                warnings.warn(
+                    f"BidsDatasetFormat: BIDS layout validation raised an "
+                    f"unexpected error: {exc}",
+                    RuntimeWarning,
+                    stacklevel=4,
+                )

@@ -60,7 +60,7 @@ class DlisFormat(BatchFileFormat):
                             try:
                                 array = channel.curves()
                                 data = array.tobytes()
-                            except Exception:
+                            except (ValueError, RuntimeError, AttributeError, KeyError):
                                 data = b""
                             records.append(
                                 {

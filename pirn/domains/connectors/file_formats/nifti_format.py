@@ -93,7 +93,7 @@ class NiftiFormat(BatchFileFormat):
                     result[key] = value.tolist()
                 else:
                     result[key] = value
-            except Exception:
+            except (KeyError, AttributeError, ValueError):
                 pass
         return result
 

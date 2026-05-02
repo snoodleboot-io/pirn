@@ -56,19 +56,19 @@ class RootFormat(BatchFileFormat):
                         continue
                     try:
                         branch_names = obj.keys()
-                    except Exception:
+                    except (AttributeError, ValueError):
                         continue
                     n_entries: int = 0
                     try:
                         n_entries = int(obj.num_entries)
-                    except Exception:
+                    except (AttributeError, ValueError, TypeError):
                         pass
                     data: dict[str, bytes] = {}
                     for branch_name in branch_names:
                         try:
                             arr = obj[branch_name].array(library="np")
                             data[branch_name] = arr.tobytes()
-                        except Exception:
+                        except (AttributeError, ValueError, MemoryError, KeyError):
                             data[branch_name] = b""
                     records.append(
                         {
