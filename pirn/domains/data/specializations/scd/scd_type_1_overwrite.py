@@ -1,4 +1,4 @@
-"""``SCDType1Overwrite`` — Slowly Changing Dimension Type 1 (overwrite).
+"""``ScdType1Overwrite`` — Slowly Changing Dimension Type 1 (overwrite).
 
 SCD Type 1 keeps **only the current value** for every dimension row: when
 a tracked attribute changes, the existing target row is updated in place
@@ -31,7 +31,7 @@ from pirn.domains.data.identifier_validator import IdentifierValidator
 from pirn.nodes.sub_tapestry import SubTapestry
 
 
-class SCDType1Overwrite(SubTapestry):
+class ScdType1Overwrite(SubTapestry):
     """Upsert dimension rows in place, preserving no history (SCD Type 1)."""
 
     def __init__(
@@ -48,11 +48,11 @@ class SCDType1Overwrite(SubTapestry):
     ) -> None:
         if not isinstance(source_pool, DatabaseConnectionPool):
             raise TypeError(
-                "SCDType1Overwrite: source_pool must be a DatabaseConnectionPool"
+                "ScdType1Overwrite: source_pool must be a DatabaseConnectionPool"
             )
         if not isinstance(target_pool, DatabaseConnectionPool):
             raise TypeError(
-                "SCDType1Overwrite: target_pool must be a DatabaseConnectionPool"
+                "ScdType1Overwrite: target_pool must be a DatabaseConnectionPool"
             )
         for label, value in (
             ("source_query", source_query),
@@ -60,7 +60,7 @@ class SCDType1Overwrite(SubTapestry):
         ):
             if not isinstance(value, str) or not value:
                 raise ValueError(
-                    f"SCDType1Overwrite: {label} must be a non-empty string"
+                    f"ScdType1Overwrite: {label} must be a non-empty string"
                 )
         IdentifierValidator.validate_column("target_table", target_table)
         key_tuple = tuple(key_columns)
@@ -70,7 +70,7 @@ class SCDType1Overwrite(SubTapestry):
         overlap = set(key_tuple) & set(non_key_tuple)
         if overlap:
             raise ValueError(
-                f"SCDType1Overwrite: key_columns and non_key_columns overlap "
+                f"ScdType1Overwrite: key_columns and non_key_columns overlap "
                 f"on {sorted(overlap)!r}"
             )
         self._source_pool = source_pool

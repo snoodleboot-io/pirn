@@ -37,3 +37,15 @@ class OMOPConnection(PirnOpaqueValue):
         raise NotImplementedError(
             f"{type(self).__name__} must implement close()"
         )
+
+    def _clear_credentials(self) -> None:
+        """Drop the in-memory credential reference held by the connection.
+
+        Concrete implementations should call this from ``close()`` after
+        tearing down the live SDK / client. It nulls ``self._config`` so
+        the credential string (token, api key, secret) becomes garbage-
+        collectable as soon as the caller drops the connection reference.
+        Long-running processes that hold connection references after
+        ``close()`` benefit; default deployments are unaffected.
+        """
+        self._config = None

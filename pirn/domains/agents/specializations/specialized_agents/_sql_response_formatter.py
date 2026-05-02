@@ -1,0 +1,61 @@
+"""``_SQLResponseFormatter`` — internal helper Knot for :class:`SQLAgent`.
+
+Wraps the SQL text plus row results into an :class:`AgentResponse`.
+Internal API.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
+from pirn.domains.agents.types.agent_response import AgentResponse
+
+
+class _SQLResponseFormatter(Knot):
+    """Wrap the SQL plus rows into an :class:`AgentResponse`."""
+
+    def __init__(
+        self,
+        *,
+        sql: Knot,
+        rows: Knot,
+        _config: KnotConfig,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(sql=sql, rows=rows, _config=_config, **kwargs)
+
+    async def process(
+        self,
+        sql: str,
+        rows: list[Any],
+        **_: Any,
+    ) -> AgentResponse:
+        rendered_rows = "\n".join(repr(row) for row in rows)
+        content = (
+            f"SQL:\n{sql}\n\n"
+            f"Rows ({len(rows)}):\n{rendered_rows}"
+        )
+        return AgentResponse(content=content, finish_reason="stop")
+
+    @staticmethod
+    def _extract_text(raw: Any) -> str:
+        if isinstance(raw, str):
+            return raw
+        if isinstance(raw, dict):
+            content = raw.get("content")
+            if isinstance(content, str):
+                return content
+            if isinstance(content, list) and content:
+                first = content[0]
+                if isinstance(first, dict):
+                    text = first.get("text")
+                    if isinstance(text, str):
+                        return text
+                if isinstance(first, str):
+                    return first
+            text = raw.get("text")
+            if isinstance(text, str):
+                return text
+        return str(raw)

@@ -1,4 +1,4 @@
-"""``SCDType7Hybrid`` — Slowly Changing Dimension Type 7 (hybrid).
+"""``ScdType7Hybrid`` — Slowly Changing Dimension Type 7 (hybrid).
 
 SCD Type 7 stores both the **historical** value (Type-2 style row
 versioning) **and** the **current** value side-by-side on every row of
@@ -43,7 +43,7 @@ from pirn.domains.data.identifier_validator import IdentifierValidator
 from pirn.nodes.sub_tapestry import SubTapestry
 
 
-class SCDType7Hybrid(SubTapestry):
+class ScdType7Hybrid(SubTapestry):
     """Maintain SCD Type 7 (current + history columns on every row)."""
 
     def __init__(
@@ -64,11 +64,11 @@ class SCDType7Hybrid(SubTapestry):
     ) -> None:
         if not isinstance(source_pool, DatabaseConnectionPool):
             raise TypeError(
-                "SCDType7Hybrid: source_pool must be a DatabaseConnectionPool"
+                "ScdType7Hybrid: source_pool must be a DatabaseConnectionPool"
             )
         if not isinstance(target_pool, DatabaseConnectionPool):
             raise TypeError(
-                "SCDType7Hybrid: target_pool must be a DatabaseConnectionPool"
+                "ScdType7Hybrid: target_pool must be a DatabaseConnectionPool"
             )
         for label, value in (
             ("source_query", source_query),
@@ -76,7 +76,7 @@ class SCDType7Hybrid(SubTapestry):
         ):
             if not isinstance(value, str) or not value:
                 raise ValueError(
-                    f"SCDType7Hybrid: {label} must be a non-empty string"
+                    f"ScdType7Hybrid: {label} must be a non-empty string"
                 )
         IdentifierValidator.validate_column("target_table", target_table)
         IdentifierValidator.validate_column(
@@ -96,12 +96,12 @@ class SCDType7Hybrid(SubTapestry):
         )
         if not isinstance(current_columns, Mapping):
             raise TypeError(
-                "SCDType7Hybrid: current_columns must be a Mapping[str, str]"
+                "ScdType7Hybrid: current_columns must be a Mapping[str, str]"
             )
         missing = [c for c in tracked_tuple if c not in current_columns]
         if missing:
             raise ValueError(
-                "SCDType7Hybrid: current_columns missing entries for "
+                "ScdType7Hybrid: current_columns missing entries for "
                 f"{missing!r}"
             )
         for label, value in current_columns.items():
@@ -111,7 +111,7 @@ class SCDType7Hybrid(SubTapestry):
         overlap = set(key_tuple) & set(tracked_tuple)
         if overlap:
             raise ValueError(
-                "SCDType7Hybrid: key_columns and tracked_columns overlap on "
+                "ScdType7Hybrid: key_columns and tracked_columns overlap on "
                 f"{sorted(overlap)!r}"
             )
         self._source_pool = source_pool

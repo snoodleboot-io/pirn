@@ -13,11 +13,10 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.domains.health.clinical.clinical_data_quality_error import (
+    ClinicalDataQualityError,
+)
 from pirn.domains.health.types.clinical_record import ClinicalRecord
-
-
-class ClinicalDataQualityError(ValueError):
-    """Raised when clinical-data quality drops below threshold."""
 
 
 class ClinicalDataQualityGate(Knot):

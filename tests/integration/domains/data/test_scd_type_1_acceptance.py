@@ -1,4 +1,4 @@
-"""ATDD acceptance test: ``SCDType1Overwrite`` end-to-end.
+"""ATDD acceptance test: ``ScdType1Overwrite`` end-to-end.
 
 Two runs over a SQLite source/target pair:
 
@@ -19,7 +19,7 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.connectors.databases.sqlite_config import SqliteConfig
 from pirn.domains.connectors.databases.sqlite_pool import SqlitePool
 from pirn.domains.data.specializations.scd.scd_type_1_overwrite import (
-    SCDType1Overwrite,
+    ScdType1Overwrite,
 )
 from pirn.tapestry import Tapestry
 
@@ -57,7 +57,7 @@ async def pool() -> SqlitePool:
 @pytest.mark.asyncio
 async def test_scd_type_1_overwrite_first_then_update(pool: SqlitePool) -> None:
     with Tapestry() as t1:
-        SCDType1Overwrite(
+        ScdType1Overwrite(
             source_pool=pool,
             source_query=(
                 "SELECT customer_id, full_name, region FROM source_customers"
@@ -91,7 +91,7 @@ async def test_scd_type_1_overwrite_first_then_update(pool: SqlitePool) -> None:
     )
 
     with Tapestry() as t2:
-        SCDType1Overwrite(
+        ScdType1Overwrite(
             source_pool=pool,
             source_query=(
                 "SELECT customer_id, full_name, region FROM source_customers"

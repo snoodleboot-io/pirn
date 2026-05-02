@@ -1,0 +1,92 @@
+"""``_AnalysisStep`` — internal helper Knot for :class:`DataAnalystAgent`.
+
+Sends a SQL result block plus the original question to the LLM for a
+narrative analysis and combines the analysis with the SQL block into a
+final :class:`AgentResponse`. Internal API.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
+from pirn.domains.agents.llm_provider import LLMProvider
+from pirn.domains.agents.types.agent_response import AgentResponse
+
+
+class _AnalysisStep(Knot):
+    """Send the SQL result to the LLM for narrative analysis."""
+
+    def __init__(
+        self,
+        *,
+        question: Knot | str,
+        sql_response: Knot,
+        llm: LLMProvider,
+        _config: KnotConfig,
+        **kwargs: Any,
+    ) -> None:
+        self._llm = llm
+        super().__init__(
+            question=question,
+            sql_response=sql_response,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        question: str,
+        sql_response: AgentResponse,
+        **_: Any,
+    ) -> AgentResponse:
+        if not isinstance(sql_response, AgentResponse):
+            raise TypeError(
+                "DataAnalystAgent: sql_response must be an AgentResponse, "
+                f"got {type(sql_response).__name__}"
+            )
+        chat_messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You are a data analyst. Given a SQL result block, "
+                    "write a concise analysis (3-5 sentences) that answers "
+                    "the user's question and highlights notable trends."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Question: {question}\n\n"
+                    f"SQL result:\n{sql_response.content}"
+                ),
+            },
+        ]
+        raw = await self._llm.chat(chat_messages)
+        analysis = _AnalysisStep._extract_text(raw)
+        combined = (
+            f"{sql_response.content}\n\nAnalysis:\n{analysis}"
+        )
+        return AgentResponse(content=combined, finish_reason="stop")
+
+    @staticmethod
+    def _extract_text(raw: Any) -> str:
+        if isinstance(raw, str):
+            return raw
+        if isinstance(raw, dict):
+            content = raw.get("content")
+            if isinstance(content, str):
+                return content
+            if isinstance(content, list) and content:
+                first = content[0]
+                if isinstance(first, dict):
+                    text = first.get("text")
+                    if isinstance(text, str):
+                        return text
+                if isinstance(first, str):
+                    return first
+            text = raw.get("text")
+            if isinstance(text, str):
+                return text
+        return str(raw)

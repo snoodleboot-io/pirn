@@ -14,30 +14,13 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_result import RunResult
+from pirn.domains.health.clinical._pass_through import _PassThrough
 from pirn.domains.health.clinical.clinical_trial_eligibility_filter import (
     ClinicalTrialEligibilityFilter,
 )
 from pirn.domains.health.types.clinical_record import ClinicalRecord
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
-
-
-class _PassThrough(Knot):
-    """Identity knot used to thread a tuple through subsequent filters."""
-
-    def __init__(
-        self,
-        *,
-        records: tuple[ClinicalRecord, ...],
-        _config: KnotConfig,
-        **kwargs: Any,
-    ) -> None:
-        super().__init__(records=records, _config=_config, **kwargs)
-
-    async def process(
-        self, records: tuple[ClinicalRecord, ...], **_: Any
-    ) -> tuple[ClinicalRecord, ...]:
-        return tuple(records)
 
 
 class PatientCohortBuilder(SubTapestry):

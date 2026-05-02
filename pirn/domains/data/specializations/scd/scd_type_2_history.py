@@ -1,4 +1,4 @@
-"""``SCDType2History`` — Slowly Changing Dimension Type 2 (full history).
+"""``ScdType2History`` — Slowly Changing Dimension Type 2 (full history).
 
 SCD Type 2 preserves a complete history of every tracked-attribute
 change by keeping a separate row in the dimension table for every
@@ -37,7 +37,7 @@ from pirn.domains.data.identifier_validator import IdentifierValidator
 from pirn.nodes.sub_tapestry import SubTapestry
 
 
-class SCDType2History(SubTapestry):
+class ScdType2History(SubTapestry):
     """Maintain full SCD Type 2 history for a dimension table."""
 
     def __init__(
@@ -57,11 +57,11 @@ class SCDType2History(SubTapestry):
     ) -> None:
         if not isinstance(source_pool, DatabaseConnectionPool):
             raise TypeError(
-                "SCDType2History: source_pool must be a DatabaseConnectionPool"
+                "ScdType2History: source_pool must be a DatabaseConnectionPool"
             )
         if not isinstance(target_pool, DatabaseConnectionPool):
             raise TypeError(
-                "SCDType2History: target_pool must be a DatabaseConnectionPool"
+                "ScdType2History: target_pool must be a DatabaseConnectionPool"
             )
         for label, value in (
             ("source_query", source_query),
@@ -69,7 +69,7 @@ class SCDType2History(SubTapestry):
         ):
             if not isinstance(value, str) or not value:
                 raise ValueError(
-                    f"SCDType2History: {label} must be a non-empty string"
+                    f"ScdType2History: {label} must be a non-empty string"
                 )
         IdentifierValidator.validate_column("target_table", target_table)
         IdentifierValidator.validate_column(
@@ -90,7 +90,7 @@ class SCDType2History(SubTapestry):
         overlap = set(key_tuple) & set(tracked_tuple)
         if overlap:
             raise ValueError(
-                "SCDType2History: key_columns and tracked_columns overlap on "
+                "ScdType2History: key_columns and tracked_columns overlap on "
                 f"{sorted(overlap)!r}"
             )
         envelope_overlap = (
@@ -98,7 +98,7 @@ class SCDType2History(SubTapestry):
         ) & {valid_from_column, valid_to_column, current_flag_column}
         if envelope_overlap:
             raise ValueError(
-                "SCDType2History: key/tracked columns clash with envelope "
+                "ScdType2History: key/tracked columns clash with envelope "
                 f"columns: {sorted(envelope_overlap)!r}"
             )
         self._source_pool = source_pool

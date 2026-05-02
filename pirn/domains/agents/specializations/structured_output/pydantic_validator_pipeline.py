@@ -18,7 +18,7 @@ from pydantic import BaseModel, ValidationError
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.agents.llm_provider import LLMProvider
-from pirn.domains.agents.specializations.structured_output.json_extractor_pipeline import (  # noqa: E501
+from pirn.domains.agents.specializations.structured_output._json_extractor_attempt import (  # noqa: E501
     _JsonExtractorAttempt,
 )
 from pirn.nodes.sub_tapestry import SubTapestry

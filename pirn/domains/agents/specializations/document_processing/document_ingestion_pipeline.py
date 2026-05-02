@@ -12,162 +12,23 @@ downstream pipelines fetch chunks by index without scanning the store.
 
 from __future__ import annotations
 
-import hashlib
-from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.agents.memory_store import MemoryStore
+from pirn.domains.agents.specializations.document_processing._chunk_embedder_store import (  # noqa: E501
+    _ChunkEmbedderStore,
+)
+from pirn.domains.agents.specializations.document_processing._document_chunker import (  # noqa: E501
+    _DocumentChunker,
+)
+from pirn.domains.agents.specializations.document_processing._document_loader import (  # noqa: E501
+    _DocumentLoader,
+)
 from pirn.domains.ml.embedding_provider import EmbeddingProvider
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
-
-
-class _DocumentLoader(Knot):
-    """Read text from a local file path or fetch it over HTTP(S)."""
-
-    def __init__(
-        self,
-        *,
-        source: Knot | str,
-        _config: KnotConfig,
-        **kwargs: Any,
-    ) -> None:
-        super().__init__(source=source, _config=_config, **kwargs)
-
-    async def process(self, source: str, **_: Any) -> str:
-        if not isinstance(source, str) or not source:
-            raise TypeError(
-                "DocumentIngestionPipeline: source must be a non-empty "
-                f"string, got {source!r}"
-            )
-        parsed = urlparse(source)
-        if parsed.scheme in ("http", "https"):
-            return await self._fetch_url(source)
-        return self._read_file(source)
-
-    @staticmethod
-    def _read_file(path: str) -> str:
-        return Path(path).read_text(encoding="utf-8")
-
-    @staticmethod
-    async def _fetch_url(url: str) -> str:
-        try:
-            import httpx
-        except ImportError as exc:
-            raise ImportError(
-                "DocumentIngestionPipeline: http(s) sources require httpx; "
-                "install via `pip install pirn[http]`"
-            ) from exc
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url)
-            response.raise_for_status()
-            return response.text
-
-
-class _DocumentChunker(Knot):
-    """Split text into overlapping fixed-size chunks."""
-
-    def __init__(
-        self,
-        *,
-        text: Knot | str,
-        chunk_size: int,
-        chunk_overlap: int,
-        _config: KnotConfig,
-        **kwargs: Any,
-    ) -> None:
-        super().__init__(
-            text=text,
-            chunk_size=chunk_size,
-            chunk_overlap=chunk_overlap,
-            _config=_config,
-            **kwargs,
-        )
-
-    async def process(
-        self,
-        text: str,
-        chunk_size: int,
-        chunk_overlap: int,
-        **_: Any,
-    ) -> list[str]:
-        if chunk_size <= 0:
-            raise ValueError(
-                "DocumentIngestionPipeline: chunk_size must be positive, "
-                f"got {chunk_size!r}"
-            )
-        if chunk_overlap < 0 or chunk_overlap >= chunk_size:
-            raise ValueError(
-                "DocumentIngestionPipeline: chunk_overlap must be in "
-                f"[0, chunk_size), got {chunk_overlap!r}"
-            )
-        if not text:
-            return []
-        stride = chunk_size - chunk_overlap
-        chunks: list[str] = []
-        position = 0
-        length = len(text)
-        while position < length:
-            end = min(position + chunk_size, length)
-            chunks.append(text[position:end])
-            if end == length:
-                break
-            position += stride
-        return chunks
-
-
-class _ChunkEmbedderStore(Knot):
-    """Embed each chunk and persist it under ``{doc_id}:{chunk_idx}``."""
-
-    def __init__(
-        self,
-        *,
-        chunks: Knot,
-        source: Knot | str,
-        embedder: EmbeddingProvider,
-        store: MemoryStore,
-        _config: KnotConfig,
-        **kwargs: Any,
-    ) -> None:
-        self._embedder = embedder
-        self._store = store
-        super().__init__(chunks=chunks, source=source, _config=_config, **kwargs)
-
-    async def process(
-        self,
-        chunks: list[str],
-        source: str,
-        **_: Any,
-    ) -> int:
-        if not chunks:
-            return 0
-        doc_id = self._derive_doc_id(source)
-        embeddings = await self._embedder.embed(chunks)
-        if len(embeddings) != len(chunks):
-            raise RuntimeError(
-                "DocumentIngestionPipeline: embedder returned "
-                f"{len(embeddings)} vectors for {len(chunks)} chunks"
-            )
-        for index, (chunk, vector) in enumerate(zip(chunks, embeddings)):
-            key = f"{doc_id}:{index}"
-            await self._store.store(
-                key,
-                {
-                    "doc_id": doc_id,
-                    "chunk_index": index,
-                    "text": chunk,
-                    "embedding": list(vector),
-                },
-            )
-        return len(chunks)
-
-    @staticmethod
-    def _derive_doc_id(source: str) -> str:
-        digest = hashlib.sha256(source.encode("utf-8")).hexdigest()
-        return digest[:16]
 
 
 class DocumentIngestionPipeline(SubTapestry):

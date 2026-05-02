@@ -16,25 +16,6 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 
-def _default_scorer(query: str, doc: Mapping[str, Any]) -> float:
-    query_tokens = {tok for tok in query.lower().split() if tok}
-    if not query_tokens:
-        return 0.0
-    doc_text_parts: list[str] = []
-    for value in doc.values():
-        if isinstance(value, str):
-            doc_text_parts.append(value)
-        else:
-            doc_text_parts.append(str(value))
-    doc_tokens = {
-        tok for part in doc_text_parts for tok in part.lower().split() if tok
-    }
-    if not doc_tokens:
-        return 0.0
-    overlap = query_tokens & doc_tokens
-    return len(overlap) / len(query_tokens)
-
-
 class RelevanceGate(Knot):
     """Filter retrieved docs by a relevance score against the query."""
 
@@ -63,7 +44,7 @@ class RelevanceGate(Knot):
                 "RelevanceGate: scorer must be callable or None, "
                 f"got {type(scorer).__name__}"
             )
-        self._scorer = scorer or _default_scorer
+        self._scorer = scorer or RelevanceGate._default_scorer
         super().__init__(
             query=query,
             retrieved=retrieved,
@@ -71,6 +52,25 @@ class RelevanceGate(Knot):
             _config=_config,
             **kwargs,
         )
+
+    @staticmethod
+    def _default_scorer(query: str, doc: Mapping[str, Any]) -> float:
+        query_tokens = {tok for tok in query.lower().split() if tok}
+        if not query_tokens:
+            return 0.0
+        doc_text_parts: list[str] = []
+        for value in doc.values():
+            if isinstance(value, str):
+                doc_text_parts.append(value)
+            else:
+                doc_text_parts.append(str(value))
+        doc_tokens = {
+            tok for part in doc_text_parts for tok in part.lower().split() if tok
+        }
+        if not doc_tokens:
+            return 0.0
+        overlap = query_tokens & doc_tokens
+        return len(overlap) / len(query_tokens)
 
     async def process(
         self,

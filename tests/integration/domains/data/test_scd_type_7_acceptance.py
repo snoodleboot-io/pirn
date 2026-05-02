@@ -1,4 +1,4 @@
-"""ATDD acceptance test: ``SCDType7Hybrid`` end-to-end.
+"""ATDD acceptance test: ``ScdType7Hybrid`` end-to-end.
 
 Two runs over a SQLite source/target pair:
 
@@ -23,7 +23,7 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.connectors.databases.sqlite_config import SqliteConfig
 from pirn.domains.connectors.databases.sqlite_pool import SqlitePool
 from pirn.domains.data.specializations.scd.scd_type_7_hybrid import (
-    SCDType7Hybrid,
+    ScdType7Hybrid,
 )
 from pirn.tapestry import Tapestry
 
@@ -64,7 +64,7 @@ async def pool() -> SqlitePool:
 
 def _build_pipeline(pool: SqlitePool) -> Tapestry:
     with Tapestry() as t:
-        SCDType7Hybrid(
+        ScdType7Hybrid(
             source_pool=pool,
             source_query=(
                 "SELECT customer_id, region, tier FROM source_customers"

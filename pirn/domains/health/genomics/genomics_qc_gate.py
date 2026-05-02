@@ -12,11 +12,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.domains.health.genomics.genomics_qc_error import GenomicsQCError
 from pirn.domains.health.types.genomics_record import GenomicsRecord
-
-
-class GenomicsQCError(ValueError):
-    """Raised when genomics QC metrics fall below threshold."""
 
 
 class GenomicsQCGate(Knot):

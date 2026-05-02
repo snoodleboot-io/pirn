@@ -1,0 +1,69 @@
+"""``_CodeResponseFormatter`` — internal helper Knot for :class:`CodeAgent`.
+
+Wraps the generated code plus linter warnings into an
+:class:`AgentResponse`. Internal API.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
+from pirn.domains.agents.types.agent_response import AgentResponse
+
+
+class _CodeResponseFormatter(Knot):
+    """Wrap the code plus linter warnings into an :class:`AgentResponse`."""
+
+    def __init__(
+        self,
+        *,
+        code: Knot,
+        warnings: Knot,
+        _config: KnotConfig,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            code=code,
+            warnings=warnings,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        code: str,
+        warnings: list[str],
+        **_: Any,
+    ) -> AgentResponse:
+        usage: dict[str, int] = {
+            "lint_warnings": len(warnings),
+            "tests_skipped": 1,
+        }
+        return AgentResponse(
+            content=code,
+            finish_reason="stop",
+            usage=usage,
+        )
+
+    @staticmethod
+    def _extract_text(raw: Any) -> str:
+        if isinstance(raw, str):
+            return raw
+        if isinstance(raw, dict):
+            content = raw.get("content")
+            if isinstance(content, str):
+                return content
+            if isinstance(content, list) and content:
+                first = content[0]
+                if isinstance(first, dict):
+                    text = first.get("text")
+                    if isinstance(text, str):
+                        return text
+                if isinstance(first, str):
+                    return first
+            text = raw.get("text")
+            if isinstance(text, str):
+                return text
+        return str(raw)

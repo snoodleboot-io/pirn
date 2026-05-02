@@ -48,3 +48,19 @@ class Tool(PirnOpaqueValue):
         raise NotImplementedError(
             f"{type(self).__name__} must implement invoke()"
         )
+
+    def _clear_credentials(self) -> None:
+        """Drop any in-memory credential reference held by the tool.
+
+        :class:`Tool` has no shared credential field, so the default
+        implementation is a no-op. Concrete tools that hold a
+        credential string (token, api key, secret) on a private
+        attribute should override this method to null whichever
+        credential field they hold (e.g. ``self._config = None`` or
+        ``self._api_key = None``). Callers should invoke this after
+        tearing down any live SDK / client so the credential becomes
+        garbage-collectable as soon as the tool reference is dropped.
+        Long-running processes that hold tool references benefit;
+        default deployments are unaffected.
+        """
+        pass
