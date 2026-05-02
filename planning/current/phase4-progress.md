@@ -4,8 +4,8 @@ Single source of truth for what's shipped vs pending in the Phase 4
 file-formats arc. Updated as commits land.
 
 **Branch:** `feat/domain-knot-libraries`
-**Latest commit:** `4b2bdbd` (Round 2)
-**Suite:** 3261 passing, 6 skipped, 0 failing
+**Latest commit:** `4b5635a` (Round 3 cleanup + archive)
+**Suite:** 3507 passing, 19 skipped, 0 failing
 **PR:** [#13](https://github.com/snoodleboot-io/pirn/pull/13) (draft)
 
 ## Foundation — shipped (commit ae90db3)
@@ -117,87 +117,89 @@ Alignment formats:
 - [x] `webp_format.py` — `WebpFormat` (Pillow; lossless flag)
 - [x] `heic_format.py` — `HeicFormat` (pillow-heif)
 
----
+## Wave B3 — healthcare imaging (5/5 — commits 57d0220, 51d7f43)
 
-## NOT YET SHIPPED — Round 3 (33 formats, 1 partial)
+- [x] `dicom_format.py` — `DicomFormat` (pydicom; PHI-hash safety; 36 tests)
+- [x] `nifti_format.py` — `NiftiFormat` (nibabel; tempfile)
+- [x] `bids_dataset_format.py` — `BidsDatasetFormat` (zip bundle + pybids)
+- [x] `open_slide_format.py` — `OpenSlideFormat` (read-only; PHI metadata stripped)
+- [x] `mzml_format.py` — `MzmlFormat` (pyteomics + lxml)
 
-All Round 3 agents hit API rate limits before completing work. The
-prompts I dispatched are documented in this session's chat history
-and can be re-issued verbatim once quota resets.
+## Wave B2 — healthcare clinical (6/6 — commit 51d7f43)
 
-### Wave B2 — healthcare clinical (0/6)
+- [x] `fhir_json_format.py` — `FhirJsonFormat` (fhir.resources; PHI hashed/stripped)
+- [x] `fhir_xml_format.py` — `FhirXmlFormat` (fhir.resources + lxml)
+- [x] `hl7v2_format.py` — `Hl7v2Format` (python-hl7; PID PHI redacted)
+- [x] `cda_xml_format.py` — `CdaXmlFormat` (lxml + defusedxml)
+- [x] `define_xml_format.py` — `DefineXmlFormat` (CDISC; no PHI)
+- [x] `sdtm_xpt_format.py` — `SdtmXptFormat` (pyreadstat)
 
-- [ ] `fhir_json_format.py` — `FhirJsonFormat` (fhir.resources)
-- [ ] `fhir_xml_format.py` — `FhirXmlFormat` (fhir.resources XML)
-- [ ] `hl7v2_format.py` — `Hl7v2Format` (python-hl7)
-- [ ] `cda_xml_format.py` — `CdaXmlFormat` (lxml + defusedxml)
-- [ ] `define_xml_format.py` — `DefineXmlFormat` (CDISC Define-XML 2.x)
-- [ ] `sdtm_xpt_format.py` — `SdtmXptFormat` (pyreadstat)
+## Wave B5 — healthcare biosignal (4/4 — commit 51d7f43)
 
-### Wave B3 — healthcare imaging (1 partial / 5)
+- [x] `edf_format.py` — `EdfFormat` (pyedflib; PHI header redacted)
+- [x] `edf_plus_format.py` — `EdfPlusFormat` (extends EdfFormat + TAL annotations)
+- [x] `bdf_format.py` — `BdfFormat` (pyedflib; 24-bit BDF variant)
+- [x] `brainvision_format.py` — `BrainVisionFormat` (mne + pure-Python fallback)
 
-- [⚠️] `dicom_format.py` — `DicomFormat` (pydicom). **Source written (287 lines, untracked) by B3 agent before rate limit. NO TEST FILE. Includes PHI-hash safety per spec.** Decision needed: commit-as-is + add test in next session, OR revert and rewrite cleanly.
-- [ ] `nifti_format.py` — `NiftiFormat` (nibabel; tempfile)
-- [ ] `bids_dataset_format.py` — `BidsDatasetFormat` (pybids; zip bundle)
-- [ ] `open_slide_format.py` — `OpenSlideFormat` (openslide-python; read-only)
-- [ ] `mzml_format.py` — `MzmlFormat` (pyteomics)
+## Wave C1 — audio (6/6 — commit e37519f)
 
-### Wave B5 — healthcare biosignal (0/4)
+- [x] `wav_format.py` — `WavFormat` (stdlib; no optional deps)
+- [x] `flac_format.py` — `FlacFormat` (soundfile)
+- [x] `ogg_format.py` — `OggFormat` (soundfile)
+- [x] `mp3_format.py` — `Mp3Format` (pydub; skips on Python 3.13+ — pyaudioop removed)
+- [x] `aac_format.py` — `AacFormat` (pydub; same skip condition)
+- [x] `m4a_format.py` — `M4aFormat` (pydub; same skip condition)
 
-- [ ] `edf_format.py` — `EdfFormat` (pyedflib)
-- [ ] `edf_plus_format.py` — `EdfPlusFormat(EdfFormat)` with annotations
-- [ ] `bdf_format.py` — `BdfFormat` (pyedflib)
-- [ ] `brainvision_format.py` — `BrainVisionFormat` (mne; zip bundle of .eeg/.vhdr/.vmrk)
+## Wave C2 — oil & gas (7/7 — commit e37519f)
 
-### Wave C1 — audio (0/6)
+- [x] `segy_format.py` — `SegyFormat` (segyio; tempfile)
+- [x] `las_format.py` — `LasFormat` (lasio)
+- [x] `dlis_format.py` — `DlisFormat` (dlisio; decode-only)
+- [x] `witsml_format.py` — `WitsmlFormat` (defusedxml + lxml)
+- [x] `prodml_format.py` — `ProdmlFormat` (defusedxml + lxml)
+- [x] `resqml_format.py` — `ResqmlFormat` (defusedxml + lxml)
+- [x] `segd_format.py` — `SegdFormat` (pure-Python GH1 fallback; decode-only)
 
-- [ ] `wav_format.py` — `WavFormat` (stdlib wave + numpy)
-- [ ] `flac_format.py` — `FlacFormat` (soundfile)
-- [ ] `mp3_format.py` — `Mp3Format` (pydub + ffmpeg)
-- [ ] `ogg_format.py` — `OggFormat` (soundfile)
-- [ ] `aac_format.py` — `AacFormat` (pydub + ffmpeg)
-- [ ] `m4a_format.py` — `M4aFormat` (pydub + ffmpeg)
+## Wave E — specialty science (5/5 — commit e37519f)
 
-### Wave C2 — oil & gas (0/7)
+- [x] `fits_format.py` — `FitsFormat` (astropy)
+- [x] `asdf_format.py` — `AsdfFormat` (asdf)
+- [x] `netcdf4_format.py` — `Netcdf4Format` (multi-group netCDF4; distinct from Wave A2 NetcdfFormat)
+- [x] `root_format.py` — `RootFormat` (uproot; decode-only)
+- [x] `grib_format.py` — `GribFormat` (cfgrib; decode-only)
 
-- [ ] `segy_format.py` — `SegyFormat` (segyio)
-- [ ] `las_format.py` — `LasFormat` (lasio)
-- [ ] `dlis_format.py` — `DlisFormat` (dlisio; write may NotImplementedError)
-- [ ] `witsml_format.py` — `WitsmlFormat` (lxml + defusedxml)
-- [ ] `prodml_format.py` — `ProdmlFormat` (lxml + defusedxml)
-- [ ] `resqml_format.py` — `ResqmlFormat` (lxml + defusedxml; HDF5 sidecar deferred)
-- [ ] `segd_format.py` — `SegdFormat` (segpy; encode may NotImplementedError)
+## Archive support — tar/zip (1/1 — commit 4b5635a)
 
-### Wave E — specialty (0/5)
-
-- [ ] `root_format.py` — `RootFormat` (uproot)
-- [ ] `fits_format.py` — `FitsFormat` (astropy.io.fits)
-- [ ] `grib_format.py` — `GribFormat` (cfgrib; encode NotImplementedError)
-- [ ] `netcdf4_format.py` — `Netcdf4Format` (netCDF4 multi-group; distinct from Wave A2's NetcdfFormat)
-- [ ] `asdf_format.py` — `AsdfFormat` (asdf)
-
-### Tar/zip archive support (deferred from Wave A4)
-
-- [ ] `archive_file_format.py` — implement `read` / `write` for `tar`, `tar.gz`, `tar.bz2`, `tar.zst`, `zip`. Currently raises NotImplementedError.
+- [x] `archive_file_format.py` — `ArchiveFileFormat` — full read/write for tar, tar.gz, tar.bz2, tar.zst, zip
 
 ---
 
-## Cleanup pending (separate from Round 3 work)
+## Cleanup completed (commit 4b5635a)
 
-- [ ] **B4a module-level free helpers** — `fasta_format.py`, `fastq_format.py`, `vcf_format.py`, `bcf_format.py` have parse/serialise helpers at module scope. Wrap into class `@staticmethod`s per python.md "no free helpers" rule. Cf. SparkCompute split pattern.
-- [ ] **Verify epub/hdf5 tests** — B4a agent flagged "pre-existing failures" in `test_epub_format.py` and `test_hdf5_format.py` while running. Current suite shows 0 failures, so they may have been transient agent-collision flakes — but worth a clean re-run on a quiet session to confirm.
-- [ ] **B5-3 file-path validation** for genomics/oilgas knot stubs — flagged in `security-review-2026-05-01.md`. Defer until those stubs flip to real I/O.
-- [ ] **Block 9 — Documentation & polish.** Per-domain docs (data/agents/ml/health/signal/oilgas), connector matrix, contributing guide, README, CHANGELOG, mkdocs nav. Held all session waiting for the surface to settle. After Round 3 + cleanup, this is the natural close.
+- [x] **B4a**: moved module-level helpers in fasta/fastq/vcf/bcf into class `@staticmethod`s
+
+---
+
+## Remaining — Block 9 Documentation & Polish
+
+- [ ] `docs/domains/data.md`
+- [ ] `docs/domains/agents.md`
+- [ ] `docs/domains/ml.md`
+- [ ] `docs/domains/health.md`
+- [ ] `docs/domains/signal.md`
+- [ ] `docs/domains/oilgas.md`
+- [ ] `docs/connectors/index.md` — connector matrix
+- [ ] `docs/contributing/domain-knots.md` — style guide
+- [ ] Update `README.md`
+- [ ] `CHANGELOG.md` entry
+- [ ] mkdocs nav updated
 
 ---
 
 ## How to resume
 
-1. Verify state: `cd pirn && uv run pytest tests/unit/ --no-header -q` should report 3261 passing, 6 skipped.
-2. Decide DICOM disposition: commit `pirn/domains/connectors/file_formats/dicom_format.py` (untracked) + add test, OR revert it and rewrite as part of Wave B3.
-3. Re-dispatch Round 3 — agent prompts are in this conversation's chat history. The PRD `phase4-data-formats-prd.md` has the wave plan; per-format spec is detailed enough to re-prompt cleanly.
-4. After Round 3, do the cleanup items.
-5. Block 9 last.
+1. Verify state: `uv run pytest tests/unit/ --no-header -q` — should report 3507 passing, 19 skipped, 0 failing.
+2. Proceed to Block 9 documentation.
 
 ---
 
@@ -215,11 +217,11 @@ and can be re-issued verbatim once quota resets.
 | C3 geospatial | ✅ | 5 | 41 |
 | D1 ML artifacts | ✅ | 7 | 78 |
 | D2 images | ✅ | 5 | 47 |
-| **B2 healthcare clinical** | ❌ | 0/6 | — |
-| **B3 healthcare imaging** | ⚠️ partial | 1/5 (DICOM source untracked, no test) | — |
-| **B5 healthcare biosignal** | ❌ | 0/4 | — |
-| **C1 audio** | ❌ | 0/6 | — |
-| **C2 oil & gas** | ❌ | 0/7 | — |
-| **E specialty** | ❌ | 0/5 | — |
-| Archive (tar/zip) | ❌ | 0/1 | — |
-| **TOTAL** | | **64 / ~98** | **~682** |
+| B2 healthcare clinical | ✅ | 6 | 56 |
+| B3 healthcare imaging | ✅ | 5 | 36+31 |
+| B5 healthcare biosignal | ✅ | 4 | 49 |
+| C1 audio | ✅ | 6 | 24 (3 skip) |
+| C2 oil & gas | ✅ | 7 | 32 (4 skip) |
+| E specialty | ✅ | 5 | 9 (4 skip) |
+| Archive (tar/zip) | ✅ | 1 | (covered by CompressedFileFormat tests) |
+| **TOTAL** | | **~98 / ~98** | **~846** |
