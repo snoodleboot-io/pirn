@@ -5,6 +5,7 @@ Per-chunk summary fan-out plus a single reduce LLM call. Internal API.
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -29,11 +30,15 @@ class _MapReduceSummariser(Knot):
     async def process(self, chunks: list[str], **_: Any) -> str:
         if not chunks:
             return ""
-        partial_summaries: list[str] = []
-        for index, chunk in enumerate(chunks):
-            partial_summaries.append(
-                await self._summarise_chunk(chunk, index, len(chunks))
+        total = len(chunks)
+        partial_summaries = list(
+            await asyncio.gather(
+                *(
+                    self._summarise_chunk(chunk, index, total)
+                    for index, chunk in enumerate(chunks)
+                )
             )
+        )
         if len(partial_summaries) == 1:
             return partial_summaries[0]
         return await self._reduce(partial_summaries)

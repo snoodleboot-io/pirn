@@ -43,6 +43,9 @@ class DocumentIngestionPipeline(SubTapestry):
         _config: KnotConfig,
         chunk_size: int = 1000,
         chunk_overlap: int = 100,
+        allowed_root: str | None = None,
+        allowed_hosts: tuple[str, ...] | None = None,
+        max_bytes: int = 100 * 1024 * 1024,
         **kwargs: Any,
     ) -> None:
         if not isinstance(embedder, EmbeddingProvider):
@@ -74,6 +77,9 @@ class DocumentIngestionPipeline(SubTapestry):
         self._store = store
         self._chunk_size = chunk_size
         self._chunk_overlap = chunk_overlap
+        self._allowed_root = allowed_root
+        self._allowed_hosts = allowed_hosts
+        self._max_bytes = max_bytes
         super().__init__(source=source, _config=_config, **kwargs)
 
     async def process(self, source: str, **_: Any) -> int:
@@ -85,6 +91,9 @@ class DocumentIngestionPipeline(SubTapestry):
         with Tapestry() as inner:
             loaded = _DocumentLoader(
                 source=source,
+                allowed_root=self._allowed_root,
+                allowed_hosts=self._allowed_hosts,
+                max_bytes=self._max_bytes,
                 _config=KnotConfig(id="load"),
             )
             chunks = _DocumentChunker(

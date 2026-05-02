@@ -93,6 +93,11 @@ class DebeziumSource(Source):
         return self._max_messages
 
     async def process(self, **_: Any) -> list[Mapping[str, Any]]:
+        if self._max_messages is None:
+            raise RuntimeError(
+                "DebeziumSource.process() requires max_messages — for "
+                "unbounded streaming use _stream() directly"
+            )
         events: list[Mapping[str, Any]] = []
         async for event in self._stream():
             events.append(event)

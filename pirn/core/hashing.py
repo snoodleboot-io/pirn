@@ -24,7 +24,15 @@ import json
 from collections.abc import Mapping, Sequence, Set
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
+
+
+# Module-level cache to avoid rebuilding ``TypeAdapter`` per
+# ``_canonicalise`` call. Constructing a TypeAdapter walks the type and
+# builds a schema/validator pair (~10-100 µs); at millions of
+# canonicalisations per tapestry the cost compounds. Keyed by the runtime
+# type so different concrete types remain isolated.
+_TYPE_ADAPTER_CACHE: dict[type, TypeAdapter] = {}
 
 
 class _Unhashable(Exception):
@@ -86,14 +94,16 @@ def _canonicalise(value: Any) -> Any:
       walks dataclass ``type`` fields and hits ``_Unhashable`` for
       anything containing a ``Mapping[str, type]`` (DataSchema columns).
     """
-    # Sanctioned hook takes precedence over every other branch — types
-    # control their canonical form explicitly when this is defined.
-    if hasattr(value, "__pirn_canonical__"):
-        return _canonicalise(value.__pirn_canonical__())
+    # Primitive isinstance check FIRST — common case; avoids the
+    # ``hasattr`` exception path for every plain int/str/bool/None.
     if value is None or isinstance(value, (bool, int, float, str)):
         return value
     if isinstance(value, bytes):
         return {"__bytes__": value.hex()}
+    # Sanctioned hook — types control their canonical form explicitly
+    # when this is defined.
+    if hasattr(value, "__pirn_canonical__"):
+        return _canonicalise(value.__pirn_canonical__())
     if isinstance(value, BaseModel):
         # Model JSON, then re-canonicalise the resulting dict so nested
         # non-Pydantic values are handled consistently.
@@ -103,15 +113,18 @@ def _canonicalise(value: Any) -> Any:
         }
     # Pydantic-aware fallback for non-``BaseModel`` types declaring a
     # custom core schema. Excludes containers so the dedicated branches
-    # below remain authoritative.
+    # below remain authoritative. ``TypeAdapter`` instances are cached
+    # per concrete type to amortise schema-construction cost.
     if (
         not isinstance(value, (list, tuple, dict, set, frozenset))
         and hasattr(type(value), "__get_pydantic_core_schema__")
     ):
+        value_type = type(value)
         try:
-            from pydantic import TypeAdapter
-
-            adapter = TypeAdapter(type(value))
+            adapter = _TYPE_ADAPTER_CACHE.get(value_type)
+            if adapter is None:
+                adapter = TypeAdapter(value_type)
+                _TYPE_ADAPTER_CACHE[value_type] = adapter
             return _canonicalise(adapter.dump_python(value, mode="json"))
         except Exception:
             # Fall through to the container/Mapping/Sequence branches

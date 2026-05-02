@@ -6,6 +6,7 @@ caller-supplied :class:`MemoryStore`. Internal API.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 from typing import Any
 
@@ -47,17 +48,22 @@ class _ChunkEmbedderStore(Knot):
                 "DocumentIngestionPipeline: embedder returned "
                 f"{len(embeddings)} vectors for {len(chunks)} chunks"
             )
-        for index, (chunk, vector) in enumerate(zip(chunks, embeddings)):
-            key = f"{doc_id}:{index}"
-            await self._store.store(
-                key,
-                {
-                    "doc_id": doc_id,
-                    "chunk_index": index,
-                    "text": chunk,
-                    "embedding": list(vector),
-                },
+        # TODO: expose ``concurrency_limit`` constructor arg for
+        # rate-sensitive vector stores (use ``asyncio.Semaphore``).
+        await asyncio.gather(
+            *(
+                self._store.store(
+                    f"{doc_id}:{index}",
+                    {
+                        "doc_id": doc_id,
+                        "chunk_index": index,
+                        "text": chunk,
+                        "embedding": list(vector),
+                    },
+                )
+                for index, (chunk, vector) in enumerate(zip(chunks, embeddings))
             )
+        )
         return len(chunks)
 
     @staticmethod

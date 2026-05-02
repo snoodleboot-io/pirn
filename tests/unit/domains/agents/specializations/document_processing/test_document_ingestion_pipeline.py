@@ -93,6 +93,7 @@ class TestDocumentIngestionPipelineHappyPath:
                 store=store,
                 chunk_size=10,
                 chunk_overlap=2,
+                allowed_root=str(tmp_path),
                 _config=KnotConfig(id="ingest"),
             )
         result = await t.run(RunRequest())
