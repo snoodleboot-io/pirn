@@ -58,52 +58,110 @@ pirn/
 
 ## Canonical pattern
 
+Three equivalent ways to define a knot:
+
+### A — `@knot` decorator (functions, quick prototyping)
+
 ```python
 import asyncio
+from typing import Any
 from pirn import Tapestry, Parameter, KnotConfig, knot, RunRequest
 
-# 1. Define knots with the @knot decorator (or subclass Knot directly).
-#    Every named param must appear at construction time.
-#    **_: Any is mandatory — it absorbs implicit dependencies.
+# **_: Any is mandatory — absorbs implicit ordering dependencies.
 @knot
-async def fetch(url: str, **_) -> str:
-    import httpx
-    async with httpx.AsyncClient() as c:
-        return (await c.get(url)).text
+async def clean(rows: list[dict], drop_nulls: bool, **_: Any) -> list[dict]:
+    return [r for r in rows if all(r.values())] if drop_nulls else rows
 
 @knot
-async def word_count(html: str, **_) -> int:
-    return len(html.split())
-
-@knot
-async def report(count: int, label: str, **_) -> str:
-    return f"{label}: {count} words"
+async def summarise(rows: list[dict], **_: Any) -> dict:
+    return {"count": len(rows)}
 
 async def main():
-    # 2. Declare the pipeline inside a Tapestry context.
-    #    Knots auto-register; the with-block seals the tapestry.
     with Tapestry() as t:
-        url   = Parameter("url",   str, _config=KnotConfig(id="url"))
-        label = Parameter("label", str, default="page", _config=KnotConfig(id="label"))
+        raw        = Parameter("raw",        list, _config=KnotConfig(id="raw"))
+        drop_nulls = Parameter("drop_nulls", bool, default=True,
+                               _config=KnotConfig(id="drop_nulls"))
 
-        # Passing a Knot as a kwarg → parent dependency.
-        # Passing a scalar → config constant (frozen at construction).
-        page  = fetch(url=url,   _config=KnotConfig(id="fetch"))
-        count = word_count(html=page, _config=KnotConfig(id="count"))
+        cleaned = clean(rows=raw, drop_nulls=drop_nulls, _config=KnotConfig(id="clean"))
+        summarise(rows=cleaned, _config=KnotConfig(id="summarise"))
 
-        # 'label' is a Parameter (a Knot), so it also becomes a parent.
-        report(count=count, label=label, _config=KnotConfig(id="report"))
-
-    # 3. Run.  Parameters are supplied here, not at wiring time.
-    result = await t.run(RunRequest(parameters={"url": "https://example.com"}))
-
-    print(result.outputs["report"])    # "page: 42 words"
-    print(result.succeeded)            # True
-    for rec in result.lineage:
-        print(rec.knot_id, rec.outcome)
+    result = await t.run(RunRequest(parameters={"raw": [{"id": 1}, {"id": None}]}))
+    print(result.outputs["summarise"])  # {"count": 1}
 
 asyncio.run(main())
 ```
+
+### B — `Knot` subclass (production code, complex logic, dependencies injected via constructor)
+
+```python
+import asyncio
+from typing import Any
+from pirn import Knot, Tapestry, Parameter, KnotConfig, RunRequest
+
+class Normalise(Knot):
+    """Lower-case and strip whitespace from every string field."""
+
+    def __init__(self, *, rows: Any, _config: KnotConfig, **kwargs: Any) -> None:
+        super().__init__(rows=rows, _config=_config, **kwargs)
+
+    async def process(self, rows: list[dict], **_: Any) -> list[dict]:
+        return [{k: v.strip().lower() if isinstance(v, str) else v
+                 for k, v in row.items()} for row in rows]
+
+async def main():
+    with Tapestry() as t:
+        raw      = Parameter("raw", list, _config=KnotConfig(id="raw"))
+        Normalise(rows=raw, _config=KnotConfig(id="normalise"))
+
+    result = await t.run(RunRequest(parameters={"raw": [{"name": "  Alice  "}]}))
+    print(result.outputs["normalise"])  # [{"name": "alice"}]
+
+asyncio.run(main())
+```
+
+### C — YAML pipeline (declarative, config-driven, no Python wiring code)
+
+```yaml
+# pipeline.yaml
+name: etl
+allow_callable_refs: true
+allowed_module_prefixes:
+  - myapp.knots          # only these modules may be referenced
+
+nodes:
+  - id: raw
+    type: parameter
+    type_: list
+
+  - id: normalise
+    type: knot
+    callable: myapp.knots.normalise   # must be a @knot function or Knot subclass
+    parents:
+      rows: raw                       # kwarg name: source node id
+
+  - id: summarise
+    type: knot
+    callable: myapp.knots.summarise
+    parents:
+      rows: normalise
+```
+
+```python
+import asyncio
+from pirn import load_pipeline, RunRequest
+import pathlib
+
+async def main():
+    t = load_pipeline(pathlib.Path("pipeline.yaml").read_text(),
+                      known_callables={})   # known_callables overrides callable refs
+    result = await t.run(RunRequest(parameters={"raw": [{"name": "  Alice  "}]}))
+    print(result.outputs["summarise"])
+
+asyncio.run(main())
+```
+
+> **YAML security note:** `allow_callable_refs: true` executes arbitrary Python imports.
+> Always set `allowed_module_prefixes` and never load user-supplied YAML with this flag.
 
 ---
 
@@ -402,6 +460,23 @@ asyncio.run(main())
 | Persist lineage | `Tapestry(history=SQLiteHistory(path="pirn.db"))` |
 | Visualise a run | `from pirn import html_for_run; Path("run.html").write_text(html_for_run(result))` |
 | Load pipeline from YAML | `from pirn import load_pipeline; t = load_pipeline(yaml_text, known_callables={...})` |
+
+---
+
+## Domain guides
+
+Each domain has its own `AGENTIC_USE.md` covering domain-specific mental models,
+source maps, interfaces, anti-patterns, and quick references. Read the relevant
+domain guide alongside this file before writing domain code.
+
+| Domain | Guide | Install extra |
+|--------|-------|---------------|
+| Agents — LLM pipelines, tool use, RAG, ReAct, multi-agent | [pirn/domains/agents/AGENTIC_USE.md](pirn/domains/agents/AGENTIC_USE.md) | `pirn[agents]` |
+| Data — tiered dataframe transforms (Polars, DuckDB, Ibis, …) | [pirn/domains/data/AGENTIC_USE.md](pirn/domains/data/AGENTIC_USE.md) | `pirn[data]` |
+| ML — training, evaluation, deployment, artifact formats | [pirn/domains/ml/AGENTIC_USE.md](pirn/domains/ml/AGENTIC_USE.md) | `pirn[ml]` |
+| Health — DICOM, FHIR, HL7v2, EDF, genomics, PHI redaction | [pirn/domains/health/AGENTIC_USE.md](pirn/domains/health/AGENTIC_USE.md) | `pirn[health]` |
+| Signal — DSP, filters, spectral, wavelets, audio | [pirn/domains/signal/AGENTIC_USE.md](pirn/domains/signal/AGENTIC_USE.md) | `pirn[signal]` |
+| Oil & Gas — SEG-Y, LAS, WITSML, seismic, well, production | [pirn/domains/oilgas/AGENTIC_USE.md](pirn/domains/oilgas/AGENTIC_USE.md) | `pirn[oilgas]` |
 
 ---
 
