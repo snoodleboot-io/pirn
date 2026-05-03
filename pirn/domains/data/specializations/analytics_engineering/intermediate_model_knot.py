@@ -16,11 +16,10 @@ from pirn.domains.data.identifier_validator import IdentifierValidator
 from pirn.nodes.sub_tapestry import SubTapestry
 
 
-_ALLOWED_JOIN_TYPES = frozenset({"INNER", "LEFT", "RIGHT", "FULL"})
-
-
 class IntermediateModelKnot(SubTapestry):
     """Join two staging tables into an intermediate layer table."""
+
+    _allowed_join_types: frozenset[str] = frozenset({"INNER", "LEFT", "RIGHT", "FULL"})
 
     def __init__(
         self,
@@ -56,10 +55,10 @@ class IntermediateModelKnot(SubTapestry):
                     f"IntermediateModelKnot: {label} must be a non-empty string"
                 )
         join_upper = join_type.upper()
-        if join_upper not in _ALLOWED_JOIN_TYPES:
+        if join_upper not in type(self)._allowed_join_types:
             raise ValueError(
                 f"IntermediateModelKnot: join_type must be one of "
-                f"{sorted(_ALLOWED_JOIN_TYPES)!r}, got {join_type!r}"
+                f"{sorted(type(self)._allowed_join_types)!r}, got {join_type!r}"
             )
         IdentifierValidator.validate_column("left_table", left_table)
         IdentifierValidator.validate_column("right_table", right_table)

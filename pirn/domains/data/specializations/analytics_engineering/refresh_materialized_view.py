@@ -17,11 +17,10 @@ from pirn.domains.data.identifier_validator import IdentifierValidator
 from pirn.nodes.sub_tapestry import SubTapestry
 
 
-_SUPPORTED_DIALECTS = frozenset({"postgres", "duckdb"})
-
-
 class RefreshMaterializedView(SubTapestry):
     """Issue REFRESH MATERIALIZED VIEW (or equivalent) for a given view name."""
+
+    _supported_dialects: frozenset[str] = frozenset({"postgres", "duckdb"})
 
     def __init__(
         self,
@@ -41,10 +40,10 @@ class RefreshMaterializedView(SubTapestry):
             raise ValueError(
                 "RefreshMaterializedView: view_name must be a non-empty string"
             )
-        if dialect not in _SUPPORTED_DIALECTS:
+        if dialect not in type(self)._supported_dialects:
             raise ValueError(
                 f"RefreshMaterializedView: dialect must be one of "
-                f"{sorted(_SUPPORTED_DIALECTS)!r}, got {dialect!r}"
+                f"{sorted(type(self)._supported_dialects)!r}, got {dialect!r}"
             )
         IdentifierValidator.validate_column("view_name", view_name)
         self._pool = pool

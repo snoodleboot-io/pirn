@@ -67,15 +67,30 @@ pirn/domains/agents/
 │   ├── termination_check.py     TerminationCheck      — finish_reason / iteration cap → bool
 │   ├── reflection_check.py      ReflectionCheck       — LLM quality gate → bool
 │   └── handoff_check.py         HandoffCheck          — escalation pattern → bool
-└── specializations/
+└── specializations/             ← specializations
     ├── react/                   ReActLoop             — SubTapestry: reason+act loop
     ├── rag/                     Naive / Corrective / HyDe / Graph RAG pipelines
-    ├── multi_agent/             OrchestratorAgent, ParallelSpecialistFanOut, DebateFramework, ConsensusAggregator
+    │                            SelfRAG, AdaptiveRAG, MultiHopRAG, Reranker, RAGSynthesizer
+    ├── multi_agent/             OrchestratorAgent, ParallelSpecialistFanOut, DebateFramework,
+    │                            ConsensusAggregator, RoundRobinReview
     ├── memory_patterns/         Working / Semantic / Episodic / Procedural memory pipelines
+    │                            EpisodicMemoryRetriever, SemanticMemoryUpsert, SessionSummarizer
     ├── guardrails/              Input/OutputGuardrailGate, PiiRedactorGate, FactCheckGate
+    │                            HallucinationDetector, CitationGrounder
     ├── structured_output/       JsonExtractor, YamlExtractor, PydanticValidator, EnumClassifier
+    │                            SchemaEnforcer, RetryOnParseFailure, FormatCoercer
     ├── specialized_agents/      CodeAgent, SqlAgent, ResearchAgent, DataAnalystAgent, BrowserAgent
-    └── document_processing/     Ingestion, QA, Summarizer, Translation pipelines
+    ├── document_processing/     Ingestion, QA, Summarizer, Translation pipelines
+    │                            EmbeddingIndexer, MetadataExtractor
+    ├── chain_of_thought/        ChainOfThought, SelfConsistencyEnsemble, TreeOfThought,
+    │                            StepBackPrompting
+    ├── plan_and_execute/        TaskPlanner, PlanExecutor, PlanRevisor
+    ├── reflection/              SelfCritiqueRevise, ConstitutionalFilter, OutcomeSimulator
+    ├── tool_use/                ToolSelector, ParallelToolCaller, ToolChain,
+    │                            ToolCallValidator, ToolResultFormatter
+    ├── human_in_the_loop/       ApprovalGate, ClarificationRequester, EscalationRouter
+    ├── routing/                 IntentRouter, ConfidenceRouter, CapabilityRouter
+    └── conversation/            MultiTurnContextAssembler, ConversationMemoryPruner
 ```
 
 ---
@@ -387,9 +402,40 @@ Call `self._clear_credentials()` inside `close()` for every provider, tool, or s
 | Retrieve from memory | `MemoryRetriever(query=..., memory_store=store, _config=...)` |
 | Sliding message window | `ConversationBuffer(messages=..., max_turns=N, _config=...)` |
 | RAG (simple) | `NaiveRagPipeline(query=..., memory_store=..., llm=..., top_k=5, _config=...)` |
+| RAG (self-correcting) | `SelfRAG(query=..., memory_store=..., llm=..., _config=...)` |
+| RAG (multi-hop) | `MultiHopRAG(query=..., memory_store=..., llm=..., hops=3, _config=...)` |
+| Rerank retrieved docs | `Reranker(candidates=..., query=..., llm=..., _config=...)` |
 | Structured output (Pydantic) | `PydanticValidatorPipeline(response=..., schema=MyModel, llm=..., _config=...)` |
+| Enforce JSON schema strictly | `SchemaEnforcer(response=..., schema=..., _config=...)` |
+| Retry on parse failure | `RetryOnParseFailure(response=..., parser=..., llm=..., max_retries=3, _config=...)` |
 | Multi-agent fan-out | `ParallelSpecialistFanOut(task=..., specialists={...}, _config=...)` |
+| Round-robin review | `RoundRobinReview(draft=..., reviewers=[...], _config=...)` |
 | Decentralised swarm handoff | Implement `Knot.process` to call `get_current_store().register(next_agent)` |
+| Chain-of-thought reasoning | `ChainOfThought(context=..., llm=..., _config=...)` |
+| Self-consistency ensemble | `SelfConsistencyEnsemble(context=..., llm=..., samples=5, _config=...)` |
+| Tree-of-thought search | `TreeOfThought(context=..., llm=..., branching=3, depth=3, _config=...)` |
+| Step-back prompting | `StepBackPrompting(context=..., llm=..., _config=...)` |
+| Plan then execute | `TaskPlanner(context=..., llm=..., _config=...) → PlanExecutor(plan=..., tools=[...], _config=...)` |
+| Revise a stale plan | `PlanRevisor(plan=..., feedback=..., llm=..., _config=...)` |
+| Self-critique + revise | `SelfCritiqueRevise(response=..., llm=..., _config=...)` |
+| Constitutional filtering | `ConstitutionalFilter(response=..., principles=[...], llm=..., _config=...)` |
+| Select the right tool | `ToolSelector(context=..., tools=[...], llm=..., _config=...)` |
+| Call tools in parallel | `ParallelToolCaller(calls=..., tools=[...], _config=...)` |
+| Validate tool call args | `ToolCallValidator(call=..., tools=[...], _config=...)` |
+| Human approval gate | `ApprovalGate(request=..., approver=..., _config=...)` |
+| Request clarification | `ClarificationRequester(context=..., llm=..., _config=...)` |
+| Escalation routing | `EscalationRouter(response=..., rules=[...], _config=...)` |
+| Route by intent | `IntentRouter(context=..., routes={...}, _config=...)` |
+| Route by confidence | `ConfidenceRouter(response=..., threshold=0.8, fallback=..., _config=...)` |
+| Assemble multi-turn context | `MultiTurnContextAssembler(history=..., max_tokens=N, _config=...)` |
+| Prune conversation memory | `ConversationMemoryPruner(messages=..., max_turns=N, _config=...)` |
+| Persist episodic memory | `EpisodicMemoryRetriever(event=..., memory_store=store, _config=...)` |
+| Upsert semantic memory | `SemanticMemoryUpsert(content=..., memory_store=store, _config=...)` |
+| Summarise session | `SessionSummarizer(messages=..., llm=..., _config=...)` |
+| Detect hallucinations | `HallucinationDetector(response=..., sources=..., llm=..., _config=...)` |
+| Ground citations | `CitationGrounder(response=..., documents=..., _config=...)` |
+| Index documents for embedding | `EmbeddingIndexer(documents=..., memory_store=store, _config=...)` |
+| Extract document metadata | `MetadataExtractor(document=..., llm=..., _config=...)` |
 
 ---
 

@@ -81,10 +81,19 @@ pirn/domains/data/
 │   ├── delta/                  # DeltaTable (full CRUD + merge + time-travel)
 │   ├── iceberg/                # IcebergTable (read/write/time-travel; merge not yet available in pyiceberg)
 │   └── hudi/                   # HudiTable (read-only; writes require Spark writer)
-├── specializations/            # Pre-wired high-level patterns
-│   ├── ingestion/              # AppendOnlyIngest, FullRefreshExtract, WatermarkIncrementalExtract
-│   ├── medallion/              # BronzeRawIngest, SilverCleanTransform, GoldAggregation
-│   └── scd/                   # ScdType1/2/7, CdcDebezium, DebeziumSource
+├── specializations/            # Pre-wired high-level patterns  ← specializations
+│   ├── ingestion/              # AppendOnlyIngest, FullRefreshExtract, WatermarkIncrementalExtract  ← specializations
+│   ├── medallion/              # BronzeRawIngest, SilverCleanTransform, GoldAggregation  ← specializations
+│   ├── scd/                   # ScdType1/2/3/4/5/6/7, CdcDebezium, DebeziumSource  ← specializations
+│   ├── dimensional/            # DateDimGenerator, DimTableLoad, FactTableLoad, BridgeTableBuilder  ← specializations
+│   ├── data_vault/             # DataVaultHubLoader, DataVaultLinkLoader, DataVaultSatelliteLoader, DataVaultPITTableBuilder, DataVaultBridgeTableBuilder  ← specializations
+│   ├── incremental/            # SnapshotTableAppender, DbtStyleSnapshot, MergeUpsert, DeleteSafeSync, PartitionedOverwrite  ← specializations
+│   ├── quality/                # RowCountAnomalyDetector, NullRateMonitor, SchemaEvolutionDetector, FreshnessCheck, ReferentialIntegrityCheck, ReconciliationDiff, StatisticalProfiler  ← specializations
+│   ├── deduplication/          # ExactDeduplicator, WindowedDeduplicator, FuzzyDeduplicator, ProbabilisticLinker  ← specializations
+│   ├── timeseries/             # TimeSeriesResampler, RollingWindowAggregator, SessionizationKnot, FunnelAnalysisKnot, CohortAggregator, LateArrivingEventHandler  ← specializations
+│   ├── feature_engineering/    # DerivedColumnCalculator, ColumnHasher, BinningKnot, StringNormalizer, DatePartExtractor, LookupEnricher, GeoEnricher, TextTokenCounter  ← specializations
+│   ├── analytics_engineering/  # StagingModelKnot, IntermediateModelKnot, MartModelKnot, RefreshMaterializedView, MetricLayerAggregator, ExposureLineageTag  ← specializations
+│   └── schema_migration/       # BackfillRunner, SchemaVersionMigrator, ColumnLineageTracker  ← specializations
 └── specialized/                # Tier-4 specialised adapters (Lance, Eland)
 ```
 
@@ -267,7 +276,37 @@ As of mid-2026, `pyiceberg`'s Python writer does not implement merge. The method
 | Gold aggregation | specialisation | `GoldAggregation` |
 | Incremental watermark ingest | specialisation | `WatermarkIncrementalExtract` |
 | SCD Type 2 history | specialisation | `ScdType2` |
+| SCD Type 3 previous value | specialisation | `ScdType3PreviousValue` |
+| SCD Type 4 mini-dimension | specialisation | `ScdType4MiniDimension` |
+| SCD Type 6 hybrid (1+2+3) | specialisation | `ScdType6Hybrid` |
 | Debezium CDC apply | specialisation | `CdcDebezium` |
+| Date dimension generate | specialisation | `DateDimGenerator` |
+| Dimension table load | specialisation | `DimTableLoad` |
+| Fact table load | specialisation | `FactTableLoad` |
+| Data Vault hub load | specialisation | `DataVaultHubLoader` |
+| Data Vault satellite load | specialisation | `DataVaultSatelliteLoader` |
+| Data Vault PIT table | specialisation | `DataVaultPITTableBuilder` |
+| Snapshot append | specialisation | `SnapshotTableAppender` |
+| dbt-style snapshot | specialisation | `DbtStyleSnapshot` |
+| Merge upsert | specialisation | `MergeUpsert` |
+| Row count anomaly | specialisation | `RowCountAnomalyDetector` |
+| Null rate monitor | specialisation | `NullRateMonitor` |
+| Referential integrity check | specialisation | `ReferentialIntegrityCheck` |
+| Reconciliation diff | specialisation | `ReconciliationDiff` |
+| Exact deduplication | specialisation | `ExactDeduplicator` |
+| Fuzzy deduplication | specialisation | `FuzzyDeduplicator` |
+| Time series resample | specialisation | `TimeSeriesResampler` |
+| Rolling window aggregation | specialisation | `RollingWindowAggregator` |
+| Sessionization | specialisation | `SessionizationKnot` |
+| Derived column calculation | specialisation | `DerivedColumnCalculator` |
+| Binning / bucketing | specialisation | `BinningKnot` |
+| Lookup enrichment | specialisation | `LookupEnricher` |
+| dbt staging model | specialisation | `StagingModelKnot` |
+| dbt mart model | specialisation | `MartModelKnot` |
+| Metric layer aggregation | specialisation | `MetricLayerAggregator` |
+| Schema version migration | specialisation | `SchemaVersionMigrator` |
+| Backfill runner | specialisation | `BackfillRunner` |
+| Column lineage tracking | specialisation | `ColumnLineageTracker` |
 | Compressed format | wrapper | `CompressedFileFormat(inner, codec=...)` |
 | Multi-file archive | wrapper | `ArchiveFileFormat(inner, archive_type=...)` |
 

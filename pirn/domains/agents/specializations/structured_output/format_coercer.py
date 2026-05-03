@@ -16,11 +16,10 @@ from pirn.core.knot_config import KnotConfig
 from pirn.domains.agents.llm_provider import LLMProvider
 from pirn.domains.agents.types.agent_response import AgentResponse
 
-_SUPPORTED_FORMATS = frozenset({"json", "yaml", "markdown"})
-
-
 class FormatCoercer(Knot):
     """Rewrite AgentResponse content to a target format via LLM if needed."""
+
+    _supported_formats: frozenset[str] = frozenset({"json", "yaml", "markdown"})
 
     def __init__(
         self,
@@ -36,10 +35,10 @@ class FormatCoercer(Knot):
                 "FormatCoercer: llm must be an LLMProvider, "
                 f"got {type(llm).__name__}"
             )
-        if target_format not in _SUPPORTED_FORMATS:
+        if target_format not in type(self)._supported_formats:
             raise ValueError(
                 f"FormatCoercer: target_format must be one of "
-                f"{sorted(_SUPPORTED_FORMATS)}, got {target_format!r}"
+                f"{sorted(type(self)._supported_formats)}, got {target_format!r}"
             )
         self._llm = llm
         self._target_format = target_format

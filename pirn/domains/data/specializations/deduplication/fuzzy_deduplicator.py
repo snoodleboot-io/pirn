@@ -22,69 +22,6 @@ from pirn.core.knot_config import KnotConfig
 from pirn.domains.data.identifier_validator import IdentifierValidator
 
 
-def _levenshtein(a: str, b: str) -> float:
-    """Return normalised similarity in [0, 1] via Levenshtein distance."""
-    if a == b:
-        return 1.0
-    la, lb = len(a), len(b)
-    if la == 0 or lb == 0:
-        return 0.0
-    prev = list(range(lb + 1))
-    for i, ca in enumerate(a, 1):
-        curr = [i] + [0] * lb
-        for j, cb in enumerate(b, 1):
-            curr[j] = min(
-                prev[j] + 1,
-                curr[j - 1] + 1,
-                prev[j - 1] + (0 if ca == cb else 1),
-            )
-        prev = curr
-    return 1.0 - prev[lb] / max(la, lb)
-
-
-def _jaro_winkler(a: str, b: str) -> float:
-    """Return Jaro-Winkler similarity in [0, 1]."""
-    if a == b:
-        return 1.0
-    la, lb = len(a), len(b)
-    if la == 0 or lb == 0:
-        return 0.0
-    match_dist = max(la, lb) // 2 - 1
-    if match_dist < 0:
-        match_dist = 0
-    a_flags = [False] * la
-    b_flags = [False] * lb
-    matches = 0
-    transpositions = 0
-    for i in range(la):
-        start = max(0, i - match_dist)
-        end = min(i + match_dist + 1, lb)
-        for j in range(start, end):
-            if b_flags[j] or a[i] != b[j]:
-                continue
-            a_flags[i] = True
-            b_flags[j] = True
-            matches += 1
-            break
-    if matches == 0:
-        return 0.0
-    a_match = [a[i] for i in range(la) if a_flags[i]]
-    b_match = [b[j] for j in range(lb) if b_flags[j]]
-    for i in range(len(a_match)):
-        if a_match[i] != b_match[i]:
-            transpositions += 1
-    jaro = (
-        matches / la + matches / lb + (matches - transpositions / 2) / matches
-    ) / 3.0
-    prefix = 0
-    for i in range(min(4, la, lb)):
-        if a[i] == b[i]:
-            prefix += 1
-        else:
-            break
-    return jaro + prefix * 0.1 * (1.0 - jaro)
-
-
 class FuzzyDeduplicator(Knot):
     """Deduplicate records using fuzzy string similarity with candidate blocking."""
 
@@ -120,8 +57,64 @@ class FuzzyDeduplicator(Knot):
 
     def _score(self, a: str, b: str) -> float:
         if self._similarity_metric == "levenshtein":
-            return _levenshtein(a, b)
-        return _jaro_winkler(a, b)
+            return self._levenshtein(a, b)
+        return self._jaro_winkler(a, b)
+
+    @staticmethod
+    def _levenshtein(a: str, b: str) -> float:
+        if a == b:
+            return 1.0
+        la, lb = len(a), len(b)
+        if la == 0 or lb == 0:
+            return 0.0
+        prev = list(range(lb + 1))
+        for i, ca in enumerate(a, 1):
+            curr = [i] + [0] * lb
+            for j, cb in enumerate(b, 1):
+                curr[j] = min(
+                    prev[j] + 1,
+                    curr[j - 1] + 1,
+                    prev[j - 1] + (0 if ca == cb else 1),
+                )
+            prev = curr
+        return 1.0 - prev[lb] / max(la, lb)
+
+    @staticmethod
+    def _jaro_winkler(a: str, b: str) -> float:
+        if a == b:
+            return 1.0
+        la, lb = len(a), len(b)
+        if la == 0 or lb == 0:
+            return 0.0
+        match_dist = max(0, max(la, lb) // 2 - 1)
+        a_flags = [False] * la
+        b_flags = [False] * lb
+        matches = 0
+        for i in range(la):
+            start = max(0, i - match_dist)
+            end = min(i + match_dist + 1, lb)
+            for j in range(start, end):
+                if b_flags[j] or a[i] != b[j]:
+                    continue
+                a_flags[i] = True
+                b_flags[j] = True
+                matches += 1
+                break
+        if matches == 0:
+            return 0.0
+        a_match = [a[i] for i in range(la) if a_flags[i]]
+        b_match = [b[j] for j in range(lb) if b_flags[j]]
+        transpositions = sum(1 for x, y in zip(a_match, b_match) if x != y)
+        jaro = (
+            matches / la + matches / lb + (matches - transpositions / 2) / matches
+        ) / 3.0
+        prefix = 0
+        for i in range(min(4, la, lb)):
+            if a[i] == b[i]:
+                prefix += 1
+            else:
+                break
+        return jaro + prefix * 0.1 * (1.0 - jaro)
 
     async def process(
         self, rows: list[dict[str, Any]], **_: Any

@@ -85,12 +85,32 @@ pirn/domains/ml/
 │   ├── predictor.py                # Batch inference from a loaded TrainedModel
 │   └── shadow_deployer.py          # Champion/challenger routing; challenger not surfaced
 └── specializations/                # Pre-built SubTapestry pipelines
-    ├── task_pipelines/             # BinaryClassification, Multiclass, Regression, Forecasting, Nlp, ComputerVision
-    ├── training/                   # SklearnTrainer, XgboostTrainer, NeuralNetTrainer
-    ├── evaluation/                 # Classification, Regression, Ranking, Timeseries, WalkForward
-    ├── experiments/                # GridSearchTuner, BayesianSearchTuner, StratifiedKfold, AblationStudy, ChampionChallengerGate
-    ├── feature_engineering/        # FeatureStoreReader/Writer, TextEmbedding, ImageEmbedding, LagFeatures, TargetEncoder
-    └── production/                 # FullTrainDeploy, ShadowDeployment, AbTest, ContinuousTraining, DriftMonitor, ModelLineageTracker
+    ├── task_pipelines/             # BinaryClassification, Multiclass, Regression, Forecasting, Nlp, ComputerVision,
+    │                               # TimeSeriesForecasting, AnomalyDetection, CollaborativeFiltering,
+    │                               # TextClassification, NamedEntityRecognition, ImageClassification,
+    │                               # Clustering, DimensionalityReduction, ActiveLearningLoop
+    ├── training/                   # SklearnTrainer, XgboostTrainer, NeuralNetTrainer,
+    │                               # EarlyStopping, LRScheduler,
+    │                               # BaggingEnsemble, StackingEnsemble, BlendingEnsemble,
+    │                               # FineTuning, OnlineLearner, SemiSupervised, SelfSupervisedPretrainer
+    ├── evaluation/                 # Classification, Regression, Ranking, Timeseries, WalkForward,
+    │                               # ThresholdOptimizer, CalibrationFitter, ROCAUCAnalyzer,
+    │                               # ConfusionMatrixAnalyzer, ResidualAnalyzer, PredictionIntervalEstimator,
+    │                               # BacktestingEvaluator, RankingEvaluator, NLGEvaluator,
+    │                               # FairnessAuditor, AdversarialRobustnessEvaluator
+    ├── experiments/                # GridSearchTuner, BayesianSearchTuner, StratifiedKfold, AblationStudy,
+    │                               # ChampionChallengerGate, KFoldCrossValidator, TimeSeriesCrossValidator,
+    │                               # GroupKFoldCrossValidator, RandomSearchTuner, HyperbandTuner
+    ├── feature_engineering/        # FeatureStoreReader/Writer, TextEmbedding, ImageEmbedding, LagFeatures,
+    │                               # TargetEncoder, FrequencyEncoder, HashEncoder,
+    │                               # RollingStatisticsGenerator, FourierFeatureGenerator,
+    │                               # InteractionFeatureGenerator, TFIDFExtractor, NGramExtractor
+    └── production/                 # FullTrainDeploy, ShadowDeployment, AbTest, ContinuousTraining,
+                                    # DriftMonitor, ModelLineageTracker,
+                                    # CanaryDeployer, ABTestDeployer,
+                                    # DataDriftDetector, ConceptDriftDetector, PredictionDriftMonitor,
+                                    # PerformanceTriggedRetrainer, BatchInferencePipeline,
+                                    # SHAPExplainer, LIMEExplainer
 ```
 
 ---
@@ -263,6 +283,48 @@ The default `ModelSerializer.process()` serialises only the `TrainedModel` metad
 | A/B test pipeline | `specializations/production/AbTestPipeline` |
 | Drift monitoring | `specializations/production/DriftMonitor` |
 | Dynamic multi-model evaluation | `get_current_store()` + `extensible=True` (see `ml_evaluation_loop.py`) |
+| k-fold (plain) | `specializations/experiments/KFoldCrossValidator` |
+| k-fold (time series) | `specializations/experiments/TimeSeriesCrossValidator` |
+| k-fold (grouped) | `specializations/experiments/GroupKFoldCrossValidator` |
+| Random hyperparameter search | `specializations/experiments/RandomSearchTuner` |
+| Hyperband early-stopping search | `specializations/experiments/HyperbandTuner` |
+| Frequency / hash encoding | `specializations/feature_engineering/FrequencyEncoder`, `HashEncoder` |
+| Rolling window statistics | `specializations/feature_engineering/RollingStatisticsGenerator` |
+| Fourier / interaction features | `specializations/feature_engineering/FourierFeatureGenerator`, `InteractionFeatureGenerator` |
+| TF-IDF / n-gram extraction | `specializations/feature_engineering/TFIDFExtractor`, `NGramExtractor` |
+| Early stopping | `specializations/training/EarlyStoppingTrainer` |
+| LR scheduler training | `specializations/training/LRSchedulerTrainer` |
+| Bagging / stacking / blending ensembles | `specializations/training/BaggingEnsembleBuilder`, `StackingEnsembleBuilder`, `BlendingEnsembleBuilder` |
+| Fine-tuning pretrained model | `specializations/training/FineTuningTrainer` |
+| Online / semi-supervised / self-supervised | `specializations/training/OnlineLearnerTrainer`, `SemiSupervisedTrainer`, `SelfSupervisedPretrainer` |
+| Threshold optimisation | `specializations/evaluation/ThresholdOptimizer` |
+| Calibration | `specializations/evaluation/CalibrationFitter` |
+| ROC-AUC curve analysis | `specializations/evaluation/ROCAUCAnalyzer` |
+| Confusion matrix analysis | `specializations/evaluation/ConfusionMatrixAnalyzer` |
+| Residual analysis | `specializations/evaluation/ResidualAnalyzer` |
+| Prediction intervals | `specializations/evaluation/PredictionIntervalEstimator` |
+| Backtesting | `specializations/evaluation/BacktestingEvaluator` |
+| NLG evaluation (BLEU / ROUGE) | `specializations/evaluation/NLGEvaluator` |
+| Fairness audit | `specializations/evaluation/FairnessAuditor` |
+| Adversarial robustness | `specializations/evaluation/AdversarialRobustnessEvaluator` |
+| Canary deployment | `specializations/production/CanaryDeployer` |
+| A/B test deployment | `specializations/production/ABTestDeployer` |
+| Data drift detection | `specializations/production/DataDriftDetector` |
+| Concept drift detection | `specializations/production/ConceptDriftDetector` |
+| Prediction drift monitoring | `specializations/production/PredictionDriftMonitor` |
+| Performance-triggered retraining | `specializations/production/PerformanceTriggeredRetrainer` |
+| Batch inference pipeline | `specializations/production/BatchInferencePipeline` |
+| SHAP explanations | `specializations/production/SHAPExplainer` |
+| LIME explanations | `specializations/production/LIMEExplainer` |
+| Time-series forecasting pipeline | `specializations/task_pipelines/TimeSeriesForecastingPipeline` |
+| Anomaly detection pipeline | `specializations/task_pipelines/AnomalyDetectionPipeline` |
+| Collaborative filtering pipeline | `specializations/task_pipelines/CollaborativeFilteringPipeline` |
+| Text classification pipeline | `specializations/task_pipelines/TextClassificationPipeline` |
+| Named entity recognition pipeline | `specializations/task_pipelines/NamedEntityRecognitionPipeline` |
+| Image classification pipeline | `specializations/task_pipelines/ImageClassificationPipeline` |
+| Clustering pipeline | `specializations/task_pipelines/ClusteringPipeline` |
+| Dimensionality reduction pipeline | `specializations/task_pipelines/DimensionalityReductionPipeline` |
+| Active learning loop | `specializations/task_pipelines/ActiveLearningLoop` |
 
 ---
 

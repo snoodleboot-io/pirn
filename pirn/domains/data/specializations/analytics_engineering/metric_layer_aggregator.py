@@ -17,11 +17,10 @@ from pirn.domains.data.identifier_validator import IdentifierValidator
 from pirn.nodes.sub_tapestry import SubTapestry
 
 
-_SUPPORTED_AGGREGATIONS = frozenset({"sum", "count", "avg", "ratio"})
-
-
 class MetricLayerAggregator(SubTapestry):
     """Compute a named metric (sum/count/avg/ratio) with optional dimension slicing."""
+
+    _supported_aggregations: frozenset[str] = frozenset({"sum", "count", "avg", "ratio"})
 
     def __init__(
         self,
@@ -49,10 +48,10 @@ class MetricLayerAggregator(SubTapestry):
                 raise ValueError(
                     f"MetricLayerAggregator: {label} must be a non-empty string"
                 )
-        if aggregation not in _SUPPORTED_AGGREGATIONS:
+        if aggregation not in type(self)._supported_aggregations:
             raise ValueError(
                 f"MetricLayerAggregator: aggregation must be one of "
-                f"{sorted(_SUPPORTED_AGGREGATIONS)!r}, got {aggregation!r}"
+                f"{sorted(type(self)._supported_aggregations)!r}, got {aggregation!r}"
             )
         IdentifierValidator.validate_column("source_table", source_table)
         if aggregation == "ratio":
