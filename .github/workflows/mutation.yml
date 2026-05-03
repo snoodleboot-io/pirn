@@ -1,0 +1,182 @@
+name: Mutation Testing
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'pirn/**/*.py'
+      - 'tests/unit/**/*.py'
+
+  schedule:
+    # Nightly at 02:00 UTC — full run over the entire codebase
+    - cron: '0 2 * * *'
+
+  workflow_dispatch:
+    inputs:
+      paths_to_mutate:
+        description: 'Comma-separated pirn/ sub-paths to mutate (blank = full codebase)'
+        required: false
+        default: ''
+
+concurrency:
+  group: mutation-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────
+  # PR-SCOPED: mutate only the pirn/ files changed in this PR
+  # Fast path — keeps PR feedback loop reasonable.
+  # ─────────────────────────────────────────────────────────────────────────
+  mutation-pr:
+    name: Mutation — Changed Files
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    # Non-blocking: mutation regressions are reported but never block merge.
+    # Promote to required once the baseline survival rate is established.
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7.6.0
+        with:
+          enable-cache: true
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --all-extras --group dev
+
+      - name: Identify changed pirn/ files
+        id: changed
+        run: |
+          BASE=${{ github.event.pull_request.base.sha }}
+          HEAD=${{ github.event.pull_request.head.sha }}
+          FILES=$(git diff --name-only "$BASE" "$HEAD" \
+            | grep '^pirn/.*\.py$' \
+            | grep -v '__init__\.py' \
+            | tr '\n' ',')
+          echo "files=$FILES" >> "$GITHUB_OUTPUT"
+          echo "Changed pirn/ files: $FILES"
+
+      - name: Skip if no pirn/ changes
+        if: steps.changed.outputs.files == ''
+        run: |
+          echo "No pirn/ Python files changed — skipping mutation run."
+          exit 0
+
+      - name: Run mutmut on changed files
+        if: steps.changed.outputs.files != ''
+        run: |
+          PATHS="${{ steps.changed.outputs.files }}"
+          # Strip trailing comma
+          PATHS="${PATHS%,}"
+          echo "Mutating: $PATHS"
+          uv run mutmut run \
+            --paths-to-mutate "$PATHS" \
+            --runner "python -m pytest tests/unit -x -q --no-header --timeout=30" \
+            --no-progress \
+            || true  # mutmut exits non-zero when mutations survive; capture below
+
+      - name: Generate mutation report
+        if: steps.changed.outputs.files != ''
+        run: |
+          uv run mutmut results || true
+          uv run mutmut junitxml > mutation-results-pr.xml || true
+          {
+            echo "## Mutation Testing — Changed Files"
+            echo ""
+            uv run mutmut results 2>&1 || echo "(no results)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload mutation results
+        if: steps.changed.outputs.files != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: mutation-results-pr-${{ github.sha }}
+          path: mutation-results-pr.xml
+          retention-days: 14
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # NIGHTLY: full mutation run over the entire pirn/ package
+  # Runs on schedule or on workflow_dispatch.
+  # ─────────────────────────────────────────────────────────────────────────
+  mutation-nightly:
+    name: Mutation — Full Codebase
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    # Full runs take ~30–60 minutes depending on mutation count.
+    # Non-blocking until a baseline kill-rate threshold is codified in policy.
+    continue-on-error: true
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7.6.0
+        with:
+          enable-cache: true
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --all-extras --group dev
+
+      - name: Resolve paths to mutate
+        id: paths
+        run: |
+          INPUT="${{ github.event.inputs.paths_to_mutate }}"
+          if [ -n "$INPUT" ]; then
+            echo "paths=$INPUT" >> "$GITHUB_OUTPUT"
+          else
+            echo "paths=pirn/" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run mutmut
+        run: |
+          uv run mutmut run \
+            --paths-to-mutate "${{ steps.paths.outputs.paths }}" \
+            --runner "python -m pytest tests/unit -x -q --no-header --timeout=30" \
+            --no-progress \
+            || true
+
+      - name: Generate mutation report
+        run: |
+          uv run mutmut results || true
+          uv run mutmut junitxml > mutation-results-nightly.xml || true
+          {
+            echo "## Nightly Mutation Testing Report"
+            echo ""
+            echo "**Date:** $(date -u +'%Y-%m-%d %H:%M UTC')"
+            echo "**Paths:** ${{ steps.paths.outputs.paths }}"
+            echo ""
+            uv run mutmut results 2>&1 || echo "(no results)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload mutation results
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: mutation-results-nightly-${{ github.run_id }}
+          path: mutation-results-nightly.xml
+          retention-days: 30
+
+      - name: Compute kill rate and annotate
+        run: |
+          # Extract killed/total from mutmut results for a summary annotation.
+          RESULTS=$(uv run mutmut results 2>&1 || true)
+          KILLED=$(echo "$RESULTS" | grep -oP 'Killed:\s*\K[0-9]+' | head -1 || echo "0")
+          SURVIVED=$(echo "$RESULTS" | grep -oP 'Survived:\s*\K[0-9]+' | head -1 || echo "0")
+          TOTAL=$(( KILLED + SURVIVED ))
+          if [ "$TOTAL" -gt 0 ]; then
+            RATE=$(( KILLED * 100 / TOTAL ))
+            echo "Kill rate: ${RATE}% (${KILLED}/${TOTAL})"
+            echo "**Kill rate: ${RATE}% (${KILLED} killed / ${TOTAL} total)**" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No mutation data available."
+          fi
