@@ -37,6 +37,10 @@ After that, your knots are resolvable by name from YAML pipelines just like
 pirn's built-ins. To restrict resolution to your library only, look up via
 ``AbstractInverterFactory[Knot].create(name, library="my_company")``.
 """
+from importlib.metadata import version as _version
+
 from sweet_tea.registry import Registry
+
+__version__ = _version("pirn")
 
 Registry.fill_registry()
