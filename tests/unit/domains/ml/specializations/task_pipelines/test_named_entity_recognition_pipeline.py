@@ -1,0 +1,48 @@
+"""Tests for :class:`NamedEntityRecognitionPipeline`."""
+
+from __future__ import annotations
+
+import pytest
+
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
+from pirn.domains.ml.specializations.task_pipelines.named_entity_recognition_pipeline import (
+    NamedEntityRecognitionPipeline,
+)
+from pirn.domains.ml.types.eval_report import EvalReport
+from pirn.tapestry import Tapestry
+from tests.unit.domains.ml._stubs.recording_database_pool import (
+    RecordingDatabasePool,
+)
+
+
+class TestConstruction:
+    def test_rejects_empty_text_column(self) -> None:
+        with Tapestry():
+            with pytest.raises(ValueError, match="text_column"):
+                NamedEntityRecognitionPipeline(
+                    pool=RecordingDatabasePool(rows=[("text", "O")]),
+                    query="SELECT 1",
+                    text_column="",
+                    label_column="label",
+                    _config=KnotConfig(id="bad"),
+                )
+
+
+@pytest.mark.asyncio
+class TestHappyPath:
+    async def test_emits_ner_report(self) -> None:
+        rows = [(f"token {i}", "O" if i % 3 != 0 else "B-PER") for i in range(40)]
+        with Tapestry() as t:
+            NamedEntityRecognitionPipeline(
+                pool=RecordingDatabasePool(rows=rows),
+                query="SELECT token, label FROM data",
+                text_column="token",
+                label_column="label",
+                _config=KnotConfig(id="ner"),
+            )
+        result = await t.run(RunRequest())
+        assert result.succeeded
+        report: EvalReport = result.outputs["ner"]
+        assert isinstance(report, EvalReport)
+        assert {"precision", "recall", "f1"}.issubset(report.metrics.keys())

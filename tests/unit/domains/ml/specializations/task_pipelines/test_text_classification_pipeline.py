@@ -1,0 +1,50 @@
+"""Tests for :class:`TextClassificationPipeline`."""
+
+from __future__ import annotations
+
+import pytest
+
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
+from pirn.domains.ml.specializations.task_pipelines.text_classification_pipeline import (
+    TextClassificationPipeline,
+)
+from pirn.domains.ml.types.eval_report import EvalReport
+from pirn.tapestry import Tapestry
+from tests.unit.domains.ml._stubs.recording_database_pool import (
+    RecordingDatabasePool,
+)
+
+
+class TestConstruction:
+    def test_rejects_invalid_vectorizer(self) -> None:
+        with Tapestry():
+            with pytest.raises(ValueError, match="vectorizer"):
+                TextClassificationPipeline(
+                    pool=RecordingDatabasePool(rows=[("text", 1)]),
+                    query="SELECT 1",
+                    text_column="text",
+                    target_column="label",
+                    vectorizer="word2vec",
+                    _config=KnotConfig(id="bad"),
+                )
+
+
+@pytest.mark.asyncio
+class TestHappyPath:
+    async def test_emits_classification_report(self) -> None:
+        rows = [(f"text {i}", i % 2) for i in range(40)]
+        with Tapestry() as t:
+            TextClassificationPipeline(
+                pool=RecordingDatabasePool(rows=rows),
+                query="SELECT text, label FROM data",
+                text_column="text",
+                target_column="label",
+                vectorizer="tfidf",
+                _config=KnotConfig(id="tc"),
+            )
+        result = await t.run(RunRequest())
+        assert result.succeeded
+        report: EvalReport = result.outputs["tc"]
+        assert isinstance(report, EvalReport)
+        assert {"accuracy", "f1"}.issubset(report.metrics.keys())
