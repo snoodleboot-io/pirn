@@ -48,6 +48,19 @@ class PathologyFeatureExtractor(Knot):
         mitosis_counts: Any,
         **_: Any,
     ) -> Mapping[tuple[int, int], Mapping[str, float | int]]:
+        """Combine per-tile cell counts and mitosis counts into feature vectors with mitosis_density.
+
+        Args:
+            cell_counts: Mapping of (tile_x, tile_y) coordinate to cell count.
+            mitosis_counts: Per-tile mapping or total int of mitotic-figure counts.
+
+        Returns:
+            Mapping of (tile_x, tile_y) coordinate to a feature dict containing
+            ``cell_count``, ``mitosis_count``, and ``mitosis_density``.
+
+        Raises:
+            TypeError: If mitosis_counts is neither a Mapping nor an int.
+        """
         per_tile_mitosis = self._coerce_per_tile_mitosis(
             mitosis_counts, cell_counts
         )

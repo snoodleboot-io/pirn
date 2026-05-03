@@ -31,6 +31,14 @@ class DataBatchToPandas(Knot):
         super().__init__(batch=batch, _config=_config, **kwargs)
 
     async def process(self, batch: DataBatch, **_: Any) -> PandasDataBatch:
+        """Convert a Tier-1 DataBatch of row dicts into a PandasDataBatch.
+
+        Args:
+            batch: The Tier-1 DataBatch whose rows are loaded into a Pandas DataFrame.
+
+        Returns:
+            A PandasDataBatch wrapping a Pandas DataFrame with source_uri and fetched_at preserved.
+        """
         if not batch.rows:
             frame = pd.DataFrame()
         else:

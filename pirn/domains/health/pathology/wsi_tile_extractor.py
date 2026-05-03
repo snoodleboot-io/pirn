@@ -61,6 +61,11 @@ class WSITileExtractor(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> tuple[WSITile, ...]:
+        """Generate a grid of WSITile descriptors for the configured slide at the configured level and tile size.
+
+        Returns:
+            Tuple of WSITile descriptors covering the full grid_rows x grid_cols grid.
+        """
         return tuple(
             WSITile(
                 slide_id=self._slide_id,

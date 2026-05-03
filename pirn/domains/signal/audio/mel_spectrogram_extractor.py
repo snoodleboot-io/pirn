@@ -62,6 +62,14 @@ class MelSpectrogramExtractor(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SpectrumFrame:
+        """Compute a mel-spectrogram from the audio signal and return a SpectrumFrame with mel-bin resolution.
+
+        Args:
+            signal: Audio signal to compute the mel-spectrogram from.
+
+        Returns:
+            SpectrumFrame with ``frequency_bins`` equal to ``n_mels`` and Hz-per-bin resolution.
+        """
         resolution = (
             signal.sample_rate_hz / self._n_fft
             if signal.sample_rate_hz > 0

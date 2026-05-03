@@ -54,6 +54,18 @@ class ToolRouter(Knot):
         tools: tuple[Tool, ...],
         **_: Any,
     ) -> ToolCall:
+        """Match the plan step to a registered tool and return the corresponding ToolCall.
+
+        Args:
+            step: The plan step text to match against registered tool names.
+            tools: The registered tools to search by name substring.
+
+        Returns:
+            A ToolCall targeting the first tool whose name appears in the step.
+
+        Raises:
+            ValueError: If step is empty or no registered tool name appears in the step.
+        """
         if not isinstance(step, str) or not step:
             raise ValueError(
                 "ToolRouter: step must be a non-empty string, "

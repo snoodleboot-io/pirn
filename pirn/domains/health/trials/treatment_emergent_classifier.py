@@ -46,6 +46,16 @@ class TreatmentEmergentClassifier(Knot):
         exposures: Mapping[str, datetime],
         **_: Any,
     ) -> Sequence[Mapping[str, Any]]:
+        """Flag each adverse event as treatment-emergent based on the subject's first exposure date.
+
+        Args:
+            events: Sequence of adverse-event ClinicalTrialRecord objects.
+            exposures: Mapping of subject_id to first treatment-exposure datetime.
+
+        Returns:
+            Sequence of dicts with trial_id, subject_id, treatment_emergent flag,
+            and observed_at ISO timestamp.
+        """
         annotated: list[Mapping[str, Any]] = []
         for event in events:
             first_exposure = exposures.get(event.subject_id)

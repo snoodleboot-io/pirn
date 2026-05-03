@@ -39,6 +39,11 @@ class EncounterTimelineAssembler(Knot):
     async def process(
         self, **_: Any
     ) -> Mapping[str, tuple[ClinicalRecord, ...]]:
+        """Group records by patient_id, sort each group by observed_at, and return the timeline map.
+
+        Returns:
+            A mapping from patient_id to a tuple of ClinicalRecords sorted by observed_at ascending.
+        """
         grouped: dict[str, list[ClinicalRecord]] = {}
         for record in self._records:
             grouped.setdefault(record.patient_id, []).append(record)

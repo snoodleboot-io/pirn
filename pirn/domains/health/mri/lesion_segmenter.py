@@ -39,4 +39,9 @@ class LesionSegmenter(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> str:
+        """Run the configured lesion-segmentation model on the NIfTI input and return the segmentation output path.
+
+        Returns:
+            Path string for the lesion segmentation output file.
+        """
         return self._output_segmentation_path

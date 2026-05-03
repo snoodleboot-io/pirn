@@ -175,7 +175,7 @@ These knots produce derived columns for downstream analytics — distinct from M
 
 | # | Name | Type | What it does |
 |---|------|------|--------------|
-| 11 | `ReflectionGate` | K | Sends LLM output to a critic prompt. Below threshold → `GateClosed` to re-trigger generator. Above threshold → passes output through. |
+| 11 | `ReflectionCheck` | K | Sends LLM output to a critic prompt. Below threshold → `GateClosed` to re-trigger generator. Above threshold → passes output through. |
 | 12 | `SelfCritiqueRevise` | ST | Three-stage loop: generate → critique (LLM identifies flaws) → revise using critique as context. Repeats up to `max_rounds`. |
 | 13 | `ConstitutionalFilter` | K | Applies a list of constitutional principles via critique-revision. Implements Anthropic's Constitutional AI step. |
 | 14 | `OutcomeSimulator` | K | Before executing an action, calls LLM to simulate likely outcome and side-effects. Returns risk score + predicted outcome. |

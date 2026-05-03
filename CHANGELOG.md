@@ -11,6 +11,54 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+#### `@tool` decorator and scalar auto-coercion
+
+- `pirn/domains/agents/tool_decorator.py` — `@tool` decorator converts any sync or async function into a `FunctionTool` (a `Tool` subclass). Name is taken from the function name, description from the first docstring paragraph, and `parameters_schema` from type annotations. Both `Optional[T]` and `list[T]` annotations are handled. Import via `from pirn.domains.agents import tool, FunctionTool`.
+- `pirn/core/knot.py` — Framework-level scalar auto-coercion: constructor parameters typed `Knot | T` (or `Union[Knot, T]`) now automatically wrap plain scalars in a `Parameter` node at construction time. The auto-created `Parameter` self-registers in the active `Tapestry` and participates in lineage tracking. Pydantic adapters for those parameters are built against `T` (not `Knot | T`) so validation works correctly at runtime.
+
+### Changed
+
+#### Agent control knots renamed
+
+The four knots in `pirn/domains/agents/control/` were renamed to remove the misleading `Gate` suffix — `Gate` in pirn is a specific framework primitive (predicate pass-through → `Ok` or `Skipped`) and these knots do not extend it:
+
+| Old name | New name |
+|----------|----------|
+| `SafetyGate` | `SafetyCheck` |
+| `TerminationGate` | `TerminationCheck` |
+| `ReflectionGate` | `ReflectionCheck` |
+| `HandoffGate` | `HandoffCheck` |
+
+Module paths updated accordingly (`safety_gate.py` → `safety_check.py`, etc.). The `ReActLoop`-internal `ReactTerminationGate` is similarly renamed to `ReactTerminationCheck`.
+
+---
+
+### Added (prior)
+
+#### Agentic design patterns guide
+
+`pirn/domains/agents/PATTERNS.md` — a comprehensive reference covering 18 agentic and multi-agentic design patterns with real knot wiring examples: single agent, ReAct loop, planner/router/executor, generator+critic, coordinator/dispatcher, parallel fan-out/gather, synthesiser, hierarchical decomposition, blackboard (MAS shared state), supervision (guardrail stacking), debate framework, four memory patterns, four RAG variants, structured output extraction, specialised agents, agent-as-tool, MCP usage, and swarm (decentralised multi-agent). Every entry maps to the concrete `pirn.domains.agents` knot that implements it.
+
+#### New examples
+
+Seven domain-format examples added to `examples/domain_formats/`:
+
+- **`medical_triage_agent.py`** — Dynamic DAG over a synthetic DICOM study queue; windowing, tissue classification, and anomaly detection knots run concurrently per study; triage decisions route the next study or terminate. Record schema matches `DicomFormat.decode()`.
+- **`seismic_survey_pipeline.py`** — SEG-Y trace QC and attribute extraction pipeline; parallel frequency analysis and amplitude QC converge into survey reports. Schema matches `SegyFormat`.
+- **`weather_forecast_pipeline.py`** — Synthetic GRIB ensemble pipeline; surface parameter extraction, alert checking, and forecast report assembly. Schema matches `GribFormat`.
+- **`ml_evaluation_loop.py`** — Dynamic evaluation loop that registers a benchmark suite (accuracy, latency, memory) per model candidate and promotes or rejects each.
+- **`geospatial_layer_analysis.py`** — Site suitability scoring over synthetic GeoJSON/Shapefile layers; four spatial analysis knots run in parallel per site.
+- **`hl7v2_message_router.py`** — HL7 v2 message routing pipeline; type-specific handler knots with PHI scrubbing aligned to `Hl7v2Format`.
+- **`genomics_batch_qc.py`** — FASTQ sequencing run QC; quality trimming, alignment simulation, and metric assembly. Schema matches `FastqFormat`.
+
+`examples/llm_agent/agent_loop_v2.py` — Rewritten to use real `pirn.domains.agents` composites. The dynamic DAG shell is identical to `agent_loop.py`; action knots now use `ContextBuilder → LLMCall → OutputParser` (`llm_task`), `ReActLoop` (`react`), and `ContextBuilder → Planner → ToolRouter → ToolExecutor` (`planner`). `StubLLMProvider` and `StubTool` satisfy the interfaces without network access.
+
+### Fixed
+
+#### SQLiteHistory bytes and datetime serialization
+
+`SQLiteHistory.record_run()` previously called `model.model_dump_json()` directly, which hard-fails on pydantic models containing `bytes` fields (encoding error) or bare `datetime` objects (not JSON-serialisable). Replaced with `_model_to_json(model)` — a thin wrapper over `json.dumps(model.model_dump(mode="python"), default=_json_default)` where `_json_default` encodes `bytes` as `{"__bytes_b64__": "<base64>"}`, `datetime`/`date` objects via `.isoformat()`, and dataclasses via `dataclasses.asdict()`. All example pipelines including those with binary-payload formats (DICOM, SEG-Y, GRIB) now persist run history correctly without per-pipeline workarounds.
+
 #### Domain libraries (Phase 4)
 
 Six domain-specific knot libraries are now available under `pirn/domains/`, each isolated behind its own optional extra:

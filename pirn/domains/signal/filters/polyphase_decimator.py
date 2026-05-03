@@ -47,6 +47,14 @@ class PolyphaseDecimator(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SignalFrame:
+        """Anti-alias filter and downsample the input signal by the configured factor and return the decimated SignalFrame.
+
+        Args:
+            signal: Signal to anti-alias filter and downsample.
+
+        Returns:
+            SignalFrame at the reduced sample rate with a proportionally smaller sample count.
+        """
         new_rate = signal.sample_rate_hz / self._decimation_factor
         new_samples = signal.samples_per_channel // self._decimation_factor
         return SignalFrame(

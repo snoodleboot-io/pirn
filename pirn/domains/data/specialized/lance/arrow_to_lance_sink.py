@@ -52,6 +52,14 @@ class ArrowToLanceSink(Knot):
         return self._mode
 
     async def process(self, table: Any, **_: Any) -> str:
+        """Write the PyArrow table to the configured Lance dataset path and return the path.
+
+        Args:
+            table: The upstream PyArrow table to write to the Lance dataset.
+
+        Returns:
+            The path to the Lance dataset that was written.
+        """
         import lance
 
         lance.write_dataset(table, self._path, mode=self._mode)

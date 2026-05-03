@@ -93,6 +93,14 @@ class DaskAggregate(Knot):
         return self._by
 
     async def process(self, batch: DaskDataFrame, **_: Any) -> DaskDataFrame:
+        """Apply group-by aggregation to the deferred Dask frame and return the updated lazy frame.
+
+        Args:
+            batch: The upstream DaskDataFrame to aggregate.
+
+        Returns:
+            A new DaskDataFrame wrapping the aggregated, still-deferred Dask graph.
+        """
         if self._aggregator is not None:
             aggregated = self._aggregator(batch.frame)
         else:

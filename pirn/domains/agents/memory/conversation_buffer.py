@@ -46,6 +46,19 @@ class ConversationBuffer(Knot):
         max_size: int,
         **_: Any,
     ) -> tuple[AgentMessage, ...]:
+        """Append new_message to the history and return the trimmed conversation window.
+
+        Args:
+            new_message: The new message to append to the conversation history.
+            history: The existing sequence of messages in the conversation.
+            max_size: Maximum number of messages to keep; older entries are dropped.
+
+        Returns:
+            A tuple of the most recent messages up to max_size.
+
+        Raises:
+            TypeError: If new_message is not an AgentMessage or history contains non-AgentMessage items.
+        """
         if not isinstance(new_message, AgentMessage):
             raise TypeError(
                 "ConversationBuffer: new_message must be an AgentMessage, "

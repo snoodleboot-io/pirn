@@ -37,6 +37,14 @@ class PisarenkoEstimator(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> Mapping[str, Any]:
+        """Estimate sinusoid frequencies via Pisarenko harmonic decomposition and return a parameter mapping.
+
+        Args:
+            signal: Signal to estimate harmonic frequencies from.
+
+        Returns:
+            Mapping containing ``signal_id``, ``sinusoid_count``, and ``estimator``.
+        """
         return {
             "signal_id": signal.signal_id,
             "sinusoid_count": self._sinusoid_count,

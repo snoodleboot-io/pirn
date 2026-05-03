@@ -30,6 +30,14 @@ class PyarrowToDataBatch(Knot):
         super().__init__(batch=batch, _config=_config, **kwargs)
 
     async def process(self, batch: PyarrowDataBatch, **_: Any) -> DataBatch:
+        """Materialise the PyArrow table to row dicts and return a Tier-1 DataBatch.
+
+        Args:
+            batch: The upstream PyarrowDataBatch to materialise.
+
+        Returns:
+            A Tier-1 DataBatch of row dicts with the same provenance metadata.
+        """
         rows = tuple(batch.table.to_pylist())
         return DataBatch(
             rows=rows,

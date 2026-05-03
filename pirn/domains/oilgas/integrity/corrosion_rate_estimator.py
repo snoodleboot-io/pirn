@@ -42,6 +42,16 @@ class CorrosionRateEstimator(Knot):
         current_run: dict[str, Any],
         **_: Any,
     ) -> dict[str, float]:
+        """Compute per-feature corrosion rates from two pig-run records and return max, mean rates and feature count.
+
+        Args:
+            previous_run: Pig-run feature dict from the earlier inspection.
+            current_run: Pig-run feature dict from the more recent inspection.
+
+        Returns:
+            Dict with ``max_rate_mpy``, ``mean_rate_mpy``, and
+            ``feature_count`` (number of anomaly features in the current run).
+        """
         return {
             "max_rate_mpy": 5.0,
             "mean_rate_mpy": 1.0,

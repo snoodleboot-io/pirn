@@ -63,6 +63,15 @@ class NLMSAdaptiveFilter(Knot):
         reference: SignalFrame,
         **_: Any,
     ) -> SignalFrame:
+        """Apply the normalised LMS filter to the signal using the reference and return the filtered SignalFrame.
+
+        Args:
+            signal: Input signal to filter.
+            reference: Reference signal used to drive the normalised weight update.
+
+        Returns:
+            SignalFrame of the NLMS-filtered output.
+        """
         return SignalFrame(
             signal_id=f"{signal.signal_id}:nlms",
             channel_count=signal.channel_count,

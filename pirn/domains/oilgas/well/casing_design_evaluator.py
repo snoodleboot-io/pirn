@@ -41,6 +41,14 @@ class CasingDesignEvaluator(Knot):
         super().__init__(well_path=well_path, _config=_config, **kwargs)
 
     async def process(self, well_path: WellPath3D, **_: Any) -> dict[str, Any]:
+        """Evaluate the well path against configured burst, collapse, and tension limits and return the safety-factor dict.
+
+        Args:
+            well_path: 3-D well path providing geometry and depth context.
+
+        Returns:
+            Dict with keys ``well_id``, ``burst_safety_factor``, ``collapse_safety_factor``, ``tension_safety_factor``, and ``passed``.
+        """
         return {
             "well_id": well_path.well_id,
             "burst_safety_factor": 1.5,

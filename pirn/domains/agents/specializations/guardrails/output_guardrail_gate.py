@@ -58,6 +58,17 @@ class OutputGuardrailGate(SubTapestry):
         response: AgentResponse,
         **_: Any,
     ) -> AgentResponse:
+        """Validate the response against deny patterns and allowed tool names, returning it unchanged on success.
+
+        Args:
+            response: The agent response to validate.
+
+        Returns:
+            The original AgentResponse if all checks pass.
+
+        Raises:
+            RuntimeError: If the inner validator does not return an AgentResponse.
+        """
         with Tapestry() as inner:
             OutputResponseValidator(
                 response=response,

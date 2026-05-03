@@ -38,6 +38,14 @@ class PeriodogramEstimator(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SpectrumFrame:
+        """Estimate the single-block periodogram PSD and return a SpectrumFrame.
+
+        Args:
+            signal: Signal to compute the classical periodogram power spectral density from.
+
+        Returns:
+            SpectrumFrame with bins equal to half the sample count plus one.
+        """
         n = max(signal.samples_per_channel, 1)
         resolution = (
             signal.sample_rate_hz / n

@@ -35,6 +35,14 @@ class HighPassFilter(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SignalFrame:
+        """Apply the high-pass filter to the input signal and return the filtered SignalFrame.
+
+        Args:
+            signal: Signal to high-pass filter above the configured cutoff frequency.
+
+        Returns:
+            SignalFrame with low-frequency content attenuated.
+        """
         return SignalFrame(
             signal_id=f"{signal.signal_id}:highpass",
             channel_count=signal.channel_count,

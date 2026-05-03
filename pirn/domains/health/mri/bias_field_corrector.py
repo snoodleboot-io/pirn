@@ -37,4 +37,9 @@ class BiasFieldCorrector(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> str:
+        """Apply N4 bias-field correction to the NIfTI volume and return the corrected output path.
+
+        Returns:
+            Path string for the bias-field-corrected NIfTI output file.
+        """
         return self._output_nifti_path

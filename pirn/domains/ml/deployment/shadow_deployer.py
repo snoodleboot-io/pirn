@@ -38,6 +38,17 @@ class ShadowDeployer(Knot):
         super().__init__(model=model, _config=_config, **kwargs)
 
     async def process(self, model: TrainedModel, **_: Any) -> str:
+        """Log a shadow deployment event to the lineage store and return the generated deployment_id.
+
+        Args:
+            model: TrainedModel reference to register as a shadow deployment.
+
+        Returns:
+            Deterministic deployment_id string prefixed with ``"shadow:"``.
+
+        Raises:
+            TypeError: If model does not resolve to a TrainedModel.
+        """
         if not isinstance(model, TrainedModel):
             raise TypeError(
                 "ShadowDeployer: model must resolve to a TrainedModel"

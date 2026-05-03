@@ -76,6 +76,17 @@ class LagFeatureGenerator(SubTapestry):
         super().__init__(split=split, _config=_config, **kwargs)
 
     async def process(self, split: DataSplit, **_: Any) -> DataSplit:
+        """Append lag feature names for each (column, lag) pair to every partition and return the extended DataSplit.
+
+        Args:
+            split: DataSplit whose partitions receive the new lag feature names.
+
+        Returns:
+            DataSplit with ``<column>_lag_<N>`` feature names appended to every partition.
+
+        Raises:
+            TypeError: If the inner knot does not return a DataSplit.
+        """
         with Tapestry() as inner:
             split_node = _emit_value(
                 value=split, _config=KnotConfig(id="split")

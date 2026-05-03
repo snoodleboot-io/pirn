@@ -54,6 +54,15 @@ class MedDRANormalizer(Knot):
         records: Sequence[ClinicalTrialRecord],
         **_: Any,
     ) -> tuple[Mapping[str, Any], ...]:
+        """Look up each record's first observation code in the term map and return annotated rows with meddra_pt.
+
+        Args:
+            records: Sequence of ClinicalTrialRecord objects to annotate.
+
+        Returns:
+            Tuple of dicts carrying trial_id, subject_id, visit_number,
+            observation_codes, observed_at, and the resolved meddra_pt term.
+        """
         annotated: list[Mapping[str, Any]] = []
         for record in records:
             # Use the first observation_code as the verbatim term; if no

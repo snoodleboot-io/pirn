@@ -49,6 +49,18 @@ class FactClaimVerifier(Knot):
         claims: Sequence[str],
         **_: Any,
     ) -> AgentResponse:
+        """Search the memory store for each claim and return the response with a warning footer for unverified ones.
+
+        Args:
+            response: The original agent response to annotate.
+            claims: The list of factual claims to verify against the memory store.
+
+        Returns:
+            The original AgentResponse if all claims are supported, or a copy with an unverified-claims warning appended.
+
+        Raises:
+            TypeError: If response is not an AgentResponse instance.
+        """
         if not isinstance(response, AgentResponse):
             raise TypeError(
                 "FactClaimVerifier: response must be an AgentResponse, "

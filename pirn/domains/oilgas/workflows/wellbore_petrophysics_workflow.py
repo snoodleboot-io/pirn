@@ -75,6 +75,11 @@ class WellborePetrophysicsWorkflow(SubTapestry):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> RunResult:
+        """Build and execute the LAS-to-interpreted-logs inner tapestry and return its RunResult.
+
+        Returns:
+            RunResult from the inner pipeline spanning LAS ingest through lithology classification.
+        """
         with Tapestry() as inner:
             ingest = LasFileIngester(
                 file_path=self._file_path,

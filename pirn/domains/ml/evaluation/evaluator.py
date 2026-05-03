@@ -51,6 +51,15 @@ class Evaluator(Knot):
     async def process(
         self, model: TrainedModel, split: DataSplit, **_: Any
     ) -> EvalReport:
+        """Compute each configured metric for the model on the test split and return an EvalReport.
+
+        Args:
+            model: TrainedModel reference to evaluate.
+            split: DataSplit whose test partition is used for scoring.
+
+        Returns:
+            EvalReport containing all configured metrics and evaluation metadata.
+        """
         scored = MappingProxyType(
             {metric: self._score(model, split, metric) for metric in self._metrics}
         )

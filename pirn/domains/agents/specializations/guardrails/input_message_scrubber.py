@@ -55,6 +55,18 @@ class InputMessageScrubber(Knot):
         messages: Sequence[AgentMessage],
         **_: Any,
     ) -> tuple[AgentMessage, ...]:
+        """Validate each message against deny patterns and redact PII matches, returning cleaned messages.
+
+        Args:
+            messages: The sequence of agent messages to validate and redact.
+
+        Returns:
+            A tuple of AgentMessage instances with PII redacted and deny patterns checked.
+
+        Raises:
+            TypeError: If any element of messages is not an AgentMessage.
+            ValueError: If any message content matches a deny pattern.
+        """
         cleaned: list[AgentMessage] = []
         for index, message in enumerate(messages):
             if not isinstance(message, AgentMessage):

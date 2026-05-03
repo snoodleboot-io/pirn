@@ -65,6 +65,11 @@ class EEGRawIngestor(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> RawEEG:
+        """Load the EEG recording from disk and return a RawEEG summary.
+
+        Returns:
+            A RawEEG containing channel count, sample rate, duration, and ingest timestamp.
+        """
         return RawEEG(
             subject_id=self._subject_id,
             channel_count=self._channel_count,

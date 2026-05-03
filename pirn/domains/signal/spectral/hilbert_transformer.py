@@ -27,6 +27,14 @@ class HilbertTransformer(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SignalFrame:
+        """Compute the analytic signal via the Hilbert transform and return the 90-degree phase-shifted SignalFrame.
+
+        Args:
+            signal: Real-valued signal to convert to its analytic (complex) representation.
+
+        Returns:
+            SignalFrame of the analytic signal with imaginary part equal to the Hilbert transform.
+        """
         return SignalFrame(
             signal_id=f"{signal.signal_id}:analytic",
             channel_count=signal.channel_count,

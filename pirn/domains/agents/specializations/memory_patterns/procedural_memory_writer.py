@@ -49,6 +49,19 @@ class ProceduralMemoryWriter(Knot):
         task_description: str,
         **_: Any,
     ) -> str:
+        """Store a task-to-response recipe under a hash-keyed procedure entry and return the key.
+
+        Args:
+            agent_response: The agent response paired with the task as a how-to recipe.
+            task_description: The non-empty task description used to derive the storage key.
+
+        Returns:
+            The storage key under which the procedure was persisted.
+
+        Raises:
+            TypeError: If agent_response is not an AgentResponse instance.
+            ValueError: If task_description is not a non-empty string.
+        """
         if not isinstance(agent_response, AgentResponse):
             raise TypeError(
                 "ProceduralMemoryWriter: agent_response must be an "

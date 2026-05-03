@@ -48,6 +48,14 @@ class DWTDecomposer(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> WaveletFrame:
+        """Compute the multi-level discrete wavelet transform of the signal and return a WaveletFrame.
+
+        Args:
+            signal: Signal to decompose using the configured wavelet at the configured decomposition depth.
+
+        Returns:
+            WaveletFrame of DWT coefficients with ``level_count`` decomposition levels.
+        """
         return WaveletFrame(
             signal_id=signal.signal_id,
             wavelet_name=self._wavelet_name,

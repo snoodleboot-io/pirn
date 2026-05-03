@@ -54,6 +54,14 @@ class FeatureSelector(Knot):
         return self._k
 
     async def process(self, split: DataSplit, **_: Any) -> DataSplit:
+        """Truncate the feature list to the top k entries using the configured method and return the reduced DataSplit.
+
+        Args:
+            split: DataSplit whose feature lists are truncated to k entries.
+
+        Returns:
+            DataSplit with each partition's feature list capped at k features.
+        """
         now = datetime.now(timezone.utc)
         return DataSplit(
             train=self._reduce(split.train, now),

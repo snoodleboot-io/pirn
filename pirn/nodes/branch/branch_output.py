@@ -47,6 +47,18 @@ class BranchOutput(Knot):
         self._frozen = True
 
     async def process(self, chosen: str, passthrough: Any, **_: Any) -> Any:  # type: ignore[override]
+        """Return the passthrough value if this branch was selected, or raise to signal it was not.
+
+        Args:
+            chosen: Branch name selected by the upstream Branch knot.
+            passthrough: Original input value forwarded from the Branch's input knot.
+
+        Returns:
+            The passthrough value when this branch's name matches the chosen branch.
+
+        Raises:
+            _BranchNotSelected: If this branch was not the one selected; converted to Skipped by ``__call__``.
+        """
         if chosen == self._mutable_branch_name:
             return passthrough
         raise _BranchNotSelected(self._mutable_branch_name)

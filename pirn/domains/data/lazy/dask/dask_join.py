@@ -65,6 +65,15 @@ class DaskJoin(Knot):
     async def process(
         self, left: DaskDataFrame, right: DaskDataFrame, **_: Any
     ) -> DaskDataFrame:
+        """Merge the left and right deferred Dask frames on the configured keys and return the result.
+
+        Args:
+            left: The left-side DaskDataFrame.
+            right: The right-side DaskDataFrame to merge against.
+
+        Returns:
+            A new DaskDataFrame containing the merged deferred graph.
+        """
         if self._how == "cross":
             joined = left.frame.merge(right.frame, how="cross")
         elif self._on is not None:

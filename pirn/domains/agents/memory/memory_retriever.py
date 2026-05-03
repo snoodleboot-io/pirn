@@ -43,6 +43,19 @@ class MemoryRetriever(Knot):
         store: MemoryStore,
         **_: Any,
     ) -> Mapping[str, Any]:
+        """Fetch the memory entry stored under key and return it as a mapping.
+
+        Args:
+            key: The non-empty string key to look up in the memory store.
+            store: The memory store to retrieve the value from.
+
+        Returns:
+            The mapping stored under the given key.
+
+        Raises:
+            ValueError: If key is not a non-empty string.
+            KeyError: If no entry exists for the given key.
+        """
         if not isinstance(key, str) or not key:
             raise ValueError(
                 "MemoryRetriever: key must be a non-empty string, "

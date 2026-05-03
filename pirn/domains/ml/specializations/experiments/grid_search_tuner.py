@@ -63,6 +63,17 @@ class GridSearchTuner(SubTapestry):
     async def process(
         self, split: DataSplit, **_: Any
     ) -> dict[str, Any]:
+        """Run an exhaustive grid search over the search space and return the best model and its evaluation report.
+
+        Args:
+            split: DataSplit used for candidate training and evaluation.
+
+        Returns:
+            Dict with ``best_model`` (TrainedModel) and ``eval_report`` (EvalReport).
+
+        Raises:
+            TypeError: If the inner search or evaluator returns an unexpected type.
+        """
         with Tapestry() as inner:
             split_node = _emit_value(
                 value=split, _config=KnotConfig(id="split")

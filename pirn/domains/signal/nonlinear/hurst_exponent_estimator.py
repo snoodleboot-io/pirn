@@ -37,6 +37,14 @@ class HurstExponentEstimator(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> Mapping[str, Any]:
+        """Estimate the Hurst exponent of the signal using the configured method and return a result mapping.
+
+        Args:
+            signal: Time series signal to estimate long-range dependence from.
+
+        Returns:
+            Mapping containing ``signal_id``, ``method``, and ``estimator``.
+        """
         return {
             "signal_id": signal.signal_id,
             "method": self._method,

@@ -49,6 +49,18 @@ class ContextBuilder(Knot):
         system_prompt: str | None = None,
         **_: Any,
     ) -> AgentContext:
+        """Assemble a sequence of messages and an optional system prompt into an AgentContext.
+
+        Args:
+            messages: The ordered sequence of agent messages to include.
+            system_prompt: Optional system instruction prepended as a system-role message.
+
+        Returns:
+            An AgentContext containing the ordered messages with optional system prefix.
+
+        Raises:
+            TypeError: If messages is not a sequence or any element is not an AgentMessage.
+        """
         if not isinstance(messages, Sequence) or isinstance(messages, (str, bytes)):
             raise TypeError(
                 "ContextBuilder: messages must be a sequence, "

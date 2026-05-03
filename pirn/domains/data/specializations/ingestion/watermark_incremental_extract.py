@@ -84,6 +84,11 @@ class WatermarkIncrementalExtract(SubTapestry):
         return f"INSERT INTO {self._target_table} ({column_list}) VALUES ({placeholders})"
 
     async def process(self, **_: Any) -> RunResult:
+        """Read the high-water mark, extract new source rows, and insert them into the target table.
+
+        Returns:
+            A RunResult summarising the outcome of the inner tapestry execution.
+        """
         with Tapestry() as inner:
             high_water_mark = ReadHighWaterMarkKnot(
                 pool=self._target_pool,

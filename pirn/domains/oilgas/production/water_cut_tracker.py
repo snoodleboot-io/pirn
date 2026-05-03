@@ -30,6 +30,17 @@ class WaterCutTracker(Knot):
         water_rate: ScadaTimeSeries,
         **_: Any,
     ) -> ScadaTimeSeries:
+        """Accept oil and water rate series and return the computed water-cut fraction time series.
+
+        Args:
+            oil_rate: ScadaTimeSeries of oil production rates.
+            water_rate: ScadaTimeSeries of water production rates aligned to
+                the same timestamps as oil_rate.
+
+        Returns:
+            ScadaTimeSeries of water-cut fraction values with sensor_id
+            ``watercut:<oil_sensor_id>:<water_sensor_id>``.
+        """
         return ScadaTimeSeries(
             sensor_id=f"watercut:{oil_rate.sensor_id}:{water_rate.sensor_id}",
             sample_interval_sec=oil_rate.sample_interval_sec,

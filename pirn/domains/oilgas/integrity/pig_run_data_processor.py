@@ -32,6 +32,13 @@ class PigRunDataProcessor(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> dict[str, Any]:
+        """Process the configured pig-run file path and return a feature table summary for the pipeline.
+
+        Returns:
+            Dict with ``pipeline_id``, ``feature_count`` (int number of
+            anomaly features detected), and ``longest_anomaly_in`` (float
+            length of the longest anomaly in inches).
+        """
         return {
             "pipeline_id": self._pipeline_id,
             "feature_count": 0,

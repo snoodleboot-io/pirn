@@ -68,6 +68,17 @@ class TargetEncoder(SubTapestry):
         return self._smoothing
 
     async def process(self, split: DataSplit, **_: Any) -> DataSplit:
+        """Apply target encoding to the categorical column across all split partitions and return the renamed DataSplit.
+
+        Args:
+            split: DataSplit whose partitions receive the target-encoded column.
+
+        Returns:
+            DataSplit with each partition renamed to include the ``encoded_target`` suffix.
+
+        Raises:
+            TypeError: If the inner encoder does not return a DataSplit.
+        """
         with Tapestry() as inner:
             split_node = _emit_value(
                 value=split, _config=KnotConfig(id="split")

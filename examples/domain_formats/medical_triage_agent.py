@@ -38,9 +38,11 @@ import asyncio
 import hashlib
 import random
 import struct
+from pathlib import Path
 from dataclasses import dataclass, replace
 from typing import Any, ClassVar
 
+from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.aggregator import Aggregator
@@ -428,11 +430,11 @@ class _TriageReport(Knot):
 # ----------------------------------------------------------------- tapestry
 
 
-def build_tapestry(queue: TriageQueue, history=None) -> Tapestry:
+def build_tapestry(queue: TriageQueue | None = None, history=None) -> Tapestry:
     t = Tapestry(history=history)
     t.store.register(
         StudyDispatcher(
-            queue=queue,
+            queue=queue if queue is not None else make_queue(),
             _config=KnotConfig(id="dispatch_0", validate_io=False),
         )
     )
@@ -466,7 +468,8 @@ async def main() -> None:
     # Raw pixel bytes in intermediate knot outputs are not JSON-serialisable;
     # skip history for this example.
     queue = make_queue()
-    t = build_tapestry(queue=queue, history=None)
+    history = SQLiteHistory(path=str(Path(__file__).parent.parent / "pirn.db"))
+    t = build_tapestry(queue=queue, history=history)
 
     _DECISION_ICON = {"routine": "✓", "review": "⚑", "urgent": "⚠"}
 

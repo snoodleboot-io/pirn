@@ -64,6 +64,11 @@ class DefineXMLGenerator(Knot):
         return self._dataset_name
 
     async def process(self, **_: Any) -> str:
+        """Build a Define-XML ItemGroupDef snippet for the dataset variables and return the XML string.
+
+        Returns:
+            String containing the ``ItemGroupDef`` element and its ``ItemDef`` children.
+        """
         parts: list[str] = [
             f'<ItemGroupDef OID="IG.{self._dataset_name}" Name="{self._dataset_name}">'
         ]

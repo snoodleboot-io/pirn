@@ -28,6 +28,14 @@ class _MapReduceSummariser(Knot):
         super().__init__(chunks=chunks, _config=_config, **kwargs)
 
     async def process(self, chunks: list[str], **_: Any) -> str:
+        """Summarise each chunk in parallel then reduce the partial summaries into one final summary.
+
+        Args:
+            chunks: The list of text chunks to summarise.
+
+        Returns:
+            A single combined summary string; empty if chunks is empty.
+        """
         if not chunks:
             return ""
         total = len(chunks)

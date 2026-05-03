@@ -52,6 +52,19 @@ class Planner(Knot):
         llm: LLMProvider,
         **_: Any,
     ) -> Plan:
+        """Ask the LLM to produce a step-by-step Plan grounded in the agent context.
+
+        Args:
+            context: The agent context providing the conversation history for planning.
+            llm: LLM provider used to generate the plan.
+
+        Returns:
+            A Plan containing the ordered steps and optional rationale.
+
+        Raises:
+            TypeError: If context is not an AgentContext instance.
+            ValueError: If the LLM response produces no plan steps.
+        """
         if not isinstance(context, AgentContext):
             raise TypeError(
                 "Planner: context must be an AgentContext, "

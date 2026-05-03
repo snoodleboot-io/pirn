@@ -78,6 +78,11 @@ class FullRefreshExtract(SubTapestry):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> RunResult:
+        """Truncate the target table, extract all source rows, and reload them, returning a RunResult.
+
+        Returns:
+            A RunResult summarising the outcome of the inner tapestry execution.
+        """
         with Tapestry() as inner:
             extracted = DatabaseQuerySource(
                 pool=self._source_pool,

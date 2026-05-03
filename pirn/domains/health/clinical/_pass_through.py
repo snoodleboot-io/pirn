@@ -24,4 +24,12 @@ class _PassThrough(Knot):
     async def process(
         self, records: tuple[ClinicalRecord, ...], **_: Any
     ) -> tuple[ClinicalRecord, ...]:
+        """Return the input records tuple unchanged.
+
+        Args:
+            records: The upstream tuple of ClinicalRecords to pass through.
+
+        Returns:
+            The same tuple of ClinicalRecords, unchanged.
+        """
         return tuple(records)

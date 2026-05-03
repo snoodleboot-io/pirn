@@ -68,6 +68,14 @@ class DatafusionAggregate(Knot):
     async def process(
         self, batch: DatafusionDataBatch, **_: Any
     ) -> DatafusionDataBatch:
+        """Group the batch by the configured columns and apply the aggregation expressions.
+
+        Args:
+            batch: The DatafusionDataBatch to group and aggregate.
+
+        Returns:
+            A new DatafusionDataBatch containing the aggregated result.
+        """
         group_exprs = [df.col(column) for column in self._by]
         agg_exprs: list[df.Expr] = []
         for output, expression in self._aggs.items():

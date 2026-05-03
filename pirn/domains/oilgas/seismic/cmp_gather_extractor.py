@@ -38,6 +38,14 @@ class CmpGatherExtractor(Knot):
         super().__init__(volume=volume, _config=_config, **kwargs)
 
     async def process(self, volume: SegyVolume, **_: Any) -> SegyVolume:
+        """Extract the CMP gather at the configured inline / xline from the volume and return it as a SegyVolume.
+
+        Args:
+            volume: Source 3-D SEG-Y volume to extract the CMP gather from.
+
+        Returns:
+            SegyVolume representing the extracted CMP gather sub-cube.
+        """
         return SegyVolume(
             volume_id=f"{volume.volume_id}:cmp_{self._cmp_inline}_{self._cmp_xline}",
         )

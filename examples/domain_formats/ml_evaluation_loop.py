@@ -26,8 +26,10 @@ import hashlib
 import math
 import random
 import statistics
+from pathlib import Path
 from dataclasses import dataclass, field, replace
 
+from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.aggregator import Aggregator
@@ -475,10 +477,10 @@ class _RegistryReport(Knot):
 # ----------------------------------------------------------------- tapestry
 
 
-def build_tapestry(catalogue: tuple[ModelArtifact, ...] | None = None) -> Tapestry:
+def build_tapestry(catalogue: tuple[ModelArtifact, ...] | None = None, history=None) -> Tapestry:
     models = catalogue or MODEL_CATALOGUE
     queue = EvaluationQueue(models=models)
-    t = Tapestry(history=None)
+    t = Tapestry(history=history)
     first_evaluator = ModelEvaluator(
         queue=queue,
         _config=KnotConfig(id=_evaluator_id(queue), validate_io=False),
@@ -491,7 +493,8 @@ def build_tapestry(catalogue: tuple[ModelArtifact, ...] | None = None) -> Tapest
 
 
 async def main() -> None:
-    t = build_tapestry()
+    history = SQLiteHistory(path=str(Path(__file__).parent.parent / "pirn.db"))
+    t = build_tapestry(history=history)
 
     print("\n── ML Model Evaluation Loop ──\n")
     print(f"Registry: {len(MODEL_CATALOGUE)} candidate models\n")

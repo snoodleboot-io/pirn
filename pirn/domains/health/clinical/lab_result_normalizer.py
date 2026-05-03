@@ -46,6 +46,11 @@ class LabResultNormalizer(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> tuple[Mapping[str, Any], ...]:
+        """Convert each lab row's value to the target unit using the conversion map and return the normalised rows.
+
+        Returns:
+            A tuple of lab result row dicts with values converted to the target unit.
+        """
         out: list[Mapping[str, Any]] = []
         for row in self._rows:
             from_unit = str(row.get("unit", ""))

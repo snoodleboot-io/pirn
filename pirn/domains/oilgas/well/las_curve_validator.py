@@ -34,6 +34,17 @@ class LasCurveValidator(Knot):
         super().__init__(las_file=las_file, _config=_config, **kwargs)
 
     async def process(self, las_file: LASFile, **_: Any) -> LASFile:
+        """Validate that all required curves are present in the LAS file and return it unchanged.
+
+        Args:
+            las_file: Parsed LAS file whose curve set is validated.
+
+        Returns:
+            The same LASFile passed in, unchanged.
+
+        Raises:
+            ValueError: If any required curve is absent from the LAS file.
+        """
         present = set(las_file.curves)
         missing = [c for c in self._required_curves if c not in present]
         if missing:

@@ -48,6 +48,11 @@ class EvokedResponseAverager(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> SignalFrame:
+        """Average the supplied epoch SignalFrames for the configured condition and return the evoked response.
+
+        Returns:
+            A SignalFrame representing the trial-averaged evoked response for the configured condition.
+        """
         first = self._epochs[0]
         return SignalFrame(
             signal_id=f"evoked-{self._condition}",

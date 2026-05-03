@@ -46,6 +46,17 @@ class FeatureStoreWriter(SubTapestry):
         super().__init__(split=split, _config=_config, **kwargs)
 
     async def process(self, split: DataSplit, **_: Any) -> int:
+        """Write the DataSplit's partition metadata to the feature store and return the count of rows written.
+
+        Args:
+            split: DataSplit whose train, test, and optional validation partitions are written.
+
+        Returns:
+            Number of rows written to the feature store provider.
+
+        Raises:
+            TypeError: If the inner writer does not return an int.
+        """
         with Tapestry() as inner:
             split_node = _emit_value(
                 value=split, _config=KnotConfig(id="split")

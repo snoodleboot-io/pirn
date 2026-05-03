@@ -53,6 +53,14 @@ class Cast(Knot):
         return dict(self._casts)
 
     async def process(self, batch: DataBatch, **_: Any) -> DataBatch:
+        """Coerce each configured column to its target type and return the updated batch.
+
+        Args:
+            batch: The DataBatch whose column values will be coerced.
+
+        Returns:
+            A new DataBatch with cast column values and an updated schema reflecting the new types.
+        """
         new_rows = tuple(self._cast_row(row) for row in batch.rows)
         new_schema = batch.schema.with_columns(self._casts)
         return batch.with_rows(new_rows).with_schema(new_schema)

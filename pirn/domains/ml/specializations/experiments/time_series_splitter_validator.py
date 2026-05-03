@@ -90,6 +90,17 @@ class TimeSeriesSplitterValidator(SubTapestry):
     async def process(
         self, dataset: MLDataset, **_: Any
     ) -> EvalReport:
+        """Partition the dataset into chronological expanding-window splits, train and evaluate each, and return an aggregate EvalReport.
+
+        Args:
+            dataset: MLDataset reference to partition into chronological splits.
+
+        Returns:
+            EvalReport with averaged per-split metrics and split details in the details dict.
+
+        Raises:
+            TypeError: If any inner split evaluator does not return an EvalReport.
+        """
         splits = self._build_splits(dataset)
         per_split_metrics: list[dict[str, float]] = []
         with Tapestry() as inner:

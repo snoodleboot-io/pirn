@@ -81,6 +81,12 @@ class ForecastingPipeline(SubTapestry):
         return self._horizon
 
     async def process(self, **_: Any) -> EvalReport:
+        """Load data, split, train a forecasting model with the configured horizon, and return the time-series EvalReport.
+
+        Returns:
+            EvalReport from the :class:`TimeSeriesEvalPipeline` evaluation
+            stage, covering the configured forecast horizon.
+        """
         with Tapestry() as inner:
             dataset = DatasetLoader(
                 name="forecasting",

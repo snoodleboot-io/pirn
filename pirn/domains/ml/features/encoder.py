@@ -48,6 +48,14 @@ class Encoder(Knot):
         return self._method
 
     async def process(self, split: DataSplit, **_: Any) -> DataSplit:
+        """Apply the configured categorical encoding method to the split and return a renamed DataSplit.
+
+        Args:
+            split: DataSplit whose partitions are logically tagged with the encoding suffix.
+
+        Returns:
+            DataSplit with each partition renamed to include the ``encoded_<method>`` suffix.
+        """
         suffix = f"encoded_{self._method}"
         now = datetime.now(timezone.utc)
         return DataSplit(

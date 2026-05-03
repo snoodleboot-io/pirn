@@ -55,6 +55,14 @@ class SavitzkyGolayFilter(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SignalFrame:
+        """Apply the Savitzky-Golay polynomial smoother to the input signal and return the smoothed SignalFrame.
+
+        Args:
+            signal: Signal to smooth with local polynomial fitting.
+
+        Returns:
+            SignalFrame of the polynomial-smoothed output.
+        """
         return SignalFrame(
             signal_id=f"{signal.signal_id}:savgol",
             channel_count=signal.channel_count,

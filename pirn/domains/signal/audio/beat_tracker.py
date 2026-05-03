@@ -57,6 +57,14 @@ class BeatTracker(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> Mapping[str, Any]:
+        """Estimate tempo and beat times from the input signal and return a beat-tracking result mapping.
+
+        Args:
+            signal: Audio signal to analyse for beat and tempo information.
+
+        Returns:
+            Mapping containing ``signal_id``, ``hop_length``, ``tempo_min_bpm``, ``tempo_max_bpm``, and ``feature``.
+        """
         return {
             "signal_id": signal.signal_id,
             "hop_length": self._hop_length,

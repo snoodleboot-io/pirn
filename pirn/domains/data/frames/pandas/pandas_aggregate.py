@@ -72,6 +72,14 @@ class PandasAggregate(Knot):
         return dict(self._aggs)
 
     async def process(self, batch: PandasDataBatch, **_: Any) -> PandasDataBatch:
+        """Group the batch by the configured columns, apply AggregateSpec functions, and return the result.
+
+        Args:
+            batch: The PandasDataBatch to group and aggregate.
+
+        Returns:
+            A new PandasDataBatch containing the aggregated result.
+        """
         grouped = batch.frame.groupby(list(self._by), sort=False, dropna=False)
         out_rows: list[dict[str, Any]] = []
         for key, group in grouped:

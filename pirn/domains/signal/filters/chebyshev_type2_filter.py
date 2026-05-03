@@ -60,6 +60,14 @@ class ChebyshevType2Filter(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SignalFrame:
+        """Apply the Chebyshev Type-II IIR filter to the input signal and return the filtered SignalFrame.
+
+        Args:
+            signal: Signal to filter with stopband ripple and a flat passband.
+
+        Returns:
+            SignalFrame filtered by the configured Chebyshev Type-II IIR.
+        """
         return SignalFrame(
             signal_id=f"{signal.signal_id}:cheby2",
             channel_count=signal.channel_count,

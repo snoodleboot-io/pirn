@@ -22,4 +22,12 @@ class StackProcessor(Knot):
         super().__init__(gather=gather, _config=_config, **kwargs)
 
     async def process(self, gather: SegyVolume, **_: Any) -> SegyVolume:
+        """Sum traces in the CMP gather and return the stacked trace as a SegyVolume.
+
+        Args:
+            gather: NMO-corrected CMP gather to stack.
+
+        Returns:
+            SegyVolume of the stacked trace.
+        """
         return SegyVolume(volume_id=f"{gather.volume_id}:stacked")

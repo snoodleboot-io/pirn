@@ -44,6 +44,16 @@ class WallThicknessAnalyzer(Knot):
     async def process(
         self, pig_run: dict[str, Any], **_: Any
     ) -> dict[str, float]:
+        """Assess the pig-run remaining wall thickness against the minimum allowable and return the thickness assessment dict.
+
+        Args:
+            pig_run: Pig-run feature dict from the inline inspection used to
+                derive remaining wall thickness.
+
+        Returns:
+            Dict with ``min_remaining_in``, ``minimum_allowable_in``, and
+            ``passed`` (1.0 if thickness is acceptable, 0.0 otherwise).
+        """
         return {
             "min_remaining_in": self._nominal_thickness_in,
             "minimum_allowable_in": self._minimum_allowable_thickness_in,

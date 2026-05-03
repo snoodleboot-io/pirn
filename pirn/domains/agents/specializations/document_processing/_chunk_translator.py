@@ -29,6 +29,14 @@ class _ChunkTranslator(Knot):
         super().__init__(chunks=chunks, _config=_config, **kwargs)
 
     async def process(self, chunks: list[str], **_: Any) -> str:
+        """Translate each chunk via the LLM and return the concatenated translation.
+
+        Args:
+            chunks: The list of text chunks to translate.
+
+        Returns:
+            The concatenated translation of all chunks.
+        """
         if not chunks:
             return ""
         translated_parts: list[str] = []

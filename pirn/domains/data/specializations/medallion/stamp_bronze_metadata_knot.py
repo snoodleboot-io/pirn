@@ -37,5 +37,13 @@ class StampBronzeMetadataKnot(Knot):
     async def process(
         self, rows: Iterable[Iterable[Any]], **_: Any
     ) -> list[tuple[Any, ...]]:
+        """Append the current UTC timestamp and source_uri to every row and return the stamped list.
+
+        Args:
+            rows: The upstream rows to stamp; each row is itself an iterable of values.
+
+        Returns:
+            A list of tuples with the original values followed by ingested_at and source_uri.
+        """
         ingested_at = datetime.now(timezone.utc).isoformat()
         return [tuple(row) + (ingested_at, self._source_uri) for row in rows]

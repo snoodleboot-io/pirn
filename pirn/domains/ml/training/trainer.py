@@ -59,6 +59,16 @@ class Trainer(Knot):
         return self._hyperparameters
 
     async def process(self, split: DataSplit, **_: Any) -> TrainedModel:
+        """Derive a deterministic model_id from the split metadata and return a TrainedModel reference for the configured algorithm.
+
+        Args:
+            split: DataSplit whose train partition metadata seeds the model_id
+                hash and populates feature_names and target_name.
+
+        Returns:
+            TrainedModel reference with a deterministic model_id derived from
+            the algorithm, hyperparameters, and train-split metadata.
+        """
         model_id = self._derive_model_id(split)
         return TrainedModel(
             model_id=model_id,

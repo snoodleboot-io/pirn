@@ -39,6 +39,14 @@ class PyarrowRename(Knot):
         return dict(self._mapping)
 
     async def process(self, batch: PyarrowDataBatch, **_: Any) -> PyarrowDataBatch:
+        """Rename columns in the table according to the configured mapping and return the result.
+
+        Args:
+            batch: The upstream PyarrowDataBatch whose columns will be renamed.
+
+        Returns:
+            A new PyarrowDataBatch with the applicable columns renamed.
+        """
         # PyArrow's rename_columns takes a positional list parallel to the
         # current column order (no skipping). Build that list explicitly,
         # leaving columns absent from the mapping unchanged.

@@ -63,6 +63,15 @@ class PolarsJoin(Knot):
     async def process(
         self, left: PolarsDataBatch, right: PolarsDataBatch, **_: Any
     ) -> PolarsDataBatch:
+        """Join the left and right Polars batches on the configured keys and return the result.
+
+        Args:
+            left: The left-side PolarsDataBatch.
+            right: The right-side PolarsDataBatch to join against.
+
+        Returns:
+            A new PolarsDataBatch containing the joined frame.
+        """
         kwargs: dict[str, Any] = {"how": self._how, "suffix": self._suffix}
         if self._how == "cross":
             joined = left.frame.join(right.frame, **kwargs)

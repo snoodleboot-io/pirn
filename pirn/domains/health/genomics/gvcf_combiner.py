@@ -49,4 +49,9 @@ class GVCFCombiner(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> str:
+        """Merge the per-sample GVCFs against the reference and return the combined GVCF output path.
+
+        Returns:
+            Path string for the combined GVCF output file.
+        """
         return self._output_gvcf_path

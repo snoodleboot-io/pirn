@@ -81,6 +81,11 @@ class RaySource(Source):
         return self._backend_name
 
     async def process(self, **_: Any) -> RayDataset:
+        """Invoke the factory or path reader to build a deferred RayDataset.
+
+        Returns:
+            A RayDataset wrapping the newly created deferred Ray Data plan.
+        """
         if self._factory is not None:
             dataset = self._factory()
         else:

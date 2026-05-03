@@ -56,6 +56,15 @@ class RLSAdaptiveFilter(Knot):
         reference: SignalFrame,
         **_: Any,
     ) -> SignalFrame:
+        """Apply the exponentially-weighted RLS filter to the signal using the reference and return the filtered SignalFrame.
+
+        Args:
+            signal: Input signal to filter.
+            reference: Reference signal used to drive the recursive weight update.
+
+        Returns:
+            SignalFrame of the RLS-filtered output.
+        """
         return SignalFrame(
             signal_id=f"{signal.signal_id}:rls",
             channel_count=signal.channel_count,

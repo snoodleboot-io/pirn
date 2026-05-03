@@ -63,6 +63,14 @@ class _LoopTerminal(Knot):
     """Identity knot — marks loop completion and surfaces the final state."""
 
     async def process(self, state: Any, **_: Any) -> Any:  # type: ignore[override]
+        """Return the final loop state unchanged to surface loop completion.
+
+        Args:
+            state: Terminal state value produced by the last iteration chain knot.
+
+        Returns:
+            The state value unchanged, making it the observable output of the loop.
+        """
         return state
 
 
@@ -100,6 +108,14 @@ class _IterationChainKnot(SubTapestry):
             object.__setattr__(self, "_mutable_outer_history", _outer_history)
 
     async def process(self, state: Any, **_: Any) -> Any:  # type: ignore[override]
+        """Run this iteration's tapestry, fold the result into state, and register the next iteration or terminal knot.
+
+        Args:
+            state: Current loop state, either the initial value or the folded output of the previous iteration.
+
+        Returns:
+            Updated state value produced by folding this iteration's RunResult.
+        """
         loop: LoopSubTapestry = object.__getattribute__(self, "_mutable_loop_sub")  # type: ignore[type-arg]
         iter_tapestry: Tapestry = object.__getattribute__(self, "_mutable_iter_tapestry")
         iteration_idx: int = object.__getattribute__(self, "_mutable_iteration_idx")
@@ -171,6 +187,14 @@ class LoopSubTapestry(SubTapestry, Generic[S]):
         return f"step_{idx}"
 
     async def process(self, state: Any, **_: Any) -> Any:  # type: ignore[override]
+        """Drive the iteration loop from the initial state via step/fold and return the terminal state.
+
+        Args:
+            state: Initial loop state passed to the first ``step`` call.
+
+        Returns:
+            Final state value surfaced by the ``_LoopTerminal`` knot after the last iteration completes.
+        """
         from pirn.tapestry import Tapestry
 
         first_outcome = self.step(state)

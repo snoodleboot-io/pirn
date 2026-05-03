@@ -65,6 +65,14 @@ class SparkWriteSink(Sink):
     async def process(
         self, frame: SparkDataFrame, **_: Any
     ) -> SparkExecutionReceipt:
+        """Write the deferred Spark DataFrame to the configured path and return an execution receipt.
+
+        Args:
+            frame: The upstream SparkDataFrame whose deferred plan will be materialised to disk.
+
+        Returns:
+            A SparkExecutionReceipt recording the output path and completion timestamp.
+        """
         frame.frame.write.mode(self._mode).format(self._format).save(self._path)
         return SparkExecutionReceipt(
             succeeded=True,

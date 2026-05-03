@@ -38,6 +38,14 @@ class CepstrumAnalyzer(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SpectrumFrame:
+        """Compute the cepstrum from the signal and return a SpectrumFrame of cepstral coefficients.
+
+        Args:
+            signal: Signal to compute the cepstrum from via IFFT of the log-magnitude spectrum.
+
+        Returns:
+            SpectrumFrame with bins equal to the input sample count.
+        """
         n = max(signal.samples_per_channel, 1)
         return SpectrumFrame(
             signal_id=signal.signal_id,

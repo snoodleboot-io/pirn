@@ -66,6 +66,17 @@ class ConsensusAggregator(SubTapestry):
         responses: Mapping[str, AgentResponse],
         **_: Any,
     ) -> AgentResponse:
+        """Apply the configured consensus strategy to the specialist responses and return the winner.
+
+        Args:
+            responses: A non-empty mapping of specialist names to their AgentResponse outputs.
+
+        Returns:
+            A single AgentResponse representing the consensus result.
+
+        Raises:
+            ValueError: If responses is empty or not a Mapping.
+        """
         if not isinstance(responses, Mapping) or not responses:
             raise ValueError(
                 "ConsensusAggregator: responses must be a non-empty mapping"

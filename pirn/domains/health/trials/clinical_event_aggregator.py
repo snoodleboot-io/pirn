@@ -56,6 +56,14 @@ class ClinicalEventAggregator(Knot):
         records: Sequence[ClinicalTrialRecord],
         **_: Any,
     ) -> Mapping[str, Mapping[str, int]]:
+        """Count per-subject occurrences of each configured event code and return a subject-to-code-count mapping.
+
+        Args:
+            records: Sequence of ClinicalTrialRecord objects to aggregate.
+
+        Returns:
+            Mapping of subject_id to a dict of event_code to occurrence count.
+        """
         codes = set(self._event_codes)
         counts: dict[str, dict[str, int]] = {}
         for record in records:

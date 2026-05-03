@@ -53,6 +53,14 @@ class RayMap(Knot):
         super().__init__(batch=batch, _config=_config, **kwargs)
 
     async def process(self, batch: RayDataset, **_: Any) -> RayDataset:
+        """Extend the deferred Ray Dataset plan with a map_batches transform and return the result.
+
+        Args:
+            batch: The upstream RayDataset whose plan will be extended with the map transform.
+
+        Returns:
+            A new RayDataset wrapping the extended deferred plan.
+        """
         kwargs: dict[str, Any] = {}
         if self._batch_format is not None:
             kwargs["batch_format"] = self._batch_format

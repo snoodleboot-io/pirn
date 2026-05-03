@@ -49,6 +49,11 @@ class ConnectivityAnalyzer(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> Mapping[str, Mapping[str, float]]:
+        """Compute pairwise connectivity between all channel pairs using the configured method.
+
+        Returns:
+            A nested mapping from channel name to a mapping of other channel names to connectivity scores.
+        """
         return {
             ch: {other: 0.0 for other in self._channel_names}
             for ch in self._channel_names

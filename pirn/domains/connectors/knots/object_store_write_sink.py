@@ -44,6 +44,14 @@ class ObjectStoreWriteSink(Sink):
         return self._key
 
     async def process(self, body: bytes, **_: Any) -> None:
+        """Write the bytes payload to the configured object-store key.
+
+        Args:
+            body: The bytes content to write to the configured key.
+
+        Raises:
+            TypeError: If body is not a bytes or bytearray instance.
+        """
         if not isinstance(body, (bytes, bytearray)):
             raise TypeError(
                 f"ObjectStoreWriteSink: body must be bytes, got {type(body).__name__}"

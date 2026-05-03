@@ -67,6 +67,18 @@ class InputGuardrailGate(SubTapestry):
         messages: Sequence[AgentMessage],
         **_: Any,
     ) -> tuple[AgentMessage, ...]:
+        """Reject messages matching deny patterns and redact PII, returning the cleaned message tuple.
+
+        Args:
+            messages: The sequence of agent messages to validate and scrub.
+
+        Returns:
+            A tuple of cleaned AgentMessage instances with PII redacted.
+
+        Raises:
+            TypeError: If any element of messages is not an AgentMessage.
+            ValueError: If any message content matches a deny pattern.
+        """
         message_tuple = tuple(messages)
         for index, message in enumerate(message_tuple):
             if not isinstance(message, AgentMessage):

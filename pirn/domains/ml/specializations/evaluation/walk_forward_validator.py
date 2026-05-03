@@ -91,6 +91,17 @@ class WalkForwardValidator(SubTapestry):
     async def process(
         self, dataset: MLDataset, **_: Any
     ) -> tuple[EvalReport, ...]:
+        """Slide a training window across the dataset for each step and return a tuple of per-fold EvalReports.
+
+        Args:
+            dataset: MLDataset reference providing row_count for window partitioning.
+
+        Returns:
+            Tuple of EvalReport objects, one per walk-forward step.
+
+        Raises:
+            ValueError: If dataset.row_count is too small for the configured steps and windows.
+        """
         required = self._train_window + self._test_window * self._n_steps
         if int(dataset.row_count) < required:
             raise ValueError(

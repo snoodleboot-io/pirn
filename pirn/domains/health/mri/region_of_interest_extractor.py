@@ -49,4 +49,9 @@ class RegionOfInterestExtractor(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> Mapping[int, float]:
+        """Extract mean intensity per ROI label from the atlas-aligned NIfTI and return a label-to-intensity mapping.
+
+        Returns:
+            Mapping of integer ROI label to mean intensity value.
+        """
         return {lbl: 0.0 for lbl in self._roi_labels}

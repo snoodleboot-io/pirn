@@ -43,6 +43,11 @@ class DICOMIngestor(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> DICOMSeries:
+        """Fetch the configured study/series from PACS and return a DICOMSeries.
+
+        Returns:
+            DICOMSeries carrying the study and series UIDs retrieved from PACS.
+        """
         return await self._client.fetch_series(
             self._study_uid, self._series_uid
         )

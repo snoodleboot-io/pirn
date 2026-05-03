@@ -39,6 +39,14 @@ class BispectrumAnalyzer(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SpectrumFrame:
+        """Estimate the bispectrum from the signal and return a SpectrumFrame of third-order spectral coefficients.
+
+        Args:
+            signal: Signal to compute the third-order cumulant spectrum from.
+
+        Returns:
+            SpectrumFrame with bins equal to half the segment length plus one.
+        """
         resolution = (
             signal.sample_rate_hz / self._segment_length
             if signal.sample_rate_hz > 0

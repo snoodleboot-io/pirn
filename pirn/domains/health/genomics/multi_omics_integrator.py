@@ -40,5 +40,10 @@ class MultiOmicsIntegrator(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> Mapping[str, Mapping[str, float]]:
+        """Merge RNA, DNA, and epigenomic feature mappings by sample and return the integrated feature map.
+
+        Returns:
+            Mapping of sample_id to an integrated feature dict (empty values at orchestration layer).
+        """
         sample_ids = set(self._rna) | set(self._dna) | set(self._epi)
         return {sid: {} for sid in sample_ids}

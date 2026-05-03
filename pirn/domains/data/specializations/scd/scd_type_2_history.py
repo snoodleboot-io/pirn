@@ -146,6 +146,12 @@ class ScdType2History(SubTapestry):
         )
 
     async def process(self, **_: Any) -> dict[str, Any]:
+        """Apply Type 2 effective-dated history logic to each source row, closing old versions and inserting new ones.
+
+        Returns:
+            A dict with keys ``succeeded``, ``target_table``, ``rows_inserted``, and ``rows_closed``
+            summarising the merge outcome.
+        """
         source_rows = await self._source_pool.fetch_all(self._source_query)
         rows_inserted = 0
         rows_closed = 0

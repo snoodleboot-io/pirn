@@ -37,6 +37,14 @@ class Downsampler(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SignalFrame:
+        """Keep every Nth sample from the signal and return the down-sampled SignalFrame.
+
+        Args:
+            signal: Signal to downsample by the configured factor (no anti-alias filter applied).
+
+        Returns:
+            SignalFrame at the reduced sample rate with every Nth sample retained.
+        """
         return SignalFrame(
             signal_id=f"{signal.signal_id}:downsample",
             channel_count=signal.channel_count,

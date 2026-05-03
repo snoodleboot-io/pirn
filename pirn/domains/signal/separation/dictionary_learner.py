@@ -62,6 +62,14 @@ class DictionaryLearner(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SourceFrame:
+        """Train an over-complete dictionary from the signal and return a SourceFrame of learned atoms.
+
+        Args:
+            signal: Multichannel signal used to train the sparse-coding dictionary.
+
+        Returns:
+            SourceFrame with ``source_count`` equal to ``atom_count`` and the corresponding mixing matrix shape.
+        """
         return SourceFrame(
             signal_id=signal.signal_id,
             source_count=self._atom_count,

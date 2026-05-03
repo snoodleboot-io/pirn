@@ -92,6 +92,17 @@ class StratifiedKFoldValidator(SubTapestry):
     async def process(
         self, dataset: MLDataset, **_: Any
     ) -> EvalReport:
+        """Run stratified K-fold cross-validation and return an aggregate EvalReport with per-fold mean metrics.
+
+        Args:
+            dataset: MLDataset reference to partition into k folds.
+
+        Returns:
+            EvalReport with averaged per-fold metrics and per-fold details in the details dict.
+
+        Raises:
+            TypeError: If any inner fold evaluator does not return an EvalReport.
+        """
         with Tapestry() as inner:
             dataset_node = _emit_value(
                 value=dataset, _config=KnotConfig(id="dataset")

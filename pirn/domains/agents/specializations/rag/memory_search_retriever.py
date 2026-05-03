@@ -52,6 +52,19 @@ class MemorySearchRetriever(Knot):
         top_k: int,
         **_: Any,
     ) -> list[Mapping[str, Any]]:
+        """Search the memory store for top_k entries matching the query and return them as a list.
+
+        Args:
+            store: The MemoryStore to search against.
+            query: The query string used for similarity search.
+            top_k: The maximum number of results to return.
+
+        Returns:
+            A list of up to top_k matching memory entries as Mapping objects.
+
+        Raises:
+            TypeError: If query is not a string.
+        """
         if not isinstance(query, str):
             raise TypeError(
                 "MemorySearchRetriever: query must be a string, "

@@ -58,6 +58,14 @@ class SubvolumeExtractor(Knot):
         super().__init__(volume=volume, _config=_config, **kwargs)
 
     async def process(self, volume: SegyVolume, **_: Any) -> SegyVolume:
+        """Crop the input volume to the configured inline, xline, and sample bounds and return the sub-volume.
+
+        Args:
+            volume: 3-D seismic volume to crop.
+
+        Returns:
+            SegyVolume trimmed to the configured inline, xline, and sample ranges.
+        """
         return SegyVolume(
             volume_id=f"{volume.volume_id}:sub",
             inline_count=self._inline_end - self._inline_start,

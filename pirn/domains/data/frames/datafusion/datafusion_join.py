@@ -83,6 +83,15 @@ class DatafusionJoin(Knot):
     async def process(
         self, left: DatafusionDataBatch, right: DatafusionDataBatch, **_: Any
     ) -> DatafusionDataBatch:
+        """Join the left and right DataFusion batches on the configured keys and return the result.
+
+        Args:
+            left: The left-side DatafusionDataBatch.
+            right: The right-side DatafusionDataBatch.
+
+        Returns:
+            A new DatafusionDataBatch containing the joined result.
+        """
         if self._on is not None:
             joined = left.frame.join(
                 right.frame, on=list(self._on), how=self._how

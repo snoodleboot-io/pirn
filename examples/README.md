@@ -112,6 +112,70 @@ nodes:
 
 ---
 
+## domain_formats
+
+End-to-end examples that wire real `pirn.domains.agents` and `pirn.domains.connectors` knots into runnable pipelines. Synthetic data is used throughout so none of them require external files or network access.
+
+### medical_triage_agent.py
+
+```bash
+uv run python examples/domain_formats/medical_triage_agent.py
+```
+
+A dynamic DAG that processes a queue of synthetic DICOM studies through a multi-step medical imaging triage pipeline. Each study is dispatched to three concurrent analysis knots — windowing parameter calculation, tissue classification, and anomaly detection — and the results are aggregated into a triage decision (routine / review / urgent). `TriageDecider` registers the next dispatcher or a terminal `_TriageReport` knot at runtime, growing the graph as the queue drains.
+
+The `DicomRecord` schema matches the output of `DicomFormat.decode()` exactly, so swapping in real DICOM files requires only replacing the `_synthetic_study()` helper with connector reads.
+
+### seismic_survey_pipeline.py
+
+```bash
+uv run python examples/domain_formats/seismic_survey_pipeline.py
+```
+
+Processes synthetic SEG-Y seismic survey data through a QC and attribute extraction pipeline. Each survey is decoded into traces, passed through frequency analysis and amplitude QC knots running in parallel, then horizon picks are extracted and a survey report assembled. Data structures match the record schema emitted by `SegyFormat`, making the step to real field data straightforward.
+
+### weather_forecast_pipeline.py
+
+```bash
+uv run python examples/domain_formats/weather_forecast_pipeline.py
+```
+
+A GRIB-backed numerical weather prediction pipeline. Synthetic forecast grids (matching `GribFormat` output) flow through ensemble decoding, surface parameter extraction, alert threshold checking, and forecast report assembly. Shows how to fan out across forecast variables in parallel and converge into a single summary per grid point.
+
+### ml_evaluation_loop.py
+
+```bash
+uv run python examples/domain_formats/ml_evaluation_loop.py
+```
+
+An ML model evaluation loop that dynamically registers a benchmark suite for each candidate model. Each model runs accuracy, latency, and memory profiling knots concurrently; results flow into an `EvaluationAggregator` and then a `PromotionDecider` that either promotes the model to production or rejects it. Demonstrates the dynamic DAG pattern applied to iterative evaluation workloads.
+
+### geospatial_layer_analysis.py
+
+```bash
+uv run python examples/domain_formats/geospatial_layer_analysis.py
+```
+
+Site suitability scoring over synthetic GeoJSON/Shapefile layers. Each candidate site is scored across four spatial analysis knots (geometry validation, elevation, land cover, planning zone) running in parallel before a composite suitability score is assembled. Record schemas align with `GeojsonFormat` and `ShapefileFormat` output.
+
+### hl7v2_message_router.py
+
+```bash
+uv run python examples/domain_formats/hl7v2_message_router.py
+```
+
+Routes synthetic HL7 v2 messages through a clinical message processing pipeline. Each message is parsed (matching `Hl7v2Format` record output), classified by message type (ADT, ORM, ORU), then dispatched to a type-specific handler knot. PHI fields are scrubbed before any downstream processing, mirroring the redaction built into `Hl7v2Format`.
+
+### genomics_batch_qc.py
+
+```bash
+uv run python examples/domain_formats/genomics_batch_qc.py
+```
+
+FASTQ sequencing run QC pipeline. Each read batch flows through quality trimming, alignment simulation, and QC metric assembly knots. Record schemas match `FastqFormat` output (`seq_id`, `sequence`, `quality`), so the pipeline accepts real FASTQ data with no code changes.
+
+---
+
 ## llm_agent
 
 ### chatbot_pipeline.py
@@ -151,6 +215,24 @@ Three action types demonstrate different graph depths:
 Knot IDs use a message-content slug (`whats_the_weather__m1i1`) so you can immediately read what each planner was working on in the explorer. A random `run_seed` is picked each run, producing a structurally different graph every time.
 
 This is the right starting point for modelling real agent workloads where the execution plan is unknown until runtime.
+
+### agent_loop_v2.py
+
+```bash
+uv run python examples/llm_agent/agent_loop_v2.py
+```
+
+A second take on the dynamic agent loop that replaces ad-hoc action helpers with real `pirn.domains.agents` composites. The outer dynamic DAG shell is identical to `agent_loop.py` — `AgentPlanner` registers actions, `AgentDecider` integrates results and grows the graph. What changes is the action layer:
+
+| Action type | Inner pipeline |
+|-------------|----------------|
+| `llm_task` | `ContextBuilder → LLMCall → OutputParser` |
+| `react` | `ReActLoop` (Reason+Act, 3 iterations) |
+| `planner` | `ContextBuilder → Planner → ToolRouter → ToolExecutor` |
+
+All three are `SubTapestry` instances and return `AgentResponse`. `StubLLMProvider` and `StubTool` (defined inline) satisfy the `LLMProvider` and `Tool` interfaces without network access — swap them for a real provider by implementing `LLMProvider.chat`.
+
+Compare this with `agent_loop.py` in the explorer: the outer topology is identical, but drilling into an action node reveals the real agent sub-graph rather than a two-step stub.
 
 ---
 

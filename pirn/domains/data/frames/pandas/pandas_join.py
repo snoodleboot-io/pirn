@@ -64,6 +64,15 @@ class PandasJoin(Knot):
     async def process(
         self, left: PandasDataBatch, right: PandasDataBatch, **_: Any
     ) -> PandasDataBatch:
+        """Merge the left and right Pandas batches on the configured keys and return the result.
+
+        Args:
+            left: The left-side PandasDataBatch.
+            right: The right-side PandasDataBatch.
+
+        Returns:
+            A new PandasDataBatch containing the merged result.
+        """
         suffixes = ("", self._suffix)
         if self._how == "cross":
             joined = left.frame.merge(

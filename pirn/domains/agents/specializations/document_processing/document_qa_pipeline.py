@@ -76,6 +76,18 @@ class DocumentQAPipeline(SubTapestry):
         question: str,
         **_: Any,
     ) -> AgentResponse:
+        """Retrieve the top-k relevant chunks from source and answer the question via the LLM.
+
+        Args:
+            source: A local file path or http(s):// URL identifying the document to search.
+            question: The natural-language question to answer from the document.
+
+        Returns:
+            An AgentResponse containing the LLM's answer grounded in the retrieved chunks.
+
+        Raises:
+            TypeError: If source or question is not a non-empty string.
+        """
         if not isinstance(source, str) or not source:
             raise TypeError(
                 "DocumentQAPipeline: source must be a non-empty string, "

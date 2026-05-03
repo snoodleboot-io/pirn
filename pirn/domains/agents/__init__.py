@@ -11,4 +11,6 @@ domain.
 See ``planning/current/domain-knot-libraries-prd.md`` for the full catalog.
 """
 
-__all__: list[str] = []
+from pirn.domains.agents.tool_decorator import FunctionTool, tool
+
+__all__ = ["tool", "FunctionTool"]

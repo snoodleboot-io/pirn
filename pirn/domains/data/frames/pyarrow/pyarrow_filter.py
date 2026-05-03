@@ -66,6 +66,14 @@ class PyarrowFilter(Knot):
         return self._expression
 
     async def process(self, batch: PyarrowDataBatch, **_: Any) -> PyarrowDataBatch:
+        """Apply the configured PyArrow expression or callable predicate to filter the table rows.
+
+        Args:
+            batch: The upstream PyarrowDataBatch to filter.
+
+        Returns:
+            A new PyarrowDataBatch containing only rows that satisfy the expression or predicate.
+        """
         if self._expression is not None:
             mask: Any = self._expression
         else:

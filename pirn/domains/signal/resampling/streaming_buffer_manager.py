@@ -52,6 +52,14 @@ class StreamingBufferManager(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SignalFrame:
+        """Frame the input signal into overlapping blocks and return the buffered SignalFrame.
+
+        Args:
+            signal: Streaming signal to partition into overlapping frames.
+
+        Returns:
+            SignalFrame representing the overlap-add buffered output with the same sample count.
+        """
         return SignalFrame(
             signal_id=f"{signal.signal_id}:framed",
             channel_count=signal.channel_count,

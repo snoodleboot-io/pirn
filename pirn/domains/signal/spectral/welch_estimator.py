@@ -53,6 +53,14 @@ class WelchEstimator(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SpectrumFrame:
+        """Estimate the PSD via Welch's averaged modified periodogram method and return a SpectrumFrame.
+
+        Args:
+            signal: Signal to estimate the power spectral density from via Welch's method.
+
+        Returns:
+            SpectrumFrame with ``frequency_bins`` equal to half the segment length plus one.
+        """
         resolution = (
             signal.sample_rate_hz / self._segment_length
             if signal.sample_rate_hz > 0

@@ -54,6 +54,14 @@ class DatabaseQuerySource(Source):
         return self._parameters
 
     async def process(self, **_: Any) -> list[tuple[Any, ...]]:
+        """Run the configured SELECT query against the pool and return the result rows.
+
+        Returns:
+            A list of row tuples returned by the database.
+
+        Raises:
+            TypeError: If the pool does not support fetch_all.
+        """
         # ``fetch_all`` is a method on every concrete pool we ship; it's not
         # part of the DatabaseConnectionPool interface so we duck-call it.
         # Concrete pools without fetch_all should subclass and add it.

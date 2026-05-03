@@ -4,7 +4,7 @@ Wires ``ReActStepExecutor`` outputs back into the running message tail
 inside a :class:`ReActLoop`. The current step's messages are always
 appended (a ``Final Answer:`` message must remain in the transcript so
 the response extractor can surface it). The upstream
-:class:`ReActTerminationGate` decides whether *subsequent* unrolled
+:class:`ReActTerminationCheck` decides whether *subsequent* unrolled
 steps should be skipped — when ``already_terminated`` is true, the
 accumulator returns the prior messages unchanged so downstream steps
 become no-ops.
@@ -46,6 +46,16 @@ class ReActStepAccumulator(Knot):
         already_terminated: bool,
         **_: Any,
     ) -> tuple[AgentMessage, ...]:
+        """Append step_output to prior messages, or return prior unchanged if already terminated.
+
+        Args:
+            prior: The accumulated messages from all previous steps.
+            step_output: The new messages produced by the current step.
+            already_terminated: Whether a prior step has already signalled termination.
+
+        Returns:
+            The prior messages extended with step_output, or just prior if already terminated.
+        """
         prior_tuple = tuple(prior)
         if already_terminated:
             return prior_tuple

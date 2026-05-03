@@ -43,4 +43,9 @@ class IntensityNormalizer(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> str:
+        """Normalise MRI intensities using the configured method and return the output NIfTI path.
+
+        Returns:
+            Path string for the intensity-normalised NIfTI output file.
+        """
         return self._output_nifti_path

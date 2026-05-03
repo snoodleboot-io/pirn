@@ -39,6 +39,14 @@ class PandasRename(Knot):
         return dict(self._mapping)
 
     async def process(self, batch: PandasDataBatch, **_: Any) -> PandasDataBatch:
+        """Rename columns in the batch according to the configured mapping and return the result.
+
+        Args:
+            batch: The PandasDataBatch whose columns are to be renamed.
+
+        Returns:
+            A new PandasDataBatch with the applicable columns renamed.
+        """
         # Restrict to columns actually present so callers can declare a
         # superset mapping safely (mirrors PolarsRename behaviour).
         applicable = {

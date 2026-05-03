@@ -66,6 +66,16 @@ class ShadowDeploymentPipeline(SubTapestry):
         challenger: TrainedModel,
         **_: Any,
     ) -> Mapping[str, Any]:
+        """Shadow-deploy both the champion and challenger, record a divergence event, and return their deployment ids and the divergence id.
+
+        Args:
+            champion: Current production TrainedModel to shadow-deploy.
+            challenger: Candidate TrainedModel to shadow-deploy alongside the champion.
+
+        Returns:
+            Mapping with ``champion_deployment_id``, ``challenger_deployment_id``,
+            and ``divergence_id`` (a deterministic digest of the two model ids).
+        """
         with Tapestry() as inner:
             champion_node = _emit_value(
                 value=champion, _config=KnotConfig(id="champion")

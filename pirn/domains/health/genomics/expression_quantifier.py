@@ -41,4 +41,9 @@ class ExpressionQuantifier(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> Mapping[str, float]:
+        """Quantify RNA-seq expression from the BAM and annotation and return a gene-id-to-count mapping.
+
+        Returns:
+            Mapping of gene_id to expression count (empty at orchestration layer).
+        """
         return {}

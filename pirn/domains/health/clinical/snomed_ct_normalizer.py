@@ -43,4 +43,9 @@ class SnomedCTNormalizer(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> tuple[str, ...]:
+        """Look up each ICD code in the mapping and return the corresponding SNOMED CT identifier strings.
+
+        Returns:
+            A tuple of SNOMED CT identifier strings, one per input code, or empty string when unmapped.
+        """
         return tuple(self._mapping.get(code, "") for code in self._codes)

@@ -50,5 +50,13 @@ class IbisFilter(Knot):
         return self._predicate
 
     async def process(self, batch: IbisTable, **_: Any) -> IbisTable:
+        """Apply the callable predicate to extend the deferred Ibis expression with a filter.
+
+        Args:
+            batch: The upstream IbisTable whose expression will be filtered.
+
+        Returns:
+            A new IbisTable with the filter predicate appended to the deferred expression.
+        """
         expression = self._predicate(batch.expression)
         return batch.with_expression(batch.expression.filter(expression))

@@ -55,6 +55,18 @@ class EnumClassifierPipeline(SubTapestry):
         super().__init__(prompt=prompt, _config=_config, **kwargs)
 
     async def process(self, prompt: str, **_: Any) -> str:
+        """Classify the prompt into one of the allowed labels and return the matching label string.
+
+        Args:
+            prompt: The text to classify against the configured label set.
+
+        Returns:
+            The label string selected by the LLM from the allowed set.
+
+        Raises:
+            TypeError: If prompt is not a string.
+            ValueError: If the classifier produces a non-string result.
+        """
         if not isinstance(prompt, str):
             raise TypeError(
                 "EnumClassifierPipeline: prompt must be a string, "

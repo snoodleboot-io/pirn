@@ -30,6 +30,14 @@ class PandasToDataBatch(Knot):
         super().__init__(batch=batch, _config=_config, **kwargs)
 
     async def process(self, batch: PandasDataBatch, **_: Any) -> DataBatch:
+        """Materialise the Pandas DataFrame to row dicts and return a Tier-1 DataBatch.
+
+        Args:
+            batch: The PandasDataBatch whose DataFrame is materialised to row dicts.
+
+        Returns:
+            A Tier-1 DataBatch containing the materialised rows with source_uri and fetched_at preserved.
+        """
         rows = tuple(batch.frame.to_dict(orient="records"))
         return DataBatch(
             rows=rows,

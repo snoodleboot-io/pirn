@@ -60,6 +60,14 @@ class RecurrenceAnalyzer(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> Mapping[str, Any]:
+        """Run recurrence quantification analysis on the signal and return a parameter mapping.
+
+        Args:
+            signal: Time series signal to analyse with recurrence quantification.
+
+        Returns:
+            Mapping containing ``signal_id``, ``embedding_dim``, ``time_delay``, and ``recurrence_threshold``.
+        """
         return {
             "signal_id": signal.signal_id,
             "embedding_dim": self._embedding_dim,

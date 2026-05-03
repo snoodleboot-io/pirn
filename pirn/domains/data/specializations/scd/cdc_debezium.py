@@ -90,6 +90,12 @@ class CDCDebezium(SubTapestry):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> dict[str, Any]:
+        """Consume Debezium change events from the broker topic and apply them to the target table.
+
+        Returns:
+            A dict with keys ``succeeded``, ``target_table``, ``applied``, and ``errors``
+            summarising how many change events were applied.
+        """
         applied = 0
         errors = 0
         consumed = 0

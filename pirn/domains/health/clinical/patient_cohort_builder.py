@@ -57,6 +57,11 @@ class PatientCohortBuilder(SubTapestry):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> RunResult:
+        """Apply each named eligibility filter stage in order and return the inner RunResult.
+
+        Returns:
+            A RunResult summarising the outcome of the inner tapestry execution.
+        """
         with Tapestry() as inner:
             current = tuple(self._records)
             seed = _PassThrough(

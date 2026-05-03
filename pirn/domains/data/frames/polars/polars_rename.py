@@ -39,6 +39,14 @@ class PolarsRename(Knot):
         return dict(self._mapping)
 
     async def process(self, batch: PolarsDataBatch, **_: Any) -> PolarsDataBatch:
+        """Rename columns in the batch according to the configured mapping and return the result.
+
+        Args:
+            batch: The upstream PolarsDataBatch whose columns will be renamed.
+
+        Returns:
+            A new PolarsDataBatch with the applicable columns renamed.
+        """
         # Polars rejects unknown columns; restrict to those present.
         applicable = {
             old: new for old, new in self._mapping.items()

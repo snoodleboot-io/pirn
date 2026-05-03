@@ -38,6 +38,11 @@ class PowerSpectrumEstimator(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> Mapping[str, float]:
+        """Estimate per-band power of the signal using the configured method and return band-name-to-power mapping.
+
+        Returns:
+            A mapping from frequency band name (delta/theta/alpha/beta/gamma) to estimated power.
+        """
         return {
             "delta": 0.0,
             "theta": 0.0,

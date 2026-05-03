@@ -39,6 +39,11 @@ class PvtTableProcessor(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> PVTTable:
+        """Assemble the PVT lookup table from the configured fluid and grid parameters and return a PVTTable reference.
+
+        Returns:
+            PVTTable built from the configured fluid ID and pressure/temperature grid sizes.
+        """
         return PVTTable(
             fluid_id=self._fluid_id,
             pressure_count=self._pressure_count,

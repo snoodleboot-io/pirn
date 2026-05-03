@@ -41,4 +41,9 @@ class RxNormNormalizer(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> tuple[str, ...]:
+        """Look up each drug name in the mapping and return the corresponding RxCUI code strings.
+
+        Returns:
+            A tuple of RxCUI strings, one per input drug name, or empty string when unmapped.
+        """
         return tuple(self._mapping.get(name, "") for name in self._drug_names)

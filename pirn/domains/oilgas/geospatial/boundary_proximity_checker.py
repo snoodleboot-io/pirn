@@ -39,6 +39,18 @@ class BoundaryProximityChecker(Knot):
         boundary: dict[str, Any],
         **_: Any,
     ) -> dict[str, Any]:
+        """Check whether the projected well location lies within the buffered field boundary and return the proximity result.
+
+        Args:
+            location: Projected well location dict containing ``well_id``,
+                ``x``, and ``y``.
+            boundary: Field boundary dict containing ``field_id`` and vertex
+                geometry.
+
+        Returns:
+            Dict with ``well_id``, ``field_id``, ``within_buffer`` (bool),
+            and ``buffer_distance_m``.
+        """
         return {
             "well_id": location.get("well_id", ""),
             "field_id": boundary.get("field_id", ""),

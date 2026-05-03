@@ -51,6 +51,14 @@ class BandPassFilter(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SignalFrame:
+        """Apply the band-pass filter to the input signal and return the filtered SignalFrame.
+
+        Args:
+            signal: Signal to band-pass filter.
+
+        Returns:
+            SignalFrame with frequencies outside the configured band attenuated.
+        """
         return SignalFrame(
             signal_id=f"{signal.signal_id}:bandpass",
             channel_count=signal.channel_count,

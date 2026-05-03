@@ -43,6 +43,14 @@ class BesselFilter(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SignalFrame:
+        """Apply the Bessel IIR filter to the input signal and return the phase-linearised SignalFrame.
+
+        Args:
+            signal: Signal to filter with maximally-linear phase response.
+
+        Returns:
+            SignalFrame filtered by the configured Bessel IIR design.
+        """
         return SignalFrame(
             signal_id=f"{signal.signal_id}:bessel",
             channel_count=signal.channel_count,

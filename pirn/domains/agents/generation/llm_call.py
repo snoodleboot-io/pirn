@@ -52,6 +52,19 @@ class LLMCall(Knot):
         model: str | None,
         **_: Any,
     ) -> Mapping[str, Any]:
+        """Call the LLM with the context messages and return the raw response mapping.
+
+        Args:
+            context: The agent context containing the messages to send.
+            llm: LLM provider used to perform the chat completion.
+            model: Optional model identifier override; uses the provider default if None.
+
+        Returns:
+            The raw response mapping returned by the LLM provider.
+
+        Raises:
+            TypeError: If context is not an AgentContext instance.
+        """
         if not isinstance(context, AgentContext):
             raise TypeError(
                 "LLMCall: context must be an AgentContext, "

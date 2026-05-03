@@ -45,4 +45,9 @@ class ImageRegistrar(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> str:
+        """Register the moving image to the fixed image using the configured transform and return the output path.
+
+        Returns:
+            Path string for the registered output image file.
+        """
         return self._output_registered_path

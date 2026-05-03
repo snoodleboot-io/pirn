@@ -39,6 +39,14 @@ class ChirpletDecomposer(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SpectrumFrame:
+        """Decompose the signal into chirplet atoms and return a SpectrumFrame of transform coefficients.
+
+        Args:
+            signal: Non-stationary signal to decompose using the chirplet transform.
+
+        Returns:
+            SpectrumFrame with ``frequency_bins`` equal to ``chirplet_count``.
+        """
         return SpectrumFrame(
             signal_id=signal.signal_id,
             frequency_bins=self._chirplet_count,

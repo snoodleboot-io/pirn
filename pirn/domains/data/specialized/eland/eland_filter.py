@@ -49,6 +49,14 @@ class ElandFilter(Knot):
         return self._predicate
 
     async def process(self, frame: ElandDataFrame, **_: Any) -> ElandDataFrame:
+        """Apply the callable predicate to the eland frame and return a filtered ElandDataFrame.
+
+        Args:
+            frame: The upstream ElandDataFrame to filter.
+
+        Returns:
+            A new ElandDataFrame with the predicate applied as a push-down filter.
+        """
         mask = self._predicate(frame.frame)
         filtered = frame.frame[mask]
         return ElandDataFrame(

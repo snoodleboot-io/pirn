@@ -83,6 +83,17 @@ class Branch(Knot):
         return self._mutable_branch_names
 
     async def process(self, input: Any, **_: Any) -> str:  # type: ignore[override]
+        """Apply the selector to the input value and return the name of the chosen branch.
+
+        Args:
+            input: Value produced by the upstream knot, forwarded unchanged to the selector.
+
+        Returns:
+            Name of the branch selected by the selector callable.
+
+        Raises:
+            RuntimeError: If the selector returns a name not in the declared branches tuple.
+        """
         chosen = self._mutable_selector(input)
         if chosen not in self._mutable_branch_names:
             raise RuntimeError(

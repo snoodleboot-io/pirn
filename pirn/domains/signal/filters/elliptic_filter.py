@@ -66,6 +66,14 @@ class EllipticFilter(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SignalFrame:
+        """Apply the elliptic IIR filter to the input signal and return the filtered SignalFrame.
+
+        Args:
+            signal: Signal to filter with the sharpest achievable transition band.
+
+        Returns:
+            SignalFrame filtered by the configured Cauer / elliptic IIR.
+        """
         return SignalFrame(
             signal_id=f"{signal.signal_id}:ellip",
             channel_count=signal.channel_count,

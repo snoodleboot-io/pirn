@@ -44,6 +44,14 @@ class FFTAnalyzer(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SpectrumFrame:
+        """Compute the forward FFT of the signal and return a SpectrumFrame of magnitude bins.
+
+        Args:
+            signal: Signal to transform into the frequency domain.
+
+        Returns:
+            SpectrumFrame with ``frequency_bins`` equal to ``n_fft // 2 + 1``.
+        """
         resolution = (
             signal.sample_rate_hz / self._n_fft
             if signal.sample_rate_hz > 0

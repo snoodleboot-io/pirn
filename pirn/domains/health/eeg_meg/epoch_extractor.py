@@ -53,6 +53,11 @@ class EpochExtractor(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> tuple[SignalFrame, ...]:
+        """Slice the signal around each event time and return one SignalFrame per epoch.
+
+        Returns:
+            A tuple of SignalFrames, one per event time, each spanning tmin_sec to tmax_sec.
+        """
         # Production: slice the underlying ndarray around each event time.
         epoch_samples = max(
             1,

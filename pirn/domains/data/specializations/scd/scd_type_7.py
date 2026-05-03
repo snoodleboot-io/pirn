@@ -113,6 +113,11 @@ class ScdType7(SubTapestry):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> dict[str, Any]:
+        """Run a Type 7 SCD merge by extracting source rows and applying surrogate-keyed row versioning.
+
+        Returns:
+            A dict with keys ``succeeded`` and ``target_table`` summarising the run outcome.
+        """
         with Tapestry() as inner:
             extracted = DatabaseQuerySource(
                 pool=self._source_pool,

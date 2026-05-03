@@ -48,6 +48,14 @@ class CWTDecomposer(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> WaveletFrame:
+        """Compute the continuous wavelet transform of the signal and return a WaveletFrame.
+
+        Args:
+            signal: Signal to decompose using the configured wavelet at the configured scale count.
+
+        Returns:
+            WaveletFrame of CWT coefficients with ``scale_count`` scales.
+        """
         return WaveletFrame(
             signal_id=signal.signal_id,
             wavelet_name=self._wavelet_name,

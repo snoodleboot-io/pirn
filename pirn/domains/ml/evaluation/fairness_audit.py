@@ -56,6 +56,15 @@ class FairnessAudit(Knot):
     async def process(
         self, model: TrainedModel, split: DataSplit, **_: Any
     ) -> EvalReport:
+        """Compute per-group parity scores for each sensitive column and return an EvalReport.
+
+        Args:
+            model: TrainedModel reference to audit.
+            split: DataSplit whose test partition is used for per-group scoring.
+
+        Returns:
+            EvalReport with parity_<column> metrics for every sensitive column.
+        """
         metrics: dict[str, float] = {}
         details: dict[str, Any] = {
             "model_id": model.model_id,

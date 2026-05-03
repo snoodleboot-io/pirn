@@ -46,4 +46,9 @@ class TissueSegmenter(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> tuple[WSITile, ...]:
+        """Segment tissue-containing tiles from the slide using the configured threshold and return the passing tiles.
+
+        Returns:
+            Tuple of WSITile objects that contain tissue above the configured threshold.
+        """
         return self._tiles

@@ -53,6 +53,18 @@ class ToolExecutor(Knot):
         tools: tuple[Tool, ...],
         **_: Any,
     ) -> ToolResult:
+        """Dispatch a ToolCall to the matching tool and return the result or a captured error.
+
+        Args:
+            call: The tool call specifying the tool name, arguments, and call ID.
+            tools: The registered tools available for dispatch.
+
+        Returns:
+            A ToolResult with the invocation result or a stringified error if invocation failed.
+
+        Raises:
+            TypeError: If call is not a ToolCall instance.
+        """
         if not isinstance(call, ToolCall):
             raise TypeError(
                 "ToolExecutor: call must be a ToolCall, "

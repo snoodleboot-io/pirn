@@ -66,6 +66,20 @@ class IntentClassifier(Knot):
         intent_categories: tuple[str, ...],
         **_: Any,
     ) -> str:
+        """Ask the LLM to classify the context into one of the declared intent categories and return the label.
+
+        Args:
+            context: The agent context whose last user message is classified.
+            llm: LLM provider used to perform the classification.
+            intent_categories: The set of allowed intent label strings.
+
+        Returns:
+            The matched intent label string from the declared categories.
+
+        Raises:
+            TypeError: If context is not an AgentContext instance.
+            ValueError: If the LLM response does not match any declared intent.
+        """
         if not isinstance(context, AgentContext):
             raise TypeError(
                 "IntentClassifier: context must be an AgentContext, "

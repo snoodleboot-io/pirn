@@ -29,6 +29,16 @@ class CoordinateSystemTransformer(Knot):
     async def process(
         self, location: dict[str, Any], **_: Any
     ) -> dict[str, Any]:
+        """Transform the (x, y) location from its source CRS to the configured target CRS and return the reprojected record.
+
+        Args:
+            location: Source location dict containing ``well_id``, ``x``,
+                ``y``, and optionally ``crs``.
+
+        Returns:
+            Dict with ``well_id``, reprojected ``x`` and ``y`` coordinates,
+            and the target ``crs`` string.
+        """
         return {
             "well_id": location.get("well_id", ""),
             "x": float(location.get("x", 0.0)),

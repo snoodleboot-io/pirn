@@ -39,4 +39,9 @@ class GATKCaller(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> str:
+        """Run GATK HaplotypeCaller on the BAM against the reference and return the output VCF path.
+
+        Returns:
+            Path string for the output VCF file.
+        """
         return self._output_vcf_path

@@ -37,6 +37,17 @@ class RiskBasedInspectionScorer(Knot):
         corrosion_assessment: dict[str, float],
         **_: Any,
     ) -> dict[str, float]:
+        """Compute the RBI risk score as probability_of_failure x consequence from the corrosion assessment and return it.
+
+        Args:
+            corrosion_assessment: Dict of corrosion rates (e.g.
+                ``max_rate_mpy``) from which the probability of failure is
+                derived.
+
+        Returns:
+            Dict with ``probability_of_failure``, ``consequence``, and
+            ``risk_score`` (product of the two).
+        """
         max_rate = float(corrosion_assessment.get("max_rate_mpy", 0.0))
         pof = min(max_rate / 10.0, 1.0)
         return {

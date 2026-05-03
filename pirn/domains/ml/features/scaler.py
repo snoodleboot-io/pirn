@@ -60,6 +60,14 @@ class Scaler(Knot):
         return self._columns
 
     async def process(self, split: DataSplit, **_: Any) -> DataSplit:
+        """Logically scale each partition's MLDataset using the configured method and return the renamed DataSplit.
+
+        Args:
+            split: DataSplit whose partitions are logically tagged with the scaling suffix.
+
+        Returns:
+            DataSplit with each partition renamed to include the ``scaled_<method>`` suffix.
+        """
         suffix = f"scaled_{self._method}"
         now = datetime.now(timezone.utc)
         return DataSplit(

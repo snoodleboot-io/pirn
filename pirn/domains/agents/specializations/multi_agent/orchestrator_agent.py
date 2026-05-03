@@ -66,6 +66,17 @@ class OrchestratorAgent(SubTapestry):
         super().__init__(task=task, _config=_config, **kwargs)
 
     async def process(self, task: str, **_: Any) -> AgentResponse:
+        """Route the task to the LLM-selected specialist and return its AgentResponse.
+
+        Args:
+            task: The natural-language task string to route to a specialist.
+
+        Returns:
+            The AgentResponse produced by the selected specialist.
+
+        Raises:
+            TypeError: If task is not a string.
+        """
         if not isinstance(task, str):
             raise TypeError(
                 "OrchestratorAgent: task must be a string, "

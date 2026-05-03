@@ -34,4 +34,12 @@ class FaultDetector(Knot):
     async def process(
         self, attribute_volume: SegyVolume, **_: Any
     ) -> SegyVolume:
+        """Threshold the coherence attribute volume at the configured level and return a fault-mask SegyVolume.
+
+        Args:
+            attribute_volume: Coherence or discontinuity attribute volume to threshold.
+
+        Returns:
+            SegyVolume representing the binary fault mask.
+        """
         return SegyVolume(volume_id=f"{attribute_volume.volume_id}:faults")

@@ -71,6 +71,15 @@ class RayCompute(Sink):
         return self._return_pandas
 
     async def process(self, batch: RayDataset, **_: Any) -> Any:
+        """Materialise the Ray Dataset plan, writing to a path or returning a receipt or pandas frame.
+
+        Args:
+            batch: The upstream RayDataset whose plan will be materialised.
+
+        Returns:
+            A RayExecutionReceipt if writing to disk or materialising without
+            return_pandas, or a pandas DataFrame when return_pandas is True.
+        """
         if self._target_path is not None:
             assert self._writer is not None
             self._writer(batch.dataset, self._target_path, **self._writer_kwargs)

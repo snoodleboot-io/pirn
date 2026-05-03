@@ -42,4 +42,9 @@ class PathwayEnricher(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> Mapping[str, Mapping[str, float]]:
+        """Run pathway enrichment on the ranked gene list against the gene-set database and return pathway-to-stats mapping.
+
+        Returns:
+            Mapping of pathway name to enrichment statistics (empty at orchestration layer).
+        """
         return {}

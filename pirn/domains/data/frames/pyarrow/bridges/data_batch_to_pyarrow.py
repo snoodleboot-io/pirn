@@ -31,6 +31,14 @@ class DataBatchToPyarrow(Knot):
         super().__init__(batch=batch, _config=_config, **kwargs)
 
     async def process(self, batch: DataBatch, **_: Any) -> PyarrowDataBatch:
+        """Convert a Tier-1 DataBatch of row dicts into a PyarrowDataBatch.
+
+        Args:
+            batch: The upstream Tier-1 DataBatch to convert.
+
+        Returns:
+            A PyarrowDataBatch wrapping a PyArrow table built from the row dicts.
+        """
         if not batch.rows:
             # PyArrow has no concept of a 0-column "empty table" beyond a
             # zero-row table with a schema; without column hints we hand

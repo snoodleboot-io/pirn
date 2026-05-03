@@ -49,6 +49,14 @@ class Deduplicate(Knot):
         return self._keys
 
     async def process(self, batch: DataBatch, **_: Any) -> DataBatch:
+        """Drop rows whose key tuple has already been seen, keeping the first occurrence.
+
+        Args:
+            batch: The DataBatch to deduplicate.
+
+        Returns:
+            A new DataBatch with duplicate rows removed, preserving original row order.
+        """
         seen: set[tuple[Any, ...]] = set()
         kept: list[Mapping[str, Any]] = []
         for row in batch.rows:

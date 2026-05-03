@@ -48,4 +48,9 @@ class RadiomicsExtractor(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> Mapping[str, float]:
+        """Extract radiomic features from the image-mask pair for the configured feature classes and return the mapping.
+
+        Returns:
+            Mapping of feature name to radiomic value (empty at orchestration layer).
+        """
         return {}

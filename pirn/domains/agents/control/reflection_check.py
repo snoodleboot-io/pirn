@@ -1,4 +1,4 @@
-"""``ReflectionGate`` — LLM-driven decision on whether to iterate again."""
+"""``ReflectionCheck`` — LLM-driven decision on whether to iterate again."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from pirn.domains.agents.llm_provider import LLMProvider
 from pirn.domains.agents.types.agent_response import AgentResponse
 
 
-class ReflectionGate(Knot):
+class ReflectionCheck(Knot):
     """Asks an :class:`LLMProvider` whether the agent should iterate again.
 
     The LLM is prompted to answer ``yes`` (iterate) or ``no``
@@ -19,6 +19,8 @@ class ReflectionGate(Knot):
     returns ``False``.
     """
 
+    #: System prompt sent to the LLM. Override on a subclass to customise the
+    #: reflection instruction without changing any other behaviour.
     reflection_prompt: ClassVar[str] = (
         "You are an agent reflection assistant. Given the response "
         "below, decide whether the agent should iterate again to "
@@ -36,7 +38,7 @@ class ReflectionGate(Knot):
     ) -> None:
         if not isinstance(llm, LLMProvider):
             raise TypeError(
-                "ReflectionGate: llm must be an LLMProvider, "
+                "ReflectionCheck: llm must be an LLMProvider, "
                 f"got {type(llm).__name__}"
             )
         super().__init__(
@@ -52,9 +54,21 @@ class ReflectionGate(Knot):
         llm: LLMProvider,
         **_: Any,
     ) -> bool:
+        """Ask the LLM whether the agent should iterate again and return the yes/no decision.
+
+        Args:
+            response: The agent response to evaluate for further iteration.
+            llm: LLM provider used to make the reflection judgment.
+
+        Returns:
+            True if the LLM indicates the agent should iterate again, False otherwise.
+
+        Raises:
+            TypeError: If response is not an AgentResponse instance.
+        """
         if not isinstance(response, AgentResponse):
             raise TypeError(
-                "ReflectionGate: response must be an AgentResponse, "
+                "ReflectionCheck: response must be an AgentResponse, "
                 f"got {type(response).__name__}"
             )
         wire_messages = (
@@ -78,6 +92,6 @@ class ReflectionGate(Knot):
                 if isinstance(first, dict) and isinstance(first.get("text"), str):
                     return first["text"]
         raise TypeError(
-            "ReflectionGate: cannot extract text from response of type "
+            "ReflectionCheck: cannot extract text from response of type "
             f"{type(raw).__name__}"
         )

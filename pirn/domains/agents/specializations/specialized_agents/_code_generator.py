@@ -30,6 +30,17 @@ class _CodeGenerator(Knot):
         super().__init__(task=task, _config=_config, **kwargs)
 
     async def process(self, task: str, **_: Any) -> str:
+        """Ask the LLM to generate code for the task in the configured language and return it.
+
+        Args:
+            task: The non-empty task description used to prompt the LLM for code generation.
+
+        Returns:
+            The raw code string emitted by the LLM.
+
+        Raises:
+            TypeError: If task is not a non-empty string.
+        """
         if not isinstance(task, str) or not task:
             raise TypeError(
                 "CodeAgent: task must be a non-empty string, "

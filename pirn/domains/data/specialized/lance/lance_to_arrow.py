@@ -34,4 +34,12 @@ class LanceToArrow(Knot):
         super().__init__(dataset=dataset, _config=_config, **kwargs)
 
     async def process(self, dataset: LanceDataset, **_: Any) -> Any:
+        """Materialise the LanceDataset to a PyArrow table and return it.
+
+        Args:
+            dataset: The upstream LanceDataset to materialise.
+
+        Returns:
+            A pyarrow.Table containing all rows from the Lance dataset.
+        """
         return dataset.dataset.to_table()

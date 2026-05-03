@@ -42,4 +42,9 @@ class VolumetricAnalyzer(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> Mapping[str, float]:
+        """Compute per-region volumes from the labelled NIfTI and return a region-to-volume-mm3 mapping.
+
+        Returns:
+            Mapping of region name to volume in cubic millimetres.
+        """
         return {region: 0.0 for region in self._regions}

@@ -55,6 +55,15 @@ class SchemaValidator(Knot):
         return self._schema
 
     async def process(self, batch: DataBatch, **_: Any) -> QualityReport:
+        """Validate each batch row against the declared schema and return a QualityReport.
+
+        Args:
+            batch: The DataBatch to validate against the configured schema.
+
+        Returns:
+            A QualityReport with presence, type, and nullability checks for each
+            declared schema column.
+        """
         checks: list[QualityCheck] = []
         for column, expected_type in self._schema.columns.items():
             checks.extend(self._check_column(batch, column, expected_type))

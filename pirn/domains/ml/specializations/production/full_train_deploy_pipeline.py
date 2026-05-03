@@ -115,6 +115,12 @@ class FullTrainDeployPipeline(SubTapestry):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> Mapping[str, Any]:
+        """Load data, split, train, evaluate, serialise, and register the model; return a summary mapping with model_id and eval report.
+
+        Returns:
+            Mapping with ``model_id`` (str registered in the object store) and
+            ``eval_report`` (:class:`EvalReport` from the evaluation stage).
+        """
         with Tapestry() as inner:
             dataset = DatasetLoader(
                 name=self._name,

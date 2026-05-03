@@ -50,4 +50,12 @@ class PolarsFilter(Knot):
         return self._expression
 
     async def process(self, batch: PolarsDataBatch, **_: Any) -> PolarsDataBatch:
+        """Apply the Polars expression predicate to filter rows and return the resulting batch.
+
+        Args:
+            batch: The upstream PolarsDataBatch to filter.
+
+        Returns:
+            A new PolarsDataBatch containing only rows that satisfy the expression.
+        """
         return batch.with_frame(batch.frame.filter(self._expression))

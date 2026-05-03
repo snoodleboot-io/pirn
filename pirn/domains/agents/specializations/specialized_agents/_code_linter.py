@@ -28,6 +28,14 @@ class _CodeLinter(Knot):
         super().__init__(code=code, _config=_config, **kwargs)
 
     async def process(self, code: str, **_: Any) -> list[str]:
+        """Check the generated code for structural issues and return a list of warning strings.
+
+        Args:
+            code: The generated code string to inspect for structural issues.
+
+        Returns:
+            A list of warning strings; empty when no issues are detected.
+        """
         warnings: list[str] = []
         if not code.strip():
             warnings.append("generated code is empty")

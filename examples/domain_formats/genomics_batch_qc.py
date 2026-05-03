@@ -50,7 +50,9 @@ from __future__ import annotations
 import asyncio
 import random
 from dataclasses import dataclass
+from pathlib import Path
 
+from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
@@ -279,8 +281,8 @@ async def summarise_run(alignments: list[AlignmentResult]) -> RunSummary:
 # ----------------------------------------------------------------- pipeline
 
 
-def build_tapestry() -> Tapestry:
-    with Tapestry(history=None) as t:
+def build_tapestry(history=None) -> Tapestry:
+    with Tapestry(history=history) as t:
         reads_batch = Parameter("reads_batch", list, _config=KnotConfig(id="reads_batch"))
 
         qc_results = qc_read(read=Map(reads_batch), _config=KnotConfig(id="qc"))
@@ -358,7 +360,8 @@ def _synthetic_reads(run_name: str, n_reads: int) -> list[FastqRead]:
 
 
 async def main() -> None:
-    t = build_tapestry()
+    history = SQLiteHistory(path=str(Path(__file__).parent.parent / "pirn.db"))
+    t = build_tapestry(history=history)
 
     run_a_reads = _synthetic_reads(run_name="RUN001", n_reads=12)
     run_b_reads = _synthetic_reads(run_name="RUN002", n_reads=8)

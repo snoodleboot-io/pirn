@@ -50,6 +50,14 @@ class Interpolator(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SignalFrame:
+        """Interpolate the signal to the configured target sample rate and return the upsampled SignalFrame.
+
+        Args:
+            signal: Signal to interpolate to a higher sample rate.
+
+        Returns:
+            SignalFrame at the configured target sample rate with an adjusted sample count.
+        """
         if signal.sample_rate_hz > 0:
             ratio = self._target_sample_rate_hz / signal.sample_rate_hz
             new_samples = int(signal.samples_per_channel * ratio)

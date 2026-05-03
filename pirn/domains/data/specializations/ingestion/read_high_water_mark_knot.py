@@ -50,6 +50,14 @@ class ReadHighWaterMarkKnot(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> Any:
+        """Query MAX of the watermark column from the target table and return the value or None.
+
+        Returns:
+            The maximum watermark value found in the target table, or None when the table is empty.
+
+        Raises:
+            TypeError: If the pool does not support fetch_all().
+        """
         fetch_all = getattr(self._pool, "fetch_all", None)
         if fetch_all is None:
             raise TypeError(

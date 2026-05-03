@@ -39,6 +39,14 @@ class FormationTopPicker(Knot):
         super().__init__(las_file=las_file, _config=_config, **kwargs)
 
     async def process(self, las_file: LASFile, **_: Any) -> FormationTop:
+        """Accept a parsed LAS file and return a FormationTop at the configured depth.
+
+        Args:
+            las_file: Parsed LAS file providing well identity and depth context.
+
+        Returns:
+            FormationTop at the configured measured depth and formation name.
+        """
         return FormationTop(
             well_id=las_file.well_id,
             formation_name=self._formation_name,

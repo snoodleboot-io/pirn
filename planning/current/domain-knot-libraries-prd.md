@@ -152,7 +152,7 @@ LLM-driven agentic systems require recurring patterns — tool dispatch, memory 
 
 - As an agent builder, I want a `ToolRouter` knot so I can dispatch to registered tools by name without writing custom Branch logic each time.
 - As an agent builder, I want a `MemoryRetriever` knot with a standard memory interface so I can swap backends (in-memory, vector store, Redis) without rewiring the pipeline.
-- As an agent builder, I want a `ReflectionGate` knot so I can loop until a quality threshold is met.
+- As an agent builder, I want a `ReflectionCheck` knot so I can loop until a quality threshold is met.
 
 ### Proposed Knots
 
@@ -189,10 +189,10 @@ LLM-driven agentic systems require recurring patterns — tool dispatch, memory 
 #### Control Flow
 | Knot | Description | Key Config |
 |------|-------------|------------|
-| `ReflectionGate` | Scores output; passes if above threshold, re-queues otherwise | `scorer`, `threshold`, `max_retries` |
-| `SafetyGate` | Content policy check; blocks or flags unsafe content | `policy` |
-| `HandoffGate` | Transfers control to another agent/tapestry by name | `agent_registry` |
-| `TerminationGate` | Ends agentic loop when done signal is detected | `done_predicate` |
+| `ReflectionCheck` | Scores output; passes if above threshold, re-queues otherwise | `scorer`, `threshold`, `max_retries` |
+| `SafetyCheck` | Content policy check; blocks or flags unsafe content | `policy` |
+| `HandoffCheck` | Transfers control to another agent/tapestry by name | `agent_registry` |
+| `TerminationCheck` | Ends agentic loop when done signal is detected | `done_predicate` |
 
 #### Shared Data Contracts
 ```python
@@ -238,12 +238,12 @@ class AgentResponse:
 ```
 MessageParser
   → ContextBuilder(memory=MemoryRetriever)
-  → SafetyGate
+  → SafetyCheck
   → Planner(llm=LLMCall)
   → ToolRouter → [ToolExecutor × N tools]
   → ToolResultAggregator
   → LLMCall(generate final response)
-  → ReflectionGate(scorer=quality_fn, threshold=0.8)
+  → ReflectionCheck(scorer=quality_fn, threshold=0.8)
   → ResponseFormatter
   → MemoryWriter
 ```

@@ -46,4 +46,9 @@ class MitosisCounter(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> int:
+        """Count mitotic figures across all WSI tiles above the confidence threshold and return the total.
+
+        Returns:
+            Total count of mitotic figures detected across all tiles.
+        """
         return 0

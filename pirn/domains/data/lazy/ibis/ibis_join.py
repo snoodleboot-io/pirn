@@ -68,6 +68,15 @@ class IbisJoin(Knot):
     async def process(
         self, left: IbisTable, right: IbisTable, **_: Any
     ) -> IbisTable:
+        """Join the left and right Ibis expressions on the configured predicates and return the result.
+
+        Args:
+            left: The left-side IbisTable.
+            right: The right-side IbisTable to join against.
+
+        Returns:
+            A new IbisTable containing the joined deferred expression.
+        """
         if self._how == "cross":
             joined = left.expression.cross_join(right.expression)
             return left.with_expression(joined)

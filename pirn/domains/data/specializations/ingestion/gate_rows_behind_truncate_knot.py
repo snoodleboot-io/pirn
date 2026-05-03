@@ -28,4 +28,13 @@ class GateRowsBehindTruncateKnot(Knot):
         super().__init__(rows=rows, gate=gate, _config=_config, **kwargs)
 
     async def process(self, rows: Any, gate: Any, **_: Any) -> Any:
+        """Pass through rows unchanged after the gate dependency has resolved.
+
+        Args:
+            rows: The upstream rows value to pass through.
+            gate: The upstream gate dependency that must resolve before rows are forwarded.
+
+        Returns:
+            The rows value, unchanged.
+        """
         return rows

@@ -48,6 +48,14 @@ class SpectrogramRenderer(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SpectrumFrame:
+        """Render a magnitude spectrogram from the signal and return a SpectrumFrame.
+
+        Args:
+            signal: Signal to compute the windowed magnitude spectrogram from.
+
+        Returns:
+            SpectrumFrame with ``frequency_bins`` equal to half the window length plus one.
+        """
         resolution = (
             signal.sample_rate_hz / self._window_length
             if signal.sample_rate_hz > 0

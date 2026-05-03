@@ -30,6 +30,14 @@ class PolarsToDataBatch(Knot):
         super().__init__(batch=batch, _config=_config, **kwargs)
 
     async def process(self, batch: PolarsDataBatch, **_: Any) -> DataBatch:
+        """Materialise the Polars DataFrame to row dicts and return a Tier-1 DataBatch.
+
+        Args:
+            batch: The PolarsDataBatch whose DataFrame is materialised to row dicts.
+
+        Returns:
+            A Tier-1 DataBatch containing the materialised rows with source_uri and fetched_at preserved.
+        """
         rows = tuple(batch.frame.to_dicts())
         return DataBatch(
             rows=rows,

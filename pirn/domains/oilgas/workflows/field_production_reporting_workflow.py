@@ -77,6 +77,11 @@ class FieldProductionReportingWorkflow(SubTapestry):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> RunResult:
+        """Build and execute the SCADA ingest-to-forecast inner tapestry and return its RunResult.
+
+        Returns:
+            RunResult from the inner pipeline spanning SCADA ingest through production forecast.
+        """
         with Tapestry() as inner:
             oil = ScadaHistorianIngester(
                 connection=self._connection,

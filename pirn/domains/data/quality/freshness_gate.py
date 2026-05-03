@@ -61,6 +61,15 @@ class FreshnessGate(Knot):
         return self._max_age
 
     async def process(self, batch: DataBatch, **_: Any) -> QualityReport:
+        """Check that the newest timestamp in the configured column is within max_age and return a QualityReport.
+
+        Args:
+            batch: The DataBatch whose timestamp column will be inspected.
+
+        Returns:
+            A QualityReport containing a single freshness check that passes when the
+            newest timestamp is within max_age of now.
+        """
         now = datetime.now(timezone.utc)
         newest = self._newest_timestamp(batch)
 

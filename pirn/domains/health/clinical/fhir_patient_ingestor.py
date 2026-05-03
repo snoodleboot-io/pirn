@@ -43,6 +43,11 @@ class FHIRPatientIngestor(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> tuple[ClinicalRecord, ...]:
+        """Search the FHIR server for Patient resources matching the search params and return ClinicalRecords.
+
+        Returns:
+            A tuple of ClinicalRecords corresponding to the matching FHIR Patient resources.
+        """
         # Production: iterate ``self._client.search('Patient', params)`` and
         # convert each FHIR Patient resource into a ClinicalRecord.
         return ()

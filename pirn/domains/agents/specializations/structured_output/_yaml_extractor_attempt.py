@@ -39,6 +39,17 @@ class _YamlExtractorAttempt(Knot):
         super().__init__(prompt=prompt, _config=_config, **kwargs)
 
     async def process(self, prompt: str, **_: Any) -> Mapping[str, Any] | str:
+        """Call the LLM, parse the YAML reply, and return the mapping or an error string.
+
+        Args:
+            prompt: The extraction prompt string sent to the LLM as a user message.
+
+        Returns:
+            The parsed YAML mapping on success, or an error description string on failure.
+
+        Raises:
+            TypeError: If prompt is not a string.
+        """
         if not isinstance(prompt, str):
             raise TypeError(
                 "YamlExtractorPipeline: prompt must be a string, "

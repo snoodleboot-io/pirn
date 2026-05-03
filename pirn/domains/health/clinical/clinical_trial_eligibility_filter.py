@@ -49,6 +49,11 @@ class ClinicalTrialEligibilityFilter(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> tuple[ClinicalRecord, ...]:
+        """Apply all eligibility predicates to each record and return only those that pass every criterion.
+
+        Returns:
+            A tuple of ClinicalRecords that satisfy every configured eligibility criterion.
+        """
         return tuple(
             record
             for record in self._records

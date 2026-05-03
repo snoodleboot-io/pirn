@@ -89,6 +89,15 @@ class PyarrowJoin(Knot):
         right: PyarrowDataBatch,
         **_: Any,
     ) -> PyarrowDataBatch:
+        """Join the left and right PyArrow tables on the configured keys and return the result.
+
+        Args:
+            left: The left-side PyarrowDataBatch.
+            right: The right-side PyarrowDataBatch to join against.
+
+        Returns:
+            A new PyarrowDataBatch containing the joined table.
+        """
         if self._on is not None:
             joined = left.table.join(
                 right.table,

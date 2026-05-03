@@ -33,4 +33,9 @@ class WellCompletionIngester(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> DrillingParameters:
+        """Ingest the configured completion record and return a DrillingParameters stub.
+
+        Returns:
+            DrillingParameters stub identified by the configured well ID.
+        """
         return DrillingParameters(well_id=self._well_id)

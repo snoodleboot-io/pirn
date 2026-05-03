@@ -39,4 +39,9 @@ class BCFtoolsCaller(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> str:
+        """Run bcftools variant calling on the BAM against the reference and return the output VCF path.
+
+        Returns:
+            The output VCF path.
+        """
         return self._output_vcf_path

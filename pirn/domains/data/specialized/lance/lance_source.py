@@ -35,6 +35,11 @@ class LanceSource(Source):
         return self._path
 
     async def process(self, **_: Any) -> LanceDataset:
+        """Open the configured Lance dataset path and return a LanceDataset adapter.
+
+        Returns:
+            A LanceDataset wrapping the opened Lance dataset.
+        """
         import lance
 
         dataset = lance.dataset(self._path)

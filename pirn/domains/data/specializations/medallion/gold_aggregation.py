@@ -89,6 +89,11 @@ class GoldAggregation(SubTapestry):
         )
 
     async def process(self, **_: Any) -> dict[str, Any]:
+        """Read silver rows, apply group-by aggregations, and write the results to the gold table.
+
+        Returns:
+            A dict with keys ``succeeded`` and ``target_table`` summarising the run outcome.
+        """
         with Tapestry() as inner:
             extracted = DatabaseQuerySource(
                 pool=self._source_pool,

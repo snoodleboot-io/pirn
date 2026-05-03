@@ -40,6 +40,14 @@ class Profiler(Knot):
         return self._columns
 
     async def process(self, batch: DataBatch, **_: Any) -> DataProfile:
+        """Compute per-column descriptive statistics for the batch and return a DataProfile.
+
+        Args:
+            batch: The DataBatch to profile.
+
+        Returns:
+            A DataProfile containing row count, column count, and per-column statistics.
+        """
         target_columns = self._target_columns(batch)
         column_profiles = tuple(
             self._profile_column(batch, column) for column in target_columns

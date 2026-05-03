@@ -73,6 +73,17 @@ class NaiveRAGPipeline(SubTapestry):
         super().__init__(query=query, _config=_config, **kwargs)
 
     async def process(self, query: str, **_: Any) -> AgentResponse:
+        """Retrieve top-k memories, build a prompt, generate an answer, and return it as an AgentResponse.
+
+        Args:
+            query: The user query string to retrieve context for and answer.
+
+        Returns:
+            An AgentResponse containing the LLM-generated answer.
+
+        Raises:
+            TypeError: If query is not a string.
+        """
         if not isinstance(query, str):
             raise TypeError(
                 "NaiveRAGPipeline: query must be a string, "

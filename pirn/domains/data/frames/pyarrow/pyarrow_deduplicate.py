@@ -59,6 +59,14 @@ class PyarrowDeduplicate(Knot):
         return self._keys
 
     async def process(self, batch: PyarrowDataBatch, **_: Any) -> PyarrowDataBatch:
+        """Remove duplicate rows by key, keeping the first occurrence via index-stamp and group-by.
+
+        Args:
+            batch: The upstream PyarrowDataBatch to deduplicate.
+
+        Returns:
+            A new PyarrowDataBatch with duplicate key-tuple rows removed, preserving input order.
+        """
         table = batch.table
         if table.num_rows == 0:
             return batch

@@ -38,6 +38,14 @@ class FrequencyDecomposer(Knot):
         return self._center_frequencies_hz
 
     async def process(self, volume: SegyVolume, **_: Any) -> tuple[SegyVolume, ...]:
+        """Decompose the seismic volume into frequency-band sub-volumes and return one SegyVolume per configured centre frequency.
+
+        Args:
+            volume: 3-D seismic volume to decompose into frequency bands.
+
+        Returns:
+            Tuple of SegyVolumes, one per configured centre frequency in Hz.
+        """
         return tuple(
             SegyVolume(volume_id=f"{volume.volume_id}:band_{f:.1f}hz")
             for f in self._center_frequencies_hz

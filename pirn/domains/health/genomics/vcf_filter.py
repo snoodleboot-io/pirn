@@ -43,6 +43,11 @@ class VCFFilter(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> tuple[Mapping[str, Any], ...]:
+        """Filter VCF rows by the configured minimum quality and maximum allele-frequency thresholds.
+
+        Returns:
+            Tuple of row dicts that pass both the quality and allele-frequency filters.
+        """
         out: list[Mapping[str, Any]] = []
         for row in self._rows:
             try:

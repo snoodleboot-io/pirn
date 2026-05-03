@@ -87,6 +87,11 @@ class BronzeRawIngest(SubTapestry):
         )
 
     async def process(self, **_: Any) -> RunResult:
+        """Extract source rows, stamp with ingestion metadata, and append to the bronze table.
+
+        Returns:
+            A RunResult summarising the outcome of the inner tapestry execution.
+        """
         with Tapestry() as inner:
             extracted = DatabaseQuerySource(
                 pool=self._source_pool,

@@ -52,6 +52,14 @@ class MusicInformationRetriever(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> Mapping[str, Any]:
+        """Extract the configured MIR feature set from the audio signal and return a feature result mapping.
+
+        Args:
+            signal: Audio signal to extract MIR features from.
+
+        Returns:
+            Mapping containing ``signal_id`` and a ``feature_set`` list of computed feature names.
+        """
         return {
             "signal_id": signal.signal_id,
             "feature_set": list(self._feature_set),

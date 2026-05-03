@@ -48,6 +48,14 @@ class ExtendedKalmanFilter(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SignalFrame:
+        """Filter the signal through the extended Kalman filter via local linearisation and return the filtered SignalFrame.
+
+        Args:
+            signal: Observed signal to filter through the nonlinear state estimator.
+
+        Returns:
+            SignalFrame of EKF-filtered state estimates.
+        """
         return SignalFrame(
             signal_id=f"{signal.signal_id}:ekf",
             channel_count=signal.channel_count,

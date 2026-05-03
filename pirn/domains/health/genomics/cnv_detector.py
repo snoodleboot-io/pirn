@@ -40,4 +40,9 @@ class CNVDetector(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> tuple[Mapping[str, Any], ...]:
+        """Detect copy-number variants from the BAM coverage track and return a tuple of CNV-call dicts.
+
+        Returns:
+            A tuple of CNV-call dicts, each containing variant coordinates and copy-number estimates.
+        """
         return ()

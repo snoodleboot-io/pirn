@@ -53,6 +53,11 @@ class ObjectStoreReadSource(Source):
         return self._key
 
     async def process(self, **_: Any) -> bytes:
+        """Read all bytes from the configured object-store key and return them.
+
+        Returns:
+            The complete bytes content of the object at the configured key.
+        """
         chunks: list[bytes] = []
         async for chunk in await self._store.get(self._key):
             chunks.append(chunk)

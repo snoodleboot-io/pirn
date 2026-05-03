@@ -58,6 +58,15 @@ class PanderaPolarsValidator(Knot):
         return self._schema
 
     async def process(self, batch: PolarsDataBatch, **_: Any) -> QualityReport:
+        """Validate the PolarsDataBatch against the Pandera schema in lazy mode and return a QualityReport.
+
+        Args:
+            batch: The PolarsDataBatch to validate.
+
+        Returns:
+            A QualityReport with one failed QualityCheck per Pandera failure case,
+            or a passing report when the schema is satisfied.
+        """
         from pandera.errors import SchemaErrors
 
         try:

@@ -43,6 +43,11 @@ class MedicationReconciliationPipeline(SubTapestry):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> RunResult:
+        """Normalise drug names to RxCUI codes, deduplicate them, and return the inner RunResult.
+
+        Returns:
+            A RunResult summarising the outcome of the inner tapestry execution.
+        """
         with Tapestry() as inner:
             normalised = RxNormNormalizer(
                 drug_names=self._drug_names,

@@ -31,4 +31,12 @@ class MessagesPassthrough(Knot):
         messages: tuple[AgentMessage, ...] | list[AgentMessage],
         **_: Any,
     ) -> tuple[AgentMessage, ...]:
+        """Convert the input messages collection to a tuple and return it unchanged.
+
+        Args:
+            messages: The list or tuple of AgentMessage instances to pass through.
+
+        Returns:
+            The same messages as an immutable tuple.
+        """
         return tuple(messages)

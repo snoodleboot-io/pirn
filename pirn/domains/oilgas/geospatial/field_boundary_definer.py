@@ -48,6 +48,12 @@ class FieldBoundaryDefiner(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> dict[str, Any]:
+        """Construct the closed-polygon boundary from the configured vertices and return the field boundary record.
+
+        Returns:
+            Dict with ``field_id``, ``vertices`` (list of (x, y) tuples),
+            ``crs``, and ``vertex_count``.
+        """
         return {
             "field_id": self._field_id,
             "vertices": list(self._vertices),

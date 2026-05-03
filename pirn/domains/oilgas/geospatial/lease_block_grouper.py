@@ -29,6 +29,14 @@ class LeaseBlockGrouper(Knot):
     async def process(
         self, location: dict[str, Any], **_: Any
     ) -> dict[str, Any]:
+        """Assign the configured lease_block_id to the location record and return it with the identifier appended.
+
+        Args:
+            location: Location dict to be tagged with the lease block identifier.
+
+        Returns:
+            Copy of the input location dict with ``lease_block_id`` added.
+        """
         return {
             **dict(location),
             "lease_block_id": self._lease_block_id,

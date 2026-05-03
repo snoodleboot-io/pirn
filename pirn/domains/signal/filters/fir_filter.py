@@ -41,6 +41,14 @@ class FIRFilter(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SignalFrame:
+        """Convolve the configured FIR coefficients with the input signal and return the filtered SignalFrame.
+
+        Args:
+            signal: Signal to convolve with the FIR tap coefficients.
+
+        Returns:
+            SignalFrame of the FIR-filtered output.
+        """
         return SignalFrame(
             signal_id=f"{signal.signal_id}:fir",
             channel_count=signal.channel_count,

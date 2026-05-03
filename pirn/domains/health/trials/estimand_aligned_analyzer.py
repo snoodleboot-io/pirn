@@ -75,6 +75,17 @@ class EstimandAlignedAnalyzer(Knot):
         records: Sequence[ClinicalTrialRecord],
         **_: Any,
     ) -> tuple[ClinicalTrialRecord, ...]:
+        """Filter trial records according to the configured estimand strategy and return the qualifying records.
+
+        Args:
+            records: Sequence of ClinicalTrialRecord objects to filter.
+
+        Returns:
+            Tuple of ClinicalTrialRecord objects that satisfy the estimand strategy.
+
+        Raises:
+            RuntimeError: If an unexpected strategy value bypasses the __init__ guard.
+        """
         if self._strategy in ("treatment-policy", "composite-strategy"):
             return tuple(records)
         if self._strategy == "principal-stratum":

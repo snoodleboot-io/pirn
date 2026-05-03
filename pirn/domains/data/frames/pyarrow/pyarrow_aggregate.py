@@ -101,6 +101,14 @@ class PyarrowAggregate(Knot):
     async def process(
         self, batch: PyarrowDataBatch, **_: Any
     ) -> PyarrowDataBatch:
+        """Group the table by the configured columns and apply PyArrow aggregation kernels.
+
+        Args:
+            batch: The upstream PyarrowDataBatch to aggregate.
+
+        Returns:
+            A new PyarrowDataBatch containing one row per group with the caller-named output columns.
+        """
         agg_specs = [
             (input_column, function_name)
             for input_column, function_name in self._aggs.values()

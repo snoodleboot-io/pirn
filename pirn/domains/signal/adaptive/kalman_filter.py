@@ -47,6 +47,14 @@ class KalmanFilter(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SignalFrame:
+        """Run the Kalman filter over the input signal and return the state-estimated SignalFrame.
+
+        Args:
+            signal: Observed signal to filter through the Kalman state estimator.
+
+        Returns:
+            SignalFrame of Kalman-filtered state estimates.
+        """
         return SignalFrame(
             signal_id=f"{signal.signal_id}:kalman",
             channel_count=signal.channel_count,

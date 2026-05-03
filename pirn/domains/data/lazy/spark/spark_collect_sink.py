@@ -55,6 +55,17 @@ class SparkCollectSink(Sink):
     async def process(
         self, frame: SparkDataFrame, **_: Any
     ) -> list[dict[str, Any]]:
+        """Collect the Spark DataFrame rows to driver memory and return them as a list of dicts.
+
+        Args:
+            frame: The upstream SparkDataFrame to materialise.
+
+        Returns:
+            A list of dicts, one per row, with column names as keys.
+
+        Raises:
+            ValueError: If max_rows is set and the frame contains more rows than the bound.
+        """
         if self._max_rows is None:
             rows = frame.frame.collect()
         else:

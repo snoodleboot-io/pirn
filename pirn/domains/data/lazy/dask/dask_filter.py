@@ -49,5 +49,13 @@ class DaskFilter(Knot):
         return self._predicate
 
     async def process(self, batch: DaskDataFrame, **_: Any) -> DaskDataFrame:
+        """Apply the callable boolean-mask predicate to the deferred Dask frame and return the filtered result.
+
+        Args:
+            batch: The upstream DaskDataFrame to filter.
+
+        Returns:
+            A new DaskDataFrame with the predicate applied to the deferred graph.
+        """
         mask = self._predicate(batch.frame)
         return batch.with_frame(batch.frame[mask])

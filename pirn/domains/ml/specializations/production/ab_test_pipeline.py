@@ -81,6 +81,17 @@ class ABTestPipeline(SubTapestry):
         split: DataSplit,
         **_: Any,
     ) -> Mapping[str, Any]:
+        """Evaluate both models on the same split, run a t-test on the primary metric, and return the winner and statistical summary.
+
+        Args:
+            model_a: First trained model to evaluate against the test split.
+            model_b: Second trained model to evaluate against the test split.
+            split: DataSplit whose test partition is used for both evaluations.
+
+        Returns:
+            Mapping with ``winner`` (``"a"``, ``"b"``, or ``"tie"``),
+            ``p_value``, and ``effect_size`` for the primary metric comparison.
+        """
         with Tapestry() as inner:
             split_node = _emit_value(
                 value=split, _config=KnotConfig(id="split")

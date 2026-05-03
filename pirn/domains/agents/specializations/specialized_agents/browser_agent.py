@@ -60,6 +60,17 @@ class BrowserAgent(SubTapestry):
         super().__init__(goal=goal, _config=_config, **kwargs)
 
     async def process(self, goal: str, **_: Any) -> AgentResponse:
+        """Run the ReAct loop with the browser tool to accomplish the goal and return the result.
+
+        Args:
+            goal: The non-empty goal description instructing the agent what to accomplish.
+
+        Returns:
+            An AgentResponse containing the final answer from the ReAct loop.
+
+        Raises:
+            TypeError: If goal is not a non-empty string.
+        """
         if not isinstance(goal, str) or not goal:
             raise TypeError(
                 "BrowserAgent: goal must be a non-empty string, "

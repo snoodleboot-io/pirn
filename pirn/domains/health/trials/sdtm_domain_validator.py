@@ -65,6 +65,14 @@ class SDTMDomainValidator(Knot):
         records: Sequence[ClinicalTrialRecord],
         **_: Any,
     ) -> bool:
+        """Check that every required SDTM field is populated on every record and return True if all pass.
+
+        Args:
+            records: Sequence of ClinicalTrialRecord objects to validate.
+
+        Returns:
+            True if every required field on every record is non-empty, False otherwise.
+        """
         for record in records:
             for field_name in self._required_fields:
                 value = getattr(record, field_name, None)

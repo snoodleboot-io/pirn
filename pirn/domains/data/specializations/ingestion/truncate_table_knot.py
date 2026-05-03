@@ -47,5 +47,10 @@ class TruncateTableKnot(Knot):
         return self._table
 
     async def process(self, **_: Any) -> str:
+        """Delete all rows from the configured target table and return the table name.
+
+        Returns:
+            The name of the table that was truncated.
+        """
         await self._pool.execute(f"DELETE FROM {self._table}")
         return self._table

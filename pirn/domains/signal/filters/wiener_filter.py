@@ -51,6 +51,14 @@ class WienerFilter(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SignalFrame:
+        """Apply the Wiener filter to the input signal and return the minimum-MSE denoised SignalFrame.
+
+        Args:
+            signal: Noisy signal to denoise with the stationary Wiener filter.
+
+        Returns:
+            SignalFrame of the minimum-MSE Wiener-filtered output.
+        """
         return SignalFrame(
             signal_id=f"{signal.signal_id}:wiener",
             channel_count=signal.channel_count,

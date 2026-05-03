@@ -40,6 +40,17 @@ class CrossValidator(Knot):
     async def process(
         self, dataset: MLDataset, **_: Any
     ) -> tuple[DataSplit, ...]:
+        """Partition the dataset into k balanced DataSplit folds and return the tuple of folds.
+
+        Args:
+            dataset: MLDataset reference whose row_count drives fold sizing.
+
+        Returns:
+            Tuple of k DataSplit objects, each with a train and test MLDataset partition.
+
+        Raises:
+            ValueError: If dataset.row_count is less than k.
+        """
         total = int(dataset.row_count)
         if total < self._k:
             raise ValueError(

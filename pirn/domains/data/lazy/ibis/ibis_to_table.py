@@ -51,6 +51,14 @@ class IbisToTable(Sink):
         return self._target_table
 
     async def process(self, batch: IbisTable, **_: Any) -> IbisExecutionReceipt:
+        """Compile the deferred Ibis expression to SQL, execute it, and return an execution receipt.
+
+        Args:
+            batch: The upstream IbisTable whose deferred expression will be compiled and executed.
+
+        Returns:
+            An IbisExecutionReceipt describing the backend, target table, compiled SQL, and row count.
+        """
         compiled_sql = str(self._connection.compile(batch.expression))
 
         row_count: int | None = None

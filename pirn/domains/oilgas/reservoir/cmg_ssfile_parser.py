@@ -33,4 +33,9 @@ class CmgSsfileParser(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> ScadaTimeSeries:
+        """Parse the configured CMG SSFILE path and return a ScadaTimeSeries reference for the named vector.
+
+        Returns:
+            ScadaTimeSeries keyed by ``cmg:{vector_name}``.
+        """
         return ScadaTimeSeries(sensor_id=f"cmg:{self._vector_name}")

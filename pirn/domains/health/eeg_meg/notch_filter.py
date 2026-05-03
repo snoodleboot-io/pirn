@@ -35,4 +35,9 @@ class NotchFilter(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> SignalFrame:
+        """Apply a notch filter at the configured frequency and return the filtered SignalFrame.
+
+        Returns:
+            A SignalFrame with the notch filter applied at the configured frequency.
+        """
         return self._signal

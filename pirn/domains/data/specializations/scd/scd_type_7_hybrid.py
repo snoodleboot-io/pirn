@@ -179,6 +179,12 @@ class ScdType7Hybrid(SubTapestry):
         )
 
     async def process(self, **_: Any) -> dict[str, Any]:
+        """Apply Type 7 hybrid SCD logic: close changed rows, insert new versions, and backfill current-mirror columns.
+
+        Returns:
+            A dict with keys ``succeeded``, ``target_table``, ``rows_inserted``, and ``rows_closed``
+            summarising the merge outcome.
+        """
         source_rows = await self._source_pool.fetch_all(self._source_query)
         rows_inserted = 0
         rows_closed = 0

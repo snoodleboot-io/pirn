@@ -64,6 +64,16 @@ class EnsembleBuilder(Knot):
         return self._strategy
 
     async def process(self, **kwargs: Any) -> TrainedModel:
+        """Combine resolved child TrainedModel inputs into a meta-learner TrainedModel.
+
+        Returns:
+            TrainedModel whose ``model_id`` is a deterministic digest of the
+            child model ids and ensemble strategy.
+
+        Raises:
+            TypeError: If any ``model_<n>`` kwarg does not resolve to a
+                TrainedModel.
+        """
         children: list[TrainedModel] = []
         for index in range(self._model_count):
             value = kwargs.get(f"model_{index}")

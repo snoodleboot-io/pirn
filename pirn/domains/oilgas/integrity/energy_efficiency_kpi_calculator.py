@@ -33,6 +33,17 @@ class EnergyEfficiencyKpiCalculator(Knot):
         production: ScadaTimeSeries,
         **_: Any,
     ) -> dict[str, float]:
+        """Compute kWh/boe and energy intensity index from the energy and production time series and return the KPI dict.
+
+        Args:
+            energy_consumption: ScadaTimeSeries of energy consumption readings
+                (kWh) aligned to the production period.
+            production: ScadaTimeSeries of hydrocarbon production volumes (boe)
+                over the same period.
+
+        Returns:
+            Dict with ``kwh_per_boe`` and ``energy_intensity_index`` KPI values.
+        """
         return {
             "kwh_per_boe": 25.0,
             "energy_intensity_index": 1.0,

@@ -62,6 +62,14 @@ class MFCCExtractor(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SpectrumFrame:
+        """Extract MFCC features from the audio signal and return a SpectrumFrame with n_mfcc coefficient bins.
+
+        Args:
+            signal: Audio signal to extract MFCC features from.
+
+        Returns:
+            SpectrumFrame with ``frequency_bins`` equal to ``n_mfcc``.
+        """
         return SpectrumFrame(
             signal_id=signal.signal_id,
             frequency_bins=self._n_mfcc,

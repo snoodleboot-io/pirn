@@ -153,6 +153,13 @@ class ContinuousTrainingPipeline(SubTapestry):
         return False, None
 
     async def process(self, **_: Any) -> Mapping[str, Any]:
+        """Check freshness against the lineage store and, if stale, retrain and deploy the model; return a summary with the model_id and eval report.
+
+        Returns:
+            Mapping with ``model_id`` (str), ``eval_report``
+            (:class:`EvalReport` or ``None`` if skipped), and ``skipped``
+            (bool indicating whether retraining was bypassed due to freshness).
+        """
         is_fresh, cached_model_id = await self._is_fresh()
         if is_fresh and cached_model_id is not None:
             return {

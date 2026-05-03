@@ -84,6 +84,11 @@ class ScdType1(SubTapestry):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> dict[str, Any]:
+        """Run a Type 1 SCD merge by extracting source rows and applying insert/update operations to the target table.
+
+        Returns:
+            A dict with keys ``succeeded`` and ``target_table`` summarising the run outcome.
+        """
         with Tapestry() as inner:
             extracted = DatabaseQuerySource(
                 pool=self._source_pool,

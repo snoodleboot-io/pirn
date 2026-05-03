@@ -76,6 +76,17 @@ class GraphRAGPipeline(SubTapestry):
         super().__init__(query=query, _config=_config, **kwargs)
 
     async def process(self, query: str, **_: Any) -> AgentResponse:
+        """Retrieve graph entities, build a sub-graph context, and answer the query via the LLM.
+
+        Args:
+            query: The user query string to retrieve graph context for and answer.
+
+        Returns:
+            An AgentResponse containing the LLM-generated answer grounded in the sub-graph.
+
+        Raises:
+            TypeError: If query is not a string.
+        """
         if not isinstance(query, str):
             raise TypeError(
                 "GraphRAGPipeline: query must be a string, "

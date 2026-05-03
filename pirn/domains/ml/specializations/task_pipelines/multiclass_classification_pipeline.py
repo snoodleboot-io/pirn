@@ -89,6 +89,12 @@ class MulticlassClassificationPipeline(SubTapestry):
         return self._n_classes
 
     async def process(self, **_: Any) -> EvalReport:
+        """Load data, split, scale, train a multiclass classifier, and return the macro-averaged EvalReport.
+
+        Returns:
+            EvalReport containing accuracy, precision_macro, recall_macro,
+            f1_macro, and confusion_matrix metrics from the evaluation stage.
+        """
         with Tapestry() as inner:
             dataset = DatasetLoader(
                 name="multiclass-classification",

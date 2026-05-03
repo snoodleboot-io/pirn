@@ -43,6 +43,14 @@ class DataBatchToDuckdb(Knot):
         super().__init__(batch=batch, _config=_config, **kwargs)
 
     async def process(self, batch: DataBatch, **_: Any) -> DuckdbDataBatch:
+        """Load the Tier-1 DataBatch rows into a DuckDB relation and return a DuckdbDataBatch.
+
+        Args:
+            batch: The Tier-1 DataBatch whose rows are loaded into DuckDB.
+
+        Returns:
+            A DuckdbDataBatch wrapping a DuckDB relation with the batch's rows.
+        """
         connection = self._connection
         if connection is None:
             connection = duckdb.connect(database=":memory:")

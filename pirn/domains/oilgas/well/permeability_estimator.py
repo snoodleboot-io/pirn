@@ -33,6 +33,14 @@ class PermeabilityEstimator(Knot):
         super().__init__(las_file=las_file, _config=_config, **kwargs)
 
     async def process(self, las_file: LASFile, **_: Any) -> LASFile:
+        """Compute a permeability curve from porosity and Sw inputs and return an augmented LASFile.
+
+        Args:
+            las_file: LAS file providing the porosity and water-saturation curves.
+
+        Returns:
+            LASFile with a permeability curve named ``K_{method}`` appended.
+        """
         return LASFile(
             well_id=las_file.well_id,
             curves=las_file.curves + (f"K_{self._method}",),

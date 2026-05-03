@@ -51,6 +51,18 @@ class CorrectiveRouter(Knot):
         relevant_docs: list[Mapping[str, Any]],
         **_: Any,
     ) -> list[Mapping[str, Any]]:
+        """Return relevant_docs when non-empty, otherwise invoke the fallback tool and return its result.
+
+        Args:
+            query: The original user query used as input when the fallback tool is invoked.
+            relevant_docs: The list of documents that survived the relevance gate.
+
+        Returns:
+            The relevant_docs list if non-empty, otherwise a single-entry list from the fallback tool.
+
+        Raises:
+            TypeError: If query is not a string.
+        """
         if not isinstance(query, str):
             raise TypeError(
                 "CorrectiveRouter: query must be a string, "

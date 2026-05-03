@@ -58,6 +58,15 @@ class TimeSeriesEvalPipeline(SubTapestry):
     async def process(
         self, model: TrainedModel, split: DataSplit, **_: Any
     ) -> EvalReport:
+        """Evaluate the forecasting model with MAPE, sMAPE, and MASE and return an EvalReport decorated with the time column.
+
+        Args:
+            model: TrainedModel reference to evaluate.
+            split: DataSplit whose test partition is used for scoring.
+
+        Returns:
+            EvalReport containing mape, smape, and mase metrics, with time_column in details.
+        """
         with Tapestry() as inner:
             model_node = _emit_value(
                 value=model, _config=KnotConfig(id="model")

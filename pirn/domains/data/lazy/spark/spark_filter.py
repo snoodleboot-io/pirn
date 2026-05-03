@@ -46,4 +46,12 @@ class SparkFilter(Knot):
         return self._predicate
 
     async def process(self, frame: SparkDataFrame, **_: Any) -> SparkDataFrame:
+        """Apply the SQL predicate to the deferred Spark frame and return the filtered result.
+
+        Args:
+            frame: The upstream SparkDataFrame to filter.
+
+        Returns:
+            A new SparkDataFrame with the SQL WHERE predicate applied to the deferred plan.
+        """
         return frame.with_frame(frame.frame.filter(self._predicate))

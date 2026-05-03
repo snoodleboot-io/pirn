@@ -54,6 +54,15 @@ class PanderaPandasValidator(Knot):
         return self._schema
 
     async def process(self, batch: PandasDataBatch, **_: Any) -> QualityReport:
+        """Validate the PandasDataBatch against the Pandera schema in lazy mode and return a QualityReport.
+
+        Args:
+            batch: The PandasDataBatch to validate.
+
+        Returns:
+            A QualityReport with one failed QualityCheck per Pandera failure case,
+            or a passing report when the schema is satisfied.
+        """
         from pandera.errors import SchemaErrors
 
         try:

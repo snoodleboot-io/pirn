@@ -56,6 +56,18 @@ class YamlExtractorPipeline(SubTapestry):
         super().__init__(prompt=prompt, _config=_config, **kwargs)
 
     async def process(self, prompt: str, **_: Any) -> Mapping[str, Any]:
+        """Extract a YAML mapping from the LLM response, retrying with error feedback on failure.
+
+        Args:
+            prompt: The extraction prompt string sent to the LLM.
+
+        Returns:
+            A parsed YAML mapping; conforms to the optional schema when one is provided.
+
+        Raises:
+            TypeError: If prompt is not a string.
+            ValueError: If all retry attempts are exhausted without a valid YAML mapping.
+        """
         if not isinstance(prompt, str):
             raise TypeError(
                 "YamlExtractorPipeline: prompt must be a string, "

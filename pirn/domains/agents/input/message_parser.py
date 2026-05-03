@@ -32,6 +32,18 @@ class MessageParser(Knot):
         raw_input: Any,
         **_: Any,
     ) -> tuple[AgentMessage, ...]:
+        """Parse raw text or mapping input into a tuple of AgentMessage instances.
+
+        Args:
+            raw_input: Raw input to parse; may be a string, mapping, AgentMessage, or sequence thereof.
+
+        Returns:
+            A non-empty tuple of AgentMessage instances derived from the input.
+
+        Raises:
+            TypeError: If raw_input is not a recognised type.
+            ValueError: If raw_input produces zero messages.
+        """
         items = self._coerce_to_iterable(raw_input)
         parsed = tuple(self._coerce_one(index, item) for index, item in enumerate(items))
         if not parsed:

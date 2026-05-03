@@ -45,6 +45,14 @@ class PolarsDeduplicate(Knot):
         return self._keys
 
     async def process(self, batch: PolarsDataBatch, **_: Any) -> PolarsDataBatch:
+        """Drop duplicate rows by key columns, keeping the first occurrence.
+
+        Args:
+            batch: The upstream PolarsDataBatch to deduplicate.
+
+        Returns:
+            A new PolarsDataBatch with duplicate key-tuple rows removed.
+        """
         return batch.with_frame(
             batch.frame.unique(subset=list(self._keys), keep="first", maintain_order=True)
         )

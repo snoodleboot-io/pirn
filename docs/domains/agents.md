@@ -118,6 +118,27 @@ class WebSearchTool(Tool):
         self._api_key = None
 ```
 
+For plain functions, use the `@tool` decorator instead of subclassing. It derives `name` from the function name, `description` from the docstring's first paragraph, and `parameters_schema` from type annotations. Both sync and async functions are accepted.
+
+```python
+from pirn.domains.agents import tool
+
+@tool
+async def web_search(query: str, max_results: int = 5) -> str:
+    """Search the web and return a summary of the top results."""
+    ...  # your implementation
+
+@tool
+def lookup_policy(topic: str) -> str:
+    """Look up an internal policy document by topic keyword."""
+    return POLICIES.get(topic, "No policy found.")
+
+# Pass directly anywhere Tool is accepted
+react = ReActLoop(messages=msgs, llm=provider, tools=[web_search, lookup_policy], ...)
+```
+
+`@tool` produces a `FunctionTool` instance, which is a `Tool` subclass. Use `Tool` subclassing directly when the tool needs constructor-injected dependencies (API keys, HTTP clients, connection pools).
+
 ### MemoryStore
 
 `MemoryStore` (`pirn/domains/agents/memory_store.py`) is the interface for keyed storage with optional similarity search. Inherit from it and implement:
@@ -163,10 +184,10 @@ Knots that handle tool-use reasoning.
 
 | Knot | Description |
 |------|-------------|
-| `Planner` | Asks an `LLMProvider` for an ordered `Plan` grounded in the current `AgentContext`. Lines starting with `#` are treated as rationale; everything else becomes a plan step. |
-| `ToolRouter` | Inspects an `AgentResponse` and routes each `ToolCall` to the matching `Tool` by name. Returns a mapping of tool name to invocation future. |
-| `ToolExecutor` | Invokes a single `Tool` with the arguments from a `ToolCall`. Returns the raw result. |
-| `ToolResultAggregator` | Collects multiple tool results into a single mapping keyed by tool name, ready to be appended to the conversation context. |
+| `Planner` | Asks an `LLMProvider` for an ordered `Plan` grounded in the current `AgentContext`. Lines starting with `#` are treated as rationale; everything else becomes a numbered step in the `Plan`. |
+| `ToolRouter` | Accepts a single plan step string and a sequence of `Tool`s. Matches the first tool whose `name` appears as a substring of the step (case-insensitive) and returns a `ToolCall`. |
+| `ToolExecutor` | Accepts a `ToolCall` and a sequence of `Tool`s. Invokes the matching tool with `ToolCall.arguments` and returns a `ToolResult`. Exceptions are caught and surfaced as `ToolResult.error` so callers can decide how to react. |
+| `ToolResultAggregator` | Collects a sequence of `ToolResult`s into a `{call_id: result}` mapping, ready to splice into the conversation context. |
 
 ### `memory/`
 
@@ -184,10 +205,10 @@ Knots that decide whether the agent loop should continue, terminate, escalate, o
 
 | Knot | Description |
 |------|-------------|
-| `TerminationGate` | Returns `True` when the response carries `finish_reason="stop"` or when `current_iteration >= max_iterations`. Wire downstream knots to the gate's output to stop iterating. |
-| `ReflectionGate` | Asks an `LLMProvider` whether the current response is good enough to stop. The LLM is prompted to answer `"yes"` (iterate) or `"no"` (stop). |
-| `SafetyGate` | Checks the message or response body against a deny-list of regex patterns compiled with `re.IGNORECASE`. Returns `True` if no pattern matches (safe to proceed). |
-| `HandoffGate` | Returns `True` when the response matches any escalation pattern. Wire to a human-in-the-loop or supervisor agent knot. |
+| `TerminationCheck` | Returns `True` when the response carries `finish_reason="stop"` or when `current_iteration >= max_iterations`. Wire downstream knots to the gate's output to stop iterating. |
+| `ReflectionCheck` | Asks an `LLMProvider` whether the current response is good enough to stop. The LLM is prompted to answer `"yes"` (iterate) or `"no"` (stop). |
+| `SafetyCheck` | Checks the message or response body against a deny-list of regex patterns compiled with `re.IGNORECASE`. Returns `True` if no pattern matches (safe to proceed). |
+| `HandoffCheck` | Returns `True` when the response matches any escalation pattern. Wire to a human-in-the-loop or supervisor agent knot. |
 
 ### `specializations/`
 
@@ -196,7 +217,7 @@ Pre-built `SubTapestry` pipelines for common agent patterns.
 | Sub-area | Pipelines |
 |----------|-----------|
 | `rag/` | `NaiveRagPipeline`, `CorrectiveRagPipeline`, `HydeRagPipeline`, `GraphRagPipeline` — retrieval-augmented generation patterns with relevance gating |
-| `react/` | `ReactLoop` — Reasoning + Acting loop with step accumulation, tool execution, and termination gating |
+| `react/` | `ReActLoop` — Reasoning + Acting loop with step accumulation, tool execution, and termination gating |
 | `document_processing/` | `DocumentIngestionPipeline`, `DocumentQAPipeline`, `DocumentSummarizerPipeline`, `DocumentTranslationPipeline` |
 | `multi_agent/` | `OrchestratorAgent`, `ParallelSpecialistFanOut`, `DebateFramework`, `ConsensusAggregator` — multi-agent coordination patterns |
 | `guardrails/` | Input/output guardrail gates, PII redaction, fact-checking |
@@ -223,7 +244,9 @@ The `types/` sub-package defines the data classes that flow between agent knots.
 
 ## Building an agent pipeline
 
-The example below wires a simple tool-using chat agent. Raw user text enters through a `Parameter`, flows through input parsing, context building, an LLM call, output parsing, a safety gate, and a tool routing/execution pass before the formatted response exits.
+The example below wires a simple tool-using chat agent. Raw user text enters through a `Parameter`, flows through input parsing, context building, an LLM call, output parsing, a `SafetyCheck`, and a tool routing/execution pass before the formatted response exits.
+
+**Scalar auto-coercion:** knot parameters typed `Knot | T` (e.g. `step: Knot | str`) accept either a parent knot or a plain scalar. When a scalar is passed, the framework automatically wraps it in a `Parameter` node so it participates in lineage and graph tracking — no manual wrapping required.
 
 ```python
 import asyncio
@@ -233,7 +256,8 @@ from pirn.domains.agents.input.context_builder import ContextBuilder
 from pirn.domains.agents.generation.llm_call import LLMCall
 from pirn.domains.agents.generation.output_parser import OutputParser
 from pirn.domains.agents.generation.response_formatter import ResponseFormatter
-from pirn.domains.agents.control.safety_gate import SafetyGate
+from pirn.domains.agents.control.safety_check import SafetyCheck
+from pirn.domains.agents.planning.planner import Planner
 from pirn.domains.agents.planning.tool_router import ToolRouter
 from pirn.domains.agents.planning.tool_executor import ToolExecutor
 
@@ -262,7 +286,7 @@ async def main():
             llm=provider,
             _config=KnotConfig(id="llm"),
         )
-        safe = SafetyGate(
+        safe = SafetyCheck(
             message=raw_response,
             deny_patterns=[r"\b(ignore previous instructions)\b"],
             _config=KnotConfig(id="safety"),
@@ -271,13 +295,19 @@ async def main():
             response=raw_response,
             _config=KnotConfig(id="parse_response"),
         )
-        tool_calls = ToolRouter(
-            response=response,
+        # Planner produces a Plan; extract first step for ToolRouter.
+        plan = Planner(
+            context=context,
+            llm=provider,
+            _config=KnotConfig(id="plan"),
+        )
+        route = ToolRouter(
+            step=plan,
             tools=[search_tool],
             _config=KnotConfig(id="route_tools"),
         )
-        tool_results = ToolExecutor(
-            tool_calls=tool_calls,
+        tool_result = ToolExecutor(
+            call=route,
             tools=[search_tool],
             _config=KnotConfig(id="exec_tools"),
         )
@@ -328,4 +358,4 @@ pip install pinecone-client    # or qdrant-client, weaviate-client, etc.
 
 The `agents` extra deliberately carries no mandatory heavy dependencies. LLM provider SDKs, vector databases, and tool libraries are installed separately so you pull only what your application uses.
 
-**See also:** [Concepts](../getting-started/concepts.md), [Backends](../guides/backends.md)
+**See also:** [Agentic Design Patterns](../../pirn/domains/agents/PATTERNS.md), [Concepts](../getting-started/concepts.md), [Backends](../guides/backends.md)

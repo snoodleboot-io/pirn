@@ -1,4 +1,4 @@
-"""Unit tests for :class:`SafetyGate`."""
+"""Unit tests for :class:`SafetyCheck`."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.agents.control.safety_gate import SafetyGate
+from pirn.domains.agents.control.safety_check import SafetyCheck
 from pirn.domains.agents.types.agent_message import AgentMessage
 from pirn.domains.agents.types.agent_response import AgentResponse
 from pirn.tapestry import Tapestry
@@ -22,7 +22,7 @@ class TestProcess:
 
         with Tapestry() as t:
             msg = m(_config=KnotConfig(id="m"))
-            SafetyGate(
+            SafetyCheck(
                 message=msg,
                 deny_patterns=("password", r"\bsecret\b"),
                 _config=KnotConfig(id="g"),
@@ -37,7 +37,7 @@ class TestProcess:
 
         with Tapestry() as t:
             msg = m(_config=KnotConfig(id="m"))
-            SafetyGate(
+            SafetyCheck(
                 message=msg,
                 deny_patterns=("password",),
                 _config=KnotConfig(id="g"),
@@ -52,7 +52,7 @@ class TestProcess:
 
         with Tapestry() as t:
             rr = r(_config=KnotConfig(id="r"))
-            SafetyGate(
+            SafetyCheck(
                 message=rr,
                 deny_patterns=("forbidden",),
                 _config=KnotConfig(id="g"),
@@ -70,7 +70,7 @@ class TestConstruction:
         with Tapestry():
             msg = m(_config=KnotConfig(id="m"))
             with pytest.raises(ValueError, match="not a valid regex"):
-                SafetyGate(
+                SafetyCheck(
                     message=msg,
                     deny_patterns=("([abc",),
                     _config=KnotConfig(id="g"),

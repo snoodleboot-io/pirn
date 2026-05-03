@@ -40,6 +40,11 @@ class ICD10CodeValidator(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> bool:
+        """Match every code against the ICD-10-CM regex and return True if all match, False otherwise.
+
+        Returns:
+            True if every supplied code matches the ICD-10-CM structural pattern, False otherwise.
+        """
         return all(
             self._icd10_pattern.match(code) is not None for code in self._codes
         )

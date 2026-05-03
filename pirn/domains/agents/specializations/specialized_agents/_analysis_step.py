@@ -41,6 +41,18 @@ class _AnalysisStep(Knot):
         sql_response: AgentResponse,
         **_: Any,
     ) -> AgentResponse:
+        """Ask the LLM to analyse the SQL result and return a response combining both.
+
+        Args:
+            question: The original natural-language question answered by the SQL agent.
+            sql_response: The AgentResponse containing the SQL query and result rows.
+
+        Returns:
+            An AgentResponse whose content combines the SQL result block with the LLM analysis.
+
+        Raises:
+            TypeError: If sql_response is not an AgentResponse instance.
+        """
         if not isinstance(sql_response, AgentResponse):
             raise TypeError(
                 "DataAnalystAgent: sql_response must be an AgentResponse, "

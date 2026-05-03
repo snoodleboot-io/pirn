@@ -1,4 +1,4 @@
-"""``HandoffGate`` — detect responses that should escalate to a human/another agent."""
+"""``HandoffCheck`` — detect responses that should escalate to a human/another agent."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.domains.agents.types.agent_response import AgentResponse
 
 
-class HandoffGate(Knot):
+class HandoffCheck(Knot):
     """Returns ``True`` when the response matches an escalation pattern.
 
     ``escalation_patterns`` is a sequence of regex strings; a match
@@ -31,24 +31,24 @@ class HandoffGate(Knot):
             escalation_patterns, (str, bytes)
         ):
             raise TypeError(
-                "HandoffGate: escalation_patterns must be a sequence of regex strings"
+                "HandoffCheck: escalation_patterns must be a sequence of regex strings"
             )
         if not escalation_patterns:
             raise ValueError(
-                "HandoffGate: escalation_patterns must be non-empty"
+                "HandoffCheck: escalation_patterns must be non-empty"
             )
         compiled: list[re.Pattern[str]] = []
         for index, pattern in enumerate(escalation_patterns):
             if not isinstance(pattern, str) or not pattern:
                 raise ValueError(
-                    f"HandoffGate: escalation_patterns[{index}] must be a "
+                    f"HandoffCheck: escalation_patterns[{index}] must be a "
                     f"non-empty string, got {pattern!r}"
                 )
             try:
                 compiled.append(re.compile(pattern, flags=re.IGNORECASE))
             except re.error as exc:
                 raise ValueError(
-                    f"HandoffGate: escalation_patterns[{index}] is not a "
+                    f"HandoffCheck: escalation_patterns[{index}] is not a "
                     f"valid regex: {exc}"
                 ) from exc
         super().__init__(
@@ -65,9 +65,21 @@ class HandoffGate(Knot):
         escalation_patterns: tuple[str, ...],
         **_: Any,
     ) -> bool:
+        """Check the response content against escalation patterns and return True if any match.
+
+        Args:
+            response: The agent response whose content is searched for escalation patterns.
+            escalation_patterns: Compiled regex patterns checked against the response content.
+
+        Returns:
+            True if the response content matches any escalation pattern, False otherwise.
+
+        Raises:
+            TypeError: If response is not an AgentResponse instance.
+        """
         if not isinstance(response, AgentResponse):
             raise TypeError(
-                "HandoffGate: response must be an AgentResponse, "
+                "HandoffCheck: response must be an AgentResponse, "
                 f"got {type(response).__name__}"
             )
         del escalation_patterns

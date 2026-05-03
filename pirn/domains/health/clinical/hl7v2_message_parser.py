@@ -34,6 +34,11 @@ class HL7v2MessageParser(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> ClinicalRecord:
+        """Parse the HL7v2 message segments and return a ClinicalRecord.
+
+        Returns:
+            A ClinicalRecord derived from the parsed HL7v2 message.
+        """
         # Production: parse MSH/PID/OBX segments via hl7apy.
         return ClinicalRecord(
             patient_id="",

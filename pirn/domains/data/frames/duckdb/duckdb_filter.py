@@ -52,6 +52,14 @@ class DuckdbFilter(Knot):
         return self._predicate
 
     async def process(self, batch: DuckdbDataBatch, **_: Any) -> DuckdbDataBatch:
+        """Apply the configured SQL predicate to filter rows and return the resulting batch.
+
+        Args:
+            batch: The DuckdbDataBatch to filter.
+
+        Returns:
+            A new DuckdbDataBatch containing only the rows that satisfy the predicate.
+        """
         return batch.with_relation(batch.relation.filter(self._predicate))
 
     def _reject_obvious_injection(self, predicate: str) -> None:

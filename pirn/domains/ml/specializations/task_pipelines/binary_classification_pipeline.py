@@ -76,6 +76,12 @@ class BinaryClassificationPipeline(SubTapestry):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> EvalReport:
+        """Load data, split, scale, train a binary classifier, and return the EvalReport from the evaluation stage.
+
+        Returns:
+            EvalReport containing accuracy, precision, recall, f1, and
+            roc_auc metrics from the evaluation stage.
+        """
         with Tapestry() as inner:
             dataset = DatasetLoader(
                 name="binary-classification",

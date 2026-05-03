@@ -33,6 +33,14 @@ class RelativePermeabilityModeler(Knot):
         super().__init__(pvt=pvt, _config=_config, **kwargs)
 
     async def process(self, pvt: PVTTable, **_: Any) -> dict[str, Any]:
+        """Fit the configured relative-permeability model to the PVT table and return the endpoint parameter dict.
+
+        Args:
+            pvt: PVT table providing fluid-property context for the kr model.
+
+        Returns:
+            Dict with keys ``fluid_id``, ``method``, ``swirr``, ``sorw``, ``krw_max``, and ``kro_max``.
+        """
         return {
             "fluid_id": pvt.fluid_id,
             "method": self._method,

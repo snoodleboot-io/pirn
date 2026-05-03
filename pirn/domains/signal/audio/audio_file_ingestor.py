@@ -70,6 +70,11 @@ class AudioFileIngestor(Knot):
         return self._samples_per_channel
 
     async def process(self, **_: Any) -> SignalFrame:
+        """Resolve the configured audio file path and return a typed SignalFrame reference.
+
+        Returns:
+            SignalFrame reference built from the configured path, sample rate, channel count, and sample count.
+        """
         return SignalFrame(
             signal_id=self._path,
             channel_count=self._channel_count,

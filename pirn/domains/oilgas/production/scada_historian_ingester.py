@@ -47,6 +47,12 @@ class ScadaHistorianIngester(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> ScadaTimeSeries:
+        """Pull the configured tag from the historian connection and return a ScadaTimeSeries reference.
+
+        Returns:
+            ScadaTimeSeries with the configured tag as sensor_id and the
+            configured sample_interval_sec.
+        """
         return ScadaTimeSeries(
             sensor_id=self._tag,
             sample_interval_sec=self._sample_interval_sec,

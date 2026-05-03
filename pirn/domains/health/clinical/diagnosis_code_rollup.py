@@ -48,6 +48,11 @@ class DiagnosisCodeRollup(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> tuple[str, ...]:
+        """Truncate each ICD-10 code to the configured prefix length and return the rolled-up codes.
+
+        Returns:
+            A tuple of ICD-10 code prefixes, one per input code.
+        """
         return tuple(
             code.split(".", 1)[0][: self._prefix_length] for code in self._codes
         )

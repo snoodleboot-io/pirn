@@ -80,6 +80,7 @@ health  = [
     "pyfaidx>=0.7",
     "pysam>=0.22",
     "fhir.resources>=7.1",
+    "pyedflib>=0.1.42",
 ]
 signal  = ["scipy>=1.12", "pywavelets>=1.5", "librosa>=0.10"]
 oilgas  = ["segyio>=1.9", "lasio>=0.31"]

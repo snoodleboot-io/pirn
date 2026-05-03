@@ -38,6 +38,14 @@ class EMDDecomposer(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> WaveletFrame:
+        """Decompose the signal into intrinsic mode functions via empirical mode decomposition and return a WaveletFrame.
+
+        Args:
+            signal: Signal to decompose into up to ``max_imf_count`` intrinsic mode functions.
+
+        Returns:
+            WaveletFrame of EMD intrinsic mode functions with up to ``max_imf_count`` scales.
+        """
         return WaveletFrame(
             signal_id=signal.signal_id,
             wavelet_name="emd",

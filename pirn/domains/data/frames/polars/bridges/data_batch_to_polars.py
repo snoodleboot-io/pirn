@@ -31,6 +31,14 @@ class DataBatchToPolars(Knot):
         super().__init__(batch=batch, _config=_config, **kwargs)
 
     async def process(self, batch: DataBatch, **_: Any) -> PolarsDataBatch:
+        """Convert a Tier-1 DataBatch of row dicts into a PolarsDataBatch.
+
+        Args:
+            batch: The Tier-1 DataBatch whose rows are loaded into a Polars DataFrame.
+
+        Returns:
+            A PolarsDataBatch wrapping a Polars DataFrame with source_uri and fetched_at preserved.
+        """
         if not batch.rows:
             frame = pl.DataFrame()
         else:

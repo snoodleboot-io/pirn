@@ -83,6 +83,17 @@ class DocumentIngestionPipeline(SubTapestry):
         super().__init__(source=source, _config=_config, **kwargs)
 
     async def process(self, source: str, **_: Any) -> int:
+        """Load, chunk, embed, and store a document; return the number of chunks stored.
+
+        Args:
+            source: A local file path or http(s):// URL identifying the document to ingest.
+
+        Returns:
+            The number of chunks embedded and stored.
+
+        Raises:
+            TypeError: If source is not a non-empty string.
+        """
         if not isinstance(source, str) or not source:
             raise TypeError(
                 "DocumentIngestionPipeline: source must be a non-empty "

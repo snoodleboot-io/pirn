@@ -43,6 +43,14 @@ class GenomicsQCGate(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> tuple[GenomicsRecord, ...]:
+        """Check every record's quality_score against the minimum threshold and raise GenomicsQCError if any fail.
+
+        Returns:
+            Tuple of all records when every quality_score meets the threshold.
+
+        Raises:
+            GenomicsQCError: If any record's quality_score is below min_quality.
+        """
         for record in self._records:
             if record.quality_score < self._min_quality:
                 raise GenomicsQCError(

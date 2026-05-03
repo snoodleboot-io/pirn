@@ -36,4 +36,9 @@ class MotionCorrector(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> str:
+        """Apply rigid-body motion correction to the NIfTI volume and return the corrected output path.
+
+        Returns:
+            Path string for the motion-corrected NIfTI output file.
+        """
         return self._output_nifti_path

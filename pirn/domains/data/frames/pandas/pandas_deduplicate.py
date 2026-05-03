@@ -44,6 +44,14 @@ class PandasDeduplicate(Knot):
         return self._keys
 
     async def process(self, batch: PandasDataBatch, **_: Any) -> PandasDataBatch:
+        """Drop duplicate rows by key columns, keeping the first occurrence.
+
+        Args:
+            batch: The PandasDataBatch to deduplicate.
+
+        Returns:
+            A new PandasDataBatch with duplicate rows removed, retaining the first occurrence per key.
+        """
         deduped = batch.frame.drop_duplicates(
             subset=list(self._keys), keep="first"
         ).reset_index(drop=True)

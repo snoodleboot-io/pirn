@@ -59,6 +59,17 @@ class WorkingMemoryPipeline(SubTapestry):
         new_message: AgentMessage,
         **_: Any,
     ) -> tuple[AgentMessage, ...]:
+        """Append new_message to the session window and return the trimmed context tuple.
+
+        Args:
+            new_message: The new message to append to the per-session window.
+
+        Returns:
+            A tuple of the most recent AgentMessage instances trimmed to max_size.
+
+        Raises:
+            RuntimeError: If the inner window writer does not return a tuple.
+        """
         with Tapestry() as inner:
             WorkingMemoryWindowWriter(
                 new_message=new_message,

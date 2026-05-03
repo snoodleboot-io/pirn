@@ -37,6 +37,15 @@ class _QALoadAndChunk(Knot):
         chunk_size: int,
         **_: Any,
     ) -> list[str]:
+        """Load text from source and return fixed-size chunks for downstream QA retrieval.
+
+        Args:
+            source: A local file path or http(s):// URL to read text from.
+            chunk_size: The maximum character length of each chunk.
+
+        Returns:
+            A list of fixed-size text chunk strings; empty if the source yields no text.
+        """
         text = await _QALoadAndChunk._load_text(source)
         if not text:
             return []

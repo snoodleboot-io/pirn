@@ -33,6 +33,17 @@ class ToolResultAggregator(Knot):
         results: Sequence[ToolResult],
         **_: Any,
     ) -> dict[str, Any]:
+        """Reduce a sequence of ToolResults into a call_id-keyed mapping of results or errors.
+
+        Args:
+            results: The sequence of tool results to aggregate.
+
+        Returns:
+            A dict mapping each call_id to its result value or an error dict.
+
+        Raises:
+            TypeError: If results is not a sequence or any element is not a ToolResult.
+        """
         if not isinstance(results, Sequence) or isinstance(results, (str, bytes)):
             raise TypeError(
                 "ToolResultAggregator: results must be a sequence of "

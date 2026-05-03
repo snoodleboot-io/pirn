@@ -52,4 +52,9 @@ class SingleCellClusterer(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> Mapping[str, int]:
+        """Cluster cells from the count matrix at the configured resolution and return a cell-id-to-cluster mapping.
+
+        Returns:
+            Mapping of cell_id to integer cluster label.
+        """
         return {cell: 0 for cell in self._cell_ids}

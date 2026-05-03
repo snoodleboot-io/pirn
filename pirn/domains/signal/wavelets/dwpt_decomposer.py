@@ -48,6 +48,14 @@ class DWPTDecomposer(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> WaveletFrame:
+        """Compute the dual-tree wavelet packet transform of the signal and return a WaveletFrame.
+
+        Args:
+            signal: Signal to decompose using the configured dual-tree wavelet at the configured level count.
+
+        Returns:
+            WaveletFrame of DWPT coefficients with ``2 ** level_count`` subbands.
+        """
         return WaveletFrame(
             signal_id=signal.signal_id,
             wavelet_name=self._wavelet_name,

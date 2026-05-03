@@ -255,7 +255,7 @@ Phase 2: pirn.domains.agents
   4. pirn/domains/agents/memory.py     — MemoryWriter, MemoryRetriever, ConversationBuffer
   5. pirn/domains/agents/planning.py   — Planner, ToolRouter, ToolExecutor, ToolResultAggregator
   6. pirn/domains/agents/generation.py — LLMCall, OutputParser, ResponseFormatter
-  7. pirn/domains/agents/control.py    — ReflectionGate, SafetyGate, HandoffGate, TerminationGate
+  7. pirn/domains/agents/control.py    — ReflectionCheck, SafetyCheck, HandoffCheck, TerminationCheck
   8. examples/react_agent/             — ReAct loop example
   9. tests/domains/agents/
 

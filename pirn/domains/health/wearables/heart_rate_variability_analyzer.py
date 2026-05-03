@@ -36,6 +36,12 @@ class HeartRateVariabilityAnalyzer(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> Mapping[str, float]:
+        """Compute time-domain, frequency-domain, and nonlinear HRV metrics from the R-R intervals.
+
+        Returns:
+            Mapping of metric name to float value, including sdnn, rmssd, pnn50,
+            lf_power, hf_power, and lf_hf_ratio.
+        """
         return {
             "sdnn": 0.0,
             "rmssd": 0.0,

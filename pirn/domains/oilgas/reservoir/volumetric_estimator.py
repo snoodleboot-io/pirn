@@ -55,6 +55,11 @@ class VolumetricEstimator(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> float:
+        """Compute OOIP in stock-tank barrels from the configured area, thickness, porosity, Sw, and FVF inputs.
+
+        Returns:
+            OOIP in stock-tank barrels (float).
+        """
         ooip_stb = (
             7758.0
             * self._area_acres

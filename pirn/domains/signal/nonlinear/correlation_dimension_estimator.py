@@ -57,6 +57,14 @@ class CorrelationDimensionEstimator(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> Mapping[str, Any]:
+        """Estimate the Grassberger-Procaccia correlation dimension from the signal and return a result mapping.
+
+        Args:
+            signal: Time series signal to estimate the correlation dimension from.
+
+        Returns:
+            Mapping containing ``signal_id``, ``embedding_dim``, ``radius_min``, ``radius_max``, and ``estimator``.
+        """
         return {
             "signal_id": signal.signal_id,
             "embedding_dim": self._embedding_dim,

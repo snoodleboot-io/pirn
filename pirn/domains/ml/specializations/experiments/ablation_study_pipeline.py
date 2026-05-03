@@ -101,6 +101,17 @@ class AblationStudyPipeline(SubTapestry):
     async def process(
         self, split: DataSplit, **_: Any
     ) -> Mapping[str, EvalReport]:
+        """Train and evaluate the full model plus each leave-one-group-out arm and return a report mapping keyed by arm name.
+
+        Args:
+            split: DataSplit used for all ablation-arm training and evaluation.
+
+        Returns:
+            Mapping of arm name (including ``"full"``) to EvalReport for that arm.
+
+        Raises:
+            TypeError: If any inner evaluator output is not an EvalReport.
+        """
         arm_names = [self._full_arm_name] + sorted(self._feature_groups.keys())
         with Tapestry() as inner:
             split_node = _emit_value(

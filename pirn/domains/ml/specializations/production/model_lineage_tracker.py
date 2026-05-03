@@ -68,6 +68,18 @@ class ModelLineageTracker(SubTapestry):
         report: EvalReport,
         **_: Any,
     ) -> str:
+        """Record dataset, split, model, and report as lineage events and return the deterministic lineage_id.
+
+        Args:
+            dataset: MLDataset whose metadata is hashed into the lineage chain.
+            split: DataSplit whose train/test partition names are recorded.
+            model: TrainedModel whose model_id and algorithm are logged.
+            report: EvalReport whose metrics are captured in the lineage event.
+
+        Returns:
+            Deterministic 32-character hex lineage identifier derived from the
+            dataset hash, model_id, report metrics, and recording timestamp.
+        """
         recorded_at = datetime.now(timezone.utc).isoformat()
         dataset_hash = self._hash(
             {

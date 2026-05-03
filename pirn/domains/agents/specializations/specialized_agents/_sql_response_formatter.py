@@ -32,6 +32,15 @@ class _SQLResponseFormatter(Knot):
         rows: list[Any],
         **_: Any,
     ) -> AgentResponse:
+        """Format the SQL query and its result rows into an AgentResponse.
+
+        Args:
+            sql: The SQL query string that was executed.
+            rows: The list of row values returned by the database.
+
+        Returns:
+            An AgentResponse whose content contains the SQL query and a formatted rows block.
+        """
         rendered_rows = "\n".join(repr(row) for row in rows)
         content = (
             f"SQL:\n{sql}\n\n"

@@ -59,6 +59,17 @@ class CodeAgent(SubTapestry):
         super().__init__(task=task, _config=_config, **kwargs)
 
     async def process(self, task: str, **_: Any) -> AgentResponse:
+        """Generate code for the task, run a lint pass, and return the formatted AgentResponse.
+
+        Args:
+            task: The non-empty task description used to prompt the LLM for code.
+
+        Returns:
+            An AgentResponse whose content is the generated code with lint metadata in usage.
+
+        Raises:
+            TypeError: If task is not a non-empty string.
+        """
         if not isinstance(task, str) or not task:
             raise TypeError(
                 "CodeAgent: task must be a non-empty string, "

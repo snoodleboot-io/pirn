@@ -52,6 +52,14 @@ class STFTDecomposer(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SpectrumFrame:
+        """Compute the short-time Fourier transform of the signal and return a SpectrumFrame.
+
+        Args:
+            signal: Signal to decompose into a time-frequency representation via sliding-window FFT.
+
+        Returns:
+            SpectrumFrame with ``frequency_bins`` equal to half the window length plus one.
+        """
         resolution = (
             signal.sample_rate_hz / self._window_length
             if signal.sample_rate_hz > 0

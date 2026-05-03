@@ -67,6 +67,12 @@ class RegressionPipeline(SubTapestry):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> EvalReport:
+        """Load data, split, scale, train a regressor, and return the RMSE/MAE/R2/MAPE EvalReport.
+
+        Returns:
+            EvalReport containing rmse, mae, r2, and mape metrics from the
+            regression evaluation stage.
+        """
         with Tapestry() as inner:
             dataset = DatasetLoader(
                 name="regression",

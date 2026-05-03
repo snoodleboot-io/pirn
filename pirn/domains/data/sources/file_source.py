@@ -87,6 +87,11 @@ class FileSource(Knot):
         return self._format.name
 
     async def process(self, **_: Any) -> DataBatch:
+        """Fetch the file from the object store, decode it via the FileFormat, and return a DataBatch.
+
+        Returns:
+            A DataBatch containing all records decoded from the stored file.
+        """
         body = await self._store.get(self._key)
         records = await self._format.read(body)
         rows: list[dict[str, Any]] = []

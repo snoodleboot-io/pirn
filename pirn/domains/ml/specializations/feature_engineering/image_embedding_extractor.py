@@ -56,6 +56,17 @@ class ImageEmbeddingExtractor(SubTapestry):
         super().__init__(split=split, _config=_config, **kwargs)
 
     async def process(self, split: DataSplit, **_: Any) -> DataSplit:
+        """Encode the image column via the image encoder, append the embedding feature to each partition, and return the updated DataSplit.
+
+        Args:
+            split: DataSplit whose partitions receive the new image embedding feature.
+
+        Returns:
+            DataSplit with ``<image_column>_embedding`` appended to every partition's feature list.
+
+        Raises:
+            TypeError: If the inner encoder does not return a DataSplit.
+        """
         with Tapestry() as inner:
             split_node = _emit_value(
                 value=split, _config=KnotConfig(id="split")

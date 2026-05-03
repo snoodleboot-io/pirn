@@ -58,6 +58,17 @@ class LLMChatCall(Knot):
         super().__init__(prompt=prompt, _config=_config, **kwargs)
 
     async def process(self, prompt: str, **_: Any) -> str:
+        """Send the prompt as a user message to the LLM and return the extracted text response.
+
+        Args:
+            prompt: The fully-formed prompt string to send as a user message.
+
+        Returns:
+            The extracted text content from the LLM response.
+
+        Raises:
+            TypeError: If prompt is not a string.
+        """
         if not isinstance(prompt, str):
             raise TypeError(
                 "LLMChatCall: prompt must be a string, "

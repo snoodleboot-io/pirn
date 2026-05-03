@@ -49,6 +49,15 @@ class RegressionEvalPipeline(SubTapestry):
     async def process(
         self, model: TrainedModel, split: DataSplit, **_: Any
     ) -> EvalReport:
+        """Evaluate the regressor with RMSE, MAE, R-squared, and MAPE and return the resulting EvalReport.
+
+        Args:
+            model: TrainedModel reference to evaluate.
+            split: DataSplit whose test partition is used for scoring.
+
+        Returns:
+            EvalReport containing rmse, mae, r2, and mape metrics.
+        """
         with Tapestry() as inner:
             model_node = _emit_value(
                 value=model, _config=KnotConfig(id="model")

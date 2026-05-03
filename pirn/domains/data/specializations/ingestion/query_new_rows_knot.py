@@ -67,6 +67,17 @@ class QueryNewRowsKnot(Knot):
         )
 
     async def process(self, high_water_mark: Any, **_: Any) -> list:
+        """Generate a full or incremental SELECT based on the high-water mark and return the result rows.
+
+        Args:
+            high_water_mark: The current maximum watermark value from the target table, or None for an initial load.
+
+        Returns:
+            A list of rows returned by the source query.
+
+        Raises:
+            TypeError: If the pool does not support fetch_all().
+        """
         fetch_all = getattr(self._pool, "fetch_all", None)
         if fetch_all is None:
             raise TypeError(

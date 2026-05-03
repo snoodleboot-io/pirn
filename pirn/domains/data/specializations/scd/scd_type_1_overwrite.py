@@ -103,6 +103,12 @@ class ScdType1Overwrite(SubTapestry):
         )
 
     async def process(self, **_: Any) -> dict[str, Any]:
+        """Upsert each source row into the target by overwriting changed attributes in place.
+
+        Returns:
+            A dict with keys ``succeeded``, ``target_table``, and ``rows_upserted``
+            summarising the merge outcome.
+        """
         # Read all source rows up-front; SCD Type 1 is intended for
         # dimension tables that fit comfortably in memory.
         source_rows = await self._source_pool.fetch_all(self._source_query)

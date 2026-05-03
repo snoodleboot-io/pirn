@@ -84,6 +84,14 @@ class Aggregator(Knot):
         self._frozen = True
 
     async def process(self, **inputs: Any) -> Any:
+        """Combine all parent outputs by applying the combine callable to the resolved keyword arguments.
+
+        Args:
+            **inputs: Resolved outputs of each parent knot, keyed by the parent kwarg name.
+
+        Returns:
+            Value returned by the combine callable when invoked with the parent outputs.
+        """
         combine = self._mutable_combine
         if self._mutable_combine_is_async:
             return await combine(**inputs)

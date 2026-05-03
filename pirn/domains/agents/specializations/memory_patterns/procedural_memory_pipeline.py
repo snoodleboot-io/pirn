@@ -51,6 +51,18 @@ class ProceduralMemoryPipeline(SubTapestry):
         task_description: str,
         **_: Any,
     ) -> str:
+        """Persist the task-response recipe in the store and return the procedure key.
+
+        Args:
+            agent_response: The agent response whose content forms the recipe.
+            task_description: The natural-language task description paired with the response.
+
+        Returns:
+            The storage key under which the procedure was persisted.
+
+        Raises:
+            RuntimeError: If the inner writer does not return a key.
+        """
         with Tapestry() as inner:
             ProceduralMemoryWriter(
                 agent_response=agent_response,

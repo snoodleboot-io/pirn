@@ -51,4 +51,9 @@ class WhiteMatterAnalyzer(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> Mapping[str, Mapping[str, float]]:
+        """Compute FA and MD metrics per tract from the DWI volume and return a tract-to-metrics mapping.
+
+        Returns:
+            Mapping of tract name to a dict with ``fa`` and ``md`` float values.
+        """
         return {tract: {"fa": 0.0, "md": 0.0} for tract in self._tracts}

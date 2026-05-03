@@ -46,6 +46,14 @@ class ImageEmbeddingExtractor(Knot):
         super().__init__(split=split, _config=_config, **kwargs)
 
     async def process(self, split: DataSplit, **_: Any) -> DataSplit:
+        """Probe the image encoder, append the image-column embedding feature to each split partition, and return the updated DataSplit.
+
+        Args:
+            split: DataSplit whose partitions receive the new image embedding feature.
+
+        Returns:
+            DataSplit with ``<image_column>_embedding`` appended to every partition's feature list.
+        """
         # Touch the encoder so misconfigured providers fail loudly at
         # planning time. We feed the column name encoded as bytes as a
         # single probe rather than the full image column.

@@ -45,4 +45,12 @@ class RayFilter(Knot):
         return self._predicate
 
     async def process(self, batch: RayDataset, **_: Any) -> RayDataset:
+        """Apply the row-level callable predicate to filter the deferred Ray Dataset plan.
+
+        Args:
+            batch: The upstream RayDataset to filter.
+
+        Returns:
+            A new RayDataset with the filter predicate applied to the deferred plan.
+        """
         return batch.with_dataset(batch.dataset.filter(self._predicate))

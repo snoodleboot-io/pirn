@@ -85,6 +85,12 @@ class ComputerVisionPipeline(SubTapestry):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> EvalReport:
+        """Load data, split, extract image embeddings, train a classifier, and return the resulting EvalReport.
+
+        Returns:
+            EvalReport containing accuracy, precision, recall, and f1 metrics
+            from the image-classification evaluation stage.
+        """
         with Tapestry() as inner:
             dataset = DatasetLoader(
                 name="computer-vision",

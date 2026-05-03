@@ -75,6 +75,12 @@ class DirectorySource(Knot):
     async def process(
         self, **_: Any
     ) -> tuple[DataBatch, ...] | DataBatch:
+        """List, decode, and return all files under the configured prefix as per-file batches or one concatenated batch.
+
+        Returns:
+            A tuple of per-file DataBatches, or a single concatenated DataBatch when
+            concatenate is True.
+        """
         keys: list[str] = []
         key_iter = await self._store.list(self._prefix)
         async for k in key_iter:

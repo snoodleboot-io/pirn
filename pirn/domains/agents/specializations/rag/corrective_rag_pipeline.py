@@ -96,6 +96,17 @@ class CorrectiveRAGPipeline(SubTapestry):
         super().__init__(query=query, _config=_config, **kwargs)
 
     async def process(self, query: str, **_: Any) -> AgentResponse:
+        """Retrieve, score, correct via fallback if needed, and answer the query using the LLM.
+
+        Args:
+            query: The user query string to retrieve context for and answer.
+
+        Returns:
+            An AgentResponse containing the LLM-generated answer.
+
+        Raises:
+            TypeError: If query is not a string.
+        """
         if not isinstance(query, str):
             raise TypeError(
                 "CorrectiveRAGPipeline: query must be a string, "

@@ -67,6 +67,17 @@ class BaselineEstablisher(SubTapestry):
         super().__init__(split=split, _config=_config, **kwargs)
 
     async def process(self, split: DataSplit, **_: Any) -> EvalReport:
+        """Train the baseline algorithm on the split and return the evaluated EvalReport as a reference point.
+
+        Args:
+            split: DataSplit used for training and evaluating the baseline.
+
+        Returns:
+            EvalReport produced by the inner evaluator for the baseline model.
+
+        Raises:
+            TypeError: If the inner evaluator does not return an EvalReport.
+        """
         with Tapestry() as inner:
             split_node = _emit_value(
                 value=split, _config=KnotConfig(id="split")

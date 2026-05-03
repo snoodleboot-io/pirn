@@ -65,6 +65,16 @@ class DriftMonitor(SubTapestry):
     async def process(
         self, baseline: DataSplit, current: DataSplit, **_: Any
     ) -> Mapping[str, Any]:
+        """Compute per-column drift scores between the baseline and current splits and return a mapping with drift_detected and per-column scores.
+
+        Args:
+            baseline: DataSplit representing the reference distribution.
+            current: DataSplit representing the live or recent distribution.
+
+        Returns:
+            Mapping with ``scores`` (per-column float drift scores),
+            ``drift_detected`` (bool), and ``threshold`` (float).
+        """
         scores: dict[str, float] = {}
         for column in self._columns:
             scores[column] = self._drift_score(baseline, current, column)

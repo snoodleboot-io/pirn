@@ -46,6 +46,14 @@ class PolarsCast(Knot):
         return dict(self._casts)
 
     async def process(self, batch: PolarsDataBatch, **_: Any) -> PolarsDataBatch:
+        """Cast the configured columns to their target Polars dtypes and return the updated batch.
+
+        Args:
+            batch: The upstream PolarsDataBatch whose columns will be recast.
+
+        Returns:
+            A new PolarsDataBatch with the configured columns cast to their target dtypes.
+        """
         applicable = {
             column: dtype for column, dtype in self._casts.items()
             if column in batch.frame.columns

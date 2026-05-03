@@ -53,6 +53,19 @@ class StreamingLLMCall(Knot):
         model: str | None,
         **_: Any,
     ) -> Any:
+        """Invoke the LLM streaming interface and return an async iterator of response chunks.
+
+        Args:
+            context: The agent context containing the messages to stream.
+            llm: LLM provider used to perform the streaming chat completion.
+            model: Optional model identifier override; uses the provider default if None.
+
+        Returns:
+            An async iterator of response chunk mappings from the LLM provider.
+
+        Raises:
+            TypeError: If context is not an AgentContext instance.
+        """
         # Return type elided to ``Any`` because pydantic's ``TypeAdapter``
         # cannot produce a schema for :class:`AsyncIterator`; downstream
         # callers narrow back to ``AsyncIterator[Mapping[str, Any]]``

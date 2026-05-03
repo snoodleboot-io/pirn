@@ -32,9 +32,11 @@ from __future__ import annotations
 
 import asyncio
 import random
+from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Any
 
+from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
@@ -503,8 +505,8 @@ def _synthetic_messages() -> list[Hl7Message]:
 # ----------------------------------------------------------------- wiring
 
 
-def build_tapestry() -> Tapestry:
-    with Tapestry(history=None) as t:
+def build_tapestry(history=None) -> Tapestry:
+    with Tapestry(history=history) as t:
         message = Parameter("message", Hl7Message, _config=KnotConfig(id="message"))
         routed = route_message(
             message=message,
@@ -522,7 +524,8 @@ def build_tapestry() -> Tapestry:
 
 
 async def main() -> None:
-    tapestry = build_tapestry()
+    history = SQLiteHistory(path=str(Path(__file__).parent.parent / "pirn.db"))
+    tapestry = build_tapestry(history=history)
     messages = _synthetic_messages()
 
     print(f"Processing {len(messages)} HL7v2 messages\n")

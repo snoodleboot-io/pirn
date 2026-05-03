@@ -44,6 +44,11 @@ class PHIRedactor(Knot):
         return digest[:16]
 
     async def process(self, **_: Any) -> ClinicalRecord:
+        """Hash patient_id and encounter_id with the configured salt and return a redacted ClinicalRecord.
+
+        Returns:
+            A ClinicalRecord with patient_id and encounter_id replaced by stable opaque hash tokens.
+        """
         record = self._record
         return ClinicalRecord(
             patient_id=self._hash_id(record.patient_id),

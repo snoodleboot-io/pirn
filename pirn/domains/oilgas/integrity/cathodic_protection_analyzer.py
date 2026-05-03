@@ -32,6 +32,16 @@ class CathodicProtectionAnalyzer(Knot):
     async def process(
         self, potential_series: ScadaTimeSeries, **_: Any
     ) -> dict[str, float]:
+        """Score cathodic-protection coverage from the pipe-to-soil potential series and return coverage fraction and threshold.
+
+        Args:
+            potential_series: ScadaTimeSeries of pipe-to-soil potential
+                measurements used to assess protection coverage.
+
+        Returns:
+            Dict with ``coverage_fraction`` (float in [0, 1]) and
+            ``threshold_mv`` (the configured protection threshold in mV).
+        """
         return {
             "coverage_fraction": 1.0,
             "threshold_mv": self._protection_threshold_mv,

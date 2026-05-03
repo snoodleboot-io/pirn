@@ -92,6 +92,15 @@ class DuckdbJoin(Knot):
     async def process(
         self, left: DuckdbDataBatch, right: DuckdbDataBatch, **_: Any
     ) -> DuckdbDataBatch:
+        """Join the left and right DuckDB batches on the configured keys or condition and return the result.
+
+        Args:
+            left: The left-side DuckdbDataBatch.
+            right: The right-side DuckdbDataBatch.
+
+        Returns:
+            A new DuckdbDataBatch containing the joined result.
+        """
         right_relation = self._align_right(left, right)
         # Materialise both sides as views on the shared connection. SQL
         # gives us deterministic JOIN syntax across DuckDB versions and

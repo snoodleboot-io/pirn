@@ -44,6 +44,18 @@ class CrossSpectrumEstimator(Knot):
         signal_b: SignalFrame,
         **_: Any,
     ) -> SpectrumFrame:
+        """Estimate the cross-spectral density between two signals and return a SpectrumFrame.
+
+        Args:
+            signal_a: First signal for the cross-spectral density estimate.
+            signal_b: Second signal for the cross-spectral density estimate.
+
+        Returns:
+            SpectrumFrame with bins equal to half the segment length plus one.
+
+        Raises:
+            ValueError: If signal_a and signal_b have different sample rates.
+        """
         if signal_a.sample_rate_hz != signal_b.sample_rate_hz:
             raise ValueError(
                 "CrossSpectrumEstimator: signal_a and signal_b must share a sample rate"

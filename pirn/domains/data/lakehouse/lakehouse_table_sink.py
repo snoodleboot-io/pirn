@@ -62,6 +62,14 @@ class LakehouseTableSink(Knot):
         return self._mode
 
     async def process(self, batch: DataBatch, **_: Any) -> str:
+        """Write the DataBatch to the lakehouse table using the configured mode and return the snapshot id.
+
+        Args:
+            batch: The DataBatch of rows to persist.
+
+        Returns:
+            The snapshot id string produced by the lakehouse write operation.
+        """
         async def _records() -> AsyncIterator[Mapping[str, Any]]:
             for row in batch.rows:
                 yield row

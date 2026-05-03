@@ -34,9 +34,11 @@ import hashlib
 import math
 import random
 import struct
+from pathlib import Path
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
+from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -489,9 +491,8 @@ SURVEYS = [
 
 
 async def main() -> None:
-    # Raw trace bytes in intermediate outputs are not JSON-serialisable;
-    # skip history for this example.
-    t = build_tapestry(history=None)
+    history = SQLiteHistory(path=str(Path(__file__).parent.parent / "pirn.db"))
+    t = build_tapestry(history=history)
 
     print("\n── Seismic Survey Analysis Pipeline ──\n")
 

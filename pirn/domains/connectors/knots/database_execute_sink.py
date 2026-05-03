@@ -51,6 +51,17 @@ class DatabaseExecuteSink(Sink):
         return self._query
 
     async def process(self, rows: Iterable[Iterable[Any]], **_: Any) -> int:
+        """Execute the configured query once per parameter row and return the number of rows processed.
+
+        Args:
+            rows: An iterable of parameter tuples, one per query execution.
+
+        Returns:
+            The total number of parameter rows passed to execute_many.
+
+        Raises:
+            TypeError: If rows is a str/bytes value rather than an iterable of tuples, or if the pool lacks execute_many.
+        """
         if isinstance(rows, (str, bytes, bytearray)):
             raise TypeError(
                 "DatabaseExecuteSink: rows must be an iterable of parameter "

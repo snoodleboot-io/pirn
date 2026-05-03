@@ -57,6 +57,14 @@ class PolarsPivot(Knot):
         return self._values
 
     async def process(self, batch: PolarsDataBatch, **_: Any) -> PolarsDataBatch:
+        """Pivot the batch to wide format using Polars's native pivot and return the result.
+
+        Args:
+            batch: The upstream PolarsDataBatch to reshape.
+
+        Returns:
+            A new PolarsDataBatch in wide format with one column per unique value in ``on``.
+        """
         return batch.with_frame(
             batch.frame.pivot(
                 on=list(self._on),

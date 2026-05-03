@@ -62,6 +62,11 @@ class SeismicToWellTieWorkflow(SubTapestry):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> RunResult:
+        """Build and execute the SEG-Y-to-well-tie inner tapestry and return its RunResult.
+
+        Returns:
+            RunResult from the inner pipeline spanning SEG-Y ingest through well-tie correlation.
+        """
         with Tapestry() as inner:
             volume = SegyFileIngester(
                 file_path=self._segy_path,

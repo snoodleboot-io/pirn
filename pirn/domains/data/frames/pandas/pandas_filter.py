@@ -53,5 +53,13 @@ class PandasFilter(Knot):
         return self._predicate
 
     async def process(self, batch: PandasDataBatch, **_: Any) -> PandasDataBatch:
+        """Apply the callable predicate to produce a boolean mask and return the filtered batch.
+
+        Args:
+            batch: The PandasDataBatch to filter.
+
+        Returns:
+            A new PandasDataBatch containing only the rows for which the predicate returns True.
+        """
         mask = self._predicate(batch.frame)
         return batch.with_frame(batch.frame[mask].reset_index(drop=True))

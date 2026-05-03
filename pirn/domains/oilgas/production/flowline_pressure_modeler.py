@@ -43,6 +43,16 @@ class FlowlinePressureModeler(Knot):
     async def process(
         self, rate_series: ScadaTimeSeries, **_: Any
     ) -> ScadaTimeSeries:
+        """Accept a flow-rate series and return a pressure-drop time series computed from the configured pipe geometry.
+
+        Args:
+            rate_series: ScadaTimeSeries of flow rates used as input to the
+                pressure-drop model.
+
+        Returns:
+            ScadaTimeSeries of computed pressure-drop values with sensor_id
+            prefixed ``dp:<rate_sensor_id>``.
+        """
         return ScadaTimeSeries(
             sensor_id=f"dp:{rate_series.sensor_id}",
             sample_interval_sec=rate_series.sample_interval_sec,

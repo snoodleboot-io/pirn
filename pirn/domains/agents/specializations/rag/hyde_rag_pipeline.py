@@ -72,6 +72,17 @@ class HyDERAGPipeline(SubTapestry):
         super().__init__(query=query, _config=_config, **kwargs)
 
     async def process(self, query: str, **_: Any) -> AgentResponse:
+        """Generate a hypothetical answer, retrieve on it, then produce the final answer via the LLM.
+
+        Args:
+            query: The user query string for which a hypothetical document is first generated.
+
+        Returns:
+            An AgentResponse containing the final LLM-generated answer.
+
+        Raises:
+            TypeError: If query is not a string.
+        """
         if not isinstance(query, str):
             raise TypeError(
                 "HyDERAGPipeline: query must be a string, "

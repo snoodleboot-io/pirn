@@ -51,6 +51,14 @@ class BandStopFilter(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SignalFrame:
+        """Apply the band-stop filter to the input signal and return the filtered SignalFrame.
+
+        Args:
+            signal: Signal to band-stop filter.
+
+        Returns:
+            SignalFrame with the configured frequency band attenuated.
+        """
         return SignalFrame(
             signal_id=f"{signal.signal_id}:bandstop",
             channel_count=signal.channel_count,

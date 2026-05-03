@@ -53,6 +53,14 @@ class SSADecomposer(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SourceFrame:
+        """Decompose the signal via trajectory-matrix SVD and return a SourceFrame of SSA components.
+
+        Args:
+            signal: Time series signal to decompose using singular spectrum analysis.
+
+        Returns:
+            SourceFrame with ``source_count`` equal to ``component_count`` and the embedding-matrix shape.
+        """
         return SourceFrame(
             signal_id=signal.signal_id,
             source_count=self._component_count,

@@ -64,6 +64,14 @@ class ParticleFilter(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SignalFrame:
+        """Filter the signal through the sequential Monte Carlo particle filter and return the filtered SignalFrame.
+
+        Args:
+            signal: Observed signal to filter through the nonlinear non-Gaussian state estimator.
+
+        Returns:
+            SignalFrame of particle-filter state estimates.
+        """
         return SignalFrame(
             signal_id=f"{signal.signal_id}:particle",
             channel_count=signal.channel_count,

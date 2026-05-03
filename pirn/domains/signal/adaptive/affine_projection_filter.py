@@ -63,6 +63,15 @@ class AffineProjectionFilter(Knot):
         reference: SignalFrame,
         **_: Any,
     ) -> SignalFrame:
+        """Apply the affine projection adaptive filter to the signal using the reference and return the filtered SignalFrame.
+
+        Args:
+            signal: Input signal to filter.
+            reference: Reference signal used to drive the adaptive weight update.
+
+        Returns:
+            SignalFrame of the APA-filtered output.
+        """
         return SignalFrame(
             signal_id=f"{signal.signal_id}:apa",
             channel_count=signal.channel_count,

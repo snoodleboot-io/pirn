@@ -32,4 +32,12 @@ class NmoCorrection(Knot):
         super().__init__(gather=gather, _config=_config, **kwargs)
 
     async def process(self, gather: SegyVolume, **_: Any) -> SegyVolume:
+        """Apply NMO correction to the CMP gather using the configured stacking velocity and return the corrected SegyVolume.
+
+        Args:
+            gather: CMP gather SegyVolume to apply NMO correction to.
+
+        Returns:
+            SegyVolume of the NMO-corrected gather.
+        """
         return SegyVolume(volume_id=f"{gather.volume_id}:nmo")

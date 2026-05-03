@@ -47,6 +47,14 @@ class LyapunovExponentEstimator(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> Mapping[str, Any]:
+        """Estimate the largest Lyapunov exponent from the signal and return a parameter mapping.
+
+        Args:
+            signal: Time series signal to estimate the largest Lyapunov exponent from.
+
+        Returns:
+            Mapping containing ``signal_id``, ``embedding_dim``, ``time_delay``, and ``estimator``.
+        """
         return {
             "signal_id": signal.signal_id,
             "embedding_dim": self._embedding_dim,

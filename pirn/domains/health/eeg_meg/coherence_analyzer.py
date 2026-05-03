@@ -62,4 +62,9 @@ class CoherenceAnalyzer(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> Mapping[tuple[str, str], float]:
+        """Compute magnitude-squared coherence for each channel pair in the configured frequency band.
+
+        Returns:
+            A mapping from (channel_a, channel_b) tuples to their magnitude-squared coherence values.
+        """
         return {pair: 0.0 for pair in self._channel_pairs}

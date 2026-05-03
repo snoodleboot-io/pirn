@@ -33,6 +33,18 @@ class _EnumClassifierAttempt(Knot):
         super().__init__(prompt=prompt, _config=_config, **kwargs)
 
     async def process(self, prompt: str, **_: Any) -> str:
+        """Ask the LLM to choose one label from the allowed set and return the matched label.
+
+        Args:
+            prompt: The classification prompt string sent to the LLM as a user message.
+
+        Returns:
+            The matched label string from the allowed set.
+
+        Raises:
+            TypeError: If prompt is not a string.
+            ValueError: If the LLM reply does not match any allowed label.
+        """
         if not isinstance(prompt, str):
             raise TypeError(
                 "EnumClassifierPipeline: prompt must be a string, "

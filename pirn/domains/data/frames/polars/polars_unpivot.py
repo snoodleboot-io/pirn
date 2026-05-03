@@ -51,6 +51,14 @@ class PolarsUnpivot(Knot):
         return self._index
 
     async def process(self, batch: PolarsDataBatch, **_: Any) -> PolarsDataBatch:
+        """Unpivot the configured columns from wide to long format and return the result.
+
+        Args:
+            batch: The upstream PolarsDataBatch to reshape.
+
+        Returns:
+            A new PolarsDataBatch in long format with variable and value columns.
+        """
         return batch.with_frame(
             batch.frame.unpivot(
                 on=list(self._on),

@@ -65,6 +65,17 @@ class DebateFramework(SubTapestry):
         super().__init__(topic=topic, _config=_config, **kwargs)
 
     async def process(self, topic: str, **_: Any) -> AgentResponse:
+        """Run the configured number of debate rounds and return the judge-selected winning response.
+
+        Args:
+            topic: The debate topic string provided to all debaters each round.
+
+        Returns:
+            The AgentResponse selected by the judge as the strongest argument.
+
+        Raises:
+            TypeError: If topic is not a string.
+        """
         if not isinstance(topic, str):
             raise TypeError(
                 "DebateFramework: topic must be a string, "

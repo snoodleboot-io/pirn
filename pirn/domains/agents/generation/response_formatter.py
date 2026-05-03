@@ -47,6 +47,18 @@ class ResponseFormatter(Knot):
         format: str,
         **_: Any,
     ) -> str:
+        """Render the AgentResponse as a plain, markdown, or JSON string.
+
+        Args:
+            response: The agent response to format.
+            format: Output format; one of "plain", "markdown", or "json".
+
+        Returns:
+            The formatted string representation of the response.
+
+        Raises:
+            TypeError: If response is not an AgentResponse instance.
+        """
         if not isinstance(response, AgentResponse):
             raise TypeError(
                 "ResponseFormatter: response must be an AgentResponse, "

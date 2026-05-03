@@ -72,6 +72,17 @@ class FeatureStoreReader(SubTapestry):
         super().__init__(split=split, _config=_config, **kwargs)
 
     async def process(self, split: DataSplit, **_: Any) -> DataSplit:
+        """Fetch features from the store, join them onto each partition of the split, and return the extended DataSplit.
+
+        Args:
+            split: DataSplit whose partitions receive the joined feature names.
+
+        Returns:
+            DataSplit with the configured feature names appended to every partition.
+
+        Raises:
+            TypeError: If the inner reader does not return a DataSplit.
+        """
         with Tapestry() as inner:
             split_node = _emit_value(
                 value=split, _config=KnotConfig(id="split")

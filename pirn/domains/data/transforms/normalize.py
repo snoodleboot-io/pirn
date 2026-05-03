@@ -48,6 +48,14 @@ class Normalize(Knot):
         return dict(self._rules)
 
     async def process(self, batch: DataBatch, **_: Any) -> DataBatch:
+        """Apply per-column normalization rules to string values and return the updated batch.
+
+        Args:
+            batch: The DataBatch whose string column values will be normalized.
+
+        Returns:
+            A new DataBatch with normalization rules applied to the configured columns.
+        """
         new_rows = tuple(self._normalize_row(row) for row in batch.rows)
         return batch.with_rows(new_rows)
 

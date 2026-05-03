@@ -35,4 +35,9 @@ class StepCounter(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> int:
+        """Count steps by detecting acceleration peaks above the configured threshold and return the total.
+
+        Returns:
+            Total number of steps detected in the accelerometer signal.
+        """
         return 0

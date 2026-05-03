@@ -44,6 +44,14 @@ class PandasCast(Knot):
         return dict(self._casts)
 
     async def process(self, batch: PandasDataBatch, **_: Any) -> PandasDataBatch:
+        """Cast the configured columns to their target dtypes and return the updated batch.
+
+        Args:
+            batch: The PandasDataBatch whose columns are to be cast.
+
+        Returns:
+            A new PandasDataBatch with the configured columns cast to their target dtypes.
+        """
         applicable = {
             column: dtype for column, dtype in self._casts.items()
             if column in batch.frame.columns

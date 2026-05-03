@@ -21,6 +21,14 @@ class _DedupRxCUIs(Knot):
         super().__init__(rxcuis=rxcuis, _config=_config, **kwargs)
 
     async def process(self, rxcuis: tuple[str, ...], **_: Any) -> tuple[str, ...]:
+        """Remove duplicate RxCUI codes while preserving order and filtering empty strings.
+
+        Args:
+            rxcuis: The upstream tuple of RxCUI code strings to deduplicate.
+
+        Returns:
+            A tuple of unique, non-empty RxCUI codes in their original order.
+        """
         seen: list[str] = []
         for code in rxcuis:
             if code and code not in seen:

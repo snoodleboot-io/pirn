@@ -40,4 +40,9 @@ class StructuralVariantDetector(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> tuple[Mapping[str, Any], ...]:
+        """Detect large structural variants from the BAM against the reference and return a tuple of SV-call dicts.
+
+        Returns:
+            Tuple of SV-call dicts (empty at orchestration layer).
+        """
         return ()

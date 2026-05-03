@@ -37,6 +37,11 @@ class OMOPCDMMapper(Knot):
     async def process(
         self, **_: Any
     ) -> tuple[Mapping[str, Any], ...]:
+        """Map the ClinicalRecord to an OMOP observation row tuple.
+
+        Returns:
+            A tuple containing a single OMOP observation row dict derived from the configured ClinicalRecord.
+        """
         record = self._record
         row: Mapping[str, Any] = {
             "person_id": record.patient_id,

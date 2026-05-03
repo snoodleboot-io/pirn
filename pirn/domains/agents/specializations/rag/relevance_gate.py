@@ -79,6 +79,19 @@ class RelevanceGate(Knot):
         threshold: float,
         **_: Any,
     ) -> list[Mapping[str, Any]]:
+        """Score each retrieved doc against the query and return only those meeting the threshold.
+
+        Args:
+            query: The query string used as the reference for scoring each document.
+            retrieved: The list of candidate document Mappings to score and filter.
+            threshold: The minimum score a document must achieve to be kept.
+
+        Returns:
+            A list of documents whose relevance score is at or above the threshold.
+
+        Raises:
+            TypeError: If query is not a string or any element of retrieved is not a Mapping.
+        """
         if not isinstance(query, str):
             raise TypeError(
                 "RelevanceGate: query must be a string, "

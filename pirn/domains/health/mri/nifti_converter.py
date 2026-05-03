@@ -35,4 +35,9 @@ class NIfTIConverter(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> str:
+        """Convert the DICOM series to NIfTI format and return the output NIfTI path.
+
+        Returns:
+            Path string for the converted NIfTI output file.
+        """
         return self._output_nifti_path

@@ -37,6 +37,14 @@ class PronyEstimator(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> Mapping[str, Any]:
+        """Fit damped sinusoidal modes to the signal via Prony's method and return a parameter mapping.
+
+        Args:
+            signal: Signal to decompose into damped exponential modes.
+
+        Returns:
+            Mapping containing ``signal_id``, ``component_count``, and ``estimator``.
+        """
         return {
             "signal_id": signal.signal_id,
             "component_count": self._component_count,

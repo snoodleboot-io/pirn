@@ -73,6 +73,17 @@ class SemanticMemoryPipeline(SubTapestry):
         messages: Sequence[AgentMessage],
         **_: Any,
     ) -> int:
+        """Extract factual claims from messages via the LLM and persist them, returning the count written.
+
+        Args:
+            messages: The sequence of agent messages to extract semantic facts from.
+
+        Returns:
+            The number of facts extracted and persisted.
+
+        Raises:
+            RuntimeError: If the inner write knot does not return a count.
+        """
         seed_messages = tuple(messages)
         with Tapestry() as inner:
             facts = SemanticFactExtractor(

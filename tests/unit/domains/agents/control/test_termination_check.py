@@ -1,4 +1,4 @@
-"""Unit tests for :class:`TerminationGate`."""
+"""Unit tests for :class:`TerminationCheck`."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.agents.control.termination_gate import TerminationGate
+from pirn.domains.agents.control.termination_check import TerminationCheck
 from pirn.domains.agents.types.agent_response import AgentResponse
 from pirn.tapestry import Tapestry
 
@@ -27,7 +27,7 @@ class TestProcess:
     async def test_terminates_on_stop_finish_reason(self) -> None:
         with Tapestry() as t:
             r = emit_finished(_config=KnotConfig(id="r"))
-            TerminationGate(
+            TerminationCheck(
                 response=r,
                 max_iterations=5,
                 current_iteration=1,
@@ -39,7 +39,7 @@ class TestProcess:
     async def test_terminates_at_max_iterations(self) -> None:
         with Tapestry() as t:
             r = emit_unfinished(_config=KnotConfig(id="r"))
-            TerminationGate(
+            TerminationCheck(
                 response=r,
                 max_iterations=3,
                 current_iteration=3,
@@ -51,7 +51,7 @@ class TestProcess:
     async def test_continues_when_below_cap_and_unfinished(self) -> None:
         with Tapestry() as t:
             r = emit_unfinished(_config=KnotConfig(id="r"))
-            TerminationGate(
+            TerminationCheck(
                 response=r,
                 max_iterations=5,
                 current_iteration=2,
@@ -70,7 +70,7 @@ class TestConstruction:
         with Tapestry():
             rr = r(_config=KnotConfig(id="r"))
             with pytest.raises(ValueError, match="positive"):
-                TerminationGate(
+                TerminationCheck(
                     response=rr,
                     max_iterations=0,
                     current_iteration=0,

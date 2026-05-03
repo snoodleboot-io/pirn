@@ -51,6 +51,14 @@ class VMDDecomposer(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> WaveletFrame:
+        """Decompose the signal into band-limited modes via variational mode decomposition and return a WaveletFrame.
+
+        Args:
+            signal: Signal to decompose into ``mode_count`` variational modes.
+
+        Returns:
+            WaveletFrame of VMD modes with ``mode_count`` scales.
+        """
         return WaveletFrame(
             signal_id=signal.signal_id,
             wavelet_name="vmd",

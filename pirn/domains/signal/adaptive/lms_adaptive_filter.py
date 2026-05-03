@@ -54,6 +54,18 @@ class LMSAdaptiveFilter(Knot):
         reference: SignalFrame,
         **_: Any,
     ) -> SignalFrame:
+        """Adapt the LMS filter weights against the reference and return the error-minimised SignalFrame.
+
+        Args:
+            signal: Input signal to filter.
+            reference: Reference signal used to compute the error and update filter weights.
+
+        Returns:
+            SignalFrame of the LMS-filtered output.
+
+        Raises:
+            ValueError: If signal and reference have different sample rates.
+        """
         if signal.sample_rate_hz != reference.sample_rate_hz:
             raise ValueError(
                 "LMSAdaptiveFilter: signal and reference sample rates must match"

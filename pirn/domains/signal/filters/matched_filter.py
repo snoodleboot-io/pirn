@@ -41,6 +41,14 @@ class MatchedFilter(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SignalFrame:
+        """Correlate the input signal against the configured template and return the match-filtered SignalFrame.
+
+        Args:
+            signal: Signal to correlate against the known waveform template.
+
+        Returns:
+            SignalFrame of the cross-correlation output.
+        """
         return SignalFrame(
             signal_id=f"{signal.signal_id}:matched",
             channel_count=signal.channel_count,

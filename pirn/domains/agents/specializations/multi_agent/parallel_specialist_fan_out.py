@@ -57,6 +57,17 @@ class ParallelSpecialistFanOut(SubTapestry):
         task: str,
         **_: Any,
     ) -> Mapping[str, AgentResponse]:
+        """Fan out the task to all specialists concurrently and return a name-to-response mapping.
+
+        Args:
+            task: The task string sent to every registered specialist.
+
+        Returns:
+            A mapping of specialist name to the AgentResponse produced by that specialist.
+
+        Raises:
+            TypeError: If task is not a string.
+        """
         if not isinstance(task, str):
             raise TypeError(
                 "ParallelSpecialistFanOut: task must be a string, "

@@ -39,6 +39,11 @@ class VitalSignsAggregator(Knot):
     async def process(
         self, **_: Any
     ) -> Mapping[str, Mapping[str, Mapping[str, float]]]:
+        """Compute running mean, min, max, and latest per vital per patient and return the nested summary map.
+
+        Returns:
+            A nested mapping of patient_id -> vital_name -> {mean, min, max, latest} statistics.
+        """
         out: dict[str, dict[str, dict[str, float]]] = {}
         for row in self._rows:
             patient_id = str(row.get("patient_id", ""))

@@ -46,6 +46,12 @@ class SpirometryAnalyzer(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> Mapping[str, float]:
+        """Derive FEV1, FVC, FEV1/FVC ratio, and PEF from the flow-volume trace and return the metric mapping.
+
+        Returns:
+            Mapping of metric name to float value, including fev1_l, fvc_l,
+            fev1_fvc_ratio, and pef_l_per_sec.
+        """
         return {
             "fev1_l": 0.0,
             "fvc_l": 0.0,

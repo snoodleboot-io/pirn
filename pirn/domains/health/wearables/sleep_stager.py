@@ -39,6 +39,11 @@ class SleepStager(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> tuple[str, ...]:
+        """Stage the signal into sleep epochs of the configured length and return a tuple of stage labels.
+
+        Returns:
+            Tuple of stage label strings (e.g. ``"wake"``, ``"n1"``, ``"rem"``) one per epoch.
+        """
         total_sec = self._signal.samples_per_channel / max(
             self._signal.sample_rate_hz, 1.0
         )

@@ -49,6 +49,14 @@ class EntropyEstimator(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> Mapping[str, Any]:
+        """Compute the configured entropy measure from the signal and return an entropy result mapping.
+
+        Args:
+            signal: Time series signal to measure entropy from.
+
+        Returns:
+            Mapping containing ``signal_id``, ``entropy_kind``, and ``embedding_dim``.
+        """
         return {
             "signal_id": signal.signal_id,
             "entropy_kind": self._entropy_kind,

@@ -57,6 +57,14 @@ class PolyphaseResampler(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SignalFrame:
+        """Resample the signal at the configured L/M integer ratio and return the polyphase-resampled SignalFrame.
+
+        Args:
+            signal: Signal to resample using the polyphase filter bank.
+
+        Returns:
+            SignalFrame at the new sample rate computed as ``fs * upsample_factor / downsample_factor``.
+        """
         new_rate = (
             signal.sample_rate_hz * self._upsample_factor
         ) / self._downsample_factor

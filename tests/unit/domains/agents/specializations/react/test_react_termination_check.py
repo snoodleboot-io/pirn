@@ -1,4 +1,4 @@
-"""Tests for :class:`ReActTerminationGate`."""
+"""Tests for :class:`ReActTerminationCheck`."""
 
 from __future__ import annotations
 
@@ -9,15 +9,15 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.agents.specializations.react.messages_passthrough import (
     MessagesPassthrough,
 )
-from pirn.domains.agents.specializations.react.react_termination_gate import (
-    ReActTerminationGate,
+from pirn.domains.agents.specializations.react.react_termination_check import (
+    ReActTerminationCheck,
 )
 from pirn.domains.agents.types.agent_message import AgentMessage
 from pirn.tapestry import Tapestry
 
 
 @pytest.mark.asyncio
-class TestReActTerminationGateConstruction:
+class TestReActTerminationCheckConstruction:
     async def test_rejects_zero_max_iterations(self) -> None:
         with pytest.raises(ValueError, match="max_iterations"):
             with Tapestry():
@@ -25,7 +25,7 @@ class TestReActTerminationGateConstruction:
                     messages=(AgentMessage(role="assistant", content="x"),),
                     _config=KnotConfig(id="src"),
                 )
-                ReActTerminationGate(
+                ReActTerminationCheck(
                     latest_response=source,
                     max_iterations=0,
                     current_iteration=1,
@@ -39,7 +39,7 @@ class TestReActTerminationGateConstruction:
                     messages=(AgentMessage(role="assistant", content="x"),),
                     _config=KnotConfig(id="src"),
                 )
-                ReActTerminationGate(
+                ReActTerminationCheck(
                     latest_response=source,
                     max_iterations=4,
                     current_iteration="not-an-int",  # type: ignore[arg-type]
@@ -48,7 +48,7 @@ class TestReActTerminationGateConstruction:
 
 
 @pytest.mark.asyncio
-class TestReActTerminationGateHappyPath:
+class TestReActTerminationCheckHappyPath:
     async def test_terminates_on_final_answer_marker(self) -> None:
         with Tapestry() as t:
             source = MessagesPassthrough(
@@ -57,7 +57,7 @@ class TestReActTerminationGateHappyPath:
                 ),
                 _config=KnotConfig(id="src"),
             )
-            ReActTerminationGate(
+            ReActTerminationCheck(
                 latest_response=source,
                 max_iterations=10,
                 current_iteration=1,
@@ -75,7 +75,7 @@ class TestReActTerminationGateHappyPath:
                 ),
                 _config=KnotConfig(id="src"),
             )
-            ReActTerminationGate(
+            ReActTerminationCheck(
                 latest_response=source,
                 max_iterations=3,
                 current_iteration=3,
@@ -95,7 +95,7 @@ class TestReActTerminationGateHappyPath:
                 ),
                 _config=KnotConfig(id="src"),
             )
-            ReActTerminationGate(
+            ReActTerminationCheck(
                 latest_response=source,
                 max_iterations=5,
                 current_iteration=2,

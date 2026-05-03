@@ -4,14 +4,14 @@ A :class:`SubTapestry` that wires:
 
 1. :class:`ContextBuilder` over the input messages.
 2. A fixed-length unrolled chain of :class:`ReActStepExecutor` instances,
-   each guarded by :class:`ReActTerminationGate`. Once termination fires
+   each guarded by :class:`ReActTerminationCheck`. Once termination fires
    (final-answer marker emitted, or iteration cap reached), subsequent
    steps short-circuit and propagate the prior message tail unchanged.
 3. A final :class:`ReActResponseExtractor` knot that converts the
    accumulated messages into an :class:`AgentResponse`.
 
 A fixed-iteration unrolled SubTapestry is used in place of dynamic
-loops: each step sits behind its own :class:`ReActTerminationGate`, so
+loops: each step sits behind its own :class:`ReActTerminationCheck`, so
 runs that complete early simply pay the cost of a few short-circuit
 knots after the final answer is found. ``max_iterations`` caps the
 number of step knots the inner tapestry contains.
@@ -39,8 +39,8 @@ from pirn.domains.agents.specializations.react.react_step_accumulator import (
 from pirn.domains.agents.specializations.react.react_step_executor import (
     ReActStepExecutor,
 )
-from pirn.domains.agents.specializations.react.react_termination_gate import (
-    ReActTerminationGate,
+from pirn.domains.agents.specializations.react.react_termination_check import (
+    ReActTerminationCheck,
 )
 from pirn.domains.agents.types.agent_message import AgentMessage
 from pirn.domains.agents.types.agent_response import AgentResponse
@@ -88,6 +88,14 @@ class ReActLoop(SubTapestry):
         messages: tuple[AgentMessage, ...] | list[AgentMessage],
         **_: Any,
     ) -> AgentResponse:
+        """Run the unrolled ReAct loop over the seed messages and return the final AgentResponse.
+
+        Args:
+            messages: The seed conversation messages to initialize the ReAct loop context.
+
+        Returns:
+            An AgentResponse extracted from the final accumulated message transcript.
+        """
         seed_messages = tuple(messages)
         with Tapestry() as inner:
             seed = MessagesPassthrough(
@@ -117,7 +125,7 @@ class ReActLoop(SubTapestry):
                     already_terminated=already_terminated,
                     _config=KnotConfig(id=f"accum_{index}"),
                 )
-                already_terminated = ReActTerminationGate(
+                already_terminated = ReActTerminationCheck(
                     latest_response=step,
                     max_iterations=self._max_iterations,
                     current_iteration=index + 1,

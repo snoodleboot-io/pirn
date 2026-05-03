@@ -79,6 +79,11 @@ class DaskSource(Source):
         return self._backend_name
 
     async def process(self, **_: Any) -> DaskDataFrame:
+        """Invoke the factory or path reader to build a deferred DaskDataFrame.
+
+        Returns:
+            A DaskDataFrame wrapping the newly created deferred Dask graph.
+        """
         if self._factory is not None:
             frame = self._factory()
         else:

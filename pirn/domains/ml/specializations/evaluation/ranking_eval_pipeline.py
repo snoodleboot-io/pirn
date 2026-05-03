@@ -53,6 +53,15 @@ class RankingEvalPipeline(SubTapestry):
     async def process(
         self, model: TrainedModel, split: DataSplit, **_: Any
     ) -> EvalReport:
+        """Evaluate the ranking model with NDCG@k, MRR, and MAP@k and return the resulting EvalReport.
+
+        Args:
+            model: TrainedModel reference to evaluate.
+            split: DataSplit whose test partition is used for ranking metrics.
+
+        Returns:
+            EvalReport containing ndcg_at_k, mrr, and map_at_k metrics.
+        """
         metrics = (
             f"ndcg_at_{self._k}",
             "mrr",

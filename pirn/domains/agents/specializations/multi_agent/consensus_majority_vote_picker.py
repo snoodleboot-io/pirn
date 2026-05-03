@@ -34,6 +34,18 @@ class ConsensusMajorityVotePicker(Knot):
         responses: Mapping[str, AgentResponse],
         **_: Any,
     ) -> AgentResponse:
+        """Return the AgentResponse whose content appears most frequently among the inputs.
+
+        Args:
+            responses: A non-empty mapping of specialist names to AgentResponse instances.
+
+        Returns:
+            The AgentResponse whose content appears most often; ties are broken by first-seen order.
+
+        Raises:
+            ValueError: If responses is empty or not a Mapping.
+            TypeError: If any value in responses is not an AgentResponse.
+        """
         if not isinstance(responses, Mapping) or not responses:
             raise ValueError(
                 "ConsensusMajorityVotePicker: responses must be a "

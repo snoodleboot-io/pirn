@@ -34,6 +34,16 @@ class ProductionForecaster(Knot):
         decline_parameters: dict[str, float],
         **_: Any,
     ) -> ScadaTimeSeries:
+        """Project a forecast rate series for the configured number of months from the decline parameters and return it.
+
+        Args:
+            decline_parameters: Dict of fitted decline-curve parameters
+                (e.g. initial rate, decline rate) used to project forward.
+
+        Returns:
+            ScadaTimeSeries of forecasted production rates spanning the
+            configured number of months.
+        """
         return ScadaTimeSeries(
             sensor_id="forecast",
             sample_count=self._forecast_months,

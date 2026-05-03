@@ -44,6 +44,14 @@ class MaterialBalanceCalculator(Knot):
         super().__init__(pvt=pvt, _config=_config, **kwargs)
 
     async def process(self, pvt: PVTTable, **_: Any) -> dict[str, float]:
+        """Solve the material balance equation from the PVT table and cumulative production inputs and return OOIP and OGIP.
+
+        Args:
+            pvt: PVT lookup table providing fluid-property correlations.
+
+        Returns:
+            Dict with keys ``ooip_stb`` (original oil in place) and ``ogip_mscf`` (original gas in place).
+        """
         return {
             "ooip_stb": max(self._cumulative_oil_stb, 1.0) * 10.0,
             "ogip_mscf": max(self._cumulative_gas_mscf, 1.0) * 10.0,

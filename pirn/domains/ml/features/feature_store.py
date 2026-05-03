@@ -37,6 +37,14 @@ class FeatureStore(Knot):
         super().__init__(split=split, _config=_config, **kwargs)
 
     async def process(self, split: DataSplit, **_: Any) -> int:
+        """Write partition metadata rows from the DataSplit to the feature store provider and return the write count.
+
+        Args:
+            split: DataSplit whose train, test, and optional validation partitions are written.
+
+        Returns:
+            Number of rows written to the feature store provider.
+        """
         rows: list[dict[str, Any]] = []
         rows.append(self._row(split.train, "train"))
         if split.validation is not None:

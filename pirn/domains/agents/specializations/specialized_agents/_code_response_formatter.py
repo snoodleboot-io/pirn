@@ -37,6 +37,15 @@ class _CodeResponseFormatter(Knot):
         warnings: list[str],
         **_: Any,
     ) -> AgentResponse:
+        """Combine code and lint warnings into an AgentResponse with a usage summary.
+
+        Args:
+            code: The generated code string to surface as the response content.
+            warnings: The list of lint warning strings produced by the linter.
+
+        Returns:
+            An AgentResponse whose content is the code and usage metadata records lint_warnings count.
+        """
         usage: dict[str, int] = {
             "lint_warnings": len(warnings),
             "tests_skipped": 1,

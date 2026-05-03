@@ -50,6 +50,17 @@ class OrchestratorRouter(Knot):
         super().__init__(task=task, _config=_config, **kwargs)
 
     async def process(self, task: str, **_: Any) -> str:
+        """Ask the LLM to choose a specialist name for the task and return the chosen name.
+
+        Args:
+            task: The natural-language task string used to select a specialist.
+
+        Returns:
+            The specialist name chosen by the LLM, or the first registered name on parse failure.
+
+        Raises:
+            TypeError: If task is not a string.
+        """
         if not isinstance(task, str):
             raise TypeError(
                 "OrchestratorRouter: task must be a string, "

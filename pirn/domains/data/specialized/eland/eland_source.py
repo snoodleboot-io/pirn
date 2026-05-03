@@ -48,6 +48,11 @@ class ElandSource(Source):
         return self._index
 
     async def process(self, **_: Any) -> ElandDataFrame:
+        """Open the configured Elasticsearch index through eland and return a deferred ElandDataFrame.
+
+        Returns:
+            An ElandDataFrame wrapping the eland DataFrame for the configured index.
+        """
         import eland as ed
 
         frame = ed.DataFrame(es_client=self._es_client, es_index_pattern=self._index)

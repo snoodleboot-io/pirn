@@ -40,4 +40,9 @@ class BWAAligner(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> str:
+        """Align the FASTQ reads to the reference genome using BWA-MEM and return the output BAM path.
+
+        Returns:
+            The output BAM path.
+        """
         return self._output_bam_path

@@ -61,6 +61,17 @@ class DataAnalystAgent(SubTapestry):
         super().__init__(question=question, _config=_config, **kwargs)
 
     async def process(self, question: str, **_: Any) -> AgentResponse:
+        """Run the SQL agent on the question, analyse the rows via the LLM, and return the combined response.
+
+        Args:
+            question: The non-empty natural-language question to answer with SQL and LLM analysis.
+
+        Returns:
+            An AgentResponse combining the SQL result block with a narrative analysis.
+
+        Raises:
+            TypeError: If question is not a non-empty string.
+        """
         if not isinstance(question, str) or not question:
             raise TypeError(
                 "DataAnalystAgent: question must be a non-empty string, "

@@ -59,6 +59,14 @@ class FileSink(Knot):
         return self._format.name
 
     async def process(self, batch: DataBatch, **_: Any) -> str:
+        """Encode the DataBatch via the FileFormat, write the bytes to the object store, and return the key.
+
+        Args:
+            batch: The DataBatch of rows to encode and persist.
+
+        Returns:
+            The object store key under which the encoded file was written.
+        """
         async def _records() -> AsyncIterator[Mapping[str, Any]]:
             for row in batch.rows:
                 yield row

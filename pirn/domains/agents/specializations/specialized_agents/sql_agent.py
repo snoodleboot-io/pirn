@@ -69,6 +69,17 @@ class SQLAgent(SubTapestry):
         super().__init__(question=question, _config=_config, **kwargs)
 
     async def process(self, question: str, **_: Any) -> AgentResponse:
+        """Translate the question to SQL, execute it, and return the result as an AgentResponse.
+
+        Args:
+            question: The non-empty natural-language question to translate into SQL and execute.
+
+        Returns:
+            An AgentResponse whose content contains the SQL query and fetched rows.
+
+        Raises:
+            TypeError: If question is not a non-empty string.
+        """
         if not isinstance(question, str) or not question:
             raise TypeError(
                 "SQLAgent: question must be a non-empty string, "

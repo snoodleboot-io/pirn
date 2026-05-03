@@ -67,6 +67,17 @@ class TrainTestSplit(Knot):
     async def process(
         self, dataset: MLDataset, **_: Any
     ) -> DataSplit:
+        """Partition the dataset reference into train, test, and optional validation splits and return a DataSplit.
+
+        Args:
+            dataset: MLDataset reference to partition.
+
+        Returns:
+            DataSplit with train, test, and optional validation MLDataset references.
+
+        Raises:
+            ValueError: If dataset.row_count is negative or if the requested fractions exceed dataset size.
+        """
         total = int(dataset.row_count)
         if total < 0:
             raise ValueError(

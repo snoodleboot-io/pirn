@@ -37,6 +37,14 @@ class ESPRITEstimator(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> Mapping[str, Any]:
+        """Estimate sinusoid frequencies from the signal via ESPRIT and return a parameter mapping.
+
+        Args:
+            signal: Signal to estimate frequencies from using the rotational-invariance subspace method.
+
+        Returns:
+            Mapping containing ``signal_id``, ``signal_subspace_dim``, and ``estimator``.
+        """
         return {
             "signal_id": signal.signal_id,
             "signal_subspace_dim": self._signal_subspace_dim,

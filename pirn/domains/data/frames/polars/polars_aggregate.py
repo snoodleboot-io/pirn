@@ -58,5 +58,13 @@ class PolarsAggregate(Knot):
         return self._aggs
 
     async def process(self, batch: PolarsDataBatch, **_: Any) -> PolarsDataBatch:
+        """Group the batch by the configured columns and apply the Polars aggregation expressions.
+
+        Args:
+            batch: The PolarsDataBatch to group and aggregate.
+
+        Returns:
+            A new PolarsDataBatch containing the aggregated result.
+        """
         grouped = batch.frame.group_by(list(self._by), maintain_order=True)
         return batch.with_frame(grouped.agg(list(self._aggs)))

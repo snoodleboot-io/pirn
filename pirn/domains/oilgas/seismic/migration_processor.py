@@ -37,4 +37,12 @@ class MigrationProcessor(Knot):
         return self._method
 
     async def process(self, volume: SegyVolume, **_: Any) -> SegyVolume:
+        """Migrate the input seismic volume using the configured algorithm and return the migrated SegyVolume.
+
+        Args:
+            volume: Pre-stack or post-stack seismic volume to migrate.
+
+        Returns:
+            SegyVolume of the migrated image.
+        """
         return SegyVolume(volume_id=f"{volume.volume_id}:migrated_{self._method}")

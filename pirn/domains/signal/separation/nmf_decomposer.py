@@ -48,6 +48,14 @@ class NMFDecomposer(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SourceFrame:
+        """Decompose the signal into non-negative components via NMF and return a SourceFrame.
+
+        Args:
+            signal: Non-negative multichannel signal to factorize.
+
+        Returns:
+            SourceFrame with ``source_count`` equal to ``component_count`` and the mixing matrix shape.
+        """
         return SourceFrame(
             signal_id=signal.signal_id,
             source_count=self._component_count,

@@ -95,6 +95,19 @@ class ChampionChallengerGate(SubTapestry):
         split: DataSplit,
         **_: Any,
     ) -> dict[str, Any]:
+        """Evaluate both models on the split and return a comparison dict indicating whether the challenger wins.
+
+        Args:
+            champion: TrainedModel reference for the current champion.
+            challenger: TrainedModel reference for the new challenger.
+            split: DataSplit whose test partition is used for both evaluations.
+
+        Returns:
+            Dict with ``challenger_wins`` (bool) and ``comparison`` (EvalReport with delta metrics).
+
+        Raises:
+            TypeError: If either evaluator does not return an EvalReport.
+        """
         with Tapestry() as inner:
             champion_node = _emit_value(
                 value=champion, _config=KnotConfig(id="champion")

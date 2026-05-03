@@ -28,4 +28,12 @@ class SegyHeaderParser(Knot):
         super().__init__(volume=volume, _config=_config, **kwargs)
 
     async def process(self, volume: SegyVolume, **_: Any) -> ParsedTraceHeader:
+        """Parse a representative trace header from the SEG-Y volume and return a ParsedTraceHeader.
+
+        Args:
+            volume: SEG-Y volume from which to read the representative trace header.
+
+        Returns:
+            ParsedTraceHeader containing CRS and inline/xline metadata.
+        """
         return ParsedTraceHeader()

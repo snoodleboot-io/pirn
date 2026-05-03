@@ -48,6 +48,14 @@ class WaveletPacketDecomposer(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> WaveletFrame:
+        """Decompose the signal into the full wavelet-packet binary subband tree and return a WaveletFrame.
+
+        Args:
+            signal: Signal to decompose using the configured wavelet at the configured tree depth.
+
+        Returns:
+            WaveletFrame of wavelet-packet subbands with ``2 ** level_count`` scales.
+        """
         return WaveletFrame(
             signal_id=signal.signal_id,
             wavelet_name=self._wavelet_name,

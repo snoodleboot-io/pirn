@@ -72,6 +72,14 @@ class Aggregate(Knot):
         return dict(self._aggs)
 
     async def process(self, batch: DataBatch, **_: Any) -> DataBatch:
+        """Group the batch by the configured columns, apply per-group aggregations, and return the result.
+
+        Args:
+            batch: The DataBatch to group and aggregate.
+
+        Returns:
+            A new DataBatch with one row per group and columns for each aggregation output.
+        """
         groups = self._group_rows(batch)
         out_rows: list[Mapping[str, Any]] = []
         for key_tuple, rows_in_group in groups.items():

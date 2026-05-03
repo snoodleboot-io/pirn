@@ -43,6 +43,14 @@ class DuckdbDeduplicate(Knot):
         return self._keys
 
     async def process(self, batch: DuckdbDataBatch, **_: Any) -> DuckdbDataBatch:
+        """Remove duplicate rows by key, keeping first occurrence via a DuckDB window query.
+
+        Args:
+            batch: The DuckdbDataBatch to deduplicate.
+
+        Returns:
+            A new DuckdbDataBatch with duplicate rows removed, retaining first occurrence per key.
+        """
         for column in batch.relation.columns:
             IdentifierValidator.validate_column(
                 "DuckdbDeduplicate: upstream column", column

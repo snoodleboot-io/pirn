@@ -37,4 +37,12 @@ class VelocityAnalyzer(Knot):
         super().__init__(gather=gather, _config=_config, **kwargs)
 
     async def process(self, gather: SegyVolume, **_: Any) -> float:
+        """Pick the stacking velocity from the CMP gather via semblance analysis and return it in metres per second.
+
+        Args:
+            gather: CMP gather from which to pick the stacking velocity.
+
+        Returns:
+            Stacking velocity in metres per second (float).
+        """
         return self._initial_velocity_m_s

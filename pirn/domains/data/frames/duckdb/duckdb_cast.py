@@ -65,6 +65,14 @@ class DuckdbCast(Knot):
         return dict(self._casts)
 
     async def process(self, batch: DuckdbDataBatch, **_: Any) -> DuckdbDataBatch:
+        """Cast the configured columns to their target DuckDB types and return the projected batch.
+
+        Args:
+            batch: The DuckdbDataBatch whose columns are to be cast.
+
+        Returns:
+            A new DuckdbDataBatch with the configured columns cast to their target types.
+        """
         applicable = {
             column: type_name for column, type_name in self._casts.items()
             if column in batch.relation.columns

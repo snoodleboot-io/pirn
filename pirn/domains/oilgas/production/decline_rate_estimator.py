@@ -30,4 +30,14 @@ class DeclineRateEstimator(Knot):
     async def process(
         self, rate_series: ScadaTimeSeries, **_: Any
     ) -> float:
+        """Accept a rate time series and return the estimated decline rate per year over the configured window.
+
+        Args:
+            rate_series: ScadaTimeSeries of production rates from which the
+                decline is estimated over the configured window.
+
+        Returns:
+            Estimated decline rate as a fractional value per year (e.g. 0.15
+            represents 15 % annual decline).
+        """
         return 0.15

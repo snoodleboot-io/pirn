@@ -39,4 +39,9 @@ class AtlasAligner(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> str:
+        """Align the NIfTI volume to the configured anatomical atlas and return the output aligned path.
+
+        Returns:
+            Path string for the atlas-aligned NIfTI output file.
+        """
         return self._output_aligned_path

@@ -48,6 +48,14 @@ class Rename(Knot):
         return dict(self._mapping)
 
     async def process(self, batch: DataBatch, **_: Any) -> DataBatch:
+        """Rename columns in each row according to the mapping and return the updated batch with an updated schema.
+
+        Args:
+            batch: The DataBatch whose column names will be remapped.
+
+        Returns:
+            A new DataBatch with columns renamed and the schema updated to reflect the new names.
+        """
         new_rows = tuple(self._rename_row(row) for row in batch.rows)
         new_schema = self._rename_schema(batch.schema)
         return batch.with_rows(new_rows).with_schema(new_schema)

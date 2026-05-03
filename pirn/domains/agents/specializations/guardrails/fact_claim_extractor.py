@@ -40,6 +40,17 @@ class FactClaimExtractor(Knot):
         response: AgentResponse,
         **_: Any,
     ) -> list[str]:
+        """Ask the LLM to enumerate factual claims in the response and return them as a list.
+
+        Args:
+            response: The agent response whose content is scanned for factual claims.
+
+        Returns:
+            A list of factual claim strings extracted from the response content.
+
+        Raises:
+            TypeError: If response is not an AgentResponse instance.
+        """
         if not isinstance(response, AgentResponse):
             raise TypeError(
                 "FactClaimExtractor: response must be an AgentResponse, "

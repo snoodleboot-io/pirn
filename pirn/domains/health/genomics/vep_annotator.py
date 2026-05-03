@@ -39,4 +39,9 @@ class VEPAnnotator(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> str:
+        """Annotate the VCF with Ensembl VEP using the configured cache and return the annotated VCF path.
+
+        Returns:
+            Path string for the VEP-annotated VCF output file.
+        """
         return self._output_vcf_path

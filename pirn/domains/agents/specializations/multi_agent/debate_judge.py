@@ -49,6 +49,18 @@ class DebateJudge(Knot):
         final_round: Sequence[AgentResponse],
         **_: Any,
     ) -> AgentResponse:
+        """Ask the judge LLM to pick the strongest argument by index and return that AgentResponse.
+
+        Args:
+            topic: The debate topic string used to frame the judging prompt.
+            final_round: The sequence of AgentResponse instances from the last debate round.
+
+        Returns:
+            The AgentResponse selected by the judge; falls back to the first response on parse failure.
+
+        Raises:
+            ValueError: If final_round is empty.
+        """
         responses = tuple(final_round)
         if not responses:
             raise ValueError(

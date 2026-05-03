@@ -42,6 +42,17 @@ class SemanticFactWriter(Knot):
         facts: Sequence[str],
         **_: Any,
     ) -> int:
+        """Persist each fact under a deterministic hash key and return the count stored.
+
+        Args:
+            facts: The sequence of fact strings to persist.
+
+        Returns:
+            The number of facts stored.
+
+        Raises:
+            TypeError: If any element of facts is not a string.
+        """
         count = 0
         now = datetime.now(timezone.utc).isoformat()
         for fact in facts:

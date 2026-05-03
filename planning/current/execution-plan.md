@@ -263,8 +263,8 @@ Follow-up Tier-3 engines:
 - [ ] `pirn/domains/agents/memory.py` — `MemoryWriter`, `MemoryRetriever`, `ConversationBuffer`
 - [ ] `pirn/domains/agents/planning.py` — `Planner`, `ToolRouter`, `ToolExecutor`, `ToolResultAggregator`
 - [ ] `pirn/domains/agents/generation.py` — `LLMCall`, `StreamingLLMCall`, `OutputParser`, `ResponseFormatter`
-- [ ] `pirn/domains/agents/control.py` — `ReflectionGate`, `SafetyGate`, `HandoffGate`, `TerminationGate`
-- [ ] `pirn/domains/agents/specializations/react.py` — `ReActLoop`, `ReActStepExecutor`, `ReActTerminationGate`
+- [ ] `pirn/domains/agents/control.py` — `ReflectionCheck`, `SafetyCheck`, `HandoffCheck`, `TerminationCheck`
+- [ ] `pirn/domains/agents/specializations/react.py` — `ReActLoop`, `ReActStepExecutor`, `ReActTerminationCheck`
 - [ ] `pirn/domains/agents/specializations/rag.py` — `NaiveRAGPipeline`, `HyDERAGPipeline`, `CorrectiveRAGPipeline`, `GraphRAGPipeline`, etc.
 - [ ] `pirn/domains/agents/specializations/memory_patterns.py` — `EpisodicMemoryPipeline`, `SemanticMemoryPipeline`, etc.
 - [ ] `pirn/domains/agents/specializations/multi_agent.py` — `OrchestratorAgent`, `ParallelSpecialistFanOut`, `ConsensusAggregator`, `DebateFramework`

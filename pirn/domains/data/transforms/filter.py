@@ -35,5 +35,13 @@ class Filter(Knot):
         return self._predicate
 
     async def process(self, batch: DataBatch, **_: Any) -> DataBatch:
+        """Apply the callable predicate to each row and return a batch containing only truthy rows.
+
+        Args:
+            batch: The DataBatch to filter.
+
+        Returns:
+            A new DataBatch containing only the rows for which the predicate returned truthy.
+        """
         kept = tuple(row for row in batch.rows if self._predicate(row))
         return batch.with_rows(kept)

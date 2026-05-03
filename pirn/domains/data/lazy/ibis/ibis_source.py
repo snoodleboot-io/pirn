@@ -49,6 +49,11 @@ class IbisSource(Source):
         return self._backend_name
 
     async def process(self, **_: Any) -> IbisTable:
+        """Bind the configured Ibis connection and table name into a deferred IbisTable expression.
+
+        Returns:
+            An IbisTable wrapping the deferred expression for the configured table.
+        """
         expression = self._connection.table(self._table)
         return IbisTable(
             expression=expression,

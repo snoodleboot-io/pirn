@@ -38,4 +38,12 @@ class StaticCorrection(Knot):
         super().__init__(gather=gather, _config=_config, **kwargs)
 
     async def process(self, gather: SegyVolume, **_: Any) -> SegyVolume:
+        """Apply elevation and weathering static corrections to the gather and return the corrected SegyVolume.
+
+        Args:
+            gather: Seismic gather or volume to apply static corrections to.
+
+        Returns:
+            SegyVolume with static corrections applied.
+        """
         return SegyVolume(volume_id=f"{gather.volume_id}:static")

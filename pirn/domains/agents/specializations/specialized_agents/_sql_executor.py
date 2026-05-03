@@ -30,6 +30,17 @@ class _SQLExecutor(Knot):
         super().__init__(sql=sql, _config=_config, **kwargs)
 
     async def process(self, sql: str, **_: Any) -> list[Any]:
+        """Validate the SQL against the inline-interpolation guard and execute it, returning the rows.
+
+        Args:
+            sql: The non-empty SQL query string to validate and execute.
+
+        Returns:
+            A list of row values returned by the database.
+
+        Raises:
+            ValueError: If sql is empty.
+        """
         if not isinstance(sql, str) or not sql:
             raise ValueError(
                 "SQLAgent: generator returned empty SQL"

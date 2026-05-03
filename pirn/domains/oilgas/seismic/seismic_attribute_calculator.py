@@ -44,4 +44,12 @@ class SeismicAttributeCalculator(Knot):
         return self._attribute
 
     async def process(self, volume: SegyVolume, **_: Any) -> SegyVolume:
+        """Compute the configured seismic attribute on the input volume and return the resulting attribute SegyVolume.
+
+        Args:
+            volume: Input seismic volume from which to compute the attribute.
+
+        Returns:
+            SegyVolume of the computed attribute.
+        """
         return SegyVolume(volume_id=f"{volume.volume_id}:attr_{self._attribute}")

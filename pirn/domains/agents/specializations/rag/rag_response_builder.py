@@ -22,6 +22,17 @@ class RAGResponseBuilder(Knot):
         super().__init__(answer=answer, _config=_config, **kwargs)
 
     async def process(self, answer: str, **_: Any) -> AgentResponse:
+        """Wrap the LLM answer string in an AgentResponse with finish_reason 'stop'.
+
+        Args:
+            answer: The LLM-generated answer text to package as response content.
+
+        Returns:
+            An AgentResponse with the answer as content and finish_reason set to 'stop'.
+
+        Raises:
+            TypeError: If answer is not a string.
+        """
         if not isinstance(answer, str):
             raise TypeError(
                 "RAGResponseBuilder: answer must be a string, "

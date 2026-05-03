@@ -38,6 +38,14 @@ class LogNormalizer(Knot):
         super().__init__(las_file=las_file, _config=_config, **kwargs)
 
     async def process(self, las_file: LASFile, **_: Any) -> LASFile:
+        """Resample LAS curves onto the configured depth grid and return a depth-normalised LASFile.
+
+        Args:
+            las_file: LAS file whose curves are resampled to the configured depth step.
+
+        Returns:
+            LASFile with curves resampled to the configured depth grid and unit.
+        """
         return LASFile(
             well_id=las_file.well_id,
             curves=las_file.curves,

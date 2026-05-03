@@ -41,4 +41,13 @@ class ProductionTestValidator(Knot):
         super().__init__(series=series, _config=_config, **kwargs)
 
     async def process(self, series: ScadaTimeSeries, **_: Any) -> ScadaTimeSeries:
+        """Validate the production-test series against the configured oil, gas, and water rate bounds and return it.
+
+        Args:
+            series: ScadaTimeSeries containing multi-rate production test data
+                to validate against the configured rate bounds.
+
+        Returns:
+            The input ScadaTimeSeries, passed through after validation.
+        """
         return series

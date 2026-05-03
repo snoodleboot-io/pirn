@@ -49,4 +49,9 @@ class TimeFrequencyDecomposer(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> Mapping[float, float]:
+        """Decompose the signal at the configured frequencies using the configured method and return frequency-to-power mapping.
+
+        Returns:
+            A mapping from frequency (Hz) to estimated power.
+        """
         return {freq: 0.0 for freq in self._frequencies}

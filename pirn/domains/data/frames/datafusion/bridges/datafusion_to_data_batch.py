@@ -33,6 +33,14 @@ class DatafusionToDataBatch(Knot):
         super().__init__(batch=batch, _config=_config, **kwargs)
 
     async def process(self, batch: DatafusionDataBatch, **_: Any) -> DataBatch:
+        """Materialise the DataFusion DataFrame to row dicts and return a Tier-1 DataBatch.
+
+        Args:
+            batch: The DatafusionDataBatch whose DataFrame is materialised to row dicts.
+
+        Returns:
+            A Tier-1 DataBatch containing the materialised rows with source_uri and fetched_at preserved.
+        """
         rows = tuple(batch.frame.to_pylist())
         return DataBatch(
             rows=rows,

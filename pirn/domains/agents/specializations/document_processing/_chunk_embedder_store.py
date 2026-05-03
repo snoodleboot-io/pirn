@@ -39,6 +39,18 @@ class _ChunkEmbedderStore(Knot):
         source: str,
         **_: Any,
     ) -> int:
+        """Embed each text chunk and persist it in the store, returning the number stored.
+
+        Args:
+            chunks: The list of text chunks to embed and persist.
+            source: The source identifier used to derive the document ID for key generation.
+
+        Returns:
+            The number of chunks embedded and stored.
+
+        Raises:
+            RuntimeError: If the embedder returns a different number of vectors than chunks.
+        """
         if not chunks:
             return 0
         doc_id = self._derive_doc_id(source)

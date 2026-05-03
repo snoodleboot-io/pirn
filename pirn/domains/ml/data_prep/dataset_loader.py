@@ -75,6 +75,11 @@ class DatasetLoader(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> MLDataset:
+        """Count rows from the SQL query or parquet path and return an MLDataset reference.
+
+        Returns:
+            MLDataset reference with row_count derived from the SQL query or parquet file.
+        """
         if self._pool is not None and self._query is not None:
             row_count = await self._count_pool_rows()
             source_uri = f"db://{type(self._pool).__name__}"

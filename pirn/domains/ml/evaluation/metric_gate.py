@@ -34,6 +34,18 @@ class MetricGate(Knot):
         super().__init__(report=report, _config=_config, **kwargs)
 
     async def process(self, report: EvalReport, **_: Any) -> bool:
+        """Check that the configured metric in the report meets the minimum threshold and return True if it does.
+
+        Args:
+            report: EvalReport whose metrics mapping is checked.
+
+        Returns:
+            True if the metric value is >= min_value, False otherwise.
+
+        Raises:
+            KeyError: If the configured metric name is absent from the report.
+            ValueError: If raise_on_fail is True and the metric is below the threshold.
+        """
         if self._metric not in report.metrics:
             raise KeyError(
                 f"MetricGate: report has no metric named {self._metric!r}; "

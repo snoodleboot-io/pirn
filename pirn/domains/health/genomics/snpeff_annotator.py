@@ -39,4 +39,9 @@ class SnpEffAnnotator(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> str:
+        """Annotate the VCF with SnpEff using the configured genome database and return the annotated VCF path.
+
+        Returns:
+            Path string for the SnpEff-annotated VCF output file.
+        """
         return self._output_vcf_path

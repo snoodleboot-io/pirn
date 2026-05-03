@@ -7,7 +7,7 @@ optional tool-call surrogate, and the resulting tool observation.
 
 The step is intentionally small and self-contained so that
 :class:`ReActLoop` can compose any number of them inside an unrolled
-inner :class:`Tapestry`. The :class:`ReActTerminationGate` controls
+inner :class:`Tapestry`. The :class:`ReActTerminationCheck` controls
 early exit by inspecting the trailing assistant message.
 
 Tool dispatch is name-keyed: the LLM is expected to emit a thought of
@@ -72,6 +72,15 @@ class ReActStepExecutor(Knot):
         context: Any,
         **_: Any,
     ) -> tuple[AgentMessage, ...]:
+        """Emit a thought, optionally invoke a tool, and return the new tail of messages.
+
+        Args:
+            context: The current agent context used to render the prompt for the LLM.
+
+        Returns:
+            A tuple of new AgentMessage instances: the thought, optional tool-call surrogate,
+            and observation; or just the thought when a Final Answer is emitted.
+        """
         prompt = self._render_prompt(context)
         chat_messages = [{"role": "user", "content": prompt}]
         raw = await self._llm.chat(chat_messages)

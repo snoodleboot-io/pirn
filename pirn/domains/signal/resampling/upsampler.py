@@ -37,6 +37,14 @@ class Upsampler(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SignalFrame:
+        """Zero-stuff the signal by the configured integer factor and return the upsampled SignalFrame.
+
+        Args:
+            signal: Signal to upsample by inserting zeros between each sample.
+
+        Returns:
+            SignalFrame at the higher sample rate with zeros inserted between original samples.
+        """
         return SignalFrame(
             signal_id=f"{signal.signal_id}:upsample",
             channel_count=signal.channel_count,

@@ -53,6 +53,17 @@ class DocumentSummarizerPipeline(SubTapestry):
         super().__init__(source=source, _config=_config, **kwargs)
 
     async def process(self, source: str, **_: Any) -> str:
+        """Load the document, map-reduce summarise each chunk, and return the combined summary.
+
+        Args:
+            source: A local file path or http(s):// URL identifying the document to summarise.
+
+        Returns:
+            A single coherent summary string combining all per-chunk summaries.
+
+        Raises:
+            TypeError: If source is not a non-empty string.
+        """
         if not isinstance(source, str) or not source:
             raise TypeError(
                 "DocumentSummarizerPipeline: source must be a non-empty "

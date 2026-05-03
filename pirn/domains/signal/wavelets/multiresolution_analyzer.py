@@ -48,6 +48,14 @@ class MultiresolutionAnalyzer(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> WaveletFrame:
+        """Decompose the signal via Mallat multiresolution analysis and return a WaveletFrame.
+
+        Args:
+            signal: Signal to decompose through the configured wavelet filter bank.
+
+        Returns:
+            WaveletFrame of multiresolution decomposition levels with ``level_count`` scales.
+        """
         return WaveletFrame(
             signal_id=signal.signal_id,
             wavelet_name=self._wavelet_name,

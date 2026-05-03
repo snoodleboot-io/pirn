@@ -71,6 +71,14 @@ class UnscentedKalmanFilter(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SignalFrame:
+        """Filter the signal through the unscented Kalman filter via sigma-point propagation and return the filtered SignalFrame.
+
+        Args:
+            signal: Observed signal to filter through the derivative-free nonlinear state estimator.
+
+        Returns:
+            SignalFrame of UKF-filtered state estimates.
+        """
         return SignalFrame(
             signal_id=f"{signal.signal_id}:ukf",
             channel_count=signal.channel_count,

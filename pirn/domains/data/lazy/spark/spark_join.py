@@ -109,6 +109,15 @@ class SparkJoin(Knot):
     async def process(
         self, left: SparkDataFrame, right: SparkDataFrame, **_: Any
     ) -> SparkDataFrame:
+        """Join the left and right deferred Spark frames on the configured keys and return the result.
+
+        Args:
+            left: The left-side SparkDataFrame.
+            right: The right-side SparkDataFrame to join against.
+
+        Returns:
+            A new SparkDataFrame containing the joined deferred Spark plan.
+        """
         left_frame = left.frame
         right_frame = right.frame
         if self._how == "cross":

@@ -44,6 +44,14 @@ class HorizonPicker(Knot):
         return self._horizon_name
 
     async def process(self, volume: SegyVolume, **_: Any) -> SegyVolume:
+        """Auto-pick the named horizon through the volume from the seed location and return the horizon SegyVolume.
+
+        Args:
+            volume: 3-D seismic volume to auto-pick the horizon through.
+
+        Returns:
+            SegyVolume representing the picked horizon surface.
+        """
         return SegyVolume(
             volume_id=f"{volume.volume_id}:horizon_{self._horizon_name}",
         )

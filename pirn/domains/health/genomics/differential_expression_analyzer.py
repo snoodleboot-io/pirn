@@ -48,4 +48,9 @@ class DifferentialExpressionAnalyzer(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> Mapping[str, Mapping[str, float]]:
+        """Compute log2 fold-change, p-value, and adjusted p-value for each gene and return the results mapping.
+
+        Returns:
+            A mapping from gene ID to a dict containing log2fc, pvalue, and padj statistics.
+        """
         return {gid: {"log2fc": 0.0, "pvalue": 1.0, "padj": 1.0} for gid in self._gene_ids}

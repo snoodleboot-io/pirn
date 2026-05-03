@@ -80,6 +80,14 @@ class DatafusionFilter(Knot):
     async def process(
         self, batch: DatafusionDataBatch, **_: Any
     ) -> DatafusionDataBatch:
+        """Apply the configured SQL predicate or expression to filter rows and return the result.
+
+        Args:
+            batch: The DatafusionDataBatch to filter.
+
+        Returns:
+            A new DatafusionDataBatch containing only the rows that satisfy the predicate or expression.
+        """
         if self._predicate is not None:
             filtered = batch.frame.filter(self._predicate)
         else:

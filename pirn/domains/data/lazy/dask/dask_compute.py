@@ -72,6 +72,15 @@ class DaskCompute(Sink):
         return self._return_pandas
 
     async def process(self, batch: DaskDataFrame, **_: Any) -> Any:
+        """Trigger computation of the Dask graph, writing to a path or returning a receipt or pandas frame.
+
+        Args:
+            batch: The upstream DaskDataFrame whose deferred graph will be computed.
+
+        Returns:
+            A DaskExecutionReceipt if writing to disk or materialising without
+            return_pandas, or a pandas DataFrame when return_pandas is True.
+        """
         partitions = batch.npartitions
 
         if self._target_path is not None:

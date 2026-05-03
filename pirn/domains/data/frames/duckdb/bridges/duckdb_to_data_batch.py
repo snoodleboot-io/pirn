@@ -32,6 +32,14 @@ class DuckdbToDataBatch(Knot):
         super().__init__(batch=batch, _config=_config, **kwargs)
 
     async def process(self, batch: DuckdbDataBatch, **_: Any) -> DataBatch:
+        """Fetch all rows from the DuckDB relation and return a Tier-1 DataBatch of row dicts.
+
+        Args:
+            batch: The DuckdbDataBatch whose relation is fetched to row dicts.
+
+        Returns:
+            A Tier-1 DataBatch containing the fetched rows with source_uri and fetched_at preserved.
+        """
         columns = tuple(batch.relation.columns)
         fetched = batch.relation.fetchall()
         rows = tuple({columns[i]: value for i, value in enumerate(row)} for row in fetched)

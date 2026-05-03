@@ -67,6 +67,15 @@ class SubbandAdaptiveFilter(Knot):
         reference: SignalFrame,
         **_: Any,
     ) -> SignalFrame:
+        """Decompose the signal into subbands, adapt each band against the reference, and return the reconstructed SignalFrame.
+
+        Args:
+            signal: Input signal to decompose and filter per band.
+            reference: Reference signal used to drive per-band adaptive filtering.
+
+        Returns:
+            SignalFrame of the reconstructed subband-filtered output.
+        """
         return SignalFrame(
             signal_id=f"{signal.signal_id}:subband-adaptive",
             channel_count=signal.channel_count,

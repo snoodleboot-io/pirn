@@ -62,6 +62,18 @@ class PydanticValidatorPipeline(SubTapestry):
         super().__init__(prompt=prompt, _config=_config, **kwargs)
 
     async def process(self, prompt: str, **_: Any) -> BaseModel:
+        """Extract JSON from the LLM, validate against the model class, and return the validated instance.
+
+        Args:
+            prompt: The extraction prompt string sent to the LLM.
+
+        Returns:
+            A validated model instance produced by model_class.model_validate.
+
+        Raises:
+            TypeError: If prompt is not a string.
+            ValueError: If all retry attempts are exhausted without a valid model instance.
+        """
         if not isinstance(prompt, str):
             raise TypeError(
                 "PydanticValidatorPipeline: prompt must be a string, "

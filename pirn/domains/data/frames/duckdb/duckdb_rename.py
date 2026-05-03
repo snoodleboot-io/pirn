@@ -51,6 +51,14 @@ class DuckdbRename(Knot):
         return dict(self._mapping)
 
     async def process(self, batch: DuckdbDataBatch, **_: Any) -> DuckdbDataBatch:
+        """Rename columns in the batch according to the configured mapping and return the result.
+
+        Args:
+            batch: The DuckdbDataBatch whose columns are to be renamed.
+
+        Returns:
+            A new DuckdbDataBatch with the applicable columns renamed.
+        """
         applicable = {
             old: new for old, new in self._mapping.items()
             if old in batch.relation.columns

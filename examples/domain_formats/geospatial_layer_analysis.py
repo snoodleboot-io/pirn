@@ -56,6 +56,7 @@ import asyncio
 import math
 import random
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, ClassVar, Optional
 
 from pirn.core.error_policy import ErrorPolicy
@@ -64,6 +65,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.core.result import Ok, Result
 from pirn.core.run_request import RunRequest
+from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.tapestry import Tapestry
 
 # ----------------------------------------------------------------- models
@@ -363,8 +365,8 @@ class SuitabilityScorer(Knot):
 # ----------------------------------------------------------------- pipeline
 
 
-def build_tapestry() -> Tapestry:
-    with Tapestry(history=None) as t:
+def build_tapestry(history=None) -> Tapestry:
+    with Tapestry(history=history) as t:
         feature = Parameter("feature", GeoFeature, _config=KnotConfig(id="feature"))
 
         core = CoreAssessmentKnot(feature=feature, _config=KnotConfig(id="core"))
@@ -441,7 +443,8 @@ REGIONS = [
 
 
 async def main() -> None:
-    t = build_tapestry()
+    history = SQLiteHistory(path=str(Path(__file__).parent.parent / "pirn.db"))
+    t = build_tapestry(history=history)
 
     for region, count in REGIONS:
         features = _synthetic_features(region, count)

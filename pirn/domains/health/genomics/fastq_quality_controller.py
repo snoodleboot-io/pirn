@@ -47,6 +47,11 @@ class FastqQualityController(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> GenomicsRecord:
+        """Compute QC metrics from the FASTQ file and return a GenomicsRecord summary.
+
+        Returns:
+            GenomicsRecord carrying the sample_id and zero-valued quality metrics.
+        """
         return GenomicsRecord(
             sample_id=self._sample_id,
             locus="",

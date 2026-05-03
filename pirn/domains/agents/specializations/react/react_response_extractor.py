@@ -38,6 +38,15 @@ class ReActResponseExtractor(Knot):
         messages: tuple[AgentMessage, ...] | list[AgentMessage],
         **_: Any,
     ) -> AgentResponse:
+        """Extract the final assistant message and return it as an AgentResponse.
+
+        Args:
+            messages: The accumulated message transcript from the ReAct loop.
+
+        Returns:
+            An AgentResponse whose content is the last assistant message; finish_reason is
+            'stop' when a Final Answer marker is found, otherwise 'length'.
+        """
         ordered = tuple(messages)
         for message in reversed(ordered):
             if message.role == "assistant":

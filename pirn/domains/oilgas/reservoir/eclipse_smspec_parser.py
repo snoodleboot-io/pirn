@@ -33,4 +33,9 @@ class EclipseSmspecParser(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> ScadaTimeSeries:
+        """Parse the configured Eclipse SMSPEC file and return a ScadaTimeSeries reference for the named vector.
+
+        Returns:
+            ScadaTimeSeries keyed by ``eclipse:{vector_name}``.
+        """
         return ScadaTimeSeries(sensor_id=f"eclipse:{self._vector_name}")

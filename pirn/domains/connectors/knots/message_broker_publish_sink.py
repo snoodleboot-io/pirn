@@ -49,6 +49,14 @@ class MessageBrokerPublishSink(Sink):
         return self._topic
 
     async def process(self, value: bytes, **_: Any) -> None:
+        """Publish the bytes payload to the configured broker topic.
+
+        Args:
+            value: The bytes payload to publish to the broker.
+
+        Raises:
+            TypeError: If value is not a bytes or bytearray instance.
+        """
         if not isinstance(value, (bytes, bytearray)):
             raise TypeError(
                 f"MessageBrokerPublishSink: value must be bytes, got {type(value).__name__}"

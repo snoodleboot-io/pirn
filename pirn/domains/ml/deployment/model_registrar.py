@@ -43,6 +43,18 @@ class ModelRegistrar(Knot):
     async def process(
         self, serialized: bytes, model: TrainedModel, **_: Any
     ) -> str:
+        """Write model bytes to the object store, log a lineage event, and return the model_id.
+
+        Args:
+            serialized: Serialised model bytes to store.
+            model: TrainedModel reference providing the model_id and metadata.
+
+        Returns:
+            The model_id string from the TrainedModel.
+
+        Raises:
+            TypeError: If serialized is not bytes or model is not a TrainedModel.
+        """
         if not isinstance(serialized, (bytes, bytearray)):
             raise TypeError(
                 "ModelRegistrar: serialized must resolve to bytes"

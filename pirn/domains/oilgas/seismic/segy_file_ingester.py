@@ -46,4 +46,9 @@ class SegyFileIngester(Knot):
         return self._volume_id
 
     async def process(self, **_: Any) -> SegyVolume:
+        """Resolve the configured SEG-Y file path and return a SegyVolume reference with the configured volume_id.
+
+        Returns:
+            SegyVolume reference identified by the configured volume ID.
+        """
         return SegyVolume(volume_id=self._volume_id)

@@ -56,6 +56,15 @@ class NullRateGate(Knot):
         return dict(self._thresholds)
 
     async def process(self, batch: DataBatch, **_: Any) -> QualityReport:
+        """Assess each column's null rate against its threshold and return a QualityReport.
+
+        Args:
+            batch: The DataBatch whose column null rates will be measured.
+
+        Returns:
+            A QualityReport with one check per configured column, passing when the
+            observed null rate does not exceed the column's threshold.
+        """
         row_count = batch.row_count
         checks: list[QualityCheck] = []
 

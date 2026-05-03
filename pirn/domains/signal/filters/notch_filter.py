@@ -45,6 +45,14 @@ class NotchFilter(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SignalFrame:
+        """Apply the notch filter to suppress the configured frequency and return the filtered SignalFrame.
+
+        Args:
+            signal: Signal to notch-filter at the configured line-noise frequency.
+
+        Returns:
+            SignalFrame with the notch frequency removed.
+        """
         return SignalFrame(
             signal_id=f"{signal.signal_id}:notch",
             channel_count=signal.channel_count,

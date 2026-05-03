@@ -33,6 +33,14 @@ class LithologyClassifier(Knot):
         super().__init__(las_file=las_file, _config=_config, **kwargs)
 
     async def process(self, las_file: LASFile, **_: Any) -> LASFile:
+        """Classify lithology from the input LAS curves and return a LASFile augmented with a LITH curve.
+
+        Args:
+            las_file: Parsed LAS file providing the log curves used for classification.
+
+        Returns:
+            LASFile with a ``LITH`` curve appended to the existing curve set.
+        """
         return LASFile(
             well_id=las_file.well_id,
             curves=las_file.curves + ("LITH",),

@@ -46,6 +46,14 @@ class PCADecomposer(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SourceFrame:
+        """Decompose the signal into principal components via PCA and return a SourceFrame.
+
+        Args:
+            signal: Multichannel signal to project onto the configured principal components.
+
+        Returns:
+            SourceFrame with ``source_count`` equal to ``component_count`` and the mixing matrix shape.
+        """
         return SourceFrame(
             signal_id=signal.signal_id,
             source_count=self._component_count,

@@ -61,6 +61,17 @@ class PIIRedactorGate(SubTapestry):
         response: AgentResponse,
         **_: Any,
     ) -> AgentResponse:
+        """Redact PII matches from the response content using the configured patterns.
+
+        Args:
+            response: The agent response whose content is scanned for PII.
+
+        Returns:
+            An AgentResponse with PII redacted, or the original if no matches were found.
+
+        Raises:
+            RuntimeError: If the inner redactor does not return an AgentResponse.
+        """
         with Tapestry() as inner:
             PIIResponseRedactor(
                 response=response,

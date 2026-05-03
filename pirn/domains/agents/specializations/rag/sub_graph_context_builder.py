@@ -50,6 +50,18 @@ class SubGraphContextBuilder(Knot):
         hop_count: int,
         **_: Any,
     ) -> list[Mapping[str, Any]]:
+        """Partition retrieved nodes into entities and relations and return a typed sub-graph block.
+
+        Args:
+            retrieved: The list of graph node Mappings to partition into entities and relations.
+            hop_count: The hop budget surfaced as a metadata entry in the returned block.
+
+        Returns:
+            A list of Mappings beginning with a hop-count header followed by entity and relation entries.
+
+        Raises:
+            TypeError: If any element of retrieved is not a Mapping.
+        """
         entities: list[Mapping[str, Any]] = []
         relations: list[Mapping[str, Any]] = []
         for index, item in enumerate(retrieved):

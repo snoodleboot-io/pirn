@@ -51,6 +51,14 @@ class IbisWindow(Knot):
         super().__init__(batch=batch, _config=_config, **kwargs)
 
     async def process(self, batch: IbisTable, **_: Any) -> IbisTable:
+        """Append the configured window-function columns to the deferred Ibis expression via mutate.
+
+        Args:
+            batch: The upstream IbisTable whose expression will be extended with window columns.
+
+        Returns:
+            A new IbisTable with the window-function columns appended to the deferred expression.
+        """
         result = self._windows(batch.expression)
         if isinstance(result, (list, tuple)):
             mutated = batch.expression.mutate(*result)

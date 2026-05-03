@@ -59,6 +59,17 @@ class ResearchAgent(SubTapestry):
         super().__init__(topic=topic, _config=_config, **kwargs)
 
     async def process(self, topic: str, **_: Any) -> AgentResponse:
+        """Run the search-backed ReAct loop on the topic and return a summary AgentResponse.
+
+        Args:
+            topic: The non-empty research topic string to investigate.
+
+        Returns:
+            An AgentResponse containing a summary of the research findings.
+
+        Raises:
+            TypeError: If topic is not a non-empty string.
+        """
         if not isinstance(topic, str) or not topic:
             raise TypeError(
                 "ResearchAgent: topic must be a non-empty string, "

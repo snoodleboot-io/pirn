@@ -42,4 +42,9 @@ class CorticalThicknessEstimator(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> Mapping[str, float]:
+        """Estimate cortical thickness for each configured region and return a region-to-thickness-mm mapping.
+
+        Returns:
+            Mapping of region name to cortical thickness in millimetres.
+        """
         return {region: 0.0 for region in self._regions}

@@ -26,6 +26,14 @@ class WaterInjectionTracker(Knot):
     async def process(
         self, injection_rate: ScadaTimeSeries, **_: Any
     ) -> ScadaTimeSeries:
+        """Accept an injection-rate series and return the cumulative injected volume as a time series.
+
+        Args:
+            injection_rate: SCADA time series containing instantaneous injection-rate samples.
+
+        Returns:
+            ScadaTimeSeries with cumulative injected volume keyed by a ``cumulative_inj:`` sensor ID.
+        """
         return ScadaTimeSeries(
             sensor_id=f"cumulative_inj:{injection_rate.sensor_id}",
             sample_count=injection_rate.sample_count,

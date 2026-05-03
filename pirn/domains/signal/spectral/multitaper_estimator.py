@@ -49,6 +49,14 @@ class MultitaperEstimator(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SpectrumFrame:
+        """Estimate the PSD via Slepian-taper averaging and return a SpectrumFrame.
+
+        Args:
+            signal: Signal to estimate the multitaper power spectral density from.
+
+        Returns:
+            SpectrumFrame with bins equal to half the sample count plus one.
+        """
         n = max(signal.samples_per_channel, 1)
         resolution = (
             signal.sample_rate_hz / n

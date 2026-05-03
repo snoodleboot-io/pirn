@@ -39,4 +39,9 @@ class SeizureDetector(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> Sequence[tuple[float, float]]:
+        """Detect seizure intervals in the EEG signal above the configured threshold and return (start_sec, end_sec) tuples.
+
+        Returns:
+            A sequence of (start_sec, end_sec) tuples representing detected seizure intervals.
+        """
         return ()

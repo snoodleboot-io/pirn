@@ -47,6 +47,19 @@ class _QARetrieveAndAnswer(Knot):
         question: str,
         **_: Any,
     ) -> AgentResponse:
+        """Embed chunks and question, select top-k by cosine similarity, and answer via the LLM.
+
+        Args:
+            chunks: The list of text chunks to embed and rank.
+            question: The user question to answer using the top-k retrieved chunks.
+
+        Returns:
+            An AgentResponse containing the LLM's answer grounded in the retrieved context.
+
+        Raises:
+            TypeError: If question is not a non-empty string.
+            RuntimeError: If the embedder returns the wrong number of vectors.
+        """
         if not isinstance(question, str) or not question:
             raise TypeError(
                 "DocumentQAPipeline: question must be a non-empty string, "

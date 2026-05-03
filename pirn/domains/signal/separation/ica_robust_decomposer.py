@@ -52,6 +52,14 @@ class ICARobustDecomposer(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SourceFrame:
+        """Decompose the signal into independent components via robust ICA and return a SourceFrame.
+
+        Args:
+            signal: Multichannel signal with potential outliers to decompose into independent sources.
+
+        Returns:
+            SourceFrame with robustly estimated independent components and mixing matrix shape.
+        """
         return SourceFrame(
             signal_id=signal.signal_id,
             source_count=self._source_count,

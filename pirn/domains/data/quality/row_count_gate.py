@@ -53,6 +53,14 @@ class RowCountGate(Knot):
         return self._max_rows
 
     async def process(self, batch: DataBatch, **_: Any) -> QualityReport:
+        """Check that the batch row count falls within the configured bounds and return a QualityReport.
+
+        Args:
+            batch: The DataBatch whose row count will be checked.
+
+        Returns:
+            A QualityReport with checks for the minimum and, if configured, maximum row count.
+        """
         row_count = batch.row_count
 
         min_check = QualityCheck(

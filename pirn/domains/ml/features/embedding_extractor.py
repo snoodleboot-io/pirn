@@ -45,6 +45,14 @@ class EmbeddingExtractor(Knot):
         super().__init__(split=split, _config=_config, **kwargs)
 
     async def process(self, split: DataSplit, **_: Any) -> DataSplit:
+        """Probe the embedding provider, append the text-column embedding feature to each split partition, and return the updated DataSplit.
+
+        Args:
+            split: DataSplit whose partitions receive the new embedding feature.
+
+        Returns:
+            DataSplit with ``<text_column>_embedding`` appended to every partition's feature list.
+        """
         # Touch the provider so misconfigured providers fail loudly at
         # planning time. We embed the column name as a single probe text
         # rather than the full column (we don't have rows here).

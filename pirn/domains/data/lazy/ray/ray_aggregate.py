@@ -107,6 +107,14 @@ class RayAggregate(Knot):
         return self._by
 
     async def process(self, batch: RayDataset, **_: Any) -> RayDataset:
+        """Apply group-by aggregation to the deferred Ray Dataset and return the updated dataset.
+
+        Args:
+            batch: The upstream RayDataset to aggregate.
+
+        Returns:
+            A new RayDataset wrapping the aggregated Ray Data plan.
+        """
         if self._aggregator is not None:
             aggregated = self._aggregator(batch.dataset)
         else:

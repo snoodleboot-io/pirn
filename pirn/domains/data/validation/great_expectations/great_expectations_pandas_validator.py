@@ -58,6 +58,15 @@ class GreatExpectationsPandasValidator(Knot):
         return self._suite
 
     async def process(self, batch: PandasDataBatch, **_: Any) -> QualityReport:
+        """Validate the PandasDataBatch against the GE ExpectationSuite and return a QualityReport.
+
+        Args:
+            batch: The PandasDataBatch to validate.
+
+        Returns:
+            A QualityReport with one failed QualityCheck per failing expectation,
+            or a passing report when all expectations are satisfied.
+        """
         # Local import: keeps the module importable even when GE is not
         # installed. The construction-time check above will already have
         # raised TypeError before this line runs in a real pipeline.

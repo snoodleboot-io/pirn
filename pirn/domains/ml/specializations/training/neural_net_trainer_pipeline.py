@@ -105,6 +105,19 @@ class NeuralNetTrainerPipeline(SubTapestry):
     async def process(
         self, split: DataSplit, **_: Any
     ) -> dict[str, Any]:
+        """Train the neural-net model, evaluate it, serialise in the configured format, register it, and return a summary dict.
+
+        Args:
+            split: DataSplit used for training and evaluation.
+
+        Returns:
+            Dict with ``model_id`` (str), ``eval_report`` (:class:`EvalReport`),
+            and ``serialized_size`` (int byte count of the serialized artifact).
+
+        Raises:
+            TypeError: If the evaluator, serializer, or registrar output has an
+                unexpected type.
+        """
         with Tapestry() as inner:
             split_node = _emit_value(
                 value=split, _config=KnotConfig(id="split")

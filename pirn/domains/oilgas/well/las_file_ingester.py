@@ -54,6 +54,11 @@ class LasFileIngester(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> LASFile:
+        """Resolve the configured file path and well metadata into a LASFile reference.
+
+        Returns:
+            LASFile reference built from the configured well ID, curve list, and depth unit.
+        """
         return LASFile(
             well_id=self._well_id,
             curves=self._curves,

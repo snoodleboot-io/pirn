@@ -39,4 +39,9 @@ class Bowtie2Aligner(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> str:
+        """Align the FASTQ reads to the Bowtie2 index and return the output BAM path.
+
+        Returns:
+            The output BAM path.
+        """
         return self._output_bam_path

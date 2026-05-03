@@ -99,6 +99,11 @@ class SilverCleanTransform(SubTapestry):
         )
 
     async def process(self, **_: Any) -> dict[str, Any]:
+        """Cast, filter, and deduplicate bronze rows, then write the cleaned rows to the silver table.
+
+        Returns:
+            A dict with keys ``succeeded`` and ``target_table`` summarising the run outcome.
+        """
         with Tapestry() as inner:
             extracted = DatabaseQuerySource(
                 pool=self._source_pool,

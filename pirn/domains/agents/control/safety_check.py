@@ -1,4 +1,4 @@
-"""``SafetyGate`` — regex deny-list check on a message or response."""
+"""``SafetyCheck`` — regex deny-list check on a message or response."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from pirn.domains.agents.types.agent_message import AgentMessage
 from pirn.domains.agents.types.agent_response import AgentResponse
 
 
-class SafetyGate(Knot):
+class SafetyCheck(Knot):
     """Returns ``True`` when ``message.content`` matches no deny pattern.
 
     ``deny_patterns`` is a sequence of regex strings; a match against
@@ -34,20 +34,20 @@ class SafetyGate(Knot):
             deny_patterns, (str, bytes)
         ):
             raise TypeError(
-                "SafetyGate: deny_patterns must be a sequence of regex strings"
+                "SafetyCheck: deny_patterns must be a sequence of regex strings"
             )
         compiled: list[re.Pattern[str]] = []
         for index, pattern in enumerate(deny_patterns):
             if not isinstance(pattern, str) or not pattern:
                 raise ValueError(
-                    f"SafetyGate: deny_patterns[{index}] must be a non-empty "
+                    f"SafetyCheck: deny_patterns[{index}] must be a non-empty "
                     f"string, got {pattern!r}"
                 )
             try:
                 compiled.append(re.compile(pattern, flags=re.IGNORECASE))
             except re.error as exc:
                 raise ValueError(
-                    f"SafetyGate: deny_patterns[{index}] is not a valid regex: "
+                    f"SafetyCheck: deny_patterns[{index}] is not a valid regex: "
                     f"{exc}"
                 ) from exc
         super().__init__(
@@ -64,9 +64,21 @@ class SafetyGate(Knot):
         deny_patterns: tuple[str, ...],
         **_: Any,
     ) -> bool:
+        """Check the message body against deny-list patterns and return True if safe.
+
+        Args:
+            message: The agent message or response whose content is checked.
+            deny_patterns: Compiled regex patterns that, when matched, indicate unsafe content.
+
+        Returns:
+            True if no deny pattern matches the content, False otherwise.
+
+        Raises:
+            TypeError: If message is not an AgentMessage or AgentResponse instance.
+        """
         if not isinstance(message, (AgentMessage, AgentResponse)):
             raise TypeError(
-                "SafetyGate: message must be an AgentMessage or AgentResponse, "
+                "SafetyCheck: message must be an AgentMessage or AgentResponse, "
                 f"got {type(message).__name__}"
             )
         del deny_patterns  # consumed at construction; compiled patterns used here

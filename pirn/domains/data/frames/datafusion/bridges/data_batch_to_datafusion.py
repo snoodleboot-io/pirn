@@ -47,6 +47,14 @@ class DataBatchToDatafusion(Knot):
         super().__init__(batch=batch, _config=_config, **kwargs)
 
     async def process(self, batch: DataBatch, **_: Any) -> DatafusionDataBatch:
+        """Convert a Tier-1 DataBatch into a DatafusionDataBatch by registering rows with the session context.
+
+        Args:
+            batch: The Tier-1 DataBatch whose rows are loaded into DataFusion.
+
+        Returns:
+            A DatafusionDataBatch wrapping a DataFusion DataFrame with the batch's rows.
+        """
         context = self._context
         if context is None:
             context = df.SessionContext()

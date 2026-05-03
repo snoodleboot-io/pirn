@@ -39,4 +39,9 @@ class STARAligner(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> str:
+        """Align RNA-seq reads with STAR using the configured genome directory and return the output BAM path.
+
+        Returns:
+            Path string for the aligned BAM output file.
+        """
         return self._output_bam_path

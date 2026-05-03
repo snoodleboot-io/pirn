@@ -52,6 +52,12 @@ class WellLocationProjector(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> dict[str, Any]:
+        """Project the configured (longitude, latitude) coordinates into the target CRS and return the well location record.
+
+        Returns:
+            Dict with ``well_id``, projected ``x`` and ``y`` coordinates,
+            and the target ``crs`` string.
+        """
         return {
             "well_id": self._well_id,
             "x": 0.0,

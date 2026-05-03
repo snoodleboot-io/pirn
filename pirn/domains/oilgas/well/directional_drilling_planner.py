@@ -44,6 +44,14 @@ class DirectionalDrillingPlanner(Knot):
         super().__init__(current_path=current_path, _config=_config, **kwargs)
 
     async def process(self, current_path: WellPath3D, **_: Any) -> WellPath3D:
+        """Plan a directional trajectory from the current path to the configured target and return the planned WellPath3D.
+
+        Args:
+            current_path: Current 3-D well path used as the planning starting point.
+
+        Returns:
+            WellPath3D representing the planned trajectory to the configured target coordinates.
+        """
         return WellPath3D(
             well_id=current_path.well_id,
             point_count=current_path.point_count,

@@ -65,6 +65,14 @@ class ADaMDatasetBuilder(Knot):
         records: Sequence[ClinicalTrialRecord],
         **_: Any,
     ) -> tuple[Mapping[str, Any], ...]:
+        """Apply the derivations mapping to each trial record and return ADaM-style row dicts.
+
+        Args:
+            records: Sequence of ClinicalTrialRecord objects to project.
+
+        Returns:
+            Tuple of dicts with trial_id, subject_id, and all configured derived columns.
+        """
         rows: list[Mapping[str, Any]] = []
         for record in records:
             row: dict[str, Any] = {

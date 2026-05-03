@@ -70,6 +70,14 @@ class DuckdbAggregate(Knot):
         return dict(self._aggs)
 
     async def process(self, batch: DuckdbDataBatch, **_: Any) -> DuckdbDataBatch:
+        """Group the batch by the configured columns and apply DuckDB SQL aggregation expressions.
+
+        Args:
+            batch: The DuckdbDataBatch to group and aggregate.
+
+        Returns:
+            A new DuckdbDataBatch containing the aggregated result.
+        """
         quoted_by = [f'"{column}"' for column in self._by]
         group_fragment = ", ".join(quoted_by)
         select_fragments = list(quoted_by)

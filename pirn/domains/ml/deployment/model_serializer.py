@@ -43,6 +43,14 @@ class ModelSerializer(Knot):
         return self._format
 
     async def process(self, model: TrainedModel, **_: Any) -> bytes:
+        """Serialise the TrainedModel metadata to bytes in the configured format and return them.
+
+        Args:
+            model: TrainedModel reference whose metadata is serialised.
+
+        Returns:
+            UTF-8 encoded JSON bytes containing the model metadata payload.
+        """
         payload = {
             "format": self._format,
             "model_id": model.model_id,

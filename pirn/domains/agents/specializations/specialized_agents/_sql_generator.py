@@ -30,6 +30,17 @@ class _SQLGenerator(Knot):
         super().__init__(question=question, _config=_config, **kwargs)
 
     async def process(self, question: str, **_: Any) -> str:
+        """Ask the LLM to emit a single SQL statement for the question and return it.
+
+        Args:
+            question: The non-empty natural-language question to translate into SQL.
+
+        Returns:
+            The SQL statement string emitted by the LLM, stripped of leading and trailing whitespace.
+
+        Raises:
+            TypeError: If question is not a non-empty string.
+        """
         if not isinstance(question, str) or not question:
             raise TypeError(
                 "SQLAgent: question must be a non-empty string, "

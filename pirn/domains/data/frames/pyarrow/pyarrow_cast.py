@@ -47,6 +47,14 @@ class PyarrowCast(Knot):
         return dict(self._casts)
 
     async def process(self, batch: PyarrowDataBatch, **_: Any) -> PyarrowDataBatch:
+        """Cast the configured columns to their target PyArrow types and return the updated batch.
+
+        Args:
+            batch: The upstream PyarrowDataBatch whose columns will be recast.
+
+        Returns:
+            A new PyarrowDataBatch with the configured columns cast to their target PyArrow types.
+        """
         applicable = {
             column: dtype for column, dtype in self._casts.items()
             if column in batch.table.column_names

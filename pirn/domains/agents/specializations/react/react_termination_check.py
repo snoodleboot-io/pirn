@@ -1,4 +1,4 @@
-"""``ReActTerminationGate`` — decide whether a ReAct loop should stop.
+"""``ReActTerminationCheck`` — decide whether a ReAct loop should stop.
 
 The gate inspects the trailing assistant message produced by the most
 recent :class:`ReActStepExecutor` and emits a boolean ``terminate``
@@ -23,7 +23,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.domains.agents.types.agent_message import AgentMessage
 
 
-class ReActTerminationGate(Knot):
+class ReActTerminationCheck(Knot):
     """Stops the ReAct loop on a final-answer marker or iteration cap."""
 
     _final_answer_marker: str = "Final Answer:"
@@ -39,17 +39,17 @@ class ReActTerminationGate(Knot):
     ) -> None:
         if not isinstance(max_iterations, int) or max_iterations <= 0:
             raise ValueError(
-                "ReActTerminationGate: max_iterations must be a positive int, "
+                "ReActTerminationCheck: max_iterations must be a positive int, "
                 f"got {max_iterations!r}"
             )
         if not isinstance(current_iteration, (Knot, int)):
             raise TypeError(
-                "ReActTerminationGate: current_iteration must be a Knot or int, "
+                "ReActTerminationCheck: current_iteration must be a Knot or int, "
                 f"got {type(current_iteration).__name__}"
             )
         if isinstance(current_iteration, int) and current_iteration < 0:
             raise ValueError(
-                "ReActTerminationGate: current_iteration must be non-negative, "
+                "ReActTerminationCheck: current_iteration must be non-negative, "
                 f"got {current_iteration!r}"
             )
         super().__init__(
@@ -67,6 +67,16 @@ class ReActTerminationGate(Knot):
         current_iteration: int,
         **_: Any,
     ) -> bool:
+        """Return True when the latest step contains a final-answer marker or the iteration cap is reached.
+
+        Args:
+            latest_response: The output of the most recent ReActStepExecutor, used to check for a final-answer marker.
+            max_iterations: The maximum number of iterations before forced termination.
+            current_iteration: The 1-based count of the iteration just completed.
+
+        Returns:
+            True if the final-answer marker is present or current_iteration has reached max_iterations.
+        """
         messages = self._coerce_messages(latest_response)
         for message in reversed(messages):
             if message.role == "assistant":

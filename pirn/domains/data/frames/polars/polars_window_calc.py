@@ -55,4 +55,12 @@ class PolarsWindowCalc(Knot):
         return self._windows
 
     async def process(self, batch: PolarsDataBatch, **_: Any) -> PolarsDataBatch:
+        """Evaluate the configured window expressions and append them as new columns to the batch.
+
+        Args:
+            batch: The upstream PolarsDataBatch to extend with window columns.
+
+        Returns:
+            A new PolarsDataBatch with the window expression columns appended.
+        """
         return batch.with_frame(batch.frame.with_columns(list(self._windows)))

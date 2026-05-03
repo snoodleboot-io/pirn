@@ -35,6 +35,16 @@ class ArtificialLiftOptimizer(Knot):
     async def process(
         self, production: ScadaTimeSeries, **_: Any
     ) -> dict[str, Any]:
+        """Recommend an operating setpoint for the configured lift system from the production series and return it with the expected uplift.
+
+        Args:
+            production: ScadaTimeSeries of current production rates used to
+                derive the recommended operating setpoint.
+
+        Returns:
+            Dict with ``lift_type``, ``recommended_setpoint`` (float), and
+            ``expected_uplift_bopd`` (estimated incremental barrels per day).
+        """
         return {
             "lift_type": self._lift_type,
             "recommended_setpoint": 1.0,

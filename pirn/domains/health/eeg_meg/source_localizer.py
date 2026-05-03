@@ -49,4 +49,9 @@ class SourceLocalizer(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> Mapping[str, float]:
+        """Estimate source-space activations from the sensor signal and return a source-label-to-activation mapping.
+
+        Returns:
+            A mapping from source label to estimated activation value.
+        """
         return {label: 0.0 for label in self._source_labels}

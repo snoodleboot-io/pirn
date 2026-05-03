@@ -34,6 +34,14 @@ class TuplesToDataBatchKnot(Knot):
     async def process(
         self, rows: Iterable[Iterable[Any]], **_: Any
     ) -> DataBatch:
+        """Zip row tuples with the configured column names and return a DataBatch of row dicts.
+
+        Args:
+            rows: The upstream row tuples to key by the configured column names.
+
+        Returns:
+            A DataBatch with each row represented as a dict keyed by column name.
+        """
         materialised = tuple(
             dict(zip(self._column_names, tuple(row)))
             for row in rows

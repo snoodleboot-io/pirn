@@ -46,6 +46,14 @@ class MudWeightCalculator(Knot):
         super().__init__(drilling=drilling, _config=_config, **kwargs)
 
     async def process(self, drilling: DrillingParameters, **_: Any) -> dict[str, float]:
+        """Accept drilling parameters and return a min/max mud-weight window in ppg.
+
+        Args:
+            drilling: Drilling parameters providing wellbore context.
+
+        Returns:
+            Dict with keys ``min_ppg`` and ``max_ppg`` defining the safe mud-weight window.
+        """
         return {
             "min_ppg": self._pore_pressure_ppg + self._safety_margin_ppg,
             "max_ppg": self._fracture_pressure_ppg - self._safety_margin_ppg,

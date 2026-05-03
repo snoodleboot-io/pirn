@@ -61,6 +61,11 @@ class LakehouseTableSource(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> DataBatch:
+        """Scan the lakehouse table and return all matching records as a DataBatch.
+
+        Returns:
+            A DataBatch containing all rows returned by the lakehouse scan.
+        """
         rows: list[dict[str, Any]] = []
         records = await self._table.scan(
             snapshot_id=self._snapshot_id,

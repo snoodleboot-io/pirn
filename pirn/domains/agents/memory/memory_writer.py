@@ -48,6 +48,20 @@ class MemoryWriter(Knot):
         store: MemoryStore,
         **_: Any,
     ) -> str:
+        """Persist the value mapping under key in the store and return the key.
+
+        Args:
+            key: The non-empty string key to store the value under.
+            value: The mapping to persist in the store.
+            store: The memory store to write to.
+
+        Returns:
+            The key the value was stored under.
+
+        Raises:
+            ValueError: If key is not a non-empty string.
+            TypeError: If value is not a Mapping.
+        """
         if not isinstance(key, str) or not key:
             raise ValueError(
                 "MemoryWriter: key must be a non-empty string, "

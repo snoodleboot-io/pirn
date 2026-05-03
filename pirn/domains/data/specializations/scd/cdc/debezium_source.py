@@ -93,6 +93,14 @@ class DebeziumSource(Source):
         return self._max_messages
 
     async def process(self, **_: Any) -> list[Mapping[str, Any]]:
+        """Consume up to max_messages Debezium events from the broker and return them as a list.
+
+        Returns:
+            A list of parsed Debezium envelope dicts, each with keys op, before, after, source, and ts_ms.
+
+        Raises:
+            RuntimeError: If max_messages is None, as unbounded streaming is not supported in process().
+        """
         if self._max_messages is None:
             raise RuntimeError(
                 "DebeziumSource.process() requires max_messages — for "

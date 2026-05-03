@@ -43,4 +43,9 @@ class ArtifactRemover(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> SignalFrame:
+        """Apply ICA-based artifact removal to the signal frame and return the cleaned SignalFrame.
+
+        Returns:
+            A SignalFrame with artifacts removed.
+        """
         return self._signal

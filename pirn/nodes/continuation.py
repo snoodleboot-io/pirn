@@ -85,6 +85,11 @@ class _EndKnot(Knot):
     """
 
     async def process(self, **_: Any) -> None:
+        """Receive any inputs and return None to mark explicit flow termination.
+
+        Returns:
+            None, signalling that this branch of the flow has terminated intentionally.
+        """
         return None
 
 
@@ -121,6 +126,17 @@ class WithContinuation(Knot):
         object.__setattr__(self, "_mutable_pool", {WithContinuation._end: _EndKnot, **pool})
 
     async def process(self, result: Any, **_: Any) -> Any:  # type: ignore[override]
+        """Invoke the continuation function on the upstream result, register successor knots, and return the result.
+
+        Args:
+            result: Output value of the wrapped upstream knot, passed unchanged to the continuation function.
+
+        Returns:
+            The upstream result value, forwarded unmodified after successor registration.
+
+        Raises:
+            KeyError: If a continuation-returned action name is not present in the pool.
+        """
         fn: ContinuationFn = object.__getattribute__(self, "_mutable_fn")
         pool: Pool = object.__getattribute__(self, "_mutable_pool")
 

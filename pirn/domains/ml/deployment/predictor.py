@@ -62,6 +62,18 @@ class Predictor(Knot):
         features: Iterable[Mapping[str, Any]],
         **_: Any,
     ) -> list[Any]:
+        """Load the model from the registry and score each feature row, returning a list of predictions.
+
+        Args:
+            model_id: Non-empty string identifying the registered model.
+            features: Iterable of feature row dicts to score.
+
+        Returns:
+            List of float predictions, one per input feature row.
+
+        Raises:
+            ValueError: If model_id resolves to an empty string.
+        """
         if not isinstance(model_id, str) or not model_id:
             raise ValueError(
                 "Predictor: model_id must resolve to a non-empty string"

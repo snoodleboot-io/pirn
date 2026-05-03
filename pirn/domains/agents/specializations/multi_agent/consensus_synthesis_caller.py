@@ -41,6 +41,17 @@ class ConsensusSynthesisCaller(Knot):
         responses: Mapping[str, AgentResponse],
         **_: Any,
     ) -> AgentResponse:
+        """Feed all specialist responses to the LLM and return its synthesised consensus answer.
+
+        Args:
+            responses: A non-empty mapping of specialist names to their AgentResponse outputs.
+
+        Returns:
+            A synthesised AgentResponse constructed from the LLM's consensus reply.
+
+        Raises:
+            ValueError: If responses is empty or not a Mapping.
+        """
         if not isinstance(responses, Mapping) or not responses:
             raise ValueError(
                 "ConsensusSynthesisCaller: responses must be a non-empty "

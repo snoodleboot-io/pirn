@@ -84,6 +84,11 @@ class SparkSource(Source):
         return self._backend_name
 
     async def process(self, **_: Any) -> SparkDataFrame:
+        """Load data from the configured path or SQL query into a deferred SparkDataFrame.
+
+        Returns:
+            A SparkDataFrame wrapping the newly created deferred Spark logical plan.
+        """
         if self._query is not None:
             frame = self._spark_session.sql(self._query)
         else:

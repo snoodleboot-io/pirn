@@ -52,6 +52,18 @@ class OutputResponseValidator(Knot):
         response: AgentResponse,
         **_: Any,
     ) -> AgentResponse:
+        """Reject the response if it matches any deny pattern or references a disallowed tool; return it unchanged otherwise.
+
+        Args:
+            response: The agent response to validate.
+
+        Returns:
+            The original AgentResponse if all checks pass.
+
+        Raises:
+            TypeError: If response is not an AgentResponse instance.
+            ValueError: If the response content matches a deny pattern or a tool call references a disallowed tool.
+        """
         if not isinstance(response, AgentResponse):
             raise TypeError(
                 "OutputResponseValidator: response must be an AgentResponse, "

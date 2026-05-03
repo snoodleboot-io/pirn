@@ -81,6 +81,12 @@ class NLPPipeline(SubTapestry):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> EvalReport:
+        """Load data, split, embed the text column, train a text classifier, and return the resulting EvalReport.
+
+        Returns:
+            EvalReport containing accuracy, precision, recall, and f1 metrics
+            from the text-classification evaluation stage.
+        """
         with Tapestry() as inner:
             dataset = DatasetLoader(
                 name="nlp",

@@ -39,6 +39,17 @@ class SpecialistFanOutCollector(Knot):
         responses: Mapping[str, AgentResponse],
         **_: Any,
     ) -> Mapping[str, AgentResponse]:
+        """Validate and pass through the specialist name-to-response mapping unchanged.
+
+        Args:
+            responses: The mapping of specialist names to their AgentResponse instances.
+
+        Returns:
+            A copy of the responses mapping after validating all keys and values.
+
+        Raises:
+            TypeError: If any key is not a string or any value is not an AgentResponse.
+        """
         for name, candidate in responses.items():
             if not isinstance(name, str):
                 raise TypeError(

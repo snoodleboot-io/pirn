@@ -35,6 +35,14 @@ class DataBatchToTuplesKnot(Knot):
     async def process(
         self, batch: DataBatch, **_: Any
     ) -> list[tuple[Any, ...]]:
+        """Project each DataBatch row to a column-ordered tuple and return the list.
+
+        Args:
+            batch: The DataBatch whose rows will be projected to positional tuples.
+
+        Returns:
+            A list of tuples, one per row, with values ordered by the configured column names.
+        """
         return [
             tuple(row.get(column) for column in self._column_names)
             for row in batch.rows

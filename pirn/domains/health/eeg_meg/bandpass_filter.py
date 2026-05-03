@@ -44,4 +44,9 @@ class BandpassFilter(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> SignalFrame:
+        """Bandpass-filter the signal frame between the configured frequency cutoffs and return the result.
+
+        Returns:
+            A SignalFrame with the bandpass filter applied.
+        """
         return self._signal

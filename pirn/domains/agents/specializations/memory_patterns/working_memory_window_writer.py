@@ -54,6 +54,17 @@ class WorkingMemoryWindowWriter(Knot):
         new_message: AgentMessage,
         **_: Any,
     ) -> tuple[AgentMessage, ...]:
+        """Append new_message to the stored session window, trim to max_size, persist, and return the window.
+
+        Args:
+            new_message: The message to append to the session window.
+
+        Returns:
+            A tuple of the most recent AgentMessage entries after trimming to max_size.
+
+        Raises:
+            TypeError: If new_message is not an AgentMessage instance.
+        """
         if not isinstance(new_message, AgentMessage):
             raise TypeError(
                 "WorkingMemoryWindowWriter: new_message must be an "

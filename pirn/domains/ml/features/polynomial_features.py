@@ -46,6 +46,14 @@ class PolynomialFeatures(Knot):
         return self._degree
 
     async def process(self, split: DataSplit, **_: Any) -> DataSplit:
+        """Derive polynomial and interaction feature names from the configured columns and return an augmented DataSplit.
+
+        Args:
+            split: DataSplit whose partitions receive the new polynomial feature names.
+
+        Returns:
+            DataSplit with polynomial and interaction feature names appended to every partition.
+        """
         new_features = self._derive_feature_names()
         now = datetime.now(timezone.utc)
         return DataSplit(

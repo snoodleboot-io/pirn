@@ -105,6 +105,14 @@ class Reduce(Knot):
         self._frozen = True
 
     async def process(self, of: list[Any], **_: Any) -> Any:  # type: ignore[override]
+        """Fold the input list into a single value using the configured combine callable.
+
+        Args:
+            of: List of items produced by the parent knot to reduce.
+
+        Returns:
+            Single value resulting from applying combine to the list, either whole-list or pairwise.
+        """
         if self._mutable_form == "whole":
             return self._mutable_combine(of)
         # Pairwise.

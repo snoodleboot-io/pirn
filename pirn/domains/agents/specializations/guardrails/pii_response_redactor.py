@@ -45,6 +45,17 @@ class PIIResponseRedactor(Knot):
         response: AgentResponse,
         **_: Any,
     ) -> AgentResponse:
+        """Replace PII matches in the response content with '<redacted>' and return the cleaned response.
+
+        Args:
+            response: The agent response whose content is scanned and redacted.
+
+        Returns:
+            A new AgentResponse with PII replaced, or the original if no patterns matched.
+
+        Raises:
+            TypeError: If response is not an AgentResponse instance.
+        """
         if not isinstance(response, AgentResponse):
             raise TypeError(
                 "PIIResponseRedactor: response must be an AgentResponse, "

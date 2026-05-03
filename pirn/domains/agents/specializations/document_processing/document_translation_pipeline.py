@@ -58,6 +58,17 @@ class DocumentTranslationPipeline(SubTapestry):
         super().__init__(source=source, _config=_config, **kwargs)
 
     async def process(self, source: str, **_: Any) -> str:
+        """Load, chunk, and translate each chunk into the target language, returning the joined text.
+
+        Args:
+            source: A local file path or http(s):// URL identifying the document to translate.
+
+        Returns:
+            The concatenated translation of all chunks as a single string.
+
+        Raises:
+            TypeError: If source is not a non-empty string.
+        """
         if not isinstance(source, str) or not source:
             raise TypeError(
                 "DocumentTranslationPipeline: source must be a non-empty "

@@ -48,6 +48,14 @@ class MUSICEstimator(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> Mapping[str, Any]:
+        """Estimate sinusoid frequencies from the signal via MUSIC and return a parameter mapping.
+
+        Args:
+            signal: Signal to estimate frequencies from using the multiple signal classification method.
+
+        Returns:
+            Mapping containing ``signal_id``, ``signal_subspace_dim``, ``frequency_grid_size``, and ``estimator``.
+        """
         return {
             "signal_id": signal.signal_id,
             "signal_subspace_dim": self._signal_subspace_dim,

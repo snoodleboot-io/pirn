@@ -48,6 +48,15 @@ class Explainer(Knot):
     async def process(
         self, model: TrainedModel, split: DataSplit, **_: Any
     ) -> Mapping[str, float]:
+        """Compute feature importances for each model feature using the configured method and return a feature-to-importance mapping.
+
+        Args:
+            model: TrainedModel reference whose feature list drives the explanation.
+            split: DataSplit whose test partition is used for importance scoring.
+
+        Returns:
+            Mapping of feature name to importance score in [0, 1).
+        """
         return {
             feature: self._importance(model, split, feature)
             for feature in model.feature_names

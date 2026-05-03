@@ -48,6 +48,14 @@ class KalmanSmoother(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SignalFrame:
+        """Run the forward-backward Kalman smoother over the input signal and return the smoothed SignalFrame.
+
+        Args:
+            signal: Signal to smooth with the Rauch-Tung-Striebel two-pass Kalman smoother.
+
+        Returns:
+            SignalFrame of the Kalman-smoothed output.
+        """
         return SignalFrame(
             signal_id=f"{signal.signal_id}:kalman-smooth",
             channel_count=signal.channel_count,

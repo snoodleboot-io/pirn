@@ -96,6 +96,14 @@ class SparkAggregate(Knot):
         return dict(self._aggs)
 
     async def process(self, frame: SparkDataFrame, **_: Any) -> SparkDataFrame:
+        """Apply the configured group-by and aggregation functions to the deferred Spark frame.
+
+        Args:
+            frame: The upstream SparkDataFrame whose plan will be extended with the aggregation.
+
+        Returns:
+            A new SparkDataFrame wrapping the grouped and aggregated deferred Spark plan.
+        """
         agg_columns = []
         for output_col, (input_col, fn) in self._aggs.items():
             spark_fn = getattr(self._spark_functions, fn)

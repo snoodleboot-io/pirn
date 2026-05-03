@@ -59,6 +59,14 @@ class Sampler(Knot):
         super().__init__(dataset=dataset, _config=_config, **kwargs)
 
     async def process(self, dataset: MLDataset, **_: Any) -> MLDataset:
+        """Reduce the dataset reference row count to the configured n or fraction and return the sampled reference.
+
+        Args:
+            dataset: MLDataset reference to downsample.
+
+        Returns:
+            MLDataset reference with row_count reduced according to n or fraction.
+        """
         total = int(dataset.row_count)
         if self._n is not None:
             row_count = min(self._n, total)

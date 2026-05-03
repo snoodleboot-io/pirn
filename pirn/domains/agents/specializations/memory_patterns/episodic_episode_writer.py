@@ -51,6 +51,17 @@ class EpisodicEpisodeWriter(Knot):
         messages: Sequence[AgentMessage],
         **_: Any,
     ) -> str:
+        """Serialize the message tuple as an episode and persist it, returning the storage key.
+
+        Args:
+            messages: The sequence of agent messages forming this episode.
+
+        Returns:
+            The storage key under which the episode was persisted.
+
+        Raises:
+            TypeError: If any element of messages is not an AgentMessage.
+        """
         message_tuple = tuple(messages)
         for index, candidate in enumerate(message_tuple):
             if not isinstance(candidate, AgentMessage):

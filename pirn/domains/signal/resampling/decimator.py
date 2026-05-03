@@ -37,6 +37,14 @@ class Decimator(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SignalFrame:
+        """Anti-alias filter and decimate the signal by the configured integer factor.
+
+        Args:
+            signal: Signal to anti-alias filter and downsample.
+
+        Returns:
+            SignalFrame at the reduced sample rate with a proportionally smaller sample count.
+        """
         return SignalFrame(
             signal_id=f"{signal.signal_id}:decimate",
             channel_count=signal.channel_count,

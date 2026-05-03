@@ -50,6 +50,14 @@ class WaterSaturationCalculator(Knot):
         super().__init__(las_file=las_file, _config=_config, **kwargs)
 
     async def process(self, las_file: LASFile, **_: Any) -> LASFile:
+        """Compute a water-saturation curve using the configured model and return an augmented LASFile.
+
+        Args:
+            las_file: LAS file providing the resistivity and porosity curves.
+
+        Returns:
+            LASFile with a water-saturation curve named ``SW_{method}`` appended.
+        """
         return LASFile(
             well_id=las_file.well_id,
             curves=las_file.curves + (f"SW_{self._method}",),

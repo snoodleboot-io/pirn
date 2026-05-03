@@ -40,6 +40,14 @@ class _FeatureStoreReaderKnot(Knot):
         super().__init__(split=split, _config=_config, **kwargs)
 
     async def process(self, split: DataSplit, **_: Any) -> DataSplit:
+        """Probe the feature store, join the configured feature names onto each partition, and return the extended DataSplit.
+
+        Args:
+            split: DataSplit whose partitions receive the joined feature names.
+
+        Returns:
+            DataSplit with the configured feature names appended to every partition's feature list.
+        """
         # Probe the store with a synthetic single-key request so misconfigured
         # providers fail loudly at run time. The probe payload uses the
         # configured entity keys with empty values; concrete subclasses

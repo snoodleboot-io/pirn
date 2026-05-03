@@ -63,6 +63,15 @@ class BiasDetector(SubTapestry):
     async def process(
         self, model: TrainedModel, split: DataSplit, **_: Any
     ) -> EvalReport:
+        """Run a FairnessAudit on the model and split for each sensitive column and return the per-group EvalReport.
+
+        Args:
+            model: TrainedModel reference to audit for bias.
+            split: DataSplit whose test partition is used for per-group scoring.
+
+        Returns:
+            EvalReport with parity_<column> metrics for every sensitive column.
+        """
         with Tapestry() as inner:
             model_node = _emit_value(
                 value=model, _config=KnotConfig(id="model")

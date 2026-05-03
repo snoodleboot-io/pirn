@@ -84,6 +84,14 @@ class SubTapestry(Knot):
         object.__setattr__(self, "_mutable_outer_history", outer_history)
 
     async def process(self, **_: Any) -> Any:
+        """Override in subclasses to build and run an inner tapestry pipeline and return its RunResult.
+
+        Returns:
+            RunResult from the inner tapestry pipeline built and executed by the subclass implementation.
+
+        Raises:
+            NotImplementedError: Always; subclasses must override this method.
+        """
         raise NotImplementedError(f"{type(self).__name__} must implement process()")
 
     async def _run_inner(

@@ -71,6 +71,14 @@ class IbisGroupByAggregate(Knot):
         return self._by
 
     async def process(self, batch: IbisTable, **_: Any) -> IbisTable:
+        """Extend the deferred Ibis expression with a group-by aggregation and return the result.
+
+        Args:
+            batch: The upstream IbisTable whose expression will be aggregated.
+
+        Returns:
+            A new IbisTable with the group-by aggregation appended to the deferred expression.
+        """
         result = self._aggregations(batch.expression)
         if isinstance(result, (list, tuple)):
             aggregated = (

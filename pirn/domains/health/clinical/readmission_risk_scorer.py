@@ -39,6 +39,11 @@ class ReadmissionRiskScorer(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> Mapping[str, float]:
+        """Score each patient's readmission risk from observation code count and return a patient_id-to-score map.
+
+        Returns:
+            A mapping from patient_id to a readmission risk score in [0.0, 1.0].
+        """
         out: dict[str, float] = {}
         for record in self._records:
             # Stub deterministic score — count of observation codes saturated.

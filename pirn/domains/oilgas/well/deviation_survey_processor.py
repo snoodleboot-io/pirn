@@ -32,6 +32,14 @@ class DeviationSurveyProcessor(Knot):
         super().__init__(survey=survey, _config=_config, **kwargs)
 
     async def process(self, survey: DeviationSurvey, **_: Any) -> DeviationSurvey:
+        """Validate and resample the deviation survey to the configured measured-depth step and return the resampled survey.
+
+        Args:
+            survey: Raw deviation survey to validate and resample.
+
+        Returns:
+            DeviationSurvey resampled to the configured measured-depth step.
+        """
         return DeviationSurvey(
             well_id=survey.well_id,
             station_count=survey.station_count,

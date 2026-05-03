@@ -54,6 +54,14 @@ class PorosityCalculator(Knot):
         super().__init__(las_file=las_file, _config=_config, **kwargs)
 
     async def process(self, las_file: LASFile, **_: Any) -> LASFile:
+        """Derive a porosity curve from the LAS log data and return an augmented LASFile.
+
+        Args:
+            las_file: LAS file providing the density and/or neutron log curves.
+
+        Returns:
+            LASFile with a porosity curve named ``PHI_{method}`` appended.
+        """
         return LASFile(
             well_id=las_file.well_id,
             curves=las_file.curves + (f"PHI_{self._method}",),

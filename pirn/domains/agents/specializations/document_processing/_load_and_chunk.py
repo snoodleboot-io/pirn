@@ -37,6 +37,19 @@ class _LoadAndChunk(Knot):
         chunk_size: int,
         **_: Any,
     ) -> list[str]:
+        """Load text from source and split it into fixed-size chunks.
+
+        Args:
+            source: A local file path or http(s):// URL to read text from.
+            chunk_size: The maximum character length of each chunk.
+
+        Returns:
+            A list of fixed-size text chunk strings; empty if the source yields no text.
+
+        Raises:
+            TypeError: If source is not a non-empty string.
+            ValueError: If chunk_size is not a positive integer.
+        """
         if not isinstance(source, str) or not source:
             raise TypeError(
                 "DocumentSummarizerPipeline: source must be a non-empty "

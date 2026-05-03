@@ -65,6 +65,15 @@ class ClassificationEvalPipeline(SubTapestry):
     async def process(
         self, model: TrainedModel, split: DataSplit, **_: Any
     ) -> EvalReport:
+        """Evaluate the model using the canonical classification metric set and return the resulting EvalReport.
+
+        Args:
+            model: TrainedModel reference to evaluate.
+            split: DataSplit whose test partition is used for scoring.
+
+        Returns:
+            EvalReport containing accuracy, precision, recall, f1, roc_auc, and confusion_matrix.
+        """
         with Tapestry() as inner:
             model_node = _emit_value(
                 value=model, _config=KnotConfig(id="model")

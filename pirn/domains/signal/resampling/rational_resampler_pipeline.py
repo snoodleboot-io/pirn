@@ -49,6 +49,14 @@ class RationalResamplerPipeline(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SignalFrame:
+        """Resample the signal at the reduced rational L/M ratio and return the resampled SignalFrame.
+
+        Args:
+            signal: Signal to convert to the rational sample rate.
+
+        Returns:
+            SignalFrame at the new sample rate with GCD-reduced upsample and downsample factors applied.
+        """
         new_rate = (
             signal.sample_rate_hz * self._upsample_factor
         ) / self._downsample_factor

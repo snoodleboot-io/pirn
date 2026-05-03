@@ -52,6 +52,14 @@ class SemanticFactExtractor(Knot):
         messages: Sequence[AgentMessage],
         **_: Any,
     ) -> list[str]:
+        """Ask the LLM to extract factual claims from the conversation and return them as a list.
+
+        Args:
+            messages: The sequence of agent messages forming the conversation to analyse.
+
+        Returns:
+            A list of factual claim strings extracted from the conversation.
+        """
         message_tuple = tuple(messages)
         rendered = "\n".join(
             f"{m.role}: {m.content}" for m in message_tuple

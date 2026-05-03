@@ -52,6 +52,15 @@ class ClinicalDataQualityGate(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> tuple[ClinicalRecord, ...]:
+        """Check completeness of observation_codes across records and raise if below threshold.
+
+        Returns:
+            The tuple of ClinicalRecords when completeness meets the threshold.
+
+        Raises:
+            ClinicalDataQualityError: If the fraction of records with non-empty
+            observation_codes is below min_completeness.
+        """
         if not self._records:
             completeness = 1.0
         else:

@@ -62,6 +62,18 @@ class JsonExtractorPipeline(SubTapestry):
         super().__init__(prompt=prompt, _config=_config, **kwargs)
 
     async def process(self, prompt: str, **_: Any) -> Mapping[str, Any]:
+        """Extract a JSON mapping from the LLM response, retrying with error feedback on failure.
+
+        Args:
+            prompt: The extraction prompt string sent to the LLM.
+
+        Returns:
+            A parsed JSON mapping conforming to the configured schema.
+
+        Raises:
+            TypeError: If prompt is not a string.
+            ValueError: If all retry attempts are exhausted without a valid JSON mapping.
+        """
         if not isinstance(prompt, str):
             raise TypeError(
                 "JsonExtractorPipeline: prompt must be a string, "

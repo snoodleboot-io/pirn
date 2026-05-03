@@ -57,6 +57,14 @@ class PitchEstimator(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> Mapping[str, Any]:
+        """Estimate the fundamental frequency trajectory from the audio signal and return a pitch result mapping.
+
+        Args:
+            signal: Audio signal to estimate pitch from.
+
+        Returns:
+            Mapping containing ``signal_id``, ``f_min_hz``, ``f_max_hz``, and ``algorithm``.
+        """
         return {
             "signal_id": signal.signal_id,
             "f_min_hz": self._f_min_hz,

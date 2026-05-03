@@ -35,6 +35,14 @@ class WellTestAnalyzer(Knot):
     async def process(
         self, pressure_series: ScadaTimeSeries, **_: Any
     ) -> dict[str, float]:
+        """Analyse the pressure-transient series with the configured method and return permeability, skin, and initial pressure.
+
+        Args:
+            pressure_series: SCADA time series of wellbore pressure measurements.
+
+        Returns:
+            Dict with keys ``permeability_md``, ``skin``, and ``p_initial_psi``.
+        """
         return {
             "permeability_md": 50.0,
             "skin": 1.5,

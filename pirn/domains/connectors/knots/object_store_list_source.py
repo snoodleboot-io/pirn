@@ -42,6 +42,11 @@ class ObjectStoreListSource(Source):
         return self._prefix
 
     async def process(self, **_: Any) -> list[str]:
+        """List all object-store keys under the configured prefix and return them in order.
+
+        Returns:
+            A list of object-store key strings whose names begin with the configured prefix.
+        """
         keys: list[str] = []
         async for key in await self._store.list(self._prefix):
             keys.append(key)

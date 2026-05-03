@@ -49,6 +49,19 @@ class RAGPromptBuilder(Knot):
         instruction: str,
         **_: Any,
     ) -> str:
+        """Combine the query and retrieved context entries into a formatted LLM prompt string.
+
+        Args:
+            query: The user query appended after the context block.
+            retrieved: The list of retrieved memory entry Mappings to include as context.
+            instruction: The instruction line prepended to the context block.
+
+        Returns:
+            A fully-formatted prompt string ready for an LLM chat call.
+
+        Raises:
+            TypeError: If query is not a string or any retrieved entry is not a Mapping.
+        """
         if not isinstance(query, str):
             raise TypeError(
                 "RAGPromptBuilder: query must be a string, "

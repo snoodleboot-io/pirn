@@ -41,6 +41,11 @@ class LOINCMapper(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> tuple[str, ...]:
+        """Look up each lab test name in the mapping and return the corresponding LOINC code strings.
+
+        Returns:
+            A tuple of LOINC code strings, one per input lab test name, or empty string when unmapped.
+        """
         return tuple(
             self._mapping.get(name, "") for name in self._lab_test_names
         )

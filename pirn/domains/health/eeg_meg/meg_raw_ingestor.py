@@ -57,6 +57,11 @@ class MEGRawIngestor(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> SignalFrame:
+        """Load the MEG recording from disk and return a SignalFrame summary.
+
+        Returns:
+            A SignalFrame containing channel count, sample rate, samples per channel, and ingest timestamp.
+        """
         return SignalFrame(
             signal_id=self._signal_id,
             channel_count=self._channel_count,

@@ -52,6 +52,14 @@ class IIRFilter(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SignalFrame:
+        """Apply the configured IIR (b, a) coefficients to the input signal and return the filtered SignalFrame.
+
+        Args:
+            signal: Signal to filter with the configured (b, a) transfer function.
+
+        Returns:
+            SignalFrame of the IIR-filtered output.
+        """
         return SignalFrame(
             signal_id=f"{signal.signal_id}:iir",
             channel_count=signal.channel_count,

@@ -1,4 +1,4 @@
-"""Unit tests for :class:`HandoffGate`."""
+"""Unit tests for :class:`HandoffCheck`."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.agents.control.handoff_gate import HandoffGate
+from pirn.domains.agents.control.handoff_check import HandoffCheck
 from pirn.domains.agents.types.agent_response import AgentResponse
 from pirn.tapestry import Tapestry
 
@@ -21,7 +21,7 @@ class TestProcess:
 
         with Tapestry() as t:
             rr = r(_config=KnotConfig(id="r"))
-            HandoffGate(
+            HandoffCheck(
                 response=rr,
                 escalation_patterns=("escalate", r"speak to a human"),
                 _config=KnotConfig(id="g"),
@@ -36,7 +36,7 @@ class TestProcess:
 
         with Tapestry() as t:
             rr = r(_config=KnotConfig(id="r"))
-            HandoffGate(
+            HandoffCheck(
                 response=rr,
                 escalation_patterns=("escalate",),
                 _config=KnotConfig(id="g"),
@@ -54,7 +54,7 @@ class TestConstruction:
         with Tapestry():
             rr = r(_config=KnotConfig(id="r"))
             with pytest.raises(ValueError, match="non-empty"):
-                HandoffGate(
+                HandoffCheck(
                     response=rr,
                     escalation_patterns=(),
                     _config=KnotConfig(id="g"),
@@ -68,7 +68,7 @@ class TestConstruction:
         with Tapestry():
             rr = r(_config=KnotConfig(id="r"))
             with pytest.raises(ValueError, match="valid regex"):
-                HandoffGate(
+                HandoffCheck(
                     response=rr,
                     escalation_patterns=("([abc",),
                     _config=KnotConfig(id="g"),

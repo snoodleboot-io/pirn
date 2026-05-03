@@ -88,6 +88,17 @@ class ScdType1MergeKnot(Knot):
     async def process(
         self, rows: Iterable[Iterable[Any]], **_: Any
     ) -> dict[str, int]:
+        """Classify source rows as inserts or updates, apply them to the target, and return counts.
+
+        Args:
+            rows: The upstream source rows; each row is an iterable of positional values.
+
+        Returns:
+            A dict with keys ``inserted`` and ``updated`` containing the operation counts.
+
+        Raises:
+            ValueError: If any source row's width does not match the configured column_names.
+        """
         materialised = [tuple(r) for r in rows]
         if not materialised:
             return {"inserted": 0, "updated": 0}

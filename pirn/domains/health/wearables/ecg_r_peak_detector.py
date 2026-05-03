@@ -37,4 +37,9 @@ class ECGRPeakDetector(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> tuple[int, ...]:
+        """Detect R-peak sample indices in the ECG signal using the configured method and return the index tuple.
+
+        Returns:
+            Tuple of integer sample indices corresponding to detected R-peaks.
+        """
         return ()

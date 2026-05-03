@@ -53,6 +53,17 @@ class EpisodicMemoryPipeline(SubTapestry):
         messages: Sequence[AgentMessage],
         **_: Any,
     ) -> str:
+        """Store the conversation messages as a new episode and return the episode storage key.
+
+        Args:
+            messages: The sequence of agent messages forming the episode to persist.
+
+        Returns:
+            The storage key under which the episode was persisted.
+
+        Raises:
+            RuntimeError: If the inner writer does not return a key.
+        """
         seed_messages = tuple(messages)
         with Tapestry() as inner:
             EpisodicEpisodeWriter(

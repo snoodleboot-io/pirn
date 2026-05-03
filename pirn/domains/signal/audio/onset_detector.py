@@ -45,6 +45,14 @@ class OnsetDetector(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> Mapping[str, Any]:
+        """Detect onset times in the audio signal and return an onset result mapping.
+
+        Args:
+            signal: Audio signal to analyse for onset events.
+
+        Returns:
+            Mapping containing ``signal_id``, ``hop_length``, ``threshold``, and ``feature``.
+        """
         return {
             "signal_id": signal.signal_id,
             "hop_length": self._hop_length,

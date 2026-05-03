@@ -81,6 +81,14 @@ class ButterworthFilter(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SignalFrame:
+        """Apply the Butterworth IIR filter to the input signal and return the filtered SignalFrame.
+
+        Args:
+            signal: Signal to filter with a maximally-flat Butterworth design.
+
+        Returns:
+            SignalFrame filtered by the configured Butterworth IIR.
+        """
         return SignalFrame(
             signal_id=f"{signal.signal_id}:butter-{self._band_type}",
             channel_count=signal.channel_count,

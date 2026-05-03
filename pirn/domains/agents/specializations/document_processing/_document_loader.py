@@ -54,6 +54,19 @@ class _DocumentLoader(Knot):
         super().__init__(source=source, _config=_config, **kwargs)
 
     async def process(self, source: str, **_: Any) -> str:
+        """Read text from a local file path or fetch it over HTTP(S) and return the content.
+
+        Args:
+            source: A local file path, a file:// URI, or an http(s):// URL to read from.
+
+        Returns:
+            The decoded text content of the source.
+
+        Raises:
+            TypeError: If source is not a non-empty string.
+            ValueError: If the source scheme is unsupported, the file is outside allowed_root,
+                or the resolved host resolves to a private or loopback address.
+        """
         if not isinstance(source, str) or not source:
             raise TypeError(
                 "DocumentIngestionPipeline: source must be a non-empty "

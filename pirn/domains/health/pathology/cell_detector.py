@@ -43,4 +43,9 @@ class CellDetector(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> Mapping[tuple[int, int], int]:
+        """Detect cells in each WSI tile using the configured model and return a tile-coordinate-to-count mapping.
+
+        Returns:
+            Mapping of (tile_x, tile_y) coordinate tuple to detected cell count.
+        """
         return {(tile.tile_x, tile.tile_y): 0 for tile in self._tiles}

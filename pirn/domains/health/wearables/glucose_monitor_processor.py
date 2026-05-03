@@ -53,6 +53,12 @@ class GlucoseMonitorProcessor(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> Mapping[str, float]:
+        """Compute CGM metrics (TIR, MAGE, GMI, CV) from the glucose readings and return the metric mapping.
+
+        Returns:
+            Mapping of metric name to float value, including mean_glucose,
+            time_in_range_pct, time_below_range_pct, time_above_range_pct, gmi, and cv.
+        """
         return {
             "mean_glucose": 0.0,
             "time_in_range_pct": 0.0,

@@ -132,6 +132,17 @@ class ScdType2MergeKnot(Knot):
     async def process(
         self, rows: Iterable[Iterable[Any]], **_: Any
     ) -> dict[str, int]:
+        """Merge source rows into the effective-dated Type 2 target by expiring changed rows and inserting new versions.
+
+        Args:
+            rows: The upstream source rows; each row is an iterable of positional values.
+
+        Returns:
+            A dict with keys ``inserted`` and ``expired`` containing the operation counts.
+
+        Raises:
+            ValueError: If any source row's width does not match the configured column_names.
+        """
         materialised = [tuple(r) for r in rows]
         if not materialised:
             return {"inserted": 0, "expired": 0}

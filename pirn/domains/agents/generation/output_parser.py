@@ -38,6 +38,18 @@ class OutputParser(Knot):
         response: Mapping[str, Any],
         **_: Any,
     ) -> AgentResponse:
+        """Parse a raw chat-completion mapping into a typed AgentResponse.
+
+        Args:
+            response: The raw mapping returned by the LLM provider.
+
+        Returns:
+            A typed AgentResponse with content, tool calls, finish reason, and usage extracted.
+
+        Raises:
+            TypeError: If response is not a Mapping.
+            ValueError: If response contains no recognisable content or choices field.
+        """
         if not isinstance(response, Mapping):
             raise TypeError(
                 "OutputParser: response must be a Mapping, "

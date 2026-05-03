@@ -64,6 +64,11 @@ class DeclineCurveReservesWorkflow(SubTapestry):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> RunResult:
+        """Build and execute the SCADA-to-reserves inner tapestry and return its RunResult.
+
+        Returns:
+            RunResult from the inner pipeline spanning SCADA ingest through Monte-Carlo reserves estimation.
+        """
         with Tapestry() as inner:
             rate = ScadaHistorianIngester(
                 connection=self._connection,

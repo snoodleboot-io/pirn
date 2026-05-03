@@ -58,6 +58,14 @@ class SparseDecomposer(Knot):
     async def process(
         self, signal: SignalFrame, **_: Any
     ) -> SourceFrame:
+        """Decompose the signal as a sparse linear combination of dictionary atoms and return a SourceFrame.
+
+        Args:
+            signal: Multichannel signal to represent sparsely over the configured atom dictionary.
+
+        Returns:
+            SourceFrame with ``source_count`` equal to ``sparsity_target`` and the mixing matrix shape.
+        """
         return SourceFrame(
             signal_id=signal.signal_id,
             source_count=self._sparsity_target,

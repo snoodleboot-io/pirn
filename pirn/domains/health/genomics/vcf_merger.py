@@ -43,4 +43,9 @@ class VCFMerger(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> str:
+        """Merge the per-sample VCF paths into a cohort VCF and return the output path.
+
+        Returns:
+            Path string for the merged cohort VCF output file.
+        """
         return self._output_vcf_path

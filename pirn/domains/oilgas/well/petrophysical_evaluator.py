@@ -26,6 +26,14 @@ class PetrophysicalEvaluator(Knot):
         super().__init__(las_file=las_file, _config=_config, **kwargs)
 
     async def process(self, las_file: LASFile, **_: Any) -> LASFile:
+        """Run a petrophysics interpretation pass and return a LASFile augmented with VSH, PHIE, and SW curves.
+
+        Args:
+            las_file: Normalised LAS file to run the interpretation pass over.
+
+        Returns:
+            LASFile with ``VSH``, ``PHIE``, and ``SW`` curves appended.
+        """
         interpreted_curves = las_file.curves + ("VSH", "PHIE", "SW")
         return LASFile(
             well_id=las_file.well_id,

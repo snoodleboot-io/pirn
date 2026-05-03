@@ -92,6 +92,15 @@ class HyperparamSearch(Knot):
         return self._strategy
 
     async def process(self, split: DataSplit, **_: Any) -> TrainedModel:
+        """Enumerate and score candidates from the search space using the configured strategy and return the best TrainedModel.
+
+        Args:
+            split: DataSplit whose train partition metadata is used to derive
+                the deterministic model_id for the winning candidate.
+
+        Returns:
+            TrainedModel for the highest-scoring candidate hyperparameter set.
+        """
         candidates = self._enumerate()
         best = self._best_candidate(candidates)
         model_id = self._derive_model_id(split, best)

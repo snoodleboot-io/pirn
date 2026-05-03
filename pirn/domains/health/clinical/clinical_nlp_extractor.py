@@ -44,6 +44,12 @@ class ClinicalNLPExtractor(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> Mapping[str, Any]:
+        """Send the clinical note to the LLM provider and return extracted diagnoses, medications, and vitals.
+
+        Returns:
+            A mapping with keys ``diagnoses``, ``medications``, and ``vitals`` containing
+            the structured fields extracted from the clinical note.
+        """
         # Production: send a structured-output prompt to the LLM and parse
         # the JSON response into diagnoses / medications / vitals.
         return {

@@ -37,6 +37,14 @@ class MonteCarloSimulator(Knot):
     async def process(
         self, deterministic_estimate: float, **_: Any
     ) -> dict[str, float]:
+        """Run the Monte-Carlo simulation over the configured trial count and return P10, P50, and P90 estimates.
+
+        Args:
+            deterministic_estimate: Central deterministic value around which uncertainty is sampled.
+
+        Returns:
+            Dict with keys ``p10``, ``p50``, ``p90``, and ``trial_count``.
+        """
         base = float(deterministic_estimate)
         return {
             "p10": base * 0.7,

@@ -63,6 +63,17 @@ class FactCheckGate(SubTapestry):
         response: AgentResponse,
         **_: Any,
     ) -> AgentResponse:
+        """Extract factual claims from the response and return it annotated with any unverified claims.
+
+        Args:
+            response: The agent response whose content is fact-checked.
+
+        Returns:
+            The original AgentResponse if all claims are verified, or a copy with a warning footer listing unverified claims.
+
+        Raises:
+            RuntimeError: If the inner verifier does not return an AgentResponse.
+        """
         with Tapestry() as inner:
             claims = FactClaimExtractor(
                 response=response,

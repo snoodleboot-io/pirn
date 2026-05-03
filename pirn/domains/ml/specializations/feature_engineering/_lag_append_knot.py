@@ -37,6 +37,14 @@ class _LagAppendKnot(Knot):
         super().__init__(split=split, _config=_config, **kwargs)
 
     async def process(self, split: DataSplit, **_: Any) -> DataSplit:
+        """Append lag feature names for each configured (column, lag) pair to every partition and return the extended DataSplit.
+
+        Args:
+            split: DataSplit whose partitions receive the new lag feature names.
+
+        Returns:
+            DataSplit with ``<column>_lag_<N>`` feature names appended to every partition.
+        """
         now = datetime.now(timezone.utc)
         return DataSplit(
             train=self._add_lag_features(split.train, now),

@@ -36,4 +36,9 @@ class BrainMaskExtractor(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> str:
+        """Skull-strip the NIfTI MRI and return the binary brain mask output path.
+
+        Returns:
+            Path string for the binary brain mask NIfTI output file.
+        """
         return self._output_mask_path

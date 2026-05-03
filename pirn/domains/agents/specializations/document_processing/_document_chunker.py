@@ -38,6 +38,19 @@ class _DocumentChunker(Knot):
         chunk_overlap: int,
         **_: Any,
     ) -> list[str]:
+        """Split text into overlapping fixed-size chunks and return the list.
+
+        Args:
+            text: The source text to split into chunks.
+            chunk_size: The maximum character length of each chunk.
+            chunk_overlap: The number of characters that adjacent chunks share.
+
+        Returns:
+            A list of text chunk strings; empty if the input text is empty.
+
+        Raises:
+            ValueError: If chunk_size is not positive or chunk_overlap is out of range.
+        """
         if chunk_size <= 0:
             raise ValueError(
                 "DocumentIngestionPipeline: chunk_size must be positive, "
