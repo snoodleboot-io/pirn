@@ -1,0 +1,104 @@
+"""Unit tests for :class:`GoogleChatClient`.
+
+Uses an injected stub httpx client. No network needed.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+import pytest
+
+from pirn.domains.connectors.api_client import ApiClient
+from pirn.domains.connectors.messaging.google_chat_client import GoogleChatClient
+from pirn.domains.connectors.messaging.google_chat_config import GoogleChatConfig
+
+
+# ──────────────────────────────────────────────────────────── fake client
+
+
+class FakeHTTPXClient:
+    """Minimal httpx.AsyncClient stub for :class:`GoogleChatClient`."""
+
+    def __init__(self) -> None:
+        self.calls: list[dict[str, Any]] = []
+        self.response: dict[str, Any] = {"name": "spaces/AAAAA/messages/12345"}
+        self.closed = False
+
+    async def post(self, url: str, **kwargs: Any) -> dict:
+        self.calls.append({"method": "POST", "url": url, **kwargs})
+        return self.response
+
+    async def aclose(self) -> None:
+        self.closed = True
+
+
+# ───────────────────────────────────────────────────────────── conformance
+
+
+def test_implements_api_client() -> None:
+    client = GoogleChatClient(client=FakeHTTPXClient())
+    assert isinstance(client, ApiClient)
+
+
+def test_construction_requires_config_or_client() -> None:
+    with pytest.raises(TypeError, match="config= or client="):
+        GoogleChatClient()
+
+
+def test_sensitive_fields_declared() -> None:
+    cfg = GoogleChatConfig()
+    assert "webhook_url" in cfg.sensitive_fields
+
+
+# ────────────────────────────────────────────────────────────── send_message
+
+
+@pytest.mark.asyncio
+class TestSendMessage:
+    async def test_send_message_posts_text(self) -> None:
+        fake = FakeHTTPXClient()
+        cfg = GoogleChatConfig(webhook_url="https://chat.googleapis.com/v1/spaces/123/messages?key=abc")
+        client = GoogleChatClient(config=cfg, client=fake)
+        result = await client.send_message("Hello Google Chat")
+        assert result == {"name": "spaces/AAAAA/messages/12345"}
+        assert fake.calls[0]["json"] == {"text": "Hello Google Chat"}
+
+    async def test_send_message_posts_to_webhook_url(self) -> None:
+        fake = FakeHTTPXClient()
+        webhook = "https://chat.googleapis.com/v1/spaces/123/messages?key=abc"
+        cfg = GoogleChatConfig(webhook_url=webhook)
+        client = GoogleChatClient(config=cfg, client=fake)
+        await client.send_message("Hi")
+        assert fake.calls[0]["url"] == webhook
+
+
+# ─────────────────────────────────────────────────────────────── send_card
+
+
+@pytest.mark.asyncio
+class TestSendCard:
+    async def test_send_card_posts_payload(self) -> None:
+        fake = FakeHTTPXClient()
+        cfg = GoogleChatConfig(webhook_url="https://chat.googleapis.com/v1/spaces/123/messages?key=abc")
+        client = GoogleChatClient(config=cfg, client=fake)
+        card = {"cards": [{"header": {"title": "Test"}}]}
+        await client.send_card(card)
+        assert fake.calls[0]["json"] == card
+
+
+# ────────────────────────────────────────────────────────────── lifecycle
+
+
+@pytest.mark.asyncio
+class TestLifecycle:
+    async def test_close_calls_aclose(self) -> None:
+        fake = FakeHTTPXClient()
+        client = GoogleChatClient(client=fake)
+        await client.close()
+        assert fake.closed is True
+
+    async def test_close_is_idempotent(self) -> None:
+        client = GoogleChatClient(client=FakeHTTPXClient())
+        await client.close()
+        await client.close()
