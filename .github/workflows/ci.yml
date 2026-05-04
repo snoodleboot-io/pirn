@@ -385,7 +385,7 @@ jobs:
       id-token: write
     steps:
       - name: Download build artifacts
-        uses: actions/download-artifact@v4  # TODO: pin to SHA
+        uses: actions/download-artifact@v8  # TODO: pin to SHA
         with:
           name: dist
           path: dist/
@@ -415,7 +415,7 @@ jobs:
       id-token: write
     steps:
       - name: Download build artifacts
-        uses: actions/download-artifact@v4  # TODO: pin to SHA
+        uses: actions/download-artifact@v8  # TODO: pin to SHA
         with:
           name: dist
           path: dist/
@@ -501,7 +501,7 @@ jobs:
     if: always()
     steps:
       - name: Download all test results
-        uses: actions/download-artifact@v4  # TODO: pin to SHA
+        uses: actions/download-artifact@v8  # TODO: pin to SHA
         with:
           path: test-results
           pattern: test-results-*
