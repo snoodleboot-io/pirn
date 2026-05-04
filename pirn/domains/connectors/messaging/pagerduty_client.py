@@ -17,13 +17,11 @@ from pirn.domains.connectors.dsn_scrubber import DsnScrubber
 from pirn.domains.connectors.messaging.pagerduty_config import PagerDutyConfig
 
 
-_VALID_SEVERITIES: frozenset[str] = frozenset({"critical", "error", "warning", "info"})
-
-_EVENTS_API_URL: str = "https://events.pagerduty.com/v2/enqueue"
-
-
 class PagerDutyClient(ApiClient):
     """Async PagerDuty client backed by ``httpx``."""
+
+    _valid_severities: frozenset[str] = frozenset({"critical", "error", "warning", "info"})
+    _events_api_url: str = "https://events.pagerduty.com/v2/enqueue"
 
     def __init__(
         self,
@@ -64,10 +62,12 @@ class PagerDutyClient(ApiClient):
         dedup_key:
             Optional deduplication key for event grouping.
         """
-        if severity not in _VALID_SEVERITIES:
+        if self._closed:
+            raise RuntimeError("PagerDutyClient is closed")
+        if severity not in type(self)._valid_severities:
             raise ValueError(
                 f"PagerDutyClient: severity must be one of "
-                f"{sorted(_VALID_SEVERITIES)!r}; got {severity!r}"
+                f"{sorted(type(self)._valid_severities)!r}; got {severity!r}"
             )
         routing_key = self._routing_key()
         payload: dict[str, Any] = {
@@ -92,6 +92,8 @@ class PagerDutyClient(ApiClient):
         dedup_key:
             Deduplication key identifying the incident to resolve.
         """
+        if self._closed:
+            raise RuntimeError("PagerDutyClient is closed")
         routing_key = self._routing_key()
         payload: dict[str, Any] = {
             "routing_key": routing_key,
@@ -158,7 +160,7 @@ class PagerDutyClient(ApiClient):
     async def _post_events(self, payload: dict) -> dict:
         client = await self._ensure_client()
         self._logger.debug("pagerduty._post_events")
-        response = await client.post(_EVENTS_API_URL, json=payload)
+        response = await client.post(type(self)._events_api_url, json=payload)
         return dict(response)
 
     def _routing_key(self) -> str:

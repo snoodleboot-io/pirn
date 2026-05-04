@@ -260,3 +260,24 @@ class TestCredentialSafety:
         text = repr(cfg)
         assert "patSECRETKEY12345" not in text
         assert "<redacted>" in text
+
+    def test_audit_dict_redacts_api_key(self) -> None:
+        cfg = _make_config(api_key="patSECRETKEY12345")
+        d = cfg.to_audit_dict()
+        assert d["api_key"] == "<redacted>"
+        assert "patSECRETKEY12345" not in str(d)
+
+
+@pytest.mark.asyncio
+class TestSecurity:
+    async def test_close_clears_credentials(self) -> None:
+        client = AirtableClient(config=_make_config(), client=FakeHTTPXClient())
+        assert client._config is not None
+        await client.close()
+        assert client._config is None
+
+    async def test_use_after_close_raises(self) -> None:
+        client = AirtableClient(config=_make_config(), client=FakeHTTPXClient())
+        await client.close()
+        with pytest.raises(RuntimeError, match="closed"):
+            await client.list_records()

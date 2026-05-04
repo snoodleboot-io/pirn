@@ -175,3 +175,23 @@ class TestLifecycle:
         await pool.close()
         with pytest.raises(RuntimeError, match="closed"):
             await pool.acquire()
+
+    async def test_close_clears_credentials(self) -> None:
+        pool = InfluxDBPool(config=make_config(), client=FakeInfluxClient())
+        assert pool._config is not None
+        await pool.close()
+        assert pool._config is None
+
+    async def test_use_after_close_raises(self) -> None:
+        pool = InfluxDBPool(config=make_config(), client=FakeInfluxClient())
+        await pool.close()
+        with pytest.raises(RuntimeError, match="closed"):
+            await pool.acquire()
+
+
+class TestCredentialSafety:
+    def test_audit_dict_redacts_token(self) -> None:
+        cfg = make_config(token="supersecrettoken")
+        d = cfg.to_audit_dict()
+        assert d["token"] == "<redacted>"
+        assert "supersecrettoken" not in str(d)

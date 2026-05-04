@@ -198,3 +198,18 @@ class TestCredentialSafety:
         )
         d = cfg.to_audit_dict()
         assert d["credentials_json"] == "<redacted>"
+
+
+@pytest.mark.asyncio
+class TestSecurity:
+    async def test_close_clears_credentials(self) -> None:
+        pool, _ = make_pool()
+        assert pool._config is not None
+        await pool.close()
+        assert pool._config is None
+
+    async def test_use_after_close_raises(self) -> None:
+        pool, _ = make_pool()
+        await pool.close()
+        with pytest.raises(RuntimeError, match="closed"):
+            await pool.acquire()

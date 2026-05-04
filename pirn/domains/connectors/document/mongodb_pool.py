@@ -13,7 +13,7 @@ from pirn.domains.connectors.dsn_scrubber import DsnScrubber
 class MongoDBPool(DatabaseConnectionPool):
     """Async MongoDB pool using Motor's AsyncIOMotorClient."""
 
-    _DEFAULT_URI = "mongodb://localhost:27017"
+    _default_uri: str = "mongodb://localhost:27017"
 
     def __init__(
         self,
@@ -96,28 +96,28 @@ class MongoDBPool(DatabaseConnectionPool):
             raise RuntimeError("MongoDBPool: missing config and no injected client")
 
         uri = self._config.uri
-        if uri == self._DEFAULT_URI and (
+        if uri == type(self)._default_uri and (
             self._config.username or self._config.password
         ):
-            creds = ""
-            if self._config.username:
-                creds = self._config.username
-                if self._config.password:
-                    creds = f"{creds}:{self._config.password}"
-                creds = f"{creds}@"
-            uri = (
-                f"mongodb://{creds}{self._config.host}:{self._config.port}"
-                f"/{self._config.database}"
-                f"?authSource={self._config.auth_source}"
-            )
+            # Build URI using driver kwargs instead of embedding creds in string
+            uri = None  # signal to use explicit kwargs below
 
         try:
-            client: Any = AsyncIOMotorClient(
-                uri,
-                tls=self._config.tls,
-                maxPoolSize=self._config.max_pool_size,
-                serverSelectionTimeoutMS=self._config.server_selection_timeout_ms,
-            )
+            kwargs: dict[str, Any] = {
+                "tls": self._config.tls,
+                "maxPoolSize": self._config.max_pool_size,
+                "serverSelectionTimeoutMS": self._config.server_selection_timeout_ms,
+            }
+            if uri is None:
+                # Pass credentials as explicit kwargs — never embedded in URI
+                kwargs["host"] = self._config.host
+                kwargs["port"] = self._config.port
+                kwargs["username"] = self._config.username
+                kwargs["password"] = self._config.password
+                kwargs["authSource"] = self._config.auth_source
+                client: Any = AsyncIOMotorClient(**kwargs)
+            else:
+                client = AsyncIOMotorClient(uri, **kwargs)
         except Exception as exc:
             self._reraise_scrubbed(exc)
         self._logger.debug("mongodb.connect")

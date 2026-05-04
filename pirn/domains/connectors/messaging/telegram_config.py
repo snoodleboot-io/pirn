@@ -8,9 +8,6 @@ from pirn.domains.connectors.connection_config import ConnectionConfig
 from pirn.domains.connectors.connection_config_decorator import connection_config
 
 
-_VALID_PARSE_MODES: frozenset[str] = frozenset({"HTML", "Markdown", "MarkdownV2"})
-
-
 @connection_config(frozen=True)
 class TelegramConfig(ConnectionConfig):
     """Configuration for a Telegram Bot API session.
@@ -35,10 +32,11 @@ class TelegramConfig(ConnectionConfig):
     timeout: float = 30.0
 
     sensitive_fields: ClassVar[tuple[str, ...]] = ("bot_token",)
+    _valid_parse_modes: ClassVar[frozenset[str]] = frozenset({"HTML", "Markdown", "MarkdownV2"})
 
     def __post_init__(self) -> None:
-        if self.parse_mode not in _VALID_PARSE_MODES:
+        if self.parse_mode not in type(self)._valid_parse_modes:
             raise ValueError(
                 f"TelegramConfig: parse_mode must be one of "
-                f"{sorted(_VALID_PARSE_MODES)!r}; got {self.parse_mode!r}"
+                f"{sorted(type(self)._valid_parse_modes)!r}; got {self.parse_mode!r}"
             )

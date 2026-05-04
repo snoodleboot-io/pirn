@@ -136,3 +136,30 @@ class TestCredentialSafety:
         text = repr(cfg)
         assert "ABCDEF-SECRET" not in text
         assert "<redacted>" in text
+
+    def test_audit_dict_redacts_bot_token(self) -> None:
+        cfg = TelegramConfig(bot_token="123456:SUPERSECRET")
+        d = cfg.to_audit_dict()
+        assert d["bot_token"] == "<redacted>"
+        assert "SUPERSECRET" not in str(d)
+
+
+@pytest.mark.asyncio
+class TestSecurity:
+    async def test_close_clears_credentials(self) -> None:
+        client = TelegramClient(
+            config=TelegramConfig(bot_token="123456:ABCDEF"),
+            client=FakeHTTPXClient(),
+        )
+        assert client._config is not None
+        await client.close()
+        assert client._config is None
+
+    async def test_use_after_close_raises(self) -> None:
+        client = TelegramClient(
+            config=TelegramConfig(bot_token="123456:ABCDEF"),
+            client=FakeHTTPXClient(),
+        )
+        await client.close()
+        with pytest.raises(RuntimeError, match="closed"):
+            await client.send_message("42", "Hello")

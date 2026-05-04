@@ -29,6 +29,7 @@ class HDFSStore(ObjectStore):
             raise ValueError("HDFSConfig.namenode_port must be a positive integer")
         self._config = config
         self._client = client
+        self._closed = False
         self._logger = logging.getLogger(self.__class__.__module__)
 
     @property
@@ -43,6 +44,8 @@ class HDFSStore(ObjectStore):
                 if hasattr(result, "__await__"):
                     await result
             self._client = None
+        self._closed = True
+        self._logger.debug("hdfs.close")
 
     async def get(self, key: str) -> AsyncIterator[bytes]:
         self._validate_key(key)
@@ -106,6 +109,8 @@ class HDFSStore(ObjectStore):
         return f"{base}/{key}"
 
     async def _ensure_client(self) -> Any:
+        if self._closed:
+            raise RuntimeError("HDFSStore is closed")
         if self._client is not None:
             return self._client
         if self._config.use_webhdfs:
@@ -120,12 +125,14 @@ class HDFSStore(ObjectStore):
                 "HDFSStore (WebHDFS) requires requests; install via "
                 "`pip install pirn[hdfs]`"
             ) from exc
+        from urllib.parse import quote as _quote
         config = self._config
+        scheme = "https" if getattr(config, "tls", False) else "http"
         base_url = (
-            f"http://{config.namenode_host}:{config.namenode_port}"
+            f"{scheme}://{config.namenode_host}:{config.namenode_port}"
             f"/webhdfs/v1"
         )
-        user = config.user or "hadoop"
+        user = _quote(config.user or "hadoop", safe="")
         self._client = _WebHDFSClient(
             base_url=base_url, user=user, session=requests.Session()
         )

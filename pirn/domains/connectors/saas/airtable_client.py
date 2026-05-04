@@ -172,6 +172,8 @@ class AirtableClient(ApiClient, TableSource):
         raise RuntimeError("AirtableClient: api_key is required")
 
     def _validate_config(self) -> None:
+        if self._closed:
+            raise RuntimeError("AirtableClient is closed")
         if self._config is None:
             return
         missing = [

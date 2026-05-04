@@ -117,18 +117,19 @@ class DremioPool(DatabaseConnectionPool):
         location = f"{scheme}://{self._config.host}:{self._config.port}"
 
         def _connect() -> Any:
-            client = flight.FlightClient(location)
+            import base64
+            raw = f"{self._config.username}:{self._config.password}"
+            encoded = base64.b64encode(raw.encode()).decode()
             options = flight.FlightCallOptions(
-                headers=[
-                    (b"authorization", f"Basic {self._config.username}:{self._config.password}".encode())
-                ]
+                headers=[(b"authorization", f"Basic {encoded}".encode())]
             )
-            client._options = options
+            client = flight.FlightClient(location, generic_options=[])
+            client._call_options = options
             return client
 
         try:
             conn = await asyncio.to_thread(_connect)
         except Exception as exc:
             self._reraise_scrubbed(exc)
-        self._logger.debug("dremio.connect host=%s port=%s", self._config.host, self._config.port)
+        self._logger.debug("dremio.connect", extra={"host": self._config.host, "port": self._config.port})
         return conn

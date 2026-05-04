@@ -133,6 +133,18 @@ class TestLifecycle:
         with pytest.raises(RuntimeError, match="closed"):
             await pool.acquire()
 
+    async def test_close_clears_credentials(self) -> None:
+        pool = MemgraphPool(config=MemgraphConfig(), connection=FakeMemgraphConnection())
+        assert pool._config is not None
+        await pool.close()
+        assert pool._config is None
+
+    async def test_use_after_close_raises(self) -> None:
+        pool = MemgraphPool(config=MemgraphConfig(), connection=FakeMemgraphConnection())
+        await pool.close()
+        with pytest.raises(RuntimeError, match="closed"):
+            await pool.acquire()
+
 
 # ──────────────────────────────────────────────────────── credential safety
 

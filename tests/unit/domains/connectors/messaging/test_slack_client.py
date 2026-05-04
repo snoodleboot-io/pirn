@@ -143,3 +143,24 @@ class TestCredentialSafety:
         cfg = SlackConfig(bot_token="xoxb-t", app_token="xapp-secret")
         text = repr(cfg)
         assert "xapp-secret" not in text
+
+    def test_audit_dict_redacts_bot_token(self) -> None:
+        cfg = SlackConfig(bot_token="xoxb-supersecret")
+        d = cfg.to_audit_dict()
+        assert d["bot_token"] == "<redacted>"
+        assert "xoxb-supersecret" not in str(d)
+
+
+@pytest.mark.asyncio
+class TestSecurity:
+    async def test_close_clears_credentials(self) -> None:
+        client = SlackClient(config=SlackConfig(bot_token="xoxb-tok"), client=FakeSlackClient())
+        assert client._config is not None
+        await client.close()
+        assert client._config is None
+
+    async def test_use_after_close_raises(self) -> None:
+        client = SlackClient(config=SlackConfig(bot_token="xoxb-tok"), client=FakeSlackClient())
+        await client.close()
+        with pytest.raises(RuntimeError, match="closed"):
+            await client.send_message("#general", "Hello")

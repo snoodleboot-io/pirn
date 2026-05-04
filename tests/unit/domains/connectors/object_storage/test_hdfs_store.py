@@ -179,6 +179,21 @@ class TestClose:
         await store.close()
         await store.close()
 
+    async def test_get_after_close_raises(self, store: HDFSStore) -> None:
+        await store.close()
+        with pytest.raises(RuntimeError, match="HDFSStore is closed"):
+            await store.get("any.bin")
+
+    async def test_put_after_close_raises(self, store: HDFSStore) -> None:
+        await store.close()
+        with pytest.raises(RuntimeError, match="HDFSStore is closed"):
+            await store.put("any.bin", b"data")
+
+    async def test_delete_after_close_raises(self, store: HDFSStore) -> None:
+        await store.close()
+        with pytest.raises(RuntimeError, match="HDFSStore is closed"):
+            await store.delete("any.bin")
+
 
 # ───────────────────────────────────────────────────────── type safety
 

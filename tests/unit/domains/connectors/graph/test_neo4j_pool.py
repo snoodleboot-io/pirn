@@ -153,6 +153,18 @@ class TestLifecycle:
         with pytest.raises(RuntimeError, match="closed"):
             await pool.acquire()
 
+    async def test_close_clears_credentials(self) -> None:
+        pool = Neo4jPool(config=Neo4jConfig(database="neo4j"), driver=FakeNeo4jDriver())
+        assert pool._config is not None
+        await pool.close()
+        assert pool._config is None
+
+    async def test_use_after_close_raises(self) -> None:
+        pool = Neo4jPool(config=Neo4jConfig(database="neo4j"), driver=FakeNeo4jDriver())
+        await pool.close()
+        with pytest.raises(RuntimeError, match="closed"):
+            await pool.acquire()
+
 
 # ──────────────────────────────────────────────────────── credential safety
 

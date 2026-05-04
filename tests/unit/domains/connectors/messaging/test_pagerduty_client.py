@@ -169,3 +169,32 @@ class TestCredentialSafety:
         assert "supersecretapikey" not in text
         assert "routingkey123" not in text
         assert "<redacted>" in text
+
+    def test_audit_dict_redacts_api_key(self) -> None:
+        cfg = PagerDutyConfig(api_key="supersecretapikey", routing_key="routingkey123")
+        d = cfg.to_audit_dict()
+        assert d["api_key"] == "<redacted>"
+        assert d["routing_key"] == "<redacted>"
+        assert "supersecretapikey" not in str(d)
+        assert "routingkey123" not in str(d)
+
+
+@pytest.mark.asyncio
+class TestSecurity:
+    async def test_close_clears_credentials(self) -> None:
+        client = PagerDutyClient(
+            config=PagerDutyConfig(api_key="key", routing_key="rkey"),
+            client=FakeHTTPXClient(),
+        )
+        assert client._config is not None
+        await client.close()
+        assert client._config is None
+
+    async def test_use_after_close_raises(self) -> None:
+        client = PagerDutyClient(
+            config=PagerDutyConfig(api_key="key", routing_key="rkey"),
+            client=FakeHTTPXClient(),
+        )
+        await client.close()
+        with pytest.raises(RuntimeError, match="closed"):
+            await client.trigger_incident("Disk full", "server-01")

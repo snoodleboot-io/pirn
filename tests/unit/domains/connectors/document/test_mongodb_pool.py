@@ -194,3 +194,24 @@ class TestCredentialSafety:
         cfg = MongoDBConfig(database="mydb", password="s3cr3t")
         d = cfg.to_audit_dict()
         assert d["password"] == "<redacted>"
+
+    def test_audit_dict_redacts_uri(self) -> None:
+        cfg = MongoDBConfig(database="mydb", uri="mongodb://alice:hunter2@db.example.com:27017")
+        d = cfg.to_audit_dict()
+        assert d["uri"] == "<redacted>"
+        assert "hunter2" not in str(d)
+
+
+@pytest.mark.asyncio
+class TestSecurity:
+    async def test_close_clears_credentials(self) -> None:
+        pool, _ = make_pool()
+        assert pool._config is not None
+        await pool.close()
+        assert pool._config is None
+
+    async def test_use_after_close_raises(self) -> None:
+        pool, _ = make_pool()
+        await pool.close()
+        with pytest.raises(RuntimeError, match="closed"):
+            await pool.acquire()

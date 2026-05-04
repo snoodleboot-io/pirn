@@ -125,8 +125,11 @@ class KdbPool(DatabaseConnectionPool):
                 timeout=config.timeout,
                 tls=config.tls,
             )
-        except ImportError:
-            pass
+        except ImportError as _pykx_err:
+            import logging as _logging
+            _logging.getLogger(__name__).debug(
+                "kdb: pykx not available (%s), trying qpython", _pykx_err
+            )
 
         try:
             from qpython import qconnection

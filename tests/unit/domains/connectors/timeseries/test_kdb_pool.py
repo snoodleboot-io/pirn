@@ -119,3 +119,23 @@ class TestLifecycle:
         await pool.close()
         with pytest.raises(RuntimeError, match="closed"):
             await pool.acquire()
+
+    async def test_close_clears_credentials(self) -> None:
+        pool = KdbPool(config=KdbConfig(), connection=FakeKdbConnection())
+        assert pool._config is not None
+        await pool.close()
+        assert pool._config is None
+
+    async def test_use_after_close_raises(self) -> None:
+        pool = KdbPool(config=KdbConfig(), connection=FakeKdbConnection())
+        await pool.close()
+        with pytest.raises(RuntimeError, match="closed"):
+            await pool.acquire()
+
+
+class TestCredentialSafety:
+    def test_audit_dict_redacts_password(self) -> None:
+        cfg = KdbConfig(password="supersecret")
+        d = cfg.to_audit_dict()
+        assert d["password"] == "<redacted>"
+        assert "supersecret" not in str(d)

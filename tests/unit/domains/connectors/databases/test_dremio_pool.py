@@ -196,3 +196,35 @@ class TestLifecycle:
         await pool.close()
         with pytest.raises(RuntimeError, match="closed"):
             await pool.acquire()
+
+    async def test_close_clears_credentials(self) -> None:
+        pool = DremioPool(config=DremioConfig(), connection=FakeDremioConnection())
+        assert pool._config is not None
+        await pool.close()
+        assert pool._config is None
+
+    async def test_use_after_close_raises(self) -> None:
+        pool = DremioPool(config=DremioConfig(), connection=FakeDremioConnection())
+        await pool.close()
+        with pytest.raises(RuntimeError, match="closed"):
+            await pool.acquire()
+
+    async def test_execute_after_close_raises(self) -> None:
+        pool = DremioPool(connection=FakeDremioConnection())
+        await pool.close()
+        with pytest.raises(RuntimeError, match="closed"):
+            await pool.execute("SELECT 1")
+
+    async def test_fetch_all_after_close_raises(self) -> None:
+        pool = DremioPool(connection=FakeDremioConnection())
+        await pool.close()
+        with pytest.raises(RuntimeError, match="closed"):
+            await pool.fetch_all("SELECT 1")
+
+
+class TestCredentialSafety:
+    def test_audit_dict_redacts_password(self) -> None:
+        cfg = DremioConfig(password="supersecret")
+        d = cfg.to_audit_dict()
+        assert d["password"] == "<redacted>"
+        assert "supersecret" not in str(d)

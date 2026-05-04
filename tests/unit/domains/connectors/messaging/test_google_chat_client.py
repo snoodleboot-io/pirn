@@ -102,3 +102,41 @@ class TestLifecycle:
         client = GoogleChatClient(client=FakeHTTPXClient())
         await client.close()
         await client.close()
+
+
+# ────────────────────────────────────────────────────────── credential safety
+
+
+class TestCredentialSafety:
+    def test_repr_redacts_webhook_url(self) -> None:
+        cfg = GoogleChatConfig(webhook_url="https://chat.googleapis.com/v1/spaces/123/messages?key=supersecret")
+        text = repr(cfg)
+        assert "supersecret" not in text
+        assert "<redacted>" in text
+
+    def test_audit_dict_redacts_webhook_url(self) -> None:
+        cfg = GoogleChatConfig(webhook_url="https://chat.googleapis.com/v1/spaces/123/messages?key=supersecret")
+        d = cfg.to_audit_dict()
+        assert d["webhook_url"] == "<redacted>"
+        assert "supersecret" not in str(d)
+
+
+@pytest.mark.asyncio
+class TestSecurity:
+    async def test_close_clears_credentials(self) -> None:
+        client = GoogleChatClient(
+            config=GoogleChatConfig(webhook_url="https://chat.googleapis.com/v1/spaces/123/messages?key=tok"),
+            client=FakeHTTPXClient(),
+        )
+        assert client._config is not None
+        await client.close()
+        assert client._config is None
+
+    async def test_use_after_close_raises(self) -> None:
+        client = GoogleChatClient(
+            config=GoogleChatConfig(webhook_url="https://chat.googleapis.com/v1/spaces/123/messages?key=tok"),
+            client=FakeHTTPXClient(),
+        )
+        await client.close()
+        with pytest.raises(RuntimeError, match="closed"):
+            await client.send_message("Hello")

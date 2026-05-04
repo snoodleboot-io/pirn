@@ -116,3 +116,30 @@ class TestCredentialSafety:
         text = repr(cfg)
         assert "supersecret" not in text
         assert "<redacted>" in text
+
+    def test_audit_dict_redacts_webhook_url(self) -> None:
+        cfg = TeamsConfig(webhook_url="https://hook.example.com/supersecret")
+        d = cfg.to_audit_dict()
+        assert d["webhook_url"] == "<redacted>"
+        assert "supersecret" not in str(d)
+
+
+@pytest.mark.asyncio
+class TestSecurity:
+    async def test_close_clears_credentials(self) -> None:
+        client = TeamsClient(
+            config=TeamsConfig(webhook_url="https://hook.example.com/tok"),
+            client=FakeHTTPXClient(),
+        )
+        assert client._config is not None
+        await client.close()
+        assert client._config is None
+
+    async def test_use_after_close_raises(self) -> None:
+        client = TeamsClient(
+            config=TeamsConfig(webhook_url="https://hook.example.com/tok"),
+            client=FakeHTTPXClient(),
+        )
+        await client.close()
+        with pytest.raises(RuntimeError, match="closed"):
+            await client.send_message("Hello")
