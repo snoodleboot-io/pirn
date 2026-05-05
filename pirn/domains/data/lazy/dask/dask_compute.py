@@ -12,12 +12,39 @@ Three operating modes:
    downstream Tier-1/2 consumers.
 3. Default: the sink calls ``frame.compute()``, discards the result, and
    returns a :class:`DaskExecutionReceipt` summarising the execution.
+
+Algorithm:
+    1. Validate ``target_path`` (must be a non-empty string when set).
+    2. Validate ``writer`` (required and callable when ``target_path`` is set).
+    3. Validate mutual exclusion of ``return_pandas`` and ``target_path``.
+    4. If ``target_path`` is set: call ``writer(frame, target_path, **writer_kwargs)``
+       and return a :class:`DaskExecutionReceipt` with ``target_path`` recorded.
+    5. Otherwise: call ``frame.compute()`` to materialise the deferred graph.
+    6. If ``return_pandas``: return the computed pandas DataFrame directly.
+    7. Otherwise: return a :class:`DaskExecutionReceipt` with ``row_count``.
+
+    ```text
+    if target_path:
+        writer(frame, target_path, **writer_kwargs)
+        return DaskExecutionReceipt(target_path=target_path, ...)
+    materialised = frame.compute()
+    if return_pandas:
+        return materialised
+    return DaskExecutionReceipt(row_count=len(materialised), ...)
+    ```
+
+References:
+    [1] Dask DataFrame.compute — trigger materialisation:
+        https://docs.dask.org/en/stable/generated/dask.dataframe.DataFrame.compute.html
+    [2] Dask DataFrame.to_parquet — writer pattern:
+        https://docs.dask.org/en/stable/generated/dask.dataframe.DataFrame.to_parquet.html
 """
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Callable
+from collections.abc import Callable
+from datetime import UTC, datetime
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -36,12 +63,44 @@ class DaskCompute(Sink):
         *,
         batch: Knot,
         _config: KnotConfig,
-        target_path: str | None = None,
-        writer: Callable[..., Any] | None = None,
-        writer_kwargs: dict[str, Any] | None = None,
-        return_pandas: bool = False,
+        target_path: Knot | str | None = None,
+        writer: Knot | Callable[..., Any] | None = None,
+        writer_kwargs: Knot | dict[str, Any] | None = None,
+        return_pandas: Knot | bool = False,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            batch=batch,
+            target_path=target_path,
+            writer=writer,
+            writer_kwargs=writer_kwargs,
+            return_pandas=return_pandas,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        batch: DaskDataFrame,
+        target_path: Any,
+        writer: Any,
+        writer_kwargs: Any,
+        return_pandas: Any,
+        **_: Any,
+    ) -> Any:
+        """Trigger computation of the Dask graph and return a receipt or pandas frame.
+
+        Args:
+            batch: The upstream DaskDataFrame whose deferred graph will be computed.
+            target_path: Optional file path to write results to.
+            writer: A callable to write the frame when target_path is set.
+            writer_kwargs: Extra keyword arguments forwarded to writer.
+            return_pandas: If True, return the computed pandas DataFrame.
+
+        Returns:
+            A DaskExecutionReceipt if writing to disk or materialising without
+            return_pandas, or a pandas DataFrame when return_pandas is True.
+        """
         if target_path is not None and not isinstance(target_path, str):
             raise TypeError("DaskCompute: target_path must be a string or None")
         if target_path is not None and not target_path:
@@ -57,53 +116,31 @@ class DaskCompute(Sink):
             raise TypeError(
                 "DaskCompute: return_pandas and target_path are mutually exclusive"
             )
-        self._target_path = target_path
-        self._writer = writer
-        self._writer_kwargs: dict[str, Any] = dict(writer_kwargs or {})
-        self._return_pandas = return_pandas
-        super().__init__(batch=batch, _config=_config, **kwargs)
 
-    @property
-    def target_path(self) -> str | None:
-        return self._target_path
-
-    @property
-    def return_pandas(self) -> bool:
-        return self._return_pandas
-
-    async def process(self, batch: DaskDataFrame, **_: Any) -> Any:
-        """Trigger computation of the Dask graph, writing to a path or returning a receipt or pandas frame.
-
-        Args:
-            batch: The upstream DaskDataFrame whose deferred graph will be computed.
-
-        Returns:
-            A DaskExecutionReceipt if writing to disk or materialising without
-            return_pandas, or a pandas DataFrame when return_pandas is True.
-        """
+        resolved_kwargs: dict[str, Any] = dict(writer_kwargs or {})
         partitions = batch.npartitions
 
-        if self._target_path is not None:
-            assert self._writer is not None
-            self._writer(batch.frame, self._target_path, **self._writer_kwargs)
+        if target_path is not None:
+            assert writer is not None
+            writer(batch.frame, target_path, **resolved_kwargs)
             return DaskExecutionReceipt(
                 backend_name=batch.backend_name,
-                target_path=self._target_path,
+                target_path=target_path,
                 partitions_executed=partitions,
                 row_count=None,
-                executed_at=datetime.now(timezone.utc),
+                executed_at=datetime.now(UTC),
             )
 
         materialised = batch.frame.compute()
         row_count = self._row_count(materialised)
-        if self._return_pandas:
+        if return_pandas:
             return materialised
         return DaskExecutionReceipt(
             backend_name=batch.backend_name,
             target_path=None,
             partitions_executed=partitions,
             row_count=row_count,
-            executed_at=datetime.now(timezone.utc),
+            executed_at=datetime.now(UTC),
         )
 
     @staticmethod

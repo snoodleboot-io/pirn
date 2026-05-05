@@ -12,6 +12,8 @@ except ImportError as _e:
     raise unittest.SkipTest("dask not installed") from _e
 
 from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.run_request import RunRequest
 from pirn.domains.data.lazy.dask.dask_dataframe import DaskDataFrame
 from pirn.domains.data.lazy.dask.dask_filter import DaskFilter
 from pirn.nodes.source import Source
@@ -23,44 +25,57 @@ def _make_batch(data: dict) -> DaskDataFrame:
     return DaskDataFrame(frame=frame)
 
 
-class _DaskSource(Source):
-    async def process(self, **_: Any) -> DaskDataFrame:
-        return _make_batch({"x": [1, 2, 3]})
+@knot
+async def emit_batch() -> DaskDataFrame:
+    return _make_batch({"x": [1, 2, 3]})
 
 
-class TestDaskFilterConstruction(unittest.TestCase):
-    def test_valid_construction(self) -> None:
-        with Tapestry():
-            src = _DaskSource(_config=KnotConfig(id="src"))
-            flt = DaskFilter(
-                batch=src,
-                predicate=lambda frame: frame["x"] > 1,
-                _config=KnotConfig(id="flt"),
-            )
-        self.assertIsInstance(flt, DaskFilter)
-
-    def test_rejects_non_callable_predicate(self) -> None:
-        with Tapestry():
-            src = _DaskSource(_config=KnotConfig(id="src"))
-            with self.assertRaises(TypeError):
-                DaskFilter(
-                    batch=src,
-                    predicate="not-callable",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="flt"),
-                )
-
-
-class TestDaskFilterProcess(unittest.IsolatedAsyncioTestCase):
+class TestDaskFilter(unittest.IsolatedAsyncioTestCase):
     async def test_filters_rows(self) -> None:
-        with Tapestry():
-            src = _DaskSource(_config=KnotConfig(id="src"))
-            flt = DaskFilter(
-                batch=src,
+        with Tapestry() as t:
+            batch = emit_batch(_config=KnotConfig(id="batch"))
+            DaskFilter(
+                batch=batch,
                 predicate=lambda f: f["x"] > 1,
                 _config=KnotConfig(id="flt"),
             )
-        result = await flt.process(batch=_make_batch({"x": [1, 2, 3]}))
-        self.assertIsInstance(result, DaskDataFrame)
-        df = result.frame.compute()
-        self.assertEqual(len(df), 2)
-        self.assertTrue((df["x"] > 1).all())
+        result = await t.run(RunRequest())
+        out: DaskDataFrame = result.outputs["flt"]
+        df = out.frame.compute()
+        assert len(df) == 2
+        assert (df["x"] > 1).all()
+
+
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_predicate_from_upstream_knot(self) -> None:
+        @knot
+        async def emit_predicate() -> Any:
+            return lambda f: f["x"] > 2
+
+        with Tapestry() as t:
+            batch = emit_batch(_config=KnotConfig(id="batch"))
+            pred = emit_predicate(_config=KnotConfig(id="pred"))
+            DaskFilter(batch=batch, predicate=pred, _config=KnotConfig(id="flt"))
+        result = await t.run(RunRequest())
+        out: DaskDataFrame = result.outputs["flt"]
+        df = out.frame.compute()
+        assert len(df) == 1
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self, **kwargs: Any) -> DaskFilter:
+        class _Src(Source):
+            async def process(self, **_: Any) -> DaskDataFrame:
+                return _make_batch({"x": [1]})
+
+        with Tapestry():
+            src = _Src(_config=KnotConfig(id="src"))
+            return DaskFilter(batch=src, _config=KnotConfig(id="flt"), **kwargs)
+
+    async def test_rejects_non_callable_predicate(self) -> None:
+        k = self._make_knot(predicate="not-callable")
+        with self.assertRaisesRegex(TypeError, "callable"):
+            await k.process(
+                batch=_make_batch({"x": [1]}),
+                predicate="not-callable",
+            )

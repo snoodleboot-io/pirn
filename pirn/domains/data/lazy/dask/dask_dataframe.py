@@ -11,7 +11,7 @@ graph; only the terminal sink (:class:`DaskCompute`) calls
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import dask.dataframe as dd
@@ -41,7 +41,7 @@ class DaskDataFrame:
     backend_name: str = "dask"
     source_uri: str = ""
     fetched_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
 
     @property
@@ -52,7 +52,7 @@ class DaskDataFrame:
     def npartitions(self) -> int:
         return int(self.frame.npartitions)
 
-    def with_frame(self, frame: dd.DataFrame) -> "DaskDataFrame":
+    def with_frame(self, frame: dd.DataFrame) -> DaskDataFrame:
         """Return a copy with ``frame`` replaced; metadata preserved."""
         return DaskDataFrame(
             frame=frame,

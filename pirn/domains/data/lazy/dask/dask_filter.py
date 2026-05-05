@@ -12,11 +12,27 @@ and returns a boolean ``dask.dataframe.Series``::
 
 No partitions are computed here — the resulting frame is still lazy and
 will be evaluated only when the terminal sink calls ``.compute()``.
+
+Algorithm:
+    1. Validate that ``predicate`` is callable.
+    2. Invoke ``predicate(frame)`` to obtain a boolean ``dask.dataframe.Series`` mask.
+    3. Apply ``frame[mask]`` to extend the deferred computation graph.
+    4. Return a new ``DaskDataFrame`` wrapping the filtered, still-deferred graph.
+
+    ```text
+    mask = predicate(frame)
+    return DaskDataFrame(frame[mask])
+    ```
+
+References:
+    [1] Dask DataFrame — boolean indexing / filtering:
+        https://docs.dask.org/en/stable/dataframe-indexing.html
 """
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import dask.dataframe as dd
 
@@ -32,30 +48,26 @@ class DaskFilter(Knot):
         self,
         *,
         batch: Knot,
-        predicate: Callable[[dd.DataFrame], dd.Series],
+        predicate: Knot | Callable[[dd.DataFrame], dd.Series],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(batch=batch, predicate=predicate, _config=_config, **kwargs)
+
+    async def process(self, batch: DaskDataFrame, predicate: Any, **_: Any) -> DaskDataFrame:
+        """Apply the callable boolean-mask predicate to the deferred Dask frame.
+
+        Args:
+            batch: The upstream DaskDataFrame to filter.
+            predicate: A callable (frame) -> dask.dataframe.Series.
+
+        Returns:
+            A new DaskDataFrame with the predicate applied to the deferred graph.
+        """
         if not callable(predicate):
             raise TypeError(
                 "DaskFilter: predicate must be a callable "
                 "(frame) -> dask.dataframe.Series"
             )
-        self._predicate = predicate
-        super().__init__(batch=batch, _config=_config, **kwargs)
-
-    @property
-    def predicate(self) -> Callable[[dd.DataFrame], dd.Series]:
-        return self._predicate
-
-    async def process(self, batch: DaskDataFrame, **_: Any) -> DaskDataFrame:
-        """Apply the callable boolean-mask predicate to the deferred Dask frame and return the filtered result.
-
-        Args:
-            batch: The upstream DaskDataFrame to filter.
-
-        Returns:
-            A new DaskDataFrame with the predicate applied to the deferred graph.
-        """
-        mask = self._predicate(batch.frame)
+        mask = predicate(batch.frame)
         return batch.with_frame(batch.frame[mask])
