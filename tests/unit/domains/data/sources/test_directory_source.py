@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import unittest
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.connectors.file_format import FileFormat
@@ -38,26 +39,7 @@ class _FakeStore(ObjectStore):
         return _gen()
 
 
-class _FakeFormat(FileFormat):
-    def __init__(self, row_map: dict[bytes, list[dict[str, Any]]] | None = None) -> None:
-        self._row_map: dict[bytes, list[dict[str, Any]]] = row_map or {}
-
-    @property
-    def name(self) -> str:
-        return "fake"
-
-    async def read(self, body: Any) -> AsyncIterator[dict[str, Any]]:
-        content = b"".join([c async for c in body]) if hasattr(body, "__aiter__") else b""
-        rows = self._row_map.get(content, [])
-
-        async def _gen() -> AsyncIterator[dict[str, Any]]:
-            for r in rows:
-                yield r
-
-        return _gen()
-
-
-def _make_simple_format(rows: list[dict[str, Any]]) -> "_FakeFormat":
+def _make_simple_format(rows: list[dict[str, Any]]) -> FileFormat:
     class _SimpleFormat(FileFormat):
         @property
         def name(self) -> str:
@@ -73,7 +55,7 @@ def _make_simple_format(rows: list[dict[str, Any]]) -> "_FakeFormat":
     return _SimpleFormat()
 
 
-class TestDirectorySourceConstruction(unittest.TestCase):
+class TestValidation(unittest.TestCase):
     def _make_store(self) -> _FakeStore:
         return _FakeStore()
 
@@ -83,7 +65,7 @@ class TestDirectorySourceConstruction(unittest.TestCase):
     def test_rejects_non_object_store(self) -> None:
         with self.assertRaisesRegex(TypeError, "ObjectStore"):
             DirectorySource(
-                store=object(),  # type: ignore
+                store=object(),  # type: ignore[arg-type]
                 format=self._make_format(),
                 prefix="data/",
                 _config=KnotConfig(id="ds"),
@@ -93,7 +75,7 @@ class TestDirectorySourceConstruction(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, "FileFormat"):
             DirectorySource(
                 store=self._make_store(),
-                format=object(),  # type: ignore
+                format=object(),  # type: ignore[arg-type]
                 prefix="data/",
                 _config=KnotConfig(id="ds"),
             )
@@ -103,7 +85,7 @@ class TestDirectorySourceConstruction(unittest.TestCase):
             DirectorySource(
                 store=self._make_store(),
                 format=self._make_format(),
-                prefix=None,  # type: ignore
+                prefix=None,  # type: ignore[arg-type]
                 _config=KnotConfig(id="ds"),
             )
 
@@ -113,7 +95,7 @@ class TestDirectorySourceConstruction(unittest.TestCase):
                 store=self._make_store(),
                 format=self._make_format(),
                 prefix="",
-                schema=object(),  # type: ignore
+                schema=object(),  # type: ignore[arg-type]
                 _config=KnotConfig(id="ds"),
             )
 
@@ -124,7 +106,7 @@ class TestDirectorySourceConstruction(unittest.TestCase):
             prefix="my/prefix/",
             _config=KnotConfig(id="ds"),
         )
-        self.assertEqual(ds.prefix, "my/prefix/")
+        assert ds.prefix == "my/prefix/"
 
     def test_concatenate_default_false(self) -> None:
         ds = DirectorySource(
@@ -133,7 +115,7 @@ class TestDirectorySourceConstruction(unittest.TestCase):
             prefix="",
             _config=KnotConfig(id="ds"),
         )
-        self.assertFalse(ds.concatenate)
+        assert ds.concatenate is False
 
     def test_concatenate_true(self) -> None:
         ds = DirectorySource(
@@ -143,82 +125,86 @@ class TestDirectorySourceConstruction(unittest.TestCase):
             concatenate=True,
             _config=KnotConfig(id="ds"),
         )
-        self.assertTrue(ds.concatenate)
+        assert ds.concatenate is True
 
 
-class TestDirectorySourceProcess(unittest.IsolatedAsyncioTestCase):
+class TestDirectorySource(unittest.IsolatedAsyncioTestCase):
     async def test_empty_prefix_yields_empty_tuple(self) -> None:
-        store = _FakeStore({})
-        fmt = _make_simple_format([])
-        ds = DirectorySource(store=store, format=fmt, prefix="data/", _config=KnotConfig(id="ds"))
+        ds = DirectorySource(
+            store=_FakeStore({}),
+            format=_make_simple_format([]),
+            prefix="data/",
+            _config=KnotConfig(id="ds"),
+        )
         result = await ds.process()
-        self.assertEqual(result, ())
+        assert result == ()
 
     async def test_per_file_mode_returns_tuple_of_batches(self) -> None:
-        store = _FakeStore({"data/a.csv": b"", "data/b.csv": b""})
-        fmt = _make_simple_format([{"x": 1}])
-        ds = DirectorySource(store=store, format=fmt, prefix="data/", _config=KnotConfig(id="ds"))
+        ds = DirectorySource(
+            store=_FakeStore({"data/a.csv": b"", "data/b.csv": b""}),
+            format=_make_simple_format([{"x": 1}]),
+            prefix="data/",
+            _config=KnotConfig(id="ds"),
+        )
         result = await ds.process()
-        self.assertIsInstance(result, tuple)
-        self.assertEqual(len(result), 2)
+        assert isinstance(result, tuple)
+        assert len(result) == 2
         for batch in result:
-            self.assertIsInstance(batch, DataBatch)
+            assert isinstance(batch, DataBatch)
 
     async def test_per_file_source_uris_per_key(self) -> None:
-        store = _FakeStore({"dir/file1.csv": b""})
-        fmt = _make_simple_format([])
-        ds = DirectorySource(store=store, format=fmt, prefix="dir/", _config=KnotConfig(id="ds"))
+        ds = DirectorySource(
+            store=_FakeStore({"dir/file1.csv": b""}),
+            format=_make_simple_format([]),
+            prefix="dir/",
+            _config=KnotConfig(id="ds"),
+        )
         result = await ds.process()
-        self.assertEqual(len(result), 1)
-        self.assertIn("file1.csv", result[0].source_uri)
+        assert len(result) == 1
+        assert "file1.csv" in result[0].source_uri
 
     async def test_concatenate_returns_single_batch(self) -> None:
-        store = _FakeStore({"f1.csv": b"", "f2.csv": b""})
-        fmt = _make_simple_format([{"x": 1}])
         ds = DirectorySource(
-            store=store,
-            format=fmt,
+            store=_FakeStore({"f1.csv": b"", "f2.csv": b""}),
+            format=_make_simple_format([{"x": 1}]),
             prefix="",
             concatenate=True,
             _config=KnotConfig(id="ds"),
         )
         result = await ds.process()
-        self.assertIsInstance(result, DataBatch)
+        assert isinstance(result, DataBatch)
 
     async def test_concatenate_combines_all_rows(self) -> None:
-        store = _FakeStore({"f1.csv": b"", "f2.csv": b""})
-        fmt = _make_simple_format([{"x": 1}, {"x": 2}])
         ds = DirectorySource(
-            store=store,
-            format=fmt,
+            store=_FakeStore({"f1.csv": b"", "f2.csv": b""}),
+            format=_make_simple_format([{"x": 1}, {"x": 2}]),
             prefix="",
             concatenate=True,
             _config=KnotConfig(id="ds"),
         )
         result = await ds.process()
-        # 2 rows per file × 2 files = 4 rows
-        self.assertEqual(len(result.rows), 4)
+        assert len(result.rows) == 4
 
     async def test_schema_propagated_to_batches(self) -> None:
         schema = DataSchema(columns={"x": int})
-        store = _FakeStore({"f.csv": b""})
-        fmt = _make_simple_format([{"x": 1}])
         ds = DirectorySource(
-            store=store,
-            format=fmt,
+            store=_FakeStore({"f.csv": b""}),
+            format=_make_simple_format([{"x": 1}]),
             prefix="",
             schema=schema,
             _config=KnotConfig(id="ds"),
         )
         result = await ds.process()
         for batch in result:
-            self.assertEqual(batch.schema, schema)
+            assert batch.schema == schema
 
     async def test_keys_sorted_in_output(self) -> None:
-        files = {"dir/c.csv": b"", "dir/a.csv": b"", "dir/b.csv": b""}
-        store = _FakeStore(files)
-        fmt = _make_simple_format([])
-        ds = DirectorySource(store=store, format=fmt, prefix="dir/", _config=KnotConfig(id="ds"))
+        ds = DirectorySource(
+            store=_FakeStore({"dir/c.csv": b"", "dir/a.csv": b"", "dir/b.csv": b""}),
+            format=_make_simple_format([]),
+            prefix="dir/",
+            _config=KnotConfig(id="ds"),
+        )
         result = await ds.process()
         uris = [b.source_uri for b in result]
-        self.assertEqual(uris, sorted(uris))
+        assert uris == sorted(uris)

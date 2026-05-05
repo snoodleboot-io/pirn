@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import unittest
-from typing import Any, AsyncIterator
-from unittest.mock import AsyncMock, MagicMock
+from collections.abc import AsyncIterator
+from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.connectors.file_format import FileFormat
@@ -51,7 +51,7 @@ class _FakeFormat(FileFormat):
         return _gen()
 
 
-class TestFileSourceConstruction(unittest.TestCase):
+class TestValidation(unittest.TestCase):
     def _make_store(self) -> _FakeStore:
         return _FakeStore()
 
@@ -61,7 +61,7 @@ class TestFileSourceConstruction(unittest.TestCase):
     def test_rejects_non_object_store(self) -> None:
         with self.assertRaisesRegex(TypeError, "ObjectStore"):
             FileSource(
-                store=object(),  # type: ignore
+                store=object(),  # type: ignore[arg-type]
                 format=self._make_format(),
                 key="data.parquet",
                 _config=KnotConfig(id="fs"),
@@ -71,7 +71,7 @@ class TestFileSourceConstruction(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, "FileFormat"):
             FileSource(
                 store=self._make_store(),
-                format=object(),  # type: ignore
+                format=object(),  # type: ignore[arg-type]
                 key="data.parquet",
                 _config=KnotConfig(id="fs"),
             )
@@ -90,7 +90,7 @@ class TestFileSourceConstruction(unittest.TestCase):
             FileSource(
                 store=self._make_store(),
                 format=self._make_format(),
-                key=None,  # type: ignore
+                key=None,  # type: ignore[arg-type]
                 _config=KnotConfig(id="fs"),
             )
 
@@ -100,83 +100,99 @@ class TestFileSourceConstruction(unittest.TestCase):
                 store=self._make_store(),
                 format=self._make_format(),
                 key="f.csv",
-                schema=object(),  # type: ignore
+                schema=object(),  # type: ignore[arg-type]
                 _config=KnotConfig(id="fs"),
             )
 
     def test_key_property(self) -> None:
-        store = self._make_store()
-        fmt = self._make_format()
-        fs = FileSource(store=store, format=fmt, key="path/to/file.csv", _config=KnotConfig(id="fs"))
-        self.assertEqual(fs.key, "path/to/file.csv")
+        fs = FileSource(
+            store=self._make_store(),
+            format=self._make_format(),
+            key="path/to/file.csv",
+            _config=KnotConfig(id="fs"),
+        )
+        assert fs.key == "path/to/file.csv"
 
     def test_format_name_property(self) -> None:
-        store = self._make_store()
-        fmt = _FakeFormat([])
-        fs = FileSource(store=store, format=fmt, key="f.csv", _config=KnotConfig(id="fs"))
-        self.assertEqual(fs.format_name, "fake")
+        fs = FileSource(
+            store=self._make_store(),
+            format=_FakeFormat([]),
+            key="f.csv",
+            _config=KnotConfig(id="fs"),
+        )
+        assert fs.format_name == "fake"
 
-    def test_default_source_uri_built_from_store_and_key(self) -> None:
-        store = _FakeStore()
-        fmt = _FakeFormat([])
-        fs = FileSource(store=store, format=fmt, key="data.csv", _config=KnotConfig(id="fs"))
-        self.assertIn("data.csv", fs._source_uri)
+    def test_default_source_uri_includes_key(self) -> None:
+        fs = FileSource(
+            store=_FakeStore(),
+            format=_FakeFormat([]),
+            key="data.csv",
+            _config=KnotConfig(id="fs"),
+        )
+        assert "data.csv" in fs._source_uri
 
     def test_custom_source_uri_preserved(self) -> None:
-        store = _FakeStore()
-        fmt = _FakeFormat([])
         fs = FileSource(
-            store=store,
-            format=fmt,
+            store=_FakeStore(),
+            format=_FakeFormat([]),
             key="data.csv",
             source_uri="s3://bucket/data.csv",
             _config=KnotConfig(id="fs"),
         )
-        self.assertEqual(fs._source_uri, "s3://bucket/data.csv")
+        assert fs._source_uri == "s3://bucket/data.csv"
 
 
-class TestFileSourceProcess(unittest.IsolatedAsyncioTestCase):
+class TestFileSource(unittest.IsolatedAsyncioTestCase):
     async def test_process_returns_data_batch(self) -> None:
         rows = [{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]
-        store = _FakeStore(b"fake-content")
-        fmt = _FakeFormat(rows)
-        fs = FileSource(store=store, format=fmt, key="data.csv", _config=KnotConfig(id="fs"))
+        fs = FileSource(
+            store=_FakeStore(b"fake-content"),
+            format=_FakeFormat(rows),
+            key="data.csv",
+            _config=KnotConfig(id="fs"),
+        )
         batch = await fs.process()
-        self.assertIsInstance(batch, DataBatch)
+        assert isinstance(batch, DataBatch)
 
     async def test_process_rows_match_format_output(self) -> None:
-        rows = [{"x": 1}, {"x": 2}]
-        store = _FakeStore(b"data")
-        fmt = _FakeFormat(rows)
-        fs = FileSource(store=store, format=fmt, key="data.csv", _config=KnotConfig(id="fs"))
+        fs = FileSource(
+            store=_FakeStore(b"data"),
+            format=_FakeFormat([{"x": 1}, {"x": 2}]),
+            key="data.csv",
+            _config=KnotConfig(id="fs"),
+        )
         batch = await fs.process()
-        self.assertEqual(len(batch.rows), 2)
-        self.assertEqual(batch.rows[0]["x"], 1)
+        assert len(batch.rows) == 2
+        assert batch.rows[0]["x"] == 1
 
     async def test_process_empty_format_returns_empty_batch(self) -> None:
-        store = _FakeStore(b"data")
-        fmt = _FakeFormat([])
-        fs = FileSource(store=store, format=fmt, key="empty.csv", _config=KnotConfig(id="fs"))
+        fs = FileSource(
+            store=_FakeStore(b"data"),
+            format=_FakeFormat([]),
+            key="empty.csv",
+            _config=KnotConfig(id="fs"),
+        )
         batch = await fs.process()
-        self.assertEqual(batch.rows, ())
+        assert batch.rows == ()
 
     async def test_process_schema_propagated_to_batch(self) -> None:
         schema = DataSchema(columns={"x": int})
-        store = _FakeStore(b"data")
-        fmt = _FakeFormat([{"x": 1}])
         fs = FileSource(
-            store=store,
-            format=fmt,
+            store=_FakeStore(b"data"),
+            format=_FakeFormat([{"x": 1}]),
             key="data.csv",
             schema=schema,
             _config=KnotConfig(id="fs"),
         )
         batch = await fs.process()
-        self.assertEqual(batch.schema, schema)
+        assert batch.schema == schema
 
     async def test_process_source_uri_in_batch(self) -> None:
-        store = _FakeStore(b"data")
-        fmt = _FakeFormat([])
-        fs = FileSource(store=store, format=fmt, key="my.csv", _config=KnotConfig(id="fs"))
+        fs = FileSource(
+            store=_FakeStore(b"data"),
+            format=_FakeFormat([]),
+            key="my.csv",
+            _config=KnotConfig(id="fs"),
+        )
         batch = await fs.process()
-        self.assertIn("my.csv", batch.source_uri)
+        assert "my.csv" in batch.source_uri

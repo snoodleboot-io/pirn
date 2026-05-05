@@ -11,22 +11,41 @@ The per-file shape preserves provenance — each batch's ``source_uri``
 points at its individual key — at the cost of downstream knots having
 to handle a tuple. The concatenated shape is convenient for "load all
 my parquet shards" use cases but loses per-file lineage.
+
+Algorithm:
+    1. Validate ``store``, ``format``, ``prefix``, and optional ``schema``
+       at construction time.
+    2. On execution, call ``await store.list(prefix)`` and collect all
+       matching keys; sort them for deterministic ordering.
+    3. For each key, fetch bytes via ``store.get(key)`` and decode via
+       ``format.read(body)``; build one :class:`DataBatch` per file,
+       each stamped with its own ``source_uri``.
+    4. If ``concatenate=False``, return the per-file batches as a tuple.
+    5. If ``concatenate=True``, concatenate all rows into a single
+       :class:`DataBatch` with a glob ``source_uri``.
+
+References:
+    [1] :class:`pirn.domains.connectors.object_store.ObjectStore` —
+        ``list(prefix)`` and ``get(key)`` interface.
+    [2] :class:`pirn.domains.connectors.file_format.FileFormat` —
+        pluggable codec abstraction.
 """
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from collections.abc import Mapping
+from datetime import UTC, datetime
 from typing import Any
 
-from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.connectors.file_format import FileFormat
 from pirn.domains.connectors.object_store import ObjectStore
 from pirn.domains.data.data_batch import DataBatch
 from pirn.domains.data.data_schema import DataSchema
+from pirn.nodes.source import Source
 
 
-class DirectorySource(Knot):
+class DirectorySource(Source):
     """Glob a prefix; emit one :class:`DataBatch` per file (or one
     concatenated batch when ``concatenate=True``)."""
 
@@ -42,27 +61,19 @@ class DirectorySource(Knot):
         **kwargs: Any,
     ) -> None:
         if not isinstance(store, ObjectStore):
-            raise TypeError(
-                "DirectorySource: store must be an ObjectStore instance"
-            )
+            raise TypeError("DirectorySource: store must be an ObjectStore instance")
         if not isinstance(format, FileFormat):
-            raise TypeError(
-                "DirectorySource: format must be a FileFormat instance"
-            )
+            raise TypeError("DirectorySource: format must be a FileFormat instance")
         if not isinstance(prefix, str):
-            raise TypeError(
-                "DirectorySource: prefix must be a string (use '' for root)"
-            )
+            raise TypeError("DirectorySource: prefix must be a string (use '' for root)")
         if schema is not None and not isinstance(schema, DataSchema):
-            raise TypeError(
-                "DirectorySource: schema must be a DataSchema instance"
-            )
+            raise TypeError("DirectorySource: schema must be a DataSchema instance")
         self._store = store
         self._format = format
         self._prefix = prefix
         self._concatenate = concatenate
         self._schema = schema
-        super().__init__(_config=_config, **kwargs)
+        super().__init__(_config=_config)
 
     @property
     def prefix(self) -> str:
@@ -72,15 +83,7 @@ class DirectorySource(Knot):
     def concatenate(self) -> bool:
         return self._concatenate
 
-    async def process(
-        self, **_: Any
-    ) -> tuple[DataBatch, ...] | DataBatch:
-        """List, decode, and return all files under the configured prefix as per-file batches or one concatenated batch.
-
-        Returns:
-            A tuple of per-file DataBatches, or a single concatenated DataBatch when
-            concatenate is True.
-        """
+    async def process(self, **_: Any) -> tuple[DataBatch, ...] | DataBatch:
         keys: list[str] = []
         key_iter = await self._store.list(self._prefix)
         async for k in key_iter:
@@ -98,11 +101,10 @@ class DirectorySource(Knot):
                 DataBatch(
                     rows=tuple(rows),
                     schema=(
-                        self._schema if self._schema is not None
-                        else DataSchema()
+                        self._schema if self._schema is not None else DataSchema()
                     ),
                     source_uri=f"{type(self._store).__name__}://{k}",
-                    fetched_at=datetime.now(timezone.utc),
+                    fetched_at=datetime.now(UTC),
                 )
             )
 
@@ -114,10 +116,7 @@ class DirectorySource(Knot):
             all_rows.extend(batch.rows)
         return DataBatch(
             rows=tuple(all_rows),
-            schema=(
-                self._schema if self._schema is not None
-                else DataSchema()
-            ),
+            schema=(self._schema if self._schema is not None else DataSchema()),
             source_uri=f"{type(self._store).__name__}://{self._prefix}*",
-            fetched_at=datetime.now(timezone.utc),
+            fetched_at=datetime.now(UTC),
         )

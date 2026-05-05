@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import unittest
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.run_request import RunRequest
 from pirn.domains.connectors.file_format import FileFormat
 from pirn.domains.connectors.object_store import ObjectStore
 from pirn.domains.data.data_batch import DataBatch
@@ -67,140 +70,125 @@ def _make_batch(rows: list[dict[str, Any]] | None = None) -> DataBatch:
     return DataBatch(rows=tuple(rows or []))
 
 
-def _make_batch_knot(tapestry: Tapestry, knot_id: str = "batch") -> _BatchSource:
-    with tapestry:
-        return _BatchSource(_config=KnotConfig(id=knot_id))
-
-
-class TestFileSinkConstruction(unittest.TestCase):
+class TestFileSink(unittest.IsolatedAsyncioTestCase):
     def _store(self) -> _FakeStore:
         return _FakeStore()
 
     def _fmt(self) -> _FakeFormat:
         return _FakeFormat()
 
-    def test_rejects_non_object_store(self) -> None:
-        with Tapestry() as t:
-            batch = _BatchSource(_config=KnotConfig(id="batch"))
-            with self.assertRaisesRegex(TypeError, "ObjectStore"):
-                FileSink(
-                    batch=batch,
-                    store=object(),  # type: ignore
-                    format=self._fmt(),
-                    key="out.csv",
-                    _config=KnotConfig(id="sink"),
-                )
-
-    def test_rejects_non_file_format(self) -> None:
+    def _make_sink(self, key: str = "out.csv") -> FileSink:
         with Tapestry():
             batch = _BatchSource(_config=KnotConfig(id="batch"))
-            with self.assertRaisesRegex(TypeError, "FileFormat"):
-                FileSink(
-                    batch=batch,
-                    store=self._store(),
-                    format=object(),  # type: ignore
-                    key="out.csv",
-                    _config=KnotConfig(id="sink"),
-                )
-
-    def test_rejects_empty_key(self) -> None:
-        with Tapestry():
-            batch = _BatchSource(_config=KnotConfig(id="batch"))
-            with self.assertRaisesRegex(ValueError, "non-empty"):
-                FileSink(
-                    batch=batch,
-                    store=self._store(),
-                    format=self._fmt(),
-                    key="",
-                    _config=KnotConfig(id="sink"),
-                )
-
-    def test_key_property(self) -> None:
-        with Tapestry():
-            batch = _BatchSource(_config=KnotConfig(id="batch"))
-            sink = FileSink(
+            return FileSink(
                 batch=batch,
                 store=self._store(),
                 format=self._fmt(),
-                key="output/file.parquet",
+                key=key,
                 _config=KnotConfig(id="sink"),
             )
-        self.assertEqual(sink.key, "output/file.parquet")
-
-    def test_format_name_property(self) -> None:
-        with Tapestry():
-            batch = _BatchSource(_config=KnotConfig(id="batch"))
-            sink = FileSink(
-                batch=batch,
-                store=self._store(),
-                format=self._fmt(),
-                key="out.csv",
-                _config=KnotConfig(id="sink"),
-            )
-        self.assertEqual(sink.format_name, "fake")
-
-
-class TestFileSinkProcess(unittest.IsolatedAsyncioTestCase):
-    def _store(self) -> _FakeStore:
-        return _FakeStore()
-
-    def _fmt(self) -> _FakeFormat:
-        return _FakeFormat()
 
     async def test_process_returns_key(self) -> None:
         store = self._store()
-        with Tapestry():
-            batch = _BatchSource(_config=KnotConfig(id="batch"))
-            sink = FileSink(
-                batch=batch,
-                store=store,
-                format=self._fmt(),
-                key="out.csv",
-                _config=KnotConfig(id="sink"),
-            )
-        result = await sink.process(batch=_make_batch([{"x": 1}]))
-        self.assertEqual(result, "out.csv")
+        sink = self._make_sink("out.csv")
+        result = await sink.process(
+            batch=_make_batch([{"x": 1}]),
+            store=store,
+            format=self._fmt(),
+            key="out.csv",
+        )
+        assert result == "out.csv"
 
     async def test_process_writes_to_store(self) -> None:
         store = self._store()
-        with Tapestry():
-            batch = _BatchSource(_config=KnotConfig(id="batch"))
-            sink = FileSink(
-                batch=batch,
-                store=store,
-                format=self._fmt(),
-                key="output.csv",
-                _config=KnotConfig(id="sink"),
-            )
-        await sink.process(batch=_make_batch([{"id": 1}, {"id": 2}]))
-        self.assertIn("output.csv", store._stored)
+        sink = self._make_sink("output.csv")
+        await sink.process(
+            batch=_make_batch([{"id": 1}, {"id": 2}]),
+            store=store,
+            format=self._fmt(),
+            key="output.csv",
+        )
+        assert "output.csv" in store._stored
 
     async def test_process_empty_batch(self) -> None:
         store = self._store()
-        with Tapestry():
-            batch = _BatchSource(_config=KnotConfig(id="batch"))
-            sink = FileSink(
-                batch=batch,
-                store=store,
-                format=self._fmt(),
-                key="empty.csv",
-                _config=KnotConfig(id="sink"),
-            )
-        result = await sink.process(batch=_make_batch([]))
-        self.assertEqual(result, "empty.csv")
-        self.assertIn("empty.csv", store._stored)
+        sink = self._make_sink("empty.csv")
+        result = await sink.process(
+            batch=_make_batch([]),
+            store=store,
+            format=self._fmt(),
+            key="empty.csv",
+        )
+        assert result == "empty.csv"
+        assert "empty.csv" in store._stored
 
     async def test_process_encodes_rows_via_format(self) -> None:
         store = self._store()
-        with Tapestry():
-            batch = _BatchSource(_config=KnotConfig(id="batch"))
-            sink = FileSink(
-                batch=batch,
+        sink = self._make_sink("data.csv")
+        await sink.process(
+            batch=_make_batch([{"name": "Alice"}]),
+            store=store,
+            format=self._fmt(),
+            key="data.csv",
+        )
+        assert b"Alice" in store._stored["data.csv"]
+
+
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_key_from_upstream_knot(self) -> None:
+        store = _FakeStore()
+        fmt = _FakeFormat()
+
+        @knot
+        async def emit_batch() -> DataBatch:
+            return DataBatch(rows=({"x": 1},))
+
+        @knot
+        async def emit_key() -> str:
+            return "wired.csv"
+
+        with Tapestry() as t:
+            batch_knot = emit_batch(_config=KnotConfig(id="batch"))
+            key_knot = emit_key(_config=KnotConfig(id="key"))
+            FileSink(
+                batch=batch_knot,
                 store=store,
-                format=self._fmt(),
-                key="data.csv",
+                format=fmt,
+                key=key_knot,
                 _config=KnotConfig(id="sink"),
             )
-        await sink.process(batch=_make_batch([{"name": "Alice"}]))
-        raw = store._stored["data.csv"]
-        self.assertIn(b"Alice", raw)
+        result = await t.run(RunRequest())
+        assert result.outputs["sink"] == "wired.csv"
+        assert "wired.csv" in store._stored
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_sink(self, **kwargs: Any) -> FileSink:
+        store = _FakeStore()
+        fmt = _FakeFormat()
+        defaults: dict[str, Any] = {"store": store, "format": fmt, "key": "x.csv"}
+        defaults.update(kwargs)
+        with Tapestry():
+            batch = _BatchSource(_config=KnotConfig(id="batch"))
+            return FileSink(batch=batch, _config=KnotConfig(id="sink"), **defaults)
+
+    async def test_rejects_non_object_store(self) -> None:
+        k = self._make_sink()
+        with self.assertRaisesRegex(TypeError, "ObjectStore"):
+            await k.process(
+                batch=_make_batch(), store=object(), format=_FakeFormat(), key="x.csv"
+            )
+
+    async def test_rejects_non_file_format(self) -> None:
+        k = self._make_sink()
+        with self.assertRaisesRegex(TypeError, "FileFormat"):
+            await k.process(
+                batch=_make_batch(), store=_FakeStore(), format=object(), key="x.csv"
+            )
+
+    async def test_rejects_empty_key(self) -> None:
+        k = self._make_sink(key="placeholder.csv")
+        with self.assertRaisesRegex(ValueError, "non-empty"):
+            await k.process(
+                batch=_make_batch(), store=_FakeStore(), format=_FakeFormat(), key=""
+            )

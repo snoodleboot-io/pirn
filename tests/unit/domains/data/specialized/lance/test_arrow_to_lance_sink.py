@@ -7,10 +7,10 @@ is missing (the PyPI ``lance`` placeholder package does not provide it).
 
 from __future__ import annotations
 
-from typing import Any
-import unittest
 import tempfile
+import unittest
 from pathlib import Path
+from typing import Any
 
 import pyarrow as pa
 import pytest
@@ -24,47 +24,18 @@ from pirn.tapestry import Tapestry
 
 @knot
 async def _emit_table() -> Any:
-    """Emits a PyArrow Table; typed Any so pirn IO validation does not
-    try to pydantic-schema raw ``pyarrow.Table`` (which is not
-    pydantic-compatible)."""
+    """Typed Any so pirn IO validation does not try to pydantic-schema
+    raw ``pyarrow.Table``."""
     return pa.table({"id": [1, 2, 3], "name": ["a", "b", "c"]})
 
 
-class TestArrowToLanceSinkConstruction(unittest.TestCase):
-    def test_rejects_empty_path(self) -> None:
-        with Tapestry():
-            tbl = _emit_table(_config=KnotConfig(id="t"))
-            with self.assertRaisesRegex(ValueError, "non-empty"):
-                ArrowToLanceSink(table=tbl, path="", _config=KnotConfig(id="sink"))
-
-    def test_rejects_unknown_mode(self) -> None:
-        with Tapestry():
-            tbl = _emit_table(_config=KnotConfig(id="t"))
-            with self.assertRaisesRegex(ValueError, "mode must be one of"):
-                ArrowToLanceSink(
-                    table=tbl, path="/tmp/x.lance", mode="bogus",
-                    _config=KnotConfig(id="sink"),
-                )
-
-    def test_accepts_known_modes(self) -> None:
-        with Tapestry():
-            tbl = _emit_table(_config=KnotConfig(id="t"))
-            sink = ArrowToLanceSink(
-                table=tbl, path="/tmp/x.lance", mode="overwrite",
-                _config=KnotConfig(id="sink"),
-            )
-        assert sink.mode == "overwrite"
-        assert sink.path == "/tmp/x.lance"
-
-
-class TestArrowToLanceSinkProcess(unittest.IsolatedAsyncioTestCase):
+class TestArrowToLanceSink(unittest.IsolatedAsyncioTestCase):
     async def test_writes_dataset_to_disk(self) -> None:
-        _td_test_writes_dataset_to_disk = tempfile.TemporaryDirectory()
-        self.addCleanup(_td_test_writes_dataset_to_disk.cleanup)
-        tmp_path = Path(_td_test_writes_dataset_to_disk.name)
+        tmp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp_dir.cleanup)
         try:
             import lance
-        except ImportError as _e:
+        except ImportError:
             self.skipTest("lance not installed")
         if not hasattr(lance, "write_dataset") or not hasattr(lance, "dataset"):
             pytest.skip(
@@ -72,13 +43,74 @@ class TestArrowToLanceSinkProcess(unittest.IsolatedAsyncioTestCase):
                 "package, not pylance"
             )
 
-        path = str(tmp_path / "out.lance")
+        path = str(Path(tmp_dir.name) / "out.lance")
         with Tapestry() as t:
             tbl = _emit_table(_config=KnotConfig(id="t"))
             ArrowToLanceSink(table=tbl, path=path, _config=KnotConfig(id="sink"))
         result = await t.run(RunRequest())
-
         assert result.outputs["sink"] == path
-        # Read it back to confirm the dataset is on disk.
         ds = lance.dataset(path)
         assert ds.to_table().num_rows == 3
+
+
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_path_from_upstream_knot(self) -> None:
+        tmp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp_dir.cleanup)
+        try:
+            import lance
+        except ImportError:
+            self.skipTest("lance not installed")
+        if not hasattr(lance, "write_dataset"):
+            pytest.skip("lance package does not provide write_dataset")
+
+        expected_path = str(Path(tmp_dir.name) / "wired.lance")
+
+        @knot
+        async def emit_path() -> str:
+            return expected_path
+
+        with Tapestry() as t:
+            tbl = _emit_table(_config=KnotConfig(id="t"))
+            path_knot = emit_path(_config=KnotConfig(id="path"))
+            ArrowToLanceSink(
+                table=tbl, path=path_knot, _config=KnotConfig(id="sink")
+            )
+        result = await t.run(RunRequest())
+        assert result.outputs["sink"] == expected_path
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_sink(self, **kwargs: Any) -> ArrowToLanceSink:
+        defaults: dict[str, Any] = {"path": "/tmp/x.lance", "mode": "create"}
+        defaults.update(kwargs)
+        with Tapestry():
+            tbl = _emit_table(_config=KnotConfig(id="t"))
+            return ArrowToLanceSink(table=tbl, _config=KnotConfig(id="sink"), **defaults)
+
+    async def test_rejects_empty_path(self) -> None:
+        k = self._make_sink(path="placeholder")
+        with self.assertRaisesRegex(ValueError, "non-empty"):
+            await k.process(table=pa.table({}), path="", mode="create")
+
+    async def test_rejects_unknown_mode(self) -> None:
+        k = self._make_sink()
+        with self.assertRaisesRegex(ValueError, "mode must be one of"):
+            await k.process(table=pa.table({}), path="/tmp/x.lance", mode="bogus")
+
+    async def test_accepts_known_modes(self) -> None:
+        tmp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp_dir.cleanup)
+        try:
+            import lance
+        except ImportError:
+            self.skipTest("lance not installed")
+        if not hasattr(lance, "write_dataset"):
+            pytest.skip("lance package does not provide write_dataset")
+
+        path = str(Path(tmp_dir.name) / "x.lance")
+        k = self._make_sink(path=path, mode="overwrite")
+        result = await k.process(
+            table=pa.table({"id": [1]}), path=path, mode="overwrite"
+        )
+        assert result == path
