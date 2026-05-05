@@ -30,6 +30,15 @@ def _row_by_region(rows: tuple[dict, ...], region: str) -> dict:
     return next(r for r in rows if r["region"] == region)
 
 
+def _make_batch() -> DataBatch:
+    rows = (
+        {"region": "EU", "amount": 10.0, "customer": "alice"},
+        {"region": "EU", "amount": 25.0, "customer": "bob"},
+        {"region": "US", "amount": 100.0, "customer": "carol"},
+    )
+    return DataBatch(rows=rows)
+
+
 class TestAggregate(unittest.IsolatedAsyncioTestCase):
     async def test_sum_per_group(self) -> None:
         with Tapestry() as t:
@@ -154,28 +163,70 @@ class TestAggregateSpec(unittest.TestCase):
             AggregateSpec(source="", function="sum")
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_string_by(self) -> None:
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_by_from_upstream_knot(self) -> None:
         @knot
-        async def empty() -> DataBatch:
-            return DataBatch()
-        with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "sequence"):
-                Aggregate(
-                    batch=batch, by="region",  # type: ignore[arg-type]
-                    aggs={"x": AggregateSpec(source="a", function="sum")},
-                    _config=KnotConfig(id="a"),
-                )
+        async def emit_by() -> tuple:
+            return ("region",)
 
-    def test_rejects_empty_aggs(self) -> None:
+        with Tapestry() as t:
+            batch = emit_orders(_config=KnotConfig(id="orders"))
+            by_knot = emit_by(_config=KnotConfig(id="by"))
+            Aggregate(
+                batch=batch,
+                by=by_knot,
+                aggs={"total": AggregateSpec(source="amount", function="sum")},
+                _config=KnotConfig(id="agg"),
+            )
+        result = await t.run(RunRequest())
+        out: DataBatch = result.outputs["agg"]
+        assert _row_by_region(out.rows, "EU")["total"] == 40.0
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def _make_knot(self, **kwargs: object) -> Aggregate:
         @knot
-        async def empty() -> DataBatch:
-            return DataBatch()
+        async def upstream() -> DataBatch:
+            return _make_batch()
+
         with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "non-empty"):
-                Aggregate(
-                    batch=batch, by=("a",), aggs={},
-                    _config=KnotConfig(id="a"),
-                )
+            batch = upstream(_config=KnotConfig(id="up"))
+            return Aggregate(
+                batch=batch,
+                by=("region",),
+                aggs={"total": AggregateSpec(source="amount", function="sum")},
+                _config=KnotConfig(id="agg"),
+                **kwargs,
+            )
+
+    async def test_rejects_string_by(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(TypeError, "sequence"):
+            await k.process(
+                batch=_make_batch(),
+                by="region",
+                aggs={"total": AggregateSpec(source="amount", function="sum")},
+            )
+
+    async def test_rejects_empty_by(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(ValueError, "non-empty"):
+            await k.process(
+                batch=_make_batch(),
+                by=(),
+                aggs={"total": AggregateSpec(source="amount", function="sum")},
+            )
+
+    async def test_rejects_empty_aggs(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(TypeError, "non-empty"):
+            await k.process(batch=_make_batch(), by=("region",), aggs={})
+
+    async def test_rejects_non_aggregate_spec(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(TypeError, "AggregateSpec"):
+            await k.process(
+                batch=_make_batch(),
+                by=("region",),
+                aggs={"total": "sum"},  # type: ignore[arg-type]
+            )

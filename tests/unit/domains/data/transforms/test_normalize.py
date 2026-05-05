@@ -23,6 +23,10 @@ async def emit_messy() -> DataBatch:
     return DataBatch(rows=rows)
 
 
+def _make_batch() -> DataBatch:
+    return DataBatch(rows=({"name": "  Alice  ", "region": "eu"},))
+
+
 class TestNormalize(unittest.IsolatedAsyncioTestCase):
     async def test_strip_whitespace_collapses_runs(self) -> None:
         with Tapestry() as t:
@@ -114,25 +118,56 @@ class TestNormalizeColumnRule(unittest.TestCase):
         NormalizeColumnRule(case=None)
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_rules(self) -> None:
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_rules_from_upstream_knot(self) -> None:
         @knot
-        async def empty() -> DataBatch:
-            return DataBatch()
-        with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "non-empty"):
-                Normalize(batch=batch, rules={}, _config=KnotConfig(id="n"))
+        async def emit_rules() -> dict:
+            return {"name": NormalizeColumnRule(strip_whitespace=True)}
 
-    def test_rejects_non_rule_value(self) -> None:
+        with Tapestry() as t:
+            batch = emit_messy(_config=KnotConfig(id="batch"))
+            rules_knot = emit_rules(_config=KnotConfig(id="rules"))
+            Normalize(
+                batch=batch,
+                rules=rules_knot,
+                _config=KnotConfig(id="norm"),
+            )
+        result = await t.run(RunRequest())
+        out: DataBatch = result.outputs["norm"]
+        assert out.rows[0]["name"] == "Alice Smith"
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def _make_knot(self) -> Normalize:
         @knot
-        async def empty() -> DataBatch:
-            return DataBatch()
+        async def upstream() -> DataBatch:
+            return _make_batch()
+
         with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "NormalizeColumnRule"):
-                Normalize(
-                    batch=batch,
-                    rules={"a": "lower"},  # type: ignore[dict-item]
-                    _config=KnotConfig(id="n"),
-                )
+            batch = upstream(_config=KnotConfig(id="up"))
+            return Normalize(
+                batch=batch,
+                rules={"name": NormalizeColumnRule(strip_whitespace=True)},
+                _config=KnotConfig(id="n"),
+            )
+
+    async def test_rejects_empty_rules(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(TypeError, "non-empty"):
+            await k.process(batch=_make_batch(), rules={})
+
+    async def test_rejects_non_rule_value(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(TypeError, "NormalizeColumnRule"):
+            await k.process(
+                batch=_make_batch(),
+                rules={"name": "lower"},  # type: ignore[arg-type]
+            )
+
+    async def test_rejects_empty_key(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(TypeError, "non-empty strings"):
+            await k.process(
+                batch=_make_batch(),
+                rules={"": NormalizeColumnRule(strip_whitespace=True)},
+            )

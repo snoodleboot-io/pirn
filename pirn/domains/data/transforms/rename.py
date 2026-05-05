@@ -4,11 +4,38 @@
 Columns absent from the mapping pass through unchanged. The batch's
 :class:`DataSchema` is updated so downstream consumers see the new names
 in ``columns``, ``primary_keys``, and ``nullable``.
+
+Algorithm:
+    1. Validate ``mapping``: must be a non-empty ``Mapping[str, str]`` with
+       non-empty string keys and values.
+    2. For each row, build a new dict substituting the mapped column names.
+       Columns not present in the mapping keep their original names.
+    3. Rebuild the :class:`DataSchema`:
+
+       a. ``columns``: apply the mapping to each column name.
+       b. ``primary_keys``: apply the mapping to each key name.
+       c. ``nullable``: apply the mapping to each nullable column name.
+
+    4. Return a new batch with the renamed rows and updated schema.
+
+    ```text
+    for row in rows:
+        emit {mapping.get(col, col): value for col, value in row}
+    new_schema = schema with all names remapped
+    ```
+
+References:
+    [1] Python ``dict`` — ``get(key, default)`` idiom used for identity
+        pass-through of unmapped columns:
+        https://docs.python.org/3/library/stdtypes.html#dict.get
+    [2] dbt ``rename`` macro pattern — equivalent SQL-level column aliasing:
+        https://docs.getdbt.com/docs/build/jinja-macros
 """
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -23,10 +50,27 @@ class Rename(Knot):
         self,
         *,
         batch: Knot,
-        mapping: Mapping[str, str],
+        mapping: Knot | Mapping[str, str],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(batch=batch, mapping=mapping, _config=_config, **kwargs)
+
+    async def process(
+        self,
+        batch: DataBatch,
+        mapping: Any,
+        **_: Any,
+    ) -> DataBatch:
+        """Rename columns in each row according to the mapping and return the updated batch.
+
+        Args:
+            batch: The DataBatch whose column names will be remapped.
+            mapping: Mapping of old column name to new column name.
+
+        Returns:
+            A new DataBatch with columns renamed and the schema updated to reflect the new names.
+        """
         if not isinstance(mapping, Mapping) or not mapping:
             raise TypeError(
                 "Rename: mapping must be a non-empty Mapping[old_name, new_name]"
@@ -40,41 +84,29 @@ class Rename(Knot):
                 raise ValueError(
                     "Rename: mapping keys and values must be non-empty"
                 )
-        self._mapping: dict[str, str] = dict(mapping)
-        super().__init__(batch=batch, _config=_config, **kwargs)
-
-    @property
-    def mapping(self) -> Mapping[str, str]:
-        return dict(self._mapping)
-
-    async def process(self, batch: DataBatch, **_: Any) -> DataBatch:
-        """Rename columns in each row according to the mapping and return the updated batch with an updated schema.
-
-        Args:
-            batch: The DataBatch whose column names will be remapped.
-
-        Returns:
-            A new DataBatch with columns renamed and the schema updated to reflect the new names.
-        """
-        new_rows = tuple(self._rename_row(row) for row in batch.rows)
-        new_schema = self._rename_schema(batch.schema)
+        mapping_dict: dict[str, str] = dict(mapping)
+        new_rows = tuple(self._rename_row(row, mapping_dict) for row in batch.rows)
+        new_schema = self._rename_schema(batch.schema, mapping_dict)
         return batch.with_rows(new_rows).with_schema(new_schema)
 
+    @staticmethod
     def _rename_row(
-        self, row: Mapping[str, Any]
+        row: Mapping[str, Any],
+        mapping: dict[str, str],
     ) -> dict[str, Any]:
-        return {self._mapping.get(k, k): v for k, v in row.items()}
+        return {mapping.get(k, k): v for k, v in row.items()}
 
-    def _rename_schema(self, schema: DataSchema) -> DataSchema:
+    @staticmethod
+    def _rename_schema(schema: DataSchema, mapping: dict[str, str]) -> DataSchema:
         new_columns = {
-            self._mapping.get(name, name): expected_type
+            mapping.get(name, name): expected_type
             for name, expected_type in schema.columns.items()
         }
         new_primary_keys = tuple(
-            self._mapping.get(k, k) for k in schema.primary_keys
+            mapping.get(k, k) for k in schema.primary_keys
         )
         new_nullable = tuple(
-            self._mapping.get(k, k) for k in schema.nullable
+            mapping.get(k, k) for k in schema.nullable
         )
         return DataSchema(
             columns=new_columns,

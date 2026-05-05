@@ -35,6 +35,13 @@ async def emit_with_invalid() -> DataBatch:
     return DataBatch(rows=rows)
 
 
+def _make_batch() -> DataBatch:
+    return DataBatch(
+        rows=({"id": "1", "amount": "12.5"},),
+        schema=DataSchema(columns={"id": str, "amount": str}),
+    )
+
+
 class TestCast(unittest.IsolatedAsyncioTestCase):
     async def test_casts_values_per_column(self) -> None:
         with Tapestry() as t:
@@ -91,15 +98,46 @@ class TestCast(unittest.IsolatedAsyncioTestCase):
         )
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_type_value(self) -> None:
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_casts_from_upstream_knot(self) -> None:
         @knot
-        async def empty() -> DataBatch:
-            return DataBatch()
+        async def emit_casts() -> dict:
+            return {"id": int, "amount": float}
+
+        with Tapestry() as t:
+            batch = emit_string_users(_config=KnotConfig(id="users"))
+            casts_knot = emit_casts(_config=KnotConfig(id="casts"))
+            Cast(
+                batch=batch,
+                casts=casts_knot,
+                _config=KnotConfig(id="casted"),
+            )
+        result = await t.run(RunRequest())
+        out: DataBatch = result.outputs["casted"]
+        assert out.rows[0]["id"] == 1
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def _make_knot(self) -> Cast:
+        @knot
+        async def upstream() -> DataBatch:
+            return _make_batch()
+
         with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "must be a type"):
-                Cast(
-                    batch=batch, casts={"a": "int"},  # type: ignore[dict-item]
-                    _config=KnotConfig(id="c"),
-                )
+            batch = upstream(_config=KnotConfig(id="up"))
+            return Cast(batch=batch, casts={"id": int}, _config=KnotConfig(id="c"))
+
+    async def test_rejects_empty_casts(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(TypeError, "non-empty"):
+            await k.process(batch=_make_batch(), casts={})
+
+    async def test_rejects_non_type_value(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(TypeError, "must be a type"):
+            await k.process(batch=_make_batch(), casts={"id": "int"})  # type: ignore[arg-type]
+
+    async def test_rejects_empty_key(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(TypeError, "non-empty strings"):
+            await k.process(batch=_make_batch(), casts={"": int})

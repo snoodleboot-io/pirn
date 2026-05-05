@@ -11,11 +11,63 @@ non-null entries — use a separate :class:`pirn.domains.data.transforms.filter.
 or a downstream null-rate check for null counting). Empty groups (after
 filtering nulls) yield ``None`` for ``mean`` / ``min`` / ``max`` /
 ``first`` / ``last`` and ``0`` for ``count`` / ``count_distinct``.
+
+Algorithm:
+    1. Validate ``by`` (non-empty sequence of non-empty strings) and ``aggs``
+       (non-empty mapping of output name → :class:`AggregateSpec`).
+    2. Partition all rows into groups keyed by the ``by``-column tuple.
+       Unhashable values (e.g. lists) are coerced to their ``repr`` for
+       grouping purposes.
+    3. For each group, extract the source column values from every row in
+       the group, filter out ``None``, then apply the specified aggregation
+       function.
+    4. Assemble output rows as ``{by_cols..., output_col: agg_value, ...}``.
+    5. Rebuild the :class:`DataSchema` with ``by`` as primary keys and
+       ``object`` as the type for each aggregation output column.
+
+    ```text
+    groups = partition(rows, key=lambda row: tuple(row[b] for b in by))
+    for key, rows_in_group in groups:
+        out_row = dict(zip(by, key))
+        for output_name, spec in aggs:
+            values = [row[spec.source] for row in rows_in_group if spec.source in row]
+            out_row[output_name] = aggregate(spec.function, non_null(values))
+        emit out_row
+    ```
+
+Math:
+    For a group of :math:`N` rows with non-null source values
+    :math:`v_1, \\ldots, v_k` (where :math:`k \\leq N`):
+
+    $$
+    \\text{sum}     = \\sum_{i=1}^{k} v_i
+    $$
+
+    $$
+    \\text{mean}    = \\begin{cases}
+        \\displaystyle\\frac{\\sum v_i}{k} & k > 0 \\\\
+        \\text{None}                        & k = 0
+    \\end{cases}
+    $$
+
+    $$
+    \\text{count}          = k, \\quad
+    \\text{count\\_distinct} = \\bigl|\\{v_1,\\ldots,v_k\\}\\bigr|
+    $$
+
+References:
+    [1] Kimball, R. & Ross, M. — *The Data Warehouse Toolkit* (3rd ed.),
+        Chapter 3 — Fact Table Techniques (group-by aggregation patterns):
+        https://www.kimballgroup.com/data-warehouse-business-intelligence-resources/books/data-warehouse-dw-toolkit/
+    [2] Python ``itertools.groupby`` — alternative approach (not used here;
+        requires pre-sorted input, which pirn does not guarantee):
+        https://docs.python.org/3/library/itertools.html#itertools.groupby
 """
 
 from __future__ import annotations
 
-from typing import Any, Mapping, Sequence
+from collections.abc import Mapping, Sequence
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -31,11 +83,30 @@ class Aggregate(Knot):
         self,
         *,
         batch: Knot,
-        by: Sequence[str],
-        aggs: Mapping[str, AggregateSpec],
+        by: Knot | Sequence[str],
+        aggs: Knot | Mapping[str, AggregateSpec],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(batch=batch, by=by, aggs=aggs, _config=_config, **kwargs)
+
+    async def process(
+        self,
+        batch: DataBatch,
+        by: Any,
+        aggs: Any,
+        **_: Any,
+    ) -> DataBatch:
+        """Group the batch by the configured columns and apply per-group aggregations.
+
+        Args:
+            batch: The DataBatch to group and aggregate.
+            by: Sequence of column names to group by.
+            aggs: Mapping of output column name to AggregateSpec.
+
+        Returns:
+            A new DataBatch with one row per group and columns for each aggregation output.
+        """
         if not isinstance(by, Sequence) or isinstance(by, (str, bytes)):
             raise TypeError(
                 "Aggregate: by must be a sequence of column names "
@@ -59,32 +130,13 @@ class Aggregate(Knot):
                     f"Aggregate: aggs[{output_name!r}] must be an AggregateSpec, "
                     f"got {type(spec).__name__}"
                 )
-        self._by: tuple[str, ...] = tuple(by)
-        self._aggs: dict[str, AggregateSpec] = dict(aggs)
-        super().__init__(batch=batch, _config=_config, **kwargs)
-
-    @property
-    def by(self) -> tuple[str, ...]:
-        return self._by
-
-    @property
-    def aggs(self) -> Mapping[str, AggregateSpec]:
-        return dict(self._aggs)
-
-    async def process(self, batch: DataBatch, **_: Any) -> DataBatch:
-        """Group the batch by the configured columns, apply per-group aggregations, and return the result.
-
-        Args:
-            batch: The DataBatch to group and aggregate.
-
-        Returns:
-            A new DataBatch with one row per group and columns for each aggregation output.
-        """
-        groups = self._group_rows(batch)
+        by_tuple: tuple[str, ...] = tuple(by)
+        aggs_dict: dict[str, AggregateSpec] = dict(aggs)
+        groups = self._group_rows(batch, by_tuple)
         out_rows: list[Mapping[str, Any]] = []
         for key_tuple, rows_in_group in groups.items():
-            out_row: dict[str, Any] = dict(zip(self._by, key_tuple))
-            for output_name, spec in self._aggs.items():
+            out_row: dict[str, Any] = dict(zip(by_tuple, key_tuple, strict=False))
+            for output_name, spec in aggs_dict.items():
                 values = [
                     row[spec.source]
                     for row in rows_in_group
@@ -92,19 +144,21 @@ class Aggregate(Knot):
                 ]
                 out_row[output_name] = self._apply(spec.function, values)
             out_rows.append(out_row)
-        new_schema = self._rebuild_schema(batch.schema)
+        new_schema = self._rebuild_schema(batch.schema, by_tuple, aggs_dict)
         return batch.with_rows(tuple(out_rows)).with_schema(new_schema)
 
+    @staticmethod
     def _group_rows(
-        self, batch: DataBatch
+        batch: DataBatch, by: tuple[str, ...]
     ) -> dict[tuple[Any, ...], list[Mapping[str, Any]]]:
         groups: dict[tuple[Any, ...], list[Mapping[str, Any]]] = {}
         for row in batch.rows:
-            key = tuple(self._hashable(row.get(b)) for b in self._by)
+            key = tuple(Aggregate._hashable(row.get(b)) for b in by)
             groups.setdefault(key, []).append(row)
         return groups
 
-    def _apply(self, function: str, values: list[Any]) -> Any:
+    @staticmethod
+    def _apply(function: str, values: list[Any]) -> Any:
         non_null = [v for v in values if v is not None]
         if function == "sum":
             return sum(non_null) if non_null else 0
@@ -117,7 +171,7 @@ class Aggregate(Knot):
         if function == "count":
             return len(non_null)
         if function == "count_distinct":
-            return len({self._hashable(v) for v in non_null})
+            return len({Aggregate._hashable(v) for v in non_null})
         if function == "first":
             return values[0] if values else None
         if function == "last":
@@ -125,14 +179,18 @@ class Aggregate(Knot):
         # AggregateSpec validation should have prevented this; defence in depth.
         raise ValueError(f"Aggregate: unknown aggregation function {function!r}")
 
-    def _rebuild_schema(self, schema: DataSchema) -> DataSchema:
+    @staticmethod
+    def _rebuild_schema(
+        schema: DataSchema,
+        by: tuple[str, ...],
+        aggs: dict[str, AggregateSpec],
+    ) -> DataSchema:
         new_columns: dict[str, type] = {}
-        for column in self._by:
+        for column in by:
             new_columns[column] = schema.columns.get(column, object)
-        for output_name in self._aggs:
+        for output_name in aggs:
             new_columns[output_name] = object
-        primary_keys = self._by
-        return DataSchema(columns=new_columns, primary_keys=primary_keys)
+        return DataSchema(columns=new_columns, primary_keys=by)
 
     @staticmethod
     def _hashable(value: Any) -> Any:

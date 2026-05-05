@@ -27,6 +27,17 @@ async def emit_users() -> DataBatch:
     return DataBatch(rows=rows, schema=schema)
 
 
+def _make_batch() -> DataBatch:
+    schema = DataSchema(
+        columns={"user_id": int, "user_name": str},
+        primary_keys=("user_id",),
+    )
+    return DataBatch(
+        rows=({"user_id": 1, "user_name": "alice"},),
+        schema=schema,
+    )
+
+
 class TestRename(unittest.IsolatedAsyncioTestCase):
     async def test_renames_columns_and_passes_others_through(self) -> None:
         with Tapestry() as t:
@@ -71,24 +82,54 @@ class TestRename(unittest.IsolatedAsyncioTestCase):
         assert "id" in out.rows[0]
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_mapping(self) -> None:
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_mapping_from_upstream_knot(self) -> None:
         @knot
-        async def empty() -> DataBatch:
-            return DataBatch()
-        with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "non-empty"):
-                Rename(batch=batch, mapping={}, _config=KnotConfig(id="r"))
+        async def emit_mapping() -> dict:
+            return {"user_id": "id", "user_name": "name"}
 
-    def test_rejects_non_string_keys(self) -> None:
+        with Tapestry() as t:
+            batch = emit_users(_config=KnotConfig(id="users"))
+            mapping_knot = emit_mapping(_config=KnotConfig(id="mapping"))
+            Rename(
+                batch=batch,
+                mapping=mapping_knot,
+                _config=KnotConfig(id="renamed"),
+            )
+        result = await t.run(RunRequest())
+        out: DataBatch = result.outputs["renamed"]
+        assert "id" in out.rows[0]
+        assert "name" in out.rows[0]
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def _make_knot(self) -> Rename:
         @knot
-        async def empty() -> DataBatch:
-            return DataBatch()
+        async def upstream() -> DataBatch:
+            return _make_batch()
+
         with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "strings"):
-                Rename(
-                    batch=batch, mapping={1: "id"},  # type: ignore[dict-item]
-                    _config=KnotConfig(id="r"),
-                )
+            batch = upstream(_config=KnotConfig(id="up"))
+            return Rename(
+                batch=batch,
+                mapping={"user_id": "id"},
+                _config=KnotConfig(id="r"),
+            )
+
+    async def test_rejects_empty_mapping(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(TypeError, "non-empty"):
+            await k.process(batch=_make_batch(), mapping={})
+
+    async def test_rejects_non_string_keys(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(TypeError, "strings"):
+            await k.process(
+                batch=_make_batch(),
+                mapping={1: "id"},  # type: ignore[arg-type]
+            )
+
+    async def test_rejects_empty_value(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(ValueError, "non-empty"):
+            await k.process(batch=_make_batch(), mapping={"user_id": ""})

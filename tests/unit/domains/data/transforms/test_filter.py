@@ -25,6 +25,15 @@ async def emit_users() -> DataBatch:
     return DataBatch(rows=rows, schema=schema)
 
 
+def _make_batch() -> DataBatch:
+    schema = DataSchema(columns={"id": int, "active": bool})
+    rows = (
+        {"id": 1, "active": True},
+        {"id": 2, "active": False},
+    )
+    return DataBatch(rows=rows, schema=schema)
+
+
 class TestFilter(unittest.IsolatedAsyncioTestCase):
     async def test_keeps_only_rows_matching_predicate(self) -> None:
         with Tapestry() as t:
@@ -63,15 +72,40 @@ class TestFilter(unittest.IsolatedAsyncioTestCase):
         assert out.row_count == 0
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_callable_predicate(self) -> None:
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_predicate_from_upstream_knot(self) -> None:
         @knot
-        async def empty() -> DataBatch:
-            return DataBatch()
+        async def emit_predicate() -> object:
+            return lambda r: r["active"]
+
+        with Tapestry() as t:
+            batch = emit_users(_config=KnotConfig(id="users"))
+            pred_knot = emit_predicate(_config=KnotConfig(id="pred"))
+            Filter(
+                batch=batch,
+                predicate=pred_knot,
+                _config=KnotConfig(id="filtered"),
+            )
+        result = await t.run(RunRequest())
+        out: DataBatch = result.outputs["filtered"]
+        assert tuple(r["id"] for r in out.rows) == (1, 3)
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def _make_knot(self) -> Filter:
+        @knot
+        async def upstream() -> DataBatch:
+            return _make_batch()
+
         with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "callable"):
-                Filter(
-                    batch=batch, predicate="not callable",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="f"),
-                )
+            batch = upstream(_config=KnotConfig(id="up"))
+            return Filter(
+                batch=batch,
+                predicate=lambda r: r["active"],
+                _config=KnotConfig(id="f"),
+            )
+
+    async def test_rejects_non_callable_predicate(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(TypeError, "callable"):
+            await k.process(batch=_make_batch(), predicate="not callable")

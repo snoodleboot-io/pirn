@@ -24,6 +24,15 @@ async def emit_with_dups() -> DataBatch:
     return DataBatch(rows=rows)
 
 
+def _make_batch() -> DataBatch:
+    rows = (
+        {"id": 1, "name": "alice"},
+        {"id": 2, "name": "bob"},
+        {"id": 1, "name": "alice-dup"},
+    )
+    return DataBatch(rows=rows)
+
+
 class TestDeduplicate(unittest.IsolatedAsyncioTestCase):
     async def test_keeps_first_occurrence_of_each_key(self) -> None:
         with Tapestry() as t:
@@ -74,27 +83,46 @@ class TestDeduplicate(unittest.IsolatedAsyncioTestCase):
         assert out.row_count == 1
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_string_keys_argument(self) -> None:
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_keys_from_upstream_knot(self) -> None:
         @knot
-        async def empty() -> DataBatch:
-            return DataBatch()
-        with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "sequence"):
-                Deduplicate(
-                    batch=batch, keys="id",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="d"),
-                )
+        async def emit_keys() -> tuple:
+            return ("id",)
 
-    def test_rejects_empty_keys(self) -> None:
+        with Tapestry() as t:
+            batch = emit_with_dups(_config=KnotConfig(id="batch"))
+            keys_knot = emit_keys(_config=KnotConfig(id="keys"))
+            Deduplicate(
+                batch=batch,
+                keys=keys_knot,
+                _config=KnotConfig(id="dedup"),
+            )
+        result = await t.run(RunRequest())
+        out: DataBatch = result.outputs["dedup"]
+        assert out.row_count == 3
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def _make_knot(self) -> Deduplicate:
         @knot
-        async def empty() -> DataBatch:
-            return DataBatch()
+        async def upstream() -> DataBatch:
+            return _make_batch()
+
         with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(ValueError, "non-empty"):
-                Deduplicate(
-                    batch=batch, keys=(),
-                    _config=KnotConfig(id="d"),
-                )
+            batch = upstream(_config=KnotConfig(id="up"))
+            return Deduplicate(batch=batch, keys=("id",), _config=KnotConfig(id="d"))
+
+    async def test_rejects_string_keys_argument(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(TypeError, "sequence"):
+            await k.process(batch=_make_batch(), keys="id")
+
+    async def test_rejects_empty_keys(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(ValueError, "non-empty"):
+            await k.process(batch=_make_batch(), keys=())
+
+    async def test_rejects_empty_string_key(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(TypeError, "non-empty string"):
+            await k.process(batch=_make_batch(), keys=("",))
