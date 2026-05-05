@@ -17,8 +17,7 @@ from pirn.domains.data.frames.datafusion.datafusion_filter import (
 from pirn.tapestry import Tapestry
 
 
-@knot
-async def emit_users() -> DatafusionDataBatch:
+def _make_batch() -> DatafusionDataBatch:
     ctx = df.SessionContext()
     frame = ctx.from_pylist(
         [
@@ -29,6 +28,11 @@ async def emit_users() -> DatafusionDataBatch:
         ]
     )
     return DatafusionDataBatch(frame=frame, context=ctx)
+
+
+@knot
+async def emit_users() -> DatafusionDataBatch:
+    return _make_batch()
 
 
 class TestDatafusionFilter(unittest.IsolatedAsyncioTestCase):
@@ -72,66 +76,40 @@ class TestDatafusionFilter(unittest.IsolatedAsyncioTestCase):
         assert ids == [1, 3]
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_neither_predicate_nor_expression(self) -> None:
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def _make_knot(self, **kwargs: object) -> DatafusionFilter:
         @knot
-        async def empty() -> DatafusionDataBatch:
-            ctx = df.SessionContext()
-            frame = ctx.sql("SELECT NULL AS x WHERE FALSE")
-            return DatafusionDataBatch(frame=frame, context=ctx)
+        async def upstream() -> DatafusionDataBatch:
+            return _make_batch()
 
         with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "provide either"):
-                DatafusionFilter(
-                    batch=batch,
-                    _config=KnotConfig(id="f"),
-                )
+            batch = upstream(_config=KnotConfig(id="up"))
+            return DatafusionFilter(batch=batch, _config=KnotConfig(id="f"), **kwargs)
 
-    def test_rejects_empty_predicate(self) -> None:
-        @knot
-        async def empty() -> DatafusionDataBatch:
-            ctx = df.SessionContext()
-            frame = ctx.sql("SELECT NULL AS x WHERE FALSE")
-            return DatafusionDataBatch(frame=frame, context=ctx)
+    async def test_rejects_neither_predicate_nor_expression(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(TypeError, "provide either"):
+            await k.process(batch=_make_batch(), predicate=None, expression=None)
 
-        with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(ValueError, "empty"):
-                DatafusionFilter(
-                    batch=batch, predicate="   ",
-                    _config=KnotConfig(id="f"),
-                )
+    async def test_rejects_empty_predicate(self) -> None:
+        k = await self._make_knot(predicate="   ")
+        with self.assertRaisesRegex(ValueError, "empty"):
+            await k.process(batch=_make_batch(), predicate="   ", expression=None)
 
-    def test_rejects_obvious_injection(self) -> None:
-        @knot
-        async def empty() -> DatafusionDataBatch:
-            ctx = df.SessionContext()
-            frame = ctx.sql("SELECT NULL AS x WHERE FALSE")
-            return DatafusionDataBatch(frame=frame, context=ctx)
+    async def test_rejects_obvious_injection(self) -> None:
+        k = await self._make_knot(predicate="1 = 1; DROP TABLE users")
+        with self.assertRaisesRegex(ValueError, "forbidden"):
+            await k.process(
+                batch=_make_batch(),
+                predicate="1 = 1; DROP TABLE users",
+                expression=None,
+            )
 
-        with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(ValueError, "forbidden"):
-                DatafusionFilter(
-                    batch=batch,
-                    predicate="1 = 1; DROP TABLE users",
-                    _config=KnotConfig(id="f"),
-                )
-
-    def test_rejects_both_predicate_and_expression(self) -> None:
-        @knot
-        async def empty() -> DatafusionDataBatch:
-            ctx = df.SessionContext()
-            frame = ctx.sql("SELECT NULL AS x WHERE FALSE")
-            return DatafusionDataBatch(frame=frame, context=ctx)
-
-        with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "not both"):
-                DatafusionFilter(
-                    batch=batch,
-                    predicate="x",
-                    expression=lambda f: df.col("x"),
-                    _config=KnotConfig(id="f"),
-                )
+    async def test_rejects_both_predicate_and_expression(self) -> None:
+        k = await self._make_knot(predicate="x", expression=lambda f: df.col("x"))
+        with self.assertRaisesRegex(TypeError, "not both"):
+            await k.process(
+                batch=_make_batch(),
+                predicate="x",
+                expression=lambda f: df.col("x"),
+            )

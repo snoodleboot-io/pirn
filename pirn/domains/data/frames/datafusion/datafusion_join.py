@@ -10,15 +10,26 @@ Supports the standard DataFusion join strategies: ``inner``, ``left``,
 ``right``, ``full``, ``semi``, ``anti``.
 
 When the two parents come from independent
-:class:`datafusion.SessionContext` instances, DataFusion is happy to
-execute the join — the right frame's logical plan is rebound onto the
-left's context implicitly. Both batches' provenance metadata is
-preserved on the left side.
+:class:`datafusion.SessionContext` instances, DataFusion rebinds the right
+frame's logical plan onto the left's context implicitly. Both batches'
+provenance metadata is preserved on the left side.
+
+Algorithm:
+    1. Validate ``how`` and that exactly one of ``on`` or
+       ``left_on`` / ``right_on`` is supplied.
+    2. Coerce column names to ``tuple[str, ...]`` and validate identifiers.
+    3. Dispatch to ``left.frame.join()`` with the appropriate key form.
+    4. Return the result wrapped in a new :class:`DatafusionDataBatch`.
+
+References:
+    [1] Apache DataFusion Python — DataFrame.join:
+        https://datafusion.apache.org/python/autoapi/datafusion/index.html#datafusion.DataFrame.join
 """
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -36,13 +47,48 @@ class DatafusionJoin(Knot):
         *,
         left: Knot,
         right: Knot,
-        on: str | Sequence[str] | None = None,
-        left_on: str | Sequence[str] | None = None,
-        right_on: str | Sequence[str] | None = None,
-        how: str = "inner",
+        on: Knot | str | Sequence[str] | None = None,
+        left_on: Knot | str | Sequence[str] | None = None,
+        right_on: Knot | str | Sequence[str] | None = None,
+        how: Knot | str = "inner",
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            left=left,
+            right=right,
+            on=on,
+            left_on=left_on,
+            right_on=right_on,
+            how=how,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        left: DatafusionDataBatch,
+        right: DatafusionDataBatch,
+        on: str | Sequence[str] | None,
+        left_on: str | Sequence[str] | None,
+        right_on: str | Sequence[str] | None,
+        how: str,
+        **_: Any,
+    ) -> DatafusionDataBatch:
+        """Join the left and right DataFusion batches on the configured keys.
+
+        Args:
+            left: The left-side DatafusionDataBatch.
+            right: The right-side DatafusionDataBatch.
+            on: Shared column name(s), or None when using ``left_on``/``right_on``.
+            left_on: Left-side key column(s) for differently-named keys.
+            right_on: Right-side key column(s) for differently-named keys.
+            how: Join strategy — one of ``inner``, ``left``, ``right``,
+                ``full``, ``semi``, ``anti``.
+
+        Returns:
+            A new DatafusionDataBatch containing the joined result.
+        """
         allowed_how = ("inner", "left", "right", "full", "semi", "anti")
         if how not in allowed_how:
             raise ValueError(
@@ -62,47 +108,29 @@ class DatafusionJoin(Knot):
                 "DatafusionJoin: provide on=<column(s)> for matching keys, "
                 "or both left_on= and right_on= for differently-named keys"
             )
-        self._on = self._coerce_keys("on", on)
-        self._left_on = self._coerce_keys("left_on", left_on)
-        self._right_on = self._coerce_keys("right_on", right_on)
+
+        norm_on = self._coerce_keys("on", on)
+        norm_left_on = self._coerce_keys("left_on", left_on)
+        norm_right_on = self._coerce_keys("right_on", right_on)
+
         if (
-            self._left_on is not None
-            and self._right_on is not None
-            and len(self._left_on) != len(self._right_on)
+            norm_left_on is not None
+            and norm_right_on is not None
+            and len(norm_left_on) != len(norm_right_on)
         ):
             raise ValueError(
                 "DatafusionJoin: left_on and right_on must have the same length"
             )
-        self._how = how
-        super().__init__(left=left, right=right, _config=_config, **kwargs)
 
-    @property
-    def how(self) -> str:
-        return self._how
-
-    async def process(
-        self, left: DatafusionDataBatch, right: DatafusionDataBatch, **_: Any
-    ) -> DatafusionDataBatch:
-        """Join the left and right DataFusion batches on the configured keys and return the result.
-
-        Args:
-            left: The left-side DatafusionDataBatch.
-            right: The right-side DatafusionDataBatch.
-
-        Returns:
-            A new DatafusionDataBatch containing the joined result.
-        """
-        if self._on is not None:
-            joined = left.frame.join(
-                right.frame, on=list(self._on), how=self._how
-            )
+        if norm_on is not None:
+            joined = left.frame.join(right.frame, on=list(norm_on), how=how)
         else:
-            assert self._left_on is not None and self._right_on is not None
+            assert norm_left_on is not None and norm_right_on is not None
             joined = left.frame.join(
                 right.frame,
-                how=self._how,
-                left_on=list(self._left_on),
-                right_on=list(self._right_on),
+                how=how,
+                left_on=list(norm_left_on),
+                right_on=list(norm_right_on),
             )
         return left.with_frame(joined)
 

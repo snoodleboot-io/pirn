@@ -15,6 +15,9 @@ from pirn.domains.data.frames.datafusion.bridges.data_batch_to_datafusion import
 from pirn.domains.data.frames.datafusion.datafusion_data_batch import (
     DatafusionDataBatch,
 )
+from pirn.domains.data.frames.datafusion.datafusion_session_context_knot import (
+    DatafusionSessionContextKnot,
+)
 from pirn.tapestry import Tapestry
 
 
@@ -35,8 +38,9 @@ async def emit_empty() -> DataBatch:
 class TestDataBatchToDatafusion(unittest.IsolatedAsyncioTestCase):
     async def test_constructs_frame_from_rows(self) -> None:
         with Tapestry() as t:
+            ctx = DatafusionSessionContextKnot(_config=KnotConfig(id="ctx"))
             batch = emit_users(_config=KnotConfig(id="users"))
-            DataBatchToDatafusion(batch=batch, _config=KnotConfig(id="dfn"))
+            DataBatchToDatafusion(batch=batch, context=ctx, _config=KnotConfig(id="dfn"))
         result = await t.run(RunRequest())
         out: DatafusionDataBatch = result.outputs["dfn"]
         assert set(out.column_names) == {"id", "name"}
@@ -44,29 +48,28 @@ class TestDataBatchToDatafusion(unittest.IsolatedAsyncioTestCase):
 
     async def test_propagates_metadata(self) -> None:
         with Tapestry() as t:
+            ctx = DatafusionSessionContextKnot(_config=KnotConfig(id="ctx"))
             batch = emit_users(_config=KnotConfig(id="users"))
-            DataBatchToDatafusion(batch=batch, _config=KnotConfig(id="dfn"))
+            DataBatchToDatafusion(batch=batch, context=ctx, _config=KnotConfig(id="dfn"))
         result = await t.run(RunRequest())
         out: DatafusionDataBatch = result.outputs["dfn"]
         assert out.source_uri == "memory://users"
 
     async def test_empty_batch_yields_zero_rows(self) -> None:
         with Tapestry() as t:
+            ctx = DatafusionSessionContextKnot(_config=KnotConfig(id="ctx"))
             batch = emit_empty(_config=KnotConfig(id="empty"))
-            DataBatchToDatafusion(batch=batch, _config=KnotConfig(id="dfn"))
+            DataBatchToDatafusion(batch=batch, context=ctx, _config=KnotConfig(id="dfn"))
         result = await t.run(RunRequest())
         out: DatafusionDataBatch = result.outputs["dfn"]
         assert out.frame.to_pylist() == []
 
-    async def test_uses_supplied_context(self) -> None:
-        ctx = df.SessionContext()
+    async def test_context_is_datafusion_session_context(self) -> None:
         with Tapestry() as t:
+            ctx_knot = DatafusionSessionContextKnot(_config=KnotConfig(id="ctx"))
             batch = emit_users(_config=KnotConfig(id="users"))
-            DataBatchToDatafusion(
-                batch=batch,
-                context=ctx,
-                _config=KnotConfig(id="dfn"),
-            )
+            DataBatchToDatafusion(batch=batch, context=ctx_knot, _config=KnotConfig(id="dfn"))
         result = await t.run(RunRequest())
         out: DatafusionDataBatch = result.outputs["dfn"]
-        assert out.context is ctx
+        # The bridge unwraps DatafusionSessionContext.ctx into DatafusionDataBatch.context.
+        assert isinstance(out.context, df.SessionContext)

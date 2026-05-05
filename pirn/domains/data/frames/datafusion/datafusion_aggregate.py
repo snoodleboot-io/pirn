@@ -14,11 +14,23 @@ The caller passes:
 Each aggregation expression is automatically aliased to the configured
 output name. Output column names go through the same identifier check
 as the group-by columns so they are safe to use as field aliases.
+
+Algorithm:
+    1. Validate group-by column identifiers and the ``aggs`` mapping.
+    2. Build ``group_exprs`` from ``by`` column names.
+    3. For each entry in ``aggs``: resolve the expression (call the callable
+       if needed) and alias it to the output column name.
+    4. Call ``frame.aggregate(group_exprs, agg_exprs)`` and return the result.
+
+References:
+    [1] Apache DataFusion Python — DataFrame.aggregate:
+        https://datafusion.apache.org/python/autoapi/datafusion/index.html#datafusion.DataFrame.aggregate
 """
 
 from __future__ import annotations
 
-from typing import Any, Callable, Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any
 
 import datafusion as df
 
@@ -37,11 +49,31 @@ class DatafusionAggregate(Knot):
         self,
         *,
         batch: Knot,
-        by: Sequence[str],
-        aggs: Mapping[str, df.Expr | Callable[[df.DataFrame], df.Expr]],
+        by: Knot | Sequence[str],
+        aggs: Knot | Mapping[str, df.Expr | Callable[[df.DataFrame], df.Expr]],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(batch=batch, by=by, aggs=aggs, _config=_config, **kwargs)
+
+    async def process(
+        self,
+        batch: DatafusionDataBatch,
+        by: Sequence[str],
+        aggs: Any,  # Mapping[str, df.Expr | Callable[...]] — pydantic can't schema df.Expr
+        **_: Any,
+    ) -> DatafusionDataBatch:
+        """Group the batch and apply aggregation expressions.
+
+        Args:
+            batch: The DatafusionDataBatch to group and aggregate.
+            by: Column names to group on.
+            aggs: Mapping of output column name to DataFusion expression or
+                callable producing one.
+
+        Returns:
+            A new DatafusionDataBatch containing the aggregated result.
+        """
         IdentifierValidator.validate_columns("DatafusionAggregate.by", by)
         if not isinstance(aggs, Mapping) or not aggs:
             raise TypeError(
@@ -57,28 +89,10 @@ class DatafusionAggregate(Knot):
                     f"DatafusionAggregate: aggs[{output!r}] must be a "
                     "datafusion.Expr or callable(frame) -> datafusion.Expr"
                 )
-        self._by: tuple[str, ...] = tuple(by)
-        self._aggs: dict[str, df.Expr | Callable[[df.DataFrame], df.Expr]] = dict(aggs)
-        super().__init__(batch=batch, _config=_config, **kwargs)
 
-    @property
-    def by(self) -> tuple[str, ...]:
-        return self._by
-
-    async def process(
-        self, batch: DatafusionDataBatch, **_: Any
-    ) -> DatafusionDataBatch:
-        """Group the batch by the configured columns and apply the aggregation expressions.
-
-        Args:
-            batch: The DatafusionDataBatch to group and aggregate.
-
-        Returns:
-            A new DatafusionDataBatch containing the aggregated result.
-        """
-        group_exprs = [df.col(column) for column in self._by]
+        group_exprs = [df.col(column) for column in by]
         agg_exprs: list[df.Expr] = []
-        for output, expression in self._aggs.items():
+        for output, expression in aggs.items():
             expr = expression(batch.frame) if callable(expression) else expression
             agg_exprs.append(expr.alias(output))
         aggregated = batch.frame.aggregate(group_exprs, agg_exprs)

@@ -15,6 +15,12 @@ from pirn.domains.data.frames.datafusion.datafusion_join import DatafusionJoin
 from pirn.tapestry import Tapestry
 
 
+def _make_empty_batch() -> DatafusionDataBatch:
+    ctx = df.SessionContext()
+    frame = ctx.sql("SELECT NULL AS x WHERE FALSE")
+    return DatafusionDataBatch(frame=frame, context=ctx)
+
+
 @knot
 async def emit_users() -> DatafusionDataBatch:
     ctx = df.SessionContext()
@@ -104,86 +110,53 @@ class TestDatafusionJoin(unittest.IsolatedAsyncioTestCase):
         assert len(rows) == 2
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_unknown_how(self) -> None:
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self, **kwargs: object) -> DatafusionJoin:
         @knot
         async def empty() -> DatafusionDataBatch:
-            ctx = df.SessionContext()
-            frame = ctx.sql("SELECT NULL AS x WHERE FALSE")
-            return DatafusionDataBatch(frame=frame, context=ctx)
+            return _make_empty_batch()
 
         with Tapestry():
             left = empty(_config=KnotConfig(id="l"))
             right = empty(_config=KnotConfig(id="r"))
-            with self.assertRaisesRegex(ValueError, "how must be one of"):
-                DatafusionJoin(
-                    left=left, right=right, on="x", how="diagonal",
-                    _config=KnotConfig(id="j"),
-                )
+            return DatafusionJoin(left=left, right=right, _config=KnotConfig(id="j"), **kwargs)
 
-    def test_rejects_both_on_and_left_on(self) -> None:
-        @knot
-        async def empty() -> DatafusionDataBatch:
-            ctx = df.SessionContext()
-            frame = ctx.sql("SELECT NULL AS x WHERE FALSE")
-            return DatafusionDataBatch(frame=frame, context=ctx)
+    async def test_rejects_unknown_how(self) -> None:
+        k = self._make_knot(on="x", how="diagonal")
+        with self.assertRaisesRegex(ValueError, "how must be one of"):
+            await k.process(
+                left=_make_empty_batch(), right=_make_empty_batch(),
+                on="x", left_on=None, right_on=None, how="diagonal",
+            )
 
-        with Tapestry():
-            left = empty(_config=KnotConfig(id="l"))
-            right = empty(_config=KnotConfig(id="r"))
-            with self.assertRaisesRegex(TypeError, "not both"):
-                DatafusionJoin(
-                    left=left, right=right,
-                    on="x", left_on="x", right_on="x",
-                    _config=KnotConfig(id="j"),
-                )
+    async def test_rejects_both_on_and_left_on(self) -> None:
+        k = self._make_knot(on="x", left_on="x", right_on="x")
+        with self.assertRaisesRegex(TypeError, "not both"):
+            await k.process(
+                left=_make_empty_batch(), right=_make_empty_batch(),
+                on="x", left_on="x", right_on="x", how="inner",
+            )
 
-    def test_requires_either_on_or_both_left_right(self) -> None:
-        @knot
-        async def empty() -> DatafusionDataBatch:
-            ctx = df.SessionContext()
-            frame = ctx.sql("SELECT NULL AS x WHERE FALSE")
-            return DatafusionDataBatch(frame=frame, context=ctx)
+    async def test_requires_either_on_or_both_left_right(self) -> None:
+        k = self._make_knot(how="inner")
+        with self.assertRaises(TypeError):
+            await k.process(
+                left=_make_empty_batch(), right=_make_empty_batch(),
+                on=None, left_on=None, right_on=None, how="inner",
+            )
 
-        with Tapestry():
-            left = empty(_config=KnotConfig(id="l"))
-            right = empty(_config=KnotConfig(id="r"))
-            with self.assertRaises(TypeError):
-                DatafusionJoin(
-                    left=left, right=right, how="inner",
-                    _config=KnotConfig(id="j"),
-                )
+    async def test_rejects_unsafe_on_column(self) -> None:
+        k = self._make_knot(on="x; DROP TABLE t")
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
+            await k.process(
+                left=_make_empty_batch(), right=_make_empty_batch(),
+                on="x; DROP TABLE t", left_on=None, right_on=None, how="inner",
+            )
 
-    def test_rejects_unsafe_on_column(self) -> None:
-        @knot
-        async def empty() -> DatafusionDataBatch:
-            ctx = df.SessionContext()
-            frame = ctx.sql("SELECT NULL AS x WHERE FALSE")
-            return DatafusionDataBatch(frame=frame, context=ctx)
-
-        with Tapestry():
-            left = empty(_config=KnotConfig(id="l"))
-            right = empty(_config=KnotConfig(id="r"))
-            with self.assertRaisesRegex(ValueError, "plain identifier"):
-                DatafusionJoin(
-                    left=left, right=right,
-                    on="x; DROP TABLE t",
-                    _config=KnotConfig(id="j"),
-                )
-
-    def test_rejects_mismatched_left_right_lengths(self) -> None:
-        @knot
-        async def empty() -> DatafusionDataBatch:
-            ctx = df.SessionContext()
-            frame = ctx.sql("SELECT NULL AS x WHERE FALSE")
-            return DatafusionDataBatch(frame=frame, context=ctx)
-
-        with Tapestry():
-            left = empty(_config=KnotConfig(id="l"))
-            right = empty(_config=KnotConfig(id="r"))
-            with self.assertRaisesRegex(ValueError, "same length"):
-                DatafusionJoin(
-                    left=left, right=right,
-                    left_on=("a", "b"), right_on=("c",),
-                    _config=KnotConfig(id="j"),
-                )
+    async def test_rejects_mismatched_left_right_lengths(self) -> None:
+        k = self._make_knot(left_on=("a", "b"), right_on=("c",))
+        with self.assertRaisesRegex(ValueError, "same length"):
+            await k.process(
+                left=_make_empty_batch(), right=_make_empty_batch(),
+                on=None, left_on=("a", "b"), right_on=("c",), how="inner",
+            )

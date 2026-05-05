@@ -21,7 +21,7 @@ frames stay on the same context.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import datafusion as df
@@ -55,14 +55,14 @@ class DatafusionDataBatch:
     context: df.SessionContext
     source_uri: str = ""
     fetched_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
 
     @property
     def column_names(self) -> tuple[str, ...]:
         return tuple(self.frame.schema().names)
 
-    def with_frame(self, frame: df.DataFrame) -> "DatafusionDataBatch":
+    def with_frame(self, frame: df.DataFrame) -> DatafusionDataBatch:
         """Return a copy with ``frame`` replaced; everything else preserved."""
         return DatafusionDataBatch(
             frame=frame,

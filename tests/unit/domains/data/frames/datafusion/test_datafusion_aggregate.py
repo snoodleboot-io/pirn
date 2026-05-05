@@ -18,6 +18,12 @@ from pirn.domains.data.frames.datafusion.datafusion_data_batch import (
 from pirn.tapestry import Tapestry
 
 
+def _make_empty_batch() -> DatafusionDataBatch:
+    ctx = df.SessionContext()
+    frame = ctx.sql("SELECT NULL AS x WHERE FALSE")
+    return DatafusionDataBatch(frame=frame, context=ctx)
+
+
 @knot
 async def emit_orders() -> DatafusionDataBatch:
     ctx = df.SessionContext()
@@ -68,51 +74,41 @@ class TestDatafusionAggregate(unittest.IsolatedAsyncioTestCase):
         assert counts["US"] == 1
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_by(self) -> None:
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self, **kwargs: object) -> DatafusionAggregate:
         @knot
         async def empty() -> DatafusionDataBatch:
-            ctx = df.SessionContext()
-            frame = ctx.sql("SELECT NULL AS x WHERE FALSE")
-            return DatafusionDataBatch(frame=frame, context=ctx)
+            return _make_empty_batch()
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(ValueError, "non-empty"):
-                DatafusionAggregate(
-                    batch=batch, by=(),
-                    aggs={"total": dff.sum(df.col("x"))},
-                    _config=KnotConfig(id="a"),
-                )
+            return DatafusionAggregate(
+                batch=batch, _config=KnotConfig(id="a"), **kwargs
+            )
 
-    def test_rejects_unsafe_output_name(self) -> None:
-        @knot
-        async def empty() -> DatafusionDataBatch:
-            ctx = df.SessionContext()
-            frame = ctx.sql("SELECT NULL AS x WHERE FALSE")
-            return DatafusionDataBatch(frame=frame, context=ctx)
+    async def test_rejects_empty_by(self) -> None:
+        k = self._make_knot(by=(), aggs={"total": dff.sum(df.col("x"))})
+        with self.assertRaisesRegex(ValueError, "non-empty"):
+            await k.process(
+                batch=_make_empty_batch(),
+                by=(),
+                aggs={"total": dff.sum(df.col("x"))},
+            )
 
-        with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(ValueError, "plain identifier"):
-                DatafusionAggregate(
-                    batch=batch, by=("a",),
-                    aggs={"bad name!": dff.sum(df.col("x"))},
-                    _config=KnotConfig(id="a"),
-                )
+    async def test_rejects_unsafe_output_name(self) -> None:
+        k = self._make_knot(by=("a",), aggs={"bad name!": dff.sum(df.col("x"))})
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
+            await k.process(
+                batch=_make_empty_batch(),
+                by=("a",),
+                aggs={"bad name!": dff.sum(df.col("x"))},
+            )
 
-    def test_rejects_non_expression_value(self) -> None:
-        @knot
-        async def empty() -> DatafusionDataBatch:
-            ctx = df.SessionContext()
-            frame = ctx.sql("SELECT NULL AS x WHERE FALSE")
-            return DatafusionDataBatch(frame=frame, context=ctx)
-
-        with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "datafusion.Expr"):
-                DatafusionAggregate(
-                    batch=batch, by=("a",),
-                    aggs={"total": "SUM(x)"},  # type: ignore[dict-item]
-                    _config=KnotConfig(id="a"),
-                )
+    async def test_rejects_non_expression_value(self) -> None:
+        k = self._make_knot(by=("a",), aggs={"total": "SUM(x)"})  # type: ignore[arg-type]
+        with self.assertRaisesRegex(TypeError, "datafusion.Expr"):
+            await k.process(
+                batch=_make_empty_batch(),
+                by=("a",),
+                aggs={"total": "SUM(x)"},  # type: ignore[arg-type]
+            )

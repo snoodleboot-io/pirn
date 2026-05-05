@@ -4,7 +4,7 @@ predicate string or a callable producing a DataFusion expression.
 DataFusion's :meth:`datafusion.DataFrame.filter` accepts both
 :class:`datafusion.Expr` instances (built with ``df.col("x") > df.lit(1)``
 etc.) and SQL string predicates that are parsed against the frame's
-schema. This knot supports both shapes:
+schema. This Knot supports both shapes:
 
 * ``predicate``: a SQL fragment string (e.g. ``"region = 'EU' AND active"``).
 * ``expression``: a callable ``(df.DataFrame) -> df.Expr`` invoked at
@@ -14,16 +14,28 @@ schema. This knot supports both shapes:
 SECURITY
 --------
 The caller is responsible for sanitising any user-derived input before
-it reaches the predicate string. We can't fully prevent SQL injection
-from a freeform string, but :meth:`_reject_obvious_injection` catches
+it reaches the predicate string. :meth:`_reject_obvious_injection` catches
 the most common red flags (statement terminators, line and block
 comments) before the predicate hits the engine. Treat that check as
 defence in depth, not a substitute for parameterised queries.
+
+Algorithm:
+    1. Validate that exactly one of ``predicate`` or ``expression`` is supplied.
+    2. If ``predicate``: reject obvious SQL injection tokens, then call
+       ``frame.filter(predicate)``.
+    3. If ``expression``: invoke the callable against the upstream frame to
+       produce a ``datafusion.Expr``, then call ``frame.filter(expr)``.
+    4. Return the filtered frame wrapped in a new :class:`DatafusionDataBatch`.
+
+References:
+    [1] Apache DataFusion Python — DataFrame.filter:
+        https://datafusion.apache.org/python/autoapi/datafusion/index.html#datafusion.DataFrame.filter
 """
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import datafusion as df
 
@@ -41,11 +53,37 @@ class DatafusionFilter(Knot):
         self,
         *,
         batch: Knot,
-        predicate: str | None = None,
-        expression: Callable[[df.DataFrame], df.Expr] | None = None,
+        predicate: Knot | str | None = None,
+        expression: Knot | Callable[[df.DataFrame], df.Expr] | None = None,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            batch=batch,
+            predicate=predicate,
+            expression=expression,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        batch: DatafusionDataBatch,
+        predicate: str | None,
+        expression: Any,  # Callable[[df.DataFrame], df.Expr] | None — pydantic can't schema Callable
+        **_: Any,
+    ) -> DatafusionDataBatch:
+        """Apply the configured SQL predicate or expression to filter rows.
+
+        Args:
+            batch: The DatafusionDataBatch to filter.
+            predicate: A SQL fragment string, or None when using ``expression``.
+            expression: A callable ``(frame) -> datafusion.Expr``, or None when
+                using ``predicate``.
+
+        Returns:
+            A new DatafusionDataBatch containing only rows that satisfy the filter.
+        """
         if predicate is None and expression is None:
             raise TypeError(
                 "DatafusionFilter: provide either predicate=<sql string> "
@@ -57,49 +95,27 @@ class DatafusionFilter(Knot):
             )
         if predicate is not None:
             if not isinstance(predicate, str):
-                raise TypeError(
-                    "DatafusionFilter: predicate must be a SQL string"
-                )
+                raise TypeError("DatafusionFilter: predicate must be a SQL string")
             if not predicate.strip():
                 raise ValueError(
                     "DatafusionFilter: predicate must not be empty or whitespace"
                 )
             self._reject_obvious_injection(predicate)
-        if expression is not None and not callable(expression):
-            raise TypeError(
-                "DatafusionFilter: expression must be callable(frame) -> datafusion.Expr"
-            )
-        self._predicate = predicate
-        self._expression = expression
-        super().__init__(batch=batch, _config=_config, **kwargs)
-
-    @property
-    def predicate(self) -> str | None:
-        return self._predicate
-
-    async def process(
-        self, batch: DatafusionDataBatch, **_: Any
-    ) -> DatafusionDataBatch:
-        """Apply the configured SQL predicate or expression to filter rows and return the result.
-
-        Args:
-            batch: The DatafusionDataBatch to filter.
-
-        Returns:
-            A new DatafusionDataBatch containing only the rows that satisfy the predicate or expression.
-        """
-        if self._predicate is not None:
-            filtered = batch.frame.filter(self._predicate)
+            filtered = batch.frame.filter(predicate)
         else:
-            assert self._expression is not None
-            filtered = batch.frame.filter(self._expression(batch.frame))
+            assert expression is not None
+            if not callable(expression):
+                raise TypeError(
+                    "DatafusionFilter: expression must be callable(frame) -> datafusion.Expr"
+                )
+            filtered = batch.frame.filter(expression(batch.frame))
         return batch.with_frame(filtered)
 
-    def _reject_obvious_injection(self, predicate: str) -> None:
+    @staticmethod
+    def _reject_obvious_injection(predicate: str) -> None:
         # Line comments, block comments, and statement terminators have
         # no legitimate place in a single boolean expression. Flagging
-        # them at construction time blocks the most common injection
-        # patterns and the most common copy-paste mistakes.
+        # them at process time blocks the most common injection patterns.
         red_flags = (";", "--", "/*", "*/")
         for token in red_flags:
             if token in predicate:
