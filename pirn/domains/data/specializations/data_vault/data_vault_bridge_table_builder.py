@@ -9,50 +9,84 @@ IDs) from every participating Hub alongside the Link's own hash key.
 The Bridge is a **derived** table: it is truncated and rebuilt on every
 run from the Link and Hub tables in the vault.
 
-Configuration
--------------
-``hub_configs`` is a sequence of dicts, one per Hub that participates in
-the Link:
+Algorithm:
+    1. Receive resolved ``source_pool``, ``target_pool``, ``target_table``,
+       ``link_table``, ``link_hash_key_column``, and ``hub_configs``
+       in ``process()``.
+    2. Validate all inputs: pool types, non-empty strings, identifier safety,
+       and required keys in each hub config dict.
+    3. Truncate the target Bridge table (DELETE FROM).
+    4. Fetch all rows from the Link table.
+    5. For each Link row, look up each participating Hub by its FK value and
+       gather the configured bridge columns.
+    6. INSERT one Bridge row per Link row (NULL-filling any missing Hub rows).
+    7. Return a summary dict with ``succeeded``, ``target_table``,
+       and ``rows_written``.
 
-* ``"hub_table"`` — Hub table name (validated identifier)
-* ``"hub_hash_key_column"`` — PK of the Hub (validated identifier)
-* ``"link_fk_column"`` — FK column in the Link table pointing to this Hub
-  (validated identifier)
-* ``"bridge_columns"`` — list of column names to carry from the Hub into
-  the Bridge row (each validated)
-
-The Link itself is identified by ``link_table`` and
-``link_hash_key_column``.  The Bridge row always includes
-``link_hash_key_column`` as its own column.
+References:
+    [1] Linstedt & Olschimke — *Building a Scalable Data Warehouse with Data Vault 2.0*
+        (2015), Chapter 9: Bridge tables.
+    [2] pirn — DatabaseConnectionPool interface:
+        pirn/domains/connectors/database_connection_pool.py
+    [3] pirn — IdentifierValidator (SQL injection guard):
+        pirn/domains/data/identifier_validator.py
 """
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from typing import Any
 
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.connectors.database_connection_pool import (
-    DatabaseConnectionPool,
-)
+from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.data.identifier_validator import IdentifierValidator
-from pirn.nodes.sub_tapestry import SubTapestry
 
 
-class DataVaultBridgeTableBuilder(SubTapestry):
+class DataVaultBridgeTableBuilder(Knot):
     """Rebuild a Bridge table by flattening a Link + Hub chain into star-schema FKs."""
 
     def __init__(
         self,
         *,
-        source_pool: DatabaseConnectionPool,
-        target_pool: DatabaseConnectionPool,
-        target_table: str,
-        link_table: str,
-        link_hash_key_column: str,
-        hub_configs: Sequence[dict[str, Any]],
+        source_pool: Knot | DatabaseConnectionPool,
+        target_pool: Knot | DatabaseConnectionPool,
+        target_table: Knot | str,
+        link_table: Knot | str,
+        link_hash_key_column: Knot | str,
+        hub_configs: Knot | Any,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            source_pool=source_pool,
+            target_pool=target_pool,
+            target_table=target_table,
+            link_table=link_table,
+            link_hash_key_column=link_hash_key_column,
+            hub_configs=hub_configs,
+            _config=_config,
+            **kwargs,
+        )
+
+    @staticmethod
+    def _hub_lookup_query(hub_cfg: dict[str, Any]) -> str:
+        cols = ", ".join(hub_cfg["bridge_columns"])
+        return (
+            f"SELECT {cols} FROM {hub_cfg['hub_table']} "
+            f"WHERE {hub_cfg['hub_hash_key_column']} = ?"
+        )
+
+    async def process(
+        self,
+        *,
+        source_pool: Any,
+        target_pool: Any,
+        target_table: Any,
+        link_table: Any,
+        link_hash_key_column: Any,
+        hub_configs: Any,
+        **_: Any,
+    ) -> dict[str, Any]:
         if not isinstance(source_pool, DatabaseConnectionPool):
             raise TypeError(
                 "DataVaultBridgeTableBuilder: source_pool must be a DatabaseConnectionPool"
@@ -69,6 +103,10 @@ class DataVaultBridgeTableBuilder(SubTapestry):
                 raise ValueError(
                     f"DataVaultBridgeTableBuilder: {label} must be a non-empty string"
                 )
+        if not isinstance(link_hash_key_column, str) or not link_hash_key_column:
+            raise ValueError(
+                "DataVaultBridgeTableBuilder: link_hash_key_column must be a non-empty string"
+            )
         IdentifierValidator.validate_column("target_table", target_table)
         IdentifierValidator.validate_column("link_table", link_table)
         IdentifierValidator.validate_column("link_hash_key_column", link_hash_key_column)
@@ -110,59 +148,37 @@ class DataVaultBridgeTableBuilder(SubTapestry):
                     "bridge_columns": bridge_cols,
                 }
             )
-        self._source_pool = source_pool
-        self._target_pool = target_pool
-        self._target_table = target_table
-        self._link_table = link_table
-        self._link_hash_key_column = link_hash_key_column
-        self._hub_configs = validated_hub_configs
-        super().__init__(_config=_config, **kwargs)
-
-    def _hub_lookup_query(self, hub_cfg: dict[str, Any]) -> str:
-        cols = ", ".join(hub_cfg["bridge_columns"])
-        return (
-            f"SELECT {cols} FROM {hub_cfg['hub_table']} "
-            f"WHERE {hub_cfg['hub_hash_key_column']} = ?"
+        await target_pool.execute(f"DELETE FROM {target_table}")
+        link_rows = await source_pool.fetch_all(
+            f"SELECT {link_hash_key_column}, "
+            + ", ".join(c["link_fk_column"] for c in validated_hub_configs)
+            + f" FROM {link_table}"
         )
-
-    async def process(self, **_: Any) -> dict[str, Any]:
-        """Truncate and rebuild the Bridge table from the Link and Hub tables.
-
-        Returns:
-            A dict with keys ``succeeded``, ``target_table``, and ``rows_written``
-            summarising the build outcome.
-        """
-        await self._target_pool.execute(f"DELETE FROM {self._target_table}")
-        link_rows = await self._source_pool.fetch_all(
-            f"SELECT {self._link_hash_key_column}, "
-            + ", ".join(c["link_fk_column"] for c in self._hub_configs)
-            + f" FROM {self._link_table}"
-        )
-        all_bridge_cols = [self._link_hash_key_column]
-        for hub_cfg in self._hub_configs:
+        all_bridge_cols = [link_hash_key_column]
+        for hub_cfg in validated_hub_configs:
             all_bridge_cols.extend(hub_cfg["bridge_columns"])
         col_list = ", ".join(all_bridge_cols)
         placeholders = ", ".join(["?"] * len(all_bridge_cols))
         insert_sql = (
-            f"INSERT INTO {self._target_table} ({col_list}) VALUES ({placeholders})"
+            f"INSERT INTO {target_table} ({col_list}) VALUES ({placeholders})"
         )
         rows_written = 0
         for link_row in link_rows:
             link_hk = link_row[0]
             hub_fk_values = link_row[1:]
             bridge_values: list[Any] = [link_hk]
-            for hub_cfg, hub_fk in zip(self._hub_configs, hub_fk_values):
-                hub_rows = await self._source_pool.fetch_all(
-                    self._hub_lookup_query(hub_cfg), (hub_fk,)
+            for hub_cfg, hub_fk in zip(validated_hub_configs, hub_fk_values, strict=False):
+                hub_rows = await source_pool.fetch_all(
+                    DataVaultBridgeTableBuilder._hub_lookup_query(hub_cfg), (hub_fk,)
                 )
                 if hub_rows:
                     bridge_values.extend(hub_rows[0])
                 else:
                     bridge_values.extend([None] * len(hub_cfg["bridge_columns"]))
-            await self._target_pool.execute(insert_sql, tuple(bridge_values))
+            await target_pool.execute(insert_sql, tuple(bridge_values))
             rows_written += 1
         return {
             "succeeded": True,
-            "target_table": self._target_table,
+            "target_table": target_table,
             "rows_written": rows_written,
         }

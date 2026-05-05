@@ -1,9 +1,21 @@
-"""``ReadHighWaterMarkKnot`` — internal helper for
-:class:`WatermarkIncrementalExtract`.
+"""``ReadHighWaterMarkKnot`` — return ``MAX(watermark_column)`` from a
+target table, or ``None`` when the table is empty (initial load).
 
-Returns ``MAX(watermark_column)`` from the target table, or ``None``
-when the target is empty (initial load). Pool is held as instance state.
-Identifier guards reject anything non-alphanumeric.
+Pool, table, and watermark_column arrive as resolved values in
+``process()``.  Identifier guards (alphanumeric + underscores) are
+applied there for defence-in-depth.
+
+Algorithm:
+    1. Receive ``pool``, ``table``, and ``watermark_column`` in ``process()``.
+    2. Validate pool type, non-empty strings, and alphanumeric guards.
+    3. Issue ``SELECT MAX(watermark_column) FROM table``.
+    4. Return the scalar result, or ``None`` if the table is empty.
+
+References:
+    [1] pirn — DatabaseConnectionPool interface:
+        pirn/domains/connectors/database_connection_pool.py
+    [2] pirn — WatermarkIncrementalExtract:
+        pirn/domains/data/specializations/ingestion/watermark_incremental_extract.py
 """
 
 from __future__ import annotations
@@ -21,12 +33,35 @@ class ReadHighWaterMarkKnot(Knot):
     def __init__(
         self,
         *,
-        pool: DatabaseConnectionPool,
-        table: str,
-        watermark_column: str,
+        pool: Knot | DatabaseConnectionPool,
+        table: Knot | str,
+        watermark_column: Knot | str,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            pool=pool,
+            table=table,
+            watermark_column=watermark_column,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(self, *, pool: Any, table: Any, watermark_column: Any, **_: Any) -> Any:
+        """Validate inputs, query the MAX watermark, and return the value or None.
+
+        Args:
+            pool: The database connection pool.
+            table: The target table name (alphanumeric + underscores).
+            watermark_column: The watermark column name (alphanumeric + underscores).
+
+        Returns:
+            The maximum watermark value, or ``None`` when the table is empty.
+
+        Raises:
+            TypeError: If ``pool`` is not a ``DatabaseConnectionPool`` or lacks ``fetch_all``.
+            ValueError: If identifiers are empty or contain invalid characters.
+        """
         if not isinstance(pool, DatabaseConnectionPool):
             raise TypeError(
                 "ReadHighWaterMarkKnot: pool must be a DatabaseConnectionPool"
@@ -44,28 +79,12 @@ class ReadHighWaterMarkKnot(Knot):
                     f"ReadHighWaterMarkKnot: {label} {value!r} must be "
                     "alphanumeric (plus underscores)"
                 )
-        self._pool = pool
-        self._table = table
-        self._watermark_column = watermark_column
-        super().__init__(_config=_config, **kwargs)
-
-    async def process(self, **_: Any) -> Any:
-        """Query MAX of the watermark column from the target table and return the value or None.
-
-        Returns:
-            The maximum watermark value found in the target table, or None when the table is empty.
-
-        Raises:
-            TypeError: If the pool does not support fetch_all().
-        """
-        fetch_all = getattr(self._pool, "fetch_all", None)
+        fetch_all = getattr(pool, "fetch_all", None)
         if fetch_all is None:
             raise TypeError(
                 "ReadHighWaterMarkKnot: pool does not support fetch_all()"
             )
-        rows = await fetch_all(
-            f"SELECT MAX({self._watermark_column}) FROM {self._table}"
-        )
+        rows = await fetch_all(f"SELECT MAX({watermark_column}) FROM {table}")
         if not rows:
             return None
         return rows[0][0]

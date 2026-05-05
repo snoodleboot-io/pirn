@@ -8,49 +8,103 @@ Each row carries exactly:
 * ``load_date`` — the UTC ISO-8601 timestamp of the batch that first saw this key,
 * ``record_source`` — the system-of-record label for that batch.
 
-Behaviour
----------
-For each row produced by ``source_query``:
+Algorithm:
+    1. Receive resolved ``source_pool``, ``source_query``, ``target_pool``,
+       ``target_table``, ``hash_key_column``, ``business_key_columns``,
+       ``load_date_column``, ``record_source_column``, and ``record_source``
+       in ``process()``.
+    2. Validate all inputs: pool types, non-empty strings, identifier safety,
+       and column disjointness against the envelope columns.
+    3. Fetch all rows from the source via ``source_pool.fetch_all``.
+    4. For each row, check whether the hash key already exists in the target Hub.
+    5. If present, skip (insert-only; no updates ever).
+    6. Otherwise, INSERT the new hub row with current UTC ``load_date`` and
+       the supplied ``record_source``.
+    7. Return a summary dict with ``succeeded``, ``target_table``,
+       and ``rows_inserted``.
 
-* If a row with the same ``hash_key_column`` already exists in
-  ``target_table`` → **skip** (insert-only; no updates ever).
-* Otherwise → ``INSERT`` the new hub row with the supplied
-  ``load_date`` and ``record_source``.
-
-Re-running with the same set of keys is always a no-op.
+References:
+    [1] Linstedt & Olschimke — *Building a Scalable Data Warehouse with Data Vault 2.0*
+        (2015), Chapter 4: Hub tables.
+    [2] pirn — DatabaseConnectionPool interface:
+        pirn/domains/connectors/database_connection_pool.py
+    [3] pirn — IdentifierValidator (SQL injection guard):
+        pirn/domains/data/identifier_validator.py
 """
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Sequence
+from datetime import UTC, datetime
+from typing import Any
 
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.connectors.database_connection_pool import (
-    DatabaseConnectionPool,
-)
+from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.data.identifier_validator import IdentifierValidator
-from pirn.nodes.sub_tapestry import SubTapestry
 
 
-class DataVaultHubLoader(SubTapestry):
+class DataVaultHubLoader(Knot):
     """Insert-only loader that adds new business keys to a Data Vault Hub."""
 
     def __init__(
         self,
         *,
-        source_pool: DatabaseConnectionPool,
-        source_query: str,
-        target_pool: DatabaseConnectionPool,
-        target_table: str,
-        hash_key_column: str,
-        business_key_columns: Sequence[str],
-        load_date_column: str = "load_date",
-        record_source_column: str = "record_source",
-        record_source: str,
+        source_pool: Knot | DatabaseConnectionPool,
+        source_query: Knot | str,
+        target_pool: Knot | DatabaseConnectionPool,
+        target_table: Knot | str,
+        hash_key_column: Knot | str,
+        business_key_columns: Knot | tuple[str, ...],
+        load_date_column: Knot | str,
+        record_source_column: Knot | str,
+        record_source: Knot | str,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            source_pool=source_pool,
+            source_query=source_query,
+            target_pool=target_pool,
+            target_table=target_table,
+            hash_key_column=hash_key_column,
+            business_key_columns=business_key_columns,
+            load_date_column=load_date_column,
+            record_source_column=record_source_column,
+            record_source=record_source,
+            _config=_config,
+            **kwargs,
+        )
+
+    @staticmethod
+    def _exists_query(target_table: str, hash_key_column: str) -> str:
+        return f"SELECT 1 FROM {target_table} WHERE {hash_key_column} = ?"
+
+    @staticmethod
+    def _insert_query(
+        target_table: str,
+        source_columns: tuple[str, ...],
+        load_date_column: str,
+        record_source_column: str,
+    ) -> str:
+        all_cols = [*source_columns, load_date_column, record_source_column]
+        col_list = ", ".join(all_cols)
+        placeholders = ", ".join(["?"] * len(all_cols))
+        return f"INSERT INTO {target_table} ({col_list}) VALUES ({placeholders})"
+
+    async def process(
+        self,
+        *,
+        source_pool: Any,
+        source_query: Any,
+        target_pool: Any,
+        target_table: Any,
+        hash_key_column: Any,
+        business_key_columns: Any,
+        load_date_column: Any,
+        record_source_column: Any,
+        record_source: Any,
+        **_: Any,
+    ) -> dict[str, Any]:
         if not isinstance(source_pool, DatabaseConnectionPool):
             raise TypeError(
                 "DataVaultHubLoader: source_pool must be a DatabaseConnectionPool"
@@ -68,6 +122,18 @@ class DataVaultHubLoader(SubTapestry):
                 raise ValueError(
                     f"DataVaultHubLoader: {label} must be a non-empty string"
                 )
+        if not isinstance(load_date_column, str) or not load_date_column:
+            raise ValueError(
+                "DataVaultHubLoader: load_date_column must be a non-empty string"
+            )
+        if not isinstance(record_source_column, str) or not record_source_column:
+            raise ValueError(
+                "DataVaultHubLoader: record_source_column must be a non-empty string"
+            )
+        if not isinstance(hash_key_column, str) or not hash_key_column:
+            raise ValueError(
+                "DataVaultHubLoader: hash_key_column must be a non-empty string"
+            )
         IdentifierValidator.validate_column("target_table", target_table)
         IdentifierValidator.validate_column("hash_key_column", hash_key_column)
         IdentifierValidator.validate_column("load_date_column", load_date_column)
@@ -81,64 +147,29 @@ class DataVaultHubLoader(SubTapestry):
                 f"DataVaultHubLoader: business_key_columns clash with envelope "
                 f"columns: {sorted(clash)!r}"
             )
-        self._source_pool = source_pool
-        self._source_query = source_query
-        self._target_pool = target_pool
-        self._target_table = target_table
-        self._hash_key_column = hash_key_column
-        self._business_key_columns = bk_tuple
-        self._load_date_column = load_date_column
-        self._record_source_column = record_source_column
-        self._record_source = record_source
-        self._source_columns = (hash_key_column,) + bk_tuple
-        super().__init__(_config=_config, **kwargs)
-
-    @property
-    def _exists_query(self) -> str:
-        return (
-            f"SELECT 1 FROM {self._target_table} "
-            f"WHERE {self._hash_key_column} = ?"
-        )
-
-    @property
-    def _insert_query(self) -> str:
-        all_cols = list(self._source_columns) + [
-            self._load_date_column,
-            self._record_source_column,
-        ]
-        col_list = ", ".join(all_cols)
-        placeholders = ", ".join(["?"] * len(all_cols))
-        return (
-            f"INSERT INTO {self._target_table} ({col_list}) "
-            f"VALUES ({placeholders})"
-        )
-
-    async def process(self, **_: Any) -> dict[str, Any]:
-        """Insert new business keys into the Hub, skipping any that already exist.
-
-        Returns:
-            A dict with keys ``succeeded``, ``target_table``, and ``rows_inserted``
-            summarising the load outcome.
-        """
-        source_rows = await self._source_pool.fetch_all(self._source_query)
-        load_date = datetime.now(timezone.utc).isoformat()
+        source_columns = (hash_key_column, *bk_tuple)
+        source_rows = await source_pool.fetch_all(source_query)
+        load_date = datetime.now(UTC).isoformat()
         rows_inserted = 0
         for row in source_rows:
-            row_dict = dict(zip(self._source_columns, row))
-            hash_key = row_dict[self._hash_key_column]
-            existing = await self._target_pool.fetch_all(
-                self._exists_query, (hash_key,)
+            row_dict = dict(zip(source_columns, row, strict=False))
+            hash_key = row_dict[hash_key_column]
+            existing = await target_pool.fetch_all(
+                DataVaultHubLoader._exists_query(target_table, hash_key_column),
+                (hash_key,),
             )
             if existing:
                 continue
-            values = tuple(row_dict[c] for c in self._source_columns)
-            await self._target_pool.execute(
-                self._insert_query,
-                values + (load_date, self._record_source),
+            values = tuple(row_dict[c] for c in source_columns)
+            await target_pool.execute(
+                DataVaultHubLoader._insert_query(
+                    target_table, source_columns, load_date_column, record_source_column
+                ),
+                (*values, load_date, record_source),
             )
             rows_inserted += 1
         return {
             "succeeded": True,
-            "target_table": self._target_table,
+            "target_table": target_table,
             "rows_inserted": rows_inserted,
         }

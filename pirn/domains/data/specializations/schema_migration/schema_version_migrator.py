@@ -3,42 +3,87 @@
 Reads migration records from a migration registry table, applies any
 unapplied migrations in version order, and fails if a version gap is
 detected.
+
+Algorithm:
+    1. Receive resolved ``pool``, ``migrations``, and ``migration_table``
+       in ``process()``.
+    2. Validate pool type, non-empty migrations list, version ordering,
+       uniqueness, and positive version numbers.
+    3. Fetch applied versions from ``migration_table``.
+    4. Iterate migrations in order; skip already applied, fail on gaps.
+    5. Execute each DDL and INSERT a tracking row into ``migration_table``.
+    6. Return a summary dict with ``succeeded``, ``applied``, and ``skipped``.
+
+References:
+    [1] pirn — DatabaseConnectionPool interface:
+        pirn/domains/connectors/database_connection_pool.py
+    [2] pirn — IdentifierValidator (SQL injection guard):
+        pirn/domains/data/identifier_validator.py
 """
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Sequence
+from collections.abc import Sequence
+from datetime import UTC, datetime
+from typing import Any
 
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.connectors.database_connection_pool import (
-    DatabaseConnectionPool,
-)
+from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.data.identifier_validator import IdentifierValidator
-from pirn.nodes.sub_tapestry import SubTapestry
 
 
-class SchemaVersionMigrator(SubTapestry):
+class SchemaVersionMigrator(Knot):
     """Apply versioned DDL migrations, tracking applied versions in a registry."""
 
     def __init__(
         self,
         *,
-        pool: DatabaseConnectionPool,
-        migrations: Sequence[tuple[int, str]],
-        migration_table: str = "schema_migrations",
+        pool: Knot | DatabaseConnectionPool,
+        migrations: Knot | Sequence[tuple[int, str]],
+        migration_table: Knot | str = "schema_migrations",
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            pool=pool,
+            migrations=migrations,
+            migration_table=migration_table,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        *,
+        pool: Any,
+        migrations: Any,
+        migration_table: Any = "schema_migrations",
+        **_: Any,
+    ) -> dict[str, Any]:
+        """Apply unapplied migrations in order, failing on version gaps.
+
+        Args:
+            pool: DatabaseConnectionPool to apply migrations against.
+            migrations: Ordered sequence of (version, ddl) pairs; must be
+                sorted ascending with no duplicates.
+            migration_table: Registry table that tracks applied versions.
+
+        Returns:
+            A dict with keys ``succeeded``, ``applied``, and ``skipped``
+            listing applied and skipped version numbers.
+
+        Raises:
+            TypeError: If ``pool`` is not a DatabaseConnectionPool.
+            ValueError: If migrations are empty, unordered, duplicate, or a
+                version gap is detected at runtime.
+        """
         if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError(
-                "SchemaVersionMigrator: pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("SchemaVersionMigrator: pool must be a DatabaseConnectionPool")
         if not migrations:
-            raise ValueError(
-                "SchemaVersionMigrator: migrations must be non-empty"
-            )
-        for idx, (version, ddl) in enumerate(migrations):
+            raise ValueError("SchemaVersionMigrator: migrations must be non-empty")
+        mig_list = list(migrations)
+        for idx, (version, ddl) in enumerate(mig_list):
             if not isinstance(version, int) or version < 1:
                 raise ValueError(
                     f"SchemaVersionMigrator: migrations[{idx}] version must be "
@@ -49,46 +94,20 @@ class SchemaVersionMigrator(SubTapestry):
                     f"SchemaVersionMigrator: migrations[{idx}] DDL must be "
                     f"a non-empty string"
                 )
-        IdentifierValidator.validate_column(
-            "migration_table", migration_table
-        )
-        versions = [v for v, _ in migrations]
+        IdentifierValidator.validate_column("migration_table", migration_table)
+        versions = [v for v, _ in mig_list]
         sorted_versions = sorted(versions)
         if versions != sorted_versions:
-            raise ValueError(
-                "SchemaVersionMigrator: migrations must be ordered by version"
-            )
+            raise ValueError("SchemaVersionMigrator: migrations must be ordered by version")
         if len(set(versions)) != len(versions):
-            raise ValueError(
-                "SchemaVersionMigrator: migration versions must be unique"
-            )
-        self._pool = pool
-        self._migrations = list(migrations)
-        self._migration_table = migration_table
-        super().__init__(_config=_config, **kwargs)
+            raise ValueError("SchemaVersionMigrator: migration versions must be unique")
 
-    async def _get_applied_versions(self) -> set[int]:
-        rows = await self._pool.fetch_all(
-            f"SELECT version FROM {self._migration_table}"
-        )
-        return {row[0] for row in rows}
-
-    async def process(self, **_: Any) -> dict[str, Any]:
-        """Apply unapplied migrations in order, failing on version gaps.
-
-        Migrations already recorded in the migration table are skipped.
-        If a gap is detected between applied versions and the next migration,
-        a ValueError is raised.
-
-        Returns:
-            A dict with keys ``succeeded``, ``applied``, and
-            ``skipped`` listing applied and skipped version numbers.
-        """
-        applied_versions = await self._get_applied_versions()
+        rows = await pool.fetch_all(f"SELECT version FROM {migration_table}")
+        applied_versions: set[int] = {row[0] for row in rows}
         applied = []
         skipped = []
         expected_next = (max(applied_versions) + 1) if applied_versions else 1
-        for version, ddl in self._migrations:
+        for version, ddl in mig_list:
             if version in applied_versions:
                 skipped.append(version)
                 continue
@@ -97,11 +116,10 @@ class SchemaVersionMigrator(SubTapestry):
                     f"SchemaVersionMigrator: version gap detected — "
                     f"expected {expected_next}, got {version}"
                 )
-            await self._pool.execute(ddl)
-            applied_at = datetime.now(timezone.utc).isoformat()
-            await self._pool.execute(
-                f"INSERT INTO {self._migration_table} (version, applied_at) "
-                f"VALUES (?, ?)",
+            await pool.execute(ddl)
+            applied_at = datetime.now(UTC).isoformat()
+            await pool.execute(
+                f"INSERT INTO {migration_table} (version, applied_at) VALUES (?, ?)",
                 (version, applied_at),
             )
             applied.append(version)

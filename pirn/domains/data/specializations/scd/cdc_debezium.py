@@ -11,7 +11,7 @@ Debezium emits a uniform JSON envelope for every change event::
       "ts_ms": 1234567890000
     }
 
-This SubTapestry consumes the topic, decodes each envelope and applies
+This knot consumes the topic, decodes each envelope and applies
 the change to ``target_table``:
 
 * ``op="c"`` or ``op="r"`` — ``INSERT`` ``after``.
@@ -29,46 +29,185 @@ Bounded vs unbounded
 
 The knot returns a primitive summary so pirn's content-addressing hash
 does not have to walk a :class:`RunResult`.
+
+Algorithm:
+    1. Receive resolved ``broker``, ``topic``, ``target_pool``,
+       ``target_table``, ``key_columns``, and ``max_messages`` in
+       ``process()``.
+    2. Validate all inputs: broker type, pool type, non-empty strings,
+       identifier safety, and max_messages range.
+    3. Consume events from the broker topic in a bounded loop.
+    4. For each event, decode the Debezium envelope and dispatch to the
+       appropriate SQL operation (INSERT, UPDATE, DELETE).
+    5. Return a summary dict with ``applied`` and ``errors`` counts.
+
+References:
+    [1] Debezium — Change Data Capture documentation:
+        https://debezium.io/documentation/
+    [2] pirn — DatabaseConnectionPool interface:
+        pirn/domains/connectors/database_connection_pool.py
+    [3] pirn — MessageBroker interface:
+        pirn/domains/connectors/message_broker.py
+    [4] pirn — IdentifierValidator (SQL injection guard):
+        pirn/domains/data/identifier_validator.py
 """
 
 from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Sequence
+from typing import Any
 
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.connectors.database_connection_pool import (
-    DatabaseConnectionPool,
-)
+from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.message_broker import MessageBroker
 from pirn.domains.data.identifier_validator import IdentifierValidator
-from pirn.nodes.sub_tapestry import SubTapestry
+
+_logger = logging.getLogger(__name__)
 
 
-class CDCDebezium(SubTapestry):
+class CDCDebezium(Knot):
     """Apply Debezium change events from a broker topic to a target table."""
 
     def __init__(
         self,
         *,
-        broker: MessageBroker,
-        topic: str,
-        target_pool: DatabaseConnectionPool,
-        target_table: str,
-        key_columns: Sequence[str],
+        broker: Knot | MessageBroker,
+        topic: Knot | str,
+        target_pool: Knot | DatabaseConnectionPool,
+        target_table: Knot | str,
+        key_columns: Knot | tuple[str, ...],
+        max_messages: Knot | int | None = None,
         _config: KnotConfig,
-        max_messages: int | None = None,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            broker=broker,
+            topic=topic,
+            target_pool=target_pool,
+            target_table=target_table,
+            key_columns=key_columns,
+            max_messages=max_messages,
+            _config=_config,
+            **kwargs,
+        )
+
+    @staticmethod
+    def _decode_envelope(record: Any, topic: str) -> dict[str, Any] | None:
+        value = getattr(record, "value", record)
+        if isinstance(value, (bytes, bytearray)):
+            try:
+                value = value.decode("utf-8")
+            except UnicodeDecodeError:
+                _logger.warning(
+                    "cdc.debezium.decode_failed topic=%s reason=non_utf8", topic
+                )
+                return None
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except json.JSONDecodeError:
+                _logger.warning(
+                    "cdc.debezium.decode_failed topic=%s reason=invalid_json", topic
+                )
+                return None
+        if not isinstance(value, dict):
+            _logger.warning(
+                "cdc.debezium.decode_failed topic=%s reason=not_object", topic
+            )
+            return None
+        return value
+
+    @staticmethod
+    async def _apply_insert(
+        after: dict[str, Any],
+        target_pool: DatabaseConnectionPool,
+        target_table: str,
+    ) -> None:
+        if not after:
+            raise ValueError("CDCDebezium: insert envelope missing 'after' payload")
+        for column in after:
+            IdentifierValidator.validate_column("after column", column)
+        columns = tuple(after.keys())
+        placeholders = ", ".join(["?"] * len(columns))
+        column_list = ", ".join(columns)
+        query = f"INSERT INTO {target_table} ({column_list}) VALUES ({placeholders})"
+        await target_pool.execute(query, tuple(after[c] for c in columns))
+
+    @staticmethod
+    async def _apply_update(
+        after: dict[str, Any],
+        key_source: dict[str, Any],
+        key_columns: tuple[str, ...],
+        target_pool: DatabaseConnectionPool,
+        target_table: str,
+    ) -> None:
+        if not after:
+            raise ValueError("CDCDebezium: update envelope missing 'after' payload")
+        non_key_columns = tuple(c for c in after if c not in key_columns)
+        if not non_key_columns:
+            return
+        for column in non_key_columns:
+            IdentifierValidator.validate_column("after column", column)
+        set_clause = ", ".join(f"{c} = ?" for c in non_key_columns)
+        where_clause = " AND ".join(f"{c} = ?" for c in key_columns)
+        key_values = tuple(key_source.get(k) for k in key_columns)
+        non_key_values = tuple(after[c] for c in non_key_columns)
+        query = f"UPDATE {target_table} SET {set_clause} WHERE {where_clause}"
+        await target_pool.execute(query, non_key_values + key_values)
+
+    @staticmethod
+    async def _apply_delete(
+        before: dict[str, Any],
+        key_columns: tuple[str, ...],
+        target_pool: DatabaseConnectionPool,
+        target_table: str,
+    ) -> None:
+        if not before:
+            raise ValueError("CDCDebezium: delete envelope missing 'before' payload")
+        where_clause = " AND ".join(f"{c} = ?" for c in key_columns)
+        key_values = tuple(before.get(k) for k in key_columns)
+        query = f"DELETE FROM {target_table} WHERE {where_clause}"
+        await target_pool.execute(query, key_values)
+
+    @staticmethod
+    async def _apply_envelope(
+        envelope: dict[str, Any],
+        key_columns: tuple[str, ...],
+        target_pool: DatabaseConnectionPool,
+        target_table: str,
+    ) -> None:
+        op = envelope.get("op")
+        before = envelope.get("before") or {}
+        after = envelope.get("after") or {}
+        if op in ("c", "r"):
+            await CDCDebezium._apply_insert(after, target_pool, target_table)
+        elif op == "u":
+            key_source = after if after else before
+            await CDCDebezium._apply_update(
+                after, key_source, key_columns, target_pool, target_table
+            )
+        elif op == "d":
+            await CDCDebezium._apply_delete(before, key_columns, target_pool, target_table)
+        else:
+            raise ValueError(f"CDCDebezium: unsupported op {op!r} in envelope")
+
+    async def process(
+        self,
+        *,
+        broker: Any,
+        topic: Any,
+        target_pool: Any,
+        target_table: Any,
+        key_columns: Any,
+        max_messages: Any = None,
+        **_: Any,
+    ) -> dict[str, Any]:
         if not isinstance(broker, MessageBroker):
-            raise TypeError(
-                "CDCDebezium: broker must be a MessageBroker"
-            )
+            raise TypeError("CDCDebezium: broker must be a MessageBroker")
         if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "CDCDebezium: target_pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("CDCDebezium: target_pool must be a DatabaseConnectionPool")
         if not isinstance(topic, str) or not topic:
             raise ValueError("CDCDebezium: topic must be a non-empty string")
         IdentifierValidator.validate_column("target_table", target_table)
@@ -77,145 +216,32 @@ class CDCDebezium(SubTapestry):
         if max_messages is not None:
             if not isinstance(max_messages, int) or max_messages < 0:
                 raise ValueError(
-                    "CDCDebezium: max_messages must be None or a "
-                    "non-negative integer"
+                    "CDCDebezium: max_messages must be None or a non-negative integer"
                 )
-        self._broker = broker
-        self._topic = topic
-        self._target_pool = target_pool
-        self._target_table = target_table
-        self._key_columns = key_tuple
-        self._max_messages = max_messages
-        self._logger = logging.getLogger(self.__class__.__module__)
-        super().__init__(_config=_config, **kwargs)
-
-    async def process(self, **_: Any) -> dict[str, Any]:
-        """Consume Debezium change events from the broker topic and apply them to the target table.
-
-        Returns:
-            A dict with keys ``succeeded``, ``target_table``, ``applied``, and ``errors``
-            summarising how many change events were applied.
-        """
         applied = 0
         errors = 0
         consumed = 0
-        async for record in await self._broker.consume(self._topic):
-            envelope = self._decode_envelope(record)
+        async for record in await broker.consume(topic):
+            envelope = CDCDebezium._decode_envelope(record, topic)
             if envelope is None:
                 errors += 1
             else:
                 try:
-                    await self._apply(envelope)
+                    await CDCDebezium._apply_envelope(
+                        envelope, key_tuple, target_pool, target_table
+                    )
                     applied += 1
                 except Exception:
-                    self._logger.exception(
-                        "cdc.debezium.apply_failed table=%s",
-                        self._target_table,
+                    _logger.exception(
+                        "cdc.debezium.apply_failed table=%s", target_table
                     )
                     errors += 1
             consumed += 1
-            if (
-                self._max_messages is not None
-                and consumed >= self._max_messages
-            ):
+            if max_messages is not None and consumed >= max_messages:
                 break
         return {
             "succeeded": errors == 0,
-            "target_table": self._target_table,
+            "target_table": target_table,
             "applied": applied,
             "errors": errors,
         }
-
-    def _decode_envelope(self, record: Any) -> dict[str, Any] | None:
-        value = getattr(record, "value", record)
-        if isinstance(value, (bytes, bytearray)):
-            try:
-                value = value.decode("utf-8")
-            except UnicodeDecodeError:
-                self._logger.warning(
-                    "cdc.debezium.decode_failed topic=%s reason=non_utf8",
-                    self._topic,
-                )
-                return None
-        if isinstance(value, str):
-            try:
-                value = json.loads(value)
-            except json.JSONDecodeError:
-                self._logger.warning(
-                    "cdc.debezium.decode_failed topic=%s reason=invalid_json",
-                    self._topic,
-                )
-                return None
-        if not isinstance(value, dict):
-            self._logger.warning(
-                "cdc.debezium.decode_failed topic=%s reason=not_object",
-                self._topic,
-            )
-            return None
-        return value
-
-    async def _apply(self, envelope: dict[str, Any]) -> None:
-        op = envelope.get("op")
-        before = envelope.get("before") or {}
-        after = envelope.get("after") or {}
-        if op in ("c", "r"):
-            await self._apply_insert(after)
-        elif op == "u":
-            key_source = after if after else before
-            await self._apply_update(after, key_source)
-        elif op == "d":
-            await self._apply_delete(before)
-        else:
-            raise ValueError(
-                f"CDCDebezium: unsupported op {op!r} in envelope"
-            )
-
-    async def _apply_insert(self, after: dict[str, Any]) -> None:
-        if not after:
-            raise ValueError(
-                "CDCDebezium: insert envelope missing 'after' payload"
-            )
-        for column in after:
-            IdentifierValidator.validate_column("after column", column)
-        columns = tuple(after.keys())
-        placeholders = ", ".join(["?"] * len(columns))
-        column_list = ", ".join(columns)
-        query = (
-            f"INSERT INTO {self._target_table} ({column_list}) "
-            f"VALUES ({placeholders})"
-        )
-        await self._target_pool.execute(query, tuple(after[c] for c in columns))
-
-    async def _apply_update(
-        self,
-        after: dict[str, Any],
-        key_source: dict[str, Any],
-    ) -> None:
-        if not after:
-            raise ValueError(
-                "CDCDebezium: update envelope missing 'after' payload"
-            )
-        non_key_columns = tuple(c for c in after if c not in self._key_columns)
-        if not non_key_columns:
-            return  # nothing to update
-        for column in non_key_columns:
-            IdentifierValidator.validate_column("after column", column)
-        set_clause = ", ".join(f"{c} = ?" for c in non_key_columns)
-        where_clause = " AND ".join(f"{c} = ?" for c in self._key_columns)
-        key_values = tuple(key_source.get(k) for k in self._key_columns)
-        non_key_values = tuple(after[c] for c in non_key_columns)
-        query = (
-            f"UPDATE {self._target_table} SET {set_clause} "
-            f"WHERE {where_clause}"
-        )
-        await self._target_pool.execute(query, non_key_values + key_values)
-
-    async def _apply_delete(self, before: dict[str, Any]) -> None:
-        if not before:
-            raise ValueError(
-                "CDCDebezium: delete envelope missing 'before' payload"
-            )
-        where_clause = " AND ".join(f"{c} = ?" for c in self._key_columns)
-        key_values = tuple(before.get(k) for k in self._key_columns)
-        query = f"DELETE FROM {self._target_table} WHERE {where_clause}"
-        await self._target_pool.execute(query, key_values)

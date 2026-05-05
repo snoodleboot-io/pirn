@@ -10,11 +10,25 @@ The output column is named ``{source_column}_bin`` and contains the
 1-based bin index (int).  Rows whose value falls outside the bin range
 (only possible with ``equal_width`` at exact boundary edge cases) are
 assigned to the nearest bin.
+
+Algorithm:
+    1. Receive resolved ``rows``, ``column``, ``num_bins``, and
+       ``strategy`` in ``process()``.
+    2. Validate ``column`` identifier, ``num_bins`` positivity, and
+       ``strategy`` membership.
+    3. Collect all numeric values from ``column`` across the input rows.
+    4. Compute bin edges using the chosen strategy.
+    5. Assign each row to a bin and append ``{column}_bin`` (1-based int).
+    6. Return the enriched row list.
+
+References:
+    [1] pirn — IdentifierValidator (SQL injection guard):
+        pirn/domains/data/identifier_validator.py
 """
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -27,44 +41,41 @@ class BinningKnot(Knot):
     def __init__(
         self,
         *,
-        rows: Knot,
-        column: str,
-        num_bins: int,
-        strategy: Literal["equal_width", "quantile"] = "equal_width",
+        rows: Knot | list,
+        column: Knot | str,
+        num_bins: Knot | int,
+        strategy: Knot | str,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        IdentifierValidator.validate_column("column", column)
-        if not isinstance(num_bins, int) or num_bins < 1:
-            raise ValueError(
-                "BinningKnot: num_bins must be a positive integer"
-            )
-        if strategy not in ("equal_width", "quantile"):
-            raise ValueError(
-                "BinningKnot: strategy must be 'equal_width' or 'quantile'"
-            )
-        self._column = column
-        self._num_bins = num_bins
-        self._strategy = strategy
-        self._output_column = f"{column}_bin"
-        super().__init__(rows=rows, _config=_config, **kwargs)
+        super().__init__(
+            rows=rows,
+            column=column,
+            num_bins=num_bins,
+            strategy=strategy,
+            _config=_config,
+            **kwargs,
+        )
 
-    def _equal_width_edges(self, vals: list[float]) -> list[float]:
+    @staticmethod
+    def _equal_width_edges(vals: list[float], num_bins: int) -> list[float]:
         lo, hi = min(vals), max(vals)
-        width = (hi - lo) / self._num_bins
-        return [lo + i * width for i in range(self._num_bins + 1)]
+        width = (hi - lo) / num_bins
+        return [lo + i * width for i in range(num_bins + 1)]
 
-    def _quantile_edges(self, vals: list[float]) -> list[float]:
+    @staticmethod
+    def _quantile_edges(vals: list[float], num_bins: int) -> list[float]:
         sorted_vals = sorted(vals)
         n = len(sorted_vals)
         edges = [sorted_vals[0]]
-        for b in range(1, self._num_bins):
-            idx = int(b * n / self._num_bins)
+        for b in range(1, num_bins):
+            idx = int(b * n / num_bins)
             edges.append(sorted_vals[min(idx, n - 1)])
         edges.append(sorted_vals[-1])
         return edges
 
-    def _assign(self, value: float, edges: list[float]) -> int:
+    @staticmethod
+    def _assign(value: float, edges: list[float], num_bins: int) -> int:
         for i in range(len(edges) - 1):
             lo = edges[i]
             hi = edges[i + 1]
@@ -74,31 +85,33 @@ class BinningKnot(Knot):
             else:
                 if lo <= value < hi:
                     return i + 1
-        return self._num_bins
+        return num_bins
 
     async def process(
-        self, rows: list[dict[str, Any]], **_: Any
+        self,
+        *,
+        rows: Any,
+        column: Any,
+        num_bins: Any,
+        strategy: Any,
+        **_: Any,
     ) -> list[dict[str, Any]]:
-        """Compute bin edges from all values then assign each row to a bin.
-
-        Args:
-            rows: Upstream rows with a numeric ``column``.
-
-        Returns:
-            Rows with ``{column}_bin`` (1-based int) appended.
-        """
+        IdentifierValidator.validate_column("column", column)
+        if not isinstance(num_bins, int) or num_bins < 1:
+            raise ValueError("BinningKnot: num_bins must be a positive integer")
+        if strategy not in ("equal_width", "quantile"):
+            raise ValueError("BinningKnot: strategy must be 'equal_width' or 'quantile'")
+        output_column = f"{column}_bin"
         if not rows:
             return []
-        vals = [float(r[self._column]) for r in rows]
-        if self._strategy == "equal_width":
-            edges = self._equal_width_edges(vals)
+        vals = [float(r[column]) for r in rows]
+        if strategy == "equal_width":
+            edges = self._equal_width_edges(vals, num_bins)
         else:
-            edges = self._quantile_edges(vals)
+            edges = self._quantile_edges(vals, num_bins)
         result: list[dict[str, Any]] = []
         for row in rows:
             new_row = dict(row)
-            new_row[self._output_column] = self._assign(
-                float(row[self._column]), edges
-            )
+            new_row[output_column] = self._assign(float(row[column]), edges, num_bins)
             result.append(new_row)
         return result

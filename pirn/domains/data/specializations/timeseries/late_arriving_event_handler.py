@@ -11,12 +11,33 @@ additional ``is_correction`` flag set to ``True`` and
 
 Rows that arrive within lateness are forwarded unchanged with
 ``is_correction=False``.
+
+Algorithm:
+    1. Receive resolved ``rows``, ``timestamp_column``, ``value_column``,
+       ``bucket_seconds``, ``allowed_lateness_seconds``, and ``aggregation``
+       in ``process()``.
+    2. Validate column identifiers, positive numeric thresholds, and
+       aggregation membership in ``{"mean", "sum", "count"}``.
+    3. Advance the watermark to the maximum timestamp seen so far.
+    4. For each row: compute the bucket floor; append to bucket accumulator;
+       detect late rows (ts < watermark - lateness).
+    5. For each late row, recompute and upsert a correction record.
+    6. Return all forwarded rows plus correction records.
+
+Math:
+    $bucket = \\lfloor t / bucket\\_seconds \\rfloor \\times bucket\\_seconds$
+
+    Late: $t < watermark - allowed\\_lateness\\_seconds$
+
+References:
+    [1] pirn — IdentifierValidator (SQL injection guard):
+        pirn/domains/data/identifier_validator.py
 """
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from typing import Any, Callable, Literal
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -29,15 +50,69 @@ class LateArrivingEventHandler(Knot):
     def __init__(
         self,
         *,
-        rows: Knot,
-        timestamp_column: str,
-        value_column: str,
-        bucket_seconds: float,
-        allowed_lateness_seconds: float,
-        aggregation: Literal["mean", "sum", "count"] = "sum",
+        rows: Knot | list,
+        timestamp_column: Knot | str,
+        value_column: Knot | str,
+        bucket_seconds: Knot | float,
+        allowed_lateness_seconds: Knot | float,
+        aggregation: Knot | str = "sum",
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            rows=rows,
+            timestamp_column=timestamp_column,
+            value_column=value_column,
+            bucket_seconds=bucket_seconds,
+            allowed_lateness_seconds=allowed_lateness_seconds,
+            aggregation=aggregation,
+            _config=_config,
+            **kwargs,
+        )
+
+    @staticmethod
+    def _floor(dt: datetime, bucket: timedelta) -> datetime:
+        epoch = datetime(1970, 1, 1, tzinfo=UTC)
+        if dt.tzinfo is None:
+            epoch = datetime(1970, 1, 1)
+        freq_s = bucket.total_seconds()
+        since = (dt - epoch).total_seconds()
+        return epoch + timedelta(seconds=(since // freq_s) * freq_s)
+
+    @staticmethod
+    def _agg(vals: list[Any], aggregation: str) -> Any:
+        if aggregation == "count":
+            return len(vals)
+        if aggregation == "sum":
+            return sum(vals)
+        return sum(vals) / len(vals)
+
+    async def process(
+        self,
+        *,
+        rows: Any,
+        timestamp_column: Any,
+        value_column: Any,
+        bucket_seconds: Any,
+        allowed_lateness_seconds: Any,
+        aggregation: Any = "sum",
+        **_: Any,
+    ) -> list[dict[str, Any]]:
+        """Process events and emit corrections for any late arrivals.
+
+        Args:
+            rows: Upstream event rows.
+            timestamp_column: Column name for the event timestamp.
+            value_column: Column name for the numeric value to aggregate.
+            bucket_seconds: Width of each time bucket in seconds.
+            allowed_lateness_seconds: Events older than watermark minus this
+                are classified as late.
+            aggregation: One of ``"mean"``, ``"sum"``, ``"count"``.
+
+        Returns:
+            All forwarded rows (with ``is_correction=False``) plus any
+            correction rows (with ``is_correction=True``).
+        """
         IdentifierValidator.validate_column("timestamp_column", timestamp_column)
         IdentifierValidator.validate_column("value_column", value_column)
         for name, val in (
@@ -52,72 +127,34 @@ class LateArrivingEventHandler(Knot):
             raise ValueError(
                 "LateArrivingEventHandler: aggregation must be mean/sum/count"
             )
-        self._timestamp_column = timestamp_column
-        self._value_column = value_column
-        self._bucket = timedelta(seconds=bucket_seconds)
-        self._lateness = timedelta(seconds=allowed_lateness_seconds)
-        self._aggregation = aggregation
-        super().__init__(rows=rows, _config=_config, **kwargs)
 
-    def _floor(self, dt: datetime) -> datetime:
-        epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
-        if dt.tzinfo is None:
-            epoch = datetime(1970, 1, 1)
-        freq_s = self._bucket.total_seconds()
-        since = (dt - epoch).total_seconds()
-        return epoch + timedelta(seconds=(since // freq_s) * freq_s)
+        bucket_td = timedelta(seconds=bucket_seconds)
+        lateness_td = timedelta(seconds=allowed_lateness_seconds)
 
-    def _agg(self, vals: list[Any]) -> Any:
-        if self._aggregation == "count":
-            return len(vals)
-        if self._aggregation == "sum":
-            return sum(vals)
-        return sum(vals) / len(vals)
-
-    async def process(
-        self, rows: list[dict[str, Any]], **_: Any
-    ) -> list[dict[str, Any]]:
-        """Process events and emit corrections for any late arrivals.
-
-        The watermark is set to the maximum timestamp seen so far. Events
-        older than watermark - allowed_lateness are classified as late.
-        For each late event the affected bucket aggregate is recomputed and
-        emitted as a correction record.
-
-        Args:
-            rows: Upstream event rows.
-
-        Returns:
-            All forwarded rows (with ``is_correction=False``) plus any
-            correction rows (with ``is_correction=True``).
-        """
         def _as_dt(val: Any) -> datetime:
             if isinstance(val, datetime):
                 return val
             return datetime.fromisoformat(str(val))
 
-        # Process rows in arrival order so the watermark reflects what has
-        # already been committed; late rows are those whose timestamp lags
-        # behind the advancing watermark by more than allowed_lateness.
         buckets: dict[datetime, list[Any]] = {}
         result: list[dict[str, Any]] = []
         watermark: datetime | None = None
         corrections: dict[datetime, dict[str, Any]] = {}
 
         for row in rows:
-            ts = _as_dt(row[self._timestamp_column])
+            ts = _as_dt(row[timestamp_column])
             if watermark is None or ts > watermark:
                 watermark = ts
-            bucket = self._floor(ts)
-            buckets.setdefault(bucket, []).append(row[self._value_column])
-            is_late = watermark is not None and ts < (watermark - self._lateness)
+            bucket = LateArrivingEventHandler._floor(ts, bucket_td)
+            buckets.setdefault(bucket, []).append(row[value_column])
+            is_late = watermark is not None and ts < (watermark - lateness_td)
             forwarded = dict(row)
             forwarded["is_correction"] = False
             result.append(forwarded)
             if is_late:
                 correction = {
-                    self._timestamp_column: bucket,
-                    self._value_column: self._agg(buckets[bucket]),
+                    timestamp_column: bucket,
+                    value_column: LateArrivingEventHandler._agg(buckets[bucket], aggregation),
                     "is_correction": True,
                     "correction_for_bucket": bucket,
                 }

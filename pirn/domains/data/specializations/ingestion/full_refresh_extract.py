@@ -1,10 +1,9 @@
-"""``FullRefreshExtract`` — SubTapestry that drops + reloads a target table
-from a source query on every run.
+"""``FullRefreshExtract`` — truncate and reload a target table from a
+source query on every run.
 
-Composition: read all rows from ``source_pool`` via ``source_query``,
-delete every row from ``target_table`` on ``target_pool``, then insert
-the fetched rows via ``insert_query``. No state, no watermark — every
-run is a complete refresh.
+Every run is a complete refresh: fetch all source rows, delete all target
+rows, then insert the fresh set.  No state, no watermark — the target
+converges to exact parity with the source.
 
 Use this when:
 - The source dataset is small enough to read in full each run.
@@ -12,11 +11,20 @@ Use this when:
   from incremental gaps).
 - You don't have a reliable watermark column.
 
-Pools are held as SubTapestry instance state and passed directly to the
-inner knots' constructors. They never flow through pirn's
-content-addressing serialiser thanks to the pool interface's
-``__get_pydantic_core_schema__`` opaque-type schema with a stable
-identity-based serialiser.
+Algorithm:
+    1. Receive ``source_pool``, ``source_query``, ``target_pool``,
+       ``target_table``, and ``insert_query`` in ``process()``.
+    2. Validate pool types, non-empty strings, and the alphanumeric
+       guard on ``target_table``.
+    3. Fetch all source rows via ``source_pool.fetch_all``.
+    4. Truncate the target via ``DELETE FROM <target_table>``.
+    5. Insert all fetched rows via ``target_pool.execute_many``.
+    6. Return a summary dict with ``succeeded``, ``target_table``,
+       and ``rows_inserted``.
+
+References:
+    [1] pirn — DatabaseConnectionPool interface:
+        pirn/domains/connectors/database_connection_pool.py
 """
 
 from __future__ import annotations
@@ -25,34 +33,59 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_result import RunResult
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
-from pirn.domains.connectors.knots.database_execute_sink import DatabaseExecuteSink
-from pirn.domains.connectors.knots.database_query_source import DatabaseQuerySource
-from pirn.domains.data.specializations.ingestion.rows_behind_truncate_check_knot import (
-    RowsBehindTruncateCheckKnot,
-)
-from pirn.domains.data.specializations.ingestion.truncate_table_knot import (
-    TruncateTableKnot,
-)
-from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
-class FullRefreshExtract(SubTapestry):
-    """Drop + reload a target table from a source query."""
+class FullRefreshExtract(Knot):
+    """Drop + reload a target table from a source query on every run."""
 
     def __init__(
         self,
         *,
-        source_pool: DatabaseConnectionPool,
-        source_query: str,
-        target_pool: DatabaseConnectionPool,
-        target_table: str,
-        insert_query: str,
+        source_pool: Knot | DatabaseConnectionPool,
+        source_query: Knot | str,
+        target_pool: Knot | DatabaseConnectionPool,
+        target_table: Knot | str,
+        insert_query: Knot | str,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            source_pool=source_pool,
+            source_query=source_query,
+            target_pool=target_pool,
+            target_table=target_table,
+            insert_query=insert_query,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        *,
+        source_pool: Any,
+        source_query: Any,
+        target_pool: Any,
+        target_table: Any,
+        insert_query: Any,
+        **_: Any,
+    ) -> dict[str, Any]:
+        """Validate inputs, fetch rows, truncate target, insert fresh rows, return summary.
+
+        Args:
+            source_pool: Pool to read rows from.
+            source_query: SELECT query to execute against the source.
+            target_pool: Pool to write rows to.
+            target_table: Name of the table to truncate and reload.
+            insert_query: INSERT query to execute for each row batch.
+
+        Returns:
+            A dict with ``succeeded``, ``target_table``, and ``rows_inserted``.
+
+        Raises:
+            TypeError: If either pool is not a ``DatabaseConnectionPool``.
+            ValueError: If any string argument is empty or ``target_table`` is non-alphanumeric.
+        """
         if not isinstance(source_pool, DatabaseConnectionPool):
             raise TypeError(
                 "FullRefreshExtract: source_pool must be a DatabaseConnectionPool"
@@ -61,48 +94,28 @@ class FullRefreshExtract(SubTapestry):
             raise TypeError(
                 "FullRefreshExtract: target_pool must be a DatabaseConnectionPool"
             )
-        for label, value in (
-            ("source_query", source_query),
-            ("target_table", target_table),
-            ("insert_query", insert_query),
-        ):
-            if not isinstance(value, str) or not value:
-                raise ValueError(
-                    f"FullRefreshExtract: {label} must be a non-empty string"
-                )
-        self._source_pool = source_pool
-        self._source_query = source_query
-        self._target_pool = target_pool
-        self._target_table = target_table
-        self._insert_query = insert_query
-        super().__init__(_config=_config, **kwargs)
-
-    async def process(self, **_: Any) -> RunResult:
-        """Truncate the target table, extract all source rows, and reload them, returning a RunResult.
-
-        Returns:
-            A RunResult summarising the outcome of the inner tapestry execution.
-        """
-        with Tapestry() as inner:
-            extracted = DatabaseQuerySource(
-                pool=self._source_pool,
-                query=self._source_query,
-                _config=KnotConfig(id="extract"),
+        if not isinstance(source_query, str) or not source_query:
+            raise ValueError(
+                "FullRefreshExtract: source_query must be a non-empty string"
             )
-            truncated = TruncateTableKnot(
-                pool=self._target_pool,
-                table=self._target_table,
-                _config=KnotConfig(id="truncate"),
+        if not isinstance(target_table, str) or not target_table:
+            raise ValueError(
+                "FullRefreshExtract: target_table must be a non-empty string"
             )
-            gated = RowsBehindTruncateCheckKnot(
-                rows=extracted,
-                gate=truncated,
-                _config=KnotConfig(id="gated"),
+        if not target_table.replace("_", "").isalnum():
+            raise ValueError(
+                f"FullRefreshExtract: target_table {target_table!r} must be "
+                "alphanumeric (plus underscores)"
             )
-            DatabaseExecuteSink(
-                pool=self._target_pool,
-                query=self._insert_query,
-                rows=gated,
-                _config=KnotConfig(id="load"),
+        if not isinstance(insert_query, str) or not insert_query:
+            raise ValueError(
+                "FullRefreshExtract: insert_query must be a non-empty string"
             )
-        return await self._run_inner(inner)
+        rows = await source_pool.fetch_all(source_query)
+        await target_pool.execute(f"DELETE FROM {target_table}")
+        await target_pool.execute_many(insert_query, [tuple(r) for r in rows])
+        return {
+            "succeeded": True,
+            "target_table": target_table,
+            "rows_inserted": len(rows),
+        }

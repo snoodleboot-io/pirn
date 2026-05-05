@@ -1,18 +1,17 @@
 """Tests for :class:`ScdType6Hybrid`."""
 
 from __future__ import annotations
-import unittest
-import tempfile
-from pathlib import Path
 
+import tempfile
+import unittest
+from pathlib import Path
+from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.domains.connectors.databases.sqlite_config import SqliteConfig
 from pirn.domains.connectors.databases.sqlite_pool import SqlitePool
-from pirn.domains.data.specializations.scd.scd_type_6_hybrid import (
-    ScdType6Hybrid,
-)
+from pirn.domains.data.specializations.scd.scd_type_6_hybrid import ScdType6Hybrid
 from pirn.tapestry import Tapestry
 
 
@@ -67,73 +66,61 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
     async def asyncTearDown(self) -> None:
         await self.source_pool.close()
-        
-        
         await self.target_pool.close()
-        
-        
         self._tmp_target_pool.cleanup()
-    def test_rejects_non_pool(self) -> None:
-        target_pool = self.target_pool
+
+    def _make_knot(self, **kwargs: Any) -> ScdType6Hybrid:
+        defaults: dict[str, Any] = {
+            "source_pool": self.source_pool,
+            "source_query": "SELECT id, name, region FROM customers",
+            "target_pool": self.target_pool,
+            "target_table": "customers",
+            "key_columns": ("id",),
+            "tracked_columns": ("name", "region"),
+            "current_columns": {"name": "current_name", "region": "current_region"},
+            "previous_columns": {"name": "prev_name", "region": "prev_region"},
+        }
+        defaults.update(kwargs)
+        with Tapestry():
+            return ScdType6Hybrid(**defaults, _config=KnotConfig(id="val"))
+
+    async def _call(self, k: ScdType6Hybrid, **overrides: Any) -> None:
+        args: dict[str, Any] = {
+            "source_pool": self.source_pool,
+            "source_query": "SELECT id, name, region FROM customers",
+            "target_pool": self.target_pool,
+            "target_table": "customers",
+            "key_columns": ("id",),
+            "tracked_columns": ("name", "region"),
+            "current_columns": {"name": "current_name", "region": "current_region"},
+            "previous_columns": {"name": "prev_name", "region": "prev_region"},
+        }
+        args.update(overrides)
+        await k.process(**args)
+
+    async def test_rejects_non_pool(self) -> None:
+        k = self._make_knot()
         with self.assertRaisesRegex(TypeError, "DatabaseConnectionPool"):
-            ScdType6Hybrid(
-                source_pool="bad",  # type: ignore[arg-type]
-                source_query="SELECT 1",
-                target_pool=target_pool,
-                target_table="customers",
-                key_columns=("id",),
-                tracked_columns=("name",),
-                current_columns={"name": "current_name"},
-                previous_columns={"name": "prev_name"},
-                _config=KnotConfig(id="scd6"),
-            )
+            await self._call(k, source_pool="bad")
 
-    def test_rejects_missing_current_column_entry(self) -> None:
-        source_pool = self.source_pool
-        target_pool = self.target_pool
+    async def test_rejects_missing_current_column_entry(self) -> None:
+        k = self._make_knot()
         with self.assertRaisesRegex(ValueError, "current_columns missing"):
-            ScdType6Hybrid(
-                source_pool=source_pool,
-                source_query="SELECT 1",
-                target_pool=target_pool,
-                target_table="customers",
-                key_columns=("id",),
-                tracked_columns=("name", "region"),
-                current_columns={"name": "current_name"},
-                previous_columns={"name": "prev_name", "region": "prev_region"},
-                _config=KnotConfig(id="scd6"),
-            )
+            await self._call(k, current_columns={"name": "current_name"})
 
-    def test_rejects_missing_previous_column_entry(self) -> None:
-        source_pool = self.source_pool
-        target_pool = self.target_pool
+    async def test_rejects_missing_previous_column_entry(self) -> None:
+        k = self._make_knot()
         with self.assertRaisesRegex(ValueError, "previous_columns missing"):
-            ScdType6Hybrid(
-                source_pool=source_pool,
-                source_query="SELECT 1",
-                target_pool=target_pool,
-                target_table="customers",
-                key_columns=("id",),
-                tracked_columns=("name", "region"),
-                current_columns={"name": "current_name", "region": "current_region"},
-                previous_columns={"name": "prev_name"},
-                _config=KnotConfig(id="scd6"),
-            )
+            await self._call(k, previous_columns={"name": "prev_name"})
 
-    def test_rejects_key_tracked_overlap(self) -> None:
-        source_pool = self.source_pool
-        target_pool = self.target_pool
+    async def test_rejects_key_tracked_overlap(self) -> None:
+        k = self._make_knot()
         with self.assertRaisesRegex(ValueError, "overlap"):
-            ScdType6Hybrid(
-                source_pool=source_pool,
-                source_query="SELECT 1",
-                target_pool=target_pool,
-                target_table="customers",
+            await self._call(
+                k,
                 key_columns=("id", "name"),
-                tracked_columns=("name", "region"),
                 current_columns={"name": "current_name", "region": "current_region"},
                 previous_columns={"name": "prev_name", "region": "prev_region"},
-                _config=KnotConfig(id="scd6"),
             )
 
 
@@ -174,12 +161,9 @@ class TestScdType6Behaviour(unittest.IsolatedAsyncioTestCase):
 
     async def asyncTearDown(self) -> None:
         await self.source_pool.close()
-        
-        
         await self.target_pool.close()
-        
-        
         self._tmp_target_pool.cleanup()
+
     async def test_first_run_inserts_with_null_previous(self) -> None:
         source_pool = self.source_pool
         target_pool = self.target_pool
@@ -216,9 +200,9 @@ class TestScdType6Behaviour(unittest.IsolatedAsyncioTestCase):
             "FROM customers ORDER BY id, valid_from"
         )
         assert len(rows) == 3
-        old_alice = [r for r in rows if r[0] == 1 and r[2] == 0][0]
+        old_alice = next(r for r in rows if r[0] == 1 and r[2] == 0)
         assert old_alice[1] == "EU"
-        new_alice = [r for r in rows if r[0] == 1 and r[2] == 1][0]
+        new_alice = next(r for r in rows if r[0] == 1 and r[2] == 1)
         assert new_alice[1] == "APAC"
         assert new_alice[3] == "EU"
 

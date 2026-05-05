@@ -4,35 +4,90 @@ Queries the current run's row count and compares it against the rolling
 average of the last N recorded counts. Raises if the relative deviation
 exceeds the configured threshold. Run-count history is maintained in a
 dedicated audit table.
+
+Algorithm:
+    1. Receive resolved ``pool``, ``monitored_table``, ``audit_table``,
+       ``window``, and ``threshold`` in ``process()``.
+    2. Validate all inputs: pool type, identifier safety, positive window and threshold.
+    3. Issue ``SELECT COUNT(*) FROM monitored_table`` for current count.
+    4. Insert current count into audit_table with UTC timestamp.
+    5. Fetch last ``window + 1`` rows from audit_table for this table.
+    6. If fewer than 2 rows, return early with no anomaly.
+    7. Compute rolling average of prior counts; compute relative deviation.
+    8. Return result dict including ``anomaly_detected`` flag.
+
+Math:
+    $\bar{x}_{prior} = \frac{1}{N} \sum_{i=1}^{N} count_i$
+
+    $deviation = \frac{|count_{current} - \bar{x}_{prior}|}{\bar{x}_{prior}}$
+
+    $anomaly\_detected = deviation > threshold$
+
+References:
+    [1] pirn — DatabaseConnectionPool interface:
+        pirn/domains/connectors/database_connection_pool.py
+    [2] pirn — IdentifierValidator (SQL injection guard):
+        pirn/domains/data/identifier_validator.py
 """
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.connectors.database_connection_pool import (
     DatabaseConnectionPool,
 )
 from pirn.domains.data.identifier_validator import IdentifierValidator
-from pirn.nodes.sub_tapestry import SubTapestry
 
 
-class RowCountAnomalyDetector(SubTapestry):
+class RowCountAnomalyDetector(Knot):
     """Compare current run row count against rolling average; flag anomalies."""
 
     def __init__(
         self,
         *,
-        pool: DatabaseConnectionPool,
-        monitored_table: str,
-        audit_table: str,
-        window: int = 7,
-        threshold: float = 0.30,
+        pool: Knot | DatabaseConnectionPool,
+        monitored_table: Knot | str,
+        audit_table: Knot | str,
+        window: Knot | int = 7,
+        threshold: Knot | float = 0.30,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            pool=pool,
+            monitored_table=monitored_table,
+            audit_table=audit_table,
+            window=window,
+            threshold=threshold,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        *,
+        pool: Any,
+        monitored_table: Any,
+        audit_table: Any,
+        window: Any,
+        threshold: Any,
+        **_: Any,
+    ) -> dict[str, Any]:
+        """Count monitored table rows, record in audit, flag if anomalous.
+
+        Returns:
+            A dict with keys ``succeeded``, ``monitored_table``,
+            ``current_count``, ``rolling_avg``, ``deviation``,
+            ``threshold``, and ``anomaly_detected``.
+
+        Raises:
+            TypeError: When pool is not a DatabaseConnectionPool.
+            ValueError: When window or threshold are invalid.
+        """
         if not isinstance(pool, DatabaseConnectionPool):
             raise TypeError(
                 "RowCountAnomalyDetector: pool must be a DatabaseConnectionPool"
@@ -47,46 +102,32 @@ class RowCountAnomalyDetector(SubTapestry):
             raise ValueError(
                 "RowCountAnomalyDetector: threshold must be a positive number"
             )
-        self._pool = pool
-        self._monitored_table = monitored_table
-        self._audit_table = audit_table
-        self._window = window
-        self._threshold = float(threshold)
-        super().__init__(_config=_config, **kwargs)
-
-    async def process(self, **_: Any) -> dict[str, Any]:
-        """Count monitored table rows, record in audit, flag if anomalous.
-
-        Returns:
-            A dict with keys ``succeeded``, ``monitored_table``,
-            ``current_count``, ``rolling_avg``, ``deviation``,
-            ``threshold``, and ``anomaly_detected``.
-        """
-        count_rows = await self._pool.fetch_all(
-            f"SELECT COUNT(*) FROM {self._monitored_table}"
+        threshold_f = float(threshold)
+        count_rows = await pool.fetch_all(
+            f"SELECT COUNT(*) FROM {monitored_table}"
         )
         current_count = count_rows[0][0]
-        now_iso = datetime.now(timezone.utc).isoformat()
-        await self._pool.execute(
-            f"INSERT INTO {self._audit_table} (table_name, row_count, recorded_at) "
+        now_iso = datetime.now(UTC).isoformat()
+        await pool.execute(
+            f"INSERT INTO {audit_table} (table_name, row_count, recorded_at) "
             f"VALUES (?, ?, ?)",
-            (self._monitored_table, current_count, now_iso),
+            (monitored_table, current_count, now_iso),
         )
-        history_rows = await self._pool.fetch_all(
-            f"SELECT row_count FROM {self._audit_table} "
+        history_rows = await pool.fetch_all(
+            f"SELECT row_count FROM {audit_table} "
             f"WHERE table_name = ? "
             f"ORDER BY recorded_at DESC LIMIT ?",
-            (self._monitored_table, self._window + 1),
+            (monitored_table, window + 1),
         )
         counts = [r[0] for r in history_rows]
         if len(counts) < 2:
             return {
                 "succeeded": True,
-                "monitored_table": self._monitored_table,
+                "monitored_table": monitored_table,
                 "current_count": current_count,
                 "rolling_avg": None,
                 "deviation": None,
-                "threshold": self._threshold,
+                "threshold": threshold_f,
                 "anomaly_detected": False,
             }
         prior_counts = counts[1:]
@@ -95,13 +136,13 @@ class RowCountAnomalyDetector(SubTapestry):
             deviation = 0.0
         else:
             deviation = abs(current_count - rolling_avg) / rolling_avg
-        anomaly_detected = deviation > self._threshold
+        anomaly_detected = deviation > threshold_f
         return {
             "succeeded": True,
-            "monitored_table": self._monitored_table,
+            "monitored_table": monitored_table,
             "current_count": current_count,
             "rolling_avg": rolling_avg,
             "deviation": deviation,
-            "threshold": self._threshold,
+            "threshold": threshold_f,
             "anomaly_detected": anomaly_detected,
         }

@@ -4,11 +4,10 @@ from __future__ import annotations
 
 import datetime
 import unittest
-import tempfile
-from pathlib import Path
-
+from typing import Any
 
 from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.domains.connectors.databases.sqlite_config import SqliteConfig
 from pirn.domains.connectors.databases.sqlite_pool import SqlitePool
@@ -32,109 +31,53 @@ _CREATE_DATE_DIM = (
     ")"
 )
 
+_START = datetime.date(2026, 1, 1)
+_END = datetime.date(2026, 1, 31)
 
-class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
+async def _make_pool() -> SqlitePool:
+    pool = SqlitePool(SqliteConfig(database=":memory:"))
+    await pool.execute(_CREATE_DATE_DIM)
+    return pool
+
+
+def _make_knot(pool: SqlitePool, **overrides: Any) -> DateDimGenerator:
+    defaults: dict[str, Any] = {
+        "target_pool": pool,
+        "target_table": "date_dim",
+        "start_date": _START,
+        "end_date": _END,
+        "fiscal_year_start_month": 1,
+    }
+    defaults.update(overrides)
+    return DateDimGenerator(**defaults, _config=KnotConfig(id="ddg"))
+
+
+class TestDateDimGenerator(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
-        self._tmp_target_pool = tempfile.TemporaryDirectory()
-        tmp_path = Path(self._tmp_target_pool.name)
-        pool = SqlitePool(SqliteConfig(database=str(tmp_path / "date_dim.db")))
-        await pool.execute(_CREATE_DATE_DIM)
-        self.target_pool = pool
+        self.pool = await _make_pool()
 
     async def asyncTearDown(self) -> None:
-        await self.target_pool.close()
-        
-        
-        self._tmp_target_pool.cleanup()
-    def test_rejects_non_pool(self) -> None:
-        with self.assertRaisesRegex(TypeError, "DatabaseConnectionPool"):
-            DateDimGenerator(
-                target_pool="bad",  # type: ignore[arg-type]
-                target_table="date_dim",
-                start_date=datetime.date(2026, 1, 1),
-                end_date=datetime.date(2026, 1, 31),
-                _config=KnotConfig(id="ddg"),
-            )
+        await self.pool.close()
 
-    def test_rejects_end_before_start(self) -> None:
-        target_pool = self.target_pool
-        with self.assertRaisesRegex(ValueError, "end_date"):
-            DateDimGenerator(
-                target_pool=target_pool,
-                target_table="date_dim",
-                start_date=datetime.date(2026, 2, 1),
-                end_date=datetime.date(2026, 1, 1),
-                _config=KnotConfig(id="ddg"),
-            )
-
-    def test_rejects_invalid_fiscal_month(self) -> None:
-        target_pool = self.target_pool
-        with self.assertRaisesRegex(ValueError, "fiscal_year_start_month"):
-            DateDimGenerator(
-                target_pool=target_pool,
-                target_table="date_dim",
-                start_date=datetime.date(2026, 1, 1),
-                end_date=datetime.date(2026, 1, 31),
-                fiscal_year_start_month=13,
-                _config=KnotConfig(id="ddg"),
-            )
-
-    def test_rejects_invalid_table_identifier(self) -> None:
-        target_pool = self.target_pool
-        with self.assertRaisesRegex(ValueError, "plain identifier"):
-            DateDimGenerator(
-                target_pool=target_pool,
-                target_table="bad table",
-                start_date=datetime.date(2026, 1, 1),
-                end_date=datetime.date(2026, 1, 1),
-                _config=KnotConfig(id="ddg"),
-            )
-
-
-class TestDateDimGeneratorBehaviour(unittest.IsolatedAsyncioTestCase):
-
-    async def asyncSetUp(self) -> None:
-        self._tmp_target_pool = tempfile.TemporaryDirectory()
-        tmp_path = Path(self._tmp_target_pool.name)
-        pool = SqlitePool(SqliteConfig(database=str(tmp_path / "date_dim.db")))
-        await pool.execute(_CREATE_DATE_DIM)
-        self.target_pool = pool
-
-    async def asyncTearDown(self) -> None:
-        await self.target_pool.close()
-        
-        
-        self._tmp_target_pool.cleanup()
     async def test_generates_correct_row_count(self) -> None:
-        target_pool = self.target_pool
         with Tapestry() as t:
-            DateDimGenerator(
-                target_pool=target_pool,
-                target_table="date_dim",
-                start_date=datetime.date(2026, 1, 1),
-                end_date=datetime.date(2026, 1, 31),
-                _config=KnotConfig(id="ddg"),
-            )
+            _make_knot(self.pool)
         result = await t.run(RunRequest())
         assert result.succeeded
-        rows = await target_pool.fetch_all("SELECT COUNT(*) FROM date_dim")
+        rows = await self.pool.fetch_all("SELECT COUNT(*) FROM date_dim")
         assert rows[0][0] == 31
 
     async def test_date_key_format(self) -> None:
-        target_pool = self.target_pool
         with Tapestry() as t:
-            DateDimGenerator(
-                target_pool=target_pool,
-                target_table="date_dim",
+            _make_knot(
+                self.pool,
                 start_date=datetime.date(2026, 3, 15),
                 end_date=datetime.date(2026, 3, 15),
-                _config=KnotConfig(id="ddg"),
             )
         await t.run(RunRequest())
-        rows = await target_pool.fetch_all(
-            "SELECT date_key, full_date, year, quarter, month, day_of_month "
-            "FROM date_dim"
+        rows = await self.pool.fetch_all(
+            "SELECT date_key, full_date, year, quarter, month, day_of_month FROM date_dim"
         )
         assert len(rows) == 1
         row = rows[0]
@@ -146,17 +89,14 @@ class TestDateDimGeneratorBehaviour(unittest.IsolatedAsyncioTestCase):
         assert row[5] == 15
 
     async def test_weekend_flag(self) -> None:
-        target_pool = self.target_pool
         with Tapestry() as t:
-            DateDimGenerator(
-                target_pool=target_pool,
-                target_table="date_dim",
+            _make_knot(
+                self.pool,
                 start_date=datetime.date(2026, 1, 1),
                 end_date=datetime.date(2026, 1, 7),
-                _config=KnotConfig(id="ddg"),
             )
         await t.run(RunRequest())
-        rows = await target_pool.fetch_all(
+        rows = await self.pool.fetch_all(
             "SELECT full_date, is_weekend FROM date_dim ORDER BY date_key"
         )
         weekends = {r[0] for r in rows if r[1] == 1}
@@ -165,46 +105,113 @@ class TestDateDimGeneratorBehaviour(unittest.IsolatedAsyncioTestCase):
         assert "2026-01-01" not in weekends
 
     async def test_fiscal_year_offset(self) -> None:
-        target_pool = self.target_pool
         with Tapestry() as t:
-            DateDimGenerator(
-                target_pool=target_pool,
-                target_table="date_dim",
+            _make_knot(
+                self.pool,
                 start_date=datetime.date(2026, 6, 1),
                 end_date=datetime.date(2026, 6, 1),
                 fiscal_year_start_month=7,
-                _config=KnotConfig(id="ddg"),
             )
         await t.run(RunRequest())
-        rows = await target_pool.fetch_all("SELECT fiscal_year FROM date_dim")
+        rows = await self.pool.fetch_all("SELECT fiscal_year FROM date_dim")
         assert rows[0][0] == 2026
 
     async def test_fiscal_year_in_new_year(self) -> None:
-        target_pool = self.target_pool
         with Tapestry() as t:
-            DateDimGenerator(
-                target_pool=target_pool,
-                target_table="date_dim",
+            _make_knot(
+                self.pool,
                 start_date=datetime.date(2026, 9, 1),
                 end_date=datetime.date(2026, 9, 1),
                 fiscal_year_start_month=7,
-                _config=KnotConfig(id="ddg"),
             )
         await t.run(RunRequest())
-        rows = await target_pool.fetch_all("SELECT fiscal_year FROM date_dim")
+        rows = await self.pool.fetch_all("SELECT fiscal_year FROM date_dim")
         assert rows[0][0] == 2027
 
-    async def test_single_day_range(self) -> None:
-        target_pool = self.target_pool
+    async def test_result_tracks_rows_inserted(self) -> None:
         with Tapestry() as t:
+            k = _make_knot(self.pool)
+        result = await t.run(RunRequest())
+        out = result.outputs[k.config.id]
+        assert out["rows_inserted"] == 31
+
+
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self) -> None:
+        self.pool = await _make_pool()
+
+    async def asyncTearDown(self) -> None:
+        await self.pool.close()
+
+    async def test_target_table_from_upstream_knot(self) -> None:
+        @knot
+        async def emit_table() -> str:
+            return "date_dim"
+
+        with Tapestry() as t:
+            tbl_knot = emit_table(_config=KnotConfig(id="tbl"))
             DateDimGenerator(
-                target_pool=target_pool,
-                target_table="date_dim",
+                target_pool=self.pool,
+                target_table=tbl_knot,
                 start_date=datetime.date(2026, 5, 1),
                 end_date=datetime.date(2026, 5, 1),
+                fiscal_year_start_month=1,
                 _config=KnotConfig(id="ddg"),
             )
         result = await t.run(RunRequest())
-        assert result.succeeded
-        rows = await target_pool.fetch_all("SELECT COUNT(*) FROM date_dim")
-        assert rows[0][0] == 1
+        assert result.outputs["ddg"]["rows_inserted"] == 1
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self) -> None:
+        self.pool = await _make_pool()
+
+    async def asyncTearDown(self) -> None:
+        await self.pool.close()
+
+    def _make_knot(self, **kwargs: Any) -> DateDimGenerator:
+        defaults: dict[str, Any] = {
+            "target_pool": self.pool,
+            "target_table": "date_dim",
+            "start_date": _START,
+            "end_date": _END,
+            "fiscal_year_start_month": 1,
+        }
+        defaults.update(kwargs)
+        with Tapestry():
+            return DateDimGenerator(**defaults, _config=KnotConfig(id="val"))
+
+    async def _call(self, k: DateDimGenerator, **overrides: Any) -> None:
+        args: dict[str, Any] = {
+            "target_pool": self.pool,
+            "target_table": "date_dim",
+            "start_date": _START,
+            "end_date": _END,
+            "fiscal_year_start_month": 1,
+        }
+        args.update(overrides)
+        await k.process(**args)
+
+    async def test_rejects_non_pool(self) -> None:
+        k = self._make_knot()
+        with self.assertRaisesRegex(TypeError, "DatabaseConnectionPool"):
+            await self._call(k, target_pool="bad")
+
+    async def test_rejects_end_before_start(self) -> None:
+        k = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "end_date"):
+            await self._call(
+                k,
+                start_date=datetime.date(2026, 2, 1),
+                end_date=datetime.date(2026, 1, 1),
+            )
+
+    async def test_rejects_invalid_fiscal_month(self) -> None:
+        k = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "fiscal_year_start_month"):
+            await self._call(k, fiscal_year_start_month=13)
+
+    async def test_rejects_invalid_table_identifier(self) -> None:
+        k = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
+            await self._call(k, target_table="bad table")

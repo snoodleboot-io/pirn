@@ -3,35 +3,76 @@
 Wraps the vendor-specific SQL for Postgres (``REFRESH MATERIALIZED VIEW``)
 and DuckDB (recreate from stored query). Supports Postgres and DuckDB
 dialects.
+
+Algorithm:
+    1. Receive resolved ``pool``, ``view_name``, ``dialect``, and
+       ``concurrently`` in ``process()``.
+    2. Validate all inputs: pool type, non-empty view_name, allowed dialect,
+       and identifier safety.
+    3. Build the vendor-specific REFRESH SQL statement.
+    4. Execute the statement via ``pool``.
+    5. Return a summary dict with ``succeeded``, ``view_name``, and
+       ``dialect``.
+
+References:
+    [1] pirn — DatabaseConnectionPool interface:
+        pirn/domains/connectors/database_connection_pool.py
+    [2] pirn — IdentifierValidator (SQL injection guard):
+        pirn/domains/data/identifier_validator.py
+    [3] PostgreSQL — REFRESH MATERIALIZED VIEW:
+        https://www.postgresql.org/docs/current/sql-refreshmaterializedview.html
 """
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any
 
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.connectors.database_connection_pool import (
-    DatabaseConnectionPool,
-)
+from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.data.identifier_validator import IdentifierValidator
-from pirn.nodes.sub_tapestry import SubTapestry
+
+_SUPPORTED_DIALECTS: frozenset[str] = frozenset({"postgres", "duckdb"})
 
 
-class RefreshMaterializedView(SubTapestry):
+class RefreshMaterializedView(Knot):
     """Issue REFRESH MATERIALIZED VIEW (or equivalent) for a given view name."""
-
-    _supported_dialects: frozenset[str] = frozenset({"postgres", "duckdb"})
 
     def __init__(
         self,
         *,
-        pool: DatabaseConnectionPool,
-        view_name: str,
-        dialect: Literal["postgres", "duckdb"] = "postgres",
-        concurrently: bool = False,
+        pool: Knot | DatabaseConnectionPool,
+        view_name: Knot | str,
+        dialect: Knot | str = "postgres",
+        concurrently: Knot | bool = False,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            pool=pool,
+            view_name=view_name,
+            dialect=dialect,
+            concurrently=concurrently,
+            _config=_config,
+            **kwargs,
+        )
+
+    @staticmethod
+    def _refresh_sql(view_name: str, dialect: str, concurrently: bool) -> str:
+        if dialect == "postgres":
+            concurrently_clause = " CONCURRENTLY" if concurrently else ""
+            return f"REFRESH MATERIALIZED VIEW{concurrently_clause} {view_name}"
+        return f"REFRESH {view_name}"
+
+    async def process(
+        self,
+        *,
+        pool: Any,
+        view_name: Any,
+        dialect: Any = "postgres",
+        concurrently: Any = False,
+        **_: Any,
+    ) -> dict[str, Any]:
         if not isinstance(pool, DatabaseConnectionPool):
             raise TypeError(
                 "RefreshMaterializedView: pool must be a DatabaseConnectionPool"
@@ -40,37 +81,17 @@ class RefreshMaterializedView(SubTapestry):
             raise ValueError(
                 "RefreshMaterializedView: view_name must be a non-empty string"
             )
-        if dialect not in type(self)._supported_dialects:
+        if dialect not in _SUPPORTED_DIALECTS:
             raise ValueError(
                 f"RefreshMaterializedView: dialect must be one of "
-                f"{sorted(type(self)._supported_dialects)!r}, got {dialect!r}"
+                f"{sorted(_SUPPORTED_DIALECTS)!r}, got {dialect!r}"
             )
         IdentifierValidator.validate_column("view_name", view_name)
-        self._pool = pool
-        self._view_name = view_name
-        self._dialect = dialect
-        self._concurrently = concurrently
-        super().__init__(_config=_config, **kwargs)
-
-    @property
-    def refresh_sql(self) -> str:
-        if self._dialect == "postgres":
-            concurrently_clause = " CONCURRENTLY" if self._concurrently else ""
-            return (
-                f"REFRESH MATERIALIZED VIEW{concurrently_clause} {self._view_name}"
-            )
-        return f"REFRESH {self._view_name}"
-
-    async def process(self, **_: Any) -> dict[str, Any]:
-        """Issue the vendor-specific REFRESH command for the materialized view.
-
-        Returns:
-            A dict with keys ``succeeded``, ``view_name``, and ``dialect``
-            confirming the refresh was issued.
-        """
-        await self._pool.execute(self.refresh_sql)
+        await pool.execute(
+            RefreshMaterializedView._refresh_sql(view_name, dialect, bool(concurrently))
+        )
         return {
             "succeeded": True,
-            "view_name": self._view_name,
-            "dialect": self._dialect,
+            "view_name": view_name,
+            "dialect": dialect,
         }

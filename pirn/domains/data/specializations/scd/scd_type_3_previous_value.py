@@ -22,36 +22,113 @@ The target table must declare ``key_columns``, ``tracked_columns``, and a
 ``{col}_previous`` companion for every tracked column.  Callers may
 override the suffix via ``previous_suffix`` if their naming convention
 differs (e.g. ``_prior``).
+
+Algorithm:
+    1. Receive all resolved inputs in ``process()`` and validate.
+    2. Fetch all source rows via ``source_pool.fetch_all``.
+    3. For each source row, query the target for the existing row by key.
+    4. If no row exists, INSERT with tracked values and NULL previous columns.
+    5. If tracked values differ, UPDATE: shift current to previous, write new
+       current values.
+    6. If tracked values are identical, skip.
+    7. Return a summary dict with ``rows_inserted`` and ``rows_updated``.
+
+References:
+    [1] Kimball Group — SCD Type 3 (add column):
+        https://www.kimballgroup.com/data-warehouse-business-intelligence-resources/kimball-techniques/dimensional-modeling-techniques/type-3/
+    [2] pirn — DatabaseConnectionPool interface:
+        pirn/domains/connectors/database_connection_pool.py
+    [3] pirn — IdentifierValidator (SQL injection guard):
+        pirn/domains/data/identifier_validator.py
 """
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from typing import Any
 
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.connectors.database_connection_pool import (
-    DatabaseConnectionPool,
-)
+from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.data.identifier_validator import IdentifierValidator
-from pirn.nodes.sub_tapestry import SubTapestry
 
 
-class ScdType3PreviousValue(SubTapestry):
+class ScdType3PreviousValue(Knot):
     """Maintain SCD Type 3 (current + one prior value per tracked column)."""
 
     def __init__(
         self,
         *,
-        source_pool: DatabaseConnectionPool,
-        source_query: str,
-        target_pool: DatabaseConnectionPool,
-        target_table: str,
-        key_columns: Sequence[str],
-        tracked_columns: Sequence[str],
-        previous_suffix: str = "_previous",
+        source_pool: Knot | DatabaseConnectionPool,
+        source_query: Knot | str,
+        target_pool: Knot | DatabaseConnectionPool,
+        target_table: Knot | str,
+        key_columns: Knot | tuple[str, ...],
+        tracked_columns: Knot | tuple[str, ...],
+        previous_suffix: Knot | str = "_previous",
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            source_pool=source_pool,
+            source_query=source_query,
+            target_pool=target_pool,
+            target_table=target_table,
+            key_columns=key_columns,
+            tracked_columns=tracked_columns,
+            previous_suffix=previous_suffix,
+            _config=_config,
+            **kwargs,
+        )
+
+    @staticmethod
+    def _select_current_query(
+        target_table: str,
+        key_columns: tuple[str, ...],
+        tracked_columns: tuple[str, ...],
+    ) -> str:
+        cols = ", ".join(tracked_columns)
+        where = " AND ".join(f"{c} = ?" for c in key_columns)
+        return f"SELECT {cols} FROM {target_table} WHERE {where}"
+
+    @staticmethod
+    def _insert_query(
+        target_table: str,
+        key_columns: tuple[str, ...],
+        tracked_columns: tuple[str, ...],
+        previous_columns: tuple[str, ...],
+    ) -> str:
+        all_cols = [*key_columns, *tracked_columns, *previous_columns]
+        column_list = ", ".join(all_cols)
+        placeholders = ", ".join(["?"] * len(all_cols))
+        return f"INSERT INTO {target_table} ({column_list}) VALUES ({placeholders})"
+
+    @staticmethod
+    def _update_query(
+        target_table: str,
+        key_columns: tuple[str, ...],
+        tracked_columns: tuple[str, ...],
+        previous_columns: tuple[str, ...],
+    ) -> str:
+        set_parts = []
+        for current_col, previous_col in zip(tracked_columns, previous_columns, strict=False):
+            set_parts.append(f"{previous_col} = {current_col}")
+            set_parts.append(f"{current_col} = ?")
+        set_clause = ", ".join(set_parts)
+        where = " AND ".join(f"{c} = ?" for c in key_columns)
+        return f"UPDATE {target_table} SET {set_clause} WHERE {where}"
+
+    async def process(
+        self,
+        *,
+        source_pool: Any,
+        source_query: Any,
+        target_pool: Any,
+        target_table: Any,
+        key_columns: Any,
+        tracked_columns: Any,
+        previous_suffix: Any = "_previous",
+        **_: Any,
+    ) -> dict[str, Any]:
         if not isinstance(source_pool, DatabaseConnectionPool):
             raise TypeError(
                 "ScdType3PreviousValue: source_pool must be a DatabaseConnectionPool"
@@ -60,14 +137,10 @@ class ScdType3PreviousValue(SubTapestry):
             raise TypeError(
                 "ScdType3PreviousValue: target_pool must be a DatabaseConnectionPool"
             )
-        for label, value in (
-            ("source_query", source_query),
-            ("target_table", target_table),
-        ):
-            if not isinstance(value, str) or not value:
-                raise ValueError(
-                    f"ScdType3PreviousValue: {label} must be a non-empty string"
-                )
+        if not isinstance(source_query, str) or not source_query:
+            raise ValueError("ScdType3PreviousValue: source_query must be a non-empty string")
+        if not isinstance(target_table, str) or not target_table:
+            raise ValueError("ScdType3PreviousValue: target_table must be a non-empty string")
         if not isinstance(previous_suffix, str) or not previous_suffix:
             raise ValueError(
                 "ScdType3PreviousValue: previous_suffix must be a non-empty string"
@@ -86,73 +159,28 @@ class ScdType3PreviousValue(SubTapestry):
         previous_columns = tuple(f"{c}{previous_suffix}" for c in tracked_tuple)
         for col in previous_columns:
             IdentifierValidator.validate_column("previous column", col)
-        self._source_pool = source_pool
-        self._source_query = source_query
-        self._target_pool = target_pool
-        self._target_table = target_table
-        self._key_columns = key_tuple
-        self._tracked_columns = tracked_tuple
-        self._previous_columns = previous_columns
-        self._source_columns = key_tuple + tracked_tuple
-        super().__init__(_config=_config, **kwargs)
-
-    @property
-    def select_current_query(self) -> str:
-        cols = ", ".join(self._tracked_columns)
-        where = " AND ".join(f"{c} = ?" for c in self._key_columns)
-        return (
-            f"SELECT {cols} FROM {self._target_table} WHERE {where}"
+        source_columns = key_tuple + tracked_tuple
+        select_q = ScdType3PreviousValue._select_current_query(
+            target_table, key_tuple, tracked_tuple
         )
-
-    @property
-    def insert_query(self) -> str:
-        all_cols = (
-            list(self._key_columns)
-            + list(self._tracked_columns)
-            + list(self._previous_columns)
+        insert_q = ScdType3PreviousValue._insert_query(
+            target_table, key_tuple, tracked_tuple, previous_columns
         )
-        column_list = ", ".join(all_cols)
-        placeholders = ", ".join(["?"] * len(all_cols))
-        return (
-            f"INSERT INTO {self._target_table} ({column_list}) "
-            f"VALUES ({placeholders})"
+        update_q = ScdType3PreviousValue._update_query(
+            target_table, key_tuple, tracked_tuple, previous_columns
         )
-
-    @property
-    def update_query(self) -> str:
-        set_parts = []
-        for current_col, previous_col in zip(
-            self._tracked_columns, self._previous_columns
-        ):
-            set_parts.append(f"{previous_col} = {current_col}")
-            set_parts.append(f"{current_col} = ?")
-        set_clause = ", ".join(set_parts)
-        where = " AND ".join(f"{c} = ?" for c in self._key_columns)
-        return f"UPDATE {self._target_table} SET {set_clause} WHERE {where}"
-
-    async def process(self, **_: Any) -> dict[str, Any]:
-        """Shift current tracked values to previous columns and write new current values.
-
-        Returns:
-            A dict with keys ``succeeded``, ``target_table``, ``rows_inserted``,
-            and ``rows_updated`` summarising the merge outcome.
-        """
-        source_rows = await self._source_pool.fetch_all(self._source_query)
+        source_rows = await source_pool.fetch_all(source_query)
         rows_inserted = 0
         rows_updated = 0
         for row in source_rows:
-            row_dict = dict(zip(self._source_columns, row))
-            key_values = tuple(row_dict[k] for k in self._key_columns)
-            tracked_values = tuple(
-                row_dict[k] for k in self._tracked_columns
-            )
-            existing = await self._target_pool.fetch_all(
-                self.select_current_query, key_values
-            )
+            row_dict = dict(zip(source_columns, row, strict=False))
+            key_values = tuple(row_dict[k] for k in key_tuple)
+            tracked_values = tuple(row_dict[k] for k in tracked_tuple)
+            existing = await target_pool.fetch_all(select_q, key_values)
             if not existing:
-                nulls = (None,) * len(self._previous_columns)
-                await self._target_pool.execute(
-                    self.insert_query,
+                nulls = (None,) * len(previous_columns)
+                await target_pool.execute(
+                    insert_q,
                     key_values + tracked_values + nulls,
                 )
                 rows_inserted += 1
@@ -160,15 +188,14 @@ class ScdType3PreviousValue(SubTapestry):
             current_tracked = tuple(existing[0])
             if current_tracked == tracked_values:
                 continue
-            # new values interleaved with key_values for the WHERE clause
-            await self._target_pool.execute(
-                self.update_query,
+            await target_pool.execute(
+                update_q,
                 tracked_values + key_values,
             )
             rows_updated += 1
         return {
             "succeeded": True,
-            "target_table": self._target_table,
+            "target_table": target_table,
             "rows_inserted": rows_inserted,
             "rows_updated": rows_updated,
         }

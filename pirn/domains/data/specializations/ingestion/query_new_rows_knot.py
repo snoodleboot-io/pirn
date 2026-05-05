@@ -1,20 +1,34 @@
-"""``QueryNewRowsKnot`` — internal helper for
-:class:`WatermarkIncrementalExtract`.
+"""``QueryNewRowsKnot`` — generate and run the appropriate incremental
+SELECT based on the upstream high-water mark.
 
-Generates and runs the appropriate source query based on the upstream
-high-water mark:
 - ``None`` (initial load) → ``SELECT <columns> FROM <table>``
 - a value → ``SELECT <columns> FROM <table> WHERE <wmk_col> > ?``
 
-Generating the SQL inside the knot means callers don't have to write a
-template that handles both cases. Identifier guards (alphanumeric +
-underscores) keep this defence-in-depth even though identifiers come
-from configuration, not user input.
+Generating the SQL inside ``process()`` means callers don't have to
+write a template that handles both cases.  Identifier guards
+(alphanumeric + underscores) are applied in ``process()`` for
+defence-in-depth.
+
+Algorithm:
+    1. Receive ``pool``, ``table``, ``columns``, ``watermark_column``,
+       and ``high_water_mark`` in ``process()``.
+    2. Validate pool type, non-empty identifiers, alphanumeric guard,
+       and non-empty columns.
+    3. Build a full SELECT (no WHERE) when ``high_water_mark`` is ``None``,
+       or an incremental SELECT (``WHERE wmk_col > ?``) otherwise.
+    4. Return the rows fetched from the pool.
+
+References:
+    [1] pirn — DatabaseConnectionPool interface:
+        pirn/domains/connectors/database_connection_pool.py
+    [2] pirn — WatermarkIncrementalExtract:
+        pirn/domains/data/specializations/ingestion/watermark_incremental_extract.py
 """
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -27,18 +41,52 @@ class QueryNewRowsKnot(Knot):
     def __init__(
         self,
         *,
-        pool: DatabaseConnectionPool,
-        table: str,
-        columns: Sequence[str],
-        watermark_column: str,
+        pool: Knot | DatabaseConnectionPool,
+        table: Knot | str,
+        columns: Knot | Sequence[str],
+        watermark_column: Knot | str,
         high_water_mark: Knot,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            pool=pool,
+            table=table,
+            columns=columns,
+            watermark_column=watermark_column,
+            high_water_mark=high_water_mark,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        *,
+        pool: Any,
+        table: Any,
+        columns: Any,
+        watermark_column: Any,
+        high_water_mark: Any,
+        **_: Any,
+    ) -> list:
+        """Validate inputs, build the SELECT query, execute it, and return the rows.
+
+        Args:
+            pool: The source database connection pool.
+            table: The source table name (alphanumeric + underscores).
+            columns: Sequence of column names to select.
+            watermark_column: The watermark column name (alphanumeric + underscores).
+            high_water_mark: The current high-water mark value, or ``None`` for initial load.
+
+        Returns:
+            A list of rows returned by the source query.
+
+        Raises:
+            TypeError: If ``pool`` is not a ``DatabaseConnectionPool`` or lacks ``fetch_all``.
+            ValueError: If identifiers are empty or contain invalid characters.
+        """
         if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError(
-                "QueryNewRowsKnot: pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("QueryNewRowsKnot: pool must be a DatabaseConnectionPool")
         if not isinstance(table, str) or not table:
             raise ValueError("QueryNewRowsKnot: table must be a non-empty string")
         if not isinstance(watermark_column, str) or not watermark_column:
@@ -58,41 +106,19 @@ class QueryNewRowsKnot(Knot):
                 raise ValueError(
                     f"QueryNewRowsKnot: column {column!r} must be alphanumeric"
                 )
-        self._pool = pool
-        self._table = table
-        self._columns = column_tuple
-        self._watermark_column = watermark_column
-        super().__init__(
-            high_water_mark=high_water_mark, _config=_config, **kwargs
-        )
-
-    async def process(self, high_water_mark: Any, **_: Any) -> list:
-        """Generate a full or incremental SELECT based on the high-water mark and return the result rows.
-
-        Args:
-            high_water_mark: The current maximum watermark value from the target table, or None for an initial load.
-
-        Returns:
-            A list of rows returned by the source query.
-
-        Raises:
-            TypeError: If the pool does not support fetch_all().
-        """
-        fetch_all = getattr(self._pool, "fetch_all", None)
+        fetch_all = getattr(pool, "fetch_all", None)
         if fetch_all is None:
-            raise TypeError(
-                "QueryNewRowsKnot: pool does not support fetch_all()"
-            )
-        column_list = ", ".join(self._columns)
+            raise TypeError("QueryNewRowsKnot: pool does not support fetch_all()")
+        column_list = ", ".join(column_tuple)
         if high_water_mark is None:
             query = (
-                f"SELECT {column_list} FROM {self._table} "
-                f"ORDER BY {self._watermark_column}"
+                f"SELECT {column_list} FROM {table} "
+                f"ORDER BY {watermark_column}"
             )
             return await fetch_all(query)
         query = (
-            f"SELECT {column_list} FROM {self._table} "
-            f"WHERE {self._watermark_column} > ? "
-            f"ORDER BY {self._watermark_column}"
+            f"SELECT {column_list} FROM {table} "
+            f"WHERE {watermark_column} > ? "
+            f"ORDER BY {watermark_column}"
         )
         return await fetch_all(query, (high_water_mark,))

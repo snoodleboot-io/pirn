@@ -11,17 +11,53 @@ values using a restricted evaluator that supports:
 * Numeric and string literals
 
 ``eval()`` is never called; the AST is walked node-by-node.
+
+Algorithm:
+    1. Receive resolved ``rows`` and ``expressions`` in ``process()``.
+    2. Validate each expression spec: non-empty ``column`` identifier and
+       non-empty, parseable ``expression`` string.
+    3. For each row evaluate each expression AST against the current row
+       dict, appending new columns in declaration order (so later
+       expressions can reference earlier ones).
+    4. Return the enriched row list.
+
+References:
+    [1] pirn — IdentifierValidator (SQL injection guard):
+        pirn/domains/data/identifier_validator.py
 """
 
 from __future__ import annotations
 
 import ast
 import operator
-from typing import Any, Sequence
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.data.identifier_validator import IdentifierValidator
+
+_BIN_OPS: dict[type, Any] = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.FloorDiv: operator.floordiv,
+    ast.Mod: operator.mod,
+    ast.Pow: operator.pow,
+}
+_CMP_OPS: dict[type, Any] = {
+    ast.Eq: operator.eq,
+    ast.NotEq: operator.ne,
+    ast.Lt: operator.lt,
+    ast.LtE: operator.le,
+    ast.Gt: operator.gt,
+    ast.GtE: operator.ge,
+}
+_UNARY_OPS: dict[type, Any] = {
+    ast.USub: operator.neg,
+    ast.UAdd: operator.pos,
+}
+
 
 class DerivedColumnCalculator(Knot):
     """Append computed columns to each row using safe AST-evaluated expressions."""
@@ -29,58 +65,17 @@ class DerivedColumnCalculator(Knot):
     def __init__(
         self,
         *,
-        rows: Knot,
-        expressions: Sequence[dict[str, str]],
+        rows: Knot | list,
+        expressions: Knot | list,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        """Initialise the calculator.
-
-        Args:
-            rows:        Upstream rows knot.
-            expressions: List of dicts, each with ``column`` (output name) and
-                         ``expression`` (safe expression string).
-        """
-        compiled: list[tuple[str, ast.Expression]] = []
-        for spec in expressions:
-            col = spec.get("column", "")
-            IdentifierValidator.validate_column("expressions[column]", col)
-            expr_str = spec.get("expression", "")
-            if not isinstance(expr_str, str) or not expr_str:
-                raise ValueError(
-                    "DerivedColumnCalculator: expression must be a non-empty string"
-                )
-            try:
-                tree = ast.parse(expr_str, mode="eval")
-            except SyntaxError as exc:
-                raise ValueError(
-                    f"DerivedColumnCalculator: invalid expression {expr_str!r}: {exc}"
-                ) from exc
-            compiled.append((col, tree))
-        self._compiled = compiled
-        super().__init__(rows=rows, _config=_config, **kwargs)
-
-    _bin_ops: dict[type, Any] = {
-        ast.Add: operator.add,
-        ast.Sub: operator.sub,
-        ast.Mult: operator.mul,
-        ast.Div: operator.truediv,
-        ast.FloorDiv: operator.floordiv,
-        ast.Mod: operator.mod,
-        ast.Pow: operator.pow,
-    }
-    _cmp_ops: dict[type, Any] = {
-        ast.Eq: operator.eq,
-        ast.NotEq: operator.ne,
-        ast.Lt: operator.lt,
-        ast.LtE: operator.le,
-        ast.Gt: operator.gt,
-        ast.GtE: operator.ge,
-    }
-    _unary_ops: dict[type, Any] = {
-        ast.USub: operator.neg,
-        ast.UAdd: operator.pos,
-    }
+        super().__init__(
+            rows=rows,
+            expressions=expressions,
+            _config=_config,
+            **kwargs,
+        )
 
     @classmethod
     def _eval_node(cls, node: ast.AST, row: dict[str, Any]) -> Any:
@@ -91,14 +86,14 @@ class DerivedColumnCalculator(Knot):
                 raise ValueError(f"DerivedColumnCalculator: unknown column {node.id!r}")
             return row[node.id]
         if isinstance(node, ast.BinOp):
-            op = cls._bin_ops.get(type(node.op))
+            op = _BIN_OPS.get(type(node.op))
             if op is None:
                 raise ValueError(
                     f"DerivedColumnCalculator: unsupported operator {type(node.op).__name__}"
                 )
             return op(cls._eval_node(node.left, row), cls._eval_node(node.right, row))
         if isinstance(node, ast.UnaryOp):
-            op = cls._unary_ops.get(type(node.op))
+            op = _UNARY_OPS.get(type(node.op))
             if op is None:
                 raise ValueError(
                     f"DerivedColumnCalculator: unsupported unary operator "
@@ -107,8 +102,8 @@ class DerivedColumnCalculator(Knot):
             return op(cls._eval_node(node.operand, row))
         if isinstance(node, ast.Compare):
             left = cls._eval_node(node.left, row)
-            for cmp_op, comparator in zip(node.ops, node.comparators):
-                op = cls._cmp_ops.get(type(cmp_op))
+            for cmp_op, comparator in zip(node.ops, node.comparators, strict=False):
+                op = _CMP_OPS.get(type(cmp_op))
                 if op is None:
                     raise ValueError(
                         f"DerivedColumnCalculator: unsupported comparison "
@@ -131,20 +126,32 @@ class DerivedColumnCalculator(Knot):
         )
 
     async def process(
-        self, rows: list[dict[str, Any]], **_: Any
+        self,
+        *,
+        rows: Any,
+        expressions: Any,
+        **_: Any,
     ) -> list[dict[str, Any]]:
-        """Evaluate each expression against each row and append the result columns.
-
-        Args:
-            rows: Upstream rows as a list of dicts.
-
-        Returns:
-            Rows with new derived columns appended.
-        """
+        compiled: list[tuple[str, ast.Expression]] = []
+        for spec in expressions:
+            col = spec.get("column", "")
+            IdentifierValidator.validate_column("expressions[column]", col)
+            expr_str = spec.get("expression", "")
+            if not isinstance(expr_str, str) or not expr_str:
+                raise ValueError(
+                    "DerivedColumnCalculator: expression must be a non-empty string"
+                )
+            try:
+                tree = ast.parse(expr_str, mode="eval")
+            except SyntaxError as exc:
+                raise ValueError(
+                    f"DerivedColumnCalculator: invalid expression {expr_str!r}: {exc}"
+                ) from exc
+            compiled.append((col, tree))
         result: list[dict[str, Any]] = []
         for row in rows:
             new_row = dict(row)
-            for col, tree in self._compiled:
+            for col, tree in compiled:
                 new_row[col] = self._eval_node(tree, new_row)
             result.append(new_row)
         return result

@@ -7,19 +7,37 @@ parameterised statements through the target pool.
 
 Type 1 SCD (Kimball-style "overwrite") preserves no history: an updated
 attribute simply replaces the previous value. For history-preserving
-behaviour use :class:`ScdType2Merge` (Type 2) or
-:class:`ScdType7Merge` (Type 7).
+behaviour use :class:`ScdType2MergeKnot` (Type 2) or
+:class:`ScdType7MergeKnot` (Type 7).
+
+Algorithm:
+    1. Receive resolved ``rows``, ``target_pool``, ``target_table``,
+       ``primary_keys``, and ``column_names`` in ``process()``.
+    2. Validate pool type, identifier safety, and pk ⊆ column_names.
+    3. Fetch all current rows from the target table.
+    4. Index existing rows by their primary key tuple.
+    5. Classify each source row as INSERT (key absent) or UPDATE (key
+       present with any non-key column changed). Skip unchanged rows.
+    6. Bulk-execute inserts via ``execute_many``, then bulk-execute
+       updates via ``execute_many``.
+    7. Return a dict with ``inserted`` and ``updated`` counts.
+
+References:
+    [1] Kimball Group — SCD Type 1 (overwrite):
+        https://www.kimballgroup.com/data-warehouse-business-intelligence-resources/kimball-techniques/dimensional-modeling-techniques/type-1/
+    [2] pirn — DatabaseConnectionPool interface:
+        pirn/domains/connectors/database_connection_pool.py
+    [3] pirn — IdentifierValidator (SQL injection guard):
+        pirn/domains/data/identifier_validator.py
 """
 
 from __future__ import annotations
 
-from typing import Any, Iterable, Sequence
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.connectors.database_connection_pool import (
-    DatabaseConnectionPool,
-)
+from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.data.identifier_validator import IdentifierValidator
 
 
@@ -30,13 +48,54 @@ class ScdType1MergeKnot(Knot):
         self,
         *,
         rows: Knot,
-        target_pool: DatabaseConnectionPool,
-        target_table: str,
-        primary_keys: Sequence[str],
-        column_names: Sequence[str],
+        target_pool: Knot | DatabaseConnectionPool,
+        target_table: Knot | str,
+        primary_keys: Knot | tuple[str, ...],
+        column_names: Knot | tuple[str, ...],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            rows=rows,
+            target_pool=target_pool,
+            target_table=target_table,
+            primary_keys=primary_keys,
+            column_names=column_names,
+            _config=_config,
+            **kwargs,
+        )
+
+    @staticmethod
+    def _select_query(target_table: str, column_names: tuple[str, ...]) -> str:
+        column_list = ", ".join(column_names)
+        return f"SELECT {column_list} FROM {target_table}"
+
+    @staticmethod
+    def _insert_query(target_table: str, column_names: tuple[str, ...]) -> str:
+        column_list = ", ".join(column_names)
+        placeholders = ", ".join(["?"] * len(column_names))
+        return f"INSERT INTO {target_table} ({column_list}) VALUES ({placeholders})"
+
+    @staticmethod
+    def _update_query(
+        target_table: str,
+        primary_keys: tuple[str, ...],
+        non_key_columns: tuple[str, ...],
+    ) -> str:
+        set_clause = ", ".join(f"{c} = ?" for c in non_key_columns)
+        where_clause = " AND ".join(f"{k} = ?" for k in primary_keys)
+        return f"UPDATE {target_table} SET {set_clause} WHERE {where_clause}"
+
+    async def process(
+        self,
+        *,
+        rows: Any,
+        target_pool: Any,
+        target_table: Any,
+        primary_keys: Any,
+        column_names: Any,
+        **_: Any,
+    ) -> dict[str, int]:
         if not isinstance(target_pool, DatabaseConnectionPool):
             raise TypeError(
                 "ScdType1MergeKnot: target_pool must be a DatabaseConnectionPool"
@@ -51,64 +110,18 @@ class ScdType1MergeKnot(Knot):
             raise ValueError(
                 f"ScdType1MergeKnot: primary_keys not in column_names: {missing}"
             )
-        self._target_pool = target_pool
-        self._target_table = target_table
-        self._primary_keys = primary_key_tuple
-        self._column_names = column_tuple
-        self._non_key_columns = tuple(
-            c for c in column_tuple if c not in primary_key_tuple
-        )
-        super().__init__(rows=rows, _config=_config, **kwargs)
-
-    @property
-    def select_query(self) -> str:
-        column_list = ", ".join(self._column_names)
-        return f"SELECT {column_list} FROM {self._target_table}"
-
-    @property
-    def insert_query(self) -> str:
-        column_list = ", ".join(self._column_names)
-        placeholders = ", ".join(["?"] * len(self._column_names))
-        return (
-            f"INSERT INTO {self._target_table} ({column_list}) "
-            f"VALUES ({placeholders})"
-        )
-
-    @property
-    def update_query(self) -> str:
-        # Type 1 always rewrites every non-key column on a match —
-        # callers who want partial updates should pre-project rows.
-        set_clause = ", ".join(f"{c} = ?" for c in self._non_key_columns)
-        where_clause = " AND ".join(f"{k} = ?" for k in self._primary_keys)
-        return (
-            f"UPDATE {self._target_table} SET {set_clause} "
-            f"WHERE {where_clause}"
-        )
-
-    async def process(
-        self, rows: Iterable[Iterable[Any]], **_: Any
-    ) -> dict[str, int]:
-        """Classify source rows as inserts or updates, apply them to the target, and return counts.
-
-        Args:
-            rows: The upstream source rows; each row is an iterable of positional values.
-
-        Returns:
-            A dict with keys ``inserted`` and ``updated`` containing the operation counts.
-
-        Raises:
-            ValueError: If any source row's width does not match the configured column_names.
-        """
-        materialised = [tuple(r) for r in rows]
+        non_key_columns = tuple(c for c in column_tuple if c not in primary_key_tuple)
+        materialised: list[tuple[Any, ...]] = [tuple(r) for r in rows]
         if not materialised:
             return {"inserted": 0, "updated": 0}
-        existing_rows = await self._target_pool.fetch_all(self.select_query)
-        key_indices = tuple(
-            self._column_names.index(k) for k in self._primary_keys
+        select_q = ScdType1MergeKnot._select_query(target_table, column_tuple)
+        insert_q = ScdType1MergeKnot._insert_query(target_table, column_tuple)
+        update_q = ScdType1MergeKnot._update_query(
+            target_table, primary_key_tuple, non_key_columns
         )
-        non_key_indices = tuple(
-            self._column_names.index(c) for c in self._non_key_columns
-        )
+        existing_rows = await target_pool.fetch_all(select_q)
+        key_indices = tuple(column_tuple.index(k) for k in primary_key_tuple)
+        non_key_indices = tuple(column_tuple.index(c) for c in non_key_columns)
         existing_by_key: dict[tuple[Any, ...], tuple[Any, ...]] = {}
         for row in existing_rows:
             key = tuple(row[i] for i in key_indices)
@@ -116,10 +129,10 @@ class ScdType1MergeKnot(Knot):
         inserts: list[tuple[Any, ...]] = []
         updates: list[tuple[Any, ...]] = []
         for row in materialised:
-            if len(row) != len(self._column_names):
+            if len(row) != len(column_tuple):
                 raise ValueError(
                     f"ScdType1MergeKnot: row width {len(row)} does not match "
-                    f"column_names width {len(self._column_names)}"
+                    f"column_names width {len(column_tuple)}"
                 )
             key = tuple(row[i] for i in key_indices)
             if key not in existing_by_key:
@@ -132,7 +145,7 @@ class ScdType1MergeKnot(Knot):
                 continue
             updates.append(new_non_keys + key)
         if inserts:
-            await self._target_pool.execute_many(self.insert_query, inserts)
-        if updates and self._non_key_columns:
-            await self._target_pool.execute_many(self.update_query, updates)
+            await target_pool.execute_many(insert_q, inserts)
+        if updates and non_key_columns:
+            await target_pool.execute_many(update_q, updates)
         return {"inserted": len(inserts), "updated": len(updates)}

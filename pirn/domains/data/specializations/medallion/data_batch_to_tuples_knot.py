@@ -1,16 +1,29 @@
 """``DataBatchToTuplesKnot`` — collapse a Tier-1 :class:`DataBatch` back
-into a list of tuples keyed by caller-supplied column order. Used by
-silver/gold medallion knots before handing to a positional-bind INSERT
-sink.
+into a list of tuples keyed by caller-supplied column order.
+
+Used by silver/gold medallion knots before handing off to a
+positional-bind INSERT sink.  Both ``batch`` and ``column_names`` arrive
+as resolved values in ``process()``.
+
+Algorithm:
+    1. Receive ``batch`` and ``column_names`` in ``process()``.
+    2. Validate that ``column_names`` is non-empty.
+    3. For each row dict in ``batch.rows``, project values in the order
+       of ``column_names``, substituting ``None`` for missing keys.
+    4. Return the list of projected tuples.
+
+References:
+    [1] pirn — DataBatch:
+        pirn/domains/data/data_batch.py
 """
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.data.data_batch import DataBatch
 
 
 class DataBatchToTuplesKnot(Knot):
@@ -20,30 +33,39 @@ class DataBatchToTuplesKnot(Knot):
         self,
         *,
         batch: Knot,
-        column_names: Sequence[str],
+        column_names: Knot | Sequence[str],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            batch=batch, column_names=column_names, _config=_config, **kwargs
+        )
+
+    async def process(
+        self,
+        *,
+        batch: Any,
+        column_names: Any,
+        **_: Any,
+    ) -> list[tuple[Any, ...]]:
+        """Validate column_names, project each DataBatch row to a tuple, return the list.
+
+        Args:
+            batch: The :class:`DataBatch` whose rows will be projected.
+            column_names: Ordered column names determining the tuple value order.
+
+        Returns:
+            A list of tuples, one per row, with values ordered by ``column_names``.
+
+        Raises:
+            ValueError: If ``column_names`` is empty.
+        """
         column_tuple = tuple(column_names)
         if not column_tuple:
             raise ValueError(
                 "DataBatchToTuplesKnot: column_names must be non-empty"
             )
-        self._column_names = column_tuple
-        super().__init__(batch=batch, _config=_config, **kwargs)
-
-    async def process(
-        self, batch: DataBatch, **_: Any
-    ) -> list[tuple[Any, ...]]:
-        """Project each DataBatch row to a column-ordered tuple and return the list.
-
-        Args:
-            batch: The DataBatch whose rows will be projected to positional tuples.
-
-        Returns:
-            A list of tuples, one per row, with values ordered by the configured column names.
-        """
         return [
-            tuple(row.get(column) for column in self._column_names)
+            tuple(row.get(column) for column in column_tuple)
             for row in batch.rows
         ]

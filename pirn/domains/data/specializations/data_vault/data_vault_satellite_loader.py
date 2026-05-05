@@ -5,56 +5,135 @@ version of those attributes is a separate row, giving a complete audit
 trail.  The current version has a NULL ``load_end_date``; closed versions
 carry the ISO-8601 timestamp of the batch that superseded them.
 
-Behaviour
----------
-For each row produced by ``source_query``:
+Algorithm:
+    1. Receive resolved ``source_pool``, ``source_query``, ``target_pool``,
+       ``target_table``, ``hub_hash_key_column``, ``attribute_columns``,
+       ``hash_diff_column``, ``load_date_column``, ``load_end_date_column``,
+       ``record_source_column``, and ``record_source`` in ``process()``.
+    2. Validate all inputs: pool types, non-empty strings, identifier safety,
+       and column disjointness against the envelope columns.
+    3. Fetch all rows from the source via ``source_pool.fetch_all``.
+    4. For each row, look up the open row (``load_end_date IS NULL``) for that
+       hub hash key.
+    5. If no open row exists, INSERT a new satellite row with ``load_date = now``
+       and ``load_end_date = NULL``.
+    6. If an open row exists with a different ``hash_diff``, close the old row
+       (``load_end_date = now``) then INSERT a new row.
+    7. If the open row's ``hash_diff`` matches, skip (no change).
+    8. Return a summary dict with ``succeeded``, ``target_table``,
+       ``rows_inserted``, and ``rows_closed``.
 
-* Compute the incoming ``hash_diff`` (caller-supplied as a column in the
-  source; typically MD5 or SHA-1 of all attribute values concatenated).
-* Look up the **open** row (``load_end_date IS NULL``) for that
-  ``hub_hash_key_column`` value.
-* If no open row exists → ``INSERT`` a new satellite row with
-  ``load_date = now``, ``load_end_date = NULL``.
-* If an open row exists with a **different** ``hash_diff`` → close the
-  old row (``load_end_date = now``) then ``INSERT`` a new row.
-* If the open row's ``hash_diff`` matches → **skip** (no change).
-
-Re-running with identical attribute payloads is always a no-op.
+References:
+    [1] Linstedt & Olschimke — *Building a Scalable Data Warehouse with Data Vault 2.0*
+        (2015), Chapter 5: Satellite tables.
+    [2] pirn — DatabaseConnectionPool interface:
+        pirn/domains/connectors/database_connection_pool.py
+    [3] pirn — IdentifierValidator (SQL injection guard):
+        pirn/domains/data/identifier_validator.py
 """
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Sequence
+from datetime import UTC, datetime
+from typing import Any
 
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.connectors.database_connection_pool import (
-    DatabaseConnectionPool,
-)
+from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.data.identifier_validator import IdentifierValidator
-from pirn.nodes.sub_tapestry import SubTapestry
 
 
-class DataVaultSatelliteLoader(SubTapestry):
+class DataVaultSatelliteLoader(Knot):
     """Insert-only (with close-out) loader for Data Vault Satellite tables."""
 
     def __init__(
         self,
         *,
-        source_pool: DatabaseConnectionPool,
-        source_query: str,
-        target_pool: DatabaseConnectionPool,
-        target_table: str,
-        hub_hash_key_column: str,
-        attribute_columns: Sequence[str],
-        hash_diff_column: str = "hash_diff",
-        load_date_column: str = "load_date",
-        load_end_date_column: str = "load_end_date",
-        record_source_column: str = "record_source",
-        record_source: str,
+        source_pool: Knot | DatabaseConnectionPool,
+        source_query: Knot | str,
+        target_pool: Knot | DatabaseConnectionPool,
+        target_table: Knot | str,
+        hub_hash_key_column: Knot | str,
+        attribute_columns: Knot | tuple[str, ...],
+        hash_diff_column: Knot | str,
+        load_date_column: Knot | str,
+        load_end_date_column: Knot | str,
+        record_source_column: Knot | str,
+        record_source: Knot | str,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            source_pool=source_pool,
+            source_query=source_query,
+            target_pool=target_pool,
+            target_table=target_table,
+            hub_hash_key_column=hub_hash_key_column,
+            attribute_columns=attribute_columns,
+            hash_diff_column=hash_diff_column,
+            load_date_column=load_date_column,
+            load_end_date_column=load_end_date_column,
+            record_source_column=record_source_column,
+            record_source=record_source,
+            _config=_config,
+            **kwargs,
+        )
+
+    @staticmethod
+    def _select_open_query(
+        target_table: str,
+        hub_hash_key_column: str,
+        hash_diff_column: str,
+        load_end_date_column: str,
+    ) -> str:
+        return (
+            f"SELECT {hash_diff_column} FROM {target_table} "
+            f"WHERE {hub_hash_key_column} = ? "
+            f"AND {load_end_date_column} IS NULL"
+        )
+
+    @staticmethod
+    def _close_query(
+        target_table: str,
+        hub_hash_key_column: str,
+        load_end_date_column: str,
+    ) -> str:
+        return (
+            f"UPDATE {target_table} "
+            f"SET {load_end_date_column} = ? "
+            f"WHERE {hub_hash_key_column} = ? "
+            f"AND {load_end_date_column} IS NULL"
+        )
+
+    @staticmethod
+    def _insert_query(
+        target_table: str,
+        source_columns: tuple[str, ...],
+        load_date_column: str,
+        load_end_date_column: str,
+        record_source_column: str,
+    ) -> str:
+        all_cols = [*source_columns, load_date_column, load_end_date_column, record_source_column]
+        col_list = ", ".join(all_cols)
+        placeholders = ", ".join(["?"] * len(all_cols))
+        return f"INSERT INTO {target_table} ({col_list}) VALUES ({placeholders})"
+
+    async def process(
+        self,
+        *,
+        source_pool: Any,
+        source_query: Any,
+        target_pool: Any,
+        target_table: Any,
+        hub_hash_key_column: Any,
+        attribute_columns: Any,
+        hash_diff_column: Any,
+        load_date_column: Any,
+        load_end_date_column: Any,
+        record_source_column: Any,
+        record_source: Any,
+        **_: Any,
+    ) -> dict[str, Any]:
         if not isinstance(source_pool, DatabaseConnectionPool):
             raise TypeError(
                 "DataVaultSatelliteLoader: source_pool must be a DatabaseConnectionPool"
@@ -67,6 +146,17 @@ class DataVaultSatelliteLoader(SubTapestry):
             ("source_query", source_query),
             ("target_table", target_table),
             ("record_source", record_source),
+        ):
+            if not isinstance(value, str) or not value:
+                raise ValueError(
+                    f"DataVaultSatelliteLoader: {label} must be a non-empty string"
+                )
+        for label, value in (
+            ("hub_hash_key_column", hub_hash_key_column),
+            ("hash_diff_column", hash_diff_column),
+            ("load_date_column", load_date_column),
+            ("load_end_date_column", load_end_date_column),
+            ("record_source_column", record_source_column),
         ):
             if not isinstance(value, str) or not value:
                 raise ValueError(
@@ -93,86 +183,50 @@ class DataVaultSatelliteLoader(SubTapestry):
                 f"DataVaultSatelliteLoader: attribute_columns clash with envelope "
                 f"columns: {sorted(clash)!r}"
             )
-        self._source_pool = source_pool
-        self._source_query = source_query
-        self._target_pool = target_pool
-        self._target_table = target_table
-        self._hub_hash_key_column = hub_hash_key_column
-        self._attribute_columns = attr_tuple
-        self._hash_diff_column = hash_diff_column
-        self._load_date_column = load_date_column
-        self._load_end_date_column = load_end_date_column
-        self._record_source_column = record_source_column
-        self._record_source = record_source
-        self._source_columns = (hub_hash_key_column, hash_diff_column) + attr_tuple
-        super().__init__(_config=_config, **kwargs)
-
-    @property
-    def _select_open_query(self) -> str:
-        return (
-            f"SELECT {self._hash_diff_column} FROM {self._target_table} "
-            f"WHERE {self._hub_hash_key_column} = ? "
-            f"AND {self._load_end_date_column} IS NULL"
-        )
-
-    @property
-    def _close_query(self) -> str:
-        return (
-            f"UPDATE {self._target_table} "
-            f"SET {self._load_end_date_column} = ? "
-            f"WHERE {self._hub_hash_key_column} = ? "
-            f"AND {self._load_end_date_column} IS NULL"
-        )
-
-    @property
-    def _insert_query(self) -> str:
-        all_cols = list(self._source_columns) + [
-            self._load_date_column,
-            self._load_end_date_column,
-            self._record_source_column,
-        ]
-        col_list = ", ".join(all_cols)
-        placeholders = ", ".join(["?"] * len(all_cols))
-        return (
-            f"INSERT INTO {self._target_table} ({col_list}) "
-            f"VALUES ({placeholders})"
-        )
-
-    async def process(self, **_: Any) -> dict[str, Any]:
-        """Load changed satellite attributes, closing old rows and inserting new ones.
-
-        Returns:
-            A dict with keys ``succeeded``, ``target_table``, ``rows_inserted``,
-            and ``rows_closed`` summarising the load outcome.
-        """
-        source_rows = await self._source_pool.fetch_all(self._source_query)
-        load_date = datetime.now(timezone.utc).isoformat()
+        source_columns = (hub_hash_key_column, hash_diff_column, *attr_tuple)
+        source_rows = await source_pool.fetch_all(source_query)
+        load_date = datetime.now(UTC).isoformat()
         rows_inserted = 0
         rows_closed = 0
         for row in source_rows:
-            row_dict = dict(zip(self._source_columns, row))
-            hub_hk = row_dict[self._hub_hash_key_column]
-            incoming_diff = row_dict[self._hash_diff_column]
-            open_rows = await self._target_pool.fetch_all(
-                self._select_open_query, (hub_hk,)
+            row_dict = dict(zip(source_columns, row, strict=False))
+            hub_hk = row_dict[hub_hash_key_column]
+            incoming_diff = row_dict[hash_diff_column]
+            open_rows = await target_pool.fetch_all(
+                DataVaultSatelliteLoader._select_open_query(
+                    target_table,
+                    hub_hash_key_column,
+                    hash_diff_column,
+                    load_end_date_column,
+                ),
+                (hub_hk,),
             )
             if open_rows:
                 existing_diff = open_rows[0][0]
                 if existing_diff == incoming_diff:
                     continue
-                await self._target_pool.execute(
-                    self._close_query, (load_date, hub_hk)
+                await target_pool.execute(
+                    DataVaultSatelliteLoader._close_query(
+                        target_table, hub_hash_key_column, load_end_date_column
+                    ),
+                    (load_date, hub_hk),
                 )
                 rows_closed += 1
-            values = tuple(row_dict[c] for c in self._source_columns)
-            await self._target_pool.execute(
-                self._insert_query,
-                values + (load_date, None, self._record_source),
+            values = tuple(row_dict[c] for c in source_columns)
+            await target_pool.execute(
+                DataVaultSatelliteLoader._insert_query(
+                    target_table,
+                    source_columns,
+                    load_date_column,
+                    load_end_date_column,
+                    record_source_column,
+                ),
+                (*values, load_date, None, record_source),
             )
             rows_inserted += 1
         return {
             "succeeded": True,
-            "target_table": self._target_table,
+            "target_table": target_table,
             "rows_inserted": rows_inserted,
             "rows_closed": rows_closed,
         }

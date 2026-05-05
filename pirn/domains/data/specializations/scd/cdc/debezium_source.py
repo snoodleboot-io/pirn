@@ -38,7 +38,8 @@ test fixtures should always pass a small integer.
 from __future__ import annotations
 
 import json
-from typing import Any, AsyncIterator, ClassVar, Mapping
+from collections.abc import AsyncIterator, Mapping
+from typing import Any, ClassVar
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.connectors.message_broker import MessageBroker
@@ -96,10 +97,12 @@ class DebeziumSource(Source):
         """Consume up to max_messages Debezium events from the broker and return them as a list.
 
         Returns:
-            A list of parsed Debezium envelope dicts, each with keys op, before, after, source, and ts_ms.
+            A list of parsed Debezium envelope dicts, each with keys op,
+            before, after, source, and ts_ms.
 
         Raises:
-            RuntimeError: If max_messages is None, as unbounded streaming is not supported in process().
+            RuntimeError: If max_messages is None, as unbounded streaming
+            is not supported in process().
         """
         if self._max_messages is None:
             raise RuntimeError(

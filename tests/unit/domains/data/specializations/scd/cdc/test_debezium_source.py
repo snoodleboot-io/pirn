@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import json
-from typing import Any, AsyncIterator
 import unittest
-
+from collections.abc import AsyncIterator
+from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -29,7 +29,10 @@ class _StubBroker(MessageBroker):
     def __init__(self, records: list[Any]) -> None:
         self._records = list(records)
 
-    async def publish(self, topic: str, value: bytes, *, key: bytes | None = None, headers: dict[str, bytes] | None = None,) -> None:
+    async def publish(
+        self, topic: str, value: bytes, *, key: bytes | None = None,
+        headers: dict[str, bytes] | None = None,
+    ) -> None:
         raise NotImplementedError("_StubBroker is consume-only")
 
     async def consume(self, topic: str, *, group: str | None = None) -> AsyncIterator[Any]:
@@ -112,7 +115,7 @@ class TestDebeziumSourceBehaviour(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert result.succeeded
-        events = list(result.outputs.values())[0]
+        events = next(iter(result.outputs.values()))
         assert len(events) == 3
         assert events[0]["op"] == "c"
         assert events[0]["after"] == {"id": 1, "name": "A"}
@@ -137,7 +140,7 @@ class TestDebeziumSourceBehaviour(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert result.succeeded
-        events = list(result.outputs.values())[0]
+        events = next(iter(result.outputs.values()))
         assert events[0]["op"] == "c"
         assert events[0]["after"] == {"id": 9}
 
@@ -209,5 +212,5 @@ class TestDebeziumSourceBehaviour(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert result.succeeded
-        events = list(result.outputs.values())[0]
+        events = next(iter(result.outputs.values()))
         assert len(events) == 3

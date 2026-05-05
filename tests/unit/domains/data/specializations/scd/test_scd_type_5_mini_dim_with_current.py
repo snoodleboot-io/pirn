@@ -1,10 +1,11 @@
 """Tests for :class:`ScdType5MiniDimWithCurrent`."""
 
 from __future__ import annotations
-import unittest
-import tempfile
-from pathlib import Path
 
+import tempfile
+import unittest
+from pathlib import Path
+from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -61,52 +62,53 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
     async def asyncTearDown(self) -> None:
         await self.main_pool.close()
-        
-        
         self._tmp_main_pool.cleanup()
         await self.mini_pool.close()
-        
-        
         self._tmp_mini_pool.cleanup()
         await self.source_pool.close()
-        
-        
-    def test_rejects_non_pool(self) -> None:
-        main_pool = self.main_pool
-        mini_pool = self.mini_pool
-        with self.assertRaisesRegex(TypeError, "DatabaseConnectionPool"):
-            ScdType5MiniDimWithCurrent(
-                source_pool="bad",  # type: ignore[arg-type]
-                source_query="SELECT 1",
-                main_pool=main_pool,
-                main_table="customers",
-                main_key_columns=("id",),
-                fact_fk_column="mini_dim_sk",
-                current_mini_dim_sk_column="current_mini_dim_sk",
-                mini_pool=mini_pool,
-                mini_table="customer_profile",
-                mini_dim_attributes=("income_band", "credit_score"),
-                _config=KnotConfig(id="scd5"),
-            )
 
-    def test_rejects_invalid_current_column(self) -> None:
-        source_pool = self.source_pool
-        main_pool = self.main_pool
-        mini_pool = self.mini_pool
+    def _make_knot(self, **kwargs: Any) -> ScdType5MiniDimWithCurrent:
+        defaults: dict[str, Any] = {
+            "source_pool": self.source_pool,
+            "source_query": "SELECT id, income_band, credit_score FROM customers",
+            "main_pool": self.main_pool,
+            "main_table": "customers",
+            "main_key_columns": ("id",),
+            "fact_fk_column": "mini_dim_sk",
+            "current_mini_dim_sk_column": "current_mini_dim_sk",
+            "mini_pool": self.mini_pool,
+            "mini_table": "customer_profile",
+            "mini_dim_attributes": ("income_band", "credit_score"),
+        }
+        defaults.update(kwargs)
+        with Tapestry():
+            return ScdType5MiniDimWithCurrent(**defaults, _config=KnotConfig(id="val"))
+
+    async def _call(self, k: ScdType5MiniDimWithCurrent, **overrides: Any) -> None:
+        args: dict[str, Any] = {
+            "source_pool": self.source_pool,
+            "source_query": "SELECT id, income_band, credit_score FROM customers",
+            "main_pool": self.main_pool,
+            "main_table": "customers",
+            "main_key_columns": ("id",),
+            "fact_fk_column": "mini_dim_sk",
+            "current_mini_dim_sk_column": "current_mini_dim_sk",
+            "mini_pool": self.mini_pool,
+            "mini_table": "customer_profile",
+            "mini_dim_attributes": ("income_band", "credit_score"),
+        }
+        args.update(overrides)
+        await k.process(**args)
+
+    async def test_rejects_non_pool(self) -> None:
+        k = self._make_knot()
+        with self.assertRaisesRegex(TypeError, "DatabaseConnectionPool"):
+            await self._call(k, source_pool="bad")
+
+    async def test_rejects_invalid_current_column(self) -> None:
+        k = self._make_knot()
         with self.assertRaisesRegex(ValueError, "plain identifier"):
-            ScdType5MiniDimWithCurrent(
-                source_pool=source_pool,
-                source_query="SELECT 1",
-                main_pool=main_pool,
-                main_table="customers",
-                main_key_columns=("id",),
-                fact_fk_column="mini_dim_sk",
-                current_mini_dim_sk_column="bad column",
-                mini_pool=mini_pool,
-                mini_table="customer_profile",
-                mini_dim_attributes=("income_band", "credit_score"),
-                _config=KnotConfig(id="scd5"),
-            )
+            await self._call(k, current_mini_dim_sk_column="bad column")
 
 
 class TestScdType5Behaviour(unittest.IsolatedAsyncioTestCase):
@@ -154,16 +156,11 @@ class TestScdType5Behaviour(unittest.IsolatedAsyncioTestCase):
 
     async def asyncTearDown(self) -> None:
         await self.main_pool.close()
-        
-        
         self._tmp_main_pool.cleanup()
         await self.mini_pool.close()
-        
-        
         self._tmp_mini_pool.cleanup()
         await self.source_pool.close()
-        
-        
+
     async def test_sets_both_fk_and_current_sk(self) -> None:
         source_pool = self.source_pool
         main_pool = self.main_pool

@@ -1,10 +1,19 @@
-"""``TruncateTableKnot`` — internal helper used by
-:class:`FullRefreshExtract` to delete every row from a target table.
+"""``TruncateTableKnot`` — delete every row from a target table.
 
-Pool is held as instance state. Table name is validated as alphanumeric
-(plus underscores) at construction time; pirn's connection-pool
-identifiers come from configuration, not user input, but this guard
-catches typos and refuses anything that looks abusive.
+Used by :class:`FullRefreshExtract` as the gate step before reloading.
+Identifier guards (alphanumeric + underscores) prevent injection; pool
+and table arrive as resolved values in ``process()``, not stored state.
+
+Algorithm:
+    1. Receive ``pool`` and ``table`` in ``process()``.
+    2. Validate that ``pool`` is a ``DatabaseConnectionPool`` and ``table``
+       is a non-empty alphanumeric string (underscores allowed).
+    3. Issue ``DELETE FROM <table>`` via the pool.
+    4. Return the table name so downstream knots can use it as a signal.
+
+References:
+    [1] pirn — DatabaseConnectionPool interface:
+        pirn/domains/connectors/database_connection_pool.py
 """
 
 from __future__ import annotations
@@ -22,15 +31,29 @@ class TruncateTableKnot(Knot):
     def __init__(
         self,
         *,
-        pool: DatabaseConnectionPool,
-        table: str,
+        pool: Knot | DatabaseConnectionPool,
+        table: Knot | str,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(pool=pool, table=table, _config=_config, **kwargs)
+
+    async def process(self, *, pool: Any, table: Any, **_: Any) -> str:
+        """Validate inputs, delete all rows from the table, and return the table name.
+
+        Args:
+            pool: The database connection pool used to execute the DELETE.
+            table: The name of the table to truncate.
+
+        Returns:
+            The name of the table that was truncated.
+
+        Raises:
+            TypeError: If ``pool`` is not a ``DatabaseConnectionPool``.
+            ValueError: If ``table`` is empty or contains non-alphanumeric characters.
+        """
         if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError(
-                "TruncateTableKnot: pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("TruncateTableKnot: pool must be a DatabaseConnectionPool")
         if not isinstance(table, str) or not table:
             raise ValueError("TruncateTableKnot: table must be a non-empty string")
         if not table.replace("_", "").isalnum():
@@ -38,19 +61,5 @@ class TruncateTableKnot(Knot):
                 f"TruncateTableKnot: table {table!r} must be alphanumeric "
                 "(plus underscores)"
             )
-        self._pool = pool
-        self._table = table
-        super().__init__(_config=_config, **kwargs)
-
-    @property
-    def table(self) -> str:
-        return self._table
-
-    async def process(self, **_: Any) -> str:
-        """Delete all rows from the configured target table and return the table name.
-
-        Returns:
-            The name of the table that was truncated.
-        """
-        await self._pool.execute(f"DELETE FROM {self._table}")
-        return self._table
+        await pool.execute(f"DELETE FROM {table}")
+        return table

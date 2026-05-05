@@ -3,51 +3,100 @@ landing zone.
 
 The medallion architecture (bronze → silver → gold) starts with bronze:
 the unmodified record from the source plus minimal envelope metadata
-(``ingested_at``, ``source_uri``). No type coercion, no normalisation,
+(``ingested_at``, ``source_uri``).  No type coercion, no normalisation,
 no dedup — anything that mutates the raw row defeats bronze's job as the
 last line of audit / replay defence.
 
-Composition:
-1. :class:`DatabaseQuerySource` reads from the source pool.
-2. :class:`StampBronzeMetadataKnot` decorates each row with
-   ``_ingested_at`` and ``_source_uri``.
-3. :class:`DatabaseExecuteSink` appends to the target table.
+Algorithm:
+    1. Receive all inputs in ``process()`` and validate.
+    2. Fetch source rows via ``source_pool.fetch_all``.
+    3. Stamp each row with the current UTC timestamp and ``source_uri``.
+    4. Build the INSERT query from ``source_columns`` + metadata columns.
+    5. Write stamped rows to the target via ``target_pool.execute_many``.
+    6. Return a summary dict with ``succeeded``, ``target_table``,
+       and ``rows_inserted``.
 
-The target table must declare ``_ingested_at`` and ``_source_uri``
-columns; the bundled stamp knot supplies those values.
+References:
+    [1] pirn — DatabaseConnectionPool interface:
+        pirn/domains/connectors/database_connection_pool.py
+    [2] pirn — StampBronzeMetadataKnot:
+        pirn/domains/data/specializations/medallion/stamp_bronze_metadata_knot.py
 """
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from datetime import UTC, datetime
+from typing import Any
 
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_result import RunResult
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
-from pirn.domains.connectors.knots.database_execute_sink import DatabaseExecuteSink
-from pirn.domains.connectors.knots.database_query_source import DatabaseQuerySource
-from pirn.domains.data.specializations.medallion.stamp_bronze_metadata_knot import (
-    StampBronzeMetadataKnot,
-)
-from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
-class BronzeRawIngest(SubTapestry):
+class BronzeRawIngest(Knot):
     """Ingest source rows into a bronze table with envelope metadata."""
 
     def __init__(
         self,
         *,
-        source_pool: DatabaseConnectionPool,
-        source_query: str,
-        target_pool: DatabaseConnectionPool,
-        target_table: str,
-        source_columns: Sequence[str],
-        source_uri: str,
+        source_pool: Knot | DatabaseConnectionPool,
+        source_query: Knot | str,
+        target_pool: Knot | DatabaseConnectionPool,
+        target_table: Knot | str,
+        source_columns: Knot | Sequence[str],
+        source_uri: Knot | str,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            source_pool=source_pool,
+            source_query=source_query,
+            target_pool=target_pool,
+            target_table=target_table,
+            source_columns=source_columns,
+            source_uri=source_uri,
+            _config=_config,
+            **kwargs,
+        )
+
+    @staticmethod
+    def _build_insert_query(
+        target_table: str, source_columns: tuple[str, ...]
+    ) -> str:
+        all_cols = [*source_columns, "_ingested_at", "_source_uri"]
+        column_list = ", ".join(all_cols)
+        placeholders = ", ".join(["?"] * len(all_cols))
+        return f"INSERT INTO {target_table} ({column_list}) VALUES ({placeholders})"
+
+    async def process(
+        self,
+        *,
+        source_pool: Any,
+        source_query: Any,
+        target_pool: Any,
+        target_table: Any,
+        source_columns: Any,
+        source_uri: Any,
+        **_: Any,
+    ) -> dict[str, Any]:
+        """Validate inputs, fetch rows, stamp metadata, insert into bronze table, return summary.
+
+        Args:
+            source_pool: Pool to read source rows from.
+            source_query: SELECT query to run against the source.
+            target_pool: Pool to write bronze rows to.
+            target_table: Name of the bronze target table.
+            source_columns: Ordered source column names.
+            source_uri: URI string to stamp on every row.
+
+        Returns:
+            A dict with ``succeeded``, ``target_table``, and ``rows_inserted``.
+
+        Raises:
+            TypeError: If either pool is not a ``DatabaseConnectionPool``.
+            ValueError: If any string argument is empty, or ``source_columns`` is empty.
+        """
         if not isinstance(source_pool, DatabaseConnectionPool):
             raise TypeError(
                 "BronzeRawIngest: source_pool must be a DatabaseConnectionPool"
@@ -56,57 +105,28 @@ class BronzeRawIngest(SubTapestry):
             raise TypeError(
                 "BronzeRawIngest: target_pool must be a DatabaseConnectionPool"
             )
-        for label, value in (
-            ("source_query", source_query),
-            ("target_table", target_table),
-            ("source_uri", source_uri),
-        ):
-            if not isinstance(value, str) or not value:
-                raise ValueError(
-                    f"BronzeRawIngest: {label} must be a non-empty string"
-                )
+        if not isinstance(source_query, str) or not source_query:
+            raise ValueError(
+                "BronzeRawIngest: source_query must be a non-empty string"
+            )
+        if not isinstance(target_table, str) or not target_table:
+            raise ValueError(
+                "BronzeRawIngest: target_table must be a non-empty string"
+            )
+        if not isinstance(source_uri, str) or not source_uri:
+            raise ValueError(
+                "BronzeRawIngest: source_uri must be a non-empty string"
+            )
         column_tuple = tuple(source_columns)
         if not column_tuple:
             raise ValueError("BronzeRawIngest: source_columns must be non-empty")
-        self._source_pool = source_pool
-        self._source_query = source_query
-        self._target_pool = target_pool
-        self._target_table = target_table
-        self._source_columns = column_tuple
-        self._source_uri = source_uri
-        super().__init__(_config=_config, **kwargs)
-
-    @property
-    def insert_query(self) -> str:
-        all_cols = list(self._source_columns) + ["_ingested_at", "_source_uri"]
-        column_list = ", ".join(all_cols)
-        placeholders = ", ".join(["?"] * len(all_cols))
-        return (
-            f"INSERT INTO {self._target_table} ({column_list}) "
-            f"VALUES ({placeholders})"
-        )
-
-    async def process(self, **_: Any) -> RunResult:
-        """Extract source rows, stamp with ingestion metadata, and append to the bronze table.
-
-        Returns:
-            A RunResult summarising the outcome of the inner tapestry execution.
-        """
-        with Tapestry() as inner:
-            extracted = DatabaseQuerySource(
-                pool=self._source_pool,
-                query=self._source_query,
-                _config=KnotConfig(id="extract"),
-            )
-            stamped = StampBronzeMetadataKnot(
-                rows=extracted,
-                source_uri=self._source_uri,
-                _config=KnotConfig(id="stamp"),
-            )
-            DatabaseExecuteSink(
-                pool=self._target_pool,
-                query=self.insert_query,
-                rows=stamped,
-                _config=KnotConfig(id="load"),
-            )
-        return await self._run_inner(inner)
+        rows = await source_pool.fetch_all(source_query)
+        ingested_at = datetime.now(UTC).isoformat()
+        stamped = [(*tuple(r), ingested_at, source_uri) for r in rows]
+        insert_query = BronzeRawIngest._build_insert_query(target_table, column_tuple)
+        await target_pool.execute_many(insert_query, stamped)
+        return {
+            "succeeded": True,
+            "target_table": target_table,
+            "rows_inserted": len(stamped),
+        }

@@ -1,10 +1,11 @@
 """Tests for :class:`ScdType4MiniDimension`."""
 
 from __future__ import annotations
-import unittest
-import tempfile
-from pathlib import Path
 
+import tempfile
+import unittest
+from pathlib import Path
+from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -62,68 +63,56 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
     async def asyncTearDown(self) -> None:
         await self.main_pool.close()
-        
-        
         self._tmp_main_pool.cleanup()
         await self.mini_pool.close()
-        
-        
         self._tmp_mini_pool.cleanup()
         await self.source_pool.close()
-        
-        
-    def test_rejects_non_pool_source(self) -> None:
-        main_pool = self.main_pool
-        mini_pool = self.mini_pool
+
+    def _make_knot(self, **kwargs: Any) -> ScdType4MiniDimension:
+        defaults: dict[str, Any] = {
+            "source_pool": self.source_pool,
+            "source_query": "SELECT id, income_band, credit_score FROM customers",
+            "main_pool": self.main_pool,
+            "main_table": "customers",
+            "main_key_columns": ("id",),
+            "fact_fk_column": "mini_dim_sk",
+            "mini_pool": self.mini_pool,
+            "mini_table": "customer_profile",
+            "mini_dim_attributes": ("income_band", "credit_score"),
+        }
+        defaults.update(kwargs)
+        with Tapestry():
+            return ScdType4MiniDimension(**defaults, _config=KnotConfig(id="val"))
+
+    async def _call(self, k: ScdType4MiniDimension, **overrides: Any) -> None:
+        args: dict[str, Any] = {
+            "source_pool": self.source_pool,
+            "source_query": "SELECT id, income_band, credit_score FROM customers",
+            "main_pool": self.main_pool,
+            "main_table": "customers",
+            "main_key_columns": ("id",),
+            "fact_fk_column": "mini_dim_sk",
+            "mini_pool": self.mini_pool,
+            "mini_table": "customer_profile",
+            "mini_dim_attributes": ("income_band", "credit_score"),
+        }
+        args.update(overrides)
+        await k.process(**args)
+
+    async def test_rejects_non_pool_source(self) -> None:
+        k = self._make_knot()
         with self.assertRaisesRegex(TypeError, "DatabaseConnectionPool"):
-            ScdType4MiniDimension(
-                source_pool="bad",  # type: ignore[arg-type]
-                source_query="SELECT 1",
-                main_pool=main_pool,
-                main_table="customers",
-                main_key_columns=("id",),
-                fact_fk_column="mini_dim_sk",
-                mini_pool=mini_pool,
-                mini_table="customer_profile",
-                mini_dim_attributes=("income_band", "credit_score"),
-                _config=KnotConfig(id="scd4"),
-            )
+            await self._call(k, source_pool="bad")
 
-    def test_rejects_empty_source_query(self) -> None:
-        source_pool = self.source_pool
-        main_pool = self.main_pool
-        mini_pool = self.mini_pool
+    async def test_rejects_empty_source_query(self) -> None:
+        k = self._make_knot()
         with self.assertRaisesRegex(ValueError, "source_query"):
-            ScdType4MiniDimension(
-                source_pool=source_pool,
-                source_query="",
-                main_pool=main_pool,
-                main_table="customers",
-                main_key_columns=("id",),
-                fact_fk_column="mini_dim_sk",
-                mini_pool=mini_pool,
-                mini_table="customer_profile",
-                mini_dim_attributes=("income_band", "credit_score"),
-                _config=KnotConfig(id="scd4"),
-            )
+            await self._call(k, source_query="")
 
-    def test_rejects_invalid_identifier(self) -> None:
-        source_pool = self.source_pool
-        main_pool = self.main_pool
-        mini_pool = self.mini_pool
+    async def test_rejects_invalid_identifier(self) -> None:
+        k = self._make_knot()
         with self.assertRaisesRegex(ValueError, "plain identifier"):
-            ScdType4MiniDimension(
-                source_pool=source_pool,
-                source_query="SELECT 1",
-                main_pool=main_pool,
-                main_table="bad table",
-                main_key_columns=("id",),
-                fact_fk_column="mini_dim_sk",
-                mini_pool=mini_pool,
-                mini_table="customer_profile",
-                mini_dim_attributes=("income_band", "credit_score"),
-                _config=KnotConfig(id="scd4"),
-            )
+            await self._call(k, main_table="bad table")
 
 
 class TestScdType4Behaviour(unittest.IsolatedAsyncioTestCase):

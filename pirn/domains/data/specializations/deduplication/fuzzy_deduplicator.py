@@ -10,12 +10,40 @@ Pipeline stages
 4. **ClusterAssigner** — groups records above the threshold into a cluster
    and keeps only the cluster representative (first record by index).
 
-The knot accepts a list of dicts and returns the deduplicated list.
+Algorithm:
+    1. Receive resolved ``rows``, ``match_column``, ``blocking_key_length``,
+       ``similarity_metric``, and ``threshold`` in ``process()``.
+    2. Validate all inputs: identifier safety, metric name, threshold range,
+       and blocking key length.
+    3. Build a blocking index: group row indices by the first
+       ``blocking_key_length`` characters of their normalised match value.
+    4. For each pair of indices in the same block, score similarity.
+    5. Merge pairs above ``threshold`` into clusters via union-find
+       (root = min index).
+    6. Emit the first row (lowest original index) of each cluster.
+
+Math:
+    Jaro similarity:
+    $J(a,b) = \\frac{1}{3}\\left(\\frac{m}{|a|}+\\frac{m}{|b|}+\\frac{m-t/2}{m}\\right)$
+    where $m$ = matching characters, $t$ = transpositions.
+
+    Jaro-Winkler: $JW = J + p \\cdot l \\cdot (1 - J)$
+    where $l$ = common prefix length (max 4), $p = 0.1$.
+
+    Levenshtein similarity: $1 - \\frac{\\text{edit\\_distance}(a,b)}{\\max(|a|,|b|)}$
+
+References:
+    [1] Jaro, M.A. (1989). *Advances in Record-Linkage Methodology*.
+        JASA 84(406):414-420.
+    [2] Winkler, W.E. (1990). *String Comparator Metrics and Enhanced Decision Rules*.
+        ASA Proceedings of the Section on Survey Research Methods.
+    [3] pirn — IdentifierValidator:
+        pirn/domains/data/identifier_validator.py
 """
 
 from __future__ import annotations
 
-from typing import Any, Literal, Sequence
+from typing import Any, Literal
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -29,36 +57,22 @@ class FuzzyDeduplicator(Knot):
         self,
         *,
         rows: Knot,
-        match_column: str,
-        blocking_key_length: int = 3,
-        similarity_metric: Literal["levenshtein", "jaro_winkler"] = "jaro_winkler",
-        threshold: float = 0.85,
+        match_column: Knot | str,
+        blocking_key_length: Knot | int,
+        similarity_metric: Knot | Literal["levenshtein", "jaro_winkler"],
+        threshold: Knot | float,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        IdentifierValidator.validate_column("match_column", match_column)
-        if not isinstance(blocking_key_length, int) or blocking_key_length < 1:
-            raise ValueError(
-                "FuzzyDeduplicator: blocking_key_length must be a positive integer"
-            )
-        if similarity_metric not in ("levenshtein", "jaro_winkler"):
-            raise ValueError(
-                "FuzzyDeduplicator: similarity_metric must be 'levenshtein' or 'jaro_winkler'"
-            )
-        if not (0.0 < threshold <= 1.0):
-            raise ValueError(
-                "FuzzyDeduplicator: threshold must be in (0, 1]"
-            )
-        self._match_column = match_column
-        self._blocking_key_length = blocking_key_length
-        self._similarity_metric = similarity_metric
-        self._threshold = threshold
-        super().__init__(rows=rows, _config=_config, **kwargs)
-
-    def _score(self, a: str, b: str) -> float:
-        if self._similarity_metric == "levenshtein":
-            return self._levenshtein(a, b)
-        return self._jaro_winkler(a, b)
+        super().__init__(
+            rows=rows,
+            match_column=match_column,
+            blocking_key_length=blocking_key_length,
+            similarity_metric=similarity_metric,
+            threshold=threshold,
+            _config=_config,
+            **kwargs,
+        )
 
     @staticmethod
     def _levenshtein(a: str, b: str) -> float:
@@ -104,7 +118,7 @@ class FuzzyDeduplicator(Knot):
             return 0.0
         a_match = [a[i] for i in range(la) if a_flags[i]]
         b_match = [b[j] for j in range(lb) if b_flags[j]]
-        transpositions = sum(1 for x, y in zip(a_match, b_match) if x != y)
+        transpositions = sum(1 for x, y in zip(a_match, b_match, strict=False) if x != y)
         jaro = (
             matches / la + matches / lb + (matches - transpositions / 2) / matches
         ) / 3.0
@@ -116,26 +130,45 @@ class FuzzyDeduplicator(Knot):
                 break
         return jaro + prefix * 0.1 * (1.0 - jaro)
 
+    @staticmethod
+    def _score(metric: str, a: str, b: str) -> float:
+        if metric == "levenshtein":
+            return FuzzyDeduplicator._levenshtein(a, b)
+        return FuzzyDeduplicator._jaro_winkler(a, b)
+
     async def process(
-        self, rows: list[dict[str, Any]], **_: Any
+        self,
+        *,
+        rows: Any,
+        match_column: Any,
+        blocking_key_length: Any,
+        similarity_metric: Any,
+        threshold: Any,
+        **_: Any,
     ) -> list[dict[str, Any]]:
-        """Apply blocking + fuzzy scoring to deduplicate rows by match_column.
-
-        Records are clustered by similarity; only the first record (lowest
-        original index) from each cluster is retained.
-
-        Args:
-            rows: Upstream rows as a list of dicts.
-
-        Returns:
-            Deduplicated list with one representative per fuzzy-match cluster.
-        """
+        if not isinstance(match_column, str) or not match_column:
+            raise ValueError(
+                "FuzzyDeduplicator: match_column must be a non-empty string"
+            )
+        IdentifierValidator.validate_column("match_column", match_column)
+        if not isinstance(blocking_key_length, int) or blocking_key_length < 1:
+            raise ValueError(
+                "FuzzyDeduplicator: blocking_key_length must be a positive integer"
+            )
+        if similarity_metric not in ("levenshtein", "jaro_winkler"):
+            raise ValueError(
+                "FuzzyDeduplicator: similarity_metric must be 'levenshtein' or 'jaro_winkler'"
+            )
+        if not (0.0 < threshold <= 1.0):
+            raise ValueError(
+                "FuzzyDeduplicator: threshold must be in (0, 1]"
+            )
         tokens: list[str] = [
-            str(r.get(self._match_column, "")).lower() for r in rows
+            str(r.get(match_column, "")).lower() for r in rows
         ]
         blocks: dict[str, list[int]] = {}
         for idx, token in enumerate(tokens):
-            key = token[: self._blocking_key_length]
+            key = token[:blocking_key_length]
             blocks.setdefault(key, []).append(idx)
 
         cluster_of: dict[int, int] = {}
@@ -143,8 +176,8 @@ class FuzzyDeduplicator(Knot):
             for i_pos in range(len(indices)):
                 for j_pos in range(i_pos + 1, len(indices)):
                     i, j = indices[i_pos], indices[j_pos]
-                    score = self._score(tokens[i], tokens[j])
-                    if score >= self._threshold:
+                    score = FuzzyDeduplicator._score(similarity_metric, tokens[i], tokens[j])
+                    if score >= threshold:
                         root_i = cluster_of.get(i, i)
                         root_j = cluster_of.get(j, j)
                         merged = min(root_i, root_j)

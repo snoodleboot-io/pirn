@@ -1,62 +1,145 @@
-"""``SilverCleanTransform`` — cleanse + dedup + validate a bronze batch
-into a silver table.
+"""``SilverCleanTransform`` — cleanse, validate, and deduplicate a bronze
+batch into a silver table.
 
-Composition (Tier-1 dict-based — small batches; for medium/large data,
-the same shape works at Tier-2 by swapping in PolarsFilter / PolarsCast
-/ PolarsDeduplicate):
+Tier-1 dict-based pipeline (small batches).  For medium/large data, the
+same shape works at Tier-2 by swapping in PolarsFilter / PolarsCast /
+PolarsDeduplicate in place of the dict-based transforms.
 
-1. :class:`DatabaseQuerySource` reads from the bronze source.
-2. The bronze rows are normalised into a Tier-1 :class:`DataBatch`.
-3. :class:`Cast` coerces column types per the caller's schema.
-4. :class:`Filter` drops rows that fail caller-supplied validity rules.
-5. :class:`Deduplicate` enforces the silver primary key.
-6. The cleaned rows are written via :class:`DatabaseExecuteSink`.
+Algorithm:
+    1. Receive all inputs in ``process()`` and validate.
+    2. Fetch bronze rows from ``source_pool`` via ``source_query``.
+    3. Convert row tuples to a :class:`DataBatch` keyed by ``column_names``.
+    4. Apply type casts per ``casts`` mapping.
+    5. Drop rows where ``filter_predicate`` returns falsy.
+    6. Deduplicate on ``primary_keys`` (first-occurrence wins).
+    7. Project each surviving row back to a positional tuple.
+    8. Write via ``target_pool.execute_many``.
+    9. Return a summary dict with ``succeeded``, ``target_table``,
+       and ``rows_inserted``.
 
-The pipeline produces a *silver* table — typed, deduped, business-rule-
-validated, but not yet aggregated. Aggregation is :class:`GoldAggregation`.
+References:
+    [1] pirn — DataBatch: pirn/domains/data/data_batch.py
+    [2] pirn — DatabaseConnectionPool interface:
+        pirn/domains/connectors/database_connection_pool.py
 """
 
 from __future__ import annotations
 
-from typing import Any, Callable, Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_result import RunResult
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
-from pirn.domains.connectors.knots.database_execute_sink import DatabaseExecuteSink
-from pirn.domains.connectors.knots.database_query_source import DatabaseQuerySource
 from pirn.domains.data.data_batch import DataBatch
-from pirn.domains.data.specializations.medallion.tuples_to_data_batch_knot import (
-    TuplesToDataBatchKnot,
-)
-from pirn.domains.data.specializations.medallion.data_batch_to_tuples_knot import (
-    DataBatchToTuplesKnot,
-)
-from pirn.domains.data.transforms.cast import Cast
-from pirn.domains.data.transforms.deduplicate import Deduplicate
-from pirn.domains.data.transforms.filter import Filter
-from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
-class SilverCleanTransform(SubTapestry):
+class SilverCleanTransform(Knot):
     """Bronze → Silver: cast types, filter invalid rows, dedup on PK."""
 
     def __init__(
         self,
         *,
-        source_pool: DatabaseConnectionPool,
-        source_query: str,
-        target_pool: DatabaseConnectionPool,
-        target_table: str,
-        column_names: Sequence[str],
-        casts: Mapping[str, type],
-        filter_predicate: Callable[[Mapping[str, Any]], bool],
-        primary_keys: Sequence[str],
+        source_pool: Knot | DatabaseConnectionPool,
+        source_query: Knot | str,
+        target_pool: Knot | DatabaseConnectionPool,
+        target_table: Knot | str,
+        column_names: Knot | Sequence[str],
+        casts: Knot | Mapping[str, type],
+        filter_predicate: Knot | Callable[[Mapping[str, Any]], bool],
+        primary_keys: Knot | Sequence[str],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            source_pool=source_pool,
+            source_query=source_query,
+            target_pool=target_pool,
+            target_table=target_table,
+            column_names=column_names,
+            casts=casts,
+            filter_predicate=filter_predicate,
+            primary_keys=primary_keys,
+            _config=_config,
+            **kwargs,
+        )
+
+    @staticmethod
+    def _build_insert_query(target_table: str, column_names: tuple[str, ...]) -> str:
+        column_list = ", ".join(column_names)
+        placeholders = ", ".join(["?"] * len(column_names))
+        return f"INSERT INTO {target_table} ({column_list}) VALUES ({placeholders})"
+
+    @staticmethod
+    def _cast_batch(
+        batch: DataBatch, casts: dict[str, type]
+    ) -> DataBatch:
+        def cast_row(row: Mapping[str, Any]) -> dict[str, Any]:
+            out: dict[str, Any] = {}
+            for key, value in row.items():
+                if key in casts and value is not None:
+                    target = casts[key]
+                    out[key] = value if isinstance(value, target) else target(value)
+                else:
+                    out[key] = value
+            return out
+
+        return batch.with_rows(tuple(cast_row(r) for r in batch.rows))
+
+    @staticmethod
+    def _filter_batch(
+        batch: DataBatch,
+        predicate: Callable[[Mapping[str, Any]], bool],
+    ) -> DataBatch:
+        return batch.with_rows(
+            tuple(row for row in batch.rows if predicate(row))
+        )
+
+    @staticmethod
+    def _deduplicate_batch(
+        batch: DataBatch, primary_keys: tuple[str, ...]
+    ) -> DataBatch:
+        seen: set[tuple[Any, ...]] = set()
+        kept = []
+        for row in batch.rows:
+            key = tuple(row.get(k) for k in primary_keys)
+            if key not in seen:
+                seen.add(key)
+                kept.append(row)
+        return batch.with_rows(tuple(kept))
+
+    async def process(
+        self,
+        *,
+        source_pool: Any,
+        source_query: Any,
+        target_pool: Any,
+        target_table: Any,
+        column_names: Any,
+        casts: Any,
+        filter_predicate: Any,
+        primary_keys: Any,
+        **_: Any,
+    ) -> dict[str, Any]:
+        """Validate inputs, fetch, cast, filter, dedup, write to silver, return summary.
+
+        Args:
+            source_pool: Pool to read bronze rows from.
+            source_query: SELECT query to run against the source.
+            target_pool: Pool to write silver rows to.
+            target_table: Name of the silver target table.
+            column_names: Ordered column names for both source and target.
+            casts: Mapping of column name to target Python type.
+            filter_predicate: Callable that returns truthy for rows to keep.
+            primary_keys: Column names that form the dedup key.
+
+        Returns:
+            A dict with ``succeeded``, ``target_table``, and ``rows_inserted``.
+
+        Raises:
+            TypeError: If either pool is not a ``DatabaseConnectionPool``.
+            ValueError: If any string argument is empty, or sequence arguments are empty.
+        """
         if not isinstance(source_pool, DatabaseConnectionPool):
             raise TypeError(
                 "SilverCleanTransform: source_pool must be a DatabaseConnectionPool"
@@ -65,87 +148,42 @@ class SilverCleanTransform(SubTapestry):
             raise TypeError(
                 "SilverCleanTransform: target_pool must be a DatabaseConnectionPool"
             )
-        for label, value in (
-            ("source_query", source_query),
-            ("target_table", target_table),
-        ):
-            if not isinstance(value, str) or not value:
-                raise ValueError(
-                    f"SilverCleanTransform: {label} must be a non-empty string"
-                )
+        if not isinstance(source_query, str) or not source_query:
+            raise ValueError(
+                "SilverCleanTransform: source_query must be a non-empty string"
+            )
+        if not isinstance(target_table, str) or not target_table:
+            raise ValueError(
+                "SilverCleanTransform: target_table must be a non-empty string"
+            )
         column_tuple = tuple(column_names)
         if not column_tuple:
             raise ValueError("SilverCleanTransform: column_names must be non-empty")
         primary_key_tuple = tuple(primary_keys)
         if not primary_key_tuple:
             raise ValueError("SilverCleanTransform: primary_keys must be non-empty")
-        self._source_pool = source_pool
-        self._source_query = source_query
-        self._target_pool = target_pool
-        self._target_table = target_table
-        self._column_names = column_tuple
-        self._casts = dict(casts)
-        self._filter_predicate = filter_predicate
-        self._primary_keys = primary_key_tuple
-        self._insert_query = self._build_insert_query()
-        super().__init__(_config=_config, **kwargs)
-
-    def _build_insert_query(self) -> str:
-        column_list = ", ".join(self._column_names)
-        placeholders = ", ".join(["?"] * len(self._column_names))
-        return (
-            f"INSERT INTO {self._target_table} ({column_list}) "
-            f"VALUES ({placeholders})"
+        casts_dict = dict(casts)
+        # Fetch bronze rows and convert to DataBatch.
+        raw_rows = await source_pool.fetch_all(source_query)
+        batch = DataBatch(
+            rows=tuple(
+                dict(zip(column_tuple, tuple(r), strict=False)) for r in raw_rows
+            )
         )
-
-    async def process(self, **_: Any) -> dict[str, Any]:
-        """Cast, filter, and deduplicate bronze rows, then write the cleaned rows to the silver table.
-
-        Returns:
-            A dict with keys ``succeeded`` and ``target_table`` summarising the run outcome.
-        """
-        with Tapestry() as inner:
-            extracted = DatabaseQuerySource(
-                pool=self._source_pool,
-                query=self._source_query,
-                _config=KnotConfig(id="extract"),
-            )
-            as_batch = TuplesToDataBatchKnot(
-                rows=extracted,
-                column_names=self._column_names,
-                _config=KnotConfig(id="as_batch"),
-            )
-            casted = Cast(
-                batch=as_batch,
-                casts=self._casts,
-                _config=KnotConfig(id="cast"),
-            )
-            valid = Filter(
-                batch=casted,
-                predicate=self._filter_predicate,
-                _config=KnotConfig(id="filter"),
-            )
-            deduped = Deduplicate(
-                batch=valid,
-                keys=self._primary_keys,
-                _config=KnotConfig(id="dedup"),
-            )
-            tuples = DataBatchToTuplesKnot(
-                batch=deduped,
-                column_names=self._column_names,
-                _config=KnotConfig(id="to_tuples"),
-            )
-            DatabaseExecuteSink(
-                pool=self._target_pool,
-                query=self._insert_query,
-                rows=tuples,
-                _config=KnotConfig(id="load"),
-            )
-        inner_result = await self._run_inner(inner)
-        # Return a primitive summary so pirn's content-addressing hash
-        # does not have to walk a RunResult whose outputs contain
-        # DataBatch (with type-bearing schemas).
+        # Apply transform chain.
+        batch = SilverCleanTransform._cast_batch(batch, casts_dict)
+        batch = SilverCleanTransform._filter_batch(batch, filter_predicate)
+        batch = SilverCleanTransform._deduplicate_batch(batch, primary_key_tuple)
+        # Project to positional tuples for INSERT.
+        output_rows = [
+            tuple(row.get(col) for col in column_tuple) for row in batch.rows
+        ]
+        insert_query = SilverCleanTransform._build_insert_query(
+            target_table, column_tuple
+        )
+        await target_pool.execute_many(insert_query, output_rows)
         return {
-            "succeeded": inner_result.succeeded,
-            "target_table": self._target_table,
+            "succeeded": True,
+            "target_table": target_table,
+            "rows_inserted": len(output_rows),
         }
