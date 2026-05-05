@@ -36,49 +36,49 @@ Steps per file:
   - tests: `tests/unit/domains/data/frames/duckdb/test_duckdb_join.py`
 - [x] `pirn/domains/data/frames/duckdb/duckdb_rename.py`
   - tests: `tests/unit/domains/data/frames/duckdb/test_duckdb_rename.py`
-- [ ] **Commit:** `fix: remediate frames/duckdb knots (steps 1–12)`
+- [x] **Commit:** `fix: remediate frames/duckdb knots (steps 1–12)`
 
 ---
 
 ## Group B — frames/pandas (6 files)
 
-- [ ] `pirn/domains/data/frames/pandas/pandas_aggregate.py`
+- [x] `pirn/domains/data/frames/pandas/pandas_aggregate.py`
   - tests: `tests/unit/domains/data/frames/pandas/test_pandas_aggregate.py`
-- [ ] `pirn/domains/data/frames/pandas/pandas_cast.py`
+- [x] `pirn/domains/data/frames/pandas/pandas_cast.py`
   - tests: `tests/unit/domains/data/frames/pandas/test_pandas_cast.py`
-- [ ] `pirn/domains/data/frames/pandas/pandas_deduplicate.py`
+- [x] `pirn/domains/data/frames/pandas/pandas_deduplicate.py`
   - tests: `tests/unit/domains/data/frames/pandas/test_pandas_deduplicate.py`
-- [ ] `pirn/domains/data/frames/pandas/pandas_filter.py`
+- [x] `pirn/domains/data/frames/pandas/pandas_filter.py`
   - tests: `tests/unit/domains/data/frames/pandas/test_pandas_filter.py`
-- [ ] `pirn/domains/data/frames/pandas/pandas_join.py`
+- [x] `pirn/domains/data/frames/pandas/pandas_join.py`
   - tests: `tests/unit/domains/data/frames/pandas/test_pandas_join.py`
-- [ ] `pirn/domains/data/frames/pandas/pandas_rename.py`
+- [x] `pirn/domains/data/frames/pandas/pandas_rename.py`
   - tests: `tests/unit/domains/data/frames/pandas/test_pandas_rename.py`
-- [ ] **Commit:** `fix: remediate frames/pandas knots (steps 1–12)`
+- [x] **Commit:** `fix: remediate frames/pandas knots (steps 1–12)` (pending verify+commit)
 
 ---
 
 ## Group C — frames/polars (9 files)
 
-- [ ] `pirn/domains/data/frames/polars/polars_aggregate.py`
+- [x] `pirn/domains/data/frames/polars/polars_aggregate.py`
   - tests: `tests/unit/domains/data/frames/polars/test_polars_aggregate.py`
-- [ ] `pirn/domains/data/frames/polars/polars_cast.py`
+- [x] `pirn/domains/data/frames/polars/polars_cast.py`
   - tests: `tests/unit/domains/data/frames/polars/test_polars_cast.py`
-- [ ] `pirn/domains/data/frames/polars/polars_deduplicate.py`
+- [x] `pirn/domains/data/frames/polars/polars_deduplicate.py`
   - tests: `tests/unit/domains/data/frames/polars/test_polars_deduplicate.py`
-- [ ] `pirn/domains/data/frames/polars/polars_filter.py`
+- [x] `pirn/domains/data/frames/polars/polars_filter.py`
   - tests: `tests/unit/domains/data/frames/polars/test_polars_filter.py`
-- [ ] `pirn/domains/data/frames/polars/polars_join.py`
+- [x] `pirn/domains/data/frames/polars/polars_join.py`
   - tests: `tests/unit/domains/data/frames/polars/test_polars_join.py`
-- [ ] `pirn/domains/data/frames/polars/polars_pivot.py`
+- [x] `pirn/domains/data/frames/polars/polars_pivot.py`
   - tests: `tests/unit/domains/data/frames/polars/test_polars_pivot.py`
-- [ ] `pirn/domains/data/frames/polars/polars_rename.py`
+- [x] `pirn/domains/data/frames/polars/polars_rename.py`
   - tests: `tests/unit/domains/data/frames/polars/test_polars_rename.py`
-- [ ] `pirn/domains/data/frames/polars/polars_unpivot.py`
+- [x] `pirn/domains/data/frames/polars/polars_unpivot.py`
   - tests: `tests/unit/domains/data/frames/polars/test_polars_unpivot.py`
-- [ ] `pirn/domains/data/frames/polars/polars_window_calc.py`
+- [x] `pirn/domains/data/frames/polars/polars_window_calc.py`
   - tests: `tests/unit/domains/data/frames/polars/test_polars_window_calc.py`
-- [ ] **Commit:** `fix: remediate frames/polars knots (steps 1–12)`
+- [x] **Commit:** `fix: remediate frames/polars knots (steps 1–12)` (pending verify+commit)
 
 ---
 
@@ -114,39 +114,39 @@ Steps per file:
 
 ## Group F — lazy/ray (4 files, excluding RaySource)
 
-- [ ] `pirn/domains/data/lazy/ray/ray_aggregate.py`
+- [x] `pirn/domains/data/lazy/ray/ray_aggregate.py`
   - tests: `tests/unit/domains/data/lazy/ray/test_ray_aggregate.py`
-- [ ] `pirn/domains/data/lazy/ray/ray_compute.py`
+- [x] `pirn/domains/data/lazy/ray/ray_compute.py`
   - tests: `tests/unit/domains/data/lazy/ray/test_ray_compute.py`
-- [ ] `pirn/domains/data/lazy/ray/ray_filter.py`
+- [x] `pirn/domains/data/lazy/ray/ray_filter.py`
   - tests: `tests/unit/domains/data/lazy/ray/test_ray_filter.py`
-- [ ] `pirn/domains/data/lazy/ray/ray_map.py`
+- [x] `pirn/domains/data/lazy/ray/ray_map.py`
   - tests: `tests/unit/domains/data/lazy/ray/test_ray_map.py`
-- [ ] **Commit:** `fix: remediate lazy/ray knots (steps 1–12)`
+- [x] **Commit:** `fix: remediate lazy/ray knots (steps 1–12)`
 
 ---
 
 ## Group G — lazy/spark (5 files, excluding SparkSource)
 
-- [ ] `pirn/domains/data/lazy/spark/spark_aggregate.py`
+- [x] `pirn/domains/data/lazy/spark/spark_aggregate.py`
   - tests: `tests/unit/domains/data/lazy/spark/test_spark_aggregate.py`
-- [ ] `pirn/domains/data/lazy/spark/spark_collect_sink.py`
+- [x] `pirn/domains/data/lazy/spark/spark_collect_sink.py`
   - tests: `tests/unit/domains/data/lazy/spark/test_spark_collect_sink.py`
-- [ ] `pirn/domains/data/lazy/spark/spark_filter.py`
+- [x] `pirn/domains/data/lazy/spark/spark_filter.py`
   - tests: `tests/unit/domains/data/lazy/spark/test_spark_filter.py`
-- [ ] `pirn/domains/data/lazy/spark/spark_join.py`
+- [x] `pirn/domains/data/lazy/spark/spark_join.py`
   - tests: `tests/unit/domains/data/lazy/spark/test_spark_join.py`
-- [ ] `pirn/domains/data/lazy/spark/spark_write_sink.py`
+- [x] `pirn/domains/data/lazy/spark/spark_write_sink.py`
   - tests: `tests/unit/domains/data/lazy/spark/test_spark_write_sink.py`
-- [ ] **Commit:** `fix: remediate lazy/spark knots (steps 1–12)`
+- [x] **Commit:** `fix: remediate lazy/spark knots (steps 1–12)`
 
 ---
 
 ## Group H — specialized/eland (1 file, excluding ElandSource)
 
-- [ ] `pirn/domains/data/specialized/eland/eland_filter.py`
+- [x] `pirn/domains/data/specialized/eland/eland_filter.py`
   - tests: `tests/unit/domains/data/specialized/eland/test_eland_filter.py`
-- [ ] **Commit:** `fix: remediate specialized/eland knots (steps 1–12)`
+- [x] **Commit:** `fix: remediate specialized/eland knots (steps 1–12)`
 
 ---
 
@@ -182,6 +182,6 @@ Steps per file:
 
 ## Final verification
 
-- [ ] `python -c "import subprocess; r = subprocess.run(['python', 'scripts/audit_knots.py', '--path', 'pirn/domains/data'], capture_output=True, text=True); print(r.stdout)"` — 0 non-Source violations
-- [ ] `uv run ruff check pirn/domains/data/`
-- [ ] `python -m pytest tests/unit/domains/data/ -x -q`
+- [x] `python -c "import subprocess; r = subprocess.run(['python', 'scripts/audit_knots.py', '--path', 'pirn/domains/data'], capture_output=True, text=True); print(r.stdout)"` — 0 non-Source violations
+- [x] `python check pirn/domains/data/`
+- [x] `python tests/unit/domains/data/ -x -q`
