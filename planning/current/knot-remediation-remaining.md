@@ -152,31 +152,31 @@ Steps per file:
 
 ## Group I — transforms (6 files)
 
-- [ ] `pirn/domains/data/transforms/aggregate.py`
+- [x] `pirn/domains/data/transforms/aggregate.py`
   - tests: `tests/unit/domains/data/transforms/test_aggregate.py`
-- [ ] `pirn/domains/data/transforms/cast.py`
+- [x] `pirn/domains/data/transforms/cast.py`
   - tests: `tests/unit/domains/data/transforms/test_cast.py`
-- [ ] `pirn/domains/data/transforms/deduplicate.py`
+- [x] `pirn/domains/data/transforms/deduplicate.py`
   - tests: `tests/unit/domains/data/transforms/test_deduplicate.py`
-- [ ] `pirn/domains/data/transforms/filter.py`
+- [x] `pirn/domains/data/transforms/filter.py`
   - tests: `tests/unit/domains/data/transforms/test_filter.py`
-- [ ] `pirn/domains/data/transforms/normalize.py`
+- [x] `pirn/domains/data/transforms/normalize.py`
   - tests: `tests/unit/domains/data/transforms/test_normalize.py`
-- [ ] `pirn/domains/data/transforms/rename.py`
+- [x] `pirn/domains/data/transforms/rename.py`
   - tests: `tests/unit/domains/data/transforms/test_rename.py`
-- [ ] **Commit:** `fix: remediate transforms knots (steps 1–12)`
+- [x] **Commit:** `fix: remediate transforms knots (steps 1–12)`
 
 ---
 
 ## Group J — validation (3 files)
 
-- [ ] `pirn/domains/data/validation/great_expectations/great_expectations_pandas_validator.py`
+- [x] `pirn/domains/data/validation/great_expectations/great_expectations_pandas_validator.py`
   - tests: `tests/unit/domains/data/validation/great_expectations/`
-- [ ] `pirn/domains/data/validation/pandera/pandera_pandas_validator.py`
+- [x] `pirn/domains/data/validation/pandera/pandera_pandas_validator.py`
   - tests: `tests/unit/domains/data/validation/pandera/`
-- [ ] `pirn/domains/data/validation/pandera/pandera_polars_validator.py`
+- [x] `pirn/domains/data/validation/pandera/pandera_polars_validator.py`
   - tests: `tests/unit/domains/data/validation/pandera/`
-- [ ] **Commit:** `fix: remediate validation knots (steps 1–12)`
+- [x] **Commit:** `fix: remediate validation knots (steps 1–12)`
 
 ---
 
