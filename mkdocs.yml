@@ -39,8 +39,13 @@ markdown_extensions:
   - pymdownx.details
   - pymdownx.inlinehilite
   - pymdownx.snippets
+  - pymdownx.arithmatex:
+      generic: true
   - toc:
       permalink: true
+
+extra_javascript:
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
 
 nav:
   - Home: index.md
@@ -87,3 +92,5 @@ nav:
     - Format Matrix: connectors/index.md
   - Contributing:
     - Domain Knots: contributing/domain-knots.md
+    - Knot Design Rules: contributing/knot-design-rules.md
+    - Knot Remediation Process: contributing/knot-remediation-process.md
