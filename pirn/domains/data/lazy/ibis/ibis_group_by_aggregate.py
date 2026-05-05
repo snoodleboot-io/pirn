@@ -20,11 +20,39 @@ either a single named aggregation expression or a sequence of them::
         ],
         _config=KnotConfig(id="region_metrics"),
     )
+
+Algorithm:
+    1. Validate that ``by`` is a non-empty sequence of non-empty strings.
+    2. Validate that ``aggregations`` is callable.
+    3. Invoke ``aggregations(expression)`` to produce one or more ``ibis.Expr`` values.
+    4. Call ``expression.group_by(list(by)).aggregate(*result)`` or
+       ``expression.group_by(list(by)).aggregate(result)`` depending on whether
+       the factory returned a sequence.
+    5. Return a new ``IbisTable`` wrapping the extended deferred expression.
+
+    No rows are read from the backend — the aggregation becomes a SQL
+    ``GROUP BY`` + aggregate clause when compiled and executed.
+
+    ```text
+    result = aggregations(expression)
+    if isinstance(result, (list, tuple)):
+        agg_expr = expression.group_by(list(by)).aggregate(*result)
+    else:
+        agg_expr = expression.group_by(list(by)).aggregate(result)
+    return IbisTable(agg_expr)
+    ```
+
+References:
+    [1] Ibis — Table.group_by / aggregate:
+        https://ibis-project.org/reference/expression-tables.html#ibis.expr.types.relations.Table.group_by
+    [2] Alternative: Dask groupby.agg (chosen Ibis for full SQL push-down):
+        https://docs.dask.org/en/stable/dataframe-groupby.html
 """
 
 from __future__ import annotations
 
-from typing import Any, Callable, Sequence
+from collections.abc import Callable, Sequence
+from typing import Any
 
 import ibis
 
@@ -40,11 +68,36 @@ class IbisGroupByAggregate(Knot):
         self,
         *,
         batch: Knot,
-        by: Sequence[str],
-        aggregations: Callable[[ibis.Table], Any],
+        by: Knot | Sequence[str],
+        aggregations: Knot | Callable[[ibis.Table], Any],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            batch=batch,
+            by=by,
+            aggregations=aggregations,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        batch: IbisTable,
+        by: Any,
+        aggregations: Any,
+        **_: Any,
+    ) -> IbisTable:
+        """Extend the deferred Ibis expression with a group-by aggregation and return the result.
+
+        Args:
+            batch: The upstream IbisTable whose expression will be aggregated.
+            by: A sequence of column name strings to group by.
+            aggregations: A callable (table) -> ibis.Expr or sequence of ibis.Expr.
+
+        Returns:
+            A new IbisTable with the group-by aggregation appended to the deferred expression.
+        """
         if not isinstance(by, Sequence) or isinstance(by, (str, bytes)):
             raise TypeError(
                 "IbisGroupByAggregate: by must be a sequence of column names"
@@ -62,30 +115,13 @@ class IbisGroupByAggregate(Knot):
                 "IbisGroupByAggregate: aggregations must be a callable "
                 "(table) -> ibis.Expr or sequence of ibis.Expr"
             )
-        self._by: tuple[str, ...] = tuple(by)
-        self._aggregations = aggregations
-        super().__init__(batch=batch, _config=_config, **kwargs)
-
-    @property
-    def by(self) -> tuple[str, ...]:
-        return self._by
-
-    async def process(self, batch: IbisTable, **_: Any) -> IbisTable:
-        """Extend the deferred Ibis expression with a group-by aggregation and return the result.
-
-        Args:
-            batch: The upstream IbisTable whose expression will be aggregated.
-
-        Returns:
-            A new IbisTable with the group-by aggregation appended to the deferred expression.
-        """
-        result = self._aggregations(batch.expression)
+        result = aggregations(batch.expression)
         if isinstance(result, (list, tuple)):
             aggregated = (
-                batch.expression.group_by(list(self._by)).aggregate(*result)
+                batch.expression.group_by(list(by)).aggregate(*result)
             )
         else:
             aggregated = (
-                batch.expression.group_by(list(self._by)).aggregate(result)
+                batch.expression.group_by(list(by)).aggregate(result)
             )
         return batch.with_expression(aggregated)

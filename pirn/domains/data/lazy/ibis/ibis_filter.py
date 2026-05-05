@@ -14,11 +14,32 @@ The predicate is supplied as a callable that receives the upstream
         predicate=lambda t: t.region == "EU",
         _config=KnotConfig(id="eu_only"),
     )
+
+Algorithm:
+    1. Validate that ``predicate`` is callable.
+    2. Invoke ``predicate(expression)`` to produce an ``ibis.Expr`` filter condition.
+    3. Call ``expression.filter(condition)`` to extend the deferred expression tree.
+    4. Return a new ``IbisTable`` wrapping the filtered expression.
+
+    No rows are read from the backend — the predicate becomes a SQL ``WHERE``
+    clause when the expression is eventually compiled and executed.
+
+    ```text
+    condition = predicate(expression)
+    return IbisTable(expression.filter(condition))
+    ```
+
+References:
+    [1] Ibis — Table.filter:
+        https://ibis-project.org/reference/expression-tables.html#ibis.expr.types.relations.Table.filter
+    [2] Alternative: Dask boolean masking (chosen Ibis here for full SQL push-down):
+        https://docs.dask.org/en/stable/dataframe-indexing.html
 """
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import ibis
 
@@ -34,29 +55,25 @@ class IbisFilter(Knot):
         self,
         *,
         batch: Knot,
-        predicate: Callable[[ibis.Table], ibis.Expr],
+        predicate: Knot | Callable[[ibis.Table], ibis.Expr],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not callable(predicate):
-            raise TypeError(
-                "IbisFilter: predicate must be a callable (table) -> ibis.Expr"
-            )
-        self._predicate = predicate
-        super().__init__(batch=batch, _config=_config, **kwargs)
+        super().__init__(batch=batch, predicate=predicate, _config=_config, **kwargs)
 
-    @property
-    def predicate(self) -> Callable[[ibis.Table], ibis.Expr]:
-        return self._predicate
-
-    async def process(self, batch: IbisTable, **_: Any) -> IbisTable:
+    async def process(self, batch: IbisTable, predicate: Any, **_: Any) -> IbisTable:
         """Apply the callable predicate to extend the deferred Ibis expression with a filter.
 
         Args:
             batch: The upstream IbisTable whose expression will be filtered.
+            predicate: A callable (table) -> ibis.Expr.
 
         Returns:
             A new IbisTable with the filter predicate appended to the deferred expression.
         """
-        expression = self._predicate(batch.expression)
+        if not callable(predicate):
+            raise TypeError(
+                "IbisFilter: predicate must be a callable (table) -> ibis.Expr"
+            )
+        expression = predicate(batch.expression)
         return batch.with_expression(batch.expression.filter(expression))

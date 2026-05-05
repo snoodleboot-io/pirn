@@ -1,11 +1,13 @@
 """Tests for :class:`IbisWindow`."""
 
 from __future__ import annotations
+
 import unittest
 
 import ibis
 
 from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.domains.data.lazy.ibis.ibis_source import IbisSource
 from pirn.domains.data.lazy.ibis.ibis_table import IbisTable
@@ -13,21 +15,24 @@ from pirn.domains.data.lazy.ibis.ibis_window import IbisWindow
 from pirn.tapestry import Tapestry
 
 
+def _make_orders_con() -> ibis.BaseBackend:
+    con = ibis.duckdb.connect()
+    con.create_table(
+        "orders",
+        {
+            "region": ["EU", "EU", "EU", "US", "US"],
+            "amount": [10.0, 25.0, 5.0,  100.0, 50.0],
+        },
+    )
+    return con
 
-class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
+
+class TestIbisWindow(unittest.IsolatedAsyncioTestCase):
     async def test_window_function_compiles_to_sql_window_clause(self) -> None:
-        con = ibis.duckdb.connect()
-        con.create_table(
-            "orders",
-            {
-                "region": ["EU", "EU", "EU", "US", "US"],
-                "amount": [10.0, 25.0, 5.0,  100.0, 50.0],
-            },
-        )
-        duckdb_orders = con
+        con = _make_orders_con()
         with Tapestry() as t:
             src = IbisSource(
-                connection=duckdb_orders, table="orders",
+                connection=con, table="orders",
                 backend_name="duckdb", _config=KnotConfig(id="src"),
             )
             IbisWindow(
@@ -40,25 +45,14 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         out: IbisTable = result.outputs["windowed"]
         assert "rank_in_region" in out.column_names
-    
-        compiled = str(duckdb_orders.compile(out.expression)).lower()
-        # The push-down test for IbisWindow: the SQL contains a window clause.
+        compiled = str(con.compile(out.expression)).lower()
         assert "over" in compiled
-    
-    
+
     async def test_multiple_windows(self) -> None:
-        con = ibis.duckdb.connect()
-        con.create_table(
-            "orders",
-            {
-                "region": ["EU", "EU", "EU", "US", "US"],
-                "amount": [10.0, 25.0, 5.0,  100.0, 50.0],
-            },
-        )
-        duckdb_orders = con
+        con = _make_orders_con()
         with Tapestry() as t:
             src = IbisSource(
-                connection=duckdb_orders, table="orders",
+                connection=con, table="orders",
                 _config=KnotConfig(id="src"),
             )
             IbisWindow(
@@ -73,23 +67,43 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
         out: IbisTable = result.outputs["windowed"]
         assert "running_total" in out.column_names
         assert "rank_in_region" in out.column_names
-    
-    
-    def test_construct_rejects_non_callable(self) -> None:
-        con = ibis.duckdb.connect()
-        con.create_table(
-            "orders",
-            {
-                "region": ["EU", "EU", "EU", "US", "US"],
-                "amount": [10.0, 25.0, 5.0,  100.0, 50.0],
-            },
-        )
-        duckdb_orders = con
+
+
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_windows_from_upstream_knot(self) -> None:
+        con = _make_orders_con()
+
+        @knot
+        async def emit_windows() -> object:
+            return lambda table: table.amount.cumsum().name("running_total")
+
+        with Tapestry() as t:
+            src = IbisSource(
+                connection=con, table="orders",
+                backend_name="duckdb", _config=KnotConfig(id="src"),
+            )
+            win_knot = emit_windows(_config=KnotConfig(id="win"))
+            IbisWindow(batch=src, windows=win_knot, _config=KnotConfig(id="windowed"))
+        result = await t.run(RunRequest())
+        out: IbisTable = result.outputs["windowed"]
+        assert "running_total" in out.column_names
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self, **kwargs: object) -> IbisWindow:
+        con = _make_orders_con()
         with Tapestry():
-            src = IbisSource(connection=duckdb_orders, table="orders", _config=KnotConfig(id="src"))
-            with self.assertRaisesRegex(TypeError, "callable"):
-                IbisWindow(
-                    batch=src,
-                    windows="rank()",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="w"),
-                )
+            src = IbisSource(connection=con, table="orders", _config=KnotConfig(id="src"))
+            return IbisWindow(
+                batch=src,
+                windows=lambda t: t.amount.cumsum().name("x"),
+                _config=KnotConfig(id="w"),
+                **kwargs,
+            )
+
+    async def test_rejects_non_callable_windows(self) -> None:
+        con = _make_orders_con()
+        batch = IbisTable(expression=con.table("orders"), backend_name="duckdb")
+        k = self._make_knot()
+        with self.assertRaisesRegex(TypeError, "callable"):
+            await k.process(batch=batch, windows="rank()")

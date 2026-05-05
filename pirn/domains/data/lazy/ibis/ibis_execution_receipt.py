@@ -12,7 +12,7 @@ materialising the rows themselves.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 @dataclass(frozen=True)
@@ -40,4 +40,4 @@ class IbisExecutionReceipt:
     target_table: str | None
     compiled_sql: str
     row_count: int | None = None
-    executed_at: datetime = datetime(1970, 1, 1, tzinfo=timezone.utc)
+    executed_at: datetime = datetime(1970, 1, 1, tzinfo=UTC)

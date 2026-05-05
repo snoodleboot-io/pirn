@@ -18,11 +18,37 @@ single named expression or a sequence of them::
         ],
         _config=KnotConfig(id="windowed"),
     )
+
+Algorithm:
+    1. Validate that ``windows`` is callable.
+    2. Invoke ``windows(expression)`` to produce one or more named window expressions.
+    3. Call ``expression.mutate(*result)`` or ``expression.mutate(result)``
+       depending on whether the factory returned a sequence.
+    4. Return a new ``IbisTable`` wrapping the mutated deferred expression.
+
+    The window clauses are not executed here — they are compiled into SQL
+    ``OVER (...)`` clauses when the terminal sink materialises the expression.
+
+    ```text
+    result = windows(expression)
+    if isinstance(result, (list, tuple)):
+        mutated = expression.mutate(*result)
+    else:
+        mutated = expression.mutate(result)
+    return IbisTable(mutated)
+    ```
+
+References:
+    [1] Ibis — Table.mutate with window functions:
+        https://ibis-project.org/reference/expression-tables.html#ibis.expr.types.relations.Table.mutate
+    [2] Ibis — Window functions overview:
+        https://ibis-project.org/tutorial/analytics.html#window-functions
 """
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import ibis
 
@@ -38,28 +64,28 @@ class IbisWindow(Knot):
         self,
         *,
         batch: Knot,
-        windows: Callable[[ibis.Table], Any],
+        windows: Knot | Callable[[ibis.Table], Any],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(batch=batch, windows=windows, _config=_config, **kwargs)
+
+    async def process(self, batch: IbisTable, windows: Any, **_: Any) -> IbisTable:
+        """Append the configured window-function columns to the deferred Ibis expression via mutate.
+
+        Args:
+            batch: The upstream IbisTable whose expression will be extended with window columns.
+            windows: A callable (table) -> ibis.Expr or sequence of ibis.Expr.
+
+        Returns:
+            A new IbisTable with the window-function columns appended to the deferred expression.
+        """
         if not callable(windows):
             raise TypeError(
                 "IbisWindow: windows must be a callable (table) -> ibis.Expr "
                 "or sequence of ibis.Expr"
             )
-        self._windows = windows
-        super().__init__(batch=batch, _config=_config, **kwargs)
-
-    async def process(self, batch: IbisTable, **_: Any) -> IbisTable:
-        """Append the configured window-function columns to the deferred Ibis expression via mutate.
-
-        Args:
-            batch: The upstream IbisTable whose expression will be extended with window columns.
-
-        Returns:
-            A new IbisTable with the window-function columns appended to the deferred expression.
-        """
-        result = self._windows(batch.expression)
+        result = windows(batch.expression)
         if isinstance(result, (list, tuple)):
             mutated = batch.expression.mutate(*result)
         else:

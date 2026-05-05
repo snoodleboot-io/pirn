@@ -14,7 +14,7 @@ the Python process between tier-3 knots.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import ibis
@@ -48,7 +48,7 @@ class IbisTable:
     backend_name: str = ""
     source_uri: str = ""
     fetched_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
 
     @property
@@ -60,7 +60,7 @@ class IbisTable:
     def column_names(self) -> tuple[str, ...]:
         return tuple(self.expression.columns)
 
-    def with_expression(self, expression: ibis.Table) -> "IbisTable":
+    def with_expression(self, expression: ibis.Table) -> IbisTable:
         """Return a copy with ``expression`` replaced; metadata preserved."""
         return IbisTable(
             expression=expression,
