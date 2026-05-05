@@ -17,7 +17,7 @@ opaque.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import GetCoreSchemaHandler
@@ -42,7 +42,7 @@ class ElandDataFrame:
     frame: Any
     source_uri: str = ""
     fetched_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
 
     @classmethod

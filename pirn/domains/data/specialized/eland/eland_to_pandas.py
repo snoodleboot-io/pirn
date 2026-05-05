@@ -33,7 +33,7 @@ class ElandToPandas(Knot):
         super().__init__(frame=frame, _config=_config, **kwargs)
 
     async def process(self, frame: ElandDataFrame, **_: Any) -> PandasDataBatch:
-        """Materialise the ElandDataFrame by executing the compiled Elasticsearch query and return a PandasDataBatch.
+        """Execute the Elasticsearch query and materialise the result as a PandasDataBatch.
 
         Args:
             frame: The upstream ElandDataFrame to materialise.
