@@ -46,6 +46,12 @@ def _invalid_batch_factory():
     return emit
 
 
+def _make_batch() -> PandasDataBatch:
+    return PandasDataBatch(
+        frame=pd.DataFrame({"id": [1, 2], "name": ["alice", "bob"]})
+    )
+
+
 class TestPanderaPandasValidator(unittest.IsolatedAsyncioTestCase):
     async def test_passing_report_for_valid_frame_against_dataframe_model(self) -> None:
         with Tapestry() as t:
@@ -92,17 +98,45 @@ class TestPanderaPandasValidator(unittest.IsolatedAsyncioTestCase):
         assert report.passed is True
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_pandera_schema(self) -> None:
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_schema_from_upstream_knot(self) -> None:
         @knot
-        async def empty() -> PandasDataBatch:
-            return PandasDataBatch(frame=pd.DataFrame())
+        async def emit_schema() -> object:
+            return _UsersModel
+
+        with Tapestry() as t:
+            batch = _valid_batch_factory()(_config=KnotConfig(id="users"))
+            schema_knot = emit_schema(_config=KnotConfig(id="schema"))
+            PanderaPandasValidator(
+                batch=batch,
+                schema=schema_knot,
+                _config=KnotConfig(id="validate"),
+            )
+        result = await t.run(RunRequest())
+        report: QualityReport = result.outputs["validate"]
+        assert report.passed is True
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def _make_knot(self) -> PanderaPandasValidator:
+        @knot
+        async def upstream() -> PandasDataBatch:
+            return _make_batch()
 
         with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "DataFrameModel"):
-                PanderaPandasValidator(
-                    batch=batch,
-                    schema={"id": int},  # type: ignore[arg-type]
-                    _config=KnotConfig(id="v"),
-                )
+            batch = upstream(_config=KnotConfig(id="up"))
+            return PanderaPandasValidator(
+                batch=batch,
+                schema=_UsersModel,
+                _config=KnotConfig(id="v"),
+            )
+
+    async def test_rejects_non_pandera_schema(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(TypeError, "DataFrameModel"):
+            await k.process(batch=_make_batch(), schema={"id": int})
+
+    async def test_rejects_none_schema(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(TypeError, "DataFrameModel"):
+            await k.process(batch=_make_batch(), schema=None)

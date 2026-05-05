@@ -96,6 +96,14 @@ def _multi_invalid_batch_factory():
     return emit
 
 
+def _make_batch() -> PandasDataBatch:
+    return PandasDataBatch(
+        frame=pd.DataFrame(
+            {"id": [1, 2], "name": ["alice", "bob"], "role": ["admin", "member"]}
+        )
+    )
+
+
 class TestGreatExpectationsPandasValidator(unittest.IsolatedAsyncioTestCase):
     async def test_passing_report_for_valid_frame(self) -> None:
         with Tapestry() as t:
@@ -151,31 +159,49 @@ class TestGreatExpectationsPandasValidator(unittest.IsolatedAsyncioTestCase):
         assert "expect_column_values_to_be_in_set" in names
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_expectation_suite(self) -> None:
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_suite_from_upstream_knot(self) -> None:
+        suite = _users_suite()
+
         @knot
-        async def empty() -> PandasDataBatch:
-            return PandasDataBatch(frame=pd.DataFrame())
+        async def emit_suite() -> object:
+            return suite
+
+        with Tapestry() as t:
+            batch = _valid_batch_factory()(_config=KnotConfig(id="users"))
+            suite_knot = emit_suite(_config=KnotConfig(id="suite"))
+            GreatExpectationsPandasValidator(
+                batch=batch,
+                suite=suite_knot,
+                _config=KnotConfig(id="validate"),
+            )
+        result = await t.run(RunRequest())
+        report: QualityReport = result.outputs["validate"]
+        assert report.passed is True
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def _make_knot(self) -> GreatExpectationsPandasValidator:
+        suite = _users_suite()
+
+        @knot
+        async def upstream() -> PandasDataBatch:
+            return _make_batch()
 
         with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "ExpectationSuite"):
-                GreatExpectationsPandasValidator(
-                    batch=batch,
-                    suite={"id": int},  # type: ignore[arg-type]
-                    _config=KnotConfig(id="v"),
-                )
+            batch = upstream(_config=KnotConfig(id="up"))
+            return GreatExpectationsPandasValidator(
+                batch=batch,
+                suite=suite,
+                _config=KnotConfig(id="v"),
+            )
 
-    def test_rejects_none_suite(self) -> None:
-        @knot
-        async def empty() -> PandasDataBatch:
-            return PandasDataBatch(frame=pd.DataFrame())
+    async def test_rejects_non_expectation_suite(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(TypeError, "ExpectationSuite"):
+            await k.process(batch=_make_batch(), suite={"id": int})
 
-        with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "ExpectationSuite"):
-                GreatExpectationsPandasValidator(
-                    batch=batch,
-                    suite=None,
-                    _config=KnotConfig(id="v"),
-                )
+    async def test_rejects_none_suite(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(TypeError, "ExpectationSuite"):
+            await k.process(batch=_make_batch(), suite=None)

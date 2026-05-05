@@ -13,9 +13,45 @@ Pandera's ``failure_cases`` table, then bundled into a
 quality knots — compose with :class:`pirn.nodes.gate.gate.Gate` keyed on
 ``QualityReport.passed`` to halt the pipeline on validation failure.
 
-Mirrors :class:`pirn.domains.data.validation.pandera.pandera_polars_validator.PanderaPolarsValidator`
+Mirrors
+:class:`pirn.domains.data.validation.pandera.pandera_polars_validator.PanderaPolarsValidator`
 but targets the original Pandas-flavoured pandera API (``pandera.pandas``,
 which predates ``pandera.polars`` and is the canonical pandera surface).
+
+Algorithm:
+    1. In ``process()``, verify that ``schema`` is either a
+       ``pandera.pandas.DataFrameModel`` subclass or a
+       ``pandera.pandas.DataFrameSchema`` instance. Raise ``TypeError``
+       if neither.
+    2. Call ``schema.validate(batch.frame, lazy=True)``. Lazy mode collects
+       all failures rather than stopping at the first one.
+    3. If validation succeeds (no exception), emit a passing
+       :class:`QualityReport`.
+    4. On ``SchemaErrors``, translate each row of ``exc.failure_cases``
+       into a :class:`QualityCheck` and emit a failing
+       :class:`QualityReport`.
+
+    ```text
+    try:
+        schema.validate(frame, lazy=True)
+        return QualityReport(passed=True)
+    except SchemaErrors as exc:
+        return QualityReport(passed=False,
+                             checks=failure_cases_to_checks(exc))
+    ```
+
+References:
+    [1] Pandera — lazy validation and SchemaErrors:
+        https://pandera.readthedocs.io/en/stable/lazy_validation.html
+    [2] Pandera — DataFrameModel (model-based schema API):
+        https://pandera.readthedocs.io/en/stable/dataframe_models.html
+    [3] Pandera — DataFrameSchema (object-based schema API):
+        https://pandera.readthedocs.io/en/stable/dataframe_schemas.html
+    [4] Alternative: Great Expectations (chosen Pandera here for its
+        tighter pandas/polars integration and richer column-level check
+        vocabulary; see GreatExpectationsPandasValidator for the GE
+        counterpart):
+        https://docs.greatexpectations.io/
 """
 
 from __future__ import annotations
@@ -36,37 +72,39 @@ class PanderaPandasValidator(Knot):
         self,
         *,
         batch: Knot,
-        schema: Any,
+        schema: Knot | Any,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(batch=batch, schema=schema, _config=_config, **kwargs)
+
+    async def process(
+        self,
+        batch: PandasDataBatch,
+        schema: Any,
+        **_: Any,
+    ) -> QualityReport:
+        """Validate the PandasDataBatch against the Pandera schema in lazy mode.
+
+        Args:
+            batch: The PandasDataBatch to validate.
+            schema: A ``pandera.pandas.DataFrameModel`` subclass or
+                ``pandera.pandas.DataFrameSchema`` instance.
+
+        Returns:
+            A QualityReport with one failed QualityCheck per Pandera failure case,
+            or a passing report when the schema is satisfied.
+        """
         if not self._is_pandera_schema(schema):
             raise TypeError(
                 "PanderaPandasValidator: schema must be a "
                 "pandera.pandas DataFrameModel subclass or a "
                 "DataFrameSchema instance"
             )
-        self._schema = schema
-        super().__init__(batch=batch, _config=_config, **kwargs)
-
-    @property
-    def schema(self) -> Any:
-        return self._schema
-
-    async def process(self, batch: PandasDataBatch, **_: Any) -> QualityReport:
-        """Validate the PandasDataBatch against the Pandera schema in lazy mode and return a QualityReport.
-
-        Args:
-            batch: The PandasDataBatch to validate.
-
-        Returns:
-            A QualityReport with one failed QualityCheck per Pandera failure case,
-            or a passing report when the schema is satisfied.
-        """
         from pandera.errors import SchemaErrors
 
         try:
-            self._schema.validate(batch.frame, lazy=True)
+            schema.validate(batch.frame, lazy=True)
         except SchemaErrors as exc:
             return QualityReport(
                 passed=False,

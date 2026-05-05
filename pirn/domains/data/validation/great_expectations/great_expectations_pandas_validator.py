@@ -19,6 +19,38 @@ collections of declarative ``Expectation`` objects, validation goes
 through a ``BatchDefinition``, and the result is a list of per-
 expectation outcomes rather than a single ``failure_cases`` table. Each
 framework owns its native vocabulary; pirn owns the orchestration.
+
+Algorithm:
+    1. Validate that ``suite`` is a ``great_expectations.ExpectationSuite``
+       instance. Raise ``TypeError`` in ``process()`` if not.
+    2. Build a fresh ephemeral ``EphemeralDataContext`` per execution so
+       that parallel pipeline runs do not share registered data assets.
+    3. Register the batch's Pandas DataFrame under a randomly suffixed data
+       source, asset, and batch-definition name.
+    4. Call ``ge_batch.validate(suite)`` and inspect ``result.success``.
+    5. On success, emit a passing :class:`QualityReport` with no checks.
+    6. On failure, translate each failing ``ExpectationValidationResult``
+       into a :class:`QualityCheck` (one per expectation, not one per row).
+
+    ```text
+    ctx  = gx.get_context(mode="ephemeral")
+    data = ctx.data_sources.add_pandas(unique_name).add_dataframe_asset(...)
+    ge_batch = data.add_batch_definition_whole_dataframe(...).get_batch(...)
+    result = ge_batch.validate(suite)
+    if result.success:
+        return QualityReport(passed=True)
+    return QualityReport(passed=False, checks=failures_to_checks(result))
+    ```
+
+References:
+    [1] Great Expectations — EphemeralDataContext and in-memory validation:
+        https://docs.greatexpectations.io/docs/core/introduction/
+    [2] Great Expectations — ExpectationSuite and BatchDefinition API (GE 1.x):
+        https://docs.greatexpectations.io/docs/reference/api/
+    [3] Alternative: Pandera (chosen GE here for declarative suite-based
+        multi-column expectations; see PanderaPandasValidator for the
+        Pandera counterpart):
+        https://pandera.readthedocs.io/
 """
 
 from __future__ import annotations
@@ -41,35 +73,36 @@ class GreatExpectationsPandasValidator(Knot):
         self,
         *,
         batch: Knot,
-        suite: Any,
+        suite: Knot | Any,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not self._is_expectation_suite(suite):
-            raise TypeError(
-                "GreatExpectationsPandasValidator: suite must be a "
-                "great_expectations.ExpectationSuite instance"
-            )
-        self._suite = suite
-        super().__init__(batch=batch, _config=_config, **kwargs)
+        super().__init__(batch=batch, suite=suite, _config=_config, **kwargs)
 
-    @property
-    def suite(self) -> Any:
-        return self._suite
-
-    async def process(self, batch: PandasDataBatch, **_: Any) -> QualityReport:
+    async def process(
+        self,
+        batch: PandasDataBatch,
+        suite: Any,
+        **_: Any,
+    ) -> QualityReport:
         """Validate the PandasDataBatch against the GE ExpectationSuite and return a QualityReport.
 
         Args:
             batch: The PandasDataBatch to validate.
+            suite: A ``great_expectations.ExpectationSuite`` instance.
 
         Returns:
             A QualityReport with one failed QualityCheck per failing expectation,
             or a passing report when all expectations are satisfied.
         """
+        if not self._is_expectation_suite(suite):
+            raise TypeError(
+                "GreatExpectationsPandasValidator: suite must be a "
+                "great_expectations.ExpectationSuite instance"
+            )
         # Local import: keeps the module importable even when GE is not
-        # installed. The construction-time check above will already have
-        # raised TypeError before this line runs in a real pipeline.
+        # installed. The type check above will already have raised TypeError
+        # before this line runs in a real pipeline.
         import great_expectations as gx
 
         frame = batch.frame
@@ -93,7 +126,7 @@ class GreatExpectationsPandasValidator(Knot):
             batch_parameters={"dataframe": frame}
         )
 
-        result = ge_batch.validate(self._suite)
+        result = ge_batch.validate(suite)
 
         if result.success:
             return QualityReport(
