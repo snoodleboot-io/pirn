@@ -1,6 +1,7 @@
 """Tests for :class:`PyarrowRename`."""
 
 from __future__ import annotations
+
 import unittest
 
 import pyarrow as pa
@@ -11,6 +12,10 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.data.frames.pyarrow.pyarrow_data_batch import PyarrowDataBatch
 from pirn.domains.data.frames.pyarrow.pyarrow_rename import PyarrowRename
 from pirn.tapestry import Tapestry
+
+
+def _empty_batch() -> PyarrowDataBatch:
+    return PyarrowDataBatch(table=pa.table({}))
 
 
 @knot
@@ -46,30 +51,24 @@ class TestPyarrowRename(unittest.IsolatedAsyncioTestCase):
         assert out.column_names == ("id", "n")
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_mapping(self) -> None:
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self, **kwargs: object) -> PyarrowRename:
         @knot
         async def empty() -> PyarrowDataBatch:
             return PyarrowDataBatch(table=pa.table({}))
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "non-empty"):
-                PyarrowRename(
-                    batch=batch, mapping={},
-                    _config=KnotConfig(id="r"),
-                )
+            return PyarrowRename(
+                batch=batch, _config=KnotConfig(id="r"), **kwargs
+            )
 
-    def test_rejects_non_string_keys(self) -> None:
-        @knot
-        async def empty() -> PyarrowDataBatch:
-            return PyarrowDataBatch(table=pa.table({}))
+    async def test_rejects_empty_mapping(self) -> None:
+        k = self._make_knot(mapping={})
+        with self.assertRaisesRegex(TypeError, "non-empty"):
+            await k.process(batch=_empty_batch(), mapping={})
 
-        with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "non-empty strings"):
-                PyarrowRename(
-                    batch=batch,
-                    mapping={"": "x"},
-                    _config=KnotConfig(id="r"),
-                )
+    async def test_rejects_non_string_keys(self) -> None:
+        k = self._make_knot(mapping={"": "x"})
+        with self.assertRaisesRegex(TypeError, "non-empty strings"):
+            await k.process(batch=_empty_batch(), mapping={"": "x"})

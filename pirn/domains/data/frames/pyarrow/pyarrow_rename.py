@@ -4,7 +4,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -18,10 +19,28 @@ class PyarrowRename(Knot):
         self,
         *,
         batch: Knot,
-        mapping: Mapping[str, str],
+        mapping: Knot | Mapping[str, str],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(batch=batch, mapping=mapping, _config=_config, **kwargs)
+
+    async def process(
+        self,
+        batch: PyarrowDataBatch,
+        mapping: Any,  # Mapping[str, str] — deferred; custom errors fire in process(), not pydantic
+        **_: Any,
+    ) -> PyarrowDataBatch:
+        """Rename columns in the table according to the configured mapping.
+
+        Args:
+            batch: The upstream PyarrowDataBatch whose columns will be renamed.
+            mapping: Old-name → new-name pairs; columns absent from the mapping
+                are left unchanged.
+
+        Returns:
+            A new PyarrowDataBatch with the applicable columns renamed.
+        """
         if not isinstance(mapping, Mapping) or not mapping:
             raise TypeError(
                 "PyarrowRename: mapping must be a non-empty Mapping[old_name, new_name]"
@@ -31,27 +50,11 @@ class PyarrowRename(Knot):
                 raise TypeError(
                     "PyarrowRename: mapping keys and values must be non-empty strings"
                 )
-        self._mapping: dict[str, str] = dict(mapping)
-        super().__init__(batch=batch, _config=_config, **kwargs)
-
-    @property
-    def mapping(self) -> Mapping[str, str]:
-        return dict(self._mapping)
-
-    async def process(self, batch: PyarrowDataBatch, **_: Any) -> PyarrowDataBatch:
-        """Rename columns in the table according to the configured mapping and return the result.
-
-        Args:
-            batch: The upstream PyarrowDataBatch whose columns will be renamed.
-
-        Returns:
-            A new PyarrowDataBatch with the applicable columns renamed.
-        """
         # PyArrow's rename_columns takes a positional list parallel to the
         # current column order (no skipping). Build that list explicitly,
         # leaving columns absent from the mapping unchanged.
         new_names = [
-            self._mapping.get(name, name) for name in batch.table.column_names
+            mapping.get(name, name) for name in batch.table.column_names
         ]
         if new_names == list(batch.table.column_names):
             return batch

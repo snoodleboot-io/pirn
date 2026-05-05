@@ -8,7 +8,8 @@ are translated to the corresponding PyArrow type.
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 import pyarrow as pa
 import pyarrow.compute as pc
@@ -25,10 +26,29 @@ class PyarrowCast(Knot):
         self,
         *,
         batch: Knot,
-        casts: Mapping[str, Any],
+        casts: Knot | Mapping[str, Any],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(batch=batch, casts=casts, _config=_config, **kwargs)
+
+    async def process(
+        self,
+        batch: PyarrowDataBatch,
+        casts: Any,  # Mapping[str, pa.DataType | type] — pa.DataType is pydantic-incompatible
+        **_: Any,
+    ) -> PyarrowDataBatch:
+        """Cast the configured columns to their target PyArrow types.
+
+        Args:
+            batch: The upstream PyarrowDataBatch whose columns will be recast.
+            casts: Mapping of column name to ``pa.DataType`` or Python primitive
+                type (``int``, ``float``, ``str``, ``bool``).
+
+        Returns:
+            A new PyarrowDataBatch with the configured columns cast to their
+            target PyArrow types.
+        """
         if not isinstance(casts, Mapping) or not casts:
             raise TypeError(
                 "PyarrowCast: casts must be a non-empty Mapping[column, dtype]"
@@ -36,27 +56,13 @@ class PyarrowCast(Knot):
         for column in casts:
             if not isinstance(column, str) or not column:
                 raise TypeError("PyarrowCast: casts keys must be non-empty strings")
-        self._casts: dict[str, pa.DataType] = {
+
+        resolved: dict[str, pa.DataType] = {
             column: self._normalise_dtype(column, dtype)
             for column, dtype in casts.items()
         }
-        super().__init__(batch=batch, _config=_config, **kwargs)
-
-    @property
-    def casts(self) -> Mapping[str, pa.DataType]:
-        return dict(self._casts)
-
-    async def process(self, batch: PyarrowDataBatch, **_: Any) -> PyarrowDataBatch:
-        """Cast the configured columns to their target PyArrow types and return the updated batch.
-
-        Args:
-            batch: The upstream PyarrowDataBatch whose columns will be recast.
-
-        Returns:
-            A new PyarrowDataBatch with the configured columns cast to their target PyArrow types.
-        """
         applicable = {
-            column: dtype for column, dtype in self._casts.items()
+            column: dtype for column, dtype in resolved.items()
             if column in batch.table.column_names
         }
         if not applicable:
@@ -74,11 +80,10 @@ class PyarrowCast(Knot):
             )
         return batch.with_table(table)
 
-    def _normalise_dtype(self, column: str, dtype: Any) -> pa.DataType:
-        # Already a PyArrow DataType? Pass through.
+    @staticmethod
+    def _normalise_dtype(column: str, dtype: Any) -> pa.DataType:
         if isinstance(dtype, pa.DataType):
             return dtype
-        # Python primitive → PyArrow DataType.
         primitives: dict[type, pa.DataType] = {
             int: pa.int64(),
             float: pa.float64(),

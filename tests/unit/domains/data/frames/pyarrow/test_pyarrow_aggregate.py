@@ -1,6 +1,7 @@
 """Tests for :class:`PyarrowAggregate`."""
 
 from __future__ import annotations
+
 import unittest
 
 import pyarrow as pa
@@ -11,6 +12,10 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.data.frames.pyarrow.pyarrow_aggregate import PyarrowAggregate
 from pirn.domains.data.frames.pyarrow.pyarrow_data_batch import PyarrowDataBatch
 from pirn.tapestry import Tapestry
+
+
+def _empty_batch() -> PyarrowDataBatch:
+    return PyarrowDataBatch(table=pa.table({"a": pa.array([], type=pa.int64())}))
 
 
 @knot
@@ -78,92 +83,67 @@ class TestPyarrowAggregate(unittest.IsolatedAsyncioTestCase):
         assert rows["US"]["n_customers"] == 1
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_string_by(self) -> None:
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self, **kwargs: object) -> PyarrowAggregate:
         with Tapestry():
             batch = emit_empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "sequence"):
-                PyarrowAggregate(
-                    batch=batch,
-                    by="a",  # type: ignore[arg-type]
-                    aggs={"total": ("a", "sum")},
-                    _config=KnotConfig(id="agg"),
-                )
-
-    def test_rejects_empty_by(self) -> None:
-        with Tapestry():
-            batch = emit_empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(ValueError, "non-empty"):
-                PyarrowAggregate(
-                    batch=batch,
-                    by=(),
-                    aggs={"total": ("a", "sum")},
-                    _config=KnotConfig(id="agg"),
-                )
-
-    def test_rejects_unsafe_by_column(self) -> None:
-        with Tapestry():
-            batch = emit_empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(ValueError, "plain identifier"):
-                PyarrowAggregate(
-                    batch=batch,
-                    by=("region; DROP TABLE t",),
-                    aggs={"total": ("a", "sum")},
-                    _config=KnotConfig(id="agg"),
-                )
-
-    def test_rejects_non_mapping_aggs(self) -> None:
-        with Tapestry():
-            batch = emit_empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "Mapping"):
-                PyarrowAggregate(
-                    batch=batch,
-                    by=("a",),
-                    aggs=[("total", ("a", "sum"))],  # type: ignore[arg-type]
-                    _config=KnotConfig(id="agg"),
-                )
-
-    def test_rejects_empty_aggs(self) -> None:
-        with Tapestry():
-            batch = emit_empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(ValueError, "non-empty"):
-                PyarrowAggregate(
-                    batch=batch,
-                    by=("a",),
-                    aggs={},
-                    _config=KnotConfig(id="agg"),
-                )
-
-    def test_rejects_unsafe_output_name(self) -> None:
-        with Tapestry():
-            batch = emit_empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(ValueError, "plain identifier"):
-                PyarrowAggregate(
-                    batch=batch,
-                    by=("a",),
-                    aggs={"bad name!": ("a", "sum")},
-                    _config=KnotConfig(id="agg"),
-                )
-
-    def test_rejects_unknown_function(self) -> None:
-        with Tapestry():
-            batch = emit_empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(ValueError, "not supported"):
-                PyarrowAggregate(
-                    batch=batch,
-                    by=("a",),
-                    aggs={"total": ("a", "median")},
-                    _config=KnotConfig(id="agg"),
-                )
-
-    def test_accepts_valid_inputs(self) -> None:
-        with Tapestry():
-            batch = emit_empty(_config=KnotConfig(id="empty"))
-            knot_instance = PyarrowAggregate(
-                batch=batch,
-                by=("a",),
-                aggs={"total": ("a", "sum")},
-                _config=KnotConfig(id="agg"),
+            return PyarrowAggregate(
+                batch=batch, _config=KnotConfig(id="agg"), **kwargs
             )
-        assert knot_instance.by == ("a",)
-        assert knot_instance.aggs == {"total": ("a", "sum")}
+
+    async def test_rejects_string_by(self) -> None:
+        k = self._make_knot(by="a", aggs={"total": ("a", "sum")})
+        with self.assertRaisesRegex(TypeError, "sequence"):
+            await k.process(
+                batch=_empty_batch(), by="a", aggs={"total": ("a", "sum")}
+            )
+
+    async def test_rejects_empty_by(self) -> None:
+        k = self._make_knot(by=(), aggs={"total": ("a", "sum")})
+        with self.assertRaisesRegex(ValueError, "non-empty"):
+            await k.process(
+                batch=_empty_batch(), by=(), aggs={"total": ("a", "sum")}
+            )
+
+    async def test_rejects_unsafe_by_column(self) -> None:
+        k = self._make_knot(
+            by=("region; DROP TABLE t",), aggs={"total": ("a", "sum")}
+        )
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
+            await k.process(
+                batch=_empty_batch(),
+                by=("region; DROP TABLE t",),
+                aggs={"total": ("a", "sum")},
+            )
+
+    async def test_rejects_non_mapping_aggs(self) -> None:
+        k = self._make_knot(by=("a",), aggs=[("total", ("a", "sum"))])
+        with self.assertRaisesRegex(TypeError, "Mapping"):
+            await k.process(
+                batch=_empty_batch(),
+                by=("a",),
+                aggs=[("total", ("a", "sum"))],  # type: ignore[arg-type]
+            )
+
+    async def test_rejects_empty_aggs(self) -> None:
+        k = self._make_knot(by=("a",), aggs={})
+        with self.assertRaisesRegex(TypeError, "Mapping"):
+            await k.process(batch=_empty_batch(), by=("a",), aggs={})
+
+    async def test_rejects_unsafe_output_name(self) -> None:
+        k = self._make_knot(by=("a",), aggs={"bad name!": ("a", "sum")})
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
+            await k.process(
+                batch=_empty_batch(),
+                by=("a",),
+                aggs={"bad name!": ("a", "sum")},
+            )
+
+    async def test_rejects_unknown_function(self) -> None:
+        k = self._make_knot(by=("a",), aggs={"total": ("a", "median")})
+        with self.assertRaisesRegex(ValueError, "not supported"):
+            await k.process(
+                batch=_empty_batch(),
+                by=("a",),
+                aggs={"total": ("a", "median")},
+            )

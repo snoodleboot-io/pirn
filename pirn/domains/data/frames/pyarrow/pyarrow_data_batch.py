@@ -14,7 +14,7 @@ engine bridges.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import pyarrow as pa
@@ -43,7 +43,7 @@ class PyarrowDataBatch:
     table: pa.Table
     source_uri: str = ""
     fetched_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
 
     @property
@@ -54,7 +54,7 @@ class PyarrowDataBatch:
     def column_names(self) -> tuple[str, ...]:
         return tuple(self.table.column_names)
 
-    def with_table(self, table: pa.Table) -> "PyarrowDataBatch":
+    def with_table(self, table: pa.Table) -> PyarrowDataBatch:
         """Return a copy with ``table`` replaced; metadata preserved."""
         return PyarrowDataBatch(
             table=table,

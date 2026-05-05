@@ -1,6 +1,7 @@
 """Tests for :class:`PyarrowToDataBatch`."""
 
 from __future__ import annotations
+
 import unittest
 
 import pyarrow as pa

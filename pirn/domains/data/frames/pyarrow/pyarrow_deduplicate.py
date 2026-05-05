@@ -19,7 +19,8 @@ This mirrors the Tier-1 :class:`Deduplicate` semantics. Group-by and
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 import pyarrow as pa
 import pyarrow.compute as pc
@@ -36,10 +37,28 @@ class PyarrowDeduplicate(Knot):
         self,
         *,
         batch: Knot,
-        keys: Sequence[str],
+        keys: Knot | Sequence[str],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(batch=batch, keys=keys, _config=_config, **kwargs)
+
+    async def process(
+        self,
+        batch: PyarrowDataBatch,
+        keys: Any,  # Sequence[str] — deferred; str/empty checks fire in process(), not pydantic
+        **_: Any,
+    ) -> PyarrowDataBatch:
+        """Remove duplicate rows by key, keeping the first occurrence.
+
+        Args:
+            batch: The upstream PyarrowDataBatch to deduplicate.
+            keys: Column names that form the deduplication key.
+
+        Returns:
+            A new PyarrowDataBatch with duplicate key-tuple rows removed,
+            preserving input order.
+        """
         if not isinstance(keys, Sequence) or isinstance(keys, (str, bytes)):
             raise TypeError(
                 "PyarrowDeduplicate: keys must be a sequence of column names"
@@ -51,22 +70,7 @@ class PyarrowDeduplicate(Knot):
                 raise TypeError(
                     "PyarrowDeduplicate: every entry in keys must be a non-empty string"
                 )
-        self._keys: tuple[str, ...] = tuple(keys)
-        super().__init__(batch=batch, _config=_config, **kwargs)
 
-    @property
-    def keys(self) -> tuple[str, ...]:
-        return self._keys
-
-    async def process(self, batch: PyarrowDataBatch, **_: Any) -> PyarrowDataBatch:
-        """Remove duplicate rows by key, keeping the first occurrence via index-stamp and group-by.
-
-        Args:
-            batch: The upstream PyarrowDataBatch to deduplicate.
-
-        Returns:
-            A new PyarrowDataBatch with duplicate key-tuple rows removed, preserving input order.
-        """
         table = batch.table
         if table.num_rows == 0:
             return batch
@@ -79,7 +83,7 @@ class PyarrowDeduplicate(Knot):
         index_array = pa.array(range(table.num_rows), type=pa.int64())
         stamped = table.append_column(idx_name, index_array)
         # Per-group minimum index = the first occurrence in input order.
-        grouped = stamped.group_by(list(self._keys)).aggregate(
+        grouped = stamped.group_by(list(keys)).aggregate(
             [(idx_name, "min")]
         )
         # The aggregate output column is named ``"<idx_name>_min"`` per

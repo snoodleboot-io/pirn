@@ -1,6 +1,7 @@
 """Tests for :class:`PyarrowFilter`."""
 
 from __future__ import annotations
+
 import unittest
 
 import pyarrow as pa
@@ -12,6 +13,10 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.data.frames.pyarrow.pyarrow_data_batch import PyarrowDataBatch
 from pirn.domains.data.frames.pyarrow.pyarrow_filter import PyarrowFilter
 from pirn.tapestry import Tapestry
+
+
+def _empty_batch() -> PyarrowDataBatch:
+    return PyarrowDataBatch(table=pa.table({}))
 
 
 @knot
@@ -55,45 +60,39 @@ class TestPyarrowFilter(unittest.IsolatedAsyncioTestCase):
         assert sorted(out.table.column("id").to_pylist()) == [1, 4]
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_neither_expression_nor_predicate(self) -> None:
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self, **kwargs: object) -> PyarrowFilter:
         @knot
         async def empty() -> PyarrowDataBatch:
             return PyarrowDataBatch(table=pa.table({}))
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "provide either"):
-                PyarrowFilter(
-                    batch=batch,
-                    _config=KnotConfig(id="f"),
-                )
+            return PyarrowFilter(
+                batch=batch, _config=KnotConfig(id="f"), **kwargs
+            )
 
-    def test_rejects_both_expression_and_predicate(self) -> None:
-        @knot
-        async def empty() -> PyarrowDataBatch:
-            return PyarrowDataBatch(table=pa.table({}))
+    async def test_rejects_neither_expression_nor_predicate(self) -> None:
+        k = self._make_knot()
+        with self.assertRaisesRegex(TypeError, "provide either"):
+            await k.process(
+                batch=_empty_batch(), expression=None, predicate=None
+            )
 
-        with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "not both"):
-                PyarrowFilter(
-                    batch=batch,
-                    expression=pc.field("a"),
-                    predicate=lambda t: True,
-                    _config=KnotConfig(id="f"),
-                )
+    async def test_rejects_both_expression_and_predicate(self) -> None:
+        k = self._make_knot(expression=pc.field("a"), predicate=lambda t: True)
+        with self.assertRaisesRegex(TypeError, "not both"):
+            await k.process(
+                batch=_empty_batch(),
+                expression=pc.field("a"),
+                predicate=lambda t: True,
+            )
 
-    def test_rejects_non_expression(self) -> None:
-        @knot
-        async def empty() -> PyarrowDataBatch:
-            return PyarrowDataBatch(table=pa.table({}))
-
-        with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "Expression"):
-                PyarrowFilter(
-                    batch=batch,
-                    expression="a > 1",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="f"),
-                )
+    async def test_rejects_non_expression(self) -> None:
+        k = self._make_knot(expression="a > 1")
+        with self.assertRaisesRegex(TypeError, "Expression"):
+            await k.process(
+                batch=_empty_batch(),
+                expression="a > 1",
+                predicate=None,
+            )

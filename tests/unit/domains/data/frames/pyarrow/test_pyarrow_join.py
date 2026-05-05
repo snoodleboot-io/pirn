@@ -1,6 +1,7 @@
 """Tests for :class:`PyarrowJoin`."""
 
 from __future__ import annotations
+
 import unittest
 
 import pyarrow as pa
@@ -11,6 +12,10 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.data.frames.pyarrow.pyarrow_data_batch import PyarrowDataBatch
 from pirn.domains.data.frames.pyarrow.pyarrow_join import PyarrowJoin
 from pirn.tapestry import Tapestry
+
+
+def _empty_batch() -> PyarrowDataBatch:
+    return PyarrowDataBatch(table=pa.table({"x": pa.array([], type=pa.int64())}))
 
 
 @knot
@@ -110,80 +115,51 @@ class TestPyarrowJoin(unittest.IsolatedAsyncioTestCase):
         assert out.row_count == 2
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_unknown_how(self) -> None:
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self, **kwargs: object) -> PyarrowJoin:
         with Tapestry():
             left = emit_empty(_config=KnotConfig(id="l"))
             right = emit_empty(_config=KnotConfig(id="r"))
-            with self.assertRaisesRegex(ValueError, "how must be one of"):
-                PyarrowJoin(
-                    left=left,
-                    right=right,
-                    on="x",
-                    how="diagonal",
-                    _config=KnotConfig(id="j"),
-                )
-
-    def test_rejects_both_on_and_left_on(self) -> None:
-        with Tapestry():
-            left = emit_empty(_config=KnotConfig(id="l"))
-            right = emit_empty(_config=KnotConfig(id="r"))
-            with self.assertRaisesRegex(TypeError, "not both"):
-                PyarrowJoin(
-                    left=left,
-                    right=right,
-                    on="x",
-                    left_on="x",
-                    right_on="x",
-                    _config=KnotConfig(id="j"),
-                )
-
-    def test_requires_either_on_or_both_left_right(self) -> None:
-        with Tapestry():
-            left = emit_empty(_config=KnotConfig(id="l"))
-            right = emit_empty(_config=KnotConfig(id="r"))
-            with self.assertRaises(TypeError):
-                PyarrowJoin(
-                    left=left,
-                    right=right,
-                    how="inner",
-                    _config=KnotConfig(id="j"),
-                )
-
-    def test_rejects_unsafe_on_column(self) -> None:
-        with Tapestry():
-            left = emit_empty(_config=KnotConfig(id="l"))
-            right = emit_empty(_config=KnotConfig(id="r"))
-            with self.assertRaisesRegex(ValueError, "plain identifier"):
-                PyarrowJoin(
-                    left=left,
-                    right=right,
-                    on="x; DROP TABLE t",
-                    _config=KnotConfig(id="j"),
-                )
-
-    def test_rejects_mismatched_left_right_lengths(self) -> None:
-        with Tapestry():
-            left = emit_empty(_config=KnotConfig(id="l"))
-            right = emit_empty(_config=KnotConfig(id="r"))
-            with self.assertRaisesRegex(ValueError, "same length"):
-                PyarrowJoin(
-                    left=left,
-                    right=right,
-                    left_on=("a", "b"),
-                    right_on=("c",),
-                    _config=KnotConfig(id="j"),
-                )
-
-    def test_accepts_valid_inputs(self) -> None:
-        with Tapestry():
-            left = emit_empty(_config=KnotConfig(id="l"))
-            right = emit_empty(_config=KnotConfig(id="r"))
-            joined = PyarrowJoin(
-                left=left,
-                right=right,
-                on="x",
-                how="left outer",
-                _config=KnotConfig(id="j"),
+            return PyarrowJoin(
+                left=left, right=right, _config=KnotConfig(id="j"), **kwargs
             )
-        assert joined.how == "left outer"
+
+    async def test_rejects_unknown_how(self) -> None:
+        k = self._make_knot(on="x", how="diagonal")
+        with self.assertRaisesRegex(ValueError, "how must be one of"):
+            await k.process(
+                left=_empty_batch(), right=_empty_batch(),
+                on="x", left_on=None, right_on=None, how="diagonal",
+            )
+
+    async def test_rejects_both_on_and_left_on(self) -> None:
+        k = self._make_knot(on="x", left_on="x", right_on="x")
+        with self.assertRaisesRegex(TypeError, "not both"):
+            await k.process(
+                left=_empty_batch(), right=_empty_batch(),
+                on="x", left_on="x", right_on="x", how="inner",
+            )
+
+    async def test_requires_either_on_or_both_left_right(self) -> None:
+        k = self._make_knot(how="inner")
+        with self.assertRaises(TypeError):
+            await k.process(
+                left=_empty_batch(), right=_empty_batch(),
+                on=None, left_on=None, right_on=None, how="inner",
+            )
+
+    async def test_rejects_unsafe_on_column(self) -> None:
+        k = self._make_knot(on="x; DROP TABLE t")
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
+            await k.process(
+                left=_empty_batch(), right=_empty_batch(),
+                on="x; DROP TABLE t", left_on=None, right_on=None, how="inner",
+            )
+
+    async def test_rejects_mismatched_left_right_lengths(self) -> None:
+        k = self._make_knot(left_on=("a", "b"), right_on=("c",))
+        with self.assertRaisesRegex(ValueError, "same length"):
+            await k.process(
+                left=_empty_batch(), right=_empty_batch(),
+                on=None, left_on=("a", "b"), right_on=("c",), how="inner",
+            )

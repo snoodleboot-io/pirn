@@ -1,6 +1,7 @@
 """Tests for :class:`PyarrowDeduplicate`."""
 
 from __future__ import annotations
+
 import unittest
 
 import pyarrow as pa
@@ -13,6 +14,10 @@ from pirn.domains.data.frames.pyarrow.pyarrow_deduplicate import (
     PyarrowDeduplicate,
 )
 from pirn.tapestry import Tapestry
+
+
+def _empty_batch() -> PyarrowDataBatch:
+    return PyarrowDataBatch(table=pa.table({}))
 
 
 @knot
@@ -86,30 +91,24 @@ class TestPyarrowDeduplicate(unittest.IsolatedAsyncioTestCase):
         assert out.row_count == 0
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_string_keys(self) -> None:
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self, **kwargs: object) -> PyarrowDeduplicate:
         @knot
         async def empty() -> PyarrowDataBatch:
             return PyarrowDataBatch(table=pa.table({}))
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "sequence"):
-                PyarrowDeduplicate(
-                    batch=batch,
-                    keys="id",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="d"),
-                )
+            return PyarrowDeduplicate(
+                batch=batch, _config=KnotConfig(id="d"), **kwargs
+            )
 
-    def test_rejects_empty_keys(self) -> None:
-        @knot
-        async def empty() -> PyarrowDataBatch:
-            return PyarrowDataBatch(table=pa.table({}))
+    async def test_rejects_string_keys(self) -> None:
+        k = self._make_knot(keys="id")
+        with self.assertRaisesRegex(TypeError, "sequence"):
+            await k.process(batch=_empty_batch(), keys="id")  # type: ignore[arg-type]
 
-        with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(ValueError, "non-empty"):
-                PyarrowDeduplicate(
-                    batch=batch, keys=(),
-                    _config=KnotConfig(id="d"),
-                )
+    async def test_rejects_empty_keys(self) -> None:
+        k = self._make_knot(keys=())
+        with self.assertRaisesRegex(ValueError, "non-empty"):
+            await k.process(batch=_empty_batch(), keys=())

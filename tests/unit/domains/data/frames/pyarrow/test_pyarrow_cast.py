@@ -1,6 +1,7 @@
 """Tests for :class:`PyarrowCast`."""
 
 from __future__ import annotations
+
 import unittest
 
 import pyarrow as pa
@@ -11,6 +12,10 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.data.frames.pyarrow.pyarrow_cast import PyarrowCast
 from pirn.domains.data.frames.pyarrow.pyarrow_data_batch import PyarrowDataBatch
 from pirn.tapestry import Tapestry
+
+
+def _empty_batch() -> PyarrowDataBatch:
+    return PyarrowDataBatch(table=pa.table({}))
 
 
 @knot
@@ -59,29 +64,24 @@ class TestPyarrowCast(unittest.IsolatedAsyncioTestCase):
         assert out.table.schema.field("id").type == pa.string()
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_casts(self) -> None:
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self, **kwargs: object) -> PyarrowCast:
         @knot
         async def empty() -> PyarrowDataBatch:
             return PyarrowDataBatch(table=pa.table({}))
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "non-empty"):
-                PyarrowCast(
-                    batch=batch, casts={},
-                    _config=KnotConfig(id="c"),
-                )
+            return PyarrowCast(
+                batch=batch, _config=KnotConfig(id="c"), **kwargs
+            )
 
-    def test_rejects_unknown_dtype(self) -> None:
-        @knot
-        async def empty() -> PyarrowDataBatch:
-            return PyarrowDataBatch(table=pa.table({}))
+    async def test_rejects_empty_casts(self) -> None:
+        k = self._make_knot(casts={})
+        with self.assertRaisesRegex(TypeError, "non-empty"):
+            await k.process(batch=_empty_batch(), casts={})
 
-        with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "DataType"):
-                PyarrowCast(
-                    batch=batch, casts={"id": list},
-                    _config=KnotConfig(id="c"),
-                )
+    async def test_rejects_unknown_dtype(self) -> None:
+        k = self._make_knot(casts={"id": list})
+        with self.assertRaisesRegex(TypeError, "DataType"):
+            await k.process(batch=_empty_batch(), casts={"id": list})

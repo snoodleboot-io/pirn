@@ -2,7 +2,7 @@
 or a callable producing one.
 
 Unlike Tier-1 :class:`pirn.domains.data.transforms.filter.Filter` (which
-takes a Python callable per row), this knot expects either:
+takes a Python callable per row), this Knot expects either:
 
 * ``expression``: a :class:`pyarrow.compute.Expression` (built with
   ``pyarrow.compute.field("col") == value`` etc.), or
@@ -11,11 +11,25 @@ takes a Python callable per row), this knot expects either:
   process time.
 
 so the engine can apply the predicate vectorised across the table.
+
+Algorithm:
+    1. Validate that exactly one of ``expression`` or ``predicate`` is supplied.
+    2. If ``expression``: apply it directly with ``table.filter(expression)``.
+    3. If ``predicate``: invoke the callable to produce a mask or expression,
+       then apply with ``table.filter(mask)``.
+    4. Return the filtered table wrapped in a new :class:`PyarrowDataBatch`.
+
+References:
+    [1] PyArrow — Table.filter:
+        https://arrow.apache.org/docs/python/generated/pyarrow.Table.html#pyarrow.Table.filter
+    [2] PyArrow — compute.Expression:
+        https://arrow.apache.org/docs/python/compute.html#expressions
 """
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import pyarrow as pa
 import pyarrow.compute as pc
@@ -32,11 +46,37 @@ class PyarrowFilter(Knot):
         self,
         *,
         batch: Knot,
-        expression: pc.Expression | None = None,
-        predicate: Callable[[pa.Table], Any] | None = None,
+        expression: Knot | Any | None = None,  # pc.Expression — pydantic-incompatible
+        predicate: Knot | Callable[[pa.Table], Any] | None = None,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            batch=batch,
+            expression=expression,
+            predicate=predicate,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        batch: PyarrowDataBatch,
+        expression: Any,  # pc.Expression | None — pydantic can't schema pc.Expression
+        predicate: Any,  # Callable[[pa.Table], Any] | None — pydantic can't schema Callable
+        **_: Any,
+    ) -> PyarrowDataBatch:
+        """Apply the configured expression or predicate to filter rows.
+
+        Args:
+            batch: The PyarrowDataBatch to filter.
+            expression: A ``pyarrow.compute.Expression``, or None when using ``predicate``.
+            predicate: A callable ``(table) -> mask | expression``, or None
+                when using ``expression``.
+
+        Returns:
+            A new PyarrowDataBatch containing only rows that satisfy the filter.
+        """
         if expression is None and predicate is None:
             raise TypeError(
                 "PyarrowFilter: provide either expression=<pyarrow.compute.Expression> "
@@ -46,37 +86,18 @@ class PyarrowFilter(Knot):
             raise TypeError(
                 "PyarrowFilter: pass either expression= or predicate=, not both"
             )
-        if expression is not None and not isinstance(expression, pc.Expression):
-            raise TypeError(
-                "PyarrowFilter: expression must be a pyarrow.compute.Expression; "
-                "for row-by-row Python callables use the Tier-1 "
-                "pirn.domains.data.transforms.filter.Filter knot instead"
-            )
-        if predicate is not None and not callable(predicate):
+        if expression is not None:
+            if not isinstance(expression, pc.Expression):
+                raise TypeError(
+                    "PyarrowFilter: expression must be a pyarrow.compute.Expression; "
+                    "for row-by-row Python callables use the Tier-1 "
+                    "pirn.domains.data.transforms.filter.Filter knot instead"
+                )
+            return batch.with_table(batch.table.filter(expression))
+        assert predicate is not None
+        if not callable(predicate):
             raise TypeError(
                 "PyarrowFilter: predicate must be callable(table) -> "
                 "pyarrow.Array[bool] | pyarrow.compute.Expression"
             )
-        self._expression = expression
-        self._predicate = predicate
-        super().__init__(batch=batch, _config=_config, **kwargs)
-
-    @property
-    def expression(self) -> pc.Expression | None:
-        return self._expression
-
-    async def process(self, batch: PyarrowDataBatch, **_: Any) -> PyarrowDataBatch:
-        """Apply the configured PyArrow expression or callable predicate to filter the table rows.
-
-        Args:
-            batch: The upstream PyarrowDataBatch to filter.
-
-        Returns:
-            A new PyarrowDataBatch containing only rows that satisfy the expression or predicate.
-        """
-        if self._expression is not None:
-            mask: Any = self._expression
-        else:
-            assert self._predicate is not None
-            mask = self._predicate(batch.table)
-        return batch.with_table(batch.table.filter(mask))
+        return batch.with_table(batch.table.filter(predicate(batch.table)))

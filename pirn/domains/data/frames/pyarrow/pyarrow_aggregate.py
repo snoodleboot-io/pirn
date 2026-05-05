@@ -18,7 +18,8 @@ the by-columns at the front in their original order.
 
 from __future__ import annotations
 
-from typing import Any, ClassVar, Mapping, Sequence
+from collections.abc import Mapping, Sequence
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -48,19 +49,40 @@ class PyarrowAggregate(Knot):
         self,
         *,
         batch: Knot,
-        by: Sequence[str],
-        aggs: Mapping[str, tuple[str, str]],
+        by: Knot | Sequence[str],
+        aggs: Knot | Mapping[str, tuple[str, str]],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        IdentifierValidator.validate_columns("PyarrowAggregate.by", by)
-        if not isinstance(aggs, Mapping):
+        super().__init__(batch=batch, by=by, aggs=aggs, _config=_config, **kwargs)
+
+    async def process(
+        self,
+        batch: PyarrowDataBatch,
+        by: Any,  # Sequence[str] — deferred so string rejection fires in process(), not pydantic
+        aggs: Any,  # Mapping[str, tuple[str, str]] — deferred so non-Mapping rejection fires here
+        **_: Any,
+    ) -> PyarrowDataBatch:
+        """Group the table by the configured columns and apply PyArrow aggregation kernels.
+
+        Args:
+            batch: The upstream PyarrowDataBatch to aggregate.
+            by: Column names to group on.
+            aggs: Mapping of output column name to (input_column, aggregation_function).
+
+        Returns:
+            A new PyarrowDataBatch containing one row per group with the caller-named columns.
+        """
+        if isinstance(by, (str, bytes)):
             raise TypeError(
-                "PyarrowAggregate: aggs must be a Mapping"
+                "PyarrowAggregate: by must be a sequence of column names, not a string"
+            )
+        IdentifierValidator.validate_columns("PyarrowAggregate.by", by)
+        if not isinstance(aggs, Mapping) or not aggs:
+            raise TypeError(
+                "PyarrowAggregate: aggs must be a non-empty Mapping"
                 "[output_name, (input_column, aggregation_function)]"
             )
-        if not aggs:
-            raise ValueError("PyarrowAggregate: aggs must be non-empty")
         for output, spec in aggs.items():
             IdentifierValidator.validate_column(
                 "PyarrowAggregate: output column", output
@@ -86,37 +108,15 @@ class PyarrowAggregate(Knot):
                     f"{function_name!r} is not supported; allowed: "
                     f"{sorted(self._allowed_functions)}"
                 )
-        self._by: tuple[str, ...] = tuple(by)
-        self._aggs: dict[str, tuple[str, str]] = dict(aggs)
-        super().__init__(batch=batch, _config=_config, **kwargs)
 
-    @property
-    def by(self) -> tuple[str, ...]:
-        return self._by
-
-    @property
-    def aggs(self) -> dict[str, tuple[str, str]]:
-        return dict(self._aggs)
-
-    async def process(
-        self, batch: PyarrowDataBatch, **_: Any
-    ) -> PyarrowDataBatch:
-        """Group the table by the configured columns and apply PyArrow aggregation kernels.
-
-        Args:
-            batch: The upstream PyarrowDataBatch to aggregate.
-
-        Returns:
-            A new PyarrowDataBatch containing one row per group with the caller-named output columns.
-        """
         agg_specs = [
             (input_column, function_name)
-            for input_column, function_name in self._aggs.values()
+            for input_column, function_name in aggs.values()
         ]
-        aggregated = batch.table.group_by(list(self._by)).aggregate(agg_specs)
+        aggregated = batch.table.group_by(list(by)).aggregate(agg_specs)
         # PyArrow's aggregate emits the by-columns first followed by the
         # aggregated columns in input order, named ``"<input>_<fn>"``.
         # Rename the trailing block to the caller-provided output names.
-        target_names = list(self._by) + list(self._aggs.keys())
+        target_names = list(by) + list(aggs.keys())
         renamed = aggregated.rename_columns(target_names)
         return batch.with_table(renamed)
