@@ -51,6 +51,25 @@ class TestPyarrowRename(unittest.IsolatedAsyncioTestCase):
         assert out.column_names == ("id", "n")
 
 
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_mapping_from_upstream_knot(self) -> None:
+        @knot
+        async def emit_mapping() -> dict:
+            return {"name": "username"}
+
+        with Tapestry() as t:
+            batch = emit_users(_config=KnotConfig(id="users"))
+            mapping_knot = emit_mapping(_config=KnotConfig(id="mapping"))
+            PyarrowRename(
+                batch=batch,
+                mapping=mapping_knot,
+                _config=KnotConfig(id="renamed"),
+            )
+        result = await t.run(RunRequest())
+        out: PyarrowDataBatch = result.outputs["renamed"]
+        assert out.column_names == ("id", "username")
+
+
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, **kwargs: object) -> PyarrowRename:
         @knot

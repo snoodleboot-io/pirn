@@ -1,6 +1,7 @@
 """Tests for :class:`DatafusionFilter`."""
 
 from __future__ import annotations
+
 import unittest
 
 import datafusion as df
@@ -72,6 +73,26 @@ class TestDatafusionFilter(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         out: DatafusionDataBatch = result.outputs["active"]
+        ids = sorted(row["id"] for row in out.frame.to_pylist())
+        assert ids == [1, 3]
+
+
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_predicate_from_upstream_knot(self) -> None:
+        @knot
+        async def emit_predicate() -> str:
+            return "active"
+
+        with Tapestry() as t:
+            batch = emit_users(_config=KnotConfig(id="users"))
+            pred_knot = emit_predicate(_config=KnotConfig(id="pred"))
+            DatafusionFilter(
+                batch=batch,
+                predicate=pred_knot,
+                _config=KnotConfig(id="filtered"),
+            )
+        result = await t.run(RunRequest())
+        out: DatafusionDataBatch = result.outputs["filtered"]
         ids = sorted(row["id"] for row in out.frame.to_pylist())
         assert ids == [1, 3]
 

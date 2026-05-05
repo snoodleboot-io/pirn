@@ -1,5 +1,23 @@
 """``PyarrowRename`` — Tier-2 column-rename knot dispatching to
 :meth:`pyarrow.Table.rename_columns`.
+
+Applies an old → new column name mapping.  Columns absent from the
+mapping are left unchanged.  The table is returned as-is when no
+mapped column exists in the schema (no-op fast path).
+
+Algorithm:
+    1. Validate ``mapping`` — must be a non-empty mapping of non-empty strings.
+    2. Build a positional name list parallel to the current column order:
+       for each existing column name, substitute the new name if present in
+       ``mapping``, otherwise keep the original.
+    3. If the resulting list equals the current column names, return the batch
+       unchanged (no-op fast path).
+    4. Call ``table.rename_columns(new_names)`` and return the result wrapped
+       in a new :class:`PyarrowDataBatch`.
+
+References:
+    [1] PyArrow — Table.rename_columns:
+        https://arrow.apache.org/docs/python/generated/pyarrow.Table.html#pyarrow.Table.rename_columns
 """
 
 from __future__ import annotations

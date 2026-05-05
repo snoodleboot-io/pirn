@@ -6,6 +6,30 @@ audit, drift detection, and operator dashboards consume. To enforce a
 threshold based on the profile, follow the profiler with a downstream
 knot or use the dedicated quality gates (:class:`RowCountCheck`,
 :class:`NullRateCheck`, …).
+
+Algorithm:
+    1. Resolve the target column list: use the caller-supplied ``columns``
+       if provided; otherwise fall back to the batch's declared schema
+       column names; otherwise union the keys observed across all rows.
+    2. For each target column, scan ``batch.rows`` once and accumulate:
+
+       - ``observed_count`` — rows where the column key is present.
+       - ``null_count`` — present rows where the value is ``None``.
+       - ``distinct_count`` — count of distinct non-null values.
+       - ``min_value`` / ``max_value`` — for orderable scalar types
+         (``int``, ``float``, ``str``, ``bool``).
+       - ``top_value`` / ``top_value_count`` — most frequent non-null value.
+
+    3. Return a :class:`DataProfile` containing row count, column count,
+       and one :class:`ColumnProfile` per target column.
+
+References:
+    [1] Descriptive statistics for data profiling:
+        Rahm & Do, "Data Cleaning: Problems and Current Approaches",
+        IEEE Data Engineering Bulletin 23(4), 2000.
+    [2] :class:`pirn.domains.data.data_profile.DataProfile` and
+        :class:`pirn.domains.data.data_profile.ColumnProfile` — output
+        value objects.
 """
 
 from __future__ import annotations
@@ -26,31 +50,28 @@ class Profiler(Knot):
         self,
         *,
         batch: Knot,
-        columns: tuple[str, ...] | None = None,
+        columns: Knot | tuple[str, ...] | None = None,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if columns is not None and not all(isinstance(c, str) for c in columns):
+        super().__init__(batch=batch, columns=columns, _config=_config, **kwargs)
+
+    async def process(
+        self,
+        *,
+        batch: DataBatch,
+        columns: Any = None,
+        **_: Any,
+    ) -> DataProfile:
+        if columns is not None and (
+            not isinstance(columns, tuple)
+            or not all(isinstance(c, str) for c in columns)
+        ):
             raise TypeError("Profiler: columns must be a tuple of strings")
-        self._columns = tuple(columns) if columns is not None else None
-        super().__init__(batch=batch, _config=_config, **kwargs)
 
-    @property
-    def columns(self) -> tuple[str, ...] | None:
-        return self._columns
-
-    async def process(self, batch: DataBatch, **_: Any) -> DataProfile:
-        """Compute per-column descriptive statistics for the batch and return a DataProfile.
-
-        Args:
-            batch: The DataBatch to profile.
-
-        Returns:
-            A DataProfile containing row count, column count, and per-column statistics.
-        """
-        target_columns = self._target_columns(batch)
+        target_columns = Profiler._target_columns(batch, columns)
         column_profiles = tuple(
-            self._profile_column(batch, column) for column in target_columns
+            Profiler._profile_column(batch, column) for column in target_columns
         )
         return DataProfile(
             row_count=batch.row_count,
@@ -58,22 +79,22 @@ class Profiler(Knot):
             columns=column_profiles,
         )
 
-    def _target_columns(self, batch: DataBatch) -> tuple[str, ...]:
-        if self._columns is not None:
-            return self._columns
-        # Default: every column declared on the batch's schema, with stable order.
+    @staticmethod
+    def _target_columns(
+        batch: DataBatch, columns: tuple[str, ...] | None
+    ) -> tuple[str, ...]:
+        if columns is not None:
+            return columns
         if batch.schema.column_names:
             return batch.schema.column_names
-        # Fallback: union of keys observed across rows.
         seen: dict[str, None] = {}
         for row in batch.rows:
             for key in row.keys():
                 seen.setdefault(key, None)
         return tuple(seen)
 
-    def _profile_column(
-        self, batch: DataBatch, column: str
-    ) -> ColumnProfile:
+    @staticmethod
+    def _profile_column(batch: DataBatch, column: str) -> ColumnProfile:
         observed = 0
         nulls = 0
         non_null_values: list[Any] = []
@@ -91,19 +112,18 @@ class Profiler(Knot):
         distinct_count = len(set(non_null_values))
         min_value: Any | None = None
         max_value: Any | None = None
-        if non_null_values and self._is_orderable(non_null_values[0]):
+        if non_null_values and isinstance(non_null_values[0], (int, float, str, bool)):
             try:
                 min_value = min(non_null_values)
                 max_value = max(non_null_values)
             except TypeError:
-                # Mixed types — surrender on min/max rather than crash.
                 min_value = None
                 max_value = None
 
         top_value: Any | None = None
         top_count = 0
         if non_null_values:
-            counter = Counter(self._hashable(v) for v in non_null_values)
+            counter = Counter(Profiler._hashable(v) for v in non_null_values)
             top_value, top_count = counter.most_common(1)[0]
 
         return ColumnProfile(
@@ -118,12 +138,7 @@ class Profiler(Knot):
         )
 
     @staticmethod
-    def _is_orderable(value: Any) -> bool:
-        return isinstance(value, (int, float, str, bool))
-
-    @staticmethod
     def _hashable(value: Any) -> Any:
-        # ``Counter`` requires hashable keys; collapse common unhashables.
         try:
             hash(value)
             return value

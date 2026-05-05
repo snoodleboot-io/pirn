@@ -14,6 +14,26 @@ The caller supplies:
 PyArrow names aggregate output columns ``"<input>_<fn>"``. After running
 the aggregation we rename to the caller-provided output names, keeping
 the by-columns at the front in their original order.
+
+Algorithm:
+    1. Validate ``by`` column identifiers and the ``aggs`` mapping.
+    2. For each ``aggs`` entry, validate the output name, input column, and
+       aggregation function name against the allowed set.
+    3. Build a list of ``(input_column, function_name)`` tuples for PyArrow.
+    4. Call ``table.group_by(by).aggregate(agg_specs)``.
+    5. PyArrow emits result columns named ``"<input>_<fn>"``.  Rename the
+       full column list to ``[*by, *aggs.keys()]`` to apply caller-provided
+       output names.
+    6. Return the renamed table wrapped in a new :class:`PyarrowDataBatch`.
+
+References:
+    [1] PyArrow — Table.group_by / GroupedAggregation:
+        https://arrow.apache.org/docs/python/generated/pyarrow.Table.html#pyarrow.Table.group_by
+    [2] PyArrow — compute aggregation functions:
+        https://arrow.apache.org/docs/python/compute.html#grouped-aggregations
+    [3] Alternative: DataFusion DataFrame.aggregate (chosen PyArrow here for
+        in-memory eager execution without a session context):
+        https://datafusion.apache.org/python/autoapi/datafusion/index.html#datafusion.DataFrame.aggregate
 """
 
 from __future__ import annotations

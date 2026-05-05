@@ -13,11 +13,43 @@ Notes:
   ``timedelta(hours=24)``.
 - Empty batches and rows missing the timestamp column are reported as
   failed checks — silence is not freshness.
+
+Algorithm:
+    1. Iterate ``batch.rows``; for each row that contains ``column`` with a
+       ``datetime`` value, normalise to UTC (if naive) and track the maximum.
+    2. If no datetime was found, emit a ``freshness_no_timestamp`` check
+       with ``passed=False``.
+    3. Otherwise compute ``age = now_utc - newest``.
+    4. Emit a ``freshness_max_age`` check with ``passed = (age <= max_age)``.
+    5. Return a :class:`QualityReport` wrapping that single check.
+
+Math:
+    Let :math:`T` be the set of datetime values found in ``column`` across all rows:
+
+    $$
+    \\text{newest} = \\max_{t \\in T}\\, t
+    $$
+
+    $$
+    \\text{age} = \\text{now}_{\\text{UTC}} - \\text{newest}
+    $$
+
+    $$
+    \\text{passed} = \\text{age} \\leq \\text{max\\_age}
+    $$
+
+    When :math:`T` is empty (no datetime values found), ``passed = False``.
+
+References:
+    [1] Python ``datetime.timedelta`` —
+        https://docs.python.org/3/library/datetime.html#timedelta-objects
+    [2] UTC normalisation — naive datetimes replaced with ``tzinfo=UTC``
+        following ISO 8601 convention.
 """
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -34,11 +66,27 @@ class FreshnessCheck(Knot):
         self,
         *,
         batch: Knot,
-        column: str,
-        max_age: timedelta,
+        column: Knot | str,
+        max_age: Knot | timedelta,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            batch=batch,
+            column=column,
+            max_age=max_age,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        *,
+        batch: DataBatch,
+        column: str,
+        max_age: timedelta,
+        **_: Any,
+    ) -> QualityReport:
         if not isinstance(column, str) or not column:
             raise ValueError("FreshnessCheck: column must be a non-empty string")
         if not isinstance(max_age, timedelta):
@@ -48,47 +96,26 @@ class FreshnessCheck(Knot):
             )
         if max_age.total_seconds() <= 0:
             raise ValueError("FreshnessCheck: max_age must be positive")
-        self._column = column
-        self._max_age = max_age
-        super().__init__(batch=batch, _config=_config, **kwargs)
 
-    @property
-    def column(self) -> str:
-        return self._column
-
-    @property
-    def max_age(self) -> timedelta:
-        return self._max_age
-
-    async def process(self, batch: DataBatch, **_: Any) -> QualityReport:
-        """Check that the newest timestamp in the configured column is within max_age and return a QualityReport.
-
-        Args:
-            batch: The DataBatch whose timestamp column will be inspected.
-
-        Returns:
-            A QualityReport containing a single freshness check that passes when the
-            newest timestamp is within max_age of now.
-        """
-        now = datetime.now(timezone.utc)
-        newest = self._newest_timestamp(batch)
+        now = datetime.now(UTC)
+        newest = FreshnessCheck._newest_timestamp(batch, column)
 
         if newest is None:
             check = QualityCheck(
                 name="freshness_no_timestamp",
                 passed=False,
-                threshold=str(self._max_age),
+                threshold=str(max_age),
                 actual="no timestamps",
-                column=self._column,
+                column=column,
             )
         else:
             age = now - newest
             check = QualityCheck(
                 name="freshness_max_age",
-                passed=age <= self._max_age,
-                threshold=str(self._max_age),
+                passed=age <= max_age,
+                threshold=str(max_age),
                 actual=str(age),
-                column=self._column,
+                column=column,
             )
 
         return QualityReport(
@@ -97,16 +124,17 @@ class FreshnessCheck(Knot):
             row_count=batch.row_count,
         )
 
-    def _newest_timestamp(self, batch: DataBatch) -> datetime | None:
+    @staticmethod
+    def _newest_timestamp(batch: DataBatch, column: str) -> datetime | None:
         newest: datetime | None = None
         for row in batch.rows:
-            if self._column not in row:
+            if column not in row:
                 continue
-            value = row[self._column]
+            value = row[column]
             if not isinstance(value, datetime):
                 continue
             normalised = (
-                value.replace(tzinfo=timezone.utc)
+                value.replace(tzinfo=UTC)
                 if value.tzinfo is None
                 else value
             )

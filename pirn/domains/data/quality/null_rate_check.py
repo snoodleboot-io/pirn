@@ -8,11 +8,43 @@ not in ``thresholds`` are not assessed.
 
 Wrap with :class:`pirn.nodes.gate.gate.Gate` to halt the pipeline on
 failure (see :class:`SchemaValidator` docstring for the standard pattern).
+
+Algorithm:
+    1. Validate ``thresholds`` is a non-empty mapping of column → float in
+       ``[0.0, 1.0]``.
+    2. For each ``(column, threshold)`` pair, compute the null rate over
+       ``batch.rows``.
+    3. Emit one :class:`QualityCheck` per column with
+       ``passed = (null_rate <= threshold)``.
+    4. Return a :class:`QualityReport` whose ``passed`` flag is the
+       conjunction of all per-column checks.
+
+Math:
+    Given :math:`N` rows and :math:`k_c` null or absent values for column :math:`c`:
+
+    $$
+    \\text{null\\_rate}(c) = \\begin{cases}
+        k_c \\,/\\, N & N > 0 \\\\
+        0.0          & N = 0
+    \\end{cases}
+    $$
+
+    $$
+    \\text{passed}(c) = \\text{null\\_rate}(c) \\leq \\text{threshold}(c)
+    $$
+
+    $$
+    \\text{passed} = \\bigwedge_{c} \\text{passed}(c)
+    $$
+
+References:
+    [1] Null rate / completeness — standard data quality dimension; see
+        Loshin, "The Practitioner's Guide to Data Quality Improvement" (2011).
 """
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -28,11 +60,25 @@ class NullRateCheck(Knot):
         self,
         *,
         batch: Knot,
-        thresholds: Mapping[str, float],
+        thresholds: Knot | Any,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(thresholds, Mapping) or not thresholds:
+        super().__init__(
+            batch=batch,
+            thresholds=thresholds,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        *,
+        batch: DataBatch,
+        thresholds: Any,
+        **_: Any,
+    ) -> QualityReport:
+        if not isinstance(thresholds, dict) or not thresholds:
             raise TypeError(
                 "NullRateCheck: thresholds must be a non-empty mapping of "
                 "column name to maximum allowed null rate"
@@ -48,28 +94,13 @@ class NullRateCheck(Knot):
                     f"NullRateCheck: threshold for {column!r} must be in [0.0, 1.0], "
                     f"got {rate!r}"
                 )
-        self._thresholds: dict[str, float] = {k: float(v) for k, v in thresholds.items()}
-        super().__init__(batch=batch, _config=_config, **kwargs)
 
-    @property
-    def thresholds(self) -> Mapping[str, float]:
-        return dict(self._thresholds)
-
-    async def process(self, batch: DataBatch, **_: Any) -> QualityReport:
-        """Assess each column's null rate against its threshold and return a QualityReport.
-
-        Args:
-            batch: The DataBatch whose column null rates will be measured.
-
-        Returns:
-            A QualityReport with one check per configured column, passing when the
-            observed null rate does not exceed the column's threshold.
-        """
+        normalised: dict[str, float] = {k: float(v) for k, v in thresholds.items()}
         row_count = batch.row_count
         checks: list[QualityCheck] = []
 
-        for column, threshold in self._thresholds.items():
-            actual_rate = self._null_rate(batch, column, row_count)
+        for column, threshold in normalised.items():
+            actual_rate = NullRateCheck._null_rate(batch, column, row_count)
             checks.append(
                 QualityCheck(
                     name="null_rate",
@@ -87,9 +118,8 @@ class NullRateCheck(Knot):
             row_count=row_count,
         )
 
-    def _null_rate(
-        self, batch: DataBatch, column: str, row_count: int
-    ) -> float:
+    @staticmethod
+    def _null_rate(batch: DataBatch, column: str, row_count: int) -> float:
         if row_count == 0:
             return 0.0
         null_count = sum(

@@ -91,6 +91,26 @@ class TestPyarrowDeduplicate(unittest.IsolatedAsyncioTestCase):
         assert out.row_count == 0
 
 
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_keys_from_upstream_knot(self) -> None:
+        @knot
+        async def emit_keys() -> tuple:
+            return ("id",)
+
+        with Tapestry() as t:
+            batch = emit_dupes(_config=KnotConfig(id="src"))
+            keys_knot = emit_keys(_config=KnotConfig(id="keys"))
+            PyarrowDeduplicate(
+                batch=batch,
+                keys=keys_knot,
+                _config=KnotConfig(id="dedup"),
+            )
+        result = await t.run(RunRequest())
+        out: PyarrowDataBatch = result.outputs["dedup"]
+        assert out.table.column("id").to_pylist() == [1, 2, 3]
+        assert out.table.column("name").to_pylist() == ["a", "b", "c"]
+
+
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, **kwargs: object) -> PyarrowDeduplicate:
         @knot

@@ -60,6 +60,25 @@ class TestPyarrowFilter(unittest.IsolatedAsyncioTestCase):
         assert sorted(out.table.column("id").to_pylist()) == [1, 4]
 
 
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_expression_from_upstream_knot(self) -> None:
+        @knot
+        async def emit_expression() -> object:
+            return pc.field("active")
+
+        with Tapestry() as t:
+            batch = emit_users(_config=KnotConfig(id="users"))
+            expr_knot = emit_expression(_config=KnotConfig(id="expr"))
+            PyarrowFilter(
+                batch=batch,
+                expression=expr_knot,
+                _config=KnotConfig(id="filtered"),
+            )
+        result = await t.run(RunRequest())
+        out: PyarrowDataBatch = result.outputs["filtered"]
+        assert out.table.column("id").to_pylist() == [1, 3]
+
+
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, **kwargs: object) -> PyarrowFilter:
         @knot

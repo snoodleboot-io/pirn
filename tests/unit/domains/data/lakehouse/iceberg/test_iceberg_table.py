@@ -8,12 +8,11 @@ from __future__ import annotations
 
 import sys
 import types
-from datetime import datetime, timezone
-from typing import Any, AsyncIterator, Mapping
 import unittest
 import unittest.mock
-
-import pytest
+from collections.abc import AsyncIterator, Mapping
+from datetime import UTC, datetime
+from typing import Any
 
 from pirn.domains.data.lakehouse.iceberg.iceberg_table import IcebergTable
 from pirn.domains.data.lakehouse.iceberg.iceberg_table_config import (
@@ -105,7 +104,7 @@ def _stub_pyarrow_module() -> Any:
                 return list(self._rows)
 
             @classmethod
-            def from_pylist(cls, rows: list[dict[str, Any]]) -> "_Table":
+            def from_pylist(cls, rows: list[dict[str, Any]]) -> _Table:
                 return cls(list(rows))
 
         pa_mod.Table = _Table  # type: ignore[attr-defined]
@@ -249,7 +248,7 @@ class TestScan(unittest.IsolatedAsyncioTestCase):
     async def test_scan_as_of_timestamp_resolves_snapshot(self) -> None:
         stub = StubTable(rows=[])
         table = IcebergTable(table=stub)
-        ts = datetime.fromtimestamp(2.0, tz=timezone.utc)  # 2_000 ms
+        ts = datetime.fromtimestamp(2.0, tz=UTC)  # 2_000 ms
         async for _ in await table.scan(as_of_timestamp=ts):
             pass
         # Picks the snapshot at or before 2_000 ms — id=2.
@@ -258,7 +257,7 @@ class TestScan(unittest.IsolatedAsyncioTestCase):
     async def test_scan_as_of_timestamp_rejects_unreachable(self) -> None:
         stub = StubTable(rows=[])
         table = IcebergTable(table=stub)
-        ts = datetime.fromtimestamp(0.0, tz=timezone.utc)
+        ts = datetime.fromtimestamp(0.0, tz=UTC)
         with self.assertRaisesRegex(ValueError, "no snapshot"):
             async for _ in await table.scan(as_of_timestamp=ts):
                 pass
@@ -268,7 +267,7 @@ class TestScan(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(ValueError, "mutually exclusive"):
             await table.scan(
                 snapshot_id=1,
-                as_of_timestamp=datetime.now(timezone.utc),
+                as_of_timestamp=datetime.now(UTC),
             )
 
 

@@ -7,8 +7,8 @@ emits a :class:`QualityReport`; callers decide policy via
 """
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -32,7 +32,7 @@ async def emit_users() -> DataBatch:
 
 @knot
 async def emit_users_missing_column() -> DataBatch:
-    rows = ({"id": 1},)  # 'name' missing
+    rows = ({"id": 1},)
     schema = DataSchema(columns={"id": int, "name": str})
     return DataBatch(rows=rows, schema=schema)
 
@@ -54,14 +54,8 @@ async def emit_users_with_null() -> DataBatch:
 @knot
 async def emit_users_with_nullable_null() -> DataBatch:
     rows = ({"id": 1, "name": None},)
-    schema = DataSchema(
-        columns={"id": int, "name": str},
-        nullable=("name",),
-    )
+    schema = DataSchema(columns={"id": int, "name": str}, nullable=("name",))
     return DataBatch(rows=rows, schema=schema)
-
-
-# ────────────────────────────────────────────────────────── happy path
 
 
 class TestSchemaValidatorPasses(unittest.IsolatedAsyncioTestCase):
@@ -76,10 +70,8 @@ class TestSchemaValidatorPasses(unittest.IsolatedAsyncioTestCase):
                 schema=expected_schema,
                 _config=KnotConfig(id="schema"),
             )
-
         result = await t.run(RunRequest())
         assert result.succeeded
-
         report: QualityReport = result.outputs["schema"]
         assert report.passed is True
         assert report.row_count == 2
@@ -87,8 +79,7 @@ class TestSchemaValidatorPasses(unittest.IsolatedAsyncioTestCase):
 
     async def test_nullable_column_accepts_none(self) -> None:
         expected_schema = DataSchema(
-            columns={"id": int, "name": str},
-            nullable=("name",),
+            columns={"id": int, "name": str}, nullable=("name",)
         )
         with Tapestry() as t:
             batch = emit_users_with_nullable_null(_config=KnotConfig(id="users"))
@@ -100,9 +91,6 @@ class TestSchemaValidatorPasses(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         report: QualityReport = result.outputs["schema"]
         assert report.passed is True
-
-
-# ───────────────────────────────────────────────────────── failure paths
 
 
 class TestSchemaValidatorFails(unittest.IsolatedAsyncioTestCase):
@@ -117,7 +105,6 @@ class TestSchemaValidatorFails(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         report: QualityReport = result.outputs["schema"]
-
         assert report.passed is False
         failed = report.failed_checks
         assert len(failed) == 1
@@ -135,16 +122,12 @@ class TestSchemaValidatorFails(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         report: QualityReport = result.outputs["schema"]
-
         assert report.passed is False
         failed = report.failed_checks
         assert any(c.column == "id" and "type" in c.name.lower() for c in failed)
 
     async def test_unexpected_null_marks_check_failed(self) -> None:
-        expected_schema = DataSchema(
-            columns={"id": int, "name": str},
-            nullable=(),
-        )
+        expected_schema = DataSchema(columns={"id": int, "name": str}, nullable=())
         with Tapestry() as t:
             batch = emit_users_with_null(_config=KnotConfig(id="users"))
             SchemaValidator(
@@ -154,28 +137,43 @@ class TestSchemaValidatorFails(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         report: QualityReport = result.outputs["schema"]
-
         assert report.passed is False
         failed = report.failed_checks
-        assert any(
-            c.column == "name" and "null" in c.name.lower() for c in failed
-        )
+        assert any(c.column == "name" and "null" in c.name.lower() for c in failed)
 
 
-# ─────────────────────────────────────────────────────── construction guards
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_schema_from_upstream_knot(self) -> None:
+        @knot
+        async def emit_schema() -> DataSchema:
+            return DataSchema(columns={"id": int, "name": str}, primary_keys=("id",))
+
+        with Tapestry() as t:
+            batch = emit_users(_config=KnotConfig(id="users"))
+            schema_knot = emit_schema(_config=KnotConfig(id="schema_src"))
+            SchemaValidator(
+                batch=batch,
+                schema=schema_knot,
+                _config=KnotConfig(id="schema"),
+            )
+        result = await t.run(RunRequest())
+        report: QualityReport = result.outputs["schema"]
+        assert report.passed is True
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_data_schema(self) -> None:
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self, **kwargs: object) -> SchemaValidator:
         @knot
         async def empty() -> DataBatch:
             return DataBatch()
 
+        default_schema = DataSchema(columns={"id": int})
+        kwargs.setdefault("schema", default_schema)
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "DataSchema"):
-                SchemaValidator(
-                    batch=batch,
-                    schema={"id": int},  # type: ignore[arg-type]
-                    _config=KnotConfig(id="schema"),
-                )
+            return SchemaValidator(batch=batch, _config=KnotConfig(id="sv"), **kwargs)
+
+    async def test_rejects_non_data_schema(self) -> None:
+        k = self._make_knot(schema={"id": int})  # type: ignore[arg-type]
+        with self.assertRaisesRegex(TypeError, "DataSchema"):
+            await k.process(batch=DataBatch(), schema={"id": int})

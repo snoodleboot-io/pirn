@@ -7,9 +7,10 @@ The Hudi adapter is read-only by design; the write paths
 
 from __future__ import annotations
 
-from typing import Any, AsyncIterator, Mapping
 import unittest
-
+from collections.abc import AsyncIterator, Mapping
+from datetime import UTC
+from typing import Any
 
 from pirn.domains.data.lakehouse.hudi.hudi_table import HudiTable
 from pirn.domains.data.lakehouse.hudi.hudi_table_config import HudiTableConfig
@@ -134,13 +135,13 @@ class TestScan(unittest.IsolatedAsyncioTestCase):
         assert out == [{"id": 1, "region": "US"}]
 
     async def test_scan_rejects_both_time_travel_args(self) -> None:
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         table = HudiTable(table=StubTable())
         with self.assertRaisesRegex(ValueError, "mutually exclusive"):
             await table.scan(
                 snapshot_id=1,
-                as_of_timestamp=datetime.now(timezone.utc),
+                as_of_timestamp=datetime.now(UTC),
             )
 
     async def test_scan_requires_scan_pylist_on_stub(self) -> None:

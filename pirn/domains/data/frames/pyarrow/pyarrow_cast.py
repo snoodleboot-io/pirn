@@ -4,6 +4,24 @@ The ``casts`` mapping accepts column → PyArrow ``DataType`` pairs (e.g.
 ``{"id": pa.int64(), "amount": pa.float64()}``) or column → Python
 primitive type pairs (``int``, ``float``, ``str``, ``bool``); the latter
 are translated to the corresponding PyArrow type.
+
+Algorithm:
+    1. Validate ``casts`` — must be a non-empty mapping of non-empty string
+       keys. Values must be ``pa.DataType`` instances or Python primitives
+       (``int``, ``float``, ``str``, ``bool``).
+    2. Normalise each value: Python primitive → corresponding ``pa.DataType``.
+    3. Filter to only columns that exist in the table schema (unknown columns
+       are silently skipped — the caller may configure casts speculatively).
+    4. If no applicable columns remain, return the batch unchanged.
+    5. For each applicable column, call ``pc.cast(table.column(col), dtype)``
+       and replace the column with ``table.set_column(idx, field, casted)``.
+    6. Return the updated table wrapped in a new :class:`PyarrowDataBatch`.
+
+References:
+    [1] PyArrow — compute.cast:
+        https://arrow.apache.org/docs/python/generated/pyarrow.compute.cast.html
+    [2] PyArrow — Table.set_column:
+        https://arrow.apache.org/docs/python/generated/pyarrow.Table.html#pyarrow.Table.set_column
 """
 
 from __future__ import annotations

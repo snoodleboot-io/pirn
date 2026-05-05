@@ -1,6 +1,7 @@
 """Tests for :class:`DatafusionAggregate`."""
 
 from __future__ import annotations
+
 import unittest
 
 import datafusion as df
@@ -72,6 +73,28 @@ class TestDatafusionAggregate(unittest.IsolatedAsyncioTestCase):
         counts = {row["region"]: row["n_customers"] for row in rows}
         assert counts["EU"] == 3
         assert counts["US"] == 1
+
+
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_by_from_upstream_knot(self) -> None:
+        @knot
+        async def emit_by() -> tuple:
+            return ("region",)
+
+        with Tapestry() as t:
+            batch = emit_orders(_config=KnotConfig(id="orders"))
+            by_knot = emit_by(_config=KnotConfig(id="by"))
+            DatafusionAggregate(
+                batch=batch,
+                by=by_knot,
+                aggs={"total": dff.sum(df.col("amount"))},
+                _config=KnotConfig(id="agg"),
+            )
+        result = await t.run(RunRequest())
+        out: DatafusionDataBatch = result.outputs["agg"]
+        rows = {row["region"]: row["total"] for row in out.frame.to_pylist()}
+        assert rows["EU"] == 40.0
+        assert rows["US"] == 100.0
 
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):

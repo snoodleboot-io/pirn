@@ -9,6 +9,27 @@ that emits a :class:`QualityReport`. Wrap with
                           _config=KnotConfig(id="rowcount"))
     Gate(input=report, predicate=lambda r: r.passed,
          _config=KnotConfig(id="rowcount_ok"))
+
+Algorithm:
+    1. Validate ``min_rows >= 0`` and, when set, ``max_rows >= min_rows``.
+    2. Read ``N = batch.row_count``.
+    3. Emit a ``row_count_min`` check: ``passed = (N >= min_rows)``.
+    4. If ``max_rows`` is set, emit a ``row_count_max`` check:
+       ``passed = (N <= max_rows)``.
+    5. Return a :class:`QualityReport` whose ``passed`` is the conjunction
+       of all emitted checks.
+
+Math:
+    Let :math:`N = \\text{batch.row\\_count}`:
+
+    $$
+    \\text{passed} = (N \\geq \\text{min\\_rows}) \\;\\wedge\\;
+        (\\text{max\\_rows} = \\text{None} \\;\\vee\\; N \\leq \\text{max\\_rows})
+    $$
+
+References:
+    [1] :class:`pirn.domains.data.data_batch.DataBatch` — ``row_count``
+        property.
 """
 
 from __future__ import annotations
@@ -29,53 +50,47 @@ class RowCountCheck(Knot):
         self,
         *,
         batch: Knot,
-        min_rows: int = 0,
-        max_rows: int | None = None,
+        min_rows: Knot | int = 0,
+        max_rows: Knot | int | None = None,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            batch=batch,
+            min_rows=min_rows,
+            max_rows=max_rows,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        *,
+        batch: DataBatch,
+        min_rows: int = 0,
+        max_rows: int | None = None,
+        **_: Any,
+    ) -> QualityReport:
         if min_rows < 0:
             raise ValueError("RowCountCheck: min_rows must be >= 0")
         if max_rows is not None and max_rows < min_rows:
-            raise ValueError(
-                "RowCountCheck: max_rows must be >= min_rows when set"
-            )
-        self._min_rows = min_rows
-        self._max_rows = max_rows
-        super().__init__(batch=batch, _config=_config, **kwargs)
+            raise ValueError("RowCountCheck: max_rows must be >= min_rows when set")
 
-    @property
-    def min_rows(self) -> int:
-        return self._min_rows
-
-    @property
-    def max_rows(self) -> int | None:
-        return self._max_rows
-
-    async def process(self, batch: DataBatch, **_: Any) -> QualityReport:
-        """Check that the batch row count falls within the configured bounds and return a QualityReport.
-
-        Args:
-            batch: The DataBatch whose row count will be checked.
-
-        Returns:
-            A QualityReport with checks for the minimum and, if configured, maximum row count.
-        """
         row_count = batch.row_count
 
         min_check = QualityCheck(
             name="row_count_min",
-            passed=row_count >= self._min_rows,
-            threshold=str(self._min_rows),
+            passed=row_count >= min_rows,
+            threshold=str(min_rows),
             actual=str(row_count),
         )
         checks: list[QualityCheck] = [min_check]
 
-        if self._max_rows is not None:
+        if max_rows is not None:
             max_check = QualityCheck(
                 name="row_count_max",
-                passed=row_count <= self._max_rows,
-                threshold=str(self._max_rows),
+                passed=row_count <= max_rows,
+                threshold=str(max_rows),
                 actual=str(row_count),
             )
             checks.append(max_check)

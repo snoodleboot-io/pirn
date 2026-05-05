@@ -15,6 +15,46 @@ we:
 
 This mirrors the Tier-1 :class:`Deduplicate` semantics. Group-by and
 ``take`` are both vectorised C++ kernels in PyArrow.
+
+Algorithm:
+    1. Validate ``keys`` — must be a non-empty sequence of non-empty strings.
+    2. Return the batch unchanged if the table has zero rows.
+    3. Append a scratch column ``_pirn_idx`` (bumping the suffix if the name
+       clashes) containing the row's 0-based input position.
+    4. Group by ``keys`` and aggregate ``_pirn_idx`` with ``min`` to find the
+       first-occurrence row index per group.
+    5. Sort the resulting min-indices ascending to restore input order.
+    6. Call ``table.take(ordered_indices)`` to select only first occurrences.
+    7. Return the taken table (without ``_pirn_idx``) in a new
+       :class:`PyarrowDataBatch`.
+
+    ```text
+    for each key-group g:
+        first_idx(g) = min({i : row_i ∈ g})
+    output = table.take(sorted(first_idx(g) for each g))
+    ```
+
+Math:
+    Let :math:`G` be the set of distinct key tuples in the table and
+    :math:`R(g)` the set of row indices belonging to group :math:`g`:
+
+    $$
+    \\text{first\\_idx}(g) = \\min_{i \\in R(g)}\\, i
+    $$
+
+    $$
+    \\text{output} = \\text{table}\\bigl[\\,
+        \\text{sort}\\bigl(\\{\\text{first\\_idx}(g) : g \\in G\\}\\bigr)
+    \\,\\bigr]
+    $$
+
+References:
+    [1] PyArrow — Table.group_by / aggregate:
+        https://arrow.apache.org/docs/python/generated/pyarrow.Table.html#pyarrow.Table.group_by
+    [2] PyArrow — Table.take:
+        https://arrow.apache.org/docs/python/generated/pyarrow.Table.html#pyarrow.Table.take
+    [3] Alternative: pandas DataFrame.drop_duplicates(keep="first") — not used
+        here as PyArrow's group_by+min avoids a pandas dependency.
 """
 
 from __future__ import annotations

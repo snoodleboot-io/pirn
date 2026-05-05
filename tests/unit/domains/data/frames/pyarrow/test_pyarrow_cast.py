@@ -64,6 +64,25 @@ class TestPyarrowCast(unittest.IsolatedAsyncioTestCase):
         assert out.table.schema.field("id").type == pa.string()
 
 
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_casts_from_upstream_knot(self) -> None:
+        @knot
+        async def emit_casts() -> dict:
+            return {"id": int}
+
+        with Tapestry() as t:
+            batch = emit_strings(_config=KnotConfig(id="src"))
+            casts_knot = emit_casts(_config=KnotConfig(id="casts"))
+            PyarrowCast(
+                batch=batch,
+                casts=casts_knot,
+                _config=KnotConfig(id="cast"),
+            )
+        result = await t.run(RunRequest())
+        out: PyarrowDataBatch = result.outputs["cast"]
+        assert out.table.schema.field("id").type == pa.int64()
+
+
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, **kwargs: object) -> PyarrowCast:
         @knot

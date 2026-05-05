@@ -115,6 +115,28 @@ class TestPyarrowJoin(unittest.IsolatedAsyncioTestCase):
         assert out.row_count == 2
 
 
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_how_from_upstream_knot(self) -> None:
+        @knot
+        async def emit_how() -> str:
+            return "inner"
+
+        with Tapestry() as t:
+            users = emit_users(_config=KnotConfig(id="users"))
+            orders = emit_orders(_config=KnotConfig(id="orders"))
+            how_knot = emit_how(_config=KnotConfig(id="how"))
+            PyarrowJoin(
+                left=users,
+                right=orders,
+                on="user_id",
+                how=how_knot,
+                _config=KnotConfig(id="joined"),
+            )
+        result = await t.run(RunRequest())
+        out: PyarrowDataBatch = result.outputs["joined"]
+        assert out.row_count == 3
+
+
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, **kwargs: object) -> PyarrowJoin:
         with Tapestry():

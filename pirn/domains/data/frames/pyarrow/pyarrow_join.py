@@ -9,6 +9,21 @@ Supports the full set of PyArrow join strategies — ``inner``,
 ``left outer``, ``right outer``, ``full outer``, ``left semi``,
 ``right semi``, ``left anti``, ``right anti``. Both batches' provenance
 metadata is preserved on the left side via :meth:`PyarrowDataBatch.with_table`.
+
+Algorithm:
+    1. Validate ``how`` against the allowed strategy set.
+    2. Validate that exactly one of ``on`` or ``left_on`` / ``right_on`` is supplied.
+    3. Coerce column names to ``tuple[str, ...]`` and validate each identifier.
+    4. For shared keys: call ``left.table.join(right.table, keys=..., join_type=how)``.
+    5. For differently-named keys: call with ``keys=left_on, right_keys=right_on``.
+    6. Return the joined table wrapped in a new :class:`PyarrowDataBatch`.
+
+References:
+    [1] PyArrow — Table.join:
+        https://arrow.apache.org/docs/python/generated/pyarrow.Table.html#pyarrow.Table.join
+    [2] Alternative: DataFusion DataFrame.join (chosen PyArrow here for in-memory
+        eager execution without a session context):
+        https://datafusion.apache.org/python/autoapi/datafusion/index.html#datafusion.DataFrame.join
 """
 
 from __future__ import annotations

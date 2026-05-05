@@ -83,6 +83,28 @@ class TestPyarrowAggregate(unittest.IsolatedAsyncioTestCase):
         assert rows["US"]["n_customers"] == 1
 
 
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_by_from_upstream_knot(self) -> None:
+        @knot
+        async def emit_by() -> tuple:
+            return ("region",)
+
+        with Tapestry() as t:
+            batch = emit_orders(_config=KnotConfig(id="orders"))
+            by_knot = emit_by(_config=KnotConfig(id="by"))
+            PyarrowAggregate(
+                batch=batch,
+                by=by_knot,
+                aggs={"total": ("amount", "sum")},
+                _config=KnotConfig(id="agg"),
+            )
+        result = await t.run(RunRequest())
+        out: PyarrowDataBatch = result.outputs["agg"]
+        rows = {row["region"]: row["total"] for row in out.table.to_pylist()}
+        assert rows["EU"] == 40.0
+        assert rows["US"] == 100.0
+
+
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, **kwargs: object) -> PyarrowAggregate:
         with Tapestry():

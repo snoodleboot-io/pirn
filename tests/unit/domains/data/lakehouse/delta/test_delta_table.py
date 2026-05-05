@@ -10,9 +10,11 @@ from __future__ import annotations
 
 import sys
 import types
-from typing import Any, AsyncIterator, Mapping
 import unittest
 import unittest.mock
+from collections.abc import AsyncIterator, Mapping
+from datetime import UTC
+from typing import Any
 
 from pirn.domains.data.lakehouse.delta.delta_table import DeltaTable
 from pirn.domains.data.lakehouse.delta.delta_table_config import DeltaTableConfig
@@ -68,7 +70,7 @@ class StubDt:
             {"version": 1, "operation": "MERGE"},
         ]
 
-    def merge(self, *, source: Any, predicate: str, source_alias: str, target_alias: str,) -> "_Builder":
+    def merge(self, *, source: Any, predicate: str, source_alias: str, target_alias: str,) -> _Builder:
         self.merge_calls.append(
             {
                 "predicate": predicate,
@@ -80,10 +82,10 @@ class StubDt:
         outer = self
 
         class _Builder:
-            def when_matched_update_all(self) -> "_Builder":
+            def when_matched_update_all(self) -> _Builder:
                 return self
 
-            def when_not_matched_insert_all(self) -> "_Builder":
+            def when_not_matched_insert_all(self) -> _Builder:
                 return self
 
             def execute(self) -> None:
@@ -106,7 +108,7 @@ def _stub_pyarrow_module() -> Any:
                 return list(self._rows)
 
             @classmethod
-            def from_pylist(cls, rows: list[dict[str, Any]]) -> "_Table":
+            def from_pylist(cls, rows: list[dict[str, Any]]) -> _Table:
                 return cls(list(rows))
 
         pa_mod.Table = _Table  # type: ignore[attr-defined]
@@ -213,23 +215,23 @@ class TestScan(unittest.IsolatedAsyncioTestCase):
         assert dt.loaded_version == 5
 
     async def test_scan_as_of_timestamp_loads_datetime(self) -> None:
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         dt = StubDt(rows=[])
         table = DeltaTable(dt=dt)
-        ts = datetime(2026, 4, 30, tzinfo=timezone.utc)
+        ts = datetime(2026, 4, 30, tzinfo=UTC)
         async for _ in await table.scan(as_of_timestamp=ts):
             pass
         assert dt.loaded_datetime == ts
 
     async def test_scan_rejects_both_time_travel_args(self) -> None:
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         table = DeltaTable(dt=StubDt())
         with self.assertRaisesRegex(ValueError, "mutually exclusive"):
             await table.scan(
                 snapshot_id=1,
-                as_of_timestamp=datetime.now(timezone.utc),
+                as_of_timestamp=datetime.now(UTC),
             )
 
 

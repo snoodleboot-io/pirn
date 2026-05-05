@@ -1,8 +1,8 @@
 """Tests for :class:`pirn.domains.data.quality.null_rate_check.NullRateCheck`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -35,7 +35,6 @@ async def emit_empty() -> DataBatch:
 
 class TestNullRateCheck(unittest.IsolatedAsyncioTestCase):
     async def test_passes_when_under_threshold(self) -> None:
-        # 2 nulls in 10 rows = 0.2; threshold 0.3 → pass
         with Tapestry() as t:
             batch = emit_mostly_filled(_config=KnotConfig(id="batch"))
             NullRateCheck(
@@ -50,7 +49,6 @@ class TestNullRateCheck(unittest.IsolatedAsyncioTestCase):
         assert report.checks[0].actual == "0.2000"
 
     async def test_fails_when_above_threshold(self) -> None:
-        # 2 nulls in 10 rows = 0.2; threshold 0.1 → fail
         with Tapestry() as t:
             batch = emit_mostly_filled(_config=KnotConfig(id="batch"))
             NullRateCheck(
@@ -75,7 +73,6 @@ class TestNullRateCheck(unittest.IsolatedAsyncioTestCase):
         assert report.passed is False
 
     async def test_empty_batch_yields_zero_rate(self) -> None:
-        # 0 / 0 should not raise; we treat as 0.0 → always passes ≤ threshold
         with Tapestry() as t:
             batch = emit_empty(_config=KnotConfig(id="batch"))
             NullRateCheck(
@@ -106,44 +103,53 @@ class TestNullRateCheck(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         report: QualityReport = result.outputs["nullrate"]
-        # a: 1/3 = 0.333 ≤ 0.5 → pass
-        # b: 1/3 = 0.333 > 0.0 → fail
         assert report.passed is False
         failed = report.failed_checks
         assert len(failed) == 1
         assert failed[0].column == "b"
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_thresholds(self) -> None:
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_thresholds_from_upstream_knot(self) -> None:
         @knot
-        async def empty() -> DataBatch:
-            return DataBatch()
-        with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "non-empty"):
-                NullRateCheck(batch=batch, thresholds={}, _config=KnotConfig(id="nr"))
+        async def emit_thresholds() -> dict:
+            return {"email": 0.3}
 
-    def test_rejects_threshold_above_one(self) -> None:
-        @knot
-        async def empty() -> DataBatch:
-            return DataBatch()
-        with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(ValueError, r"\[0\.0, 1\.0\]"):
-                NullRateCheck(
-                    batch=batch, thresholds={"a": 1.5},
-                    _config=KnotConfig(id="nr"),
-                )
+        with Tapestry() as t:
+            batch = emit_mostly_filled(_config=KnotConfig(id="batch"))
+            thr_knot = emit_thresholds(_config=KnotConfig(id="thr"))
+            NullRateCheck(
+                batch=batch,
+                thresholds=thr_knot,
+                _config=KnotConfig(id="nullrate"),
+            )
+        result = await t.run(RunRequest())
+        report: QualityReport = result.outputs["nullrate"]
+        assert report.passed is True
 
-    def test_rejects_non_numeric_threshold(self) -> None:
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self, **kwargs: object) -> NullRateCheck:
         @knot
         async def empty() -> DataBatch:
             return DataBatch()
+
+        kwargs.setdefault("thresholds", {"a": 0.5})
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "must be a number"):
-                NullRateCheck(
-                    batch=batch, thresholds={"a": "0.5"},  # type: ignore[dict-item]
-                    _config=KnotConfig(id="nr"),
-                )
+            return NullRateCheck(batch=batch, _config=KnotConfig(id="nr"), **kwargs)
+
+    async def test_rejects_empty_thresholds(self) -> None:
+        k = self._make_knot(thresholds={})
+        with self.assertRaisesRegex(TypeError, "non-empty"):
+            await k.process(batch=DataBatch(), thresholds={})
+
+    async def test_rejects_threshold_above_one(self) -> None:
+        k = self._make_knot(thresholds={"a": 1.5})
+        with self.assertRaisesRegex(ValueError, r"\[0\.0, 1\.0\]"):
+            await k.process(batch=DataBatch(), thresholds={"a": 1.5})
+
+    async def test_rejects_non_numeric_threshold(self) -> None:
+        k = self._make_knot(thresholds={"a": "0.5"})  # type: ignore[dict-item]
+        with self.assertRaisesRegex(TypeError, "must be a number"):
+            await k.process(batch=DataBatch(), thresholds={"a": "0.5"})

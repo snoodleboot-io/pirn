@@ -1,8 +1,8 @@
 """Tests for :class:`pirn.domains.data.quality.row_count_check.RowCountCheck`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -68,26 +68,56 @@ class TestRowCountCheck(unittest.IsolatedAsyncioTestCase):
         assert report.passed is True
 
 
-class TestRowCountCheckConstruction(unittest.TestCase):
-    def test_rejects_negative_min(self) -> None:
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_min_rows_from_upstream_knot(self) -> None:
+        @knot
+        async def emit_min() -> int:
+            return 10
+
+        with Tapestry() as t:
+            batch = _batch_factory(50)(_config=KnotConfig(id="batch"))
+            min_knot = emit_min(_config=KnotConfig(id="min"))
+            RowCountCheck(
+                batch=batch, min_rows=min_knot, _config=KnotConfig(id="count"),
+            )
+        result = await t.run(RunRequest())
+        report: QualityReport = result.outputs["count"]
+        assert report.passed is True
+
+    async def test_max_rows_from_upstream_knot(self) -> None:
+        @knot
+        async def emit_max() -> int:
+            return 100
+
+        with Tapestry() as t:
+            batch = _batch_factory(50)(_config=KnotConfig(id="batch"))
+            max_knot = emit_max(_config=KnotConfig(id="max"))
+            RowCountCheck(
+                batch=batch, max_rows=max_knot, _config=KnotConfig(id="count"),
+            )
+        result = await t.run(RunRequest())
+        report: QualityReport = result.outputs["count"]
+        assert report.passed is True
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self, **kwargs: object) -> RowCountCheck:
         @knot
         async def empty() -> DataBatch:
             return DataBatch()
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(ValueError, "min_rows"):
-                RowCountCheck(batch=batch, min_rows=-1, _config=KnotConfig(id="c"))
+            return RowCountCheck(
+                batch=batch, _config=KnotConfig(id="c"), **kwargs
+            )
 
-    def test_rejects_max_less_than_min(self) -> None:
-        @knot
-        async def empty() -> DataBatch:
-            return DataBatch()
+    async def test_rejects_negative_min(self) -> None:
+        k = self._make_knot(min_rows=-1)
+        with self.assertRaisesRegex(ValueError, "min_rows"):
+            await k.process(batch=DataBatch(), min_rows=-1, max_rows=None)
 
-        with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(ValueError, "max_rows"):
-                RowCountCheck(
-                    batch=batch, min_rows=10, max_rows=5,
-                    _config=KnotConfig(id="c"),
-                )
+    async def test_rejects_max_less_than_min(self) -> None:
+        k = self._make_knot(min_rows=10, max_rows=5)
+        with self.assertRaisesRegex(ValueError, "max_rows"):
+            await k.process(batch=DataBatch(), min_rows=10, max_rows=5)

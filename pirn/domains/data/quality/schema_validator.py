@@ -16,6 +16,28 @@ compose a :class:`pirn.nodes.gate.gate.Gate` keyed on
 
 This keeps the validator purely about *assessment*; *enforcement* is a
 composition concern, decided per pipeline.
+
+Algorithm:
+    1. Validate that ``schema`` is a :class:`DataSchema` instance.
+    2. For each ``(column, expected_type)`` pair declared in the schema:
+
+       a. Scan all rows; count present, null, and type-mismatched values.
+       b. Emit a ``column_presence`` / ``column_missing`` check — passes
+          when every row contains the column.
+       c. Emit a ``column_type`` check — passes when no non-null value has
+          an unexpected type.
+       d. If the column is not nullable, emit a ``column_null_unexpected``
+          check — passes when no row carries a null value for it.
+
+    3. Return a :class:`QualityReport` whose ``passed`` is the conjunction
+       of all individual checks.
+
+References:
+    [1] Data quality dimensions — completeness, validity, integrity:
+        Loshin, "The Practitioner's Guide to Data Quality Improvement"
+        (Morgan Kaufmann, 2011), ch. 3.
+    [2] :class:`pirn.domains.data.data_schema.DataSchema` — column type
+        and nullability contract.
 """
 
 from __future__ import annotations
@@ -38,35 +60,31 @@ class SchemaValidator(Knot):
         self,
         *,
         batch: Knot,
-        schema: DataSchema,
+        schema: Knot | DataSchema,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(batch=batch, schema=schema, _config=_config, **kwargs)
+
+    async def process(
+        self,
+        *,
+        batch: DataBatch,
+        schema: Any,
+        **_: Any,
+    ) -> QualityReport:
         if not isinstance(schema, DataSchema):
             raise TypeError(
                 "SchemaValidator: schema must be a DataSchema, "
                 f"got {type(schema).__name__}"
             )
-        self._schema = schema
-        super().__init__(batch=batch, _config=_config, **kwargs)
-
-    @property
-    def schema(self) -> DataSchema:
-        return self._schema
-
-    async def process(self, batch: DataBatch, **_: Any) -> QualityReport:
-        """Validate each batch row against the declared schema and return a QualityReport.
-
-        Args:
-            batch: The DataBatch to validate against the configured schema.
-
-        Returns:
-            A QualityReport with presence, type, and nullability checks for each
-            declared schema column.
-        """
         checks: list[QualityCheck] = []
-        for column, expected_type in self._schema.columns.items():
-            checks.extend(self._check_column(batch, column, expected_type))
+        for column, expected_type in schema.columns.items():
+            checks.extend(
+                SchemaValidator._check_column(
+                    batch, column, expected_type, schema.is_nullable(column)
+                )
+            )
         passed = all(c.passed for c in checks)
         return QualityReport(
             passed=passed,
@@ -74,11 +92,12 @@ class SchemaValidator(Knot):
             row_count=batch.row_count,
         )
 
+    @staticmethod
     def _check_column(
-        self,
         batch: DataBatch,
         column: str,
         expected_type: type,
+        is_nullable: bool,
     ) -> list[QualityCheck]:
         present_count = 0
         null_count = 0
@@ -94,47 +113,40 @@ class SchemaValidator(Knot):
             if not isinstance(value, expected_type):
                 type_errors += 1
 
-        is_nullable = self._schema.is_nullable(column)
         results: list[QualityCheck] = []
 
-        results.append(
-            QualityCheck(
+        if present_count == batch.row_count:
+            results.append(QualityCheck(
                 name="column_presence",
-                passed=present_count == batch.row_count,
+                passed=True,
                 threshold=str(batch.row_count),
                 actual=str(present_count),
                 column=column,
-                # Reuse the standard name keyword "missing" so callers
-                # / tests can identify presence failures uniformly.
-            ) if present_count == batch.row_count
-            else QualityCheck(
+            ))
+        else:
+            results.append(QualityCheck(
                 name="column_missing",
                 passed=False,
                 threshold=str(batch.row_count),
                 actual=str(present_count),
                 column=column,
-            )
-        )
+            ))
 
-        results.append(
-            QualityCheck(
-                name="column_type",
-                passed=type_errors == 0,
-                threshold=expected_type.__name__,
-                actual=f"{type_errors} mismatches",
-                column=column,
-            )
-        )
+        results.append(QualityCheck(
+            name="column_type",
+            passed=type_errors == 0,
+            threshold=expected_type.__name__,
+            actual=f"{type_errors} mismatches",
+            column=column,
+        ))
 
         if not is_nullable:
-            results.append(
-                QualityCheck(
-                    name="column_null_unexpected",
-                    passed=null_count == 0,
-                    threshold="0",
-                    actual=str(null_count),
-                    column=column,
-                )
-            )
+            results.append(QualityCheck(
+                name="column_null_unexpected",
+                passed=null_count == 0,
+                threshold="0",
+                actual=str(null_count),
+                column=column,
+            ))
 
         return results

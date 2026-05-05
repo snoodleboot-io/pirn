@@ -1,8 +1,8 @@
 """Tests for :class:`pirn.domains.data.quality.profiler.Profiler`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -53,11 +53,9 @@ class TestProfiler(unittest.IsolatedAsyncioTestCase):
             Profiler(batch=batch, _config=KnotConfig(id="profile"))
         result = await t.run(RunRequest())
         profile: DataProfile = result.outputs["profile"]
-        # name: alice (twice), bob, None (excluded) → 2 distinct non-null
         name_col = profile.column("name")
         assert name_col is not None
         assert name_col.distinct_count == 2
-        # region: EU (twice), US (twice) → 2 distinct
         region_col = profile.column("region")
         assert region_col is not None
         assert region_col.distinct_count == 2
@@ -108,19 +106,40 @@ class TestProfiler(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         profile: DataProfile = result.outputs["profile"]
         assert profile.row_count == 0
-        # column_count is 0 because the empty batch has no schema.
         assert profile.column_count == 0
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_string_columns(self) -> None:
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_columns_from_upstream_knot(self) -> None:
+        @knot
+        async def emit_columns() -> tuple:
+            return ("region",)
+
+        with Tapestry() as t:
+            batch = emit_users(_config=KnotConfig(id="batch"))
+            cols_knot = emit_columns(_config=KnotConfig(id="cols"))
+            Profiler(
+                batch=batch, columns=cols_knot,
+                _config=KnotConfig(id="profile"),
+            )
+        result = await t.run(RunRequest())
+        profile: DataProfile = result.outputs["profile"]
+        assert profile.column_count == 1
+        assert profile.column("region") is not None
+        assert profile.column("name") is None
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self, **kwargs: object) -> Profiler:
         @knot
         async def empty() -> DataBatch:
             return DataBatch()
+
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "strings"):
-                Profiler(
-                    batch=batch, columns=("ok", 7),  # type: ignore[arg-type]
-                    _config=KnotConfig(id="p"),
-                )
+            return Profiler(batch=batch, _config=KnotConfig(id="p"), **kwargs)
+
+    async def test_rejects_non_string_columns(self) -> None:
+        k = self._make_knot(columns=("ok", 7))  # type: ignore[arg-type]
+        with self.assertRaisesRegex(TypeError, "strings"):
+            await k.process(batch=DataBatch(), columns=("ok", 7))

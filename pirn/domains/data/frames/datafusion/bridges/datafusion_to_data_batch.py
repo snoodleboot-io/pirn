@@ -6,6 +6,22 @@ row dicts — only do this at the boundary where downstream knots
 actually need the dict-based contract (a Tier-1 sink, a small
 validator, or a debug step). For larger frames, prefer routing the
 :class:`DatafusionDataBatch` directly into a Tier-2 sink.
+
+Algorithm:
+    1. Receive a :class:`DatafusionDataBatch` whose ``frame`` is a lazy
+       DataFusion ``DataFrame``.
+    2. Call ``frame.to_pylist()`` to trigger execution and materialise
+       all rows as Python dicts.
+    3. Wrap the result in a Tier-1 :class:`DataBatch`, forwarding
+       ``source_uri`` and ``fetched_at`` from the input batch so
+       provenance metadata is not lost at the tier boundary.
+
+References:
+    [1] Apache DataFusion Python — ``DataFrame.to_pylist``:
+        https://datafusion.apache.org/python/autoapi/datafusion/index.html#datafusion.DataFrame.to_pylist
+    [2] Alternative: ``DataFrame.collect()`` returns Arrow RecordBatches
+        (chosen ``to_pylist`` here for direct dict conversion without an
+        intermediate PyArrow step).
 """
 
 from __future__ import annotations
@@ -39,7 +55,7 @@ class DatafusionToDataBatch(Knot):
             batch: The DatafusionDataBatch whose DataFrame is materialised to row dicts.
 
         Returns:
-            A Tier-1 DataBatch containing the materialised rows with source_uri and fetched_at preserved.
+            A Tier-1 DataBatch with materialised rows, source_uri and fetched_at preserved.
         """
         rows = tuple(batch.frame.to_pylist())
         return DataBatch(

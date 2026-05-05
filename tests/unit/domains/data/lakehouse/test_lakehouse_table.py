@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import unittest
-from datetime import datetime, timezone
-from typing import Any, AsyncIterator, Mapping, Sequence
+from collections.abc import AsyncIterator, Mapping
+from typing import Any
 
 from pirn.domains.data.lakehouse.lakehouse_table import LakehouseTable
 

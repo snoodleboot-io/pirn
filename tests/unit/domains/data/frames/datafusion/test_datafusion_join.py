@@ -1,6 +1,7 @@
 """Tests for :class:`DatafusionJoin`."""
 
 from __future__ import annotations
+
 import unittest
 
 import datafusion as df
@@ -108,6 +109,25 @@ class TestDatafusionJoin(unittest.IsolatedAsyncioTestCase):
         out: DatafusionDataBatch = result.outputs["joined"]
         rows = out.frame.to_pylist()
         assert len(rows) == 2
+
+
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_how_from_upstream_knot(self) -> None:
+        @knot
+        async def emit_how() -> str:
+            return "inner"
+
+        with Tapestry() as t:
+            users = emit_users(_config=KnotConfig(id="users"))
+            orders = emit_orders(_config=KnotConfig(id="orders"))
+            how_knot = emit_how(_config=KnotConfig(id="how"))
+            DatafusionJoin(
+                left=users, right=orders, on="user_id", how=how_knot,
+                _config=KnotConfig(id="joined"),
+            )
+        result = await t.run(RunRequest())
+        out: DatafusionDataBatch = result.outputs["joined"]
+        assert len(out.frame.to_pylist()) == 3
 
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
