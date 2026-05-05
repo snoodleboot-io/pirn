@@ -1,7 +1,9 @@
 """Tests for :class:`DataBatchToDuckdb`."""
 
 from __future__ import annotations
+
 import unittest
+from typing import Any
 
 import duckdb
 
@@ -28,6 +30,13 @@ async def emit_users() -> DataBatch:
 @knot
 async def emit_empty() -> DataBatch:
     return DataBatch()
+
+
+def _make_batch() -> DataBatch:
+    return DataBatch(
+        rows=({"id": 1, "name": "alice"},),
+        source_uri="memory://test",
+    )
 
 
 class TestDataBatchToDuckdb(unittest.IsolatedAsyncioTestCase):
@@ -69,3 +78,38 @@ class TestDataBatchToDuckdb(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         out: DuckdbDataBatch = result.outputs["duck"]
         assert out.connection is connection
+
+
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_connection_from_upstream_knot(self) -> None:
+        @knot
+        async def emit_connection() -> Any:
+            return duckdb.connect(database=":memory:")
+
+        with Tapestry() as t:
+            batch = emit_users(_config=KnotConfig(id="users"))
+            conn_knot = emit_connection(_config=KnotConfig(id="conn"))
+            DataBatchToDuckdb(
+                batch=batch,
+                connection=conn_knot,
+                _config=KnotConfig(id="duck"),
+            )
+        result = await t.run(RunRequest())
+        out: DuckdbDataBatch = result.outputs["duck"]
+        assert set(out.column_names) == {"id", "name"}
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def _make_knot(self, **kwargs: object) -> DataBatchToDuckdb:
+        @knot
+        async def upstream() -> DataBatch:
+            return _make_batch()
+
+        with Tapestry():
+            batch = upstream(_config=KnotConfig(id="up"))
+            return DataBatchToDuckdb(batch=batch, _config=KnotConfig(id="b"), **kwargs)
+
+    async def test_rejects_non_connection_object(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(TypeError, "DuckDBPyConnection"):
+            await k.process(batch=_make_batch(), connection="not-a-connection")

@@ -31,6 +31,14 @@ async def emit_with_dups() -> DuckdbDataBatch:
     )
 
 
+def _make_batch() -> DuckdbDataBatch:
+    connection = duckdb.connect(database=":memory:")
+    connection.execute(
+        "CREATE TABLE t AS SELECT * FROM (VALUES (1, 'a'), (1, 'b')) AS v(id, name)"
+    )
+    return DuckdbDataBatch(relation=connection.table("t"), connection=connection)
+
+
 class TestDuckdbDeduplicate(unittest.IsolatedAsyncioTestCase):
     async def test_keeps_first_per_key(self) -> None:
         with Tapestry() as t:
@@ -59,53 +67,47 @@ class TestDuckdbDeduplicate(unittest.IsolatedAsyncioTestCase):
         assert len(rows) == 5  # composite key already unique
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_string_keys_argument(self) -> None:
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_keys_from_upstream_knot(self) -> None:
         @knot
-        async def empty() -> DuckdbDataBatch:
-            connection = duckdb.connect(database=":memory:")
-            return DuckdbDataBatch(
-                relation=connection.sql("SELECT NULL AS x WHERE FALSE"),
-                connection=connection,
+        async def emit_keys() -> tuple:
+            return ("id",)
+
+        with Tapestry() as t:
+            batch = emit_with_dups(_config=KnotConfig(id="batch"))
+            keys_knot = emit_keys(_config=KnotConfig(id="keys"))
+            DuckdbDeduplicate(
+                batch=batch, keys=keys_knot, _config=KnotConfig(id="dedup"),
             )
+        result = await t.run(RunRequest())
+        out: DuckdbDataBatch = result.outputs["dedup"]
+        rows = out.relation.fetchall()
+        assert len(rows) == 3
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def _make_knot(self, **kwargs: object) -> DuckdbDeduplicate:
+        @knot
+        async def upstream() -> DuckdbDataBatch:
+            return _make_batch()
 
         with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "sequence"):
-                DuckdbDeduplicate(
-                    batch=batch, keys="id",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="d"),
-                )
-
-    def test_rejects_empty_keys(self) -> None:
-        @knot
-        async def empty() -> DuckdbDataBatch:
-            connection = duckdb.connect(database=":memory:")
-            return DuckdbDataBatch(
-                relation=connection.sql("SELECT NULL AS x WHERE FALSE"),
-                connection=connection,
+            batch = upstream(_config=KnotConfig(id="up"))
+            return DuckdbDeduplicate(
+                batch=batch, keys=("id",), _config=KnotConfig(id="d"), **kwargs,
             )
 
-        with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(ValueError, "non-empty"):
-                DuckdbDeduplicate(
-                    batch=batch, keys=(), _config=KnotConfig(id="d"),
-                )
+    async def test_rejects_empty_keys(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(ValueError, "non-empty"):
+            await k.process(batch=_make_batch(), keys=())
 
-    def test_rejects_unsafe_key(self) -> None:
-        @knot
-        async def empty() -> DuckdbDataBatch:
-            connection = duckdb.connect(database=":memory:")
-            return DuckdbDataBatch(
-                relation=connection.sql("SELECT NULL AS x WHERE FALSE"),
-                connection=connection,
-            )
+    async def test_rejects_string_keys_argument(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(TypeError, "sequence"):
+            await k.process(batch=_make_batch(), keys="id")  # type: ignore[arg-type]
 
-        with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(ValueError, "plain identifier"):
-                DuckdbDeduplicate(
-                    batch=batch, keys=("id; DROP TABLE",),
-                    _config=KnotConfig(id="d"),
-                )
+    async def test_rejects_unsafe_key(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
+            await k.process(batch=_make_batch(), keys=("id; DROP TABLE",))

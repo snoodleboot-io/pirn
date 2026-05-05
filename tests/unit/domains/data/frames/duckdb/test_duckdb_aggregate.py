@@ -31,6 +31,14 @@ async def emit_orders() -> DuckdbDataBatch:
     )
 
 
+def _make_batch() -> DuckdbDataBatch:
+    connection = duckdb.connect(database=":memory:")
+    connection.execute(
+        "CREATE TABLE t AS SELECT * FROM (VALUES ('EU', 10.0)) AS v(region, amount)"
+    )
+    return DuckdbDataBatch(relation=connection.table("t"), connection=connection)
+
+
 class TestDuckdbAggregate(unittest.IsolatedAsyncioTestCase):
     async def test_sum_per_region(self) -> None:
         with Tapestry() as t:
@@ -99,75 +107,70 @@ class TestDuckdbAggregate(unittest.IsolatedAsyncioTestCase):
         assert len(rows) == 3
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_string_aggs(self) -> None:
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_by_from_upstream_knot(self) -> None:
         @knot
-        async def empty() -> DuckdbDataBatch:
-            connection = duckdb.connect(database=":memory:")
-            return DuckdbDataBatch(
-                relation=connection.sql("SELECT NULL AS x WHERE FALSE"),
-                connection=connection,
+        async def emit_by() -> tuple:
+            return ("region",)
+
+        with Tapestry() as t:
+            batch = emit_orders(_config=KnotConfig(id="orders"))
+            by_knot = emit_by(_config=KnotConfig(id="by"))
+            DuckdbAggregate(
+                batch=batch,
+                by=by_knot,
+                aggs={"total": "SUM(amount)"},
+                _config=KnotConfig(id="agg"),
             )
+        result = await t.run(RunRequest())
+        out: DuckdbDataBatch = result.outputs["agg"]
+        rows = out.relation.fetchall()
+        assert len(rows) == 2
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def _make_knot(self, **kwargs: object) -> DuckdbAggregate:
+        @knot
+        async def upstream() -> DuckdbDataBatch:
+            return _make_batch()
 
         with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "SQL expression"):
-                DuckdbAggregate(
-                    batch=batch, by=("a",),
-                    aggs={"total": 123},  # type: ignore[dict-item]
-                    _config=KnotConfig(id="a"),
-                )
-
-    def test_rejects_empty_by(self) -> None:
-        @knot
-        async def empty() -> DuckdbDataBatch:
-            connection = duckdb.connect(database=":memory:")
-            return DuckdbDataBatch(
-                relation=connection.sql("SELECT NULL AS x WHERE FALSE"),
-                connection=connection,
+            batch = upstream(_config=KnotConfig(id="up"))
+            return DuckdbAggregate(
+                batch=batch, by=("region",), aggs={"total": "SUM(amount)"},
+                _config=KnotConfig(id="a"), **kwargs,
             )
 
-        with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(ValueError, "non-empty"):
-                DuckdbAggregate(
-                    batch=batch, by=(),
-                    aggs={"total": "SUM(x)"},
-                    _config=KnotConfig(id="a"),
-                )
+    async def test_rejects_non_mapping_aggs(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(TypeError, "non-empty Mapping"):
+            await k.process(batch=_make_batch(), by=("region",), aggs="bad")
 
-    def test_rejects_injection_in_expression(self) -> None:
-        @knot
-        async def empty() -> DuckdbDataBatch:
-            connection = duckdb.connect(database=":memory:")
-            return DuckdbDataBatch(
-                relation=connection.sql("SELECT NULL AS x WHERE FALSE"),
-                connection=connection,
+    async def test_rejects_empty_by(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(ValueError, "non-empty"):
+            await k.process(batch=_make_batch(), by=(), aggs={"total": "SUM(amount)"})
+
+    async def test_rejects_injection_in_expression(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(ValueError, "forbidden"):
+            await k.process(
+                batch=_make_batch(), by=("region",),
+                aggs={"total": "SUM(x); DROP TABLE t"},
             )
 
-        with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(ValueError, "forbidden"):
-                DuckdbAggregate(
-                    batch=batch, by=("a",),
-                    aggs={"total": "SUM(x); DROP TABLE t"},
-                    _config=KnotConfig(id="a"),
-                )
-
-    def test_rejects_unsafe_output_name(self) -> None:
-        @knot
-        async def empty() -> DuckdbDataBatch:
-            connection = duckdb.connect(database=":memory:")
-            return DuckdbDataBatch(
-                relation=connection.sql("SELECT NULL AS x WHERE FALSE"),
-                connection=connection,
+    async def test_rejects_non_string_agg_expression(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(TypeError, "SQL expression"):
+            await k.process(
+                batch=_make_batch(), by=("region",),
+                aggs={"total": 123},  # type: ignore[dict-item]
             )
 
-        with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(ValueError, "plain identifier"):
-                DuckdbAggregate(
-                    batch=batch, by=("a",),
-                    aggs={"bad name!": "SUM(x)"},
-                    _config=KnotConfig(id="a"),
-                )
+    async def test_rejects_unsafe_output_name(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
+            await k.process(
+                batch=_make_batch(), by=("region",),
+                aggs={"bad name!": "SUM(amount)"},
+            )

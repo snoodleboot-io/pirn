@@ -26,6 +26,14 @@ async def emit_users() -> DuckdbDataBatch:
     )
 
 
+def _make_batch() -> DuckdbDataBatch:
+    connection = duckdb.connect(database=":memory:")
+    connection.execute(
+        "CREATE TABLE t AS SELECT * FROM (VALUES (1, 'alice')) AS v(user_id, name)"
+    )
+    return DuckdbDataBatch(relation=connection.table("t"), connection=connection)
+
+
 class TestDuckdbRename(unittest.IsolatedAsyncioTestCase):
     async def test_renames_columns(self) -> None:
         with Tapestry() as t:
@@ -53,35 +61,60 @@ class TestDuckdbRename(unittest.IsolatedAsyncioTestCase):
         assert "x" not in out.column_names
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_mapping(self) -> None:
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_mapping_from_upstream_knot(self) -> None:
         @knot
-        async def empty() -> DuckdbDataBatch:
-            connection = duckdb.connect(database=":memory:")
-            return DuckdbDataBatch(
-                relation=connection.sql("SELECT NULL AS x WHERE FALSE"),
-                connection=connection,
+        async def emit_mapping() -> dict:
+            return {"user_id": "id", "user_name": "name"}
+
+        with Tapestry() as t:
+            batch = emit_users(_config=KnotConfig(id="users"))
+            mapping_knot = emit_mapping(_config=KnotConfig(id="mapping"))
+            DuckdbRename(
+                batch=batch,
+                mapping=mapping_knot,
+                _config=KnotConfig(id="renamed"),
             )
+        result = await t.run(RunRequest())
+        out: DuckdbDataBatch = result.outputs["renamed"]
+        assert set(out.column_names) == {"id", "name", "region"}
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def _make_knot(self, **kwargs: object) -> DuckdbRename:
+        @knot
+        async def upstream() -> DuckdbDataBatch:
+            return _make_batch()
 
         with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "non-empty"):
-                DuckdbRename(batch=batch, mapping={}, _config=KnotConfig(id="r"))
-
-    def test_rejects_injection_in_mapping_value(self) -> None:
-        @knot
-        async def empty() -> DuckdbDataBatch:
-            connection = duckdb.connect(database=":memory:")
-            return DuckdbDataBatch(
-                relation=connection.sql("SELECT NULL AS x WHERE FALSE"),
-                connection=connection,
+            batch = upstream(_config=KnotConfig(id="up"))
+            return DuckdbRename(
+                batch=batch, mapping={"user_id": "id"},
+                _config=KnotConfig(id="r"), **kwargs,
             )
 
-        with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(ValueError, "forbidden token"):
-                DuckdbRename(
-                    batch=batch,
-                    mapping={"a": "b\"; DROP TABLE users; --"},
-                    _config=KnotConfig(id="r"),
-                )
+    async def test_rejects_empty_mapping(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(TypeError, "non-empty"):
+            await k.process(batch=_make_batch(), mapping={})
+
+    async def test_rejects_non_mapping(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(TypeError, "non-empty"):
+            await k.process(batch=_make_batch(), mapping="bad")  # type: ignore[arg-type]
+
+    async def test_rejects_injection_in_mapping_value(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(ValueError, "forbidden token"):
+            await k.process(
+                batch=_make_batch(),
+                mapping={"user_id": 'b"; DROP TABLE users; --'},
+            )
+
+    async def test_rejects_injection_in_mapping_key(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(ValueError, "forbidden token"):
+            await k.process(
+                batch=_make_batch(),
+                mapping={'user_id"; DROP TABLE t --': "id"},
+            )

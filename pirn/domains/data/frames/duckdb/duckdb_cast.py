@@ -11,12 +11,39 @@ This rejects the obvious SQL-injection tokens (``;``, ``--``, ``'``,
 quotes, comments) and anything that does not look like a DuckDB type
 declaration. ``DECIMAL(p,s)`` and similar parametric types are
 permitted.
+
+Algorithm:
+    1. Validate ``casts`` is a non-empty ``Mapping[str, str]``.
+    2. For each ``(column, type_name)`` entry: reject forbidden
+       identifier tokens in ``column``; normalise ``type_name`` to
+       upper-case and reject it unless it matches
+       ``^[A-Z][A-Z0-9_]*(\\([0-9, ]+\\))?$``.
+    3. Filter ``casts`` to columns that actually exist in the upstream
+       relation; if none apply, return the batch unchanged.
+    4. For every column in the relation, emit either
+       ``CAST("col" AS TYPE) AS "col"`` (if in casts) or
+       ``"col"`` (pass-through).
+    5. Call ``relation.project(fragment_list)`` and return the result.
+
+    ```text
+    applicable = {col: type for col, type in casts if col in relation.columns}
+    fragments  = [CAST("col" AS TYPE) AS "col" if col in applicable else "col"
+                  for col in relation.columns]
+    return relation.project(", ".join(fragments))
+    ```
+
+References:
+    [1] DuckDB SQL — CAST expression:
+        https://duckdb.org/docs/sql/expressions/cast
+    [2] DuckDB Python API — DuckDBPyRelation.project:
+        https://duckdb.org/docs/api/python/relational_api
 """
 
 from __future__ import annotations
 
 import re
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -31,10 +58,27 @@ class DuckdbCast(Knot):
         self,
         *,
         batch: Knot,
-        casts: Mapping[str, str],
+        casts: Knot | Mapping[str, str],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(batch=batch, casts=casts, _config=_config, **kwargs)
+
+    async def process(
+        self,
+        batch: DuckdbDataBatch,
+        casts: Any,
+        **_: Any,
+    ) -> DuckdbDataBatch:
+        """Cast the configured columns to their target DuckDB types and return the projected batch.
+
+        Args:
+            batch: The DuckdbDataBatch whose columns are to be cast.
+            casts: A non-empty mapping of column name to DuckDB type-name string.
+
+        Returns:
+            A new DuckdbDataBatch with the configured columns cast to their target types.
+        """
         if not isinstance(casts, Mapping) or not casts:
             raise TypeError(
                 "DuckdbCast: casts must be a non-empty Mapping[column, type_name]"
@@ -55,26 +99,11 @@ class DuckdbCast(Knot):
                     "like a DuckDB type name (expected e.g. INTEGER, DOUBLE, "
                     "VARCHAR, DECIMAL(10,2))"
                 )
-        self._casts: dict[str, str] = {
+        coerced: dict[str, str] = {
             column: type_name.strip().upper() for column, type_name in casts.items()
         }
-        super().__init__(batch=batch, _config=_config, **kwargs)
-
-    @property
-    def casts(self) -> Mapping[str, str]:
-        return dict(self._casts)
-
-    async def process(self, batch: DuckdbDataBatch, **_: Any) -> DuckdbDataBatch:
-        """Cast the configured columns to their target DuckDB types and return the projected batch.
-
-        Args:
-            batch: The DuckdbDataBatch whose columns are to be cast.
-
-        Returns:
-            A new DuckdbDataBatch with the configured columns cast to their target types.
-        """
         applicable = {
-            column: type_name for column, type_name in self._casts.items()
+            column: type_name for column, type_name in coerced.items()
             if column in batch.relation.columns
         }
         if not applicable:
@@ -93,7 +122,8 @@ class DuckdbCast(Knot):
         projected = batch.relation.project(", ".join(fragments))
         return batch.with_relation(projected)
 
-    def _reject_unsafe_token(self, label: str, value: str) -> None:
+    @staticmethod
+    def _reject_unsafe_token(label: str, value: str) -> None:
         forbidden = ('"', "\\", ";", "--", "/*", "*/", "'")
         for token in forbidden:
             if token in value:

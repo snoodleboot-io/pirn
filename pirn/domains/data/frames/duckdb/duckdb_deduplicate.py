@@ -11,11 +11,44 @@ columns. Implemented here with a two-stage SQL plan:
 
 This mirrors the Tier-1 :class:`Deduplicate` semantics. DuckDB executes
 the window plan natively in C++.
+
+Algorithm:
+    1. Validate ``keys`` as a non-empty sequence of plain SQL identifiers.
+    2. Validate every column name in the upstream relation.
+    3. Build a two-stage CTE query:
+       - ``stamped``: assigns a stable input-order index via
+         ``ROW_NUMBER() OVER ()``.
+       - ``ranked``: within each key partition (``PARTITION BY keys``),
+         ranks rows by ``_pirn_input_idx``; rank 1 is the first
+         occurrence.
+    4. Select the original columns where ``_pirn_rn = 1``, ordered by
+       ``_pirn_input_idx`` to preserve input order.
+    5. Execute via ``relation.query("upstream", sql)`` so the alias is
+       scoped to the call without leaking into the global DuckDB catalog.
+
+    ```text
+    WITH stamped AS (
+        SELECT *, ROW_NUMBER() OVER () AS _pirn_input_idx FROM upstream
+    ), ranked AS (
+        SELECT *, ROW_NUMBER() OVER (
+            PARTITION BY keys ORDER BY _pirn_input_idx
+        ) AS _pirn_rn FROM stamped
+    )
+    SELECT original_columns FROM ranked WHERE _pirn_rn = 1
+    ORDER BY _pirn_input_idx
+    ```
+
+References:
+    [1] DuckDB SQL — Window functions (ROW_NUMBER, PARTITION BY):
+        https://duckdb.org/docs/sql/window_functions
+    [2] DuckDB Python API — DuckDBPyRelation.query:
+        https://duckdb.org/docs/api/python/relational_api
 """
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -30,32 +63,34 @@ class DuckdbDeduplicate(Knot):
         self,
         *,
         batch: Knot,
-        keys: Sequence[str],
+        keys: Knot | Sequence[str],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        IdentifierValidator.validate_columns("DuckdbDeduplicate.keys", keys)
-        self._keys: tuple[str, ...] = tuple(keys)
-        super().__init__(batch=batch, _config=_config, **kwargs)
+        super().__init__(batch=batch, keys=keys, _config=_config, **kwargs)
 
-    @property
-    def keys(self) -> tuple[str, ...]:
-        return self._keys
-
-    async def process(self, batch: DuckdbDataBatch, **_: Any) -> DuckdbDataBatch:
+    async def process(
+        self,
+        batch: DuckdbDataBatch,
+        keys: Any,
+        **_: Any,
+    ) -> DuckdbDataBatch:
         """Remove duplicate rows by key, keeping first occurrence via a DuckDB window query.
 
         Args:
             batch: The DuckdbDataBatch to deduplicate.
+            keys: A sequence of column names forming the deduplication key.
 
         Returns:
             A new DuckdbDataBatch with duplicate rows removed, retaining first occurrence per key.
         """
+        IdentifierValidator.validate_columns("DuckdbDeduplicate.keys", keys)
+        coerced_keys: tuple[str, ...] = tuple(keys)
         for column in batch.relation.columns:
             IdentifierValidator.validate_column(
                 "DuckdbDeduplicate: upstream column", column
             )
-        partition = ", ".join(f'"{key}"' for key in self._keys)
+        partition = ", ".join(f'"{key}"' for key in coerced_keys)
         original_columns = ", ".join(f'"{column}"' for column in batch.relation.columns)
         # Two-stage plan:
         #   stamped: every row gets a stable input-order index

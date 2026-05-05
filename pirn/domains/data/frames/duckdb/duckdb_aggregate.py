@@ -17,13 +17,37 @@ SECURITY
 --------
 Aggregation expressions are not parsed by us — they are interpolated
 into the SQL fragment. We reject the obvious injection tokens
-(``;``, ``--``, ``/*``, ``*/``) at construction time as a baseline
+(``;``, ``--``, ``/*``, ``*/``) at process time as a baseline
 defence; callers passing untrusted user input must still sanitise.
+
+Algorithm:
+    1. Validate ``by`` as a non-empty sequence of plain SQL identifiers.
+    2. Validate ``aggs`` as a non-empty ``Mapping[str, str]`` whose keys
+       are plain SQL identifiers and whose values are non-empty
+       aggregation expression strings free of injection tokens.
+    3. Build the DuckDB ``aggregate`` SELECT fragment:
+       ``"region", SUM(amount) AS "total", ...``
+    4. Build the group-by fragment: ``"region", "tier", ...``
+    5. Call ``relation.aggregate(select_sql, group_fragment)`` and
+       return the result wrapped in a new :class:`DuckdbDataBatch`.
+
+    ```text
+    group_fragment = '"col1", "col2", ...'
+    select_sql     = '"col1", ..., SUM(x) AS "out1", ...'
+    result         = relation.aggregate(select_sql, group_fragment)
+    ```
+
+References:
+    [1] DuckDB Python API — DuckDBPyRelation.aggregate:
+        https://duckdb.org/docs/api/python/relational_api
+    [2] DuckDB SQL — GROUP BY aggregation syntax:
+        https://duckdb.org/docs/sql/query_syntax/groupby
 """
 
 from __future__ import annotations
 
-from typing import Any, Mapping, Sequence
+from collections.abc import Mapping, Sequence
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -38,11 +62,30 @@ class DuckdbAggregate(Knot):
         self,
         *,
         batch: Knot,
-        by: Sequence[str],
-        aggs: Mapping[str, str],
+        by: Knot | Sequence[str],
+        aggs: Knot | Mapping[str, str],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(batch=batch, by=by, aggs=aggs, _config=_config, **kwargs)
+
+    async def process(
+        self,
+        batch: DuckdbDataBatch,
+        by: Any,
+        aggs: Any,
+        **_: Any,
+    ) -> DuckdbDataBatch:
+        """Group the batch by the configured columns and apply DuckDB SQL aggregation expressions.
+
+        Args:
+            batch: The DuckdbDataBatch to group and aggregate.
+            by: A sequence of column names to group on.
+            aggs: A mapping of output column name to DuckDB aggregation expression.
+
+        Returns:
+            A new DuckdbDataBatch containing the aggregated result.
+        """
         IdentifierValidator.validate_columns("DuckdbAggregate.by", by)
         if not isinstance(aggs, Mapping) or not aggs:
             raise TypeError(
@@ -57,37 +100,19 @@ class DuckdbAggregate(Knot):
                     f"DuckdbAggregate: aggs[{output!r}] must be a non-empty SQL expression string"
                 )
             self._reject_obvious_injection(expression)
-        self._by: tuple[str, ...] = tuple(by)
-        self._aggs: dict[str, str] = dict(aggs)
-        super().__init__(batch=batch, _config=_config, **kwargs)
-
-    @property
-    def by(self) -> tuple[str, ...]:
-        return self._by
-
-    @property
-    def aggs(self) -> Mapping[str, str]:
-        return dict(self._aggs)
-
-    async def process(self, batch: DuckdbDataBatch, **_: Any) -> DuckdbDataBatch:
-        """Group the batch by the configured columns and apply DuckDB SQL aggregation expressions.
-
-        Args:
-            batch: The DuckdbDataBatch to group and aggregate.
-
-        Returns:
-            A new DuckdbDataBatch containing the aggregated result.
-        """
-        quoted_by = [f'"{column}"' for column in self._by]
+        coerced_by: tuple[str, ...] = tuple(by)
+        coerced_aggs: dict[str, str] = dict(aggs)
+        quoted_by = [f'"{column}"' for column in coerced_by]
         group_fragment = ", ".join(quoted_by)
         select_fragments = list(quoted_by)
-        for output, expression in self._aggs.items():
+        for output, expression in coerced_aggs.items():
             select_fragments.append(f'{expression} AS "{output}"')
         select_sql = ", ".join(select_fragments)
         aggregated = batch.relation.aggregate(select_sql, group_fragment)
         return batch.with_relation(aggregated)
 
-    def _reject_obvious_injection(self, expression: str) -> None:
+    @staticmethod
+    def _reject_obvious_injection(expression: str) -> None:
         red_flags = (";", "--", "/*", "*/")
         for token in red_flags:
             if token in expression:

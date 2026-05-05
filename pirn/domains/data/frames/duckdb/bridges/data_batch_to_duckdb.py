@@ -8,6 +8,39 @@ the resulting deferred relation wrapped in a :class:`DuckdbDataBatch`.
 
 Used at the seam where a small upstream batch (fixture, glue) feeds
 into a Tier-2 transform chain that expects a relational engine.
+
+Algorithm:
+    1. If ``connection`` is not None, validate it is a
+       ``duckdb.DuckDBPyConnection``; otherwise open a fresh
+       ``":memory:"`` connection.
+    2. If ``batch.rows`` is empty, return a zero-row DuckDB relation
+       (``SELECT NULL AS _empty WHERE FALSE``).
+    3. Convert the rows to a ``polars.DataFrame`` to infer a coherent
+       schema (nullable columns for absent keys).
+    4. Export the DataFrame as an Arrow table and register it on the
+       connection under a unique view name derived from the object
+       identity of the Arrow table.
+    5. Return a :class:`DuckdbDataBatch` wrapping the relation, with
+       ``source_uri`` and ``fetched_at`` copied from the input batch.
+
+    ```text
+    conn = connection or duckdb.connect(":memory:")
+    if not batch.rows:
+        return DuckdbDataBatch(relation=conn.sql("SELECT NULL AS _empty WHERE FALSE"), ...)
+    frame = pl.DataFrame(list(batch.rows))
+    arrow = frame.to_arrow()
+    view  = f"_pirn_rows_{id(arrow):x}"
+    conn.register(view, arrow)
+    return DuckdbDataBatch(relation=conn.table(view), ...)
+    ```
+
+References:
+    [1] DuckDB Python API — in-process connection and relation API:
+        https://duckdb.org/docs/api/python/overview
+    [2] Polars — DataFrame.to_arrow (Arrow export):
+        https://docs.pola.rs/api/python/stable/reference/dataframe/api/polars.DataFrame.to_arrow.html
+    [3] DuckDB — registering Arrow tables as views:
+        https://duckdb.org/docs/guides/python/sql_on_arrow
 """
 
 from __future__ import annotations
@@ -35,23 +68,30 @@ class DataBatchToDuckdb(Knot):
         self,
         *,
         batch: Knot,
-        connection: duckdb.DuckDBPyConnection | None = None,
+        connection: Knot | duckdb.DuckDBPyConnection | None = None,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        self._connection = connection
-        super().__init__(batch=batch, _config=_config, **kwargs)
+        super().__init__(batch=batch, connection=connection, _config=_config, **kwargs)
 
-    async def process(self, batch: DataBatch, **_: Any) -> DuckdbDataBatch:
+    async def process(
+        self, batch: DataBatch, connection: Any = None, **_: Any
+    ) -> DuckdbDataBatch:
         """Load the Tier-1 DataBatch rows into a DuckDB relation and return a DuckdbDataBatch.
 
         Args:
             batch: The Tier-1 DataBatch whose rows are loaded into DuckDB.
+            connection: An optional pre-existing DuckDB connection, or None to open a fresh one.
 
         Returns:
             A DuckdbDataBatch wrapping a DuckDB relation with the batch's rows.
         """
-        connection = self._connection
+        if connection is not None and not isinstance(
+            connection, duckdb.DuckDBPyConnection
+        ):
+            raise TypeError(
+                "DataBatchToDuckdb: connection must be a duckdb.DuckDBPyConnection or None"
+            )
         if connection is None:
             connection = duckdb.connect(database=":memory:")
         relation = self._build_relation(connection, batch)

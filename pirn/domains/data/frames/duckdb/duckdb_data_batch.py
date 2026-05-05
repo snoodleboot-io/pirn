@@ -22,7 +22,7 @@ all derived relations stay on the same connection.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import duckdb
@@ -56,7 +56,7 @@ class DuckdbDataBatch:
     connection: duckdb.DuckDBPyConnection
     source_uri: str = ""
     fetched_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
 
     @property
@@ -65,7 +65,7 @@ class DuckdbDataBatch:
 
     def with_relation(
         self, relation: duckdb.DuckDBPyRelation
-    ) -> "DuckdbDataBatch":
+    ) -> DuckdbDataBatch:
         """Return a copy with ``relation`` replaced; everything else preserved."""
         return DuckdbDataBatch(
             relation=relation,

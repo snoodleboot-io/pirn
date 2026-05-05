@@ -9,11 +9,35 @@ and run it through ``relation.project(...)``.
 Column names from the upstream relation are validated to be plain
 identifiers before being interpolated, so this knot is safe against
 upstream data exfiltration via crafted column names.
+
+Algorithm:
+    1. Validate ``mapping`` as a non-empty ``Mapping[str, str]``.
+    2. Reject entries whose keys or values contain forbidden identifier
+       tokens (``"``, ``\\``, ``;``, ``--``, ``/*``, ``*/``, ``'``).
+    3. Filter to entries whose keys exist in the upstream relation; if
+       none apply, return the batch unchanged.
+    4. Validate every upstream column name as a plain identifier before
+       interpolation.
+    5. For each column, emit either ``"old" AS "new"`` or ``"col"``
+       (pass-through), then call ``relation.project(fragments)`` and
+       return the result.
+
+    ```text
+    applicable = {old: new for old, new in mapping if old in columns}
+    fragments  = ['"old" AS "new"' if old in applicable else '"col"'
+                  for col in columns]
+    return relation.project(", ".join(fragments))
+    ```
+
+References:
+    [1] DuckDB Python API — DuckDBPyRelation.project:
+        https://duckdb.org/docs/api/python/relational_api
 """
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -28,10 +52,27 @@ class DuckdbRename(Knot):
         self,
         *,
         batch: Knot,
-        mapping: Mapping[str, str],
+        mapping: Knot | Mapping[str, str],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(batch=batch, mapping=mapping, _config=_config, **kwargs)
+
+    async def process(
+        self,
+        batch: DuckdbDataBatch,
+        mapping: Any,
+        **_: Any,
+    ) -> DuckdbDataBatch:
+        """Rename columns in the batch according to the configured mapping and return the result.
+
+        Args:
+            batch: The DuckdbDataBatch whose columns are to be renamed.
+            mapping: A non-empty mapping of old column name to new column name.
+
+        Returns:
+            A new DuckdbDataBatch with the applicable columns renamed.
+        """
         if not isinstance(mapping, Mapping) or not mapping:
             raise TypeError(
                 "DuckdbRename: mapping must be a non-empty Mapping[old_name, new_name]"
@@ -43,24 +84,8 @@ class DuckdbRename(Knot):
                 )
             self._reject_unsafe_identifier("mapping key", old)
             self._reject_unsafe_identifier("mapping value", new)
-        self._mapping: dict[str, str] = dict(mapping)
-        super().__init__(batch=batch, _config=_config, **kwargs)
-
-    @property
-    def mapping(self) -> Mapping[str, str]:
-        return dict(self._mapping)
-
-    async def process(self, batch: DuckdbDataBatch, **_: Any) -> DuckdbDataBatch:
-        """Rename columns in the batch according to the configured mapping and return the result.
-
-        Args:
-            batch: The DuckdbDataBatch whose columns are to be renamed.
-
-        Returns:
-            A new DuckdbDataBatch with the applicable columns renamed.
-        """
         applicable = {
-            old: new for old, new in self._mapping.items()
+            old: new for old, new in mapping.items()
             if old in batch.relation.columns
         }
         if not applicable:
@@ -81,7 +106,8 @@ class DuckdbRename(Knot):
         projected = batch.relation.project(", ".join(fragments))
         return batch.with_relation(projected)
 
-    def _reject_unsafe_identifier(self, label: str, value: str) -> None:
+    @staticmethod
+    def _reject_unsafe_identifier(label: str, value: str) -> None:
         # Identifier-slot injection red flags. We're putting the names
         # inside double-quoted identifier slots; double-quotes and
         # backslashes can escape that, and the standard SQL injection

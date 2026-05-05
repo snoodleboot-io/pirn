@@ -48,6 +48,14 @@ async def emit_orders_alone() -> DuckdbDataBatch:
     return _make_orders(connection)
 
 
+def _make_empty() -> DuckdbDataBatch:
+    connection = duckdb.connect(database=":memory:")
+    return DuckdbDataBatch(
+        relation=connection.sql("SELECT NULL AS x WHERE FALSE"),
+        connection=connection,
+    )
+
+
 class TestDuckdbJoin(unittest.IsolatedAsyncioTestCase):
     async def test_inner_join_on_shared_key(self) -> None:
         with Tapestry() as t:
@@ -149,114 +157,88 @@ class TestDuckdbJoin(unittest.IsolatedAsyncioTestCase):
         assert len(rows) == 6  # 2 × 3
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_unknown_how(self) -> None:
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_how_from_upstream_knot(self) -> None:
         @knot
-        async def empty() -> DuckdbDataBatch:
-            connection = duckdb.connect(database=":memory:")
-            return DuckdbDataBatch(
-                relation=connection.sql("SELECT NULL AS x WHERE FALSE"),
-                connection=connection,
+        async def emit_how() -> str:
+            return "inner"
+
+        with Tapestry() as t:
+            users = emit_users_alone(_config=KnotConfig(id="users"))
+            orders = emit_orders_alone(_config=KnotConfig(id="orders"))
+            how_knot = emit_how(_config=KnotConfig(id="how"))
+            DuckdbJoin(
+                left=users, right=orders, on="user_id", how=how_knot,
+                _config=KnotConfig(id="joined"),
             )
+        result = await t.run(RunRequest())
+        out: DuckdbDataBatch = result.outputs["joined"]
+        rows = out.relation.fetchall()
+        assert len(rows) == 3
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def _make_knot(self, **kwargs: object) -> DuckdbJoin:
+        @knot
+        async def empty_left() -> DuckdbDataBatch:
+            return _make_empty()
+
+        @knot
+        async def empty_right() -> DuckdbDataBatch:
+            return _make_empty()
 
         with Tapestry():
-            left = empty(_config=KnotConfig(id="l"))
-            right = empty(_config=KnotConfig(id="r"))
-            with self.assertRaisesRegex(ValueError, "how must be one of"):
-                DuckdbJoin(
-                    left=left, right=right, on="x", how="diagonal",
-                    _config=KnotConfig(id="j"),
-                )
-
-    def test_rejects_both_on_and_condition(self) -> None:
-        @knot
-        async def empty() -> DuckdbDataBatch:
-            connection = duckdb.connect(database=":memory:")
-            return DuckdbDataBatch(
-                relation=connection.sql("SELECT NULL AS x WHERE FALSE"),
-                connection=connection,
+            left = empty_left(_config=KnotConfig(id="l"))
+            right = empty_right(_config=KnotConfig(id="r"))
+            return DuckdbJoin(
+                left=left, right=right, on="x", how="inner",
+                _config=KnotConfig(id="j"), **kwargs,
             )
 
-        with Tapestry():
-            left = empty(_config=KnotConfig(id="l"))
-            right = empty(_config=KnotConfig(id="r"))
-            with self.assertRaisesRegex(TypeError, "not both"):
-                DuckdbJoin(
-                    left=left, right=right,
-                    on="x", condition="x = x",
-                    _config=KnotConfig(id="j"),
-                )
-
-    def test_requires_on_or_condition_for_non_cross(self) -> None:
-        @knot
-        async def empty() -> DuckdbDataBatch:
-            connection = duckdb.connect(database=":memory:")
-            return DuckdbDataBatch(
-                relation=connection.sql("SELECT NULL AS x WHERE FALSE"),
-                connection=connection,
+    async def test_rejects_unknown_how(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(ValueError, "how must be one of"):
+            await k.process(
+                left=_make_empty(), right=_make_empty(),
+                on="x", condition=None, how="diagonal",
             )
 
-        with Tapestry():
-            left = empty(_config=KnotConfig(id="l"))
-            right = empty(_config=KnotConfig(id="r"))
-            with self.assertRaisesRegex(TypeError, "provide on="):
-                DuckdbJoin(
-                    left=left, right=right, how="inner",
-                    _config=KnotConfig(id="j"),
-                )
-
-    def test_cross_join_rejects_keys(self) -> None:
-        @knot
-        async def empty() -> DuckdbDataBatch:
-            connection = duckdb.connect(database=":memory:")
-            return DuckdbDataBatch(
-                relation=connection.sql("SELECT NULL AS x WHERE FALSE"),
-                connection=connection,
+    async def test_rejects_both_on_and_condition(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(TypeError, "not both"):
+            await k.process(
+                left=_make_empty(), right=_make_empty(),
+                on="x", condition="x = x", how="inner",
             )
 
-        with Tapestry():
-            left = empty(_config=KnotConfig(id="l"))
-            right = empty(_config=KnotConfig(id="r"))
-            with self.assertRaisesRegex(TypeError, "cross join takes no"):
-                DuckdbJoin(
-                    left=left, right=right, how="cross", on="x",
-                    _config=KnotConfig(id="j"),
-                )
-
-    def test_rejects_unsafe_on_column(self) -> None:
-        @knot
-        async def empty() -> DuckdbDataBatch:
-            connection = duckdb.connect(database=":memory:")
-            return DuckdbDataBatch(
-                relation=connection.sql("SELECT NULL AS x WHERE FALSE"),
-                connection=connection,
+    async def test_requires_on_or_condition_for_non_cross(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(TypeError, "provide on="):
+            await k.process(
+                left=_make_empty(), right=_make_empty(),
+                on=None, condition=None, how="inner",
             )
 
-        with Tapestry():
-            left = empty(_config=KnotConfig(id="l"))
-            right = empty(_config=KnotConfig(id="r"))
-            with self.assertRaisesRegex(ValueError, "plain identifier"):
-                DuckdbJoin(
-                    left=left, right=right,
-                    on="x; DROP TABLE t",
-                    _config=KnotConfig(id="j"),
-                )
-
-    def test_rejects_injection_in_condition(self) -> None:
-        @knot
-        async def empty() -> DuckdbDataBatch:
-            connection = duckdb.connect(database=":memory:")
-            return DuckdbDataBatch(
-                relation=connection.sql("SELECT NULL AS x WHERE FALSE"),
-                connection=connection,
+    async def test_cross_join_rejects_keys(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(TypeError, "cross join takes no"):
+            await k.process(
+                left=_make_empty(), right=_make_empty(),
+                on="x", condition=None, how="cross",
             )
 
-        with Tapestry():
-            left = empty(_config=KnotConfig(id="l"))
-            right = empty(_config=KnotConfig(id="r"))
-            with self.assertRaisesRegex(ValueError, "forbidden"):
-                DuckdbJoin(
-                    left=left, right=right,
-                    condition="a = b; DROP TABLE t",
-                    _config=KnotConfig(id="j"),
-                )
+    async def test_rejects_unsafe_on_column(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
+            await k.process(
+                left=_make_empty(), right=_make_empty(),
+                on="x; DROP TABLE t", condition=None, how="inner",
+            )
+
+    async def test_rejects_injection_in_condition(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(ValueError, "forbidden"):
+            await k.process(
+                left=_make_empty(), right=_make_empty(),
+                on=None, condition="a = b; DROP TABLE t", how="inner",
+            )

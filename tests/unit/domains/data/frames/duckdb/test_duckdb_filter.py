@@ -30,6 +30,14 @@ async def emit_users() -> DuckdbDataBatch:
     )
 
 
+def _make_batch() -> DuckdbDataBatch:
+    connection = duckdb.connect(database=":memory:")
+    connection.execute(
+        "CREATE TABLE t AS SELECT * FROM (VALUES (1, TRUE), (2, FALSE)) AS v(id, active)"
+    )
+    return DuckdbDataBatch(relation=connection.table("t"), connection=connection)
+
+
 class TestDuckdbFilter(unittest.IsolatedAsyncioTestCase):
     async def test_keeps_rows_matching_predicate(self) -> None:
         with Tapestry() as t:
@@ -57,74 +65,52 @@ class TestDuckdbFilter(unittest.IsolatedAsyncioTestCase):
         assert ids == [1]
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_string_predicate(self) -> None:
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_predicate_from_upstream_knot(self) -> None:
         @knot
-        async def empty() -> DuckdbDataBatch:
-            connection = duckdb.connect(database=":memory:")
-            return DuckdbDataBatch(
-                relation=connection.sql("SELECT NULL AS x WHERE FALSE"),
-                connection=connection,
+        async def emit_predicate() -> str:
+            return "active"
+
+        with Tapestry() as t:
+            batch = emit_users(_config=KnotConfig(id="users"))
+            pred_knot = emit_predicate(_config=KnotConfig(id="pred"))
+            DuckdbFilter(
+                batch=batch,
+                predicate=pred_knot,
+                _config=KnotConfig(id="filtered"),
             )
+        result = await t.run(RunRequest())
+        out: DuckdbDataBatch = result.outputs["filtered"]
+        ids = sorted(row[0] for row in out.relation.fetchall())
+        assert ids == [1, 3]
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def _make_knot(self, **kwargs: object) -> DuckdbFilter:
+        @knot
+        async def upstream() -> DuckdbDataBatch:
+            return _make_batch()
 
         with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "SQL string"):
-                DuckdbFilter(
-                    batch=batch,
-                    predicate=lambda r: True,  # type: ignore[arg-type]
-                    _config=KnotConfig(id="f"),
-                )
+            batch = upstream(_config=KnotConfig(id="up"))
+            return DuckdbFilter(batch=batch, predicate="active", _config=KnotConfig(id="f"), **kwargs)
 
-    def test_rejects_empty_predicate(self) -> None:
-        @knot
-        async def empty() -> DuckdbDataBatch:
-            connection = duckdb.connect(database=":memory:")
-            return DuckdbDataBatch(
-                relation=connection.sql("SELECT NULL AS x WHERE FALSE"),
-                connection=connection,
-            )
+    async def test_rejects_non_string_predicate(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(TypeError, "SQL string"):
+            await k.process(batch=_make_batch(), predicate=lambda r: True)
 
-        with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(ValueError, "empty"):
-                DuckdbFilter(
-                    batch=batch, predicate="   ",
-                    _config=KnotConfig(id="f"),
-                )
+    async def test_rejects_empty_predicate(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(ValueError, "empty"):
+            await k.process(batch=_make_batch(), predicate="   ")
 
-    def test_rejects_obvious_injection(self) -> None:
-        @knot
-        async def empty() -> DuckdbDataBatch:
-            connection = duckdb.connect(database=":memory:")
-            return DuckdbDataBatch(
-                relation=connection.sql("SELECT NULL AS x WHERE FALSE"),
-                connection=connection,
-            )
+    async def test_rejects_obvious_injection(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(ValueError, "forbidden"):
+            await k.process(batch=_make_batch(), predicate="1 = 1; DROP TABLE users")
 
-        with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(ValueError, "forbidden"):
-                DuckdbFilter(
-                    batch=batch,
-                    predicate="1 = 1; DROP TABLE users",
-                    _config=KnotConfig(id="f"),
-                )
-
-    def test_rejects_line_comment(self) -> None:
-        @knot
-        async def empty() -> DuckdbDataBatch:
-            connection = duckdb.connect(database=":memory:")
-            return DuckdbDataBatch(
-                relation=connection.sql("SELECT NULL AS x WHERE FALSE"),
-                connection=connection,
-            )
-
-        with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(ValueError, "forbidden"):
-                DuckdbFilter(
-                    batch=batch,
-                    predicate="active -- skip rest",
-                    _config=KnotConfig(id="f"),
-                )
+    async def test_rejects_line_comment(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaisesRegex(ValueError, "forbidden"):
+            await k.process(batch=_make_batch(), predicate="active -- skip rest")

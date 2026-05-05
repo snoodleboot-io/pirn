@@ -17,11 +17,41 @@ SECURITY
 ``on`` column names are validated as plain identifiers. ``condition``
 strings are screened for the obvious injection tokens but are otherwise
 passed straight through; sanitise user-derived input before passing.
+
+Algorithm:
+    1. Validate ``how`` is one of the five supported strategies.
+    2. Validate mutual exclusion of ``on``/``condition``/``cross``
+       constraints.
+    3. If ``on`` is provided: coerce to ``tuple[str, ...]`` and validate
+       each as a plain SQL identifier.
+    4. If ``condition`` is provided: reject injection tokens.
+    5. If ``right`` is on a different DuckDB connection than ``left``,
+       materialise ``right.relation`` as Arrow and re-register it on
+       ``left.connection`` (``_align_right``).
+    6. Register ``left.relation`` and the aligned right relation as
+       transient views (``_pirn_join_left_<id>``,
+       ``_pirn_join_right_<id>``).
+    7. Execute the appropriate SQL join and return the result.
+
+    ```text
+    left_view  = "_pirn_join_left_<id>"
+    right_view = "_pirn_join_right_<id>"
+    # INNER  → SELECT * FROM left_view INNER JOIN right_view USING ("col")
+    # CROSS  → SELECT * FROM left_view CROSS JOIN right_view
+    # custom → SELECT * FROM left_view LEFT JOIN right_view ON condition
+    ```
+
+References:
+    [1] DuckDB SQL — JOIN types and syntax:
+        https://duckdb.org/docs/sql/query_syntax/from#joins
+    [2] DuckDB Python API — DuckDBPyRelation.create_view, connection.sql:
+        https://duckdb.org/docs/api/python/relational_api
 """
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -37,12 +67,43 @@ class DuckdbJoin(Knot):
         *,
         left: Knot,
         right: Knot,
-        on: str | Sequence[str] | None = None,
-        condition: str | None = None,
-        how: str = "inner",
+        on: Knot | str | Sequence[str] | None = None,
+        condition: Knot | str | None = None,
+        how: Knot | str = "inner",
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            left=left,
+            right=right,
+            on=on,
+            condition=condition,
+            how=how,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        left: DuckdbDataBatch,
+        right: DuckdbDataBatch,
+        on: Any,
+        condition: Any,
+        how: Any,
+        **_: Any,
+    ) -> DuckdbDataBatch:
+        """Join the left and right DuckDB batches on the configured keys or condition.
+
+        Args:
+            left: The left-side DuckdbDataBatch.
+            right: The right-side DuckdbDataBatch.
+            on: A column name or sequence of column names for equi-join, or None.
+            condition: A raw SQL predicate string for arbitrary join condition, or None.
+            how: Join strategy — one of inner, left, right, outer, cross.
+
+        Returns:
+            A new DuckdbDataBatch containing the joined result.
+        """
         allowed_how = ("inner", "left", "right", "outer", "cross")
         if how not in allowed_how:
             raise ValueError(
@@ -80,27 +141,6 @@ class DuckdbJoin(Knot):
                     "DuckdbJoin: condition= must be a non-empty SQL string"
                 )
             self._reject_obvious_injection(condition)
-        self._on = coerced_on
-        self._condition = condition
-        self._how = how
-        super().__init__(left=left, right=right, _config=_config, **kwargs)
-
-    @property
-    def how(self) -> str:
-        return self._how
-
-    async def process(
-        self, left: DuckdbDataBatch, right: DuckdbDataBatch, **_: Any
-    ) -> DuckdbDataBatch:
-        """Join the left and right DuckDB batches on the configured keys or condition and return the result.
-
-        Args:
-            left: The left-side DuckdbDataBatch.
-            right: The right-side DuckdbDataBatch.
-
-        Returns:
-            A new DuckdbDataBatch containing the joined result.
-        """
         right_relation = self._align_right(left, right)
         # Materialise both sides as views on the shared connection. SQL
         # gives us deterministic JOIN syntax across DuckDB versions and
@@ -110,20 +150,20 @@ class DuckdbJoin(Knot):
         left.relation.create_view(left_view, replace=True)
         right_relation.create_view(right_view, replace=True)
 
-        sql_how = self._how_to_sql(self._how)
-        if self._how == "cross":
+        sql_how = self._how_to_sql(how)
+        if how == "cross":
             sql = f"SELECT * FROM {left_view} CROSS JOIN {right_view}"
-        elif self._on is not None:
-            using_columns = ", ".join(f'"{column}"' for column in self._on)
+        elif coerced_on is not None:
+            using_columns = ", ".join(f'"{column}"' for column in coerced_on)
             sql = (
                 f"SELECT * FROM {left_view} {sql_how} JOIN {right_view} "
                 f"USING ({using_columns})"
             )
         else:
-            assert self._condition is not None
+            assert condition is not None
             sql = (
                 f"SELECT * FROM {left_view} {sql_how} JOIN {right_view} "
-                f"ON {self._condition}"
+                f"ON {condition}"
             )
         joined = left.connection.sql(sql)
         return left.with_relation(joined)
@@ -138,8 +178,9 @@ class DuckdbJoin(Knot):
             "cross": "CROSS",
         }[how]
 
+    @staticmethod
     def _align_right(
-        self, left: DuckdbDataBatch, right: DuckdbDataBatch
+        left: DuckdbDataBatch, right: DuckdbDataBatch
     ) -> Any:
         """Ensure ``right.relation`` lives on ``left.connection``.
 
@@ -157,7 +198,8 @@ class DuckdbJoin(Knot):
         left.connection.register(view_name, arrow_table)
         return left.connection.table(view_name)
 
-    def _reject_obvious_injection(self, value: str) -> None:
+    @staticmethod
+    def _reject_obvious_injection(value: str) -> None:
         red_flags = (";", "--", "/*", "*/")
         for token in red_flags:
             if token in value:
