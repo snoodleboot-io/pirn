@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import unittest
-from datetime import datetime, timezone
-from typing import Any, AsyncIterator, Mapping, Sequence
-from unittest.mock import MagicMock
+from collections.abc import AsyncIterator, Mapping
+from datetime import UTC, datetime
+from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.data.data_batch import DataBatch
@@ -61,7 +61,7 @@ class _FakeTable(LakehouseTable):
         pass
 
 
-class TestLakehouseTableSourceConstruction(unittest.TestCase):
+class TestValidation(unittest.TestCase):
     def _make_table(self) -> _FakeTable:
         return _FakeTable([])
 
@@ -73,12 +73,11 @@ class TestLakehouseTableSourceConstruction(unittest.TestCase):
             )
 
     def test_rejects_both_snapshot_id_and_timestamp(self) -> None:
-        table = self._make_table()
         with self.assertRaisesRegex(ValueError, "mutually exclusive"):
             LakehouseTableSource(
-                table=table,
+                table=self._make_table(),
                 snapshot_id=1,
-                as_of_timestamp=datetime.now(timezone.utc),
+                as_of_timestamp=datetime.now(UTC),
                 _config=KnotConfig(id="src"),
             )
 
@@ -96,50 +95,50 @@ class TestLakehouseTableSourceConstruction(unittest.TestCase):
             snapshot_id=42,
             _config=KnotConfig(id="src"),
         )
-        self.assertIsNotNone(src)
+        assert src is not None
 
     def test_timestamp_without_snapshot_id_is_valid(self) -> None:
         src = LakehouseTableSource(
             table=self._make_table(),
-            as_of_timestamp=datetime.now(timezone.utc),
+            as_of_timestamp=datetime.now(UTC),
             _config=KnotConfig(id="src"),
         )
-        self.assertIsNotNone(src)
+        assert src is not None
 
 
-class TestLakehouseTableSourceProcess(unittest.IsolatedAsyncioTestCase):
+class TestLakehouseTableSource(unittest.IsolatedAsyncioTestCase):
     async def test_process_returns_data_batch(self) -> None:
         table = _FakeTable([{"id": 1}, {"id": 2}])
         src = LakehouseTableSource(table=table, _config=KnotConfig(id="src"))
         batch = await src.process()
-        self.assertIsInstance(batch, DataBatch)
+        assert isinstance(batch, DataBatch)
 
     async def test_process_rows_match_table_scan(self) -> None:
         rows = [{"id": 1, "val": "a"}, {"id": 2, "val": "b"}]
         table = _FakeTable(rows)
         src = LakehouseTableSource(table=table, _config=KnotConfig(id="src"))
         batch = await src.process()
-        self.assertEqual(len(batch.rows), 2)
-        self.assertEqual(batch.rows[0]["id"], 1)
+        assert len(batch.rows) == 2
+        assert batch.rows[0]["id"] == 1
 
     async def test_process_empty_table_returns_empty_batch(self) -> None:
         table = _FakeTable([])
         src = LakehouseTableSource(table=table, _config=KnotConfig(id="src"))
         batch = await src.process()
-        self.assertEqual(batch.rows, ())
+        assert batch.rows == ()
 
     async def test_process_passes_snapshot_id_to_scan(self) -> None:
         table = _FakeTable([])
         src = LakehouseTableSource(table=table, snapshot_id=99, _config=KnotConfig(id="src"))
         await src.process()
-        self.assertEqual(table._last_scan_kwargs["snapshot_id"], 99)
+        assert table._last_scan_kwargs["snapshot_id"] == 99
 
     async def test_process_passes_filter_to_scan(self) -> None:
         table = _FakeTable([])
         filt = {"col": "val"}
         src = LakehouseTableSource(table=table, filter=filt, _config=KnotConfig(id="src"))
         await src.process()
-        self.assertEqual(table._last_scan_kwargs["filter"], filt)
+        assert table._last_scan_kwargs["filter"] == filt
 
     async def test_process_passes_columns_to_scan(self) -> None:
         table = _FakeTable([])
@@ -147,17 +146,17 @@ class TestLakehouseTableSourceProcess(unittest.IsolatedAsyncioTestCase):
             table=table, columns=["id", "name"], _config=KnotConfig(id="src")
         )
         await src.process()
-        self.assertEqual(table._last_scan_kwargs["columns"], ("id", "name"))
+        assert table._last_scan_kwargs["columns"] == ("id", "name")
 
     async def test_process_source_uri_contains_table_name(self) -> None:
         table = _FakeTable([], name="my_table")
         src = LakehouseTableSource(table=table, _config=KnotConfig(id="src"))
         batch = await src.process()
-        self.assertIn("my_table", batch.source_uri)
+        assert "my_table" in batch.source_uri
 
     async def test_process_schema_propagated(self) -> None:
         schema = DataSchema(columns={"id": int})
         table = _FakeTable([{"id": 1}])
         src = LakehouseTableSource(table=table, schema=schema, _config=KnotConfig(id="src"))
         batch = await src.process()
-        self.assertEqual(batch.schema, schema)
+        assert batch.schema == schema

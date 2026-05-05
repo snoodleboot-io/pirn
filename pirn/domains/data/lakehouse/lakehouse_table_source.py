@@ -2,24 +2,41 @@
 a :class:`DataBatch`.
 
 Mirrors the shape of :class:`FileSource` but takes a
-:class:`LakehouseTable` instead of an ``ObjectStore × FileFormat``
+:class:`LakehouseTable` instead of an ``ObjectStore x FileFormat``
 pair, because lakehouse tables are NOT file formats — they have
 transaction logs and time-travel semantics.
+
+Algorithm:
+    1. Receive configuration at construction time: ``table``,
+       ``snapshot_id`` or ``as_of_timestamp`` (mutually exclusive),
+       ``filter``, ``columns``, and optional ``schema``.
+    2. In ``process()``, call ``await table.scan(...)`` with the stored
+       time-travel and push-down configuration.
+    3. Collect every record yielded by the async iterator into a row list.
+    4. Return a :class:`DataBatch` with ``source_uri``, ``fetched_at``,
+       and the optional schema attached.
+
+References:
+    [1] pirn — LakehouseTable interface:
+        pirn/domains/data/lakehouse/lakehouse_table.py
+    [2] pirn — FileSource (analogous single-file source pattern):
+        pirn/domains/data/sources/file_source.py
 """
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Mapping, Sequence
+from collections.abc import Mapping, Sequence
+from datetime import UTC, datetime
+from typing import Any
 
-from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.data.data_batch import DataBatch
 from pirn.domains.data.data_schema import DataSchema
 from pirn.domains.data.lakehouse.lakehouse_table import LakehouseTable
+from pirn.nodes.source import Source
 
 
-class LakehouseTableSource(Knot):
+class LakehouseTableSource(Source):
     """Scan a lakehouse table; emit a :class:`DataBatch`.
 
     Pass ``snapshot_id`` or ``as_of_timestamp`` for time-travel reads.
@@ -58,7 +75,7 @@ class LakehouseTableSource(Knot):
         self._filter = dict(filter) if filter is not None else None
         self._columns = tuple(columns) if columns is not None else None
         self._schema = schema
-        super().__init__(_config=_config, **kwargs)
+        super().__init__(_config=_config)
 
     async def process(self, **_: Any) -> DataBatch:
         """Scan the lakehouse table and return all matching records as a DataBatch.
@@ -77,9 +94,7 @@ class LakehouseTableSource(Knot):
             rows.append(dict(record))
         return DataBatch(
             rows=tuple(rows),
-            schema=(
-                self._schema if self._schema is not None else DataSchema()
-            ),
+            schema=self._schema if self._schema is not None else DataSchema(),
             source_uri=f"lakehouse://{self._table.name}",
-            fetched_at=datetime.now(timezone.utc),
+            fetched_at=datetime.now(UTC),
         )
