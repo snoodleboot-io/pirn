@@ -7,6 +7,7 @@ from typing import Any
 from unittest.mock import MagicMock
 
 from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
 from pirn.domains.data.lazy.spark.spark_dataframe import SparkDataFrame
 from pirn.domains.data.lazy.spark.spark_execution_receipt import SparkExecutionReceipt
 
@@ -36,37 +37,77 @@ class _SparkSource(Source):
         return _mock_sdf()
 
 
-class TestSparkWriteSinkConstruction(unittest.TestCase):
-    def test_valid_construction(self) -> None:
-        with Tapestry():
-            src = _SparkSource(_config=KnotConfig(id="src"))
-            sink = SparkWriteSink(frame=src, path="/tmp/output", _config=KnotConfig(id="sink"))
-        self.assertEqual(sink.path, "/tmp/output")
-        self.assertEqual(sink.format, "parquet")
-        self.assertEqual(sink.mode, "overwrite")
-
-    def test_rejects_empty_path(self) -> None:
-        with Tapestry():
-            src = _SparkSource(_config=KnotConfig(id="src"))
-            with self.assertRaises(ValueError):
-                SparkWriteSink(frame=src, path="", _config=KnotConfig(id="sink"))
-
-    def test_custom_format_and_mode(self) -> None:
-        with Tapestry():
-            src = _SparkSource(_config=KnotConfig(id="src"))
-            sink = SparkWriteSink(frame=src, path="/tmp/out", format="csv", mode="append", _config=KnotConfig(id="sink"))
-        self.assertEqual(sink.format, "csv")
-        self.assertEqual(sink.mode, "append")
-
-
-class TestSparkWriteSinkProcess(unittest.IsolatedAsyncioTestCase):
-    async def test_returns_receipt(self) -> None:
+class TestSparkWriteSink(unittest.IsolatedAsyncioTestCase):
+    async def test_returns_receipt_with_defaults(self) -> None:
         sdf = _mock_sdf()
         with Tapestry():
             src = _SparkSource(_config=KnotConfig(id="src"))
             sink = SparkWriteSink(frame=src, path="/tmp/output", _config=KnotConfig(id="sink"))
-        result = await sink.process(frame=sdf)
+        result = await sink.process(
+            frame=sdf,
+            path="/tmp/output",
+            format="parquet",
+            mode="overwrite",
+        )
         self.assertIsInstance(result, SparkExecutionReceipt)
         self.assertTrue(result.succeeded)
         self.assertEqual(result.output_path, "/tmp/output")
         sdf.frame.write.mode.assert_called_once_with("overwrite")
+        sdf.frame.write.mode().format.assert_called_once_with("parquet")
+
+    async def test_custom_format_and_mode(self) -> None:
+        sdf = _mock_sdf()
+        with Tapestry():
+            src = _SparkSource(_config=KnotConfig(id="src"))
+            sink = SparkWriteSink(
+                frame=src,
+                path="/tmp/out",
+                format="csv",
+                mode="append",
+                _config=KnotConfig(id="sink"),
+            )
+        result = await sink.process(
+            frame=sdf,
+            path="/tmp/out",
+            format="csv",
+            mode="append",
+        )
+        self.assertIsInstance(result, SparkExecutionReceipt)
+        self.assertEqual(result.output_path, "/tmp/out")
+
+
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_path_from_upstream_knot(self) -> None:
+        @knot
+        async def emit_path() -> str:
+            return "/tmp/dynamic"
+
+        with Tapestry():
+            src = _SparkSource(_config=KnotConfig(id="src"))
+            path_knot = emit_path(_config=KnotConfig(id="path"))
+            SparkWriteSink(frame=src, path=path_knot, _config=KnotConfig(id="sink"))
+        # Construction with Knot input succeeds — process() tested separately
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def _make_knot(self, **kwargs: Any) -> SparkWriteSink:
+        with Tapestry():
+            src = _SparkSource(_config=KnotConfig(id="src"))
+            return SparkWriteSink(
+                frame=src, path="/tmp/out", _config=KnotConfig(id="sink"), **kwargs
+            )
+
+    async def test_rejects_empty_path(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaises(ValueError):
+            await k.process(frame=_mock_sdf(), path="", format="parquet", mode="overwrite")
+
+    async def test_rejects_empty_format(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaises(ValueError):
+            await k.process(frame=_mock_sdf(), path="/tmp/out", format="", mode="overwrite")
+
+    async def test_rejects_empty_mode(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaises(ValueError):
+            await k.process(frame=_mock_sdf(), path="/tmp/out", format="parquet", mode="")

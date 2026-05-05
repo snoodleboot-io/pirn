@@ -7,6 +7,7 @@ from typing import Any
 from unittest.mock import MagicMock
 
 from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
 from pirn.domains.data.lazy.spark.spark_dataframe import SparkDataFrame
 
 try:
@@ -44,46 +45,25 @@ class _SparkSource(Source):
         return _mock_sdf([{"id": 1}])
 
 
-class TestSparkCollectSinkConstruction(unittest.TestCase):
-    def test_valid_no_max_rows(self) -> None:
-        with Tapestry():
-            src = _SparkSource(_config=KnotConfig(id="src"))
-            sink = SparkCollectSink(frame=src, _config=KnotConfig(id="sink"))
-        self.assertIsNone(sink.max_rows)
-
-    def test_valid_with_max_rows(self) -> None:
-        with Tapestry():
-            src = _SparkSource(_config=KnotConfig(id="src"))
-            sink = SparkCollectSink(frame=src, max_rows=100, _config=KnotConfig(id="sink"))
-        self.assertEqual(sink.max_rows, 100)
-
-    def test_rejects_non_int_max_rows(self) -> None:
-        with Tapestry():
-            src = _SparkSource(_config=KnotConfig(id="src"))
-            with self.assertRaises(TypeError):
-                SparkCollectSink(
-                    frame=src,
-                    max_rows="100",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="sink"),
-                )
-
-    def test_rejects_zero_max_rows(self) -> None:
-        with Tapestry():
-            src = _SparkSource(_config=KnotConfig(id="src"))
-            with self.assertRaises(ValueError):
-                SparkCollectSink(frame=src, max_rows=0, _config=KnotConfig(id="sink"))
-
-
-class TestSparkCollectSinkProcess(unittest.IsolatedAsyncioTestCase):
+class TestSparkCollectSink(unittest.IsolatedAsyncioTestCase):
     async def test_collects_all_rows(self) -> None:
         sdf = _mock_sdf([{"id": 1}, {"id": 2}])
         with Tapestry():
             src = _SparkSource(_config=KnotConfig(id="src"))
             sink = SparkCollectSink(frame=src, _config=KnotConfig(id="sink"))
-        result = await sink.process(frame=sdf)
+        result = await sink.process(frame=sdf, max_rows=None)
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0]["id"], 1)
+
+    async def test_max_rows_not_exceeded(self) -> None:
+        sdf = _mock_sdf([{"id": 1}, {"id": 2}])
+        with Tapestry():
+            src = _SparkSource(_config=KnotConfig(id="src"))
+            sink = SparkCollectSink(frame=src, max_rows=5, _config=KnotConfig(id="sink"))
+        result = await sink.process(frame=sdf, max_rows=5)
         self.assertEqual(len(result), 2)
 
-    async def test_max_rows_enforced(self) -> None:
+    async def test_max_rows_exceeded_raises(self) -> None:
         sdf = _mock_sdf([{"id": i} for i in range(5)])
         limited = MagicMock()
         limited.collect.return_value = [_row({"id": i}) for i in range(3)]
@@ -92,4 +72,39 @@ class TestSparkCollectSinkProcess(unittest.IsolatedAsyncioTestCase):
             src = _SparkSource(_config=KnotConfig(id="src"))
             sink = SparkCollectSink(frame=src, max_rows=2, _config=KnotConfig(id="sink"))
         with self.assertRaises(ValueError):
-            await sink.process(frame=sdf)
+            await sink.process(frame=sdf, max_rows=2)
+
+
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_max_rows_from_upstream_knot(self) -> None:
+        @knot
+        async def emit_limit() -> int:
+            return 100
+
+        with Tapestry():
+            src = _SparkSource(_config=KnotConfig(id="src"))
+            limit_knot = emit_limit(_config=KnotConfig(id="limit"))
+            SparkCollectSink(frame=src, max_rows=limit_knot, _config=KnotConfig(id="sink"))
+        # Construction with Knot input succeeds — process() tested separately
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def _make_knot(self, **kwargs: Any) -> SparkCollectSink:
+        with Tapestry():
+            src = _SparkSource(_config=KnotConfig(id="src"))
+            return SparkCollectSink(frame=src, _config=KnotConfig(id="sink"), **kwargs)
+
+    async def test_rejects_non_int_max_rows(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaises(TypeError):
+            await k.process(frame=_mock_sdf([{"id": 1}]), max_rows="100")  # type: ignore[arg-type]
+
+    async def test_rejects_zero_max_rows(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaises(ValueError):
+            await k.process(frame=_mock_sdf([{"id": 1}]), max_rows=0)
+
+    async def test_rejects_negative_max_rows(self) -> None:
+        k = await self._make_knot()
+        with self.assertRaises(ValueError):
+            await k.process(frame=_mock_sdf([{"id": 1}]), max_rows=-1)

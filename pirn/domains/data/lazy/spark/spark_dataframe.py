@@ -14,7 +14,7 @@ PySpark version constraint: ``pyspark>=4.0`` is required for Python 3.13+;
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import GetCoreSchemaHandler
@@ -45,14 +45,14 @@ class SparkDataFrame:
     backend_name: str = "spark"
     source_uri: str = ""
     fetched_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
 
     @property
     def column_names(self) -> tuple[str, ...]:
         return tuple(self.frame.columns)
 
-    def with_frame(self, frame: Any) -> "SparkDataFrame":
+    def with_frame(self, frame: Any) -> SparkDataFrame:
         """Return a copy with ``frame`` replaced; metadata preserved."""
         return SparkDataFrame(
             frame=frame,

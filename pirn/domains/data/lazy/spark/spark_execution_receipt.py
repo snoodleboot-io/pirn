@@ -11,7 +11,7 @@ through pydantic's dataclass machinery.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
@@ -38,7 +38,7 @@ class SparkExecutionReceipt(PirnOpaqueValue):
     succeeded: bool
     row_count: int | None
     output_path: str | None
-    completed_at: datetime = datetime(1970, 1, 1, tzinfo=timezone.utc)
+    completed_at: datetime = datetime(1970, 1, 1, tzinfo=UTC)
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
         """Flatten to a primitive dict for pydantic serialisation."""

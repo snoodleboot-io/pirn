@@ -3,6 +3,34 @@ with ``left.join(right, on=..., how=...)``.
 
 The join is fully deferred: Spark plans the join across partitions but
 nothing is executed until the terminal sink materialises the plan.
+
+Algorithm:
+    1. Validate ``how`` against the allowed set.
+    2. Cross join: reject any ``on`` / ``left_on`` / ``right_on`` keys
+       and call ``left.crossJoin(right)``.
+    3. Equi-join with ``on``: reject any ``left_on`` / ``right_on`` and
+       call ``left.join(right, on=<resolved>, how=how)``.
+    4. Asymmetric-key join: require both ``left_on`` and ``right_on``,
+       build a boolean column condition, and call
+       ``left.join(right, on=condition, how=how)``.
+    5. Return the result wrapped in a new :class:`SparkDataFrame`.
+
+    ```text
+    if how == "cross":
+        joined = left.crossJoin(right)
+    elif on:
+        joined = left.join(right, on=on, how=how)
+    else:
+        cond = left[left_on[0]] == right[right_on[0]] & ...
+        joined = left.join(right, on=cond, how=how)
+    return SparkDataFrame(frame=joined)
+    ```
+
+References:
+    [1] PySpark — DataFrame.join:
+        https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.join.html
+    [2] PySpark — DataFrame.crossJoin:
+        https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.crossJoin.html
 """
 
 from __future__ import annotations
@@ -35,18 +63,67 @@ class SparkJoin(Knot):
         left: Knot,
         right: Knot,
         _config: KnotConfig,
-        on: str | Sequence[str] | None = None,
-        left_on: str | Sequence[str] | None = None,
-        right_on: str | Sequence[str] | None = None,
-        how: str = "inner",
+        on: Knot | str | Sequence[str] | None = None,
+        left_on: Knot | str | Sequence[str] | None = None,
+        right_on: Knot | str | Sequence[str] | None = None,
+        how: Knot | str = "inner",
         **kwargs: Any,
     ) -> None:
-        try:
-            import pyspark.sql  # noqa: F401
-        except ImportError as exc:
-            raise ImportError(
-                "SparkJoin requires pyspark; install with `pip install pirn[spark]`"
-            ) from exc
+        super().__init__(
+            left=left,
+            right=right,
+            on=on,
+            left_on=left_on,
+            right_on=right_on,
+            how=how,
+            _config=_config,
+            **kwargs,
+        )
+
+    @staticmethod
+    def _validate_columns(
+        label: str, columns: str | Sequence[str] | None
+    ) -> None:
+        if columns is None:
+            return
+        if isinstance(columns, str):
+            IdentifierValidator.validate_column(f"SparkJoin: {label}", columns)
+            return
+        if not isinstance(columns, Sequence):
+            raise TypeError(
+                f"SparkJoin: {label} must be a string or sequence of strings"
+            )
+        IdentifierValidator.validate_columns(f"SparkJoin: {label}", columns)
+
+    @staticmethod
+    def _sequence_length(columns: str | Sequence[str]) -> int:
+        return 1 if isinstance(columns, str) else len(columns)
+
+    async def process(
+        self,
+        left: Any,  # SparkDataFrame — pydantic can't schema pyspark types
+        right: Any,
+        on: Any,  # str | Sequence[str] | None
+        left_on: Any,
+        right_on: Any,
+        how: str,
+        **_: Any,
+    ) -> SparkDataFrame:
+        """Join the left and right deferred Spark frames on the configured keys.
+
+        Returns the joined result as a new :class:`SparkDataFrame`.
+
+        Args:
+            left: The left-side SparkDataFrame.
+            right: The right-side SparkDataFrame to join against.
+            on: Shared column name(s) to join on.
+            left_on: Left-side column name(s) when keys differ.
+            right_on: Right-side column name(s) when keys differ.
+            how: Join type (inner, left, right, outer, leftsemi, leftanti, cross).
+
+        Returns:
+            A new SparkDataFrame containing the joined deferred Spark plan.
+        """
         if how not in self._allowed_how:
             raise ValueError(
                 f"SparkJoin: how must be one of {list(self._allowed_how)}, "
@@ -77,72 +154,23 @@ class SparkJoin(Knot):
             raise ValueError(
                 "SparkJoin: left_on and right_on must have the same length"
             )
-        self._on = on
-        self._left_on = left_on
-        self._right_on = right_on
-        self._how = how
-        super().__init__(left=left, right=right, _config=_config, **kwargs)
-
-    @staticmethod
-    def _validate_columns(
-        label: str, columns: str | Sequence[str] | None
-    ) -> None:
-        if columns is None:
-            return
-        if isinstance(columns, str):
-            IdentifierValidator.validate_column(f"SparkJoin: {label}", columns)
-            return
-        if not isinstance(columns, Sequence):
-            raise TypeError(
-                f"SparkJoin: {label} must be a string or sequence of strings"
-            )
-        IdentifierValidator.validate_columns(f"SparkJoin: {label}", columns)
-
-    @staticmethod
-    def _sequence_length(columns: str | Sequence[str]) -> int:
-        return 1 if isinstance(columns, str) else len(columns)
-
-    @property
-    def how(self) -> str:
-        return self._how
-
-    async def process(
-        self, left: SparkDataFrame, right: SparkDataFrame, **_: Any
-    ) -> SparkDataFrame:
-        """Join the left and right deferred Spark frames on the configured keys and return the result.
-
-        Args:
-            left: The left-side SparkDataFrame.
-            right: The right-side SparkDataFrame to join against.
-
-        Returns:
-            A new SparkDataFrame containing the joined deferred Spark plan.
-        """
         left_frame = left.frame
         right_frame = right.frame
-        if self._how == "cross":
+        if how == "cross":
             joined = left_frame.crossJoin(right_frame)
-        elif self._on is not None:
-            on = self._on if isinstance(self._on, str) else list(self._on)
-            joined = left_frame.join(right_frame, on=on, how=self._how)
+        elif on is not None:
+            resolved_on = on if isinstance(on, str) else list(on)
+            joined = left_frame.join(right_frame, on=resolved_on, how=how)
         else:
-            assert self._left_on is not None and self._right_on is not None
+            assert left_on is not None and right_on is not None
             left_cols = (
-                [self._left_on]
-                if isinstance(self._left_on, str)
-                else list(self._left_on)
+                [left_on] if isinstance(left_on, str) else list(left_on)
             )
             right_cols = (
-                [self._right_on]
-                if isinstance(self._right_on, str)
-                else list(self._right_on)
+                [right_on] if isinstance(right_on, str) else list(right_on)
             )
             condition = left_frame[left_cols[0]] == right_frame[right_cols[0]]
-            for left_col, right_col in zip(
-                left_cols[1:], right_cols[1:], strict=True
-            ):
-                condition = condition & (
-                    left_frame[left_col] == right_frame[right_col]
-                )
-            joined = left_frame.join(right_frame, on=condition, how=self._how)
+            for lc, rc in zip(left_cols[1:], right_cols[1:], strict=True):
+                condition = condition & (left_frame[lc] == right_frame[rc])
+            joined = left_frame.join(right_frame, on=condition, how=how)
         return left.with_frame(joined)
