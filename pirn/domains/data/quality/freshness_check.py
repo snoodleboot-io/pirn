@@ -1,4 +1,4 @@
-"""``FreshnessGate`` — assesses whether the most-recent timestamp in a
+"""``FreshnessCheck`` — assesses whether the most-recent timestamp in a
 :class:`DataBatch` is no older than ``max_age``.
 
 Useful as an SLA guard: incremental ETLs that haven't seen a row in N
@@ -27,7 +27,7 @@ from pirn.domains.data.quality_check import QualityCheck
 from pirn.domains.data.quality_report import QualityReport
 
 
-class FreshnessGate(Knot):
+class FreshnessCheck(Knot):
     """Reports whether the newest value in ``column`` is within ``max_age``."""
 
     def __init__(
@@ -40,14 +40,14 @@ class FreshnessGate(Knot):
         **kwargs: Any,
     ) -> None:
         if not isinstance(column, str) or not column:
-            raise ValueError("FreshnessGate: column must be a non-empty string")
+            raise ValueError("FreshnessCheck: column must be a non-empty string")
         if not isinstance(max_age, timedelta):
             raise TypeError(
-                "FreshnessGate: max_age must be a datetime.timedelta, "
+                "FreshnessCheck: max_age must be a datetime.timedelta, "
                 f"got {type(max_age).__name__}"
             )
         if max_age.total_seconds() <= 0:
-            raise ValueError("FreshnessGate: max_age must be positive")
+            raise ValueError("FreshnessCheck: max_age must be positive")
         self._column = column
         self._max_age = max_age
         super().__init__(batch=batch, _config=_config, **kwargs)

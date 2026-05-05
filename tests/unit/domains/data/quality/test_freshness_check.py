@@ -1,4 +1,4 @@
-"""Tests for :class:`pirn.domains.data.quality.freshness_gate.FreshnessGate`."""
+"""Tests for :class:`pirn.domains.data.quality.freshness_check.FreshnessCheck`."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.domains.data.data_batch import DataBatch
-from pirn.domains.data.quality.freshness_gate import FreshnessGate
+from pirn.domains.data.quality.freshness_check import FreshnessCheck
 from pirn.domains.data.quality_report import QualityReport
 from pirn.tapestry import Tapestry
 
@@ -24,11 +24,11 @@ def _batch_with_newest(age: timedelta):
     return emit
 
 
-class TestFreshnessGate(unittest.IsolatedAsyncioTestCase):
+class TestFreshnessCheck(unittest.IsolatedAsyncioTestCase):
     async def test_passes_when_newest_is_recent(self) -> None:
         with Tapestry() as t:
             batch = _batch_with_newest(timedelta(minutes=30))(_config=KnotConfig(id="batch"))
-            FreshnessGate(
+            FreshnessCheck(
                 batch=batch,
                 column="updated_at",
                 max_age=timedelta(hours=1),
@@ -41,7 +41,7 @@ class TestFreshnessGate(unittest.IsolatedAsyncioTestCase):
     async def test_fails_when_newest_is_too_old(self) -> None:
         with Tapestry() as t:
             batch = _batch_with_newest(timedelta(hours=25))(_config=KnotConfig(id="batch"))
-            FreshnessGate(
+            FreshnessCheck(
                 batch=batch,
                 column="updated_at",
                 max_age=timedelta(hours=24),
@@ -58,7 +58,7 @@ class TestFreshnessGate(unittest.IsolatedAsyncioTestCase):
 
         with Tapestry() as t:
             batch = empty(_config=KnotConfig(id="batch"))
-            FreshnessGate(
+            FreshnessCheck(
                 batch=batch,
                 column="updated_at",
                 max_age=timedelta(hours=1),
@@ -80,7 +80,7 @@ class TestFreshnessGate(unittest.IsolatedAsyncioTestCase):
 
         with Tapestry() as t:
             batch = naive(_config=KnotConfig(id="batch"))
-            FreshnessGate(
+            FreshnessCheck(
                 batch=batch,
                 column="updated_at",
                 max_age=timedelta(minutes=5),
@@ -103,7 +103,7 @@ class TestFreshnessGate(unittest.IsolatedAsyncioTestCase):
 
         with Tapestry() as t:
             batch = mixed(_config=KnotConfig(id="batch"))
-            FreshnessGate(
+            FreshnessCheck(
                 batch=batch,
                 column="updated_at",
                 max_age=timedelta(minutes=10),
@@ -122,7 +122,7 @@ class TestConstruction(unittest.TestCase):
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
             with self.assertRaisesRegex(ValueError, "non-empty"):
-                FreshnessGate(
+                FreshnessCheck(
                     batch=batch, column="", max_age=timedelta(hours=1),
                     _config=KnotConfig(id="f"),
                 )
@@ -134,7 +134,7 @@ class TestConstruction(unittest.TestCase):
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
             with self.assertRaisesRegex(TypeError, "timedelta"):
-                FreshnessGate(
+                FreshnessCheck(
                     batch=batch, column="t", max_age=3600,  # type: ignore[arg-type]
                     _config=KnotConfig(id="f"),
                 )
@@ -146,7 +146,7 @@ class TestConstruction(unittest.TestCase):
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
             with self.assertRaisesRegex(ValueError, "positive"):
-                FreshnessGate(
+                FreshnessCheck(
                     batch=batch, column="t", max_age=timedelta(0),
                     _config=KnotConfig(id="f"),
                 )

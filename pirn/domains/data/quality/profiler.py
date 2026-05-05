@@ -4,8 +4,8 @@
 Not a pass/fail check. The profile is a side-channel observation that
 audit, drift detection, and operator dashboards consume. To enforce a
 threshold based on the profile, follow the profiler with a downstream
-knot or use the dedicated quality gates (:class:`RowCountGate`,
-:class:`NullRateGate`, …).
+knot or use the dedicated quality gates (:class:`RowCountCheck`,
+:class:`NullRateCheck`, …).
 """
 
 from __future__ import annotations

@@ -4,8 +4,8 @@
 Emitted by :class:`pirn.domains.data.quality.profiler.Profiler`. A profile
 is observation, not policy: every field describes the input batch, no
 field carries a pass/fail verdict. Compose with a downstream knot if you
-want thresholds enforced (or use :class:`NullRateGate` /
-:class:`RowCountGate` directly).
+want thresholds enforced (or use :class:`NullRateCheck` /
+:class:`RowCountCheck` directly).
 """
 
 from __future__ import annotations

@@ -1,4 +1,4 @@
-"""``NullRateGate`` — assesses per-column null rates against caller-supplied
+"""``NullRateCheck`` — assesses per-column null rates against caller-supplied
 thresholds.
 
 Each entry in ``thresholds`` is the maximum allowed null rate for the
@@ -21,7 +21,7 @@ from pirn.domains.data.quality_check import QualityCheck
 from pirn.domains.data.quality_report import QualityReport
 
 
-class NullRateGate(Knot):
+class NullRateCheck(Knot):
     """Reports per-column null rates against configured thresholds."""
 
     def __init__(
@@ -34,18 +34,18 @@ class NullRateGate(Knot):
     ) -> None:
         if not isinstance(thresholds, Mapping) or not thresholds:
             raise TypeError(
-                "NullRateGate: thresholds must be a non-empty mapping of "
+                "NullRateCheck: thresholds must be a non-empty mapping of "
                 "column name to maximum allowed null rate"
             )
         for column, rate in thresholds.items():
             if not isinstance(rate, (int, float)):
                 raise TypeError(
-                    f"NullRateGate: threshold for {column!r} must be a number, "
+                    f"NullRateCheck: threshold for {column!r} must be a number, "
                     f"got {type(rate).__name__}"
                 )
             if not 0.0 <= float(rate) <= 1.0:
                 raise ValueError(
-                    f"NullRateGate: threshold for {column!r} must be in [0.0, 1.0], "
+                    f"NullRateCheck: threshold for {column!r} must be in [0.0, 1.0], "
                     f"got {rate!r}"
                 )
         self._thresholds: dict[str, float] = {k: float(v) for k, v in thresholds.items()}

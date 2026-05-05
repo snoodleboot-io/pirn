@@ -1,4 +1,4 @@
-"""``GateRowsBehindTruncateKnot`` — pass through ``rows`` only after the
+"""``RowsBehindTruncateCheckKnot`` — pass through ``rows`` only after the
 ``gate`` upstream knot has produced its output.
 
 Used by :class:`FullRefreshExtract` to force the target table truncate
@@ -14,7 +14,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 
-class GateRowsBehindTruncateKnot(Knot):
+class RowsBehindTruncateCheckKnot(Knot):
     """Pass through ``rows`` once ``gate`` has resolved."""
 
     def __init__(

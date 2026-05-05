@@ -1,11 +1,11 @@
-"""``RowCountGate`` — assesses whether a :class:`DataBatch`'s row count
+"""``RowCountCheck`` — assesses whether a :class:`DataBatch`'s row count
 falls within ``[min_rows, max_rows]``.
 
 Despite the legacy "Gate" suffix in the catalog, this is a :class:`Knot`
 that emits a :class:`QualityReport`. Wrap with
 :class:`pirn.nodes.gate.gate.Gate` to halt the pipeline on failure::
 
-    report = RowCountGate(batch=extract, min_rows=1, max_rows=1_000_000,
+    report = RowCountCheck(batch=extract, min_rows=1, max_rows=1_000_000,
                           _config=KnotConfig(id="rowcount"))
     Gate(input=report, predicate=lambda r: r.passed,
          _config=KnotConfig(id="rowcount_ok"))
@@ -22,7 +22,7 @@ from pirn.domains.data.quality_check import QualityCheck
 from pirn.domains.data.quality_report import QualityReport
 
 
-class RowCountGate(Knot):
+class RowCountCheck(Knot):
     """Reports whether the input batch's row count is within configured bounds."""
 
     def __init__(
@@ -35,10 +35,10 @@ class RowCountGate(Knot):
         **kwargs: Any,
     ) -> None:
         if min_rows < 0:
-            raise ValueError("RowCountGate: min_rows must be >= 0")
+            raise ValueError("RowCountCheck: min_rows must be >= 0")
         if max_rows is not None and max_rows < min_rows:
             raise ValueError(
-                "RowCountGate: max_rows must be >= min_rows when set"
+                "RowCountCheck: max_rows must be >= min_rows when set"
             )
         self._min_rows = min_rows
         self._max_rows = max_rows

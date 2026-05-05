@@ -1,4 +1,4 @@
-"""Tests for :class:`GateRowsBehindTruncateKnot`."""
+"""Tests for :class:`RowsBehindTruncateCheckKnot`."""
 
 from __future__ import annotations
 
@@ -7,16 +7,16 @@ from typing import Any
 from unittest.mock import MagicMock
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.data.specializations.ingestion.gate_rows_behind_truncate_knot import (
-    GateRowsBehindTruncateKnot,
+from pirn.domains.data.specializations.ingestion.rows_behind_truncate_check_knot import (
+    RowsBehindTruncateCheckKnot,
 )
 
 
-class TestGateRowsBehindTruncateKnotConstruction(unittest.TestCase):
-    def _make_knot(self) -> GateRowsBehindTruncateKnot:
+class TestRowsBehindTruncateCheckKnotConstruction(unittest.TestCase):
+    def _make_knot(self) -> RowsBehindTruncateCheckKnot:
         rows_knot = MagicMock()
         gate_knot = MagicMock()
-        return GateRowsBehindTruncateKnot(
+        return RowsBehindTruncateCheckKnot(
             rows=rows_knot,
             gate=gate_knot,
             _config=KnotConfig(id="gate_rows"),
@@ -24,14 +24,14 @@ class TestGateRowsBehindTruncateKnotConstruction(unittest.TestCase):
 
     def test_construction_succeeds(self) -> None:
         knot = self._make_knot()
-        self.assertIsInstance(knot, GateRowsBehindTruncateKnot)
+        self.assertIsInstance(knot, RowsBehindTruncateCheckKnot)
 
 
-class TestGateRowsBehindTruncateKnotProcess(unittest.IsolatedAsyncioTestCase):
+class TestRowsBehindTruncateCheckKnotProcess(unittest.IsolatedAsyncioTestCase):
     async def test_process_returns_rows_unchanged(self) -> None:
         rows_knot = MagicMock()
         gate_knot = MagicMock()
-        knot = GateRowsBehindTruncateKnot(
+        knot = RowsBehindTruncateCheckKnot(
             rows=rows_knot,
             gate=gate_knot,
             _config=KnotConfig(id="gate_rows"),
@@ -43,7 +43,7 @@ class TestGateRowsBehindTruncateKnotProcess(unittest.IsolatedAsyncioTestCase):
     async def test_process_passes_through_none(self) -> None:
         rows_knot = MagicMock()
         gate_knot = MagicMock()
-        knot = GateRowsBehindTruncateKnot(
+        knot = RowsBehindTruncateCheckKnot(
             rows=rows_knot,
             gate=gate_knot,
             _config=KnotConfig(id="gate_rows"),
@@ -54,7 +54,7 @@ class TestGateRowsBehindTruncateKnotProcess(unittest.IsolatedAsyncioTestCase):
     async def test_process_ignores_gate_value(self) -> None:
         rows_knot = MagicMock()
         gate_knot = MagicMock()
-        knot = GateRowsBehindTruncateKnot(
+        knot = RowsBehindTruncateCheckKnot(
             rows=rows_knot,
             gate=gate_knot,
             _config=KnotConfig(id="gate_rows"),

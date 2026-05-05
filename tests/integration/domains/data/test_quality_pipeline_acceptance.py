@@ -4,7 +4,7 @@ Demonstrates the canonical pirn pattern for the data-domain quality
 knots:
 
 1. A source produces a :class:`DataBatch`.
-2. ``SchemaValidator`` and ``RowCountGate`` assess the batch and emit
+2. ``SchemaValidator`` and ``RowCountCheck`` assess the batch and emit
    :class:`QualityReport` outputs (always — they don't raise).
 3. A :class:`pirn.nodes.gate.gate.Gate` keyed on
    ``QualityReport.passed`` halts the pipeline when any check failed,
@@ -32,7 +32,7 @@ from pirn.domains.connectors.databases.sqlite_pool import SqlitePool
 from pirn.domains.connectors.knots.database_execute_sink import DatabaseExecuteSink
 from pirn.domains.data.data_batch import DataBatch
 from pirn.domains.data.data_schema import DataSchema
-from pirn.domains.data.quality.row_count_gate import RowCountGate
+from pirn.domains.data.quality.row_count_check import RowCountCheck
 from pirn.domains.data.quality.schema_validator import SchemaValidator
 from pirn.domains.data.quality_report import QualityReport
 from pirn.nodes.gate.gate import Gate
@@ -86,7 +86,7 @@ def _build_pipeline(
             schema=_USERS_SCHEMA,
             _config=KnotConfig(id="schema"),
         )
-        rowcount_report = RowCountGate(
+        rowcount_report = RowCountCheck(
             batch=batch,
             min_rows=1,
             max_rows=10_000,

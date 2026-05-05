@@ -29,8 +29,8 @@ from pirn.core.run_result import RunResult
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.knots.database_execute_sink import DatabaseExecuteSink
 from pirn.domains.connectors.knots.database_query_source import DatabaseQuerySource
-from pirn.domains.data.specializations.ingestion.gate_rows_behind_truncate_knot import (
-    GateRowsBehindTruncateKnot,
+from pirn.domains.data.specializations.ingestion.rows_behind_truncate_check_knot import (
+    RowsBehindTruncateCheckKnot,
 )
 from pirn.domains.data.specializations.ingestion.truncate_table_knot import (
     TruncateTableKnot,
@@ -94,7 +94,7 @@ class FullRefreshExtract(SubTapestry):
                 table=self._target_table,
                 _config=KnotConfig(id="truncate"),
             )
-            gated = GateRowsBehindTruncateKnot(
+            gated = RowsBehindTruncateCheckKnot(
                 rows=extracted,
                 gate=truncated,
                 _config=KnotConfig(id="gated"),
