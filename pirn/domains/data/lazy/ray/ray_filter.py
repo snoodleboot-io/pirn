@@ -11,11 +11,26 @@ returns a bool::
     )
 
 No blocks are computed here — Ray Data simply extends the plan.
+
+Algorithm:
+    1. Validate that ``predicate`` is callable.
+    2. Call ``dataset.filter(predicate)`` to extend the deferred plan.
+    3. Return the result wrapped in a new :class:`RayDataset`.
+
+    ```text
+    out = dataset.filter(predicate)
+    return RayDataset(dataset=out)
+    ```
+
+References:
+    [1] Ray Data — Dataset.filter:
+        https://docs.ray.io/en/latest/data/api/doc/ray.data.Dataset.filter.html
 """
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -29,28 +44,29 @@ class RayFilter(Knot):
         self,
         *,
         batch: Knot,
-        predicate: Callable[[dict[str, Any]], bool],
+        predicate: Knot | Callable[[dict[str, Any]], bool],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not callable(predicate):
-            raise TypeError(
-                "RayFilter: predicate must be a callable (row) -> bool"
-            )
-        self._predicate = predicate
-        super().__init__(batch=batch, _config=_config, **kwargs)
+        super().__init__(batch=batch, predicate=predicate, _config=_config, **kwargs)
 
-    @property
-    def predicate(self) -> Callable[[dict[str, Any]], bool]:
-        return self._predicate
-
-    async def process(self, batch: RayDataset, **_: Any) -> RayDataset:
+    async def process(
+        self,
+        batch: RayDataset,
+        predicate: Any,  # Callable[[dict[str, Any]], bool] — pydantic can't schema Callable
+        **_: Any,
+    ) -> RayDataset:
         """Apply the row-level callable predicate to filter the deferred Ray Dataset plan.
 
         Args:
             batch: The upstream RayDataset to filter.
+            predicate: A callable ``(row) -> bool`` applied to each row.
 
         Returns:
             A new RayDataset with the filter predicate applied to the deferred plan.
         """
-        return batch.with_dataset(batch.dataset.filter(self._predicate))
+        if not callable(predicate):
+            raise TypeError(
+                "RayFilter: predicate must be a callable (row) -> bool"
+            )
+        return batch.with_dataset(batch.dataset.filter(predicate))

@@ -13,11 +13,34 @@ The function operates on a batch — by default Ray Data hands it a
     )
 
 No blocks are computed here — the plan is extended lazily.
+
+Algorithm:
+    1. Validate that ``fn`` is callable.
+    2. Validate ``batch_format`` is a string when supplied.
+    3. Validate ``batch_size`` is a positive int when supplied.
+    4. Build a kwargs dict from any non-None optional parameters.
+    5. Call ``dataset.map_batches(fn, **kwargs)`` to extend the deferred plan.
+    6. Return the result wrapped in a new :class:`RayDataset`.
+
+    ```text
+    kwargs = {}
+    if batch_format: kwargs["batch_format"] = batch_format
+    if batch_size:   kwargs["batch_size"]   = batch_size
+    out = dataset.map_batches(fn, **kwargs)
+    return RayDataset(dataset=out)
+    ```
+
+References:
+    [1] Ray Data — Dataset.map_batches:
+        https://docs.ray.io/en/latest/data/api/doc/ray.data.Dataset.map_batches.html
+    [2] Ray Data — batch formats (numpy, pandas, pyarrow):
+        https://docs.ray.io/en/latest/data/transforming-data.html#configuring-batch-format
 """
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -31,39 +54,51 @@ class RayMap(Knot):
         self,
         *,
         batch: Knot,
-        fn: Callable[..., Any],
+        fn: Knot | Callable[..., Any],
         _config: KnotConfig,
-        batch_format: str | None = None,
-        batch_size: int | None = None,
+        batch_format: Knot | str | None = None,
+        batch_size: Knot | int | None = None,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            batch=batch,
+            fn=fn,
+            batch_format=batch_format,
+            batch_size=batch_size,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        batch: RayDataset,
+        fn: Any,  # Callable[..., Any] — pydantic can't schema Callable
+        batch_format: str | None,
+        batch_size: int | None,
+        **_: Any,
+    ) -> RayDataset:
+        """Extend the deferred Ray Dataset plan with a map_batches transform.
+
+        Args:
+            batch: The upstream RayDataset whose plan will be extended.
+            fn: A callable applied to each batch of the dataset.
+            batch_format: Optional format hint (e.g. ``"numpy"``).
+            batch_size: Optional number of rows per batch.
+
+        Returns:
+            A new RayDataset wrapping the extended deferred plan.
+        """
         if not callable(fn):
-            raise TypeError(
-                "RayMap: fn must be a callable (batch) -> batch"
-            )
+            raise TypeError("RayMap: fn must be a callable (batch) -> batch")
         if batch_format is not None and not isinstance(batch_format, str):
             raise TypeError("RayMap: batch_format must be a string or None")
         if batch_size is not None and (
             not isinstance(batch_size, int) or batch_size <= 0
         ):
             raise ValueError("RayMap: batch_size must be a positive int")
-        self._fn = fn
-        self._batch_format = batch_format
-        self._batch_size = batch_size
-        super().__init__(batch=batch, _config=_config, **kwargs)
-
-    async def process(self, batch: RayDataset, **_: Any) -> RayDataset:
-        """Extend the deferred Ray Dataset plan with a map_batches transform and return the result.
-
-        Args:
-            batch: The upstream RayDataset whose plan will be extended with the map transform.
-
-        Returns:
-            A new RayDataset wrapping the extended deferred plan.
-        """
-        kwargs: dict[str, Any] = {}
-        if self._batch_format is not None:
-            kwargs["batch_format"] = self._batch_format
-        if self._batch_size is not None:
-            kwargs["batch_size"] = self._batch_size
-        return batch.with_dataset(batch.dataset.map_batches(self._fn, **kwargs))
+        map_kwargs: dict[str, Any] = {}
+        if batch_format is not None:
+            map_kwargs["batch_format"] = batch_format
+        if batch_size is not None:
+            map_kwargs["batch_size"] = batch_size
+        return batch.with_dataset(batch.dataset.map_batches(fn, **map_kwargs))

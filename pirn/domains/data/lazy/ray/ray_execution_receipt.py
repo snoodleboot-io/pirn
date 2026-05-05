@@ -6,7 +6,7 @@ deferred Ray Data plan has been materialised.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 @dataclass(frozen=True)
@@ -35,4 +35,4 @@ class RayExecutionReceipt:
     target_path: str | None
     dataset_size: int | None = None
     block_count: int | None = None
-    executed_at: datetime = datetime(1970, 1, 1, tzinfo=timezone.utc)
+    executed_at: datetime = datetime(1970, 1, 1, tzinfo=UTC)

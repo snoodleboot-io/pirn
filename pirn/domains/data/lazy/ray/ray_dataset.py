@@ -9,7 +9,7 @@ terminal sink (:class:`RayCompute`) calls ``ds.materialize()`` /
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import ray.data
@@ -39,10 +39,10 @@ class RayDataset:
     backend_name: str = "ray"
     source_uri: str = ""
     fetched_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
 
-    def with_dataset(self, dataset: ray.data.Dataset) -> "RayDataset":
+    def with_dataset(self, dataset: ray.data.Dataset) -> RayDataset:
         """Return a copy with ``dataset`` replaced; metadata preserved."""
         return RayDataset(
             dataset=dataset,

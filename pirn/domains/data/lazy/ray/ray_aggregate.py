@@ -4,30 +4,45 @@
 Two construction modes:
 
 1. ``aggregator: Callable[[ray.data.Dataset], ray.data.Dataset]`` — caller
-   supplies a transform that does any group-by / aggregate they like::
-
-        RayAggregate(
-            batch=upstream,
-            aggregator=lambda ds: ds.groupby("region").sum("amount"),
-            _config=KnotConfig(id="totals"),
-        )
-
+   supplies a transform that does any group-by / aggregate they like.
 2. ``by`` + ``aggs`` — declarative form. ``aggs`` must be a sequence of
    ray.data.aggregate-compatible aggregations (e.g.
-   ``[ray.data.aggregate.Sum("amount")]``)::
+   ``[ray.data.aggregate.Sum("amount")]``).
 
-        from ray.data.aggregate import Sum
-        RayAggregate(
-            batch=upstream,
-            by="region",
-            aggs=[Sum("amount")],
-            _config=KnotConfig(id="totals"),
-        )
+Algorithm:
+    Callable mode:
+
+    1. Validate that ``aggregator`` is callable.
+    2. Invoke ``aggregator(dataset)`` and return the resulting dataset
+       wrapped in a new :class:`RayDataset`.
+
+    Declarative mode:
+
+    1. Validate ``by`` — must be a non-empty string or non-empty sequence
+       of non-empty strings.
+    2. Validate ``aggs`` — must be a non-empty sequence.
+    3. Call ``dataset.groupby(by).aggregate(*aggs)`` and return the
+       result wrapped in a new :class:`RayDataset`.
+
+    ```text
+    if aggregator:
+        out = aggregator(dataset)
+    else:
+        out = dataset.groupby(by).aggregate(*aggs)
+    return RayDataset(dataset=out)
+    ```
+
+References:
+    [1] Ray Data — groupby and aggregate:
+        https://docs.ray.io/en/latest/data/api/doc/ray.data.Dataset.groupby.html
+    [2] Ray Data — map / custom aggregation:
+        https://docs.ray.io/en/latest/data/transforming-data.html
 """
 
 from __future__ import annotations
 
-from typing import Any, Callable, Sequence
+from collections.abc import Callable, Sequence
+from typing import Any
 
 import ray.data
 
@@ -44,11 +59,40 @@ class RayAggregate(Knot):
         *,
         batch: Knot,
         _config: KnotConfig,
-        aggregator: Callable[[ray.data.Dataset], ray.data.Dataset] | None = None,
-        by: str | Sequence[str] | None = None,
-        aggs: Sequence[Any] | None = None,
+        aggregator: Knot | Callable[[ray.data.Dataset], ray.data.Dataset] | None = None,
+        by: Knot | str | Sequence[str] | None = None,
+        aggs: Knot | Sequence[Any] | None = None,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            batch=batch,
+            aggregator=aggregator,
+            by=by,
+            aggs=aggs,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        batch: RayDataset,
+        aggregator: Any,  # Callable[[ray.data.Dataset], ray.data.Dataset] | None
+        by: Any,  # str | Sequence[str] | None
+        aggs: Any,  # Sequence[Any] | None
+        **_: Any,
+    ) -> RayDataset:
+        """Apply group-by aggregation to the deferred Ray Dataset and return the updated dataset.
+
+        Args:
+            batch: The upstream RayDataset to aggregate.
+            aggregator: A callable ``(dataset) -> dataset`` for free-form aggregation,
+                or ``None`` when using declarative ``by``/``aggs``.
+            by: Column name(s) to group by (declarative mode).
+            aggs: Sequence of ray.data.aggregate aggregations (declarative mode).
+
+        Returns:
+            A new RayDataset wrapping the aggregated Ray Data plan.
+        """
         if aggregator is None and by is None:
             raise TypeError(
                 "RayAggregate: either aggregator or (by, aggs) must be supplied"
@@ -57,69 +101,40 @@ class RayAggregate(Knot):
             raise TypeError(
                 "RayAggregate: aggregator is mutually exclusive with by/aggs"
             )
-        if aggregator is not None and not callable(aggregator):
-            raise TypeError(
-                "RayAggregate: aggregator must be a callable "
-                "(dataset) -> dataset"
-            )
-        if by is not None:
-            if isinstance(by, str):
-                if not by:
-                    raise ValueError("RayAggregate: by must be non-empty")
-            elif isinstance(by, Sequence):
-                if not by:
-                    raise ValueError("RayAggregate: by must be non-empty")
-                for column in by:
-                    if not isinstance(column, str) or not column:
-                        raise TypeError(
-                            "RayAggregate: every entry in by must be a non-empty string"
-                        )
-            else:
+        if aggregator is not None:
+            if not callable(aggregator):
                 raise TypeError(
-                    "RayAggregate: by must be a column name or sequence of names"
+                    "RayAggregate: aggregator must be a callable (dataset) -> dataset"
                 )
-            if aggs is None:
-                raise TypeError(
-                    "RayAggregate: aggs is required when by is supplied"
-                )
-            if not isinstance(aggs, Sequence) or isinstance(aggs, (str, bytes)):
-                raise TypeError(
-                    "RayAggregate: aggs must be a sequence of ray.data.aggregate "
-                    "instances"
-                )
-            if not aggs:
-                raise ValueError("RayAggregate: aggs must be non-empty")
-        self._aggregator = aggregator
-        self._by: str | tuple[str, ...] | None
+            aggregated = aggregator(batch.dataset)
+            return batch.with_dataset(aggregated)
+
+        # Declarative mode
         if isinstance(by, str):
-            self._by = by
-        elif by is not None:
-            self._by = tuple(by)
+            if not by:
+                raise ValueError("RayAggregate: by must be non-empty")
+            resolved_by: str | list[str] = by
+        elif isinstance(by, Sequence):
+            if not by:
+                raise ValueError("RayAggregate: by must be non-empty")
+            for column in by:
+                if not isinstance(column, str) or not column:
+                    raise TypeError(
+                        "RayAggregate: every entry in by must be a non-empty string"
+                    )
+            resolved_by = list(by)
         else:
-            self._by = None
-        self._aggs: tuple[Any, ...] | None = (
-            tuple(aggs) if aggs is not None else None
-        )
-        super().__init__(batch=batch, _config=_config, **kwargs)
-
-    @property
-    def by(self) -> str | tuple[str, ...] | None:
-        return self._by
-
-    async def process(self, batch: RayDataset, **_: Any) -> RayDataset:
-        """Apply group-by aggregation to the deferred Ray Dataset and return the updated dataset.
-
-        Args:
-            batch: The upstream RayDataset to aggregate.
-
-        Returns:
-            A new RayDataset wrapping the aggregated Ray Data plan.
-        """
-        if self._aggregator is not None:
-            aggregated = self._aggregator(batch.dataset)
-        else:
-            assert self._by is not None and self._aggs is not None
-            by = self._by if isinstance(self._by, str) else list(self._by)
-            grouped = batch.dataset.groupby(by)
-            aggregated = grouped.aggregate(*self._aggs)
+            raise TypeError(
+                "RayAggregate: by must be a column name or sequence of names"
+            )
+        if aggs is None:
+            raise TypeError("RayAggregate: aggs is required when by is supplied")
+        if not isinstance(aggs, Sequence) or isinstance(aggs, (str, bytes)):
+            raise TypeError(
+                "RayAggregate: aggs must be a sequence of ray.data.aggregate instances"
+            )
+        if not aggs:
+            raise ValueError("RayAggregate: aggs must be non-empty")
+        grouped = batch.dataset.groupby(resolved_by)
+        aggregated = grouped.aggregate(*aggs)
         return batch.with_dataset(aggregated)
