@@ -1,8 +1,8 @@
 """Tests for :class:`ComputerVisionPipeline`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -19,10 +19,10 @@ from tests.unit.domains.ml._stubs.recording_image_encoder_provider import (
 )
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_image_encoder(self) -> None:
         with Tapestry():
-            with pytest.raises(TypeError, match="image_encoder"):
+            with self.assertRaisesRegex(TypeError, "image_encoder"):
                 ComputerVisionPipeline(
                     pool=RecordingDatabasePool(rows=[(b"img", 0)]),
                     query="SELECT 1",
@@ -33,8 +33,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_classification_report(self) -> None:
         rows = [(b"image-bytes-" + str(i).encode(), i % 2) for i in range(40)]
         encoder = RecordingImageEncoderProvider()

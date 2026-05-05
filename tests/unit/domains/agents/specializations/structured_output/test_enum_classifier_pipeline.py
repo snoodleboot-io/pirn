@@ -1,8 +1,8 @@
 """Tests for :class:`EnumClassifierPipeline`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -15,11 +15,10 @@ from tests.unit.domains.agents.specializations.conftest import (
 )
 
 
-@pytest.mark.asyncio
-class TestEnumClassifierPipelineConstruction:
+class TestEnumClassifierPipelineConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_empty_labels(self) -> None:
         llm = StubLLMProvider(["positive"])
-        with pytest.raises(ValueError, match="labels must be a non-empty"):
+        with self.assertRaisesRegex(ValueError, "labels must be a non-empty"):
             with Tapestry():
                 EnumClassifierPipeline(
                     prompt="classify",
@@ -29,7 +28,7 @@ class TestEnumClassifierPipelineConstruction:
                 )
 
     async def test_rejects_non_llm_provider(self) -> None:
-        with pytest.raises(TypeError, match="llm must be an LLMProvider"):
+        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
             with Tapestry():
                 EnumClassifierPipeline(
                     prompt="classify",
@@ -39,8 +38,7 @@ class TestEnumClassifierPipelineConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestEnumClassifierPipelineHappyPath:
+class TestEnumClassifierPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_returns_matched_label(self) -> None:
         llm = StubLLMProvider(["positive"])
         with Tapestry() as t:

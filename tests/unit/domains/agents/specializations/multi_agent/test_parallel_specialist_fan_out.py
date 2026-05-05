@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -17,14 +17,7 @@ from pirn.tapestry import Tapestry
 
 
 class StubSpecialist(SubTapestry):
-    def __init__(
-        self,
-        *,
-        task: Any = "",
-        _config: KnotConfig,
-        reply: str = "ok",
-        **kwargs: Any,
-    ) -> None:
+    def __init__(self, *, task: Any = "", _config: KnotConfig, reply: str = "ok", **kwargs: Any,) -> None:
         self._reply = reply
         super().__init__(task=task, _config=_config, **kwargs)
 
@@ -35,10 +28,9 @@ class StubSpecialist(SubTapestry):
         )
 
 
-@pytest.mark.asyncio
-class TestParallelSpecialistFanOutConstruction:
+class TestParallelSpecialistFanOutConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_empty_specialists(self) -> None:
-        with pytest.raises(ValueError, match="specialists"):
+        with self.assertRaisesRegex(ValueError, "specialists"):
             with Tapestry():
                 ParallelSpecialistFanOut(
                     task="t",
@@ -47,7 +39,7 @@ class TestParallelSpecialistFanOutConstruction:
                 )
 
     async def test_rejects_non_subtapestry_specialist(self) -> None:
-        with pytest.raises(TypeError, match="must be a SubTapestry"):
+        with self.assertRaisesRegex(TypeError, "must be a SubTapestry"):
             with Tapestry():
                 ParallelSpecialistFanOut(
                     task="t",
@@ -56,8 +48,7 @@ class TestParallelSpecialistFanOutConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestParallelSpecialistFanOutHappyPath:
+class TestParallelSpecialistFanOutHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_collects_responses_from_every_specialist(self) -> None:
         with Tapestry():
             spec_a = StubSpecialist(

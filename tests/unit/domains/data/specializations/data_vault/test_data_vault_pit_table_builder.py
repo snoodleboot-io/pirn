@@ -1,8 +1,8 @@
 """Tests for :class:`DataVaultPITTableBuilder`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,51 +12,6 @@ from pirn.domains.data.specializations.data_vault.data_vault_pit_table_builder i
     DataVaultPITTableBuilder,
 )
 from pirn.tapestry import Tapestry
-
-
-@pytest.fixture
-async def vault_pool() -> SqlitePool:
-    """Single pool holding the spine, satellite, and PIT tables."""
-    pool = SqlitePool(SqliteConfig(database=":memory:"))
-    await pool.execute(
-        "CREATE TABLE pit_spine ("
-        "  hub_hk TEXT NOT NULL,"
-        "  snapshot_date TEXT NOT NULL"
-        ")"
-    )
-    await pool.execute_many(
-        "INSERT INTO pit_spine (hub_hk, snapshot_date) VALUES (?, ?)",
-        [
-            ("hk_1", "2026-01-01"),
-            ("hk_1", "2026-02-01"),
-            ("hk_2", "2026-01-01"),
-        ],
-    )
-    await pool.execute(
-        "CREATE TABLE sat_customer ("
-        "  hub_hk TEXT NOT NULL,"
-        "  hash_diff TEXT NOT NULL,"
-        "  load_date TEXT NOT NULL,"
-        "  load_end_date TEXT"
-        ")"
-    )
-    await pool.execute_many(
-        "INSERT INTO sat_customer (hub_hk, hash_diff, load_date, load_end_date) VALUES (?, ?, ?, ?)",
-        [
-            ("hk_1", "diff_a", "2025-12-01", "2026-01-15"),
-            ("hk_1", "diff_b", "2026-01-15", None),
-            ("hk_2", "diff_c", "2025-11-01", None),
-        ],
-    )
-    await pool.execute(
-        "CREATE TABLE pit_customer ("
-        "  hub_hk TEXT NOT NULL,"
-        "  snapshot_date TEXT NOT NULL,"
-        "  sat_customer_load_date TEXT"
-        ")"
-    )
-    yield pool
-    await pool.close()
 
 
 _SAT_CFG = [
@@ -70,10 +25,57 @@ _SAT_CFG = [
 ]
 
 
-class TestConstruction:
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self) -> None:
+        """Single pool holding the spine, satellite, and PIT tables."""
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute(
+            "CREATE TABLE pit_spine ("
+            "  hub_hk TEXT NOT NULL,"
+            "  snapshot_date TEXT NOT NULL"
+            ")"
+        )
+        await pool.execute_many(
+            "INSERT INTO pit_spine (hub_hk, snapshot_date) VALUES (?, ?)",
+            [
+                ("hk_1", "2026-01-01"),
+                ("hk_1", "2026-02-01"),
+                ("hk_2", "2026-01-01"),
+            ],
+        )
+        await pool.execute(
+            "CREATE TABLE sat_customer ("
+            "  hub_hk TEXT NOT NULL,"
+            "  hash_diff TEXT NOT NULL,"
+            "  load_date TEXT NOT NULL,"
+            "  load_end_date TEXT"
+            ")"
+        )
+        await pool.execute_many(
+            "INSERT INTO sat_customer (hub_hk, hash_diff, load_date, load_end_date) VALUES (?, ?, ?, ?)",
+            [
+                ("hk_1", "diff_a", "2025-12-01", "2026-01-15"),
+                ("hk_1", "diff_b", "2026-01-15", None),
+                ("hk_2", "diff_c", "2025-11-01", None),
+            ],
+        )
+        await pool.execute(
+            "CREATE TABLE pit_customer ("
+            "  hub_hk TEXT NOT NULL,"
+            "  snapshot_date TEXT NOT NULL,"
+            "  sat_customer_load_date TEXT"
+            ")"
+        )
+        self.vault_pool = pool
+
+    async def asyncTearDown(self) -> None:
+        await self.vault_pool.close()
+        
+        
     def test_rejects_non_pool_source(self) -> None:
         pool = SqlitePool(SqliteConfig(database=":memory:"))
-        with pytest.raises(TypeError, match="DatabaseConnectionPool"):
+        with self.assertRaisesRegex(TypeError, "DatabaseConnectionPool"):
             with Tapestry():
                 DataVaultPITTableBuilder(
                     source_pool="bad",  # type: ignore[arg-type]
@@ -86,8 +88,9 @@ class TestConstruction:
                     _config=KnotConfig(id="pit"),
                 )
 
-    def test_rejects_empty_satellite_configs(self, vault_pool: SqlitePool) -> None:
-        with pytest.raises(ValueError, match="satellite_configs"):
+    def test_rejects_empty_satellite_configs(self) -> None:
+        vault_pool = self.vault_pool
+        with self.assertRaisesRegex(ValueError, "satellite_configs"):
             with Tapestry():
                 DataVaultPITTableBuilder(
                     source_pool=vault_pool,
@@ -100,10 +103,9 @@ class TestConstruction:
                     _config=KnotConfig(id="pit"),
                 )
 
-    def test_rejects_sat_config_missing_required_key(
-        self, vault_pool: SqlitePool
-    ) -> None:
-        with pytest.raises(ValueError, match="missing required key"):
+    def test_rejects_sat_config_missing_required_key(self) -> None:
+        vault_pool = self.vault_pool
+        with self.assertRaisesRegex(ValueError, "missing required key"):
             with Tapestry():
                 DataVaultPITTableBuilder(
                     source_pool=vault_pool,
@@ -116,8 +118,9 @@ class TestConstruction:
                     _config=KnotConfig(id="pit"),
                 )
 
-    def test_rejects_invalid_target_table(self, vault_pool: SqlitePool) -> None:
-        with pytest.raises(ValueError, match="plain identifier"):
+    def test_rejects_invalid_target_table(self) -> None:
+        vault_pool = self.vault_pool
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
             with Tapestry():
                 DataVaultPITTableBuilder(
                     source_pool=vault_pool,
@@ -131,11 +134,56 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestPITTableBuilderBehaviour:
-    async def test_builds_pit_rows_for_all_spine_entries(
-        self, vault_pool: SqlitePool
-    ) -> None:
+class TestPITTableBuilderBehaviour(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self) -> None:
+        """Single pool holding the spine, satellite, and PIT tables."""
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute(
+            "CREATE TABLE pit_spine ("
+            "  hub_hk TEXT NOT NULL,"
+            "  snapshot_date TEXT NOT NULL"
+            ")"
+        )
+        await pool.execute_many(
+            "INSERT INTO pit_spine (hub_hk, snapshot_date) VALUES (?, ?)",
+            [
+                ("hk_1", "2026-01-01"),
+                ("hk_1", "2026-02-01"),
+                ("hk_2", "2026-01-01"),
+            ],
+        )
+        await pool.execute(
+            "CREATE TABLE sat_customer ("
+            "  hub_hk TEXT NOT NULL,"
+            "  hash_diff TEXT NOT NULL,"
+            "  load_date TEXT NOT NULL,"
+            "  load_end_date TEXT"
+            ")"
+        )
+        await pool.execute_many(
+            "INSERT INTO sat_customer (hub_hk, hash_diff, load_date, load_end_date) VALUES (?, ?, ?, ?)",
+            [
+                ("hk_1", "diff_a", "2025-12-01", "2026-01-15"),
+                ("hk_1", "diff_b", "2026-01-15", None),
+                ("hk_2", "diff_c", "2025-11-01", None),
+            ],
+        )
+        await pool.execute(
+            "CREATE TABLE pit_customer ("
+            "  hub_hk TEXT NOT NULL,"
+            "  snapshot_date TEXT NOT NULL,"
+            "  sat_customer_load_date TEXT"
+            ")"
+        )
+        self.vault_pool = pool
+
+    async def asyncTearDown(self) -> None:
+        await self.vault_pool.close()
+        
+        
+    async def test_builds_pit_rows_for_all_spine_entries(self) -> None:
+        vault_pool = self.vault_pool
         with Tapestry() as t:
             DataVaultPITTableBuilder(
                 source_pool=vault_pool,
@@ -155,9 +203,8 @@ class TestPITTableBuilderBehaviour:
         )
         assert len(rows) == 3
 
-    async def test_pointer_resolves_correct_as_of_version(
-        self, vault_pool: SqlitePool
-    ) -> None:
+    async def test_pointer_resolves_correct_as_of_version(self) -> None:
+        vault_pool = self.vault_pool
         with Tapestry() as t:
             DataVaultPITTableBuilder(
                 source_pool=vault_pool,
@@ -178,9 +225,8 @@ class TestPITTableBuilderBehaviour:
         assert by_key[("hk_1", "2026-01-01")] == "2025-12-01"
         assert by_key[("hk_1", "2026-02-01")] == "2026-01-15"
 
-    async def test_rebuild_truncates_existing_rows(
-        self, vault_pool: SqlitePool
-    ) -> None:
+    async def test_rebuild_truncates_existing_rows(self) -> None:
+        vault_pool = self.vault_pool
         for run_id in ("pit_r1", "pit_r2"):
             with Tapestry() as t:
                 DataVaultPITTableBuilder(

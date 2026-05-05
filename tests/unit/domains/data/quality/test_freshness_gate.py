@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -24,8 +24,7 @@ def _batch_with_newest(age: timedelta):
     return emit
 
 
-@pytest.mark.asyncio
-class TestFreshnessGate:
+class TestFreshnessGate(unittest.IsolatedAsyncioTestCase):
     async def test_passes_when_newest_is_recent(self) -> None:
         with Tapestry() as t:
             batch = _batch_with_newest(timedelta(minutes=30))(_config=KnotConfig(id="batch"))
@@ -115,14 +114,14 @@ class TestFreshnessGate:
         assert report.passed is True
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_column(self) -> None:
         @knot
         async def empty() -> DataBatch:
             return DataBatch()
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(ValueError, match="non-empty"):
+            with self.assertRaisesRegex(ValueError, "non-empty"):
                 FreshnessGate(
                     batch=batch, column="", max_age=timedelta(hours=1),
                     _config=KnotConfig(id="f"),
@@ -134,7 +133,7 @@ class TestConstruction:
             return DataBatch()
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="timedelta"):
+            with self.assertRaisesRegex(TypeError, "timedelta"):
                 FreshnessGate(
                     batch=batch, column="t", max_age=3600,  # type: ignore[arg-type]
                     _config=KnotConfig(id="f"),
@@ -146,7 +145,7 @@ class TestConstruction:
             return DataBatch()
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(ValueError, match="positive"):
+            with self.assertRaisesRegex(ValueError, "positive"):
                 FreshnessGate(
                     batch=batch, column="t", max_age=timedelta(0),
                     _config=KnotConfig(id="f"),

@@ -6,8 +6,8 @@ Uses injected fakes — no real Azure Cosmos DB or azure-cosmos needed.
 from __future__ import annotations
 
 from typing import Any, AsyncIterator
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.document.cosmosdb_config import CosmosDBConfig
@@ -30,9 +30,7 @@ class FakeCosmosContainer:
             result["id"] = "generated-id"
         return result
 
-    async def query_items(
-        self, query: str, enable_cross_partition_query: bool = False
-    ) -> AsyncIterator[dict[str, Any]]:
+    async def query_items(self, query: str, enable_cross_partition_query: bool = False) -> AsyncIterator[dict[str, Any]]:
         for item in self._items:
             yield item
 
@@ -59,26 +57,27 @@ def make_pool(
 # ───────────────────────────────────────────────────────────── conformance
 
 
-def test_implements_database_connection_pool() -> None:
-    pool, _ = make_pool()
-    assert isinstance(pool, DatabaseConnectionPool)
 
-
-def test_construction_requires_config_or_container_client() -> None:
-    with pytest.raises(TypeError, match="config= or container_client="):
-        CosmosDBPool()
-
-
-def test_config_requires_non_empty_endpoint() -> None:
-    with pytest.raises(ValueError, match="endpoint must be non-empty"):
-        CosmosDBConfig(endpoint="")
-
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_database_connection_pool(self) -> None:
+        pool, _ = make_pool()
+        assert isinstance(pool, DatabaseConnectionPool)
+    
+    
+    def test_construction_requires_config_or_container_client(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or container_client="):
+            CosmosDBPool()
+    
+    
+    def test_config_requires_non_empty_endpoint(self) -> None:
+        with self.assertRaisesRegex(ValueError, "endpoint must be non-empty"):
+            CosmosDBConfig(endpoint="")
+    
+    
 # ───────────────────────────────────────────────────────────── operations
 
 
-@pytest.mark.asyncio
-class TestOperations:
+class TestOperations(unittest.IsolatedAsyncioTestCase):
     async def test_execute_upserts_item(self) -> None:
         pool, fake_container = make_pool()
         item = {"id": "item-001", "name": "Alice"}
@@ -117,8 +116,7 @@ class TestOperations:
 # ───────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_marks_pool_closed(self) -> None:
         pool, _ = make_pool()
         await pool.close()
@@ -127,14 +125,14 @@ class TestLifecycle:
     async def test_acquire_after_close_raises(self) -> None:
         pool, _ = make_pool()
         await pool.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await pool.acquire()
 
 
 # ───────────────────────────────────────────────────────────── credential safety
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_repr_redacts_key(self) -> None:
         cfg = CosmosDBConfig(
             endpoint="https://account.documents.azure.com:443/",
@@ -153,8 +151,7 @@ class TestCredentialSafety:
         assert d["key"] == "<redacted>"
 
 
-@pytest.mark.asyncio
-class TestSecurity:
+class TestSecurity(unittest.IsolatedAsyncioTestCase):
     async def test_close_clears_credentials(self) -> None:
         pool, _ = make_pool()
         assert pool._config is not None
@@ -164,5 +161,5 @@ class TestSecurity:
     async def test_use_after_close_raises(self) -> None:
         pool, _ = make_pool()
         await pool.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await pool.acquire()

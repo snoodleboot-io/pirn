@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -31,9 +31,9 @@ async def emit_accel_data() -> dict[str, Any]:
     }
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_knot_accel_data(self) -> None:
-        with pytest.raises(TypeError, match="accel_data"):
+        with self.assertRaisesRegex(TypeError, "accel_data"):
             AccelerometerActivityClassifier(
                 accel_data="not-a-knot",  # type: ignore[arg-type]
                 sample_rate_hz=50.0,
@@ -44,7 +44,7 @@ class TestConstruction:
     def test_rejects_non_positive_sample_rate(self) -> None:
         with Tapestry():
             a = emit_accel_data(_config=KnotConfig(id="a"))
-            with pytest.raises(ValueError, match="sample_rate_hz"):
+            with self.assertRaisesRegex(ValueError, "sample_rate_hz"):
                 AccelerometerActivityClassifier(
                     accel_data=a,
                     sample_rate_hz=0.0,
@@ -55,7 +55,7 @@ class TestConstruction:
     def test_rejects_non_positive_window_sec(self) -> None:
         with Tapestry():
             a = emit_accel_data(_config=KnotConfig(id="a"))
-            with pytest.raises(ValueError, match="window_sec"):
+            with self.assertRaisesRegex(ValueError, "window_sec"):
                 AccelerometerActivityClassifier(
                     accel_data=a,
                     sample_rate_hz=50.0,
@@ -66,7 +66,7 @@ class TestConstruction:
     def test_rejects_empty_activity_classes(self) -> None:
         with Tapestry():
             a = emit_accel_data(_config=KnotConfig(id="a"))
-            with pytest.raises(ValueError, match="activity_classes"):
+            with self.assertRaisesRegex(ValueError, "activity_classes"):
                 AccelerometerActivityClassifier(
                     accel_data=a,
                     sample_rate_hz=50.0,
@@ -76,8 +76,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_list(self) -> None:
         with Tapestry() as t:
             a = emit_accel_data(_config=KnotConfig(id="a"))

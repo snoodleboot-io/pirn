@@ -7,11 +7,14 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
+import unittest
 
 import numpy as np
-import pytest
 
-pytest.importorskip("pyedflib")
+try:
+    import pyedflib
+except ImportError as _e:
+    raise unittest.SkipTest("pyedflib not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -88,7 +91,7 @@ def _make_signal_records(n_channels: int = 2, n_samples: int = 512) -> list[dict
 # Construction
 # ---------------------------------------------------------------------------
 
-class TestBdfFormatConstruction:
+class TestBdfFormatConstruction(unittest.TestCase):
     def test_is_batch_format(self) -> None:
         assert isinstance(BdfFormat(), BatchFileFormat)
 
@@ -106,7 +109,7 @@ class TestBdfFormatConstruction:
 # PHI sanitisation
 # ---------------------------------------------------------------------------
 
-class TestBdfFormatPhiSanitisation:
+class TestBdfFormatPhiSanitisation(unittest.IsolatedAsyncioTestCase):
     def test_phi_fields_defined(self) -> None:
         phi = BdfFormat._phi_header_fields
         assert "patientname" in phi
@@ -114,7 +117,6 @@ class TestBdfFormatPhiSanitisation:
         assert "birthdate" in phi
         assert "admincode" in phi
 
-    @pytest.mark.asyncio
     async def test_decoded_records_have_no_phi_keys(self) -> None:
         payload = _make_minimal_bdf_bytes()
         records = await _decode_bytes(BdfFormat(), payload)
@@ -123,7 +125,6 @@ class TestBdfFormatPhiSanitisation:
             for key in rec:
                 assert key.lower() not in phi_keys
 
-    @pytest.mark.asyncio
     async def test_decoded_record_shape(self) -> None:
         payload = _make_minimal_bdf_bytes(n_channels=1)
         records = await _decode_bytes(BdfFormat(), payload)
@@ -138,8 +139,7 @@ class TestBdfFormatPhiSanitisation:
 # Round-trip
 # ---------------------------------------------------------------------------
 
-class TestBdfFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestBdfFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_single_channel(self) -> None:
         # BDF (like EDF) stores one data-record per second; n_samples
         # must equal sample_rate so the record fills exactly one second.
@@ -167,7 +167,6 @@ class TestBdfFormatRoundTrip:
         assert decoded[0]["sample_rate"] == sample_rate
         assert decoded[0]["n_samples"] == n_samples
 
-    @pytest.mark.asyncio
     async def test_round_trip_multi_channel(self) -> None:
         records = _make_signal_records(n_channels=4, n_samples=512)
         fmt = BdfFormat()
@@ -184,8 +183,7 @@ class TestBdfFormatRoundTrip:
 # Errors
 # ---------------------------------------------------------------------------
 
-class TestBdfFormatErrors:
-    @pytest.mark.asyncio
+class TestBdfFormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_encode_empty_raises_value_error(self) -> None:
         fmt = BdfFormat()
 
@@ -193,18 +191,17 @@ class TestBdfFormatErrors:
             return
             yield
 
-        with pytest.raises(ValueError, match="empty"):
+        with self.assertRaisesRegex(ValueError, "empty"):
             async for _ in await fmt.write(_empty()):
                 pass
 
-    @pytest.mark.asyncio
     async def test_decode_invalid_bytes_raises(self) -> None:
         fmt = BdfFormat()
 
         async def _iter():
             yield b"this is not a bdf file"
 
-        with pytest.raises(Exception):
+        with self.assertRaises(Exception):
             async for _ in await fmt.read(_iter()):
                 pass
 
@@ -213,8 +210,8 @@ class TestBdfFormatErrors:
 # Missing dependency
 # ---------------------------------------------------------------------------
 
-class TestBdfFormatMissingDep:
+class TestBdfFormatMissingDep(unittest.TestCase):
     def test_load_pyedflib_raises_on_missing(self) -> None:
         with patch.dict("sys.modules", {"pyedflib": None}):
-            with pytest.raises(ImportError, match="pirn\\[health\\]"):
+            with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
                 BdfFormat._load_pyedflib()

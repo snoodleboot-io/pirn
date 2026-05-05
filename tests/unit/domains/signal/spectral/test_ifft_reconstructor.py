@@ -1,8 +1,8 @@
 """Unit tests for :class:`IFFTReconstructor`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -19,15 +19,14 @@ async def emit_spectrum_frame() -> SpectrumFrame:
     return SpectrumFrame(signal_id="spec", frequency_bins=257, frequency_resolution_hz=1.953)
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_accepts_spectrum_knot(self) -> None:
         with Tapestry():
             sp = emit_spectrum_frame(_config=KnotConfig(id="sp"))
             IFFTReconstructor(spectrum=sp, _config=KnotConfig(id="ifft"))
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_signal_frame(self) -> None:
         with Tapestry() as t:
             sp = emit_spectrum_frame(_config=KnotConfig(id="sp"))

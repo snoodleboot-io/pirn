@@ -1,8 +1,8 @@
 """Unit tests for :class:`GeneSetEnrichmentRunner`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -11,9 +11,9 @@ from pirn.domains.health.genomics.gene_set_enrichment_runner import GeneSetEnric
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_invalid_database(self) -> None:
-        with pytest.raises(ValueError, match="gene_set_database"):
+        with self.assertRaisesRegex(ValueError, "gene_set_database"):
             GeneSetEnrichmentRunner(
                 gene_ranks=Parameter("gr", list, default=[], _config=KnotConfig(id="gr")),
                 gene_set_database="invalid_db",
@@ -23,7 +23,7 @@ class TestConstruction:
             )
 
     def test_rejects_invalid_method(self) -> None:
-        with pytest.raises(ValueError, match="method"):
+        with self.assertRaisesRegex(ValueError, "method"):
             GeneSetEnrichmentRunner(
                 gene_ranks=Parameter("gr", list, default=[], _config=KnotConfig(id="gr")),
                 gene_set_database="hallmark",
@@ -33,7 +33,7 @@ class TestConstruction:
             )
 
     def test_rejects_fdr_out_of_range(self) -> None:
-        with pytest.raises(ValueError, match="fdr_threshold"):
+        with self.assertRaisesRegex(ValueError, "fdr_threshold"):
             GeneSetEnrichmentRunner(
                 gene_ranks=Parameter("gr", list, default=[], _config=KnotConfig(id="gr")),
                 gene_set_database="hallmark",
@@ -43,8 +43,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_dict(self) -> None:
         ranks = [{"gene_id": "TP53", "rank_metric": 2.5}]
         with Tapestry() as t:

@@ -1,8 +1,8 @@
 """Tests for :class:`AblationStudyPipeline`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -33,10 +33,10 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_knot_split(self) -> None:
         with Tapestry():
-            with pytest.raises(TypeError, match="split must be a Knot"):
+            with self.assertRaisesRegex(TypeError, "split must be a Knot"):
                 AblationStudyPipeline(
                     split="not-a-knot",  # type: ignore[arg-type]
                     algorithm="rf",
@@ -48,7 +48,7 @@ class TestConstruction:
     def test_rejects_empty_feature_groups(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="feature_groups"):
+            with self.assertRaisesRegex(ValueError, "feature_groups"):
                 AblationStudyPipeline(
                     split=split,
                     algorithm="rf",
@@ -60,7 +60,7 @@ class TestConstruction:
     def test_rejects_full_arm_name(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="reserved"):
+            with self.assertRaisesRegex(ValueError, "reserved"):
                 AblationStudyPipeline(
                     split=split,
                     algorithm="rf",
@@ -70,7 +70,7 @@ class TestConstruction:
                 )
 
 
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_one_report_per_arm(self) -> None:
         with Tapestry() as t:
             split = emit_split(_config=KnotConfig(id="split"))

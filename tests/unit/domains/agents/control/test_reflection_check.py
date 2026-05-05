@@ -1,8 +1,8 @@
 """Unit tests for :class:`ReflectionCheck`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -18,8 +18,7 @@ async def emit_response() -> AgentResponse:
     return AgentResponse(content="some answer")
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_yes_means_iterate(self) -> None:
         llm = StubLLMProvider(responses=["yes"])
         with Tapestry() as t:
@@ -37,7 +36,7 @@ class TestProcess:
         assert result.outputs["g"] is False
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_requires_llm_provider(self) -> None:
         @knot
         async def r() -> AgentResponse:
@@ -45,7 +44,7 @@ class TestConstruction:
 
         with Tapestry():
             rr = r(_config=KnotConfig(id="r"))
-            with pytest.raises(TypeError, match="LLMProvider"):
+            with self.assertRaisesRegex(TypeError, "LLMProvider"):
                 ReflectionCheck(
                     response=rr,
                     llm="bad",  # type: ignore[arg-type]

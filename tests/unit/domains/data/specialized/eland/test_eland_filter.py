@@ -8,8 +8,8 @@ requiring a live Elasticsearch cluster.
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -32,7 +32,7 @@ class _FakeFrame:
         return child
 
 
-class TestElandFilterConstruction:
+class TestElandFilterConstruction(unittest.TestCase):
     def test_rejects_non_callable_predicate(self) -> None:
         @knot
         async def emit() -> ElandDataFrame:
@@ -40,15 +40,14 @@ class TestElandFilterConstruction:
 
         with Tapestry():
             up = emit(_config=KnotConfig(id="up"))
-            with pytest.raises(TypeError, match="predicate must be a callable"):
+            with self.assertRaisesRegex(TypeError, "predicate must be a callable"):
                 ElandFilter(
                     frame=up, predicate="status == active",  # type: ignore[arg-type]
                     _config=KnotConfig(id="f"),
                 )
 
 
-@pytest.mark.asyncio
-class TestElandFilterProcess:
+class TestElandFilterProcess(unittest.IsolatedAsyncioTestCase):
     async def test_invokes_predicate_and_indexes_frame(self) -> None:
         @knot
         async def emit() -> ElandDataFrame:

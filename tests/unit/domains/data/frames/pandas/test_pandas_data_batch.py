@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from datetime import timezone
+import unittest
 
 import pandas as pd
 
 from pirn.domains.data.frames.pandas.pandas_data_batch import PandasDataBatch
 
 
-class TestPandasDataBatch:
+class TestPandasDataBatch(unittest.TestCase):
     def test_row_count_and_columns_reflect_frame(self) -> None:
         frame = pd.DataFrame({"id": [1, 2, 3], "name": ["a", "b", "c"]})
         batch = PandasDataBatch(frame=frame, source_uri="memory://test")

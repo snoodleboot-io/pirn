@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -22,9 +22,9 @@ async def emit_survival_data() -> list[dict[str, Any]]:
     ]
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_knot_survival_data(self) -> None:
-        with pytest.raises(TypeError, match="survival_data"):
+        with self.assertRaisesRegex(TypeError, "survival_data"):
             SurvivalAnalysisPipeline(
                 survival_data="not-a-knot",  # type: ignore[arg-type]
                 time_col="time",
@@ -35,7 +35,7 @@ class TestConstruction:
     def test_rejects_empty_time_col(self) -> None:
         with Tapestry():
             d = emit_survival_data(_config=KnotConfig(id="d"))
-            with pytest.raises(ValueError, match="time_col"):
+            with self.assertRaisesRegex(ValueError, "time_col"):
                 SurvivalAnalysisPipeline(
                     survival_data=d,
                     time_col="",
@@ -46,7 +46,7 @@ class TestConstruction:
     def test_rejects_empty_event_col(self) -> None:
         with Tapestry():
             d = emit_survival_data(_config=KnotConfig(id="d"))
-            with pytest.raises(ValueError, match="event_col"):
+            with self.assertRaisesRegex(ValueError, "event_col"):
                 SurvivalAnalysisPipeline(
                     survival_data=d,
                     time_col="time",
@@ -55,8 +55,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_dict_with_required_keys(self) -> None:
         with Tapestry() as t:
             d = emit_survival_data(_config=KnotConfig(id="d"))

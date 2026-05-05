@@ -1,8 +1,8 @@
 """Tests for :class:`TimeSeriesCrossValidator`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -22,11 +22,11 @@ async def emit_dataset() -> MLDataset:
     )
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_n_splits_below_two(self) -> None:
         with Tapestry():
             dataset = emit_dataset(_config=KnotConfig(id="dataset"))
-            with pytest.raises(ValueError, match="n_splits must be >= 2"):
+            with self.assertRaisesRegex(ValueError, "n_splits must be >= 2"):
                 TimeSeriesCrossValidator(
                     dataset=dataset,
                     algorithm="rf",
@@ -38,7 +38,7 @@ class TestConstruction:
     def test_rejects_empty_algorithm(self) -> None:
         with Tapestry():
             dataset = emit_dataset(_config=KnotConfig(id="dataset"))
-            with pytest.raises(ValueError, match="algorithm"):
+            with self.assertRaisesRegex(ValueError, "algorithm"):
                 TimeSeriesCrossValidator(
                     dataset=dataset,
                     algorithm="",
@@ -47,7 +47,7 @@ class TestConstruction:
                 )
 
 
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_returns_eval_report_with_correct_n_splits(self) -> None:
         with Tapestry() as t:
             dataset = emit_dataset(_config=KnotConfig(id="dataset"))

@@ -1,10 +1,13 @@
 """Tests for :class:`SdtmXptFormat` — SDTM SAS Transport (XPT) format."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
-pytest.importorskip("pyreadstat")
+try:
+    import pyreadstat
+except ImportError as _e:
+    raise unittest.SkipTest("pyreadstat not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -53,7 +56,7 @@ async def _decode(fmt: SdtmXptFormat, payload: bytes) -> list[dict]:
 # Construction
 # ---------------------------------------------------------------------------
 
-class TestSdtmXptFormatConstruction:
+class TestSdtmXptFormatConstruction(unittest.TestCase):
     def test_is_batch_format(self) -> None:
         assert isinstance(SdtmXptFormat(), BatchFileFormat)
 
@@ -68,22 +71,19 @@ class TestSdtmXptFormatConstruction:
 # PHI sanitisation (SDTM is de-identified; verify metadata handling)
 # ---------------------------------------------------------------------------
 
-class TestSdtmXptFormatPhiSanitisation:
-    @pytest.mark.asyncio
+class TestSdtmXptFormatPhiSanitisation(unittest.IsolatedAsyncioTestCase):
     async def test_first_record_has_metadata(self) -> None:
         rows = [{"SUBJ": "001", "AGE": 30}, {"SUBJ": "002", "AGE": 25}]
         payload = _make_xpt_bytes(rows)
         records = await _decode(SdtmXptFormat(), payload)
         assert "_metadata" in records[0]
 
-    @pytest.mark.asyncio
     async def test_subsequent_records_no_metadata(self) -> None:
         rows = [{"SUBJ": "001", "AGE": 30}, {"SUBJ": "002", "AGE": 25}]
         payload = _make_xpt_bytes(rows)
         records = await _decode(SdtmXptFormat(), payload)
         assert "_metadata" not in records[1]
 
-    @pytest.mark.asyncio
     async def test_metadata_contains_column_labels(self) -> None:
         rows = [{"SUBJ": "001"}]
         payload = _make_xpt_bytes(rows, column_labels={"SUBJ": "Subject ID"})
@@ -92,7 +92,6 @@ class TestSdtmXptFormatPhiSanitisation:
         assert "column_labels" in meta
         assert meta["column_labels"].get("SUBJ") == "Subject ID"
 
-    @pytest.mark.asyncio
     async def test_metadata_contains_file_label(self) -> None:
         rows = [{"SUBJ": "001"}]
         payload = _make_xpt_bytes(rows, file_label="DM Dataset")
@@ -105,8 +104,7 @@ class TestSdtmXptFormatPhiSanitisation:
 # Round-trip
 # ---------------------------------------------------------------------------
 
-class TestSdtmXptFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestSdtmXptFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_row_values_preserved(self) -> None:
         rows = [{"SUBJ": "001", "AGE": 30}, {"SUBJ": "002", "AGE": 25}]
         payload = _make_xpt_bytes(rows)
@@ -116,7 +114,6 @@ class TestSdtmXptFormatRoundTrip:
         re_decoded = await FormatRoundTrip.decode(fmt, encoded)
         assert len(re_decoded) == 2
 
-    @pytest.mark.asyncio
     async def test_round_trip_single_row(self) -> None:
         rows = [{"SUBJ": "001", "RACE": "WHITE"}]
         payload = _make_xpt_bytes(rows)
@@ -131,15 +128,14 @@ class TestSdtmXptFormatRoundTrip:
 # Error paths
 # ---------------------------------------------------------------------------
 
-class TestSdtmXptFormatErrors:
-    @pytest.mark.asyncio
+class TestSdtmXptFormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_invalid_payload_raises(self) -> None:
         fmt = SdtmXptFormat()
 
         async def _iter():
             yield b"this is not an xpt file"
 
-        with pytest.raises(Exception):
+        with self.assertRaises(Exception):
             async for _ in await fmt.read(_iter()):
                 pass
 
@@ -148,12 +144,11 @@ class TestSdtmXptFormatErrors:
 # Missing dependency
 # ---------------------------------------------------------------------------
 
-class TestSdtmXptFormatMissingDep:
-    def test_missing_pyreadstat_raises(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+class TestSdtmXptFormatMissingDep(unittest.TestCase):
+    def test_missing_pyreadstat_raises(self) -> None:
+        # TODO(unittest-migrate): replace 'monkeypatch' built-in fixture — use unittest.mock.patch / assertLogs
         import sys
         monkeypatch.setitem(sys.modules, "pyreadstat", None)  # type: ignore[arg-type]
         fmt = SdtmXptFormat()
-        with pytest.raises(ImportError, match="pirn\\[health\\]"):
+        with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
             fmt._load_pyreadstat()

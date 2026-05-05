@@ -1,8 +1,8 @@
 """Unit tests for :class:`FHIRPatientIngestor`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -13,9 +13,9 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.health.conftest import StubFHIRClient
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_client(self) -> None:
-        with pytest.raises(TypeError, match="FHIRClient"):
+        with self.assertRaisesRegex(TypeError, "FHIRClient"):
             FHIRPatientIngestor(
                 client="x",  # type: ignore[arg-type]
                 search_params={},
@@ -23,7 +23,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_mapping_params(self) -> None:
-        with pytest.raises(TypeError, match="search_params"):
+        with self.assertRaisesRegex(TypeError, "search_params"):
             FHIRPatientIngestor(
                 client=StubFHIRClient(),
                 search_params=42,  # type: ignore[arg-type]
@@ -31,8 +31,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_tuple_of_records(self) -> None:
         with Tapestry() as t:
             FHIRPatientIngestor(

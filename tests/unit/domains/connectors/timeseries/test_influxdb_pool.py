@@ -6,8 +6,8 @@ Uses injected stubs — no real InfluxDB needed.
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.timeseries.influxdb_config import InfluxDBConfig
@@ -46,11 +46,7 @@ class FakeInfluxQueryAPI:
 
 
 class FakeInfluxClient:
-    def __init__(
-        self,
-        write_api: FakeInfluxWriteAPI | None = None,
-        query_api: FakeInfluxQueryAPI | None = None,
-    ) -> None:
+    def __init__(self, write_api: FakeInfluxWriteAPI | None = None, query_api: FakeInfluxQueryAPI | None = None,) -> None:
         self._write_api = write_api or FakeInfluxWriteAPI()
         self._query_api = query_api or FakeInfluxQueryAPI()
         self.closed = False
@@ -81,40 +77,41 @@ def make_pool(client: FakeInfluxClient | None = None) -> InfluxDBPool:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-def test_implements_database_connection_pool() -> None:
-    pool = make_pool()
-    assert isinstance(pool, DatabaseConnectionPool)
 
-
-def test_construction_requires_config_or_client() -> None:
-    with pytest.raises(TypeError, match="config= or client="):
-        InfluxDBPool()
-
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_database_connection_pool(self) -> None:
+        pool = make_pool()
+        assert isinstance(pool, DatabaseConnectionPool)
+    
+    
+    def test_construction_requires_config_or_client(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or client="):
+            InfluxDBPool()
+    
+    
 # ───────────────────────────────────────────────────────────── config validation
 
 
-def test_config_requires_org() -> None:
-    with pytest.raises(ValueError, match="org"):
-        InfluxDBConfig(org="", bucket="b")
-
-
-def test_config_requires_bucket() -> None:
-    with pytest.raises(ValueError, match="bucket"):
-        InfluxDBConfig(org="o", bucket="")
-
-
-def test_config_repr_redacts_token() -> None:
-    cfg = make_config(token="super-secret-token")
-    assert "super-secret-token" not in repr(cfg)
-    assert "<redacted>" in repr(cfg)
-
-
+    def test_config_requires_org(self) -> None:
+        with self.assertRaisesRegex(ValueError, "org"):
+            InfluxDBConfig(org="", bucket="b")
+    
+    
+    def test_config_requires_bucket(self) -> None:
+        with self.assertRaisesRegex(ValueError, "bucket"):
+            InfluxDBConfig(org="o", bucket="")
+    
+    
+    def test_config_repr_redacts_token(self) -> None:
+        cfg = make_config(token="super-secret-token")
+        assert "super-secret-token" not in repr(cfg)
+        assert "<redacted>" in repr(cfg)
+    
+    
 # ───────────────────────────────────────────────────────────── delegation
 
 
-@pytest.mark.asyncio
-class TestDelegation:
+class TestDelegation(unittest.IsolatedAsyncioTestCase):
     async def test_execute_writes_line_protocol(self) -> None:
         write_api = FakeInfluxWriteAPI()
         client = FakeInfluxClient(write_api=write_api)
@@ -162,8 +159,7 @@ class TestDelegation:
 # ───────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_closes_underlying_client(self) -> None:
         fake_client = FakeInfluxClient()
         pool = InfluxDBPool(client=fake_client)
@@ -173,7 +169,7 @@ class TestLifecycle:
     async def test_acquire_after_close_raises(self) -> None:
         pool = make_pool()
         await pool.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await pool.acquire()
 
     async def test_close_clears_credentials(self) -> None:
@@ -185,11 +181,11 @@ class TestLifecycle:
     async def test_use_after_close_raises(self) -> None:
         pool = InfluxDBPool(config=make_config(), client=FakeInfluxClient())
         await pool.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await pool.acquire()
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_audit_dict_redacts_token(self) -> None:
         cfg = make_config(token="supersecrettoken")
         d = cfg.to_audit_dict()

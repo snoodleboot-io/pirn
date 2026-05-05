@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import unittest
 
 from pirn.domains.agents.types.agent_message import AgentMessage
 
 
-class TestRoundtrip:
+class TestRoundtrip(unittest.TestCase):
     def test_construct_minimum_fields(self) -> None:
         msg = AgentMessage(role="user", content="hello")
         assert msg.role == "user"

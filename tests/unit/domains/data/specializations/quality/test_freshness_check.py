@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone, timedelta
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -16,47 +16,25 @@ from pirn.domains.data.specializations.quality.freshness_check import (
 from pirn.tapestry import Tapestry
 
 
-@pytest.fixture
-async def pool_fresh() -> SqlitePool:
-    p = SqlitePool(SqliteConfig(database=":memory:"))
-    await p.execute(
-        "CREATE TABLE events (id INTEGER PRIMARY KEY, updated_at TEXT NOT NULL)"
-    )
-    now = datetime.now(timezone.utc).isoformat()
-    await p.execute(
-        "INSERT INTO events (id, updated_at) VALUES (?, ?)", (1, now)
-    )
-    yield p
-    await p.close()
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
+    async def asyncSetUp(self) -> None:
+        p = SqlitePool(SqliteConfig(database=":memory:"))
+        await p.execute(
+            "CREATE TABLE events (id INTEGER PRIMARY KEY, updated_at TEXT NOT NULL)"
+        )
+        now = datetime.now(timezone.utc).isoformat()
+        await p.execute(
+            "INSERT INTO events (id, updated_at) VALUES (?, ?)", (1, now)
+        )
+        self.pool_fresh = p
 
-@pytest.fixture
-async def pool_stale() -> SqlitePool:
-    p = SqlitePool(SqliteConfig(database=":memory:"))
-    await p.execute(
-        "CREATE TABLE events (id INTEGER PRIMARY KEY, updated_at TEXT NOT NULL)"
-    )
-    old = (datetime.now(timezone.utc) - timedelta(hours=25)).isoformat()
-    await p.execute(
-        "INSERT INTO events (id, updated_at) VALUES (?, ?)", (1, old)
-    )
-    yield p
-    await p.close()
-
-
-@pytest.fixture
-async def pool_empty() -> SqlitePool:
-    p = SqlitePool(SqliteConfig(database=":memory:"))
-    await p.execute(
-        "CREATE TABLE events (id INTEGER PRIMARY KEY, updated_at TEXT NOT NULL)"
-    )
-    yield p
-    await p.close()
-
-
-class TestConstruction:
+    async def asyncTearDown(self) -> None:
+        await self.pool_fresh.close()
+        
+        
     def test_rejects_non_pool(self) -> None:
-        with pytest.raises(TypeError, match="DatabaseConnectionPool"):
+        with self.assertRaisesRegex(TypeError, "DatabaseConnectionPool"):
             FreshnessCheck(
                 pool="bad",  # type: ignore[arg-type]
                 monitored_table="events",
@@ -65,8 +43,9 @@ class TestConstruction:
                 _config=KnotConfig(id="fresh"),
             )
 
-    def test_rejects_invalid_max_age(self, pool_fresh: SqlitePool) -> None:
-        with pytest.raises(ValueError, match="max_age_seconds"):
+    def test_rejects_invalid_max_age(self) -> None:
+        pool_fresh = self.pool_fresh
+        with self.assertRaisesRegex(ValueError, "max_age_seconds"):
             FreshnessCheck(
                 pool=pool_fresh,
                 monitored_table="events",
@@ -76,11 +55,45 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestFreshnessCheckBehaviour:
-    async def test_fresh_data_does_not_breach_sla(
-        self, pool_fresh: SqlitePool
-    ) -> None:
+class TestFreshnessCheckBehaviour(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self) -> None:
+        p = SqlitePool(SqliteConfig(database=":memory:"))
+        await p.execute(
+            "CREATE TABLE events (id INTEGER PRIMARY KEY, updated_at TEXT NOT NULL)"
+        )
+        self.pool_empty = p
+        p = SqlitePool(SqliteConfig(database=":memory:"))
+        await p.execute(
+            "CREATE TABLE events (id INTEGER PRIMARY KEY, updated_at TEXT NOT NULL)"
+        )
+        now = datetime.now(timezone.utc).isoformat()
+        await p.execute(
+            "INSERT INTO events (id, updated_at) VALUES (?, ?)", (1, now)
+        )
+        self.pool_fresh = p
+        p = SqlitePool(SqliteConfig(database=":memory:"))
+        await p.execute(
+            "CREATE TABLE events (id INTEGER PRIMARY KEY, updated_at TEXT NOT NULL)"
+        )
+        old = (datetime.now(timezone.utc) - timedelta(hours=25)).isoformat()
+        await p.execute(
+            "INSERT INTO events (id, updated_at) VALUES (?, ?)", (1, old)
+        )
+        self.pool_stale = p
+
+    async def asyncTearDown(self) -> None:
+        await self.pool_empty.close()
+        
+        
+        await self.pool_fresh.close()
+        
+        
+        await self.pool_stale.close()
+        
+        
+    async def test_fresh_data_does_not_breach_sla(self) -> None:
+        pool_fresh = self.pool_fresh
         with Tapestry() as t:
             knot = FreshnessCheck(
                 pool=pool_fresh,
@@ -94,9 +107,8 @@ class TestFreshnessCheckBehaviour:
         out = run_result.outputs[knot.config.id]
         assert out["sla_breached"] is False
 
-    async def test_stale_data_breaches_sla(
-        self, pool_stale: SqlitePool
-    ) -> None:
+    async def test_stale_data_breaches_sla(self) -> None:
+        pool_stale = self.pool_stale
         with Tapestry() as t:
             knot = FreshnessCheck(
                 pool=pool_stale,
@@ -110,7 +122,8 @@ class TestFreshnessCheckBehaviour:
         out = run_result.outputs[knot.config.id]
         assert out["sla_breached"] is True
 
-    async def test_fails_on_empty_table(self, pool_empty: SqlitePool) -> None:
+    async def test_fails_on_empty_table(self) -> None:
+        pool_empty = self.pool_empty
         with Tapestry() as t:
             FreshnessCheck(
                 pool=pool_empty,

@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -38,8 +38,7 @@ class _MissingCurveSource(Knot):
         }
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_parsed_mud_log(self) -> None:
         with Tapestry() as t:
             src = _MudLogSource(_config=KnotConfig(id="src"))

@@ -1,8 +1,8 @@
 """Tests for :class:`OutputGuardrailGate`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,11 +14,10 @@ from pirn.domains.agents.types.tool_call import ToolCall
 from pirn.tapestry import Tapestry
 
 
-@pytest.mark.asyncio
-class TestOutputGuardrailGateConstruction:
+class TestOutputGuardrailGateConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_string_deny_pattern(self) -> None:
         response = AgentResponse(content="ok", finish_reason="stop")
-        with pytest.raises(TypeError, match="deny_patterns"):
+        with self.assertRaisesRegex(TypeError, "deny_patterns"):
             with Tapestry():
                 OutputGuardrailGate(
                     response=response,
@@ -29,7 +28,7 @@ class TestOutputGuardrailGateConstruction:
 
     async def test_rejects_non_string_tool_name(self) -> None:
         response = AgentResponse(content="ok", finish_reason="stop")
-        with pytest.raises(TypeError, match="allowed_tool_names"):
+        with self.assertRaisesRegex(TypeError, "allowed_tool_names"):
             with Tapestry():
                 OutputGuardrailGate(
                     response=response,
@@ -39,8 +38,7 @@ class TestOutputGuardrailGateConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestOutputGuardrailGateHappyPath:
+class TestOutputGuardrailGateHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_passes_response_when_clean(self) -> None:
         response = AgentResponse(
             content="all good",

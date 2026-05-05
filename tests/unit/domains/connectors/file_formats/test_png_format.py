@@ -1,10 +1,13 @@
 """Round-trip and validation tests for :class:`PngFormat`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
-pytest.importorskip("PIL")
+try:
+    import PIL
+except ImportError as _e:
+    raise unittest.SkipTest("PIL not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -31,13 +34,13 @@ def _tiny_rgb_record() -> dict[str, object]:
     }
 
 
-class TestPngFormatConstruction:
+class TestPngFormatConstruction(unittest.TestCase):
     def test_default_construction(self) -> None:
         fmt = PngFormat()
         assert fmt.name == "png"
 
 
-class TestPngFormatBasics:
+class TestPngFormatBasics(unittest.TestCase):
     def test_name(self) -> None:
         assert PngFormat().name == "png"
 
@@ -48,8 +51,7 @@ class TestPngFormatBasics:
         assert isinstance(PngFormat(), BatchFileFormat)
 
 
-class TestPngFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestPngFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         record = _tiny_rgb_record()
         fmt = PngFormat()
@@ -63,29 +65,25 @@ class TestPngFormatRoundTrip:
         assert recovered["mode"] == record["mode"]
         assert recovered["data"] == record["data"]
 
-    @pytest.mark.asyncio
     async def test_round_trip_single_record(self) -> None:
         record = _tiny_rgb_record()
         fmt = PngFormat()
         await FormatRoundTrip.assert_round_trip(fmt, [record])
 
-    @pytest.mark.asyncio
     async def test_empty_records_rejected(self) -> None:
         fmt = PngFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, [])
 
-    @pytest.mark.asyncio
     async def test_missing_field_rejected(self) -> None:
         fmt = PngFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(
                 fmt, [{"width": 4, "height": 4, "mode": "RGB"}]
             )
 
-    @pytest.mark.asyncio
     async def test_invalid_width_rejected(self) -> None:
         fmt = PngFormat()
         bad = {"width": 0, "height": 4, "mode": "RGB", "data": b"\x00"}
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, [bad])

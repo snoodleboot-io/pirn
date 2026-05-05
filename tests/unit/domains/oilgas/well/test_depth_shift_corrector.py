@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
 import pytest
 
@@ -24,9 +25,9 @@ class _LogSource(Knot):
         ]
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_numeric_shift(self) -> None:
-        with pytest.raises(TypeError, match="shift_ft"):
+        with self.assertRaisesRegex(TypeError, "shift_ft"):
             with Tapestry():
                 src = _LogSource(_config=KnotConfig(id="src"))
                 DepthShiftCorrector(
@@ -36,8 +37,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_shifts_depths(self) -> None:
         with Tapestry() as t:
             src = _LogSource(_config=KnotConfig(id="src"))

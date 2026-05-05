@@ -1,8 +1,8 @@
 """Unit tests for :class:`ContextBuilder`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -21,8 +21,7 @@ async def emit_messages() -> tuple[AgentMessage, ...]:
     )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_builds_context_without_system_prompt(self) -> None:
         with Tapestry() as t:
             messages = emit_messages(_config=KnotConfig(id="m"))
@@ -47,7 +46,7 @@ class TestProcess:
         assert len(ctx.messages) == 3
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_string_system_prompt(self) -> None:
         @knot
         async def empty() -> tuple:
@@ -55,7 +54,7 @@ class TestConstruction:
 
         with Tapestry():
             messages = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="system_prompt"):
+            with self.assertRaisesRegex(TypeError, "system_prompt"):
                 ContextBuilder(
                     messages=messages,
                     system_prompt=42,  # type: ignore[arg-type]
@@ -69,7 +68,7 @@ class TestConstruction:
 
         with Tapestry():
             messages = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(ValueError, match="non-empty"):
+            with self.assertRaisesRegex(ValueError, "non-empty"):
                 ContextBuilder(
                     messages=messages,
                     system_prompt="",

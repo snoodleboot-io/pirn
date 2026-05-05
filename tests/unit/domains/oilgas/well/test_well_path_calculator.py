@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -23,9 +23,9 @@ class _SurveySource(Knot):
         return DeviationSurvey(well_id="W", station_count=10)
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_invalid_method(self) -> None:
-        with pytest.raises(ValueError, match="method"):
+        with self.assertRaisesRegex(ValueError, "method"):
             with Tapestry():
                 source = _SurveySource(_config=KnotConfig(id="src"))
                 WellPathCalculator(
@@ -35,8 +35,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_well_path(self) -> None:
         with Tapestry() as t:
             source = _SurveySource(_config=KnotConfig(id="src"))

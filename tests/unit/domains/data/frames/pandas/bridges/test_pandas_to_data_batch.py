@@ -1,9 +1,9 @@
 """Tests for :class:`PandasToDataBatch`."""
 
 from __future__ import annotations
+import unittest
 
 import pandas as pd
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -22,8 +22,7 @@ async def emit_pandas_batch() -> PandasDataBatch:
     return PandasDataBatch(frame=frame, source_uri="memory://x")
 
 
-@pytest.mark.asyncio
-class TestPandasToDataBatch:
+class TestPandasToDataBatch(unittest.IsolatedAsyncioTestCase):
     async def test_materialises_rows_as_dicts(self) -> None:
         with Tapestry() as t:
             batch = emit_pandas_batch(_config=KnotConfig(id="pandas"))

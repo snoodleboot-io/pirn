@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from datetime import datetime
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -29,22 +29,21 @@ def _make(**kwargs):
     return knot
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_frequency(self) -> None:
-        with pytest.raises(ValueError, match="frequency_seconds"):
+        with self.assertRaisesRegex(ValueError, "frequency_seconds"):
             _make(timestamp_column="ts", value_column="v", frequency_seconds=0)
 
     def test_rejects_invalid_aggregation(self) -> None:
-        with pytest.raises(ValueError, match="aggregation"):
+        with self.assertRaisesRegex(ValueError, "aggregation"):
             _make(timestamp_column="ts", value_column="v", frequency_seconds=60, aggregation="median")
 
     def test_rejects_invalid_column(self) -> None:
-        with pytest.raises(ValueError, match="plain identifier"):
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
             _make(timestamp_column="bad col", value_column="v", frequency_seconds=60)
 
 
-@pytest.mark.asyncio
-class TestBehaviour:
+class TestBehaviour(unittest.IsolatedAsyncioTestCase):
     async def test_buckets_by_frequency(self) -> None:
         rows = [
             {"ts": datetime(2024, 1, 1, 0, 0, 0), "v": 10},

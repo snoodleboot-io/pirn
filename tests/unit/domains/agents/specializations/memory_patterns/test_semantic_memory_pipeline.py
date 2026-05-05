@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Mapping
 from typing import Any
+import unittest
 
 import pytest
 
@@ -28,12 +29,7 @@ class RecordingMemoryStore(MemoryStore):
     async def retrieve(self, key: str) -> Mapping[str, Any] | None:
         return self.writes.get(key)
 
-    async def search(
-        self,
-        query: str,
-        *,
-        top_k: int = 10,
-    ) -> AsyncIterator[Mapping[str, Any]]:
+    async def search(self, query: str, *, top_k: int = 10,) -> AsyncIterator[Mapping[str, Any]]:
         async def _aiter() -> AsyncIterator[Mapping[str, Any]]:
             if False:
                 yield {}
@@ -47,11 +43,10 @@ class RecordingMemoryStore(MemoryStore):
         return None
 
 
-@pytest.mark.asyncio
-class TestSemanticMemoryPipelineConstruction:
+class TestSemanticMemoryPipelineConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
         store = RecordingMemoryStore()
-        with pytest.raises(TypeError, match="llm must be an LLMProvider"):
+        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
             with Tapestry():
                 SemanticMemoryPipeline(
                     messages=(AgentMessage(role="user", content="hi"),),
@@ -76,8 +71,7 @@ class TestSemanticMemoryPipelineConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestSemanticMemoryPipelineHappyPath:
+class TestSemanticMemoryPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_extracts_facts_and_returns_count(self) -> None:
         store = RecordingMemoryStore()
         llm = StubLLMProvider(

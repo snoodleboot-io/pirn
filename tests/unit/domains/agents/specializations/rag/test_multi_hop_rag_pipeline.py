@@ -1,8 +1,8 @@
 """Tests for :class:`MultiHopRAGPipeline`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -17,11 +17,10 @@ from tests.unit.domains.agents.specializations.conftest import (
 )
 
 
-@pytest.mark.asyncio
-class TestMultiHopRAGPipelineConstruction:
+class TestMultiHopRAGPipelineConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_memory_store(self) -> None:
         llm = StubLLMProvider(["sub1\nsub2\nsub3", "answer"])
-        with pytest.raises(TypeError, match="memory must be a MemoryStore"):
+        with self.assertRaisesRegex(TypeError, "memory must be a MemoryStore"):
             with Tapestry():
                 MultiHopRAGPipeline(
                     query="q",
@@ -33,7 +32,7 @@ class TestMultiHopRAGPipelineConstruction:
     async def test_rejects_zero_top_k(self) -> None:
         memory = StubMemoryStore([])
         llm = StubLLMProvider(["sub1\nsub2\nsub3", "answer"])
-        with pytest.raises(ValueError, match="top_k must be a positive int"):
+        with self.assertRaisesRegex(ValueError, "top_k must be a positive int"):
             with Tapestry():
                 MultiHopRAGPipeline(
                     query="q",
@@ -46,7 +45,7 @@ class TestMultiHopRAGPipelineConstruction:
     async def test_rejects_zero_num_hops(self) -> None:
         memory = StubMemoryStore([])
         llm = StubLLMProvider(["sub1", "answer"])
-        with pytest.raises(ValueError, match="num_hops must be a positive int"):
+        with self.assertRaisesRegex(ValueError, "num_hops must be a positive int"):
             with Tapestry():
                 MultiHopRAGPipeline(
                     query="q",
@@ -57,8 +56,7 @@ class TestMultiHopRAGPipelineConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestMultiHopRAGPipelineHappyPath:
+class TestMultiHopRAGPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_decomposes_retrieves_per_hop_and_synthesizes(self) -> None:
         memory = StubMemoryStore([{"text": "context fact"}])
         llm = StubLLMProvider(["sub-q1\nsub-q2\nsub-q3", "final synthesized answer"])

@@ -1,8 +1,8 @@
 """Unit tests for :class:`PorosityCalculator`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,9 +12,9 @@ from pirn.domains.oilgas.well.porosity_calculator import PorosityCalculator
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_invalid_method(self) -> None:
-        with pytest.raises(ValueError, match="method"):
+        with self.assertRaisesRegex(ValueError, "method"):
             with Tapestry():
                 las = LasFileIngester(
                     file_path="/x",
@@ -31,7 +31,7 @@ class TestConstruction:
                 )
 
     def test_rejects_non_positive_density(self) -> None:
-        with pytest.raises(ValueError, match="matrix_density"):
+        with self.assertRaisesRegex(ValueError, "matrix_density"):
             with Tapestry():
                 las = LasFileIngester(
                     file_path="/x",
@@ -48,7 +48,7 @@ class TestConstruction:
                 )
 
     def test_rejects_inverted_densities(self) -> None:
-        with pytest.raises(ValueError, match="fluid_density"):
+        with self.assertRaisesRegex(ValueError, "fluid_density"):
             with Tapestry():
                 las = LasFileIngester(
                     file_path="/x",
@@ -65,8 +65,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_appends_porosity_curve(self) -> None:
         with Tapestry() as t:
             las = LasFileIngester(

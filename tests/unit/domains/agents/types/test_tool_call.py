@@ -1,11 +1,12 @@
 """Unit tests for :class:`ToolCall`."""
 
 from __future__ import annotations
+import unittest
 
 from pirn.domains.agents.types.tool_call import ToolCall
 
 
-class TestRoundtrip:
+class TestRoundtrip(unittest.TestCase):
     def test_construct_minimum_fields(self) -> None:
         call = ToolCall(tool_name="search", arguments={"q": "x"}, call_id="call-1")
         assert call.tool_name == "search"

@@ -1,8 +1,8 @@
 """Tests for :class:`EpisodicMemoryRetriever`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -13,10 +13,9 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.specializations.conftest import StubMemoryStore
 
 
-@pytest.mark.asyncio
-class TestEpisodicMemoryRetrieverConstruction:
+class TestEpisodicMemoryRetrieverConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_memory_store(self) -> None:
-        with pytest.raises(TypeError, match="store must be a MemoryStore"):
+        with self.assertRaisesRegex(TypeError, "store must be a MemoryStore"):
             with Tapestry():
                 EpisodicMemoryRetriever(
                     context="ctx",
@@ -26,7 +25,7 @@ class TestEpisodicMemoryRetrieverConstruction:
 
     async def test_rejects_zero_top_k(self) -> None:
         store = StubMemoryStore([])
-        with pytest.raises(ValueError, match="top_k must be a positive int"):
+        with self.assertRaisesRegex(ValueError, "top_k must be a positive int"):
             with Tapestry():
                 EpisodicMemoryRetriever(
                     context="ctx",
@@ -36,8 +35,7 @@ class TestEpisodicMemoryRetrieverConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestEpisodicMemoryRetrieverHappyPath:
+class TestEpisodicMemoryRetrieverHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_returns_matching_memories(self) -> None:
         hits = [
             {"session_id": "s1", "messages": ["hello"]},

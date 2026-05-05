@@ -1,10 +1,13 @@
 """Round-trip and validation tests for :class:`NumpyNpzFormat`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
-pytest.importorskip("numpy")
+try:
+    import numpy
+except ImportError as _e:
+    raise unittest.SkipTest("numpy not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -17,7 +20,7 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 )
 
 
-class TestNumpyNpzFormatConstruction:
+class TestNumpyNpzFormatConstruction(unittest.TestCase):
     def test_default_arguments(self) -> None:
         fmt = NumpyNpzFormat()
         assert fmt.array_name == "records"
@@ -28,23 +31,23 @@ class TestNumpyNpzFormatConstruction:
         assert fmt.array_name == "payload"
 
     def test_empty_array_name_rejected(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             NumpyNpzFormat(array_name="")
 
     def test_non_string_array_name_rejected(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             NumpyNpzFormat(array_name=42)  # type: ignore[arg-type]
 
     def test_invalid_field_names_type(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             NumpyNpzFormat(field_names="ab")  # type: ignore[arg-type]
 
     def test_empty_field_name_rejected(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             NumpyNpzFormat(field_names=("a", ""))
 
 
-class TestNumpyNpzFormatBasics:
+class TestNumpyNpzFormatBasics(unittest.TestCase):
     def test_name(self) -> None:
         assert NumpyNpzFormat().name == "numpy-npz"
 
@@ -55,8 +58,7 @@ class TestNumpyNpzFormatBasics:
         assert isinstance(NumpyNpzFormat(), BatchFileFormat)
 
 
-class TestNumpyNpzFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestNumpyNpzFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         records = [
             {"id": 1, "name": "alpha", "score": 1.5, "active": True},
@@ -66,29 +68,25 @@ class TestNumpyNpzFormatRoundTrip:
         fmt = NumpyNpzFormat()
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_single_row(self) -> None:
         records = [{"id": 42, "name": "solo", "score": 9.0}]
         fmt = NumpyNpzFormat()
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_custom_array_name(self) -> None:
         records = [{"id": 1, "label": "alpha"}]
         fmt = NumpyNpzFormat(array_name="payload")
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_empty_payload_rejected(self) -> None:
         fmt = NumpyNpzFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, [])
 
-    @pytest.mark.asyncio
     async def test_decode_missing_array_name_raises(self) -> None:
         records = [{"id": 1, "label": "x"}]
         writer = NumpyNpzFormat(array_name="records")
         payload = await FormatRoundTrip.encode(writer, records)
         reader = NumpyNpzFormat(array_name="missing")
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.decode(reader, payload)

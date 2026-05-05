@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -22,9 +22,9 @@ async def emit_eeg_data() -> dict[str, Any]:
     }
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_knot_eeg_data(self) -> None:
-        with pytest.raises(TypeError, match="eeg_data"):
+        with self.assertRaisesRegex(TypeError, "eeg_data"):
             EEGMontageApplier(
                 eeg_data="not-a-knot",  # type: ignore[arg-type]
                 montage_name="standard_1020",
@@ -35,7 +35,7 @@ class TestConstruction:
     def test_rejects_empty_montage_name(self) -> None:
         with Tapestry():
             e = emit_eeg_data(_config=KnotConfig(id="e"))
-            with pytest.raises(ValueError, match="montage_name"):
+            with self.assertRaisesRegex(ValueError, "montage_name"):
                 EEGMontageApplier(
                     eeg_data=e,
                     montage_name="",
@@ -46,7 +46,7 @@ class TestConstruction:
     def test_rejects_invalid_reference(self) -> None:
         with Tapestry():
             e = emit_eeg_data(_config=KnotConfig(id="e"))
-            with pytest.raises(ValueError, match="reference"):
+            with self.assertRaisesRegex(ValueError, "reference"):
                 EEGMontageApplier(
                     eeg_data=e,
                     montage_name="standard_1020",
@@ -55,8 +55,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_dict_with_required_keys(self) -> None:
         with Tapestry() as t:
             e = emit_eeg_data(_config=KnotConfig(id="e"))

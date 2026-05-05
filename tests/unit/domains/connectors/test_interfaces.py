@@ -6,8 +6,8 @@ silently drops an interface method is caught.
 """
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.file_format import FileFormat
@@ -15,18 +15,17 @@ from pirn.domains.connectors.message_broker import MessageBroker
 from pirn.domains.connectors.object_store import ObjectStore
 
 
-@pytest.mark.asyncio
-class TestDatabaseConnectionPoolInterface:
+class TestDatabaseConnectionPoolInterface(unittest.IsolatedAsyncioTestCase):
     async def test_acquire_raises_not_implemented(self) -> None:
-        with pytest.raises(NotImplementedError, match="acquire"):
+        with self.assertRaisesRegex(NotImplementedError, "acquire"):
             await DatabaseConnectionPool().acquire()
 
     async def test_release_raises_not_implemented(self) -> None:
-        with pytest.raises(NotImplementedError, match="release"):
+        with self.assertRaisesRegex(NotImplementedError, "release"):
             await DatabaseConnectionPool().release(object())
 
     async def test_close_raises_not_implemented(self) -> None:
-        with pytest.raises(NotImplementedError, match="close"):
+        with self.assertRaisesRegex(NotImplementedError, "close"):
             await DatabaseConnectionPool().close()
 
     async def test_subclass_satisfies_isinstance(self) -> None:
@@ -41,50 +40,47 @@ class TestDatabaseConnectionPoolInterface:
         assert isinstance(Concrete(), DatabaseConnectionPool)
 
 
-@pytest.mark.asyncio
-class TestObjectStoreInterface:
+class TestObjectStoreInterface(unittest.IsolatedAsyncioTestCase):
     async def test_get_raises_not_implemented(self) -> None:
-        with pytest.raises(NotImplementedError, match="get"):
+        with self.assertRaisesRegex(NotImplementedError, "get"):
             await ObjectStore().get("k")
 
     async def test_put_raises_not_implemented(self) -> None:
-        with pytest.raises(NotImplementedError, match="put"):
+        with self.assertRaisesRegex(NotImplementedError, "put"):
             await ObjectStore().put("k", b"v")
 
     async def test_delete_raises_not_implemented(self) -> None:
-        with pytest.raises(NotImplementedError, match="delete"):
+        with self.assertRaisesRegex(NotImplementedError, "delete"):
             await ObjectStore().delete("k")
 
     async def test_list_raises_not_implemented(self) -> None:
-        with pytest.raises(NotImplementedError, match="list"):
+        with self.assertRaisesRegex(NotImplementedError, "list"):
             await ObjectStore().list()
 
 
-@pytest.mark.asyncio
-class TestMessageBrokerInterface:
+class TestMessageBrokerInterface(unittest.IsolatedAsyncioTestCase):
     async def test_publish_raises_not_implemented(self) -> None:
-        with pytest.raises(NotImplementedError, match="publish"):
+        with self.assertRaisesRegex(NotImplementedError, "publish"):
             await MessageBroker().publish("t", b"v")
 
     async def test_consume_raises_not_implemented(self) -> None:
-        with pytest.raises(NotImplementedError, match="consume"):
+        with self.assertRaisesRegex(NotImplementedError, "consume"):
             await MessageBroker().consume("t")
 
 
-class TestFileFormatInterfaceSync:
+class TestFileFormatInterfaceSync(unittest.TestCase):
     def test_name_raises_not_implemented(self) -> None:
-        with pytest.raises(NotImplementedError, match="name"):
+        with self.assertRaisesRegex(NotImplementedError, "name"):
             _ = FileFormat().name
 
 
-@pytest.mark.asyncio
-class TestFileFormatInterface:
+class TestFileFormatInterface(unittest.IsolatedAsyncioTestCase):
     async def test_read_raises_not_implemented(self) -> None:
         async def empty():
             if False:
                 yield b""
 
-        with pytest.raises(NotImplementedError, match="read"):
+        with self.assertRaisesRegex(NotImplementedError, "read"):
             await FileFormat().read(empty())
 
     async def test_write_raises_not_implemented(self) -> None:
@@ -92,5 +88,5 @@ class TestFileFormatInterface:
             if False:
                 yield b""
 
-        with pytest.raises(NotImplementedError, match="write"):
+        with self.assertRaisesRegex(NotImplementedError, "write"):
             await FileFormat().write(empty())

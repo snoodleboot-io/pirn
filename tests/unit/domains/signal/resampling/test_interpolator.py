@@ -1,8 +1,8 @@
 """Unit tests for :class:`Interpolator`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,11 +12,11 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.signal.conftest import emit_signal_frame
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_target_sample_rate(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="target_sample_rate_hz"):
+            with self.assertRaisesRegex(ValueError, "target_sample_rate_hz"):
                 Interpolator(
                     signal=sig,
                     target_sample_rate_hz=0,
@@ -26,7 +26,7 @@ class TestConstruction:
     def test_rejects_invalid_kind(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="kind"):
+            with self.assertRaisesRegex(ValueError, "kind"):
                 Interpolator(
                     signal=sig,
                     target_sample_rate_hz=2000.0,
@@ -35,8 +35,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_signal_frame_with_target_rate(self) -> None:
         with Tapestry() as t:
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))

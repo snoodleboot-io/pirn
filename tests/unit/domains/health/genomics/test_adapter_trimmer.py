@@ -1,8 +1,8 @@
 """Unit tests for :class:`AdapterTrimmer`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -11,9 +11,9 @@ from pirn.domains.health.genomics.adapter_trimmer import AdapterTrimmer
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_adapter(self) -> None:
-        with pytest.raises(ValueError, match="adapter_sequence"):
+        with self.assertRaisesRegex(ValueError, "adapter_sequence"):
             AdapterTrimmer(
                 fastq=Parameter("fq", dict, default={}, _config=KnotConfig(id="fq")),
                 adapter_sequence="",
@@ -23,7 +23,7 @@ class TestConstruction:
             )
 
     def test_rejects_zero_min_length(self) -> None:
-        with pytest.raises(ValueError, match="min_length"):
+        with self.assertRaisesRegex(ValueError, "min_length"):
             AdapterTrimmer(
                 fastq=Parameter("fq", dict, default={}, _config=KnotConfig(id="fq")),
                 adapter_sequence="AGATCGGAA",
@@ -33,7 +33,7 @@ class TestConstruction:
             )
 
     def test_rejects_quality_cutoff_too_high(self) -> None:
-        with pytest.raises(ValueError, match="quality_cutoff"):
+        with self.assertRaisesRegex(ValueError, "quality_cutoff"):
             AdapterTrimmer(
                 fastq=Parameter("fq", dict, default={}, _config=KnotConfig(id="fq")),
                 adapter_sequence="AGATCGGAA",
@@ -43,7 +43,7 @@ class TestConstruction:
             )
 
     def test_rejects_negative_quality_cutoff(self) -> None:
-        with pytest.raises(ValueError, match="quality_cutoff"):
+        with self.assertRaisesRegex(ValueError, "quality_cutoff"):
             AdapterTrimmer(
                 fastq=Parameter("fq", dict, default={}, _config=KnotConfig(id="fq")),
                 adapter_sequence="AGATCGGAA",
@@ -53,8 +53,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_dict(self) -> None:
         fastq_data = {"reads": [], "total_reads": 0}
         with Tapestry() as t:

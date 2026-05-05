@@ -1,8 +1,8 @@
 """Unit tests for :class:`PolyphaseDecimator`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,11 +12,11 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.signal.conftest import emit_signal_frame
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_decimation_factor_le_one(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="decimation_factor"):
+            with self.assertRaisesRegex(ValueError, "decimation_factor"):
                 PolyphaseDecimator(
                     signal=sig,
                     decimation_factor=1,
@@ -27,7 +27,7 @@ class TestConstruction:
     def test_rejects_non_positive_filter_taps(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="filter_taps"):
+            with self.assertRaisesRegex(ValueError, "filter_taps"):
                 PolyphaseDecimator(
                     signal=sig,
                     decimation_factor=4,
@@ -36,8 +36,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_decimated_signal_frame(self) -> None:
         with Tapestry() as t:
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))

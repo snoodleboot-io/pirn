@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -15,9 +15,9 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.conftest import StubLLMProvider
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_provider(self) -> None:
-        with pytest.raises(TypeError, match="LLMProvider"):
+        with self.assertRaisesRegex(TypeError, "LLMProvider"):
             ClinicalNLPExtractor(
                 provider="x",  # type: ignore[arg-type]
                 note_text="note",
@@ -25,7 +25,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_string_note(self) -> None:
-        with pytest.raises(TypeError, match="note_text"):
+        with self.assertRaisesRegex(TypeError, "note_text"):
             ClinicalNLPExtractor(
                 provider=StubLLMProvider(["ok"]),
                 note_text=42,  # type: ignore[arg-type]
@@ -33,7 +33,7 @@ class TestConstruction:
             )
 
     def test_rejects_empty_note(self) -> None:
-        with pytest.raises(ValueError, match="non-empty"):
+        with self.assertRaisesRegex(ValueError, "non-empty"):
             ClinicalNLPExtractor(
                 provider=StubLLMProvider(["ok"]),
                 note_text="",
@@ -41,8 +41,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_mapping(self) -> None:
         with Tapestry() as t:
             ClinicalNLPExtractor(

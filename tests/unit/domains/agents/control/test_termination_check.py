@@ -1,8 +1,8 @@
 """Unit tests for :class:`TerminationCheck`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -22,8 +22,7 @@ async def emit_unfinished() -> AgentResponse:
     return AgentResponse(content="thinking", finish_reason="tool_use")
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_terminates_on_stop_finish_reason(self) -> None:
         with Tapestry() as t:
             r = emit_finished(_config=KnotConfig(id="r"))
@@ -61,7 +60,7 @@ class TestProcess:
         assert result.outputs["g"] is False
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_zero_max_iterations(self) -> None:
         @knot
         async def r() -> AgentResponse:
@@ -69,7 +68,7 @@ class TestConstruction:
 
         with Tapestry():
             rr = r(_config=KnotConfig(id="r"))
-            with pytest.raises(ValueError, match="positive"):
+            with self.assertRaisesRegex(ValueError, "positive"):
                 TerminationCheck(
                     response=rr,
                     max_iterations=0,

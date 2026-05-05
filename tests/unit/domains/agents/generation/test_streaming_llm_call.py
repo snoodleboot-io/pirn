@@ -1,8 +1,8 @@
 """Unit tests for :class:`StreamingLLMCall`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -21,8 +21,7 @@ async def emit_context() -> AgentContext:
     )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_async_iterator(self) -> None:
         llm = StubLLMProvider(responses=["a", "b", "c"])
         with Tapestry() as t:
@@ -42,7 +41,7 @@ class TestProcess:
         assert chunks == ["a", "b", "c"]
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_requires_llm_provider(self) -> None:
         @knot
         async def empty() -> AgentContext:
@@ -50,7 +49,7 @@ class TestConstruction:
 
         with Tapestry():
             ctx = empty(_config=KnotConfig(id="ctx"))
-            with pytest.raises(TypeError, match="LLMProvider"):
+            with self.assertRaisesRegex(TypeError, "LLMProvider"):
                 StreamingLLMCall(
                     context=ctx,
                     llm="bad",  # type: ignore[arg-type]

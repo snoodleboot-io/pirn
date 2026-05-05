@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import unittest
 
 import pytest
 
@@ -25,7 +26,7 @@ def _tiny_state_dict() -> dict:
     return {"weight": torch.zeros(2, 2)}
 
 
-class TestPytorchFormatConstruction:
+class TestPytorchFormatConstruction(unittest.TestCase):
     def test_default_arguments(self) -> None:
         fmt = PytorchFormat()
         assert fmt.weights_only is True
@@ -33,7 +34,7 @@ class TestPytorchFormatConstruction:
         assert fmt.allow_unsigned is False
 
     def test_unsigned_unsafe_combination_rejected(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             PytorchFormat(weights_only=False)
 
     def test_unsafe_with_signer_allowed(self) -> None:
@@ -49,15 +50,15 @@ class TestPytorchFormatConstruction:
         assert fmt.allow_unsigned is True
 
     def test_non_bool_weights_only_rejected(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             PytorchFormat(weights_only="yes")  # type: ignore[arg-type]
 
     def test_invalid_signer_type_rejected(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             PytorchFormat(signer="not-a-signer")  # type: ignore[arg-type]
 
 
-class TestPytorchFormatBasics:
+class TestPytorchFormatBasics(unittest.TestCase):
     def test_name(self) -> None:
         assert PytorchFormat().name == "pytorch"
 
@@ -68,29 +69,25 @@ class TestPytorchFormatBasics:
         assert isinstance(PytorchFormat(), BatchFileFormat)
 
 
-class TestPytorchFormatValidation:
-    @pytest.mark.asyncio
+class TestPytorchFormatValidation(unittest.IsolatedAsyncioTestCase):
     async def test_encode_empty_rejected(self) -> None:
         fmt = PytorchFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, [])
 
-    @pytest.mark.asyncio
     async def test_encode_missing_state_dict_rejected(self) -> None:
         fmt = PytorchFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, [{"wrong": 1}])
 
-    @pytest.mark.asyncio
     async def test_decode_non_bytes_rejected(self) -> None:
         fmt = PytorchFormat()
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             await fmt._decode_full("not-bytes")  # type: ignore[arg-type]
 
 
 @pytest.mark.skipif(not _HAS_TORCH, reason="requires torch")
-class TestPytorchFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestPytorchFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         import torch
         fmt = PytorchFormat()
@@ -104,7 +101,6 @@ class TestPytorchFormatRoundTrip:
         assert "weight" in recovered
         assert torch.equal(recovered["weight"], state["weight"])
 
-    @pytest.mark.asyncio
     async def test_round_trip_signed(self) -> None:
         signer = _Signer.test_signer()
         fmt = PytorchFormat(signer=signer)
@@ -115,7 +111,6 @@ class TestPytorchFormatRoundTrip:
         decoded = await FormatRoundTrip.decode(fmt, payload)
         assert decoded[0]["metadata"]["signed"] is True
 
-    @pytest.mark.asyncio
     async def test_signed_payload_rejects_tamper(self) -> None:
         signer = _Signer.test_signer()
         fmt = PytorchFormat(signer=signer)
@@ -124,5 +119,5 @@ class TestPytorchFormatRoundTrip:
         )
         tampered = bytes(payload)
         tampered = tampered[:40] + bytes([tampered[40] ^ 0xFF]) + tampered[41:]
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.decode(fmt, tampered)

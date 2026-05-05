@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -24,14 +24,13 @@ class _Source(Knot):
         return ScadaTimeSeries(sensor_id="inj", sample_interval_sec=60.0)
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_requires_injection_rate(self) -> None:
-        with pytest.raises(TypeError, match="injection_rate"):
+        with self.assertRaisesRegex(TypeError, "injection_rate"):
             WaterInjectionTracker(_config=KnotConfig(id="wi"))  # type: ignore[call-arg]
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_cumulative_series(self) -> None:
         with Tapestry() as t:
             src = _Source(_config=KnotConfig(id="src"))

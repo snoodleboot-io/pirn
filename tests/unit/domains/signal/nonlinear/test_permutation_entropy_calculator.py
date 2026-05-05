@@ -1,8 +1,8 @@
 """Unit tests for :class:`PermutationEntropyCalculator`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -11,11 +11,11 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.signal.conftest import emit_signal_frame
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_order_below_two(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="order"):
+            with self.assertRaisesRegex(ValueError, "order"):
                 PermutationEntropyCalculator(
                     signal=sig,
                     order=1,
@@ -26,7 +26,7 @@ class TestConstruction:
     def test_rejects_order_above_eight(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="order"):
+            with self.assertRaisesRegex(ValueError, "order"):
                 PermutationEntropyCalculator(
                     signal=sig,
                     order=9,
@@ -37,7 +37,7 @@ class TestConstruction:
     def test_rejects_non_positive_delay(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="delay"):
+            with self.assertRaisesRegex(ValueError, "delay"):
                 PermutationEntropyCalculator(
                     signal=sig,
                     order=3,
@@ -58,8 +58,7 @@ class TestConstruction:
         assert pe.delay == 2
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_entropy_dict(self) -> None:
         with Tapestry() as t:
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))

@@ -1,8 +1,8 @@
 """Unit tests for :class:`NmoCorrection`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,9 +12,9 @@ from pirn.domains.oilgas.types.segy_volume import SegyVolume
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_numeric_velocity(self) -> None:
-        with pytest.raises(TypeError, match="stacking_velocity_m_s"):
+        with self.assertRaisesRegex(TypeError, "stacking_velocity_m_s"):
             with Tapestry():
                 gather = SegyFileIngester(
                     file_path="/x", volume_id="v", _config=KnotConfig(id="i")
@@ -26,7 +26,7 @@ class TestConstruction:
                 )
 
     def test_rejects_non_positive_velocity(self) -> None:
-        with pytest.raises(ValueError, match="positive"):
+        with self.assertRaisesRegex(ValueError, "positive"):
             with Tapestry():
                 gather = SegyFileIngester(
                     file_path="/x", volume_id="v", _config=KnotConfig(id="i")
@@ -38,8 +38,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_corrected_volume(self) -> None:
         with Tapestry() as t:
             gather = SegyFileIngester(

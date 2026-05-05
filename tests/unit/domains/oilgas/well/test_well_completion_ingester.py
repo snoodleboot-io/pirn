@@ -1,8 +1,8 @@
 """Unit tests for :class:`WellCompletionIngester`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -11,9 +11,9 @@ from pirn.domains.oilgas.well.well_completion_ingester import WellCompletionInge
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_well_id(self) -> None:
-        with pytest.raises(ValueError, match="well_id"):
+        with self.assertRaisesRegex(ValueError, "well_id"):
             WellCompletionIngester(
                 well_id="",
                 record_path="/x",
@@ -21,7 +21,7 @@ class TestConstruction:
             )
 
     def test_rejects_empty_record_path(self) -> None:
-        with pytest.raises(ValueError, match="record_path"):
+        with self.assertRaisesRegex(ValueError, "record_path"):
             WellCompletionIngester(
                 well_id="W",
                 record_path="",
@@ -29,8 +29,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_drilling_parameters(self) -> None:
         with Tapestry() as t:
             WellCompletionIngester(

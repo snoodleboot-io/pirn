@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -23,9 +23,9 @@ async def emit_trial_data() -> list[dict[str, Any]]:
     ]
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_knot_trial_data(self) -> None:
-        with pytest.raises(TypeError, match="trial_data"):
+        with self.assertRaisesRegex(TypeError, "trial_data"):
             RandomizedTrialAnalyzer(
                 trial_data="not-a-knot",  # type: ignore[arg-type]
                 treatment_col="treatment",
@@ -37,7 +37,7 @@ class TestConstruction:
     def test_rejects_empty_treatment_col(self) -> None:
         with Tapestry():
             d = emit_trial_data(_config=KnotConfig(id="d"))
-            with pytest.raises(ValueError, match="treatment_col"):
+            with self.assertRaisesRegex(ValueError, "treatment_col"):
                 RandomizedTrialAnalyzer(
                     trial_data=d,
                     treatment_col="",
@@ -49,7 +49,7 @@ class TestConstruction:
     def test_rejects_empty_outcome_col(self) -> None:
         with Tapestry():
             d = emit_trial_data(_config=KnotConfig(id="d"))
-            with pytest.raises(ValueError, match="outcome_col"):
+            with self.assertRaisesRegex(ValueError, "outcome_col"):
                 RandomizedTrialAnalyzer(
                     trial_data=d,
                     treatment_col="treatment",
@@ -61,7 +61,7 @@ class TestConstruction:
     def test_rejects_invalid_analysis_type(self) -> None:
         with Tapestry():
             d = emit_trial_data(_config=KnotConfig(id="d"))
-            with pytest.raises(ValueError, match="analysis_type"):
+            with self.assertRaisesRegex(ValueError, "analysis_type"):
                 RandomizedTrialAnalyzer(
                     trial_data=d,
                     treatment_col="treatment",
@@ -71,8 +71,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_itt_returns_expected_keys(self) -> None:
         with Tapestry() as t:
             d = emit_trial_data(_config=KnotConfig(id="d"))

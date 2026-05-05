@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -26,9 +26,9 @@ class _EventsSource(Knot):
         ]
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_dict_factors(self) -> None:
-        with pytest.raises(TypeError, match="co2_eq_factors"):
+        with self.assertRaisesRegex(TypeError, "co2_eq_factors"):
             with Tapestry():
                 src = _EventsSource(_config=KnotConfig(id="src"))
                 Scope1EmissionsReporter(
@@ -38,8 +38,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_emissions_report(self) -> None:
         with Tapestry() as t:
             src = _EventsSource(_config=KnotConfig(id="src"))

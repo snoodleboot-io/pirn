@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -23,9 +23,9 @@ class _LocationSource(Knot):
         return {"well_id": "W", "x": 100.0, "y": 200.0, "crs": "EPSG:4326"}
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_target_crs(self) -> None:
-        with pytest.raises(ValueError, match="target_crs"):
+        with self.assertRaisesRegex(ValueError, "target_crs"):
             with Tapestry():
                 src = _LocationSource(_config=KnotConfig(id="src"))
                 CoordinateSystemTransformer(
@@ -35,8 +35,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_transformed_dict(self) -> None:
         with Tapestry() as t:
             src = _LocationSource(_config=KnotConfig(id="src"))

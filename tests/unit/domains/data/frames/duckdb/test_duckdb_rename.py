@@ -1,9 +1,9 @@
 """Tests for :class:`DuckdbRename`."""
 
 from __future__ import annotations
+import unittest
 
 import duckdb
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -26,8 +26,7 @@ async def emit_users() -> DuckdbDataBatch:
     )
 
 
-@pytest.mark.asyncio
-class TestDuckdbRename:
+class TestDuckdbRename(unittest.IsolatedAsyncioTestCase):
     async def test_renames_columns(self) -> None:
         with Tapestry() as t:
             batch = emit_users(_config=KnotConfig(id="users"))
@@ -54,7 +53,7 @@ class TestDuckdbRename:
         assert "x" not in out.column_names
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_mapping(self) -> None:
         @knot
         async def empty() -> DuckdbDataBatch:
@@ -66,7 +65,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="non-empty"):
+            with self.assertRaisesRegex(TypeError, "non-empty"):
                 DuckdbRename(batch=batch, mapping={}, _config=KnotConfig(id="r"))
 
     def test_rejects_injection_in_mapping_value(self) -> None:
@@ -80,7 +79,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(ValueError, match="forbidden token"):
+            with self.assertRaisesRegex(ValueError, "forbidden token"):
                 DuckdbRename(
                     batch=batch,
                     mapping={"a": "b\"; DROP TABLE users; --"},

@@ -1,8 +1,8 @@
 """Unit tests for :class:`BandpassFilter`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -11,9 +11,9 @@ from pirn.domains.health.types.signal_frame import SignalFrame
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_signal(self) -> None:
-        with pytest.raises(TypeError, match="SignalFrame"):
+        with self.assertRaisesRegex(TypeError, "SignalFrame"):
             BandpassFilter(
                 signal="x",  # type: ignore[arg-type]
                 low_hz=1.0,
@@ -22,7 +22,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_positive_low(self) -> None:
-        with pytest.raises(ValueError, match="low_hz"):
+        with self.assertRaisesRegex(ValueError, "low_hz"):
             BandpassFilter(
                 signal=SignalFrame(),
                 low_hz=0.0,
@@ -31,7 +31,7 @@ class TestConstruction:
             )
 
     def test_rejects_low_ge_high(self) -> None:
-        with pytest.raises(ValueError, match="<"):
+        with self.assertRaisesRegex(ValueError, "<"):
             BandpassFilter(
                 signal=SignalFrame(),
                 low_hz=40.0,
@@ -40,8 +40,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_signal_frame(self) -> None:
         with Tapestry() as t:
             BandpassFilter(

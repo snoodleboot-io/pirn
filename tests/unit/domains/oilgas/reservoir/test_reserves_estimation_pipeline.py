@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -27,9 +27,9 @@ class _HistorySource(Knot):
         ]
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_economic_limit(self) -> None:
-        with pytest.raises(ValueError, match="economic_limit_bopd"):
+        with self.assertRaisesRegex(ValueError, "economic_limit_bopd"):
             with Tapestry():
                 src = _HistorySource(_config=KnotConfig(id="src"))
                 ReservesEstimationPipeline(
@@ -40,7 +40,7 @@ class TestConstruction:
                 )
 
     def test_rejects_invalid_royalty_rate(self) -> None:
-        with pytest.raises(ValueError, match="royalty_rate"):
+        with self.assertRaisesRegex(ValueError, "royalty_rate"):
             with Tapestry():
                 src = _HistorySource(_config=KnotConfig(id="src"))
                 ReservesEstimationPipeline(
@@ -51,8 +51,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_reserves_categories(self) -> None:
         with Tapestry() as t:
             src = _HistorySource(_config=KnotConfig(id="src"))

@@ -1,8 +1,8 @@
 """Tests for :class:`RegressionPipeline`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -16,10 +16,10 @@ from tests.unit.domains.ml._stubs.recording_database_pool import (
 )
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_query(self) -> None:
         with Tapestry():
-            with pytest.raises(ValueError, match="query"):
+            with self.assertRaisesRegex(ValueError, "query"):
                 RegressionPipeline(
                     pool=RecordingDatabasePool(rows=[(1, 0.5)]),
                     query="",
@@ -29,8 +29,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_regression_report(self) -> None:
         rows = [(float(i), float(i) * 0.5) for i in range(40)]
         with Tapestry() as t:

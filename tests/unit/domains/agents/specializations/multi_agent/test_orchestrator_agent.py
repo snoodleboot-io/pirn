@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -20,14 +20,7 @@ from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 class StubSpecialist(SubTapestry):
     """SubTapestry double that emits a fixed AgentResponse for any task."""
 
-    def __init__(
-        self,
-        *,
-        task: Any = "",
-        _config: KnotConfig,
-        reply: str = "specialist-reply",
-        **kwargs: Any,
-    ) -> None:
+    def __init__(self, *, task: Any = "", _config: KnotConfig, reply: str = "specialist-reply", **kwargs: Any,) -> None:
         self._reply = reply
         super().__init__(task=task, _config=_config, **kwargs)
 
@@ -38,12 +31,11 @@ class StubSpecialist(SubTapestry):
         )
 
 
-@pytest.mark.asyncio
-class TestOrchestratorAgentConstruction:
+class TestOrchestratorAgentConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
         with Tapestry():
             spec = StubSpecialist(_config=KnotConfig(id="spec_a"))
-        with pytest.raises(TypeError, match="llm must be an LLMProvider"):
+        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
             with Tapestry():
                 OrchestratorAgent(
                     task="ask",
@@ -54,7 +46,7 @@ class TestOrchestratorAgentConstruction:
 
     async def test_rejects_empty_specialists(self) -> None:
         llm = StubLLMProvider(["spec_a"])
-        with pytest.raises(ValueError, match="specialists"):
+        with self.assertRaisesRegex(ValueError, "specialists"):
             with Tapestry():
                 OrchestratorAgent(
                     task="ask",
@@ -64,8 +56,7 @@ class TestOrchestratorAgentConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestOrchestratorAgentHappyPath:
+class TestOrchestratorAgentHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_routes_to_named_specialist(self) -> None:
         llm = StubLLMProvider(["pick spec_b please"])
         with Tapestry():

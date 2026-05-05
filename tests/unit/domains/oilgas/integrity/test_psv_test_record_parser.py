@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -34,8 +34,7 @@ class _MissingFieldSource(Knot):
         return {"tag": "PSV-101"}
 
 
-class TestProcess:
-    @pytest.mark.asyncio
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_parsed_record(self) -> None:
         with Tapestry() as t:
             src = _RecordSource(_config=KnotConfig(id="src"))
@@ -45,7 +44,6 @@ class TestProcess:
         assert out["parsed"] is True
         assert out["tag"] == "PSV-101"
 
-    @pytest.mark.asyncio
     async def test_records_error_on_missing_fields(self) -> None:
         with Tapestry() as t:
             src = _MissingFieldSource(_config=KnotConfig(id="src"))

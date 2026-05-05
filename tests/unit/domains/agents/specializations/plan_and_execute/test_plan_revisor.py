@@ -1,8 +1,8 @@
 """Unit tests for :class:`PlanRevisor`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -20,8 +20,7 @@ async def original_plan() -> Plan:
     return Plan(steps=("step A", "step B", "step C"))
 
 
-@pytest.mark.asyncio
-class TestPlanRevisorProcess:
+class TestPlanRevisorProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_revised_plan_with_parsed_steps(self) -> None:
         llm = StubLLMProvider(["1. revised-step-one\n2. revised-step-two"])
         with Tapestry() as t:
@@ -58,10 +57,9 @@ class TestPlanRevisorProcess:
         assert "network error" in user_content
 
 
-@pytest.mark.asyncio
-class TestPlanRevisorConstruction:
+class TestPlanRevisorConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
-        with pytest.raises(TypeError, match="LLMProvider"):
+        with self.assertRaisesRegex(TypeError, "LLMProvider"):
             with Tapestry():
                 p = original_plan(_config=KnotConfig(id="p"))
                 PlanRevisor(

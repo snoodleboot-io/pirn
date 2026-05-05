@@ -1,11 +1,14 @@
 """Tests for :class:`PanderaPolarsValidator`."""
 
 from __future__ import annotations
+import unittest
 
 import polars as pl
-import pytest
 
-pa = pytest.importorskip("pandera.polars")
+try:
+    import pandera.polars as pa
+except ImportError as _e:
+    raise unittest.SkipTest("pandera.polars not installed") from _e
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -43,8 +46,7 @@ def _invalid_batch_factory():
     return emit
 
 
-@pytest.mark.asyncio
-class TestPanderaPolarsValidator:
+class TestPanderaPolarsValidator(unittest.IsolatedAsyncioTestCase):
     async def test_passing_report_for_valid_frame_against_dataframe_model(self) -> None:
         with Tapestry() as t:
             batch = _valid_batch_factory()(_config=KnotConfig(id="users"))
@@ -90,7 +92,7 @@ class TestPanderaPolarsValidator:
         assert report.passed is True
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_pandera_schema(self) -> None:
         @knot
         async def empty() -> PolarsDataBatch:
@@ -98,7 +100,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="DataFrameModel"):
+            with self.assertRaisesRegex(TypeError, "DataFrameModel"):
                 PanderaPolarsValidator(
                     batch=batch,
                     schema={"id": int},  # type: ignore[arg-type]

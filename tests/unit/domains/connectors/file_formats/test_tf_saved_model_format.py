@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import os
 import tempfile
+import unittest
 
 import pytest
 
@@ -21,27 +22,13 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 _HAS_TF = importlib.util.find_spec("tensorflow") is not None
 
 
-@pytest.fixture
-def saved_model_path() -> str:
-    """Build a tiny SavedModel on disk and return the directory path."""
-    import tensorflow as tf
-    tmp = tempfile.mkdtemp(prefix="pirn-tf-fixture-")
-    model = tf.keras.Sequential(
-        [tf.keras.layers.Dense(2, input_shape=(2,))]
-    )
-    model.compile(optimizer="sgd", loss="mse")
-    path = os.path.join(tmp, "saved_model")
-    model.save(path, save_format="tf")
-    return path
-
-
-class TestTfSavedModelFormatConstruction:
+class TestTfSavedModelFormatConstruction(unittest.TestCase):
     def test_default_construction(self) -> None:
         fmt = TfSavedModelFormat()
         assert fmt.name == "tf_saved_model"
 
 
-class TestTfSavedModelFormatBasics:
+class TestTfSavedModelFormatBasics(unittest.TestCase):
     def test_streaming_property(self) -> None:
         assert TfSavedModelFormat().streaming is False
 
@@ -49,40 +36,48 @@ class TestTfSavedModelFormatBasics:
         assert isinstance(TfSavedModelFormat(), BatchFileFormat)
 
 
-class TestTfSavedModelFormatValidation:
-    @pytest.mark.asyncio
+class TestTfSavedModelFormatValidation(unittest.IsolatedAsyncioTestCase):
     async def test_decode_non_bytes_rejected(self) -> None:
         fmt = TfSavedModelFormat()
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             await fmt._decode_full("not-bytes")  # type: ignore[arg-type]
 
-    @pytest.mark.asyncio
     async def test_encode_missing_path_rejected(self) -> None:
         fmt = TfSavedModelFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, [{"wrong": 1}])
 
-    @pytest.mark.asyncio
     async def test_encode_invalid_path_rejected(self) -> None:
         fmt = TfSavedModelFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(
                 fmt, [{"saved_model_path": "/nonexistent/path/xyz"}]
             )
 
-    @pytest.mark.asyncio
     async def test_encode_empty_rejected(self) -> None:
         fmt = TfSavedModelFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, [])
 
 
 @pytest.mark.skipif(not _HAS_TF, reason="requires tensorflow")
-class TestTfSavedModelFormatRoundTrip:
-    @pytest.mark.asyncio
-    async def test_round_trip_basic(
-        self, saved_model_path: str
-    ) -> None:
+class TestTfSavedModelFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self) -> None:
+        """Build a tiny SavedModel on disk and return the directory path."""
+        import tensorflow as tf
+        tmp = tempfile.mkdtemp(prefix="pirn-tf-fixture-")
+        model = tf.keras.Sequential(
+            [tf.keras.layers.Dense(2, input_shape=(2,))]
+        )
+        model.compile(optimizer="sgd", loss="mse")
+        path = os.path.join(tmp, "saved_model")
+        model.save(path, save_format="tf")
+        self.saved_model_path = path
+        
+        
+    async def test_round_trip_basic(self) -> None:
+        saved_model_path = self.saved_model_path
         fmt = TfSavedModelFormat()
         payload = await FormatRoundTrip.encode(
             fmt, [{"saved_model_path": saved_model_path}]

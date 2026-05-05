@@ -8,8 +8,8 @@ behind a marker.
 from __future__ import annotations
 
 from typing import Any, AsyncIterator
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.object_store import ObjectStore
 from pirn.domains.connectors.object_storage.gcs_config import GCSConfig
@@ -39,9 +39,7 @@ class StubGCSClient:
         self.objects: dict[tuple[str, str], bytes] = {}
         self.calls: list[tuple[str, dict[str, Any]]] = []
 
-    async def download_stream(
-        self, *, bucket: str, object_name: str
-    ) -> _DownloadStream:
+    async def download_stream(self, *, bucket: str, object_name: str) -> _DownloadStream:
         self.calls.append(
             ("download", {"bucket": bucket, "object_name": object_name})
         )
@@ -49,9 +47,7 @@ class StubGCSClient:
             raise FileNotFoundError(f"gs://{bucket}/{object_name}: no such object")
         return _DownloadStream(self.objects[(bucket, object_name)])
 
-    async def upload(
-        self, *, bucket: str, object_name: str, file_data: bytes
-    ) -> dict[str, Any]:
+    async def upload(self, *, bucket: str, object_name: str, file_data: bytes) -> dict[str, Any]:
         self.calls.append(
             (
                 "upload",
@@ -71,9 +67,7 @@ class StubGCSClient:
         )
         self.objects.pop((bucket, object_name), None)
 
-    async def list_objects(
-        self, *, bucket: str, params: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
+    async def list_objects(self, *, bucket: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         params = params or {}
         prefix = params.get("prefix", "")
         page_token = params.get("pageToken")
@@ -113,45 +107,44 @@ async def _from_chunks(chunks: list[bytes]) -> AsyncIterator[bytes]:
 # ─────────────────────────────────────────────────────────────── fixtures
 
 
-@pytest.fixture
-def stub() -> StubGCSClient:
-    return StubGCSClient()
-
-
-@pytest.fixture
-def store(stub: StubGCSClient) -> GCSStore:
-    return GCSStore(GCSConfig(bucket="my-bucket", chunk_size=4), client=stub)
-
-
 # ────────────────────────────────────────────────────────── conformance
 
 
-def test_implements_object_store(stub: StubGCSClient) -> None:
-    s = GCSStore(GCSConfig(bucket="b"), client=stub)
-    assert isinstance(s, ObjectStore)
 
-
-def test_construction_requires_bucket() -> None:
-    with pytest.raises(ValueError, match="bucket is required"):
-        GCSStore(GCSConfig(bucket=None), client=StubGCSClient())
-    with pytest.raises(ValueError, match="bucket is required"):
-        GCSStore(GCSConfig(bucket=""), client=StubGCSClient())
-
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_object_store(self) -> None:
+        stub = StubGCSClient()
+        s = GCSStore(GCSConfig(bucket="b"), client=stub)
+        assert isinstance(s, ObjectStore)
+    
+    
+    def test_construction_requires_bucket(self) -> None:
+        with self.assertRaisesRegex(ValueError, "bucket is required"):
+            GCSStore(GCSConfig(bucket=None), client=StubGCSClient())
+        with self.assertRaisesRegex(ValueError, "bucket is required"):
+            GCSStore(GCSConfig(bucket=""), client=StubGCSClient())
+    
+    
 # ───────────────────────────────────────────────────────────── round-trip
 
 
-@pytest.mark.asyncio
-class TestRoundTrip:
-    async def test_put_then_get(
-        self, store: GCSStore, stub: StubGCSClient
-    ) -> None:
+class TestRoundTrip(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self) -> None:
+        self.stub = StubGCSClient()
+        
+        
+        self.store = GCSStore(GCSConfig(bucket="my-bucket", chunk_size=4), client=self.stub)
+        
+        
+    async def test_put_then_get(self) -> None:
+        store = self.store
+        stub = self.stub
         await store.put("k.bin", b"hello world")
         assert await _drain(await store.get("k.bin")) == b"hello world"
 
-    async def test_streaming_read_uses_chunk_size(
-        self, store: GCSStore
-    ) -> None:
+    async def test_streaming_read_uses_chunk_size(self) -> None:
+        store = self.store
         await store.put("big.bin", b"0123456789ABCDEF")
         chunks: list[bytes] = []
         async for c in await store.get("big.bin"):
@@ -159,15 +152,15 @@ class TestRoundTrip:
         assert all(len(c) <= 4 for c in chunks)
         assert b"".join(chunks) == b"0123456789ABCDEF"
 
-    async def test_streaming_write_from_iterator(
-        self, store: GCSStore, stub: StubGCSClient
-    ) -> None:
+    async def test_streaming_write_from_iterator(self) -> None:
+        store = self.store
+        stub = self.stub
         await store.put("stream", _from_chunks([b"a", b"b", b"c"]))
         assert stub.objects[("my-bucket", "stream")] == b"abc"
 
-    async def test_delete_removes_key(
-        self, store: GCSStore, stub: StubGCSClient
-    ) -> None:
+    async def test_delete_removes_key(self) -> None:
+        store = self.store
+        stub = self.stub
         await store.put("k", b"x")
         await store.delete("k")
         assert ("my-bucket", "k") not in stub.objects
@@ -176,11 +169,17 @@ class TestRoundTrip:
 # ─────────────────────────────────────────────────────────── list / pagination
 
 
-@pytest.mark.asyncio
-class TestList:
-    async def test_lists_all_keys_under_prefix(
-        self, store: GCSStore
-    ) -> None:
+class TestList(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self) -> None:
+        self.stub = StubGCSClient()
+        
+        
+        self.store = GCSStore(GCSConfig(bucket="my-bucket", chunk_size=4), client=self.stub)
+        
+        
+    async def test_lists_all_keys_under_prefix(self) -> None:
+        store = self.store
         await store.put("users/alice.json", b"{}")
         await store.put("users/bob.json", b"{}")
         await store.put("users/carol.json", b"{}")
@@ -195,9 +194,9 @@ class TestList:
             "users/carol.json",
         ]
 
-    async def test_paginates_across_pages(
-        self, store: GCSStore, stub: StubGCSClient
-    ) -> None:
+    async def test_paginates_across_pages(self) -> None:
+        store = self.store
+        stub = self.stub
         # Stub uses page_size=2; insert >2 to force a second page.
         await store.put("a", b"1")
         await store.put("b", b"2")
@@ -212,29 +211,40 @@ class TestList:
 # ──────────────────────────────────────────────────────────── key validation
 
 
-@pytest.mark.asyncio
-class TestKeyValidation:
-    async def test_rejects_empty_key(self, store: GCSStore) -> None:
-        with pytest.raises(ValueError, match="non-empty"):
+class TestKeyValidation(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self) -> None:
+        self.stub = StubGCSClient()
+        
+        
+        self.store = GCSStore(GCSConfig(bucket="my-bucket", chunk_size=4), client=self.stub)
+        
+        
+    async def test_rejects_empty_key(self) -> None:
+        store = self.store
+        with self.assertRaisesRegex(ValueError, "non-empty"):
             await store.put("", b"x")
 
-    async def test_rejects_nul_byte(self, store: GCSStore) -> None:
-        with pytest.raises(ValueError, match="NUL"):
+    async def test_rejects_nul_byte(self) -> None:
+        store = self.store
+        with self.assertRaisesRegex(ValueError, "NUL"):
             await store.put("a\x00b", b"x")
 
-    async def test_rejects_leading_slash(self, store: GCSStore) -> None:
-        with pytest.raises(ValueError, match="must not start"):
+    async def test_rejects_leading_slash(self) -> None:
+        store = self.store
+        with self.assertRaisesRegex(ValueError, "must not start"):
             await store.put("/key", b"x")
 
-    async def test_rejects_dotdot_segment(self, store: GCSStore) -> None:
-        with pytest.raises(ValueError, match=r"\.\."):
+    async def test_rejects_dotdot_segment(self) -> None:
+        store = self.store
+        with self.assertRaisesRegex(ValueError, r"\.\."):
             await store.put("a/../b", b"x")
 
 
 # ───────────────────────────────────────────────────────────── log safety
 
 
-class TestLogSafety:
+class TestLogSafety(unittest.TestCase):
     def test_repr_redacts_service_account_json(self) -> None:
         cfg = GCSConfig(
             bucket="b",
@@ -255,17 +265,24 @@ class TestLogSafety:
 # ───────────────────────────────────────────────────────────── propagation
 
 
-@pytest.mark.asyncio
-class TestErrorPropagation:
-    async def test_get_missing_key_raises(self, store: GCSStore) -> None:
-        with pytest.raises(FileNotFoundError):
+class TestErrorPropagation(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self) -> None:
+        self.stub = StubGCSClient()
+        
+        
+        self.store = GCSStore(GCSConfig(bucket="my-bucket", chunk_size=4), client=self.stub)
+        
+        
+    async def test_get_missing_key_raises(self) -> None:
+        store = self.store
+        with self.assertRaises(FileNotFoundError):
             await _drain(await store.get("nope.txt"))
 
-    async def test_rejects_non_bytes_in_iterator(
-        self, store: GCSStore
-    ) -> None:
+    async def test_rejects_non_bytes_in_iterator(self) -> None:
+        store = self.store
         async def bad() -> AsyncIterator[bytes]:
             yield "not bytes"  # type: ignore[misc]
 
-        with pytest.raises(TypeError, match="must yield bytes"):
+        with self.assertRaisesRegex(TypeError, "must yield bytes"):
             await store.put("k", bad())

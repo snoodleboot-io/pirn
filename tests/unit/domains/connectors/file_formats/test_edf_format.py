@@ -8,11 +8,14 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
+import unittest
 
 import numpy as np
-import pytest
 
-pytest.importorskip("pyedflib")
+try:
+    import pyedflib
+except ImportError as _e:
+    raise unittest.SkipTest("pyedflib not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -87,7 +90,7 @@ def _make_signal_records(n_channels: int = 2, n_samples: int = 256) -> list[dict
 # Construction
 # ---------------------------------------------------------------------------
 
-class TestEdfFormatConstruction:
+class TestEdfFormatConstruction(unittest.TestCase):
     def test_is_batch_format(self) -> None:
         assert isinstance(EdfFormat(), BatchFileFormat)
 
@@ -105,7 +108,7 @@ class TestEdfFormatConstruction:
 # PHI sanitisation
 # ---------------------------------------------------------------------------
 
-class TestEdfFormatPhiSanitisation:
+class TestEdfFormatPhiSanitisation(unittest.IsolatedAsyncioTestCase):
     def test_phi_fields_defined(self) -> None:
         phi = EdfFormat._phi_header_fields
         assert "patientname" in phi
@@ -113,7 +116,6 @@ class TestEdfFormatPhiSanitisation:
         assert "birthdate" in phi
         assert "admincode" in phi
 
-    @pytest.mark.asyncio
     async def test_decoded_records_have_no_phi_keys(self) -> None:
         payload = _make_minimal_edf_bytes()
         records = await _decode_bytes(EdfFormat(), payload)
@@ -124,7 +126,6 @@ class TestEdfFormatPhiSanitisation:
                     f"PHI key {key!r} found in decoded record"
                 )
 
-    @pytest.mark.asyncio
     async def test_decoded_record_shape(self) -> None:
         payload = _make_minimal_edf_bytes(n_channels=1)
         records = await _decode_bytes(EdfFormat(), payload)
@@ -139,8 +140,7 @@ class TestEdfFormatPhiSanitisation:
 # Round-trip
 # ---------------------------------------------------------------------------
 
-class TestEdfFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestEdfFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_single_channel(self) -> None:
         # EDF stores one data-record per second; n_samples must equal
         # sample_rate so the record exactly fills one second.
@@ -171,7 +171,6 @@ class TestEdfFormatRoundTrip:
         out_arr = np.frombuffer(decoded[0]["data"], dtype=np.float64)
         assert len(out_arr) == n_samples
 
-    @pytest.mark.asyncio
     async def test_round_trip_multi_channel(self) -> None:
         records = _make_signal_records(n_channels=3, n_samples=256)
         fmt = EdfFormat()
@@ -188,8 +187,7 @@ class TestEdfFormatRoundTrip:
 # Errors
 # ---------------------------------------------------------------------------
 
-class TestEdfFormatErrors:
-    @pytest.mark.asyncio
+class TestEdfFormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_encode_empty_raises_value_error(self) -> None:
         fmt = EdfFormat()
 
@@ -197,18 +195,17 @@ class TestEdfFormatErrors:
             return
             yield
 
-        with pytest.raises(ValueError, match="empty"):
+        with self.assertRaisesRegex(ValueError, "empty"):
             async for _ in await fmt.write(_empty()):
                 pass
 
-    @pytest.mark.asyncio
     async def test_decode_invalid_bytes_raises(self) -> None:
         fmt = EdfFormat()
 
         async def _iter():
             yield b"this is definitely not an edf file"
 
-        with pytest.raises(Exception):
+        with self.assertRaises(Exception):
             async for _ in await fmt.read(_iter()):
                 pass
 
@@ -217,8 +214,8 @@ class TestEdfFormatErrors:
 # Missing dependency
 # ---------------------------------------------------------------------------
 
-class TestEdfFormatMissingDep:
+class TestEdfFormatMissingDep(unittest.TestCase):
     def test_load_pyedflib_raises_on_missing(self) -> None:
         with patch.dict("sys.modules", {"pyedflib": None}):
-            with pytest.raises(ImportError, match="pirn\\[health\\]"):
+            with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
                 EdfFormat._load_pyedflib()

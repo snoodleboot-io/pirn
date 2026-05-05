@@ -1,8 +1,8 @@
 """Tests for :class:`EmbeddingExtractor`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -27,7 +27,7 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestEmbeddingExtractorHappyPath:
+class TestEmbeddingExtractorHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_appends_embedding_feature(self) -> None:
         provider = RecordingEmbeddingProvider()
         with Tapestry() as t:
@@ -46,11 +46,11 @@ class TestEmbeddingExtractorHappyPath:
         assert provider.calls and provider.calls[0][0] == ["review"]
 
 
-class TestEmbeddingExtractorConstruction:
+class TestEmbeddingExtractorConstruction(unittest.TestCase):
     def test_rejects_non_provider(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(TypeError, match="EmbeddingProvider"):
+            with self.assertRaisesRegex(TypeError, "EmbeddingProvider"):
                 EmbeddingExtractor(
                     split=split,
                     text_column="review",

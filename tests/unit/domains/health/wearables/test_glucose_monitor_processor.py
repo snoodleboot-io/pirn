@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,9 +14,9 @@ from pirn.domains.health.wearables.glucose_monitor_processor import (
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_sequence(self) -> None:
-        with pytest.raises(TypeError, match="readings"):
+        with self.assertRaisesRegex(TypeError, "readings"):
             GlucoseMonitorProcessor(
                 readings=42,  # type: ignore[arg-type]
                 target_low_mg_dl=70.0,
@@ -25,7 +25,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_mapping_reading(self) -> None:
-        with pytest.raises(TypeError, match="reading"):
+        with self.assertRaisesRegex(TypeError, "reading"):
             GlucoseMonitorProcessor(
                 readings=["x"],  # type: ignore[list-item]
                 target_low_mg_dl=70.0,
@@ -34,7 +34,7 @@ class TestConstruction:
             )
 
     def test_rejects_low_ge_high(self) -> None:
-        with pytest.raises(ValueError, match="<"):
+        with self.assertRaisesRegex(ValueError, "<"):
             GlucoseMonitorProcessor(
                 readings=[],
                 target_low_mg_dl=180.0,
@@ -43,8 +43,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_metric_mapping(self) -> None:
         with Tapestry() as t:
             GlucoseMonitorProcessor(

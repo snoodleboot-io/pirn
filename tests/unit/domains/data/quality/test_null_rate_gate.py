@@ -1,8 +1,8 @@
 """Tests for :class:`pirn.domains.data.quality.null_rate_gate.NullRateGate`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -33,8 +33,7 @@ async def emit_empty() -> DataBatch:
     return DataBatch(rows=())
 
 
-@pytest.mark.asyncio
-class TestNullRateGate:
+class TestNullRateGate(unittest.IsolatedAsyncioTestCase):
     async def test_passes_when_under_threshold(self) -> None:
         # 2 nulls in 10 rows = 0.2; threshold 0.3 → pass
         with Tapestry() as t:
@@ -115,14 +114,14 @@ class TestNullRateGate:
         assert failed[0].column == "b"
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_thresholds(self) -> None:
         @knot
         async def empty() -> DataBatch:
             return DataBatch()
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="non-empty"):
+            with self.assertRaisesRegex(TypeError, "non-empty"):
                 NullRateGate(batch=batch, thresholds={}, _config=KnotConfig(id="nr"))
 
     def test_rejects_threshold_above_one(self) -> None:
@@ -131,7 +130,7 @@ class TestConstruction:
             return DataBatch()
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(ValueError, match=r"\[0\.0, 1\.0\]"):
+            with self.assertRaisesRegex(ValueError, r"\[0\.0, 1\.0\]"):
                 NullRateGate(
                     batch=batch, thresholds={"a": 1.5},
                     _config=KnotConfig(id="nr"),
@@ -143,7 +142,7 @@ class TestConstruction:
             return DataBatch()
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="must be a number"):
+            with self.assertRaisesRegex(TypeError, "must be a number"):
                 NullRateGate(
                     batch=batch, thresholds={"a": "0.5"},  # type: ignore[dict-item]
                     _config=KnotConfig(id="nr"),

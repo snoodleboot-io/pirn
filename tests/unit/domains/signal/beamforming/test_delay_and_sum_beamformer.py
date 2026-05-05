@@ -1,8 +1,8 @@
 """Unit tests for :class:`DelayAndSumBeamformer`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,11 +12,11 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.signal.conftest import emit_signal_frame
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_num_elements(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="num_elements"):
+            with self.assertRaisesRegex(ValueError, "num_elements"):
                 DelayAndSumBeamformer(
                     signal=sig,
                     num_elements=0,
@@ -28,7 +28,7 @@ class TestConstruction:
     def test_rejects_non_positive_element_spacing(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="element_spacing_m"):
+            with self.assertRaisesRegex(ValueError, "element_spacing_m"):
                 DelayAndSumBeamformer(
                     signal=sig,
                     num_elements=4,
@@ -49,8 +49,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_single_channel_signal_frame(self) -> None:
         with Tapestry() as t:
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))

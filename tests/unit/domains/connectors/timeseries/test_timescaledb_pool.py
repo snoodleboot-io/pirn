@@ -6,8 +6,8 @@ Uses an injected asyncpg-style stub — no real TimescaleDB needed.
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.timeseries.timescaledb_config import TimescaleDBConfig
@@ -54,50 +54,51 @@ class FakeAsyncpgPool:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-def test_implements_database_connection_pool() -> None:
-    pool = TimescaleDBPool(pool=FakeAsyncpgPool())
-    assert isinstance(pool, DatabaseConnectionPool)
 
-
-def test_construction_requires_config_or_pool() -> None:
-    with pytest.raises(TypeError, match="config= or pool="):
-        TimescaleDBPool()
-
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_database_connection_pool(self) -> None:
+        pool = TimescaleDBPool(pool=FakeAsyncpgPool())
+        assert isinstance(pool, DatabaseConnectionPool)
+    
+    
+    def test_construction_requires_config_or_pool(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or pool="):
+            TimescaleDBPool()
+    
+    
 # ───────────────────────────────────────────────────────────── config
 
 
-def test_config_repr_redacts_password() -> None:
-    cfg = TimescaleDBConfig(host="db.example.com", password="s3cr3t")
-    assert "s3cr3t" not in repr(cfg)
-    assert "<redacted>" in repr(cfg)
-
-
-def test_config_repr_scrubs_dsn_password() -> None:
-    cfg = TimescaleDBConfig(dsn="postgres://alice:hunter2@db/main")
-    assert "hunter2" not in repr(cfg)
-    assert "<redacted>" in repr(cfg)
-
-
+    def test_config_repr_redacts_password(self) -> None:
+        cfg = TimescaleDBConfig(host="db.example.com", password="s3cr3t")
+        assert "s3cr3t" not in repr(cfg)
+        assert "<redacted>" in repr(cfg)
+    
+    
+    def test_config_repr_scrubs_dsn_password(self) -> None:
+        cfg = TimescaleDBConfig(dsn="postgres://alice:hunter2@db/main")
+        assert "hunter2" not in repr(cfg)
+        assert "<redacted>" in repr(cfg)
+    
+    
 # ───────────────────────────────────────────────────────────── schema property
 
 
-def test_schema_property_default() -> None:
-    pool = TimescaleDBPool(pool=FakeAsyncpgPool())
-    assert pool.schema is None  # no config injected
-
-
-def test_schema_property_from_config() -> None:
-    cfg = TimescaleDBConfig(schema="metrics")
-    pool = TimescaleDBPool(config=cfg, pool=FakeAsyncpgPool())
-    assert pool.schema == "metrics"
-
-
+    def test_schema_property_default(self) -> None:
+        pool = TimescaleDBPool(pool=FakeAsyncpgPool())
+        assert pool.schema is None  # no config injected
+    
+    
+    def test_schema_property_from_config(self) -> None:
+        cfg = TimescaleDBConfig(schema="metrics")
+        pool = TimescaleDBPool(config=cfg, pool=FakeAsyncpgPool())
+        assert pool.schema == "metrics"
+    
+    
 # ───────────────────────────────────────────────────────────── delegation
 
 
-@pytest.mark.asyncio
-class TestDelegation:
+class TestDelegation(unittest.IsolatedAsyncioTestCase):
     async def test_execute_passes_query_and_args(self) -> None:
         fake = FakeAsyncpgPool()
         pool = TimescaleDBPool(pool=fake)
@@ -136,8 +137,7 @@ class TestDelegation:
 # ───────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_closes_underlying_pool(self) -> None:
         fake = FakeAsyncpgPool()
         pool = TimescaleDBPool(pool=fake)
@@ -147,7 +147,7 @@ class TestLifecycle:
     async def test_acquire_after_close_raises(self) -> None:
         pool = TimescaleDBPool(pool=FakeAsyncpgPool())
         await pool.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await pool.acquire()
 
     async def test_close_clears_credentials(self) -> None:
@@ -159,11 +159,11 @@ class TestLifecycle:
     async def test_use_after_close_raises(self) -> None:
         pool = TimescaleDBPool(config=TimescaleDBConfig(), pool=FakeAsyncpgPool())
         await pool.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await pool.acquire()
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_audit_dict_redacts_password(self) -> None:
         cfg = TimescaleDBConfig(host="db.example.com", password="supersecret")
         d = cfg.to_audit_dict()

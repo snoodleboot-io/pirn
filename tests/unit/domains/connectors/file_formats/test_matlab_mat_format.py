@@ -6,12 +6,21 @@ trip tests therefore use ``int``, ``float``, and ``str`` fields only.
 """
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
-pytest.importorskip("scipy")
-pytest.importorskip("scipy.io")
-pytest.importorskip("numpy")
+try:
+    import scipy
+except ImportError as _e:
+    raise unittest.SkipTest("scipy not installed") from _e
+try:
+    import scipy.io
+except ImportError as _e:
+    raise unittest.SkipTest("scipy.io not installed") from _e
+try:
+    import numpy
+except ImportError as _e:
+    raise unittest.SkipTest("numpy not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -24,7 +33,7 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 )
 
 
-class TestMatlabMatFormatConstruction:
+class TestMatlabMatFormatConstruction(unittest.TestCase):
     def test_default_arguments(self) -> None:
         fmt = MatlabMatFormat()
         assert fmt.variable_name == "data"
@@ -35,23 +44,23 @@ class TestMatlabMatFormatConstruction:
         assert fmt.variable_name == "payload"
 
     def test_empty_variable_name_rejected(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             MatlabMatFormat(variable_name="")
 
     def test_non_string_variable_name_rejected(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             MatlabMatFormat(variable_name=42)  # type: ignore[arg-type]
 
     def test_invalid_field_names_type(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             MatlabMatFormat(field_names="ab")  # type: ignore[arg-type]
 
     def test_empty_field_name_rejected(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             MatlabMatFormat(field_names=("a", ""))
 
 
-class TestMatlabMatFormatBasics:
+class TestMatlabMatFormatBasics(unittest.TestCase):
     def test_name(self) -> None:
         assert MatlabMatFormat().name == "matlab-mat"
 
@@ -62,8 +71,7 @@ class TestMatlabMatFormatBasics:
         assert isinstance(MatlabMatFormat(), BatchFileFormat)
 
 
-class TestMatlabMatFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestMatlabMatFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         records = [
             {"id": 1, "name": "alpha", "score": 1.5},
@@ -73,29 +81,25 @@ class TestMatlabMatFormatRoundTrip:
         fmt = MatlabMatFormat()
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_single_row(self) -> None:
         records = [{"id": 42, "name": "solo", "score": 9.0}]
         fmt = MatlabMatFormat()
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_custom_variable_name(self) -> None:
         records = [{"id": 1, "label": "alpha"}]
         fmt = MatlabMatFormat(variable_name="payload")
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_empty_payload_rejected(self) -> None:
         fmt = MatlabMatFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, [])
 
-    @pytest.mark.asyncio
     async def test_decode_unknown_variable_raises(self) -> None:
         records = [{"id": 1, "label": "x"}]
         writer = MatlabMatFormat(variable_name="data")
         payload = await FormatRoundTrip.encode(writer, records)
         reader = MatlabMatFormat(variable_name="missing")
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.decode(reader, payload)

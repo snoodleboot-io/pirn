@@ -1,8 +1,8 @@
 """Tests for :class:`EnsembleBuilder`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -32,7 +32,7 @@ async def emit_second_model() -> TrainedModel:
     )
 
 
-class TestEnsembleBuilderHappyPath:
+class TestEnsembleBuilderHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_meta_model(self) -> None:
         with Tapestry() as t:
             m1 = emit_first_model(_config=KnotConfig(id="m1"))
@@ -51,11 +51,11 @@ class TestEnsembleBuilderHappyPath:
         assert child_ids == ["m1", "m2"]
 
 
-class TestEnsembleBuilderConstruction:
+class TestEnsembleBuilderConstruction(unittest.TestCase):
     def test_rejects_single_model(self) -> None:
         with Tapestry():
             m1 = emit_first_model(_config=KnotConfig(id="m1"))
-            with pytest.raises(ValueError, match="at least two"):
+            with self.assertRaisesRegex(ValueError, "at least two"):
                 EnsembleBuilder(
                     models=(m1,),
                     _config=KnotConfig(id="bad"),

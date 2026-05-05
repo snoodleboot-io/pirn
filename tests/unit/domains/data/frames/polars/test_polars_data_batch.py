@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from datetime import timezone
+import unittest
 
 import polars as pl
 
 from pirn.domains.data.frames.polars.polars_data_batch import PolarsDataBatch
 
 
-class TestPolarsDataBatch:
+class TestPolarsDataBatch(unittest.TestCase):
     def test_row_count_and_columns_reflect_frame(self) -> None:
         frame = pl.DataFrame({"id": [1, 2, 3], "name": ["a", "b", "c"]})
         batch = PolarsDataBatch(frame=frame, source_uri="memory://test")

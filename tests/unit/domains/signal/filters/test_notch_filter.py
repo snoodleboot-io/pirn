@@ -1,8 +1,8 @@
 """Unit tests for :class:`NotchFilter`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,11 +12,11 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.signal.conftest import emit_signal_frame
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_notch_hz(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="notch_hz"):
+            with self.assertRaisesRegex(ValueError, "notch_hz"):
                 NotchFilter(
                     signal=sig,
                     notch_hz=0,
@@ -27,7 +27,7 @@ class TestConstruction:
     def test_rejects_non_positive_quality_factor(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="quality_factor"):
+            with self.assertRaisesRegex(ValueError, "quality_factor"):
                 NotchFilter(
                     signal=sig,
                     notch_hz=60.0,
@@ -36,8 +36,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_signal_frame(self) -> None:
         with Tapestry() as t:
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))

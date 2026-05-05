@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -21,9 +21,9 @@ async def emit_sequence_data() -> dict[str, Any]:
     }
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_knot_sequence_data(self) -> None:
-        with pytest.raises(TypeError, match="sequence_data"):
+        with self.assertRaisesRegex(TypeError, "sequence_data"):
             TumorMicrobiotaClassifier(
                 sequence_data="not-a-knot",  # type: ignore[arg-type]
                 classifier_model="silva",
@@ -35,7 +35,7 @@ class TestConstruction:
     def test_rejects_empty_classifier_model(self) -> None:
         with Tapestry():
             s = emit_sequence_data(_config=KnotConfig(id="s"))
-            with pytest.raises(ValueError, match="classifier_model"):
+            with self.assertRaisesRegex(ValueError, "classifier_model"):
                 TumorMicrobiotaClassifier(
                     sequence_data=s,
                     classifier_model="",
@@ -47,7 +47,7 @@ class TestConstruction:
     def test_rejects_out_of_range_confidence(self) -> None:
         with Tapestry():
             s = emit_sequence_data(_config=KnotConfig(id="s"))
-            with pytest.raises(ValueError, match="confidence_threshold"):
+            with self.assertRaisesRegex(ValueError, "confidence_threshold"):
                 TumorMicrobiotaClassifier(
                     sequence_data=s,
                     classifier_model="silva",
@@ -59,7 +59,7 @@ class TestConstruction:
     def test_rejects_invalid_taxonomic_level(self) -> None:
         with Tapestry():
             s = emit_sequence_data(_config=KnotConfig(id="s"))
-            with pytest.raises(ValueError, match="taxonomic_level"):
+            with self.assertRaisesRegex(ValueError, "taxonomic_level"):
                 TumorMicrobiotaClassifier(
                     sequence_data=s,
                     classifier_model="silva",
@@ -69,8 +69,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_dict_with_required_keys(self) -> None:
         with Tapestry() as t:
             s = emit_sequence_data(_config=KnotConfig(id="s"))

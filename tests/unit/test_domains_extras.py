@@ -11,6 +11,7 @@ from __future__ import annotations
 import sys
 from importlib import reload
 from unittest.mock import patch
+import unittest
 
 import pytest
 
@@ -30,27 +31,27 @@ def _block_modules(*names: str):
     return patch.object(loader_module, "find_spec", side_effect=fake)
 
 
-class TestExtrasLoaderRequire:
+class TestExtrasLoaderRequire(unittest.TestCase):
     def test_passes_when_every_module_resolves(self) -> None:
         ExtrasLoader("data", ["sys", "os"]).require()
 
     def test_raises_listing_each_missing_module(self) -> None:
         with _block_modules("definitely_not_a_real_module", "another_fake_one"):
-            with pytest.raises(ImportError) as exc_info:
+            with self.assertRaises(ImportError) as exc_info:
                 ExtrasLoader(
                     "data",
                     ["sys", "definitely_not_a_real_module", "another_fake_one"],
                 ).require()
-        message = str(exc_info.value)
+        message = str(exc_info.exception)
         assert "definitely_not_a_real_module" in message
         assert "another_fake_one" in message
         assert "sys," not in message
 
     def test_install_hint_uses_extra_name(self) -> None:
         with _block_modules("nonexistent_pkg"):
-            with pytest.raises(ImportError) as exc_info:
+            with self.assertRaises(ImportError) as exc_info:
                 ExtrasLoader("health", ["nonexistent_pkg"]).require()
-        assert "pip install 'pirn[health]'" in str(exc_info.value)
+        assert "pip install 'pirn[health]'" in str(exc_info.exception)
 
     def test_empty_module_list_is_a_noop(self) -> None:
         ExtrasLoader("agents", []).require()
@@ -61,7 +62,7 @@ class TestExtrasLoaderRequire:
         assert loader.modules == ("numpy", "pandas")
 
 
-class TestDomainImportGuards:
+class TestDomainImportGuards(unittest.TestCase):
     """Domains that require extras must raise an actionable ImportError when
     those extras are missing.
 
@@ -76,21 +77,8 @@ class TestDomainImportGuards:
     eager-extras-checking domain a one-row change in the future.
     """
 
-    @pytest.mark.parametrize(
-        ("domain", "blocked", "extra"),
-        [],
-    )
-    def test_missing_dep_raises_install_hint(
-        self, domain: str, blocked: str, extra: str
-    ) -> None:
-        modname = f"pirn.domains.{domain}"
-        sys.modules.pop(modname, None)
-        with _block_modules(blocked):
-            with pytest.raises(ImportError) as exc_info:
-                __import__(modname)
-        message = str(exc_info.value)
-        assert blocked in message
-        assert f"pip install 'pirn[{extra}]'" in message
+    def test_missing_dep_raises_install_hint(self) -> None:
+        pass  # no domains currently call ExtrasLoader at package-init time
 
     def test_agents_imports_without_any_extras(self) -> None:
         sys.modules.pop("pirn.domains.agents", None)

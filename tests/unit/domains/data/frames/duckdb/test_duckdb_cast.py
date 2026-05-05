@@ -1,9 +1,9 @@
 """Tests for :class:`DuckdbCast`."""
 
 from __future__ import annotations
+import unittest
 
 import duckdb
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -25,8 +25,7 @@ async def emit_string_columns() -> DuckdbDataBatch:
     )
 
 
-@pytest.mark.asyncio
-class TestDuckdbCast:
+class TestDuckdbCast(unittest.IsolatedAsyncioTestCase):
     async def test_casts_columns_to_duckdb_types(self) -> None:
         with Tapestry() as t:
             batch = emit_string_columns(_config=KnotConfig(id="src"))
@@ -69,7 +68,7 @@ class TestDuckdbCast:
         assert "DECIMAL" in str(type_by_column["amount"]).upper()
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_string_type(self) -> None:
         @knot
         async def empty() -> DuckdbDataBatch:
@@ -81,7 +80,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="type-name string"):
+            with self.assertRaisesRegex(TypeError, "type-name string"):
                 DuckdbCast(
                     batch=batch,
                     casts={"a": int},  # type: ignore[dict-item]
@@ -99,7 +98,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(ValueError, match="DuckDB type"):
+            with self.assertRaisesRegex(ValueError, "DuckDB type"):
                 DuckdbCast(
                     batch=batch,
                     casts={"a": "INTEGER); DROP TABLE t; --"},
@@ -117,7 +116,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(ValueError, match="DuckDB type"):
+            with self.assertRaisesRegex(ValueError, "DuckDB type"):
                 DuckdbCast(
                     batch=batch,
                     casts={"a": "int'"},
@@ -135,7 +134,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="non-empty"):
+            with self.assertRaisesRegex(TypeError, "non-empty"):
                 DuckdbCast(
                     batch=batch,
                     casts={},

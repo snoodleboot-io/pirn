@@ -1,8 +1,8 @@
 """Tests for :class:`IntermediateModelKnot`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,31 +14,34 @@ from pirn.domains.data.specializations.analytics_engineering.intermediate_model_
 from pirn.tapestry import Tapestry
 
 
-@pytest.fixture
-async def pool() -> SqlitePool:
-    p = SqlitePool(SqliteConfig(database=":memory:"))
-    await p.execute(
-        "CREATE TABLE stg_orders (order_id INTEGER, customer_id INTEGER)"
-    )
-    await p.execute(
-        "CREATE TABLE stg_customers (customer_id INTEGER, name TEXT)"
-    )
-    await p.execute(
-        "CREATE TABLE int_orders (order_id INTEGER, customer_id INTEGER, name TEXT)"
-    )
-    await p.execute_many(
-        "INSERT INTO stg_orders VALUES (?, ?)", [(1, 10), (2, 11)]
-    )
-    await p.execute_many(
-        "INSERT INTO stg_customers VALUES (?, ?)", [(10, "Alice"), (11, "Bob")]
-    )
-    yield p
-    await p.close()
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
+    async def asyncSetUp(self) -> None:
+        p = SqlitePool(SqliteConfig(database=":memory:"))
+        await p.execute(
+            "CREATE TABLE stg_orders (order_id INTEGER, customer_id INTEGER)"
+        )
+        await p.execute(
+            "CREATE TABLE stg_customers (customer_id INTEGER, name TEXT)"
+        )
+        await p.execute(
+            "CREATE TABLE int_orders (order_id INTEGER, customer_id INTEGER, name TEXT)"
+        )
+        await p.execute_many(
+            "INSERT INTO stg_orders VALUES (?, ?)", [(1, 10), (2, 11)]
+        )
+        await p.execute_many(
+            "INSERT INTO stg_customers VALUES (?, ?)", [(10, "Alice"), (11, "Bob")]
+        )
+        self.pool = p
 
-class TestConstruction:
-    def test_rejects_invalid_join_type(self, pool: SqlitePool) -> None:
-        with pytest.raises(ValueError, match="join_type"):
+    async def asyncTearDown(self) -> None:
+        await self.pool.close()
+        
+        
+    def test_rejects_invalid_join_type(self) -> None:
+        pool = self.pool
+        with self.assertRaisesRegex(ValueError, "join_type"):
             IntermediateModelKnot(
                 source_pool=pool,
                 left_table="stg_orders",
@@ -52,7 +55,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_pool(self) -> None:
-        with pytest.raises(TypeError, match="DatabaseConnectionPool"):
+        with self.assertRaisesRegex(TypeError, "DatabaseConnectionPool"):
             IntermediateModelKnot(
                 source_pool="bad",  # type: ignore[arg-type]
                 left_table="a",
@@ -65,8 +68,9 @@ class TestConstruction:
                 _config=KnotConfig(id="int"),
             )
 
-    def test_rejects_invalid_table_identifier(self, pool: SqlitePool) -> None:
-        with pytest.raises(ValueError, match="plain identifier"):
+    def test_rejects_invalid_table_identifier(self) -> None:
+        pool = self.pool
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
             IntermediateModelKnot(
                 source_pool=pool,
                 left_table="stg orders",
@@ -80,11 +84,33 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestBehaviour:
-    async def test_inner_join_produces_correct_rows(
-        self, pool: SqlitePool
-    ) -> None:
+class TestBehaviour(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self) -> None:
+        p = SqlitePool(SqliteConfig(database=":memory:"))
+        await p.execute(
+            "CREATE TABLE stg_orders (order_id INTEGER, customer_id INTEGER)"
+        )
+        await p.execute(
+            "CREATE TABLE stg_customers (customer_id INTEGER, name TEXT)"
+        )
+        await p.execute(
+            "CREATE TABLE int_orders (order_id INTEGER, customer_id INTEGER, name TEXT)"
+        )
+        await p.execute_many(
+            "INSERT INTO stg_orders VALUES (?, ?)", [(1, 10), (2, 11)]
+        )
+        await p.execute_many(
+            "INSERT INTO stg_customers VALUES (?, ?)", [(10, "Alice"), (11, "Bob")]
+        )
+        self.pool = p
+
+    async def asyncTearDown(self) -> None:
+        await self.pool.close()
+        
+        
+    async def test_inner_join_produces_correct_rows(self) -> None:
+        pool = self.pool
         with Tapestry() as t:
             IntermediateModelKnot(
                 source_pool=pool,
@@ -109,7 +135,8 @@ class TestBehaviour:
         )
         assert rows == [(1, 10, "Alice"), (2, 11, "Bob")]
 
-    async def test_left_join_type_accepted(self, pool: SqlitePool) -> None:
+    async def test_left_join_type_accepted(self) -> None:
+        pool = self.pool
         with Tapestry() as t:
             IntermediateModelKnot(
                 source_pool=pool,

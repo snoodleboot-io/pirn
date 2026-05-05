@@ -1,8 +1,8 @@
 """Tests for :class:`ToolChain`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -13,11 +13,10 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.specializations.conftest import StubTool
 
 
-@pytest.mark.asyncio
-class TestToolChainConstruction:
+class TestToolChainConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_empty_tools(self) -> None:
         call = ToolCall(tool_name="t", arguments={}, call_id="c1")
-        with pytest.raises(ValueError, match="tools must not be empty"):
+        with self.assertRaisesRegex(ValueError, "tools must not be empty"):
             with Tapestry():
                 ToolChain(
                     initial_call=call,
@@ -27,7 +26,7 @@ class TestToolChainConstruction:
 
     async def test_rejects_non_tool(self) -> None:
         call = ToolCall(tool_name="t", arguments={}, call_id="c1")
-        with pytest.raises(TypeError, match=r"tools\[0\] must be a Tool"):
+        with self.assertRaisesRegex(TypeError, r"tools\[0\] must be a Tool"):
             with Tapestry():
                 ToolChain(
                     initial_call=call,
@@ -36,8 +35,7 @@ class TestToolChainConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestToolChainHappyPath:
+class TestToolChainHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_executes_single_tool(self) -> None:
         tool = StubTool(name="step1", handler="result1")
         call = ToolCall(tool_name="step1", arguments={"input": "x"}, call_id="c1")

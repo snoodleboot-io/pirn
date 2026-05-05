@@ -6,11 +6,17 @@ survival.
 """
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
-pytest.importorskip("rasterio")
-pytest.importorskip("numpy")
+try:
+    import rasterio
+except ImportError as _e:
+    raise unittest.SkipTest("rasterio not installed") from _e
+try:
+    import numpy
+except ImportError as _e:
+    raise unittest.SkipTest("numpy not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -65,7 +71,7 @@ def _band_records() -> list[dict[str, object]]:
     ]
 
 
-class TestGeotiffFormatBasics:
+class TestGeotiffFormatBasics(unittest.TestCase):
     def test_name(self) -> None:
         assert GeotiffFormat().name == "geotiff"
 
@@ -76,8 +82,7 @@ class TestGeotiffFormatBasics:
         assert isinstance(GeotiffFormat(), BatchFileFormat)
 
 
-class TestGeotiffFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestGeotiffFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_pixel_data_survives(self) -> None:
         fmt = GeotiffFormat()
         records = _band_records()
@@ -91,7 +96,6 @@ class TestGeotiffFormatRoundTrip:
             assert recovered["height"] == original["height"]
             assert recovered["dtype"] == original["dtype"]
 
-    @pytest.mark.asyncio
     async def test_round_trip_single_band(self) -> None:
         fmt = GeotiffFormat()
         records = _band_records()[:1]
@@ -100,16 +104,14 @@ class TestGeotiffFormatRoundTrip:
         assert len(decoded) == 1
         assert decoded[0]["data"] == records[0]["data"]
 
-    @pytest.mark.asyncio
     async def test_encode_rejects_empty_records(self) -> None:
         fmt = GeotiffFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, [])
 
-    @pytest.mark.asyncio
     async def test_encode_rejects_record_missing_data(self) -> None:
         fmt = GeotiffFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(
                 fmt,
                 [
@@ -122,10 +124,9 @@ class TestGeotiffFormatRoundTrip:
                 ],
             )
 
-    @pytest.mark.asyncio
     async def test_encode_rejects_invalid_dimensions(self) -> None:
         fmt = GeotiffFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(
                 fmt,
                 [

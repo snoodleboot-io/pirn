@@ -1,8 +1,8 @@
 """Tests for :class:`InputGuardrailGate`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -13,10 +13,9 @@ from pirn.domains.agents.types.agent_message import AgentMessage
 from pirn.tapestry import Tapestry
 
 
-@pytest.mark.asyncio
-class TestInputGuardrailGateConstruction:
+class TestInputGuardrailGateConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_string_deny_pattern(self) -> None:
-        with pytest.raises(TypeError, match="deny_patterns"):
+        with self.assertRaisesRegex(TypeError, "deny_patterns"):
             with Tapestry():
                 InputGuardrailGate(
                     messages=(AgentMessage(role="user", content="hi"),),
@@ -25,7 +24,7 @@ class TestInputGuardrailGateConstruction:
                 )
 
     async def test_rejects_non_string_pii_pattern(self) -> None:
-        with pytest.raises(TypeError, match="pii_patterns"):
+        with self.assertRaisesRegex(TypeError, "pii_patterns"):
             with Tapestry():
                 InputGuardrailGate(
                     messages=(AgentMessage(role="user", content="hi"),),
@@ -35,11 +34,8 @@ class TestInputGuardrailGateConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestInputGuardrailGateHappyPath:
-    async def test_redacts_pii_and_passes_clean_messages_through(
-        self,
-    ) -> None:
+class TestInputGuardrailGateHappyPath(unittest.IsolatedAsyncioTestCase):
+    async def test_redacts_pii_and_passes_clean_messages_through(self,) -> None:
         messages = (
             AgentMessage(role="user", content="email me at me@x.com"),
             AgentMessage(role="user", content="hello world"),

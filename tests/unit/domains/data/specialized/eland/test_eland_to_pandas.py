@@ -8,9 +8,9 @@ offline.
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
 import pandas as pd
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -25,10 +25,12 @@ class _FakeFrame:
     pass
 
 
-@pytest.mark.asyncio
-class TestElandToPandas:
-    async def test_materialises_via_stubbed_eland_to_pandas(self, monkeypatch) -> None:
-        pytest.importorskip("eland")
+class TestElandToPandas(unittest.IsolatedAsyncioTestCase):
+    async def test_materialises_via_stubbed_eland_to_pandas(self) -> None:
+        try:
+            import eland
+        except ImportError as _e:
+            self.skipTest("eland not installed")
         import eland as ed
 
         captured: dict[str, Any] = {}
@@ -38,16 +40,15 @@ class TestElandToPandas:
             captured["frame"] = frame
             return out_df
 
-        monkeypatch.setattr(ed, "eland_to_pandas", fake_eland_to_pandas)
+        with unittest.mock.patch.object(ed, "eland_to_pandas", fake_eland_to_pandas):
+            @knot
+            async def emit() -> ElandDataFrame:
+                return ElandDataFrame(frame=_FakeFrame(), source_uri="elasticsearch://x")
 
-        @knot
-        async def emit() -> ElandDataFrame:
-            return ElandDataFrame(frame=_FakeFrame(), source_uri="elasticsearch://x")
-
-        with Tapestry() as t:
-            up = emit(_config=KnotConfig(id="up"))
-            ElandToPandas(frame=up, _config=KnotConfig(id="bridge"))
-        result = await t.run(RunRequest())
+            with Tapestry() as t:
+                up = emit(_config=KnotConfig(id="up"))
+                ElandToPandas(frame=up, _config=KnotConfig(id="bridge"))
+            result = await t.run(RunRequest())
 
         out = result.outputs["bridge"]
         assert isinstance(out, PandasDataBatch)

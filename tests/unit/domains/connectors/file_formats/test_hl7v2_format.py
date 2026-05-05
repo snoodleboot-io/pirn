@@ -1,10 +1,13 @@
 """Tests for :class:`Hl7v2Format` — HL7 v2 message format."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
-pytest.importorskip("hl7")
+try:
+    import hl7
+except ImportError as _e:
+    raise unittest.SkipTest("hl7 not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -40,7 +43,7 @@ async def _decode(fmt: Hl7v2Format, payload: bytes) -> list[dict]:
 # Construction
 # ---------------------------------------------------------------------------
 
-class TestHl7v2FormatConstruction:
+class TestHl7v2FormatConstruction(unittest.TestCase):
     def test_is_batch_format(self) -> None:
         assert isinstance(Hl7v2Format(), BatchFileFormat)
 
@@ -55,8 +58,7 @@ class TestHl7v2FormatConstruction:
 # PHI sanitisation
 # ---------------------------------------------------------------------------
 
-class TestHl7v2FormatPhiSanitisation:
-    @pytest.mark.asyncio
+class TestHl7v2FormatPhiSanitisation(unittest.IsolatedAsyncioTestCase):
     async def test_pid5_name_redacted(self) -> None:
         records = await _decode(Hl7v2Format(), _MINIMAL_HL7.encode("utf-8"))
         pid_seg = next(
@@ -65,7 +67,6 @@ class TestHl7v2FormatPhiSanitisation:
         # PID.5 is index 4 in fields (0-based, field 5 - 1)
         assert pid_seg["fields"][4] == "[REDACTED]"
 
-    @pytest.mark.asyncio
     async def test_pid7_dob_redacted(self) -> None:
         records = await _decode(Hl7v2Format(), _MINIMAL_HL7.encode("utf-8"))
         pid_seg = next(
@@ -74,7 +75,6 @@ class TestHl7v2FormatPhiSanitisation:
         # PID.7 is index 6 in fields (0-based)
         assert pid_seg["fields"][6] == "[REDACTED]"
 
-    @pytest.mark.asyncio
     async def test_pid11_address_redacted(self) -> None:
         records = await _decode(Hl7v2Format(), _MINIMAL_HL7.encode("utf-8"))
         pid_seg = next(
@@ -83,11 +83,9 @@ class TestHl7v2FormatPhiSanitisation:
         # PID.11 is index 10 in fields (0-based)
         assert pid_seg["fields"][10] == "[REDACTED]"
 
-    @pytest.mark.asyncio
     async def test_phi_keywords_frozenset(self) -> None:
         assert isinstance(Hl7v2Format._phi_keywords, frozenset)
 
-    @pytest.mark.asyncio
     async def test_record_shape(self) -> None:
         records = await _decode(Hl7v2Format(), _MINIMAL_HL7.encode("utf-8"))
         assert len(records) == 1
@@ -98,7 +96,6 @@ class TestHl7v2FormatPhiSanitisation:
         assert "receiving_facility" in record
         assert "segments" in record
 
-    @pytest.mark.asyncio
     async def test_message_control_id(self) -> None:
         records = await _decode(Hl7v2Format(), _MINIMAL_HL7.encode("utf-8"))
         assert records[0]["message_control_id"] == "CTRL001"
@@ -108,8 +105,7 @@ class TestHl7v2FormatPhiSanitisation:
 # Round-trip
 # ---------------------------------------------------------------------------
 
-class TestHl7v2FormatRoundTrip:
-    @pytest.mark.asyncio
+class TestHl7v2FormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_preserves_segments(self) -> None:
         fmt = Hl7v2Format()
         payload = _MINIMAL_HL7.encode("utf-8")
@@ -121,7 +117,6 @@ class TestHl7v2FormatRoundTrip:
         re_seg_ids = [s["segment_id"] for s in re_decoded[0]["segments"]]
         assert orig_seg_ids == re_seg_ids
 
-    @pytest.mark.asyncio
     async def test_round_trip_two_messages(self) -> None:
         second = _MINIMAL_HL7.replace("CTRL001", "CTRL002")
         two_msgs = (_MINIMAL_HL7 + second).encode("utf-8")
@@ -137,15 +132,14 @@ class TestHl7v2FormatRoundTrip:
 # Error paths
 # ---------------------------------------------------------------------------
 
-class TestHl7v2FormatErrors:
-    @pytest.mark.asyncio
+class TestHl7v2FormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_invalid_hl7_raises(self) -> None:
         fmt = Hl7v2Format()
 
         async def _iter():
             yield b"NOT|A|VALID|HL7|MESSAGE\r"
 
-        with pytest.raises(Exception):
+        with self.assertRaises(Exception):
             async for _ in await fmt.read(_iter()):
                 pass
 
@@ -154,12 +148,11 @@ class TestHl7v2FormatErrors:
 # Missing dependency
 # ---------------------------------------------------------------------------
 
-class TestHl7v2FormatMissingDep:
-    def test_missing_hl7_raises(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+class TestHl7v2FormatMissingDep(unittest.TestCase):
+    def test_missing_hl7_raises(self) -> None:
+        # TODO(unittest-migrate): replace 'monkeypatch' built-in fixture — use unittest.mock.patch / assertLogs
         import sys
         monkeypatch.setitem(sys.modules, "hl7", None)  # type: ignore[arg-type]
         fmt = Hl7v2Format()
-        with pytest.raises(ImportError, match="pirn\\[health\\]"):
+        with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
             fmt._load_hl7()

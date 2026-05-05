@@ -1,8 +1,8 @@
 """Unit tests for :class:`SeismicToWellTieWorkflow`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -13,9 +13,9 @@ from pirn.domains.oilgas.workflows.seismic_to_well_tie_workflow import (
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_segy_path(self) -> None:
-        with pytest.raises(ValueError, match="segy_path"):
+        with self.assertRaisesRegex(ValueError, "segy_path"):
             SeismicToWellTieWorkflow(
                 segy_path="",
                 volume_id="vol",
@@ -29,7 +29,7 @@ class TestConstruction:
             )
 
     def test_rejects_empty_las_curves(self) -> None:
-        with pytest.raises(ValueError, match="las_curves"):
+        with self.assertRaisesRegex(ValueError, "las_curves"):
             SeismicToWellTieWorkflow(
                 segy_path="/x.sgy",
                 volume_id="vol",
@@ -43,8 +43,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_inner_pipeline_runs(self) -> None:
         with Tapestry() as t:
             SeismicToWellTieWorkflow(

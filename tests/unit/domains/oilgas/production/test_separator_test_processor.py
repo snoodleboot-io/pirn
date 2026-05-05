@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -29,9 +29,9 @@ class _TestDataSource(Knot):
         }
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_invalid_stages(self) -> None:
-        with pytest.raises(ValueError, match="separator_stages"):
+        with self.assertRaisesRegex(ValueError, "separator_stages"):
             with Tapestry():
                 src = _TestDataSource(_config=KnotConfig(id="src"))
                 SeparatorTestProcessor(
@@ -41,7 +41,7 @@ class TestConstruction:
                 )
 
     def test_rejects_non_int_stages(self) -> None:
-        with pytest.raises(TypeError, match="separator_stages"):
+        with self.assertRaisesRegex(TypeError, "separator_stages"):
             with Tapestry():
                 src = _TestDataSource(_config=KnotConfig(id="src"))
                 SeparatorTestProcessor(
@@ -51,8 +51,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_gor_wor_shrinkage(self) -> None:
         with Tapestry() as t:
             src = _TestDataSource(_config=KnotConfig(id="src"))

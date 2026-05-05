@@ -1,10 +1,14 @@
 """Round-trip and validation tests for :class:`GeopackageFormat`."""
 
 from __future__ import annotations
+import unittest
 
 import pytest
 
-pytest.importorskip("fiona")
+try:
+    import fiona
+except ImportError as _e:
+    raise unittest.SkipTest("fiona not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -43,7 +47,7 @@ def _point_records() -> list[dict[str, object]]:
     ]
 
 
-class TestGeopackageFormatConstruction:
+class TestGeopackageFormatConstruction(unittest.TestCase):
     def test_default_layer_name(self) -> None:
         fmt = GeopackageFormat()
         assert fmt.layer_name == "default"
@@ -53,15 +57,15 @@ class TestGeopackageFormatConstruction:
         assert fmt.layer_name == "cities"
 
     def test_layer_name_must_be_str(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             GeopackageFormat(layer_name=123)  # type: ignore[arg-type]
 
     def test_layer_name_must_be_nonempty(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             GeopackageFormat(layer_name="")
 
 
-class TestGeopackageFormatBasics:
+class TestGeopackageFormatBasics(unittest.TestCase):
     def test_name(self) -> None:
         assert GeopackageFormat().name == "geopackage"
 
@@ -72,8 +76,7 @@ class TestGeopackageFormatBasics:
         assert isinstance(GeopackageFormat(), BatchFileFormat)
 
 
-class TestGeopackageFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestGeopackageFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         fmt = GeopackageFormat(layer_name="points")
         records = _point_records()
@@ -97,7 +100,6 @@ class TestGeopackageFormatRoundTrip:
                 original["properties"]["score"]
             )
 
-    @pytest.mark.asyncio
     async def test_round_trip_single(self) -> None:
         fmt = GeopackageFormat()
         records = _point_records()[:1]
@@ -106,24 +108,21 @@ class TestGeopackageFormatRoundTrip:
         assert len(decoded) == 1
         assert decoded[0]["geometry"]["type"] == "Point"
 
-    @pytest.mark.asyncio
     async def test_encode_rejects_empty_records(self) -> None:
         fmt = GeopackageFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, [])
 
-    @pytest.mark.asyncio
     async def test_encode_rejects_record_missing_geometry(self) -> None:
         fmt = GeopackageFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(
                 fmt, [{"properties": {"name": "x"}}]
             )
 
-    @pytest.mark.asyncio
     async def test_encode_rejects_geometry_without_type(self) -> None:
         fmt = GeopackageFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(
                 fmt,
                 [{"geometry": {"coordinates": (0.0, 0.0)}, "properties": {}}],

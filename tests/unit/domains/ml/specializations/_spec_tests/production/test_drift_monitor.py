@@ -1,8 +1,8 @@
 """Tests for :class:`DriftMonitor`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -29,12 +29,12 @@ async def emit_current() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_threshold_above_one(self) -> None:
         with Tapestry():
             baseline = emit_baseline(_config=KnotConfig(id="b"))
             current = emit_current(_config=KnotConfig(id="c"))
-            with pytest.raises(ValueError, match="threshold"):
+            with self.assertRaisesRegex(ValueError, "threshold"):
                 DriftMonitor(
                     baseline=baseline,
                     current=current,
@@ -47,7 +47,7 @@ class TestConstruction:
         with Tapestry():
             baseline = emit_baseline(_config=KnotConfig(id="b"))
             current = emit_current(_config=KnotConfig(id="c"))
-            with pytest.raises(ValueError, match="columns"):
+            with self.assertRaisesRegex(ValueError, "columns"):
                 DriftMonitor(
                     baseline=baseline,
                     current=current,
@@ -56,8 +56,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_returns_per_column_scores_and_flag(self) -> None:
         with Tapestry() as t:
             baseline = emit_baseline(_config=KnotConfig(id="b"))

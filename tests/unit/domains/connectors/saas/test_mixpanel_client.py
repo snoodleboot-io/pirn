@@ -7,8 +7,8 @@ Uses an injected stub client that mirrors the slice of the
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.saas.mixpanel_client import MixpanelClient
@@ -23,9 +23,7 @@ class FakeMixpanelClient:
         self.imported: list[dict[str, Any]] = []
         self.closed = False
 
-    def track(
-        self, distinct_id: str, event: str, properties: dict[str, Any]
-    ) -> None:
+    def track(self, distinct_id: str, event: str, properties: dict[str, Any]) -> None:
         self.tracked.append((distinct_id, event, dict(properties)))
 
     def import_data(self, **kwargs: Any) -> dict[str, Any]:
@@ -36,17 +34,19 @@ class FakeMixpanelClient:
         self.closed = True
 
 
-def test_implements_api_client() -> None:
-    client = MixpanelClient(client=FakeMixpanelClient())
-    assert isinstance(client, ApiClient)
 
-
-def test_construction_requires_config_or_client() -> None:
-    with pytest.raises(TypeError, match="config= or client="):
-        MixpanelClient()
-
-
-class TestRequestDispatch:
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_api_client(self) -> None:
+        client = MixpanelClient(client=FakeMixpanelClient())
+        assert isinstance(client, ApiClient)
+    
+    
+    def test_construction_requires_config_or_client(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or client="):
+            MixpanelClient()
+    
+    
+class TestRequestDispatch(unittest.IsolatedAsyncioTestCase):
     async def test_track_routes_to_track(self) -> None:
         fake = FakeMixpanelClient()
         client = MixpanelClient(client=fake)
@@ -70,9 +70,9 @@ class TestRequestDispatch:
 
     async def test_track_requires_distinct_id_and_event(self) -> None:
         client = MixpanelClient(client=FakeMixpanelClient())
-        with pytest.raises(ValueError, match="distinct_id"):
+        with self.assertRaisesRegex(ValueError, "distinct_id"):
             await client.request("POST", "/track", body={"event": "x"})
-        with pytest.raises(ValueError, match="distinct_id"):
+        with self.assertRaisesRegex(ValueError, "distinct_id"):
             await client.request(
                 "POST", "/track", body={"distinct_id": "u"}
             )
@@ -87,26 +87,26 @@ class TestRequestDispatch:
 
     async def test_unsupported_path_raises(self) -> None:
         client = MixpanelClient(client=FakeMixpanelClient())
-        with pytest.raises(ValueError, match="unsupported path"):
+        with self.assertRaisesRegex(ValueError, "unsupported path"):
             await client.request("POST", "/people/set", body={})
 
     async def test_non_post_method_raises(self) -> None:
         client = MixpanelClient(client=FakeMixpanelClient())
-        with pytest.raises(ValueError, match="only POST"):
+        with self.assertRaisesRegex(ValueError, "only POST"):
             await client.request("GET", "/track", body={})
 
     async def test_empty_method_raises(self) -> None:
         client = MixpanelClient(client=FakeMixpanelClient())
-        with pytest.raises(ValueError, match="method must be non-empty"):
+        with self.assertRaisesRegex(ValueError, "method must be non-empty"):
             await client.request("", "/track", body={})
 
     async def test_empty_path_raises(self) -> None:
         client = MixpanelClient(client=FakeMixpanelClient())
-        with pytest.raises(ValueError, match="path must be non-empty"):
+        with self.assertRaisesRegex(ValueError, "path must be non-empty"):
             await client.request("POST", "", body={})
 
 
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_closes_underlying_client(self) -> None:
         fake = FakeMixpanelClient()
         client = MixpanelClient(client=fake)
@@ -121,7 +121,7 @@ class TestLifecycle:
     async def test_request_after_close_raises(self) -> None:
         client = MixpanelClient(client=FakeMixpanelClient())
         await client.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await client.request(
                 "POST",
                 "/track",
@@ -129,7 +129,7 @@ class TestLifecycle:
             )
 
 
-class TestConfigSafety:
+class TestConfigSafety(unittest.TestCase):
     def test_sensitive_fields_declared(self) -> None:
         sensitive = MixpanelConfig.sensitive_fields
         assert "project_token" in sensitive

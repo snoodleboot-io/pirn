@@ -1,8 +1,8 @@
 """Unit tests for :class:`ToolResultAggregator`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -22,8 +22,7 @@ async def emit_results() -> tuple[ToolResult, ...]:
     )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_aggregates_success_and_failure(self) -> None:
         with Tapestry() as t:
             r = emit_results(_config=KnotConfig(id="r"))

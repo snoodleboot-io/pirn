@@ -1,11 +1,12 @@
 """Unit tests for :class:`ToolResult`."""
 
 from __future__ import annotations
+import unittest
 
 from pirn.domains.agents.types.tool_result import ToolResult
 
 
-class TestRoundtrip:
+class TestRoundtrip(unittest.TestCase):
     def test_construct_success(self) -> None:
         result = ToolResult(call_id="c1", result={"answer": 42}, error=None)
         assert result.call_id == "c1"

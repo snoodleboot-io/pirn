@@ -1,8 +1,8 @@
 """Unit tests for :class:`CmpGatherExtractor`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,9 +12,9 @@ from pirn.domains.oilgas.types.segy_volume import SegyVolume
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_negative_inline(self) -> None:
-        with pytest.raises(ValueError, match="cmp_inline"):
+        with self.assertRaisesRegex(ValueError, "cmp_inline"):
             with Tapestry():
                 volume = SegyFileIngester(
                     file_path="/x", volume_id="v", _config=KnotConfig(id="i")
@@ -27,7 +27,7 @@ class TestConstruction:
                 )
 
     def test_rejects_non_int_xline(self) -> None:
-        with pytest.raises(ValueError, match="cmp_xline"):
+        with self.assertRaisesRegex(ValueError, "cmp_xline"):
             with Tapestry():
                 volume = SegyFileIngester(
                     file_path="/x", volume_id="v", _config=KnotConfig(id="i")
@@ -40,8 +40,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_subvolume(self) -> None:
         with Tapestry() as t:
             volume = SegyFileIngester(

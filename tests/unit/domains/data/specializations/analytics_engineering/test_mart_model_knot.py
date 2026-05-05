@@ -1,8 +1,8 @@
 """Tests for :class:`MartModelKnot`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,29 +14,30 @@ from pirn.domains.data.specializations.analytics_engineering.mart_model_knot imp
 from pirn.tapestry import Tapestry
 
 
-@pytest.fixture
-async def pool() -> SqlitePool:
-    p = SqlitePool(SqliteConfig(database=":memory:"))
-    await p.execute(
-        "CREATE TABLE int_orders "
-        "(order_id INTEGER, region TEXT, amount REAL)"
-    )
-    await p.execute(
-        "CREATE TABLE mart_revenue (region TEXT, total_revenue REAL)"
-    )
-    await p.execute_many(
-        "INSERT INTO int_orders VALUES (?, ?, ?)",
-        [(1, "EU", 100.0), (2, "EU", 50.0), (3, "US", 200.0)],
-    )
-    yield p
-    await p.close()
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
+    async def asyncSetUp(self) -> None:
+        p = SqlitePool(SqliteConfig(database=":memory:"))
+        await p.execute(
+            "CREATE TABLE int_orders "
+            "(order_id INTEGER, region TEXT, amount REAL)"
+        )
+        await p.execute(
+            "CREATE TABLE mart_revenue (region TEXT, total_revenue REAL)"
+        )
+        await p.execute_many(
+            "INSERT INTO int_orders VALUES (?, ?, ?)",
+            [(1, "EU", 100.0), (2, "EU", 50.0), (3, "US", 200.0)],
+        )
+        self.pool = p
 
-class TestConstruction:
-    def test_rejects_empty_metric_expressions(
-        self, pool: SqlitePool
-    ) -> None:
-        with pytest.raises(ValueError, match="metric_expressions"):
+    async def asyncTearDown(self) -> None:
+        await self.pool.close()
+        
+        
+    def test_rejects_empty_metric_expressions(self) -> None:
+        pool = self.pool
+        with self.assertRaisesRegex(ValueError, "metric_expressions"):
             MartModelKnot(
                 source_pool=pool,
                 source_table="int_orders",
@@ -47,10 +48,9 @@ class TestConstruction:
                 _config=KnotConfig(id="mart"),
             )
 
-    def test_rejects_invalid_table_identifier(
-        self, pool: SqlitePool
-    ) -> None:
-        with pytest.raises(ValueError, match="plain identifier"):
+    def test_rejects_invalid_table_identifier(self) -> None:
+        pool = self.pool
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
             MartModelKnot(
                 source_pool=pool,
                 source_table="int orders",
@@ -62,9 +62,29 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestBehaviour:
-    async def test_aggregates_by_group(self, pool: SqlitePool) -> None:
+class TestBehaviour(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self) -> None:
+        p = SqlitePool(SqliteConfig(database=":memory:"))
+        await p.execute(
+            "CREATE TABLE int_orders "
+            "(order_id INTEGER, region TEXT, amount REAL)"
+        )
+        await p.execute(
+            "CREATE TABLE mart_revenue (region TEXT, total_revenue REAL)"
+        )
+        await p.execute_many(
+            "INSERT INTO int_orders VALUES (?, ?, ?)",
+            [(1, "EU", 100.0), (2, "EU", 50.0), (3, "US", 200.0)],
+        )
+        self.pool = p
+
+    async def asyncTearDown(self) -> None:
+        await self.pool.close()
+        
+        
+    async def test_aggregates_by_group(self) -> None:
+        pool = self.pool
         with Tapestry() as t:
             MartModelKnot(
                 source_pool=pool,
@@ -82,7 +102,8 @@ class TestBehaviour:
         )
         assert rows == [("EU", 150.0), ("US", 200.0)]
 
-    async def test_no_group_by_aggregates_all(self, pool: SqlitePool) -> None:
+    async def test_no_group_by_aggregates_all(self) -> None:
+        pool = self.pool
         await pool.execute(
             "CREATE TABLE mart_totals (grand_total REAL)"
         )

@@ -1,8 +1,8 @@
 """Tests for :class:`MergeUpsert`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -10,30 +10,6 @@ from pirn.domains.connectors.databases.sqlite_config import SqliteConfig
 from pirn.domains.connectors.databases.sqlite_pool import SqlitePool
 from pirn.domains.data.specializations.incremental.merge_upsert import MergeUpsert
 from pirn.tapestry import Tapestry
-
-
-@pytest.fixture
-async def source_pool() -> SqlitePool:
-    pool = SqlitePool(SqliteConfig(database=":memory:"))
-    await pool.execute(
-        "CREATE TABLE employees (id INTEGER PRIMARY KEY, name TEXT, dept TEXT)"
-    )
-    await pool.execute_many(
-        "INSERT INTO employees (id, name, dept) VALUES (?, ?, ?)",
-        [(1, "Alice", "Eng"), (2, "Bob", "Sales")],
-    )
-    yield pool
-    await pool.close()
-
-
-@pytest.fixture
-async def target_pool() -> SqlitePool:
-    pool = SqlitePool(SqliteConfig(database=":memory:"))
-    await pool.execute(
-        "CREATE TABLE employees (id INTEGER PRIMARY KEY, name TEXT, dept TEXT)"
-    )
-    yield pool
-    await pool.close()
 
 
 def make_knot(
@@ -50,9 +26,34 @@ def make_knot(
     )
 
 
-class TestConstruction:
-    def test_rejects_non_pool_source(self, target_pool: SqlitePool) -> None:
-        with pytest.raises(TypeError, match="DatabaseConnectionPool"):
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self) -> None:
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute(
+            "CREATE TABLE employees (id INTEGER PRIMARY KEY, name TEXT, dept TEXT)"
+        )
+        await pool.execute_many(
+            "INSERT INTO employees (id, name, dept) VALUES (?, ?, ?)",
+            [(1, "Alice", "Eng"), (2, "Bob", "Sales")],
+        )
+        self.source_pool = pool
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute(
+            "CREATE TABLE employees (id INTEGER PRIMARY KEY, name TEXT, dept TEXT)"
+        )
+        self.target_pool = pool
+
+    async def asyncTearDown(self) -> None:
+        await self.source_pool.close()
+        
+        
+        await self.target_pool.close()
+        
+        
+    def test_rejects_non_pool_source(self) -> None:
+        target_pool = self.target_pool
+        with self.assertRaisesRegex(TypeError, "DatabaseConnectionPool"):
             MergeUpsert(
                 source_pool="bad",  # type: ignore[arg-type]
                 source_query="SELECT 1",
@@ -63,10 +64,10 @@ class TestConstruction:
                 _config=KnotConfig(id="upsert"),
             )
 
-    def test_rejects_overlapping_columns(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
-        with pytest.raises(ValueError, match="overlap"):
+    def test_rejects_overlapping_columns(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
+        with self.assertRaisesRegex(ValueError, "overlap"):
             MergeUpsert(
                 source_pool=source_pool,
                 source_query="SELECT 1",
@@ -77,10 +78,10 @@ class TestConstruction:
                 _config=KnotConfig(id="upsert"),
             )
 
-    def test_rejects_empty_source_query(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
-        with pytest.raises(ValueError, match="source_query"):
+    def test_rejects_empty_source_query(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
+        with self.assertRaisesRegex(ValueError, "source_query"):
             MergeUpsert(
                 source_pool=source_pool,
                 source_query="",
@@ -92,11 +93,34 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestMergeUpsertBehaviour:
-    async def test_inserts_new_rows(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
+class TestMergeUpsertBehaviour(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self) -> None:
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute(
+            "CREATE TABLE employees (id INTEGER PRIMARY KEY, name TEXT, dept TEXT)"
+        )
+        await pool.execute_many(
+            "INSERT INTO employees (id, name, dept) VALUES (?, ?, ?)",
+            [(1, "Alice", "Eng"), (2, "Bob", "Sales")],
+        )
+        self.source_pool = pool
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute(
+            "CREATE TABLE employees (id INTEGER PRIMARY KEY, name TEXT, dept TEXT)"
+        )
+        self.target_pool = pool
+
+    async def asyncTearDown(self) -> None:
+        await self.source_pool.close()
+        
+        
+        await self.target_pool.close()
+        
+        
+    async def test_inserts_new_rows(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
         with Tapestry() as t:
             make_knot(source_pool, target_pool)
         result = await t.run(RunRequest())
@@ -106,9 +130,9 @@ class TestMergeUpsertBehaviour:
         )
         assert rows == [(1, "Alice", "Eng"), (2, "Bob", "Sales")]
 
-    async def test_updates_changed_rows(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
+    async def test_updates_changed_rows(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
         with Tapestry() as t:
             make_knot(source_pool, target_pool)
         await t.run(RunRequest())
@@ -123,9 +147,9 @@ class TestMergeUpsertBehaviour:
         )
         assert rows == [(1, "Finance"), (2, "Sales")]
 
-    async def test_does_not_delete_removed_rows(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
+    async def test_does_not_delete_removed_rows(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
         with Tapestry() as t:
             make_knot(source_pool, target_pool)
         await t.run(RunRequest())
@@ -144,9 +168,9 @@ class TestMergeUpsertBehaviour:
         count = await target_pool.fetch_all("SELECT COUNT(*) FROM employees")
         assert count[0][0] == 2
 
-    async def test_result_tracks_inserted_and_updated(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
+    async def test_result_tracks_inserted_and_updated(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
         with Tapestry() as t:
             knot = make_knot(source_pool, target_pool)
         run_result = await t.run(RunRequest())

@@ -1,8 +1,8 @@
 """Tests for :class:`FeatureStoreReader`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -29,12 +29,12 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_entity_keys(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
             store = RecordingFeatureStoreProvider()
-            with pytest.raises(ValueError, match="entity_keys"):
+            with self.assertRaisesRegex(ValueError, "entity_keys"):
                 FeatureStoreReader(
                     split=split,
                     feature_store=store,
@@ -47,7 +47,7 @@ class TestConstruction:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
             store = RecordingFeatureStoreProvider()
-            with pytest.raises(ValueError, match="feature_names"):
+            with self.assertRaisesRegex(ValueError, "feature_names"):
                 FeatureStoreReader(
                     split=split,
                     feature_store=store,
@@ -57,7 +57,7 @@ class TestConstruction:
                 )
 
 
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_joins_feature_names_and_probes_store(self) -> None:
         store = RecordingFeatureStoreProvider()
         with Tapestry() as t:

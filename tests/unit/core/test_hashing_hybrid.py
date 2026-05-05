@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any
+import unittest
 
 from pirn.core.hashing import content_hash
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
@@ -66,7 +67,7 @@ class _BothHooks(PirnOpaqueValue):
         return {"canonical": self.label}
 
 
-class TestCanonicalHook:
+class TestCanonicalHook(unittest.TestCase):
     """Hook A — ``__pirn_canonical__`` runs before the ``BaseModel`` branch."""
 
     def test_hook_drives_hash(self) -> None:
@@ -89,7 +90,7 @@ class TestCanonicalHook:
         assert content_hash(a) != content_hash({"audit": "hello"})
 
 
-class TestPydanticAwareFallback:
+class TestPydanticAwareFallback(unittest.TestCase):
     """Fallback B — ``__get_pydantic_core_schema__`` rescues opaque values."""
 
     def test_fallback_avoids_unhashable_marker(self) -> None:
@@ -108,7 +109,7 @@ class TestPydanticAwareFallback:
         assert content_hash(a) != content_hash(c)
 
 
-class TestDataBatchEndToEnd:
+class TestDataBatchEndToEnd(unittest.TestCase):
     """End-to-end sanity: a real :class:`DataBatch` flows through cleanly."""
 
     def test_data_batch_hash_equals_canonical_form(self) -> None:

@@ -1,8 +1,8 @@
 """Tests for :class:`ContinuousTrainingPipeline`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -21,10 +21,10 @@ from tests.unit.domains.ml._stubs.recording_object_store import (
 )
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_negative_freshness_window(self) -> None:
         with Tapestry():
-            with pytest.raises(ValueError, match="freshness_window_days"):
+            with self.assertRaisesRegex(ValueError, "freshness_window_days"):
                 ContinuousTrainingPipeline(
                     pool=RecordingDatabasePool(rows=[(1,)]),
                     query="SELECT 1",
@@ -40,8 +40,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_runs_full_training_when_no_lineage(self) -> None:
         rows = [(1.0, 0), (2.0, 1)] * 10
         lineage = RecordingLineageStore()

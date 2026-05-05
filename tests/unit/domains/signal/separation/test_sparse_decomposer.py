@@ -1,8 +1,8 @@
 """Unit tests for :class:`SparseDecomposer`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,11 +12,11 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.signal.conftest import emit_signal_frame
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_atom_count(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="atom_count"):
+            with self.assertRaisesRegex(ValueError, "atom_count"):
                 SparseDecomposer(
                     signal=sig,
                     atom_count=0,
@@ -27,7 +27,7 @@ class TestConstruction:
     def test_rejects_non_positive_sparsity_target(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="sparsity_target"):
+            with self.assertRaisesRegex(ValueError, "sparsity_target"):
                 SparseDecomposer(
                     signal=sig,
                     atom_count=4,
@@ -38,7 +38,7 @@ class TestConstruction:
     def test_rejects_invalid_algorithm(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="algorithm"):
+            with self.assertRaisesRegex(ValueError, "algorithm"):
                 SparseDecomposer(
                     signal=sig,
                     atom_count=4,
@@ -48,8 +48,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_source_frame(self) -> None:
         with Tapestry() as t:
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))

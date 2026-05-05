@@ -1,10 +1,13 @@
 """Round-trip and validation tests for :class:`FitsFormat`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
-pytest.importorskip("astropy")
+try:
+    import astropy
+except ImportError as _e:
+    raise unittest.SkipTest("astropy not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -39,7 +42,7 @@ def _make_fits_payload_with_data() -> bytes:
     return buf.getvalue()
 
 
-class TestFitsFormatConstruction:
+class TestFitsFormatConstruction(unittest.TestCase):
     def test_name(self) -> None:
         assert FitsFormat().name == "fits"
 
@@ -50,8 +53,7 @@ class TestFitsFormatConstruction:
         assert isinstance(FitsFormat(), BatchFileFormat)
 
 
-class TestFitsFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestFitsFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_decode_empty_primary_hdu(self) -> None:
         payload = _make_fits_payload()
         fmt = FitsFormat()
@@ -63,7 +65,6 @@ class TestFitsFormatRoundTrip:
         assert "header" in first
         assert isinstance(first["header"], dict)
 
-    @pytest.mark.asyncio
     async def test_decode_hdu_with_data(self) -> None:
         payload = _make_fits_payload_with_data()
         fmt = FitsFormat()
@@ -74,7 +75,6 @@ class TestFitsFormatRoundTrip:
         assert isinstance(first["data"], bytes)
         assert len(first["data"]) > 0
 
-    @pytest.mark.asyncio
     async def test_encode_produces_valid_fits(self) -> None:
         from astropy.io import fits
         import io
@@ -95,7 +95,6 @@ class TestFitsFormatRoundTrip:
         with fits.open(io.BytesIO(payload)) as hdul:
             assert len(hdul) >= 1
 
-    @pytest.mark.asyncio
     async def test_encode_then_decode_preserves_hdu_count(self) -> None:
         from astropy.io import fits
         import io
@@ -115,22 +114,22 @@ class TestFitsFormatRoundTrip:
         assert len(re_decoded) == 1
 
 
-class TestFitsFormatErrors:
-    @pytest.mark.asyncio
+class TestFitsFormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_decode_invalid_bytes_raises(self) -> None:
         fmt = FitsFormat()
 
         async def _bad_iter():
             yield b"not a fits file at all !@#$"
 
-        with pytest.raises(Exception):
+        with self.assertRaises(Exception):
             record_iter = await fmt.read(_bad_iter())
             async for _ in record_iter:
                 pass
 
 
-class TestFitsFormatMissingDep:
-    def test_import_error_message(self, monkeypatch: pytest.MonkeyPatch) -> None:
+class TestFitsFormatMissingDep(unittest.TestCase):
+    def test_import_error_message(self) -> None:
+        # TODO(unittest-migrate): replace 'monkeypatch' built-in fixture — use unittest.mock.patch / assertLogs
         import sys
         import builtins
 
@@ -142,5 +141,5 @@ class TestFitsFormatMissingDep:
             return real_import(name, *args, **kwargs)
 
         monkeypatch.setattr(builtins, "__import__", _block_astropy)
-        with pytest.raises(ImportError, match="pirn\\[astronomy\\]"):
+        with self.assertRaisesRegex(ImportError, "pirn\\[astronomy\\]"):
             FitsFormat._load_fits()

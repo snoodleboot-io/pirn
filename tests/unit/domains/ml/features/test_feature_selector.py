@@ -1,8 +1,8 @@
 """Tests for :class:`FeatureSelector`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -28,7 +28,7 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestFeatureSelectorHappyPath:
+class TestFeatureSelectorHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_truncates_features(self) -> None:
         with Tapestry() as t:
             split = emit_split(_config=KnotConfig(id="split"))
@@ -43,11 +43,11 @@ class TestFeatureSelectorHappyPath:
         assert out.test.feature_names == ("a", "b")
 
 
-class TestFeatureSelectorConstruction:
+class TestFeatureSelectorConstruction(unittest.TestCase):
     def test_rejects_unknown_method(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="method must be"):
+            with self.assertRaisesRegex(ValueError, "method must be"):
                 FeatureSelector(
                     split=split,
                     k=2,

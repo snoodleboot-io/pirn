@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -21,9 +21,9 @@ class _DeterministicSource(Knot):
         return 100.0
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_trial_count(self) -> None:
-        with pytest.raises(ValueError, match="trial_count"):
+        with self.assertRaisesRegex(ValueError, "trial_count"):
             with Tapestry():
                 src = _DeterministicSource(_config=KnotConfig(id="src"))
                 MonteCarloSimulator(
@@ -33,7 +33,7 @@ class TestConstruction:
                 )
 
     def test_rejects_non_int_seed(self) -> None:
-        with pytest.raises(TypeError, match="seed"):
+        with self.assertRaisesRegex(TypeError, "seed"):
             with Tapestry():
                 src = _DeterministicSource(_config=KnotConfig(id="src"))
                 MonteCarloSimulator(
@@ -44,8 +44,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_percentiles(self) -> None:
         with Tapestry() as t:
             src = _DeterministicSource(_config=KnotConfig(id="src"))

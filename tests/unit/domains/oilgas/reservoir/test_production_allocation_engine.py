@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -34,9 +34,9 @@ class _WellTestsSource(Knot):
         ]
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_invalid_method(self) -> None:
-        with pytest.raises(ValueError, match="allocation_method"):
+        with self.assertRaisesRegex(ValueError, "allocation_method"):
             with Tapestry():
                 ft = _FieldTotalsSource(_config=KnotConfig(id="ft"))
                 wt = _WellTestsSource(_config=KnotConfig(id="wt"))
@@ -48,8 +48,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_allocates_to_wells(self) -> None:
         with Tapestry() as t:
             ft = _FieldTotalsSource(_config=KnotConfig(id="ft"))

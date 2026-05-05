@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -28,9 +28,9 @@ async def emit_ppg_data() -> dict[str, Any]:
     }
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_knot_ppg_data(self) -> None:
-        with pytest.raises(TypeError, match="ppg_data"):
+        with self.assertRaisesRegex(TypeError, "ppg_data"):
             PPGHeartRateExtractor(
                 ppg_data="not-a-knot",  # type: ignore[arg-type]
                 sample_rate_hz=25.0,
@@ -41,7 +41,7 @@ class TestConstruction:
     def test_rejects_non_positive_sample_rate(self) -> None:
         with Tapestry():
             p = emit_ppg_data(_config=KnotConfig(id="p"))
-            with pytest.raises(ValueError, match="sample_rate_hz"):
+            with self.assertRaisesRegex(ValueError, "sample_rate_hz"):
                 PPGHeartRateExtractor(
                     ppg_data=p,
                     sample_rate_hz=0.0,
@@ -52,7 +52,7 @@ class TestConstruction:
     def test_rejects_non_positive_window_sec(self) -> None:
         with Tapestry():
             p = emit_ppg_data(_config=KnotConfig(id="p"))
-            with pytest.raises(ValueError, match="window_sec"):
+            with self.assertRaisesRegex(ValueError, "window_sec"):
                 PPGHeartRateExtractor(
                     ppg_data=p,
                     sample_rate_hz=25.0,
@@ -61,8 +61,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_list(self) -> None:
         with Tapestry() as t:
             p = emit_ppg_data(_config=KnotConfig(id="p"))

@@ -1,8 +1,8 @@
 """Tests for :class:`ResearchAgent`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -17,11 +17,10 @@ from tests.unit.domains.agents.specializations.conftest import (
 )
 
 
-@pytest.mark.asyncio
-class TestResearchAgentConstruction:
+class TestResearchAgentConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_tool(self) -> None:
         llm = StubLLMProvider(["Final Answer: ok"])
-        with pytest.raises(TypeError, match="search_tool must be a Tool"):
+        with self.assertRaisesRegex(TypeError, "search_tool must be a Tool"):
             with Tapestry():
                 ResearchAgent(
                     topic="quantum",
@@ -33,7 +32,7 @@ class TestResearchAgentConstruction:
     async def test_rejects_zero_max_searches(self) -> None:
         llm = StubLLMProvider(["Final Answer: ok"])
         tool = StubTool(name="search")
-        with pytest.raises(ValueError, match="max_searches"):
+        with self.assertRaisesRegex(ValueError, "max_searches"):
             with Tapestry():
                 ResearchAgent(
                     topic="quantum",
@@ -44,8 +43,7 @@ class TestResearchAgentConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestResearchAgentHappyPath:
+class TestResearchAgentHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_uses_tool_then_summarises(self) -> None:
         llm = StubLLMProvider(
             [

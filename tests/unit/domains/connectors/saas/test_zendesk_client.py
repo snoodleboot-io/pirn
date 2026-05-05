@@ -9,8 +9,8 @@ account needed.
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.capabilities.record_writer import RecordWriter
@@ -30,14 +30,7 @@ class FakeZenpyTopLevel:
         self.response: Any = {"ok": True}
         self.closed = False
 
-    def request(
-        self,
-        method: str,
-        path: str,
-        params: Any = None,
-        body: Any = None,
-        headers: Any = None,
-    ) -> Any:
+    def request(self, method: str, path: str, params: Any = None, body: Any = None, headers: Any = None,) -> Any:
         self.calls.append((method, path, params, body, headers))
         return self.response
 
@@ -50,13 +43,7 @@ class FakeUsers:
         self.calls: list[tuple[str, str, Any, Any]] = []
         self.response: Any = {"users": []}
 
-    def _call_api(
-        self,
-        method: str,
-        path: str,
-        params: Any = None,
-        body: Any = None,
-    ) -> Any:
+    def _call_api(self, method: str, path: str, params: Any = None, body: Any = None,) -> Any:
         self.calls.append((method, path, params, body))
         return self.response
 
@@ -75,25 +62,26 @@ class FakeZenpyFallback:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-def test_implements_api_client() -> None:
-    client = ZendeskClient(client=FakeZenpyTopLevel())
-    assert isinstance(client, ApiClient)
 
-
-def test_construction_requires_config_or_client() -> None:
-    with pytest.raises(TypeError, match="config= or client="):
-        ZendeskClient()
-
-
-def test_sensitive_fields_listed() -> None:
-    assert ZendeskConfig.sensitive_fields == ("api_token", "oauth_token")
-
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_api_client(self) -> None:
+        client = ZendeskClient(client=FakeZenpyTopLevel())
+        assert isinstance(client, ApiClient)
+    
+    
+    def test_construction_requires_config_or_client(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or client="):
+            ZendeskClient()
+    
+    
+    def test_sensitive_fields_listed(self) -> None:
+        assert ZendeskConfig.sensitive_fields == ("api_token", "oauth_token")
+    
+    
 # ────────────────────────────────────────────────────────────── dispatch
 
 
-@pytest.mark.asyncio
-class TestRequest:
+class TestRequest(unittest.IsolatedAsyncioTestCase):
     async def test_request_uses_top_level(self) -> None:
         fake = FakeZenpyTopLevel()
         client = ZendeskClient(client=fake)
@@ -140,8 +128,7 @@ class TestRequest:
 # ─────────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_closes_underlying_client(self) -> None:
         fake = FakeZenpyTopLevel()
         client = ZendeskClient(client=fake)
@@ -156,14 +143,14 @@ class TestLifecycle:
     async def test_request_after_close_raises(self) -> None:
         client = ZendeskClient(client=FakeZenpyTopLevel())
         await client.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await client.request("GET", "/api/v2/tickets.json")
 
 
 # ────────────────────────────────────────────────────────── credential safety
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_repr_redacts_api_token(self) -> None:
         cfg = ZendeskConfig(
             subdomain="acme",
@@ -188,24 +175,23 @@ class TestCredentialSafety:
 # ───────────────────────────────────────────────────────── capability mixins
 
 
-def test_implements_table_source_and_record_writer() -> None:
-    client = ZendeskClient(client=FakeZenpyTopLevel())
-    assert isinstance(client, TableSource)
-    assert isinstance(client, RecordWriter)
-
-
-def test_default_resource_is_tickets() -> None:
-    client = ZendeskClient(client=FakeZenpyTopLevel())
-    assert client.resource == "tickets"
-
-
-def test_construction_rejects_empty_resource() -> None:
-    with pytest.raises(ValueError, match="resource"):
-        ZendeskClient(client=FakeZenpyTopLevel(), resource="")
-
-
-@pytest.mark.asyncio
-class TestFetchPage:
+    def test_implements_table_source_and_record_writer(self) -> None:
+        client = ZendeskClient(client=FakeZenpyTopLevel())
+        assert isinstance(client, TableSource)
+        assert isinstance(client, RecordWriter)
+    
+    
+    def test_default_resource_is_tickets(self) -> None:
+        client = ZendeskClient(client=FakeZenpyTopLevel())
+        assert client.resource == "tickets"
+    
+    
+    def test_construction_rejects_empty_resource(self) -> None:
+        with self.assertRaisesRegex(ValueError, "resource"):
+            ZendeskClient(client=FakeZenpyTopLevel(), resource="")
+    
+    
+class TestFetchPage(unittest.IsolatedAsyncioTestCase):
     async def test_fetch_page_initial_no_more(self) -> None:
         fake = FakeZenpyTopLevel()
         fake.response = {
@@ -253,8 +239,7 @@ class TestFetchPage:
         assert path == "/api/v2/users.json"
 
 
-@pytest.mark.asyncio
-class TestVendorListShortcuts:
+class TestVendorListShortcuts(unittest.IsolatedAsyncioTestCase):
     async def test_list_tickets(self) -> None:
         fake = FakeZenpyTopLevel()
         fake.response = {
@@ -282,8 +267,7 @@ class TestVendorListShortcuts:
         assert path == "/api/v2/users.json"
 
 
-@pytest.mark.asyncio
-class TestWriteRecords:
+class TestWriteRecords(unittest.IsolatedAsyncioTestCase):
     async def test_write_records_posts_each_ticket(self) -> None:
         fake = FakeZenpyTopLevel()
         client = ZendeskClient(client=fake)

@@ -1,6 +1,7 @@
 """Tests for :class:`CorrectiveRAGPipeline`."""
 
 from __future__ import annotations
+import unittest
 
 import pytest
 
@@ -18,8 +19,7 @@ from tests.unit.domains.agents.specializations.conftest import (
 )
 
 
-@pytest.mark.asyncio
-class TestCorrectiveRAGPipelineConstruction:
+class TestCorrectiveRAGPipelineConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_tool_fallback(self) -> None:
         memory = StubMemoryStore([{"id": 1}])
         llm = StubLLMProvider(["x"])
@@ -53,8 +53,7 @@ class TestCorrectiveRAGPipelineConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestCorrectiveRAGPipelineHappyPath:
+class TestCorrectiveRAGPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_uses_relevant_docs_when_available(self) -> None:
         memory = StubMemoryStore(
             [{"id": 1, "text": "qubits stable"}, {"id": 2, "text": "irrelevant"}]

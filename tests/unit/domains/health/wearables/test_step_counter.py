@@ -1,8 +1,8 @@
 """Unit tests for :class:`StepCounter`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -11,9 +11,9 @@ from pirn.domains.health.wearables.step_counter import StepCounter
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_signal(self) -> None:
-        with pytest.raises(TypeError, match="SignalFrame"):
+        with self.assertRaisesRegex(TypeError, "SignalFrame"):
             StepCounter(
                 signal="x",  # type: ignore[arg-type]
                 threshold=0.5,
@@ -21,7 +21,7 @@ class TestConstruction:
             )
 
     def test_rejects_negative_threshold(self) -> None:
-        with pytest.raises(ValueError, match="non-negative"):
+        with self.assertRaisesRegex(ValueError, "non-negative"):
             StepCounter(
                 signal=SignalFrame(),
                 threshold=-0.1,
@@ -29,8 +29,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_int(self) -> None:
         with Tapestry() as t:
             StepCounter(

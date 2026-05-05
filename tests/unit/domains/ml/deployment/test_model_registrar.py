@@ -1,8 +1,8 @@
 """Tests for :class:`ModelRegistrar`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -33,7 +33,7 @@ async def emit_serialized() -> bytes:
     return b"serialized-bytes"
 
 
-class TestModelRegistrarHappyPath:
+class TestModelRegistrarHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_writes_to_lineage_and_object_store(self) -> None:
         lineage = RecordingLineageStore()
         store = RecordingObjectStore()
@@ -58,13 +58,13 @@ class TestModelRegistrarHappyPath:
         assert payload["model_id"] == "m1"
 
 
-class TestModelRegistrarConstruction:
+class TestModelRegistrarConstruction(unittest.TestCase):
     def test_rejects_non_lineage(self) -> None:
         store = RecordingObjectStore()
         with Tapestry():
             serialized = emit_serialized(_config=KnotConfig(id="ser"))
             model = emit_model(_config=KnotConfig(id="model"))
-            with pytest.raises(TypeError, match="LineageStore"):
+            with self.assertRaisesRegex(TypeError, "LineageStore"):
                 ModelRegistrar(
                     serialized=serialized,
                     model=model,

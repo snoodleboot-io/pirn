@@ -3,11 +3,17 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
-pytest.importorskip("safetensors")
-pytest.importorskip("numpy")
+try:
+    import safetensors
+except ImportError as _e:
+    raise unittest.SkipTest("safetensors not installed") from _e
+try:
+    import numpy
+except ImportError as _e:
+    raise unittest.SkipTest("numpy not installed") from _e
 
 import numpy as np
 
@@ -22,7 +28,7 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 )
 
 
-class TestSafetensorsFormatConstruction:
+class TestSafetensorsFormatConstruction(unittest.TestCase):
     def test_default_arguments(self) -> None:
         fmt = SafetensorsFormat()
         assert fmt.include_data is True
@@ -32,11 +38,11 @@ class TestSafetensorsFormatConstruction:
         assert fmt.include_data is False
 
     def test_non_bool_include_data_rejected(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             SafetensorsFormat(include_data="yes")  # type: ignore[arg-type]
 
 
-class TestSafetensorsFormatBasics:
+class TestSafetensorsFormatBasics(unittest.TestCase):
     def test_name(self) -> None:
         assert SafetensorsFormat().name == "safetensors"
 
@@ -47,8 +53,7 @@ class TestSafetensorsFormatBasics:
         assert isinstance(SafetensorsFormat(), BatchFileFormat)
 
 
-class TestSafetensorsFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestSafetensorsFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         weights = np.zeros((2, 2), dtype=np.float32)
         record = {
@@ -67,7 +72,6 @@ class TestSafetensorsFormatRoundTrip:
         assert spec["data"] == [0.0, 0.0, 0.0, 0.0]
         assert out["metadata"] == {"layer": "dense_0", "framework": "test"}
 
-    @pytest.mark.asyncio
     async def test_round_trip_via_spec_dict(self) -> None:
         record = {
             "tensors": {
@@ -87,7 +91,6 @@ class TestSafetensorsFormatRoundTrip:
         assert spec["dtype"] == "float32"
         assert spec["data"] == [1.0, 2.0, 3.0, 4.0]
 
-    @pytest.mark.asyncio
     async def test_include_data_false_omits_data(self) -> None:
         weights = np.ones((3,), dtype=np.float32)
         encode_fmt = SafetensorsFormat()
@@ -102,22 +105,19 @@ class TestSafetensorsFormatRoundTrip:
         assert spec["dtype"] == "float32"
         assert "data" not in spec
 
-    @pytest.mark.asyncio
     async def test_encode_empty_records_rejected(self) -> None:
         fmt = SafetensorsFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, [])
 
-    @pytest.mark.asyncio
     async def test_encode_missing_tensors_key(self) -> None:
         fmt = SafetensorsFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, [{"metadata": {}}])
 
-    @pytest.mark.asyncio
     async def test_encode_rejects_non_string_metadata(self) -> None:
         fmt = SafetensorsFormat()
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             await FormatRoundTrip.encode(
                 fmt,
                 [
@@ -130,8 +130,7 @@ class TestSafetensorsFormatRoundTrip:
                 ],
             )
 
-    @pytest.mark.asyncio
     async def test_decode_rejects_garbage(self) -> None:
         fmt = SafetensorsFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.decode(fmt, b"\x00\x00\x00not-real")

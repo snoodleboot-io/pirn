@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import datetime, timezone
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -16,24 +16,23 @@ from pirn.domains.health.types.clinical_record import ClinicalRecord
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_sequence(self) -> None:
-        with pytest.raises(TypeError, match="records"):
+        with self.assertRaisesRegex(TypeError, "records"):
             EncounterTimelineAssembler(
                 records=42,  # type: ignore[arg-type]
                 _config=KnotConfig(id="a"),
             )
 
     def test_rejects_non_record(self) -> None:
-        with pytest.raises(TypeError, match="ClinicalRecord"):
+        with self.assertRaisesRegex(TypeError, "ClinicalRecord"):
             EncounterTimelineAssembler(
                 records=["x"],  # type: ignore[list-item]
                 _config=KnotConfig(id="a"),
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_groups_and_sorts_by_time(self) -> None:
         early = datetime(2026, 1, 1, tzinfo=timezone.utc)
         late = datetime(2026, 2, 1, tzinfo=timezone.utc)

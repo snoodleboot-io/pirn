@@ -1,8 +1,8 @@
 """Tests for :class:`CanaryDeployer`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -33,13 +33,13 @@ async def emit_candidate() -> TrainedModel:
     return TrainedModel(model_id="candidate-v2", algorithm="random_forest")
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_fraction_out_of_range(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
             current = emit_current(_config=KnotConfig(id="cur"))
             candidate = emit_candidate(_config=KnotConfig(id="cand"))
-            with pytest.raises(ValueError, match="canary_fraction"):
+            with self.assertRaisesRegex(ValueError, "canary_fraction"):
                 CanaryDeployer(
                     current=current,
                     candidate=candidate,
@@ -49,8 +49,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_returns_comparison_report(self) -> None:
         with Tapestry() as t:
             split = emit_split(_config=KnotConfig(id="split"))

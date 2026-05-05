@@ -1,12 +1,13 @@
 """Unit tests for :class:`AgentContext`."""
 
 from __future__ import annotations
+import unittest
 
 from pirn.domains.agents.types.agent_context import AgentContext
 from pirn.domains.agents.types.agent_message import AgentMessage
 
 
-class TestRoundtrip:
+class TestRoundtrip(unittest.TestCase):
     def test_default_metadata_is_empty(self) -> None:
         ctx = AgentContext(messages=())
         assert ctx.messages == ()

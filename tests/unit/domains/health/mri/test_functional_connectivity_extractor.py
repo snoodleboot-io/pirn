@@ -1,8 +1,8 @@
 """Unit tests for :class:`FunctionalConnectivityExtractor`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -11,9 +11,9 @@ from pirn.domains.health.mri.functional_connectivity_extractor import Functional
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_atlas(self) -> None:
-        with pytest.raises(ValueError, match="atlas"):
+        with self.assertRaisesRegex(ValueError, "atlas"):
             FunctionalConnectivityExtractor(
                 bold_timeseries=Parameter("bt", dict, default={}, _config=KnotConfig(id="bt")),
                 atlas="",
@@ -23,7 +23,7 @@ class TestConstruction:
             )
 
     def test_rejects_invalid_measure(self) -> None:
-        with pytest.raises(ValueError, match="connectivity_measure"):
+        with self.assertRaisesRegex(ValueError, "connectivity_measure"):
             FunctionalConnectivityExtractor(
                 bold_timeseries=Parameter("bt", dict, default={}, _config=KnotConfig(id="bt")),
                 atlas="schaefer200",
@@ -33,7 +33,7 @@ class TestConstruction:
             )
 
     def test_rejects_invalid_confound_strategy(self) -> None:
-        with pytest.raises(ValueError, match="confound_strategy"):
+        with self.assertRaisesRegex(ValueError, "confound_strategy"):
             FunctionalConnectivityExtractor(
                 bold_timeseries=Parameter("bt", dict, default={}, _config=KnotConfig(id="bt")),
                 atlas="schaefer200",
@@ -43,8 +43,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_dict(self) -> None:
         ts_data = {
             "roi_timeseries": {"ROI_1": [1.0, 2.0], "ROI_2": [3.0, 4.0]},

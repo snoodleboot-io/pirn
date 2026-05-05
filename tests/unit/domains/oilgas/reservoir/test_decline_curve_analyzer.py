@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -22,9 +22,9 @@ class _RateSource(Knot):
         return ScadaTimeSeries(sensor_id="s")
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_invalid_method(self) -> None:
-        with pytest.raises(ValueError, match="method"):
+        with self.assertRaisesRegex(ValueError, "method"):
             with Tapestry():
                 src = _RateSource(_config=KnotConfig(id="src"))
                 DeclineCurveAnalyzer(
@@ -34,8 +34,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_decline_params(self) -> None:
         with Tapestry() as t:
             src = _RateSource(_config=KnotConfig(id="src"))

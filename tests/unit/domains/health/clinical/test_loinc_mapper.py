@@ -1,8 +1,8 @@
 """Unit tests for :class:`LOINCMapper`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -10,9 +10,9 @@ from pirn.domains.health.clinical.loinc_mapper import LOINCMapper
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_sequence_names(self) -> None:
-        with pytest.raises(TypeError, match="lab_test_names"):
+        with self.assertRaisesRegex(TypeError, "lab_test_names"):
             LOINCMapper(
                 lab_test_names=42,  # type: ignore[arg-type]
                 mapping={},
@@ -20,7 +20,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_mapping(self) -> None:
-        with pytest.raises(TypeError, match="mapping"):
+        with self.assertRaisesRegex(TypeError, "mapping"):
             LOINCMapper(
                 lab_test_names=[],
                 mapping=42,  # type: ignore[arg-type]
@@ -28,7 +28,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_string_name(self) -> None:
-        with pytest.raises(TypeError, match="string"):
+        with self.assertRaisesRegex(TypeError, "string"):
             LOINCMapper(
                 lab_test_names=[1],  # type: ignore[list-item]
                 mapping={},
@@ -36,8 +36,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_mapped_codes(self) -> None:
         with Tapestry() as t:
             LOINCMapper(

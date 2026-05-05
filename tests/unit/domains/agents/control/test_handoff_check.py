@@ -1,8 +1,8 @@
 """Unit tests for :class:`HandoffCheck`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -12,8 +12,7 @@ from pirn.domains.agents.types.agent_response import AgentResponse
 from pirn.tapestry import Tapestry
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_true_when_match(self) -> None:
         @knot
         async def r() -> AgentResponse:
@@ -45,7 +44,7 @@ class TestProcess:
         assert result.outputs["g"] is False
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_patterns(self) -> None:
         @knot
         async def r() -> AgentResponse:
@@ -53,7 +52,7 @@ class TestConstruction:
 
         with Tapestry():
             rr = r(_config=KnotConfig(id="r"))
-            with pytest.raises(ValueError, match="non-empty"):
+            with self.assertRaisesRegex(ValueError, "non-empty"):
                 HandoffCheck(
                     response=rr,
                     escalation_patterns=(),
@@ -67,7 +66,7 @@ class TestConstruction:
 
         with Tapestry():
             rr = r(_config=KnotConfig(id="r"))
-            with pytest.raises(ValueError, match="valid regex"):
+            with self.assertRaisesRegex(ValueError, "valid regex"):
                 HandoffCheck(
                     response=rr,
                     escalation_patterns=("([abc",),

@@ -1,11 +1,17 @@
 """Round-trip and validation tests for :class:`LasFormat`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
-pytest.importorskip("lasio")
-pytest.importorskip("numpy")
+try:
+    import lasio
+except ImportError as _e:
+    raise unittest.SkipTest("lasio not installed") from _e
+try:
+    import numpy
+except ImportError as _e:
+    raise unittest.SkipTest("numpy not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -49,7 +55,7 @@ def _two_curve_record() -> dict:
     }
 
 
-class TestLasFormatConstruction:
+class TestLasFormatConstruction(unittest.TestCase):
     def test_name(self) -> None:
         assert LasFormat().name == "las"
 
@@ -60,8 +66,7 @@ class TestLasFormatConstruction:
         assert isinstance(LasFormat(), BatchFileFormat)
 
 
-class TestLasFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestLasFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_single_record(self) -> None:
         fmt = LasFormat()
         record = _single_record()
@@ -75,7 +80,6 @@ class TestLasFormatRoundTrip:
             for o, d in zip(orig_row, dec_row):
                 assert abs(o - d) < 1e-4
 
-    @pytest.mark.asyncio
     async def test_round_trip_multi_curve(self) -> None:
         fmt = LasFormat()
         record = _two_curve_record()
@@ -84,7 +88,6 @@ class TestLasFormatRoundTrip:
         assert len(decoded) == 1
         assert decoded[0]["curves"] == record["curves"]
 
-    @pytest.mark.asyncio
     async def test_decode_minimal_las_bytes(self) -> None:
         fmt = LasFormat()
 
@@ -99,19 +102,19 @@ class TestLasFormatRoundTrip:
         assert "DEPT" in records[0]["curves"]
 
 
-class TestLasFormatErrors:
-    @pytest.mark.asyncio
+class TestLasFormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_encode_empty_raises(self) -> None:
         fmt = LasFormat()
-        with pytest.raises(ValueError, match="empty"):
+        with self.assertRaisesRegex(ValueError, "empty"):
             await fmt._encode_full([])
 
 
-class TestLasFormatMissingDep:
-    def test_import_error_message(self, monkeypatch: pytest.MonkeyPatch) -> None:
+class TestLasFormatMissingDep(unittest.TestCase):
+    def test_import_error_message(self) -> None:
+        # TODO(unittest-migrate): replace 'monkeypatch' built-in fixture — use unittest.mock.patch / assertLogs
         import sys
         monkeypatch.setitem(sys.modules, "lasio", None)  # type: ignore[arg-type]
         fmt = LasFormat()
         import pytest as _pytest
-        with _pytest.raises(ImportError, match="pirn\\[oilgas\\]"):
+        with _self.assertRaisesRegex(ImportError, "pirn\\[oilgas\\]"):
             fmt._load_lasio()

@@ -1,8 +1,8 @@
 """Tests for :class:`MultiTurnContextAssembler`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -17,10 +17,9 @@ def _make_message(role: str, content: str) -> AgentMessage:
     return AgentMessage(role=role, content=content)
 
 
-@pytest.mark.asyncio
-class TestMultiTurnContextAssemblerConstruction:
+class TestMultiTurnContextAssemblerConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_zero_max_turns(self) -> None:
-        with pytest.raises(ValueError, match="max_turns must be a positive int"):
+        with self.assertRaisesRegex(ValueError, "max_turns must be a positive int"):
             with Tapestry():
                 MultiTurnContextAssembler(
                     messages=[],
@@ -30,7 +29,7 @@ class TestMultiTurnContextAssemblerConstruction:
                 )
 
     async def test_rejects_zero_max_tokens(self) -> None:
-        with pytest.raises(ValueError, match="max_tokens must be a positive int"):
+        with self.assertRaisesRegex(ValueError, "max_tokens must be a positive int"):
             with Tapestry():
                 MultiTurnContextAssembler(
                     messages=[],
@@ -40,8 +39,7 @@ class TestMultiTurnContextAssemblerConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestMultiTurnContextAssemblerProcess:
+class TestMultiTurnContextAssemblerProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_all_messages_within_limits(self) -> None:
         messages = [
             _make_message("user", "hello"),

@@ -8,8 +8,8 @@ needed.
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.bi_catalog.fivetran_client import FivetranClient
@@ -34,15 +34,7 @@ class FakeHttpx:
         self.responses: dict[tuple[str, str], Any] = {}
         self.closed = False
 
-    async def request(
-        self,
-        method: str,
-        url: str,
-        *,
-        params: Any = None,
-        json: Any = None,
-        headers: Any = None,
-    ) -> FakeResponse:
+    async def request(self, method: str, url: str, *, params: Any = None, json: Any = None, headers: Any = None,) -> FakeResponse:
         self.calls.append(
             {
                 "method": method,
@@ -62,25 +54,26 @@ class FakeHttpx:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-def test_implements_api_client() -> None:
-    client = FivetranClient(client=FakeHttpx())
-    assert isinstance(client, ApiClient)
 
-
-def test_construction_requires_config_or_client() -> None:
-    with pytest.raises(TypeError, match="config= or client="):
-        FivetranClient()
-
-
-def test_sensitive_fields_listed() -> None:
-    assert FivetranConfig.sensitive_fields == ("api_key", "api_secret")
-
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_api_client(self) -> None:
+        client = FivetranClient(client=FakeHttpx())
+        assert isinstance(client, ApiClient)
+    
+    
+    def test_construction_requires_config_or_client(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or client="):
+            FivetranClient()
+    
+    
+    def test_sensitive_fields_listed(self) -> None:
+        assert FivetranConfig.sensitive_fields == ("api_key", "api_secret")
+    
+    
 # ────────────────────────────────────────────────────────────── dispatch
 
 
-@pytest.mark.asyncio
-class TestRequest:
+class TestRequest(unittest.IsolatedAsyncioTestCase):
     async def test_request_builds_full_url_and_returns_json(self) -> None:
         fake = FakeHttpx()
         cfg = FivetranConfig(
@@ -126,8 +119,7 @@ class TestRequest:
 # ─────────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_closes_underlying_client(self) -> None:
         fake = FakeHttpx()
         client = FivetranClient(client=fake)
@@ -142,30 +134,29 @@ class TestLifecycle:
     async def test_request_after_close_raises(self) -> None:
         client = FivetranClient(client=FakeHttpx())
         await client.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await client.request("GET", "/connectors")
 
 
 # ─────────────────────────────────────────────────────── table source surface
 
 
-def test_implements_table_source() -> None:
-    client = FivetranClient(client=FakeHttpx())
-    assert isinstance(client, TableSource)
-
-
-def test_default_resource_is_connectors() -> None:
-    client = FivetranClient(client=FakeHttpx())
-    assert client.resource == "connectors"
-
-
-def test_blank_resource_rejected() -> None:
-    with pytest.raises(ValueError, match="resource"):
-        FivetranClient(client=FakeHttpx(), resource="")
-
-
-@pytest.mark.asyncio
-class TestFetchPage:
+    def test_implements_table_source(self) -> None:
+        client = FivetranClient(client=FakeHttpx())
+        assert isinstance(client, TableSource)
+    
+    
+    def test_default_resource_is_connectors(self) -> None:
+        client = FivetranClient(client=FakeHttpx())
+        assert client.resource == "connectors"
+    
+    
+    def test_blank_resource_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "resource"):
+            FivetranClient(client=FakeHttpx(), resource="")
+    
+    
+class TestFetchPage(unittest.IsolatedAsyncioTestCase):
     async def test_fetch_page_returns_rows_and_next_cursor(self) -> None:
         fake = FakeHttpx()
         cfg = FivetranConfig(
@@ -208,8 +199,7 @@ class TestFetchPage:
         assert cursor is None
 
 
-@pytest.mark.asyncio
-class TestVendorTypedListings:
+class TestVendorTypedListings(unittest.IsolatedAsyncioTestCase):
     async def test_list_connectors_targets_connectors(self) -> None:
         fake = FakeHttpx()
         cfg = FivetranConfig(

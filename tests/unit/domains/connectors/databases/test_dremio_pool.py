@@ -6,8 +6,8 @@ Uses an injected stub Flight connection. No Dremio server needed.
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.databases.dremio_config import DremioConfig
@@ -104,26 +104,27 @@ class FakeDremioConnection:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-def test_implements_database_connection_pool() -> None:
-    pool = DremioPool(connection=FakeDremioConnection())
-    assert isinstance(pool, DatabaseConnectionPool)
 
-
-def test_construction_requires_config_or_connection() -> None:
-    with pytest.raises(TypeError, match="config= or connection="):
-        DremioPool()
-
-
-def test_sensitive_fields_declared() -> None:
-    cfg = DremioConfig()
-    assert "password" in cfg.sensitive_fields
-
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_database_connection_pool(self) -> None:
+        pool = DremioPool(connection=FakeDremioConnection())
+        assert isinstance(pool, DatabaseConnectionPool)
+    
+    
+    def test_construction_requires_config_or_connection(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or connection="):
+            DremioPool()
+    
+    
+    def test_sensitive_fields_declared(self) -> None:
+        cfg = DremioConfig()
+        assert "password" in cfg.sensitive_fields
+    
+    
 # ────────────────────────────────────────────────────────────── acquire/release
 
 
-@pytest.mark.asyncio
-class TestAcquireRelease:
+class TestAcquireRelease(unittest.IsolatedAsyncioTestCase):
     async def test_acquire_returns_connection(self) -> None:
         fake = FakeDremioConnection()
         pool = DremioPool(connection=fake)
@@ -140,8 +141,7 @@ class TestAcquireRelease:
 # ────────────────────────────────────────────────────────────── execute
 
 
-@pytest.mark.asyncio
-class TestExecute:
+class TestExecute(unittest.IsolatedAsyncioTestCase):
     async def test_execute_runs_action(self) -> None:
         fake = FakeDremioConnection()
         pool = DremioPool(connection=fake)
@@ -152,15 +152,14 @@ class TestExecute:
     async def test_execute_rejects_interpolation(self) -> None:
         fake = FakeDremioConnection()
         pool = DremioPool(connection=fake)
-        with pytest.raises(ValueError, match="interpolation"):
+        with self.assertRaisesRegex(ValueError, "interpolation"):
             await pool.execute("SELECT * FROM t WHERE id = {id}")
 
 
 # ────────────────────────────────────────────────────────────── fetch_all
 
 
-@pytest.mark.asyncio
-class TestFetchAll:
+class TestFetchAll(unittest.IsolatedAsyncioTestCase):
     async def test_fetch_all_returns_list_of_dicts(self) -> None:
         fake = FakeDremioConnection(rows=[{"id": 1, "name": "Alice"}])
         pool = DremioPool(connection=fake)
@@ -171,15 +170,14 @@ class TestFetchAll:
     async def test_fetch_all_rejects_interpolation(self) -> None:
         fake = FakeDremioConnection()
         pool = DremioPool(connection=fake)
-        with pytest.raises(ValueError, match="interpolation"):
+        with self.assertRaisesRegex(ValueError, "interpolation"):
             await pool.fetch_all("SELECT * FROM t WHERE name = %s")
 
 
 # ────────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_closes_connection(self) -> None:
         fake = FakeDremioConnection()
         pool = DremioPool(connection=fake)
@@ -194,7 +192,7 @@ class TestLifecycle:
     async def test_acquire_after_close_raises(self) -> None:
         pool = DremioPool(connection=FakeDremioConnection())
         await pool.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await pool.acquire()
 
     async def test_close_clears_credentials(self) -> None:
@@ -206,23 +204,23 @@ class TestLifecycle:
     async def test_use_after_close_raises(self) -> None:
         pool = DremioPool(config=DremioConfig(), connection=FakeDremioConnection())
         await pool.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await pool.acquire()
 
     async def test_execute_after_close_raises(self) -> None:
         pool = DremioPool(connection=FakeDremioConnection())
         await pool.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await pool.execute("SELECT 1")
 
     async def test_fetch_all_after_close_raises(self) -> None:
         pool = DremioPool(connection=FakeDremioConnection())
         await pool.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await pool.fetch_all("SELECT 1")
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_audit_dict_redacts_password(self) -> None:
         cfg = DremioConfig(password="supersecret")
         d = cfg.to_audit_dict()

@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -31,9 +31,9 @@ class _FaultsSource(Knot):
         return [{"fault_id": "F-1", "vertices": [[10.0, 0.0], [20.0, 0.0]]}]
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_buffer(self) -> None:
-        with pytest.raises(ValueError, match="buffer_m"):
+        with self.assertRaisesRegex(ValueError, "buffer_m"):
             with Tapestry():
                 wells = _WellsSource(_config=KnotConfig(id="w"))
                 faults = _FaultsSource(_config=KnotConfig(id="f"))
@@ -42,8 +42,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_proximity_list(self) -> None:
         with Tapestry() as t:
             wells = _WellsSource(_config=KnotConfig(id="w"))

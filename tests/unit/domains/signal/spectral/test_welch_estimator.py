@@ -1,8 +1,8 @@
 """Unit tests for :class:`WelchEstimator`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,17 +12,17 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.signal.conftest import emit_signal_frame
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_requires_segment_length(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(TypeError):
+            with self.assertRaises(TypeError):
                 WelchEstimator(signal=sig, _config=KnotConfig(id="w"))  # type: ignore[call-arg]
 
     def test_rejects_non_positive_segment_length(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="positive integer"):
+            with self.assertRaisesRegex(ValueError, "positive integer"):
                 WelchEstimator(
                     signal=sig, segment_length=0, _config=KnotConfig(id="w")
                 )
@@ -30,7 +30,7 @@ class TestConstruction:
     def test_rejects_negative_overlap(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="non-negative"):
+            with self.assertRaisesRegex(ValueError, "non-negative"):
                 WelchEstimator(
                     signal=sig,
                     segment_length=64,
@@ -41,7 +41,7 @@ class TestConstruction:
     def test_rejects_overlap_ge_segment_length(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="smaller than"):
+            with self.assertRaisesRegex(ValueError, "smaller than"):
                 WelchEstimator(
                     signal=sig,
                     segment_length=64,
@@ -50,8 +50,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_spectrum_frame(self) -> None:
         with Tapestry() as t:
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))

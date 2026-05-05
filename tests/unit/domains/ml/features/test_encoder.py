@@ -1,8 +1,8 @@
 """Tests for :class:`Encoder`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -20,7 +20,7 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestEncoderHappyPath:
+class TestEncoderHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_encoded_split(self) -> None:
         with Tapestry() as t:
             split = emit_split(_config=KnotConfig(id="split"))
@@ -35,11 +35,11 @@ class TestEncoderHappyPath:
         assert out.train.name.endswith(":encoded_onehot")
 
 
-class TestEncoderConstruction:
+class TestEncoderConstruction(unittest.TestCase):
     def test_rejects_empty_columns(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="columns must be non-empty"):
+            with self.assertRaisesRegex(ValueError, "columns must be non-empty"):
                 Encoder(
                     split=split,
                     columns=(),

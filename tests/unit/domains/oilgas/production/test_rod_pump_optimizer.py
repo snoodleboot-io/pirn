@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -26,9 +26,9 @@ class _CardSource(Knot):
         }
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_invalid_fillage_pct(self) -> None:
-        with pytest.raises(ValueError, match="target_fillage_pct"):
+        with self.assertRaisesRegex(ValueError, "target_fillage_pct"):
             with Tapestry():
                 src = _CardSource(_config=KnotConfig(id="src"))
                 RodPumpOptimizer(
@@ -39,7 +39,7 @@ class TestConstruction:
                 )
 
     def test_rejects_non_positive_max_spm(self) -> None:
-        with pytest.raises(ValueError, match="max_spm"):
+        with self.assertRaisesRegex(ValueError, "max_spm"):
             with Tapestry():
                 src = _CardSource(_config=KnotConfig(id="src"))
                 RodPumpOptimizer(
@@ -50,8 +50,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_recommendation(self) -> None:
         with Tapestry() as t:
             src = _CardSource(_config=KnotConfig(id="src"))

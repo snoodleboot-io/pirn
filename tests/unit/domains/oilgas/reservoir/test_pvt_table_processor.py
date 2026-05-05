@@ -1,8 +1,8 @@
 """Unit tests for :class:`PvtTableProcessor`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -11,9 +11,9 @@ from pirn.domains.oilgas.types.pvt_table import PVTTable
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_fluid_id(self) -> None:
-        with pytest.raises(ValueError, match="fluid_id"):
+        with self.assertRaisesRegex(ValueError, "fluid_id"):
             PvtTableProcessor(
                 fluid_id="",
                 pressure_count=10,
@@ -22,7 +22,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_positive_pressure_count(self) -> None:
-        with pytest.raises(ValueError, match="pressure_count"):
+        with self.assertRaisesRegex(ValueError, "pressure_count"):
             PvtTableProcessor(
                 fluid_id="f",
                 pressure_count=0,
@@ -31,7 +31,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_positive_temperature_count(self) -> None:
-        with pytest.raises(ValueError, match="temperature_count"):
+        with self.assertRaisesRegex(ValueError, "temperature_count"):
             PvtTableProcessor(
                 fluid_id="f",
                 pressure_count=10,
@@ -40,8 +40,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_pvt_table(self) -> None:
         with Tapestry() as t:
             PvtTableProcessor(

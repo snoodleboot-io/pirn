@@ -1,11 +1,17 @@
 """Round-trip and validation tests for :class:`SegyFormat`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
-pytest.importorskip("segyio")
-pytest.importorskip("numpy")
+try:
+    import segyio
+except ImportError as _e:
+    raise unittest.SkipTest("segyio not installed") from _e
+try:
+    import numpy
+except ImportError as _e:
+    raise unittest.SkipTest("numpy not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -27,7 +33,7 @@ def _trace_record(idx: int, n_samples: int = 8) -> dict:
     }
 
 
-class TestSegyFormatConstruction:
+class TestSegyFormatConstruction(unittest.TestCase):
     def test_name(self) -> None:
         assert SegyFormat().name == "segy"
 
@@ -38,11 +44,11 @@ class TestSegyFormatConstruction:
         assert isinstance(SegyFormat(), BatchFileFormat)
 
     def test_invalid_sample_rate_raises(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             SegyFormat(sample_rate=0)
 
     def test_negative_sample_rate_raises(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             SegyFormat(sample_rate=-1)
 
     def test_sample_rate_property(self) -> None:
@@ -50,8 +56,7 @@ class TestSegyFormatConstruction:
         assert fmt.sample_rate == 4000
 
 
-class TestSegyFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestSegyFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_single_trace(self) -> None:
         fmt = SegyFormat()
         records = [_trace_record(0)]
@@ -60,7 +65,6 @@ class TestSegyFormatRoundTrip:
         assert len(decoded) == 1
         assert decoded[0]["trace_index"] == 0
 
-    @pytest.mark.asyncio
     async def test_round_trip_multiple_traces(self) -> None:
         fmt = SegyFormat()
         records = [_trace_record(i) for i in range(3)]
@@ -69,20 +73,18 @@ class TestSegyFormatRoundTrip:
         assert len(decoded) == 3
 
 
-class TestSegyFormatErrors:
-    @pytest.mark.asyncio
+class TestSegyFormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_encode_empty_raises(self) -> None:
         fmt = SegyFormat()
-        with pytest.raises(ValueError, match="empty"):
+        with self.assertRaisesRegex(ValueError, "empty"):
             await fmt._encode_full([])
 
 
-class TestSegyFormatMissingDep:
-    def test_import_error_message(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+class TestSegyFormatMissingDep(unittest.TestCase):
+    def test_import_error_message(self) -> None:
+        # TODO(unittest-migrate): replace 'monkeypatch' built-in fixture — use unittest.mock.patch / assertLogs
         import sys
         monkeypatch.setitem(sys.modules, "segyio", None)  # type: ignore[arg-type]
         fmt = SegyFormat()
-        with pytest.raises(ImportError, match="pirn\\[oilgas\\]"):
+        with self.assertRaisesRegex(ImportError, "pirn\\[oilgas\\]"):
             fmt._load_segyio()

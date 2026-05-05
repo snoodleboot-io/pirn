@@ -1,8 +1,8 @@
 """Unit tests for :class:`EclipseSmspecParser`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -11,9 +11,9 @@ from pirn.domains.oilgas.types.scada_time_series import ScadaTimeSeries
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_smspec_path(self) -> None:
-        with pytest.raises(ValueError, match="smspec_path"):
+        with self.assertRaisesRegex(ValueError, "smspec_path"):
             EclipseSmspecParser(
                 smspec_path="",
                 vector_name="WOPR:WELL1",
@@ -21,7 +21,7 @@ class TestConstruction:
             )
 
     def test_rejects_empty_vector_name(self) -> None:
-        with pytest.raises(ValueError, match="vector_name"):
+        with self.assertRaisesRegex(ValueError, "vector_name"):
             EclipseSmspecParser(
                 smspec_path="/x.smspec",
                 vector_name="",
@@ -29,8 +29,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_series(self) -> None:
         with Tapestry() as t:
             EclipseSmspecParser(

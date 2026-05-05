@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.message_broker import MessageBroker
 from pirn.domains.connectors.streaming.kafka_broker import KafkaBroker
@@ -26,14 +26,7 @@ class StubProducer:
     async def stop(self) -> None:
         self.stopped = True
 
-    async def send_and_wait(
-        self,
-        topic: str,
-        *,
-        value: bytes,
-        key: bytes | None = None,
-        headers: list[tuple[str, bytes]] | None = None,
-    ) -> None:
+    async def send_and_wait(self, topic: str, *, value: bytes, key: bytes | None = None, headers: list[tuple[str, bytes]] | None = None,) -> None:
         self.published.append(
             {"topic": topic, "value": value, "key": key, "headers": headers}
         )
@@ -70,16 +63,17 @@ def _record(topic: str, value: bytes, *, key: bytes | None = None) -> Any:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-def test_implements_message_broker() -> None:
-    broker = KafkaBroker(KafkaConfig(), producer=StubProducer())
-    assert isinstance(broker, MessageBroker)
 
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_message_broker(self) -> None:
+        broker = KafkaBroker(KafkaConfig(), producer=StubProducer())
+        assert isinstance(broker, MessageBroker)
+    
+    
 # ─────────────────────────────────────────────────────────────── publish
 
 
-@pytest.mark.asyncio
-class TestPublish:
+class TestPublish(unittest.IsolatedAsyncioTestCase):
     async def test_publish_bytes_value(self) -> None:
         prod = StubProducer()
         broker = KafkaBroker(KafkaConfig(), producer=prod)
@@ -100,20 +94,19 @@ class TestPublish:
 
     async def test_rejects_non_bytes_value(self) -> None:
         broker = KafkaBroker(KafkaConfig(), producer=StubProducer())
-        with pytest.raises(TypeError, match="value must be bytes"):
+        with self.assertRaisesRegex(TypeError, "value must be bytes"):
             await broker.publish("t", "string")  # type: ignore[arg-type]
 
     async def test_rejects_non_bytes_key(self) -> None:
         broker = KafkaBroker(KafkaConfig(), producer=StubProducer())
-        with pytest.raises(TypeError, match="key must be bytes"):
+        with self.assertRaisesRegex(TypeError, "key must be bytes"):
             await broker.publish("t", b"v", key="not-bytes")  # type: ignore[arg-type]
 
 
 # ─────────────────────────────────────────────────────────────── consume
 
 
-@pytest.mark.asyncio
-class TestConsume:
+class TestConsume(unittest.IsolatedAsyncioTestCase):
     async def test_yields_records_for_topic(self) -> None:
         records = [_record("events", b"a"), _record("events", b"b")]
         consumer = StubConsumer(records)
@@ -169,8 +162,7 @@ class TestConsume:
 # ───────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_stops_producer(self) -> None:
         prod = StubProducer()
         broker = KafkaBroker(KafkaConfig(), producer=prod)
@@ -181,14 +173,14 @@ class TestLifecycle:
     async def test_publish_after_close_raises(self) -> None:
         broker = KafkaBroker(KafkaConfig(), producer=StubProducer())
         await broker.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await broker.publish("t", b"v")
 
 
 # ───────────────────────────────────────────────────────── credential safety
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_repr_redacts_sasl_password(self) -> None:
         cfg = KafkaConfig(
             bootstrap_servers="kafka:9092",

@@ -5,8 +5,8 @@ Uses pre-loaded ``manifest=`` / ``run_results=`` mappings so no real
 """
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.bi_catalog.dbt_artifacts_config import (
     DbtArtifactsConfig,
@@ -19,17 +19,18 @@ from pirn.domains.connectors.capabilities.metadata_catalog import (
 )
 
 
-def test_construction_requires_config_or_preloaded_data() -> None:
-    with pytest.raises(TypeError, match="config= or pre-loaded"):
-        DbtArtifactsReader()
 
-
-def test_sensitive_fields_listed() -> None:
-    assert DbtArtifactsConfig.sensitive_fields == ()
-
-
-@pytest.mark.asyncio
-class TestLoadManifest:
+class _StandaloneTests(unittest.TestCase):
+    def test_construction_requires_config_or_preloaded_data(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or pre-loaded"):
+            DbtArtifactsReader()
+    
+    
+    def test_sensitive_fields_listed(self) -> None:
+        assert DbtArtifactsConfig.sensitive_fields == ()
+    
+    
+class TestLoadManifest(unittest.IsolatedAsyncioTestCase):
     async def test_returns_preloaded_manifest(self) -> None:
         manifest = {"nodes": {"model.foo.bar": {"unique_id": "model.foo.bar"}}}
         reader = DbtArtifactsReader(manifest=manifest)
@@ -48,8 +49,7 @@ class TestLoadManifest:
         assert "new_top_level" not in manifest
 
 
-@pytest.mark.asyncio
-class TestLoadRunResults:
+class TestLoadRunResults(unittest.IsolatedAsyncioTestCase):
     async def test_returns_preloaded_run_results(self) -> None:
         run_results = {"results": [{"status": "success"}]}
         reader = DbtArtifactsReader(run_results=run_results)
@@ -59,33 +59,31 @@ class TestLoadRunResults:
         assert result == run_results
 
 
-@pytest.mark.asyncio
-class TestDiskFallback:
+class TestDiskFallback(unittest.IsolatedAsyncioTestCase):
     async def test_load_manifest_without_data_or_path_raises(self) -> None:
         reader = DbtArtifactsReader(config=DbtArtifactsConfig())
-        with pytest.raises(RuntimeError, match="target_path"):
+        with self.assertRaisesRegex(RuntimeError, "target_path"):
             await reader.load_manifest()
 
     async def test_load_run_results_without_data_or_path_raises(self) -> None:
         reader = DbtArtifactsReader(config=DbtArtifactsConfig())
-        with pytest.raises(RuntimeError, match="target_path"):
+        with self.assertRaisesRegex(RuntimeError, "target_path"):
             await reader.load_run_results()
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_repr_does_not_crash(self) -> None:
         cfg = DbtArtifactsConfig(target_path="/tmp/dbt/target")
         # No sensitive fields — repr is just a smoke test.
         assert "DbtArtifactsConfig" in repr(cfg)
 
 
-def test_implements_metadata_catalog() -> None:
-    reader = DbtArtifactsReader(manifest={"nodes": {}})
-    assert isinstance(reader, MetadataCatalog)
-
-
-@pytest.mark.asyncio
-class TestListEntities:
+    def test_implements_metadata_catalog(self) -> None:
+        reader = DbtArtifactsReader(manifest={"nodes": {}})
+        assert isinstance(reader, MetadataCatalog)
+    
+    
+class TestListEntities(unittest.IsolatedAsyncioTestCase):
     async def test_lists_models_filtered_by_resource_type(self) -> None:
         manifest = {
             "nodes": {
@@ -206,13 +204,12 @@ class TestListEntities:
     async def test_unsupported_entity_type_raises(self) -> None:
         reader = DbtArtifactsReader(manifest={"nodes": {}})
 
-        with pytest.raises(ValueError, match="unsupported entity_type"):
+        with self.assertRaisesRegex(ValueError, "unsupported entity_type"):
             async for _ in reader.list_entities("exposure"):
                 pass
 
 
-@pytest.mark.asyncio
-class TestDescribeEntity:
+class TestDescribeEntity(unittest.IsolatedAsyncioTestCase):
     async def test_describe_finds_node(self) -> None:
         manifest = {
             "nodes": {
@@ -244,5 +241,5 @@ class TestDescribeEntity:
     async def test_describe_missing_raises_key_error(self) -> None:
         reader = DbtArtifactsReader(manifest={"nodes": {}, "sources": {}})
 
-        with pytest.raises(KeyError, match="not found"):
+        with self.assertRaisesRegex(KeyError, "not found"):
             await reader.describe_entity("model.foo.missing")

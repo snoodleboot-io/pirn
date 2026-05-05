@@ -1,8 +1,8 @@
 """Unit tests for :class:`VMDDecomposer`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,11 +12,11 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.signal.conftest import emit_signal_frame
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_mode_count(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="mode_count"):
+            with self.assertRaisesRegex(ValueError, "mode_count"):
                 VMDDecomposer(
                     signal=sig,
                     mode_count=0,
@@ -27,7 +27,7 @@ class TestConstruction:
     def test_rejects_non_positive_bandwidth(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="bandwidth_constraint"):
+            with self.assertRaisesRegex(ValueError, "bandwidth_constraint"):
                 VMDDecomposer(
                     signal=sig,
                     mode_count=4,
@@ -36,8 +36,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_wavelet_frame(self) -> None:
         with Tapestry() as t:
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))

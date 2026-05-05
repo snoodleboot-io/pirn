@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import datetime, timezone
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -37,9 +37,9 @@ async def emit_records() -> Sequence[ClinicalTrialRecord]:
     )
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_knot_records(self) -> None:
-        with pytest.raises(TypeError, match="records"):
+        with self.assertRaisesRegex(TypeError, "records"):
             EstimandAlignedAnalyzer(
                 records="not-a-knot",  # type: ignore[arg-type]
                 strategy="treatment-policy",
@@ -49,7 +49,7 @@ class TestConstruction:
     def test_rejects_invalid_strategy(self) -> None:
         with Tapestry():
             r = emit_records(_config=KnotConfig(id="r"))
-            with pytest.raises(ValueError, match="strategy"):
+            with self.assertRaisesRegex(ValueError, "strategy"):
                 EstimandAlignedAnalyzer(
                     records=r,
                     strategy="not-a-real-strategy",
@@ -59,7 +59,7 @@ class TestConstruction:
     def test_rejects_non_string_strategy(self) -> None:
         with Tapestry():
             r = emit_records(_config=KnotConfig(id="r"))
-            with pytest.raises(TypeError, match="strategy"):
+            with self.assertRaisesRegex(TypeError, "strategy"):
                 EstimandAlignedAnalyzer(
                     records=r,
                     strategy=42,  # type: ignore[arg-type]
@@ -69,7 +69,7 @@ class TestConstruction:
     def test_rejects_non_sequence_intercurrent_codes(self) -> None:
         with Tapestry():
             r = emit_records(_config=KnotConfig(id="r"))
-            with pytest.raises(TypeError, match="intercurrent_event_codes"):
+            with self.assertRaisesRegex(TypeError, "intercurrent_event_codes"):
                 EstimandAlignedAnalyzer(
                     records=r,
                     strategy="while-on-treatment",
@@ -78,8 +78,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_treatment_policy_returns_input_unchanged(self) -> None:
         with Tapestry() as t:
             r = emit_records(_config=KnotConfig(id="r"))

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import datetime, timezone
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -35,9 +35,9 @@ async def emit_records() -> Sequence[ClinicalTrialRecord]:
     )
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_knot_records(self) -> None:
-        with pytest.raises(TypeError, match="records"):
+        with self.assertRaisesRegex(TypeError, "records"):
             MedDRANormalizer(
                 records="not-a-knot",  # type: ignore[arg-type]
                 term_to_pt={"headache": "Headache"},
@@ -47,7 +47,7 @@ class TestConstruction:
     def test_rejects_non_mapping_term_to_pt(self) -> None:
         with Tapestry():
             r = emit_records(_config=KnotConfig(id="r"))
-            with pytest.raises(TypeError, match="term_to_pt"):
+            with self.assertRaisesRegex(TypeError, "term_to_pt"):
                 MedDRANormalizer(
                     records=r,
                     term_to_pt=42,  # type: ignore[arg-type]
@@ -57,7 +57,7 @@ class TestConstruction:
     def test_rejects_empty_term_to_pt(self) -> None:
         with Tapestry():
             r = emit_records(_config=KnotConfig(id="r"))
-            with pytest.raises(ValueError, match="term_to_pt"):
+            with self.assertRaisesRegex(ValueError, "term_to_pt"):
                 MedDRANormalizer(
                     records=r,
                     term_to_pt={},
@@ -67,7 +67,7 @@ class TestConstruction:
     def test_rejects_blank_term_to_pt_value(self) -> None:
         with Tapestry():
             r = emit_records(_config=KnotConfig(id="r"))
-            with pytest.raises(ValueError, match="term_to_pt values"):
+            with self.assertRaisesRegex(ValueError, "term_to_pt values"):
                 MedDRANormalizer(
                     records=r,
                     term_to_pt={"headache": ""},
@@ -75,8 +75,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_maps_known_terms_and_falls_back_for_unknown(self) -> None:
         with Tapestry() as t:
             r = emit_records(_config=KnotConfig(id="r"))

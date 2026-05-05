@@ -1,8 +1,8 @@
 """Tests for :class:`DbtStyleSnapshot`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,37 +12,6 @@ from pirn.domains.data.specializations.incremental.dbt_style_snapshot import (
     DbtStyleSnapshot,
 )
 from pirn.tapestry import Tapestry
-
-
-@pytest.fixture
-async def source_pool() -> SqlitePool:
-    pool = SqlitePool(SqliteConfig(database=":memory:"))
-    await pool.execute(
-        "CREATE TABLE orders (id INTEGER PRIMARY KEY, status TEXT NOT NULL)"
-    )
-    await pool.execute_many(
-        "INSERT INTO orders (id, status) VALUES (?, ?)",
-        [(1, "pending"), (2, "shipped")],
-    )
-    yield pool
-    await pool.close()
-
-
-@pytest.fixture
-async def target_pool() -> SqlitePool:
-    pool = SqlitePool(SqliteConfig(database=":memory:"))
-    await pool.execute(
-        "CREATE TABLE orders_snapshot ("
-        "  id INTEGER NOT NULL,"
-        "  status TEXT NOT NULL,"
-        "  dbt_valid_from TEXT NOT NULL,"
-        "  dbt_valid_to TEXT,"
-        "  dbt_is_current INTEGER NOT NULL,"
-        "  dbt_scd_id TEXT NOT NULL"
-        ")"
-    )
-    yield pool
-    await pool.close()
 
 
 def make_knot(
@@ -59,9 +28,41 @@ def make_knot(
     )
 
 
-class TestConstruction:
-    def test_rejects_non_pool(self, target_pool: SqlitePool) -> None:
-        with pytest.raises(TypeError, match="DatabaseConnectionPool"):
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self) -> None:
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute(
+            "CREATE TABLE orders (id INTEGER PRIMARY KEY, status TEXT NOT NULL)"
+        )
+        await pool.execute_many(
+            "INSERT INTO orders (id, status) VALUES (?, ?)",
+            [(1, "pending"), (2, "shipped")],
+        )
+        self.source_pool = pool
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute(
+            "CREATE TABLE orders_snapshot ("
+            "  id INTEGER NOT NULL,"
+            "  status TEXT NOT NULL,"
+            "  dbt_valid_from TEXT NOT NULL,"
+            "  dbt_valid_to TEXT,"
+            "  dbt_is_current INTEGER NOT NULL,"
+            "  dbt_scd_id TEXT NOT NULL"
+            ")"
+        )
+        self.target_pool = pool
+
+    async def asyncTearDown(self) -> None:
+        await self.source_pool.close()
+        
+        
+        await self.target_pool.close()
+        
+        
+    def test_rejects_non_pool(self) -> None:
+        target_pool = self.target_pool
+        with self.assertRaisesRegex(TypeError, "DatabaseConnectionPool"):
             DbtStyleSnapshot(
                 source_pool="bad",  # type: ignore[arg-type]
                 source_query="SELECT 1",
@@ -72,10 +73,10 @@ class TestConstruction:
                 _config=KnotConfig(id="snap"),
             )
 
-    def test_rejects_overlapping_columns(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
-        with pytest.raises(ValueError, match="overlap"):
+    def test_rejects_overlapping_columns(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
+        with self.assertRaisesRegex(ValueError, "overlap"):
             DbtStyleSnapshot(
                 source_pool=source_pool,
                 source_query="SELECT 1",
@@ -87,11 +88,41 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestDbtStyleSnapshotBehaviour:
-    async def test_first_run_inserts_all_rows(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
+class TestDbtStyleSnapshotBehaviour(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self) -> None:
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute(
+            "CREATE TABLE orders (id INTEGER PRIMARY KEY, status TEXT NOT NULL)"
+        )
+        await pool.execute_many(
+            "INSERT INTO orders (id, status) VALUES (?, ?)",
+            [(1, "pending"), (2, "shipped")],
+        )
+        self.source_pool = pool
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute(
+            "CREATE TABLE orders_snapshot ("
+            "  id INTEGER NOT NULL,"
+            "  status TEXT NOT NULL,"
+            "  dbt_valid_from TEXT NOT NULL,"
+            "  dbt_valid_to TEXT,"
+            "  dbt_is_current INTEGER NOT NULL,"
+            "  dbt_scd_id TEXT NOT NULL"
+            ")"
+        )
+        self.target_pool = pool
+
+    async def asyncTearDown(self) -> None:
+        await self.source_pool.close()
+        
+        
+        await self.target_pool.close()
+        
+        
+    async def test_first_run_inserts_all_rows(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
         with Tapestry() as t:
             make_knot(source_pool, target_pool)
         result = await t.run(RunRequest())
@@ -101,9 +132,9 @@ class TestDbtStyleSnapshotBehaviour:
         )
         assert [r[0] for r in rows] == [1, 2]
 
-    async def test_unchanged_rows_are_not_duplicated(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
+    async def test_unchanged_rows_are_not_duplicated(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
         for _ in range(2):
             with Tapestry() as t:
                 make_knot(source_pool, target_pool)
@@ -113,9 +144,9 @@ class TestDbtStyleSnapshotBehaviour:
         )
         assert rows[0][0] == 1
 
-    async def test_changed_row_closes_old_and_inserts_new(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
+    async def test_changed_row_closes_old_and_inserts_new(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
         with Tapestry() as t:
             make_knot(source_pool, target_pool)
         await t.run(RunRequest())
@@ -135,9 +166,9 @@ class TestDbtStyleSnapshotBehaviour:
         )
         assert closed[0][0] == 1
 
-    async def test_result_tracks_inserted_and_closed(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
+    async def test_result_tracks_inserted_and_closed(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
         with Tapestry() as t:
             knot = make_knot(source_pool, target_pool)
         run_result = await t.run(RunRequest())

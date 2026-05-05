@@ -1,8 +1,8 @@
 """Tests for :class:`ABTestPipeline`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -37,13 +37,13 @@ async def emit_model_b() -> TrainedModel:
     )
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_string_metric(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
             model_a = emit_model_a(_config=KnotConfig(id="ma"))
             model_b = emit_model_b(_config=KnotConfig(id="mb"))
-            with pytest.raises(ValueError, match="primary_metric"):
+            with self.assertRaisesRegex(ValueError, "primary_metric"):
                 ABTestPipeline(
                     model_a=model_a,
                     model_b=model_b,
@@ -57,7 +57,7 @@ class TestConstruction:
             split = emit_split(_config=KnotConfig(id="split"))
             model_a = emit_model_a(_config=KnotConfig(id="ma"))
             model_b = emit_model_b(_config=KnotConfig(id="mb"))
-            with pytest.raises(ValueError, match="alpha"):
+            with self.assertRaisesRegex(ValueError, "alpha"):
                 ABTestPipeline(
                     model_a=model_a,
                     model_b=model_b,
@@ -68,8 +68,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_returns_winner_and_p_value(self) -> None:
         with Tapestry() as t:
             split = emit_split(_config=KnotConfig(id="split"))

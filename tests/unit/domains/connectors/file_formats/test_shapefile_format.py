@@ -1,10 +1,13 @@
 """Round-trip and validation tests for :class:`ShapefileFormat`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
-pytest.importorskip("shapefile")
+try:
+    import shapefile
+except ImportError as _e:
+    raise unittest.SkipTest("shapefile not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -40,7 +43,7 @@ def _point_records() -> list[dict[str, object]]:
     ]
 
 
-class TestShapefileFormatBasics:
+class TestShapefileFormatBasics(unittest.TestCase):
     def test_name(self) -> None:
         assert ShapefileFormat().name == "shapefile"
 
@@ -51,8 +54,7 @@ class TestShapefileFormatBasics:
         assert isinstance(ShapefileFormat(), BatchFileFormat)
 
 
-class TestShapefileFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestShapefileFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         fmt = ShapefileFormat()
         records = _point_records()
@@ -65,7 +67,6 @@ class TestShapefileFormatRoundTrip:
             assert recovered["name"] == original["name"]
             assert recovered["label"] == original["label"]
 
-    @pytest.mark.asyncio
     async def test_round_trip_single(self) -> None:
         fmt = ShapefileFormat()
         records = _point_records()[:1]
@@ -75,22 +76,19 @@ class TestShapefileFormatRoundTrip:
         assert decoded[0]["geometry"] == records[0]["geometry"]
         assert decoded[0]["name"] == records[0]["name"]
 
-    @pytest.mark.asyncio
     async def test_decode_rejects_non_zip_payload(self) -> None:
         fmt = ShapefileFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.decode(fmt, b"not a zip archive")
 
-    @pytest.mark.asyncio
     async def test_encode_rejects_record_without_geometry(self) -> None:
         fmt = ShapefileFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, [{"name": "x"}])
 
-    @pytest.mark.asyncio
     async def test_encode_rejects_empty_geometry_list(self) -> None:
         fmt = ShapefileFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(
                 fmt, [{"geometry": [], "name": "x"}]
             )

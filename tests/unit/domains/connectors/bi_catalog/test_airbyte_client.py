@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.bi_catalog.airbyte_client import AirbyteClient
@@ -26,15 +26,7 @@ class FakeHttpx:
         self.responses: dict[tuple[str, str], Any] = {}
         self.closed = False
 
-    async def request(
-        self,
-        method: str,
-        url: str,
-        *,
-        params: Any = None,
-        json: Any = None,
-        headers: Any = None,
-    ) -> FakeResponse:
+    async def request(self, method: str, url: str, *, params: Any = None, json: Any = None, headers: Any = None,) -> FakeResponse:
         self.calls.append(
             {
                 "method": method,
@@ -50,22 +42,23 @@ class FakeHttpx:
         self.closed = True
 
 
-def test_implements_api_client() -> None:
-    client = AirbyteClient(client=FakeHttpx())
-    assert isinstance(client, ApiClient)
 
-
-def test_construction_requires_config_or_client() -> None:
-    with pytest.raises(TypeError, match="config= or client="):
-        AirbyteClient()
-
-
-def test_sensitive_fields_listed() -> None:
-    assert AirbyteConfig.sensitive_fields == ("client_secret", "access_token")
-
-
-@pytest.mark.asyncio
-class TestRequest:
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_api_client(self) -> None:
+        client = AirbyteClient(client=FakeHttpx())
+        assert isinstance(client, ApiClient)
+    
+    
+    def test_construction_requires_config_or_client(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or client="):
+            AirbyteClient()
+    
+    
+    def test_sensitive_fields_listed(self) -> None:
+        assert AirbyteConfig.sensitive_fields == ("client_secret", "access_token")
+    
+    
+class TestRequest(unittest.IsolatedAsyncioTestCase):
     async def test_request_builds_full_url_and_returns_json(self) -> None:
         fake = FakeHttpx()
         cfg = AirbyteConfig(
@@ -104,8 +97,7 @@ class TestRequest:
         assert fake.calls[0]["json"] == {"name": "s3"}
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_closes_underlying_client(self) -> None:
         fake = FakeHttpx()
         client = AirbyteClient(client=fake)
@@ -120,27 +112,26 @@ class TestLifecycle:
     async def test_request_after_close_raises(self) -> None:
         client = AirbyteClient(client=FakeHttpx())
         await client.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await client.request("GET", "/sources")
 
 
-def test_implements_table_source() -> None:
-    client = AirbyteClient(client=FakeHttpx())
-    assert isinstance(client, TableSource)
-
-
-def test_default_resource_is_connections() -> None:
-    client = AirbyteClient(client=FakeHttpx())
-    assert client.resource == "connections"
-
-
-def test_blank_resource_rejected() -> None:
-    with pytest.raises(ValueError, match="resource"):
-        AirbyteClient(client=FakeHttpx(), resource="")
-
-
-@pytest.mark.asyncio
-class TestFetchPage:
+    def test_implements_table_source(self) -> None:
+        client = AirbyteClient(client=FakeHttpx())
+        assert isinstance(client, TableSource)
+    
+    
+    def test_default_resource_is_connections(self) -> None:
+        client = AirbyteClient(client=FakeHttpx())
+        assert client.resource == "connections"
+    
+    
+    def test_blank_resource_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "resource"):
+            AirbyteClient(client=FakeHttpx(), resource="")
+    
+    
+class TestFetchPage(unittest.IsolatedAsyncioTestCase):
     async def test_fetch_page_posts_to_list_endpoint(self) -> None:
         fake = FakeHttpx()
         cfg = AirbyteConfig(
@@ -182,8 +173,7 @@ class TestFetchPage:
         assert cursor is None
 
 
-@pytest.mark.asyncio
-class TestVendorTypedListings:
+class TestVendorTypedListings(unittest.IsolatedAsyncioTestCase):
     async def test_list_connections(self) -> None:
         fake = FakeHttpx()
         cfg = AirbyteConfig(

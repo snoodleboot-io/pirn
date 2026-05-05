@@ -1,8 +1,8 @@
 """Unit tests for :class:`CrossSpectrumEstimator`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -29,12 +29,12 @@ async def emit_signal_a_alt_rate() -> SignalFrame:
     )
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_segment_length(self) -> None:
         with Tapestry():
             a = emit_signal_frame(_config=KnotConfig(id="a"))
             b = emit_signal_b_frame(_config=KnotConfig(id="b"))
-            with pytest.raises(ValueError, match="positive integer"):
+            with self.assertRaisesRegex(ValueError, "positive integer"):
                 CrossSpectrumEstimator(
                     signal_a=a,
                     signal_b=b,
@@ -43,8 +43,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_spectrum_frame(self) -> None:
         with Tapestry() as t:
             a = emit_signal_frame(_config=KnotConfig(id="a"))

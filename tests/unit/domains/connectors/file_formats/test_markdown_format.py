@@ -1,11 +1,17 @@
 """Round-trip and validation tests for :class:`MarkdownFormat`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
-pytest.importorskip("markdown_it")
-pytest.importorskip("markdown")
+try:
+    import markdown_it
+except ImportError as _e:
+    raise unittest.SkipTest("markdown_it not installed") from _e
+try:
+    import markdown
+except ImportError as _e:
+    raise unittest.SkipTest("markdown not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -18,30 +24,30 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 )
 
 
-class TestMarkdownFormatConstruction:
+class TestMarkdownFormatConstruction(unittest.TestCase):
     def test_default_arguments(self) -> None:
         fmt = MarkdownFormat()
         assert fmt.split_on == "heading"
         assert fmt.encoding == "utf-8"
 
     def test_split_on_must_be_str(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             MarkdownFormat(split_on=1)  # type: ignore[arg-type]
 
     def test_split_on_must_be_supported(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             MarkdownFormat(split_on="word")
 
     def test_encoding_must_be_str(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             MarkdownFormat(encoding=1)  # type: ignore[arg-type]
 
     def test_encoding_must_be_nonempty(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             MarkdownFormat(encoding="")
 
 
-class TestMarkdownFormatProperties:
+class TestMarkdownFormatProperties(unittest.TestCase):
     def test_name(self) -> None:
         assert MarkdownFormat().name == "markdown"
 
@@ -52,8 +58,7 @@ class TestMarkdownFormatProperties:
         assert isinstance(MarkdownFormat(), BatchFileFormat)
 
 
-class TestMarkdownFormatHeadingMode:
-    @pytest.mark.asyncio
+class TestMarkdownFormatHeadingMode(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         fmt = MarkdownFormat(split_on="heading")
         records = [
@@ -77,14 +82,12 @@ class TestMarkdownFormatHeadingMode:
         assert decoded[1]["title"] == "Methods"
         assert "Second chapter prose" in decoded[1]["text"]
 
-    @pytest.mark.asyncio
     async def test_round_trip_empty(self) -> None:
         fmt = MarkdownFormat(split_on="heading")
         payload = await FormatRoundTrip.encode(fmt, [])
         decoded = await FormatRoundTrip.decode(fmt, payload)
         assert decoded == []
 
-    @pytest.mark.asyncio
     async def test_round_trip_single(self) -> None:
         fmt = MarkdownFormat(split_on="heading")
         records = [
@@ -97,8 +100,7 @@ class TestMarkdownFormatHeadingMode:
         assert "Just one section" in decoded[0]["text"]
 
 
-class TestMarkdownFormatParagraphMode:
-    @pytest.mark.asyncio
+class TestMarkdownFormatParagraphMode(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         fmt = MarkdownFormat(split_on="paragraph")
         records = [
@@ -112,8 +114,7 @@ class TestMarkdownFormatParagraphMode:
         assert decoded[0]["text"] == "First paragraph."
 
 
-class TestMarkdownFormatFileMode:
-    @pytest.mark.asyncio
+class TestMarkdownFormatFileMode(unittest.IsolatedAsyncioTestCase):
     async def test_decode_renders_html(self) -> None:
         fmt = MarkdownFormat(split_on="file")
         records = [
@@ -125,17 +126,15 @@ class TestMarkdownFormatFileMode:
         assert "<h1>" in decoded[0]["text"]
 
 
-class TestMarkdownFormatValidation:
-    @pytest.mark.asyncio
+class TestMarkdownFormatValidation(unittest.IsolatedAsyncioTestCase):
     async def test_missing_text_key_raises(self) -> None:
         fmt = MarkdownFormat(split_on="paragraph")
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, [{"title": "x", "level": 0}])
 
-    @pytest.mark.asyncio
     async def test_non_string_text_raises(self) -> None:
         fmt = MarkdownFormat(split_on="heading")
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             await FormatRoundTrip.encode(
                 fmt, [{"text": 1, "title": "x", "level": 1}]
             )

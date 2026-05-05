@@ -1,9 +1,9 @@
 """Tests for :class:`DuckdbJoin`."""
 
 from __future__ import annotations
+import unittest
 
 import duckdb
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -48,8 +48,7 @@ async def emit_orders_alone() -> DuckdbDataBatch:
     return _make_orders(connection)
 
 
-@pytest.mark.asyncio
-class TestDuckdbJoin:
+class TestDuckdbJoin(unittest.IsolatedAsyncioTestCase):
     async def test_inner_join_on_shared_key(self) -> None:
         with Tapestry() as t:
             users = emit_users_alone(_config=KnotConfig(id="users"))
@@ -150,7 +149,7 @@ class TestDuckdbJoin:
         assert len(rows) == 6  # 2 × 3
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_unknown_how(self) -> None:
         @knot
         async def empty() -> DuckdbDataBatch:
@@ -163,7 +162,7 @@ class TestConstruction:
         with Tapestry():
             left = empty(_config=KnotConfig(id="l"))
             right = empty(_config=KnotConfig(id="r"))
-            with pytest.raises(ValueError, match="how must be one of"):
+            with self.assertRaisesRegex(ValueError, "how must be one of"):
                 DuckdbJoin(
                     left=left, right=right, on="x", how="diagonal",
                     _config=KnotConfig(id="j"),
@@ -181,7 +180,7 @@ class TestConstruction:
         with Tapestry():
             left = empty(_config=KnotConfig(id="l"))
             right = empty(_config=KnotConfig(id="r"))
-            with pytest.raises(TypeError, match="not both"):
+            with self.assertRaisesRegex(TypeError, "not both"):
                 DuckdbJoin(
                     left=left, right=right,
                     on="x", condition="x = x",
@@ -200,7 +199,7 @@ class TestConstruction:
         with Tapestry():
             left = empty(_config=KnotConfig(id="l"))
             right = empty(_config=KnotConfig(id="r"))
-            with pytest.raises(TypeError, match="provide on="):
+            with self.assertRaisesRegex(TypeError, "provide on="):
                 DuckdbJoin(
                     left=left, right=right, how="inner",
                     _config=KnotConfig(id="j"),
@@ -218,7 +217,7 @@ class TestConstruction:
         with Tapestry():
             left = empty(_config=KnotConfig(id="l"))
             right = empty(_config=KnotConfig(id="r"))
-            with pytest.raises(TypeError, match="cross join takes no"):
+            with self.assertRaisesRegex(TypeError, "cross join takes no"):
                 DuckdbJoin(
                     left=left, right=right, how="cross", on="x",
                     _config=KnotConfig(id="j"),
@@ -236,7 +235,7 @@ class TestConstruction:
         with Tapestry():
             left = empty(_config=KnotConfig(id="l"))
             right = empty(_config=KnotConfig(id="r"))
-            with pytest.raises(ValueError, match="plain identifier"):
+            with self.assertRaisesRegex(ValueError, "plain identifier"):
                 DuckdbJoin(
                     left=left, right=right,
                     on="x; DROP TABLE t",
@@ -255,7 +254,7 @@ class TestConstruction:
         with Tapestry():
             left = empty(_config=KnotConfig(id="l"))
             right = empty(_config=KnotConfig(id="r"))
-            with pytest.raises(ValueError, match="forbidden"):
+            with self.assertRaisesRegex(ValueError, "forbidden"):
                 DuckdbJoin(
                     left=left, right=right,
                     condition="a = b; DROP TABLE t",

@@ -1,8 +1,8 @@
 """Tests for :class:`BiasDetector`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -34,12 +34,12 @@ async def emit_model() -> TrainedModel:
     )
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_sensitive_columns(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
             model = emit_model(_config=KnotConfig(id="model"))
-            with pytest.raises(ValueError, match="sensitive_columns"):
+            with self.assertRaisesRegex(ValueError, "sensitive_columns"):
                 BiasDetector(
                     model=model,
                     split=split,
@@ -48,8 +48,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_per_group_report(self) -> None:
         with Tapestry() as t:
             split = emit_split(_config=KnotConfig(id="split"))

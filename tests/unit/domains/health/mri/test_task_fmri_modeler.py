@@ -1,8 +1,8 @@
 """Unit tests for :class:`TaskFMRIModeler`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -11,9 +11,9 @@ from pirn.domains.health.mri.task_fmri_modeler import TaskFMRIModeler
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_invalid_hrf_model(self) -> None:
-        with pytest.raises(ValueError, match="hrf_model"):
+        with self.assertRaisesRegex(ValueError, "hrf_model"):
             TaskFMRIModeler(
                 bold_data=Parameter("bd", dict, default={}, _config=KnotConfig(id="bd")),
                 events=Parameter("ev", list, default=[], _config=KnotConfig(id="ev")),
@@ -24,7 +24,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_positive_tr(self) -> None:
-        with pytest.raises(ValueError, match="tr_sec"):
+        with self.assertRaisesRegex(ValueError, "tr_sec"):
             TaskFMRIModeler(
                 bold_data=Parameter("bd", dict, default={}, _config=KnotConfig(id="bd")),
                 events=Parameter("ev", list, default=[], _config=KnotConfig(id="ev")),
@@ -35,7 +35,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_positive_high_pass(self) -> None:
-        with pytest.raises(ValueError, match="high_pass_hz"):
+        with self.assertRaisesRegex(ValueError, "high_pass_hz"):
             TaskFMRIModeler(
                 bold_data=Parameter("bd", dict, default={}, _config=KnotConfig(id="bd")),
                 events=Parameter("ev", list, default=[], _config=KnotConfig(id="ev")),
@@ -46,8 +46,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_dict(self) -> None:
         bold = {"n_volumes": 200, "n_voxels": 50000}
         events = [

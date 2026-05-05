@@ -1,8 +1,8 @@
 """Tests for :class:`LookupEnricher`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -35,13 +35,13 @@ _LOOKUP = [
 ]
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_invalid_join_key(self) -> None:
-        with pytest.raises(ValueError, match="plain identifier"):
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
             _make(_LOOKUP, ["bad col"], ["country_name"])
 
     def test_rejects_non_list_lookup(self) -> None:
-        with pytest.raises(TypeError, match="list"):
+        with self.assertRaisesRegex(TypeError, "list"):
             with Tapestry():
                 LookupEnricher(
                     rows=_rows_param(),
@@ -52,8 +52,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestBehaviour:
+class TestBehaviour(unittest.IsolatedAsyncioTestCase):
     async def test_matching_row_enriched(self) -> None:
         rows = [{"country_code": "US", "revenue": 100}]
         knot = _make(_LOOKUP, ["country_code"], ["country_name", "region"])

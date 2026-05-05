@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -23,9 +23,9 @@ class _TraceSource(Knot):
         return {"samples": [0.0, 1.0, -1.0, 0.5], "sample_interval_ms": 4.0}
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_unknown_attribute(self) -> None:
-        with pytest.raises(ValueError, match="unknown attributes"):
+        with self.assertRaisesRegex(ValueError, "unknown attributes"):
             with Tapestry():
                 src = _TraceSource(_config=KnotConfig(id="src"))
                 InstantaneousAttributeExtractor(
@@ -35,8 +35,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_requested_attributes(self) -> None:
         with Tapestry() as t:
             src = _TraceSource(_config=KnotConfig(id="src"))

@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import hashlib
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -29,18 +29,17 @@ def _make(**kwargs):
     return knot
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_invalid_column(self) -> None:
-        with pytest.raises(ValueError, match="plain identifier"):
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
             _make(columns=["bad col"])
 
     def test_rejects_invalid_algorithm(self) -> None:
-        with pytest.raises(ValueError, match="algorithm"):
+        with self.assertRaisesRegex(ValueError, "algorithm"):
             _make(columns=["email"], algorithm="sha512")
 
 
-@pytest.mark.asyncio
-class TestBehaviour:
+class TestBehaviour(unittest.IsolatedAsyncioTestCase):
     async def test_sha256_produces_64_char_hex(self) -> None:
         rows = [{"email": "alice@example.com"}]
         knot = _make(columns=["email"], algorithm="sha256")

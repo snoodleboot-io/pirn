@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from datetime import datetime, timezone
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -42,11 +42,11 @@ async def emit_exposures() -> Mapping[str, datetime]:
     return {"S-1": datetime(2026, 4, 15, tzinfo=timezone.utc)}
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_knot_events(self) -> None:
         with Tapestry():
             exposures = emit_exposures(_config=KnotConfig(id="e"))
-            with pytest.raises(TypeError, match="events"):
+            with self.assertRaisesRegex(TypeError, "events"):
                 TreatmentEmergentClassifier(
                     events="not-a-knot",  # type: ignore[arg-type]
                     exposures=exposures,
@@ -56,7 +56,7 @@ class TestConstruction:
     def test_rejects_non_knot_exposures(self) -> None:
         with Tapestry():
             events = emit_events(_config=KnotConfig(id="ev"))
-            with pytest.raises(TypeError, match="exposures"):
+            with self.assertRaisesRegex(TypeError, "exposures"):
                 TreatmentEmergentClassifier(
                     events=events,
                     exposures="not-a-knot",  # type: ignore[arg-type]
@@ -64,8 +64,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_flags_only_post_exposure_events(self) -> None:
         with Tapestry() as t:
             events = emit_events(_config=KnotConfig(id="ev"))

@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -28,9 +28,9 @@ class _SeriesSource(Knot):
         ]
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_zero_threshold(self) -> None:
-        with pytest.raises(ValueError, match="gap_threshold_hours"):
+        with self.assertRaisesRegex(ValueError, "gap_threshold_hours"):
             with Tapestry():
                 src = _SeriesSource(_config=KnotConfig(id="src"))
                 DowntimeEventClassifier(
@@ -40,7 +40,7 @@ class TestConstruction:
                 )
 
     def test_rejects_non_numeric_threshold(self) -> None:
-        with pytest.raises(TypeError, match="gap_threshold_hours"):
+        with self.assertRaisesRegex(TypeError, "gap_threshold_hours"):
             with Tapestry():
                 src = _SeriesSource(_config=KnotConfig(id="src"))
                 DowntimeEventClassifier(
@@ -50,8 +50,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_detects_downtime_event(self) -> None:
         with Tapestry() as t:
             src = _SeriesSource(_config=KnotConfig(id="src"))

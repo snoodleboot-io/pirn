@@ -1,8 +1,8 @@
 """Tests for :class:`SessionSummarizer`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -24,10 +24,9 @@ def make_messages(count: int, words_each: int = 10) -> list[AgentMessage]:
     ]
 
 
-@pytest.mark.asyncio
-class TestSessionSummarizerConstruction:
+class TestSessionSummarizerConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
-        with pytest.raises(TypeError, match="llm must be an LLMProvider"):
+        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
             with Tapestry():
                 SessionSummarizer(
                     messages=(),
@@ -37,7 +36,7 @@ class TestSessionSummarizerConstruction:
 
     async def test_rejects_zero_token_threshold(self) -> None:
         llm = StubLLMProvider(["summary"])
-        with pytest.raises(ValueError, match="token_threshold must be a positive int"):
+        with self.assertRaisesRegex(ValueError, "token_threshold must be a positive int"):
             with Tapestry():
                 SessionSummarizer(
                     messages=(),
@@ -47,8 +46,7 @@ class TestSessionSummarizerConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestSessionSummarizerBelowThreshold:
+class TestSessionSummarizerBelowThreshold(unittest.IsolatedAsyncioTestCase):
     async def test_returns_messages_unchanged_when_under_threshold(self) -> None:
         messages = make_messages(2, words_each=5)
         llm = StubLLMProvider(["summary"])
@@ -66,8 +64,7 @@ class TestSessionSummarizerBelowThreshold:
         assert llm.calls == []
 
 
-@pytest.mark.asyncio
-class TestSessionSummarizerAboveThreshold:
+class TestSessionSummarizerAboveThreshold(unittest.IsolatedAsyncioTestCase):
     async def test_compresses_long_history(self) -> None:
         messages = make_messages(20, words_each=10)
         llm = StubLLMProvider(["Condensed summary of the conversation."])

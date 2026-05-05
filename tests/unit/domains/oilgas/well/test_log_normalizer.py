@@ -1,8 +1,8 @@
 """Unit tests for :class:`LogNormalizer`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,9 +12,9 @@ from pirn.domains.oilgas.well.log_normalizer import LogNormalizer
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_numeric_step(self) -> None:
-        with pytest.raises(TypeError, match="target_depth_step"):
+        with self.assertRaisesRegex(TypeError, "target_depth_step"):
             with Tapestry():
                 las = LasFileIngester(
                     file_path="/x",
@@ -29,7 +29,7 @@ class TestConstruction:
                 )
 
     def test_rejects_non_positive_step(self) -> None:
-        with pytest.raises(ValueError, match="positive"):
+        with self.assertRaisesRegex(ValueError, "positive"):
             with Tapestry():
                 las = LasFileIngester(
                     file_path="/x",
@@ -44,7 +44,7 @@ class TestConstruction:
                 )
 
     def test_rejects_invalid_unit(self) -> None:
-        with pytest.raises(ValueError, match="target_depth_unit"):
+        with self.assertRaisesRegex(ValueError, "target_depth_unit"):
             with Tapestry():
                 las = LasFileIngester(
                     file_path="/x",
@@ -60,8 +60,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_changes_depth_unit(self) -> None:
         with Tapestry() as t:
             las = LasFileIngester(

@@ -1,8 +1,8 @@
 """Unit tests for :class:`WellLocationProjector`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,9 +12,9 @@ from pirn.domains.oilgas.geospatial.well_location_projector import (
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_well_id(self) -> None:
-        with pytest.raises(ValueError, match="well_id"):
+        with self.assertRaisesRegex(ValueError, "well_id"):
             WellLocationProjector(
                 well_id="",
                 longitude_deg=0.0,
@@ -24,7 +24,7 @@ class TestConstruction:
             )
 
     def test_rejects_out_of_range_longitude(self) -> None:
-        with pytest.raises(ValueError, match=r"longitude"):
+        with self.assertRaisesRegex(ValueError, r"longitude"):
             WellLocationProjector(
                 well_id="W",
                 longitude_deg=360.0,
@@ -34,7 +34,7 @@ class TestConstruction:
             )
 
     def test_rejects_out_of_range_latitude(self) -> None:
-        with pytest.raises(ValueError, match=r"latitude"):
+        with self.assertRaisesRegex(ValueError, r"latitude"):
             WellLocationProjector(
                 well_id="W",
                 longitude_deg=0.0,
@@ -44,7 +44,7 @@ class TestConstruction:
             )
 
     def test_rejects_empty_target_crs(self) -> None:
-        with pytest.raises(ValueError, match="target_crs"):
+        with self.assertRaisesRegex(ValueError, "target_crs"):
             WellLocationProjector(
                 well_id="W",
                 longitude_deg=0.0,
@@ -54,8 +54,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_projected_location(self) -> None:
         with Tapestry() as t:
             WellLocationProjector(

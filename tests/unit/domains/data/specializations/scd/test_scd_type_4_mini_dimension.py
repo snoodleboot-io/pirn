@@ -1,8 +1,10 @@
 """Tests for :class:`ScdType4MiniDimension`."""
 
 from __future__ import annotations
+import unittest
+import tempfile
+from pathlib import Path
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,62 +16,66 @@ from pirn.domains.data.specializations.scd.scd_type_4_mini_dimension import (
 from pirn.tapestry import Tapestry
 
 
-@pytest.fixture
-async def source_pool() -> SqlitePool:
-    pool = SqlitePool(SqliteConfig(database=":memory:"))
-    await pool.execute(
-        "CREATE TABLE customers ("
-        "  id INTEGER PRIMARY KEY,"
-        "  name TEXT NOT NULL,"
-        "  income_band TEXT NOT NULL,"
-        "  credit_score INTEGER NOT NULL"
-        ")"
-    )
-    await pool.execute_many(
-        "INSERT INTO customers (id, name, income_band, credit_score) VALUES (?, ?, ?, ?)",
-        [(1, "Alice", "high", 800), (2, "Bob", "low", 600)],
-    )
-    yield pool
-    await pool.close()
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
+    async def asyncSetUp(self) -> None:
+        self._tmp_main_pool = tempfile.TemporaryDirectory()
+        tmp_path = Path(self._tmp_main_pool.name)
+        pool = SqlitePool(SqliteConfig(database=str(tmp_path / "main.db")))
+        await pool.execute(
+            "CREATE TABLE customers ("
+            "  id INTEGER PRIMARY KEY,"
+            "  name TEXT NOT NULL,"
+            "  mini_dim_sk INTEGER"
+            ")"
+        )
+        await pool.execute_many(
+            "INSERT INTO customers (id, name) VALUES (?, ?)",
+            [(1, "Alice"), (2, "Bob")],
+        )
+        self.main_pool = pool
+        self._tmp_mini_pool = tempfile.TemporaryDirectory()
+        tmp_path = Path(self._tmp_mini_pool.name)
+        pool = SqlitePool(SqliteConfig(database=str(tmp_path / "mini.db")))
+        await pool.execute(
+            "CREATE TABLE customer_profile ("
+            "  mini_dim_sk INTEGER PRIMARY KEY AUTOINCREMENT,"
+            "  income_band TEXT NOT NULL,"
+            "  credit_score INTEGER NOT NULL"
+            ")"
+        )
+        self.mini_pool = pool
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute(
+            "CREATE TABLE customers ("
+            "  id INTEGER PRIMARY KEY,"
+            "  name TEXT NOT NULL,"
+            "  income_band TEXT NOT NULL,"
+            "  credit_score INTEGER NOT NULL"
+            ")"
+        )
+        await pool.execute_many(
+            "INSERT INTO customers (id, name, income_band, credit_score) VALUES (?, ?, ?, ?)",
+            [(1, "Alice", "high", 800), (2, "Bob", "low", 600)],
+        )
+        self.source_pool = pool
 
-@pytest.fixture
-async def main_pool(tmp_path) -> SqlitePool:
-    pool = SqlitePool(SqliteConfig(database=str(tmp_path / "main.db")))
-    await pool.execute(
-        "CREATE TABLE customers ("
-        "  id INTEGER PRIMARY KEY,"
-        "  name TEXT NOT NULL,"
-        "  mini_dim_sk INTEGER"
-        ")"
-    )
-    await pool.execute_many(
-        "INSERT INTO customers (id, name) VALUES (?, ?)",
-        [(1, "Alice"), (2, "Bob")],
-    )
-    yield pool
-    await pool.close()
-
-
-@pytest.fixture
-async def mini_pool(tmp_path) -> SqlitePool:
-    pool = SqlitePool(SqliteConfig(database=str(tmp_path / "mini.db")))
-    await pool.execute(
-        "CREATE TABLE customer_profile ("
-        "  mini_dim_sk INTEGER PRIMARY KEY AUTOINCREMENT,"
-        "  income_band TEXT NOT NULL,"
-        "  credit_score INTEGER NOT NULL"
-        ")"
-    )
-    yield pool
-    await pool.close()
-
-
-class TestConstruction:
-    def test_rejects_non_pool_source(
-        self, main_pool: SqlitePool, mini_pool: SqlitePool
-    ) -> None:
-        with pytest.raises(TypeError, match="DatabaseConnectionPool"):
+    async def asyncTearDown(self) -> None:
+        await self.main_pool.close()
+        
+        
+        self._tmp_main_pool.cleanup()
+        await self.mini_pool.close()
+        
+        
+        self._tmp_mini_pool.cleanup()
+        await self.source_pool.close()
+        
+        
+    def test_rejects_non_pool_source(self) -> None:
+        main_pool = self.main_pool
+        mini_pool = self.mini_pool
+        with self.assertRaisesRegex(TypeError, "DatabaseConnectionPool"):
             ScdType4MiniDimension(
                 source_pool="bad",  # type: ignore[arg-type]
                 source_query="SELECT 1",
@@ -83,13 +89,11 @@ class TestConstruction:
                 _config=KnotConfig(id="scd4"),
             )
 
-    def test_rejects_empty_source_query(
-        self,
-        source_pool: SqlitePool,
-        main_pool: SqlitePool,
-        mini_pool: SqlitePool,
-    ) -> None:
-        with pytest.raises(ValueError, match="source_query"):
+    def test_rejects_empty_source_query(self) -> None:
+        source_pool = self.source_pool
+        main_pool = self.main_pool
+        mini_pool = self.mini_pool
+        with self.assertRaisesRegex(ValueError, "source_query"):
             ScdType4MiniDimension(
                 source_pool=source_pool,
                 source_query="",
@@ -103,13 +107,11 @@ class TestConstruction:
                 _config=KnotConfig(id="scd4"),
             )
 
-    def test_rejects_invalid_identifier(
-        self,
-        source_pool: SqlitePool,
-        main_pool: SqlitePool,
-        mini_pool: SqlitePool,
-    ) -> None:
-        with pytest.raises(ValueError, match="plain identifier"):
+    def test_rejects_invalid_identifier(self) -> None:
+        source_pool = self.source_pool
+        main_pool = self.main_pool
+        mini_pool = self.mini_pool
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
             ScdType4MiniDimension(
                 source_pool=source_pool,
                 source_query="SELECT 1",
@@ -124,14 +126,66 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestScdType4Behaviour:
-    async def test_inserts_new_mini_dim_rows(
-        self,
-        source_pool: SqlitePool,
-        main_pool: SqlitePool,
-        mini_pool: SqlitePool,
-    ) -> None:
+class TestScdType4Behaviour(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self) -> None:
+        self._tmp_main_pool = tempfile.TemporaryDirectory()
+        tmp_path = Path(self._tmp_main_pool.name)
+        pool = SqlitePool(SqliteConfig(database=str(tmp_path / "main.db")))
+        await pool.execute(
+            "CREATE TABLE customers ("
+            "  id INTEGER PRIMARY KEY,"
+            "  name TEXT NOT NULL,"
+            "  mini_dim_sk INTEGER"
+            ")"
+        )
+        await pool.execute_many(
+            "INSERT INTO customers (id, name) VALUES (?, ?)",
+            [(1, "Alice"), (2, "Bob")],
+        )
+        self.main_pool = pool
+        self._tmp_mini_pool = tempfile.TemporaryDirectory()
+        tmp_path = Path(self._tmp_mini_pool.name)
+        pool = SqlitePool(SqliteConfig(database=str(tmp_path / "mini.db")))
+        await pool.execute(
+            "CREATE TABLE customer_profile ("
+            "  mini_dim_sk INTEGER PRIMARY KEY AUTOINCREMENT,"
+            "  income_band TEXT NOT NULL,"
+            "  credit_score INTEGER NOT NULL"
+            ")"
+        )
+        self.mini_pool = pool
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute(
+            "CREATE TABLE customers ("
+            "  id INTEGER PRIMARY KEY,"
+            "  name TEXT NOT NULL,"
+            "  income_band TEXT NOT NULL,"
+            "  credit_score INTEGER NOT NULL"
+            ")"
+        )
+        await pool.execute_many(
+            "INSERT INTO customers (id, name, income_band, credit_score) VALUES (?, ?, ?, ?)",
+            [(1, "Alice", "high", 800), (2, "Bob", "low", 600)],
+        )
+        self.source_pool = pool
+
+    async def asyncTearDown(self) -> None:
+        await self.main_pool.close()
+        
+        
+        self._tmp_main_pool.cleanup()
+        await self.mini_pool.close()
+        
+        
+        self._tmp_mini_pool.cleanup()
+        await self.source_pool.close()
+        
+        
+    async def test_inserts_new_mini_dim_rows(self) -> None:
+        source_pool = self.source_pool
+        main_pool = self.main_pool
+        mini_pool = self.mini_pool
         with Tapestry() as t:
             ScdType4MiniDimension(
                 source_pool=source_pool,
@@ -154,12 +208,10 @@ class TestScdType4Behaviour:
         assert ("high", 800) in mini_rows
         assert ("low", 600) in mini_rows
 
-    async def test_reuses_existing_mini_dim_rows(
-        self,
-        source_pool: SqlitePool,
-        main_pool: SqlitePool,
-        mini_pool: SqlitePool,
-    ) -> None:
+    async def test_reuses_existing_mini_dim_rows(self) -> None:
+        source_pool = self.source_pool
+        main_pool = self.main_pool
+        mini_pool = self.mini_pool
         with Tapestry() as t:
             ScdType4MiniDimension(
                 source_pool=source_pool,
@@ -193,12 +245,10 @@ class TestScdType4Behaviour:
         )
         assert mini_count[0][0] == 2
 
-    async def test_updates_main_dim_fk(
-        self,
-        source_pool: SqlitePool,
-        main_pool: SqlitePool,
-        mini_pool: SqlitePool,
-    ) -> None:
+    async def test_updates_main_dim_fk(self) -> None:
+        source_pool = self.source_pool
+        main_pool = self.main_pool
+        mini_pool = self.mini_pool
         with Tapestry() as t:
             ScdType4MiniDimension(
                 source_pool=source_pool,

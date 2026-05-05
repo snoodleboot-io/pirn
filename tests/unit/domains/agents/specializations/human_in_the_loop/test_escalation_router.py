@@ -1,8 +1,8 @@
 """Tests for :class:`EscalationRouter`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -13,11 +13,10 @@ from pirn.domains.agents.types.agent_response import AgentResponse
 from pirn.tapestry import Tapestry
 
 
-@pytest.mark.asyncio
-class TestEscalationRouterConstruction:
+class TestEscalationRouterConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_numeric_threshold(self) -> None:
         response = AgentResponse(content="ok", finish_reason="stop")
-        with pytest.raises(TypeError, match="threshold must be a float"):
+        with self.assertRaisesRegex(TypeError, "threshold must be a float"):
             with Tapestry():
                 EscalationRouter(
                     response=response,
@@ -26,8 +25,7 @@ class TestEscalationRouterConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestEscalationRouterProcess:
+class TestEscalationRouterProcess(unittest.IsolatedAsyncioTestCase):
     async def test_passes_through_above_threshold(self) -> None:
         response = AgentResponse(
             content="ok",
@@ -73,7 +71,7 @@ class TestEscalationRouterProcess:
         assert result.outputs["er"] is None
 
     async def test_rejects_non_agent_response(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             with Tapestry():
                 EscalationRouter(
                     response="not-a-response",  # type: ignore[arg-type]

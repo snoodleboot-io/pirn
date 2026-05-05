@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -26,9 +26,9 @@ class _MeasurementsSource(Knot):
         ]
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_invalid_efficiency_factor(self) -> None:
-        with pytest.raises(ValueError, match="efficiency_factor"):
+        with self.assertRaisesRegex(ValueError, "efficiency_factor"):
             with Tapestry():
                 src = _MeasurementsSource(_config=KnotConfig(id="src"))
                 FlaringMeasurementProcessor(
@@ -39,7 +39,7 @@ class TestConstruction:
                 )
 
     def test_rejects_non_dict_composition(self) -> None:
-        with pytest.raises(TypeError, match="gas_composition"):
+        with self.assertRaisesRegex(TypeError, "gas_composition"):
             with Tapestry():
                 src = _MeasurementsSource(_config=KnotConfig(id="src"))
                 FlaringMeasurementProcessor(
@@ -50,8 +50,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_flaring_summary(self) -> None:
         with Tapestry() as t:
             src = _MeasurementsSource(_config=KnotConfig(id="src"))

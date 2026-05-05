@@ -1,8 +1,8 @@
 """Tests for :class:`ProbabilisticLinker`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -40,22 +40,21 @@ _SPECS = [
 ]
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_invalid_column_name(self) -> None:
-        with pytest.raises(ValueError, match="plain identifier"):
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
             _make([{"column": "bad col", "m": 0.9, "u": 0.1}])
 
     def test_rejects_out_of_range_m(self) -> None:
-        with pytest.raises(ValueError, match=r"'m'"):
+        with self.assertRaisesRegex(ValueError, r"'m'"):
             _make([{"column": "name", "m": 1.5, "u": 0.1}])
 
     def test_rejects_thresholds_inverted(self) -> None:
-        with pytest.raises(ValueError, match="match_threshold"):
+        with self.assertRaisesRegex(ValueError, "match_threshold"):
             _make(_SPECS, match_threshold=0.0, review_threshold=5.0)
 
 
-@pytest.mark.asyncio
-class TestBehaviour:
+class TestBehaviour(unittest.IsolatedAsyncioTestCase):
     async def test_identical_records_classified_as_match(self) -> None:
         left = [{"name": "Alice", "dob": "1990-01-01"}]
         right = [{"name": "Alice", "dob": "1990-01-01"}]

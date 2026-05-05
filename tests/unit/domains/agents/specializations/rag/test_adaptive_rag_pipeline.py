@@ -1,8 +1,8 @@
 """Tests for :class:`AdaptiveRAGPipeline`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -17,11 +17,10 @@ from tests.unit.domains.agents.specializations.conftest import (
 )
 
 
-@pytest.mark.asyncio
-class TestAdaptiveRAGPipelineConstruction:
+class TestAdaptiveRAGPipelineConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_memory_store(self) -> None:
         llm = StubLLMProvider(["SIMPLE", "answer"])
-        with pytest.raises(TypeError, match="memory must be a MemoryStore"):
+        with self.assertRaisesRegex(TypeError, "memory must be a MemoryStore"):
             with Tapestry():
                 AdaptiveRAGPipeline(
                     query="q",
@@ -32,7 +31,7 @@ class TestAdaptiveRAGPipelineConstruction:
 
     async def test_rejects_non_llm_provider(self) -> None:
         memory = StubMemoryStore([])
-        with pytest.raises(TypeError, match="llm must be an LLMProvider"):
+        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
             with Tapestry():
                 AdaptiveRAGPipeline(
                     query="q",
@@ -44,7 +43,7 @@ class TestAdaptiveRAGPipelineConstruction:
     async def test_rejects_zero_top_k(self) -> None:
         memory = StubMemoryStore([])
         llm = StubLLMProvider(["SIMPLE"])
-        with pytest.raises(ValueError, match="top_k must be a positive int"):
+        with self.assertRaisesRegex(ValueError, "top_k must be a positive int"):
             with Tapestry():
                 AdaptiveRAGPipeline(
                     query="q",
@@ -55,8 +54,7 @@ class TestAdaptiveRAGPipelineConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestAdaptiveRAGPipelineSimple:
+class TestAdaptiveRAGPipelineSimple(unittest.IsolatedAsyncioTestCase):
     async def test_routes_simple_to_direct_llm(self) -> None:
         memory = StubMemoryStore([{"text": "irrelevant"}])
         llm = StubLLMProvider(["SIMPLE", "direct answer"])
@@ -75,8 +73,7 @@ class TestAdaptiveRAGPipelineSimple:
         assert memory.search_queries == []
 
 
-@pytest.mark.asyncio
-class TestAdaptiveRAGPipelineModerate:
+class TestAdaptiveRAGPipelineModerate(unittest.IsolatedAsyncioTestCase):
     async def test_routes_moderate_to_naive_rag(self) -> None:
         memory = StubMemoryStore([{"text": "some context"}])
         llm = StubLLMProvider(["MODERATE", "rag answer"])
@@ -96,8 +93,7 @@ class TestAdaptiveRAGPipelineModerate:
         assert len(memory.search_queries) == 1
 
 
-@pytest.mark.asyncio
-class TestAdaptiveRAGPipelineComplex:
+class TestAdaptiveRAGPipelineComplex(unittest.IsolatedAsyncioTestCase):
     async def test_routes_complex_to_multi_hop(self) -> None:
         memory = StubMemoryStore([{"text": "hop context"}])
         llm = StubLLMProvider(

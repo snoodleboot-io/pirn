@@ -1,8 +1,8 @@
 """Tests for :class:`DataVaultLinkLoader`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,43 +14,44 @@ from pirn.domains.data.specializations.data_vault.data_vault_link_loader import 
 from pirn.tapestry import Tapestry
 
 
-@pytest.fixture
-async def source_pool() -> SqlitePool:
-    pool = SqlitePool(SqliteConfig(database=":memory:"))
-    await pool.execute(
-        "CREATE TABLE raw_order ("
-        "  link_hk TEXT NOT NULL,"
-        "  customer_hk TEXT NOT NULL,"
-        "  product_hk TEXT NOT NULL"
-        ")"
-    )
-    await pool.execute_many(
-        "INSERT INTO raw_order (link_hk, customer_hk, product_hk) VALUES (?, ?, ?)",
-        [("lhk_1", "chk_1", "phk_a"), ("lhk_2", "chk_2", "phk_b")],
-    )
-    yield pool
-    await pool.close()
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
+    async def asyncSetUp(self) -> None:
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute(
+            "CREATE TABLE raw_order ("
+            "  link_hk TEXT NOT NULL,"
+            "  customer_hk TEXT NOT NULL,"
+            "  product_hk TEXT NOT NULL"
+            ")"
+        )
+        await pool.execute_many(
+            "INSERT INTO raw_order (link_hk, customer_hk, product_hk) VALUES (?, ?, ?)",
+            [("lhk_1", "chk_1", "phk_a"), ("lhk_2", "chk_2", "phk_b")],
+        )
+        self.source_pool = pool
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute(
+            "CREATE TABLE link_order ("
+            "  link_hk TEXT PRIMARY KEY,"
+            "  customer_hk TEXT NOT NULL,"
+            "  product_hk TEXT NOT NULL,"
+            "  load_date TEXT NOT NULL,"
+            "  record_source TEXT NOT NULL"
+            ")"
+        )
+        self.target_pool = pool
 
-@pytest.fixture
-async def target_pool() -> SqlitePool:
-    pool = SqlitePool(SqliteConfig(database=":memory:"))
-    await pool.execute(
-        "CREATE TABLE link_order ("
-        "  link_hk TEXT PRIMARY KEY,"
-        "  customer_hk TEXT NOT NULL,"
-        "  product_hk TEXT NOT NULL,"
-        "  load_date TEXT NOT NULL,"
-        "  record_source TEXT NOT NULL"
-        ")"
-    )
-    yield pool
-    await pool.close()
-
-
-class TestConstruction:
-    def test_rejects_non_pool_source(self, target_pool: SqlitePool) -> None:
-        with pytest.raises(TypeError, match="DatabaseConnectionPool"):
+    async def asyncTearDown(self) -> None:
+        await self.source_pool.close()
+        
+        
+        await self.target_pool.close()
+        
+        
+    def test_rejects_non_pool_source(self) -> None:
+        target_pool = self.target_pool
+        with self.assertRaisesRegex(TypeError, "DatabaseConnectionPool"):
             with Tapestry():
                 DataVaultLinkLoader(
                     source_pool="bad",  # type: ignore[arg-type]
@@ -63,10 +64,10 @@ class TestConstruction:
                     _config=KnotConfig(id="link"),
                 )
 
-    def test_rejects_empty_source_query(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
-        with pytest.raises(ValueError, match="source_query"):
+    def test_rejects_empty_source_query(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
+        with self.assertRaisesRegex(ValueError, "source_query"):
             with Tapestry():
                 DataVaultLinkLoader(
                     source_pool=source_pool,
@@ -79,10 +80,10 @@ class TestConstruction:
                     _config=KnotConfig(id="link"),
                 )
 
-    def test_rejects_invalid_target_table(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
-        with pytest.raises(ValueError, match="plain identifier"):
+    def test_rejects_invalid_target_table(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
             with Tapestry():
                 DataVaultLinkLoader(
                     source_pool=source_pool,
@@ -95,10 +96,10 @@ class TestConstruction:
                     _config=KnotConfig(id="link"),
                 )
 
-    def test_rejects_hub_key_clashing_with_link_key(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
-        with pytest.raises(ValueError, match="clash"):
+    def test_rejects_hub_key_clashing_with_link_key(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
+        with self.assertRaisesRegex(ValueError, "clash"):
             with Tapestry():
                 DataVaultLinkLoader(
                     source_pool=source_pool,
@@ -112,11 +113,44 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestLinkLoaderBehaviour:
-    async def test_first_run_inserts_all_rows(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
+class TestLinkLoaderBehaviour(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self) -> None:
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute(
+            "CREATE TABLE raw_order ("
+            "  link_hk TEXT NOT NULL,"
+            "  customer_hk TEXT NOT NULL,"
+            "  product_hk TEXT NOT NULL"
+            ")"
+        )
+        await pool.execute_many(
+            "INSERT INTO raw_order (link_hk, customer_hk, product_hk) VALUES (?, ?, ?)",
+            [("lhk_1", "chk_1", "phk_a"), ("lhk_2", "chk_2", "phk_b")],
+        )
+        self.source_pool = pool
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute(
+            "CREATE TABLE link_order ("
+            "  link_hk TEXT PRIMARY KEY,"
+            "  customer_hk TEXT NOT NULL,"
+            "  product_hk TEXT NOT NULL,"
+            "  load_date TEXT NOT NULL,"
+            "  record_source TEXT NOT NULL"
+            ")"
+        )
+        self.target_pool = pool
+
+    async def asyncTearDown(self) -> None:
+        await self.source_pool.close()
+        
+        
+        await self.target_pool.close()
+        
+        
+    async def test_first_run_inserts_all_rows(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
         with Tapestry() as t:
             DataVaultLinkLoader(
                 source_pool=source_pool,
@@ -135,9 +169,9 @@ class TestLinkLoaderBehaviour:
         )
         assert rows == [("lhk_1",), ("lhk_2",)]
 
-    async def test_second_run_is_noop_for_existing_links(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
+    async def test_second_run_is_noop_for_existing_links(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
         for run_id in ("link_r1", "link_r2"):
             with Tapestry() as t:
                 DataVaultLinkLoader(
@@ -154,9 +188,9 @@ class TestLinkLoaderBehaviour:
         rows = await target_pool.fetch_all("SELECT link_hk FROM link_order")
         assert len(rows) == 2
 
-    async def test_load_date_and_record_source_populated(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
+    async def test_load_date_and_record_source_populated(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
         with Tapestry() as t:
             DataVaultLinkLoader(
                 source_pool=source_pool,

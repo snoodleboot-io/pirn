@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -24,9 +24,9 @@ class _LogSource(Knot):
         ]
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_even_window_size(self) -> None:
-        with pytest.raises(ValueError, match="window_size"):
+        with self.assertRaisesRegex(ValueError, "window_size"):
             with Tapestry():
                 src = _LogSource(_config=KnotConfig(id="src"))
                 LogSpikeRemover(
@@ -37,7 +37,7 @@ class TestConstruction:
                 )
 
     def test_rejects_window_size_one(self) -> None:
-        with pytest.raises(ValueError, match="window_size"):
+        with self.assertRaisesRegex(ValueError, "window_size"):
             with Tapestry():
                 src = _LogSource(_config=KnotConfig(id="src"))
                 LogSpikeRemover(
@@ -48,8 +48,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_removes_spike(self) -> None:
         with Tapestry() as t:
             src = _LogSource(_config=KnotConfig(id="src"))

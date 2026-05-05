@@ -1,8 +1,8 @@
 """Unit tests for :class:`StreamingBufferManager`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,11 +14,11 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.signal.conftest import emit_signal_frame
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_frame_size(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="frame_size"):
+            with self.assertRaisesRegex(ValueError, "frame_size"):
                 StreamingBufferManager(
                     signal=sig,
                     frame_size=0,
@@ -29,7 +29,7 @@ class TestConstruction:
     def test_rejects_non_positive_hop_size(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="hop_size"):
+            with self.assertRaisesRegex(ValueError, "hop_size"):
                 StreamingBufferManager(
                     signal=sig,
                     frame_size=512,
@@ -40,7 +40,7 @@ class TestConstruction:
     def test_rejects_hop_greater_than_frame(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="not exceed"):
+            with self.assertRaisesRegex(ValueError, "not exceed"):
                 StreamingBufferManager(
                     signal=sig,
                     frame_size=128,
@@ -49,8 +49,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_signal_frame_with_framed_marker(self) -> None:
         with Tapestry() as t:
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))

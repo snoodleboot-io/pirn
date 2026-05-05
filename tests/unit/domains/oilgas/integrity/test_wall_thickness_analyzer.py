@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -23,9 +23,9 @@ class _PigRunSource(Knot):
         return {"feature_count": 5, "longest_anomaly_in": 1.0}
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_nominal(self) -> None:
-        with pytest.raises(ValueError, match="nominal_thickness_in"):
+        with self.assertRaisesRegex(ValueError, "nominal_thickness_in"):
             with Tapestry():
                 src = _PigRunSource(_config=KnotConfig(id="src"))
                 WallThicknessAnalyzer(
@@ -36,7 +36,7 @@ class TestConstruction:
                 )
 
     def test_rejects_min_ge_nominal(self) -> None:
-        with pytest.raises(ValueError, match="minimum_allowable_thickness_in"):
+        with self.assertRaisesRegex(ValueError, "minimum_allowable_thickness_in"):
             with Tapestry():
                 src = _PigRunSource(_config=KnotConfig(id="src"))
                 WallThicknessAnalyzer(
@@ -47,8 +47,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_assessment(self) -> None:
         with Tapestry() as t:
             src = _PigRunSource(_config=KnotConfig(id="src"))

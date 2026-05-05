@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,9 +14,9 @@ from pirn.domains.health.mri.region_of_interest_extractor import (
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_path(self) -> None:
-        with pytest.raises(ValueError, match="non-empty"):
+        with self.assertRaisesRegex(ValueError, "non-empty"):
             RegionOfInterestExtractor(
                 nifti_path="",
                 atlas_label_path="a",
@@ -25,7 +25,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_sequence(self) -> None:
-        with pytest.raises(TypeError, match="roi_labels"):
+        with self.assertRaisesRegex(TypeError, "roi_labels"):
             RegionOfInterestExtractor(
                 nifti_path="x",
                 atlas_label_path="a",
@@ -34,7 +34,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_int_label(self) -> None:
-        with pytest.raises(TypeError, match="int"):
+        with self.assertRaisesRegex(TypeError, "int"):
             RegionOfInterestExtractor(
                 nifti_path="x",
                 atlas_label_path="a",
@@ -43,8 +43,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_mapping(self) -> None:
         with Tapestry() as t:
             RegionOfInterestExtractor(

@@ -7,9 +7,9 @@ import zipfile
 from collections.abc import Mapping
 from typing import Any
 from unittest.mock import patch
+import unittest
 
 import numpy as np
-import pytest
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -105,7 +105,7 @@ def _make_zip_bundle(
 # Construction
 # ---------------------------------------------------------------------------
 
-class TestBrainVisionFormatConstruction:
+class TestBrainVisionFormatConstruction(unittest.TestCase):
     def test_is_batch_format(self) -> None:
         assert isinstance(BrainVisionFormat(), BatchFileFormat)
 
@@ -123,14 +123,13 @@ class TestBrainVisionFormatConstruction:
 # PHI sanitisation
 # ---------------------------------------------------------------------------
 
-class TestBrainVisionFormatPhiSanitisation:
+class TestBrainVisionFormatPhiSanitisation(unittest.IsolatedAsyncioTestCase):
     def test_phi_fields_defined(self) -> None:
         phi = BrainVisionFormat._phi_header_fields
         assert "SubjectName" in phi
         assert "SubjectID" in phi
         assert "InstitutionName" in phi
 
-    @pytest.mark.asyncio
     async def test_decoded_records_have_no_phi_keys(self) -> None:
         payload = _make_zip_bundle(n_channels=2, n_samples=50)
         records = await _decode_bytes(BrainVisionFormat(), payload)
@@ -139,7 +138,6 @@ class TestBrainVisionFormatPhiSanitisation:
             for key in rec:
                 assert key.lower() not in phi_keys
 
-    @pytest.mark.asyncio
     async def test_decoded_record_shape(self) -> None:
         payload = _make_zip_bundle(n_channels=1, n_samples=20)
         records = await _decode_bytes(BrainVisionFormat(), payload)
@@ -153,8 +151,7 @@ class TestBrainVisionFormatPhiSanitisation:
 # Round-trip
 # ---------------------------------------------------------------------------
 
-class TestBrainVisionFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestBrainVisionFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_single_channel(self) -> None:
         records = _make_channel_records(n_channels=1, n_samples=80)
         fmt = BrainVisionFormat()
@@ -166,7 +163,6 @@ class TestBrainVisionFormatRoundTrip:
         assert decoded[0]["channel_name"] == "Cz1"
         assert decoded[0]["n_samples"] == 80
 
-    @pytest.mark.asyncio
     async def test_round_trip_multi_channel(self) -> None:
         records = _make_channel_records(n_channels=4, n_samples=64)
         fmt = BrainVisionFormat()
@@ -182,8 +178,7 @@ class TestBrainVisionFormatRoundTrip:
 # Fallback path (no mne)
 # ---------------------------------------------------------------------------
 
-class TestBrainVisionFormatFallback:
-    @pytest.mark.asyncio
+class TestBrainVisionFormatFallback(unittest.IsolatedAsyncioTestCase):
     async def test_fallback_decodes_bundle(self) -> None:
         payload = _make_zip_bundle(n_channels=2, n_samples=40, sfreq=250.0)
         fmt = BrainVisionFormat()
@@ -195,7 +190,6 @@ class TestBrainVisionFormatFallback:
             assert rec["channel_index"] == idx
             assert rec["n_samples"] == 40
 
-    @pytest.mark.asyncio
     async def test_fallback_channel_names(self) -> None:
         payload = _make_zip_bundle(n_channels=3, n_samples=20)
         fmt = BrainVisionFormat()
@@ -209,8 +203,7 @@ class TestBrainVisionFormatFallback:
 # Errors
 # ---------------------------------------------------------------------------
 
-class TestBrainVisionFormatErrors:
-    @pytest.mark.asyncio
+class TestBrainVisionFormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_encode_empty_raises_value_error(self) -> None:
         fmt = BrainVisionFormat()
 
@@ -218,18 +211,17 @@ class TestBrainVisionFormatErrors:
             return
             yield
 
-        with pytest.raises(ValueError, match="empty"):
+        with self.assertRaisesRegex(ValueError, "empty"):
             async for _ in await fmt.write(_empty()):
                 pass
 
-    @pytest.mark.asyncio
     async def test_decode_invalid_zip_raises(self) -> None:
         fmt = BrainVisionFormat()
 
         async def _iter():
             yield b"this is not a zip file at all"
 
-        with pytest.raises(Exception):
+        with self.assertRaises(Exception):
             async for _ in await fmt.read(_iter()):
                 pass
 
@@ -238,8 +230,7 @@ class TestBrainVisionFormatErrors:
 # Missing dependency (mne) — format still works via fallback
 # ---------------------------------------------------------------------------
 
-class TestBrainVisionFormatMissingDep:
-    @pytest.mark.asyncio
+class TestBrainVisionFormatMissingDep(unittest.IsolatedAsyncioTestCase):
     async def test_works_without_mne_via_fallback(self) -> None:
         """BrainVisionFormat must not raise ImportError when mne is absent."""
         payload = _make_zip_bundle(n_channels=1, n_samples=10)

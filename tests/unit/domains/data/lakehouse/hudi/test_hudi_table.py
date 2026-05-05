@@ -8,8 +8,8 @@ The Hudi adapter is read-only by design; the write paths
 from __future__ import annotations
 
 from typing import Any, AsyncIterator, Mapping
+import unittest
 
-import pytest
 
 from pirn.domains.data.lakehouse.hudi.hudi_table import HudiTable
 from pirn.domains.data.lakehouse.hudi.hudi_table_config import HudiTableConfig
@@ -19,11 +19,7 @@ from pirn.domains.data.lakehouse.lakehouse_table import LakehouseTable
 class StubTable:
     """Minimal stand-in for a Hudi vendor table."""
 
-    def __init__(
-        self,
-        rows: list[dict[str, Any]] | None = None,
-        commits: list[Mapping[str, Any]] | None = None,
-    ) -> None:
+    def __init__(self, rows: list[dict[str, Any]] | None = None, commits: list[Mapping[str, Any]] | None = None,) -> None:
         self._rows = list(rows or [])
         self._commits = list(commits or [])
 
@@ -44,21 +40,21 @@ async def _records(
 # ──────────────────────────────────────────────────────────── construction
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_no_args(self) -> None:
-        with pytest.raises(TypeError, match="config= or table="):
+        with self.assertRaisesRegex(TypeError, "config= or table="):
             HudiTable()
 
     def test_rejects_wrong_config_type(self) -> None:
-        with pytest.raises(TypeError, match="HudiTableConfig"):
+        with self.assertRaisesRegex(TypeError, "HudiTableConfig"):
             HudiTable("not-a-config")  # type: ignore[arg-type]
 
     def test_rejects_empty_table_path(self) -> None:
-        with pytest.raises(ValueError, match="table_path"):
+        with self.assertRaisesRegex(ValueError, "table_path"):
             HudiTable(HudiTableConfig(table_path=""))
 
     def test_rejects_invalid_table_type(self) -> None:
-        with pytest.raises(ValueError, match="table_type"):
+        with self.assertRaisesRegex(ValueError, "table_type"):
             HudiTable(
                 HudiTableConfig(
                     table_path="file:///t", table_type="STREAMING"
@@ -66,7 +62,7 @@ class TestConstruction:
             )
 
     def test_rejects_empty_record_key(self) -> None:
-        with pytest.raises(ValueError, match="record_key_field"):
+        with self.assertRaisesRegex(ValueError, "record_key_field"):
             HudiTable(
                 HudiTableConfig(
                     table_path="file:///t", record_key_field=""
@@ -74,7 +70,7 @@ class TestConstruction:
             )
 
     def test_rejects_empty_precombine(self) -> None:
-        with pytest.raises(ValueError, match="precombine_field"):
+        with self.assertRaisesRegex(ValueError, "precombine_field"):
             HudiTable(
                 HudiTableConfig(
                     table_path="file:///t", precombine_field=""
@@ -95,8 +91,7 @@ class TestConstruction:
 # ──────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_clears_credentials(self) -> None:
         cfg = HudiTableConfig(table_path="file:///t")
         table = HudiTable(cfg, table=StubTable())
@@ -107,15 +102,14 @@ class TestLifecycle:
     async def test_scan_after_close_raises(self) -> None:
         table = HudiTable(table=StubTable())
         await table.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await table.scan()
 
 
 # ──────────────────────────────────────────────────────────── scan
 
 
-@pytest.mark.asyncio
-class TestScan:
+class TestScan(unittest.IsolatedAsyncioTestCase):
     async def test_scan_yields_rows(self) -> None:
         rows = [{"id": 1, "v": "a"}, {"id": 2, "v": "b"}]
         table = HudiTable(table=StubTable(rows=rows))
@@ -143,7 +137,7 @@ class TestScan:
         from datetime import datetime, timezone
 
         table = HudiTable(table=StubTable())
-        with pytest.raises(ValueError, match="mutually exclusive"):
+        with self.assertRaisesRegex(ValueError, "mutually exclusive"):
             await table.scan(
                 snapshot_id=1,
                 as_of_timestamp=datetime.now(timezone.utc),
@@ -154,36 +148,34 @@ class TestScan:
             pass
 
         table = HudiTable(table=NoScan())
-        with pytest.raises(TypeError, match="scan_pylist"):
+        with self.assertRaisesRegex(TypeError, "scan_pylist"):
             await table.scan()
 
 
 # ──────────────────────────────────────────────────────────── writes raise
 
 
-@pytest.mark.asyncio
-class TestWrites:
+class TestWrites(unittest.IsolatedAsyncioTestCase):
     async def test_append_raises_not_implemented(self) -> None:
         table = HudiTable(table=StubTable())
-        with pytest.raises(NotImplementedError, match="Spark/Java"):
+        with self.assertRaisesRegex(NotImplementedError, "Spark/Java"):
             await table.append(_records([{"id": 1}]))
 
     async def test_overwrite_raises_not_implemented(self) -> None:
         table = HudiTable(table=StubTable())
-        with pytest.raises(NotImplementedError, match="Spark/Java"):
+        with self.assertRaisesRegex(NotImplementedError, "Spark/Java"):
             await table.overwrite(_records([{"id": 1}]))
 
     async def test_merge_raises_not_implemented(self) -> None:
         table = HudiTable(table=StubTable())
-        with pytest.raises(NotImplementedError, match="Spark/Java"):
+        with self.assertRaisesRegex(NotImplementedError, "Spark/Java"):
             await table.merge(_records([{"id": 1}]), on=["id"])
 
 
 # ──────────────────────────────────────────────────────────── history
 
 
-@pytest.mark.asyncio
-class TestHistory:
+class TestHistory(unittest.IsolatedAsyncioTestCase):
     async def test_history_uses_stub_when_present(self) -> None:
         commits = [{"commit_time": "20260501000000", "operation": "upsert"}]
         table = HudiTable(table=StubTable(commits=commits))
@@ -201,5 +193,5 @@ class TestHistory:
                 return []
 
         table = HudiTable(cfg, table=NoHistory())
-        with pytest.raises(NotImplementedError, match="commit-timeline"):
+        with self.assertRaisesRegex(NotImplementedError, "commit-timeline"):
             await table.history()

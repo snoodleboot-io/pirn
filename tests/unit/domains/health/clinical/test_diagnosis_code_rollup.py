@@ -1,8 +1,8 @@
 """Unit tests for :class:`DiagnosisCodeRollup`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,23 +12,23 @@ from pirn.domains.health.clinical.diagnosis_code_rollup import (
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_sequence_codes(self) -> None:
-        with pytest.raises(TypeError, match="codes"):
+        with self.assertRaisesRegex(TypeError, "codes"):
             DiagnosisCodeRollup(
                 codes=42,  # type: ignore[arg-type]
                 _config=KnotConfig(id="r"),
             )
 
     def test_rejects_non_string_code(self) -> None:
-        with pytest.raises(TypeError, match="string"):
+        with self.assertRaisesRegex(TypeError, "string"):
             DiagnosisCodeRollup(
                 codes=[1],  # type: ignore[list-item]
                 _config=KnotConfig(id="r"),
             )
 
     def test_rejects_non_int_prefix_length(self) -> None:
-        with pytest.raises(TypeError, match="prefix_length"):
+        with self.assertRaisesRegex(TypeError, "prefix_length"):
             DiagnosisCodeRollup(
                 codes=[],
                 prefix_length="x",  # type: ignore[arg-type]
@@ -36,7 +36,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_positive_prefix_length(self) -> None:
-        with pytest.raises(ValueError, match="positive"):
+        with self.assertRaisesRegex(ValueError, "positive"):
             DiagnosisCodeRollup(
                 codes=[],
                 prefix_length=0,
@@ -44,8 +44,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rolls_up_to_prefix(self) -> None:
         with Tapestry() as t:
             DiagnosisCodeRollup(

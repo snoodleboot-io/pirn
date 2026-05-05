@@ -1,9 +1,9 @@
 """Tests for :class:`DuckdbFilter`."""
 
 from __future__ import annotations
+import unittest
 
 import duckdb
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -30,8 +30,7 @@ async def emit_users() -> DuckdbDataBatch:
     )
 
 
-@pytest.mark.asyncio
-class TestDuckdbFilter:
+class TestDuckdbFilter(unittest.IsolatedAsyncioTestCase):
     async def test_keeps_rows_matching_predicate(self) -> None:
         with Tapestry() as t:
             batch = emit_users(_config=KnotConfig(id="users"))
@@ -58,7 +57,7 @@ class TestDuckdbFilter:
         assert ids == [1]
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_string_predicate(self) -> None:
         @knot
         async def empty() -> DuckdbDataBatch:
@@ -70,7 +69,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="SQL string"):
+            with self.assertRaisesRegex(TypeError, "SQL string"):
                 DuckdbFilter(
                     batch=batch,
                     predicate=lambda r: True,  # type: ignore[arg-type]
@@ -88,7 +87,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(ValueError, match="empty"):
+            with self.assertRaisesRegex(ValueError, "empty"):
                 DuckdbFilter(
                     batch=batch, predicate="   ",
                     _config=KnotConfig(id="f"),
@@ -105,7 +104,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(ValueError, match="forbidden"):
+            with self.assertRaisesRegex(ValueError, "forbidden"):
                 DuckdbFilter(
                     batch=batch,
                     predicate="1 = 1; DROP TABLE users",
@@ -123,7 +122,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(ValueError, match="forbidden"):
+            with self.assertRaisesRegex(ValueError, "forbidden"):
                 DuckdbFilter(
                     batch=batch,
                     predicate="active -- skip rest",

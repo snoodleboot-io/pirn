@@ -1,8 +1,8 @@
 """Tests for :class:`BinningKnot`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -27,22 +27,21 @@ def _make(**kwargs):
     return knot
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_bins(self) -> None:
-        with pytest.raises(ValueError, match="num_bins"):
+        with self.assertRaisesRegex(ValueError, "num_bins"):
             _make(column="v", num_bins=0)
 
     def test_rejects_invalid_strategy(self) -> None:
-        with pytest.raises(ValueError, match="strategy"):
+        with self.assertRaisesRegex(ValueError, "strategy"):
             _make(column="v", num_bins=3, strategy="kmeans")
 
     def test_rejects_invalid_column(self) -> None:
-        with pytest.raises(ValueError, match="plain identifier"):
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
             _make(column="bad col", num_bins=3)
 
 
-@pytest.mark.asyncio
-class TestBehaviour:
+class TestBehaviour(unittest.IsolatedAsyncioTestCase):
     async def test_equal_width_three_bins(self) -> None:
         rows = [{"v": float(i)} for i in range(1, 10)]
         knot = _make(column="v", num_bins=3, strategy="equal_width")

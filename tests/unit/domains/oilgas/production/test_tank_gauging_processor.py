@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -29,9 +29,9 @@ class _GaugeSource(Knot):
 _TANK_TABLE = {"100": 500.0, "200": 1000.0}
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_dict_tank_table(self) -> None:
-        with pytest.raises(TypeError, match="tank_table"):
+        with self.assertRaisesRegex(TypeError, "tank_table"):
             with Tapestry():
                 src = _GaugeSource(_config=KnotConfig(id="src"))
                 TankGaugingProcessor(
@@ -42,7 +42,7 @@ class TestConstruction:
                 )
 
     def test_rejects_out_of_range_bsw_factor(self) -> None:
-        with pytest.raises(ValueError, match="bsw_correction_factor"):
+        with self.assertRaisesRegex(ValueError, "bsw_correction_factor"):
             with Tapestry():
                 src = _GaugeSource(_config=KnotConfig(id="src"))
                 TankGaugingProcessor(
@@ -53,8 +53,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_volumes(self) -> None:
         with Tapestry() as t:
             src = _GaugeSource(_config=KnotConfig(id="src"))

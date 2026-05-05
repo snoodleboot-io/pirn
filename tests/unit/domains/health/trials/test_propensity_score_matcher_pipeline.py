@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -24,9 +24,9 @@ async def emit_cohort() -> list[dict[str, Any]]:
     ]
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_knot_cohort(self) -> None:
-        with pytest.raises(TypeError, match="cohort"):
+        with self.assertRaisesRegex(TypeError, "cohort"):
             PropensityScoreMatcherPipeline(
                 cohort="not-a-knot",  # type: ignore[arg-type]
                 treatment_col="treated",
@@ -39,7 +39,7 @@ class TestConstruction:
     def test_rejects_empty_treatment_col(self) -> None:
         with Tapestry():
             c = emit_cohort(_config=KnotConfig(id="c"))
-            with pytest.raises(ValueError, match="treatment_col"):
+            with self.assertRaisesRegex(ValueError, "treatment_col"):
                 PropensityScoreMatcherPipeline(
                     cohort=c,
                     treatment_col="",
@@ -52,7 +52,7 @@ class TestConstruction:
     def test_rejects_empty_covariates(self) -> None:
         with Tapestry():
             c = emit_cohort(_config=KnotConfig(id="c"))
-            with pytest.raises(ValueError, match="covariates"):
+            with self.assertRaisesRegex(ValueError, "covariates"):
                 PropensityScoreMatcherPipeline(
                     cohort=c,
                     treatment_col="treated",
@@ -65,7 +65,7 @@ class TestConstruction:
     def test_rejects_matching_ratio_less_than_one(self) -> None:
         with Tapestry():
             c = emit_cohort(_config=KnotConfig(id="c"))
-            with pytest.raises(ValueError, match="matching_ratio"):
+            with self.assertRaisesRegex(ValueError, "matching_ratio"):
                 PropensityScoreMatcherPipeline(
                     cohort=c,
                     treatment_col="treated",
@@ -78,7 +78,7 @@ class TestConstruction:
     def test_rejects_non_positive_caliper(self) -> None:
         with Tapestry():
             c = emit_cohort(_config=KnotConfig(id="c"))
-            with pytest.raises(ValueError, match="caliper"):
+            with self.assertRaisesRegex(ValueError, "caliper"):
                 PropensityScoreMatcherPipeline(
                     cohort=c,
                     treatment_col="treated",
@@ -89,8 +89,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_dict_with_required_keys(self) -> None:
         with Tapestry() as t:
             c = emit_cohort(_config=KnotConfig(id="c"))

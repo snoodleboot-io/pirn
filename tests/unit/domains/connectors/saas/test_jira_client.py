@@ -7,8 +7,8 @@ of ``atlassian.Jira``. No real Jira account needed.
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.capabilities.table_source import TableSource
@@ -48,25 +48,26 @@ class FakeJira:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-def test_implements_api_client() -> None:
-    client = JiraClient(client=FakeJira())
-    assert isinstance(client, ApiClient)
 
-
-def test_construction_requires_config_or_client() -> None:
-    with pytest.raises(TypeError, match="config= or client="):
-        JiraClient()
-
-
-def test_sensitive_fields_listed() -> None:
-    assert JiraConfig.sensitive_fields == ("api_token",)
-
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_api_client(self) -> None:
+        client = JiraClient(client=FakeJira())
+        assert isinstance(client, ApiClient)
+    
+    
+    def test_construction_requires_config_or_client(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or client="):
+            JiraClient()
+    
+    
+    def test_sensitive_fields_listed(self) -> None:
+        assert JiraConfig.sensitive_fields == ("api_token",)
+    
+    
 # ────────────────────────────────────────────────────────────── dispatch
 
 
-@pytest.mark.asyncio
-class TestRequest:
+class TestRequest(unittest.IsolatedAsyncioTestCase):
     async def test_request_dispatches_get(self) -> None:
         fake = FakeJira()
         fake.responses["/rest/api/3/issue/PIRN-1"] = {"key": "PIRN-1"}
@@ -123,15 +124,14 @@ class TestRequest:
 
     async def test_request_rejects_unknown_method(self) -> None:
         client = JiraClient(client=FakeJira())
-        with pytest.raises(ValueError, match="unsupported HTTP method"):
+        with self.assertRaisesRegex(ValueError, "unsupported HTTP method"):
             await client.request("PATCH", "/rest/api/3/issue/PIRN-1")
 
 
 # ─────────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_closes_underlying_client(self) -> None:
         fake = FakeJira()
         client = JiraClient(client=fake)
@@ -146,14 +146,14 @@ class TestLifecycle:
     async def test_request_after_close_raises(self) -> None:
         client = JiraClient(client=FakeJira())
         await client.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await client.request("GET", "/rest/api/3/myself")
 
 
 # ────────────────────────────────────────────────────────── credential safety
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_repr_redacts_api_token(self) -> None:
         cfg = JiraConfig(
             url="https://acme.atlassian.net",
@@ -178,28 +178,27 @@ class TestCredentialSafety:
 # ────────────────────────────────────────────────────────── capability surface
 
 
-def test_implements_table_source() -> None:
-    client = JiraClient(client=FakeJira())
-    assert isinstance(client, TableSource)
-
-
-def test_construction_rejects_empty_jql() -> None:
-    with pytest.raises(ValueError, match="jql must be a non-empty"):
-        JiraClient(client=FakeJira(), jql="")
-
-
-def test_jql_property_defaults_to_none() -> None:
-    client = JiraClient(client=FakeJira())
-    assert client.jql is None
-
-
-def test_jql_property_reflects_constructor() -> None:
-    client = JiraClient(client=FakeJira(), jql="project=PIRN")
-    assert client.jql == "project=PIRN"
-
-
-@pytest.mark.asyncio
-class TestSearch:
+    def test_implements_table_source(self) -> None:
+        client = JiraClient(client=FakeJira())
+        assert isinstance(client, TableSource)
+    
+    
+    def test_construction_rejects_empty_jql(self) -> None:
+        with self.assertRaisesRegex(ValueError, "jql must be a non-empty"):
+            JiraClient(client=FakeJira(), jql="")
+    
+    
+    def test_jql_property_defaults_to_none(self) -> None:
+        client = JiraClient(client=FakeJira())
+        assert client.jql is None
+    
+    
+    def test_jql_property_reflects_constructor(self) -> None:
+        client = JiraClient(client=FakeJira(), jql="project=PIRN")
+        assert client.jql == "project=PIRN"
+    
+    
+class TestSearch(unittest.IsolatedAsyncioTestCase):
     async def test_search_passes_params_and_advances_cursor(self) -> None:
         fake = FakeJira()
         fake.responses["/search"] = {
@@ -244,12 +243,11 @@ class TestSearch:
 
     async def test_search_rejects_empty_jql(self) -> None:
         client = JiraClient(client=FakeJira())
-        with pytest.raises(ValueError, match="jql must be a non-empty"):
+        with self.assertRaisesRegex(ValueError, "jql must be a non-empty"):
             await client.search("")
 
 
-@pytest.mark.asyncio
-class TestFetchPage:
+class TestFetchPage(unittest.IsolatedAsyncioTestCase):
     async def test_fetch_page_uses_constructor_jql(self) -> None:
         fake = FakeJira()
         fake.responses["/search"] = {
@@ -304,5 +302,5 @@ class TestFetchPage:
 
     async def test_fetch_page_without_jql_raises(self) -> None:
         client = JiraClient(client=FakeJira())
-        with pytest.raises(RuntimeError, match="no jql configured"):
+        with self.assertRaisesRegex(RuntimeError, "no jql configured"):
             await client.fetch_page()

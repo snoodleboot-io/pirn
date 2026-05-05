@@ -1,8 +1,8 @@
 """Tests for :class:`FuzzyDeduplicator`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -27,26 +27,25 @@ def _make(**kwargs):
     return knot
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_invalid_match_column(self) -> None:
-        with pytest.raises(ValueError, match="plain identifier"):
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
             _make(match_column="bad col")
 
     def test_rejects_invalid_metric(self) -> None:
-        with pytest.raises(ValueError, match="similarity_metric"):
+        with self.assertRaisesRegex(ValueError, "similarity_metric"):
             _make(match_column="name", similarity_metric="hamming")
 
     def test_rejects_threshold_out_of_range(self) -> None:
-        with pytest.raises(ValueError, match="threshold"):
+        with self.assertRaisesRegex(ValueError, "threshold"):
             _make(match_column="name", threshold=1.1)
 
     def test_rejects_zero_blocking_length(self) -> None:
-        with pytest.raises(ValueError, match="blocking_key_length"):
+        with self.assertRaisesRegex(ValueError, "blocking_key_length"):
             _make(match_column="name", blocking_key_length=0)
 
 
-@pytest.mark.asyncio
-class TestBehaviour:
+class TestBehaviour(unittest.IsolatedAsyncioTestCase):
     async def test_exact_duplicates_merged(self) -> None:
         rows = [{"name": "alice"}, {"name": "alice"}]
         knot = _make(match_column="name", threshold=0.9)

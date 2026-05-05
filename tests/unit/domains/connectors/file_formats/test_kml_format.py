@@ -1,11 +1,17 @@
 """Round-trip and validation tests for :class:`KmlFormat`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
-pytest.importorskip("simplekml")
-pytest.importorskip("lxml")
+try:
+    import simplekml
+except ImportError as _e:
+    raise unittest.SkipTest("simplekml not installed") from _e
+try:
+    import lxml
+except ImportError as _e:
+    raise unittest.SkipTest("lxml not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -46,7 +52,7 @@ def _coordinates_xy(coords: list[tuple[float, ...]]) -> list[tuple[float, float]
     return [(coord[0], coord[1]) for coord in coords]
 
 
-class TestKmlFormatBasics:
+class TestKmlFormatBasics(unittest.TestCase):
     def test_name(self) -> None:
         assert KmlFormat().name == "kml"
 
@@ -57,8 +63,7 @@ class TestKmlFormatBasics:
         assert isinstance(KmlFormat(), BatchFileFormat)
 
 
-class TestKmlFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestKmlFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         fmt = KmlFormat()
         records = _point_records()
@@ -74,14 +79,12 @@ class TestKmlFormatRoundTrip:
             )
             assert recovered["extended_data"] == original["extended_data"]
 
-    @pytest.mark.asyncio
     async def test_round_trip_empty(self) -> None:
         fmt = KmlFormat()
         payload = await FormatRoundTrip.encode(fmt, [])
         decoded = await FormatRoundTrip.decode(fmt, payload)
         assert decoded == []
 
-    @pytest.mark.asyncio
     async def test_round_trip_single(self) -> None:
         fmt = KmlFormat()
         records = _point_records()[:1]
@@ -93,10 +96,9 @@ class TestKmlFormatRoundTrip:
             records[0]["coordinates"]
         )
 
-    @pytest.mark.asyncio
     async def test_unsupported_geometry_type_raises(self) -> None:
         fmt = KmlFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(
                 fmt,
                 [
@@ -110,10 +112,9 @@ class TestKmlFormatRoundTrip:
                 ],
             )
 
-    @pytest.mark.asyncio
     async def test_record_missing_geometry_type_raises(self) -> None:
         fmt = KmlFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(
                 fmt,
                 [

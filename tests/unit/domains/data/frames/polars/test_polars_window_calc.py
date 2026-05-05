@@ -1,9 +1,9 @@
 """Tests for :class:`PolarsWindowCalc`."""
 
 from __future__ import annotations
+import unittest
 
 import polars as pl
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -25,8 +25,7 @@ async def emit_orders() -> PolarsDataBatch:
     )
 
 
-@pytest.mark.asyncio
-class TestPolarsWindowCalc:
+class TestPolarsWindowCalc(unittest.IsolatedAsyncioTestCase):
     async def test_partitioned_rank(self) -> None:
         with Tapestry() as t:
             batch = emit_orders(_config=KnotConfig(id="orders"))
@@ -62,7 +61,7 @@ class TestPolarsWindowCalc:
         ]
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_windows(self) -> None:
         @knot
         async def empty() -> PolarsDataBatch:
@@ -70,7 +69,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(ValueError, match="non-empty"):
+            with self.assertRaisesRegex(ValueError, "non-empty"):
                 PolarsWindowCalc(
                     batch=batch, windows=(),
                     _config=KnotConfig(id="w"),
@@ -83,7 +82,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="polars.Expr"):
+            with self.assertRaisesRegex(TypeError, "polars.Expr"):
                 PolarsWindowCalc(
                     batch=batch,
                     windows=("rank()",),  # type: ignore[arg-type]

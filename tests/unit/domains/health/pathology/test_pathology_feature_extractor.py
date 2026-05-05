@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+import unittest
 
 import pytest
 
@@ -28,11 +29,11 @@ async def emit_mitosis_total() -> int:
     return 6
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_knot_cell_counts(self) -> None:
         with Tapestry():
             mitosis = emit_mitosis_total(_config=KnotConfig(id="m"))
-            with pytest.raises(TypeError, match="cell_counts"):
+            with self.assertRaisesRegex(TypeError, "cell_counts"):
                 PathologyFeatureExtractor(
                     cell_counts="not-a-knot",  # type: ignore[arg-type]
                     mitosis_counts=mitosis,
@@ -42,7 +43,7 @@ class TestConstruction:
     def test_rejects_non_knot_mitosis_counts(self) -> None:
         with Tapestry():
             cells = emit_cell_counts(_config=KnotConfig(id="c"))
-            with pytest.raises(TypeError, match="mitosis_counts"):
+            with self.assertRaisesRegex(TypeError, "mitosis_counts"):
                 PathologyFeatureExtractor(
                     cell_counts=cells,
                     mitosis_counts=42,  # type: ignore[arg-type]
@@ -52,15 +53,14 @@ class TestConstruction:
     def test_rejects_missing_cell_counts(self) -> None:
         with Tapestry():
             mitosis = emit_mitosis_total(_config=KnotConfig(id="m"))
-            with pytest.raises(TypeError, match="cell_counts"):
+            with self.assertRaisesRegex(TypeError, "cell_counts"):
                 PathologyFeatureExtractor(
                     mitosis_counts=mitosis,  # type: ignore[call-arg]
                     _config=KnotConfig(id="f"),
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_per_tile_features(self) -> None:
         tiles = (
             WSITile(slide_id="S", tile_x=0, tile_y=0, level=0, width=512, height=512),

@@ -1,11 +1,12 @@
 """Unit tests for :class:`SourceFrame`."""
 
 from __future__ import annotations
+import unittest
 
 from pirn.domains.signal.types.source_frame import SourceFrame
 
 
-class TestRoundtrip:
+class TestRoundtrip(unittest.TestCase):
     def test_construct_with_defaults(self) -> None:
         frame = SourceFrame()
         assert frame.signal_id == ""

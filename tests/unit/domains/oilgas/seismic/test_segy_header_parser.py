@@ -1,8 +1,8 @@
 """Unit tests for :class:`SegyHeaderParser`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,14 +12,13 @@ from pirn.domains.oilgas.types.parsed_trace_header import ParsedTraceHeader
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_requires_volume_kwarg(self) -> None:
-        with pytest.raises(TypeError, match="volume"):
+        with self.assertRaisesRegex(TypeError, "volume"):
             SegyHeaderParser(_config=KnotConfig(id="hp"))  # type: ignore[call-arg]
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_parsed_header(self) -> None:
         with Tapestry() as t:
             volume = SegyFileIngester(

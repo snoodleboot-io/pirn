@@ -1,14 +1,25 @@
 """Tests for :class:`FhirXmlFormat` — FHIR XML Bundle format."""
 
 from __future__ import annotations
+import sys
 
 import hashlib
+import unittest
+import unittest.mock
 
-import pytest
 
-pytest.importorskip("fhir")
-pytest.importorskip("lxml")
-pytest.importorskip("defusedxml")
+try:
+    import fhir
+except ImportError as _e:
+    raise unittest.SkipTest("fhir not installed") from _e
+try:
+    import lxml
+except ImportError as _e:
+    raise unittest.SkipTest("lxml not installed") from _e
+try:
+    import defusedxml
+except ImportError as _e:
+    raise unittest.SkipTest("defusedxml not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -63,7 +74,7 @@ async def _decode(fmt: FhirXmlFormat, payload: bytes) -> list[dict]:
 # Construction
 # ---------------------------------------------------------------------------
 
-class TestFhirXmlFormatConstruction:
+class TestFhirXmlFormatConstruction(unittest.TestCase):
     def test_is_batch_format(self) -> None:
         assert isinstance(FhirXmlFormat(), BatchFileFormat)
 
@@ -78,36 +89,31 @@ class TestFhirXmlFormatConstruction:
 # PHI sanitisation
 # ---------------------------------------------------------------------------
 
-class TestFhirXmlFormatPhiSanitisation:
-    @pytest.mark.asyncio
+class TestFhirXmlFormatPhiSanitisation(unittest.IsolatedAsyncioTestCase):
     async def test_name_stripped(self) -> None:
         payload = _make_bundle_xml([_minimal_patient_xml()])
         records = await _decode(FhirXmlFormat(), payload)
         data = records[0]["data"]
         assert "name" not in data
 
-    @pytest.mark.asyncio
     async def test_birth_date_stripped(self) -> None:
         payload = _make_bundle_xml([_minimal_patient_xml()])
         records = await _decode(FhirXmlFormat(), payload)
         data = records[0]["data"]
         assert "birthDate" not in data
 
-    @pytest.mark.asyncio
     async def test_address_stripped(self) -> None:
         payload = _make_bundle_xml([_minimal_patient_xml()])
         records = await _decode(FhirXmlFormat(), payload)
         data = records[0]["data"]
         assert "address" not in data
 
-    @pytest.mark.asyncio
     async def test_telecom_stripped(self) -> None:
         payload = _make_bundle_xml([_minimal_patient_xml()])
         records = await _decode(FhirXmlFormat(), payload)
         data = records[0]["data"]
         assert "telecom" not in data
 
-    @pytest.mark.asyncio
     async def test_identifier_hashed(self) -> None:
         payload = _make_bundle_xml([_minimal_patient_xml()])
         records = await _decode(FhirXmlFormat(), payload)
@@ -115,7 +121,6 @@ class TestFhirXmlFormatPhiSanitisation:
         assert "identifier" not in data
         assert "identifier_hash" in data
 
-    @pytest.mark.asyncio
     async def test_non_phi_field_preserved(self) -> None:
         payload = _make_bundle_xml([_minimal_patient_xml()])
         records = await _decode(FhirXmlFormat(), payload)
@@ -131,8 +136,7 @@ class TestFhirXmlFormatPhiSanitisation:
 # Round-trip
 # ---------------------------------------------------------------------------
 
-class TestFhirXmlFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestFhirXmlFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_single_resource(self) -> None:
         records = [
             {
@@ -148,7 +152,6 @@ class TestFhirXmlFormatRoundTrip:
         assert len(decoded) == 1
         assert decoded[0]["resource_type"] == "Observation"
 
-    @pytest.mark.asyncio
     async def test_round_trip_two_resources(self) -> None:
         records = [
             {
@@ -174,15 +177,14 @@ class TestFhirXmlFormatRoundTrip:
 # Error paths
 # ---------------------------------------------------------------------------
 
-class TestFhirXmlFormatErrors:
-    @pytest.mark.asyncio
+class TestFhirXmlFormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_invalid_xml_raises(self) -> None:
         fmt = FhirXmlFormat()
 
         async def _iter():
             yield b"not xml <<<<"
 
-        with pytest.raises(Exception):
+        with self.assertRaises(Exception):
             async for _ in await fmt.read(_iter()):
                 pass
 
@@ -191,23 +193,15 @@ class TestFhirXmlFormatErrors:
 # Missing dependency
 # ---------------------------------------------------------------------------
 
-class TestFhirXmlFormatMissingDep:
-    def test_missing_fhir_raises(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        import sys
-        monkeypatch.setitem(sys.modules, "fhir", None)  # type: ignore[arg-type]
-        monkeypatch.setitem(sys.modules, "fhir.resources", None)  # type: ignore[arg-type]
-        fmt = FhirXmlFormat()
-        with pytest.raises(ImportError, match="pirn\\[health\\]"):
-            fmt._load_fhir()
+class TestFhirXmlFormatMissingDep(unittest.TestCase):
+    def test_missing_fhir_raises(self) -> None:
+        with unittest.mock.patch.dict(sys.modules, {"fhir": None, "fhir.resources": None}):
+            fmt = FhirXmlFormat()
+            with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
+                fmt._load_fhir()
 
-    def test_missing_defusedxml_raises(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        import sys
-        monkeypatch.setitem(sys.modules, "defusedxml", None)  # type: ignore[arg-type]
-        monkeypatch.setitem(sys.modules, "defusedxml.ElementTree", None)  # type: ignore[arg-type]
-        fmt = FhirXmlFormat()
-        with pytest.raises(ImportError, match="pirn\\[health\\]"):
-            fmt._load_defusedxml()
+    def test_missing_defusedxml_raises(self) -> None:
+        with unittest.mock.patch.dict(sys.modules, {"defusedxml": None, "defusedxml.ElementTree": None}):
+            fmt = FhirXmlFormat()
+            with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
+                fmt._load_defusedxml()

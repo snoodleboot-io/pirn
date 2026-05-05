@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -24,9 +24,9 @@ class _PathSource(Knot):
         return WellPath3D(well_id="W", point_count=20)
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_numeric_target(self) -> None:
-        with pytest.raises(TypeError, match="target_x"):
+        with self.assertRaisesRegex(TypeError, "target_x"):
             with Tapestry():
                 source = _PathSource(_config=KnotConfig(id="src"))
                 DirectionalDrillingPlanner(
@@ -39,7 +39,7 @@ class TestConstruction:
                 )
 
     def test_rejects_non_positive_dogleg(self) -> None:
-        with pytest.raises(ValueError, match="max_dogleg"):
+        with self.assertRaisesRegex(ValueError, "max_dogleg"):
             with Tapestry():
                 source = _PathSource(_config=KnotConfig(id="src"))
                 DirectionalDrillingPlanner(
@@ -52,8 +52,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_well_path(self) -> None:
         with Tapestry() as t:
             source = _PathSource(_config=KnotConfig(id="src"))

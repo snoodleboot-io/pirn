@@ -1,8 +1,8 @@
 """Tests for :class:`StringNormalizer`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -27,18 +27,17 @@ def _make(**kwargs):
     return knot
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_invalid_column(self) -> None:
-        with pytest.raises(ValueError, match="plain identifier"):
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
             _make(columns=["bad col"])
 
     def test_rejects_invalid_unicode_form(self) -> None:
-        with pytest.raises(ValueError, match="unicode_form"):
+        with self.assertRaisesRegex(ValueError, "unicode_form"):
             _make(columns=["name"], unicode_form="XYZ")
 
 
-@pytest.mark.asyncio
-class TestBehaviour:
+class TestBehaviour(unittest.IsolatedAsyncioTestCase):
     async def test_lowercase(self) -> None:
         rows = [{"name": "ALICE"}]
         knot = _make(columns=["name"], lowercase=True, strip=False, remove_punctuation=False, unicode_form="none")

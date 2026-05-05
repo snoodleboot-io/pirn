@@ -1,8 +1,8 @@
 """Tests for :class:`SchemaEvolutionDetector`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -18,19 +18,21 @@ _SCHEMA_QUERY = (
 )
 
 
-@pytest.fixture
-async def pool() -> SqlitePool:
-    p = SqlitePool(SqliteConfig(database=":memory:"))
-    await p.execute(
-        "CREATE TABLE orders (id INTEGER PRIMARY KEY, amount REAL NOT NULL)"
-    )
-    yield p
-    await p.close()
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
+    async def asyncSetUp(self) -> None:
+        p = SqlitePool(SqliteConfig(database=":memory:"))
+        await p.execute(
+            "CREATE TABLE orders (id INTEGER PRIMARY KEY, amount REAL NOT NULL)"
+        )
+        self.pool = p
 
-class TestConstruction:
+    async def asyncTearDown(self) -> None:
+        await self.pool.close()
+        
+        
     def test_rejects_non_pool(self) -> None:
-        with pytest.raises(TypeError, match="DatabaseConnectionPool"):
+        with self.assertRaisesRegex(TypeError, "DatabaseConnectionPool"):
             SchemaEvolutionDetector(
                 pool="bad",  # type: ignore[arg-type]
                 monitored_table="orders",
@@ -39,8 +41,9 @@ class TestConstruction:
                 _config=KnotConfig(id="sed"),
             )
 
-    def test_rejects_empty_expected_schema(self, pool: SqlitePool) -> None:
-        with pytest.raises(ValueError, match="expected_schema"):
+    def test_rejects_empty_expected_schema(self) -> None:
+        pool = self.pool
+        with self.assertRaisesRegex(ValueError, "expected_schema"):
             SchemaEvolutionDetector(
                 pool=pool,
                 monitored_table="orders",
@@ -50,9 +53,21 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestSchemaEvolutionDetectorBehaviour:
-    async def test_no_change_when_schemas_match(self, pool: SqlitePool) -> None:
+class TestSchemaEvolutionDetectorBehaviour(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self) -> None:
+        p = SqlitePool(SqliteConfig(database=":memory:"))
+        await p.execute(
+            "CREATE TABLE orders (id INTEGER PRIMARY KEY, amount REAL NOT NULL)"
+        )
+        self.pool = p
+
+    async def asyncTearDown(self) -> None:
+        await self.pool.close()
+        
+        
+    async def test_no_change_when_schemas_match(self) -> None:
+        pool = self.pool
         with Tapestry() as t:
             knot = SchemaEvolutionDetector(
                 pool=pool,
@@ -69,7 +84,8 @@ class TestSchemaEvolutionDetectorBehaviour:
         assert out["dropped_columns"] == []
         assert out["type_changes"] == []
 
-    async def test_detects_added_column(self, pool: SqlitePool) -> None:
+    async def test_detects_added_column(self) -> None:
+        pool = self.pool
         with Tapestry() as t:
             knot = SchemaEvolutionDetector(
                 pool=pool,
@@ -83,7 +99,8 @@ class TestSchemaEvolutionDetectorBehaviour:
         assert out["schema_changed"] is True
         assert "amount" in out["added_columns"]
 
-    async def test_detects_dropped_column(self, pool: SqlitePool) -> None:
+    async def test_detects_dropped_column(self) -> None:
+        pool = self.pool
         with Tapestry() as t:
             knot = SchemaEvolutionDetector(
                 pool=pool,

@@ -1,9 +1,9 @@
 """Tests for :class:`PolarsFilter`."""
 
 from __future__ import annotations
+import unittest
 
 import polars as pl
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -26,8 +26,7 @@ async def emit_users() -> PolarsDataBatch:
     )
 
 
-@pytest.mark.asyncio
-class TestPolarsFilter:
+class TestPolarsFilter(unittest.IsolatedAsyncioTestCase):
     async def test_keeps_rows_matching_expression(self) -> None:
         with Tapestry() as t:
             batch = emit_users(_config=KnotConfig(id="users"))
@@ -53,7 +52,7 @@ class TestPolarsFilter:
         assert tuple(out.frame["id"].to_list()) == (1,)
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_python_callable(self) -> None:
         @knot
         async def empty() -> PolarsDataBatch:
@@ -61,7 +60,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="polars.Expr"):
+            with self.assertRaisesRegex(TypeError, "polars.Expr"):
                 PolarsFilter(
                     batch=batch,
                     expression=lambda r: True,  # type: ignore[arg-type]

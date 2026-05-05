@@ -1,8 +1,8 @@
 """Unit tests for :class:`PatientCohortBuilder`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,9 +14,9 @@ from pirn.domains.health.types.clinical_record import ClinicalRecord
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_sequence_records(self) -> None:
-        with pytest.raises(TypeError, match="records"):
+        with self.assertRaisesRegex(TypeError, "records"):
             PatientCohortBuilder(
                 records=42,  # type: ignore[arg-type]
                 stages={},
@@ -24,7 +24,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_record(self) -> None:
-        with pytest.raises(TypeError, match="ClinicalRecord"):
+        with self.assertRaisesRegex(TypeError, "ClinicalRecord"):
             PatientCohortBuilder(
                 records=["x"],  # type: ignore[list-item]
                 stages={},
@@ -32,7 +32,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_mapping_stages(self) -> None:
-        with pytest.raises(TypeError, match="stages"):
+        with self.assertRaisesRegex(TypeError, "stages"):
             PatientCohortBuilder(
                 records=(),
                 stages=42,  # type: ignore[arg-type]
@@ -40,7 +40,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_mapping_stage_criteria(self) -> None:
-        with pytest.raises(TypeError, match="stage"):
+        with self.assertRaisesRegex(TypeError, "stage"):
             PatientCohortBuilder(
                 records=(),
                 stages={"s1": 42},  # type: ignore[dict-item]
@@ -48,8 +48,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_runs_inner_pipeline(self) -> None:
         records = (
             ClinicalRecord(patient_id="A"),

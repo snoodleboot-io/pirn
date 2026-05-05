@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import json
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -26,8 +26,7 @@ async def emit_response() -> AgentResponse:
     )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_plain_format(self) -> None:
         with Tapestry() as t:
             r = emit_response(_config=KnotConfig(id="r"))
@@ -57,7 +56,7 @@ class TestProcess:
         assert loaded["content"] == "the answer is 42"
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_unsupported_format(self) -> None:
         @knot
         async def r() -> AgentResponse:
@@ -65,7 +64,7 @@ class TestConstruction:
 
         with Tapestry():
             rr = r(_config=KnotConfig(id="r"))
-            with pytest.raises(ValueError, match="format"):
+            with self.assertRaisesRegex(ValueError, "format"):
                 ResponseFormatter(
                     response=rr, format="xml", _config=KnotConfig(id="f")
                 )

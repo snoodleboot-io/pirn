@@ -1,9 +1,9 @@
 """Tests for :class:`PandasRename`."""
 
 from __future__ import annotations
+import unittest
 
 import pandas as pd
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -22,8 +22,7 @@ async def emit_users() -> PandasDataBatch:
     )
 
 
-@pytest.mark.asyncio
-class TestPandasRename:
+class TestPandasRename(unittest.IsolatedAsyncioTestCase):
     async def test_renames_columns(self) -> None:
         with Tapestry() as t:
             batch = emit_users(_config=KnotConfig(id="users"))
@@ -50,7 +49,7 @@ class TestPandasRename:
         assert "x" not in out.column_names
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_mapping(self) -> None:
         @knot
         async def empty() -> PandasDataBatch:
@@ -58,5 +57,5 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="non-empty"):
+            with self.assertRaisesRegex(TypeError, "non-empty"):
                 PandasRename(batch=batch, mapping={}, _config=KnotConfig(id="r"))

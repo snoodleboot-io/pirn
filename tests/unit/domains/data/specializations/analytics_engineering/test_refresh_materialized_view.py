@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -25,9 +25,9 @@ class StubPool(DatabaseConnectionPool):
         self.executed.append(sql)
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_pool(self) -> None:
-        with pytest.raises(TypeError, match="DatabaseConnectionPool"):
+        with self.assertRaisesRegex(TypeError, "DatabaseConnectionPool"):
             RefreshMaterializedView(
                 pool="bad",  # type: ignore[arg-type]
                 view_name="my_view",
@@ -36,7 +36,7 @@ class TestConstruction:
 
     def test_rejects_empty_view_name(self) -> None:
         pool = StubPool()
-        with pytest.raises(ValueError, match="view_name"):
+        with self.assertRaisesRegex(ValueError, "view_name"):
             RefreshMaterializedView(
                 pool=pool,
                 view_name="",
@@ -45,7 +45,7 @@ class TestConstruction:
 
     def test_rejects_unsupported_dialect(self) -> None:
         pool = StubPool()
-        with pytest.raises(ValueError, match="dialect"):
+        with self.assertRaisesRegex(ValueError, "dialect"):
             RefreshMaterializedView(
                 pool=pool,
                 view_name="my_view",
@@ -55,7 +55,7 @@ class TestConstruction:
 
     def test_rejects_invalid_identifier(self) -> None:
         pool = StubPool()
-        with pytest.raises(ValueError, match="plain identifier"):
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
             RefreshMaterializedView(
                 pool=pool,
                 view_name="my view",
@@ -63,7 +63,7 @@ class TestConstruction:
             )
 
 
-class TestRefreshSql:
+class TestRefreshSql(unittest.TestCase):
     def test_postgres_sql(self) -> None:
         pool = StubPool()
         k = RefreshMaterializedView(
@@ -96,8 +96,7 @@ class TestRefreshSql:
         assert k.refresh_sql == "REFRESH my_view"
 
 
-@pytest.mark.asyncio
-class TestBehaviour:
+class TestBehaviour(unittest.IsolatedAsyncioTestCase):
     async def test_issues_refresh_and_returns_dict(self) -> None:
         pool = StubPool()
         with Tapestry() as t:

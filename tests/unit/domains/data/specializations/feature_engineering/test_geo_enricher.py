@@ -1,8 +1,8 @@
 """Tests for :class:`GeoEnricher`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,40 +14,42 @@ from pirn.domains.data.specializations.feature_engineering.geo_enricher import (
 from pirn.tapestry import Tapestry
 
 
-@pytest.fixture
-async def pool() -> SqlitePool:
-    p = SqlitePool(SqliteConfig(database=":memory:"))
-    await p.execute(
-        "CREATE TABLE user_locations (user_id INTEGER, lat REAL, lon REAL)"
-    )
-    await p.execute(
-        "CREATE TABLE geo_lookup "
-        "(lat_min REAL, lat_max REAL, lon_min REAL, lon_max REAL, "
-        "country TEXT, region TEXT, timezone TEXT)"
-    )
-    await p.execute(
-        "CREATE TABLE enriched_locations "
-        "(user_id INTEGER, lat REAL, lon REAL, "
-        "country TEXT, region TEXT, timezone TEXT)"
-    )
-    await p.execute_many(
-        "INSERT INTO user_locations VALUES (?, ?, ?)",
-        [(1, 51.5, -0.1), (2, 40.7, -74.0)],
-    )
-    await p.execute_many(
-        "INSERT INTO geo_lookup VALUES (?, ?, ?, ?, ?, ?, ?)",
-        [
-            (50.0, 60.0, -5.0, 5.0, "GB", "England", "Europe/London"),
-            (40.0, 45.0, -80.0, -70.0, "US", "New York", "America/New_York"),
-        ],
-    )
-    yield p
-    await p.close()
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
+    async def asyncSetUp(self) -> None:
+        p = SqlitePool(SqliteConfig(database=":memory:"))
+        await p.execute(
+            "CREATE TABLE user_locations (user_id INTEGER, lat REAL, lon REAL)"
+        )
+        await p.execute(
+            "CREATE TABLE geo_lookup "
+            "(lat_min REAL, lat_max REAL, lon_min REAL, lon_max REAL, "
+            "country TEXT, region TEXT, timezone TEXT)"
+        )
+        await p.execute(
+            "CREATE TABLE enriched_locations "
+            "(user_id INTEGER, lat REAL, lon REAL, "
+            "country TEXT, region TEXT, timezone TEXT)"
+        )
+        await p.execute_many(
+            "INSERT INTO user_locations VALUES (?, ?, ?)",
+            [(1, 51.5, -0.1), (2, 40.7, -74.0)],
+        )
+        await p.execute_many(
+            "INSERT INTO geo_lookup VALUES (?, ?, ?, ?, ?, ?, ?)",
+            [
+                (50.0, 60.0, -5.0, 5.0, "GB", "England", "Europe/London"),
+                (40.0, 45.0, -80.0, -70.0, "US", "New York", "America/New_York"),
+            ],
+        )
+        self.pool = p
 
-class TestConstruction:
+    async def asyncTearDown(self) -> None:
+        await self.pool.close()
+        
+        
     def test_rejects_non_pool(self) -> None:
-        with pytest.raises(TypeError, match="DatabaseConnectionPool"):
+        with self.assertRaisesRegex(TypeError, "DatabaseConnectionPool"):
             GeoEnricher(
                 pool="bad",  # type: ignore[arg-type]
                 source_table="user_locations",
@@ -58,8 +60,9 @@ class TestConstruction:
                 _config=KnotConfig(id="geo"),
             )
 
-    def test_rejects_missing_lat_and_ip(self, pool: SqlitePool) -> None:
-        with pytest.raises(ValueError, match="lat_column"):
+    def test_rejects_missing_lat_and_ip(self) -> None:
+        pool = self.pool
+        with self.assertRaisesRegex(ValueError, "lat_column"):
             GeoEnricher(
                 pool=pool,
                 source_table="user_locations",
@@ -68,8 +71,9 @@ class TestConstruction:
                 _config=KnotConfig(id="geo"),
             )
 
-    def test_rejects_lat_without_lon(self, pool: SqlitePool) -> None:
-        with pytest.raises(ValueError, match="lon_column"):
+    def test_rejects_lat_without_lon(self) -> None:
+        pool = self.pool
+        with self.assertRaisesRegex(ValueError, "lon_column"):
             GeoEnricher(
                 pool=pool,
                 source_table="user_locations",
@@ -80,11 +84,42 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestBehaviour:
-    async def test_enriches_rows_with_lat_lon(
-        self, pool: SqlitePool
-    ) -> None:
+class TestBehaviour(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self) -> None:
+        p = SqlitePool(SqliteConfig(database=":memory:"))
+        await p.execute(
+            "CREATE TABLE user_locations (user_id INTEGER, lat REAL, lon REAL)"
+        )
+        await p.execute(
+            "CREATE TABLE geo_lookup "
+            "(lat_min REAL, lat_max REAL, lon_min REAL, lon_max REAL, "
+            "country TEXT, region TEXT, timezone TEXT)"
+        )
+        await p.execute(
+            "CREATE TABLE enriched_locations "
+            "(user_id INTEGER, lat REAL, lon REAL, "
+            "country TEXT, region TEXT, timezone TEXT)"
+        )
+        await p.execute_many(
+            "INSERT INTO user_locations VALUES (?, ?, ?)",
+            [(1, 51.5, -0.1), (2, 40.7, -74.0)],
+        )
+        await p.execute_many(
+            "INSERT INTO geo_lookup VALUES (?, ?, ?, ?, ?, ?, ?)",
+            [
+                (50.0, 60.0, -5.0, 5.0, "GB", "England", "Europe/London"),
+                (40.0, 45.0, -80.0, -70.0, "US", "New York", "America/New_York"),
+            ],
+        )
+        self.pool = p
+
+    async def asyncTearDown(self) -> None:
+        await self.pool.close()
+        
+        
+    async def test_enriches_rows_with_lat_lon(self) -> None:
+        pool = self.pool
         with Tapestry() as t:
             GeoEnricher(
                 pool=pool,

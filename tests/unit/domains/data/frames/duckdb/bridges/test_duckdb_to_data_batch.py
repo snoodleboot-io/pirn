@@ -1,9 +1,9 @@
 """Tests for :class:`DuckdbToDataBatch`."""
 
 from __future__ import annotations
+import unittest
 
 import duckdb
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -29,8 +29,7 @@ async def emit_duckdb_batch() -> DuckdbDataBatch:
     )
 
 
-@pytest.mark.asyncio
-class TestDuckdbToDataBatch:
+class TestDuckdbToDataBatch(unittest.IsolatedAsyncioTestCase):
     async def test_materialises_rows_as_dicts(self) -> None:
         with Tapestry() as t:
             batch = emit_duckdb_batch(_config=KnotConfig(id="duck"))

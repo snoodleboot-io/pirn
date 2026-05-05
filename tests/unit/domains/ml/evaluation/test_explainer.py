@@ -1,8 +1,8 @@
 """Tests for :class:`Explainer`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -31,7 +31,7 @@ async def emit_model() -> TrainedModel:
     )
 
 
-class TestExplainerHappyPath:
+class TestExplainerHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_per_feature_importance(self) -> None:
         with Tapestry() as t:
             split = emit_split(_config=KnotConfig(id="split"))
@@ -47,12 +47,12 @@ class TestExplainerHappyPath:
         assert set(out.keys()) == {"a", "b"}
 
 
-class TestExplainerConstruction:
+class TestExplainerConstruction(unittest.TestCase):
     def test_rejects_unknown_method(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
             model = emit_model(_config=KnotConfig(id="model"))
-            with pytest.raises(ValueError, match="method must be"):
+            with self.assertRaisesRegex(ValueError, "method must be"):
                 Explainer(
                     model=model,
                     split=split,

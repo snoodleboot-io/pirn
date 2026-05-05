@@ -1,8 +1,8 @@
 """Unit tests for :class:`ToolRouter`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -18,8 +18,7 @@ async def emit_step() -> str:
     return "use search to find flights"
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_routes_step_to_matching_tool(self) -> None:
         search = StubTool(name="search", description="search engine")
         calc = StubTool(name="calc", description="calculator")
@@ -48,7 +47,7 @@ class TestProcess:
         assert "r" not in result.outputs
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_tool_list(self) -> None:
         @knot
         async def step() -> str:
@@ -56,7 +55,7 @@ class TestConstruction:
 
         with Tapestry():
             s = step(_config=KnotConfig(id="s"))
-            with pytest.raises(ValueError, match="non-empty"):
+            with self.assertRaisesRegex(ValueError, "non-empty"):
                 ToolRouter(step=s, tools=(), _config=KnotConfig(id="r"))
 
     def test_rejects_non_tool_entries(self) -> None:
@@ -66,7 +65,7 @@ class TestConstruction:
 
         with Tapestry():
             s = step(_config=KnotConfig(id="s"))
-            with pytest.raises(TypeError, match="Tool"):
+            with self.assertRaisesRegex(TypeError, "Tool"):
                 ToolRouter(
                     step=s,
                     tools=("not-a-tool",),  # type: ignore[arg-type]

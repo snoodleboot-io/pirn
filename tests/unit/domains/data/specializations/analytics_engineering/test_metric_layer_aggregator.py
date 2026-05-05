@@ -1,6 +1,7 @@
 """Tests for :class:`MetricLayerAggregator`."""
 
 from __future__ import annotations
+import unittest
 
 import pytest
 
@@ -14,23 +15,26 @@ from pirn.domains.data.specializations.analytics_engineering.metric_layer_aggreg
 from pirn.tapestry import Tapestry
 
 
-@pytest.fixture
-async def pool() -> SqlitePool:
-    p = SqlitePool(SqliteConfig(database=":memory:"))
-    await p.execute(
-        "CREATE TABLE sales (region TEXT, amount REAL, num INTEGER)"
-    )
-    await p.execute_many(
-        "INSERT INTO sales VALUES (?, ?, ?)",
-        [("EU", 100.0, 2), ("EU", 50.0, 1), ("US", 200.0, 4)],
-    )
-    yield p
-    await p.close()
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
+    async def asyncSetUp(self) -> None:
+        p = SqlitePool(SqliteConfig(database=":memory:"))
+        await p.execute(
+            "CREATE TABLE sales (region TEXT, amount REAL, num INTEGER)"
+        )
+        await p.execute_many(
+            "INSERT INTO sales VALUES (?, ?, ?)",
+            [("EU", 100.0, 2), ("EU", 50.0, 1), ("US", 200.0, 4)],
+        )
+        self.pool = p
 
-class TestConstruction:
-    def test_rejects_invalid_aggregation(self, pool: SqlitePool) -> None:
-        with pytest.raises(ValueError, match="aggregation"):
+    async def asyncTearDown(self) -> None:
+        await self.pool.close()
+        
+        
+    def test_rejects_invalid_aggregation(self) -> None:
+        pool = self.pool
+        with self.assertRaisesRegex(ValueError, "aggregation"):
             MetricLayerAggregator(
                 pool=pool,
                 source_table="sales",
@@ -40,10 +44,9 @@ class TestConstruction:
                 _config=KnotConfig(id="m"),
             )
 
-    def test_ratio_requires_numerator_denominator(
-        self, pool: SqlitePool
-    ) -> None:
-        with pytest.raises(ValueError, match="ratio"):
+    def test_ratio_requires_numerator_denominator(self) -> None:
+        pool = self.pool
+        with self.assertRaisesRegex(ValueError, "ratio"):
             MetricLayerAggregator(
                 pool=pool,
                 source_table="sales",
@@ -54,9 +57,25 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestBehaviour:
-    async def test_sum_without_dimensions(self, pool: SqlitePool) -> None:
+class TestBehaviour(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self) -> None:
+        p = SqlitePool(SqliteConfig(database=":memory:"))
+        await p.execute(
+            "CREATE TABLE sales (region TEXT, amount REAL, num INTEGER)"
+        )
+        await p.execute_many(
+            "INSERT INTO sales VALUES (?, ?, ?)",
+            [("EU", 100.0, 2), ("EU", 50.0, 1), ("US", 200.0, 4)],
+        )
+        self.pool = p
+
+    async def asyncTearDown(self) -> None:
+        await self.pool.close()
+        
+        
+    async def test_sum_without_dimensions(self) -> None:
+        pool = self.pool
         with Tapestry() as t:
             MetricLayerAggregator(
                 pool=pool,
@@ -73,7 +92,8 @@ class TestBehaviour:
         assert output["value"] == pytest.approx(350.0)
         assert output["dimensions"] == []
 
-    async def test_sum_with_dimension_slicing(self, pool: SqlitePool) -> None:
+    async def test_sum_with_dimension_slicing(self) -> None:
+        pool = self.pool
         with Tapestry() as t:
             MetricLayerAggregator(
                 pool=pool,
@@ -91,7 +111,8 @@ class TestBehaviour:
         assert isinstance(output["value"], list)
         assert len(output["value"]) == 2
 
-    async def test_count_aggregation(self, pool: SqlitePool) -> None:
+    async def test_count_aggregation(self) -> None:
+        pool = self.pool
         with Tapestry() as t:
             MetricLayerAggregator(
                 pool=pool,
@@ -105,7 +126,8 @@ class TestBehaviour:
         assert result.succeeded
         assert result.outputs["m-cnt"]["value"] == 3
 
-    async def test_avg_aggregation(self, pool: SqlitePool) -> None:
+    async def test_avg_aggregation(self) -> None:
+        pool = self.pool
         with Tapestry() as t:
             MetricLayerAggregator(
                 pool=pool,
@@ -119,7 +141,8 @@ class TestBehaviour:
         assert result.succeeded
         assert result.outputs["m-avg"]["value"] == pytest.approx(350.0 / 3)
 
-    async def test_ratio_aggregation(self, pool: SqlitePool) -> None:
+    async def test_ratio_aggregation(self) -> None:
+        pool = self.pool
         with Tapestry() as t:
             MetricLayerAggregator(
                 pool=pool,

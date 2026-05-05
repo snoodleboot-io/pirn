@@ -1,8 +1,8 @@
 """Unit tests for :class:`SnomedCTNormalizer`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,9 +12,9 @@ from pirn.domains.health.clinical.snomed_ct_normalizer import (
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_sequence(self) -> None:
-        with pytest.raises(TypeError, match="codes"):
+        with self.assertRaisesRegex(TypeError, "codes"):
             SnomedCTNormalizer(
                 codes=42,  # type: ignore[arg-type]
                 mapping={},
@@ -22,7 +22,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_mapping(self) -> None:
-        with pytest.raises(TypeError, match="mapping"):
+        with self.assertRaisesRegex(TypeError, "mapping"):
             SnomedCTNormalizer(
                 codes=[],
                 mapping=42,  # type: ignore[arg-type]
@@ -30,7 +30,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_string_code(self) -> None:
-        with pytest.raises(TypeError, match="string"):
+        with self.assertRaisesRegex(TypeError, "string"):
             SnomedCTNormalizer(
                 codes=[1],  # type: ignore[list-item]
                 mapping={},
@@ -38,8 +38,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_maps_codes_to_snomed(self) -> None:
         with Tapestry() as t:
             SnomedCTNormalizer(

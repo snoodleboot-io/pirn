@@ -1,11 +1,14 @@
 """Tests for :class:`GreatExpectationsPandasValidator`."""
 
 from __future__ import annotations
+import unittest
 
 import pandas as pd
-import pytest
 
-gx = pytest.importorskip("great_expectations")
+try:
+    import great_expectations as gx
+except ImportError as _e:
+    raise unittest.SkipTest("great_expectations not installed") from _e
 
 from great_expectations.expectations import (
     ExpectColumnValuesToBeBetween,
@@ -93,8 +96,7 @@ def _multi_invalid_batch_factory():
     return emit
 
 
-@pytest.mark.asyncio
-class TestGreatExpectationsPandasValidator:
+class TestGreatExpectationsPandasValidator(unittest.IsolatedAsyncioTestCase):
     async def test_passing_report_for_valid_frame(self) -> None:
         with Tapestry() as t:
             batch = _valid_batch_factory()(_config=KnotConfig(id="users"))
@@ -109,9 +111,7 @@ class TestGreatExpectationsPandasValidator:
         assert report.row_count == 3
         assert report.failed_checks == ()
 
-    async def test_failing_report_lists_one_check_per_failed_expectation(
-        self,
-    ) -> None:
+    async def test_failing_report_lists_one_check_per_failed_expectation(self,) -> None:
         with Tapestry() as t:
             batch = _id_invalid_batch_factory()(_config=KnotConfig(id="users"))
             GreatExpectationsPandasValidator(
@@ -151,7 +151,7 @@ class TestGreatExpectationsPandasValidator:
         assert "expect_column_values_to_be_in_set" in names
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_expectation_suite(self) -> None:
         @knot
         async def empty() -> PandasDataBatch:
@@ -159,7 +159,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="ExpectationSuite"):
+            with self.assertRaisesRegex(TypeError, "ExpectationSuite"):
                 GreatExpectationsPandasValidator(
                     batch=batch,
                     suite={"id": int},  # type: ignore[arg-type]
@@ -173,7 +173,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="ExpectationSuite"):
+            with self.assertRaisesRegex(TypeError, "ExpectationSuite"):
                 GreatExpectationsPandasValidator(
                     batch=batch,
                     suite=None,

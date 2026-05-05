@@ -1,9 +1,9 @@
 """Tests for :class:`DuckdbDeduplicate`."""
 
 from __future__ import annotations
+import unittest
 
 import duckdb
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -31,8 +31,7 @@ async def emit_with_dups() -> DuckdbDataBatch:
     )
 
 
-@pytest.mark.asyncio
-class TestDuckdbDeduplicate:
+class TestDuckdbDeduplicate(unittest.IsolatedAsyncioTestCase):
     async def test_keeps_first_per_key(self) -> None:
         with Tapestry() as t:
             batch = emit_with_dups(_config=KnotConfig(id="batch"))
@@ -60,7 +59,7 @@ class TestDuckdbDeduplicate:
         assert len(rows) == 5  # composite key already unique
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_string_keys_argument(self) -> None:
         @knot
         async def empty() -> DuckdbDataBatch:
@@ -72,7 +71,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="sequence"):
+            with self.assertRaisesRegex(TypeError, "sequence"):
                 DuckdbDeduplicate(
                     batch=batch, keys="id",  # type: ignore[arg-type]
                     _config=KnotConfig(id="d"),
@@ -89,7 +88,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(ValueError, match="non-empty"):
+            with self.assertRaisesRegex(ValueError, "non-empty"):
                 DuckdbDeduplicate(
                     batch=batch, keys=(), _config=KnotConfig(id="d"),
                 )
@@ -105,7 +104,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(ValueError, match="plain identifier"):
+            with self.assertRaisesRegex(ValueError, "plain identifier"):
                 DuckdbDeduplicate(
                     batch=batch, keys=("id; DROP TABLE",),
                     _config=KnotConfig(id="d"),

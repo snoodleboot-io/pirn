@@ -1,8 +1,8 @@
 """Unit tests for :class:`FaultDetector`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,9 +12,9 @@ from pirn.domains.oilgas.types.segy_volume import SegyVolume
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_numeric_threshold(self) -> None:
-        with pytest.raises(TypeError, match="coherence_threshold"):
+        with self.assertRaisesRegex(TypeError, "coherence_threshold"):
             with Tapestry():
                 attr = SegyFileIngester(
                     file_path="/x", volume_id="v", _config=KnotConfig(id="i")
@@ -26,7 +26,7 @@ class TestConstruction:
                 )
 
     def test_rejects_out_of_range_threshold(self) -> None:
-        with pytest.raises(ValueError, match=r"\[0, 1\]"):
+        with self.assertRaisesRegex(ValueError, r"\[0, 1\]"):
             with Tapestry():
                 attr = SegyFileIngester(
                     file_path="/x", volume_id="v", _config=KnotConfig(id="i")
@@ -38,8 +38,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_fault_volume(self) -> None:
         with Tapestry() as t:
             attr = SegyFileIngester(

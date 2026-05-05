@@ -1,8 +1,8 @@
 """Unit tests for :class:`TimeSynchronizer`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -15,12 +15,12 @@ from tests.unit.domains.signal.conftest import (
 )
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_max_lag_samples(self) -> None:
         with Tapestry():
             ref = emit_signal_frame(_config=KnotConfig(id="ref"))
             tgt = emit_reference_frame(_config=KnotConfig(id="tgt"))
-            with pytest.raises(ValueError, match="max_lag_samples"):
+            with self.assertRaisesRegex(ValueError, "max_lag_samples"):
                 TimeSynchronizer(
                     reference=ref,
                     target=tgt,
@@ -32,7 +32,7 @@ class TestConstruction:
         with Tapestry():
             ref = emit_signal_frame(_config=KnotConfig(id="ref"))
             tgt = emit_reference_frame(_config=KnotConfig(id="tgt"))
-            with pytest.raises(ValueError, match="max_lag_samples"):
+            with self.assertRaisesRegex(ValueError, "max_lag_samples"):
                 TimeSynchronizer(
                     reference=ref,
                     target=tgt,
@@ -53,8 +53,7 @@ class TestConstruction:
         assert ts.max_lag_samples == 256
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_aligned_signal_frame(self) -> None:
         with Tapestry() as t:
             ref = emit_signal_frame(_config=KnotConfig(id="ref"))

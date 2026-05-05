@@ -5,8 +5,9 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Mapping
 from pathlib import Path
 from typing import Any
+import unittest
+import tempfile
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -32,12 +33,7 @@ class _RecordingMemoryStore(MemoryStore):
     async def retrieve(self, key: str) -> Mapping[str, Any] | None:
         return self.entries.get(key)
 
-    async def search(
-        self,
-        query: str,
-        *,
-        top_k: int = 10,
-    ) -> AsyncIterator[Mapping[str, Any]]:
+    async def search(self, query: str, *, top_k: int = 10,) -> AsyncIterator[Mapping[str, Any]]:
         async def _aiter() -> AsyncIterator[Mapping[str, Any]]:
             for entry in list(self.entries.values())[:top_k]:
                 yield entry
@@ -51,11 +47,10 @@ class _RecordingMemoryStore(MemoryStore):
         return None
 
 
-@pytest.mark.asyncio
-class TestDocumentIngestionPipelineConstruction:
+class TestDocumentIngestionPipelineConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_embedder(self) -> None:
         store = _RecordingMemoryStore()
-        with pytest.raises(TypeError, match="embedder must be an EmbeddingProvider"):
+        with self.assertRaisesRegex(TypeError, "embedder must be an EmbeddingProvider"):
             with Tapestry():
                 DocumentIngestionPipeline(
                     source="/tmp/x.txt",
@@ -67,7 +62,7 @@ class TestDocumentIngestionPipelineConstruction:
     async def test_rejects_overlap_ge_chunk_size(self) -> None:
         embedder = StubEmbeddingProvider()
         store = _RecordingMemoryStore()
-        with pytest.raises(ValueError, match="chunk_overlap"):
+        with self.assertRaisesRegex(ValueError, "chunk_overlap"):
             with Tapestry():
                 DocumentIngestionPipeline(
                     source="/tmp/x.txt",
@@ -79,9 +74,11 @@ class TestDocumentIngestionPipelineConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestDocumentIngestionPipelineHappyPath:
-    async def test_chunks_embeds_and_stores(self, tmp_path: Path) -> None:
+class TestDocumentIngestionPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
+    async def test_chunks_embeds_and_stores(self) -> None:
+        _td_test_chunks_embeds_and_stores = tempfile.TemporaryDirectory()
+        self.addCleanup(_td_test_chunks_embeds_and_stores.cleanup)
+        tmp_path = Path(_td_test_chunks_embeds_and_stores.name)
         document = tmp_path / "doc.txt"
         document.write_text("a" * 25, encoding="utf-8")
         embedder = StubEmbeddingProvider(dimension=3)

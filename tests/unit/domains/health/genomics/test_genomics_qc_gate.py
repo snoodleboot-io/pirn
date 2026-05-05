@@ -1,8 +1,8 @@
 """Unit tests for :class:`GenomicsQCGate`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,9 +14,9 @@ from pirn.domains.health.types.genomics_record import GenomicsRecord
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_sequence(self) -> None:
-        with pytest.raises(TypeError, match="records"):
+        with self.assertRaisesRegex(TypeError, "records"):
             GenomicsQCGate(
                 records=42,  # type: ignore[arg-type]
                 min_quality=10.0,
@@ -24,7 +24,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_record(self) -> None:
-        with pytest.raises(TypeError, match="GenomicsRecord"):
+        with self.assertRaisesRegex(TypeError, "GenomicsRecord"):
             GenomicsQCGate(
                 records=["x"],  # type: ignore[list-item]
                 min_quality=10.0,
@@ -32,7 +32,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_numeric_threshold(self) -> None:
-        with pytest.raises(TypeError, match="numeric"):
+        with self.assertRaisesRegex(TypeError, "numeric"):
             GenomicsQCGate(
                 records=(),
                 min_quality="x",  # type: ignore[arg-type]
@@ -40,8 +40,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_passes_when_quality_above(self) -> None:
         records = (GenomicsRecord(sample_id="S1", quality_score=20.0),)
         with Tapestry() as t:

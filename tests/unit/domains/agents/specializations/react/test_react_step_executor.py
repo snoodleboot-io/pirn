@@ -1,8 +1,8 @@
 """Tests for :class:`ReActStepExecutor`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -21,10 +21,9 @@ from tests.unit.domains.agents.specializations.conftest import (
 )
 
 
-@pytest.mark.asyncio
-class TestReActStepExecutorConstruction:
+class TestReActStepExecutorConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
-        with pytest.raises(TypeError, match="llm must be an LLMProvider"):
+        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
             with Tapestry():
                 seed = MessagesPassthrough(
                     messages=(AgentMessage(role="user", content="hi"),),
@@ -40,7 +39,7 @@ class TestReActStepExecutorConstruction:
 
     async def test_rejects_non_tool(self) -> None:
         llm = StubLLMProvider(["Final Answer: done"])
-        with pytest.raises(TypeError, match="tools\\[0\\] must be a Tool"):
+        with self.assertRaisesRegex(TypeError, "tools\\[0\\] must be a Tool"):
             with Tapestry():
                 seed = MessagesPassthrough(
                     messages=(AgentMessage(role="user", content="hi"),),
@@ -55,8 +54,7 @@ class TestReActStepExecutorConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestReActStepExecutorHappyPath:
+class TestReActStepExecutorHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_final_answer_short_circuits_tool_call(self) -> None:
         llm = StubLLMProvider(["Final Answer: 42"])
         tool = StubTool(name="search", handler="result")

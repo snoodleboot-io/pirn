@@ -1,9 +1,9 @@
 """Tests for :class:`PolarsUnpivot`."""
 
 from __future__ import annotations
+import unittest
 
 import polars as pl
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -26,8 +26,7 @@ async def emit_wide() -> PolarsDataBatch:
     )
 
 
-@pytest.mark.asyncio
-class TestPolarsUnpivot:
+class TestPolarsUnpivot(unittest.IsolatedAsyncioTestCase):
     async def test_long_reshape(self) -> None:
         with Tapestry() as t:
             batch = emit_wide(_config=KnotConfig(id="wide"))
@@ -59,7 +58,7 @@ class TestPolarsUnpivot:
         assert "value" in out.column_names
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_on(self) -> None:
         @knot
         async def empty() -> PolarsDataBatch:
@@ -67,7 +66,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(ValueError, match="non-empty"):
+            with self.assertRaisesRegex(ValueError, "non-empty"):
                 PolarsUnpivot(
                     batch=batch, on=(),
                     _config=KnotConfig(id="u"),

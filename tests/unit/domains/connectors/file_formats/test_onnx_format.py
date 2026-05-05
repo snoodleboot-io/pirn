@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
-pytest.importorskip("onnx")
+try:
+    import onnx
+except ImportError as _e:
+    raise unittest.SkipTest("onnx not installed") from _e
 
 import onnx as _onnx
 from onnx import TensorProto, helper
@@ -41,7 +44,7 @@ def _make_tiny_model() -> bytes:
     return model.SerializeToString()
 
 
-class TestOnnxFormatConstruction:
+class TestOnnxFormatConstruction(unittest.TestCase):
     def test_default_arguments(self) -> None:
         fmt = OnnxFormat()
         assert fmt.validate is True
@@ -51,11 +54,11 @@ class TestOnnxFormatConstruction:
         assert fmt.validate is False
 
     def test_non_bool_validate_rejected(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             OnnxFormat(validate="yes")  # type: ignore[arg-type]
 
 
-class TestOnnxFormatBasics:
+class TestOnnxFormatBasics(unittest.TestCase):
     def test_name(self) -> None:
         assert OnnxFormat().name == "onnx"
 
@@ -66,8 +69,7 @@ class TestOnnxFormatBasics:
         assert isinstance(OnnxFormat(), BatchFileFormat)
 
 
-class TestOnnxFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestOnnxFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         payload = _make_tiny_model()
         fmt = OnnxFormat()
@@ -84,33 +86,28 @@ class TestOnnxFormatRoundTrip:
         assert record["graph_outputs"] == ["y"]
         assert record["node_count"] == 1
 
-    @pytest.mark.asyncio
     async def test_decode_rejects_garbage(self) -> None:
         fmt = OnnxFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.decode(fmt, b"not-an-onnx-model")
 
-    @pytest.mark.asyncio
     async def test_encode_requires_model_bytes_key(self) -> None:
         fmt = OnnxFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, [{"wrong": b"x"}])
 
-    @pytest.mark.asyncio
     async def test_encode_rejects_invalid_bytes(self) -> None:
         fmt = OnnxFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(
                 fmt, [{"model_bytes": b"junk"}]
             )
 
-    @pytest.mark.asyncio
     async def test_encode_empty_records_rejected(self) -> None:
         fmt = OnnxFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, [])
 
-    @pytest.mark.asyncio
     async def test_validate_false_skips_checker(self) -> None:
         # A model with ir_version that the checker would still accept,
         # so this primarily exercises the no-validate branch.

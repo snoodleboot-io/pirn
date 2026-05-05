@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any, Iterable, Mapping
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -24,7 +24,7 @@ async def emit_features() -> Iterable[Mapping[str, Any]]:
     return [{"a": 1.0}, {"a": 2.0}, {"a": 3.0}]
 
 
-class TestPredictorHappyPath:
+class TestPredictorHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_one_prediction_per_row(self) -> None:
         lineage = RecordingLineageStore()
         store = RecordingObjectStore()
@@ -45,13 +45,13 @@ class TestPredictorHappyPath:
         assert lineage.fetches == ["m1"]
 
 
-class TestPredictorConstruction:
+class TestPredictorConstruction(unittest.TestCase):
     def test_rejects_empty_string_model_id(self) -> None:
         lineage = RecordingLineageStore()
         store = RecordingObjectStore()
         with Tapestry():
             features = emit_features(_config=KnotConfig(id="feat"))
-            with pytest.raises(ValueError, match="model_id string"):
+            with self.assertRaisesRegex(ValueError, "model_id string"):
                 Predictor(
                     model_id="",
                     features=features,

@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import logging
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.graph.memgraph_config import MemgraphConfig
@@ -46,9 +46,7 @@ class FakeMemgraphConnection:
         self._records = records or []
         self.closed = False
 
-    async def execute(
-        self, query: str, parameters: Any = None
-    ) -> list[FakeMemgraphRecord]:
+    async def execute(self, query: str, parameters: Any = None) -> list[FakeMemgraphRecord]:
         self.executed.append((query, parameters))
         return [FakeMemgraphRecord(r) for r in self._records]
 
@@ -59,21 +57,22 @@ class FakeMemgraphConnection:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-def test_implements_database_connection_pool() -> None:
-    pool = MemgraphPool(connection=FakeMemgraphConnection())
-    assert isinstance(pool, DatabaseConnectionPool)
 
-
-def test_construction_requires_config_or_connection() -> None:
-    with pytest.raises(TypeError, match="config= or connection="):
-        MemgraphPool()
-
-
+class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
+    def test_implements_database_connection_pool(self) -> None:
+        pool = MemgraphPool(connection=FakeMemgraphConnection())
+        assert isinstance(pool, DatabaseConnectionPool)
+    
+    
+    def test_construction_requires_config_or_connection(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or connection="):
+            MemgraphPool()
+    
+    
 # ────────────────────────────────────────────────────────────── delegation
 
 
-@pytest.mark.asyncio
-class TestDelegation:
+class TestDelegation(unittest.IsolatedAsyncioTestCase):
     async def test_execute_passes_query_and_params(self) -> None:
         fake = FakeMemgraphConnection()
         pool = MemgraphPool(connection=fake)
@@ -119,8 +118,7 @@ class TestDelegation:
 # ─────────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_closes_connection(self) -> None:
         fake = FakeMemgraphConnection()
         pool = MemgraphPool(connection=fake)
@@ -130,7 +128,7 @@ class TestLifecycle:
     async def test_acquire_after_close_raises(self) -> None:
         pool = MemgraphPool(connection=FakeMemgraphConnection())
         await pool.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await pool.acquire()
 
     async def test_close_clears_credentials(self) -> None:
@@ -142,14 +140,14 @@ class TestLifecycle:
     async def test_use_after_close_raises(self) -> None:
         pool = MemgraphPool(config=MemgraphConfig(), connection=FakeMemgraphConnection())
         await pool.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await pool.acquire()
 
 
 # ──────────────────────────────────────────────────────── credential safety
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_repr_redacts_password(self) -> None:
         cfg = MemgraphConfig(password="my-secret-pw")
         assert "my-secret-pw" not in repr(cfg)
@@ -171,9 +169,9 @@ class TestCredentialSafety:
 # ────────────────────────────────────────────────────────────── log events
 
 
-@pytest.mark.asyncio
-async def test_close_emits_debug_log(caplog: pytest.LogCaptureFixture) -> None:
-    pool = MemgraphPool(connection=FakeMemgraphConnection())
-    with caplog.at_level(logging.DEBUG):
-        await pool.close()
-    assert any("memgraph.close" in r.message for r in caplog.records)
+    async def test_close_emits_debug_log(self) -> None:
+        # TODO(unittest-migrate): replace 'caplog' built-in
+        pool = MemgraphPool(connection=FakeMemgraphConnection())
+        with caplog.at_level(logging.DEBUG):
+            await pool.close()
+        assert any("memgraph.close" in r.message for r in caplog.records)

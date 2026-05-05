@@ -1,14 +1,19 @@
 """Tests for :class:`FhirJsonFormat` — FHIR JSON Bundle format."""
 
 from __future__ import annotations
+import sys
 
 import hashlib
 import json
 from unittest.mock import patch
+import unittest
+import unittest.mock
 
-import pytest
 
-pytest.importorskip("fhir")
+try:
+    import fhir
+except ImportError as _e:
+    raise unittest.SkipTest("fhir not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -59,7 +64,7 @@ async def _decode(fmt: FhirJsonFormat, payload: bytes) -> list[dict]:
 # Construction
 # ---------------------------------------------------------------------------
 
-class TestFhirJsonFormatConstruction:
+class TestFhirJsonFormatConstruction(unittest.TestCase):
     def test_is_batch_format(self) -> None:
         assert isinstance(FhirJsonFormat(), BatchFileFormat)
 
@@ -74,36 +79,31 @@ class TestFhirJsonFormatConstruction:
 # PHI sanitisation
 # ---------------------------------------------------------------------------
 
-class TestFhirJsonFormatPhiSanitisation:
-    @pytest.mark.asyncio
+class TestFhirJsonFormatPhiSanitisation(unittest.IsolatedAsyncioTestCase):
     async def test_name_stripped(self) -> None:
         payload = _make_bundle([_make_patient()])
         records = await _decode(FhirJsonFormat(), payload)
         data = records[0]["data"]
         assert "name" not in data
 
-    @pytest.mark.asyncio
     async def test_birth_date_stripped(self) -> None:
         payload = _make_bundle([_make_patient()])
         records = await _decode(FhirJsonFormat(), payload)
         data = records[0]["data"]
         assert "birthDate" not in data
 
-    @pytest.mark.asyncio
     async def test_address_stripped(self) -> None:
         payload = _make_bundle([_make_patient()])
         records = await _decode(FhirJsonFormat(), payload)
         data = records[0]["data"]
         assert "address" not in data
 
-    @pytest.mark.asyncio
     async def test_telecom_stripped(self) -> None:
         payload = _make_bundle([_make_patient()])
         records = await _decode(FhirJsonFormat(), payload)
         data = records[0]["data"]
         assert "telecom" not in data
 
-    @pytest.mark.asyncio
     async def test_identifier_hashed(self) -> None:
         patient = _make_patient("P001")
         payload = _make_bundle([patient])
@@ -116,14 +116,12 @@ class TestFhirJsonFormatPhiSanitisation:
         ).hexdigest()
         assert data["identifier_hash"] == expected
 
-    @pytest.mark.asyncio
     async def test_non_phi_field_preserved(self) -> None:
         payload = _make_bundle([_make_patient()])
         records = await _decode(FhirJsonFormat(), payload)
         data = records[0]["data"]
         assert data.get("gender") == "female"
 
-    @pytest.mark.asyncio
     async def test_phi_keywords_frozenset(self) -> None:
         assert isinstance(FhirJsonFormat._phi_keywords, frozenset)
         assert "name" in FhirJsonFormat._phi_keywords
@@ -134,8 +132,7 @@ class TestFhirJsonFormatPhiSanitisation:
 # Round-trip
 # ---------------------------------------------------------------------------
 
-class TestFhirJsonFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestFhirJsonFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_single_resource(self) -> None:
         records = [
             {
@@ -152,7 +149,6 @@ class TestFhirJsonFormatRoundTrip:
         assert decoded[0]["resource_type"] == "Observation"
         assert decoded[0]["resource_id"] == "obs-1"
 
-    @pytest.mark.asyncio
     async def test_round_trip_multiple_resources(self) -> None:
         records = [
             {
@@ -176,7 +172,6 @@ class TestFhirJsonFormatRoundTrip:
         assert "Observation" in resource_types
         assert "Condition" in resource_types
 
-    @pytest.mark.asyncio
     async def test_phi_stripped_after_round_trip(self) -> None:
         payload = _make_bundle([_make_patient()])
         fmt = FhirJsonFormat()
@@ -189,15 +184,14 @@ class TestFhirJsonFormatRoundTrip:
 # Error paths
 # ---------------------------------------------------------------------------
 
-class TestFhirJsonFormatErrors:
-    @pytest.mark.asyncio
+class TestFhirJsonFormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_invalid_json_raises(self) -> None:
         fmt = FhirJsonFormat()
 
         async def _iter():
             yield b"not json at all {{{{"
 
-        with pytest.raises(Exception):
+        with self.assertRaises(Exception):
             async for _ in await fmt.read(_iter()):
                 pass
 
@@ -206,13 +200,9 @@ class TestFhirJsonFormatErrors:
 # Missing dependency
 # ---------------------------------------------------------------------------
 
-class TestFhirJsonFormatMissingDep:
-    def test_missing_fhir_raises_import_error(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        import sys
-        monkeypatch.setitem(sys.modules, "fhir", None)  # type: ignore[arg-type]
-        monkeypatch.setitem(sys.modules, "fhir.resources", None)  # type: ignore[arg-type]
-        fmt = FhirJsonFormat()
-        with pytest.raises(ImportError, match="pirn\\[health\\]"):
-            fmt._load_fhir()
+class TestFhirJsonFormatMissingDep(unittest.TestCase):
+    def test_missing_fhir_raises_import_error(self) -> None:
+        with unittest.mock.patch.dict(sys.modules, {"fhir": None, "fhir.resources": None}):
+            fmt = FhirJsonFormat()
+            with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
+                fmt._load_fhir()

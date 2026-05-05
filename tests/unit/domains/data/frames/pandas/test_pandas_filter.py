@@ -1,9 +1,9 @@
 """Tests for :class:`PandasFilter`."""
 
 from __future__ import annotations
+import unittest
 
 import pandas as pd
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -26,8 +26,7 @@ async def emit_users() -> PandasDataBatch:
     )
 
 
-@pytest.mark.asyncio
-class TestPandasFilter:
+class TestPandasFilter(unittest.IsolatedAsyncioTestCase):
     async def test_keeps_rows_matching_predicate(self) -> None:
         with Tapestry() as t:
             batch = emit_users(_config=KnotConfig(id="users"))
@@ -53,7 +52,7 @@ class TestPandasFilter:
         assert tuple(out.frame["id"].tolist()) == (1,)
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_callable_predicate(self) -> None:
         @knot
         async def empty() -> PandasDataBatch:
@@ -61,7 +60,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="callable"):
+            with self.assertRaisesRegex(TypeError, "callable"):
                 PandasFilter(
                     batch=batch,
                     predicate="active == True",  # type: ignore[arg-type]

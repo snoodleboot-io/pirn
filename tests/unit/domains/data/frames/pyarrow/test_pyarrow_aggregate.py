@@ -1,9 +1,9 @@
 """Tests for :class:`PyarrowAggregate`."""
 
 from __future__ import annotations
+import unittest
 
 import pyarrow as pa
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -31,8 +31,7 @@ async def emit_empty() -> PyarrowDataBatch:
     return PyarrowDataBatch(table=pa.table({"a": pa.array([], type=pa.int64())}))
 
 
-@pytest.mark.asyncio
-class TestPyarrowAggregate:
+class TestPyarrowAggregate(unittest.IsolatedAsyncioTestCase):
     async def test_sum_per_region(self) -> None:
         with Tapestry() as t:
             batch = emit_orders(_config=KnotConfig(id="orders"))
@@ -79,11 +78,11 @@ class TestPyarrowAggregate:
         assert rows["US"]["n_customers"] == 1
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_string_by(self) -> None:
         with Tapestry():
             batch = emit_empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="sequence"):
+            with self.assertRaisesRegex(TypeError, "sequence"):
                 PyarrowAggregate(
                     batch=batch,
                     by="a",  # type: ignore[arg-type]
@@ -94,7 +93,7 @@ class TestConstruction:
     def test_rejects_empty_by(self) -> None:
         with Tapestry():
             batch = emit_empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(ValueError, match="non-empty"):
+            with self.assertRaisesRegex(ValueError, "non-empty"):
                 PyarrowAggregate(
                     batch=batch,
                     by=(),
@@ -105,7 +104,7 @@ class TestConstruction:
     def test_rejects_unsafe_by_column(self) -> None:
         with Tapestry():
             batch = emit_empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(ValueError, match="plain identifier"):
+            with self.assertRaisesRegex(ValueError, "plain identifier"):
                 PyarrowAggregate(
                     batch=batch,
                     by=("region; DROP TABLE t",),
@@ -116,7 +115,7 @@ class TestConstruction:
     def test_rejects_non_mapping_aggs(self) -> None:
         with Tapestry():
             batch = emit_empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="Mapping"):
+            with self.assertRaisesRegex(TypeError, "Mapping"):
                 PyarrowAggregate(
                     batch=batch,
                     by=("a",),
@@ -127,7 +126,7 @@ class TestConstruction:
     def test_rejects_empty_aggs(self) -> None:
         with Tapestry():
             batch = emit_empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(ValueError, match="non-empty"):
+            with self.assertRaisesRegex(ValueError, "non-empty"):
                 PyarrowAggregate(
                     batch=batch,
                     by=("a",),
@@ -138,7 +137,7 @@ class TestConstruction:
     def test_rejects_unsafe_output_name(self) -> None:
         with Tapestry():
             batch = emit_empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(ValueError, match="plain identifier"):
+            with self.assertRaisesRegex(ValueError, "plain identifier"):
                 PyarrowAggregate(
                     batch=batch,
                     by=("a",),
@@ -149,7 +148,7 @@ class TestConstruction:
     def test_rejects_unknown_function(self) -> None:
         with Tapestry():
             batch = emit_empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(ValueError, match="not supported"):
+            with self.assertRaisesRegex(ValueError, "not supported"):
                 PyarrowAggregate(
                     batch=batch,
                     by=("a",),

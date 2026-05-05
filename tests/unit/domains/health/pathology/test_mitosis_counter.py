@@ -1,8 +1,8 @@
 """Unit tests for :class:`MitosisCounter`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -11,9 +11,9 @@ from pirn.domains.health.types.wsi_tile import WSITile
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_sequence(self) -> None:
-        with pytest.raises(TypeError, match="tiles"):
+        with self.assertRaisesRegex(TypeError, "tiles"):
             MitosisCounter(
                 tiles=42,  # type: ignore[arg-type]
                 confidence_threshold=0.5,
@@ -21,7 +21,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_tile(self) -> None:
-        with pytest.raises(TypeError, match="WSITile"):
+        with self.assertRaisesRegex(TypeError, "WSITile"):
             MitosisCounter(
                 tiles=["x"],  # type: ignore[list-item]
                 confidence_threshold=0.5,
@@ -29,7 +29,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_numeric_threshold(self) -> None:
-        with pytest.raises(TypeError, match="numeric"):
+        with self.assertRaisesRegex(TypeError, "numeric"):
             MitosisCounter(
                 tiles=(),
                 confidence_threshold="x",  # type: ignore[arg-type]
@@ -37,7 +37,7 @@ class TestConstruction:
             )
 
     def test_rejects_out_of_range_threshold(self) -> None:
-        with pytest.raises(ValueError, match=r"\[0, 1\]"):
+        with self.assertRaisesRegex(ValueError, r"\[0, 1\]"):
             MitosisCounter(
                 tiles=(),
                 confidence_threshold=1.5,
@@ -45,8 +45,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_int(self) -> None:
         with Tapestry() as t:
             MitosisCounter(

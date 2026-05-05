@@ -9,10 +9,14 @@ it for reference-based decompression.
 from __future__ import annotations
 
 from pathlib import Path
+import unittest
+import tempfile
 
-import pytest
 
-pytest.importorskip("pysam")
+try:
+    import pysam
+except ImportError as _e:
+    raise unittest.SkipTest("pysam not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -80,7 +84,7 @@ def _reference_fixture(tmp_path: Path) -> str:
     return str(fasta_path)
 
 
-class TestCramFormatConstruction:
+class TestCramFormatConstruction(unittest.TestCase):
     def test_default_arguments(self) -> None:
         fmt = CramFormat()
         assert fmt.reference_fasta is None
@@ -91,23 +95,23 @@ class TestCramFormatConstruction:
         assert fmt.reference_fasta == "/tmp/ref.fasta"
 
     def test_invalid_reference_type(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             CramFormat(reference_fasta="")
 
     def test_invalid_header_type(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             CramFormat(header_lines="not-a-sequence")  # type: ignore[arg-type]
 
     def test_empty_header_line_rejected(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             CramFormat(header_lines=("@HD\tVN:1.6", ""))
 
     def test_header_line_without_at_rejected(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             CramFormat(header_lines=("HD\tVN:1.6",))
 
 
-class TestCramFormatBasics:
+class TestCramFormatBasics(unittest.TestCase):
     def test_name(self) -> None:
         assert CramFormat().name == "cram"
 
@@ -118,18 +122,19 @@ class TestCramFormatBasics:
         assert isinstance(CramFormat(), BatchFileFormat)
 
 
-class TestCramFormatWriteValidation:
-    @pytest.mark.asyncio
+class TestCramFormatWriteValidation(unittest.IsolatedAsyncioTestCase):
     async def test_write_without_reference_raises(self) -> None:
         fmt = CramFormat()
         records = _alignment_records()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, records)
 
 
-class TestCramFormatRoundTrip:
-    @pytest.mark.asyncio
-    async def test_round_trip_basic(self, tmp_path: Path) -> None:
+class TestCramFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
+    async def test_round_trip_basic(self) -> None:
+        _td_test_round_trip_basic = tempfile.TemporaryDirectory()
+        self.addCleanup(_td_test_round_trip_basic.cleanup)
+        tmp_path = Path(_td_test_round_trip_basic.name)
         ref = _reference_fixture(tmp_path)
         records = _alignment_records()
         fmt = CramFormat(
@@ -138,8 +143,10 @@ class TestCramFormatRoundTrip:
         )
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
-    async def test_round_trip_empty(self, tmp_path: Path) -> None:
+    async def test_round_trip_empty(self) -> None:
+        _td_test_round_trip_empty = tempfile.TemporaryDirectory()
+        self.addCleanup(_td_test_round_trip_empty.cleanup)
+        tmp_path = Path(_td_test_round_trip_empty.name)
         ref = _reference_fixture(tmp_path)
         fmt = CramFormat(
             reference_fasta=ref,
@@ -147,8 +154,10 @@ class TestCramFormatRoundTrip:
         )
         await FormatRoundTrip.assert_round_trip(fmt, [])
 
-    @pytest.mark.asyncio
-    async def test_round_trip_single(self, tmp_path: Path) -> None:
+    async def test_round_trip_single(self) -> None:
+        _td_test_round_trip_single = tempfile.TemporaryDirectory()
+        self.addCleanup(_td_test_round_trip_single.cleanup)
+        tmp_path = Path(_td_test_round_trip_single.name)
         ref = _reference_fixture(tmp_path)
         records = [_alignment_records()[0]]
         fmt = CramFormat(

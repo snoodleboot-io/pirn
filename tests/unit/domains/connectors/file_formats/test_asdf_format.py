@@ -1,10 +1,13 @@
 """Round-trip and validation tests for :class:`AsdfFormat`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
-pytest.importorskip("asdf")
+try:
+    import asdf
+except ImportError as _e:
+    raise unittest.SkipTest("asdf not installed") from _e
 
 from pirn.domains.connectors.file_formats.asdf_format import AsdfFormat
 from pirn.domains.connectors.file_formats.batch_file_format import (
@@ -28,7 +31,7 @@ def _make_asdf_payload(tree: dict | None = None) -> bytes:
     return buf.getvalue()
 
 
-class TestAsdfFormatConstruction:
+class TestAsdfFormatConstruction(unittest.TestCase):
     def test_name(self) -> None:
         assert AsdfFormat().name == "asdf"
 
@@ -39,8 +42,7 @@ class TestAsdfFormatConstruction:
         assert isinstance(AsdfFormat(), BatchFileFormat)
 
 
-class TestAsdfFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestAsdfFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_decode_simple_tree(self) -> None:
         payload = _make_asdf_payload({"answer": 42, "label": "hello"})
         fmt = AsdfFormat()
@@ -50,7 +52,6 @@ class TestAsdfFormatRoundTrip:
         assert isinstance(record, dict)
         assert record.get("answer") == 42
 
-    @pytest.mark.asyncio
     async def test_encode_produces_valid_asdf(self) -> None:
         import asdf
         import io
@@ -64,7 +65,6 @@ class TestAsdfFormatRoundTrip:
         with asdf.open(io.BytesIO(payload)) as af:
             assert isinstance(af.tree, dict)
 
-    @pytest.mark.asyncio
     async def test_decode_tree_with_numeric_values(self) -> None:
         tree = {"x": 3.14, "n": 100, "flag": True}
         payload = _make_asdf_payload(tree)
@@ -72,7 +72,6 @@ class TestAsdfFormatRoundTrip:
         records = await FormatRoundTrip.decode(fmt, payload)
         assert len(records) == 1
 
-    @pytest.mark.asyncio
     async def test_encode_empty_records_produces_valid_asdf(self) -> None:
         import asdf
         import io
@@ -84,22 +83,22 @@ class TestAsdfFormatRoundTrip:
             assert isinstance(af.tree, dict)
 
 
-class TestAsdfFormatErrors:
-    @pytest.mark.asyncio
+class TestAsdfFormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_decode_invalid_bytes_raises(self) -> None:
         fmt = AsdfFormat()
 
         async def _bad_iter():
             yield b"not an asdf file !@#$%^&*()"
 
-        with pytest.raises(Exception):
+        with self.assertRaises(Exception):
             record_iter = await fmt.read(_bad_iter())
             async for _ in record_iter:
                 pass
 
 
-class TestAsdfFormatMissingDep:
-    def test_import_error_message(self, monkeypatch: pytest.MonkeyPatch) -> None:
+class TestAsdfFormatMissingDep(unittest.TestCase):
+    def test_import_error_message(self) -> None:
+        # TODO(unittest-migrate): replace 'monkeypatch' built-in fixture — use unittest.mock.patch / assertLogs
         import builtins
 
         real_import = builtins.__import__
@@ -110,5 +109,5 @@ class TestAsdfFormatMissingDep:
             return real_import(name, *args, **kwargs)
 
         monkeypatch.setattr(builtins, "__import__", _block_asdf)
-        with pytest.raises(ImportError, match="pirn\\[astronomy\\]"):
+        with self.assertRaisesRegex(ImportError, "pirn\\[astronomy\\]"):
             AsdfFormat._load_asdf()

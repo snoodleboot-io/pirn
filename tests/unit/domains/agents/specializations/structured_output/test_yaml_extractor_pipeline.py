@@ -1,8 +1,8 @@
 """Tests for :class:`YamlExtractorPipeline`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -15,10 +15,9 @@ from tests.unit.domains.agents.specializations.conftest import (
 )
 
 
-@pytest.mark.asyncio
-class TestYamlExtractorPipelineConstruction:
+class TestYamlExtractorPipelineConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
-        with pytest.raises(TypeError, match="llm must be an LLMProvider"):
+        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
             with Tapestry():
                 YamlExtractorPipeline(
                     prompt="give me yaml",
@@ -28,7 +27,7 @@ class TestYamlExtractorPipelineConstruction:
 
     async def test_rejects_zero_max_retries(self) -> None:
         llm = StubLLMProvider(["name: Ada\nage: 36\n"])
-        with pytest.raises(ValueError, match="max_retries"):
+        with self.assertRaisesRegex(ValueError, "max_retries"):
             with Tapestry():
                 YamlExtractorPipeline(
                     prompt="give me yaml",
@@ -38,8 +37,7 @@ class TestYamlExtractorPipelineConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestYamlExtractorPipelineHappyPath:
+class TestYamlExtractorPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_returns_parsed_mapping(self) -> None:
         llm = StubLLMProvider(["name: Ada\nage: 36\n"])
         with Tapestry() as t:

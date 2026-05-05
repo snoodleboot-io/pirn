@@ -7,11 +7,17 @@ byte equality.
 """
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
-pytest.importorskip("pypdf")
-pytest.importorskip("reportlab")
+try:
+    import pypdf
+except ImportError as _e:
+    raise unittest.SkipTest("pypdf not installed") from _e
+try:
+    import reportlab
+except ImportError as _e:
+    raise unittest.SkipTest("reportlab not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -26,7 +32,7 @@ def _normalise(text: str) -> str:
     return " ".join(text.split())
 
 
-class TestPdfFormatConstruction:
+class TestPdfFormatConstruction(unittest.TestCase):
     def test_default_arguments(self) -> None:
         fmt = PdfFormat()
         assert fmt.extract_layout is False
@@ -36,11 +42,11 @@ class TestPdfFormatConstruction:
         assert fmt.extract_layout is True
 
     def test_non_bool_extract_layout(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             PdfFormat(extract_layout="yes")  # type: ignore[arg-type]
 
 
-class TestPdfFormatBasics:
+class TestPdfFormatBasics(unittest.TestCase):
     def test_name(self) -> None:
         assert PdfFormat().name == "pdf"
 
@@ -51,8 +57,7 @@ class TestPdfFormatBasics:
         assert isinstance(PdfFormat(), BatchFileFormat)
 
 
-class TestPdfFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestPdfFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_text_survives(self) -> None:
         records = [
             {"text": "alpha beta gamma"},
@@ -71,7 +76,6 @@ class TestPdfFormatRoundTrip:
                 recovered["text"]
             )
 
-    @pytest.mark.asyncio
     async def test_round_trip_empty(self) -> None:
         fmt = PdfFormat()
         payload = await FormatRoundTrip.encode(fmt, [])
@@ -81,7 +85,6 @@ class TestPdfFormatRoundTrip:
         for record in decoded:
             assert _normalise(record["text"]) == ""
 
-    @pytest.mark.asyncio
     async def test_round_trip_single(self) -> None:
         records = [{"text": "only one page here"}]
         fmt = PdfFormat()
@@ -93,7 +96,6 @@ class TestPdfFormatRoundTrip:
         )
         assert decoded[0]["page_number"] == 1
 
-    @pytest.mark.asyncio
     async def test_extract_layout_includes_bbox(self) -> None:
         records = [{"text": "layout probe"}]
         writer = PdfFormat()
@@ -106,14 +108,12 @@ class TestPdfFormatRoundTrip:
         assert bbox["x1"] > bbox["x0"]
         assert bbox["y1"] > bbox["y0"]
 
-    @pytest.mark.asyncio
     async def test_encode_rejects_missing_text(self) -> None:
         fmt = PdfFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, [{"page_number": 1}])
 
-    @pytest.mark.asyncio
     async def test_encode_rejects_non_string_text(self) -> None:
         fmt = PdfFormat()
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             await FormatRoundTrip.encode(fmt, [{"text": 123}])

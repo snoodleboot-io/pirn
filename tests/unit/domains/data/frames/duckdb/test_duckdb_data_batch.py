@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from datetime import timezone
+import unittest
 
 import duckdb
 
 from pirn.domains.data.frames.duckdb.duckdb_data_batch import DuckdbDataBatch
 
 
-class TestDuckdbDataBatch:
+class TestDuckdbDataBatch(unittest.TestCase):
     def test_column_names_reflect_relation(self) -> None:
         connection = duckdb.connect(database=":memory:")
         connection.execute("CREATE TABLE t AS SELECT 1 AS id, 'alice' AS name")

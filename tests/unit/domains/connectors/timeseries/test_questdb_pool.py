@@ -6,8 +6,8 @@ Uses an injected asyncpg-style stub — no real QuestDB needed.
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.timeseries.questdb_config import QuestDBConfig
@@ -54,30 +54,31 @@ class FakeAsyncpgPool:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-def test_implements_database_connection_pool() -> None:
-    pool = QuestDBPool(pool=FakeAsyncpgPool())
-    assert isinstance(pool, DatabaseConnectionPool)
 
-
-def test_construction_requires_config_or_pool() -> None:
-    with pytest.raises(TypeError, match="config= or pool="):
-        QuestDBPool()
-
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_database_connection_pool(self) -> None:
+        pool = QuestDBPool(pool=FakeAsyncpgPool())
+        assert isinstance(pool, DatabaseConnectionPool)
+    
+    
+    def test_construction_requires_config_or_pool(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or pool="):
+            QuestDBPool()
+    
+    
 # ───────────────────────────────────────────────────────────── config
 
 
-def test_config_repr_redacts_password() -> None:
-    cfg = QuestDBConfig(password="hunter-2-leaks")
-    assert "hunter-2-leaks" not in repr(cfg)
-    assert "<redacted>" in repr(cfg)
-
-
+    def test_config_repr_redacts_password(self) -> None:
+        cfg = QuestDBConfig(password="hunter-2-leaks")
+        assert "hunter-2-leaks" not in repr(cfg)
+        assert "<redacted>" in repr(cfg)
+    
+    
 # ───────────────────────────────────────────────────────────── delegation
 
 
-@pytest.mark.asyncio
-class TestDelegation:
+class TestDelegation(unittest.IsolatedAsyncioTestCase):
     async def test_execute_passes_query_and_args(self) -> None:
         fake = FakeAsyncpgPool()
         pool = QuestDBPool(pool=fake)
@@ -114,8 +115,7 @@ class TestDelegation:
 # ───────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_closes_underlying_pool(self) -> None:
         fake = FakeAsyncpgPool()
         pool = QuestDBPool(pool=fake)
@@ -125,7 +125,7 @@ class TestLifecycle:
     async def test_acquire_after_close_raises(self) -> None:
         pool = QuestDBPool(pool=FakeAsyncpgPool())
         await pool.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await pool.acquire()
 
     async def test_close_clears_credentials(self) -> None:
@@ -137,11 +137,11 @@ class TestLifecycle:
     async def test_use_after_close_raises(self) -> None:
         pool = QuestDBPool(config=QuestDBConfig(), pool=FakeAsyncpgPool())
         await pool.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await pool.acquire()
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_audit_dict_redacts_password(self) -> None:
         cfg = QuestDBConfig(password="supersecret")
         d = cfg.to_audit_dict()

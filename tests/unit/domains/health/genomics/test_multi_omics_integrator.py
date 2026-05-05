@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,9 +14,9 @@ from pirn.domains.health.genomics.multi_omics_integrator import (
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_mapping_rna(self) -> None:
-        with pytest.raises(TypeError, match="rna_features"):
+        with self.assertRaisesRegex(TypeError, "rna_features"):
             MultiOmicsIntegrator(
                 rna_features=42,  # type: ignore[arg-type]
                 dna_features={},
@@ -25,7 +25,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_mapping_dna(self) -> None:
-        with pytest.raises(TypeError, match="dna_features"):
+        with self.assertRaisesRegex(TypeError, "dna_features"):
             MultiOmicsIntegrator(
                 rna_features={},
                 dna_features=42,  # type: ignore[arg-type]
@@ -34,7 +34,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_mapping_epi(self) -> None:
-        with pytest.raises(TypeError, match="epi_features"):
+        with self.assertRaisesRegex(TypeError, "epi_features"):
             MultiOmicsIntegrator(
                 rna_features={},
                 dna_features={},
@@ -43,8 +43,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_per_sample_mapping(self) -> None:
         with Tapestry() as t:
             MultiOmicsIntegrator(

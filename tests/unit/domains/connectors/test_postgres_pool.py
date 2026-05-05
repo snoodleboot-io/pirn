@@ -10,8 +10,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 from unittest.mock import AsyncMock
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.databases.postgres_config import PostgresConfig
@@ -58,21 +58,22 @@ class FakeAsyncpgPool:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-def test_implements_database_connection_pool() -> None:
-    pool = PostgresPool(pool=FakeAsyncpgPool())
-    assert isinstance(pool, DatabaseConnectionPool)
 
-
-def test_construction_requires_config_or_pool() -> None:
-    with pytest.raises(TypeError, match="config= or pool="):
-        PostgresPool()
-
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_database_connection_pool(self) -> None:
+        pool = PostgresPool(pool=FakeAsyncpgPool())
+        assert isinstance(pool, DatabaseConnectionPool)
+    
+    
+    def test_construction_requires_config_or_pool(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or pool="):
+            PostgresPool()
+    
+    
 # ────────────────────────────────────────────────────────── delegation
 
 
-@pytest.mark.asyncio
-class TestDelegation:
+class TestDelegation(unittest.IsolatedAsyncioTestCase):
     async def test_execute_passes_query_and_args(self) -> None:
         fake = FakeAsyncpgPool()
         pool = PostgresPool(pool=fake)
@@ -113,15 +114,15 @@ class TestDelegation:
 # ─────────────────────────────────────────────────────────── query safety
 
 
-class TestQuerySafety:
+class TestQuerySafety(unittest.TestCase):
     def test_rejects_fstring_placeholder(self) -> None:
         pool = PostgresPool(pool=FakeAsyncpgPool())
-        with pytest.raises(ValueError, match="interpolation"):
+        with self.assertRaisesRegex(ValueError, "interpolation"):
             pool._reject_inline_interpolation("SELECT * FROM t WHERE x = {value}")
 
     def test_rejects_percent_s_placeholder(self) -> None:
         pool = PostgresPool(pool=FakeAsyncpgPool())
-        with pytest.raises(ValueError, match="interpolation"):
+        with self.assertRaisesRegex(ValueError, "interpolation"):
             pool._reject_inline_interpolation("SELECT * FROM t WHERE x = %s")
 
     def test_accepts_dollar_placeholder(self) -> None:
@@ -129,24 +130,22 @@ class TestQuerySafety:
         pool._reject_inline_interpolation("SELECT * FROM t WHERE x = $1")  # no raise
 
 
-@pytest.mark.asyncio
-class TestQuerySafetyEnforced:
+class TestQuerySafetyEnforced(unittest.IsolatedAsyncioTestCase):
     async def test_execute_rejects_format_query(self) -> None:
         pool = PostgresPool(pool=FakeAsyncpgPool())
-        with pytest.raises(ValueError, match="interpolation"):
+        with self.assertRaisesRegex(ValueError, "interpolation"):
             await pool.execute("SELECT %s FROM t", "x")
 
     async def test_fetch_all_rejects_format_query(self) -> None:
         pool = PostgresPool(pool=FakeAsyncpgPool())
-        with pytest.raises(ValueError, match="interpolation"):
+        with self.assertRaisesRegex(ValueError, "interpolation"):
             await pool.fetch_all("SELECT * FROM t WHERE x = {evil}")
 
 
 # ─────────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_closes_underlying_pool(self) -> None:
         fake = FakeAsyncpgPool()
         pool = PostgresPool(pool=fake)
@@ -156,14 +155,14 @@ class TestLifecycle:
     async def test_acquire_after_close_raises(self) -> None:
         pool = PostgresPool(pool=FakeAsyncpgPool())
         await pool.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await pool.acquire()
 
 
 # ───────────────────────────────────────────────────────────── DSN safety
 
 
-class TestDsnLogSafety:
+class TestDsnLogSafety(unittest.TestCase):
     """The PostgresConfig.repr/audit must not leak credentials, even when
     the user passes a full DSN with inline password."""
 
@@ -195,14 +194,11 @@ class TestDsnLogSafety:
         assert "<redacted>" in d["dsn"]
 
 
-@pytest.mark.asyncio
-class TestConnectErrorScrubs:
+class TestConnectErrorScrubs(unittest.IsolatedAsyncioTestCase):
     """If asyncpg raises with the password embedded in the error message,
     we must scrub before re-raising — protecting the no-leak quality bar."""
 
-    async def test_connect_error_scrubs_password(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_connect_error_scrubs_password(self) -> None:
         # Inject a fake asyncpg.create_pool that raises with the password
         # echoed back in the error message — a known asyncpg behaviour.
         fake_asyncpg = type("FakeAsyncpg", (), {})()
@@ -213,13 +209,12 @@ class TestConnectErrorScrubs:
             )
 
         fake_asyncpg.create_pool = boom  # type: ignore[attr-defined]
-        monkeypatch.setitem(__import__("sys").modules, "asyncpg", fake_asyncpg)
-
-        pool = PostgresPool(
-            PostgresConfig(dsn="postgres://alice:secret-pw@db/main")
-        )
-        with pytest.raises(ConnectionError) as exc_info:
-            await pool.acquire()
-        msg = str(exc_info.value)
+        with unittest.mock.patch.dict(__import__("sys").modules, {"asyncpg": fake_asyncpg}):
+            pool = PostgresPool(
+                PostgresConfig(dsn="postgres://alice:secret-pw@db/main")
+            )
+            with self.assertRaises(ConnectionError) as exc_info:
+                await pool.acquire()
+        msg = str(exc_info.exception)
         assert "secret-pw" not in msg
         assert "<redacted>" in msg

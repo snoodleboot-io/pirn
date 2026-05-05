@@ -1,10 +1,13 @@
 """Round-trip and validation tests for :class:`RtfFormat`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
-pytest.importorskip("striprtf")
+try:
+    import striprtf
+except ImportError as _e:
+    raise unittest.SkipTest("striprtf not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -15,21 +18,21 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 )
 
 
-class TestRtfFormatConstruction:
+class TestRtfFormatConstruction(unittest.TestCase):
     def test_default_arguments(self) -> None:
         fmt = RtfFormat()
         assert fmt.encoding == "utf-8"
 
     def test_encoding_must_be_str(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             RtfFormat(encoding=1)  # type: ignore[arg-type]
 
     def test_encoding_must_be_nonempty(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             RtfFormat(encoding="")
 
 
-class TestRtfFormatProperties:
+class TestRtfFormatProperties(unittest.TestCase):
     def test_name(self) -> None:
         assert RtfFormat().name == "rtf"
 
@@ -40,8 +43,7 @@ class TestRtfFormatProperties:
         assert isinstance(RtfFormat(), BatchFileFormat)
 
 
-class TestRtfFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestRtfFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         fmt = RtfFormat()
         records = [{"text": "Hello world from RTF."}]
@@ -50,7 +52,6 @@ class TestRtfFormatRoundTrip:
         assert len(decoded) == 1
         assert "Hello world from RTF" in decoded[0]["text"]
 
-    @pytest.mark.asyncio
     async def test_round_trip_multi_record_concatenated(self) -> None:
         fmt = RtfFormat()
         records = [
@@ -64,14 +65,12 @@ class TestRtfFormatRoundTrip:
         assert "First fragment" in decoded[0]["text"]
         assert "Second fragment" in decoded[0]["text"]
 
-    @pytest.mark.asyncio
     async def test_round_trip_empty(self) -> None:
         fmt = RtfFormat()
         payload = await FormatRoundTrip.encode(fmt, [])
         decoded = await FormatRoundTrip.decode(fmt, payload)
         assert decoded == []
 
-    @pytest.mark.asyncio
     async def test_round_trip_special_chars(self) -> None:
         fmt = RtfFormat()
         records = [{"text": "Curly braces {x} and a backslash \\."}]
@@ -81,15 +80,13 @@ class TestRtfFormatRoundTrip:
         assert "\\" in decoded[0]["text"]
 
 
-class TestRtfFormatValidation:
-    @pytest.mark.asyncio
+class TestRtfFormatValidation(unittest.IsolatedAsyncioTestCase):
     async def test_missing_text_key_raises(self) -> None:
         fmt = RtfFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, [{"foo": "bar"}])
 
-    @pytest.mark.asyncio
     async def test_non_string_text_rejected(self) -> None:
         fmt = RtfFormat()
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             await FormatRoundTrip.encode(fmt, [{"text": 1}])

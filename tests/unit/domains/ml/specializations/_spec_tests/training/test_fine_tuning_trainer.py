@@ -1,8 +1,8 @@
 """Tests for :class:`FineTuningTrainer`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -24,11 +24,11 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_pretrained_model_id(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="pretrained_model_id"):
+            with self.assertRaisesRegex(ValueError, "pretrained_model_id"):
                 FineTuningTrainer(
                     split=split,
                     pretrained_model_id="",
@@ -40,7 +40,7 @@ class TestConstruction:
     def test_rejects_negative_frozen_layers(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="frozen_layers must be >= 0"):
+            with self.assertRaisesRegex(ValueError, "frozen_layers must be >= 0"):
                 FineTuningTrainer(
                     split=split,
                     pretrained_model_id="bert-base",
@@ -51,7 +51,7 @@ class TestConstruction:
                 )
 
 
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_returns_model_report_and_pretrain_info(self) -> None:
         with Tapestry() as t:
             split = emit_split(_config=KnotConfig(id="split"))

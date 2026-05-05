@@ -6,10 +6,13 @@ the decoded payload has the expected data length.
 """
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
-pytest.importorskip("PIL")
+try:
+    import PIL
+except ImportError as _e:
+    raise unittest.SkipTest("PIL not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -35,7 +38,7 @@ def _tiny_rgb_record() -> dict[str, object]:
     }
 
 
-class TestJpegFormatConstruction:
+class TestJpegFormatConstruction(unittest.TestCase):
     def test_default_quality(self) -> None:
         fmt = JpegFormat()
         assert fmt.quality == 95
@@ -44,19 +47,19 @@ class TestJpegFormatConstruction:
         assert JpegFormat(quality=80).quality == 80
 
     def test_quality_too_low(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             JpegFormat(quality=0)
 
     def test_quality_too_high(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             JpegFormat(quality=101)
 
     def test_quality_wrong_type(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             JpegFormat(quality="high")  # type: ignore[arg-type]
 
 
-class TestJpegFormatBasics:
+class TestJpegFormatBasics(unittest.TestCase):
     def test_name(self) -> None:
         assert JpegFormat().name == "jpeg"
 
@@ -67,8 +70,7 @@ class TestJpegFormatBasics:
         assert isinstance(JpegFormat(), BatchFileFormat)
 
 
-class TestJpegFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestJpegFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         record = _tiny_rgb_record()
         fmt = JpegFormat()
@@ -83,7 +85,6 @@ class TestJpegFormatRoundTrip:
         assert isinstance(recovered["data"], bytes)
         assert len(recovered["data"]) == len(record["data"])
 
-    @pytest.mark.asyncio
     async def test_round_trip_single_record(self) -> None:
         record = _tiny_rgb_record()
         fmt = JpegFormat(quality=85)
@@ -91,8 +92,7 @@ class TestJpegFormatRoundTrip:
         decoded = await FormatRoundTrip.decode(fmt, payload)
         assert len(decoded) == 1
 
-    @pytest.mark.asyncio
     async def test_empty_records_rejected(self) -> None:
         fmt = JpegFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, [])

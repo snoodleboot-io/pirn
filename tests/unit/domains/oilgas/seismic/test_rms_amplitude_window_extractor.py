@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -36,9 +36,9 @@ class _HorizonSource(Knot):
         }
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_window(self) -> None:
-        with pytest.raises(ValueError, match="window_ms_above"):
+        with self.assertRaisesRegex(ValueError, "window_ms_above"):
             with Tapestry():
                 vol = _VolumeSource(_config=KnotConfig(id="vol"))
                 hor = _HorizonSource(_config=KnotConfig(id="hor"))
@@ -51,8 +51,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_rms_map(self) -> None:
         with Tapestry() as t:
             vol = _VolumeSource(_config=KnotConfig(id="vol"))

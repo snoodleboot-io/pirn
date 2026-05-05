@@ -1,8 +1,8 @@
 """Tests for :class:`CapabilityRouter`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -13,10 +13,9 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 
-@pytest.mark.asyncio
-class TestCapabilityRouterConstruction:
+class TestCapabilityRouterConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
-        with pytest.raises(TypeError, match="llm must be an LLMProvider"):
+        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
             with Tapestry():
                 CapabilityRouter(
                     task="analyse data",
@@ -27,7 +26,7 @@ class TestCapabilityRouterConstruction:
 
     async def test_rejects_empty_capabilities(self) -> None:
         llm = StubLLMProvider(["agent_a"])
-        with pytest.raises(ValueError, match="capabilities must be a non-empty"):
+        with self.assertRaisesRegex(ValueError, "capabilities must be a non-empty"):
             with Tapestry():
                 CapabilityRouter(
                     task="do something",
@@ -37,8 +36,7 @@ class TestCapabilityRouterConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestCapabilityRouterProcess:
+class TestCapabilityRouterProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_named_agent(self) -> None:
         llm = StubLLMProvider(["data_agent"])
         with Tapestry() as t:
@@ -73,7 +71,7 @@ class TestCapabilityRouterProcess:
 
     async def test_rejects_non_string_task(self) -> None:
         llm = StubLLMProvider(["alpha"])
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             with Tapestry():
                 CapabilityRouter(
                     task=123,  # type: ignore[arg-type]

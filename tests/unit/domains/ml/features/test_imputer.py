@@ -1,8 +1,8 @@
 """Tests for :class:`Imputer`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -20,7 +20,7 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestImputerHappyPath:
+class TestImputerHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_imputed_split(self) -> None:
         with Tapestry() as t:
             split = emit_split(_config=KnotConfig(id="split"))
@@ -35,11 +35,11 @@ class TestImputerHappyPath:
         assert out.train.name.endswith(":imputed_median")
 
 
-class TestImputerConstruction:
+class TestImputerConstruction(unittest.TestCase):
     def test_rejects_constant_method_without_value(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="constant_value"):
+            with self.assertRaisesRegex(ValueError, "constant_value"):
                 Imputer(
                     split=split,
                     columns=("age",),

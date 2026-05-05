@@ -1,8 +1,8 @@
 """Tests for :class:`ShadowDeploymentPipeline`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -37,12 +37,12 @@ async def emit_challenger() -> TrainedModel:
     )
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_lineage_store(self) -> None:
         with Tapestry():
             champion = emit_champion(_config=KnotConfig(id="champ"))
             challenger = emit_challenger(_config=KnotConfig(id="chall"))
-            with pytest.raises(TypeError, match="lineage"):
+            with self.assertRaisesRegex(TypeError, "lineage"):
                 ShadowDeploymentPipeline(
                     champion=champion,
                     challenger=challenger,
@@ -51,8 +51,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_records_divergence_event(self) -> None:
         lineage = RecordingLineageStore()
         with Tapestry() as t:

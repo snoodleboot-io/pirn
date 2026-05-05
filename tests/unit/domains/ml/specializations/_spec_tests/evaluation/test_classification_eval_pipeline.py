@@ -1,8 +1,8 @@
 """Tests for :class:`ClassificationEvalPipeline`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -34,11 +34,11 @@ async def emit_model() -> TrainedModel:
     )
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_knot_model(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(TypeError, match="model must be a Knot"):
+            with self.assertRaisesRegex(TypeError, "model must be a Knot"):
                 ClassificationEvalPipeline(
                     model="not-a-knot",  # type: ignore[arg-type]
                     split=split,
@@ -48,7 +48,7 @@ class TestConstruction:
     def test_rejects_non_knot_split(self) -> None:
         with Tapestry():
             model = emit_model(_config=KnotConfig(id="model"))
-            with pytest.raises(TypeError, match="split must be a Knot"):
+            with self.assertRaisesRegex(TypeError, "split must be a Knot"):
                 ClassificationEvalPipeline(
                     model=model,
                     split="not-a-knot",  # type: ignore[arg-type]
@@ -56,8 +56,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_classification_report(self) -> None:
         with Tapestry() as t:
             split = emit_split(_config=KnotConfig(id="split"))

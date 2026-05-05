@@ -10,6 +10,8 @@ import sys
 import types
 from datetime import datetime, timezone
 from typing import Any, AsyncIterator, Mapping
+import unittest
+import unittest.mock
 
 import pytest
 
@@ -52,11 +54,7 @@ class _HistoryEntry:
 class StubTable:
     """Minimal stand-in for ``pyiceberg.table.Table``."""
 
-    def __init__(
-        self,
-        rows: list[dict[str, Any]] | None = None,
-        snapshot_id: int = 1234,
-    ) -> None:
+    def __init__(self, rows: list[dict[str, Any]] | None = None, snapshot_id: int = 1234,) -> None:
         self._rows = list(rows or [])
         self._snapshot_id = snapshot_id
         self.last_scan_kwargs: dict[str, Any] = {}
@@ -116,7 +114,8 @@ def _stub_pyarrow_module() -> Any:
     return pyarrow
 
 
-def _install_pyiceberg_expressions(monkeypatch: pytest.MonkeyPatch) -> None:
+def _install_pyiceberg_expressions() -> None:
+    """Patch sys.modules with a minimal pyiceberg.expressions stub."""
     expr_mod = types.ModuleType("pyiceberg.expressions")
 
     class _Expr:
@@ -146,8 +145,8 @@ def _install_pyiceberg_expressions(monkeypatch: pytest.MonkeyPatch) -> None:
     pyiceberg_mod = types.ModuleType("pyiceberg")
     pyiceberg_mod.expressions = expr_mod  # type: ignore[attr-defined]
 
-    monkeypatch.setitem(sys.modules, "pyiceberg", pyiceberg_mod)
-    monkeypatch.setitem(sys.modules, "pyiceberg.expressions", expr_mod)
+    sys.modules["pyiceberg"] = pyiceberg_mod
+    sys.modules["pyiceberg.expressions"] = expr_mod
 
 
 async def _records(
@@ -160,18 +159,18 @@ async def _records(
 # ──────────────────────────────────────────────────────────── construction
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_no_args(self) -> None:
-        with pytest.raises(TypeError, match="config= or table="):
+        with self.assertRaisesRegex(TypeError, "config= or table="):
             IcebergTable()
 
     def test_rejects_wrong_config_type(self) -> None:
-        with pytest.raises(TypeError, match="IcebergTableConfig"):
+        with self.assertRaisesRegex(TypeError, "IcebergTableConfig"):
             IcebergTable("not-a-config")  # type: ignore[arg-type]
 
     def test_rejects_empty_table_identifier(self) -> None:
-        with pytest.raises(ValueError, match="table_identifier"):
-            IcebergTable(IcebergTableConfig(table_identifier=""))
+        with self.assertRaisesRegex(ValueError, "table_identifier"):
+            IcebergTable(IcebergTableConfig(catalog_name="default", table_identifier=""))
 
     def test_accepts_injected_table(self) -> None:
         table = IcebergTable(table=StubTable())
@@ -189,8 +188,7 @@ class TestConstruction:
 # ──────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_clears_credentials(self) -> None:
         cfg = IcebergTableConfig(
             catalog_name="default",
@@ -205,15 +203,14 @@ class TestLifecycle:
     async def test_scan_after_close_raises(self) -> None:
         table = IcebergTable(table=StubTable())
         await table.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await table.scan()
 
 
 # ──────────────────────────────────────────────────────────── scan
 
 
-@pytest.mark.asyncio
-class TestScan:
+class TestScan(unittest.IsolatedAsyncioTestCase):
     async def test_scan_yields_rows(self) -> None:
         rows = [{"id": 1}, {"id": 2}, {"id": 3}]
         stub = StubTable(rows=rows)
@@ -229,10 +226,9 @@ class TestScan:
         assert out == [{"id": 1, "name": "a"}]
         assert stub.last_scan_kwargs["selected_fields"] == ("id", "name")
 
-    async def test_scan_filter_builds_expression(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        _install_pyiceberg_expressions(monkeypatch)
+    async def test_scan_filter_builds_expression(self) -> None:
+        _install_pyiceberg_expressions()
+        self.addCleanup(lambda: [sys.modules.pop("pyiceberg", None), sys.modules.pop("pyiceberg.expressions", None)])
         stub = StubTable(rows=[{"id": 1}])
         table = IcebergTable(table=stub)
         async for _ in await table.scan(
@@ -263,12 +259,13 @@ class TestScan:
         stub = StubTable(rows=[])
         table = IcebergTable(table=stub)
         ts = datetime.fromtimestamp(0.0, tz=timezone.utc)
-        with pytest.raises(ValueError, match="no snapshot"):
-            await table.scan(as_of_timestamp=ts)
+        with self.assertRaisesRegex(ValueError, "no snapshot"):
+            async for _ in await table.scan(as_of_timestamp=ts):
+                pass
 
     async def test_scan_rejects_both_time_travel_args(self) -> None:
         table = IcebergTable(table=StubTable())
-        with pytest.raises(ValueError, match="mutually exclusive"):
+        with self.assertRaisesRegex(ValueError, "mutually exclusive"):
             await table.scan(
                 snapshot_id=1,
                 as_of_timestamp=datetime.now(timezone.utc),
@@ -278,8 +275,7 @@ class TestScan:
 # ──────────────────────────────────────────────────────────── append/overwrite/merge
 
 
-@pytest.mark.asyncio
-class TestWrites:
+class TestWrites(unittest.IsolatedAsyncioTestCase):
     async def test_append_returns_snapshot_id_string(self) -> None:
         _stub_pyarrow_module()
         stub = StubTable(snapshot_id=10)
@@ -288,11 +284,10 @@ class TestWrites:
         assert snap == "11"
         assert stub.appended == [[{"id": 1}, {"id": 2}]]
 
-    async def test_overwrite_passes_filter_expression(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_overwrite_passes_filter_expression(self) -> None:
         _stub_pyarrow_module()
-        _install_pyiceberg_expressions(monkeypatch)
+        _install_pyiceberg_expressions()
+        self.addCleanup(lambda: [sys.modules.pop("pyiceberg", None), sys.modules.pop("pyiceberg.expressions", None)])
         stub = StubTable(snapshot_id=20)
         table = IcebergTable(table=stub)
         snap = await table.overwrite(
@@ -304,15 +299,14 @@ class TestWrites:
 
     async def test_merge_raises_not_implemented(self) -> None:
         table = IcebergTable(table=StubTable())
-        with pytest.raises(NotImplementedError, match="MERGE"):
+        with self.assertRaisesRegex(NotImplementedError, "MERGE"):
             await table.merge(_records([{"id": 1}]), on=["id"])
 
 
 # ──────────────────────────────────────────────────────────── history
 
 
-@pytest.mark.asyncio
-class TestHistory:
+class TestHistory(unittest.IsolatedAsyncioTestCase):
     async def test_history_yields_dict_entries(self) -> None:
         stub = StubTable(snapshot_id=99)
         table = IcebergTable(table=stub)

@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -27,9 +27,9 @@ class _TestDataSource(Knot):
         }
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_radius(self) -> None:
-        with pytest.raises(ValueError, match="wellbore_radius_ft"):
+        with self.assertRaisesRegex(ValueError, "wellbore_radius_ft"):
             with Tapestry():
                 src = _TestDataSource(_config=KnotConfig(id="src"))
                 PressureTransientAnalyzer(
@@ -41,8 +41,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_reservoir_params(self) -> None:
         with Tapestry() as t:
             src = _TestDataSource(_config=KnotConfig(id="src"))

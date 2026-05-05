@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
 import pytest
 
@@ -23,9 +24,9 @@ class _LogSource(Knot):
         return [{"depth_ft": 1000.0, "raw_value": 50.0}]
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_invalid_log_type(self) -> None:
-        with pytest.raises(ValueError, match="log_type"):
+        with self.assertRaisesRegex(ValueError, "log_type"):
             with Tapestry():
                 src = _LogSource(_config=KnotConfig(id="src"))
                 EnvironmentalCorrectionApplicator(
@@ -36,7 +37,7 @@ class TestConstruction:
                 )
 
     def test_rejects_non_dict_correction_table(self) -> None:
-        with pytest.raises(TypeError, match="correction_table"):
+        with self.assertRaisesRegex(TypeError, "correction_table"):
             with Tapestry():
                 src = _LogSource(_config=KnotConfig(id="src"))
                 EnvironmentalCorrectionApplicator(
@@ -47,8 +48,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_applies_correction(self) -> None:
         with Tapestry() as t:
             src = _LogSource(_config=KnotConfig(id="src"))

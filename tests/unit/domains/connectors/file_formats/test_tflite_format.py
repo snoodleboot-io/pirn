@@ -8,6 +8,7 @@ that decode a real model skip when neither runtime is available.
 from __future__ import annotations
 
 import importlib.util
+import unittest
 
 import pytest
 
@@ -27,13 +28,13 @@ def _has_tflite_runtime() -> bool:
     )
 
 
-class TestTfliteFormatConstruction:
+class TestTfliteFormatConstruction(unittest.TestCase):
     def test_default_construction(self) -> None:
         fmt = TfliteFormat()
         assert fmt.name == "tflite"
 
 
-class TestTfliteFormatBasics:
+class TestTfliteFormatBasics(unittest.TestCase):
     def test_streaming_property(self) -> None:
         assert TfliteFormat().streaming is False
 
@@ -41,34 +42,29 @@ class TestTfliteFormatBasics:
         assert isinstance(TfliteFormat(), BatchFileFormat)
 
 
-class TestTfliteFormatValidation:
-    @pytest.mark.asyncio
+class TestTfliteFormatValidation(unittest.IsolatedAsyncioTestCase):
     async def test_decode_non_bytes_rejected(self) -> None:
         fmt = TfliteFormat()
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             await fmt._decode_full("not-bytes")  # type: ignore[arg-type]
 
-    @pytest.mark.asyncio
     async def test_encode_empty_rejected(self) -> None:
         fmt = TfliteFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, [])
 
-    @pytest.mark.asyncio
     async def test_encode_missing_model_bytes_rejected(self) -> None:
         fmt = TfliteFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, [{"wrong": b"x"}])
 
-    @pytest.mark.asyncio
     async def test_encode_non_bytes_rejected(self) -> None:
         fmt = TfliteFormat()
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             await FormatRoundTrip.encode(
                 fmt, [{"model_bytes": "not-bytes"}]
             )
 
-    @pytest.mark.asyncio
     async def test_encode_emits_bytes_verbatim(self) -> None:
         fmt = TfliteFormat()
         # Encode-only path doesn't need the SDK; just verify pass-through.
@@ -82,10 +78,12 @@ class TestTfliteFormatValidation:
     not _has_tflite_runtime(),
     reason="requires tflite_runtime or tensorflow",
 )
-class TestTfliteFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestTfliteFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
-        tf = pytest.importorskip("tensorflow")
+        try:
+            import tensorflow
+        except ImportError as _e:
+            self.skipTest("tensorflow not installed")
         # Build a tiny model and convert to TFLite to get valid bytes.
         model = tf.keras.Sequential(
             [tf.keras.layers.Dense(2, input_shape=(2,))]

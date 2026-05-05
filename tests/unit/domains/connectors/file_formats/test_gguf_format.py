@@ -5,8 +5,8 @@ run unconditionally; round-trip tests skip when the SDK is unavailable.
 """
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -17,13 +17,13 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 )
 
 
-class TestGgufFormatConstruction:
+class TestGgufFormatConstruction(unittest.TestCase):
     def test_default_construction(self) -> None:
         fmt = GgufFormat()
         assert fmt.name == "gguf"
 
 
-class TestGgufFormatBasics:
+class TestGgufFormatBasics(unittest.TestCase):
     def test_streaming_property(self) -> None:
         assert GgufFormat().streaming is False
 
@@ -31,35 +31,37 @@ class TestGgufFormatBasics:
         assert isinstance(GgufFormat(), BatchFileFormat)
 
 
-class TestGgufFormatValidation:
-    @pytest.mark.asyncio
+class TestGgufFormatValidation(unittest.IsolatedAsyncioTestCase):
     async def test_decode_non_bytes_rejected(self) -> None:
         fmt = GgufFormat()
         # Async _decode_full direct call ensures the type guard fires
         # without needing the SDK installed.
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             await fmt._decode_full("not-bytes")  # type: ignore[arg-type]
 
-    @pytest.mark.asyncio
     async def test_encode_empty_rejected(self) -> None:
         fmt = GgufFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, [])
 
-    @pytest.mark.asyncio
     async def test_encode_missing_keys_rejected(self) -> None:
         fmt = GgufFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(
                 fmt, [{"metadata": {}, "tensors": []}]
             )
 
 
-class TestGgufFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestGgufFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
-        gguf = pytest.importorskip("gguf")
-        np = pytest.importorskip("numpy")
+        try:
+            import gguf
+        except ImportError as _e:
+            self.skipTest("gguf not installed")
+        try:
+            import numpy as np
+        except ImportError as _e:
+            self.skipTest("numpy not installed")
         fmt = GgufFormat()
         record = {
             "architecture": "test",

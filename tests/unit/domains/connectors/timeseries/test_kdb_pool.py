@@ -6,8 +6,8 @@ Uses an injected synchronous stub connection — no real kdb+ needed.
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.timeseries.kdb_config import KdbConfig
@@ -36,30 +36,31 @@ class FakeKdbConnection:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-def test_implements_database_connection_pool() -> None:
-    pool = KdbPool(connection=FakeKdbConnection())
-    assert isinstance(pool, DatabaseConnectionPool)
 
-
-def test_construction_requires_config_or_connection() -> None:
-    with pytest.raises(TypeError, match="config= or connection="):
-        KdbPool()
-
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_database_connection_pool(self) -> None:
+        pool = KdbPool(connection=FakeKdbConnection())
+        assert isinstance(pool, DatabaseConnectionPool)
+    
+    
+    def test_construction_requires_config_or_connection(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or connection="):
+            KdbPool()
+    
+    
 # ───────────────────────────────────────────────────────────── config
 
 
-def test_config_repr_redacts_password() -> None:
-    cfg = KdbConfig(password="s3cr3t")
-    assert "s3cr3t" not in repr(cfg)
-    assert "<redacted>" in repr(cfg)
-
-
+    def test_config_repr_redacts_password(self) -> None:
+        cfg = KdbConfig(password="s3cr3t")
+        assert "s3cr3t" not in repr(cfg)
+        assert "<redacted>" in repr(cfg)
+    
+    
 # ───────────────────────────────────────────────────────────── delegation
 
 
-@pytest.mark.asyncio
-class TestDelegation:
+class TestDelegation(unittest.IsolatedAsyncioTestCase):
     async def test_execute_returns_string_result(self) -> None:
         fake = FakeKdbConnection(responses={"1+1": 2})
         pool = KdbPool(connection=fake)
@@ -106,8 +107,7 @@ class TestDelegation:
 # ───────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_calls_connection_close(self) -> None:
         fake = FakeKdbConnection()
         pool = KdbPool(connection=fake)
@@ -117,7 +117,7 @@ class TestLifecycle:
     async def test_acquire_after_close_raises(self) -> None:
         pool = KdbPool(connection=FakeKdbConnection())
         await pool.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await pool.acquire()
 
     async def test_close_clears_credentials(self) -> None:
@@ -129,11 +129,11 @@ class TestLifecycle:
     async def test_use_after_close_raises(self) -> None:
         pool = KdbPool(config=KdbConfig(), connection=FakeKdbConnection())
         await pool.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await pool.acquire()
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_audit_dict_redacts_password(self) -> None:
         cfg = KdbConfig(password="supersecret")
         d = cfg.to_audit_dict()

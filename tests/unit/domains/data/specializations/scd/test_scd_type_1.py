@@ -1,8 +1,8 @@
 """Tests for :class:`ScdType1`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,41 +12,42 @@ from pirn.domains.data.specializations.scd.scd_type_1 import ScdType1
 from pirn.tapestry import Tapestry
 
 
-@pytest.fixture
-async def source_pool() -> SqlitePool:
-    pool = SqlitePool(SqliteConfig(database=":memory:"))
-    await pool.execute(
-        "CREATE TABLE customers ("
-        "  id INTEGER PRIMARY KEY,"
-        "  name TEXT NOT NULL,"
-        "  region TEXT NOT NULL"
-        ")"
-    )
-    await pool.execute_many(
-        "INSERT INTO customers (id, name, region) VALUES (?, ?, ?)",
-        [(1, "Alice", "EU"), (2, "Bob", "US")],
-    )
-    yield pool
-    await pool.close()
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
+    async def asyncSetUp(self) -> None:
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute(
+            "CREATE TABLE customers ("
+            "  id INTEGER PRIMARY KEY,"
+            "  name TEXT NOT NULL,"
+            "  region TEXT NOT NULL"
+            ")"
+        )
+        await pool.execute_many(
+            "INSERT INTO customers (id, name, region) VALUES (?, ?, ?)",
+            [(1, "Alice", "EU"), (2, "Bob", "US")],
+        )
+        self.source_pool = pool
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute(
+            "CREATE TABLE customers ("
+            "  id INTEGER PRIMARY KEY,"
+            "  name TEXT NOT NULL,"
+            "  region TEXT NOT NULL"
+            ")"
+        )
+        self.target_pool = pool
 
-@pytest.fixture
-async def target_pool() -> SqlitePool:
-    pool = SqlitePool(SqliteConfig(database=":memory:"))
-    await pool.execute(
-        "CREATE TABLE customers ("
-        "  id INTEGER PRIMARY KEY,"
-        "  name TEXT NOT NULL,"
-        "  region TEXT NOT NULL"
-        ")"
-    )
-    yield pool
-    await pool.close()
-
-
-class TestConstruction:
-    def test_rejects_non_pool_source(self, target_pool: SqlitePool) -> None:
-        with pytest.raises(TypeError, match="DatabaseConnectionPool"):
+    async def asyncTearDown(self) -> None:
+        await self.source_pool.close()
+        
+        
+        await self.target_pool.close()
+        
+        
+    def test_rejects_non_pool_source(self) -> None:
+        target_pool = self.target_pool
+        with self.assertRaisesRegex(TypeError, "DatabaseConnectionPool"):
             ScdType1(
                 source_pool="not-a-pool",  # type: ignore[arg-type]
                 source_query="SELECT 1",
@@ -57,10 +58,10 @@ class TestConstruction:
                 _config=KnotConfig(id="scd1"),
             )
 
-    def test_rejects_empty_source_query(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
-        with pytest.raises(ValueError, match="source_query"):
+    def test_rejects_empty_source_query(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
+        with self.assertRaisesRegex(ValueError, "source_query"):
             ScdType1(
                 source_pool=source_pool,
                 source_query="",
@@ -71,10 +72,10 @@ class TestConstruction:
                 _config=KnotConfig(id="scd1"),
             )
 
-    def test_rejects_pk_outside_columns(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
-        with pytest.raises(ValueError, match="primary_keys not in column_names"):
+    def test_rejects_pk_outside_columns(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
+        with self.assertRaisesRegex(ValueError, "primary_keys not in column_names"):
             ScdType1(
                 source_pool=source_pool,
                 source_query="SELECT id, name FROM customers",
@@ -85,10 +86,10 @@ class TestConstruction:
                 _config=KnotConfig(id="scd1"),
             )
 
-    def test_rejects_invalid_identifier(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
-        with pytest.raises(ValueError, match="plain identifier"):
+    def test_rejects_invalid_identifier(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
             ScdType1(
                 source_pool=source_pool,
                 source_query="SELECT id FROM customers",
@@ -100,11 +101,42 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestScdType1Behaviour:
-    async def test_first_run_inserts_all_rows(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
+class TestScdType1Behaviour(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self) -> None:
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute(
+            "CREATE TABLE customers ("
+            "  id INTEGER PRIMARY KEY,"
+            "  name TEXT NOT NULL,"
+            "  region TEXT NOT NULL"
+            ")"
+        )
+        await pool.execute_many(
+            "INSERT INTO customers (id, name, region) VALUES (?, ?, ?)",
+            [(1, "Alice", "EU"), (2, "Bob", "US")],
+        )
+        self.source_pool = pool
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute(
+            "CREATE TABLE customers ("
+            "  id INTEGER PRIMARY KEY,"
+            "  name TEXT NOT NULL,"
+            "  region TEXT NOT NULL"
+            ")"
+        )
+        self.target_pool = pool
+
+    async def asyncTearDown(self) -> None:
+        await self.source_pool.close()
+        
+        
+        await self.target_pool.close()
+        
+        
+    async def test_first_run_inserts_all_rows(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
         with Tapestry() as t:
             ScdType1(
                 source_pool=source_pool,
@@ -122,9 +154,9 @@ class TestScdType1Behaviour:
         )
         assert rows == [(1, "Alice", "EU"), (2, "Bob", "US")]
 
-    async def test_second_run_overwrites_changed_row(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
+    async def test_second_run_overwrites_changed_row(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
         # First run.
         with Tapestry() as t:
             ScdType1(

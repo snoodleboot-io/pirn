@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
+import unittest
 
 from starlette.testclient import TestClient
 
@@ -22,7 +23,7 @@ def _client(trigger: WebhookTrigger) -> TestClient:
 # ---------------------------------------------------------------------------
 
 
-class TestBearerTokenAuth:
+class TestBearerTokenAuth(unittest.TestCase):
     TOKEN = "test-secret-token"
 
     def test_missing_auth_header_returns_401(self):
@@ -71,7 +72,7 @@ class TestBearerTokenAuth:
 # ---------------------------------------------------------------------------
 
 
-class TestRateLimiting:
+class TestRateLimiting(unittest.TestCase):
     def test_requests_within_limit_succeed(self):
         trigger = WebhookTrigger(path="/run", rate_limit_rpm=3)
         client = _client(trigger)

@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.message_broker import MessageBroker
 from pirn.domains.connectors.streaming.azure_servicebus_broker import (
@@ -62,11 +62,7 @@ class StubReceiver:
 
 
 class StubServiceBusClient:
-    def __init__(
-        self,
-        *,
-        receiver_messages: dict[str, list[Any]] | None = None,
-    ) -> None:
+    def __init__(self, *, receiver_messages: dict[str, list[Any]] | None = None,) -> None:
         self.senders: dict[str, StubSender] = {}
         self.receivers: dict[str, StubReceiver] = {}
         self._receiver_messages = receiver_messages or {}
@@ -93,29 +89,30 @@ class StubMessage:
 # ───────────────────────────────────────────────────────── conformance
 
 
-def test_implements_message_broker() -> None:
-    broker = AzureServiceBusBroker(
-        AzureServiceBusConfig(connection_string="Endpoint=sb://x"),
-        client=StubServiceBusClient(),
-    )
-    assert isinstance(broker, MessageBroker)
 
-
-def test_rejects_non_config() -> None:
-    with pytest.raises(TypeError, match="must be AzureServiceBusConfig"):
-        AzureServiceBusBroker("nope", client=StubServiceBusClient())  # type: ignore[arg-type]
-
-
-def test_requires_connection_or_injected_client() -> None:
-    with pytest.raises(ValueError, match="connection_string"):
-        AzureServiceBusBroker(AzureServiceBusConfig())
-
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_message_broker(self) -> None:
+        broker = AzureServiceBusBroker(
+            AzureServiceBusConfig(connection_string="Endpoint=sb://x"),
+            client=StubServiceBusClient(),
+        )
+        assert isinstance(broker, MessageBroker)
+    
+    
+    def test_rejects_non_config(self) -> None:
+        with self.assertRaisesRegex(TypeError, "must be AzureServiceBusConfig"):
+            AzureServiceBusBroker("nope", client=StubServiceBusClient())  # type: ignore[arg-type]
+    
+    
+    def test_requires_connection_or_injected_client(self) -> None:
+        with self.assertRaisesRegex(ValueError, "connection_string"):
+            AzureServiceBusBroker(AzureServiceBusConfig())
+    
+    
 # ─────────────────────────────────────────────────────────────── publish
 
 
-@pytest.mark.asyncio
-class TestPublish:
+class TestPublish(unittest.IsolatedAsyncioTestCase):
     async def test_publish_bytes_uses_queue_sender(self) -> None:
         client = StubServiceBusClient()
         broker = AzureServiceBusBroker(
@@ -149,7 +146,7 @@ class TestPublish:
             AzureServiceBusConfig(connection_string="Endpoint=sb://x"),
             client=StubServiceBusClient(),
         )
-        with pytest.raises(TypeError, match="value must be bytes"):
+        with self.assertRaisesRegex(TypeError, "value must be bytes"):
             await broker.publish("t", "string")  # type: ignore[arg-type]
 
     async def test_rejects_non_bytes_key(self) -> None:
@@ -157,15 +154,14 @@ class TestPublish:
             AzureServiceBusConfig(connection_string="Endpoint=sb://x"),
             client=StubServiceBusClient(),
         )
-        with pytest.raises(TypeError, match="key must be bytes"):
+        with self.assertRaisesRegex(TypeError, "key must be bytes"):
             await broker.publish("t", b"v", key="not-bytes")  # type: ignore[arg-type]
 
 
 # ─────────────────────────────────────────────────────────────── consume
 
 
-@pytest.mark.asyncio
-class TestConsume:
+class TestConsume(unittest.IsolatedAsyncioTestCase):
     async def test_yields_messages_from_queue(self) -> None:
         messages = [StubMessage(b"a"), StubMessage(b"b")]
         client = StubServiceBusClient(receiver_messages={"events": messages})
@@ -185,8 +181,7 @@ class TestConsume:
 # ───────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_is_idempotent(self) -> None:
         client = StubServiceBusClient()
         broker = AzureServiceBusBroker(
@@ -204,14 +199,14 @@ class TestLifecycle:
             client=StubServiceBusClient(),
         )
         await broker.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await broker.publish("t", b"v")
 
 
 # ─────────────────────────────────────────────────────── credential safety
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_repr_redacts_connection_string(self) -> None:
         cfg = AzureServiceBusConfig(
             connection_string="Endpoint=sb://leak;SharedAccessKey=secret"

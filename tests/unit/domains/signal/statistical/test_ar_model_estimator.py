@@ -1,8 +1,8 @@
 """Unit tests for :class:`ARModelEstimator`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -11,11 +11,11 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.signal.conftest import emit_signal_frame
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_order(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="positive integer"):
+            with self.assertRaisesRegex(ValueError, "positive integer"):
                 ARModelEstimator(
                     signal=sig, order=0, method="burg", _config=KnotConfig(id="ar")
                 )
@@ -23,7 +23,7 @@ class TestConstruction:
     def test_rejects_invalid_method(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="method"):
+            with self.assertRaisesRegex(ValueError, "method"):
                 ARModelEstimator(
                     signal=sig,
                     order=4,
@@ -40,8 +40,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_dict_with_correct_keys(self) -> None:
         with Tapestry() as t:
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))

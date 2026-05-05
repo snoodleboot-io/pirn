@@ -1,8 +1,8 @@
 """Tests for :class:`NaiveRAGPipeline`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -17,11 +17,10 @@ from tests.unit.domains.agents.specializations.conftest import (
 )
 
 
-@pytest.mark.asyncio
-class TestNaiveRAGPipelineConstruction:
+class TestNaiveRAGPipelineConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_memory_store(self) -> None:
         llm = StubLLMProvider(["answer"])
-        with pytest.raises(TypeError, match="memory must be a MemoryStore"):
+        with self.assertRaisesRegex(TypeError, "memory must be a MemoryStore"):
             with Tapestry():
                 NaiveRAGPipeline(
                     query="q",
@@ -33,7 +32,7 @@ class TestNaiveRAGPipelineConstruction:
     async def test_rejects_zero_top_k(self) -> None:
         memory = StubMemoryStore([{"id": 1}])
         llm = StubLLMProvider(["answer"])
-        with pytest.raises(ValueError, match="top_k must be a positive int"):
+        with self.assertRaisesRegex(ValueError, "top_k must be a positive int"):
             with Tapestry():
                 NaiveRAGPipeline(
                     query="q",
@@ -44,8 +43,7 @@ class TestNaiveRAGPipelineConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestNaiveRAGPipelineHappyPath:
+class TestNaiveRAGPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_returns_response_with_retrieved_context(self) -> None:
         memory = StubMemoryStore(
             [

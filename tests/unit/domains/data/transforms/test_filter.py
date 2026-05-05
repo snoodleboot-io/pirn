@@ -1,8 +1,8 @@
 """Tests for :class:`pirn.domains.data.transforms.filter.Filter`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -25,8 +25,7 @@ async def emit_users() -> DataBatch:
     return DataBatch(rows=rows, schema=schema)
 
 
-@pytest.mark.asyncio
-class TestFilter:
+class TestFilter(unittest.IsolatedAsyncioTestCase):
     async def test_keeps_only_rows_matching_predicate(self) -> None:
         with Tapestry() as t:
             batch = emit_users(_config=KnotConfig(id="users"))
@@ -64,14 +63,14 @@ class TestFilter:
         assert out.row_count == 0
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_callable_predicate(self) -> None:
         @knot
         async def empty() -> DataBatch:
             return DataBatch()
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="callable"):
+            with self.assertRaisesRegex(TypeError, "callable"):
                 Filter(
                     batch=batch, predicate="not callable",  # type: ignore[arg-type]
                     _config=KnotConfig(id="f"),

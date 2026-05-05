@@ -1,8 +1,8 @@
 """Unit tests for :class:`OutputParser`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -35,8 +35,7 @@ async def emit_blocks_response() -> dict:
     }
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_parses_string_content(self) -> None:
         with Tapestry() as t:
             raw = emit_simple_response(_config=KnotConfig(id="raw"))

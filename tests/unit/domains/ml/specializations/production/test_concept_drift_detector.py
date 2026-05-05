@@ -1,8 +1,8 @@
 """Tests for :class:`ConceptDriftDetector`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -28,12 +28,12 @@ async def emit_model() -> TrainedModel:
     return TrainedModel(model_id="m1", algorithm="logistic")
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_invalid_method(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
             model = emit_model(_config=KnotConfig(id="model"))
-            with pytest.raises(ValueError, match="method"):
+            with self.assertRaisesRegex(ValueError, "method"):
                 ConceptDriftDetector(
                     model=model,
                     split=split,
@@ -45,7 +45,7 @@ class TestConstruction:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
             model = emit_model(_config=KnotConfig(id="model"))
-            with pytest.raises(ValueError, match="delta"):
+            with self.assertRaisesRegex(ValueError, "delta"):
                 ConceptDriftDetector(
                     model=model,
                     split=split,
@@ -54,8 +54,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_concept_drift_result(self) -> None:
         with Tapestry() as t:
             split = emit_split(_config=KnotConfig(id="split"))

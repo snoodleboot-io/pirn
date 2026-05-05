@@ -1,8 +1,8 @@
 """Tests for :class:`pirn.domains.data.transforms.normalize.Normalize`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -23,8 +23,7 @@ async def emit_messy() -> DataBatch:
     return DataBatch(rows=rows)
 
 
-@pytest.mark.asyncio
-class TestNormalize:
+class TestNormalize(unittest.IsolatedAsyncioTestCase):
     async def test_strip_whitespace_collapses_runs(self) -> None:
         with Tapestry() as t:
             batch = emit_messy(_config=KnotConfig(id="batch"))
@@ -105,9 +104,9 @@ class TestNormalize:
         assert out.rows[0]["name"] == "alice"
 
 
-class TestNormalizeColumnRule:
+class TestNormalizeColumnRule(unittest.TestCase):
     def test_rejects_invalid_case_mode(self) -> None:
-        with pytest.raises(ValueError, match="must be one of"):
+        with self.assertRaisesRegex(ValueError, "must be one of"):
             NormalizeColumnRule(case="random")
 
     def test_accepts_none_case(self) -> None:
@@ -115,14 +114,14 @@ class TestNormalizeColumnRule:
         NormalizeColumnRule(case=None)
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_rules(self) -> None:
         @knot
         async def empty() -> DataBatch:
             return DataBatch()
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="non-empty"):
+            with self.assertRaisesRegex(TypeError, "non-empty"):
                 Normalize(batch=batch, rules={}, _config=KnotConfig(id="n"))
 
     def test_rejects_non_rule_value(self) -> None:
@@ -131,7 +130,7 @@ class TestConstruction:
             return DataBatch()
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="NormalizeColumnRule"):
+            with self.assertRaisesRegex(TypeError, "NormalizeColumnRule"):
                 Normalize(
                     batch=batch,
                     rules={"a": "lower"},  # type: ignore[dict-item]

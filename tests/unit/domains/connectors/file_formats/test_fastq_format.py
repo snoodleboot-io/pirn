@@ -1,8 +1,8 @@
 """Round-trip and validation tests for :class:`FastqFormat`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.file_formats.fastq_format import (
     FastqFormat,
@@ -15,7 +15,7 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 )
 
 
-class TestFastqFormatConstruction:
+class TestFastqFormatConstruction(unittest.TestCase):
     def test_default_arguments(self) -> None:
         fmt = FastqFormat()
         assert fmt.encoding == "utf-8"
@@ -25,15 +25,15 @@ class TestFastqFormatConstruction:
         assert fmt.encoding == "ascii"
 
     def test_encoding_must_be_str(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             FastqFormat(encoding=1)  # type: ignore[arg-type]
 
     def test_encoding_must_be_nonempty(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             FastqFormat(encoding="")
 
 
-class TestFastqFormatBasics:
+class TestFastqFormatBasics(unittest.TestCase):
     def test_name(self) -> None:
         assert FastqFormat().name == "fastq"
 
@@ -44,8 +44,7 @@ class TestFastqFormatBasics:
         assert isinstance(FastqFormat(), StreamingFileFormat)
 
 
-class TestFastqFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestFastqFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         fmt = FastqFormat()
         records = [
@@ -70,12 +69,10 @@ class TestFastqFormatRoundTrip:
         ]
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_empty(self) -> None:
         fmt = FastqFormat()
         await FormatRoundTrip.assert_round_trip(fmt, [])
 
-    @pytest.mark.asyncio
     async def test_round_trip_single(self) -> None:
         fmt = FastqFormat()
         records = [
@@ -88,7 +85,6 @@ class TestFastqFormatRoundTrip:
         ]
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_quality_length_mismatch_rejected(self) -> None:
         fmt = FastqFormat()
         records = [
@@ -99,10 +95,9 @@ class TestFastqFormatRoundTrip:
                 "quality": "II",
             }
         ]
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_seq_id_with_whitespace_rejected(self) -> None:
         fmt = FastqFormat()
         records = [
@@ -113,5 +108,5 @@ class TestFastqFormatRoundTrip:
                 "quality": "IIII",
             }
         ]
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, records)

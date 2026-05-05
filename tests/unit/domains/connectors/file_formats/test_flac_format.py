@@ -1,11 +1,17 @@
 """Round-trip and validation tests for :class:`FlacFormat`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
-pytest.importorskip("soundfile")
-pytest.importorskip("numpy")
+try:
+    import soundfile
+except ImportError as _e:
+    raise unittest.SkipTest("soundfile not installed") from _e
+try:
+    import numpy
+except ImportError as _e:
+    raise unittest.SkipTest("numpy not installed") from _e
 
 import numpy as np
 
@@ -32,7 +38,7 @@ def _pcm_record(
     }
 
 
-class TestFlacFormatConstruction:
+class TestFlacFormatConstruction(unittest.TestCase):
     def test_name(self) -> None:
         assert FlacFormat().name == "flac"
 
@@ -43,32 +49,28 @@ class TestFlacFormatConstruction:
         assert isinstance(FlacFormat(), BatchFileFormat)
 
 
-class TestFlacFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestFlacFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_mono(self) -> None:
         records = [_pcm_record()]
         await FormatRoundTrip.assert_round_trip(FlacFormat(), records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_stereo(self) -> None:
         records = [_pcm_record(n_channels=2, n_frames=32)]
         await FormatRoundTrip.assert_round_trip(FlacFormat(), records)
 
 
-class TestFlacFormatErrors:
-    @pytest.mark.asyncio
+class TestFlacFormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_empty_payload_raises(self) -> None:
         fmt = FlacFormat()
 
         async def _empty():
             yield b""
 
-        with pytest.raises((ValueError, Exception)):
+        with self.assertRaises((ValueError, Exception)):
             record_iter = await fmt.read(_empty())
             async for _ in record_iter:
                 pass
 
-    @pytest.mark.asyncio
     async def test_empty_records_raises(self) -> None:
         fmt = FlacFormat()
 
@@ -76,14 +78,14 @@ class TestFlacFormatErrors:
             return
             yield  # pragma: no cover
 
-        with pytest.raises(ValueError, match="empty"):
+        with self.assertRaisesRegex(ValueError, "empty"):
             chunk_iter = await fmt.write(_no_records())
             async for _ in chunk_iter:
                 pass
 
 
-class TestFlacFormatMissingDep:
-    def test_import_error_message(self, monkeypatch: pytest.MonkeyPatch) -> None:
+class TestFlacFormatMissingDep(unittest.TestCase):
+    def test_import_error_message(self) -> None:
         import builtins
         real_import = builtins.__import__
 
@@ -92,6 +94,7 @@ class TestFlacFormatMissingDep:
                 raise ImportError("no module named soundfile")
             return real_import(name, *args, **kwargs)
 
-        monkeypatch.setattr(builtins, "__import__", _mock_import)
-        with pytest.raises(ImportError, match="pirn\\[audio\\]"):
-            FlacFormat._load_deps()
+        import unittest.mock
+        with unittest.mock.patch("builtins.__import__", side_effect=_mock_import):
+            with self.assertRaisesRegex(ImportError, "pirn\\[audio\\]"):
+                FlacFormat._load_deps()

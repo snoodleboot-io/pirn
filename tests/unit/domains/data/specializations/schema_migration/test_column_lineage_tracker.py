@@ -1,8 +1,8 @@
 """Tests for :class:`ColumnLineageTracker`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,21 +14,23 @@ from pirn.domains.data.specializations.schema_migration.column_lineage_tracker i
 from pirn.tapestry import Tapestry
 
 
-@pytest.fixture
-async def pool() -> SqlitePool:
-    p = SqlitePool(SqliteConfig(database=":memory:"))
-    await p.execute(
-        "CREATE TABLE column_lineage_registry "
-        "(source_table TEXT, source_column TEXT, transform_id TEXT, "
-        "target_table TEXT, target_column TEXT, recorded_at TEXT)"
-    )
-    yield p
-    await p.close()
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
+    async def asyncSetUp(self) -> None:
+        p = SqlitePool(SqliteConfig(database=":memory:"))
+        await p.execute(
+            "CREATE TABLE column_lineage_registry "
+            "(source_table TEXT, source_column TEXT, transform_id TEXT, "
+            "target_table TEXT, target_column TEXT, recorded_at TEXT)"
+        )
+        self.pool = p
 
-class TestConstruction:
+    async def asyncTearDown(self) -> None:
+        await self.pool.close()
+        
+        
     def test_rejects_non_pool(self) -> None:
-        with pytest.raises(TypeError, match="DatabaseConnectionPool"):
+        with self.assertRaisesRegex(TypeError, "DatabaseConnectionPool"):
             ColumnLineageTracker(
                 pool="bad",  # type: ignore[arg-type]
                 source_table="src",
@@ -38,10 +40,9 @@ class TestConstruction:
                 _config=KnotConfig(id="clt"),
             )
 
-    def test_rejects_empty_column_mappings(
-        self, pool: SqlitePool
-    ) -> None:
-        with pytest.raises(ValueError, match="column_mappings"):
+    def test_rejects_empty_column_mappings(self) -> None:
+        pool = self.pool
+        with self.assertRaisesRegex(ValueError, "column_mappings"):
             ColumnLineageTracker(
                 pool=pool,
                 source_table="src",
@@ -51,8 +52,9 @@ class TestConstruction:
                 _config=KnotConfig(id="clt"),
             )
 
-    def test_rejects_invalid_column_name(self, pool: SqlitePool) -> None:
-        with pytest.raises(ValueError, match="plain identifier"):
+    def test_rejects_invalid_column_name(self) -> None:
+        pool = self.pool
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
             ColumnLineageTracker(
                 pool=pool,
                 source_table="src",
@@ -63,9 +65,23 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestBehaviour:
-    async def test_records_all_mappings(self, pool: SqlitePool) -> None:
+class TestBehaviour(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self) -> None:
+        p = SqlitePool(SqliteConfig(database=":memory:"))
+        await p.execute(
+            "CREATE TABLE column_lineage_registry "
+            "(source_table TEXT, source_column TEXT, transform_id TEXT, "
+            "target_table TEXT, target_column TEXT, recorded_at TEXT)"
+        )
+        self.pool = p
+
+    async def asyncTearDown(self) -> None:
+        await self.pool.close()
+        
+        
+    async def test_records_all_mappings(self) -> None:
+        pool = self.pool
         with Tapestry() as t:
             ColumnLineageTracker(
                 pool=pool,
@@ -86,9 +102,8 @@ class TestBehaviour:
             ("stg_orders", "order_id", "mart_revenue", "order_id"),
         ]
 
-    async def test_returns_mappings_recorded_count(
-        self, pool: SqlitePool
-    ) -> None:
+    async def test_returns_mappings_recorded_count(self) -> None:
+        pool = self.pool
         with Tapestry() as t:
             ColumnLineageTracker(
                 pool=pool,

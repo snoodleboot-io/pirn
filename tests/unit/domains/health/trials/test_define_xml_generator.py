@@ -1,8 +1,8 @@
 """Unit tests for :class:`DefineXMLGenerator`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -10,9 +10,9 @@ from pirn.domains.health.trials.define_xml_generator import DefineXMLGenerator
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_dataset_name(self) -> None:
-        with pytest.raises(ValueError, match="dataset_name"):
+        with self.assertRaisesRegex(ValueError, "dataset_name"):
             DefineXMLGenerator(
                 dataset_name="",
                 variables={"USUBJID": {"type": "text", "length": 32}},
@@ -20,7 +20,7 @@ class TestConstruction:
             )
 
     def test_rejects_empty_variables(self) -> None:
-        with pytest.raises(ValueError, match="variables"):
+        with self.assertRaisesRegex(ValueError, "variables"):
             DefineXMLGenerator(
                 dataset_name="ADSL",
                 variables={},
@@ -28,7 +28,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_mapping_variables(self) -> None:
-        with pytest.raises(TypeError, match="variables"):
+        with self.assertRaisesRegex(TypeError, "variables"):
             DefineXMLGenerator(
                 dataset_name="ADSL",
                 variables=42,  # type: ignore[arg-type]
@@ -36,7 +36,7 @@ class TestConstruction:
             )
 
     def test_rejects_variable_missing_type_or_length(self) -> None:
-        with pytest.raises(ValueError, match="length"):
+        with self.assertRaisesRegex(ValueError, "length"):
             DefineXMLGenerator(
                 dataset_name="ADSL",
                 variables={"USUBJID": {"type": "text"}},
@@ -44,7 +44,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_mapping_variable_spec(self) -> None:
-        with pytest.raises(TypeError, match="spec"):
+        with self.assertRaisesRegex(TypeError, "spec"):
             DefineXMLGenerator(
                 dataset_name="ADSL",
                 variables={"USUBJID": "not-a-mapping"},  # type: ignore[dict-item]
@@ -52,8 +52,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_item_group_def_snippet(self) -> None:
         with Tapestry() as t:
             DefineXMLGenerator(

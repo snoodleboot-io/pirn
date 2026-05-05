@@ -1,8 +1,8 @@
 """Unit tests for :class:`RecurrenceAnalyzer`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -11,11 +11,11 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.signal.conftest import emit_signal_frame
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_embedding_dim(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="embedding_dim"):
+            with self.assertRaisesRegex(ValueError, "embedding_dim"):
                 RecurrenceAnalyzer(
                     signal=sig,
                     embedding_dim=0,
@@ -27,7 +27,7 @@ class TestConstruction:
     def test_rejects_non_positive_time_delay(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="time_delay"):
+            with self.assertRaisesRegex(ValueError, "time_delay"):
                 RecurrenceAnalyzer(
                     signal=sig,
                     embedding_dim=3,
@@ -39,7 +39,7 @@ class TestConstruction:
     def test_rejects_non_positive_threshold(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="recurrence_threshold"):
+            with self.assertRaisesRegex(ValueError, "recurrence_threshold"):
                 RecurrenceAnalyzer(
                     signal=sig,
                     embedding_dim=3,
@@ -49,8 +49,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_dict(self) -> None:
         with Tapestry() as t:
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))

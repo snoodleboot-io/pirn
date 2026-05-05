@@ -1,8 +1,8 @@
 """Tests for :class:`ParallelToolCaller`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -15,10 +15,9 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.specializations.conftest import StubTool
 
 
-@pytest.mark.asyncio
-class TestParallelToolCallerConstruction:
+class TestParallelToolCallerConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_tool_in_list(self) -> None:
-        with pytest.raises(TypeError, match=r"tools\[0\] must be a Tool"):
+        with self.assertRaisesRegex(TypeError, r"tools\[0\] must be a Tool"):
             with Tapestry():
                 ParallelToolCaller(
                     tool_calls=[],
@@ -27,8 +26,7 @@ class TestParallelToolCallerConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestParallelToolCallerHappyPath:
+class TestParallelToolCallerHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_invokes_all_tools_in_parallel(self) -> None:
         search = StubTool(name="search", handler="search-result")
         calc = StubTool(name="calc", handler="42")

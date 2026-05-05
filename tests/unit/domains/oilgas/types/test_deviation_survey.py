@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import unittest
 
 from pirn.domains.oilgas.types.deviation_survey import DeviationSurvey
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_default_values(self) -> None:
         survey = DeviationSurvey()
         assert survey.well_id == ""
@@ -22,7 +23,7 @@ class TestConstruction:
         assert survey.fetched_at == when
 
 
-class TestAuditDict:
+class TestAuditDict(unittest.TestCase):
     def test_audit_dict_keys(self) -> None:
         when = datetime(2026, 1, 1, tzinfo=timezone.utc)
         survey = DeviationSurvey(well_id="W1", station_count=3, fetched_at=when)
@@ -34,7 +35,7 @@ class TestAuditDict:
         }
 
 
-class TestFrozen:
+class TestFrozen(unittest.TestCase):
     def test_frozen_disallows_mutation(self) -> None:
         survey = DeviationSurvey(well_id="W1")
         try:

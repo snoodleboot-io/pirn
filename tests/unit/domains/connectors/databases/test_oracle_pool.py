@@ -7,8 +7,8 @@ Uses an injected stub client that mirrors the cursor-based slice of the
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.databases.oracle_config import OracleConfig
@@ -62,26 +62,27 @@ class FakeOracleClient:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-def test_implements_database_connection_pool() -> None:
-    pool = OraclePool(client=FakeOracleClient())
-    assert isinstance(pool, DatabaseConnectionPool)
 
-
-def test_construction_requires_config_or_client() -> None:
-    with pytest.raises(TypeError, match="config= or client="):
-        OraclePool()
-
-
-def test_construction_rejects_bogus_config_type() -> None:
-    with pytest.raises(TypeError, match="OracleConfig"):
-        OraclePool(config="not-a-config")  # type: ignore[arg-type]
-
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_database_connection_pool(self) -> None:
+        pool = OraclePool(client=FakeOracleClient())
+        assert isinstance(pool, DatabaseConnectionPool)
+    
+    
+    def test_construction_requires_config_or_client(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or client="):
+            OraclePool()
+    
+    
+    def test_construction_rejects_bogus_config_type(self) -> None:
+        with self.assertRaisesRegex(TypeError, "OracleConfig"):
+            OraclePool(config="not-a-config")  # type: ignore[arg-type]
+    
+    
 # ────────────────────────────────────────────────────────── delegation
 
 
-@pytest.mark.asyncio
-class TestDelegation:
+class TestDelegation(unittest.IsolatedAsyncioTestCase):
     async def test_execute_passes_query_and_params(self) -> None:
         fake = FakeOracleClient()
         pool = OraclePool(client=fake)
@@ -115,15 +116,15 @@ class TestDelegation:
 # ─────────────────────────────────────────────────────────── query safety
 
 
-class TestQuerySafety:
+class TestQuerySafety(unittest.TestCase):
     def test_rejects_fstring_placeholder(self) -> None:
         pool = OraclePool(client=FakeOracleClient())
-        with pytest.raises(ValueError, match="interpolation"):
+        with self.assertRaisesRegex(ValueError, "interpolation"):
             pool._reject_inline_interpolation("SELECT * FROM t WHERE x = {v}")
 
     def test_rejects_percent_s_placeholder(self) -> None:
         pool = OraclePool(client=FakeOracleClient())
-        with pytest.raises(ValueError, match="interpolation"):
+        with self.assertRaisesRegex(ValueError, "interpolation"):
             pool._reject_inline_interpolation("SELECT * FROM t WHERE x = %s")
 
     def test_accepts_named_bind(self) -> None:
@@ -131,24 +132,22 @@ class TestQuerySafety:
         pool._reject_inline_interpolation("SELECT * FROM t WHERE x = :x")
 
 
-@pytest.mark.asyncio
-class TestQuerySafetyEnforced:
+class TestQuerySafetyEnforced(unittest.IsolatedAsyncioTestCase):
     async def test_execute_rejects_format_query(self) -> None:
         pool = OraclePool(client=FakeOracleClient())
-        with pytest.raises(ValueError, match="interpolation"):
+        with self.assertRaisesRegex(ValueError, "interpolation"):
             await pool.execute("SELECT %s FROM t", [1])
 
     async def test_fetch_all_rejects_format_query(self) -> None:
         pool = OraclePool(client=FakeOracleClient())
-        with pytest.raises(ValueError, match="interpolation"):
+        with self.assertRaisesRegex(ValueError, "interpolation"):
             await pool.fetch_all("SELECT * FROM t WHERE x = {evil}")
 
 
 # ─────────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_closes_underlying_client(self) -> None:
         fake = FakeOracleClient()
         pool = OraclePool(client=fake)
@@ -163,14 +162,14 @@ class TestLifecycle:
     async def test_acquire_after_close_raises(self) -> None:
         pool = OraclePool(client=FakeOracleClient())
         await pool.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await pool.acquire()
 
 
 # ────────────────────────────────────────────────────────── credential safety
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_repr_redacts_password(self) -> None:
         cfg = OracleConfig(
             user="alice",

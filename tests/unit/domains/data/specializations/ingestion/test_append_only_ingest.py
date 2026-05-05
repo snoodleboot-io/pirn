@@ -1,8 +1,8 @@
 """Tests for :class:`AppendOnlyIngest`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,31 +14,30 @@ from pirn.domains.data.specializations.ingestion.append_only_ingest import (
 from pirn.tapestry import Tapestry
 
 
-@pytest.fixture
-async def source_pool() -> SqlitePool:
-    pool = SqlitePool(SqliteConfig(database=":memory:"))
-    await pool.execute("CREATE TABLE events (id INTEGER PRIMARY KEY, payload TEXT)")
-    await pool.execute_many(
-        "INSERT INTO events (id, payload) VALUES (?, ?)",
-        [(1, "a"), (2, "b"), (3, "c")],
-    )
-    yield pool
-    await pool.close()
+class TestAppendOnlyIngest(unittest.IsolatedAsyncioTestCase):
 
+    async def asyncSetUp(self) -> None:
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute("CREATE TABLE events (id INTEGER PRIMARY KEY, payload TEXT)")
+        await pool.execute_many(
+            "INSERT INTO events (id, payload) VALUES (?, ?)",
+            [(1, "a"), (2, "b"), (3, "c")],
+        )
+        self.source_pool = pool
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute("CREATE TABLE events (id INTEGER PRIMARY KEY, payload TEXT)")
+        self.target_pool = pool
 
-@pytest.fixture
-async def target_pool() -> SqlitePool:
-    pool = SqlitePool(SqliteConfig(database=":memory:"))
-    await pool.execute("CREATE TABLE events (id INTEGER PRIMARY KEY, payload TEXT)")
-    yield pool
-    await pool.close()
-
-
-@pytest.mark.asyncio
-class TestAppendOnlyIngest:
-    async def test_appends_all_source_rows(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
+    async def asyncTearDown(self) -> None:
+        await self.source_pool.close()
+        
+        
+        await self.target_pool.close()
+        
+        
+    async def test_appends_all_source_rows(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
         with Tapestry() as t:
             AppendOnlyIngest(
                 source_pool=source_pool,
@@ -52,9 +51,9 @@ class TestAppendOnlyIngest:
         rows = await target_pool.fetch_all("SELECT id, payload FROM events ORDER BY id")
         assert rows == [(1, "a"), (2, "b"), (3, "c")]
 
-    async def test_preserves_existing_target_rows(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
+    async def test_preserves_existing_target_rows(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
         # Seed the target.
         await target_pool.execute_many(
             "INSERT INTO events (id, payload) VALUES (?, ?)",

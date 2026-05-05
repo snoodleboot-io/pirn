@@ -1,8 +1,8 @@
 """Unit tests for :class:`BIDSConverter`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -11,9 +11,9 @@ from pirn.domains.health.mri.bids_converter import BIDSConverter
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_output_dir(self) -> None:
-        with pytest.raises(ValueError, match="output_dir"):
+        with self.assertRaisesRegex(ValueError, "output_dir"):
             BIDSConverter(
                 input_data=Parameter("inp", dict, default={}, _config=KnotConfig(id="inp")),
                 output_dir="",
@@ -23,7 +23,7 @@ class TestConstruction:
             )
 
     def test_rejects_invalid_modality(self) -> None:
-        with pytest.raises(ValueError, match="modality"):
+        with self.assertRaisesRegex(ValueError, "modality"):
             BIDSConverter(
                 input_data=Parameter("inp", dict, default={}, _config=KnotConfig(id="inp")),
                 output_dir="/bids",
@@ -33,7 +33,7 @@ class TestConstruction:
             )
 
     def test_rejects_empty_subject_id(self) -> None:
-        with pytest.raises(ValueError, match="subject_id"):
+        with self.assertRaisesRegex(ValueError, "subject_id"):
             BIDSConverter(
                 input_data=Parameter("inp", dict, default={}, _config=KnotConfig(id="inp")),
                 output_dir="/bids",
@@ -43,8 +43,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_dict(self) -> None:
         data = {"nifti_path": "sub.nii.gz", "metadata": {}}
         with Tapestry() as t:

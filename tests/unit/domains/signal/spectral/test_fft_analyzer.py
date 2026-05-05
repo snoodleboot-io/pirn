@@ -1,6 +1,7 @@
 """Unit tests for :class:`FFTAnalyzer`."""
 
 from __future__ import annotations
+import unittest
 
 import pytest
 
@@ -12,17 +13,17 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.signal.conftest import emit_signal_frame
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_requires_n_fft(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(TypeError):
+            with self.assertRaises(TypeError):
                 FFTAnalyzer(signal=sig, _config=KnotConfig(id="fft"))  # type: ignore[call-arg]
 
     def test_rejects_non_integer_n_fft(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="positive integer"):
+            with self.assertRaisesRegex(ValueError, "positive integer"):
                 FFTAnalyzer(
                     signal=sig,
                     n_fft=2.5,  # type: ignore[arg-type]
@@ -32,18 +33,17 @@ class TestConstruction:
     def test_rejects_zero_n_fft(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="positive integer"):
+            with self.assertRaisesRegex(ValueError, "positive integer"):
                 FFTAnalyzer(signal=sig, n_fft=0, _config=KnotConfig(id="fft"))
 
     def test_rejects_non_power_of_two(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="power of two"):
+            with self.assertRaisesRegex(ValueError, "power of two"):
                 FFTAnalyzer(signal=sig, n_fft=3, _config=KnotConfig(id="fft"))
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_spectrum_frame(self) -> None:
         with Tapestry() as t:
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))

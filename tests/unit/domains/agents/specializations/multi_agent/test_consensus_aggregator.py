@@ -1,8 +1,8 @@
 """Tests for :class:`ConsensusAggregator`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,11 +14,10 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 
-@pytest.mark.asyncio
-class TestConsensusAggregatorConstruction:
+class TestConsensusAggregatorConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_unsupported_strategy(self) -> None:
         llm = StubLLMProvider(["consensus-text"])
-        with pytest.raises(ValueError, match="strategy"):
+        with self.assertRaisesRegex(ValueError, "strategy"):
             with Tapestry():
                 ConsensusAggregator(
                     responses={
@@ -30,7 +29,7 @@ class TestConsensusAggregatorConstruction:
                 )
 
     async def test_rejects_non_llm_provider(self) -> None:
-        with pytest.raises(TypeError, match="llm must be an LLMProvider"):
+        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
             with Tapestry():
                 ConsensusAggregator(
                     responses={
@@ -41,8 +40,7 @@ class TestConsensusAggregatorConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestConsensusAggregatorHappyPath:
+class TestConsensusAggregatorHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_majority_vote_returns_most_common_response(self) -> None:
         llm = StubLLMProvider(["unused-by-majority"])
         responses = {

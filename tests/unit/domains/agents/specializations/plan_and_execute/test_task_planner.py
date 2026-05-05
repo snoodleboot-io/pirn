@@ -1,8 +1,8 @@
 """Unit tests for :class:`TaskPlanner`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,8 +14,7 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 
-@pytest.mark.asyncio
-class TestTaskPlannerProcess:
+class TestTaskPlannerProcess(unittest.IsolatedAsyncioTestCase):
     async def test_parses_numbered_steps_from_llm_response(self) -> None:
         llm = StubLLMProvider(["1. Research the topic\n2. Write outline\n3. Draft article"])
         with Tapestry() as t:
@@ -68,10 +67,9 @@ class TestTaskPlannerProcess:
         assert plan.steps == ()
 
 
-@pytest.mark.asyncio
-class TestTaskPlannerConstruction:
+class TestTaskPlannerConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
-        with pytest.raises(TypeError, match="LLMProvider"):
+        with self.assertRaisesRegex(TypeError, "LLMProvider"):
             with Tapestry():
                 TaskPlanner(
                     goal="goal",

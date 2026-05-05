@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -29,9 +29,9 @@ class _GCReportSource(Knot):
         }
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_bool_normalize(self) -> None:
-        with pytest.raises(TypeError, match="normalize_fractions"):
+        with self.assertRaisesRegex(TypeError, "normalize_fractions"):
             with Tapestry():
                 src = _GCReportSource(_config=KnotConfig(id="src"))
                 GasChromatographyAnalyzer(
@@ -41,8 +41,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_mole_fractions(self) -> None:
         with Tapestry() as t:
             src = _GCReportSource(_config=KnotConfig(id="src"))

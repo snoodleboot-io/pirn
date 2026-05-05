@@ -7,8 +7,8 @@ from __future__ import annotations
 
 import json
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.document.couchdb_config import CouchDBConfig
@@ -77,21 +77,22 @@ def make_pool(
 # ───────────────────────────────────────────────────────────── conformance
 
 
-def test_implements_database_connection_pool() -> None:
-    pool, _ = make_pool()
-    assert isinstance(pool, DatabaseConnectionPool)
 
-
-def test_construction_requires_config_or_session() -> None:
-    with pytest.raises(TypeError, match="config= or session="):
-        CouchDBPool()
-
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_database_connection_pool(self) -> None:
+        pool, _ = make_pool()
+        assert isinstance(pool, DatabaseConnectionPool)
+    
+    
+    def test_construction_requires_config_or_session(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or session="):
+            CouchDBPool()
+    
+    
 # ───────────────────────────────────────────────────────────── operations
 
 
-@pytest.mark.asyncio
-class TestOperations:
+class TestOperations(unittest.IsolatedAsyncioTestCase):
     async def test_execute_saves_document(self) -> None:
         db = FakeCouchDB_DB()
         pool, _ = make_pool(db)
@@ -135,8 +136,7 @@ class TestOperations:
 # ───────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_closes_session(self) -> None:
         pool, fake_session = make_pool()
         await pool.close()
@@ -145,14 +145,14 @@ class TestLifecycle:
     async def test_acquire_after_close_raises(self) -> None:
         pool, _ = make_pool()
         await pool.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await pool.acquire()
 
 
 # ───────────────────────────────────────────────────────────── credential safety
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_repr_redacts_password(self) -> None:
         cfg = CouchDBConfig(password="super-secret")
         text = repr(cfg)
@@ -165,8 +165,7 @@ class TestCredentialSafety:
         assert d["password"] == "<redacted>"
 
 
-@pytest.mark.asyncio
-class TestSecurity:
+class TestSecurity(unittest.IsolatedAsyncioTestCase):
     async def test_close_clears_credentials(self) -> None:
         pool, _ = make_pool()
         assert pool._config is not None
@@ -176,5 +175,5 @@ class TestSecurity:
     async def test_use_after_close_raises(self) -> None:
         pool, _ = make_pool()
         await pool.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await pool.acquire()

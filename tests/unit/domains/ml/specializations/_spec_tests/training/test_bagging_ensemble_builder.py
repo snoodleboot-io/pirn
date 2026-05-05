@@ -1,8 +1,8 @@
 """Tests for :class:`BaggingEnsembleBuilder`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -24,11 +24,11 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_n_estimators_below_two(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="n_estimators must be >= 2"):
+            with self.assertRaisesRegex(ValueError, "n_estimators must be >= 2"):
                 BaggingEnsembleBuilder(
                     split=split,
                     algorithm="dt",
@@ -40,7 +40,7 @@ class TestConstruction:
     def test_rejects_invalid_task(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="task"):
+            with self.assertRaisesRegex(ValueError, "task"):
                 BaggingEnsembleBuilder(
                     split=split,
                     algorithm="dt",
@@ -50,7 +50,7 @@ class TestConstruction:
                 )
 
 
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_returns_ensemble_model_and_eval_report(self) -> None:
         with Tapestry() as t:
             split = emit_split(_config=KnotConfig(id="split"))

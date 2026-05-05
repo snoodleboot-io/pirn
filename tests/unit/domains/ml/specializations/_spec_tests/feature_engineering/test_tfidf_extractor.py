@@ -1,8 +1,8 @@
 """Tests for :class:`TFIDFExtractor`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -32,11 +32,11 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_text_column(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="text_column"):
+            with self.assertRaisesRegex(ValueError, "text_column"):
                 TFIDFExtractor(
                     split=split,
                     text_column="",
@@ -46,7 +46,7 @@ class TestConstruction:
     def test_rejects_max_features_below_one(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="max_features must be >= 1"):
+            with self.assertRaisesRegex(ValueError, "max_features must be >= 1"):
                 TFIDFExtractor(
                     split=split,
                     text_column="text",
@@ -66,7 +66,7 @@ class TestConstruction:
         assert ext.max_features == 50
 
 
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_appends_tfidf_features_removes_text_column(self) -> None:
         with Tapestry() as t:
             split = emit_split(_config=KnotConfig(id="split"))

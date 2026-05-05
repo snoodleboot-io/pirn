@@ -6,8 +6,8 @@ Uses injected fakes — no real ArangoDB or python-arango needed.
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.document.arangodb_config import ArangoDBConfig
@@ -45,21 +45,22 @@ def make_pool(rows: list[dict[str, Any]] | None = None) -> tuple[ArangoDBPool, F
 # ───────────────────────────────────────────────────────────── conformance
 
 
-def test_implements_database_connection_pool() -> None:
-    pool, _ = make_pool()
-    assert isinstance(pool, DatabaseConnectionPool)
 
-
-def test_construction_requires_config_or_db() -> None:
-    with pytest.raises(TypeError, match="config= or db="):
-        ArangoDBPool()
-
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_database_connection_pool(self) -> None:
+        pool, _ = make_pool()
+        assert isinstance(pool, DatabaseConnectionPool)
+    
+    
+    def test_construction_requires_config_or_db(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or db="):
+            ArangoDBPool()
+    
+    
 # ───────────────────────────────────────────────────────────── operations
 
 
-@pytest.mark.asyncio
-class TestOperations:
+class TestOperations(unittest.IsolatedAsyncioTestCase):
     async def test_execute_returns_string(self) -> None:
         pool, fake_db = make_pool()
         result = await pool.execute("FOR doc IN col RETURN doc", {"@col": "test"})
@@ -100,8 +101,7 @@ class TestOperations:
 # ───────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_marks_pool_closed(self) -> None:
         pool, _ = make_pool()
         await pool.close()
@@ -110,14 +110,14 @@ class TestLifecycle:
     async def test_acquire_after_close_raises(self) -> None:
         pool, _ = make_pool()
         await pool.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await pool.acquire()
 
 
 # ───────────────────────────────────────────────────────────── credential safety
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_repr_redacts_password(self) -> None:
         cfg = ArangoDBConfig(password="super-secret")
         text = repr(cfg)
@@ -130,8 +130,7 @@ class TestCredentialSafety:
         assert d["password"] == "<redacted>"
 
 
-@pytest.mark.asyncio
-class TestSecurity:
+class TestSecurity(unittest.IsolatedAsyncioTestCase):
     async def test_close_clears_credentials(self) -> None:
         pool, _ = make_pool()
         assert pool._config is not None
@@ -141,5 +140,5 @@ class TestSecurity:
     async def test_use_after_close_raises(self) -> None:
         pool, _ = make_pool()
         await pool.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await pool.acquire()

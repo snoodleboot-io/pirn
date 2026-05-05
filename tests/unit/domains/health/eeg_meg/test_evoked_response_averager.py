@@ -1,8 +1,8 @@
 """Unit tests for :class:`EvokedResponseAverager`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -13,9 +13,9 @@ from pirn.domains.health.types.signal_frame import SignalFrame
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_sequence(self) -> None:
-        with pytest.raises(TypeError, match="epochs"):
+        with self.assertRaisesRegex(TypeError, "epochs"):
             EvokedResponseAverager(
                 epochs=42,  # type: ignore[arg-type]
                 condition="target",
@@ -23,7 +23,7 @@ class TestConstruction:
             )
 
     def test_rejects_empty(self) -> None:
-        with pytest.raises(ValueError, match="non-empty"):
+        with self.assertRaisesRegex(ValueError, "non-empty"):
             EvokedResponseAverager(
                 epochs=[],
                 condition="target",
@@ -31,7 +31,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_signal(self) -> None:
-        with pytest.raises(TypeError, match="SignalFrame"):
+        with self.assertRaisesRegex(TypeError, "SignalFrame"):
             EvokedResponseAverager(
                 epochs=["x"],  # type: ignore[list-item]
                 condition="target",
@@ -39,7 +39,7 @@ class TestConstruction:
             )
 
     def test_rejects_empty_condition(self) -> None:
-        with pytest.raises(ValueError, match="non-empty"):
+        with self.assertRaisesRegex(ValueError, "non-empty"):
             EvokedResponseAverager(
                 epochs=[SignalFrame()],
                 condition="",
@@ -47,8 +47,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_signal_frame(self) -> None:
         with Tapestry() as t:
             EvokedResponseAverager(

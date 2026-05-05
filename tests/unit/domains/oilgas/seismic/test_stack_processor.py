@@ -1,8 +1,8 @@
 """Unit tests for :class:`StackProcessor`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,14 +12,13 @@ from pirn.domains.oilgas.types.segy_volume import SegyVolume
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_requires_gather_kwarg(self) -> None:
-        with pytest.raises(TypeError, match="gather"):
+        with self.assertRaisesRegex(TypeError, "gather"):
             StackProcessor(_config=KnotConfig(id="st"))  # type: ignore[call-arg]
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_stacked_volume(self) -> None:
         with Tapestry() as t:
             gather = SegyFileIngester(

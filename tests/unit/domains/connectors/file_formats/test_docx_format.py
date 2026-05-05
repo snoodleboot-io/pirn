@@ -1,10 +1,13 @@
 """Round-trip and validation tests for :class:`DocxFormat`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
-pytest.importorskip("docx")
+try:
+    import docx
+except ImportError as _e:
+    raise unittest.SkipTest("docx not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -15,7 +18,7 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 )
 
 
-class TestDocxFormatConstruction:
+class TestDocxFormatConstruction(unittest.TestCase):
     def test_default_arguments(self) -> None:
         fmt = DocxFormat()
         assert fmt.paragraph_separator == "\n"
@@ -25,11 +28,11 @@ class TestDocxFormatConstruction:
         assert fmt.paragraph_separator == "\n\n"
 
     def test_non_string_paragraph_separator(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             DocxFormat(paragraph_separator=42)  # type: ignore[arg-type]
 
 
-class TestDocxFormatBasics:
+class TestDocxFormatBasics(unittest.TestCase):
     def test_name(self) -> None:
         assert DocxFormat().name == "docx"
 
@@ -40,8 +43,7 @@ class TestDocxFormatBasics:
         assert isinstance(DocxFormat(), BatchFileFormat)
 
 
-class TestDocxFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestDocxFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         records = [
             {"text": "first paragraph", "style": "Normal"},
@@ -59,14 +61,12 @@ class TestDocxFormatRoundTrip:
             assert recovered["text"] == original["text"]
             assert recovered["style"] == original["style"]
 
-    @pytest.mark.asyncio
     async def test_round_trip_empty(self) -> None:
         fmt = DocxFormat()
         payload = await FormatRoundTrip.encode(fmt, [])
         decoded = await FormatRoundTrip.decode(fmt, payload)
         assert decoded == []
 
-    @pytest.mark.asyncio
     async def test_round_trip_single(self) -> None:
         records = [{"text": "lonely paragraph"}]
         fmt = DocxFormat()
@@ -77,7 +77,6 @@ class TestDocxFormatRoundTrip:
         assert decoded[0]["index"] == 0
         assert isinstance(decoded[0]["style"], str)
 
-    @pytest.mark.asyncio
     async def test_round_trip_with_heading_style(self) -> None:
         records = [
             {"text": "Title here", "style": "Heading 1"},
@@ -90,22 +89,19 @@ class TestDocxFormatRoundTrip:
         assert decoded[0]["text"] == "Title here"
         assert decoded[1]["text"] == "body content"
 
-    @pytest.mark.asyncio
     async def test_encode_rejects_missing_text(self) -> None:
         fmt = DocxFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, [{"style": "Normal"}])
 
-    @pytest.mark.asyncio
     async def test_encode_rejects_non_string_text(self) -> None:
         fmt = DocxFormat()
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             await FormatRoundTrip.encode(fmt, [{"text": 123}])
 
-    @pytest.mark.asyncio
     async def test_encode_rejects_non_string_style(self) -> None:
         fmt = DocxFormat()
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             await FormatRoundTrip.encode(
                 fmt, [{"text": "hi", "style": 9}]
             )

@@ -1,8 +1,8 @@
 """Tests for :class:`NGramExtractor`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -32,11 +32,11 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_text_column(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="text_column"):
+            with self.assertRaisesRegex(ValueError, "text_column"):
                 NGramExtractor(
                     split=split,
                     text_column="",
@@ -46,7 +46,7 @@ class TestConstruction:
     def test_rejects_invalid_analyzer(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="analyzer"):
+            with self.assertRaisesRegex(ValueError, "analyzer"):
                 NGramExtractor(
                     split=split,
                     text_column="review",
@@ -57,7 +57,7 @@ class TestConstruction:
     def test_rejects_n_below_one(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="n must be >= 1"):
+            with self.assertRaisesRegex(ValueError, "n must be >= 1"):
                 NGramExtractor(
                     split=split,
                     text_column="review",
@@ -79,7 +79,7 @@ class TestConstruction:
         assert ext.analyzer == "char"
 
 
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_appends_ngram_features_removes_text_column(self) -> None:
         with Tapestry() as t:
             split = emit_split(_config=KnotConfig(id="split"))

@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -23,9 +23,9 @@ async def emit_image_tile() -> dict[str, Any]:
     }
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_knot_image_tile(self) -> None:
-        with pytest.raises(TypeError, match="image_tile"):
+        with self.assertRaisesRegex(TypeError, "image_tile"):
             CellSegmenter(
                 image_tile="not-a-knot",  # type: ignore[arg-type]
                 min_cell_diameter_um=5.0,
@@ -37,7 +37,7 @@ class TestConstruction:
     def test_rejects_non_positive_min_diameter(self) -> None:
         with Tapestry():
             t = emit_image_tile(_config=KnotConfig(id="t"))
-            with pytest.raises(ValueError, match="min_cell_diameter_um"):
+            with self.assertRaisesRegex(ValueError, "min_cell_diameter_um"):
                 CellSegmenter(
                     image_tile=t,
                     min_cell_diameter_um=0.0,
@@ -49,7 +49,7 @@ class TestConstruction:
     def test_rejects_invalid_stain_type(self) -> None:
         with Tapestry():
             t = emit_image_tile(_config=KnotConfig(id="t"))
-            with pytest.raises(ValueError, match="stain_type"):
+            with self.assertRaisesRegex(ValueError, "stain_type"):
                 CellSegmenter(
                     image_tile=t,
                     min_cell_diameter_um=5.0,
@@ -59,8 +59,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_dict_with_required_keys(self) -> None:
         with Tapestry() as t:
             tile = emit_image_tile(_config=KnotConfig(id="tile"))

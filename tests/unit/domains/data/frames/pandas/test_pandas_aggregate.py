@@ -1,6 +1,7 @@
 """Tests for :class:`PandasAggregate`."""
 
 from __future__ import annotations
+import unittest
 
 import pandas as pd
 import pytest
@@ -27,8 +28,7 @@ async def emit_orders() -> PandasDataBatch:
     )
 
 
-@pytest.mark.asyncio
-class TestPandasAggregate:
+class TestPandasAggregate(unittest.IsolatedAsyncioTestCase):
     async def test_sum_per_region(self) -> None:
         with Tapestry() as t:
             batch = emit_orders(_config=KnotConfig(id="orders"))
@@ -92,7 +92,7 @@ class TestPandasAggregate:
         assert out.row_count == 3
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_spec_in_aggs(self) -> None:
         @knot
         async def empty() -> PandasDataBatch:
@@ -100,7 +100,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="AggregateSpec"):
+            with self.assertRaisesRegex(TypeError, "AggregateSpec"):
                 PandasAggregate(
                     batch=batch,
                     by=("a",),
@@ -115,7 +115,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(ValueError, match="non-empty"):
+            with self.assertRaisesRegex(ValueError, "non-empty"):
                 PandasAggregate(
                     batch=batch,
                     by=(),

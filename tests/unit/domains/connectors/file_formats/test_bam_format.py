@@ -1,10 +1,13 @@
 """Round-trip and validation tests for :class:`BamFormat`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
-pytest.importorskip("pysam")
+try:
+    import pysam
+except ImportError as _e:
+    raise unittest.SkipTest("pysam not installed") from _e
 
 from pirn.domains.connectors.file_formats.bam_format import (
     BamFormat,
@@ -61,7 +64,7 @@ def _alignment_records() -> list[dict[str, object]]:
     ]
 
 
-class TestBamFormatConstruction:
+class TestBamFormatConstruction(unittest.TestCase):
     def test_default_arguments(self) -> None:
         fmt = BamFormat()
         assert fmt.header_lines is None
@@ -72,19 +75,19 @@ class TestBamFormatConstruction:
         assert fmt.header_lines == header
 
     def test_invalid_header_type(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             BamFormat(header_lines="not-a-sequence")  # type: ignore[arg-type]
 
     def test_empty_header_line_rejected(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             BamFormat(header_lines=("@HD\tVN:1.6", ""))
 
     def test_header_line_without_at_rejected(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             BamFormat(header_lines=("HD\tVN:1.6",))
 
 
-class TestBamFormatBasics:
+class TestBamFormatBasics(unittest.TestCase):
     def test_name(self) -> None:
         assert BamFormat().name == "bam"
 
@@ -95,8 +98,7 @@ class TestBamFormatBasics:
         assert isinstance(BamFormat(), BatchFileFormat)
 
 
-class TestBamFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestBamFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         records = _alignment_records()
         fmt = BamFormat(
@@ -104,20 +106,17 @@ class TestBamFormatRoundTrip:
         )
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_inferred_header(self) -> None:
         records = _alignment_records()
         fmt = BamFormat()
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_empty(self) -> None:
         fmt = BamFormat(
             header_lines=("@HD\tVN:1.6", "@SQ\tSN:chr1\tLN:1000")
         )
         await FormatRoundTrip.assert_round_trip(fmt, [])
 
-    @pytest.mark.asyncio
     async def test_round_trip_single(self) -> None:
         records = [_alignment_records()[0]]
         fmt = BamFormat(

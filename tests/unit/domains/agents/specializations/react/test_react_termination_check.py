@@ -1,8 +1,8 @@
 """Tests for :class:`ReActTerminationCheck`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -16,10 +16,9 @@ from pirn.domains.agents.types.agent_message import AgentMessage
 from pirn.tapestry import Tapestry
 
 
-@pytest.mark.asyncio
-class TestReActTerminationCheckConstruction:
+class TestReActTerminationCheckConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_zero_max_iterations(self) -> None:
-        with pytest.raises(ValueError, match="max_iterations"):
+        with self.assertRaisesRegex(ValueError, "max_iterations"):
             with Tapestry():
                 source = MessagesPassthrough(
                     messages=(AgentMessage(role="assistant", content="x"),),
@@ -33,7 +32,7 @@ class TestReActTerminationCheckConstruction:
                 )
 
     async def test_rejects_bad_current_iteration_type(self) -> None:
-        with pytest.raises(TypeError, match="current_iteration"):
+        with self.assertRaisesRegex(TypeError, "current_iteration"):
             with Tapestry():
                 source = MessagesPassthrough(
                     messages=(AgentMessage(role="assistant", content="x"),),
@@ -47,8 +46,7 @@ class TestReActTerminationCheckConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestReActTerminationCheckHappyPath:
+class TestReActTerminationCheckHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_terminates_on_final_answer_marker(self) -> None:
         with Tapestry() as t:
             source = MessagesPassthrough(
@@ -85,9 +83,7 @@ class TestReActTerminationCheckHappyPath:
         assert result.succeeded
         assert result.outputs["gate"] is True
 
-    async def test_does_not_terminate_when_under_cap_without_marker(
-        self,
-    ) -> None:
+    async def test_does_not_terminate_when_under_cap_without_marker(self,) -> None:
         with Tapestry() as t:
             source = MessagesPassthrough(
                 messages=(

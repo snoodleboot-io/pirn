@@ -1,6 +1,7 @@
 """Tests for :class:`GraphRAGPipeline`."""
 
 from __future__ import annotations
+import unittest
 
 import pytest
 
@@ -17,8 +18,7 @@ from tests.unit.domains.agents.specializations.conftest import (
 )
 
 
-@pytest.mark.asyncio
-class TestGraphRAGPipelineConstruction:
+class TestGraphRAGPipelineConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_memory_store(self) -> None:
         llm = StubLLMProvider(["x"])
         with pytest.raises(
@@ -35,7 +35,7 @@ class TestGraphRAGPipelineConstruction:
     async def test_rejects_zero_hop_count(self) -> None:
         memory = StubMemoryStore([{"id": 1}])
         llm = StubLLMProvider(["x"])
-        with pytest.raises(ValueError, match="hop_count"):
+        with self.assertRaisesRegex(ValueError, "hop_count"):
             with Tapestry():
                 GraphRAGPipeline(
                     query="q",
@@ -46,8 +46,7 @@ class TestGraphRAGPipelineConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestGraphRAGPipelineHappyPath:
+class TestGraphRAGPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_subgraph_passed_to_llm(self) -> None:
         memory = StubMemoryStore(
             [

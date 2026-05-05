@@ -6,11 +6,17 @@ expected raw length.
 """
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
-pytest.importorskip("PIL")
-pytest.importorskip("pillow_heif")
+try:
+    import PIL
+except ImportError as _e:
+    raise unittest.SkipTest("PIL not installed") from _e
+try:
+    import pillow_heif
+except ImportError as _e:
+    raise unittest.SkipTest("pillow_heif not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -36,7 +42,7 @@ def _tiny_rgb_record() -> dict[str, object]:
     }
 
 
-class TestHeicFormatConstruction:
+class TestHeicFormatConstruction(unittest.TestCase):
     def test_default_quality(self) -> None:
         fmt = HeicFormat()
         assert fmt.quality == 85
@@ -45,17 +51,17 @@ class TestHeicFormatConstruction:
         assert HeicFormat(quality=70).quality == 70
 
     def test_quality_out_of_range(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             HeicFormat(quality=0)
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             HeicFormat(quality=101)
 
     def test_quality_wrong_type(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             HeicFormat(quality="high")  # type: ignore[arg-type]
 
 
-class TestHeicFormatBasics:
+class TestHeicFormatBasics(unittest.TestCase):
     def test_name(self) -> None:
         assert HeicFormat().name == "heic"
 
@@ -66,8 +72,7 @@ class TestHeicFormatBasics:
         assert isinstance(HeicFormat(), BatchFileFormat)
 
 
-class TestHeicFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestHeicFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         record = _tiny_rgb_record()
         fmt = HeicFormat()
@@ -81,7 +86,6 @@ class TestHeicFormatRoundTrip:
         assert isinstance(recovered["data"], bytes)
         assert len(recovered["data"]) == len(record["data"])
 
-    @pytest.mark.asyncio
     async def test_round_trip_single_record(self) -> None:
         record = _tiny_rgb_record()
         fmt = HeicFormat(quality=70)
@@ -89,8 +93,7 @@ class TestHeicFormatRoundTrip:
         decoded = await FormatRoundTrip.decode(fmt, payload)
         assert len(decoded) == 1
 
-    @pytest.mark.asyncio
     async def test_empty_records_rejected(self) -> None:
         fmt = HeicFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, [])

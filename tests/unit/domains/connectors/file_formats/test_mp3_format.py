@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import struct
+import unittest
 
 import pytest
 
-pytest.importorskip("pydub")
+try:
+    import pydub
+except ImportError as _e:
+    raise unittest.SkipTest("pydub not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -35,7 +39,7 @@ def _pcm_record(
     }
 
 
-class TestMp3FormatConstruction:
+class TestMp3FormatConstruction(unittest.TestCase):
     def test_name(self) -> None:
         assert Mp3Format().name == "mp3"
 
@@ -46,8 +50,7 @@ class TestMp3FormatConstruction:
         assert isinstance(Mp3Format(), BatchFileFormat)
 
 
-class TestMp3FormatRoundTrip:
-    @pytest.mark.asyncio
+class TestMp3FormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_mono(self) -> None:
         records = [_pcm_record()]
         try:
@@ -57,7 +60,6 @@ class TestMp3FormatRoundTrip:
                 pytest.skip("ffmpeg not available")
             raise
 
-    @pytest.mark.asyncio
     async def test_round_trip_stereo(self) -> None:
         records = [_pcm_record(n_channels=2, n_frames=1024)]
         try:
@@ -68,20 +70,18 @@ class TestMp3FormatRoundTrip:
             raise
 
 
-class TestMp3FormatErrors:
-    @pytest.mark.asyncio
+class TestMp3FormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_empty_payload_raises(self) -> None:
         fmt = Mp3Format()
 
         async def _empty():
             yield b""
 
-        with pytest.raises((ValueError, Exception)):
+        with self.assertRaises((ValueError, Exception)):
             record_iter = await fmt.read(_empty())
             async for _ in record_iter:
                 pass
 
-    @pytest.mark.asyncio
     async def test_empty_records_raises(self) -> None:
         fmt = Mp3Format()
 
@@ -89,14 +89,15 @@ class TestMp3FormatErrors:
             return
             yield  # pragma: no cover
 
-        with pytest.raises(ValueError, match="empty"):
+        with self.assertRaisesRegex(ValueError, "empty"):
             chunk_iter = await fmt.write(_no_records())
             async for _ in chunk_iter:
                 pass
 
 
-class TestMp3FormatMissingDep:
-    def test_import_error_message(self, monkeypatch: pytest.MonkeyPatch) -> None:
+class TestMp3FormatMissingDep(unittest.TestCase):
+    def test_import_error_message(self) -> None:
+        # TODO(unittest-migrate): replace 'monkeypatch' built-in fixture — use unittest.mock.patch / assertLogs
         import builtins
         real_import = builtins.__import__
 
@@ -106,5 +107,5 @@ class TestMp3FormatMissingDep:
             return real_import(name, *args, **kwargs)
 
         monkeypatch.setattr(builtins, "__import__", _mock_import)
-        with pytest.raises(ImportError, match="pirn\\[audio\\]"):
+        with self.assertRaisesRegex(ImportError, "pirn\\[audio\\]"):
             Mp3Format._load_pydub()

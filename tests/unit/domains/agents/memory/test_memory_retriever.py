@@ -1,8 +1,8 @@
 """Unit tests for :class:`MemoryRetriever`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -17,8 +17,7 @@ async def emit_key() -> str:
     return "alpha"
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_value_for_existing_key(self) -> None:
         store = StubMemoryStore()
         await store.store("alpha", {"v": 1})
@@ -37,7 +36,7 @@ class TestProcess:
         assert "r" not in result.outputs
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_requires_memory_store(self) -> None:
         @knot
         async def k() -> str:
@@ -45,7 +44,7 @@ class TestConstruction:
 
         with Tapestry():
             kk = k(_config=KnotConfig(id="k"))
-            with pytest.raises(TypeError, match="MemoryStore"):
+            with self.assertRaisesRegex(TypeError, "MemoryStore"):
                 MemoryRetriever(
                     key=kk,
                     store="bad",  # type: ignore[arg-type]

@@ -1,8 +1,8 @@
 """Tests for :class:`TextClassificationPipeline`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -16,10 +16,10 @@ from tests.unit.domains.ml._stubs.recording_database_pool import (
 )
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_invalid_vectorizer(self) -> None:
         with Tapestry():
-            with pytest.raises(ValueError, match="vectorizer"):
+            with self.assertRaisesRegex(ValueError, "vectorizer"):
                 TextClassificationPipeline(
                     pool=RecordingDatabasePool(rows=[("text", 1)]),
                     query="SELECT 1",
@@ -30,8 +30,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_classification_report(self) -> None:
         rows = [(f"text {i}", i % 2) for i in range(40)]
         with Tapestry() as t:

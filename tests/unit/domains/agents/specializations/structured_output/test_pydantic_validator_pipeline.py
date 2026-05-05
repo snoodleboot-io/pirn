@@ -1,8 +1,8 @@
 """Tests for :class:`PydanticValidatorPipeline`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 from pydantic import BaseModel
 
 from pirn.core.knot_config import KnotConfig
@@ -21,11 +21,10 @@ class _UserRecord(BaseModel):
     age: int
 
 
-@pytest.mark.asyncio
-class TestPydanticValidatorPipelineConstruction:
+class TestPydanticValidatorPipelineConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_basemodel_class(self) -> None:
         llm = StubLLMProvider(['{"name": "x", "age": 1}'])
-        with pytest.raises(TypeError, match="model_class must be a BaseModel"):
+        with self.assertRaisesRegex(TypeError, "model_class must be a BaseModel"):
             with Tapestry():
                 PydanticValidatorPipeline(
                     prompt="extract",
@@ -36,7 +35,7 @@ class TestPydanticValidatorPipelineConstruction:
 
     async def test_rejects_zero_max_retries(self) -> None:
         llm = StubLLMProvider(['{"name": "x", "age": 1}'])
-        with pytest.raises(ValueError, match="max_retries"):
+        with self.assertRaisesRegex(ValueError, "max_retries"):
             with Tapestry():
                 PydanticValidatorPipeline(
                     prompt="extract",
@@ -47,8 +46,7 @@ class TestPydanticValidatorPipelineConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestPydanticValidatorPipelineHappyPath:
+class TestPydanticValidatorPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_returns_validated_model_instance(self) -> None:
         llm = StubLLMProvider(['{"name": "Ada", "age": 36}'])
         with Tapestry() as t:

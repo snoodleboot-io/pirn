@@ -6,8 +6,8 @@ Uses injected fakes — no real Couchbase SDK needed.
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.document.couchbase_config import CouchbaseConfig
@@ -62,26 +62,27 @@ def make_pool(
 # ───────────────────────────────────────────────────────────── conformance
 
 
-def test_implements_database_connection_pool() -> None:
-    pool, _ = make_pool()
-    assert isinstance(pool, DatabaseConnectionPool)
 
-
-def test_construction_requires_config_or_cluster() -> None:
-    with pytest.raises(TypeError, match="config= or cluster="):
-        CouchbasePool()
-
-
-def test_config_requires_non_empty_bucket() -> None:
-    with pytest.raises(ValueError, match="bucket must be non-empty"):
-        CouchbaseConfig(bucket="")
-
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_database_connection_pool(self) -> None:
+        pool, _ = make_pool()
+        assert isinstance(pool, DatabaseConnectionPool)
+    
+    
+    def test_construction_requires_config_or_cluster(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or cluster="):
+            CouchbasePool()
+    
+    
+    def test_config_requires_non_empty_bucket(self) -> None:
+        with self.assertRaisesRegex(ValueError, "bucket must be non-empty"):
+            CouchbaseConfig(bucket="")
+    
+    
 # ───────────────────────────────────────────────────────────── operations
 
 
-@pytest.mark.asyncio
-class TestOperations:
+class TestOperations(unittest.IsolatedAsyncioTestCase):
     async def test_execute_returns_status_string(self) -> None:
         pool, fake_cluster = make_pool()
         result = await pool.execute("SELECT * FROM `test-bucket`")
@@ -116,8 +117,7 @@ class TestOperations:
 # ───────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_closes_cluster(self) -> None:
         pool, fake_cluster = make_pool()
         await pool.close()
@@ -126,14 +126,14 @@ class TestLifecycle:
     async def test_acquire_after_close_raises(self) -> None:
         pool, _ = make_pool()
         await pool.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await pool.acquire()
 
 
 # ───────────────────────────────────────────────────────────── credential safety
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_repr_redacts_password(self) -> None:
         cfg = CouchbaseConfig(bucket="mybucket", password="super-secret")
         text = repr(cfg)
@@ -146,8 +146,7 @@ class TestCredentialSafety:
         assert d["password"] == "<redacted>"
 
 
-@pytest.mark.asyncio
-class TestSecurity:
+class TestSecurity(unittest.IsolatedAsyncioTestCase):
     async def test_close_clears_credentials(self) -> None:
         pool, _ = make_pool()
         assert pool._config is not None
@@ -157,5 +156,5 @@ class TestSecurity:
     async def test_use_after_close_raises(self) -> None:
         pool, _ = make_pool()
         await pool.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await pool.acquire()

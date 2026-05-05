@@ -7,8 +7,8 @@ surface. No real HubSpot account or network needed.
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.capabilities.record_writer import RecordWriter
@@ -39,27 +39,28 @@ class FakeHubSpotClient:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-def test_implements_api_client() -> None:
-    client = HubSpotClient(client=FakeHubSpotClient())
-    assert isinstance(client, ApiClient)
 
-
-def test_construction_requires_config_or_client() -> None:
-    with pytest.raises(TypeError, match="config= or client="):
-        HubSpotClient()
-
-
-def test_sensitive_fields_declared() -> None:
-    cfg = HubSpotConfig()
-    assert "access_token" in cfg.sensitive_fields
-    assert "api_key" in cfg.sensitive_fields
-
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_api_client(self) -> None:
+        client = HubSpotClient(client=FakeHubSpotClient())
+        assert isinstance(client, ApiClient)
+    
+    
+    def test_construction_requires_config_or_client(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or client="):
+            HubSpotClient()
+    
+    
+    def test_sensitive_fields_declared(self) -> None:
+        cfg = HubSpotConfig()
+        assert "access_token" in cfg.sensitive_fields
+        assert "api_key" in cfg.sensitive_fields
+    
+    
 # ────────────────────────────────────────────────────────── delegation
 
 
-@pytest.mark.asyncio
-class TestRequest:
+class TestRequest(unittest.IsolatedAsyncioTestCase):
     async def test_get_dispatches_with_query_string(self) -> None:
         fake = FakeHubSpotClient()
         client = HubSpotClient(client=fake)
@@ -96,8 +97,7 @@ class TestRequest:
 # ─────────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_closes_underlying_client(self) -> None:
         fake = FakeHubSpotClient()
         client = HubSpotClient(client=fake)
@@ -112,14 +112,14 @@ class TestLifecycle:
     async def test_request_after_close_raises(self) -> None:
         client = HubSpotClient(client=FakeHubSpotClient())
         await client.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await client.request("GET", "/foo")
 
 
 # ────────────────────────────────────────────────────────── credential safety
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_repr_redacts_access_token_and_api_key(self) -> None:
         cfg = HubSpotConfig(
             access_token="pat-leaks",
@@ -134,24 +134,23 @@ class TestCredentialSafety:
 # ───────────────────────────────────────────────────────── capability mixins
 
 
-def test_implements_table_source_and_record_writer() -> None:
-    client = HubSpotClient(client=FakeHubSpotClient())
-    assert isinstance(client, TableSource)
-    assert isinstance(client, RecordWriter)
-
-
-def test_default_object_type_is_contacts() -> None:
-    client = HubSpotClient(client=FakeHubSpotClient())
-    assert client.object_type == "contacts"
-
-
-def test_construction_rejects_empty_object_type() -> None:
-    with pytest.raises(ValueError, match="object_type"):
-        HubSpotClient(client=FakeHubSpotClient(), object_type="")
-
-
-@pytest.mark.asyncio
-class TestFetchPage:
+    def test_implements_table_source_and_record_writer(self) -> None:
+        client = HubSpotClient(client=FakeHubSpotClient())
+        assert isinstance(client, TableSource)
+        assert isinstance(client, RecordWriter)
+    
+    
+    def test_default_object_type_is_contacts(self) -> None:
+        client = HubSpotClient(client=FakeHubSpotClient())
+        assert client.object_type == "contacts"
+    
+    
+    def test_construction_rejects_empty_object_type(self) -> None:
+        with self.assertRaisesRegex(ValueError, "object_type"):
+            HubSpotClient(client=FakeHubSpotClient(), object_type="")
+    
+    
+class TestFetchPage(unittest.IsolatedAsyncioTestCase):
     async def test_fetch_page_initial_no_paging(self) -> None:
         fake = FakeHubSpotClient()
         fake.response = {"results": [{"id": "1"}, {"id": "2"}]}
@@ -183,8 +182,7 @@ class TestFetchPage:
         assert fake.calls[0]["qs"] == {"after": "tok-7", "limit": 25}
 
 
-@pytest.mark.asyncio
-class TestListObjects:
+class TestListObjects(unittest.IsolatedAsyncioTestCase):
     async def test_list_objects_passes_object_type(self) -> None:
         fake = FakeHubSpotClient()
         fake.response = {"results": [{"id": "x"}]}
@@ -197,12 +195,11 @@ class TestListObjects:
 
     async def test_list_objects_rejects_empty_type(self) -> None:
         client = HubSpotClient(client=FakeHubSpotClient())
-        with pytest.raises(ValueError, match="object_type"):
+        with self.assertRaisesRegex(ValueError, "object_type"):
             await client.list_objects("")
 
 
-@pytest.mark.asyncio
-class TestWriteRecords:
+class TestWriteRecords(unittest.IsolatedAsyncioTestCase):
     async def test_write_records_posts_each_to_object_path(self) -> None:
         fake = FakeHubSpotClient()
         client = HubSpotClient(client=fake, object_type="contacts")

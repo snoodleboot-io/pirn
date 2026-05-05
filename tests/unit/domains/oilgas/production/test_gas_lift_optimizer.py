@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -30,9 +30,9 @@ class _WellDataSource(Knot):
         }
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_cost(self) -> None:
-        with pytest.raises(ValueError, match="injection_gas_cost_per_mscf"):
+        with self.assertRaisesRegex(ValueError, "injection_gas_cost_per_mscf"):
             with Tapestry():
                 src = _WellDataSource(_config=KnotConfig(id="src"))
                 GasLiftOptimizer(
@@ -43,8 +43,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_optimal_injection(self) -> None:
         with Tapestry() as t:
             src = _WellDataSource(_config=KnotConfig(id="src"))

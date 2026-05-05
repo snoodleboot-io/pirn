@@ -1,9 +1,9 @@
 """Tests for :class:`PandasDeduplicate`."""
 
 from __future__ import annotations
+import unittest
 
 import pandas as pd
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -26,8 +26,7 @@ async def emit_with_dups() -> PandasDataBatch:
     )
 
 
-@pytest.mark.asyncio
-class TestPandasDeduplicate:
+class TestPandasDeduplicate(unittest.IsolatedAsyncioTestCase):
     async def test_keeps_first_per_key(self) -> None:
         with Tapestry() as t:
             batch = emit_with_dups(_config=KnotConfig(id="batch"))
@@ -51,7 +50,7 @@ class TestPandasDeduplicate:
         assert out.row_count == 5  # composite key is unique
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_string_keys_argument(self) -> None:
         @knot
         async def empty() -> PandasDataBatch:
@@ -59,7 +58,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="sequence"):
+            with self.assertRaisesRegex(TypeError, "sequence"):
                 PandasDeduplicate(
                     batch=batch, keys="id",  # type: ignore[arg-type]
                     _config=KnotConfig(id="d"),
@@ -72,7 +71,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(ValueError, match="non-empty"):
+            with self.assertRaisesRegex(ValueError, "non-empty"):
                 PandasDeduplicate(
                     batch=batch, keys=(), _config=KnotConfig(id="d"),
                 )

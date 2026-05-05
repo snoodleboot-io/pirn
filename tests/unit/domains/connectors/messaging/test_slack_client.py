@@ -7,8 +7,8 @@ No real Slack account or network needed.
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.messaging.slack_client import SlackClient
@@ -45,27 +45,28 @@ class FakeSlackClient:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-def test_implements_api_client() -> None:
-    client = SlackClient(client=FakeSlackClient())
-    assert isinstance(client, ApiClient)
 
-
-def test_construction_requires_config_or_client() -> None:
-    with pytest.raises(TypeError, match="config= or client="):
-        SlackClient()
-
-
-def test_sensitive_fields_declared() -> None:
-    cfg = SlackConfig()
-    assert "bot_token" in cfg.sensitive_fields
-    assert "app_token" in cfg.sensitive_fields
-
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_api_client(self) -> None:
+        client = SlackClient(client=FakeSlackClient())
+        assert isinstance(client, ApiClient)
+    
+    
+    def test_construction_requires_config_or_client(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or client="):
+            SlackClient()
+    
+    
+    def test_sensitive_fields_declared(self) -> None:
+        cfg = SlackConfig()
+        assert "bot_token" in cfg.sensitive_fields
+        assert "app_token" in cfg.sensitive_fields
+    
+    
 # ────────────────────────────────────────────────────────────── send_message
 
 
-@pytest.mark.asyncio
-class TestSendMessage:
+class TestSendMessage(unittest.IsolatedAsyncioTestCase):
     async def test_send_message_calls_chat_post_message(self) -> None:
         fake = FakeSlackClient()
         client = SlackClient(client=fake)
@@ -93,8 +94,7 @@ class TestSendMessage:
 # ─────────────────────────────────────────────────────────────── upload_file
 
 
-@pytest.mark.asyncio
-class TestUploadFile:
+class TestUploadFile(unittest.IsolatedAsyncioTestCase):
     async def test_upload_file_calls_files_upload_v2(self) -> None:
         fake = FakeSlackClient()
         client = SlackClient(client=fake)
@@ -109,8 +109,7 @@ class TestUploadFile:
 # ────────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_calls_async_close(self) -> None:
         fake = FakeSlackClient()
         client = SlackClient(client=fake)
@@ -125,14 +124,14 @@ class TestLifecycle:
     async def test_request_after_close_raises(self) -> None:
         client = SlackClient(client=FakeSlackClient())
         await client.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await client.request("GET", "chat.postMessage")
 
 
 # ────────────────────────────────────────────────────────── credential safety
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_repr_redacts_bot_token(self) -> None:
         cfg = SlackConfig(bot_token="xoxb-secret-token")
         text = repr(cfg)
@@ -151,8 +150,7 @@ class TestCredentialSafety:
         assert "xoxb-supersecret" not in str(d)
 
 
-@pytest.mark.asyncio
-class TestSecurity:
+class TestSecurity(unittest.IsolatedAsyncioTestCase):
     async def test_close_clears_credentials(self) -> None:
         client = SlackClient(config=SlackConfig(bot_token="xoxb-tok"), client=FakeSlackClient())
         assert client._config is not None
@@ -162,5 +160,5 @@ class TestSecurity:
     async def test_use_after_close_raises(self) -> None:
         client = SlackClient(config=SlackConfig(bot_token="xoxb-tok"), client=FakeSlackClient())
         await client.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await client.send_message("#general", "Hello")

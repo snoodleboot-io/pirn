@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+import unittest
+import tempfile
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -19,11 +20,10 @@ from tests.unit.domains.agents.specializations.conftest import (
 )
 
 
-@pytest.mark.asyncio
-class TestDocumentQAPipelineConstruction:
+class TestDocumentQAPipelineConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
         embedder = StubEmbeddingProvider()
-        with pytest.raises(TypeError, match="llm must be an LLMProvider"):
+        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
             with Tapestry():
                 DocumentQAPipeline(
                     source="/tmp/x.txt",
@@ -36,7 +36,7 @@ class TestDocumentQAPipelineConstruction:
     async def test_rejects_zero_top_k(self) -> None:
         llm = StubLLMProvider(["answer"])
         embedder = StubEmbeddingProvider()
-        with pytest.raises(ValueError, match="top_k"):
+        with self.assertRaisesRegex(ValueError, "top_k"):
             with Tapestry():
                 DocumentQAPipeline(
                     source="/tmp/x.txt",
@@ -48,9 +48,11 @@ class TestDocumentQAPipelineConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestDocumentQAPipelineHappyPath:
-    async def test_returns_agent_response(self, tmp_path: Path) -> None:
+class TestDocumentQAPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
+    async def test_returns_agent_response(self) -> None:
+        _td_test_returns_agent_response = tempfile.TemporaryDirectory()
+        self.addCleanup(_td_test_returns_agent_response.cleanup)
+        tmp_path = Path(_td_test_returns_agent_response.name)
         document = tmp_path / "doc.txt"
         document.write_text(
             "Alpha facts. Beta facts. Gamma facts.",

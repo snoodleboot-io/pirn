@@ -1,8 +1,8 @@
 """Unit tests for :class:`OutcomeSimulator`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -21,8 +21,7 @@ _SIMULATION_RESPONSE = (
 )
 
 
-@pytest.mark.asyncio
-class TestOutcomeSimulatorProcess:
+class TestOutcomeSimulatorProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_simulation_result_with_three_cases(self) -> None:
         llm = StubLLMProvider([_SIMULATION_RESPONSE])
         with Tapestry() as t:
@@ -65,10 +64,9 @@ class TestOutcomeSimulatorProcess:
         assert len(llm.calls) == 1
 
 
-@pytest.mark.asyncio
-class TestOutcomeSimulatorConstruction:
+class TestOutcomeSimulatorConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
-        with pytest.raises(TypeError, match="LLMProvider"):
+        with self.assertRaisesRegex(TypeError, "LLMProvider"):
             with Tapestry():
                 OutcomeSimulator(
                     action="action",

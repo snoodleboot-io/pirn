@@ -1,8 +1,8 @@
 """Tests for :class:`StagingModelKnot`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,34 +14,34 @@ from pirn.domains.data.specializations.analytics_engineering.staging_model_knot 
 from pirn.tapestry import Tapestry
 
 
-@pytest.fixture
-async def source_pool() -> SqlitePool:
-    pool = SqlitePool(SqliteConfig(database=":memory:"))
-    await pool.execute(
-        "CREATE TABLE raw_orders (order_id INTEGER, cust_id INTEGER, amt REAL)"
-    )
-    await pool.execute_many(
-        "INSERT INTO raw_orders VALUES (?, ?, ?)",
-        [(1, 10, 99.9), (2, 11, 49.5)],
-    )
-    yield pool
-    await pool.close()
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
+    async def asyncSetUp(self) -> None:
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute(
+            "CREATE TABLE raw_orders (order_id INTEGER, cust_id INTEGER, amt REAL)"
+        )
+        await pool.execute_many(
+            "INSERT INTO raw_orders VALUES (?, ?, ?)",
+            [(1, 10, 99.9), (2, 11, 49.5)],
+        )
+        self.source_pool = pool
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute(
+            "CREATE TABLE stg_orders "
+            "(order_id INTEGER, customer_id INTEGER, amount REAL, _loaded_at TEXT)"
+        )
+        self.target_pool = pool
 
-@pytest.fixture
-async def target_pool() -> SqlitePool:
-    pool = SqlitePool(SqliteConfig(database=":memory:"))
-    await pool.execute(
-        "CREATE TABLE stg_orders "
-        "(order_id INTEGER, customer_id INTEGER, amount REAL, _loaded_at TEXT)"
-    )
-    yield pool
-    await pool.close()
-
-
-class TestConstruction:
+    async def asyncTearDown(self) -> None:
+        await self.source_pool.close()
+        
+        
+        await self.target_pool.close()
+        
+        
     def test_rejects_non_pool_source(self) -> None:
-        with pytest.raises(TypeError, match="DatabaseConnectionPool"):
+        with self.assertRaisesRegex(TypeError, "DatabaseConnectionPool"):
             StagingModelKnot(
                 source_pool="bad",  # type: ignore[arg-type]
                 source_query="SELECT 1",
@@ -51,10 +51,10 @@ class TestConstruction:
                 _config=KnotConfig(id="s"),
             )
 
-    def test_rejects_empty_source_query(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
-        with pytest.raises(ValueError, match="source_query"):
+    def test_rejects_empty_source_query(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
+        with self.assertRaisesRegex(ValueError, "source_query"):
             StagingModelKnot(
                 source_pool=source_pool,
                 source_query="",
@@ -64,10 +64,10 @@ class TestConstruction:
                 _config=KnotConfig(id="s"),
             )
 
-    def test_rejects_empty_column_map(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
-        with pytest.raises(ValueError, match="column_map"):
+    def test_rejects_empty_column_map(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
+        with self.assertRaisesRegex(ValueError, "column_map"):
             StagingModelKnot(
                 source_pool=source_pool,
                 source_query="SELECT 1",
@@ -77,10 +77,10 @@ class TestConstruction:
                 _config=KnotConfig(id="s"),
             )
 
-    def test_rejects_invalid_target_table(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
-        with pytest.raises(ValueError, match="plain identifier"):
+    def test_rejects_invalid_target_table(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
             StagingModelKnot(
                 source_pool=source_pool,
                 source_query="SELECT 1",
@@ -91,11 +91,35 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestBehaviour:
-    async def test_writes_rows_with_loaded_at(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
+class TestBehaviour(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self) -> None:
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute(
+            "CREATE TABLE raw_orders (order_id INTEGER, cust_id INTEGER, amt REAL)"
+        )
+        await pool.execute_many(
+            "INSERT INTO raw_orders VALUES (?, ?, ?)",
+            [(1, 10, 99.9), (2, 11, 49.5)],
+        )
+        self.source_pool = pool
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute(
+            "CREATE TABLE stg_orders "
+            "(order_id INTEGER, customer_id INTEGER, amount REAL, _loaded_at TEXT)"
+        )
+        self.target_pool = pool
+
+    async def asyncTearDown(self) -> None:
+        await self.source_pool.close()
+        
+        
+        await self.target_pool.close()
+        
+        
+    async def test_writes_rows_with_loaded_at(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
         with Tapestry() as t:
             StagingModelKnot(
                 source_pool=source_pool,
@@ -120,9 +144,9 @@ class TestBehaviour:
         )
         assert len(loaded_at_rows) == 2
 
-    async def test_returns_rows_written_count(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
+    async def test_returns_rows_written_count(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
         with Tapestry() as t:
             knot = StagingModelKnot(
                 source_pool=source_pool,
@@ -141,9 +165,9 @@ class TestBehaviour:
         output = run_result.outputs[knot.config.id]
         assert output["rows_written"] == 2
 
-    async def test_empty_source_writes_nothing(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
+    async def test_empty_source_writes_nothing(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
         await source_pool.execute("DELETE FROM raw_orders")
         with Tapestry() as t:
             StagingModelKnot(

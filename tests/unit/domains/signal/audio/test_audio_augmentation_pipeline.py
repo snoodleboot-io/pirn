@@ -1,8 +1,8 @@
 """Unit tests for :class:`AudioAugmentationPipeline`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,11 +12,11 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.signal.conftest import emit_signal_frame
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_augmentations(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="augmentations"):
+            with self.assertRaisesRegex(ValueError, "augmentations"):
                 AudioAugmentationPipeline(
                     signal=sig,
                     augmentations=(),
@@ -27,7 +27,7 @@ class TestConstruction:
     def test_rejects_unknown_augmentation(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="unknown"):
+            with self.assertRaisesRegex(ValueError, "unknown"):
                 AudioAugmentationPipeline(
                     signal=sig,
                     augmentations=("invalid_aug",),
@@ -38,7 +38,7 @@ class TestConstruction:
     def test_rejects_negative_seed(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="seed"):
+            with self.assertRaisesRegex(ValueError, "seed"):
                 AudioAugmentationPipeline(
                     signal=sig,
                     augmentations=("add_noise",),
@@ -59,8 +59,7 @@ class TestConstruction:
         assert "pitch_shift" in aug.augmentations
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_signal_frame(self) -> None:
         with Tapestry() as t:
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))

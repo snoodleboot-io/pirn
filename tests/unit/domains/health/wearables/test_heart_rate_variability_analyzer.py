@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,24 +14,23 @@ from pirn.domains.health.wearables.heart_rate_variability_analyzer import (
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_sequence(self) -> None:
-        with pytest.raises(TypeError, match="rr_intervals_ms"):
+        with self.assertRaisesRegex(TypeError, "rr_intervals_ms"):
             HeartRateVariabilityAnalyzer(
                 rr_intervals_ms=42,  # type: ignore[arg-type]
                 _config=KnotConfig(id="h"),
             )
 
     def test_rejects_non_numeric(self) -> None:
-        with pytest.raises(TypeError, match="numeric"):
+        with self.assertRaisesRegex(TypeError, "numeric"):
             HeartRateVariabilityAnalyzer(
                 rr_intervals_ms=["x"],  # type: ignore[list-item]
                 _config=KnotConfig(id="h"),
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_metric_mapping(self) -> None:
         with Tapestry() as t:
             HeartRateVariabilityAnalyzer(

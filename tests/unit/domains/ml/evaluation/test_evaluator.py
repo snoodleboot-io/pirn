@@ -1,8 +1,8 @@
 """Tests for :class:`Evaluator`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -32,7 +32,7 @@ async def emit_model() -> TrainedModel:
     )
 
 
-class TestEvaluatorHappyPath:
+class TestEvaluatorHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_eval_report(self) -> None:
         with Tapestry() as t:
             split = emit_split(_config=KnotConfig(id="split"))
@@ -52,12 +52,12 @@ class TestEvaluatorHappyPath:
         assert out.dataset_name == "d:test"
 
 
-class TestEvaluatorConstruction:
+class TestEvaluatorConstruction(unittest.TestCase):
     def test_rejects_empty_metrics(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
             model = emit_model(_config=KnotConfig(id="model"))
-            with pytest.raises(ValueError, match="metrics must be non-empty"):
+            with self.assertRaisesRegex(ValueError, "metrics must be non-empty"):
                 Evaluator(
                     model=model,
                     split=split,

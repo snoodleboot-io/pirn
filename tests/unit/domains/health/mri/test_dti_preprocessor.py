@@ -1,8 +1,8 @@
 """Unit tests for :class:`DTIPreprocessor`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -11,7 +11,7 @@ from pirn.domains.health.mri.dti_preprocessor import DTIPreprocessor
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_valid_construction(self) -> None:
         DTIPreprocessor(
             dwi_data=Parameter("dw", dict, default={}, _config=KnotConfig(id="dw")),
@@ -21,7 +21,7 @@ class TestConstruction:
         )
 
     def test_rejects_non_bool_eddy_correct(self) -> None:
-        with pytest.raises(TypeError, match="eddy_correct"):
+        with self.assertRaisesRegex(TypeError, "eddy_correct"):
             DTIPreprocessor(
                 dwi_data=Parameter("dw", dict, default={}, _config=KnotConfig(id="dw")),
                 bvec_file=Parameter("bv", dict, default={}, _config=KnotConfig(id="bv")),
@@ -31,8 +31,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_dict(self) -> None:
         with Tapestry() as t:
             DTIPreprocessor(

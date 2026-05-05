@@ -1,8 +1,8 @@
 """Unit tests for :class:`PharmacogenomicScorer`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -11,9 +11,9 @@ from pirn.domains.health.genomics.pharmacogenomic_scorer import PharmacogenomicS
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_invalid_guideline(self) -> None:
-        with pytest.raises(ValueError, match="guideline"):
+        with self.assertRaisesRegex(ValueError, "guideline"):
             PharmacogenomicScorer(
                 variants=Parameter("v", list, default=[], _config=KnotConfig(id="v")),
                 guideline="fda",
@@ -21,7 +21,7 @@ class TestConstruction:
             )
 
     def test_rejects_empty_gene_panel(self) -> None:
-        with pytest.raises(ValueError, match="gene_panel"):
+        with self.assertRaisesRegex(ValueError, "gene_panel"):
             PharmacogenomicScorer(
                 variants=Parameter("v", list, default=[], _config=KnotConfig(id="v")),
                 gene_panel=(),
@@ -30,8 +30,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_dict(self) -> None:
         variants = [{"gene": "CYP2D6", "variant_id": "rs1065852", "zygosity": "het"}]
         with Tapestry() as t:

@@ -1,8 +1,8 @@
 """Tests for :class:`FeatureStoreWriter`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -29,11 +29,11 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_provider(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(TypeError, match="FeatureStoreProvider"):
+            with self.assertRaisesRegex(TypeError, "FeatureStoreProvider"):
                 FeatureStoreWriter(
                     split=split,
                     feature_store="not-a-store",  # type: ignore[arg-type]
@@ -43,7 +43,7 @@ class TestConstruction:
     def test_rejects_non_knot_split(self) -> None:
         with Tapestry():
             store = RecordingFeatureStoreProvider()
-            with pytest.raises(TypeError, match="split must be a Knot"):
+            with self.assertRaisesRegex(TypeError, "split must be a Knot"):
                 FeatureStoreWriter(
                     split="not-a-knot",  # type: ignore[arg-type]
                     feature_store=store,
@@ -51,7 +51,7 @@ class TestConstruction:
                 )
 
 
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_writes_partition_metadata(self) -> None:
         store = RecordingFeatureStoreProvider()
         with Tapestry() as t:

@@ -1,8 +1,8 @@
 """Unit tests for :class:`BandPassFilter`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,11 +12,11 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.signal.conftest import emit_signal_frame
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_low_cutoff(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="low_cutoff_hz"):
+            with self.assertRaisesRegex(ValueError, "low_cutoff_hz"):
                 BandPassFilter(
                     signal=sig,
                     low_cutoff_hz=0,
@@ -27,7 +27,7 @@ class TestConstruction:
     def test_rejects_non_positive_high_cutoff(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="high_cutoff_hz"):
+            with self.assertRaisesRegex(ValueError, "high_cutoff_hz"):
                 BandPassFilter(
                     signal=sig,
                     low_cutoff_hz=10.0,
@@ -38,7 +38,7 @@ class TestConstruction:
     def test_rejects_low_ge_high(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="low_cutoff_hz must be"):
+            with self.assertRaisesRegex(ValueError, "low_cutoff_hz must be"):
                 BandPassFilter(
                     signal=sig,
                     low_cutoff_hz=20.0,
@@ -47,8 +47,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_signal_frame(self) -> None:
         with Tapestry() as t:
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))

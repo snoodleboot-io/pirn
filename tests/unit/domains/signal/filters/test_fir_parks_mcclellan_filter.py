@@ -1,8 +1,8 @@
 """Unit tests for :class:`FIRParksMcClellanFilter`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,11 +12,11 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.signal.conftest import emit_signal_frame
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_even_num_taps(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="positive odd"):
+            with self.assertRaisesRegex(ValueError, "positive odd"):
                 FIRParksMcClellanFilter(
                     signal=sig,
                     num_taps=32,
@@ -28,7 +28,7 @@ class TestConstruction:
     def test_rejects_zero_num_taps(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="positive odd"):
+            with self.assertRaisesRegex(ValueError, "positive odd"):
                 FIRParksMcClellanFilter(
                     signal=sig,
                     num_taps=0,
@@ -40,7 +40,7 @@ class TestConstruction:
     def test_rejects_odd_length_bands(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="bands"):
+            with self.assertRaisesRegex(ValueError, "bands"):
                 FIRParksMcClellanFilter(
                     signal=sig,
                     num_taps=31,
@@ -52,7 +52,7 @@ class TestConstruction:
     def test_rejects_mismatched_desired(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="desired"):
+            with self.assertRaisesRegex(ValueError, "desired"):
                 FIRParksMcClellanFilter(
                     signal=sig,
                     num_taps=31,
@@ -62,8 +62,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_signal_frame(self) -> None:
         with Tapestry() as t:
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))

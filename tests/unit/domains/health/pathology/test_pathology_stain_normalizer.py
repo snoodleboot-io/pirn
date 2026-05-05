@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -22,9 +22,9 @@ async def emit_image_tile() -> dict[str, Any]:
     }
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_knot_image_tile(self) -> None:
-        with pytest.raises(TypeError, match="image_tile"):
+        with self.assertRaisesRegex(TypeError, "image_tile"):
             PathologyStainNormalizer(
                 image_tile="not-a-knot",  # type: ignore[arg-type]
                 method="macenko",
@@ -34,7 +34,7 @@ class TestConstruction:
     def test_rejects_invalid_method(self) -> None:
         with Tapestry():
             t = emit_image_tile(_config=KnotConfig(id="t"))
-            with pytest.raises(ValueError, match="method"):
+            with self.assertRaisesRegex(ValueError, "method"):
                 PathologyStainNormalizer(
                     image_tile=t,
                     method="unknown",
@@ -42,8 +42,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_dict_with_required_keys(self) -> None:
         with Tapestry() as t:
             tile = emit_image_tile(_config=KnotConfig(id="tile"))

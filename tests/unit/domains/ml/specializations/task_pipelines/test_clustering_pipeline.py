@@ -1,8 +1,8 @@
 """Tests for :class:`ClusteringPipeline`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -16,10 +16,10 @@ from tests.unit.domains.ml._stubs.recording_database_pool import (
 )
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_n_clusters_less_than_two(self) -> None:
         with Tapestry():
-            with pytest.raises(ValueError, match="n_clusters"):
+            with self.assertRaisesRegex(ValueError, "n_clusters"):
                 ClusteringPipeline(
                     pool=RecordingDatabasePool(rows=[(1.0, 2.0)]),
                     query="SELECT 1",
@@ -30,7 +30,7 @@ class TestConstruction:
 
     def test_rejects_invalid_algorithm(self) -> None:
         with Tapestry():
-            with pytest.raises(ValueError, match="algorithm"):
+            with self.assertRaisesRegex(ValueError, "algorithm"):
                 ClusteringPipeline(
                     pool=RecordingDatabasePool(rows=[(1.0,)]),
                     query="SELECT 1",
@@ -40,8 +40,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_clustering_report(self) -> None:
         rows = [(float(i), float(i * 2)) for i in range(40)]
         with Tapestry() as t:

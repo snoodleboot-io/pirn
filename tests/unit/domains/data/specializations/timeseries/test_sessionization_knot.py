@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -33,18 +33,17 @@ def _make(**kwargs):
     return knot
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_gap(self) -> None:
-        with pytest.raises(ValueError, match="inactivity_minutes"):
+        with self.assertRaisesRegex(ValueError, "inactivity_minutes"):
             _make(entity_columns=["uid"], timestamp_column="ts", inactivity_minutes=-1)
 
     def test_rejects_invalid_column(self) -> None:
-        with pytest.raises(ValueError, match="plain identifier"):
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
             _make(entity_columns=["bad col"], timestamp_column="ts", inactivity_minutes=30)
 
 
-@pytest.mark.asyncio
-class TestBehaviour:
+class TestBehaviour(unittest.IsolatedAsyncioTestCase):
     async def test_single_session(self) -> None:
         rows = [
             {"uid": "u1", "ts": _ts(0)},

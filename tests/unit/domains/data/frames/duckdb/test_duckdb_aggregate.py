@@ -1,9 +1,9 @@
 """Tests for :class:`DuckdbAggregate`."""
 
 from __future__ import annotations
+import unittest
 
 import duckdb
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -31,8 +31,7 @@ async def emit_orders() -> DuckdbDataBatch:
     )
 
 
-@pytest.mark.asyncio
-class TestDuckdbAggregate:
+class TestDuckdbAggregate(unittest.IsolatedAsyncioTestCase):
     async def test_sum_per_region(self) -> None:
         with Tapestry() as t:
             batch = emit_orders(_config=KnotConfig(id="orders"))
@@ -100,7 +99,7 @@ class TestDuckdbAggregate:
         assert len(rows) == 3
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_string_aggs(self) -> None:
         @knot
         async def empty() -> DuckdbDataBatch:
@@ -112,7 +111,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="SQL expression"):
+            with self.assertRaisesRegex(TypeError, "SQL expression"):
                 DuckdbAggregate(
                     batch=batch, by=("a",),
                     aggs={"total": 123},  # type: ignore[dict-item]
@@ -130,7 +129,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(ValueError, match="non-empty"):
+            with self.assertRaisesRegex(ValueError, "non-empty"):
                 DuckdbAggregate(
                     batch=batch, by=(),
                     aggs={"total": "SUM(x)"},
@@ -148,7 +147,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(ValueError, match="forbidden"):
+            with self.assertRaisesRegex(ValueError, "forbidden"):
                 DuckdbAggregate(
                     batch=batch, by=("a",),
                     aggs={"total": "SUM(x); DROP TABLE t"},
@@ -166,7 +165,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(ValueError, match="plain identifier"):
+            with self.assertRaisesRegex(ValueError, "plain identifier"):
                 DuckdbAggregate(
                     batch=batch, by=("a",),
                     aggs={"bad name!": "SUM(x)"},

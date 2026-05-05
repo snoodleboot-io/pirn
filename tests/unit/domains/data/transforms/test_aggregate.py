@@ -1,6 +1,7 @@
 """Tests for :class:`pirn.domains.data.transforms.aggregate.Aggregate`."""
 
 from __future__ import annotations
+import unittest
 
 import pytest
 
@@ -29,8 +30,7 @@ def _row_by_region(rows: tuple[dict, ...], region: str) -> dict:
     return next(r for r in rows if r["region"] == region)
 
 
-@pytest.mark.asyncio
-class TestAggregate:
+class TestAggregate(unittest.IsolatedAsyncioTestCase):
     async def test_sum_per_group(self) -> None:
         with Tapestry() as t:
             batch = emit_orders(_config=KnotConfig(id="orders"))
@@ -144,24 +144,24 @@ class TestAggregate:
         assert out.schema.primary_keys == ("region",)
 
 
-class TestAggregateSpec:
+class TestAggregateSpec(unittest.TestCase):
     def test_rejects_unknown_function(self) -> None:
-        with pytest.raises(ValueError, match="must be one of"):
+        with self.assertRaisesRegex(ValueError, "must be one of"):
             AggregateSpec(source="amount", function="median")
 
     def test_rejects_empty_source(self) -> None:
-        with pytest.raises(ValueError, match="non-empty"):
+        with self.assertRaisesRegex(ValueError, "non-empty"):
             AggregateSpec(source="", function="sum")
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_string_by(self) -> None:
         @knot
         async def empty() -> DataBatch:
             return DataBatch()
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="sequence"):
+            with self.assertRaisesRegex(TypeError, "sequence"):
                 Aggregate(
                     batch=batch, by="region",  # type: ignore[arg-type]
                     aggs={"x": AggregateSpec(source="a", function="sum")},
@@ -174,7 +174,7 @@ class TestConstruction:
             return DataBatch()
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="non-empty"):
+            with self.assertRaisesRegex(TypeError, "non-empty"):
                 Aggregate(
                     batch=batch, by=("a",), aggs={},
                     _config=KnotConfig(id="a"),

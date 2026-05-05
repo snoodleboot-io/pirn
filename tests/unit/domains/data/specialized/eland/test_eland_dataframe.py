@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 from pydantic import TypeAdapter
 
 from pirn.domains.data.specialized.eland.eland_dataframe import ElandDataFrame
@@ -17,7 +17,7 @@ class _FakeElandFrame:
         self.name = name
 
 
-class TestElandDataFrameConstruction:
+class TestElandDataFrameConstruction(unittest.TestCase):
     def test_default_metadata(self) -> None:
         handle = ElandDataFrame(frame=_FakeElandFrame())
         assert handle.source_uri == ""
@@ -33,7 +33,7 @@ class TestElandDataFrameConstruction:
         assert handle.frame is inner
 
 
-class TestElandDataFramePydanticSchema:
+class TestElandDataFramePydanticSchema(unittest.TestCase):
     def test_is_instance_schema_passes_for_real_instance(self) -> None:
         adapter: TypeAdapter[Any] = TypeAdapter(ElandDataFrame)
         handle = ElandDataFrame(frame=_FakeElandFrame())
@@ -41,5 +41,5 @@ class TestElandDataFramePydanticSchema:
 
     def test_is_instance_schema_rejects_other_types(self) -> None:
         adapter: TypeAdapter[Any] = TypeAdapter(ElandDataFrame)
-        with pytest.raises(Exception):
+        with self.assertRaises(Exception):
             adapter.validate_python({"frame": "no"})

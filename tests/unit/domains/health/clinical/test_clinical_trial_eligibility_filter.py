@@ -1,8 +1,8 @@
 """Unit tests for :class:`ClinicalTrialEligibilityFilter`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -13,9 +13,9 @@ from pirn.domains.health.types.clinical_record import ClinicalRecord
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_sequence_records(self) -> None:
-        with pytest.raises(TypeError, match="records"):
+        with self.assertRaisesRegex(TypeError, "records"):
             ClinicalTrialEligibilityFilter(
                 records=42,  # type: ignore[arg-type]
                 criteria={},
@@ -23,7 +23,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_record(self) -> None:
-        with pytest.raises(TypeError, match="ClinicalRecord"):
+        with self.assertRaisesRegex(TypeError, "ClinicalRecord"):
             ClinicalTrialEligibilityFilter(
                 records=["x"],  # type: ignore[list-item]
                 criteria={},
@@ -31,7 +31,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_mapping_criteria(self) -> None:
-        with pytest.raises(TypeError, match="criteria"):
+        with self.assertRaisesRegex(TypeError, "criteria"):
             ClinicalTrialEligibilityFilter(
                 records=(),
                 criteria=42,  # type: ignore[arg-type]
@@ -39,7 +39,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_callable_criterion(self) -> None:
-        with pytest.raises(TypeError, match="callable"):
+        with self.assertRaisesRegex(TypeError, "callable"):
             ClinicalTrialEligibilityFilter(
                 records=(),
                 criteria={"c1": "not-callable"},  # type: ignore[dict-item]
@@ -47,8 +47,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_filters_using_predicate(self) -> None:
         records = (
             ClinicalRecord(patient_id="A"),

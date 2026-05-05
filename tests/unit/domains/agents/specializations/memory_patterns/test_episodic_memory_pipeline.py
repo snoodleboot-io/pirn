@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Mapping
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -29,12 +29,7 @@ class RecordingMemoryStore(MemoryStore):
     async def retrieve(self, key: str) -> Mapping[str, Any] | None:
         return self.writes.get(key)
 
-    async def search(
-        self,
-        query: str,
-        *,
-        top_k: int = 10,
-    ) -> AsyncIterator[Mapping[str, Any]]:
+    async def search(self, query: str, *, top_k: int = 10,) -> AsyncIterator[Mapping[str, Any]]:
         async def _aiter() -> AsyncIterator[Mapping[str, Any]]:
             if False:
                 yield {}
@@ -48,10 +43,9 @@ class RecordingMemoryStore(MemoryStore):
         return None
 
 
-@pytest.mark.asyncio
-class TestEpisodicMemoryPipelineConstruction:
+class TestEpisodicMemoryPipelineConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_memory_store(self) -> None:
-        with pytest.raises(TypeError, match="store must be a MemoryStore"):
+        with self.assertRaisesRegex(TypeError, "store must be a MemoryStore"):
             with Tapestry():
                 EpisodicMemoryPipeline(
                     messages=(AgentMessage(role="user", content="hi"),),
@@ -62,7 +56,7 @@ class TestEpisodicMemoryPipelineConstruction:
 
     async def test_rejects_empty_session_id(self) -> None:
         store = RecordingMemoryStore()
-        with pytest.raises(ValueError, match="session_id"):
+        with self.assertRaisesRegex(ValueError, "session_id"):
             with Tapestry():
                 EpisodicMemoryPipeline(
                     messages=(AgentMessage(role="user", content="hi"),),
@@ -72,8 +66,7 @@ class TestEpisodicMemoryPipelineConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestEpisodicMemoryPipelineHappyPath:
+class TestEpisodicMemoryPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_writes_episode_under_session_keyed_path(self) -> None:
         store = RecordingMemoryStore()
         messages = (

@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -22,9 +22,9 @@ async def emit_patients() -> list[dict[str, Any]]:
     ]
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_knot_patient_data(self) -> None:
-        with pytest.raises(TypeError, match="patient_data"):
+        with self.assertRaisesRegex(TypeError, "patient_data"):
             RWECohortExtractor(
                 patient_data="not-a-knot",  # type: ignore[arg-type]
                 inclusion_criteria={"diagnosis": "T2D"},
@@ -36,7 +36,7 @@ class TestConstruction:
     def test_rejects_non_dict_inclusion_criteria(self) -> None:
         with Tapestry():
             p = emit_patients(_config=KnotConfig(id="p"))
-            with pytest.raises(TypeError, match="inclusion_criteria"):
+            with self.assertRaisesRegex(TypeError, "inclusion_criteria"):
                 RWECohortExtractor(
                     patient_data=p,
                     inclusion_criteria="wrong",  # type: ignore[arg-type]
@@ -48,7 +48,7 @@ class TestConstruction:
     def test_rejects_non_dict_exclusion_criteria(self) -> None:
         with Tapestry():
             p = emit_patients(_config=KnotConfig(id="p"))
-            with pytest.raises(TypeError, match="exclusion_criteria"):
+            with self.assertRaisesRegex(TypeError, "exclusion_criteria"):
                 RWECohortExtractor(
                     patient_data=p,
                     inclusion_criteria={},
@@ -60,7 +60,7 @@ class TestConstruction:
     def test_rejects_empty_index_date_col(self) -> None:
         with Tapestry():
             p = emit_patients(_config=KnotConfig(id="p"))
-            with pytest.raises(ValueError, match="index_date_col"):
+            with self.assertRaisesRegex(ValueError, "index_date_col"):
                 RWECohortExtractor(
                     patient_data=p,
                     inclusion_criteria={},
@@ -70,8 +70,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_dict_with_required_keys(self) -> None:
         with Tapestry() as t:
             p = emit_patients(_config=KnotConfig(id="p"))

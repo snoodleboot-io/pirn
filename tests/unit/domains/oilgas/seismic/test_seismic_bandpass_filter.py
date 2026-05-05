@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -24,9 +24,9 @@ class _DataSource(Knot):
         }
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_wrong_frequency_order(self) -> None:
-        with pytest.raises(ValueError, match="low_cut_hz < low_pass_hz"):
+        with self.assertRaisesRegex(ValueError, "low_cut_hz < low_pass_hz"):
             with Tapestry():
                 src = _DataSource(_config=KnotConfig(id="src"))
                 SeismicBandpassFilter(
@@ -39,8 +39,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_filtered_data(self) -> None:
         with Tapestry() as t:
             src = _DataSource(_config=KnotConfig(id="src"))

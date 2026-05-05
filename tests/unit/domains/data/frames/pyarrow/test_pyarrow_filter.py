@@ -1,10 +1,10 @@
 """Tests for :class:`PyarrowFilter`."""
 
 from __future__ import annotations
+import unittest
 
 import pyarrow as pa
 import pyarrow.compute as pc
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -27,8 +27,7 @@ async def emit_users() -> PyarrowDataBatch:
     )
 
 
-@pytest.mark.asyncio
-class TestPyarrowFilter:
+class TestPyarrowFilter(unittest.IsolatedAsyncioTestCase):
     async def test_keeps_rows_matching_expression(self) -> None:
         with Tapestry() as t:
             batch = emit_users(_config=KnotConfig(id="users"))
@@ -56,7 +55,7 @@ class TestPyarrowFilter:
         assert sorted(out.table.column("id").to_pylist()) == [1, 4]
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_neither_expression_nor_predicate(self) -> None:
         @knot
         async def empty() -> PyarrowDataBatch:
@@ -64,7 +63,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="provide either"):
+            with self.assertRaisesRegex(TypeError, "provide either"):
                 PyarrowFilter(
                     batch=batch,
                     _config=KnotConfig(id="f"),
@@ -77,7 +76,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="not both"):
+            with self.assertRaisesRegex(TypeError, "not both"):
                 PyarrowFilter(
                     batch=batch,
                     expression=pc.field("a"),
@@ -92,7 +91,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="Expression"):
+            with self.assertRaisesRegex(TypeError, "Expression"):
                 PyarrowFilter(
                     batch=batch,
                     expression="a > 1",  # type: ignore[arg-type]

@@ -5,11 +5,17 @@ TIFF supports multiple pages. With a lossless compression (the default
 """
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
-pytest.importorskip("tifffile")
-pytest.importorskip("numpy")
+try:
+    import tifffile
+except ImportError as _e:
+    raise unittest.SkipTest("tifffile not installed") from _e
+try:
+    import numpy
+except ImportError as _e:
+    raise unittest.SkipTest("numpy not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -37,7 +43,7 @@ def _tiny_rgb_record(page_number: int = 0) -> dict[str, object]:
     }
 
 
-class TestTiffFormatConstruction:
+class TestTiffFormatConstruction(unittest.TestCase):
     def test_default_compression(self) -> None:
         fmt = TiffFormat()
         assert fmt.compression == "lzw"
@@ -46,15 +52,15 @@ class TestTiffFormatConstruction:
         assert TiffFormat(compression="zlib").compression == "zlib"
 
     def test_empty_compression_rejected(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             TiffFormat(compression="")
 
     def test_non_string_compression_rejected(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             TiffFormat(compression=0)  # type: ignore[arg-type]
 
 
-class TestTiffFormatBasics:
+class TestTiffFormatBasics(unittest.TestCase):
     def test_name(self) -> None:
         assert TiffFormat().name == "tiff"
 
@@ -65,8 +71,7 @@ class TestTiffFormatBasics:
         assert isinstance(TiffFormat(), BatchFileFormat)
 
 
-class TestTiffFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestTiffFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic_single_page(self) -> None:
         record = _tiny_rgb_record()
         fmt = TiffFormat()
@@ -82,7 +87,6 @@ class TestTiffFormatRoundTrip:
         # LZW is lossless.
         assert recovered["data"] == record["data"]
 
-    @pytest.mark.asyncio
     async def test_round_trip_multi_page(self) -> None:
         records = [
             _tiny_rgb_record(page_number=0),
@@ -100,13 +104,11 @@ class TestTiffFormatRoundTrip:
             assert recovered["mode"] == "RGB"
             assert recovered["data"] == records[index]["data"]
 
-    @pytest.mark.asyncio
     async def test_empty_records_rejected(self) -> None:
         fmt = TiffFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, [])
 
-    @pytest.mark.asyncio
     async def test_missing_field_rejected(self) -> None:
         fmt = TiffFormat()
         bad = {
@@ -117,5 +119,5 @@ class TestTiffFormatRoundTrip:
             "data": b"\x00" * 48,
             # missing dtype
         }
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, [bad])

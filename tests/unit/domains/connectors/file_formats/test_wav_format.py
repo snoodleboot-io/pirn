@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import struct
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -33,7 +33,7 @@ def _pcm_record(
     }
 
 
-class TestWavFormatConstruction:
+class TestWavFormatConstruction(unittest.TestCase):
     def test_name(self) -> None:
         assert WavFormat().name == "wav"
 
@@ -44,37 +44,32 @@ class TestWavFormatConstruction:
         assert isinstance(WavFormat(), BatchFileFormat)
 
 
-class TestWavFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestWavFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_mono(self) -> None:
         records = [_pcm_record()]
         await FormatRoundTrip.assert_round_trip(WavFormat(), records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_stereo(self) -> None:
         records = [_pcm_record(n_channels=2, n_frames=8)]
         await FormatRoundTrip.assert_round_trip(WavFormat(), records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_higher_sample_rate(self) -> None:
         records = [_pcm_record(sample_rate=48000, n_frames=16)]
         await FormatRoundTrip.assert_round_trip(WavFormat(), records)
 
 
-class TestWavFormatErrors:
-    @pytest.mark.asyncio
+class TestWavFormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_empty_payload_raises(self) -> None:
         fmt = WavFormat()
 
         async def _empty():
             yield b""
 
-        with pytest.raises(ValueError, match="empty"):
+        with self.assertRaisesRegex(ValueError, "empty"):
             record_iter = await fmt.read(_empty())
             async for _ in record_iter:
                 pass
 
-    @pytest.mark.asyncio
     async def test_empty_records_raises(self) -> None:
         fmt = WavFormat()
 
@@ -82,7 +77,7 @@ class TestWavFormatErrors:
             return
             yield  # pragma: no cover
 
-        with pytest.raises(ValueError, match="empty"):
+        with self.assertRaisesRegex(ValueError, "empty"):
             chunk_iter = await fmt.write(_no_records())
             async for _ in chunk_iter:
                 pass

@@ -1,8 +1,8 @@
 """Unit tests for :class:`GATKCaller`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -10,9 +10,9 @@ from pirn.domains.health.genomics.gatk_caller import GATKCaller
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_string(self) -> None:
-        with pytest.raises(TypeError, match="bam_path"):
+        with self.assertRaisesRegex(TypeError, "bam_path"):
             GATKCaller(
                 bam_path=42,  # type: ignore[arg-type]
                 reference_path="ref",
@@ -21,7 +21,7 @@ class TestConstruction:
             )
 
     def test_rejects_empty(self) -> None:
-        with pytest.raises(ValueError, match="non-empty"):
+        with self.assertRaisesRegex(ValueError, "non-empty"):
             GATKCaller(
                 bam_path="",
                 reference_path="ref",
@@ -30,8 +30,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_vcf_path(self) -> None:
         with Tapestry() as t:
             GATKCaller(

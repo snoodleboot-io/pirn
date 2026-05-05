@@ -1,8 +1,8 @@
 """Unit tests for :class:`SampleEntropyCalculator`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -11,11 +11,11 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.signal.conftest import emit_signal_frame
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_m(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match=r"\bm\b"):
+            with self.assertRaisesRegex(ValueError, r"\bm\b"):
                 SampleEntropyCalculator(
                     signal=sig,
                     m=0,
@@ -26,7 +26,7 @@ class TestConstruction:
     def test_rejects_non_positive_r(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match=r"\br\b"):
+            with self.assertRaisesRegex(ValueError, r"\br\b"):
                 SampleEntropyCalculator(
                     signal=sig,
                     m=2,
@@ -47,8 +47,7 @@ class TestConstruction:
         assert se.r == 0.2
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_entropy_dict(self) -> None:
         with Tapestry() as t:
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))

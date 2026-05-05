@@ -1,8 +1,8 @@
 """Unit tests for :class:`PlanExecutor`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -21,8 +21,7 @@ async def emit_plan() -> Plan:
     return Plan(steps=("step one", "step two", "step three"))
 
 
-@pytest.mark.asyncio
-class TestPlanExecutorProcess:
+class TestPlanExecutorProcess(unittest.IsolatedAsyncioTestCase):
     async def test_executes_each_step_and_returns_combined_response(self) -> None:
         llm = StubLLMProvider(["result-one", "result-two", "result-three"])
         with Tapestry() as t:
@@ -66,10 +65,9 @@ class TestPlanExecutorProcess:
         assert response.content == ""
 
 
-@pytest.mark.asyncio
-class TestPlanExecutorConstruction:
+class TestPlanExecutorConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
-        with pytest.raises(TypeError, match="LLMProvider"):
+        with self.assertRaisesRegex(TypeError, "LLMProvider"):
             with Tapestry() as t:
                 p = emit_plan(_config=KnotConfig(id="p"))
                 PlanExecutor(

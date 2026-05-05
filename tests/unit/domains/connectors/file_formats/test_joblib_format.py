@@ -7,10 +7,13 @@ unsigned payloads unless the caller passes ``allow_unsigned=True``.
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
-pytest.importorskip("joblib")
+try:
+    import joblib
+except ImportError as _e:
+    raise unittest.SkipTest("joblib not installed") from _e
 
 from pirn.backends._signer import _Signer
 from pirn.domains.connectors.file_formats.batch_file_format import (
@@ -22,9 +25,9 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 )
 
 
-class TestJoblibFormatConstruction:
+class TestJoblibFormatConstruction(unittest.TestCase):
     def test_unsigned_construction_refused(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             JoblibFormat()
 
     def test_unsigned_explicit_acknowledged(self) -> None:
@@ -36,11 +39,11 @@ class TestJoblibFormatConstruction:
         assert fmt.signed is True
 
     def test_non_bool_allow_unsigned_rejected(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             JoblibFormat(allow_unsigned="yes")  # type: ignore[arg-type]
 
 
-class TestJoblibFormatBasics:
+class TestJoblibFormatBasics(unittest.TestCase):
     def test_name(self) -> None:
         assert JoblibFormat(allow_unsigned=True).name == "joblib"
 
@@ -53,8 +56,7 @@ class TestJoblibFormatBasics:
         )
 
 
-class TestJoblibFormatRoundTripUnsigned:
-    @pytest.mark.asyncio
+class TestJoblibFormatRoundTripUnsigned(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic_unsigned(self) -> None:
         fmt = JoblibFormat(allow_unsigned=True)
         payload_object = {"params": [1, 2, 3], "name": "demo"}
@@ -67,21 +69,18 @@ class TestJoblibFormatRoundTripUnsigned:
         assert record["object"] == payload_object
         assert record["object_type"] == "dict"
 
-    @pytest.mark.asyncio
     async def test_encode_empty_records_rejected(self) -> None:
         fmt = JoblibFormat(allow_unsigned=True)
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, [])
 
-    @pytest.mark.asyncio
     async def test_encode_missing_object_key(self) -> None:
         fmt = JoblibFormat(allow_unsigned=True)
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, [{"wrong": 1}])
 
 
-class TestJoblibFormatRoundTripSigned:
-    @pytest.mark.asyncio
+class TestJoblibFormatRoundTripSigned(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_signed(self) -> None:
         signer = _Signer.test_signer()
         fmt = JoblibFormat(signer=signer)
@@ -94,7 +93,6 @@ class TestJoblibFormatRoundTripSigned:
         assert decoded[0]["object"] == {"a": 1, "b": "two"}
         assert decoded[0]["object_type"] == "dict"
 
-    @pytest.mark.asyncio
     async def test_signed_payload_rejected_when_tampered(self) -> None:
         signer = _Signer.test_signer()
         fmt = JoblibFormat(signer=signer)
@@ -104,10 +102,9 @@ class TestJoblibFormatRoundTripSigned:
         # Flip a byte in the body section (after the 32-byte signature).
         tampered = bytearray(body)
         tampered[40] = tampered[40] ^ 0xFF
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.decode(fmt, bytes(tampered))
 
-    @pytest.mark.asyncio
     async def test_signed_payload_rejected_by_unsigned_reader(self) -> None:
         signer = _Signer.test_signer()
         writer = JoblibFormat(signer=signer)
@@ -116,5 +113,5 @@ class TestJoblibFormatRoundTripSigned:
         )
         reader = JoblibFormat(allow_unsigned=True)
         # The signature header is not pickle, so unsigned read fails.
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.decode(reader, body)

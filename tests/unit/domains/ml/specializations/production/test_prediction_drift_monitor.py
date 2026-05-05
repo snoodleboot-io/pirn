@@ -1,8 +1,8 @@
 """Tests for :class:`PredictionDriftMonitor`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -35,13 +35,13 @@ async def emit_model() -> TrainedModel:
     return TrainedModel(model_id="m1", algorithm="logistic")
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_nonpositive_sigma(self) -> None:
         with Tapestry():
             baseline = emit_baseline(_config=KnotConfig(id="b"))
             current = emit_current(_config=KnotConfig(id="c"))
             model = emit_model(_config=KnotConfig(id="model"))
-            with pytest.raises(ValueError, match="sigma_threshold"):
+            with self.assertRaisesRegex(ValueError, "sigma_threshold"):
                 PredictionDriftMonitor(
                     model=model,
                     baseline=baseline,
@@ -51,8 +51,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_z_score_and_alert(self) -> None:
         with Tapestry() as t:
             baseline = emit_baseline(_config=KnotConfig(id="b"))

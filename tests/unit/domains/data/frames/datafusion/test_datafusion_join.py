@@ -1,9 +1,9 @@
 """Tests for :class:`DatafusionJoin`."""
 
 from __future__ import annotations
+import unittest
 
 import datafusion as df
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -42,8 +42,7 @@ async def emit_orders() -> DatafusionDataBatch:
     return DatafusionDataBatch(frame=frame, context=ctx)
 
 
-@pytest.mark.asyncio
-class TestDatafusionJoin:
+class TestDatafusionJoin(unittest.IsolatedAsyncioTestCase):
     async def test_inner_join_on_shared_key(self) -> None:
         with Tapestry() as t:
             users = emit_users(_config=KnotConfig(id="users"))
@@ -105,7 +104,7 @@ class TestDatafusionJoin:
         assert len(rows) == 2
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_unknown_how(self) -> None:
         @knot
         async def empty() -> DatafusionDataBatch:
@@ -116,7 +115,7 @@ class TestConstruction:
         with Tapestry():
             left = empty(_config=KnotConfig(id="l"))
             right = empty(_config=KnotConfig(id="r"))
-            with pytest.raises(ValueError, match="how must be one of"):
+            with self.assertRaisesRegex(ValueError, "how must be one of"):
                 DatafusionJoin(
                     left=left, right=right, on="x", how="diagonal",
                     _config=KnotConfig(id="j"),
@@ -132,7 +131,7 @@ class TestConstruction:
         with Tapestry():
             left = empty(_config=KnotConfig(id="l"))
             right = empty(_config=KnotConfig(id="r"))
-            with pytest.raises(TypeError, match="not both"):
+            with self.assertRaisesRegex(TypeError, "not both"):
                 DatafusionJoin(
                     left=left, right=right,
                     on="x", left_on="x", right_on="x",
@@ -149,7 +148,7 @@ class TestConstruction:
         with Tapestry():
             left = empty(_config=KnotConfig(id="l"))
             right = empty(_config=KnotConfig(id="r"))
-            with pytest.raises(TypeError):
+            with self.assertRaises(TypeError):
                 DatafusionJoin(
                     left=left, right=right, how="inner",
                     _config=KnotConfig(id="j"),
@@ -165,7 +164,7 @@ class TestConstruction:
         with Tapestry():
             left = empty(_config=KnotConfig(id="l"))
             right = empty(_config=KnotConfig(id="r"))
-            with pytest.raises(ValueError, match="plain identifier"):
+            with self.assertRaisesRegex(ValueError, "plain identifier"):
                 DatafusionJoin(
                     left=left, right=right,
                     on="x; DROP TABLE t",
@@ -182,7 +181,7 @@ class TestConstruction:
         with Tapestry():
             left = empty(_config=KnotConfig(id="l"))
             right = empty(_config=KnotConfig(id="r"))
-            with pytest.raises(ValueError, match="same length"):
+            with self.assertRaisesRegex(ValueError, "same length"):
                 DatafusionJoin(
                     left=left, right=right,
                     left_on=("a", "b"), right_on=("c",),

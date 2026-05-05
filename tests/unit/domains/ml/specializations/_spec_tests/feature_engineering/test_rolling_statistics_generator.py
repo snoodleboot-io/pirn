@@ -1,8 +1,8 @@
 """Tests for :class:`RollingStatisticsGenerator`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -26,11 +26,11 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_columns(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="columns must be non-empty"):
+            with self.assertRaisesRegex(ValueError, "columns must be non-empty"):
                 RollingStatisticsGenerator(
                     split=split,
                     columns=(),
@@ -40,7 +40,7 @@ class TestConstruction:
     def test_rejects_window_below_one(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="window must be >= 1"):
+            with self.assertRaisesRegex(ValueError, "window must be >= 1"):
                 RollingStatisticsGenerator(
                     split=split,
                     columns=("sales",),
@@ -51,7 +51,7 @@ class TestConstruction:
     def test_rejects_invalid_statistic(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="median"):
+            with self.assertRaisesRegex(ValueError, "median"):
                 RollingStatisticsGenerator(
                     split=split,
                     columns=("sales",),
@@ -60,7 +60,7 @@ class TestConstruction:
                 )
 
 
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_appends_rolling_feature_names(self) -> None:
         with Tapestry() as t:
             split = emit_split(_config=KnotConfig(id="split"))

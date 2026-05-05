@@ -1,6 +1,7 @@
 """Tests for :class:`FunnelAnalysisKnot`."""
 
 from __future__ import annotations
+import unittest
 
 import pytest
 
@@ -27,18 +28,17 @@ def _make(**kwargs):
     return knot
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_funnel(self) -> None:
-        with pytest.raises(ValueError, match="funnel_steps"):
+        with self.assertRaisesRegex(ValueError, "funnel_steps"):
             _make(user_column="uid", event_column="event", funnel_steps=[])
 
     def test_rejects_invalid_column(self) -> None:
-        with pytest.raises(ValueError, match="plain identifier"):
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
             _make(user_column="bad col", event_column="event", funnel_steps=["view"])
 
 
-@pytest.mark.asyncio
-class TestBehaviour:
+class TestBehaviour(unittest.IsolatedAsyncioTestCase):
     async def test_full_conversion(self) -> None:
         rows = [
             {"uid": "u1", "event": "view"},

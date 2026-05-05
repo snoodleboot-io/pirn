@@ -1,8 +1,8 @@
 """Tests for :class:`MulticlassClassificationPipeline`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -16,10 +16,10 @@ from tests.unit.domains.ml._stubs.recording_database_pool import (
 )
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_n_classes_below_three(self) -> None:
         with Tapestry():
-            with pytest.raises(ValueError, match="n_classes"):
+            with self.assertRaisesRegex(ValueError, "n_classes"):
                 MulticlassClassificationPipeline(
                     pool=RecordingDatabasePool(rows=[(1, 0)]),
                     query="SELECT 1",
@@ -30,8 +30,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_macro_metric_report(self) -> None:
         rows = [(float(i), i % 5) for i in range(40)]
         with Tapestry() as t:

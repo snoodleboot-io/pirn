@@ -1,8 +1,8 @@
 """Tests for :class:`CalibrationFitter`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -28,11 +28,11 @@ async def emit_model() -> TrainedModel:
     return TrainedModel(model_id="m1", algorithm="logistic", feature_names=("a",))
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_knot_model(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(TypeError, match="model must be a Knot"):
+            with self.assertRaisesRegex(TypeError, "model must be a Knot"):
                 CalibrationFitter(
                     model="bad",  # type: ignore[arg-type]
                     split=split,
@@ -43,7 +43,7 @@ class TestConstruction:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
             model = emit_model(_config=KnotConfig(id="model"))
-            with pytest.raises(ValueError, match="method"):
+            with self.assertRaisesRegex(ValueError, "method"):
                 CalibrationFitter(
                     model=model,
                     split=split,
@@ -52,8 +52,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_returns_calibrated_trained_model(self) -> None:
         with Tapestry() as t:
             split = emit_split(_config=KnotConfig(id="split"))

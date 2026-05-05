@@ -1,8 +1,8 @@
 """Unit tests for :class:`SavitzkyGolayFilter`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,11 +12,11 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.signal.conftest import emit_signal_frame
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_window_length(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="positive integer"):
+            with self.assertRaisesRegex(ValueError, "positive integer"):
                 SavitzkyGolayFilter(
                     signal=sig,
                     window_length=0,
@@ -27,7 +27,7 @@ class TestConstruction:
     def test_rejects_even_window_length(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="odd"):
+            with self.assertRaisesRegex(ValueError, "odd"):
                 SavitzkyGolayFilter(
                     signal=sig,
                     window_length=10,
@@ -38,7 +38,7 @@ class TestConstruction:
     def test_rejects_negative_polynomial_order(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="non-negative"):
+            with self.assertRaisesRegex(ValueError, "non-negative"):
                 SavitzkyGolayFilter(
                     signal=sig,
                     window_length=11,
@@ -49,7 +49,7 @@ class TestConstruction:
     def test_rejects_polynomial_order_ge_window_length(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="< window_length"):
+            with self.assertRaisesRegex(ValueError, "< window_length"):
                 SavitzkyGolayFilter(
                     signal=sig,
                     window_length=11,
@@ -58,8 +58,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_signal_frame(self) -> None:
         with Tapestry() as t:
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))

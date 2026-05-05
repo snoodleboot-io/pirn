@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import timezone
+import unittest
 
 import datafusion as df
 
@@ -11,7 +12,7 @@ from pirn.domains.data.frames.datafusion.datafusion_data_batch import (
 )
 
 
-class TestDatafusionDataBatch:
+class TestDatafusionDataBatch(unittest.TestCase):
     def test_columns_reflect_frame(self) -> None:
         ctx = df.SessionContext()
         frame = ctx.from_pylist([{"id": 1, "name": "a"}])

@@ -1,8 +1,8 @@
 """Tests for :class:`ABTestDeployer`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -33,12 +33,12 @@ async def emit_model_b() -> TrainedModel:
     return TrainedModel(model_id="model-b", algorithm="svm", feature_names=("a",))
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_knot_model_a(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
             model_b = emit_model_b(_config=KnotConfig(id="mb"))
-            with pytest.raises(TypeError, match="model_a must be a Knot"):
+            with self.assertRaisesRegex(TypeError, "model_a must be a Knot"):
                 ABTestDeployer(
                     model_a="bad",  # type: ignore[arg-type]
                     model_b=model_b,
@@ -48,8 +48,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_returns_winner_and_significance(self) -> None:
         with Tapestry() as t:
             split = emit_split(_config=KnotConfig(id="split"))

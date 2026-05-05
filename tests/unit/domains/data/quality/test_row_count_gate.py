@@ -1,8 +1,8 @@
 """Tests for :class:`pirn.domains.data.quality.row_count_gate.RowCountGate`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -21,8 +21,7 @@ def _batch_factory(row_count: int):
     return emit
 
 
-@pytest.mark.asyncio
-class TestRowCountGate:
+class TestRowCountGate(unittest.IsolatedAsyncioTestCase):
     async def test_passes_when_within_bounds(self) -> None:
         with Tapestry() as t:
             batch = _batch_factory(50)(_config=KnotConfig(id="batch"))
@@ -69,7 +68,7 @@ class TestRowCountGate:
         assert report.passed is True
 
 
-class TestRowCountGateConstruction:
+class TestRowCountGateConstruction(unittest.TestCase):
     def test_rejects_negative_min(self) -> None:
         @knot
         async def empty() -> DataBatch:
@@ -77,7 +76,7 @@ class TestRowCountGateConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(ValueError, match="min_rows"):
+            with self.assertRaisesRegex(ValueError, "min_rows"):
                 RowCountGate(batch=batch, min_rows=-1, _config=KnotConfig(id="c"))
 
     def test_rejects_max_less_than_min(self) -> None:
@@ -87,7 +86,7 @@ class TestRowCountGateConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(ValueError, match="max_rows"):
+            with self.assertRaisesRegex(ValueError, "max_rows"):
                 RowCountGate(
                     batch=batch, min_rows=10, max_rows=5,
                     _config=KnotConfig(id="c"),

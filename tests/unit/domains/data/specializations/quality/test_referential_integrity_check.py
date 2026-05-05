@@ -1,8 +1,8 @@
 """Tests for :class:`ReferentialIntegrityCheck`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,30 +14,32 @@ from pirn.domains.data.specializations.quality.referential_integrity_check impor
 from pirn.tapestry import Tapestry
 
 
-@pytest.fixture
-async def pool() -> SqlitePool:
-    p = SqlitePool(SqliteConfig(database=":memory:"))
-    await p.execute(
-        "CREATE TABLE customers (id INTEGER PRIMARY KEY, name TEXT)"
-    )
-    await p.execute_many(
-        "INSERT INTO customers (id, name) VALUES (?, ?)",
-        [(1, "Alice"), (2, "Bob")],
-    )
-    await p.execute(
-        "CREATE TABLE orders (id INTEGER PRIMARY KEY, customer_id INTEGER)"
-    )
-    await p.execute_many(
-        "INSERT INTO orders (id, customer_id) VALUES (?, ?)",
-        [(1, 1), (2, 2), (3, 99)],
-    )
-    yield p
-    await p.close()
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
+    async def asyncSetUp(self) -> None:
+        p = SqlitePool(SqliteConfig(database=":memory:"))
+        await p.execute(
+            "CREATE TABLE customers (id INTEGER PRIMARY KEY, name TEXT)"
+        )
+        await p.execute_many(
+            "INSERT INTO customers (id, name) VALUES (?, ?)",
+            [(1, "Alice"), (2, "Bob")],
+        )
+        await p.execute(
+            "CREATE TABLE orders (id INTEGER PRIMARY KEY, customer_id INTEGER)"
+        )
+        await p.execute_many(
+            "INSERT INTO orders (id, customer_id) VALUES (?, ?)",
+            [(1, 1), (2, 2), (3, 99)],
+        )
+        self.pool = p
 
-class TestConstruction:
+    async def asyncTearDown(self) -> None:
+        await self.pool.close()
+        
+        
     def test_rejects_non_pool(self) -> None:
-        with pytest.raises(TypeError, match="DatabaseConnectionPool"):
+        with self.assertRaisesRegex(TypeError, "DatabaseConnectionPool"):
             ReferentialIntegrityCheck(
                 pool="bad",  # type: ignore[arg-type]
                 fact_table="orders",
@@ -47,8 +49,9 @@ class TestConstruction:
                 _config=KnotConfig(id="ri"),
             )
 
-    def test_rejects_invalid_fact_table(self, pool: SqlitePool) -> None:
-        with pytest.raises(ValueError, match="plain identifier"):
+    def test_rejects_invalid_fact_table(self) -> None:
+        pool = self.pool
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
             ReferentialIntegrityCheck(
                 pool=pool,
                 fact_table="bad table",
@@ -59,9 +62,32 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestReferentialIntegrityCheckBehaviour:
-    async def test_detects_orphaned_rows(self, pool: SqlitePool) -> None:
+class TestReferentialIntegrityCheckBehaviour(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self) -> None:
+        p = SqlitePool(SqliteConfig(database=":memory:"))
+        await p.execute(
+            "CREATE TABLE customers (id INTEGER PRIMARY KEY, name TEXT)"
+        )
+        await p.execute_many(
+            "INSERT INTO customers (id, name) VALUES (?, ?)",
+            [(1, "Alice"), (2, "Bob")],
+        )
+        await p.execute(
+            "CREATE TABLE orders (id INTEGER PRIMARY KEY, customer_id INTEGER)"
+        )
+        await p.execute_many(
+            "INSERT INTO orders (id, customer_id) VALUES (?, ?)",
+            [(1, 1), (2, 2), (3, 99)],
+        )
+        self.pool = p
+
+    async def asyncTearDown(self) -> None:
+        await self.pool.close()
+        
+        
+    async def test_detects_orphaned_rows(self) -> None:
+        pool = self.pool
         with Tapestry() as t:
             knot = ReferentialIntegrityCheck(
                 pool=pool,
@@ -78,7 +104,8 @@ class TestReferentialIntegrityCheckBehaviour:
         assert out["has_orphans"] is True
         assert abs(out["orphaned_pct"] - 100 / 3) < 0.01
 
-    async def test_clean_table_has_no_orphans(self, pool: SqlitePool) -> None:
+    async def test_clean_table_has_no_orphans(self) -> None:
+        pool = self.pool
         await pool.execute("DELETE FROM orders WHERE id = 3")
         with Tapestry() as t:
             knot = ReferentialIntegrityCheck(

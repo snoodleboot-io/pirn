@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+import unittest
+import tempfile
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -17,11 +18,10 @@ from tests.unit.domains.agents.specializations.conftest import (
 )
 
 
-@pytest.mark.asyncio
-class TestDocumentTranslationPipelineConstruction:
+class TestDocumentTranslationPipelineConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_empty_target_language(self) -> None:
         llm = StubLLMProvider(["bonjour"])
-        with pytest.raises(TypeError, match="target_language"):
+        with self.assertRaisesRegex(TypeError, "target_language"):
             with Tapestry():
                 DocumentTranslationPipeline(
                     source="/tmp/x.txt",
@@ -31,7 +31,7 @@ class TestDocumentTranslationPipelineConstruction:
                 )
 
     async def test_rejects_non_llm_provider(self) -> None:
-        with pytest.raises(TypeError, match="llm must be an LLMProvider"):
+        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
             with Tapestry():
                 DocumentTranslationPipeline(
                     source="/tmp/x.txt",
@@ -41,9 +41,11 @@ class TestDocumentTranslationPipelineConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestDocumentTranslationPipelineHappyPath:
-    async def test_translates_each_chunk(self, tmp_path: Path) -> None:
+class TestDocumentTranslationPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
+    async def test_translates_each_chunk(self) -> None:
+        _td_test_translates_each_chunk = tempfile.TemporaryDirectory()
+        self.addCleanup(_td_test_translates_each_chunk.cleanup)
+        tmp_path = Path(_td_test_translates_each_chunk.name)
         document = tmp_path / "doc.txt"
         document.write_text("hello world goodbye", encoding="utf-8")
         llm = StubLLMProvider(

@@ -1,12 +1,13 @@
 """Unit tests for :class:`AgentResponse`."""
 
 from __future__ import annotations
+import unittest
 
 from pirn.domains.agents.types.agent_response import AgentResponse
 from pirn.domains.agents.types.tool_call import ToolCall
 
 
-class TestRoundtrip:
+class TestRoundtrip(unittest.TestCase):
     def test_construct_defaults(self) -> None:
         response = AgentResponse(content="hi")
         assert response.content == "hi"

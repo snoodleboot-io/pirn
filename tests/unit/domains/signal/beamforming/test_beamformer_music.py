@@ -1,8 +1,8 @@
 """Unit tests for :class:`BeamformerMUSIC`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,11 +12,11 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.signal.conftest import emit_signal_frame
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_num_elements(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="num_elements"):
+            with self.assertRaisesRegex(ValueError, "num_elements"):
                 BeamformerMUSIC(
                     signal=sig,
                     num_elements=0,
@@ -28,7 +28,7 @@ class TestConstruction:
     def test_rejects_non_positive_num_sources(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="num_sources"):
+            with self.assertRaisesRegex(ValueError, "num_sources"):
                 BeamformerMUSIC(
                     signal=sig,
                     num_elements=4,
@@ -40,7 +40,7 @@ class TestConstruction:
     def test_rejects_zero_step(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="non-zero"):
+            with self.assertRaisesRegex(ValueError, "non-zero"):
                 BeamformerMUSIC(
                     signal=sig,
                     num_elements=4,
@@ -52,7 +52,7 @@ class TestConstruction:
     def test_rejects_invalid_angle_scan_length(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="angle_scan_deg"):
+            with self.assertRaisesRegex(ValueError, "angle_scan_deg"):
                 BeamformerMUSIC(
                     signal=sig,
                     num_elements=4,
@@ -62,8 +62,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_spectrum_frame(self) -> None:
         with Tapestry() as t:
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))

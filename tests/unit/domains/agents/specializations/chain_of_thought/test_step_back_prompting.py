@@ -1,8 +1,8 @@
 """Unit tests for :class:`StepBackPrompting`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,8 +14,7 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 
-@pytest.mark.asyncio
-class TestStepBackPromptingProcess:
+class TestStepBackPromptingProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_forward_answer_as_response(self) -> None:
         llm = StubLLMProvider(["principles about physics", "gravity pulls objects"])
         with Tapestry() as t:
@@ -55,10 +54,9 @@ class TestStepBackPromptingProcess:
         assert any("original question" in m["content"] for m in forward_messages)
 
 
-@pytest.mark.asyncio
-class TestStepBackPromptingConstruction:
+class TestStepBackPromptingConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
-        with pytest.raises(TypeError, match="LLMProvider"):
+        with self.assertRaisesRegex(TypeError, "LLMProvider"):
             with Tapestry():
                 StepBackPrompting(
                     prompt="q",

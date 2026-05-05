@@ -6,11 +6,17 @@ therefore use ``int``, ``float``, and ``str`` only.
 """
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
-pytest.importorskip("netCDF4")
-pytest.importorskip("numpy")
+try:
+    import netCDF4
+except ImportError as _e:
+    raise unittest.SkipTest("netCDF4 not installed") from _e
+try:
+    import numpy
+except ImportError as _e:
+    raise unittest.SkipTest("numpy not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -23,7 +29,7 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 )
 
 
-class TestNetcdfFormatConstruction:
+class TestNetcdfFormatConstruction(unittest.TestCase):
     def test_default_arguments(self) -> None:
         fmt = NetcdfFormat()
         assert fmt.variable_name == "data"
@@ -44,27 +50,27 @@ class TestNetcdfFormatConstruction:
         assert fmt.field_names == ("a", "b")
 
     def test_empty_variable_name_rejected(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             NetcdfFormat(variable_name="")
 
     def test_empty_dimension_name_rejected(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             NetcdfFormat(dimension_name="")
 
     def test_empty_compound_type_name_rejected(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             NetcdfFormat(compound_type_name="")
 
     def test_invalid_field_names_type(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             NetcdfFormat(field_names="ab")  # type: ignore[arg-type]
 
     def test_empty_field_name_rejected(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             NetcdfFormat(field_names=("a", ""))
 
 
-class TestNetcdfFormatBasics:
+class TestNetcdfFormatBasics(unittest.TestCase):
     def test_name(self) -> None:
         assert NetcdfFormat().name == "netcdf"
 
@@ -75,8 +81,7 @@ class TestNetcdfFormatBasics:
         assert isinstance(NetcdfFormat(), BatchFileFormat)
 
 
-class TestNetcdfFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestNetcdfFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         records = [
             {"id": 1, "name": "alpha", "score": 1.5},
@@ -86,13 +91,11 @@ class TestNetcdfFormatRoundTrip:
         fmt = NetcdfFormat()
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_single_row(self) -> None:
         records = [{"id": 42, "name": "solo", "score": 9.0}]
         fmt = NetcdfFormat()
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_custom_variable(self) -> None:
         records = [{"id": 1, "label": "x"}, {"id": 2, "label": "y"}]
         fmt = NetcdfFormat(
@@ -102,17 +105,15 @@ class TestNetcdfFormatRoundTrip:
         )
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_empty_payload_rejected(self) -> None:
         fmt = NetcdfFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, [])
 
-    @pytest.mark.asyncio
     async def test_decode_unknown_variable_raises(self) -> None:
         records = [{"id": 1, "label": "x"}]
         writer = NetcdfFormat(variable_name="data")
         payload = await FormatRoundTrip.encode(writer, records)
         reader = NetcdfFormat(variable_name="missing")
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.decode(reader, payload)

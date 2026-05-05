@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from typing import Any, Iterator
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.observability.opentelemetry_config import (
     OpenTelemetryConfig,
@@ -35,9 +35,7 @@ class FakeTracer:
         self.exited = 0
 
     @contextmanager
-    def start_as_current_span(
-        self, name: str, attributes: Any = None
-    ) -> Iterator[FakeSpan]:
+    def start_as_current_span(self, name: str, attributes: Any = None) -> Iterator[FakeSpan]:
         self.calls.append((name, attributes))
         self.entered += 1
         try:
@@ -49,20 +47,21 @@ class FakeTracer:
 # ──────────────────────────────────────────────────────────── construction
 
 
-def test_construction_requires_config_or_tracer() -> None:
-    with pytest.raises(TypeError, match="config= or tracer="):
-        OpenTelemetryEmitter()
 
-
-def test_sensitive_fields_listed() -> None:
-    assert OpenTelemetryConfig.sensitive_fields == ()
-
-
+class _StandaloneTests(unittest.TestCase):
+    def test_construction_requires_config_or_tracer(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or tracer="):
+            OpenTelemetryEmitter()
+    
+    
+    def test_sensitive_fields_listed(self) -> None:
+        assert OpenTelemetryConfig.sensitive_fields == ()
+    
+    
 # ──────────────────────────────────────────────────────────── emit_span
 
 
-@pytest.mark.asyncio
-class TestEmitSpan:
+class TestEmitSpan(unittest.IsolatedAsyncioTestCase):
     async def test_emit_span_starts_and_exits_span(self) -> None:
         fake = FakeTracer()
         emitter = OpenTelemetryEmitter(tracer=fake)
@@ -83,15 +82,14 @@ class TestEmitSpan:
 
     async def test_emit_span_rejects_empty_name(self) -> None:
         emitter = OpenTelemetryEmitter(tracer=FakeTracer())
-        with pytest.raises(ValueError, match="non-empty"):
+        with self.assertRaisesRegex(ValueError, "non-empty"):
             await emitter.emit_span("")
 
 
 # ──────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_is_idempotent(self) -> None:
         emitter = OpenTelemetryEmitter(tracer=FakeTracer())
         await emitter.close()
@@ -100,5 +98,5 @@ class TestLifecycle:
     async def test_emit_after_close_raises(self) -> None:
         emitter = OpenTelemetryEmitter(tracer=FakeTracer())
         await emitter.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await emitter.emit_span("op")

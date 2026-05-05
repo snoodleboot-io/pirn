@@ -1,8 +1,8 @@
 """Unit tests for :class:`TreeOfThought`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,8 +14,7 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 
-@pytest.mark.asyncio
-class TestTreeOfThoughtProcess:
+class TestTreeOfThoughtProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_agent_response(self) -> None:
         llm = StubLLMProvider(["thought"] * 20 + ["8"] * 20)
         with Tapestry() as t:
@@ -51,10 +50,9 @@ class TestTreeOfThoughtProcess:
         assert "path-A" in response.content
 
 
-@pytest.mark.asyncio
-class TestTreeOfThoughtConstruction:
+class TestTreeOfThoughtConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
-        with pytest.raises(TypeError, match="LLMProvider"):
+        with self.assertRaisesRegex(TypeError, "LLMProvider"):
             with Tapestry():
                 TreeOfThought(
                     prompt="q",
@@ -64,7 +62,7 @@ class TestTreeOfThoughtConstruction:
 
     async def test_rejects_zero_depth(self) -> None:
         llm = StubLLMProvider(["x"])
-        with pytest.raises(ValueError, match="depth must be a positive int"):
+        with self.assertRaisesRegex(ValueError, "depth must be a positive int"):
             with Tapestry():
                 TreeOfThought(
                     prompt="q",
@@ -75,7 +73,7 @@ class TestTreeOfThoughtConstruction:
 
     async def test_rejects_zero_k_candidates(self) -> None:
         llm = StubLLMProvider(["x"])
-        with pytest.raises(ValueError, match="k_candidates must be a positive int"):
+        with self.assertRaisesRegex(ValueError, "k_candidates must be a positive int"):
             with Tapestry():
                 TreeOfThought(
                     prompt="q",
@@ -86,7 +84,7 @@ class TestTreeOfThoughtConstruction:
 
     async def test_rejects_zero_beam_width(self) -> None:
         llm = StubLLMProvider(["x"])
-        with pytest.raises(ValueError, match="beam_width must be a positive int"):
+        with self.assertRaisesRegex(ValueError, "beam_width must be a positive int"):
             with Tapestry():
                 TreeOfThought(
                     prompt="q",

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Mapping
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -27,12 +27,7 @@ class RecordingMemoryStore(MemoryStore):
     async def retrieve(self, key: str) -> Mapping[str, Any] | None:
         return self.writes.get(key)
 
-    async def search(
-        self,
-        query: str,
-        *,
-        top_k: int = 10,
-    ) -> AsyncIterator[Mapping[str, Any]]:
+    async def search(self, query: str, *, top_k: int = 10,) -> AsyncIterator[Mapping[str, Any]]:
         async def _aiter() -> AsyncIterator[Mapping[str, Any]]:
             if False:
                 yield {}
@@ -46,11 +41,10 @@ class RecordingMemoryStore(MemoryStore):
         return None
 
 
-@pytest.mark.asyncio
-class TestProceduralMemoryPipelineConstruction:
+class TestProceduralMemoryPipelineConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_memory_store(self) -> None:
         response = AgentResponse(content="done", finish_reason="stop")
-        with pytest.raises(TypeError, match="store must be a MemoryStore"):
+        with self.assertRaisesRegex(TypeError, "store must be a MemoryStore"):
             with Tapestry():
                 ProceduralMemoryPipeline(
                     agent_response=response,
@@ -60,8 +54,7 @@ class TestProceduralMemoryPipelineConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProceduralMemoryPipelineHappyPath:
+class TestProceduralMemoryPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_writes_procedure_under_procedure_prefix(self) -> None:
         store = RecordingMemoryStore()
         response = AgentResponse(

@@ -1,8 +1,8 @@
 """Unit tests for :class:`SafetyCheck`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -13,8 +13,7 @@ from pirn.domains.agents.types.agent_response import AgentResponse
 from pirn.tapestry import Tapestry
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_true_when_no_match(self) -> None:
         @knot
         async def m() -> AgentMessage:
@@ -61,7 +60,7 @@ class TestProcess:
         assert result.outputs["g"] is True
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_invalid_regex(self) -> None:
         @knot
         async def m() -> AgentMessage:
@@ -69,7 +68,7 @@ class TestConstruction:
 
         with Tapestry():
             msg = m(_config=KnotConfig(id="m"))
-            with pytest.raises(ValueError, match="not a valid regex"):
+            with self.assertRaisesRegex(ValueError, "not a valid regex"):
                 SafetyCheck(
                     message=msg,
                     deny_patterns=("([abc",),

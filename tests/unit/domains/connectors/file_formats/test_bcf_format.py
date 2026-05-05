@@ -1,10 +1,13 @@
 """Round-trip and validation tests for :class:`BcfFormat`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
-pytest.importorskip("pysam")
+try:
+    import pysam
+except ImportError as _e:
+    raise unittest.SkipTest("pysam not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -17,7 +20,7 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 )
 
 
-class TestBcfFormatConstruction:
+class TestBcfFormatConstruction(unittest.TestCase):
     def test_default_arguments(self) -> None:
         fmt = BcfFormat()
         assert fmt.header_lines is None
@@ -31,15 +34,15 @@ class TestBcfFormatConstruction:
         assert fmt.header_lines == header_lines
 
     def test_header_lines_must_be_sequence(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             BcfFormat(header_lines="##contig=<ID=chr1>")  # type: ignore[arg-type]
 
     def test_empty_header_line_rejected(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             BcfFormat(header_lines=("##contig=<ID=chr1>", ""))
 
 
-class TestBcfFormatBasics:
+class TestBcfFormatBasics(unittest.TestCase):
     def test_name(self) -> None:
         assert BcfFormat().name == "bcf"
 
@@ -50,8 +53,7 @@ class TestBcfFormatBasics:
         assert isinstance(BcfFormat(), BatchFileFormat)
 
 
-class TestBcfFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestBcfFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         records = [
             {
@@ -88,7 +90,6 @@ class TestBcfFormatRoundTrip:
         fmt = BcfFormat()
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_empty_with_header(self) -> None:
         header_lines = (
             "##INFO=<ID=DP,Number=1,Type=String,Description=\"Depth\">",
@@ -97,13 +98,11 @@ class TestBcfFormatRoundTrip:
         fmt = BcfFormat(header_lines=header_lines)
         await FormatRoundTrip.assert_round_trip(fmt, [])
 
-    @pytest.mark.asyncio
     async def test_round_trip_empty_without_header_fails(self) -> None:
         fmt = BcfFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, [])
 
-    @pytest.mark.asyncio
     async def test_round_trip_single(self) -> None:
         records = [
             {

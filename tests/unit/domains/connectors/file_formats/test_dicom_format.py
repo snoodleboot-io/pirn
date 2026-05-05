@@ -7,10 +7,13 @@ import io
 from collections.abc import Mapping
 from typing import Any
 from unittest.mock import MagicMock, patch
+import unittest
 
-import pytest
 
-pytest.importorskip("pydicom")
+try:
+    import pydicom
+except ImportError as _e:
+    raise unittest.SkipTest("pydicom not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -81,7 +84,7 @@ async def _decode_bytes(fmt: DicomFormat, payload: bytes) -> list[Mapping[str, A
 # Construction
 # ---------------------------------------------------------------------------
 
-class TestDicomFormatConstruction:
+class TestDicomFormatConstruction(unittest.TestCase):
     def test_is_batch_format(self) -> None:
         assert isinstance(DicomFormat(), BatchFileFormat)
 
@@ -96,7 +99,7 @@ class TestDicomFormatConstruction:
 # PHI keyword set
 # ---------------------------------------------------------------------------
 
-class TestPhiKeywords:
+class TestPhiKeywords(unittest.TestCase):
     def test_patient_id_in_phi_set(self) -> None:
         assert "PatientID" in DicomFormat._phi_keywords
 
@@ -117,7 +120,7 @@ class TestPhiKeywords:
 # Internal helpers
 # ---------------------------------------------------------------------------
 
-class TestHashPatientId:
+class TestHashPatientId(unittest.TestCase):
     def test_known_hash(self) -> None:
         expected = hashlib.sha256(b"PATIENT123").hexdigest()
         assert DicomFormat._hash_patient_id("PATIENT123") == expected
@@ -132,7 +135,7 @@ class TestHashPatientId:
         assert DicomFormat._hash_patient_id(pid) == expected
 
 
-class TestCoerceShape:
+class TestCoerceShape(unittest.TestCase):
     def test_none_returns_1_1(self) -> None:
         assert DicomFormat._coerce_shape(None) == (1, 1)
 
@@ -143,19 +146,19 @@ class TestCoerceShape:
         assert DicomFormat._coerce_shape((64, 64, 3)) == (64, 64)
 
     def test_zero_rows_raises(self) -> None:
-        with pytest.raises(ValueError, match="positive"):
+        with self.assertRaisesRegex(ValueError, "positive"):
             DicomFormat._coerce_shape((0, 128))
 
     def test_zero_cols_raises(self) -> None:
-        with pytest.raises(ValueError, match="positive"):
+        with self.assertRaisesRegex(ValueError, "positive"):
             DicomFormat._coerce_shape((128, 0))
 
     def test_non_sequence_raises(self) -> None:
-        with pytest.raises((ValueError, TypeError)):
+        with self.assertRaises((ValueError, TypeError)):
             DicomFormat._coerce_shape("bad")
 
 
-class TestCoerceMetadataValue:
+class TestCoerceMetadataValue(unittest.TestCase):
     def test_string_passthrough(self) -> None:
         assert DicomFormat._coerce_metadata_value("hello") == "hello"
 
@@ -178,8 +181,7 @@ class TestCoerceMetadataValue:
 # Decode — PHI sanitisation
 # ---------------------------------------------------------------------------
 
-class TestDicomDecodePhiSanitisation:
-    @pytest.mark.asyncio
+class TestDicomDecodePhiSanitisation(unittest.IsolatedAsyncioTestCase):
     async def test_patient_id_hashed_not_raw(self) -> None:
         payload = _make_minimal_dicom_bytes()
         records = await _decode_bytes(DicomFormat(), payload)
@@ -189,35 +191,30 @@ class TestDicomDecodePhiSanitisation:
         assert record["patient_id_hash"] == expected_hash
         assert "patient_id" not in record
 
-    @pytest.mark.asyncio
     async def test_patient_name_stripped_from_metadata(self) -> None:
         payload = _make_minimal_dicom_bytes()
         records = await _decode_bytes(DicomFormat(), payload)
         metadata = records[0]["metadata"]
         assert "PatientName" not in metadata
 
-    @pytest.mark.asyncio
     async def test_patient_birth_date_stripped(self) -> None:
         payload = _make_minimal_dicom_bytes()
         records = await _decode_bytes(DicomFormat(), payload)
         metadata = records[0]["metadata"]
         assert "PatientBirthDate" not in metadata
 
-    @pytest.mark.asyncio
     async def test_pixel_data_not_in_metadata(self) -> None:
         payload = _make_minimal_dicom_bytes()
         records = await _decode_bytes(DicomFormat(), payload)
         metadata = records[0]["metadata"]
         assert "PixelData" not in metadata
 
-    @pytest.mark.asyncio
     async def test_non_phi_fields_present_in_metadata(self) -> None:
         payload = _make_minimal_dicom_bytes()
         records = await _decode_bytes(DicomFormat(), payload)
         metadata = records[0]["metadata"]
         assert "Modality" in metadata
 
-    @pytest.mark.asyncio
     async def test_record_shape(self) -> None:
         payload = _make_minimal_dicom_bytes()
         records = await _decode_bytes(DicomFormat(), payload)
@@ -231,7 +228,6 @@ class TestDicomDecodePhiSanitisation:
         assert "pixel_data" in record
         assert "metadata" in record
 
-    @pytest.mark.asyncio
     async def test_modality_ct(self) -> None:
         payload = _make_minimal_dicom_bytes()
         records = await _decode_bytes(DicomFormat(), payload)
@@ -242,26 +238,24 @@ class TestDicomDecodePhiSanitisation:
 # Decode — error paths
 # ---------------------------------------------------------------------------
 
-class TestDicomDecodeErrors:
-    @pytest.mark.asyncio
+class TestDicomDecodeErrors(unittest.IsolatedAsyncioTestCase):
     async def test_invalid_payload_type_raises_type_error(self) -> None:
         fmt = DicomFormat()
 
         async def _bad_iter():
             yield "not bytes"
 
-        with pytest.raises((TypeError, Exception)):
+        with self.assertRaises((TypeError, Exception)):
             async for _ in await fmt.read(_bad_iter()):
                 pass
 
-    @pytest.mark.asyncio
     async def test_non_dicom_bytes_raises(self) -> None:
         fmt = DicomFormat()
 
         async def _iter():
             yield b"this is not a dicom file at all"
 
-        with pytest.raises(Exception):
+        with self.assertRaises(Exception):
             async for _ in await fmt.read(_iter()):
                 pass
 
@@ -270,8 +264,7 @@ class TestDicomDecodeErrors:
 # Encode — error paths
 # ---------------------------------------------------------------------------
 
-class TestDicomEncodeErrors:
-    @pytest.mark.asyncio
+class TestDicomEncodeErrors(unittest.IsolatedAsyncioTestCase):
     async def test_encode_empty_raises_value_error(self) -> None:
         fmt = DicomFormat()
 
@@ -279,11 +272,10 @@ class TestDicomEncodeErrors:
             return
             yield  # make it an async generator
 
-        with pytest.raises(ValueError, match="empty"):
+        with self.assertRaisesRegex(ValueError, "empty"):
             async for _ in await fmt.write(_empty()):
                 pass
 
-    @pytest.mark.asyncio
     async def test_encode_invalid_pixel_data_type(self) -> None:
         fmt = DicomFormat()
         bad_record = {
@@ -298,7 +290,7 @@ class TestDicomEncodeErrors:
         async def _records():
             yield bad_record
 
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             async for _ in await fmt.write(_records()):
                 pass
 
@@ -307,8 +299,7 @@ class TestDicomEncodeErrors:
 # Round-trip (encode → decode)
 # ---------------------------------------------------------------------------
 
-class TestDicomRoundTrip:
-    @pytest.mark.asyncio
+class TestDicomRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         """Encode a minimal record and decode it back; check non-PHI fields."""
         import pydicom
@@ -339,7 +330,6 @@ class TestDicomRoundTrip:
         assert decoded[0]["pixel_data"] == bytes([0, 128, 64, 32])
         assert decoded[0]["pixel_array_shape"] == (2, 2)
 
-    @pytest.mark.asyncio
     async def test_round_trip_phi_stripped_on_decode(self) -> None:
         """PatientName must not appear in decoded metadata even if encoded."""
         from pydicom.uid import generate_uid
@@ -367,8 +357,8 @@ class TestDicomRoundTrip:
 # Missing pydicom guard
 # ---------------------------------------------------------------------------
 
-class TestDicomMissingDependency:
+class TestDicomMissingDependency(unittest.TestCase):
     def test_load_pydicom_raises_on_missing(self) -> None:
         with patch.dict("sys.modules", {"pydicom": None}):
-            with pytest.raises(ImportError, match="pirn\\[dicom\\]"):
+            with self.assertRaisesRegex(ImportError, "pirn\\[dicom\\]"):
                 DicomFormat._load_pydicom()

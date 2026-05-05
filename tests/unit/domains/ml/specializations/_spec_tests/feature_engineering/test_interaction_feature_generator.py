@@ -1,8 +1,8 @@
 """Tests for :class:`InteractionFeatureGenerator`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -32,11 +32,11 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_column_pairs(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="column_pairs must be non-empty"):
+            with self.assertRaisesRegex(ValueError, "column_pairs must be non-empty"):
                 InteractionFeatureGenerator(
                     split=split,
                     column_pairs=[],
@@ -46,7 +46,7 @@ class TestConstruction:
     def test_rejects_malformed_pair(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="non-empty strings"):
+            with self.assertRaisesRegex(ValueError, "non-empty strings"):
                 InteractionFeatureGenerator(
                     split=split,
                     column_pairs=[("age",)],  # type: ignore[list-item]
@@ -54,7 +54,7 @@ class TestConstruction:
                 )
 
 
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_appends_interaction_feature_names(self) -> None:
         with Tapestry() as t:
             split = emit_split(_config=KnotConfig(id="split"))

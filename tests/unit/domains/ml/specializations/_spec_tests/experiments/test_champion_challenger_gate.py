@@ -1,8 +1,8 @@
 """Tests for :class:`ChampionChallengerGate`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -44,12 +44,12 @@ async def emit_challenger() -> TrainedModel:
     )
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_knot_champion(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
             challenger = emit_challenger(_config=KnotConfig(id="chal"))
-            with pytest.raises(TypeError, match="champion must be a Knot"):
+            with self.assertRaisesRegex(TypeError, "champion must be a Knot"):
                 ChampionChallengerGate(
                     champion="not-a-knot",  # type: ignore[arg-type]
                     challenger=challenger,
@@ -63,7 +63,7 @@ class TestConstruction:
             split = emit_split(_config=KnotConfig(id="split"))
             champ = emit_champion(_config=KnotConfig(id="champ"))
             chal = emit_challenger(_config=KnotConfig(id="chal"))
-            with pytest.raises(ValueError, match="primary_metric"):
+            with self.assertRaisesRegex(ValueError, "primary_metric"):
                 ChampionChallengerGate(
                     champion=champ,
                     challenger=chal,
@@ -73,7 +73,7 @@ class TestConstruction:
                 )
 
 
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_comparison_with_winner_decision(self) -> None:
         with Tapestry() as t:
             split = emit_split(_config=KnotConfig(id="split"))

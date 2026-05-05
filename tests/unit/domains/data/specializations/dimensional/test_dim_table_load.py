@@ -1,8 +1,10 @@
 """Tests for :class:`DimTableLoad`."""
 
 from __future__ import annotations
+import unittest
+import tempfile
+from pathlib import Path
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,60 +16,46 @@ from pirn.domains.data.specializations.dimensional.dim_table_load import (
 from pirn.tapestry import Tapestry
 
 
-@pytest.fixture
-async def source_pool() -> SqlitePool:
-    pool = SqlitePool(SqliteConfig(database=":memory:"))
-    await pool.execute(
-        "CREATE TABLE customers ("
-        "  id INTEGER PRIMARY KEY,"
-        "  name TEXT NOT NULL,"
-        "  region TEXT NOT NULL"
-        ")"
-    )
-    await pool.execute_many(
-        "INSERT INTO customers (id, name, region) VALUES (?, ?, ?)",
-        [(1, "Alice", "EU"), (2, "Bob", "US")],
-    )
-    yield pool
-    await pool.close()
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
+    async def asyncSetUp(self) -> None:
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute(
+            "CREATE TABLE customers ("
+            "  id INTEGER PRIMARY KEY,"
+            "  name TEXT NOT NULL,"
+            "  region TEXT NOT NULL"
+            ")"
+        )
+        await pool.execute_many(
+            "INSERT INTO customers (id, name, region) VALUES (?, ?, ?)",
+            [(1, "Alice", "EU"), (2, "Bob", "US")],
+        )
+        self.source_pool = pool
+        self._tmp_target_pool_type1 = tempfile.TemporaryDirectory()
+        tmp_path = Path(self._tmp_target_pool_type1.name)
+        pool = SqlitePool(SqliteConfig(database=str(tmp_path / "dim1.db")))
+        await pool.execute(
+            "CREATE TABLE customers ("
+            "  dim_sk INTEGER PRIMARY KEY,"
+            "  id INTEGER NOT NULL,"
+            "  name TEXT NOT NULL,"
+            "  region TEXT NOT NULL"
+            ")"
+        )
+        self.target_pool_type1 = pool
 
-@pytest.fixture
-async def target_pool_type1(tmp_path) -> SqlitePool:
-    pool = SqlitePool(SqliteConfig(database=str(tmp_path / "dim1.db")))
-    await pool.execute(
-        "CREATE TABLE customers ("
-        "  dim_sk INTEGER PRIMARY KEY,"
-        "  id INTEGER NOT NULL,"
-        "  name TEXT NOT NULL,"
-        "  region TEXT NOT NULL"
-        ")"
-    )
-    yield pool
-    await pool.close()
-
-
-@pytest.fixture
-async def target_pool_type2(tmp_path) -> SqlitePool:
-    pool = SqlitePool(SqliteConfig(database=str(tmp_path / "dim2.db")))
-    await pool.execute(
-        "CREATE TABLE customers ("
-        "  dim_sk INTEGER NOT NULL,"
-        "  id INTEGER NOT NULL,"
-        "  name TEXT NOT NULL,"
-        "  region TEXT NOT NULL,"
-        "  valid_from TEXT NOT NULL,"
-        "  valid_to TEXT,"
-        "  is_current INTEGER NOT NULL"
-        ")"
-    )
-    yield pool
-    await pool.close()
-
-
-class TestConstruction:
-    def test_rejects_non_pool(self, target_pool_type1: SqlitePool) -> None:
-        with pytest.raises(TypeError, match="DatabaseConnectionPool"):
+    async def asyncTearDown(self) -> None:
+        await self.source_pool.close()
+        
+        
+        await self.target_pool_type1.close()
+        
+        
+        self._tmp_target_pool_type1.cleanup()
+    def test_rejects_non_pool(self) -> None:
+        target_pool_type1 = self.target_pool_type1
+        with self.assertRaisesRegex(TypeError, "DatabaseConnectionPool"):
             DimTableLoad(
                 source_pool="bad",  # type: ignore[arg-type]
                 source_query="SELECT 1",
@@ -78,10 +66,10 @@ class TestConstruction:
                 _config=KnotConfig(id="dim"),
             )
 
-    def test_rejects_invalid_scd_type(
-        self, source_pool: SqlitePool, target_pool_type1: SqlitePool
-    ) -> None:
-        with pytest.raises(ValueError, match="scd_type"):
+    def test_rejects_invalid_scd_type(self) -> None:
+        source_pool = self.source_pool
+        target_pool_type1 = self.target_pool_type1
+        with self.assertRaisesRegex(ValueError, "scd_type"):
             DimTableLoad(
                 source_pool=source_pool,
                 source_query="SELECT 1",
@@ -93,10 +81,10 @@ class TestConstruction:
                 _config=KnotConfig(id="dim"),
             )
 
-    def test_rejects_invalid_identifier(
-        self, source_pool: SqlitePool, target_pool_type1: SqlitePool
-    ) -> None:
-        with pytest.raises(ValueError, match="plain identifier"):
+    def test_rejects_invalid_identifier(self) -> None:
+        source_pool = self.source_pool
+        target_pool_type1 = self.target_pool_type1
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
             DimTableLoad(
                 source_pool=source_pool,
                 source_query="SELECT 1",
@@ -108,11 +96,46 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestDimTableLoadType1:
-    async def test_inserts_with_surrogate_keys(
-        self, source_pool: SqlitePool, target_pool_type1: SqlitePool
-    ) -> None:
+class TestDimTableLoadType1(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self) -> None:
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute(
+            "CREATE TABLE customers ("
+            "  id INTEGER PRIMARY KEY,"
+            "  name TEXT NOT NULL,"
+            "  region TEXT NOT NULL"
+            ")"
+        )
+        await pool.execute_many(
+            "INSERT INTO customers (id, name, region) VALUES (?, ?, ?)",
+            [(1, "Alice", "EU"), (2, "Bob", "US")],
+        )
+        self.source_pool = pool
+        self._tmp_target_pool_type1 = tempfile.TemporaryDirectory()
+        tmp_path = Path(self._tmp_target_pool_type1.name)
+        pool = SqlitePool(SqliteConfig(database=str(tmp_path / "dim1.db")))
+        await pool.execute(
+            "CREATE TABLE customers ("
+            "  dim_sk INTEGER PRIMARY KEY,"
+            "  id INTEGER NOT NULL,"
+            "  name TEXT NOT NULL,"
+            "  region TEXT NOT NULL"
+            ")"
+        )
+        self.target_pool_type1 = pool
+
+    async def asyncTearDown(self) -> None:
+        await self.source_pool.close()
+        
+        
+        await self.target_pool_type1.close()
+        
+        
+        self._tmp_target_pool_type1.cleanup()
+    async def test_inserts_with_surrogate_keys(self) -> None:
+        source_pool = self.source_pool
+        target_pool_type1 = self.target_pool_type1
         with Tapestry() as t:
             DimTableLoad(
                 source_pool=source_pool,
@@ -132,9 +155,9 @@ class TestDimTableLoadType1:
         assert rows[0][0] == 1
         assert rows[1][0] == 2
 
-    async def test_updates_on_second_run(
-        self, source_pool: SqlitePool, target_pool_type1: SqlitePool
-    ) -> None:
+    async def test_updates_on_second_run(self) -> None:
+        source_pool = self.source_pool
+        target_pool_type1 = self.target_pool_type1
         with Tapestry() as t:
             DimTableLoad(
                 source_pool=source_pool,
@@ -171,11 +194,49 @@ class TestDimTableLoadType1:
         assert count[0][0] == 2
 
 
-@pytest.mark.asyncio
-class TestDimTableLoadType2:
-    async def test_inserts_with_history_columns(
-        self, source_pool: SqlitePool, target_pool_type2: SqlitePool
-    ) -> None:
+class TestDimTableLoadType2(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self) -> None:
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute(
+            "CREATE TABLE customers ("
+            "  id INTEGER PRIMARY KEY,"
+            "  name TEXT NOT NULL,"
+            "  region TEXT NOT NULL"
+            ")"
+        )
+        await pool.execute_many(
+            "INSERT INTO customers (id, name, region) VALUES (?, ?, ?)",
+            [(1, "Alice", "EU"), (2, "Bob", "US")],
+        )
+        self.source_pool = pool
+        self._tmp_target_pool_type2 = tempfile.TemporaryDirectory()
+        tmp_path = Path(self._tmp_target_pool_type2.name)
+        pool = SqlitePool(SqliteConfig(database=str(tmp_path / "dim2.db")))
+        await pool.execute(
+            "CREATE TABLE customers ("
+            "  dim_sk INTEGER NOT NULL,"
+            "  id INTEGER NOT NULL,"
+            "  name TEXT NOT NULL,"
+            "  region TEXT NOT NULL,"
+            "  valid_from TEXT NOT NULL,"
+            "  valid_to TEXT,"
+            "  is_current INTEGER NOT NULL"
+            ")"
+        )
+        self.target_pool_type2 = pool
+
+    async def asyncTearDown(self) -> None:
+        await self.source_pool.close()
+        
+        
+        await self.target_pool_type2.close()
+        
+        
+        self._tmp_target_pool_type2.cleanup()
+    async def test_inserts_with_history_columns(self) -> None:
+        source_pool = self.source_pool
+        target_pool_type2 = self.target_pool_type2
         with Tapestry() as t:
             DimTableLoad(
                 source_pool=source_pool,
@@ -197,9 +258,9 @@ class TestDimTableLoadType2:
             assert row[1] is None
             assert row[2] == 1
 
-    async def test_expires_old_row_on_change(
-        self, source_pool: SqlitePool, target_pool_type2: SqlitePool
-    ) -> None:
+    async def test_expires_old_row_on_change(self) -> None:
+        source_pool = self.source_pool
+        target_pool_type2 = self.target_pool_type2
         with Tapestry() as t:
             DimTableLoad(
                 source_pool=source_pool,

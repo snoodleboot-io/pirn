@@ -1,8 +1,8 @@
 """Tests for :class:`DerivedColumnCalculator`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -27,22 +27,21 @@ def _make(expressions):
     return knot
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_invalid_output_column(self) -> None:
-        with pytest.raises(ValueError, match="plain identifier"):
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
             _make([{"column": "bad col", "expression": "1 + 1"}])
 
     def test_rejects_syntax_error(self) -> None:
-        with pytest.raises(ValueError, match="invalid expression"):
+        with self.assertRaisesRegex(ValueError, "invalid expression"):
             _make([{"column": "x", "expression": "1 +* 2"}])
 
     def test_rejects_empty_expression(self) -> None:
-        with pytest.raises(ValueError, match="expression"):
+        with self.assertRaisesRegex(ValueError, "expression"):
             _make([{"column": "x", "expression": ""}])
 
 
-@pytest.mark.asyncio
-class TestBehaviour:
+class TestBehaviour(unittest.IsolatedAsyncioTestCase):
     async def test_arithmetic_expression(self) -> None:
         rows = [{"price": 100, "qty": 3}]
         knot = _make([{"column": "total", "expression": "price * qty"}])
@@ -81,7 +80,7 @@ class TestBehaviour:
     async def test_unknown_column_raises(self) -> None:
         rows = [{"x": 1}]
         knot = _make([{"column": "y", "expression": "missing_col + 1"}])
-        with pytest.raises(ValueError, match="missing_col"):
+        with self.assertRaisesRegex(ValueError, "missing_col"):
             await knot.process(rows=rows)
 
     async def test_empty_input(self) -> None:

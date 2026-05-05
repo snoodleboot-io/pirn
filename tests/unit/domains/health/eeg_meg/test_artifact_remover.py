@@ -1,8 +1,8 @@
 """Unit tests for :class:`ArtifactRemover`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -11,9 +11,9 @@ from pirn.domains.health.types.signal_frame import SignalFrame
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_signal(self) -> None:
-        with pytest.raises(TypeError, match="SignalFrame"):
+        with self.assertRaisesRegex(TypeError, "SignalFrame"):
             ArtifactRemover(
                 signal="x",  # type: ignore[arg-type]
                 n_components=10,
@@ -22,7 +22,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_int_components(self) -> None:
-        with pytest.raises(TypeError, match="n_components"):
+        with self.assertRaisesRegex(TypeError, "n_components"):
             ArtifactRemover(
                 signal=SignalFrame(),
                 n_components="x",  # type: ignore[arg-type]
@@ -31,7 +31,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_positive_components(self) -> None:
-        with pytest.raises(ValueError, match="positive"):
+        with self.assertRaisesRegex(ValueError, "positive"):
             ArtifactRemover(
                 signal=SignalFrame(),
                 n_components=0,
@@ -40,7 +40,7 @@ class TestConstruction:
             )
 
     def test_rejects_invalid_method(self) -> None:
-        with pytest.raises(ValueError, match="method"):
+        with self.assertRaisesRegex(ValueError, "method"):
             ArtifactRemover(
                 signal=SignalFrame(),
                 n_components=10,
@@ -49,8 +49,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_signal_frame(self) -> None:
         with Tapestry() as t:
             ArtifactRemover(

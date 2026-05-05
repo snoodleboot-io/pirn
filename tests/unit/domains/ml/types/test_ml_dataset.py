@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import unittest
 
 from pirn.domains.ml.types.ml_dataset import MLDataset
 
 
-class TestMLDataset:
+class TestMLDataset(unittest.TestCase):
     def test_construction_and_audit_dict(self) -> None:
         fetched_at = datetime(2026, 4, 29, 12, 0, tzinfo=timezone.utc)
         dataset = MLDataset(

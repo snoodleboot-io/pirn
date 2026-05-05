@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import timezone
+import unittest
 
 import ibis
 
@@ -15,7 +16,7 @@ def _users_table() -> ibis.Table:
     return con.table("users")
 
 
-class TestIbisTable:
+class TestIbisTable(unittest.TestCase):
     def test_column_names_from_expression(self) -> None:
         batch = IbisTable(expression=_users_table(), backend_name="duckdb")
         assert set(batch.column_names) == {"id", "name"}

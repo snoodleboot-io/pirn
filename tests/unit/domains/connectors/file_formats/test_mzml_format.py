@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 from unittest.mock import patch
+import unittest
 
-import pytest
 
-pytest.importorskip("pyteomics")
+try:
+    import pyteomics
+except ImportError as _e:
+    raise unittest.SkipTest("pyteomics not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -77,7 +80,7 @@ async def _decode_bytes(fmt: MzmlFormat, payload: bytes) -> list[dict]:
 # Construction
 # ---------------------------------------------------------------------------
 
-class TestMzmlFormatConstruction:
+class TestMzmlFormatConstruction(unittest.TestCase):
     def test_is_batch_format(self) -> None:
         assert isinstance(MzmlFormat(), BatchFileFormat)
 
@@ -92,8 +95,7 @@ class TestMzmlFormatConstruction:
 # Round-trip
 # ---------------------------------------------------------------------------
 
-class TestMzmlFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestMzmlFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_decode_record_shape(self) -> None:
         payload = _make_minimal_mzml_bytes()
         records = await _decode_bytes(MzmlFormat(), payload)
@@ -105,14 +107,12 @@ class TestMzmlFormatRoundTrip:
         assert "mz_array" in record
         assert "intensity_array" in record
 
-    @pytest.mark.asyncio
     async def test_decode_arrays_are_bytes(self) -> None:
         payload = _make_minimal_mzml_bytes()
         records = await _decode_bytes(MzmlFormat(), payload)
         assert isinstance(records[0]["mz_array"], bytes)
         assert isinstance(records[0]["intensity_array"], bytes)
 
-    @pytest.mark.asyncio
     async def test_encode_decode_round_trip(self) -> None:
         import numpy as np
 
@@ -136,7 +136,6 @@ class TestMzmlFormatRoundTrip:
         assert np.allclose(mz_out, mz)
         assert np.allclose(int_out, intensity)
 
-    @pytest.mark.asyncio
     async def test_ms_level_preserved(self) -> None:
         payload = _make_minimal_mzml_bytes()
         records = await _decode_bytes(MzmlFormat(), payload)
@@ -147,8 +146,7 @@ class TestMzmlFormatRoundTrip:
 # Error paths
 # ---------------------------------------------------------------------------
 
-class TestMzmlFormatErrors:
-    @pytest.mark.asyncio
+class TestMzmlFormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_encode_non_bytes_mz_array_raises(self) -> None:
         fmt = MzmlFormat()
 
@@ -161,18 +159,17 @@ class TestMzmlFormatErrors:
                 "intensity_array": b"",
             }
 
-        with pytest.raises(TypeError, match="mz_array"):
+        with self.assertRaisesRegex(TypeError, "mz_array"):
             async for _ in await fmt.write(_records()):
                 pass
 
-    @pytest.mark.asyncio
     async def test_invalid_xml_raises(self) -> None:
         fmt = MzmlFormat()
 
         async def _iter():
             yield b"<not valid mzml"
 
-        with pytest.raises(Exception):
+        with self.assertRaises(Exception):
             async for _ in await fmt.read(_iter()):
                 pass
 
@@ -181,13 +178,13 @@ class TestMzmlFormatErrors:
 # Missing dependency guard
 # ---------------------------------------------------------------------------
 
-class TestMzmlFormatMissingDep:
+class TestMzmlFormatMissingDep(unittest.TestCase):
     def test_load_pyteomics_raises_on_missing(self) -> None:
         with patch.dict("sys.modules", {"pyteomics": None, "pyteomics.mzml": None}):
-            with pytest.raises(ImportError, match="pirn\\[health\\]"):
+            with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
                 MzmlFormat._load_pyteomics_mzml()
 
     def test_load_lxml_raises_on_missing(self) -> None:
         with patch.dict("sys.modules", {"lxml": None, "lxml.etree": None}):
-            with pytest.raises(ImportError, match="pirn\\[health\\]"):
+            with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
                 MzmlFormat._load_lxml()

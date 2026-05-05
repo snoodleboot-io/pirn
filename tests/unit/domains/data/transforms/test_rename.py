@@ -1,8 +1,8 @@
 """Tests for :class:`pirn.domains.data.transforms.rename.Rename`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -27,8 +27,7 @@ async def emit_users() -> DataBatch:
     return DataBatch(rows=rows, schema=schema)
 
 
-@pytest.mark.asyncio
-class TestRename:
+class TestRename(unittest.IsolatedAsyncioTestCase):
     async def test_renames_columns_and_passes_others_through(self) -> None:
         with Tapestry() as t:
             batch = emit_users(_config=KnotConfig(id="users"))
@@ -72,14 +71,14 @@ class TestRename:
         assert "id" in out.rows[0]
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_mapping(self) -> None:
         @knot
         async def empty() -> DataBatch:
             return DataBatch()
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="non-empty"):
+            with self.assertRaisesRegex(TypeError, "non-empty"):
                 Rename(batch=batch, mapping={}, _config=KnotConfig(id="r"))
 
     def test_rejects_non_string_keys(self) -> None:
@@ -88,7 +87,7 @@ class TestConstruction:
             return DataBatch()
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="strings"):
+            with self.assertRaisesRegex(TypeError, "strings"):
                 Rename(
                     batch=batch, mapping={1: "id"},  # type: ignore[dict-item]
                     _config=KnotConfig(id="r"),

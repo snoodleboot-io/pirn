@@ -1,8 +1,8 @@
 """Unit tests for :class:`AtlasAligner`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -10,9 +10,9 @@ from pirn.domains.health.mri.atlas_aligner import AtlasAligner
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_nifti(self) -> None:
-        with pytest.raises(ValueError, match="non-empty"):
+        with self.assertRaisesRegex(ValueError, "non-empty"):
             AtlasAligner(
                 nifti_path="",
                 atlas_name="MNI152",
@@ -21,8 +21,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_aligned_path(self) -> None:
         with Tapestry() as t:
             AtlasAligner(

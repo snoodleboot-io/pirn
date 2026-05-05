@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.bi_catalog.alation_client import AlationClient
@@ -29,15 +29,7 @@ class FakeHttpx:
         self.responses: dict[tuple[str, str], Any] = {}
         self.closed = False
 
-    async def request(
-        self,
-        method: str,
-        url: str,
-        *,
-        params: Any = None,
-        json: Any = None,
-        headers: Any = None,
-    ) -> FakeResponse:
+    async def request(self, method: str, url: str, *, params: Any = None, json: Any = None, headers: Any = None,) -> FakeResponse:
         self.calls.append(
             {
                 "method": method,
@@ -53,22 +45,23 @@ class FakeHttpx:
         self.closed = True
 
 
-def test_implements_api_client() -> None:
-    client = AlationClient(client=FakeHttpx())
-    assert isinstance(client, ApiClient)
 
-
-def test_construction_requires_config_or_client() -> None:
-    with pytest.raises(TypeError, match="config= or client="):
-        AlationClient()
-
-
-def test_sensitive_fields_listed() -> None:
-    assert AlationConfig.sensitive_fields == ("refresh_token",)
-
-
-@pytest.mark.asyncio
-class TestRequest:
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_api_client(self) -> None:
+        client = AlationClient(client=FakeHttpx())
+        assert isinstance(client, ApiClient)
+    
+    
+    def test_construction_requires_config_or_client(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or client="):
+            AlationClient()
+    
+    
+    def test_sensitive_fields_listed(self) -> None:
+        assert AlationConfig.sensitive_fields == ("refresh_token",)
+    
+    
+class TestRequest(unittest.IsolatedAsyncioTestCase):
     async def test_request_builds_full_url_and_returns_json(self) -> None:
         fake = FakeHttpx()
         cfg = AlationConfig(
@@ -97,8 +90,7 @@ class TestRequest:
         ]
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_closes_underlying_client(self) -> None:
         fake = FakeHttpx()
         client = AlationClient(client=fake)
@@ -113,28 +105,27 @@ class TestLifecycle:
     async def test_request_after_close_raises(self) -> None:
         client = AlationClient(client=FakeHttpx())
         await client.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await client.request("GET", "/integration/v1/datasource")
 
 
-def test_implements_table_source_and_metadata_catalog() -> None:
-    client = AlationClient(client=FakeHttpx())
-    assert isinstance(client, TableSource)
-    assert isinstance(client, MetadataCatalog)
-
-
-def test_default_entity_type_is_data() -> None:
-    client = AlationClient(client=FakeHttpx())
-    assert client.entity_type == "data"
-
-
-def test_blank_entity_type_rejected() -> None:
-    with pytest.raises(ValueError, match="entity_type"):
-        AlationClient(client=FakeHttpx(), entity_type="")
-
-
-@pytest.mark.asyncio
-class TestFetchPage:
+    def test_implements_table_source_and_metadata_catalog(self) -> None:
+        client = AlationClient(client=FakeHttpx())
+        assert isinstance(client, TableSource)
+        assert isinstance(client, MetadataCatalog)
+    
+    
+    def test_default_entity_type_is_data(self) -> None:
+        client = AlationClient(client=FakeHttpx())
+        assert client.entity_type == "data"
+    
+    
+    def test_blank_entity_type_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "entity_type"):
+            AlationClient(client=FakeHttpx(), entity_type="")
+    
+    
+class TestFetchPage(unittest.IsolatedAsyncioTestCase):
     async def test_fetch_page_uses_skip_and_limit(self) -> None:
         fake = FakeHttpx()
         cfg = AlationConfig(
@@ -173,8 +164,7 @@ class TestFetchPage:
         assert fake.calls[0]["params"] == {"skip": 10, "limit": 5}
 
 
-@pytest.mark.asyncio
-class TestListEntities:
+class TestListEntities(unittest.IsolatedAsyncioTestCase):
     async def test_paginates_internally(self) -> None:
         fake = FakeHttpx()
         cfg = AlationConfig(
@@ -242,8 +232,7 @@ class TestListEntities:
         assert results == [{"id": 1, "kind": "table"}]
 
 
-@pytest.mark.asyncio
-class TestDescribeEntity:
+class TestDescribeEntity(unittest.IsolatedAsyncioTestCase):
     async def test_describe_calls_entity_get(self) -> None:
         fake = FakeHttpx()
         cfg = AlationConfig(

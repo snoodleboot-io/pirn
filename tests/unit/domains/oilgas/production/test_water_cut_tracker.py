@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -30,14 +30,13 @@ class _WaterSource(Knot):
         return ScadaTimeSeries(sensor_id="water", sample_interval_sec=60.0)
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_requires_oil_and_water(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             WaterCutTracker(_config=KnotConfig(id="wc"))  # type: ignore[call-arg]
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_water_cut_series(self) -> None:
         with Tapestry() as t:
             o = _OilSource(_config=KnotConfig(id="o"))

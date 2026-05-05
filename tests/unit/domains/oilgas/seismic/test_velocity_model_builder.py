@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -32,9 +32,9 @@ class _WellVelocitySource(Knot):
         return [{"well_id": "W-1", "depth_m": 1000.0, "velocity_m_s": 2100.0}]
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_invalid_interpolation_method(self) -> None:
-        with pytest.raises(ValueError, match="interpolation_method"):
+        with self.assertRaisesRegex(ValueError, "interpolation_method"):
             with Tapestry():
                 sp = _SemblanceSource(_config=KnotConfig(id="sp"))
                 wv = _WellVelocitySource(_config=KnotConfig(id="wv"))
@@ -46,8 +46,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_velocity_model(self) -> None:
         with Tapestry() as t:
             sp = _SemblanceSource(_config=KnotConfig(id="sp"))

@@ -1,8 +1,8 @@
 """Tests for :class:`CrossValidator`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -23,7 +23,7 @@ async def emit_dataset() -> MLDataset:
     )
 
 
-class TestCrossValidatorHappyPath:
+class TestCrossValidatorHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_k_folds(self) -> None:
         with Tapestry() as t:
             dataset = emit_dataset(_config=KnotConfig(id="dataset"))
@@ -44,11 +44,11 @@ class TestCrossValidatorHappyPath:
             assert split.train.row_count + split.test.row_count == 100
 
 
-class TestCrossValidatorConstruction:
+class TestCrossValidatorConstruction(unittest.TestCase):
     def test_rejects_k_below_two(self) -> None:
         with Tapestry():
             dataset = emit_dataset(_config=KnotConfig(id="dataset"))
-            with pytest.raises(ValueError, match="k must be >= 2"):
+            with self.assertRaisesRegex(ValueError, "k must be >= 2"):
                 CrossValidator(
                     dataset=dataset,
                     k=1,

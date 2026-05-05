@@ -1,9 +1,9 @@
 """Tests for :class:`PyarrowToDataBatch`."""
 
 from __future__ import annotations
+import unittest
 
 import pyarrow as pa
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -22,8 +22,7 @@ async def emit_pyarrow_batch() -> PyarrowDataBatch:
     return PyarrowDataBatch(table=table, source_uri="memory://x")
 
 
-@pytest.mark.asyncio
-class TestPyarrowToDataBatch:
+class TestPyarrowToDataBatch(unittest.IsolatedAsyncioTestCase):
     async def test_materialises_rows_as_dicts(self) -> None:
         with Tapestry() as t:
             batch = emit_pyarrow_batch(_config=KnotConfig(id="arrow"))

@@ -1,8 +1,8 @@
 """Tests for :class:`BinaryClassificationPipeline`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -16,10 +16,10 @@ from tests.unit.domains.ml._stubs.recording_database_pool import (
 )
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_target_column(self) -> None:
         with Tapestry():
-            with pytest.raises(ValueError, match="target_column"):
+            with self.assertRaisesRegex(ValueError, "target_column"):
                 BinaryClassificationPipeline(
                     pool=RecordingDatabasePool(rows=[(1, 0)]),
                     query="SELECT 1",
@@ -30,7 +30,7 @@ class TestConstruction:
 
     def test_rejects_empty_feature_names(self) -> None:
         with Tapestry():
-            with pytest.raises(ValueError, match="feature_names"):
+            with self.assertRaisesRegex(ValueError, "feature_names"):
                 BinaryClassificationPipeline(
                     pool=RecordingDatabasePool(rows=[(1, 0)]),
                     query="SELECT 1",
@@ -40,8 +40,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_classification_report(self) -> None:
         rows = [(float(i), i % 2) for i in range(40)]
         with Tapestry() as t:

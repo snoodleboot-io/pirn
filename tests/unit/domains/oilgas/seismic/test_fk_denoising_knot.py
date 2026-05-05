@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -26,9 +26,9 @@ class _GatherSource(Knot):
         }
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_velocity(self) -> None:
-        with pytest.raises(ValueError, match="velocity_threshold_m_s"):
+        with self.assertRaisesRegex(ValueError, "velocity_threshold_m_s"):
             with Tapestry():
                 src = _GatherSource(_config=KnotConfig(id="src"))
                 FKDenoisingKnot(
@@ -39,7 +39,7 @@ class TestConstruction:
                 )
 
     def test_rejects_invalid_taper_width(self) -> None:
-        with pytest.raises(ValueError, match="taper_width_pct"):
+        with self.assertRaisesRegex(ValueError, "taper_width_pct"):
             with Tapestry():
                 src = _GatherSource(_config=KnotConfig(id="src"))
                 FKDenoisingKnot(
@@ -50,8 +50,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_denoised_gather(self) -> None:
         with Tapestry() as t:
             src = _GatherSource(_config=KnotConfig(id="src"))

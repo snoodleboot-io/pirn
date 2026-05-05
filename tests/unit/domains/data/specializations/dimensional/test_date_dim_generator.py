@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import datetime
+import unittest
+import tempfile
+from pathlib import Path
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -31,17 +33,22 @@ _CREATE_DATE_DIM = (
 )
 
 
-@pytest.fixture
-async def target_pool(tmp_path) -> SqlitePool:
-    pool = SqlitePool(SqliteConfig(database=str(tmp_path / "date_dim.db")))
-    await pool.execute(_CREATE_DATE_DIM)
-    yield pool
-    await pool.close()
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
+    async def asyncSetUp(self) -> None:
+        self._tmp_target_pool = tempfile.TemporaryDirectory()
+        tmp_path = Path(self._tmp_target_pool.name)
+        pool = SqlitePool(SqliteConfig(database=str(tmp_path / "date_dim.db")))
+        await pool.execute(_CREATE_DATE_DIM)
+        self.target_pool = pool
 
-class TestConstruction:
+    async def asyncTearDown(self) -> None:
+        await self.target_pool.close()
+        
+        
+        self._tmp_target_pool.cleanup()
     def test_rejects_non_pool(self) -> None:
-        with pytest.raises(TypeError, match="DatabaseConnectionPool"):
+        with self.assertRaisesRegex(TypeError, "DatabaseConnectionPool"):
             DateDimGenerator(
                 target_pool="bad",  # type: ignore[arg-type]
                 target_table="date_dim",
@@ -50,8 +57,9 @@ class TestConstruction:
                 _config=KnotConfig(id="ddg"),
             )
 
-    def test_rejects_end_before_start(self, target_pool: SqlitePool) -> None:
-        with pytest.raises(ValueError, match="end_date"):
+    def test_rejects_end_before_start(self) -> None:
+        target_pool = self.target_pool
+        with self.assertRaisesRegex(ValueError, "end_date"):
             DateDimGenerator(
                 target_pool=target_pool,
                 target_table="date_dim",
@@ -60,8 +68,9 @@ class TestConstruction:
                 _config=KnotConfig(id="ddg"),
             )
 
-    def test_rejects_invalid_fiscal_month(self, target_pool: SqlitePool) -> None:
-        with pytest.raises(ValueError, match="fiscal_year_start_month"):
+    def test_rejects_invalid_fiscal_month(self) -> None:
+        target_pool = self.target_pool
+        with self.assertRaisesRegex(ValueError, "fiscal_year_start_month"):
             DateDimGenerator(
                 target_pool=target_pool,
                 target_table="date_dim",
@@ -71,10 +80,9 @@ class TestConstruction:
                 _config=KnotConfig(id="ddg"),
             )
 
-    def test_rejects_invalid_table_identifier(
-        self, target_pool: SqlitePool
-    ) -> None:
-        with pytest.raises(ValueError, match="plain identifier"):
+    def test_rejects_invalid_table_identifier(self) -> None:
+        target_pool = self.target_pool
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
             DateDimGenerator(
                 target_pool=target_pool,
                 target_table="bad table",
@@ -84,11 +92,22 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestDateDimGeneratorBehaviour:
-    async def test_generates_correct_row_count(
-        self, target_pool: SqlitePool
-    ) -> None:
+class TestDateDimGeneratorBehaviour(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self) -> None:
+        self._tmp_target_pool = tempfile.TemporaryDirectory()
+        tmp_path = Path(self._tmp_target_pool.name)
+        pool = SqlitePool(SqliteConfig(database=str(tmp_path / "date_dim.db")))
+        await pool.execute(_CREATE_DATE_DIM)
+        self.target_pool = pool
+
+    async def asyncTearDown(self) -> None:
+        await self.target_pool.close()
+        
+        
+        self._tmp_target_pool.cleanup()
+    async def test_generates_correct_row_count(self) -> None:
+        target_pool = self.target_pool
         with Tapestry() as t:
             DateDimGenerator(
                 target_pool=target_pool,
@@ -102,7 +121,8 @@ class TestDateDimGeneratorBehaviour:
         rows = await target_pool.fetch_all("SELECT COUNT(*) FROM date_dim")
         assert rows[0][0] == 31
 
-    async def test_date_key_format(self, target_pool: SqlitePool) -> None:
+    async def test_date_key_format(self) -> None:
+        target_pool = self.target_pool
         with Tapestry() as t:
             DateDimGenerator(
                 target_pool=target_pool,
@@ -125,7 +145,8 @@ class TestDateDimGeneratorBehaviour:
         assert row[4] == 3
         assert row[5] == 15
 
-    async def test_weekend_flag(self, target_pool: SqlitePool) -> None:
+    async def test_weekend_flag(self) -> None:
+        target_pool = self.target_pool
         with Tapestry() as t:
             DateDimGenerator(
                 target_pool=target_pool,
@@ -143,7 +164,8 @@ class TestDateDimGeneratorBehaviour:
         assert "2026-01-04" in weekends
         assert "2026-01-01" not in weekends
 
-    async def test_fiscal_year_offset(self, target_pool: SqlitePool) -> None:
+    async def test_fiscal_year_offset(self) -> None:
+        target_pool = self.target_pool
         with Tapestry() as t:
             DateDimGenerator(
                 target_pool=target_pool,
@@ -157,7 +179,8 @@ class TestDateDimGeneratorBehaviour:
         rows = await target_pool.fetch_all("SELECT fiscal_year FROM date_dim")
         assert rows[0][0] == 2026
 
-    async def test_fiscal_year_in_new_year(self, target_pool: SqlitePool) -> None:
+    async def test_fiscal_year_in_new_year(self) -> None:
+        target_pool = self.target_pool
         with Tapestry() as t:
             DateDimGenerator(
                 target_pool=target_pool,
@@ -171,7 +194,8 @@ class TestDateDimGeneratorBehaviour:
         rows = await target_pool.fetch_all("SELECT fiscal_year FROM date_dim")
         assert rows[0][0] == 2027
 
-    async def test_single_day_range(self, target_pool: SqlitePool) -> None:
+    async def test_single_day_range(self) -> None:
+        target_pool = self.target_pool
         with Tapestry() as t:
             DateDimGenerator(
                 target_pool=target_pool,

@@ -1,8 +1,8 @@
 """Tests for :class:`FullRefreshExtract`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,31 +14,30 @@ from pirn.domains.data.specializations.ingestion.full_refresh_extract import (
 from pirn.tapestry import Tapestry
 
 
-@pytest.fixture
-async def source_pool() -> SqlitePool:
-    pool = SqlitePool(SqliteConfig(database=":memory:"))
-    await pool.execute("CREATE TABLE products (id INTEGER PRIMARY KEY, sku TEXT NOT NULL)")
-    await pool.execute_many(
-        "INSERT INTO products (id, sku) VALUES (?, ?)",
-        [(1, "A1"), (2, "A2"), (3, "A3")],
-    )
-    yield pool
-    await pool.close()
+class TestFullRefreshExtract(unittest.IsolatedAsyncioTestCase):
 
+    async def asyncSetUp(self) -> None:
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute("CREATE TABLE products (id INTEGER PRIMARY KEY, sku TEXT NOT NULL)")
+        await pool.execute_many(
+            "INSERT INTO products (id, sku) VALUES (?, ?)",
+            [(1, "A1"), (2, "A2"), (3, "A3")],
+        )
+        self.source_pool = pool
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute("CREATE TABLE products (id INTEGER PRIMARY KEY, sku TEXT NOT NULL)")
+        self.target_pool = pool
 
-@pytest.fixture
-async def target_pool() -> SqlitePool:
-    pool = SqlitePool(SqliteConfig(database=":memory:"))
-    await pool.execute("CREATE TABLE products (id INTEGER PRIMARY KEY, sku TEXT NOT NULL)")
-    yield pool
-    await pool.close()
-
-
-@pytest.mark.asyncio
-class TestFullRefreshExtract:
-    async def test_loads_into_empty_target(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
+    async def asyncTearDown(self) -> None:
+        await self.source_pool.close()
+        
+        
+        await self.target_pool.close()
+        
+        
+    async def test_loads_into_empty_target(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
         with Tapestry() as t:
             FullRefreshExtract(
                 source_pool=source_pool,
@@ -53,9 +52,9 @@ class TestFullRefreshExtract:
         rows = await target_pool.fetch_all("SELECT id, sku FROM products ORDER BY id")
         assert rows == [(1, "A1"), (2, "A2"), (3, "A3")]
 
-    async def test_subsequent_run_drops_and_reloads(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
+    async def test_subsequent_run_drops_and_reloads(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
         await target_pool.execute_many(
             "INSERT INTO products (id, sku) VALUES (?, ?)",
             [(99, "STALE")],
@@ -75,9 +74,9 @@ class TestFullRefreshExtract:
         assert rows == [(1,), (2,), (3,)]
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_pool(self) -> None:
-        with pytest.raises(TypeError, match="DatabaseConnectionPool"):
+        with self.assertRaisesRegex(TypeError, "DatabaseConnectionPool"):
             FullRefreshExtract(
                 source_pool=object(),  # type: ignore[arg-type]
                 source_query="SELECT 1",

@@ -1,11 +1,19 @@
 """Round-trip and validation tests for :class:`ResqmlFormat`."""
 
 from __future__ import annotations
+import sys
+import unittest
+import unittest.mock
 
-import pytest
 
-pytest.importorskip("defusedxml")
-pytest.importorskip("lxml")
+try:
+    import defusedxml
+except ImportError as _e:
+    raise unittest.SkipTest("defusedxml not installed") from _e
+try:
+    import lxml
+except ImportError as _e:
+    raise unittest.SkipTest("lxml not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -50,7 +58,7 @@ def _simple_flat_records() -> list[dict]:
     ]
 
 
-class TestResqmlFormatConstruction:
+class TestResqmlFormatConstruction(unittest.TestCase):
     def test_name(self) -> None:
         assert ResqmlFormat().name == "resqml"
 
@@ -61,8 +69,7 @@ class TestResqmlFormatConstruction:
         assert isinstance(ResqmlFormat(), BatchFileFormat)
 
 
-class TestResqmlFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestResqmlFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_two_records(self) -> None:
         fmt = ResqmlFormat()
         records = _simple_flat_records()
@@ -73,7 +80,6 @@ class TestResqmlFormatRoundTrip:
             for key, val in orig.items():
                 assert dec.get(key) == val
 
-    @pytest.mark.asyncio
     async def test_round_trip_single_record(self) -> None:
         fmt = ResqmlFormat()
         records = [{"description": "Salt top"}]
@@ -82,7 +88,6 @@ class TestResqmlFormatRoundTrip:
         assert len(decoded) == 1
         assert decoded[0].get("description") == "Salt top"
 
-    @pytest.mark.asyncio
     async def test_decode_minimal_resqml_xml(self) -> None:
         fmt = ResqmlFormat()
 
@@ -96,37 +101,28 @@ class TestResqmlFormatRoundTrip:
         assert len(records) >= 1
 
 
-class TestResqmlFormatErrors:
-    @pytest.mark.asyncio
+class TestResqmlFormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_decode_invalid_xml_raises(self) -> None:
         fmt = ResqmlFormat()
 
         async def _bad_iter():
             yield b"<broken xml >>>"
 
-        with pytest.raises(Exception):
+        with self.assertRaises(Exception):
             record_iter = await fmt.read(_bad_iter())
             async for _ in record_iter:
                 pass
 
 
-class TestResqmlFormatMissingDep:
-    def test_defusedxml_import_error_message(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        import sys
-        monkeypatch.setitem(sys.modules, "defusedxml", None)  # type: ignore[arg-type]
-        monkeypatch.setitem(sys.modules, "defusedxml.ElementTree", None)  # type: ignore[arg-type]
-        fmt = ResqmlFormat()
-        with pytest.raises(ImportError, match="pirn\\[oilgas\\]"):
-            fmt._load_defusedxml()
+class TestResqmlFormatMissingDep(unittest.TestCase):
+    def test_defusedxml_import_error_message(self) -> None:
+        with unittest.mock.patch.dict(sys.modules, {"defusedxml": None, "defusedxml.ElementTree": None}):
+            fmt = ResqmlFormat()
+            with self.assertRaisesRegex(ImportError, "pirn\\[oilgas\\]"):
+                fmt._load_defusedxml()
 
-    def test_lxml_import_error_message(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        import sys
-        monkeypatch.setitem(sys.modules, "lxml", None)  # type: ignore[arg-type]
-        monkeypatch.setitem(sys.modules, "lxml.etree", None)  # type: ignore[arg-type]
-        fmt = ResqmlFormat()
-        with pytest.raises(ImportError, match="pirn\\[oilgas\\]"):
-            fmt._load_lxml()
+    def test_lxml_import_error_message(self) -> None:
+        with unittest.mock.patch.dict(sys.modules, {"lxml": None, "lxml.etree": None}):
+            fmt = ResqmlFormat()
+            with self.assertRaisesRegex(ImportError, "pirn\\[oilgas\\]"):
+                fmt._load_lxml()

@@ -1,8 +1,8 @@
 """Tests for :class:`SemiSupervisedTrainer`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -24,11 +24,11 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_negative_unlabeled_row_count(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="unlabeled_row_count must be >= 0"):
+            with self.assertRaisesRegex(ValueError, "unlabeled_row_count must be >= 0"):
                 SemiSupervisedTrainer(
                     split=split,
                     algorithm="rf",
@@ -40,7 +40,7 @@ class TestConstruction:
     def test_rejects_empty_algorithm(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="algorithm"):
+            with self.assertRaisesRegex(ValueError, "algorithm"):
                 SemiSupervisedTrainer(
                     split=split,
                     algorithm="",
@@ -50,7 +50,7 @@ class TestConstruction:
                 )
 
 
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_returns_model_report_and_pseudo_labeled_rows(self) -> None:
         with Tapestry() as t:
             split = emit_split(_config=KnotConfig(id="split"))

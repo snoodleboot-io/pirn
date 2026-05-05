@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import datetime, timezone
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -27,9 +27,9 @@ async def emit_records() -> Sequence[ClinicalTrialRecord]:
     )
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_knot_records(self) -> None:
-        with pytest.raises(TypeError, match="records"):
+        with self.assertRaisesRegex(TypeError, "records"):
             ADaMDatasetBuilder(
                 records="not-a-knot",  # type: ignore[arg-type]
                 target_dataset="ADSL",
@@ -40,7 +40,7 @@ class TestConstruction:
     def test_rejects_empty_target_dataset(self) -> None:
         with Tapestry():
             r = emit_records(_config=KnotConfig(id="r"))
-            with pytest.raises(ValueError, match="target_dataset"):
+            with self.assertRaisesRegex(ValueError, "target_dataset"):
                 ADaMDatasetBuilder(
                     records=r,
                     target_dataset="",
@@ -51,7 +51,7 @@ class TestConstruction:
     def test_rejects_empty_derivations(self) -> None:
         with Tapestry():
             r = emit_records(_config=KnotConfig(id="r"))
-            with pytest.raises(ValueError, match="derivations"):
+            with self.assertRaisesRegex(ValueError, "derivations"):
                 ADaMDatasetBuilder(
                     records=r,
                     target_dataset="ADSL",
@@ -62,7 +62,7 @@ class TestConstruction:
     def test_rejects_non_string_derivation_value(self) -> None:
         with Tapestry():
             r = emit_records(_config=KnotConfig(id="r"))
-            with pytest.raises(ValueError, match="derivation values"):
+            with self.assertRaisesRegex(ValueError, "derivation values"):
                 ADaMDatasetBuilder(
                     records=r,
                     target_dataset="ADSL",
@@ -71,8 +71,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_rows_with_derivations(self) -> None:
         with Tapestry() as t:
             r = emit_records(_config=KnotConfig(id="r"))

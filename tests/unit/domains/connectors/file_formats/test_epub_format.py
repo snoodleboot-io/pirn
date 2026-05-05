@@ -1,10 +1,13 @@
 """Round-trip and validation tests for :class:`EpubFormat`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
-pytest.importorskip("ebooklib")
+try:
+    import ebooklib
+except ImportError as _e:
+    raise unittest.SkipTest("ebooklib not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -15,7 +18,7 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 )
 
 
-class TestEpubFormatConstruction:
+class TestEpubFormatConstruction(unittest.TestCase):
     def test_default_arguments(self) -> None:
         fmt = EpubFormat()
         assert fmt.title == "pirn"
@@ -31,23 +34,23 @@ class TestEpubFormatConstruction:
         assert fmt.identifier == "custom-id"
 
     def test_empty_title_rejected(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             EpubFormat(title="")
 
     def test_empty_language_rejected(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             EpubFormat(language="")
 
     def test_empty_identifier_rejected(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             EpubFormat(identifier="")
 
     def test_non_string_title_rejected(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             EpubFormat(title=1)  # type: ignore[arg-type]
 
 
-class TestEpubFormatProperties:
+class TestEpubFormatProperties(unittest.TestCase):
     def test_name(self) -> None:
         assert EpubFormat().name == "epub"
 
@@ -58,8 +61,7 @@ class TestEpubFormatProperties:
         assert isinstance(EpubFormat(), BatchFileFormat)
 
 
-class TestEpubFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestEpubFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         fmt = EpubFormat()
         records = [
@@ -92,7 +94,6 @@ class TestEpubFormatRoundTrip:
             for row in authored
         )
 
-    @pytest.mark.asyncio
     async def test_round_trip_single(self) -> None:
         fmt = EpubFormat()
         records = [
@@ -110,18 +111,16 @@ class TestEpubFormatRoundTrip:
         assert len(authored) == 1
         assert "Single chapter body text" in authored[0]["text"]
 
-    @pytest.mark.asyncio
     async def test_decode_empty_payload(self) -> None:
         fmt = EpubFormat()
         decoded = await FormatRoundTrip.decode(fmt, b"")
         assert decoded == []
 
 
-class TestEpubFormatValidation:
-    @pytest.mark.asyncio
+class TestEpubFormatValidation(unittest.IsolatedAsyncioTestCase):
     async def test_non_string_text_rejected(self) -> None:
         fmt = EpubFormat()
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             await FormatRoundTrip.encode(
                 fmt,
                 [{"chapter_id": "x", "title": "y", "text": 1}],

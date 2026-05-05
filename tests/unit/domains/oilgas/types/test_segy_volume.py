@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import unittest
 
 from pirn.domains.oilgas.types.segy_volume import SegyVolume
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_default_values(self) -> None:
         vol = SegyVolume()
         assert vol.volume_id == ""
@@ -32,7 +33,7 @@ class TestConstruction:
         assert vol.fetched_at == when
 
 
-class TestAuditDict:
+class TestAuditDict(unittest.TestCase):
     def test_audit_dict_keys(self) -> None:
         when = datetime(2026, 1, 1, tzinfo=timezone.utc)
         vol = SegyVolume(volume_id="v", inline_count=1, fetched_at=when)
@@ -44,7 +45,7 @@ class TestAuditDict:
         assert d["fetched_at"] == when.isoformat()
 
 
-class TestFrozen:
+class TestFrozen(unittest.TestCase):
     def test_frozen_disallows_mutation(self) -> None:
         vol = SegyVolume(volume_id="v")
         try:

@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.message_broker import MessageBroker
 from pirn.domains.connectors.streaming.valkey_stream_broker import ValkeyStreamBroker
@@ -28,17 +28,13 @@ class StubValkey:
         # Track which entries have been delivered per group.
         self._delivered: dict[tuple[str, str], int] = {}
 
-    async def xadd(
-        self, stream: str, fields: dict[bytes, bytes], *, maxlen: int | None = None
-    ) -> bytes:
+    async def xadd(self, stream: str, fields: dict[bytes, bytes], *, maxlen: int | None = None) -> bytes:
         self.streams.setdefault(stream, [])
         entry_id = f"0-{len(self.streams[stream]) + 1}".encode()
         self.streams[stream].append((entry_id, fields))
         return entry_id
 
-    async def xgroup_create(
-        self, stream: str, group: str, *, mkstream: bool = True
-    ) -> str:
+    async def xgroup_create(self, stream: str, group: str, *, mkstream: bool = True) -> str:
         if stream in self.groups and group in self.groups[stream]:
             raise Exception("BUSYGROUP Consumer Group name already exists")
         self.groups.setdefault(stream, set()).add(group)
@@ -46,15 +42,7 @@ class StubValkey:
             self.streams[stream] = []
         return "OK"
 
-    async def xreadgroup(
-        self,
-        group: str,
-        consumer: str,
-        streams: dict[str, str],
-        *,
-        count: int,
-        block: int,
-    ) -> list[tuple[str, list[tuple[bytes, dict[bytes, bytes]]]]]:
+    async def xreadgroup(self, group: str, consumer: str, streams: dict[str, str], *, count: int, block: int,) -> list[tuple[str, list[tuple[bytes, dict[bytes, bytes]]]]]:
         # Return all undelivered entries for the first stream argument.
         out: list[tuple[str, list[tuple[bytes, dict[bytes, bytes]]]]] = []
         for stream in streams:
@@ -79,16 +67,17 @@ class StubValkey:
 # ────────────────────────────────────────────────────────── conformance
 
 
-def test_implements_message_broker() -> None:
-    broker = ValkeyStreamBroker(ValkeyStreamConfig(), client=StubValkey())
-    assert isinstance(broker, MessageBroker)
 
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_message_broker(self) -> None:
+        broker = ValkeyStreamBroker(ValkeyStreamConfig(), client=StubValkey())
+        assert isinstance(broker, MessageBroker)
+    
+    
 # ────────────────────────────────────────────────────────────── publish
 
 
-@pytest.mark.asyncio
-class TestPublish:
+class TestPublish(unittest.IsolatedAsyncioTestCase):
     async def test_publish_writes_value_to_stream(self) -> None:
         stub = StubValkey()
         broker = ValkeyStreamBroker(ValkeyStreamConfig(), client=stub)
@@ -108,15 +97,14 @@ class TestPublish:
 
     async def test_rejects_non_bytes_value(self) -> None:
         broker = ValkeyStreamBroker(ValkeyStreamConfig(), client=StubValkey())
-        with pytest.raises(TypeError, match="value must be bytes"):
+        with self.assertRaisesRegex(TypeError, "value must be bytes"):
             await broker.publish("t", "string")  # type: ignore[arg-type]
 
 
 # ────────────────────────────────────────────────────────────── consume
 
 
-@pytest.mark.asyncio
-class TestConsume:
+class TestConsume(unittest.IsolatedAsyncioTestCase):
     async def test_consume_yields_records_with_value_and_key(self) -> None:
         stub = StubValkey()
         broker = ValkeyStreamBroker(
@@ -144,7 +132,7 @@ class TestConsume:
 
     async def test_consume_requires_group(self) -> None:
         broker = ValkeyStreamBroker(ValkeyStreamConfig(), client=StubValkey())
-        with pytest.raises(ValueError, match="group is required"):
+        with self.assertRaisesRegex(ValueError, "group is required"):
             async for _ in await broker.consume("t"):
                 pass
 
@@ -165,8 +153,7 @@ class TestConsume:
 # ────────────────────────────────────────────────────────────── headers
 
 
-@pytest.mark.asyncio
-class TestHeadersRoundTrip:
+class TestHeadersRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_headers_round_trip(self) -> None:
         stub = StubValkey()
         broker = ValkeyStreamBroker(
@@ -182,8 +169,7 @@ class TestHeadersRoundTrip:
 # ───────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_marks_closed(self) -> None:
         stub = StubValkey()
         broker = ValkeyStreamBroker(ValkeyStreamConfig(), client=stub)
@@ -194,14 +180,14 @@ class TestLifecycle:
     async def test_publish_after_close_raises(self) -> None:
         broker = ValkeyStreamBroker(ValkeyStreamConfig(), client=StubValkey())
         await broker.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await broker.publish("t", b"v")
 
 
 # ───────────────────────────────────────────────────────── credential safety
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_repr_redacts_password(self) -> None:
         cfg = ValkeyStreamConfig(host="valkey", password="my-vk-pw")
         text = repr(cfg)

@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -32,18 +32,17 @@ def _make(**kwargs):
     return knot
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_window(self) -> None:
-        with pytest.raises(ValueError, match="window_minutes"):
+        with self.assertRaisesRegex(ValueError, "window_minutes"):
             _make(key_columns=["id"], timestamp_column="ts", window_minutes=0)
 
     def test_rejects_invalid_key(self) -> None:
-        with pytest.raises(ValueError, match="plain identifier"):
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
             _make(key_columns=["bad col"], timestamp_column="ts", window_minutes=5)
 
 
-@pytest.mark.asyncio
-class TestBehaviour:
+class TestBehaviour(unittest.IsolatedAsyncioTestCase):
     async def test_same_key_within_window_deduped(self) -> None:
         rows = [
             {"id": "A", "ts": _ts(0)},

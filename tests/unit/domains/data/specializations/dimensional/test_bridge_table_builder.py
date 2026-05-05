@@ -1,8 +1,10 @@
 """Tests for :class:`BridgeTableBuilder`."""
 
 from __future__ import annotations
+import unittest
+import tempfile
+from pathlib import Path
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,41 +16,45 @@ from pirn.domains.data.specializations.dimensional.bridge_table_builder import (
 from pirn.tapestry import Tapestry
 
 
-@pytest.fixture
-async def source_pool() -> SqlitePool:
-    pool = SqlitePool(SqliteConfig(database=":memory:"))
-    await pool.execute(
-        "CREATE TABLE account_product ("
-        "  account_sk INTEGER NOT NULL,"
-        "  product_sk INTEGER NOT NULL,"
-        "  group_id INTEGER NOT NULL"
-        ")"
-    )
-    await pool.execute_many(
-        "INSERT INTO account_product (account_sk, product_sk, group_id) VALUES (?, ?, ?)",
-        [(1, 10, 1), (1, 20, 1), (2, 30, 2)],
-    )
-    yield pool
-    await pool.close()
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
+    async def asyncSetUp(self) -> None:
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute(
+            "CREATE TABLE account_product ("
+            "  account_sk INTEGER NOT NULL,"
+            "  product_sk INTEGER NOT NULL,"
+            "  group_id INTEGER NOT NULL"
+            ")"
+        )
+        await pool.execute_many(
+            "INSERT INTO account_product (account_sk, product_sk, group_id) VALUES (?, ?, ?)",
+            [(1, 10, 1), (1, 20, 1), (2, 30, 2)],
+        )
+        self.source_pool = pool
+        self._tmp_target_pool = tempfile.TemporaryDirectory()
+        tmp_path = Path(self._tmp_target_pool.name)
+        pool = SqlitePool(SqliteConfig(database=str(tmp_path / "bridge.db")))
+        await pool.execute(
+            "CREATE TABLE bridge_account_product ("
+            "  account_sk INTEGER NOT NULL,"
+            "  product_sk INTEGER NOT NULL,"
+            "  weight_factor REAL NOT NULL"
+            ")"
+        )
+        self.target_pool = pool
 
-@pytest.fixture
-async def target_pool(tmp_path) -> SqlitePool:
-    pool = SqlitePool(SqliteConfig(database=str(tmp_path / "bridge.db")))
-    await pool.execute(
-        "CREATE TABLE bridge_account_product ("
-        "  account_sk INTEGER NOT NULL,"
-        "  product_sk INTEGER NOT NULL,"
-        "  weight_factor REAL NOT NULL"
-        ")"
-    )
-    yield pool
-    await pool.close()
-
-
-class TestConstruction:
-    def test_rejects_non_pool(self, target_pool: SqlitePool) -> None:
-        with pytest.raises(TypeError, match="DatabaseConnectionPool"):
+    async def asyncTearDown(self) -> None:
+        await self.source_pool.close()
+        
+        
+        await self.target_pool.close()
+        
+        
+        self._tmp_target_pool.cleanup()
+    def test_rejects_non_pool(self) -> None:
+        target_pool = self.target_pool
+        with self.assertRaisesRegex(TypeError, "DatabaseConnectionPool"):
             BridgeTableBuilder(
                 source_pool="bad",  # type: ignore[arg-type]
                 source_query="SELECT 1",
@@ -60,10 +66,10 @@ class TestConstruction:
                 _config=KnotConfig(id="bridge"),
             )
 
-    def test_rejects_auto_weight_without_group_keys(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
-        with pytest.raises(ValueError, match="group_key_columns"):
+    def test_rejects_auto_weight_without_group_keys(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
+        with self.assertRaisesRegex(ValueError, "group_key_columns"):
             BridgeTableBuilder(
                 source_pool=source_pool,
                 source_query="SELECT 1",
@@ -76,10 +82,10 @@ class TestConstruction:
                 _config=KnotConfig(id="bridge"),
             )
 
-    def test_rejects_invalid_bridge_table_identifier(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
-        with pytest.raises(ValueError, match="plain identifier"):
+    def test_rejects_invalid_bridge_table_identifier(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
             BridgeTableBuilder(
                 source_pool=source_pool,
                 source_query="SELECT 1",
@@ -92,11 +98,45 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestBridgeTableBuilderBehaviour:
-    async def test_auto_weight_proportional(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
+class TestBridgeTableBuilderBehaviour(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self) -> None:
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute(
+            "CREATE TABLE account_product ("
+            "  account_sk INTEGER NOT NULL,"
+            "  product_sk INTEGER NOT NULL,"
+            "  group_id INTEGER NOT NULL"
+            ")"
+        )
+        await pool.execute_many(
+            "INSERT INTO account_product (account_sk, product_sk, group_id) VALUES (?, ?, ?)",
+            [(1, 10, 1), (1, 20, 1), (2, 30, 2)],
+        )
+        self.source_pool = pool
+        self._tmp_target_pool = tempfile.TemporaryDirectory()
+        tmp_path = Path(self._tmp_target_pool.name)
+        pool = SqlitePool(SqliteConfig(database=str(tmp_path / "bridge.db")))
+        await pool.execute(
+            "CREATE TABLE bridge_account_product ("
+            "  account_sk INTEGER NOT NULL,"
+            "  product_sk INTEGER NOT NULL,"
+            "  weight_factor REAL NOT NULL"
+            ")"
+        )
+        self.target_pool = pool
+
+    async def asyncTearDown(self) -> None:
+        await self.source_pool.close()
+        
+        
+        await self.target_pool.close()
+        
+        
+        self._tmp_target_pool.cleanup()
+    async def test_auto_weight_proportional(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
         with Tapestry() as t:
             BridgeTableBuilder(
                 source_pool=source_pool,
@@ -127,9 +167,9 @@ class TestBridgeTableBuilderBehaviour:
         assert len(account2_weights) == 1
         assert abs(account2_weights[0] - 1.0) < 1e-9
 
-    async def test_rebuilds_on_second_run(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
+    async def test_rebuilds_on_second_run(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
         for _ in range(2):
             with Tapestry() as t:
                 BridgeTableBuilder(
@@ -152,9 +192,9 @@ class TestBridgeTableBuilderBehaviour:
         )
         assert count[0][0] == 3
 
-    async def test_manual_weight(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
+    async def test_manual_weight(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
         pool = SqlitePool(SqliteConfig(database=":memory:"))
         await pool.execute(
             "CREATE TABLE manual_src ("

@@ -1,8 +1,8 @@
 """Tests for :class:`GroupKFoldCrossValidator`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -22,11 +22,11 @@ async def emit_dataset() -> MLDataset:
     )
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_k_below_two(self) -> None:
         with Tapestry():
             dataset = emit_dataset(_config=KnotConfig(id="dataset"))
-            with pytest.raises(ValueError, match="k must be >= 2"):
+            with self.assertRaisesRegex(ValueError, "k must be >= 2"):
                 GroupKFoldCrossValidator(
                     dataset=dataset,
                     algorithm="rf",
@@ -39,7 +39,7 @@ class TestConstruction:
     def test_rejects_empty_group_column(self) -> None:
         with Tapestry():
             dataset = emit_dataset(_config=KnotConfig(id="dataset"))
-            with pytest.raises(ValueError, match="group_column"):
+            with self.assertRaisesRegex(ValueError, "group_column"):
                 GroupKFoldCrossValidator(
                     dataset=dataset,
                     algorithm="rf",
@@ -51,7 +51,7 @@ class TestConstruction:
     def test_rejects_empty_algorithm(self) -> None:
         with Tapestry():
             dataset = emit_dataset(_config=KnotConfig(id="dataset"))
-            with pytest.raises(ValueError, match="algorithm"):
+            with self.assertRaisesRegex(ValueError, "algorithm"):
                 GroupKFoldCrossValidator(
                     dataset=dataset,
                     algorithm="",
@@ -61,7 +61,7 @@ class TestConstruction:
                 )
 
 
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_records_group_column_in_details(self) -> None:
         with Tapestry() as t:
             dataset = emit_dataset(_config=KnotConfig(id="dataset"))

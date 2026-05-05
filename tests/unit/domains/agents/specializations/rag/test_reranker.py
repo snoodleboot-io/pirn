@@ -1,8 +1,8 @@
 """Tests for :class:`Reranker`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -11,10 +11,9 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 
-@pytest.mark.asyncio
-class TestRerankerConstruction:
+class TestRerankerConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
-        with pytest.raises(TypeError, match="llm must be an LLMProvider"):
+        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
             with Tapestry():
                 Reranker(
                     query="q",
@@ -25,7 +24,7 @@ class TestRerankerConstruction:
 
     async def test_rejects_zero_top_k(self) -> None:
         llm = StubLLMProvider(["0.9"])
-        with pytest.raises(ValueError, match="top_k must be a positive int"):
+        with self.assertRaisesRegex(ValueError, "top_k must be a positive int"):
             with Tapestry():
                 Reranker(
                     query="q",
@@ -36,8 +35,7 @@ class TestRerankerConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestRerankerHappyPath:
+class TestRerankerHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_returns_empty_for_empty_documents(self) -> None:
         llm = StubLLMProvider([])
         with Tapestry() as t:

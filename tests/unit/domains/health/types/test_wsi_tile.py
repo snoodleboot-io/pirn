@@ -1,11 +1,12 @@
 """Unit tests for :class:`WSITile`."""
 
 from __future__ import annotations
+import unittest
 
 from pirn.domains.health.types.wsi_tile import WSITile
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_default(self) -> None:
         t = WSITile()
         assert t.slide_id == ""
@@ -32,7 +33,7 @@ class TestConstruction:
         assert t.height == 512
 
 
-class TestAuditDict:
+class TestAuditDict(unittest.TestCase):
     def test_audit_dict_primitives(self) -> None:
         t = WSITile(
             slide_id="slide-1",
@@ -53,7 +54,7 @@ class TestAuditDict:
             assert isinstance(value, (str, int, float, list, type(None)))
 
 
-class TestFrozen:
+class TestFrozen(unittest.TestCase):
     def test_frozen_disallows_mutation(self) -> None:
         t = WSITile()
         try:

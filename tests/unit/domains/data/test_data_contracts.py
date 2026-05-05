@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from datetime import timezone
+import unittest
 
-import pytest
 
 from pirn.domains.data.data_batch import DataBatch
 from pirn.domains.data.data_schema import DataSchema
@@ -15,7 +15,7 @@ from pirn.domains.data.quality_report import QualityReport
 # ────────────────────────────────────────────────────────────── DataSchema
 
 
-class TestDataSchema:
+class TestDataSchema(unittest.TestCase):
     def test_empty_schema_is_valid(self) -> None:
         s = DataSchema()
         assert s.column_names == ()
@@ -26,11 +26,11 @@ class TestDataSchema:
         assert s.column_names == ("id", "name")
 
     def test_rejects_pk_not_in_columns(self) -> None:
-        with pytest.raises(ValueError, match="unknown columns"):
+        with self.assertRaisesRegex(ValueError, "unknown columns"):
             DataSchema(columns={"id": int}, primary_keys=("nope",))
 
     def test_rejects_nullable_not_in_columns(self) -> None:
-        with pytest.raises(ValueError, match="unknown columns"):
+        with self.assertRaisesRegex(ValueError, "unknown columns"):
             DataSchema(columns={"id": int}, nullable=("nope",))
 
     def test_is_nullable(self) -> None:
@@ -49,7 +49,7 @@ class TestDataSchema:
 # ─────────────────────────────────────────────────────────────── DataBatch
 
 
-class TestDataBatch:
+class TestDataBatch(unittest.TestCase):
     def test_default_is_empty_with_utc_fetched_at(self) -> None:
         b = DataBatch()
         assert b.row_count == 0
@@ -73,14 +73,14 @@ class TestDataBatch:
 
     def test_dataclass_is_frozen(self) -> None:
         b = DataBatch()
-        with pytest.raises(Exception):  # FrozenInstanceError or similar
+        with self.assertRaises(Exception):  # FrozenInstanceError or similar
             b.rows = ({"id": 1},)  # type: ignore[misc]
 
 
 # ─────────────────────────────────────────────────────── QualityCheck/Report
 
 
-class TestQualityReport:
+class TestQualityReport(unittest.TestCase):
     def test_passing_report(self) -> None:
         checks = (
             QualityCheck(name="row_count_min", passed=True, threshold="1", actual="5"),
@@ -104,7 +104,7 @@ class TestQualityReport:
                 name="x", passed=False, threshold="100", actual="5"
             ),
         )
-        with pytest.raises(ValueError, match="cannot be True"):
+        with self.assertRaisesRegex(ValueError, "cannot be True"):
             QualityReport(passed=True, checks=checks)
 
     def test_default_sampled_at_is_utc(self) -> None:

@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,9 +12,9 @@ from pirn.domains.health.mri.radiomics_extractor import RadiomicsExtractor
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty(self) -> None:
-        with pytest.raises(ValueError, match="non-empty"):
+        with self.assertRaisesRegex(ValueError, "non-empty"):
             RadiomicsExtractor(
                 image_path="",
                 mask_path="m",
@@ -23,7 +23,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_sequence(self) -> None:
-        with pytest.raises(TypeError, match="feature_classes"):
+        with self.assertRaisesRegex(TypeError, "feature_classes"):
             RadiomicsExtractor(
                 image_path="i",
                 mask_path="m",
@@ -32,7 +32,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_string_class(self) -> None:
-        with pytest.raises(TypeError, match="string"):
+        with self.assertRaisesRegex(TypeError, "string"):
             RadiomicsExtractor(
                 image_path="i",
                 mask_path="m",
@@ -41,8 +41,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_mapping(self) -> None:
         with Tapestry() as t:
             RadiomicsExtractor(

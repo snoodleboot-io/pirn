@@ -1,11 +1,18 @@
 """Round-trip and validation tests for :class:`ZarrFormat`."""
 
 from __future__ import annotations
+import unittest
 
 import pytest
 
-pytest.importorskip("zarr")
-pytest.importorskip("numpy")
+try:
+    import zarr
+except ImportError as _e:
+    raise unittest.SkipTest("zarr not installed") from _e
+try:
+    import numpy
+except ImportError as _e:
+    raise unittest.SkipTest("numpy not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -25,7 +32,7 @@ pytestmark = pytest.mark.filterwarnings(
 )
 
 
-class TestZarrFormatConstruction:
+class TestZarrFormatConstruction(unittest.TestCase):
     def test_default_arguments(self) -> None:
         fmt = ZarrFormat()
         assert fmt.dataset_path == "data"
@@ -37,35 +44,35 @@ class TestZarrFormatConstruction:
         assert fmt.dataset_path == "rows"
 
     def test_empty_dataset_path_rejected(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             ZarrFormat(dataset_path="")
 
     def test_non_string_dataset_path_rejected(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             ZarrFormat(dataset_path=42)  # type: ignore[arg-type]
 
     def test_invalid_chunks_type(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             ZarrFormat(chunks=[10])  # type: ignore[arg-type]
 
     def test_negative_chunk_rejected(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             ZarrFormat(chunks=(0,))
 
     def test_non_int_chunk_rejected(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             ZarrFormat(chunks=(1.5,))  # type: ignore[arg-type]
 
     def test_invalid_field_names_type(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             ZarrFormat(field_names="ab")  # type: ignore[arg-type]
 
     def test_empty_field_name_rejected(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             ZarrFormat(field_names=("a", ""))
 
 
-class TestZarrFormatBasics:
+class TestZarrFormatBasics(unittest.TestCase):
     def test_name(self) -> None:
         assert ZarrFormat().name == "zarr"
 
@@ -76,8 +83,7 @@ class TestZarrFormatBasics:
         assert isinstance(ZarrFormat(), BatchFileFormat)
 
 
-class TestZarrFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestZarrFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         records = [
             {"id": 1, "name": "alpha", "score": 1.5, "active": True},
@@ -87,35 +93,30 @@ class TestZarrFormatRoundTrip:
         fmt = ZarrFormat()
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_single_row(self) -> None:
         records = [{"id": 42, "name": "solo", "score": 9.0}]
         fmt = ZarrFormat()
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_custom_dataset_path(self) -> None:
         records = [{"id": 1, "label": "alpha"}]
         fmt = ZarrFormat(dataset_path="custom")
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_with_chunks(self) -> None:
         records = [{"id": i, "value": float(i) * 0.5} for i in range(8)]
         fmt = ZarrFormat(chunks=(4,))
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_empty_payload_rejected(self) -> None:
         fmt = ZarrFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, [])
 
-    @pytest.mark.asyncio
     async def test_decode_unknown_dataset_raises(self) -> None:
         records = [{"id": 1, "label": "x"}]
         writer = ZarrFormat(dataset_path="data")
         payload = await FormatRoundTrip.encode(writer, records)
         reader = ZarrFormat(dataset_path="missing")
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.decode(reader, payload)

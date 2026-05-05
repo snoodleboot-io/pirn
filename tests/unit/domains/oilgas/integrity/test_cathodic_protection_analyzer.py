@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -24,9 +24,9 @@ class _Source(Knot):
         return ScadaTimeSeries(sensor_id="potential")
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_numeric_threshold(self) -> None:
-        with pytest.raises(TypeError, match="protection_threshold_mv"):
+        with self.assertRaisesRegex(TypeError, "protection_threshold_mv"):
             with Tapestry():
                 src = _Source(_config=KnotConfig(id="src"))
                 CathodicProtectionAnalyzer(
@@ -36,8 +36,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_coverage(self) -> None:
         with Tapestry() as t:
             src = _Source(_config=KnotConfig(id="src"))

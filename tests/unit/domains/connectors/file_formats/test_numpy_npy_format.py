@@ -1,10 +1,13 @@
 """Round-trip and validation tests for :class:`NumpyNpyFormat`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
-pytest.importorskip("numpy")
+try:
+    import numpy
+except ImportError as _e:
+    raise unittest.SkipTest("numpy not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -17,7 +20,7 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 )
 
 
-class TestNumpyNpyFormatConstruction:
+class TestNumpyNpyFormatConstruction(unittest.TestCase):
     def test_default_arguments(self) -> None:
         fmt = NumpyNpyFormat()
         assert fmt.field_names is None
@@ -27,15 +30,15 @@ class TestNumpyNpyFormatConstruction:
         assert fmt.field_names == ("a", "b")
 
     def test_invalid_field_names_type(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             NumpyNpyFormat(field_names="ab")  # type: ignore[arg-type]
 
     def test_empty_field_name_rejected(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             NumpyNpyFormat(field_names=("a", ""))
 
 
-class TestNumpyNpyFormatBasics:
+class TestNumpyNpyFormatBasics(unittest.TestCase):
     def test_name(self) -> None:
         assert NumpyNpyFormat().name == "numpy-npy"
 
@@ -46,8 +49,7 @@ class TestNumpyNpyFormatBasics:
         assert isinstance(NumpyNpyFormat(), BatchFileFormat)
 
 
-class TestNumpyNpyFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestNumpyNpyFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         records = [
             {"id": 1, "name": "alpha", "score": 1.5, "active": True},
@@ -57,21 +59,18 @@ class TestNumpyNpyFormatRoundTrip:
         fmt = NumpyNpyFormat()
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_single_row(self) -> None:
         records = [{"id": 42, "name": "solo", "score": 9.0}]
         fmt = NumpyNpyFormat()
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_empty_payload_rejected(self) -> None:
         # NPY requires a structured array; empty record stream cannot
         # produce a meaningful one with field-typed columns.
         fmt = NumpyNpyFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, [])
 
-    @pytest.mark.asyncio
     async def test_round_trip_field_names_override(self) -> None:
         records = [
             {"id": 1, "value": 10.0},

@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.message_broker import MessageBroker
 from pirn.domains.connectors.streaming.pubsub_broker import PubSubBroker
@@ -81,23 +81,24 @@ class StubSubscriber:
 # ─────────────────────────────────────────────────────── conformance
 
 
-def test_implements_message_broker() -> None:
-    broker = PubSubBroker(
-        PubSubConfig(project="p"), publisher=StubPublisher(), subscriber=StubSubscriber([])
-    )
-    assert isinstance(broker, MessageBroker)
 
-
-def test_rejects_non_config() -> None:
-    with pytest.raises(TypeError, match="must be PubSubConfig"):
-        PubSubBroker("nope", publisher=StubPublisher())  # type: ignore[arg-type]
-
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_message_broker(self) -> None:
+        broker = PubSubBroker(
+            PubSubConfig(project="p"), publisher=StubPublisher(), subscriber=StubSubscriber([])
+        )
+        assert isinstance(broker, MessageBroker)
+    
+    
+    def test_rejects_non_config(self) -> None:
+        with self.assertRaisesRegex(TypeError, "must be PubSubConfig"):
+            PubSubBroker("nope", publisher=StubPublisher())  # type: ignore[arg-type]
+    
+    
 # ──────────────────────────────────────────────────────────── publish
 
 
-@pytest.mark.asyncio
-class TestPublish:
+class TestPublish(unittest.IsolatedAsyncioTestCase):
     async def test_publish_bytes_to_topic_path(self) -> None:
         pub = StubPublisher()
         broker = PubSubBroker(PubSubConfig(project="my-project"), publisher=pub)
@@ -122,25 +123,24 @@ class TestPublish:
 
     async def test_rejects_non_bytes_value(self) -> None:
         broker = PubSubBroker(PubSubConfig(project="p"), publisher=StubPublisher())
-        with pytest.raises(TypeError, match="value must be bytes"):
+        with self.assertRaisesRegex(TypeError, "value must be bytes"):
             await broker.publish("t", "string")  # type: ignore[arg-type]
 
     async def test_rejects_non_bytes_key(self) -> None:
         broker = PubSubBroker(PubSubConfig(project="p"), publisher=StubPublisher())
-        with pytest.raises(TypeError, match="key must be bytes"):
+        with self.assertRaisesRegex(TypeError, "key must be bytes"):
             await broker.publish("t", b"v", key="not-bytes")  # type: ignore[arg-type]
 
     async def test_publish_requires_project_for_short_topic(self) -> None:
         broker = PubSubBroker(PubSubConfig(), publisher=StubPublisher())
-        with pytest.raises(ValueError, match="project must be set"):
+        with self.assertRaisesRegex(ValueError, "project must be set"):
             await broker.publish("events", b"v")
 
 
 # ──────────────────────────────────────────────────────────── consume
 
 
-@pytest.mark.asyncio
-class TestConsume:
+class TestConsume(unittest.IsolatedAsyncioTestCase):
     async def test_yields_subscriber_messages(self) -> None:
         sub = StubSubscriber(
             batches=[
@@ -163,8 +163,7 @@ class TestConsume:
 # ──────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_is_idempotent(self) -> None:
         pub = StubPublisher()
         sub = StubSubscriber([])
@@ -177,14 +176,14 @@ class TestLifecycle:
     async def test_publish_after_close_raises(self) -> None:
         broker = PubSubBroker(PubSubConfig(project="p"), publisher=StubPublisher())
         await broker.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await broker.publish("t", b"v")
 
 
 # ─────────────────────────────────────────────────────── credential safety
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_repr_redacts_service_account_json(self) -> None:
         cfg = PubSubConfig(project="p", service_account_json="/etc/secret.json")
         text = repr(cfg)

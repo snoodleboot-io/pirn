@@ -1,8 +1,8 @@
 """Unit tests for :class:`WSITileExtractor`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -11,9 +11,9 @@ from pirn.domains.health.types.wsi_tile import WSITile
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_slide_id(self) -> None:
-        with pytest.raises(ValueError, match="non-empty"):
+        with self.assertRaisesRegex(ValueError, "non-empty"):
             WSITileExtractor(
                 slide_id="",
                 level=0,
@@ -24,7 +24,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_int(self) -> None:
-        with pytest.raises(TypeError, match="int"):
+        with self.assertRaisesRegex(TypeError, "int"):
             WSITileExtractor(
                 slide_id="s",
                 level="x",  # type: ignore[arg-type]
@@ -35,7 +35,7 @@ class TestConstruction:
             )
 
     def test_rejects_negative_level(self) -> None:
-        with pytest.raises(ValueError, match="level"):
+        with self.assertRaisesRegex(ValueError, "level"):
             WSITileExtractor(
                 slide_id="s",
                 level=-1,
@@ -46,7 +46,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_positive_size(self) -> None:
-        with pytest.raises(ValueError, match="positive"):
+        with self.assertRaisesRegex(ValueError, "positive"):
             WSITileExtractor(
                 slide_id="s",
                 level=0,
@@ -57,8 +57,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_grid_of_tiles(self) -> None:
         with Tapestry() as t:
             WSITileExtractor(

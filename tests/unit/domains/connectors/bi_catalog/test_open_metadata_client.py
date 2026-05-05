@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.bi_catalog.open_metadata_client import (
@@ -33,15 +33,7 @@ class FakeHttpx:
         self.responses: dict[tuple[str, str], Any] = {}
         self.closed = False
 
-    async def request(
-        self,
-        method: str,
-        url: str,
-        *,
-        params: Any = None,
-        json: Any = None,
-        headers: Any = None,
-    ) -> FakeResponse:
+    async def request(self, method: str, url: str, *, params: Any = None, json: Any = None, headers: Any = None,) -> FakeResponse:
         self.calls.append(
             {
                 "method": method,
@@ -57,22 +49,23 @@ class FakeHttpx:
         self.closed = True
 
 
-def test_implements_api_client() -> None:
-    client = OpenMetadataClient(client=FakeHttpx())
-    assert isinstance(client, ApiClient)
 
-
-def test_construction_requires_config_or_client() -> None:
-    with pytest.raises(TypeError, match="config= or client="):
-        OpenMetadataClient()
-
-
-def test_sensitive_fields_listed() -> None:
-    assert OpenMetadataConfig.sensitive_fields == ("jwt_token",)
-
-
-@pytest.mark.asyncio
-class TestRequest:
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_api_client(self) -> None:
+        client = OpenMetadataClient(client=FakeHttpx())
+        assert isinstance(client, ApiClient)
+    
+    
+    def test_construction_requires_config_or_client(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or client="):
+            OpenMetadataClient()
+    
+    
+    def test_sensitive_fields_listed(self) -> None:
+        assert OpenMetadataConfig.sensitive_fields == ("jwt_token",)
+    
+    
+class TestRequest(unittest.IsolatedAsyncioTestCase):
     async def test_request_builds_full_url_and_returns_json(self) -> None:
         fake = FakeHttpx()
         cfg = OpenMetadataConfig(
@@ -99,8 +92,7 @@ class TestRequest:
         ]
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_closes_underlying_client(self) -> None:
         fake = FakeHttpx()
         client = OpenMetadataClient(client=fake)
@@ -115,28 +107,27 @@ class TestLifecycle:
     async def test_request_after_close_raises(self) -> None:
         client = OpenMetadataClient(client=FakeHttpx())
         await client.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await client.request("GET", "/v1/tables")
 
 
-def test_implements_table_source_and_metadata_catalog() -> None:
-    client = OpenMetadataClient(client=FakeHttpx())
-    assert isinstance(client, TableSource)
-    assert isinstance(client, MetadataCatalog)
-
-
-def test_default_entity_type_is_tables() -> None:
-    client = OpenMetadataClient(client=FakeHttpx())
-    assert client.entity_type == "tables"
-
-
-def test_blank_entity_type_rejected() -> None:
-    with pytest.raises(ValueError, match="entity_type"):
-        OpenMetadataClient(client=FakeHttpx(), entity_type="")
-
-
-@pytest.mark.asyncio
-class TestVendorTypedListings:
+    def test_implements_table_source_and_metadata_catalog(self) -> None:
+        client = OpenMetadataClient(client=FakeHttpx())
+        assert isinstance(client, TableSource)
+        assert isinstance(client, MetadataCatalog)
+    
+    
+    def test_default_entity_type_is_tables(self) -> None:
+        client = OpenMetadataClient(client=FakeHttpx())
+        assert client.entity_type == "tables"
+    
+    
+    def test_blank_entity_type_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "entity_type"):
+            OpenMetadataClient(client=FakeHttpx(), entity_type="")
+    
+    
+class TestVendorTypedListings(unittest.IsolatedAsyncioTestCase):
     async def test_list_tables_passes_paging_params(self) -> None:
         fake = FakeHttpx()
         cfg = OpenMetadataConfig(
@@ -173,8 +164,7 @@ class TestVendorTypedListings:
         assert fake.calls[0]["url"].endswith("/api/v1/dashboards")
 
 
-@pytest.mark.asyncio
-class TestFetchPage:
+class TestFetchPage(unittest.IsolatedAsyncioTestCase):
     async def test_uses_configured_entity_type(self) -> None:
         fake = FakeHttpx()
         cfg = OpenMetadataConfig(
@@ -208,8 +198,7 @@ class TestFetchPage:
         assert cursor is None
 
 
-@pytest.mark.asyncio
-class TestListEntities:
+class TestListEntities(unittest.IsolatedAsyncioTestCase):
     async def test_paginates_internally(self) -> None:
         fake = FakeHttpx()
         cfg = OpenMetadataConfig(
@@ -281,8 +270,7 @@ class TestListEntities:
         assert results == [{"name": "t1", "tier": "gold"}]
 
 
-@pytest.mark.asyncio
-class TestDescribeEntity:
+class TestDescribeEntity(unittest.IsolatedAsyncioTestCase):
     async def test_calls_entities_endpoint(self) -> None:
         fake = FakeHttpx()
         cfg = OpenMetadataConfig(

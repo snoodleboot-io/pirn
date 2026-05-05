@@ -1,8 +1,8 @@
 """Unit tests for :class:`BrainAgeEstimator`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -11,9 +11,9 @@ from pirn.domains.health.mri.brain_age_estimator import BrainAgeEstimator
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_model_name(self) -> None:
-        with pytest.raises(ValueError, match="model_name"):
+        with self.assertRaisesRegex(ValueError, "model_name"):
             BrainAgeEstimator(
                 mri_features=Parameter("mf", dict, default={}, _config=KnotConfig(id="mf")),
                 model_name="",
@@ -22,7 +22,7 @@ class TestConstruction:
             )
 
     def test_rejects_invalid_population(self) -> None:
-        with pytest.raises(ValueError, match="reference_population"):
+        with self.assertRaisesRegex(ValueError, "reference_population"):
             BrainAgeEstimator(
                 mri_features=Parameter("mf", dict, default={}, _config=KnotConfig(id="mf")),
                 model_name="brain_age_v1",
@@ -31,8 +31,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_dict(self) -> None:
         features = {
             "cortical_thickness": {"lh_frontal": 2.5},

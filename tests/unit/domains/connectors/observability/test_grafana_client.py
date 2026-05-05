@@ -8,8 +8,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.capabilities.metric_query import MetricQuery
@@ -38,15 +38,7 @@ class FakeHttpx:
         self.response: Any = {"id": 1}
         self.closed = False
 
-    async def request(
-        self,
-        method: str,
-        path: str,
-        *,
-        params: Any = None,
-        json: Any = None,
-        headers: Any = None,
-    ) -> FakeResponse:
+    async def request(self, method: str, path: str, *, params: Any = None, json: Any = None, headers: Any = None,) -> FakeResponse:
         self.calls.append(
             (
                 method,
@@ -63,25 +55,26 @@ class FakeHttpx:
 # ──────────────────────────────────────────────────────────── conformance
 
 
-def test_implements_api_client() -> None:
-    client = GrafanaClient(client=FakeHttpx())
-    assert isinstance(client, ApiClient)
 
-
-def test_construction_requires_config_or_client() -> None:
-    with pytest.raises(TypeError, match="config= or client="):
-        GrafanaClient()
-
-
-def test_sensitive_fields_listed() -> None:
-    assert GrafanaConfig.sensitive_fields == ("api_key",)
-
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_api_client(self) -> None:
+        client = GrafanaClient(client=FakeHttpx())
+        assert isinstance(client, ApiClient)
+    
+    
+    def test_construction_requires_config_or_client(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or client="):
+            GrafanaClient()
+    
+    
+    def test_sensitive_fields_listed(self) -> None:
+        assert GrafanaConfig.sensitive_fields == ("api_key",)
+    
+    
 # ──────────────────────────────────────────────────────────── request
 
 
-@pytest.mark.asyncio
-class TestRequest:
+class TestRequest(unittest.IsolatedAsyncioTestCase):
     async def test_request_dispatches_get(self) -> None:
         fake = FakeHttpx()
         fake.response = [{"id": 1, "uid": "abc", "title": "Home"}]
@@ -132,20 +125,19 @@ class TestRequest:
 
     async def test_request_rejects_empty_method(self) -> None:
         client = GrafanaClient(client=FakeHttpx())
-        with pytest.raises(ValueError, match="method"):
+        with self.assertRaisesRegex(ValueError, "method"):
             await client.request("", "/api/search")
 
     async def test_request_rejects_empty_path(self) -> None:
         client = GrafanaClient(client=FakeHttpx())
-        with pytest.raises(ValueError, match="path"):
+        with self.assertRaisesRegex(ValueError, "path"):
             await client.request("GET", "")
 
 
 # ──────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_closes_underlying_client(self) -> None:
         fake = FakeHttpx()
         client = GrafanaClient(client=fake)
@@ -160,14 +152,14 @@ class TestLifecycle:
     async def test_request_after_close_raises(self) -> None:
         client = GrafanaClient(client=FakeHttpx())
         await client.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await client.request("GET", "/api/search")
 
 
 # ─────────────────────────────────────────────────────── credential safety
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_repr_redacts_api_key(self) -> None:
         cfg = GrafanaConfig(
             base_url="https://grafana.acme.com",
@@ -190,36 +182,35 @@ class TestCredentialSafety:
 # ──────────────────────────────────────────────────────── capabilities
 
 
-def test_implements_table_source() -> None:
-    client = GrafanaClient(client=FakeHttpx())
-    assert isinstance(client, TableSource)
-
-
-def test_implements_metric_query() -> None:
-    client = GrafanaClient(client=FakeHttpx())
-    assert isinstance(client, MetricQuery)
-
-
-def test_default_resource_is_dashboards() -> None:
-    client = GrafanaClient(client=FakeHttpx())
-    assert client.resource == "dashboards"
-
-
-def test_resource_must_be_supported() -> None:
-    with pytest.raises(ValueError, match="resource"):
-        GrafanaClient(client=FakeHttpx(), resource="bogus")
-
-
-def test_resource_rejects_empty_string() -> None:
-    with pytest.raises(ValueError, match="resource"):
-        GrafanaClient(client=FakeHttpx(), resource="")
-
-
+    def test_implements_table_source(self) -> None:
+        client = GrafanaClient(client=FakeHttpx())
+        assert isinstance(client, TableSource)
+    
+    
+    def test_implements_metric_query(self) -> None:
+        client = GrafanaClient(client=FakeHttpx())
+        assert isinstance(client, MetricQuery)
+    
+    
+    def test_default_resource_is_dashboards(self) -> None:
+        client = GrafanaClient(client=FakeHttpx())
+        assert client.resource == "dashboards"
+    
+    
+    def test_resource_must_be_supported(self) -> None:
+        with self.assertRaisesRegex(ValueError, "resource"):
+            GrafanaClient(client=FakeHttpx(), resource="bogus")
+    
+    
+    def test_resource_rejects_empty_string(self) -> None:
+        with self.assertRaisesRegex(ValueError, "resource"):
+            GrafanaClient(client=FakeHttpx(), resource="")
+    
+    
 # ─────────────────────────────────────────────────── TableSource adapter
 
 
-@pytest.mark.asyncio
-class TestFetchPage:
+class TestFetchPage(unittest.IsolatedAsyncioTestCase):
     async def test_dashboards_default(self) -> None:
         fake = FakeHttpx()
         fake.response = [
@@ -278,15 +269,14 @@ class TestFetchPage:
 
     async def test_invalid_cursor_raises(self) -> None:
         client = GrafanaClient(client=FakeHttpx())
-        with pytest.raises(ValueError, match="invalid cursor"):
+        with self.assertRaisesRegex(ValueError, "invalid cursor"):
             await client.fetch_page(cursor="abc")
 
 
 # ─────────────────────────────────────────── Vendor-typed list helpers
 
 
-@pytest.mark.asyncio
-class TestVendorListHelpers:
+class TestVendorListHelpers(unittest.IsolatedAsyncioTestCase):
     async def test_list_dashboards_passes_params(self) -> None:
         fake = FakeHttpx()
         fake.response = [{"id": 1, "uid": "a"}]
@@ -322,18 +312,17 @@ class TestVendorListHelpers:
 # ─────────────────────────────────────────────────── MetricQuery adapter
 
 
-@pytest.mark.asyncio
-class TestQuery:
+class TestQuery(unittest.IsolatedAsyncioTestCase):
     async def test_query_requires_datasource_uid(self) -> None:
         client = GrafanaClient(client=FakeHttpx())
-        with pytest.raises(RuntimeError, match="datasource_uid"):
+        with self.assertRaisesRegex(RuntimeError, "datasource_uid"):
             await client.query("up")
 
     async def test_query_rejects_empty(self) -> None:
         client = GrafanaClient(
             client=FakeHttpx(), datasource_uid="prom-uid"
         )
-        with pytest.raises(ValueError, match="query"):
+        with self.assertRaisesRegex(ValueError, "query"):
             await client.query("")
 
     async def test_query_posts_to_ds_query(self) -> None:

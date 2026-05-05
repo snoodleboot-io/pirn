@@ -1,9 +1,9 @@
 """Tests for :class:`DataBatchToDatafusion`."""
 
 from __future__ import annotations
+import unittest
 
 import datafusion as df
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -32,8 +32,7 @@ async def emit_empty() -> DataBatch:
     return DataBatch()
 
 
-@pytest.mark.asyncio
-class TestDataBatchToDatafusion:
+class TestDataBatchToDatafusion(unittest.IsolatedAsyncioTestCase):
     async def test_constructs_frame_from_rows(self) -> None:
         with Tapestry() as t:
             batch = emit_users(_config=KnotConfig(id="users"))

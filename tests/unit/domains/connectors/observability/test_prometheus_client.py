@@ -8,8 +8,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.capabilities.metric_query import MetricQuery
@@ -41,15 +41,7 @@ class FakeHttpx:
         self.response: Any = {"status": "success", "data": {"result": []}}
         self.closed = False
 
-    async def request(
-        self,
-        method: str,
-        path: str,
-        *,
-        params: Any = None,
-        json: Any = None,
-        headers: Any = None,
-    ) -> FakeResponse:
+    async def request(self, method: str, path: str, *, params: Any = None, json: Any = None, headers: Any = None,) -> FakeResponse:
         self.calls.append(
             (
                 method,
@@ -66,25 +58,26 @@ class FakeHttpx:
 # ──────────────────────────────────────────────────────────── conformance
 
 
-def test_implements_api_client() -> None:
-    client = PrometheusClient(client=FakeHttpx())
-    assert isinstance(client, ApiClient)
 
-
-def test_construction_requires_config_or_client() -> None:
-    with pytest.raises(TypeError, match="config= or client="):
-        PrometheusClient()
-
-
-def test_sensitive_fields_listed() -> None:
-    assert PrometheusConfig.sensitive_fields == ("bearer_token",)
-
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_api_client(self) -> None:
+        client = PrometheusClient(client=FakeHttpx())
+        assert isinstance(client, ApiClient)
+    
+    
+    def test_construction_requires_config_or_client(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or client="):
+            PrometheusClient()
+    
+    
+    def test_sensitive_fields_listed(self) -> None:
+        assert PrometheusConfig.sensitive_fields == ("bearer_token",)
+    
+    
 # ──────────────────────────────────────────────────────────── request
 
 
-@pytest.mark.asyncio
-class TestRequest:
+class TestRequest(unittest.IsolatedAsyncioTestCase):
     async def test_request_dispatches_query(self) -> None:
         fake = FakeHttpx()
         fake.response = {
@@ -126,20 +119,19 @@ class TestRequest:
 
     async def test_request_rejects_empty_method(self) -> None:
         client = PrometheusClient(client=FakeHttpx())
-        with pytest.raises(ValueError, match="method"):
+        with self.assertRaisesRegex(ValueError, "method"):
             await client.request("", "/api/v1/query")
 
     async def test_request_rejects_empty_path(self) -> None:
         client = PrometheusClient(client=FakeHttpx())
-        with pytest.raises(ValueError, match="path"):
+        with self.assertRaisesRegex(ValueError, "path"):
             await client.request("GET", "")
 
 
 # ──────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_closes_underlying_client(self) -> None:
         fake = FakeHttpx()
         client = PrometheusClient(client=fake)
@@ -154,14 +146,14 @@ class TestLifecycle:
     async def test_request_after_close_raises(self) -> None:
         client = PrometheusClient(client=FakeHttpx())
         await client.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await client.request("GET", "/api/v1/query")
 
 
 # ─────────────────────────────────────────────────────── credential safety
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_repr_redacts_bearer_token(self) -> None:
         cfg = PrometheusConfig(
             base_url="http://prometheus:9090",
@@ -184,16 +176,15 @@ class TestCredentialSafety:
 # ──────────────────────────────────────────────────────── capabilities
 
 
-def test_implements_metric_query() -> None:
-    client = PrometheusClient(client=FakeHttpx())
-    assert isinstance(client, MetricQuery)
-
-
+    def test_implements_metric_query(self) -> None:
+        client = PrometheusClient(client=FakeHttpx())
+        assert isinstance(client, MetricQuery)
+    
+    
 # ─────────────────────────────────────────────────── MetricQuery adapter
 
 
-@pytest.mark.asyncio
-class TestQuery:
+class TestQuery(unittest.IsolatedAsyncioTestCase):
     async def test_instant_query_when_start_omitted(self) -> None:
         fake = FakeHttpx()
         fake.response = {
@@ -251,7 +242,7 @@ class TestQuery:
 
     async def test_range_query_requires_end_when_start_set(self) -> None:
         client = PrometheusClient(client=FakeHttpx())
-        with pytest.raises(ValueError, match="end is required"):
+        with self.assertRaisesRegex(ValueError, "end is required"):
             await client.query(
                 "up",
                 start=datetime(2024, 1, 1, tzinfo=timezone.utc),
@@ -259,12 +250,12 @@ class TestQuery:
 
     async def test_query_rejects_empty(self) -> None:
         client = PrometheusClient(client=FakeHttpx())
-        with pytest.raises(ValueError, match="query"):
+        with self.assertRaisesRegex(ValueError, "query"):
             await client.query("")
 
     async def test_query_range_rejects_empty_step(self) -> None:
         client = PrometheusClient(client=FakeHttpx())
-        with pytest.raises(ValueError, match="step"):
+        with self.assertRaisesRegex(ValueError, "step"):
             await client.query_range(
                 "up",
                 start=datetime(2024, 1, 1, tzinfo=timezone.utc),

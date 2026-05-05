@@ -1,8 +1,8 @@
 """Tests for :class:`FourierFeatureGenerator`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -32,11 +32,11 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_columns(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="columns must be non-empty"):
+            with self.assertRaisesRegex(ValueError, "columns must be non-empty"):
                 FourierFeatureGenerator(
                     split=split,
                     columns=(),
@@ -47,7 +47,7 @@ class TestConstruction:
     def test_rejects_period_below_two(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="period must be >= 2"):
+            with self.assertRaisesRegex(ValueError, "period must be >= 2"):
                 FourierFeatureGenerator(
                     split=split,
                     columns=("hour_of_day",),
@@ -58,7 +58,7 @@ class TestConstruction:
     def test_rejects_empty_periods(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="periods must be non-empty"):
+            with self.assertRaisesRegex(ValueError, "periods must be non-empty"):
                 FourierFeatureGenerator(
                     split=split,
                     columns=("hour_of_day",),
@@ -67,7 +67,7 @@ class TestConstruction:
                 )
 
 
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_appends_sin_cos_features(self) -> None:
         with Tapestry() as t:
             split = emit_split(_config=KnotConfig(id="split"))

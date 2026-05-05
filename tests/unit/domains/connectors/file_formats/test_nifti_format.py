@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 from unittest.mock import patch
+import unittest
 
-import pytest
 
-pytest.importorskip("nibabel")
+try:
+    import nibabel
+except ImportError as _e:
+    raise unittest.SkipTest("nibabel not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -55,7 +58,7 @@ async def _decode_bytes(fmt: NiftiFormat, payload: bytes) -> list[dict]:
 # Construction
 # ---------------------------------------------------------------------------
 
-class TestNiftiFormatConstruction:
+class TestNiftiFormatConstruction(unittest.TestCase):
     def test_is_batch_format(self) -> None:
         assert isinstance(NiftiFormat(), BatchFileFormat)
 
@@ -70,8 +73,7 @@ class TestNiftiFormatConstruction:
 # Round-trip
 # ---------------------------------------------------------------------------
 
-class TestNiftiFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestNiftiFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_decode_record_shape(self) -> None:
         payload = _make_nifti_bytes()
         records = await _decode_bytes(NiftiFormat(), payload)
@@ -83,7 +85,6 @@ class TestNiftiFormatRoundTrip:
         assert "header" in record
         assert "data" in record
 
-    @pytest.mark.asyncio
     async def test_round_trip_preserves_shape_and_data(self) -> None:
         import numpy as np
 
@@ -99,7 +100,6 @@ class TestNiftiFormatRoundTrip:
         recovered_arr = np.frombuffer(decoded[0]["data"], dtype=decoded[0]["dtype"])
         assert np.allclose(original_arr, recovered_arr)
 
-    @pytest.mark.asyncio
     async def test_decode_affine_is_list_of_lists(self) -> None:
         payload = _make_nifti_bytes()
         records = await _decode_bytes(NiftiFormat(), payload)
@@ -107,7 +107,6 @@ class TestNiftiFormatRoundTrip:
         assert isinstance(affine, list)
         assert isinstance(affine[0], list)
 
-    @pytest.mark.asyncio
     async def test_decode_data_is_bytes(self) -> None:
         payload = _make_nifti_bytes()
         records = await _decode_bytes(NiftiFormat(), payload)
@@ -118,8 +117,7 @@ class TestNiftiFormatRoundTrip:
 # Error paths
 # ---------------------------------------------------------------------------
 
-class TestNiftiFormatErrors:
-    @pytest.mark.asyncio
+class TestNiftiFormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_encode_empty_raises(self) -> None:
         fmt = NiftiFormat()
 
@@ -127,11 +125,10 @@ class TestNiftiFormatErrors:
             return
             yield
 
-        with pytest.raises(ValueError, match="empty"):
+        with self.assertRaisesRegex(ValueError, "empty"):
             async for _ in await fmt.write(_empty()):
                 pass
 
-    @pytest.mark.asyncio
     async def test_encode_invalid_data_type_raises(self) -> None:
         fmt = NiftiFormat()
 
@@ -144,7 +141,7 @@ class TestNiftiFormatErrors:
                 "data": "not bytes",
             }
 
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             async for _ in await fmt.write(_records()):
                 pass
 
@@ -153,8 +150,8 @@ class TestNiftiFormatErrors:
 # Missing dependency guard
 # ---------------------------------------------------------------------------
 
-class TestNiftiFormatMissingDep:
+class TestNiftiFormatMissingDep(unittest.TestCase):
     def test_load_nibabel_raises_on_missing(self) -> None:
         with patch.dict("sys.modules", {"nibabel": None}):
-            with pytest.raises(ImportError, match="pirn\\[health\\]"):
+            with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
                 NiftiFormat._load_nibabel()

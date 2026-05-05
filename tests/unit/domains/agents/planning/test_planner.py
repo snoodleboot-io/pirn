@@ -1,8 +1,8 @@
 """Unit tests for :class:`Planner`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -22,8 +22,7 @@ async def emit_context() -> AgentContext:
     )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_parses_numbered_steps(self) -> None:
         llm = StubLLMProvider(
             responses=["1. book flight\n2. reserve hotel\n3. pack bags"]
@@ -61,7 +60,7 @@ class TestProcess:
         assert "p" not in result.outputs
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_requires_llm_provider(self) -> None:
         @knot
         async def empty() -> AgentContext:
@@ -69,7 +68,7 @@ class TestConstruction:
 
         with Tapestry():
             ctx = empty(_config=KnotConfig(id="ctx"))
-            with pytest.raises(TypeError, match="LLMProvider"):
+            with self.assertRaisesRegex(TypeError, "LLMProvider"):
                 Planner(
                     context=ctx,
                     llm="bad",  # type: ignore[arg-type]

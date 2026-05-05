@@ -1,9 +1,9 @@
 """Tests for :class:`PyarrowJoin`."""
 
 from __future__ import annotations
+import unittest
 
 import pyarrow as pa
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -42,8 +42,7 @@ async def emit_empty() -> PyarrowDataBatch:
     return PyarrowDataBatch(table=pa.table({"x": pa.array([], type=pa.int64())}))
 
 
-@pytest.mark.asyncio
-class TestPyarrowJoin:
+class TestPyarrowJoin(unittest.IsolatedAsyncioTestCase):
     async def test_inner_join_on_shared_key(self) -> None:
         with Tapestry() as t:
             users = emit_users(_config=KnotConfig(id="users"))
@@ -111,12 +110,12 @@ class TestPyarrowJoin:
         assert out.row_count == 2
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_unknown_how(self) -> None:
         with Tapestry():
             left = emit_empty(_config=KnotConfig(id="l"))
             right = emit_empty(_config=KnotConfig(id="r"))
-            with pytest.raises(ValueError, match="how must be one of"):
+            with self.assertRaisesRegex(ValueError, "how must be one of"):
                 PyarrowJoin(
                     left=left,
                     right=right,
@@ -129,7 +128,7 @@ class TestConstruction:
         with Tapestry():
             left = emit_empty(_config=KnotConfig(id="l"))
             right = emit_empty(_config=KnotConfig(id="r"))
-            with pytest.raises(TypeError, match="not both"):
+            with self.assertRaisesRegex(TypeError, "not both"):
                 PyarrowJoin(
                     left=left,
                     right=right,
@@ -143,7 +142,7 @@ class TestConstruction:
         with Tapestry():
             left = emit_empty(_config=KnotConfig(id="l"))
             right = emit_empty(_config=KnotConfig(id="r"))
-            with pytest.raises(TypeError):
+            with self.assertRaises(TypeError):
                 PyarrowJoin(
                     left=left,
                     right=right,
@@ -155,7 +154,7 @@ class TestConstruction:
         with Tapestry():
             left = emit_empty(_config=KnotConfig(id="l"))
             right = emit_empty(_config=KnotConfig(id="r"))
-            with pytest.raises(ValueError, match="plain identifier"):
+            with self.assertRaisesRegex(ValueError, "plain identifier"):
                 PyarrowJoin(
                     left=left,
                     right=right,
@@ -167,7 +166,7 @@ class TestConstruction:
         with Tapestry():
             left = emit_empty(_config=KnotConfig(id="l"))
             right = emit_empty(_config=KnotConfig(id="r"))
-            with pytest.raises(ValueError, match="same length"):
+            with self.assertRaisesRegex(ValueError, "same length"):
                 PyarrowJoin(
                     left=left,
                     right=right,

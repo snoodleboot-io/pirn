@@ -1,8 +1,8 @@
 """Tests for :class:`JsonExtractorPipeline`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -15,10 +15,9 @@ from tests.unit.domains.agents.specializations.conftest import (
 )
 
 
-@pytest.mark.asyncio
-class TestJsonExtractorPipelineConstruction:
+class TestJsonExtractorPipelineConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
-        with pytest.raises(TypeError, match="llm must be an LLMProvider"):
+        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
             with Tapestry():
                 JsonExtractorPipeline(
                     prompt="give me json",
@@ -29,7 +28,7 @@ class TestJsonExtractorPipelineConstruction:
 
     async def test_rejects_zero_max_retries(self) -> None:
         llm = StubLLMProvider(['{"name": "x"}'])
-        with pytest.raises(ValueError, match="max_retries"):
+        with self.assertRaisesRegex(ValueError, "max_retries"):
             with Tapestry():
                 JsonExtractorPipeline(
                     prompt="give me json",
@@ -40,8 +39,7 @@ class TestJsonExtractorPipelineConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestJsonExtractorPipelineHappyPath:
+class TestJsonExtractorPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_returns_parsed_dict_on_first_attempt(self) -> None:
         llm = StubLLMProvider(['{"name": "Ada", "age": 36}'])
         with Tapestry() as t:

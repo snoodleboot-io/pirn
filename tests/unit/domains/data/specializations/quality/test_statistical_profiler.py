@@ -1,8 +1,8 @@
 """Tests for :class:`StatisticalProfiler`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,33 +14,35 @@ from pirn.domains.data.specializations.quality.statistical_profiler import (
 from pirn.tapestry import Tapestry
 
 
-@pytest.fixture
-async def pool() -> SqlitePool:
-    p = SqlitePool(SqliteConfig(database=":memory:"))
-    await p.execute(
-        "CREATE TABLE metrics ("
-        "  id INTEGER PRIMARY KEY,"
-        "  score REAL,"
-        "  category TEXT"
-        ")"
-    )
-    await p.execute_many(
-        "INSERT INTO metrics (id, score, category) VALUES (?, ?, ?)",
-        [
-            (1, 10.0, "A"),
-            (2, 20.0, "B"),
-            (3, 30.0, "A"),
-            (4, None, "C"),
-            (5, 50.0, "B"),
-        ],
-    )
-    yield p
-    await p.close()
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
+    async def asyncSetUp(self) -> None:
+        p = SqlitePool(SqliteConfig(database=":memory:"))
+        await p.execute(
+            "CREATE TABLE metrics ("
+            "  id INTEGER PRIMARY KEY,"
+            "  score REAL,"
+            "  category TEXT"
+            ")"
+        )
+        await p.execute_many(
+            "INSERT INTO metrics (id, score, category) VALUES (?, ?, ?)",
+            [
+                (1, 10.0, "A"),
+                (2, 20.0, "B"),
+                (3, 30.0, "A"),
+                (4, None, "C"),
+                (5, 50.0, "B"),
+            ],
+        )
+        self.pool = p
 
-class TestConstruction:
+    async def asyncTearDown(self) -> None:
+        await self.pool.close()
+        
+        
     def test_rejects_non_pool(self) -> None:
-        with pytest.raises(TypeError, match="DatabaseConnectionPool"):
+        with self.assertRaisesRegex(TypeError, "DatabaseConnectionPool"):
             StatisticalProfiler(
                 pool="bad",  # type: ignore[arg-type]
                 monitored_table="metrics",
@@ -48,8 +50,9 @@ class TestConstruction:
                 _config=KnotConfig(id="prof"),
             )
 
-    def test_rejects_empty_columns(self, pool: SqlitePool) -> None:
-        with pytest.raises(ValueError, match="non-empty"):
+    def test_rejects_empty_columns(self) -> None:
+        pool = self.pool
+        with self.assertRaisesRegex(ValueError, "non-empty"):
             StatisticalProfiler(
                 pool=pool,
                 monitored_table="metrics",
@@ -57,8 +60,9 @@ class TestConstruction:
                 _config=KnotConfig(id="prof"),
             )
 
-    def test_rejects_invalid_top_n(self, pool: SqlitePool) -> None:
-        with pytest.raises(ValueError, match="top_n"):
+    def test_rejects_invalid_top_n(self) -> None:
+        pool = self.pool
+        with self.assertRaisesRegex(ValueError, "top_n"):
             StatisticalProfiler(
                 pool=pool,
                 monitored_table="metrics",
@@ -68,9 +72,35 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestStatisticalProfilerBehaviour:
-    async def test_computes_numeric_stats(self, pool: SqlitePool) -> None:
+class TestStatisticalProfilerBehaviour(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self) -> None:
+        p = SqlitePool(SqliteConfig(database=":memory:"))
+        await p.execute(
+            "CREATE TABLE metrics ("
+            "  id INTEGER PRIMARY KEY,"
+            "  score REAL,"
+            "  category TEXT"
+            ")"
+        )
+        await p.execute_many(
+            "INSERT INTO metrics (id, score, category) VALUES (?, ?, ?)",
+            [
+                (1, 10.0, "A"),
+                (2, 20.0, "B"),
+                (3, 30.0, "A"),
+                (4, None, "C"),
+                (5, 50.0, "B"),
+            ],
+        )
+        self.pool = p
+
+    async def asyncTearDown(self) -> None:
+        await self.pool.close()
+        
+        
+    async def test_computes_numeric_stats(self) -> None:
+        pool = self.pool
         with Tapestry() as t:
             knot = StatisticalProfiler(
                 pool=pool,
@@ -89,7 +119,8 @@ class TestStatisticalProfilerBehaviour:
         assert abs(profile["null_rate"] - 0.2) < 0.01
         assert profile["cardinality"] == 4
 
-    async def test_computes_top_values(self, pool: SqlitePool) -> None:
+    async def test_computes_top_values(self) -> None:
+        pool = self.pool
         with Tapestry() as t:
             knot = StatisticalProfiler(
                 pool=pool,
@@ -106,7 +137,8 @@ class TestStatisticalProfilerBehaviour:
         assert "A" in top_vals
         assert "B" in top_vals
 
-    async def test_profiles_multiple_columns(self, pool: SqlitePool) -> None:
+    async def test_profiles_multiple_columns(self) -> None:
+        pool = self.pool
         with Tapestry() as t:
             knot = StatisticalProfiler(
                 pool=pool,

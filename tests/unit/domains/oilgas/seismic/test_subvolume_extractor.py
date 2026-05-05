@@ -1,8 +1,8 @@
 """Unit tests for :class:`SubvolumeExtractor`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,9 +12,9 @@ from pirn.domains.oilgas.types.segy_volume import SegyVolume
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_negative_index(self) -> None:
-        with pytest.raises(ValueError, match="non-negative"):
+        with self.assertRaisesRegex(ValueError, "non-negative"):
             with Tapestry():
                 volume = SegyFileIngester(
                     file_path="/x", volume_id="v", _config=KnotConfig(id="i")
@@ -31,7 +31,7 @@ class TestConstruction:
                 )
 
     def test_rejects_non_increasing_inline_range(self) -> None:
-        with pytest.raises(ValueError, match="inline_end"):
+        with self.assertRaisesRegex(ValueError, "inline_end"):
             with Tapestry():
                 volume = SegyFileIngester(
                     file_path="/x", volume_id="v", _config=KnotConfig(id="i")
@@ -48,8 +48,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_sub_volume_with_dims(self) -> None:
         with Tapestry() as t:
             volume = SegyFileIngester(

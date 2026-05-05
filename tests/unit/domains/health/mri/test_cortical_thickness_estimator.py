@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,9 +14,9 @@ from pirn.domains.health.mri.cortical_thickness_estimator import (
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_path(self) -> None:
-        with pytest.raises(ValueError, match="non-empty"):
+        with self.assertRaisesRegex(ValueError, "non-empty"):
             CorticalThicknessEstimator(
                 t1_nifti_path="",
                 regions=[],
@@ -24,7 +24,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_sequence(self) -> None:
-        with pytest.raises(TypeError, match="regions"):
+        with self.assertRaisesRegex(TypeError, "regions"):
             CorticalThicknessEstimator(
                 t1_nifti_path="x",
                 regions=42,  # type: ignore[arg-type]
@@ -32,7 +32,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_string_region(self) -> None:
-        with pytest.raises(TypeError, match="string"):
+        with self.assertRaisesRegex(TypeError, "string"):
             CorticalThicknessEstimator(
                 t1_nifti_path="x",
                 regions=[1],  # type: ignore[list-item]
@@ -40,8 +40,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_per_region_mapping(self) -> None:
         with Tapestry() as t:
             CorticalThicknessEstimator(

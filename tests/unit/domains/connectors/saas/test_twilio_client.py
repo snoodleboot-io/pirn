@@ -8,8 +8,8 @@ real Twilio account needed.
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.capabilities.record_writer import RecordWriter
@@ -26,14 +26,7 @@ class FakeTwilioClient:
         self.response: Any = {"sid": "SM123", "status": "queued"}
         self.closed = False
 
-    def request(
-        self,
-        method: str,
-        uri: str,
-        params: Any = None,
-        data: Any = None,
-        headers: Any = None,
-    ) -> Any:
+    def request(self, method: str, uri: str, params: Any = None, data: Any = None, headers: Any = None,) -> Any:
         self.calls.append((method, uri, params, data, headers))
         return self.response
 
@@ -44,25 +37,26 @@ class FakeTwilioClient:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-def test_implements_api_client() -> None:
-    client = TwilioClient(client=FakeTwilioClient())
-    assert isinstance(client, ApiClient)
 
-
-def test_construction_requires_config_or_client() -> None:
-    with pytest.raises(TypeError, match="config= or client="):
-        TwilioClient()
-
-
-def test_sensitive_fields_listed() -> None:
-    assert TwilioConfig.sensitive_fields == ("auth_token",)
-
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_api_client(self) -> None:
+        client = TwilioClient(client=FakeTwilioClient())
+        assert isinstance(client, ApiClient)
+    
+    
+    def test_construction_requires_config_or_client(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or client="):
+            TwilioClient()
+    
+    
+    def test_sensitive_fields_listed(self) -> None:
+        assert TwilioConfig.sensitive_fields == ("auth_token",)
+    
+    
 # ────────────────────────────────────────────────────────────── dispatch
 
 
-@pytest.mark.asyncio
-class TestRequest:
+class TestRequest(unittest.IsolatedAsyncioTestCase):
     async def test_request_forwards_to_low_level(self) -> None:
         fake = FakeTwilioClient()
         client = TwilioClient(client=fake)
@@ -106,8 +100,7 @@ class TestRequest:
 # ─────────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_closes_underlying_client(self) -> None:
         fake = FakeTwilioClient()
         client = TwilioClient(client=fake)
@@ -122,14 +115,14 @@ class TestLifecycle:
     async def test_request_after_close_raises(self) -> None:
         client = TwilioClient(client=FakeTwilioClient())
         await client.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await client.request("GET", "/2010-04-01/Accounts.json")
 
 
 # ────────────────────────────────────────────────────────── credential safety
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_repr_redacts_auth_token(self) -> None:
         cfg = TwilioConfig(
             account_sid="AC123",
@@ -154,13 +147,12 @@ class TestCredentialSafety:
 # ────────────────────────────────────────────────────────── capability surface
 
 
-def test_implements_record_writer() -> None:
-    client = TwilioClient(client=FakeTwilioClient())
-    assert isinstance(client, RecordWriter)
-
-
-@pytest.mark.asyncio
-class TestSendSms:
+    def test_implements_record_writer(self) -> None:
+        client = TwilioClient(client=FakeTwilioClient())
+        assert isinstance(client, RecordWriter)
+    
+    
+class TestSendSms(unittest.IsolatedAsyncioTestCase):
     async def test_send_sms_posts_message(self) -> None:
         fake = FakeTwilioClient()
         cfg = TwilioConfig(account_sid="AC1", auth_token="tok")
@@ -183,9 +175,7 @@ class TestSendSms:
             "Body": "hello",
         }
 
-    async def test_send_sms_uses_account_placeholder_without_config(
-        self,
-    ) -> None:
+    async def test_send_sms_uses_account_placeholder_without_config(self,) -> None:
         fake = FakeTwilioClient()
         client = TwilioClient(client=fake)
 
@@ -198,16 +188,15 @@ class TestSendSms:
 
     async def test_send_sms_rejects_empty_args(self) -> None:
         client = TwilioClient(client=FakeTwilioClient())
-        with pytest.raises(ValueError, match="from_number"):
+        with self.assertRaisesRegex(ValueError, "from_number"):
             await client.send_sms(from_number="", to="+2", body="hi")
-        with pytest.raises(ValueError, match="to must be"):
+        with self.assertRaisesRegex(ValueError, "to must be"):
             await client.send_sms(from_number="+1", to="", body="hi")
-        with pytest.raises(ValueError, match="body must be"):
+        with self.assertRaisesRegex(ValueError, "body must be"):
             await client.send_sms(from_number="+1", to="+2", body="")
 
 
-@pytest.mark.asyncio
-class TestWriteRecords:
+class TestWriteRecords(unittest.IsolatedAsyncioTestCase):
     async def test_write_records_sends_each_message(self) -> None:
         fake = FakeTwilioClient()
         cfg = TwilioConfig(account_sid="AC1", auth_token="tok")
@@ -242,7 +231,7 @@ class TestWriteRecords:
         cfg = TwilioConfig(account_sid="AC1", auth_token="tok")
         client = TwilioClient(config=cfg, client=fake)
 
-        with pytest.raises(ValueError, match="'from', 'to', and 'body'"):
+        with self.assertRaisesRegex(ValueError, "'from', 'to', and 'body'"):
             await client.write_records(
                 [{"from": "+1", "to": "+2"}]
             )

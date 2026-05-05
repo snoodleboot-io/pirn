@@ -1,11 +1,18 @@
 """Round-trip and validation tests for :class:`GribFormat`."""
 
 from __future__ import annotations
+import unittest
 
 import pytest
 
-cfgrib = pytest.importorskip("cfgrib")
-pytest.importorskip("eccodes")
+try:
+    import cfgrib
+except ImportError as _e:
+    raise unittest.SkipTest("cfgrib not installed") from _e
+try:
+    import eccodes
+except ImportError as _e:
+    raise unittest.SkipTest("eccodes not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -36,7 +43,7 @@ def _make_grib_payload() -> bytes:
     return buf.getvalue()
 
 
-class TestGribFormatConstruction:
+class TestGribFormatConstruction(unittest.TestCase):
     def test_name(self) -> None:
         assert GribFormat().name == "grib"
 
@@ -47,11 +54,10 @@ class TestGribFormatConstruction:
         assert isinstance(GribFormat(), BatchFileFormat)
 
 
-class TestGribFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestGribFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_encode_raises_not_implemented(self) -> None:
         fmt = GribFormat()
-        with pytest.raises(NotImplementedError, match="GribFormat"):
+        with self.assertRaisesRegex(NotImplementedError, "GribFormat"):
             await FormatRoundTrip.encode(
                 fmt,
                 [
@@ -66,9 +72,11 @@ class TestGribFormatRoundTrip:
                 ],
             )
 
-    @pytest.mark.asyncio
     async def test_decode_structure(self) -> None:
-        pytest.importorskip("eccodes")
+        try:
+            import eccodes
+        except ImportError as _e:
+            self.skipTest("eccodes not installed")
         try:
             payload = _make_grib_payload()
         except Exception:
@@ -86,8 +94,7 @@ class TestGribFormatRoundTrip:
         assert isinstance(first["values"], bytes)
 
 
-class TestGribFormatErrors:
-    @pytest.mark.asyncio
+class TestGribFormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_decode_empty_bytes_yields_no_records(self) -> None:
         fmt = GribFormat()
 
@@ -99,8 +106,9 @@ class TestGribFormatErrors:
         assert records == []
 
 
-class TestGribFormatMissingDep:
-    def test_import_error_message(self, monkeypatch: pytest.MonkeyPatch) -> None:
+class TestGribFormatMissingDep(unittest.TestCase):
+    def test_import_error_message(self) -> None:
+        # TODO(unittest-migrate): replace 'monkeypatch' built-in fixture — use unittest.mock.patch / assertLogs
         import builtins
 
         real_import = builtins.__import__
@@ -111,5 +119,5 @@ class TestGribFormatMissingDep:
             return real_import(name, *args, **kwargs)
 
         monkeypatch.setattr(builtins, "__import__", _block_cfgrib)
-        with pytest.raises(ImportError, match="pirn\\[weather\\]"):
+        with self.assertRaisesRegex(ImportError, "pirn\\[weather\\]"):
             GribFormat._load_cfgrib_eccodes()

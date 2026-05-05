@@ -1,8 +1,8 @@
 """Unit tests for :class:`ToolExecutor`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -19,8 +19,7 @@ async def emit_call() -> ToolCall:
     return ToolCall(tool_name="search", arguments={"q": "x"}, call_id="c1")
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_invokes_matching_tool(self) -> None:
         search = StubTool(name="search", handler="found")
         with Tapestry() as t:
@@ -56,7 +55,7 @@ class TestProcess:
         assert "boom" in out.error
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_tools(self) -> None:
         @knot
         async def c() -> ToolCall:
@@ -64,5 +63,5 @@ class TestConstruction:
 
         with Tapestry():
             cc = c(_config=KnotConfig(id="c"))
-            with pytest.raises(ValueError, match="non-empty"):
+            with self.assertRaisesRegex(ValueError, "non-empty"):
                 ToolExecutor(call=cc, tools=(), _config=KnotConfig(id="x"))

@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import unittest
 
 from pirn.domains.oilgas.types.las_file import LASFile
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_default_values(self) -> None:
         las = LASFile()
         assert las.well_id == ""
@@ -29,7 +30,7 @@ class TestConstruction:
         assert las.fetched_at == when
 
 
-class TestAuditDict:
+class TestAuditDict(unittest.TestCase):
     def test_audit_dict_curves_as_list(self) -> None:
         when = datetime(2026, 1, 1, tzinfo=timezone.utc)
         las = LASFile(
@@ -42,7 +43,7 @@ class TestAuditDict:
         assert d["fetched_at"] == when.isoformat()
 
 
-class TestFrozen:
+class TestFrozen(unittest.TestCase):
     def test_frozen_disallows_mutation(self) -> None:
         las = LASFile(well_id="A")
         try:

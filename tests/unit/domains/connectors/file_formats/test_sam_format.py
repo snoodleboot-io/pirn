@@ -1,10 +1,13 @@
 """Round-trip and validation tests for :class:`SamFormat`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
-pytest.importorskip("pysam")
+try:
+    import pysam
+except ImportError as _e:
+    raise unittest.SkipTest("pysam not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -61,7 +64,7 @@ def _alignment_records() -> list[dict[str, object]]:
     ]
 
 
-class TestSamFormatConstruction:
+class TestSamFormatConstruction(unittest.TestCase):
     def test_default_arguments(self) -> None:
         fmt = SamFormat()
         assert fmt.header_lines is None
@@ -72,19 +75,19 @@ class TestSamFormatConstruction:
         assert fmt.header_lines == header
 
     def test_invalid_header_type(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             SamFormat(header_lines="not-a-sequence")  # type: ignore[arg-type]
 
     def test_empty_header_line_rejected(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             SamFormat(header_lines=("@HD\tVN:1.6", ""))
 
     def test_header_line_without_at_rejected(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             SamFormat(header_lines=("HD\tVN:1.6",))
 
 
-class TestSamFormatBasics:
+class TestSamFormatBasics(unittest.TestCase):
     def test_name(self) -> None:
         assert SamFormat().name == "sam"
 
@@ -95,8 +98,7 @@ class TestSamFormatBasics:
         assert isinstance(SamFormat(), BatchFileFormat)
 
 
-class TestSamFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestSamFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         records = _alignment_records()
         fmt = SamFormat(
@@ -104,20 +106,17 @@ class TestSamFormatRoundTrip:
         )
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_inferred_header(self) -> None:
         records = _alignment_records()
         fmt = SamFormat()
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_empty(self) -> None:
         fmt = SamFormat(
             header_lines=("@HD\tVN:1.6", "@SQ\tSN:chr1\tLN:1000")
         )
         await FormatRoundTrip.assert_round_trip(fmt, [])
 
-    @pytest.mark.asyncio
     async def test_round_trip_single(self) -> None:
         records = [_alignment_records()[0]]
         fmt = SamFormat(

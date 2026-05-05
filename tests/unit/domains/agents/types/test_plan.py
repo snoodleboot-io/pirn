@@ -1,11 +1,12 @@
 """Unit tests for :class:`Plan`."""
 
 from __future__ import annotations
+import unittest
 
 from pirn.domains.agents.types.plan import Plan
 
 
-class TestRoundtrip:
+class TestRoundtrip(unittest.TestCase):
     def test_default_rationale_is_empty(self) -> None:
         plan = Plan(steps=("step a", "step b"))
         assert plan.steps == ("step a", "step b")

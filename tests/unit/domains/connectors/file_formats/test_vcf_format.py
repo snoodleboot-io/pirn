@@ -1,8 +1,8 @@
 """Round-trip and validation tests for :class:`VcfFormat`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.file_formats.streaming_file_format import (
     StreamingFileFormat,
@@ -15,7 +15,7 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 )
 
 
-class TestVcfFormatConstruction:
+class TestVcfFormatConstruction(unittest.TestCase):
     def test_default_arguments(self) -> None:
         fmt = VcfFormat()
         assert fmt.encoding == "utf-8"
@@ -27,19 +27,19 @@ class TestVcfFormatConstruction:
         assert fmt.fileformat == "VCFv4.2"
 
     def test_encoding_must_be_str(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             VcfFormat(encoding=1)  # type: ignore[arg-type]
 
     def test_encoding_must_be_nonempty(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             VcfFormat(encoding="")
 
     def test_fileformat_must_be_nonempty(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             VcfFormat(fileformat="")
 
 
-class TestVcfFormatBasics:
+class TestVcfFormatBasics(unittest.TestCase):
     def test_name(self) -> None:
         assert VcfFormat().name == "vcf"
 
@@ -50,8 +50,7 @@ class TestVcfFormatBasics:
         assert isinstance(VcfFormat(), StreamingFileFormat)
 
 
-class TestVcfFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestVcfFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         fmt = VcfFormat()
         records = [
@@ -88,12 +87,10 @@ class TestVcfFormatRoundTrip:
         ]
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_empty(self) -> None:
         fmt = VcfFormat()
         await FormatRoundTrip.assert_round_trip(fmt, [])
 
-    @pytest.mark.asyncio
     async def test_round_trip_single(self) -> None:
         fmt = VcfFormat()
         records = [
@@ -110,7 +107,6 @@ class TestVcfFormatRoundTrip:
         ]
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_invalid_pos_rejected_on_write(self) -> None:
         fmt = VcfFormat()
         records = [
@@ -125,10 +121,9 @@ class TestVcfFormatRoundTrip:
                 "info": {},
             }
         ]
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             await FormatRoundTrip.encode(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_missing_chrom_rejected(self) -> None:
         fmt = VcfFormat()
         records = [
@@ -142,5 +137,5 @@ class TestVcfFormatRoundTrip:
                 "info": {},
             }
         ]
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, records)

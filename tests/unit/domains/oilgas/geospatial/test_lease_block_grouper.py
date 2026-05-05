@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -21,9 +21,9 @@ class _LocSource(Knot):
         return {"well_id": "W", "x": 0.0, "y": 0.0}
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_block_id(self) -> None:
-        with pytest.raises(ValueError, match="lease_block_id"):
+        with self.assertRaisesRegex(ValueError, "lease_block_id"):
             with Tapestry():
                 loc = _LocSource(_config=KnotConfig(id="loc"))
                 LeaseBlockGrouper(
@@ -33,8 +33,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_appends_lease_block(self) -> None:
         with Tapestry() as t:
             loc = _LocSource(_config=KnotConfig(id="loc"))

@@ -7,8 +7,8 @@ real Redshift cluster needed.
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.databases.redshift_config import RedshiftConfig
@@ -33,9 +33,7 @@ class FakeAsyncpgPool:
         self.executed.append((query, args))
         return "EXECUTE OK"
 
-    async def executemany(
-        self, query: str, args_seq: list[tuple[Any, ...]]
-    ) -> None:
+    async def executemany(self, query: str, args_seq: list[tuple[Any, ...]]) -> None:
         self.executed_many.append((query, list(args_seq)))
 
     async def fetch(self, query: str, *args: Any) -> list[Any]:
@@ -57,21 +55,22 @@ class FakeAsyncpgPool:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-def test_implements_database_connection_pool() -> None:
-    pool = RedshiftPool(pool=FakeAsyncpgPool())
-    assert isinstance(pool, DatabaseConnectionPool)
 
-
-def test_construction_requires_config_or_pool() -> None:
-    with pytest.raises(TypeError, match="config= or pool="):
-        RedshiftPool()
-
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_database_connection_pool(self) -> None:
+        pool = RedshiftPool(pool=FakeAsyncpgPool())
+        assert isinstance(pool, DatabaseConnectionPool)
+    
+    
+    def test_construction_requires_config_or_pool(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or pool="):
+            RedshiftPool()
+    
+    
 # ────────────────────────────────────────────────────────── delegation
 
 
-@pytest.mark.asyncio
-class TestDelegation:
+class TestDelegation(unittest.IsolatedAsyncioTestCase):
     async def test_execute_passes_query_and_args(self) -> None:
         fake = FakeAsyncpgPool()
         pool = RedshiftPool(pool=fake)
@@ -112,15 +111,15 @@ class TestDelegation:
 # ─────────────────────────────────────────────────────────── query safety
 
 
-class TestQuerySafety:
+class TestQuerySafety(unittest.TestCase):
     def test_rejects_fstring_placeholder(self) -> None:
         pool = RedshiftPool(pool=FakeAsyncpgPool())
-        with pytest.raises(ValueError, match="interpolation"):
+        with self.assertRaisesRegex(ValueError, "interpolation"):
             pool._reject_inline_interpolation("SELECT * FROM t WHERE x = {v}")
 
     def test_rejects_percent_s_placeholder(self) -> None:
         pool = RedshiftPool(pool=FakeAsyncpgPool())
-        with pytest.raises(ValueError, match="interpolation"):
+        with self.assertRaisesRegex(ValueError, "interpolation"):
             pool._reject_inline_interpolation("SELECT * FROM t WHERE x = %s")
 
     def test_accepts_dollar_placeholder(self) -> None:
@@ -128,24 +127,22 @@ class TestQuerySafety:
         pool._reject_inline_interpolation("SELECT * FROM t WHERE x = $1")
 
 
-@pytest.mark.asyncio
-class TestQuerySafetyEnforced:
+class TestQuerySafetyEnforced(unittest.IsolatedAsyncioTestCase):
     async def test_execute_rejects_format_query(self) -> None:
         pool = RedshiftPool(pool=FakeAsyncpgPool())
-        with pytest.raises(ValueError, match="interpolation"):
+        with self.assertRaisesRegex(ValueError, "interpolation"):
             await pool.execute("SELECT %s FROM t", "x")
 
     async def test_fetch_all_rejects_format_query(self) -> None:
         pool = RedshiftPool(pool=FakeAsyncpgPool())
-        with pytest.raises(ValueError, match="interpolation"):
+        with self.assertRaisesRegex(ValueError, "interpolation"):
             await pool.fetch_all("SELECT * FROM t WHERE x = {evil}")
 
 
 # ─────────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_closes_underlying_pool(self) -> None:
         fake = FakeAsyncpgPool()
         pool = RedshiftPool(pool=fake)
@@ -160,14 +157,14 @@ class TestLifecycle:
     async def test_acquire_after_close_raises(self) -> None:
         pool = RedshiftPool(pool=FakeAsyncpgPool())
         await pool.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await pool.acquire()
 
 
 # ─────────────────────────────────────────────────────────────── DSN safety
 
 
-class TestDsnLogSafety:
+class TestDsnLogSafety(unittest.TestCase):
     def test_repr_redacts_password_field(self) -> None:
         cfg = RedshiftConfig(
             host="redshift.example.com",
@@ -185,11 +182,8 @@ class TestDsnLogSafety:
         assert "<redacted>" in repr(cfg)
 
 
-@pytest.mark.asyncio
-class TestConnectErrorScrubs:
-    async def test_connect_error_scrubs_password(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+class TestConnectErrorScrubs(unittest.IsolatedAsyncioTestCase):
+    async def test_connect_error_scrubs_password(self) -> None:
         fake_asyncpg = type("FakeAsyncpg", (), {})()
 
         async def boom(*_: Any, **__: Any) -> None:
@@ -198,13 +192,12 @@ class TestConnectErrorScrubs:
             )
 
         fake_asyncpg.create_pool = boom  # type: ignore[attr-defined]
-        monkeypatch.setitem(__import__("sys").modules, "asyncpg", fake_asyncpg)
-
-        pool = RedshiftPool(
-            RedshiftConfig(dsn="postgres://alice:secret-pw@db/main")
-        )
-        with pytest.raises(ConnectionError) as exc_info:
-            await pool.acquire()
-        msg = str(exc_info.value)
+        with unittest.mock.patch.dict(__import__("sys").modules, {"asyncpg": fake_asyncpg}):
+            pool = RedshiftPool(
+                RedshiftConfig(dsn="postgres://alice:secret-pw@db/main")
+            )
+            with self.assertRaises(ConnectionError) as exc_info:
+                await pool.acquire()
+        msg = str(exc_info.exception)
         assert "secret-pw" not in msg
         assert "<redacted>" in msg

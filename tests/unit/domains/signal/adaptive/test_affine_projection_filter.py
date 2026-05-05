@@ -1,8 +1,8 @@
 """Unit tests for :class:`AffineProjectionFilter`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -17,12 +17,12 @@ from tests.unit.domains.signal.conftest import (
 )
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_filter_length(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
             ref = emit_reference_frame(_config=KnotConfig(id="ref"))
-            with pytest.raises(ValueError, match="filter_length"):
+            with self.assertRaisesRegex(ValueError, "filter_length"):
                 AffineProjectionFilter(
                     signal=sig,
                     reference=ref,
@@ -36,7 +36,7 @@ class TestConstruction:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
             ref = emit_reference_frame(_config=KnotConfig(id="ref"))
-            with pytest.raises(ValueError, match="projection_order"):
+            with self.assertRaisesRegex(ValueError, "projection_order"):
                 AffineProjectionFilter(
                     signal=sig,
                     reference=ref,
@@ -50,7 +50,7 @@ class TestConstruction:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
             ref = emit_reference_frame(_config=KnotConfig(id="ref"))
-            with pytest.raises(ValueError, match="step_size"):
+            with self.assertRaisesRegex(ValueError, "step_size"):
                 AffineProjectionFilter(
                     signal=sig,
                     reference=ref,
@@ -61,8 +61,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_signal_frame(self) -> None:
         with Tapestry() as t:
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))

@@ -12,8 +12,8 @@ import sys
 import types
 from dataclasses import dataclass
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.capabilities.event_emitter import EventEmitter
@@ -45,34 +45,33 @@ class FakeAmplitudeClient:
         self.shutdown_called = True
 
 
-@pytest.fixture(autouse=True)
-def _stub_amplitude_module(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Install a fake ``amplitude`` module so ``BaseEvent`` can be imported."""
-    fake_module = types.ModuleType("amplitude")
-    fake_module.BaseEvent = FakeBaseEvent  # type: ignore[attr-defined]
-    fake_module.Amplitude = FakeAmplitudeClient  # type: ignore[attr-defined]
-    monkeypatch.setitem(sys.modules, "amplitude", fake_module)
+from pirn.domains.connectors.saas.amplitude_client import AmplitudeClient  # noqa: E402
+
+_fake_amplitude = types.ModuleType("amplitude")
+_fake_amplitude.BaseEvent = FakeBaseEvent  # type: ignore[attr-defined]
 
 
-# Imported AFTER the autouse fixture would patch sys.modules, but module
-# import in pirn is lazy inside ``_build_event`` / ``_create_client`` so
-# importing the connector here is safe regardless of fixture ordering.
-from pirn.domains.connectors.saas.amplitude_client import (  # noqa: E402
-    AmplitudeClient,
-)
+def setUpModule() -> None:
+    sys.modules["amplitude"] = _fake_amplitude
 
 
-def test_implements_api_client() -> None:
-    client = AmplitudeClient(client=FakeAmplitudeClient())
-    assert isinstance(client, ApiClient)
+def tearDownModule() -> None:
+    sys.modules.pop("amplitude", None)
 
 
-def test_construction_requires_config_or_client() -> None:
-    with pytest.raises(TypeError, match="config= or client="):
-        AmplitudeClient()
 
-
-class TestRequestDispatch:
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_api_client(self) -> None:
+        client = AmplitudeClient(client=FakeAmplitudeClient())
+        assert isinstance(client, ApiClient)
+    
+    
+    def test_construction_requires_config_or_client(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or client="):
+            AmplitudeClient()
+    
+    
+class TestRequestDispatch(unittest.IsolatedAsyncioTestCase):
     async def test_track_builds_base_event(self) -> None:
         fake = FakeAmplitudeClient()
         client = AmplitudeClient(client=fake)
@@ -101,31 +100,31 @@ class TestRequestDispatch:
 
     async def test_track_requires_event(self) -> None:
         client = AmplitudeClient(client=FakeAmplitudeClient())
-        with pytest.raises(ValueError, match="'event'"):
+        with self.assertRaisesRegex(ValueError, "'event'"):
             await client.request("POST", "/track", body={"user_id": "u"})
 
     async def test_unsupported_path_raises(self) -> None:
         client = AmplitudeClient(client=FakeAmplitudeClient())
-        with pytest.raises(ValueError, match="unsupported path"):
+        with self.assertRaisesRegex(ValueError, "unsupported path"):
             await client.request("POST", "/identify", body={})
 
     async def test_non_post_method_raises(self) -> None:
         client = AmplitudeClient(client=FakeAmplitudeClient())
-        with pytest.raises(ValueError, match="only POST"):
+        with self.assertRaisesRegex(ValueError, "only POST"):
             await client.request("GET", "/track", body={"event": "x"})
 
     async def test_empty_method_raises(self) -> None:
         client = AmplitudeClient(client=FakeAmplitudeClient())
-        with pytest.raises(ValueError, match="method must be non-empty"):
+        with self.assertRaisesRegex(ValueError, "method must be non-empty"):
             await client.request("", "/track", body={"event": "x"})
 
     async def test_empty_path_raises(self) -> None:
         client = AmplitudeClient(client=FakeAmplitudeClient())
-        with pytest.raises(ValueError, match="path must be non-empty"):
+        with self.assertRaisesRegex(ValueError, "path must be non-empty"):
             await client.request("POST", "", body={"event": "x"})
 
 
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_flushes_and_shuts_down(self) -> None:
         fake = FakeAmplitudeClient()
         client = AmplitudeClient(client=fake)
@@ -141,11 +140,11 @@ class TestLifecycle:
     async def test_request_after_close_raises(self) -> None:
         client = AmplitudeClient(client=FakeAmplitudeClient())
         await client.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await client.request("POST", "/track", body={"event": "x"})
 
 
-class TestConfigSafety:
+class TestConfigSafety(unittest.TestCase):
     def test_sensitive_fields_declared(self) -> None:
         sensitive = AmplitudeConfig.sensitive_fields
         assert "api_key" in sensitive
@@ -168,12 +167,12 @@ class TestConfigSafety:
 # ────────────────────────────────────────────────────────── capability surface
 
 
-def test_implements_event_emitter() -> None:
-    client = AmplitudeClient(client=FakeAmplitudeClient())
-    assert isinstance(client, EventEmitter)
-
-
-class TestTrack:
+    def test_implements_event_emitter(self) -> None:
+        client = AmplitudeClient(client=FakeAmplitudeClient())
+        assert isinstance(client, EventEmitter)
+    
+    
+class TestTrack(unittest.IsolatedAsyncioTestCase):
     async def test_track_builds_base_event(self) -> None:
         fake = FakeAmplitudeClient()
         client = AmplitudeClient(client=fake)
@@ -203,16 +202,16 @@ class TestTrack:
 
     async def test_track_rejects_empty_user_id(self) -> None:
         client = AmplitudeClient(client=FakeAmplitudeClient())
-        with pytest.raises(ValueError, match="user_id"):
+        with self.assertRaisesRegex(ValueError, "user_id"):
             await client.track(user_id="", event_type="x")
 
     async def test_track_rejects_empty_event_type(self) -> None:
         client = AmplitudeClient(client=FakeAmplitudeClient())
-        with pytest.raises(ValueError, match="event_type"):
+        with self.assertRaisesRegex(ValueError, "event_type"):
             await client.track(user_id="u1", event_type="")
 
 
-class TestEmit:
+class TestEmit(unittest.IsolatedAsyncioTestCase):
     async def test_emit_with_event_type_key(self) -> None:
         fake = FakeAmplitudeClient()
         client = AmplitudeClient(client=fake)
@@ -250,16 +249,16 @@ class TestEmit:
 
     async def test_emit_requires_user_id(self) -> None:
         client = AmplitudeClient(client=FakeAmplitudeClient())
-        with pytest.raises(ValueError, match="user_id"):
+        with self.assertRaisesRegex(ValueError, "user_id"):
             await client.emit({"event_type": "signup"})
 
     async def test_emit_requires_event_type_or_event(self) -> None:
         client = AmplitudeClient(client=FakeAmplitudeClient())
-        with pytest.raises(ValueError, match="event_type"):
+        with self.assertRaisesRegex(ValueError, "event_type"):
             await client.emit({"user_id": "u"})
 
 
-class TestEmitMany:
+class TestEmitMany(unittest.IsolatedAsyncioTestCase):
     async def test_emit_many_returns_count(self) -> None:
         fake = FakeAmplitudeClient()
         client = AmplitudeClient(client=fake)

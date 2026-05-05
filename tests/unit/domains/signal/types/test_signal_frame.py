@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import unittest
 
 from pirn.domains.signal.types.signal_frame import SignalFrame
 
 
-class TestRoundtrip:
+class TestRoundtrip(unittest.TestCase):
     def test_construct_with_defaults(self) -> None:
         frame = SignalFrame()
         assert frame.signal_id == ""

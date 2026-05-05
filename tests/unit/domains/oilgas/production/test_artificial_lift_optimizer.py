@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -24,9 +24,9 @@ class _Source(Knot):
         return ScadaTimeSeries(sensor_id="prod")
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_invalid_lift_type(self) -> None:
-        with pytest.raises(ValueError, match="lift_type"):
+        with self.assertRaisesRegex(ValueError, "lift_type"):
             with Tapestry():
                 src = _Source(_config=KnotConfig(id="src"))
                 ArtificialLiftOptimizer(
@@ -36,8 +36,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_recommendation(self) -> None:
         with Tapestry() as t:
             src = _Source(_config=KnotConfig(id="src"))

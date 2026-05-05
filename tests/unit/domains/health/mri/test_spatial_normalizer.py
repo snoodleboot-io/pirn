@@ -1,8 +1,8 @@
 """Unit tests for :class:`SpatialNormalizer`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -11,9 +11,9 @@ from pirn.domains.health.mri.spatial_normalizer import SpatialNormalizer
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_invalid_template(self) -> None:
-        with pytest.raises(ValueError, match="template"):
+        with self.assertRaisesRegex(ValueError, "template"):
             SpatialNormalizer(
                 image=Parameter("img", dict, default={}, _config=KnotConfig(id="img")),
                 template="MNI305",
@@ -23,7 +23,7 @@ class TestConstruction:
             )
 
     def test_rejects_invalid_registration_type(self) -> None:
-        with pytest.raises(ValueError, match="registration_type"):
+        with self.assertRaisesRegex(ValueError, "registration_type"):
             SpatialNormalizer(
                 image=Parameter("img", dict, default={}, _config=KnotConfig(id="img")),
                 template="MNI152",
@@ -33,7 +33,7 @@ class TestConstruction:
             )
 
     def test_rejects_invalid_dof(self) -> None:
-        with pytest.raises(ValueError, match="degrees_of_freedom"):
+        with self.assertRaisesRegex(ValueError, "degrees_of_freedom"):
             SpatialNormalizer(
                 image=Parameter("img", dict, default={}, _config=KnotConfig(id="img")),
                 template="MNI152",
@@ -43,8 +43,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_dict(self) -> None:
         image_data = {"nifti_path": "t1.nii.gz", "voxel_size_mm": [1.0, 1.0, 1.0]}
         with Tapestry() as t:

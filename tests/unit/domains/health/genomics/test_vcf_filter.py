@@ -1,8 +1,8 @@
 """Unit tests for :class:`VCFFilter`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -10,9 +10,9 @@ from pirn.domains.health.genomics.vcf_filter import VCFFilter
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_sequence(self) -> None:
-        with pytest.raises(TypeError, match="rows"):
+        with self.assertRaisesRegex(TypeError, "rows"):
             VCFFilter(
                 rows=42,  # type: ignore[arg-type]
                 min_qual=10.0,
@@ -21,7 +21,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_mapping_row(self) -> None:
-        with pytest.raises(TypeError, match="row"):
+        with self.assertRaisesRegex(TypeError, "row"):
             VCFFilter(
                 rows=["x"],  # type: ignore[list-item]
                 min_qual=10.0,
@@ -30,7 +30,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_numeric_min_qual(self) -> None:
-        with pytest.raises(TypeError, match="min_qual"):
+        with self.assertRaisesRegex(TypeError, "min_qual"):
             VCFFilter(
                 rows=[],
                 min_qual="x",  # type: ignore[arg-type]
@@ -39,7 +39,7 @@ class TestConstruction:
             )
 
     def test_rejects_out_of_range_af(self) -> None:
-        with pytest.raises(ValueError, match=r"\[0, 1\]"):
+        with self.assertRaisesRegex(ValueError, r"\[0, 1\]"):
             VCFFilter(
                 rows=[],
                 min_qual=10.0,
@@ -48,8 +48,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_filters_rows(self) -> None:
         rows = (
             {"qual": 20.0, "af": 0.1},

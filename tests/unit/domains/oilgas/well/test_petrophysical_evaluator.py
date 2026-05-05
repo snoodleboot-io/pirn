@@ -1,8 +1,8 @@
 """Unit tests for :class:`PetrophysicalEvaluator`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,14 +12,13 @@ from pirn.domains.oilgas.well.petrophysical_evaluator import PetrophysicalEvalua
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_requires_las_file_kwarg(self) -> None:
-        with pytest.raises(TypeError, match="las_file"):
+        with self.assertRaisesRegex(TypeError, "las_file"):
             PetrophysicalEvaluator(_config=KnotConfig(id="pe"))  # type: ignore[call-arg]
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_appends_interpreted_curves(self) -> None:
         with Tapestry() as t:
             las = LasFileIngester(

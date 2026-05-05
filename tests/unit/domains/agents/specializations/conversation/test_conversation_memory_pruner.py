@@ -1,8 +1,8 @@
 """Tests for :class:`ConversationMemoryPruner`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -17,10 +17,9 @@ def _make_message(role: str, content: str) -> AgentMessage:
     return AgentMessage(role=role, content=content)
 
 
-@pytest.mark.asyncio
-class TestConversationMemoryPrunerConstruction:
+class TestConversationMemoryPrunerConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_zero_token_budget(self) -> None:
-        with pytest.raises(ValueError, match="token_budget must be a positive int"):
+        with self.assertRaisesRegex(ValueError, "token_budget must be a positive int"):
             with Tapestry():
                 ConversationMemoryPruner(
                     messages=[],
@@ -29,8 +28,7 @@ class TestConversationMemoryPrunerConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestConversationMemoryPrunerProcess:
+class TestConversationMemoryPrunerProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_unchanged_when_within_budget(self) -> None:
         messages = [
             _make_message("user", "hi"),
@@ -84,7 +82,7 @@ class TestConversationMemoryPrunerProcess:
         assert pruned[0].role == "system"
 
     async def test_rejects_non_agent_message_element(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             with Tapestry():
                 ConversationMemoryPruner(
                     messages=["not-a-message"],  # type: ignore[list-item]

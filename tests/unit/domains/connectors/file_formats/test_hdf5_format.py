@@ -1,11 +1,17 @@
 """Round-trip and validation tests for :class:`Hdf5Format`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
-pytest.importorskip("h5py")
-pytest.importorskip("numpy")
+try:
+    import h5py
+except ImportError as _e:
+    raise unittest.SkipTest("h5py not installed") from _e
+try:
+    import numpy
+except ImportError as _e:
+    raise unittest.SkipTest("numpy not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -18,7 +24,7 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 )
 
 
-class TestHdf5FormatConstruction:
+class TestHdf5FormatConstruction(unittest.TestCase):
     def test_default_arguments(self) -> None:
         fmt = Hdf5Format()
         assert fmt.dataset_path == "/data"
@@ -33,19 +39,19 @@ class TestHdf5FormatConstruction:
         assert fmt.dataset_path == "/group/sub"
 
     def test_empty_dataset_path_rejected(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             Hdf5Format(dataset_path="")
 
     def test_non_string_dataset_path_rejected(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             Hdf5Format(dataset_path=42)  # type: ignore[arg-type]
 
     def test_invalid_compression_value(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             Hdf5Format(compression="brotli")
 
     def test_invalid_compression_type(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             Hdf5Format(compression=123)  # type: ignore[arg-type]
 
     def test_valid_compression(self) -> None:
@@ -53,7 +59,7 @@ class TestHdf5FormatConstruction:
         assert fmt.compression == "gzip"
 
 
-class TestHdf5FormatBasics:
+class TestHdf5FormatBasics(unittest.TestCase):
     def test_name(self) -> None:
         assert Hdf5Format().name == "hdf5"
 
@@ -64,8 +70,7 @@ class TestHdf5FormatBasics:
         assert isinstance(Hdf5Format(), BatchFileFormat)
 
 
-class TestHdf5FormatRoundTrip:
-    @pytest.mark.asyncio
+class TestHdf5FormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         records = [
             {"id": 1, "name": "alpha", "score": 1.5, "active": True},
@@ -75,13 +80,11 @@ class TestHdf5FormatRoundTrip:
         fmt = Hdf5Format()
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_single_row(self) -> None:
         records = [{"id": 42, "name": "solo", "score": 9.0}]
         fmt = Hdf5Format()
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_with_compression(self) -> None:
         records = [
             {"id": 1, "label": "x"},
@@ -90,24 +93,21 @@ class TestHdf5FormatRoundTrip:
         fmt = Hdf5Format(compression="gzip")
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_custom_dataset_path(self) -> None:
         records = [{"id": 1, "name": "alpha"}]
         fmt = Hdf5Format(dataset_path="/custom/inner")
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_empty_payload_rejected(self) -> None:
         # HDF5 structured arrays require at least one row to encode.
         fmt = Hdf5Format()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, [])
 
-    @pytest.mark.asyncio
     async def test_decode_unknown_dataset_raises(self) -> None:
         records = [{"id": 1, "name": "alpha"}]
         writer = Hdf5Format(dataset_path="/data")
         payload = await FormatRoundTrip.encode(writer, records)
         reader = Hdf5Format(dataset_path="/missing")
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.decode(reader, payload)

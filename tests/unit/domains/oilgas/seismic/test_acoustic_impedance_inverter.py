@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -39,9 +39,9 @@ class _LFModelSource(Knot):
         return {"impedance": [], "shape": [100, 100, 500]}
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_negative_regularization(self) -> None:
-        with pytest.raises(ValueError, match="regularization"):
+        with self.assertRaisesRegex(ValueError, "regularization"):
             with Tapestry():
                 sv = _SeismicSource(_config=KnotConfig(id="sv"))
                 wv = _WaveletSource(_config=KnotConfig(id="wv"))
@@ -55,8 +55,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_impedance_volume(self) -> None:
         with Tapestry() as t:
             sv = _SeismicSource(_config=KnotConfig(id="sv"))

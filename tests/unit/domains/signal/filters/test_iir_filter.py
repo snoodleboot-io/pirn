@@ -1,8 +1,8 @@
 """Unit tests for :class:`IIRFilter`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,11 +12,11 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.signal.conftest import emit_signal_frame
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_numerator(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="numerator"):
+            with self.assertRaisesRegex(ValueError, "numerator"):
                 IIRFilter(
                     signal=sig,
                     numerator=[],
@@ -27,7 +27,7 @@ class TestConstruction:
     def test_rejects_empty_denominator(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="denominator"):
+            with self.assertRaisesRegex(ValueError, "denominator"):
                 IIRFilter(
                     signal=sig,
                     numerator=[1.0],
@@ -38,7 +38,7 @@ class TestConstruction:
     def test_rejects_zero_leading_denominator(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="non-zero"):
+            with self.assertRaisesRegex(ValueError, "non-zero"):
                 IIRFilter(
                     signal=sig,
                     numerator=[1.0],
@@ -49,7 +49,7 @@ class TestConstruction:
     def test_rejects_non_numeric_coefficient(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(TypeError, match="real number"):
+            with self.assertRaisesRegex(TypeError, "real number"):
                 IIRFilter(
                     signal=sig,
                     numerator=[1.0, "x"],  # type: ignore[list-item]
@@ -58,8 +58,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_signal_frame(self) -> None:
         with Tapestry() as t:
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))

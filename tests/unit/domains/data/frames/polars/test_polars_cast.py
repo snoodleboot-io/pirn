@@ -1,9 +1,9 @@
 """Tests for :class:`PolarsCast`."""
 
 from __future__ import annotations
+import unittest
 
 import polars as pl
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -20,8 +20,7 @@ async def emit_string_columns() -> PolarsDataBatch:
     )
 
 
-@pytest.mark.asyncio
-class TestPolarsCast:
+class TestPolarsCast(unittest.IsolatedAsyncioTestCase):
     async def test_python_primitives_are_translated_to_polars_dtypes(self) -> None:
         with Tapestry() as t:
             batch = emit_string_columns(_config=KnotConfig(id="users"))
@@ -61,7 +60,7 @@ class TestPolarsCast:
         assert out.frame["id"].dtype == pl.Utf8
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_unknown_dtype_kind(self) -> None:
         @knot
         async def empty() -> PolarsDataBatch:
@@ -69,7 +68,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="Polars dtype"):
+            with self.assertRaisesRegex(TypeError, "Polars dtype"):
                 PolarsCast(
                     batch=batch,
                     casts={"a": "int"},  # type: ignore[dict-item]

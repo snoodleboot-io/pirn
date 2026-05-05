@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -22,9 +22,9 @@ class _PathSource(Knot):
         return WellPath3D(well_id="W", point_count=20)
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_burst(self) -> None:
-        with pytest.raises(ValueError, match="burst_limit_psi"):
+        with self.assertRaisesRegex(ValueError, "burst_limit_psi"):
             with Tapestry():
                 src = _PathSource(_config=KnotConfig(id="src"))
                 CasingDesignEvaluator(
@@ -36,8 +36,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_evaluation(self) -> None:
         with Tapestry() as t:
             src = _PathSource(_config=KnotConfig(id="src"))

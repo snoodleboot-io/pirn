@@ -1,8 +1,8 @@
 """Tests for :class:`PolynomialFeatures`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -20,7 +20,7 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestPolynomialFeaturesHappyPath:
+class TestPolynomialFeaturesHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_interactions_and_squares(self) -> None:
         with Tapestry() as t:
             split = emit_split(_config=KnotConfig(id="split"))
@@ -38,11 +38,11 @@ class TestPolynomialFeaturesHappyPath:
         assert "b*b" in out.train.feature_names
 
 
-class TestPolynomialFeaturesConstruction:
+class TestPolynomialFeaturesConstruction(unittest.TestCase):
     def test_rejects_degree_below_two(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="degree must be >= 2"):
+            with self.assertRaisesRegex(ValueError, "degree must be >= 2"):
                 PolynomialFeatures(
                     split=split,
                     columns=("a",),

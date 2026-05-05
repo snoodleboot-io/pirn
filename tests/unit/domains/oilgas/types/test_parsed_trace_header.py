@@ -1,11 +1,12 @@
 """Unit tests for :class:`ParsedTraceHeader`."""
 
 from __future__ import annotations
+import unittest
 
 from pirn.domains.oilgas.types.parsed_trace_header import ParsedTraceHeader
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_default_values(self) -> None:
         header = ParsedTraceHeader()
         assert header.inline == 0
@@ -34,7 +35,7 @@ class TestConstruction:
         assert header.receiver_y == 40.0
 
 
-class TestAuditDict:
+class TestAuditDict(unittest.TestCase):
     def test_audit_dict_keys(self) -> None:
         header = ParsedTraceHeader(inline=1, xline=2)
         d = header._pirn_audit_dict()
@@ -45,7 +46,7 @@ class TestAuditDict:
         assert "receiver_y" in d
 
 
-class TestFrozen:
+class TestFrozen(unittest.TestCase):
     def test_frozen_disallows_mutation(self) -> None:
         header = ParsedTraceHeader(inline=1)
         try:

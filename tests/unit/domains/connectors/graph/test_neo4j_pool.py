@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import logging
 from typing import Any
+import unittest
+import unittest.mock
 
-import pytest
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.graph.neo4j_config import Neo4jConfig
@@ -65,21 +66,22 @@ class FakeNeo4jDriver:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-def test_implements_database_connection_pool() -> None:
-    pool = Neo4jPool(driver=FakeNeo4jDriver())
-    assert isinstance(pool, DatabaseConnectionPool)
 
-
-def test_construction_requires_config_or_driver() -> None:
-    with pytest.raises(TypeError, match="config= or driver="):
-        Neo4jPool()
-
-
+class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
+    def test_implements_database_connection_pool(self) -> None:
+        pool = Neo4jPool(driver=FakeNeo4jDriver())
+        assert isinstance(pool, DatabaseConnectionPool)
+    
+    
+    def test_construction_requires_config_or_driver(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or driver="):
+            Neo4jPool()
+    
+    
 # ────────────────────────────────────────────────────────────── delegation
 
 
-@pytest.mark.asyncio
-class TestDelegation:
+class TestDelegation(unittest.IsolatedAsyncioTestCase):
     async def test_execute_delegates_query_and_params(self) -> None:
         fake = FakeNeo4jDriver()
         pool = Neo4jPool(
@@ -101,7 +103,7 @@ class TestDelegation:
     async def test_execute_rejects_too_many_positional_args(self) -> None:
         fake = FakeNeo4jDriver()
         pool = Neo4jPool(Neo4jConfig(database="neo4j"), driver=fake)
-        with pytest.raises(ValueError, match="at most one"):
+        with self.assertRaisesRegex(ValueError, "at most one"):
             await pool.execute("QUERY", {"a": 1}, {"b": 2})
 
     async def test_fetch_all_returns_records_as_dicts(self) -> None:
@@ -139,8 +141,7 @@ class TestDelegation:
 # ─────────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_closes_driver(self) -> None:
         fake = FakeNeo4jDriver()
         pool = Neo4jPool(driver=fake)
@@ -150,7 +151,7 @@ class TestLifecycle:
     async def test_acquire_after_close_raises(self) -> None:
         pool = Neo4jPool(driver=FakeNeo4jDriver())
         await pool.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await pool.acquire()
 
     async def test_close_clears_credentials(self) -> None:
@@ -162,14 +163,14 @@ class TestLifecycle:
     async def test_use_after_close_raises(self) -> None:
         pool = Neo4jPool(config=Neo4jConfig(database="neo4j"), driver=FakeNeo4jDriver())
         await pool.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await pool.acquire()
 
 
 # ──────────────────────────────────────────────────────── credential safety
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_repr_redacts_password(self) -> None:
         cfg = Neo4jConfig(
             uri="bolt://localhost:7687",
@@ -192,11 +193,8 @@ class TestCredentialSafety:
         assert "admin" in text
 
 
-@pytest.mark.asyncio
-class TestConnectErrorScrubs:
-    async def test_connect_error_scrubs_password(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+class TestConnectErrorScrubs(unittest.IsolatedAsyncioTestCase):
+    async def test_connect_error_scrubs_password(self) -> None:
         import sys
 
         fake_neo4j = type("FakeNeo4j", (), {})()
@@ -209,23 +207,22 @@ class TestConnectErrorScrubs:
                 )
 
         fake_neo4j.AsyncGraphDatabase = FakeAsyncGraphDatabase  # type: ignore[attr-defined]
-        monkeypatch.setitem(sys.modules, "neo4j", fake_neo4j)
-
-        pool = Neo4jPool(
-            Neo4jConfig(uri="bolt://localhost:7687", password="secret-pw")
-        )
-        with pytest.raises(ConnectionError) as exc_info:
-            await pool.acquire()
-        msg = str(exc_info.value)
+        with unittest.mock.patch.dict(sys.modules, {"neo4j": fake_neo4j}):
+            pool = Neo4jPool(
+                Neo4jConfig(uri="bolt://localhost:7687", password="secret-pw")
+            )
+            with self.assertRaises(ConnectionError) as exc_info:
+                await pool.acquire()
+        msg = str(exc_info.exception)
         assert "secret-pw" not in msg
 
 
 # ────────────────────────────────────────────────────────────── log events
 
 
-@pytest.mark.asyncio
-async def test_close_emits_debug_log(caplog: pytest.LogCaptureFixture) -> None:
-    pool = Neo4jPool(driver=FakeNeo4jDriver())
-    with caplog.at_level(logging.DEBUG):
-        await pool.close()
-    assert any("neo4j.close" in r.message for r in caplog.records)
+class TestLogEvents(unittest.IsolatedAsyncioTestCase):
+    async def test_close_emits_debug_log(self) -> None:
+        pool = Neo4jPool(driver=FakeNeo4jDriver())
+        with self.assertLogs(level=logging.DEBUG) as cm:
+            await pool.close()
+        assert any("neo4j.close" in r for r in cm.output)

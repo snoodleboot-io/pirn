@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -26,9 +26,9 @@ class _AssetsSource(Knot):
         ]
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_coordinate_system(self) -> None:
-        with pytest.raises(ValueError, match="coordinate_system"):
+        with self.assertRaisesRegex(ValueError, "coordinate_system"):
             with Tapestry():
                 src = _AssetsSource(_config=KnotConfig(id="src"))
                 InfrastructureAssetMapper(
@@ -38,8 +38,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_feature_collection(self) -> None:
         with Tapestry() as t:
             src = _AssetsSource(_config=KnotConfig(id="src"))

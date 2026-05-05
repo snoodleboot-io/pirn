@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import unittest
 
 from pirn.domains.ml.types.eval_report import EvalReport
 
 
-class TestEvalReport:
+class TestEvalReport(unittest.TestCase):
     def test_construction_and_audit_dict(self) -> None:
         evaluated_at = datetime(2026, 4, 29, 8, 0, tzinfo=timezone.utc)
         report = EvalReport(

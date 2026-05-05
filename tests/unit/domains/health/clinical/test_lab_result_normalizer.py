@@ -1,8 +1,8 @@
 """Unit tests for :class:`LabResultNormalizer`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,9 +12,9 @@ from pirn.domains.health.clinical.lab_result_normalizer import (
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_sequence_rows(self) -> None:
-        with pytest.raises(TypeError, match="rows"):
+        with self.assertRaisesRegex(TypeError, "rows"):
             LabResultNormalizer(
                 rows=42,  # type: ignore[arg-type]
                 unit_conversions={},
@@ -23,7 +23,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_mapping_conversions(self) -> None:
-        with pytest.raises(TypeError, match="unit_conversions"):
+        with self.assertRaisesRegex(TypeError, "unit_conversions"):
             LabResultNormalizer(
                 rows=[],
                 unit_conversions=42,  # type: ignore[arg-type]
@@ -32,7 +32,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_string_target_unit(self) -> None:
-        with pytest.raises(TypeError, match="target_unit"):
+        with self.assertRaisesRegex(TypeError, "target_unit"):
             LabResultNormalizer(
                 rows=[],
                 unit_conversions={},
@@ -41,7 +41,7 @@ class TestConstruction:
             )
 
     def test_rejects_empty_target_unit(self) -> None:
-        with pytest.raises(ValueError, match="non-empty"):
+        with self.assertRaisesRegex(ValueError, "non-empty"):
             LabResultNormalizer(
                 rows=[],
                 unit_conversions={},
@@ -50,8 +50,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_tuple(self) -> None:
         with Tapestry() as t:
             LabResultNormalizer(

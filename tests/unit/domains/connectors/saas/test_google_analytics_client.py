@@ -8,6 +8,7 @@ are required.
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
 import pytest
 
@@ -41,17 +42,19 @@ class FakeGoogleAnalyticsClient:
         self.closed = True
 
 
-def test_implements_api_client() -> None:
-    client = GoogleAnalyticsClient(client=FakeGoogleAnalyticsClient())
-    assert isinstance(client, ApiClient)
 
-
-def test_construction_requires_config_or_client() -> None:
-    with pytest.raises(TypeError, match="config= or client="):
-        GoogleAnalyticsClient()
-
-
-class TestRequestDispatch:
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_api_client(self) -> None:
+        client = GoogleAnalyticsClient(client=FakeGoogleAnalyticsClient())
+        assert isinstance(client, ApiClient)
+    
+    
+    def test_construction_requires_config_or_client(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or client="):
+            GoogleAnalyticsClient()
+    
+    
+class TestRequestDispatch(unittest.IsolatedAsyncioTestCase):
     async def test_run_report_passes_body(self) -> None:
         fake = FakeGoogleAnalyticsClient()
         client = GoogleAnalyticsClient(client=fake)
@@ -79,21 +82,21 @@ class TestRequestDispatch:
 
     async def test_unsupported_path_raises(self) -> None:
         client = GoogleAnalyticsClient(client=FakeGoogleAnalyticsClient())
-        with pytest.raises(ValueError, match="unsupported path"):
+        with self.assertRaisesRegex(ValueError, "unsupported path"):
             await client.request("POST", "fetchEverything", body={})
 
     async def test_empty_method_raises(self) -> None:
         client = GoogleAnalyticsClient(client=FakeGoogleAnalyticsClient())
-        with pytest.raises(ValueError, match="method must be non-empty"):
+        with self.assertRaisesRegex(ValueError, "method must be non-empty"):
             await client.request("", "runReport", body={})
 
     async def test_empty_path_raises(self) -> None:
         client = GoogleAnalyticsClient(client=FakeGoogleAnalyticsClient())
-        with pytest.raises(ValueError, match="path must be non-empty"):
+        with self.assertRaisesRegex(ValueError, "path must be non-empty"):
             await client.request("POST", "", body={})
 
 
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_closes_underlying_client(self) -> None:
         fake = FakeGoogleAnalyticsClient()
         client = GoogleAnalyticsClient(client=fake)
@@ -108,11 +111,11 @@ class TestLifecycle:
     async def test_request_after_close_raises(self) -> None:
         client = GoogleAnalyticsClient(client=FakeGoogleAnalyticsClient())
         await client.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await client.request("POST", "runReport", body={})
 
 
-class TestConfigSafety:
+class TestConfigSafety(unittest.TestCase):
     def test_sensitive_fields_declared(self) -> None:
         assert (
             "service_account_json"
@@ -141,28 +144,28 @@ class TestConfigSafety:
 # ────────────────────────────────────────────────────────── capability surface
 
 
-def test_implements_table_source() -> None:
-    client = GoogleAnalyticsClient(client=FakeGoogleAnalyticsClient())
-    assert isinstance(client, TableSource)
-
-
-def test_construction_rejects_non_mapping_report_request() -> None:
-    with pytest.raises(ValueError, match="report_request must be a Mapping"):
-        GoogleAnalyticsClient(
-            client=FakeGoogleAnalyticsClient(),
-            report_request=[],  # type: ignore[arg-type]
+    def test_implements_table_source(self) -> None:
+        client = GoogleAnalyticsClient(client=FakeGoogleAnalyticsClient())
+        assert isinstance(client, TableSource)
+    
+    
+    def test_construction_rejects_non_mapping_report_request(self) -> None:
+        with self.assertRaisesRegex(ValueError, "report_request must be a Mapping"):
+            GoogleAnalyticsClient(
+                client=FakeGoogleAnalyticsClient(),
+                report_request=[],  # type: ignore[arg-type]
+            )
+    
+    
+    def test_report_request_property_returns_copy(self) -> None:
+        request = {"property": "properties/123"}
+        client = GoogleAnalyticsClient(
+            client=FakeGoogleAnalyticsClient(), report_request=request
         )
-
-
-def test_report_request_property_returns_copy() -> None:
-    request = {"property": "properties/123"}
-    client = GoogleAnalyticsClient(
-        client=FakeGoogleAnalyticsClient(), report_request=request
-    )
-    assert client.report_request == {"property": "properties/123"}
-
-
-class TestRunReport:
+        assert client.report_request == {"property": "properties/123"}
+    
+    
+class TestRunReport(unittest.IsolatedAsyncioTestCase):
     async def test_run_report_forwards_body(self) -> None:
         fake = FakeGoogleAnalyticsClient()
         client = GoogleAnalyticsClient(client=fake)
@@ -175,14 +178,12 @@ class TestRunReport:
 
     async def test_run_report_rejects_non_mapping(self) -> None:
         client = GoogleAnalyticsClient(client=FakeGoogleAnalyticsClient())
-        with pytest.raises(ValueError, match="must be a Mapping"):
+        with self.assertRaisesRegex(ValueError, "must be a Mapping"):
             await client.run_report([])  # type: ignore[arg-type]
 
 
-class TestFetchPage:
-    async def test_fetch_page_uses_report_request_with_pagination(
-        self,
-    ) -> None:
+class TestFetchPage(unittest.IsolatedAsyncioTestCase):
+    async def test_fetch_page_uses_report_request_with_pagination(self,) -> None:
         fake = FakeGoogleAnalyticsClient()
         fake.run_report = lambda req: {  # type: ignore[method-assign]
             "rows": [{"v": i} for i in range(3)],

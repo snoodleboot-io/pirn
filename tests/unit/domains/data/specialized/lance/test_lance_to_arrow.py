@@ -7,9 +7,9 @@ that mimics that method exercises the knot without requiring pylance.
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
 import pyarrow as pa
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -27,8 +27,7 @@ class _FakeLanceDataset:
         return self._table
 
 
-@pytest.mark.asyncio
-class TestLanceToArrow:
+class TestLanceToArrow(unittest.IsolatedAsyncioTestCase):
     async def test_emits_pyarrow_table_from_lance_dataset(self) -> None:
         table = pa.table({"id": [1, 2, 3], "name": ["a", "b", "c"]})
 

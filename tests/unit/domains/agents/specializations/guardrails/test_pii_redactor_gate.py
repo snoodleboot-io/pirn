@@ -1,8 +1,8 @@
 """Tests for :class:`PIIRedactorGate`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -13,11 +13,10 @@ from pirn.domains.agents.types.agent_response import AgentResponse
 from pirn.tapestry import Tapestry
 
 
-@pytest.mark.asyncio
-class TestPIIRedactorGateConstruction:
+class TestPIIRedactorGateConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_string_pattern(self) -> None:
         response = AgentResponse(content="ok", finish_reason="stop")
-        with pytest.raises(TypeError, match="patterns"):
+        with self.assertRaisesRegex(TypeError, "patterns"):
             with Tapestry():
                 PIIRedactorGate(
                     response=response,
@@ -26,8 +25,7 @@ class TestPIIRedactorGateConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestPIIRedactorGateHappyPath:
+class TestPIIRedactorGateHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_default_patterns_redact_email_and_ssn(self) -> None:
         response = AgentResponse(
             content="contact me@x.com or 555-12-3456 today",

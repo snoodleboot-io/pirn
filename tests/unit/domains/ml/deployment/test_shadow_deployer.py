@@ -1,8 +1,8 @@
 """Tests for :class:`ShadowDeployer`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -25,7 +25,7 @@ async def emit_model() -> TrainedModel:
     )
 
 
-class TestShadowDeployerHappyPath:
+class TestShadowDeployerHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_records_shadow_deployment(self) -> None:
         lineage = RecordingLineageStore()
         with Tapestry() as t:
@@ -44,11 +44,11 @@ class TestShadowDeployerHappyPath:
         assert payload["model_id"] == "m1"
 
 
-class TestShadowDeployerConstruction:
+class TestShadowDeployerConstruction(unittest.TestCase):
     def test_rejects_non_registry(self) -> None:
         with Tapestry():
             model = emit_model(_config=KnotConfig(id="model"))
-            with pytest.raises(TypeError, match="LineageStore"):
+            with self.assertRaisesRegex(TypeError, "LineageStore"):
                 ShadowDeployer(
                     model=model,
                     registry="not a lineage",  # type: ignore[arg-type]

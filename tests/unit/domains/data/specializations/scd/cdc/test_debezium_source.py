@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import json
 from typing import Any, AsyncIterator
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -29,19 +29,10 @@ class _StubBroker(MessageBroker):
     def __init__(self, records: list[Any]) -> None:
         self._records = list(records)
 
-    async def publish(
-        self,
-        topic: str,
-        value: bytes,
-        *,
-        key: bytes | None = None,
-        headers: dict[str, bytes] | None = None,
-    ) -> None:
+    async def publish(self, topic: str, value: bytes, *, key: bytes | None = None, headers: dict[str, bytes] | None = None,) -> None:
         raise NotImplementedError("_StubBroker is consume-only")
 
-    async def consume(
-        self, topic: str, *, group: str | None = None
-    ) -> AsyncIterator[Any]:
+    async def consume(self, topic: str, *, group: str | None = None) -> AsyncIterator[Any]:
         records = list(self._records)
 
         async def _generator() -> AsyncIterator[Any]:
@@ -67,9 +58,9 @@ def _envelope(
     }
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_broker(self) -> None:
-        with pytest.raises(TypeError, match="MessageBroker"):
+        with self.assertRaisesRegex(TypeError, "MessageBroker"):
             DebeziumSource(
                 broker="not-a-broker",  # type: ignore[arg-type]
                 topic="t",
@@ -78,7 +69,7 @@ class TestConstruction:
 
     def test_rejects_empty_topic(self) -> None:
         broker = _StubBroker(records=[])
-        with pytest.raises(ValueError, match="topic"):
+        with self.assertRaisesRegex(ValueError, "topic"):
             DebeziumSource(
                 broker=broker,
                 topic="",
@@ -87,7 +78,7 @@ class TestConstruction:
 
     def test_rejects_negative_max_messages(self) -> None:
         broker = _StubBroker(records=[])
-        with pytest.raises(ValueError, match="max_messages"):
+        with self.assertRaisesRegex(ValueError, "max_messages"):
             DebeziumSource(
                 broker=broker,
                 topic="t",
@@ -96,8 +87,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestDebeziumSourceBehaviour:
+class TestDebeziumSourceBehaviour(unittest.IsolatedAsyncioTestCase):
     async def test_emits_parsed_events(self) -> None:
         records = [
             _StubRecord(json.dumps(_envelope("c", after={"id": 1, "name": "A"}))),

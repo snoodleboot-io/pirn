@@ -1,8 +1,8 @@
 """Tests for :class:`ExactDeduplicator`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -28,9 +28,9 @@ def _make(key_columns, tiebreaker_column, tiebreaker_direction="desc"):
     return knot
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_invalid_key_column(self) -> None:
-        with pytest.raises(ValueError, match="plain identifier"):
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
             with Tapestry():
                 ExactDeduplicator(
                     rows=_rows_param(),
@@ -40,7 +40,7 @@ class TestConstruction:
                 )
 
     def test_rejects_invalid_tiebreaker(self) -> None:
-        with pytest.raises(ValueError, match="plain identifier"):
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
             with Tapestry():
                 ExactDeduplicator(
                     rows=_rows_param(),
@@ -50,7 +50,7 @@ class TestConstruction:
                 )
 
     def test_rejects_invalid_direction(self) -> None:
-        with pytest.raises(ValueError, match="tiebreaker_direction"):
+        with self.assertRaisesRegex(ValueError, "tiebreaker_direction"):
             with Tapestry():
                 ExactDeduplicator(
                     rows=_rows_param(),
@@ -61,8 +61,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestBehaviour:
+class TestBehaviour(unittest.IsolatedAsyncioTestCase):
     async def test_no_duplicates_returns_all(self) -> None:
         rows = [{"id": 1, "score": 10}, {"id": 2, "score": 20}]
         knot = _make(key_columns=["id"], tiebreaker_column="score")

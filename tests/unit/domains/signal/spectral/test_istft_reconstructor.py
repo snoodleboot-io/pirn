@@ -1,8 +1,8 @@
 """Unit tests for :class:`ISTFTReconstructor`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -19,11 +19,11 @@ async def emit_spectrum_frame() -> SpectrumFrame:
     return SpectrumFrame(signal_id="stft-out", frequency_bins=33, frequency_resolution_hz=7.8)
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_hop_length(self) -> None:
         with Tapestry():
             sp = emit_spectrum_frame(_config=KnotConfig(id="sp"))
-            with pytest.raises(ValueError, match="hop_length"):
+            with self.assertRaisesRegex(ValueError, "hop_length"):
                 ISTFTReconstructor(
                     spectrum=sp,
                     hop_length=0,
@@ -34,7 +34,7 @@ class TestConstruction:
     def test_rejects_invalid_window(self) -> None:
         with Tapestry():
             sp = emit_spectrum_frame(_config=KnotConfig(id="sp"))
-            with pytest.raises(ValueError, match="window"):
+            with self.assertRaisesRegex(ValueError, "window"):
                 ISTFTReconstructor(
                     spectrum=sp,
                     hop_length=64,
@@ -53,8 +53,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_signal_frame(self) -> None:
         with Tapestry() as t:
             sp = emit_spectrum_frame(_config=KnotConfig(id="sp"))

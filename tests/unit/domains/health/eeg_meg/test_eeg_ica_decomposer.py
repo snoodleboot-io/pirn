@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -23,9 +23,9 @@ async def emit_eeg_data() -> dict[str, Any]:
     }
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_knot_eeg_data(self) -> None:
-        with pytest.raises(TypeError, match="eeg_data"):
+        with self.assertRaisesRegex(TypeError, "eeg_data"):
             EEGICADecomposer(
                 eeg_data="not-a-knot",  # type: ignore[arg-type]
                 n_components=20,
@@ -36,7 +36,7 @@ class TestConstruction:
     def test_rejects_non_positive_n_components(self) -> None:
         with Tapestry():
             e = emit_eeg_data(_config=KnotConfig(id="e"))
-            with pytest.raises(ValueError, match="n_components"):
+            with self.assertRaisesRegex(ValueError, "n_components"):
                 EEGICADecomposer(
                     eeg_data=e,
                     n_components=0,
@@ -47,7 +47,7 @@ class TestConstruction:
     def test_rejects_invalid_algorithm(self) -> None:
         with Tapestry():
             e = emit_eeg_data(_config=KnotConfig(id="e"))
-            with pytest.raises(ValueError, match="algorithm"):
+            with self.assertRaisesRegex(ValueError, "algorithm"):
                 EEGICADecomposer(
                     eeg_data=e,
                     n_components=20,
@@ -58,7 +58,7 @@ class TestConstruction:
     def test_rejects_non_positive_max_iter(self) -> None:
         with Tapestry():
             e = emit_eeg_data(_config=KnotConfig(id="e"))
-            with pytest.raises(ValueError, match="max_iter"):
+            with self.assertRaisesRegex(ValueError, "max_iter"):
                 EEGICADecomposer(
                     eeg_data=e,
                     n_components=20,
@@ -68,8 +68,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_dict_with_required_keys(self) -> None:
         with Tapestry() as t:
             e = emit_eeg_data(_config=KnotConfig(id="e"))

@@ -6,8 +6,8 @@ Uses an injected stub httpx client. No network needed.
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.messaging.pagerduty_client import PagerDutyClient
@@ -43,27 +43,28 @@ class FakeHTTPXClient:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-def test_implements_api_client() -> None:
-    client = PagerDutyClient(client=FakeHTTPXClient())
-    assert isinstance(client, ApiClient)
 
-
-def test_construction_requires_config_or_client() -> None:
-    with pytest.raises(TypeError, match="config= or client="):
-        PagerDutyClient()
-
-
-def test_sensitive_fields_declared() -> None:
-    cfg = PagerDutyConfig(api_key="key", routing_key="rkey")
-    assert "api_key" in cfg.sensitive_fields
-    assert "routing_key" in cfg.sensitive_fields
-
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_api_client(self) -> None:
+        client = PagerDutyClient(client=FakeHTTPXClient())
+        assert isinstance(client, ApiClient)
+    
+    
+    def test_construction_requires_config_or_client(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or client="):
+            PagerDutyClient()
+    
+    
+    def test_sensitive_fields_declared(self) -> None:
+        cfg = PagerDutyConfig(api_key="key", routing_key="rkey")
+        assert "api_key" in cfg.sensitive_fields
+        assert "routing_key" in cfg.sensitive_fields
+    
+    
 # ────────────────────────────────────────────────────────────── severity validation
 
 
-@pytest.mark.asyncio
-class TestSeverityValidation:
+class TestSeverityValidation(unittest.IsolatedAsyncioTestCase):
     async def test_valid_severities_accepted(self) -> None:
         fake = FakeHTTPXClient()
         cfg = PagerDutyConfig(api_key="key", routing_key="rkey")
@@ -75,15 +76,14 @@ class TestSeverityValidation:
         fake = FakeHTTPXClient()
         cfg = PagerDutyConfig(api_key="key", routing_key="rkey")
         client = PagerDutyClient(config=cfg, client=fake)
-        with pytest.raises(ValueError, match="severity"):
+        with self.assertRaisesRegex(ValueError, "severity"):
             await client.trigger_incident("summary", "source", severity="urgent")
 
 
 # ────────────────────────────────────────────────────────────── trigger_incident
 
 
-@pytest.mark.asyncio
-class TestTriggerIncident:
+class TestTriggerIncident(unittest.IsolatedAsyncioTestCase):
     async def test_trigger_posts_to_events_api(self) -> None:
         fake = FakeHTTPXClient()
         cfg = PagerDutyConfig(api_key="key", routing_key="rkey")
@@ -108,8 +108,7 @@ class TestTriggerIncident:
 # ────────────────────────────────────────────────────────────── resolve_incident
 
 
-@pytest.mark.asyncio
-class TestResolveIncident:
+class TestResolveIncident(unittest.IsolatedAsyncioTestCase):
     async def test_resolve_posts_resolve_action(self) -> None:
         fake = FakeHTTPXClient()
         cfg = PagerDutyConfig(api_key="key", routing_key="rkey")
@@ -123,8 +122,7 @@ class TestResolveIncident:
 # ────────────────────────────────────────────────────────────── list_incidents
 
 
-@pytest.mark.asyncio
-class TestListIncidents:
+class TestListIncidents(unittest.IsolatedAsyncioTestCase):
     async def test_list_incidents_returns_list(self) -> None:
         fake = FakeHTTPXClient()
         cfg = PagerDutyConfig(api_key="key", routing_key="rkey", base_url="https://api.pagerduty.com")
@@ -145,8 +143,7 @@ class TestListIncidents:
 # ────────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_calls_aclose(self) -> None:
         fake = FakeHTTPXClient()
         client = PagerDutyClient(client=fake)
@@ -162,7 +159,7 @@ class TestLifecycle:
 # ────────────────────────────────────────────────────────── credential safety
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_repr_redacts_api_key(self) -> None:
         cfg = PagerDutyConfig(api_key="supersecretapikey", routing_key="routingkey123")
         text = repr(cfg)
@@ -179,8 +176,7 @@ class TestCredentialSafety:
         assert "routingkey123" not in str(d)
 
 
-@pytest.mark.asyncio
-class TestSecurity:
+class TestSecurity(unittest.IsolatedAsyncioTestCase):
     async def test_close_clears_credentials(self) -> None:
         client = PagerDutyClient(
             config=PagerDutyConfig(api_key="key", routing_key="rkey"),
@@ -196,5 +192,5 @@ class TestSecurity:
             client=FakeHTTPXClient(),
         )
         await client.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await client.trigger_incident("Disk full", "server-01")

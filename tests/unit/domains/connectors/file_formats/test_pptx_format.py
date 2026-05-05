@@ -6,10 +6,13 @@ survival (whitespace-normalised) rather than byte equality.
 """
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
-pytest.importorskip("pptx")
+try:
+    import pptx
+except ImportError as _e:
+    raise unittest.SkipTest("pptx not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -24,7 +27,7 @@ def _normalise(text: str) -> str:
     return " ".join(text.split())
 
 
-class TestPptxFormatConstruction:
+class TestPptxFormatConstruction(unittest.TestCase):
     def test_default_arguments(self) -> None:
         fmt = PptxFormat()
         assert fmt.extract_speaker_notes is True
@@ -34,11 +37,11 @@ class TestPptxFormatConstruction:
         assert fmt.extract_speaker_notes is False
 
     def test_non_bool_extract_speaker_notes(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             PptxFormat(extract_speaker_notes="yes")  # type: ignore[arg-type]
 
 
-class TestPptxFormatBasics:
+class TestPptxFormatBasics(unittest.TestCase):
     def test_name(self) -> None:
         assert PptxFormat().name == "pptx"
 
@@ -49,8 +52,7 @@ class TestPptxFormatBasics:
         assert isinstance(PptxFormat(), BatchFileFormat)
 
 
-class TestPptxFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestPptxFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_text_survives(self) -> None:
         records = [
             {"text": "slide one heading", "notes": "speaker note one"},
@@ -74,14 +76,12 @@ class TestPptxFormatRoundTrip:
                     recovered["notes"]
                 )
 
-    @pytest.mark.asyncio
     async def test_round_trip_empty(self) -> None:
         fmt = PptxFormat()
         payload = await FormatRoundTrip.encode(fmt, [])
         decoded = await FormatRoundTrip.decode(fmt, payload)
         assert decoded == []
 
-    @pytest.mark.asyncio
     async def test_round_trip_single(self) -> None:
         records = [{"text": "single slide content"}]
         fmt = PptxFormat()
@@ -93,7 +93,6 @@ class TestPptxFormatRoundTrip:
         )
         assert decoded[0]["slide_number"] == 1
 
-    @pytest.mark.asyncio
     async def test_extract_speaker_notes_false(self) -> None:
         records = [{"text": "slide", "notes": "hidden notes"}]
         writer = PptxFormat()
@@ -102,22 +101,19 @@ class TestPptxFormatRoundTrip:
         decoded = await FormatRoundTrip.decode(reader, payload)
         assert decoded[0]["notes"] is None
 
-    @pytest.mark.asyncio
     async def test_encode_rejects_missing_text(self) -> None:
         fmt = PptxFormat()
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, [{"notes": "n"}])
 
-    @pytest.mark.asyncio
     async def test_encode_rejects_non_string_text(self) -> None:
         fmt = PptxFormat()
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             await FormatRoundTrip.encode(fmt, [{"text": 9}])
 
-    @pytest.mark.asyncio
     async def test_encode_rejects_non_string_notes(self) -> None:
         fmt = PptxFormat()
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             await FormatRoundTrip.encode(
                 fmt, [{"text": "ok", "notes": 9}]
             )

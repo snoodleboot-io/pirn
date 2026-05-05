@@ -5,11 +5,17 @@ assert content survival rather than byte equality.
 """
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
-pytest.importorskip("bs4")
-pytest.importorskip("lxml")
+try:
+    import bs4
+except ImportError as _e:
+    raise unittest.SkipTest("bs4 not installed") from _e
+try:
+    import lxml
+except ImportError as _e:
+    raise unittest.SkipTest("lxml not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -20,7 +26,7 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 )
 
 
-class TestHtmlFormatConstruction:
+class TestHtmlFormatConstruction(unittest.TestCase):
     def test_default_arguments(self) -> None:
         fmt = HtmlFormat()
         assert fmt.extract_tables is False
@@ -30,11 +36,11 @@ class TestHtmlFormatConstruction:
         assert fmt.extract_tables is True
 
     def test_non_bool_extract_tables(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             HtmlFormat(extract_tables="yes")  # type: ignore[arg-type]
 
 
-class TestHtmlFormatBasics:
+class TestHtmlFormatBasics(unittest.TestCase):
     def test_name(self) -> None:
         assert HtmlFormat().name == "html"
 
@@ -45,8 +51,7 @@ class TestHtmlFormatBasics:
         assert isinstance(HtmlFormat(), BatchFileFormat)
 
 
-class TestHtmlFormatDocumentMode:
-    @pytest.mark.asyncio
+class TestHtmlFormatDocumentMode(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         records = [
             {
@@ -63,7 +68,6 @@ class TestHtmlFormatDocumentMode:
         assert "hello world" in decoded[0]["text"]
         assert decoded[0]["links"] == []
 
-    @pytest.mark.asyncio
     async def test_round_trip_empty(self) -> None:
         fmt = HtmlFormat()
         payload = await FormatRoundTrip.encode(fmt, [])
@@ -73,7 +77,6 @@ class TestHtmlFormatDocumentMode:
         assert decoded[0]["text"] == ""
         assert decoded[0]["links"] == []
 
-    @pytest.mark.asyncio
     async def test_round_trip_single(self) -> None:
         records = [{"title": "T", "text": "single document"}]
         fmt = HtmlFormat()
@@ -82,7 +85,6 @@ class TestHtmlFormatDocumentMode:
         assert decoded[0]["title"] == "T"
         assert "single document" in decoded[0]["text"]
 
-    @pytest.mark.asyncio
     async def test_decode_extracts_links(self) -> None:
         payload = (
             b"<html><head><title>links</title></head><body>"
@@ -100,7 +102,6 @@ class TestHtmlFormatDocumentMode:
             "https://b.example",
         ]
 
-    @pytest.mark.asyncio
     async def test_decode_strips_script_and_style(self) -> None:
         payload = (
             b"<html><head><title>x</title>"
@@ -114,19 +115,16 @@ class TestHtmlFormatDocumentMode:
         assert "color" not in decoded[0]["text"]
         assert "visible content" in decoded[0]["text"]
 
-    @pytest.mark.asyncio
     async def test_encode_rejects_non_string_title(self) -> None:
         fmt = HtmlFormat()
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             await FormatRoundTrip.encode(fmt, [{"title": 9}])
 
-    @pytest.mark.asyncio
     async def test_encode_rejects_non_string_text(self) -> None:
         fmt = HtmlFormat()
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             await FormatRoundTrip.encode(fmt, [{"text": 9}])
 
-    @pytest.mark.asyncio
     async def test_encode_escapes_html_special_characters(self) -> None:
         records = [
             {"title": "<unsafe>", "text": "<script>alert(1)</script>"}
@@ -140,8 +138,7 @@ class TestHtmlFormatDocumentMode:
         assert "<script>alert(1)</script>" in decoded[0]["text"]
 
 
-class TestHtmlFormatTableMode:
-    @pytest.mark.asyncio
+class TestHtmlFormatTableMode(unittest.IsolatedAsyncioTestCase):
     async def test_extract_tables_yields_one_record_per_row(self) -> None:
         payload = (
             b"<html><body><table>"
@@ -157,7 +154,6 @@ class TestHtmlFormatTableMode:
             {"name": "beta", "age": "2"},
         ]
 
-    @pytest.mark.asyncio
     async def test_extract_tables_no_header(self) -> None:
         payload = (
             b"<html><body><table>"
@@ -172,7 +168,6 @@ class TestHtmlFormatTableMode:
             {"col_0": "1", "col_1": "2"},
         ]
 
-    @pytest.mark.asyncio
     async def test_extract_tables_no_table(self) -> None:
         payload = b"<html><body><p>no tables here</p></body></html>"
         fmt = HtmlFormat(extract_tables=True)

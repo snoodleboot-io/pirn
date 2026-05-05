@@ -5,8 +5,8 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from typing import ClassVar
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.connection_config import ConnectionConfig
 from pirn.domains.connectors.connection_config_decorator import connection_config
@@ -40,7 +40,7 @@ class FakeKafkaConfig(ConnectionConfig):
     group_id: str
 
 
-class TestReprAndStr:
+class TestReprAndStr(unittest.TestCase):
     def test_repr_redacts_password_field(self) -> None:
         cfg = FakePostgresConfig(
             host="db.example.com",
@@ -96,7 +96,7 @@ class TestReprAndStr:
         assert "<redacted>" in message
 
 
-class TestAuditDict:
+class TestAuditDict(unittest.TestCase):
     def test_audit_dict_redacts_sensitive_fields(self) -> None:
         cfg = FakePostgresConfig("h", 5432, "u", "very-secret-pw", "d", "tok")
         audit = cfg.to_audit_dict()
@@ -123,21 +123,20 @@ class TestAuditDict:
         assert cfg.to_audit_dict()["_class"] == "FakeKafkaConfig"
 
 
-class TestLoggingDoesNotLeak:
-    def test_logger_with_config_does_not_leak_password(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
+class TestLoggingDoesNotLeak(unittest.TestCase):
+    def test_logger_with_config_does_not_leak_password(self) -> None:
+        # TODO(unittest-migrate): replace 'caplog' built-in fixture — use unittest.mock.patch / assertLogs
         cfg = FakePostgresConfig("h", 5432, "alice", "leaky-pw-1", "d", "tok-2")
         log = logging.getLogger("test.connectors")
-        with caplog.at_level(logging.DEBUG):
+        with self.assertLogs(level=logging.DEBUG) as cm:
             log.info("connecting with %s", cfg)
             log.debug("audit=%s", cfg.to_audit_dict())
-        rendered = "\n".join(rec.getMessage() for rec in caplog.records)
+        rendered = "\n".join(cm.output)
         assert "leaky-pw-1" not in rendered
         assert "tok-2" not in rendered
 
 
-class TestManualDataclassWithReprFalse:
+class TestManualDataclassWithReprFalse(unittest.TestCase):
     """Documented escape hatch: ``@dataclass(repr=False)`` directly."""
 
     def test_manual_dataclass_repr_false_preserves_redaction(self) -> None:

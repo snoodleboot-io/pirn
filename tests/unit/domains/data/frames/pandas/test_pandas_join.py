@@ -1,9 +1,9 @@
 """Tests for :class:`PandasJoin`."""
 
 from __future__ import annotations
+import unittest
 
 import pandas as pd
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -31,8 +31,7 @@ async def emit_orders() -> PandasDataBatch:
     )
 
 
-@pytest.mark.asyncio
-class TestPandasJoin:
+class TestPandasJoin(unittest.IsolatedAsyncioTestCase):
     async def test_inner_join_on_shared_key(self) -> None:
         with Tapestry() as t:
             users  = emit_users(_config=KnotConfig(id="users"))
@@ -104,7 +103,7 @@ class TestPandasJoin:
         assert out.row_count == 6   # 2 × 3
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_unknown_how(self) -> None:
         @knot
         async def empty() -> PandasDataBatch:
@@ -113,7 +112,7 @@ class TestConstruction:
         with Tapestry():
             left  = empty(_config=KnotConfig(id="l"))
             right = empty(_config=KnotConfig(id="r"))
-            with pytest.raises(ValueError, match="how must be one of"):
+            with self.assertRaisesRegex(ValueError, "how must be one of"):
                 PandasJoin(
                     left=left, right=right, on="x", how="diagonal",
                     _config=KnotConfig(id="j"),
@@ -127,7 +126,7 @@ class TestConstruction:
         with Tapestry():
             left  = empty(_config=KnotConfig(id="l"))
             right = empty(_config=KnotConfig(id="r"))
-            with pytest.raises(ValueError, match="does not natively support"):
+            with self.assertRaisesRegex(ValueError, "does not natively support"):
                 PandasJoin(
                     left=left, right=right, on="x", how="semi",
                     _config=KnotConfig(id="j"),
@@ -141,7 +140,7 @@ class TestConstruction:
         with Tapestry():
             left  = empty(_config=KnotConfig(id="l"))
             right = empty(_config=KnotConfig(id="r"))
-            with pytest.raises(TypeError, match="not both"):
+            with self.assertRaisesRegex(TypeError, "not both"):
                 PandasJoin(
                     left=left, right=right,
                     on="x", left_on="x", right_on="x",
@@ -156,7 +155,7 @@ class TestConstruction:
         with Tapestry():
             left  = empty(_config=KnotConfig(id="l"))
             right = empty(_config=KnotConfig(id="r"))
-            with pytest.raises(TypeError, match="provide on="):
+            with self.assertRaisesRegex(TypeError, "provide on="):
                 PandasJoin(
                     left=left, right=right, how="inner",
                     _config=KnotConfig(id="j"),
@@ -170,7 +169,7 @@ class TestConstruction:
         with Tapestry():
             left  = empty(_config=KnotConfig(id="l"))
             right = empty(_config=KnotConfig(id="r"))
-            with pytest.raises(TypeError, match="cross join takes no"):
+            with self.assertRaisesRegex(TypeError, "cross join takes no"):
                 PandasJoin(
                     left=left, right=right, how="cross", on="x",
                     _config=KnotConfig(id="j"),

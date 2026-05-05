@@ -1,8 +1,8 @@
 """Unit tests for :class:`StructuralVariantDetector`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,9 +12,9 @@ from pirn.domains.health.genomics.structural_variant_detector import (
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_bam(self) -> None:
-        with pytest.raises(ValueError, match="non-empty"):
+        with self.assertRaisesRegex(ValueError, "non-empty"):
             StructuralVariantDetector(
                 bam_path="",
                 reference_path="ref",
@@ -23,8 +23,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_tuple(self) -> None:
         with Tapestry() as t:
             StructuralVariantDetector(

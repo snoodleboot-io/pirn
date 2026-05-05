@@ -1,8 +1,8 @@
 """Unit tests for :class:`LasFileIngester`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -11,9 +11,9 @@ from pirn.domains.oilgas.well.las_file_ingester import LasFileIngester
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_file_path(self) -> None:
-        with pytest.raises(ValueError, match="file_path"):
+        with self.assertRaisesRegex(ValueError, "file_path"):
             LasFileIngester(
                 file_path="",
                 well_id="W",
@@ -22,7 +22,7 @@ class TestConstruction:
             )
 
     def test_rejects_empty_well_id(self) -> None:
-        with pytest.raises(ValueError, match="well_id"):
+        with self.assertRaisesRegex(ValueError, "well_id"):
             LasFileIngester(
                 file_path="/x",
                 well_id="",
@@ -31,7 +31,7 @@ class TestConstruction:
             )
 
     def test_rejects_empty_curves(self) -> None:
-        with pytest.raises(ValueError, match="curves"):
+        with self.assertRaisesRegex(ValueError, "curves"):
             LasFileIngester(
                 file_path="/x",
                 well_id="W",
@@ -40,7 +40,7 @@ class TestConstruction:
             )
 
     def test_rejects_invalid_depth_unit(self) -> None:
-        with pytest.raises(ValueError, match="depth_unit"):
+        with self.assertRaisesRegex(ValueError, "depth_unit"):
             LasFileIngester(
                 file_path="/x",
                 well_id="W",
@@ -50,8 +50,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_las_file(self) -> None:
         with Tapestry() as t:
             LasFileIngester(

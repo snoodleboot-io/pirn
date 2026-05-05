@@ -1,8 +1,8 @@
 """Tests for :class:`TextTokenCounter`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,9 +12,9 @@ from pirn.domains.data.specializations.feature_engineering.text_token_counter im
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_sequence_rows(self) -> None:
-        with pytest.raises(TypeError, match="rows"):
+        with self.assertRaisesRegex(TypeError, "rows"):
             TextTokenCounter(
                 rows="bad",  # type: ignore[arg-type]
                 text_column="text",
@@ -22,7 +22,7 @@ class TestConstruction:
             )
 
     def test_rejects_empty_text_column(self) -> None:
-        with pytest.raises(ValueError, match="text_column"):
+        with self.assertRaisesRegex(ValueError, "text_column"):
             TextTokenCounter(
                 rows=[],
                 text_column="",
@@ -30,7 +30,7 @@ class TestConstruction:
             )
 
     def test_rejects_invalid_identifier(self) -> None:
-        with pytest.raises(ValueError, match="plain identifier"):
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
             TextTokenCounter(
                 rows=[],
                 text_column="bad col",
@@ -38,8 +38,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestBehaviour:
+class TestBehaviour(unittest.IsolatedAsyncioTestCase):
     async def test_whitespace_token_count(self) -> None:
         rows = [
             {"id": 1, "text": "hello world foo"},

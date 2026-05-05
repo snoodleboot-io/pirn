@@ -5,10 +5,13 @@ from __future__ import annotations
 import io
 import zipfile
 from unittest.mock import patch
+import unittest
 
-import pytest
 
-pytest.importorskip("bids")
+try:
+    import bids
+except ImportError as _e:
+    raise unittest.SkipTest("bids not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -49,7 +52,7 @@ async def _decode_bytes(fmt: BidsDatasetFormat, payload: bytes) -> list[dict]:
 # Construction
 # ---------------------------------------------------------------------------
 
-class TestBidsDatasetFormatConstruction:
+class TestBidsDatasetFormatConstruction(unittest.TestCase):
     def test_is_batch_format(self) -> None:
         assert isinstance(BidsDatasetFormat(), BatchFileFormat)
 
@@ -64,8 +67,7 @@ class TestBidsDatasetFormatConstruction:
 # Round-trip
 # ---------------------------------------------------------------------------
 
-class TestBidsDatasetFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestBidsDatasetFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_decode_emits_file_records(self) -> None:
         payload = _make_bids_zip()
         records = await _decode_bytes(BidsDatasetFormat(), payload)
@@ -74,7 +76,6 @@ class TestBidsDatasetFormatRoundTrip:
         assert "README" in paths
         assert "dataset_description.json" in paths
 
-    @pytest.mark.asyncio
     async def test_decode_record_shape(self) -> None:
         payload = _make_bids_zip()
         records = await _decode_bytes(BidsDatasetFormat(), payload)
@@ -83,7 +84,6 @@ class TestBidsDatasetFormatRoundTrip:
             assert "content" in rec
             assert isinstance(rec["content"], bytes)
 
-    @pytest.mark.asyncio
     async def test_round_trip_preserves_content(self) -> None:
         payload = _make_bids_zip()
         fmt = BidsDatasetFormat()
@@ -95,7 +95,6 @@ class TestBidsDatasetFormatRoundTrip:
         recovered_by_path = {r["relative_path"]: r["content"] for r in decoded}
         assert original_by_path == recovered_by_path
 
-    @pytest.mark.asyncio
     async def test_round_trip_two_files(self) -> None:
         records = [
             {"relative_path": "file_a.txt", "content": b"hello"},
@@ -111,26 +110,24 @@ class TestBidsDatasetFormatRoundTrip:
 # Error paths
 # ---------------------------------------------------------------------------
 
-class TestBidsDatasetFormatErrors:
-    @pytest.mark.asyncio
+class TestBidsDatasetFormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_invalid_payload_raises(self) -> None:
         fmt = BidsDatasetFormat()
 
         async def _iter():
             yield b"not a zip file at all"
 
-        with pytest.raises(ValueError, match="zip"):
+        with self.assertRaisesRegex(ValueError, "zip"):
             async for _ in await fmt.read(_iter()):
                 pass
 
-    @pytest.mark.asyncio
     async def test_encode_non_bytes_content_raises(self) -> None:
         fmt = BidsDatasetFormat()
 
         async def _records():
             yield {"relative_path": "file.txt", "content": "not bytes"}
 
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             async for _ in await fmt.write(_records()):
                 pass
 
@@ -139,7 +136,7 @@ class TestBidsDatasetFormatErrors:
 # Missing dependency guard
 # ---------------------------------------------------------------------------
 
-class TestBidsDatasetFormatMissingDep:
+class TestBidsDatasetFormatMissingDep(unittest.TestCase):
     def test_still_works_without_pybids(self) -> None:
         """Format should work even when pybids is absent (plain zip mode)."""
         with patch.dict("sys.modules", {"bids": None}):

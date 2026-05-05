@@ -1,10 +1,10 @@
 """Tests for :class:`DatafusionAggregate`."""
 
 from __future__ import annotations
+import unittest
 
 import datafusion as df
 import datafusion.functions as dff
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -32,8 +32,7 @@ async def emit_orders() -> DatafusionDataBatch:
     return DatafusionDataBatch(frame=frame, context=ctx)
 
 
-@pytest.mark.asyncio
-class TestDatafusionAggregate:
+class TestDatafusionAggregate(unittest.IsolatedAsyncioTestCase):
     async def test_sum_per_region(self) -> None:
         with Tapestry() as t:
             batch = emit_orders(_config=KnotConfig(id="orders"))
@@ -69,7 +68,7 @@ class TestDatafusionAggregate:
         assert counts["US"] == 1
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_by(self) -> None:
         @knot
         async def empty() -> DatafusionDataBatch:
@@ -79,7 +78,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(ValueError, match="non-empty"):
+            with self.assertRaisesRegex(ValueError, "non-empty"):
                 DatafusionAggregate(
                     batch=batch, by=(),
                     aggs={"total": dff.sum(df.col("x"))},
@@ -95,7 +94,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(ValueError, match="plain identifier"):
+            with self.assertRaisesRegex(ValueError, "plain identifier"):
                 DatafusionAggregate(
                     batch=batch, by=("a",),
                     aggs={"bad name!": dff.sum(df.col("x"))},
@@ -111,7 +110,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="datafusion.Expr"):
+            with self.assertRaisesRegex(TypeError, "datafusion.Expr"):
                 DatafusionAggregate(
                     batch=batch, by=("a",),
                     aggs={"total": "SUM(x)"},  # type: ignore[dict-item]

@@ -8,8 +8,8 @@ real BigQuery account needed.
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.databases.bigquery_config import BigqueryConfig
@@ -46,21 +46,22 @@ class FakeBigqueryClient:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-def test_implements_database_connection_pool() -> None:
-    pool = BigqueryPool(client=FakeBigqueryClient())
-    assert isinstance(pool, DatabaseConnectionPool)
 
-
-def test_construction_requires_config_or_client() -> None:
-    with pytest.raises(TypeError, match="config= or client="):
-        BigqueryPool()
-
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_database_connection_pool(self) -> None:
+        pool = BigqueryPool(client=FakeBigqueryClient())
+        assert isinstance(pool, DatabaseConnectionPool)
+    
+    
+    def test_construction_requires_config_or_client(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or client="):
+            BigqueryPool()
+    
+    
 # ────────────────────────────────────────────────────────── delegation
 
 
-@pytest.mark.asyncio
-class TestDelegation:
+class TestDelegation(unittest.IsolatedAsyncioTestCase):
     async def test_execute_passes_query_and_params(self) -> None:
         fake = FakeBigqueryClient()
         pool = BigqueryPool(client=fake)
@@ -103,17 +104,17 @@ class TestDelegation:
 # ─────────────────────────────────────────────────────────── query safety
 
 
-class TestQuerySafety:
+class TestQuerySafety(unittest.TestCase):
     def test_rejects_fstring_placeholder(self) -> None:
         pool = BigqueryPool(client=FakeBigqueryClient())
-        with pytest.raises(ValueError, match="interpolation"):
+        with self.assertRaisesRegex(ValueError, "interpolation"):
             pool._reject_inline_interpolation(
                 "SELECT * FROM t WHERE x = {value}"
             )
 
     def test_rejects_percent_s_placeholder(self) -> None:
         pool = BigqueryPool(client=FakeBigqueryClient())
-        with pytest.raises(ValueError, match="interpolation"):
+        with self.assertRaisesRegex(ValueError, "interpolation"):
             pool._reject_inline_interpolation("SELECT * FROM t WHERE x = %s")
 
     def test_accepts_named_parameter(self) -> None:
@@ -121,24 +122,22 @@ class TestQuerySafety:
         pool._reject_inline_interpolation("SELECT * FROM t WHERE x = @value")
 
 
-@pytest.mark.asyncio
-class TestQuerySafetyEnforced:
+class TestQuerySafetyEnforced(unittest.IsolatedAsyncioTestCase):
     async def test_execute_rejects_format_query(self) -> None:
         pool = BigqueryPool(client=FakeBigqueryClient())
-        with pytest.raises(ValueError, match="interpolation"):
+        with self.assertRaisesRegex(ValueError, "interpolation"):
             await pool.execute("SELECT %s FROM t", [1])
 
     async def test_fetch_all_rejects_format_query(self) -> None:
         pool = BigqueryPool(client=FakeBigqueryClient())
-        with pytest.raises(ValueError, match="interpolation"):
+        with self.assertRaisesRegex(ValueError, "interpolation"):
             await pool.fetch_all("SELECT * FROM t WHERE x = {evil}")
 
 
 # ─────────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_closes_underlying_client(self) -> None:
         fake = FakeBigqueryClient()
         pool = BigqueryPool(client=fake)
@@ -153,14 +152,14 @@ class TestLifecycle:
     async def test_acquire_after_close_raises(self) -> None:
         pool = BigqueryPool(client=FakeBigqueryClient())
         await pool.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await pool.acquire()
 
 
 # ────────────────────────────────────────────────────────── credential safety
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_repr_redacts_credentials_path(self) -> None:
         cfg = BigqueryConfig(
             project_id="proj",

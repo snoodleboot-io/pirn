@@ -1,8 +1,8 @@
 """Tests for :class:`CodeAgent`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -16,10 +16,9 @@ from tests.unit.domains.agents.specializations.conftest import (
 )
 
 
-@pytest.mark.asyncio
-class TestCodeAgentConstruction:
+class TestCodeAgentConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
-        with pytest.raises(TypeError, match="llm must be an LLMProvider"):
+        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
             with Tapestry():
                 CodeAgent(
                     task="write a function",
@@ -29,7 +28,7 @@ class TestCodeAgentConstruction:
 
     async def test_rejects_empty_language(self) -> None:
         llm = StubLLMProvider(["def f(): pass"])
-        with pytest.raises(TypeError, match="language"):
+        with self.assertRaisesRegex(TypeError, "language"):
             with Tapestry():
                 CodeAgent(
                     task="write a function",
@@ -39,8 +38,7 @@ class TestCodeAgentConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestCodeAgentHappyPath:
+class TestCodeAgentHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_returns_code_in_content(self) -> None:
         llm = StubLLMProvider(["def add(a, b):\n    return a + b\n"])
         with Tapestry() as t:

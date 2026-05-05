@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -18,14 +18,7 @@ from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 
 class StubDebater(SubTapestry):
-    def __init__(
-        self,
-        *,
-        task: Any = "",
-        _config: KnotConfig,
-        argument: str = "argument",
-        **kwargs: Any,
-    ) -> None:
+    def __init__(self, *, task: Any = "", _config: KnotConfig, argument: str = "argument", **kwargs: Any,) -> None:
         self._argument = argument
         super().__init__(task=task, _config=_config, **kwargs)
 
@@ -33,13 +26,12 @@ class StubDebater(SubTapestry):
         return AgentResponse(content=self._argument, finish_reason="stop")
 
 
-@pytest.mark.asyncio
-class TestDebateFrameworkConstruction:
+class TestDebateFrameworkConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_too_few_debaters(self) -> None:
         judge = StubLLMProvider(["0"])
         with Tapestry():
             only = StubDebater(_config=KnotConfig(id="solo"))
-        with pytest.raises(ValueError, match="at least two debaters"):
+        with self.assertRaisesRegex(ValueError, "at least two debaters"):
             with Tapestry():
                 DebateFramework(
                     topic="t",
@@ -53,7 +45,7 @@ class TestDebateFrameworkConstruction:
         with Tapestry():
             a = StubDebater(_config=KnotConfig(id="a"))
             b = StubDebater(_config=KnotConfig(id="b"))
-        with pytest.raises(ValueError, match="rounds"):
+        with self.assertRaisesRegex(ValueError, "rounds"):
             with Tapestry():
                 DebateFramework(
                     topic="t",
@@ -64,8 +56,7 @@ class TestDebateFrameworkConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestDebateFrameworkHappyPath:
+class TestDebateFrameworkHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_judge_picks_winning_debater(self) -> None:
         judge = StubLLMProvider(["1"])
         with Tapestry():

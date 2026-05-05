@@ -1,8 +1,8 @@
 """Tests for :class:`ReActLoop`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -16,10 +16,9 @@ from tests.unit.domains.agents.specializations.conftest import (
 )
 
 
-@pytest.mark.asyncio
-class TestReActLoopConstruction:
+class TestReActLoopConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
-        with pytest.raises(TypeError, match="llm must be an LLMProvider"):
+        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
             with Tapestry():
                 ReActLoop(
                     messages=(AgentMessage(role="user", content="hi"),),
@@ -30,7 +29,7 @@ class TestReActLoopConstruction:
 
     async def test_rejects_zero_max_iterations(self) -> None:
         llm = StubLLMProvider(["Final Answer: ok"])
-        with pytest.raises(ValueError, match="max_iterations"):
+        with self.assertRaisesRegex(ValueError, "max_iterations"):
             with Tapestry():
                 ReActLoop(
                     messages=(AgentMessage(role="user", content="hi"),),
@@ -41,8 +40,7 @@ class TestReActLoopConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestReActLoopHappyPath:
+class TestReActLoopHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_returns_agent_response_on_final_answer(self) -> None:
         llm = StubLLMProvider(
             [

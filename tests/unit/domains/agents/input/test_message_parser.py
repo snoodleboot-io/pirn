@@ -1,8 +1,8 @@
 """Unit tests for :class:`MessageParser`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -31,8 +31,7 @@ async def emit_messages() -> tuple:
     )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_string_becomes_user_message(self) -> None:
         with Tapestry() as t:
             raw = emit_string(_config=KnotConfig(id="raw"))
@@ -65,7 +64,7 @@ class TestProcess:
         assert out[2].content == "plain string"
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_requires_raw_input(self) -> None:
-        with pytest.raises(TypeError, match="raw_input"):
+        with self.assertRaisesRegex(TypeError, "raw_input"):
             MessageParser(_config=KnotConfig(id="p"))  # type: ignore[call-arg]

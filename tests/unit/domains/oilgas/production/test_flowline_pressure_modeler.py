@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -24,9 +24,9 @@ class _Source(Knot):
         return ScadaTimeSeries(sensor_id="rate", sample_interval_sec=60.0)
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_diameter(self) -> None:
-        with pytest.raises(ValueError, match="pipe_inner_diameter_in"):
+        with self.assertRaisesRegex(ValueError, "pipe_inner_diameter_in"):
             with Tapestry():
                 src = _Source(_config=KnotConfig(id="src"))
                 FlowlinePressureModeler(
@@ -37,8 +37,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_dp_series(self) -> None:
         with Tapestry() as t:
             src = _Source(_config=KnotConfig(id="src"))

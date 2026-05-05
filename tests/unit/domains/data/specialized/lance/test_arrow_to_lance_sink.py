@@ -8,6 +8,9 @@ is missing (the PyPI ``lance`` placeholder package does not provide it).
 from __future__ import annotations
 
 from typing import Any
+import unittest
+import tempfile
+from pathlib import Path
 
 import pyarrow as pa
 import pytest
@@ -27,17 +30,17 @@ async def _emit_table() -> Any:
     return pa.table({"id": [1, 2, 3], "name": ["a", "b", "c"]})
 
 
-class TestArrowToLanceSinkConstruction:
+class TestArrowToLanceSinkConstruction(unittest.TestCase):
     def test_rejects_empty_path(self) -> None:
         with Tapestry():
             tbl = _emit_table(_config=KnotConfig(id="t"))
-            with pytest.raises(ValueError, match="non-empty"):
+            with self.assertRaisesRegex(ValueError, "non-empty"):
                 ArrowToLanceSink(table=tbl, path="", _config=KnotConfig(id="sink"))
 
     def test_rejects_unknown_mode(self) -> None:
         with Tapestry():
             tbl = _emit_table(_config=KnotConfig(id="t"))
-            with pytest.raises(ValueError, match="mode must be one of"):
+            with self.assertRaisesRegex(ValueError, "mode must be one of"):
                 ArrowToLanceSink(
                     table=tbl, path="/tmp/x.lance", mode="bogus",
                     _config=KnotConfig(id="sink"),
@@ -54,10 +57,15 @@ class TestArrowToLanceSinkConstruction:
         assert sink.path == "/tmp/x.lance"
 
 
-@pytest.mark.asyncio
-class TestArrowToLanceSinkProcess:
-    async def test_writes_dataset_to_disk(self, tmp_path) -> None:
-        lance = pytest.importorskip("lance")
+class TestArrowToLanceSinkProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_writes_dataset_to_disk(self) -> None:
+        _td_test_writes_dataset_to_disk = tempfile.TemporaryDirectory()
+        self.addCleanup(_td_test_writes_dataset_to_disk.cleanup)
+        tmp_path = Path(_td_test_writes_dataset_to_disk.name)
+        try:
+            import lance
+        except ImportError as _e:
+            self.skipTest("lance not installed")
         if not hasattr(lance, "write_dataset") or not hasattr(lance, "dataset"):
             pytest.skip(
                 "Installed 'lance' package is the unrelated codegen "

@@ -1,8 +1,8 @@
 """Unit tests for :class:`GVCFCombiner`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -10,9 +10,9 @@ from pirn.domains.health.genomics.gvcf_combiner import GVCFCombiner
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_sequence(self) -> None:
-        with pytest.raises(TypeError, match="gvcf_paths"):
+        with self.assertRaisesRegex(TypeError, "gvcf_paths"):
             GVCFCombiner(
                 gvcf_paths=42,  # type: ignore[arg-type]
                 reference_path="ref",
@@ -21,7 +21,7 @@ class TestConstruction:
             )
 
     def test_rejects_empty_sequence(self) -> None:
-        with pytest.raises(ValueError, match="non-empty"):
+        with self.assertRaisesRegex(ValueError, "non-empty"):
             GVCFCombiner(
                 gvcf_paths=[],
                 reference_path="ref",
@@ -30,7 +30,7 @@ class TestConstruction:
             )
 
     def test_rejects_empty_path(self) -> None:
-        with pytest.raises(ValueError, match="non-empty"):
+        with self.assertRaisesRegex(ValueError, "non-empty"):
             GVCFCombiner(
                 gvcf_paths=[""],
                 reference_path="ref",
@@ -39,8 +39,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_combined_path(self) -> None:
         with Tapestry() as t:
             GVCFCombiner(

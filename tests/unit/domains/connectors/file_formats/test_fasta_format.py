@@ -1,8 +1,8 @@
 """Round-trip and validation tests for :class:`FastaFormat`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.file_formats.fasta_format import (
     FastaFormat,
@@ -15,7 +15,7 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 )
 
 
-class TestFastaFormatConstruction:
+class TestFastaFormatConstruction(unittest.TestCase):
     def test_default_arguments(self) -> None:
         fmt = FastaFormat()
         assert fmt.encoding == "utf-8"
@@ -27,23 +27,23 @@ class TestFastaFormatConstruction:
         assert fmt.line_width == 60
 
     def test_encoding_must_be_str(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             FastaFormat(encoding=1)  # type: ignore[arg-type]
 
     def test_encoding_must_be_nonempty(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             FastaFormat(encoding="")
 
     def test_line_width_must_be_int(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             FastaFormat(line_width="80")  # type: ignore[arg-type]
 
     def test_line_width_must_be_positive(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             FastaFormat(line_width=0)
 
 
-class TestFastaFormatBasics:
+class TestFastaFormatBasics(unittest.TestCase):
     def test_name(self) -> None:
         assert FastaFormat().name == "fasta"
 
@@ -54,8 +54,7 @@ class TestFastaFormatBasics:
         assert isinstance(FastaFormat(), StreamingFileFormat)
 
 
-class TestFastaFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestFastaFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         fmt = FastaFormat()
         records = [
@@ -77,12 +76,10 @@ class TestFastaFormatRoundTrip:
         ]
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_empty(self) -> None:
         fmt = FastaFormat()
         await FormatRoundTrip.assert_round_trip(fmt, [])
 
-    @pytest.mark.asyncio
     async def test_round_trip_single(self) -> None:
         fmt = FastaFormat()
         records = [
@@ -94,7 +91,6 @@ class TestFastaFormatRoundTrip:
         ]
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_no_description(self) -> None:
         fmt = FastaFormat()
         records = [
@@ -102,18 +98,16 @@ class TestFastaFormatRoundTrip:
         ]
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_seq_id_with_whitespace_rejected(self) -> None:
         fmt = FastaFormat()
         records = [
             {"seq_id": "bad id", "description": "", "sequence": "ACGT"},
         ]
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_missing_seq_id_rejected(self) -> None:
         fmt = FastaFormat()
         records = [{"description": "x", "sequence": "ACGT"}]
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.encode(fmt, records)

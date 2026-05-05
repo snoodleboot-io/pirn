@@ -1,8 +1,8 @@
 """Unit tests for :class:`DICOMIngestor`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,9 +12,9 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.health.conftest import StubPACSClient
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_client(self) -> None:
-        with pytest.raises(TypeError, match="PACSClient"):
+        with self.assertRaisesRegex(TypeError, "PACSClient"):
             DICOMIngestor(
                 client="x",  # type: ignore[arg-type]
                 study_uid="s",
@@ -23,7 +23,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_string_uid(self) -> None:
-        with pytest.raises(TypeError, match="study_uid"):
+        with self.assertRaisesRegex(TypeError, "study_uid"):
             DICOMIngestor(
                 client=StubPACSClient(),
                 study_uid=42,  # type: ignore[arg-type]
@@ -32,7 +32,7 @@ class TestConstruction:
             )
 
     def test_rejects_empty_uid(self) -> None:
-        with pytest.raises(ValueError, match="non-empty"):
+        with self.assertRaisesRegex(ValueError, "non-empty"):
             DICOMIngestor(
                 client=StubPACSClient(),
                 study_uid="",
@@ -41,8 +41,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_dicom_series(self) -> None:
         with Tapestry() as t:
             DICOMIngestor(

@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -27,9 +27,9 @@ class _TelemetrySource(Knot):
         }
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_vibration_threshold(self) -> None:
-        with pytest.raises(ValueError, match="vibration_threshold_g"):
+        with self.assertRaisesRegex(ValueError, "vibration_threshold_g"):
             with Tapestry():
                 src = _TelemetrySource(_config=KnotConfig(id="src"))
                 EspHealthMonitor(
@@ -40,8 +40,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_healthy_esp(self) -> None:
         with Tapestry() as t:
             src = _TelemetrySource(_config=KnotConfig(id="src"))

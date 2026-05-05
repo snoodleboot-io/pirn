@@ -1,8 +1,8 @@
 """Tests for :class:`ToolSelector`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,11 +14,10 @@ from tests.unit.domains.agents.specializations.conftest import (
 )
 
 
-@pytest.mark.asyncio
-class TestToolSelectorConstruction:
+class TestToolSelectorConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
         tools = [StubTool(name="search")]
-        with pytest.raises(TypeError, match="llm must be an LLMProvider"):
+        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
             with Tapestry():
                 ToolSelector(
                     message="msg",
@@ -29,7 +28,7 @@ class TestToolSelectorConstruction:
 
     async def test_rejects_non_tool_in_list(self) -> None:
         llm = StubLLMProvider(["search"])
-        with pytest.raises(TypeError, match=r"tools\[0\] must be a Tool"):
+        with self.assertRaisesRegex(TypeError, r"tools\[0\] must be a Tool"):
             with Tapestry():
                 ToolSelector(
                     message="msg",
@@ -40,7 +39,7 @@ class TestToolSelectorConstruction:
 
     async def test_rejects_empty_tools(self) -> None:
         llm = StubLLMProvider(["search"])
-        with pytest.raises(ValueError, match="tools must not be empty"):
+        with self.assertRaisesRegex(ValueError, "tools must not be empty"):
             with Tapestry():
                 ToolSelector(
                     message="msg",
@@ -50,8 +49,7 @@ class TestToolSelectorConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestToolSelectorHappyPath:
+class TestToolSelectorHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_returns_selected_tool_names(self) -> None:
         tools = [StubTool(name="web_search"), StubTool(name="calculator")]
         llm = StubLLMProvider(["web_search"])

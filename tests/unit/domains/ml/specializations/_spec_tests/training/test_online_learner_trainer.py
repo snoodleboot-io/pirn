@@ -1,8 +1,8 @@
 """Tests for :class:`OnlineLearnerTrainer`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -24,11 +24,11 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_n_batches_below_one(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="n_batches must be >= 1"):
+            with self.assertRaisesRegex(ValueError, "n_batches must be >= 1"):
                 OnlineLearnerTrainer(
                     split=split,
                     algorithm="sgd",
@@ -40,7 +40,7 @@ class TestConstruction:
     def test_rejects_empty_monitor_metric(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="monitor_metric"):
+            with self.assertRaisesRegex(ValueError, "monitor_metric"):
                 OnlineLearnerTrainer(
                     split=split,
                     algorithm="sgd",
@@ -49,7 +49,7 @@ class TestConstruction:
                 )
 
 
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_returns_model_report_and_batch_count(self) -> None:
         with Tapestry() as t:
             split = emit_split(_config=KnotConfig(id="split"))

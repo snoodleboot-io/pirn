@@ -1,11 +1,19 @@
 """Tests for :class:`DefineXmlFormat` — CDISC Define-XML 2.x format."""
 
 from __future__ import annotations
+import sys
+import unittest
+import unittest.mock
 
-import pytest
 
-pytest.importorskip("lxml")
-pytest.importorskip("defusedxml")
+try:
+    import lxml
+except ImportError as _e:
+    raise unittest.SkipTest("lxml not installed") from _e
+try:
+    import defusedxml
+except ImportError as _e:
+    raise unittest.SkipTest("defusedxml not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -63,7 +71,7 @@ async def _decode(fmt: DefineXmlFormat, payload: bytes) -> list[dict]:
 # Construction
 # ---------------------------------------------------------------------------
 
-class TestDefineXmlFormatConstruction:
+class TestDefineXmlFormatConstruction(unittest.TestCase):
     def test_is_batch_format(self) -> None:
         assert isinstance(DefineXmlFormat(), BatchFileFormat)
 
@@ -78,13 +86,12 @@ class TestDefineXmlFormatConstruction:
 # PHI sanitisation (not applicable — Define-XML has no PHI)
 # ---------------------------------------------------------------------------
 
-class TestDefineXmlFormatNoPhiRequired:
+class TestDefineXmlFormatNoPhiRequired(unittest.IsolatedAsyncioTestCase):
     def test_no_phi_keywords_needed(self) -> None:
         """Define-XML contains no PHI; confirm class instantiates cleanly."""
         fmt = DefineXmlFormat()
         assert fmt.name == "define_xml"
 
-    @pytest.mark.asyncio
     async def test_record_shape(self) -> None:
         payload = _make_define_xml(
             [{"oid": "IT.SUBJ", "name": "SUBJ", "data_type": "text", "length": 20, "label": "Subject ID"}]
@@ -98,7 +105,6 @@ class TestDefineXmlFormatNoPhiRequired:
         assert "length" in record
         assert "label" in record
 
-    @pytest.mark.asyncio
     async def test_fields_decoded_correctly(self) -> None:
         payload = _make_define_xml(
             [{"oid": "IT.AGE", "name": "AGE", "data_type": "integer", "length": 3, "label": "Age in years"}]
@@ -110,7 +116,6 @@ class TestDefineXmlFormatNoPhiRequired:
         assert records[0]["length"] == 3
         assert records[0]["label"] == "Age in years"
 
-    @pytest.mark.asyncio
     async def test_multiple_items(self) -> None:
         items = [
             {"oid": "IT.SUBJ", "name": "SUBJ", "data_type": "text", "length": 20, "label": "Subject"},
@@ -130,8 +135,7 @@ class TestDefineXmlFormatNoPhiRequired:
 # Round-trip
 # ---------------------------------------------------------------------------
 
-class TestDefineXmlFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestDefineXmlFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_single_item(self) -> None:
         records = [
             {
@@ -152,7 +156,6 @@ class TestDefineXmlFormatRoundTrip:
         assert decoded[0]["length"] == 20
         assert decoded[0]["label"] == "Subject ID"
 
-    @pytest.mark.asyncio
     async def test_round_trip_multiple_items(self) -> None:
         records = [
             {"oid": "IT.SUBJ", "name": "SUBJ", "data_type": "text", "length": 20, "label": "Subject"},
@@ -171,15 +174,14 @@ class TestDefineXmlFormatRoundTrip:
 # Error paths
 # ---------------------------------------------------------------------------
 
-class TestDefineXmlFormatErrors:
-    @pytest.mark.asyncio
+class TestDefineXmlFormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_invalid_xml_raises(self) -> None:
         fmt = DefineXmlFormat()
 
         async def _iter():
             yield b"not xml <<<<"
 
-        with pytest.raises(Exception):
+        with self.assertRaises(Exception):
             async for _ in await fmt.read(_iter()):
                 pass
 
@@ -188,23 +190,15 @@ class TestDefineXmlFormatErrors:
 # Missing dependency
 # ---------------------------------------------------------------------------
 
-class TestDefineXmlFormatMissingDep:
-    def test_missing_defusedxml_raises(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        import sys
-        monkeypatch.setitem(sys.modules, "defusedxml", None)  # type: ignore[arg-type]
-        monkeypatch.setitem(sys.modules, "defusedxml.ElementTree", None)  # type: ignore[arg-type]
-        fmt = DefineXmlFormat()
-        with pytest.raises(ImportError, match="pirn\\[health\\]"):
-            fmt._load_defusedxml()
+class TestDefineXmlFormatMissingDep(unittest.TestCase):
+    def test_missing_defusedxml_raises(self) -> None:
+        with unittest.mock.patch.dict(sys.modules, {"defusedxml": None, "defusedxml.ElementTree": None}):
+            fmt = DefineXmlFormat()
+            with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
+                fmt._load_defusedxml()
 
-    def test_missing_lxml_raises(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        import sys
-        monkeypatch.setitem(sys.modules, "lxml", None)  # type: ignore[arg-type]
-        monkeypatch.setitem(sys.modules, "lxml.etree", None)  # type: ignore[arg-type]
-        fmt = DefineXmlFormat()
-        with pytest.raises(ImportError, match="pirn\\[health\\]"):
-            fmt._load_lxml()
+    def test_missing_lxml_raises(self) -> None:
+        with unittest.mock.patch.dict(sys.modules, {"lxml": None, "lxml.etree": None}):
+            fmt = DefineXmlFormat()
+            with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
+                fmt._load_lxml()

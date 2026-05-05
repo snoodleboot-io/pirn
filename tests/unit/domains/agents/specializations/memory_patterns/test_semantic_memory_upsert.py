@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Mapping
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -28,9 +28,7 @@ class RecordingMemoryStore(MemoryStore):
     async def retrieve(self, key: str) -> Mapping[str, Any] | None:
         return self.data.get(key)
 
-    async def search(
-        self, query: str, *, top_k: int = 10
-    ) -> AsyncIterator[Mapping[str, Any]]:
+    async def search(self, query: str, *, top_k: int = 10) -> AsyncIterator[Mapping[str, Any]]:
         async def _aiter() -> AsyncIterator[Mapping[str, Any]]:
             if False:
                 yield {}
@@ -44,11 +42,10 @@ class RecordingMemoryStore(MemoryStore):
         return None
 
 
-@pytest.mark.asyncio
-class TestSemanticMemoryUpsertConstruction:
+class TestSemanticMemoryUpsertConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
         store = RecordingMemoryStore()
-        with pytest.raises(TypeError, match="llm must be an LLMProvider"):
+        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
             with Tapestry():
                 SemanticMemoryUpsert(
                     response=AgentResponse(content="x"),
@@ -59,7 +56,7 @@ class TestSemanticMemoryUpsertConstruction:
 
     async def test_rejects_non_memory_store(self) -> None:
         llm = StubLLMProvider(["fact1"])
-        with pytest.raises(TypeError, match="store must be a MemoryStore"):
+        with self.assertRaisesRegex(TypeError, "store must be a MemoryStore"):
             with Tapestry():
                 SemanticMemoryUpsert(
                     response=AgentResponse(content="x"),
@@ -69,8 +66,7 @@ class TestSemanticMemoryUpsertConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestSemanticMemoryUpsertHappyPath:
+class TestSemanticMemoryUpsertHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_extracts_and_stores_facts(self) -> None:
         store = RecordingMemoryStore()
         llm = StubLLMProvider(["- Paris is the capital of France\n- The Eiffel Tower is in Paris"])

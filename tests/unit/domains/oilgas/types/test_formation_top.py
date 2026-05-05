@@ -1,11 +1,12 @@
 """Unit tests for :class:`FormationTop`."""
 
 from __future__ import annotations
+import unittest
 
 from pirn.domains.oilgas.types.formation_top import FormationTop
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_default_values(self) -> None:
         top = FormationTop()
         assert top.well_id == ""
@@ -19,7 +20,7 @@ class TestConstruction:
         assert top.depth_md == 2500.0
 
 
-class TestAuditDict:
+class TestAuditDict(unittest.TestCase):
     def test_audit_dict_round_trip(self) -> None:
         top = FormationTop(well_id="W", formation_name="N", depth_md=100.5)
         assert top._pirn_audit_dict() == {
@@ -29,7 +30,7 @@ class TestAuditDict:
         }
 
 
-class TestFrozen:
+class TestFrozen(unittest.TestCase):
     def test_frozen_disallows_mutation(self) -> None:
         top = FormationTop(well_id="W")
         try:

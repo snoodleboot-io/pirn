@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.message_broker import MessageBroker
 from pirn.domains.connectors.streaming.rabbitmq_broker import RabbitMQBroker
@@ -103,21 +103,22 @@ class StubConnection:
 # ───────────────────────────────────────────────────────── conformance
 
 
-def test_implements_message_broker() -> None:
-    broker = RabbitMQBroker(RabbitMQConfig(), connection=StubConnection())
-    assert isinstance(broker, MessageBroker)
 
-
-def test_rejects_non_config() -> None:
-    with pytest.raises(TypeError, match="must be RabbitMQConfig"):
-        RabbitMQBroker("nope", connection=StubConnection())  # type: ignore[arg-type]
-
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_message_broker(self) -> None:
+        broker = RabbitMQBroker(RabbitMQConfig(), connection=StubConnection())
+        assert isinstance(broker, MessageBroker)
+    
+    
+    def test_rejects_non_config(self) -> None:
+        with self.assertRaisesRegex(TypeError, "must be RabbitMQConfig"):
+            RabbitMQBroker("nope", connection=StubConnection())  # type: ignore[arg-type]
+    
+    
 # ─────────────────────────────────────────────────────────────── publish
 
 
-@pytest.mark.asyncio
-class TestPublish:
+class TestPublish(unittest.IsolatedAsyncioTestCase):
     async def test_publish_bytes_to_default_exchange(self) -> None:
         channel = StubChannel()
         broker = RabbitMQBroker(
@@ -148,20 +149,19 @@ class TestPublish:
 
     async def test_rejects_non_bytes_value(self) -> None:
         broker = RabbitMQBroker(RabbitMQConfig(), connection=StubConnection())
-        with pytest.raises(TypeError, match="value must be bytes"):
+        with self.assertRaisesRegex(TypeError, "value must be bytes"):
             await broker.publish("t", "string")  # type: ignore[arg-type]
 
     async def test_rejects_non_bytes_key(self) -> None:
         broker = RabbitMQBroker(RabbitMQConfig(), connection=StubConnection())
-        with pytest.raises(TypeError, match="key must be bytes"):
+        with self.assertRaisesRegex(TypeError, "key must be bytes"):
             await broker.publish("t", b"v", key="not-bytes")  # type: ignore[arg-type]
 
 
 # ─────────────────────────────────────────────────────────────── consume
 
 
-@pytest.mark.asyncio
-class TestConsume:
+class TestConsume(unittest.IsolatedAsyncioTestCase):
     async def test_yields_messages_from_queue(self) -> None:
         messages = [StubMessage(b"a"), StubMessage(b"b")]
         channel = StubChannel(queue_messages={"events": messages})
@@ -178,8 +178,7 @@ class TestConsume:
 # ───────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_is_idempotent(self) -> None:
         channel = StubChannel()
         connection = StubConnection(channel=channel)
@@ -193,14 +192,14 @@ class TestLifecycle:
     async def test_publish_after_close_raises(self) -> None:
         broker = RabbitMQBroker(RabbitMQConfig(), connection=StubConnection())
         await broker.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await broker.publish("t", b"v")
 
 
 # ─────────────────────────────────────────────────────── credential safety
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_repr_redacts_password(self) -> None:
         cfg = RabbitMQConfig(user="alice", password="rmq-pw")
         text = repr(cfg)

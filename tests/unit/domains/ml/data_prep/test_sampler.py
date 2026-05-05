@@ -1,8 +1,8 @@
 """Tests for :class:`Sampler`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -22,7 +22,7 @@ async def emit_dataset() -> MLDataset:
     )
 
 
-class TestSamplerHappyPath:
+class TestSamplerHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_caps_to_n(self) -> None:
         with Tapestry() as t:
             dataset = emit_dataset(_config=KnotConfig(id="dataset"))
@@ -50,11 +50,11 @@ class TestSamplerHappyPath:
         assert out.row_count == 250
 
 
-class TestSamplerConstruction:
+class TestSamplerConstruction(unittest.TestCase):
     def test_rejects_both_n_and_fraction(self) -> None:
         with Tapestry():
             dataset = emit_dataset(_config=KnotConfig(id="dataset"))
-            with pytest.raises(ValueError, match="exactly one of"):
+            with self.assertRaisesRegex(ValueError, "exactly one of"):
                 Sampler(
                     dataset=dataset,
                     n=10,
@@ -65,7 +65,7 @@ class TestSamplerConstruction:
     def test_rejects_neither_n_nor_fraction(self) -> None:
         with Tapestry():
             dataset = emit_dataset(_config=KnotConfig(id="dataset"))
-            with pytest.raises(ValueError, match="exactly one of"):
+            with self.assertRaisesRegex(ValueError, "exactly one of"):
                 Sampler(
                     dataset=dataset,
                     _config=KnotConfig(id="bad"),

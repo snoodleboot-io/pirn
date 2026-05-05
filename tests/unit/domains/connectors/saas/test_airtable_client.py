@@ -6,8 +6,8 @@ Uses an injected stub httpx client. No network needed.
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.capabilities.table_source import TableSource
@@ -30,12 +30,7 @@ class FakeHTTPXClient:
     def set_response(self, method: str, response: dict) -> None:
         self._responses[method.upper()] = response
 
-    async def request(
-        self,
-        method: str,
-        url: str,
-        **kwargs: Any,
-    ) -> dict:
+    async def request(self, method: str, url: str, **kwargs: Any,) -> dict:
         self.calls.append({"method": method, "url": url, **kwargs})
         return self._responses.get(method.upper(), self.default_response)
 
@@ -56,55 +51,55 @@ def _make_config(**kwargs: Any) -> AirtableConfig:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-def test_implements_api_client() -> None:
-    client = AirtableClient(client=FakeHTTPXClient())
-    assert isinstance(client, ApiClient)
 
-
-def test_implements_table_source() -> None:
-    client = AirtableClient(client=FakeHTTPXClient())
-    assert isinstance(client, TableSource)
-
-
-def test_construction_requires_config_or_client() -> None:
-    with pytest.raises(TypeError, match="config= or client="):
-        AirtableClient()
-
-
-def test_sensitive_fields_declared() -> None:
-    cfg = _make_config()
-    assert "api_key" in cfg.sensitive_fields
-
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_api_client(self) -> None:
+        client = AirtableClient(client=FakeHTTPXClient())
+        assert isinstance(client, ApiClient)
+    
+    
+    def test_implements_table_source(self) -> None:
+        client = AirtableClient(client=FakeHTTPXClient())
+        assert isinstance(client, TableSource)
+    
+    
+    def test_construction_requires_config_or_client(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or client="):
+            AirtableClient()
+    
+    
+    def test_sensitive_fields_declared(self) -> None:
+        cfg = _make_config()
+        assert "api_key" in cfg.sensitive_fields
+    
+    
 # ────────────────────────────────────────────────────────────── validation
 
 
-@pytest.mark.asyncio
-class TestValidation:
+class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def test_missing_api_key_raises_on_list(self) -> None:
         cfg = AirtableConfig(api_key="", base_id="appXX", table_name="Tasks")
         client = AirtableClient(config=cfg, client=FakeHTTPXClient())
-        with pytest.raises(ValueError, match="api_key"):
+        with self.assertRaisesRegex(ValueError, "api_key"):
             await client.list_records()
 
     async def test_missing_base_id_raises_on_list(self) -> None:
         cfg = AirtableConfig(api_key="pat", base_id="", table_name="Tasks")
         client = AirtableClient(config=cfg, client=FakeHTTPXClient())
-        with pytest.raises(ValueError, match="base_id"):
+        with self.assertRaisesRegex(ValueError, "base_id"):
             await client.list_records()
 
     async def test_missing_table_name_raises_on_list(self) -> None:
         cfg = AirtableConfig(api_key="pat", base_id="appXX", table_name="")
         client = AirtableClient(config=cfg, client=FakeHTTPXClient())
-        with pytest.raises(ValueError, match="table_name"):
+        with self.assertRaisesRegex(ValueError, "table_name"):
             await client.list_records()
 
 
 # ────────────────────────────────────────────────────────────── list_records
 
 
-@pytest.mark.asyncio
-class TestListRecords:
+class TestListRecords(unittest.IsolatedAsyncioTestCase):
     async def test_list_records_returns_records(self) -> None:
         fake = FakeHTTPXClient()
         fake.set_response(
@@ -153,8 +148,7 @@ class TestListRecords:
 # ────────────────────────────────────────────────────────────── create_record
 
 
-@pytest.mark.asyncio
-class TestCreateRecord:
+class TestCreateRecord(unittest.IsolatedAsyncioTestCase):
     async def test_create_record_posts_fields(self) -> None:
         fake = FakeHTTPXClient()
         fake.set_response("POST", {"id": "recNEW", "fields": {"Name": "New Task"}})
@@ -169,8 +163,7 @@ class TestCreateRecord:
 # ────────────────────────────────────────────────────────────── update_record
 
 
-@pytest.mark.asyncio
-class TestUpdateRecord:
+class TestUpdateRecord(unittest.IsolatedAsyncioTestCase):
     async def test_update_record_patches_fields(self) -> None:
         fake = FakeHTTPXClient()
         fake.set_response("PATCH", {"id": "recABC", "fields": {"Status": "Done"}})
@@ -186,8 +179,7 @@ class TestUpdateRecord:
 # ────────────────────────────────────────────────────────────── delete_record
 
 
-@pytest.mark.asyncio
-class TestDeleteRecord:
+class TestDeleteRecord(unittest.IsolatedAsyncioTestCase):
     async def test_delete_record_sends_delete(self) -> None:
         fake = FakeHTTPXClient()
         fake.set_response("DELETE", {"id": "recABC", "deleted": True})
@@ -202,8 +194,7 @@ class TestDeleteRecord:
 # ────────────────────────────────────────────────────────────── fetch_page
 
 
-@pytest.mark.asyncio
-class TestFetchPage:
+class TestFetchPage(unittest.IsolatedAsyncioTestCase):
     async def test_fetch_page_delegates_to_list_records(self) -> None:
         fake = FakeHTTPXClient()
         fake.set_response(
@@ -231,8 +222,7 @@ class TestFetchPage:
 # ────────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_calls_aclose(self) -> None:
         fake = FakeHTTPXClient()
         client = AirtableClient(client=fake)
@@ -247,14 +237,14 @@ class TestLifecycle:
     async def test_request_after_close_raises(self) -> None:
         client = AirtableClient(client=FakeHTTPXClient())
         await client.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await client.request("GET", "/v0/appXX/Table")
 
 
 # ────────────────────────────────────────────────────────── credential safety
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_repr_redacts_api_key(self) -> None:
         cfg = _make_config(api_key="patSECRETKEY12345")
         text = repr(cfg)
@@ -268,8 +258,7 @@ class TestCredentialSafety:
         assert "patSECRETKEY12345" not in str(d)
 
 
-@pytest.mark.asyncio
-class TestSecurity:
+class TestSecurity(unittest.IsolatedAsyncioTestCase):
     async def test_close_clears_credentials(self) -> None:
         client = AirtableClient(config=_make_config(), client=FakeHTTPXClient())
         assert client._config is not None
@@ -279,5 +268,5 @@ class TestSecurity:
     async def test_use_after_close_raises(self) -> None:
         client = AirtableClient(config=_make_config(), client=FakeHTTPXClient())
         await client.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await client.list_records()

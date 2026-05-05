@@ -1,8 +1,8 @@
 """Unit tests for :class:`PHIRedactor`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -11,9 +11,9 @@ from pirn.domains.health.types.clinical_record import ClinicalRecord
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_record(self) -> None:
-        with pytest.raises(TypeError, match="ClinicalRecord"):
+        with self.assertRaisesRegex(TypeError, "ClinicalRecord"):
             PHIRedactor(
                 record="x",  # type: ignore[arg-type]
                 salt="s",
@@ -21,7 +21,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_string_salt(self) -> None:
-        with pytest.raises(TypeError, match="salt"):
+        with self.assertRaisesRegex(TypeError, "salt"):
             PHIRedactor(
                 record=ClinicalRecord(),
                 salt=42,  # type: ignore[arg-type]
@@ -29,7 +29,7 @@ class TestConstruction:
             )
 
     def test_rejects_empty_salt(self) -> None:
-        with pytest.raises(ValueError, match="non-empty"):
+        with self.assertRaisesRegex(ValueError, "non-empty"):
             PHIRedactor(
                 record=ClinicalRecord(),
                 salt="",
@@ -37,8 +37,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_redacted_record(self) -> None:
         with Tapestry() as t:
             PHIRedactor(

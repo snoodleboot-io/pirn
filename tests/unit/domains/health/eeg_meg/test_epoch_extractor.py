@@ -1,8 +1,8 @@
 """Unit tests for :class:`EpochExtractor`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -11,9 +11,9 @@ from pirn.domains.health.types.signal_frame import SignalFrame
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_signal(self) -> None:
-        with pytest.raises(TypeError, match="SignalFrame"):
+        with self.assertRaisesRegex(TypeError, "SignalFrame"):
             EpochExtractor(
                 signal="x",  # type: ignore[arg-type]
                 event_times_sec=[1.0],
@@ -23,7 +23,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_sequence(self) -> None:
-        with pytest.raises(TypeError, match="event_times_sec"):
+        with self.assertRaisesRegex(TypeError, "event_times_sec"):
             EpochExtractor(
                 signal=SignalFrame(),
                 event_times_sec=42,  # type: ignore[arg-type]
@@ -33,7 +33,7 @@ class TestConstruction:
             )
 
     def test_rejects_tmin_ge_tmax(self) -> None:
-        with pytest.raises(ValueError, match="<"):
+        with self.assertRaisesRegex(ValueError, "<"):
             EpochExtractor(
                 signal=SignalFrame(),
                 event_times_sec=[1.0],
@@ -43,8 +43,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_epochs(self) -> None:
         with Tapestry() as t:
             EpochExtractor(

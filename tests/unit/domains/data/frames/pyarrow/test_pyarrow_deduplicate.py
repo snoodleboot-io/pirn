@@ -1,9 +1,9 @@
 """Tests for :class:`PyarrowDeduplicate`."""
 
 from __future__ import annotations
+import unittest
 
 import pyarrow as pa
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -27,8 +27,7 @@ async def emit_dupes() -> PyarrowDataBatch:
     )
 
 
-@pytest.mark.asyncio
-class TestPyarrowDeduplicate:
+class TestPyarrowDeduplicate(unittest.IsolatedAsyncioTestCase):
     async def test_keeps_first_occurrence(self) -> None:
         with Tapestry() as t:
             batch = emit_dupes(_config=KnotConfig(id="src"))
@@ -87,7 +86,7 @@ class TestPyarrowDeduplicate:
         assert out.row_count == 0
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_string_keys(self) -> None:
         @knot
         async def empty() -> PyarrowDataBatch:
@@ -95,7 +94,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="sequence"):
+            with self.assertRaisesRegex(TypeError, "sequence"):
                 PyarrowDeduplicate(
                     batch=batch,
                     keys="id",  # type: ignore[arg-type]
@@ -109,7 +108,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(ValueError, match="non-empty"):
+            with self.assertRaisesRegex(ValueError, "non-empty"):
                 PyarrowDeduplicate(
                     batch=batch, keys=(),
                     _config=KnotConfig(id="d"),

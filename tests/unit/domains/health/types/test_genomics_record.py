@@ -1,11 +1,12 @@
 """Unit tests for :class:`GenomicsRecord`."""
 
 from __future__ import annotations
+import unittest
 
 from pirn.domains.health.types.genomics_record import GenomicsRecord
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_default(self) -> None:
         record = GenomicsRecord()
         assert record.sample_id == ""
@@ -26,7 +27,7 @@ class TestConstruction:
         assert record.quality_score == 42.5
 
 
-class TestAuditDict:
+class TestAuditDict(unittest.TestCase):
     def test_audit_dict_primitives(self) -> None:
         record = GenomicsRecord(
             sample_id="S1",
@@ -43,7 +44,7 @@ class TestAuditDict:
             assert isinstance(value, (str, int, float, list, type(None)))
 
 
-class TestFrozen:
+class TestFrozen(unittest.TestCase):
     def test_frozen_disallows_mutation(self) -> None:
         record = GenomicsRecord()
         try:

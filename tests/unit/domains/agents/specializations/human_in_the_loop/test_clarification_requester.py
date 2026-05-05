@@ -1,8 +1,8 @@
 """Tests for :class:`ClarificationRequester`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -13,10 +13,9 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 
-@pytest.mark.asyncio
-class TestClarificationRequesterConstruction:
+class TestClarificationRequesterConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
-        with pytest.raises(TypeError, match="llm must be an LLMProvider"):
+        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
             with Tapestry():
                 ClarificationRequester(
                     message="hello",
@@ -25,8 +24,7 @@ class TestClarificationRequesterConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestClarificationRequesterProcess:
+class TestClarificationRequesterProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_original_message_when_clear(self) -> None:
         llm = StubLLMProvider(["CLEAR"])
         with Tapestry() as t:
@@ -53,7 +51,7 @@ class TestClarificationRequesterProcess:
 
     async def test_rejects_non_string_message(self) -> None:
         llm = StubLLMProvider(["CLEAR"])
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             with Tapestry():
                 ClarificationRequester(
                     message=42,  # type: ignore[arg-type]

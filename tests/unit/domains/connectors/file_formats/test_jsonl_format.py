@@ -1,8 +1,8 @@
 """Unit tests for :class:`JsonlFormat`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.file_formats.jsonl_format import JsonlFormat
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
@@ -10,21 +10,21 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 )
 
 
-class TestJsonlFormatConstruction:
+class TestJsonlFormatConstruction(unittest.TestCase):
     def test_default_construction(self) -> None:
         fmt = JsonlFormat()
         assert fmt.encoding == "utf-8"
 
     def test_encoding_must_be_str(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             JsonlFormat(encoding=1)  # type: ignore[arg-type]
 
     def test_encoding_must_be_nonempty(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             JsonlFormat(encoding="")
 
 
-class TestJsonlFormatProperties:
+class TestJsonlFormatProperties(unittest.TestCase):
     def test_name(self) -> None:
         assert JsonlFormat().name == "jsonl"
 
@@ -32,8 +32,7 @@ class TestJsonlFormatProperties:
         assert JsonlFormat().streaming is True
 
 
-class TestJsonlFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestJsonlFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         fmt = JsonlFormat()
         records = [
@@ -43,18 +42,15 @@ class TestJsonlFormatRoundTrip:
         ]
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_empty(self) -> None:
         fmt = JsonlFormat()
         await FormatRoundTrip.assert_round_trip(fmt, [])
 
-    @pytest.mark.asyncio
     async def test_round_trip_single_row(self) -> None:
         fmt = JsonlFormat()
         records = [{"id": 1, "value": 1.0, "name": "only", "active": True, "note": None}]
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_no_trailing_newline(self) -> None:
         fmt = JsonlFormat()
         records = [

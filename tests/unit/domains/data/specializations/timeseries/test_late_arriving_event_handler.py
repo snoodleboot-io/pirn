@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -33,9 +33,9 @@ def _make(**kwargs):
     return knot
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_bucket(self) -> None:
-        with pytest.raises(ValueError, match="bucket_seconds"):
+        with self.assertRaisesRegex(ValueError, "bucket_seconds"):
             _make(
                 timestamp_column="ts",
                 value_column="v",
@@ -44,7 +44,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_positive_lateness(self) -> None:
-        with pytest.raises(ValueError, match="allowed_lateness_seconds"):
+        with self.assertRaisesRegex(ValueError, "allowed_lateness_seconds"):
             _make(
                 timestamp_column="ts",
                 value_column="v",
@@ -53,7 +53,7 @@ class TestConstruction:
             )
 
     def test_rejects_invalid_column(self) -> None:
-        with pytest.raises(ValueError, match="plain identifier"):
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
             _make(
                 timestamp_column="bad col",
                 value_column="v",
@@ -62,8 +62,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestBehaviour:
+class TestBehaviour(unittest.IsolatedAsyncioTestCase):
     async def test_on_time_events_no_corrections(self) -> None:
         rows = [
             {"ts": _ts(0), "v": 1},

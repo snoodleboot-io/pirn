@@ -1,8 +1,8 @@
 """Unit tests for :class:`ArbitraryResamplerPipeline`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,11 +12,11 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.signal.conftest import emit_signal_frame
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_input_rate(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="input_rate_hz"):
+            with self.assertRaisesRegex(ValueError, "input_rate_hz"):
                 ArbitraryResamplerPipeline(
                     signal=sig,
                     input_rate_hz=0.0,
@@ -27,7 +27,7 @@ class TestConstruction:
     def test_rejects_non_positive_output_rate(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="output_rate_hz"):
+            with self.assertRaisesRegex(ValueError, "output_rate_hz"):
                 ArbitraryResamplerPipeline(
                     signal=sig,
                     input_rate_hz=8000.0,
@@ -48,8 +48,7 @@ class TestConstruction:
         assert ar.output_rate_hz == 16000.0
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_resampled_signal_frame(self) -> None:
         with Tapestry() as t:
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))

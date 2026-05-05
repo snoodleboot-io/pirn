@@ -8,8 +8,8 @@ needed.
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.capabilities.table_source import TableSource
@@ -25,14 +25,7 @@ class FakeRequester:
         self.calls: list[tuple[str, str, Any, Any, Any]] = []
         self.response: Any = ({"X-Stub": "1"}, {"ok": True})
 
-    def requestJsonAndCheck(
-        self,
-        method: str,
-        url: str,
-        parameters: Any,
-        headers: Any,
-        input: Any,
-    ) -> Any:
+    def requestJsonAndCheck(self, method: str, url: str, parameters: Any, headers: Any, input: Any,) -> Any:
         self.calls.append((method, url, parameters, headers, input))
         return self.response
 
@@ -51,25 +44,26 @@ class FakeGithubClient:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-def test_implements_api_client() -> None:
-    client = GitHubClient(client=FakeGithubClient())
-    assert isinstance(client, ApiClient)
 
-
-def test_construction_requires_config_or_client() -> None:
-    with pytest.raises(TypeError, match="config= or client="):
-        GitHubClient()
-
-
-def test_sensitive_fields_listed() -> None:
-    assert GitHubConfig.sensitive_fields == ("token", "private_key")
-
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_api_client(self) -> None:
+        client = GitHubClient(client=FakeGithubClient())
+        assert isinstance(client, ApiClient)
+    
+    
+    def test_construction_requires_config_or_client(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or client="):
+            GitHubClient()
+    
+    
+    def test_sensitive_fields_listed(self) -> None:
+        assert GitHubConfig.sensitive_fields == ("token", "private_key")
+    
+    
 # ────────────────────────────────────────────────────────────── dispatch
 
 
-@pytest.mark.asyncio
-class TestRequest:
+class TestRequest(unittest.IsolatedAsyncioTestCase):
     async def test_request_forwards_to_requester(self) -> None:
         fake = FakeGithubClient()
         client = GitHubClient(client=fake)
@@ -108,8 +102,7 @@ class TestRequest:
 # ─────────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_closes_underlying_client(self) -> None:
         fake = FakeGithubClient()
         client = GitHubClient(client=fake)
@@ -124,14 +117,14 @@ class TestLifecycle:
     async def test_request_after_close_raises(self) -> None:
         client = GitHubClient(client=FakeGithubClient())
         await client.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await client.request("GET", "/user")
 
 
 # ────────────────────────────────────────────────────────── credential safety
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_repr_redacts_token(self) -> None:
         cfg = GitHubConfig(token="ghp_secret-leaks")
         text = repr(cfg)
@@ -150,28 +143,27 @@ class TestCredentialSafety:
 # ────────────────────────────────────────────────────────── capability surface
 
 
-def test_implements_table_source() -> None:
-    client = GitHubClient(client=FakeGithubClient())
-    assert isinstance(client, TableSource)
-
-
-def test_construction_rejects_empty_resource() -> None:
-    with pytest.raises(ValueError, match="resource must be a non-empty"):
-        GitHubClient(client=FakeGithubClient(), resource="")
-
-
-def test_resource_property_defaults_to_issues() -> None:
-    client = GitHubClient(client=FakeGithubClient())
-    assert client.resource == "issues"
-
-
-def test_resource_property_reflects_constructor() -> None:
-    client = GitHubClient(client=FakeGithubClient(), resource="repos")
-    assert client.resource == "repos"
-
-
-@pytest.mark.asyncio
-class TestVendorTypedReads:
+    def test_implements_table_source(self) -> None:
+        client = GitHubClient(client=FakeGithubClient())
+        assert isinstance(client, TableSource)
+    
+    
+    def test_construction_rejects_empty_resource(self) -> None:
+        with self.assertRaisesRegex(ValueError, "resource must be a non-empty"):
+            GitHubClient(client=FakeGithubClient(), resource="")
+    
+    
+    def test_resource_property_defaults_to_issues(self) -> None:
+        client = GitHubClient(client=FakeGithubClient())
+        assert client.resource == "issues"
+    
+    
+    def test_resource_property_reflects_constructor(self) -> None:
+        client = GitHubClient(client=FakeGithubClient(), resource="repos")
+        assert client.resource == "repos"
+    
+    
+class TestVendorTypedReads(unittest.IsolatedAsyncioTestCase):
     async def test_list_repos_passes_owner_and_pagination(self) -> None:
         fake = FakeGithubClient()
         fake.requester.response = (
@@ -215,7 +207,7 @@ class TestVendorTypedReads:
 
     async def test_list_repos_rejects_empty_owner(self) -> None:
         client = GitHubClient(client=FakeGithubClient())
-        with pytest.raises(ValueError, match="owner must be a non-empty"):
+        with self.assertRaisesRegex(ValueError, "owner must be a non-empty"):
             await client.list_repos("")
 
     async def test_list_issues_targets_repo_path(self) -> None:
@@ -235,14 +227,13 @@ class TestVendorTypedReads:
 
     async def test_list_issues_rejects_empty_args(self) -> None:
         client = GitHubClient(client=FakeGithubClient())
-        with pytest.raises(ValueError, match="owner must be a non-empty"):
+        with self.assertRaisesRegex(ValueError, "owner must be a non-empty"):
             await client.list_issues("", "spoon")
-        with pytest.raises(ValueError, match="repo must be a non-empty"):
+        with self.assertRaisesRegex(ValueError, "repo must be a non-empty"):
             await client.list_issues("octocat", "")
 
 
-@pytest.mark.asyncio
-class TestFetchPage:
+class TestFetchPage(unittest.IsolatedAsyncioTestCase):
     async def test_fetch_page_pages_default_resource(self) -> None:
         fake = FakeGithubClient()
         fake.requester.response = ({}, [{"id": 1}, {"id": 2}])

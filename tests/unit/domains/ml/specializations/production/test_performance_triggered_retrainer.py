@@ -1,8 +1,8 @@
 """Tests for :class:`PerformanceTriggeredRetrainer`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -28,12 +28,12 @@ async def emit_model() -> TrainedModel:
     return TrainedModel(model_id="m1", algorithm="logistic", feature_names=("a",))
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_metric(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
             model = emit_model(_config=KnotConfig(id="model"))
-            with pytest.raises(ValueError, match="metric"):
+            with self.assertRaisesRegex(ValueError, "metric"):
                 PerformanceTriggeredRetrainer(
                     model=model,
                     split=split,
@@ -43,8 +43,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_evaluates_and_returns_triggered_flag(self) -> None:
         with Tapestry() as t:
             split = emit_split(_config=KnotConfig(id="split"))

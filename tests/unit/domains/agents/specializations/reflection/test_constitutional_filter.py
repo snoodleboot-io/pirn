@@ -1,8 +1,8 @@
 """Unit tests for :class:`ConstitutionalFilter`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -26,8 +26,7 @@ async def bad_response() -> AgentResponse:
     return AgentResponse(content="A harmful reply.")
 
 
-@pytest.mark.asyncio
-class TestConstitutionalFilterProcess:
+class TestConstitutionalFilterProcess(unittest.IsolatedAsyncioTestCase):
     async def test_compliant_response_passes_through_unchanged(self) -> None:
         llm = StubLLMProvider(["COMPLIANT"])
         with Tapestry() as t:
@@ -75,10 +74,9 @@ class TestConstitutionalFilterProcess:
         assert not result.succeeded
 
 
-@pytest.mark.asyncio
-class TestConstitutionalFilterConstruction:
+class TestConstitutionalFilterConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
-        with pytest.raises(TypeError, match="LLMProvider"):
+        with self.assertRaisesRegex(TypeError, "LLMProvider"):
             with Tapestry():
                 r = good_response(_config=KnotConfig(id="r"))
                 ConstitutionalFilter(
@@ -90,7 +88,7 @@ class TestConstitutionalFilterConstruction:
 
     async def test_rejects_zero_max_revisions(self) -> None:
         llm = StubLLMProvider(["x"])
-        with pytest.raises(ValueError, match="max_revisions must be a positive int"):
+        with self.assertRaisesRegex(ValueError, "max_revisions must be a positive int"):
             with Tapestry():
                 r = good_response(_config=KnotConfig(id="r"))
                 ConstitutionalFilter(

@@ -1,8 +1,8 @@
 """Unit tests for :class:`BAMSortIndexer`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -11,9 +11,9 @@ from pirn.domains.health.genomics.bam_sort_indexer import BAMSortIndexer
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_invalid_sort_by(self) -> None:
-        with pytest.raises(ValueError, match="sort_by"):
+        with self.assertRaisesRegex(ValueError, "sort_by"):
             BAMSortIndexer(
                 bam_path=Parameter("bp", str, default="in.bam", _config=KnotConfig(id="bp")),
                 sort_by="position",
@@ -22,7 +22,7 @@ class TestConstruction:
             )
 
     def test_rejects_zero_threads(self) -> None:
-        with pytest.raises(ValueError, match="threads"):
+        with self.assertRaisesRegex(ValueError, "threads"):
             BAMSortIndexer(
                 bam_path=Parameter("bp", str, default="in.bam", _config=KnotConfig(id="bp")),
                 sort_by="coordinate",
@@ -31,8 +31,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_coordinate_sort_returns_index_path(self) -> None:
         with Tapestry() as t:
             BAMSortIndexer(

@@ -1,8 +1,8 @@
 """Unit tests for :class:`BulkATACSeqProcessor`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -11,9 +11,9 @@ from pirn.domains.health.genomics.bulk_atac_seq_processor import BulkATACSeqProc
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_genome(self) -> None:
-        with pytest.raises(ValueError, match="genome"):
+        with self.assertRaisesRegex(ValueError, "genome"):
             BulkATACSeqProcessor(
                 bam=Parameter("bam", dict, default={}, _config=KnotConfig(id="bam")),
                 genome="",
@@ -21,8 +21,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_dict(self) -> None:
         bam_data = {"aligned_reads": 1000000, "duplication_rate": 0.1, "bam_path": "in.bam"}
         with Tapestry() as t:

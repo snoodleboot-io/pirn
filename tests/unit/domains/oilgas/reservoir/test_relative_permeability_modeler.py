@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -24,9 +24,9 @@ class _PvtSource(Knot):
         return PVTTable(fluid_id="f")
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_invalid_method(self) -> None:
-        with pytest.raises(ValueError, match="method"):
+        with self.assertRaisesRegex(ValueError, "method"):
             with Tapestry():
                 pvt = _PvtSource(_config=KnotConfig(id="src"))
                 RelativePermeabilityModeler(
@@ -36,8 +36,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_kr_params(self) -> None:
         with Tapestry() as t:
             pvt = _PvtSource(_config=KnotConfig(id="src"))

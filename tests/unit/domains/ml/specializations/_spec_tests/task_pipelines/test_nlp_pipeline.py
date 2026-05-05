@@ -1,8 +1,8 @@
 """Tests for :class:`NLPPipeline`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -19,10 +19,10 @@ from tests.unit.domains.ml._stubs.recording_embedding_provider import (
 )
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_provider(self) -> None:
         with Tapestry():
-            with pytest.raises(TypeError, match="embedding_provider"):
+            with self.assertRaisesRegex(TypeError, "embedding_provider"):
                 NLPPipeline(
                     pool=RecordingDatabasePool(rows=[(1,)]),
                     query="SELECT 1",
@@ -33,8 +33,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_classification_report(self) -> None:
         rows = [("text " + str(i), i % 2) for i in range(40)]
         provider = RecordingEmbeddingProvider()

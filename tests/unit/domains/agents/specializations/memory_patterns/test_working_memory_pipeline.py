@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Mapping
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -29,12 +29,7 @@ class WindowMemoryStore(MemoryStore):
     async def retrieve(self, key: str) -> Mapping[str, Any] | None:
         return self.entries.get(key)
 
-    async def search(
-        self,
-        query: str,
-        *,
-        top_k: int = 10,
-    ) -> AsyncIterator[Mapping[str, Any]]:
+    async def search(self, query: str, *, top_k: int = 10,) -> AsyncIterator[Mapping[str, Any]]:
         async def _aiter() -> AsyncIterator[Mapping[str, Any]]:
             if False:
                 yield {}
@@ -48,11 +43,10 @@ class WindowMemoryStore(MemoryStore):
         return None
 
 
-@pytest.mark.asyncio
-class TestWorkingMemoryPipelineConstruction:
+class TestWorkingMemoryPipelineConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_zero_max_size(self) -> None:
         store = WindowMemoryStore()
-        with pytest.raises(ValueError, match="max_size"):
+        with self.assertRaisesRegex(ValueError, "max_size"):
             with Tapestry():
                 WorkingMemoryPipeline(
                     new_message=AgentMessage(role="user", content="hi"),
@@ -63,8 +57,7 @@ class TestWorkingMemoryPipelineConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestWorkingMemoryPipelineHappyPath:
+class TestWorkingMemoryPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_appends_and_trims_window(self) -> None:
         store = WindowMemoryStore()
         store.entries["working:s1"] = {

@@ -1,6 +1,7 @@
 """Tests for :class:`FrequencyEncoder`."""
 
 from __future__ import annotations
+import unittest
 
 import pytest
 
@@ -26,11 +27,11 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_categorical_column(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="categorical_column"):
+            with self.assertRaisesRegex(ValueError, "categorical_column"):
                 FrequencyEncoder(
                     split=split,
                     categorical_column="",
@@ -40,7 +41,7 @@ class TestConstruction:
     def test_rejects_negative_default_frequency(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="default_frequency"):
+            with self.assertRaisesRegex(ValueError, "default_frequency"):
                 FrequencyEncoder(
                     split=split,
                     categorical_column="city",
@@ -60,7 +61,7 @@ class TestConstruction:
         assert enc.default_frequency == pytest.approx(0.01)
 
 
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_freq_encoded_split(self) -> None:
         with Tapestry() as t:
             split = emit_split(_config=KnotConfig(id="split"))

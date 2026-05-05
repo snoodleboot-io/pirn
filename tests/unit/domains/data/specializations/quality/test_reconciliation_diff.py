@@ -1,8 +1,8 @@
 """Tests for :class:`ReconciliationDiff`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,37 +14,38 @@ from pirn.domains.data.specializations.quality.reconciliation_diff import (
 from pirn.tapestry import Tapestry
 
 
-@pytest.fixture
-async def source_pool() -> SqlitePool:
-    p = SqlitePool(SqliteConfig(database=":memory:"))
-    await p.execute(
-        "CREATE TABLE records (id INTEGER PRIMARY KEY, value TEXT NOT NULL)"
-    )
-    await p.execute_many(
-        "INSERT INTO records (id, value) VALUES (?, ?)",
-        [(1, "alpha"), (2, "beta"), (3, "gamma")],
-    )
-    yield p
-    await p.close()
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
+    async def asyncSetUp(self) -> None:
+        p = SqlitePool(SqliteConfig(database=":memory:"))
+        await p.execute(
+            "CREATE TABLE records (id INTEGER PRIMARY KEY, value TEXT NOT NULL)"
+        )
+        await p.execute_many(
+            "INSERT INTO records (id, value) VALUES (?, ?)",
+            [(1, "alpha"), (2, "beta"), (3, "gamma")],
+        )
+        self.source_pool = p
+        p = SqlitePool(SqliteConfig(database=":memory:"))
+        await p.execute(
+            "CREATE TABLE records (id INTEGER PRIMARY KEY, value TEXT NOT NULL)"
+        )
+        await p.execute_many(
+            "INSERT INTO records (id, value) VALUES (?, ?)",
+            [(1, "alpha"), (2, "CHANGED"), (4, "delta")],
+        )
+        self.target_pool = p
 
-@pytest.fixture
-async def target_pool() -> SqlitePool:
-    p = SqlitePool(SqliteConfig(database=":memory:"))
-    await p.execute(
-        "CREATE TABLE records (id INTEGER PRIMARY KEY, value TEXT NOT NULL)"
-    )
-    await p.execute_many(
-        "INSERT INTO records (id, value) VALUES (?, ?)",
-        [(1, "alpha"), (2, "CHANGED"), (4, "delta")],
-    )
-    yield p
-    await p.close()
-
-
-class TestConstruction:
-    def test_rejects_non_pool_source(self, target_pool: SqlitePool) -> None:
-        with pytest.raises(TypeError, match="DatabaseConnectionPool"):
+    async def asyncTearDown(self) -> None:
+        await self.source_pool.close()
+        
+        
+        await self.target_pool.close()
+        
+        
+    def test_rejects_non_pool_source(self) -> None:
+        target_pool = self.target_pool
+        with self.assertRaisesRegex(TypeError, "DatabaseConnectionPool"):
             ReconciliationDiff(
                 source_pool="bad",  # type: ignore[arg-type]
                 source_query="SELECT 1",
@@ -55,10 +56,10 @@ class TestConstruction:
                 _config=KnotConfig(id="diff"),
             )
 
-    def test_rejects_overlapping_columns(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
-        with pytest.raises(ValueError, match="overlap"):
+    def test_rejects_overlapping_columns(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
+        with self.assertRaisesRegex(ValueError, "overlap"):
             ReconciliationDiff(
                 source_pool=source_pool,
                 source_query="SELECT 1",
@@ -70,11 +71,38 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestReconciliationDiffBehaviour:
-    async def test_classifies_added_removed_changed_matched(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
+class TestReconciliationDiffBehaviour(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self) -> None:
+        p = SqlitePool(SqliteConfig(database=":memory:"))
+        await p.execute(
+            "CREATE TABLE records (id INTEGER PRIMARY KEY, value TEXT NOT NULL)"
+        )
+        await p.execute_many(
+            "INSERT INTO records (id, value) VALUES (?, ?)",
+            [(1, "alpha"), (2, "beta"), (3, "gamma")],
+        )
+        self.source_pool = p
+        p = SqlitePool(SqliteConfig(database=":memory:"))
+        await p.execute(
+            "CREATE TABLE records (id INTEGER PRIMARY KEY, value TEXT NOT NULL)"
+        )
+        await p.execute_many(
+            "INSERT INTO records (id, value) VALUES (?, ?)",
+            [(1, "alpha"), (2, "CHANGED"), (4, "delta")],
+        )
+        self.target_pool = p
+
+    async def asyncTearDown(self) -> None:
+        await self.source_pool.close()
+        
+        
+        await self.target_pool.close()
+        
+        
+    async def test_classifies_added_removed_changed_matched(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
         with Tapestry() as t:
             knot = ReconciliationDiff(
                 source_pool=source_pool,
@@ -94,9 +122,8 @@ class TestReconciliationDiffBehaviour:
         assert out["matched"] == 1
         assert out["total_differences"] == 3
 
-    async def test_identical_tables_have_no_differences(
-        self, source_pool: SqlitePool
-    ) -> None:
+    async def test_identical_tables_have_no_differences(self) -> None:
+        source_pool = self.source_pool
         with Tapestry() as t:
             knot = ReconciliationDiff(
                 source_pool=source_pool,

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import datetime, timezone
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -39,9 +39,9 @@ async def emit_records_with_blanks() -> Sequence[ClinicalTrialRecord]:
     return (_record(), ClinicalTrialRecord())
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_knot_records(self) -> None:
-        with pytest.raises(TypeError, match="records"):
+        with self.assertRaisesRegex(TypeError, "records"):
             SDTMDomainValidator(
                 records="not-a-knot",  # type: ignore[arg-type]
                 domain="AE",
@@ -52,7 +52,7 @@ class TestConstruction:
     def test_rejects_empty_domain(self) -> None:
         with Tapestry():
             r = emit_records(_config=KnotConfig(id="r"))
-            with pytest.raises(ValueError, match="domain"):
+            with self.assertRaisesRegex(ValueError, "domain"):
                 SDTMDomainValidator(
                     records=r,
                     domain="",
@@ -63,7 +63,7 @@ class TestConstruction:
     def test_rejects_empty_required_fields(self) -> None:
         with Tapestry():
             r = emit_records(_config=KnotConfig(id="r"))
-            with pytest.raises(ValueError, match="required_fields"):
+            with self.assertRaisesRegex(ValueError, "required_fields"):
                 SDTMDomainValidator(
                     records=r,
                     domain="AE",
@@ -74,7 +74,7 @@ class TestConstruction:
     def test_rejects_non_sequence_required_fields(self) -> None:
         with Tapestry():
             r = emit_records(_config=KnotConfig(id="r"))
-            with pytest.raises(TypeError, match="required_fields"):
+            with self.assertRaisesRegex(TypeError, "required_fields"):
                 SDTMDomainValidator(
                     records=r,
                     domain="AE",
@@ -83,8 +83,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_true_when_all_fields_populated(self) -> None:
         with Tapestry() as t:
             r = emit_records(_config=KnotConfig(id="r"))

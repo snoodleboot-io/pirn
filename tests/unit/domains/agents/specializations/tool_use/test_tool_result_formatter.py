@@ -1,8 +1,8 @@
 """Tests for :class:`ToolResultFormatter`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -13,8 +13,7 @@ from pirn.domains.agents.types.tool_result import ToolResult
 from pirn.tapestry import Tapestry
 
 
-@pytest.mark.asyncio
-class TestToolResultFormatterHappyPath:
+class TestToolResultFormatterHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_formats_successful_string_result(self) -> None:
         tool_result = ToolResult(call_id="c1", result="42 apples")
         with Tapestry() as t:
@@ -57,7 +56,7 @@ class TestToolResultFormatterHappyPath:
         assert "failed" in formatted.lower()
 
     async def test_rejects_non_tool_result_at_construction(self) -> None:
-        with pytest.raises(TypeError, match="tool_result"):
+        with self.assertRaisesRegex(TypeError, "tool_result"):
             with Tapestry():
                 ToolResultFormatter(
                     tool_result="not-a-result",  # type: ignore[arg-type]

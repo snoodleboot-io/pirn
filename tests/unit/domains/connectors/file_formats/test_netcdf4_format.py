@@ -1,10 +1,13 @@
 """Round-trip and validation tests for :class:`Netcdf4Format`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
-pytest.importorskip("netCDF4")
+try:
+    import netCDF4
+except ImportError as _e:
+    raise unittest.SkipTest("netCDF4 not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -66,7 +69,7 @@ def _make_multi_group_payload() -> bytes:
             os.remove(tmp)
 
 
-class TestNetcdf4FormatConstruction:
+class TestNetcdf4FormatConstruction(unittest.TestCase):
     def test_name(self) -> None:
         assert Netcdf4Format().name == "netcdf4"
 
@@ -77,8 +80,7 @@ class TestNetcdf4FormatConstruction:
         assert isinstance(Netcdf4Format(), BatchFileFormat)
 
 
-class TestNetcdf4FormatRoundTrip:
-    @pytest.mark.asyncio
+class TestNetcdf4FormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_decode_single_group(self) -> None:
         payload = _make_single_group_payload()
         fmt = Netcdf4Format()
@@ -93,7 +95,6 @@ class TestNetcdf4FormatRoundTrip:
         assert "data" in first
         assert isinstance(first["data"], bytes)
 
-    @pytest.mark.asyncio
     async def test_decode_multi_group(self) -> None:
         payload = _make_multi_group_payload()
         fmt = Netcdf4Format()
@@ -106,7 +107,6 @@ class TestNetcdf4FormatRoundTrip:
         sub_paths = [p for p in group_paths if p != "/"]
         assert len(sub_paths) >= 1
 
-    @pytest.mark.asyncio
     async def test_encode_then_decode_round_trip(self) -> None:
         import numpy as np
 
@@ -129,7 +129,6 @@ class TestNetcdf4FormatRoundTrip:
         assert decoded[0]["variable_name"] == "pressure"
         assert decoded[0]["group_path"] == "/"
 
-    @pytest.mark.asyncio
     async def test_encode_multi_group_round_trip(self) -> None:
         import numpy as np
 
@@ -160,22 +159,21 @@ class TestNetcdf4FormatRoundTrip:
         assert "/sensor_a" in paths
 
 
-class TestNetcdf4FormatErrors:
-    @pytest.mark.asyncio
+class TestNetcdf4FormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_decode_invalid_bytes_raises(self) -> None:
         fmt = Netcdf4Format()
 
         async def _bad_iter():
             yield b"not a netcdf4 file"
 
-        with pytest.raises(Exception):
+        with self.assertRaises(Exception):
             record_iter = await fmt.read(_bad_iter())
             async for _ in record_iter:
                 pass
 
 
-class TestNetcdf4FormatMissingDep:
-    def test_import_error_message(self, monkeypatch: pytest.MonkeyPatch) -> None:
+class TestNetcdf4FormatMissingDep(unittest.TestCase):
+    def test_import_error_message(self) -> None:
         import builtins
 
         real_import = builtins.__import__
@@ -185,6 +183,7 @@ class TestNetcdf4FormatMissingDep:
                 raise ImportError("No module named 'netCDF4'")
             return real_import(name, *args, **kwargs)
 
-        monkeypatch.setattr(builtins, "__import__", _block_netcdf4)
-        with pytest.raises(ImportError, match="pirn\\[netcdf\\]"):
-            Netcdf4Format._load_netcdf4()
+        import unittest.mock
+        with unittest.mock.patch("builtins.__import__", side_effect=_block_netcdf4):
+            with self.assertRaisesRegex(ImportError, "pirn\\[netcdf\\]"):
+                Netcdf4Format._load_netcdf4()

@@ -1,8 +1,8 @@
 """Tests for :class:`RAGSynthesizer`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,10 +12,9 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 
-@pytest.mark.asyncio
-class TestRAGSynthesizerConstruction:
+class TestRAGSynthesizerConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
-        with pytest.raises(TypeError, match="llm must be an LLMProvider"):
+        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
             with Tapestry():
                 RAGSynthesizer(
                     query="q",
@@ -25,8 +24,7 @@ class TestRAGSynthesizerConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestRAGSynthesizerHappyPath:
+class TestRAGSynthesizerHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_synthesizes_answer_from_documents(self) -> None:
         docs = [
             {"text": "The capital of France is Paris."},

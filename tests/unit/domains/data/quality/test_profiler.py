@@ -1,8 +1,8 @@
 """Tests for :class:`pirn.domains.data.quality.profiler.Profiler`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -26,8 +26,7 @@ async def emit_users() -> DataBatch:
     return DataBatch(rows=rows, schema=schema)
 
 
-@pytest.mark.asyncio
-class TestProfiler:
+class TestProfiler(unittest.IsolatedAsyncioTestCase):
     async def test_emits_profile_with_row_and_column_counts(self) -> None:
         with Tapestry() as t:
             batch = emit_users(_config=KnotConfig(id="batch"))
@@ -113,14 +112,14 @@ class TestProfiler:
         assert profile.column_count == 0
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_string_columns(self) -> None:
         @knot
         async def empty() -> DataBatch:
             return DataBatch()
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="strings"):
+            with self.assertRaisesRegex(TypeError, "strings"):
                 Profiler(
                     batch=batch, columns=("ok", 7),  # type: ignore[arg-type]
                     _config=KnotConfig(id="p"),

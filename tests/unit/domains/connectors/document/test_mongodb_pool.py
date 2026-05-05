@@ -6,8 +6,8 @@ Uses injected fakes — no real MongoDB or motor needed.
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.document.mongodb_config import MongoDBConfig
@@ -91,26 +91,27 @@ def make_pool(db_name: str = "testdb") -> tuple[MongoDBPool, FakeMotorClient]:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-def test_implements_database_connection_pool() -> None:
-    pool, _ = make_pool()
-    assert isinstance(pool, DatabaseConnectionPool)
 
-
-def test_construction_requires_config_or_client() -> None:
-    with pytest.raises(TypeError, match="config= or client="):
-        MongoDBPool()
-
-
-def test_config_without_database_raises() -> None:
-    with pytest.raises(ValueError, match="database must be non-empty"):
-        MongoDBPool(config=MongoDBConfig(database=""))
-
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_database_connection_pool(self) -> None:
+        pool, _ = make_pool()
+        assert isinstance(pool, DatabaseConnectionPool)
+    
+    
+    def test_construction_requires_config_or_client(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or client="):
+            MongoDBPool()
+    
+    
+    def test_config_without_database_raises(self) -> None:
+        with self.assertRaisesRegex(ValueError, "database must be non-empty"):
+            MongoDBPool(config=MongoDBConfig(database=""))
+    
+    
 # ───────────────────────────────────────────────────────────── operations
 
 
-@pytest.mark.asyncio
-class TestOperations:
+class TestOperations(unittest.IsolatedAsyncioTestCase):
     async def test_execute_inserts_document(self) -> None:
         pool, fake_client = make_pool()
         doc = {"name": "Alice", "age": 30}
@@ -155,8 +156,7 @@ class TestOperations:
 # ───────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_closes_client(self) -> None:
         pool, fake_client = make_pool()
         await pool.close()
@@ -165,14 +165,14 @@ class TestLifecycle:
     async def test_acquire_after_close_raises(self) -> None:
         pool, _ = make_pool()
         await pool.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await pool.acquire()
 
 
 # ───────────────────────────────────────────────────────────── credential safety
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_repr_redacts_password(self) -> None:
         cfg = MongoDBConfig(
             database="mydb",
@@ -202,8 +202,7 @@ class TestCredentialSafety:
         assert "hunter2" not in str(d)
 
 
-@pytest.mark.asyncio
-class TestSecurity:
+class TestSecurity(unittest.IsolatedAsyncioTestCase):
     async def test_close_clears_credentials(self) -> None:
         pool, _ = make_pool()
         assert pool._config is not None
@@ -213,5 +212,5 @@ class TestSecurity:
     async def test_use_after_close_raises(self) -> None:
         pool, _ = make_pool()
         await pool.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await pool.acquire()

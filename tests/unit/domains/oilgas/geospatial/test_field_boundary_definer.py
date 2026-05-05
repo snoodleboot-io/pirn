@@ -1,8 +1,8 @@
 """Unit tests for :class:`FieldBoundaryDefiner`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -10,9 +10,9 @@ from pirn.domains.oilgas.geospatial.field_boundary_definer import FieldBoundaryD
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_field_id(self) -> None:
-        with pytest.raises(ValueError, match="field_id"):
+        with self.assertRaisesRegex(ValueError, "field_id"):
             FieldBoundaryDefiner(
                 field_id="",
                 vertices=((0.0, 0.0), (1.0, 0.0), (0.5, 1.0)),
@@ -21,7 +21,7 @@ class TestConstruction:
             )
 
     def test_rejects_too_few_vertices(self) -> None:
-        with pytest.raises(ValueError, match="3 vertices"):
+        with self.assertRaisesRegex(ValueError, "3 vertices"):
             FieldBoundaryDefiner(
                 field_id="F1",
                 vertices=((0.0, 0.0), (1.0, 0.0)),
@@ -30,7 +30,7 @@ class TestConstruction:
             )
 
     def test_rejects_invalid_vertex(self) -> None:
-        with pytest.raises(ValueError, match="vertex"):
+        with self.assertRaisesRegex(ValueError, "vertex"):
             FieldBoundaryDefiner(
                 field_id="F1",
                 vertices=((0.0, 0.0), (1.0,), (0.5, 1.0)),  # type: ignore[arg-type]
@@ -39,7 +39,7 @@ class TestConstruction:
             )
 
     def test_rejects_empty_crs(self) -> None:
-        with pytest.raises(ValueError, match="crs"):
+        with self.assertRaisesRegex(ValueError, "crs"):
             FieldBoundaryDefiner(
                 field_id="F1",
                 vertices=((0.0, 0.0), (1.0, 0.0), (0.5, 1.0)),
@@ -48,8 +48,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_polygon_dict(self) -> None:
         with Tapestry() as t:
             FieldBoundaryDefiner(

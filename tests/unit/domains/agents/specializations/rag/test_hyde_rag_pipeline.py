@@ -1,8 +1,8 @@
 """Tests for :class:`HyDERAGPipeline`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -17,11 +17,10 @@ from tests.unit.domains.agents.specializations.conftest import (
 )
 
 
-@pytest.mark.asyncio
-class TestHyDERAGPipelineConstruction:
+class TestHyDERAGPipelineConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
         memory = StubMemoryStore([{"id": 1}])
-        with pytest.raises(TypeError, match="llm must be an LLMProvider"):
+        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
             with Tapestry():
                 HyDERAGPipeline(
                     query="q",
@@ -33,7 +32,7 @@ class TestHyDERAGPipelineConstruction:
     async def test_rejects_negative_top_k(self) -> None:
         memory = StubMemoryStore([{"id": 1}])
         llm = StubLLMProvider(["x"])
-        with pytest.raises(ValueError, match="top_k must be a positive int"):
+        with self.assertRaisesRegex(ValueError, "top_k must be a positive int"):
             with Tapestry():
                 HyDERAGPipeline(
                     query="q",
@@ -44,8 +43,7 @@ class TestHyDERAGPipelineConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestHyDERAGPipelineHappyPath:
+class TestHyDERAGPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_two_llm_calls_and_search_uses_hypothesis(self) -> None:
         memory = StubMemoryStore([{"id": 1, "text": "earth orbits the sun"}])
         llm = StubLLMProvider(

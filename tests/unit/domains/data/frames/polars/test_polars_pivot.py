@@ -1,9 +1,9 @@
 """Tests for :class:`PolarsPivot`."""
 
 from __future__ import annotations
+import unittest
 
 import polars as pl
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -26,8 +26,7 @@ async def emit_long() -> PolarsDataBatch:
     )
 
 
-@pytest.mark.asyncio
-class TestPolarsPivot:
+class TestPolarsPivot(unittest.IsolatedAsyncioTestCase):
     async def test_wide_reshape(self) -> None:
         with Tapestry() as t:
             batch = emit_long(_config=KnotConfig(id="long"))
@@ -75,7 +74,7 @@ class TestPolarsPivot:
         assert alice["views"] == 5
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_unknown_aggregate(self) -> None:
         @knot
         async def empty() -> PolarsDataBatch:
@@ -83,7 +82,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(ValueError, match="aggregate_function"):
+            with self.assertRaisesRegex(ValueError, "aggregate_function"):
                 PolarsPivot(
                     batch=batch, on="x", index="y", values="z",
                     aggregate_function="median",
@@ -97,7 +96,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(ValueError, match="non-empty"):
+            with self.assertRaisesRegex(ValueError, "non-empty"):
                 PolarsPivot(
                     batch=batch, on="", index="y", values="z",
                     _config=KnotConfig(id="p"),

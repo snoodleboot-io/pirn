@@ -1,8 +1,8 @@
 """Unit tests for :class:`ChainOfThought`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,8 +14,7 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 
-@pytest.mark.asyncio
-class TestChainOfThoughtProcess:
+class TestChainOfThoughtProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_llm_content_as_agent_response(self) -> None:
         llm = StubLLMProvider(["Step 1: reason. Step 2: conclude. Final: 42."])
         with Tapestry() as t:
@@ -47,10 +46,9 @@ class TestChainOfThoughtProcess:
         assert messages[1]["content"] == "Explain gravity."
 
 
-@pytest.mark.asyncio
-class TestChainOfThoughtConstruction:
+class TestChainOfThoughtConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
-        with pytest.raises(TypeError, match="LLMProvider"):
+        with self.assertRaisesRegex(TypeError, "LLMProvider"):
             with Tapestry():
                 ChainOfThought(
                     prompt="q",
@@ -60,7 +58,7 @@ class TestChainOfThoughtConstruction:
 
     async def test_rejects_non_string_prompt_at_construction(self) -> None:
         llm = StubLLMProvider(["x"])
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             with Tapestry():
                 ChainOfThought(
                     prompt=42,  # type: ignore[arg-type]

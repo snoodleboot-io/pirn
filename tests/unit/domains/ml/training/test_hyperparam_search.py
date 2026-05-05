@@ -1,8 +1,8 @@
 """Tests for :class:`HyperparamSearch`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -21,7 +21,7 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestHyperparamSearchHappyPath:
+class TestHyperparamSearchHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_returns_best_candidate(self) -> None:
         with Tapestry() as t:
             split = emit_split(_config=KnotConfig(id="split"))
@@ -41,11 +41,11 @@ class TestHyperparamSearchHappyPath:
         assert "C" in out.hyperparameters
 
 
-class TestHyperparamSearchConstruction:
+class TestHyperparamSearchConstruction(unittest.TestCase):
     def test_rejects_empty_search_space(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="search_space"):
+            with self.assertRaisesRegex(ValueError, "search_space"):
                 HyperparamSearch(
                     split=split,
                     algorithm="logreg",
@@ -56,7 +56,7 @@ class TestHyperparamSearchConstruction:
     def test_rejects_empty_value_list(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="non-empty"):
+            with self.assertRaisesRegex(ValueError, "non-empty"):
                 HyperparamSearch(
                     split=split,
                     algorithm="logreg",

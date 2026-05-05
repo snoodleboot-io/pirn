@@ -1,8 +1,8 @@
 """Tests for :class:`DataAnalystAgent`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -17,11 +17,10 @@ from tests.unit.domains.agents.specializations.conftest import (
 )
 
 
-@pytest.mark.asyncio
-class TestDataAnalystAgentConstruction:
+class TestDataAnalystAgentConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_pool(self) -> None:
         llm = StubLLMProvider(["SELECT 1", "Looks fine."])
-        with pytest.raises(TypeError, match="pool must be a DatabaseConnectionPool"):
+        with self.assertRaisesRegex(TypeError, "pool must be a DatabaseConnectionPool"):
             with Tapestry():
                 DataAnalystAgent(
                     question="how many users?",
@@ -33,7 +32,7 @@ class TestDataAnalystAgentConstruction:
     async def test_rejects_non_string_schema(self) -> None:
         llm = StubLLMProvider(["SELECT 1", "ok"])
         pool = StubDatabaseConnectionPool()
-        with pytest.raises(TypeError, match="schema_description"):
+        with self.assertRaisesRegex(TypeError, "schema_description"):
             with Tapestry():
                 DataAnalystAgent(
                     question="?",
@@ -44,8 +43,7 @@ class TestDataAnalystAgentConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestDataAnalystAgentHappyPath:
+class TestDataAnalystAgentHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_runs_sql_then_writes_analysis(self) -> None:
         llm = StubLLMProvider(
             [

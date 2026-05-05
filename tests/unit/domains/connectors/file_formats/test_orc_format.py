@@ -1,11 +1,17 @@
 """Round-trip and validation tests for :class:`OrcFormat`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
-pytest.importorskip("pyarrow")
-pytest.importorskip("pyarrow.orc")
+try:
+    import pyarrow
+except ImportError as _e:
+    raise unittest.SkipTest("pyarrow not installed") from _e
+try:
+    import pyarrow.orc
+except ImportError as _e:
+    raise unittest.SkipTest("pyarrow.orc not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -18,7 +24,7 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 )
 
 
-class TestOrcFormatConstruction:
+class TestOrcFormatConstruction(unittest.TestCase):
     def test_default_compression_is_none(self) -> None:
         fmt = OrcFormat()
         assert fmt.compression is None
@@ -28,15 +34,15 @@ class TestOrcFormatConstruction:
         assert fmt.compression == "zstd"
 
     def test_invalid_compression_value(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             OrcFormat(compression="brotli")
 
     def test_invalid_compression_type(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             OrcFormat(compression=123)  # type: ignore[arg-type]
 
 
-class TestOrcFormatBasics:
+class TestOrcFormatBasics(unittest.TestCase):
     def test_name(self) -> None:
         assert OrcFormat().name == "orc"
 
@@ -47,8 +53,7 @@ class TestOrcFormatBasics:
         assert isinstance(OrcFormat(), BatchFileFormat)
 
 
-class TestOrcFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestOrcFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         records = [
             {"id": 1, "name": "alpha", "score": 1.5, "active": True},
@@ -58,7 +63,6 @@ class TestOrcFormatRoundTrip:
         fmt = OrcFormat()
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_with_compression(self) -> None:
         records = [
             {"id": 10, "label": "x"},
@@ -67,13 +71,11 @@ class TestOrcFormatRoundTrip:
         fmt = OrcFormat(compression="zstd")
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_single_row(self) -> None:
         records = [{"id": 42, "name": "solo", "score": 9.0}]
         fmt = OrcFormat()
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_empty(self) -> None:
         # PyArrow tolerates zero pylist rows: ``Table.from_pylist([])``
         # produces an empty table with no columns. The ORC reader then

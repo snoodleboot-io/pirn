@@ -7,8 +7,8 @@ emits a :class:`QualityReport`; callers decide policy via
 """
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -64,8 +64,7 @@ async def emit_users_with_nullable_null() -> DataBatch:
 # ────────────────────────────────────────────────────────── happy path
 
 
-@pytest.mark.asyncio
-class TestSchemaValidatorPasses:
+class TestSchemaValidatorPasses(unittest.IsolatedAsyncioTestCase):
     async def test_passing_report_when_every_row_conforms(self) -> None:
         expected_schema = DataSchema(
             columns={"id": int, "name": str}, primary_keys=("id",)
@@ -106,8 +105,7 @@ class TestSchemaValidatorPasses:
 # ───────────────────────────────────────────────────────── failure paths
 
 
-@pytest.mark.asyncio
-class TestSchemaValidatorFails:
+class TestSchemaValidatorFails(unittest.IsolatedAsyncioTestCase):
     async def test_missing_column_marks_check_failed(self) -> None:
         expected_schema = DataSchema(columns={"id": int, "name": str})
         with Tapestry() as t:
@@ -167,7 +165,7 @@ class TestSchemaValidatorFails:
 # ─────────────────────────────────────────────────────── construction guards
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_data_schema(self) -> None:
         @knot
         async def empty() -> DataBatch:
@@ -175,7 +173,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="DataSchema"):
+            with self.assertRaisesRegex(TypeError, "DataSchema"):
                 SchemaValidator(
                     batch=batch,
                     schema={"id": int},  # type: ignore[arg-type]

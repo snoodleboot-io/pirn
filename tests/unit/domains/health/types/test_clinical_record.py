@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import unittest
 
 from pirn.domains.health.types.clinical_record import ClinicalRecord
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_default_construction(self) -> None:
         record = ClinicalRecord()
         assert record.patient_id == ""
@@ -31,7 +32,7 @@ class TestConstruction:
         assert record.source_system == "epic"
 
 
-class TestAuditDict:
+class TestAuditDict(unittest.TestCase):
     def test_audit_dict_primitives(self) -> None:
         when = datetime(2026, 1, 1, tzinfo=timezone.utc)
         record = ClinicalRecord(
@@ -51,7 +52,7 @@ class TestAuditDict:
             assert isinstance(value, (str, int, float, list, type(None)))
 
 
-class TestFrozen:
+class TestFrozen(unittest.TestCase):
     def test_frozen_disallows_mutation(self) -> None:
         record = ClinicalRecord()
         try:

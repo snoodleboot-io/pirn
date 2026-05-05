@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -22,9 +22,9 @@ class _ParamsSource(Knot):
         return {"qi": 1000.0, "di_per_year": 0.15, "b": 0.5}
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_months(self) -> None:
-        with pytest.raises(ValueError, match="forecast_months"):
+        with self.assertRaisesRegex(ValueError, "forecast_months"):
             with Tapestry():
                 src = _ParamsSource(_config=KnotConfig(id="src"))
                 ProductionForecaster(
@@ -34,8 +34,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_forecast_series(self) -> None:
         with Tapestry() as t:
             src = _ParamsSource(_config=KnotConfig(id="src"))

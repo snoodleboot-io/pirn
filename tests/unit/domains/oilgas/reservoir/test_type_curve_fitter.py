@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -22,14 +22,13 @@ class _RateSource(Knot):
         return ScadaTimeSeries(sensor_id="s")
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_requires_rate_series(self) -> None:
-        with pytest.raises(TypeError, match="rate_series"):
+        with self.assertRaisesRegex(TypeError, "rate_series"):
             TypeCurveFitter(_config=KnotConfig(id="tc"))  # type: ignore[call-arg]
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_eur(self) -> None:
         with Tapestry() as t:
             src = _RateSource(_config=KnotConfig(id="src"))

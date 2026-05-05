@@ -1,8 +1,8 @@
 """Unit tests for :class:`ClinicalDataQualityGate`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,9 +14,9 @@ from pirn.domains.health.types.clinical_record import ClinicalRecord
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_sequence_records(self) -> None:
-        with pytest.raises(TypeError, match="records"):
+        with self.assertRaisesRegex(TypeError, "records"):
             ClinicalDataQualityGate(
                 records=42,  # type: ignore[arg-type]
                 min_completeness=0.5,
@@ -24,7 +24,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_record_in_sequence(self) -> None:
-        with pytest.raises(TypeError, match="ClinicalRecord"):
+        with self.assertRaisesRegex(TypeError, "ClinicalRecord"):
             ClinicalDataQualityGate(
                 records=["not-a-record"],  # type: ignore[list-item]
                 min_completeness=0.5,
@@ -32,7 +32,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_numeric_threshold(self) -> None:
-        with pytest.raises(TypeError, match="numeric"):
+        with self.assertRaisesRegex(TypeError, "numeric"):
             ClinicalDataQualityGate(
                 records=(),
                 min_completeness="x",  # type: ignore[arg-type]
@@ -40,7 +40,7 @@ class TestConstruction:
             )
 
     def test_rejects_out_of_range_threshold(self) -> None:
-        with pytest.raises(ValueError, match=r"\[0, 1\]"):
+        with self.assertRaisesRegex(ValueError, r"\[0, 1\]"):
             ClinicalDataQualityGate(
                 records=(),
                 min_completeness=1.5,
@@ -48,8 +48,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_pass_through_when_completeness_above_threshold(self) -> None:
         records = (ClinicalRecord(observation_codes=("A",)),)
         with Tapestry() as t:

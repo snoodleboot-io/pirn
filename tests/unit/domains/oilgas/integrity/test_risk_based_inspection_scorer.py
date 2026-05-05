@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -23,9 +23,9 @@ class _CorrosionSource(Knot):
         return {"max_rate_mpy": 5.0, "mean_rate_mpy": 1.0, "feature_count": 3.0}
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_numeric_consequence(self) -> None:
-        with pytest.raises(TypeError, match="consequence_score"):
+        with self.assertRaisesRegex(TypeError, "consequence_score"):
             with Tapestry():
                 src = _CorrosionSource(_config=KnotConfig(id="src"))
                 RiskBasedInspectionScorer(
@@ -35,7 +35,7 @@ class TestConstruction:
                 )
 
     def test_rejects_out_of_range(self) -> None:
-        with pytest.raises(ValueError, match=r"\[0, 1\]"):
+        with self.assertRaisesRegex(ValueError, r"\[0, 1\]"):
             with Tapestry():
                 src = _CorrosionSource(_config=KnotConfig(id="src"))
                 RiskBasedInspectionScorer(
@@ -45,8 +45,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_risk_score(self) -> None:
         with Tapestry() as t:
             src = _CorrosionSource(_config=KnotConfig(id="src"))

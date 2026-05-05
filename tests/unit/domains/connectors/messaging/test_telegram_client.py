@@ -6,8 +6,8 @@ Uses an injected stub httpx client. No network needed.
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.messaging.telegram_client import TelegramClient
@@ -36,25 +36,27 @@ class FakeHTTPXClient:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-def test_implements_api_client() -> None:
-    client = TelegramClient(client=FakeHTTPXClient())
-    assert isinstance(client, ApiClient)
 
-
-def test_construction_requires_config_or_client() -> None:
-    with pytest.raises(TypeError, match="config= or client="):
-        TelegramClient()
-
-
-def test_sensitive_fields_declared() -> None:
-    cfg = TelegramConfig(bot_token="123:ABC")
-    assert "bot_token" in cfg.sensitive_fields
-
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_api_client(self) -> None:
+        client = TelegramClient(client=FakeHTTPXClient())
+        assert isinstance(client, ApiClient)
+    
+    
+    def test_construction_requires_config_or_client(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or client="):
+            TelegramClient()
+    
+    
+    def test_sensitive_fields_declared(self) -> None:
+        cfg = TelegramConfig(bot_token="123:ABC")
+        assert "bot_token" in cfg.sensitive_fields
+    
+    
 # ────────────────────────────────────────────────────────────── parse_mode validation
 
 
-class TestParseModeValidation:
+class TestParseModeValidation(unittest.TestCase):
     def test_valid_html_parse_mode(self) -> None:
         cfg = TelegramConfig(bot_token="123:ABC", parse_mode="HTML")
         assert cfg.parse_mode == "HTML"
@@ -68,15 +70,14 @@ class TestParseModeValidation:
         assert cfg.parse_mode == "MarkdownV2"
 
     def test_invalid_parse_mode_raises(self) -> None:
-        with pytest.raises(ValueError, match="parse_mode"):
+        with self.assertRaisesRegex(ValueError, "parse_mode"):
             TelegramConfig(bot_token="123:ABC", parse_mode="invalid")
 
 
 # ────────────────────────────────────────────────────────────── send_message
 
 
-@pytest.mark.asyncio
-class TestSendMessage:
+class TestSendMessage(unittest.IsolatedAsyncioTestCase):
     async def test_send_message_posts_to_correct_url(self) -> None:
         fake = FakeHTTPXClient()
         cfg = TelegramConfig(bot_token="123456:ABCDEF")
@@ -113,8 +114,7 @@ class TestSendMessage:
 # ────────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_calls_aclose(self) -> None:
         fake = FakeHTTPXClient()
         client = TelegramClient(client=fake)
@@ -130,7 +130,7 @@ class TestLifecycle:
 # ────────────────────────────────────────────────────────── credential safety
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_repr_redacts_bot_token(self) -> None:
         cfg = TelegramConfig(bot_token="123456:ABCDEF-SECRET")
         text = repr(cfg)
@@ -144,8 +144,7 @@ class TestCredentialSafety:
         assert "SUPERSECRET" not in str(d)
 
 
-@pytest.mark.asyncio
-class TestSecurity:
+class TestSecurity(unittest.IsolatedAsyncioTestCase):
     async def test_close_clears_credentials(self) -> None:
         client = TelegramClient(
             config=TelegramConfig(bot_token="123456:ABCDEF"),
@@ -161,5 +160,5 @@ class TestSecurity:
             client=FakeHTTPXClient(),
         )
         await client.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await client.send_message("42", "Hello")

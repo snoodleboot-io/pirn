@@ -1,8 +1,8 @@
 """Tests for :class:`SchemaVersionMigrator`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,35 +14,39 @@ from pirn.domains.data.specializations.schema_migration.schema_version_migrator 
 from pirn.tapestry import Tapestry
 
 
-@pytest.fixture
-async def pool() -> SqlitePool:
-    p = SqlitePool(SqliteConfig(database=":memory:"))
-    await p.execute(
-        "CREATE TABLE schema_migrations (version INTEGER, applied_at TEXT)"
-    )
-    yield p
-    await p.close()
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
+    async def asyncSetUp(self) -> None:
+        p = SqlitePool(SqliteConfig(database=":memory:"))
+        await p.execute(
+            "CREATE TABLE schema_migrations (version INTEGER, applied_at TEXT)"
+        )
+        self.pool = p
 
-class TestConstruction:
+    async def asyncTearDown(self) -> None:
+        await self.pool.close()
+        
+        
     def test_rejects_non_pool(self) -> None:
-        with pytest.raises(TypeError, match="DatabaseConnectionPool"):
+        with self.assertRaisesRegex(TypeError, "DatabaseConnectionPool"):
             SchemaVersionMigrator(
                 pool="bad",  # type: ignore[arg-type]
                 migrations=[(1, "CREATE TABLE t (id INTEGER)")],
                 _config=KnotConfig(id="mig"),
             )
 
-    def test_rejects_empty_migrations(self, pool: SqlitePool) -> None:
-        with pytest.raises(ValueError, match="migrations"):
+    def test_rejects_empty_migrations(self) -> None:
+        pool = self.pool
+        with self.assertRaisesRegex(ValueError, "migrations"):
             SchemaVersionMigrator(
                 pool=pool,
                 migrations=[],
                 _config=KnotConfig(id="mig"),
             )
 
-    def test_rejects_unordered_migrations(self, pool: SqlitePool) -> None:
-        with pytest.raises(ValueError, match="ordered"):
+    def test_rejects_unordered_migrations(self) -> None:
+        pool = self.pool
+        with self.assertRaisesRegex(ValueError, "ordered"):
             SchemaVersionMigrator(
                 pool=pool,
                 migrations=[
@@ -52,8 +56,9 @@ class TestConstruction:
                 _config=KnotConfig(id="mig"),
             )
 
-    def test_rejects_duplicate_versions(self, pool: SqlitePool) -> None:
-        with pytest.raises(ValueError, match="unique"):
+    def test_rejects_duplicate_versions(self) -> None:
+        pool = self.pool
+        with self.assertRaisesRegex(ValueError, "unique"):
             SchemaVersionMigrator(
                 pool=pool,
                 migrations=[
@@ -64,11 +69,21 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestBehaviour:
-    async def test_applies_all_migrations_on_fresh_db(
-        self, pool: SqlitePool
-    ) -> None:
+class TestBehaviour(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self) -> None:
+        p = SqlitePool(SqliteConfig(database=":memory:"))
+        await p.execute(
+            "CREATE TABLE schema_migrations (version INTEGER, applied_at TEXT)"
+        )
+        self.pool = p
+
+    async def asyncTearDown(self) -> None:
+        await self.pool.close()
+        
+        
+    async def test_applies_all_migrations_on_fresh_db(self) -> None:
+        pool = self.pool
         with Tapestry() as t:
             SchemaVersionMigrator(
                 pool=pool,
@@ -84,7 +99,8 @@ class TestBehaviour:
         assert output["applied"] == [1, 2]
         assert output["skipped"] == []
 
-    async def test_skips_already_applied(self, pool: SqlitePool) -> None:
+    async def test_skips_already_applied(self) -> None:
+        pool = self.pool
         await pool.execute(
             "INSERT INTO schema_migrations VALUES (1, '2026-01-01T00:00:00+00:00')"
         )
@@ -103,7 +119,8 @@ class TestBehaviour:
         assert output["applied"] == [2]
         assert output["skipped"] == [1]
 
-    async def test_fails_on_version_gap(self, pool: SqlitePool) -> None:
+    async def test_fails_on_version_gap(self) -> None:
+        pool = self.pool
         await pool.execute(
             "INSERT INTO schema_migrations VALUES (1, '2026-01-01T00:00:00+00:00')"
         )

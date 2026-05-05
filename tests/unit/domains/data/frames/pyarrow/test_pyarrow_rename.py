@@ -1,9 +1,9 @@
 """Tests for :class:`PyarrowRename`."""
 
 from __future__ import annotations
+import unittest
 
 import pyarrow as pa
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -20,8 +20,7 @@ async def emit_users() -> PyarrowDataBatch:
     )
 
 
-@pytest.mark.asyncio
-class TestPyarrowRename:
+class TestPyarrowRename(unittest.IsolatedAsyncioTestCase):
     async def test_renames_column(self) -> None:
         with Tapestry() as t:
             batch = emit_users(_config=KnotConfig(id="users"))
@@ -47,7 +46,7 @@ class TestPyarrowRename:
         assert out.column_names == ("id", "n")
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_mapping(self) -> None:
         @knot
         async def empty() -> PyarrowDataBatch:
@@ -55,7 +54,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="non-empty"):
+            with self.assertRaisesRegex(TypeError, "non-empty"):
                 PyarrowRename(
                     batch=batch, mapping={},
                     _config=KnotConfig(id="r"),
@@ -68,7 +67,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="non-empty strings"):
+            with self.assertRaisesRegex(TypeError, "non-empty strings"):
                 PyarrowRename(
                     batch=batch,
                     mapping={"": "x"},

@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -33,7 +33,7 @@ async def emit_failing_report() -> EvalReport:
     return _report(0.10)
 
 
-class TestMetricGateHappyPath:
+class TestMetricGateHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_passes_when_metric_meets_threshold(self) -> None:
         with Tapestry() as t:
             report = emit_passing_report(_config=KnotConfig(id="report"))
@@ -59,11 +59,11 @@ class TestMetricGateHappyPath:
         assert result.outputs["gate"] is False
 
 
-class TestMetricGateConstruction:
+class TestMetricGateConstruction(unittest.TestCase):
     def test_rejects_empty_metric(self) -> None:
         with Tapestry():
             report = emit_passing_report(_config=KnotConfig(id="report"))
-            with pytest.raises(ValueError, match="metric must be"):
+            with self.assertRaisesRegex(ValueError, "metric must be"):
                 MetricGate(
                     report=report,
                     metric="",

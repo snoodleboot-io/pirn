@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -15,24 +15,23 @@ from pirn.domains.health.types.clinical_record import ClinicalRecord
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_sequence(self) -> None:
-        with pytest.raises(TypeError, match="records"):
+        with self.assertRaisesRegex(TypeError, "records"):
             ReadmissionRiskScorer(
                 records=42,  # type: ignore[arg-type]
                 _config=KnotConfig(id="s"),
             )
 
     def test_rejects_non_record(self) -> None:
-        with pytest.raises(TypeError, match="ClinicalRecord"):
+        with self.assertRaisesRegex(TypeError, "ClinicalRecord"):
             ReadmissionRiskScorer(
                 records=["x"],  # type: ignore[list-item]
                 _config=KnotConfig(id="s"),
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_per_patient_score_mapping(self) -> None:
         records = (
             ClinicalRecord(patient_id="P1", observation_codes=("A", "B", "C")),

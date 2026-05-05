@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 from datetime import datetime, timedelta
+import unittest
 
 import pytest
 
@@ -34,18 +35,17 @@ def _make(**kwargs):
     return knot
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_window(self) -> None:
-        with pytest.raises(ValueError, match="window_size"):
+        with self.assertRaisesRegex(ValueError, "window_size"):
             _make(timestamp_column="ts", value_column="v", window_size=0)
 
     def test_rejects_invalid_statistic(self) -> None:
-        with pytest.raises(ValueError, match="statistic"):
+        with self.assertRaisesRegex(ValueError, "statistic"):
             _make(timestamp_column="ts", value_column="v", window_size=3, statistic="median")
 
 
-@pytest.mark.asyncio
-class TestBehaviour:
+class TestBehaviour(unittest.IsolatedAsyncioTestCase):
     async def test_rolling_mean(self) -> None:
         rows = [{"ts": _ts(i), "v": float(i + 1)} for i in range(4)]
         knot = _make(timestamp_column="ts", value_column="v", window_size=2, statistic="mean")

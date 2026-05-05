@@ -1,8 +1,8 @@
 """Tests for :class:`CollaborativeFilteringPipeline`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -16,10 +16,10 @@ from tests.unit.domains.ml._stubs.recording_database_pool import (
 )
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_invalid_algorithm(self) -> None:
         with Tapestry():
-            with pytest.raises(ValueError, match="algorithm"):
+            with self.assertRaisesRegex(ValueError, "algorithm"):
                 CollaborativeFilteringPipeline(
                     pool=RecordingDatabasePool(rows=[(1, 2, 3.0)]),
                     query="SELECT 1",
@@ -32,7 +32,7 @@ class TestConstruction:
 
     def test_rejects_zero_top_k(self) -> None:
         with Tapestry():
-            with pytest.raises(ValueError, match="top_k"):
+            with self.assertRaisesRegex(ValueError, "top_k"):
                 CollaborativeFilteringPipeline(
                     pool=RecordingDatabasePool(rows=[(1, 2, 3.0)]),
                     query="SELECT 1",
@@ -44,8 +44,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_eval_report(self) -> None:
         rows = [(i % 5, i % 10, float(i % 5 + 1)) for i in range(50)]
         with Tapestry() as t:

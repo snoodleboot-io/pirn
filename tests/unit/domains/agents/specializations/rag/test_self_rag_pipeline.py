@@ -1,8 +1,8 @@
 """Tests for :class:`SelfRAGPipeline`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -17,11 +17,10 @@ from tests.unit.domains.agents.specializations.conftest import (
 )
 
 
-@pytest.mark.asyncio
-class TestSelfRAGPipelineConstruction:
+class TestSelfRAGPipelineConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_memory_store(self) -> None:
         llm = StubLLMProvider(["draft", "NO"])
-        with pytest.raises(TypeError, match="memory must be a MemoryStore"):
+        with self.assertRaisesRegex(TypeError, "memory must be a MemoryStore"):
             with Tapestry():
                 SelfRAGPipeline(
                     query="q",
@@ -32,7 +31,7 @@ class TestSelfRAGPipelineConstruction:
 
     async def test_rejects_non_llm_provider(self) -> None:
         memory = StubMemoryStore([])
-        with pytest.raises(TypeError, match="llm must be an LLMProvider"):
+        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
             with Tapestry():
                 SelfRAGPipeline(
                     query="q",
@@ -44,7 +43,7 @@ class TestSelfRAGPipelineConstruction:
     async def test_rejects_zero_top_k(self) -> None:
         memory = StubMemoryStore([])
         llm = StubLLMProvider(["draft", "NO"])
-        with pytest.raises(ValueError, match="top_k must be a positive int"):
+        with self.assertRaisesRegex(ValueError, "top_k must be a positive int"):
             with Tapestry():
                 SelfRAGPipeline(
                     query="q",
@@ -55,8 +54,7 @@ class TestSelfRAGPipelineConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestSelfRAGPipelineNoRetrieval:
+class TestSelfRAGPipelineNoRetrieval(unittest.IsolatedAsyncioTestCase):
     async def test_returns_draft_when_retrieval_not_needed(self) -> None:
         memory = StubMemoryStore([{"text": "context"}])
         llm = StubLLMProvider(["I know the answer already.", "NO"])
@@ -76,8 +74,7 @@ class TestSelfRAGPipelineNoRetrieval:
         assert memory.search_queries == []
 
 
-@pytest.mark.asyncio
-class TestSelfRAGPipelineWithRetrieval:
+class TestSelfRAGPipelineWithRetrieval(unittest.IsolatedAsyncioTestCase):
     async def test_retrieves_and_regenerates_when_needed(self) -> None:
         memory = StubMemoryStore([{"text": "retrieved fact"}])
         llm = StubLLMProvider(["draft answer", "YES", "final answer with context"])
@@ -99,7 +96,7 @@ class TestSelfRAGPipelineWithRetrieval:
     async def test_rejects_non_string_query_at_construction(self) -> None:
         memory = StubMemoryStore([])
         llm = StubLLMProvider(["draft", "NO"])
-        with pytest.raises(TypeError, match="query"):
+        with self.assertRaisesRegex(TypeError, "query"):
             with Tapestry():
                 SelfRAGPipeline(
                     query=123,  # type: ignore[arg-type]

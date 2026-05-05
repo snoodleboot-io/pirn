@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from datetime import datetime
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -15,15 +15,19 @@ from pirn.domains.oilgas.workflows.decline_curve_reserves_workflow import (
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
-    def test_rejects_non_historian_connection(
-        self, fixed_since: datetime
-    ) -> None:
-        with pytest.raises(TypeError, match="connection"):
+class TestConstruction(unittest.TestCase):
+
+    def setUp(self) -> None:
+        from tests.unit.domains.oilgas.conftest import StubHistorianConnection
+        self.stub_historian = StubHistorianConnection()
+        from datetime import datetime, timezone
+        self.fixed_since = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    def test_rejects_non_historian_connection(self) -> None:
+        with self.assertRaisesRegex(TypeError, "connection"):
             DeclineCurveReservesWorkflow(
                 connection="not-a-conn",  # type: ignore[arg-type]
                 oil_tag="W1.OILRATE",
-                since=fixed_since,
+                since=self.fixed_since,
                 sample_interval_sec=60.0,
                 area_acres=100.0,
                 net_thickness_ft=20.0,
@@ -34,14 +38,12 @@ class TestConstruction:
                 _config=KnotConfig(id="wf"),
             )
 
-    def test_rejects_empty_oil_tag(
-        self, stub_historian: object, fixed_since: datetime
-    ) -> None:
-        with pytest.raises(ValueError, match="oil_tag"):
+    def test_rejects_empty_oil_tag(self) -> None:
+        with self.assertRaisesRegex(ValueError, "oil_tag"):
             DeclineCurveReservesWorkflow(
-                connection=stub_historian,  # type: ignore[arg-type]
+                connection=self.stub_historian,  # type: ignore[arg-type]
                 oil_tag="",
-                since=fixed_since,
+                since=self.fixed_since,
                 sample_interval_sec=60.0,
                 area_acres=100.0,
                 net_thickness_ft=20.0,
@@ -53,16 +55,19 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
-    async def test_inner_pipeline_runs(
-        self, stub_historian: object, fixed_since: datetime
-    ) -> None:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self) -> None:
+        from tests.unit.domains.oilgas.conftest import StubHistorianConnection
+        self.stub_historian = StubHistorianConnection()
+        from datetime import datetime, timezone
+        self.fixed_since = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    async def test_inner_pipeline_runs(self) -> None:
         with Tapestry() as t:
             DeclineCurveReservesWorkflow(
-                connection=stub_historian,  # type: ignore[arg-type]
+                connection=self.stub_historian,  # type: ignore[arg-type]
                 oil_tag="W1.OILRATE",
-                since=fixed_since,
+                since=self.fixed_since,
                 sample_interval_sec=60.0,
                 area_acres=100.0,
                 net_thickness_ft=20.0,

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -45,11 +45,10 @@ class StrictSchemaTool(Tool):
         return arguments
 
 
-@pytest.mark.asyncio
-class TestToolCallValidatorConstruction:
+class TestToolCallValidatorConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_tool_in_list(self) -> None:
         call = ToolCall(tool_name="t", arguments={}, call_id="c1")
-        with pytest.raises(TypeError, match=r"tools\[0\] must be a Tool"):
+        with self.assertRaisesRegex(TypeError, r"tools\[0\] must be a Tool"):
             with Tapestry():
                 ToolCallValidator(
                     tool_call=call,
@@ -58,8 +57,7 @@ class TestToolCallValidatorConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestToolCallValidatorHappyPath:
+class TestToolCallValidatorHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_passes_valid_tool_call_through(self) -> None:
         call = ToolCall(
             tool_name="strict_tool",
@@ -78,8 +76,7 @@ class TestToolCallValidatorHappyPath:
         assert validated == call
 
 
-@pytest.mark.asyncio
-class TestToolCallValidatorRejections:
+class TestToolCallValidatorRejections(unittest.IsolatedAsyncioTestCase):
     async def test_raises_on_missing_required_field(self) -> None:
         call = ToolCall(
             tool_name="strict_tool",

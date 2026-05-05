@@ -1,8 +1,8 @@
 """Unit tests for :class:`MultiRateFusionPipeline`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,12 +12,12 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.signal.conftest import emit_signal_frame, emit_signal_b_frame
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_output_rate(self) -> None:
         with Tapestry():
             a = emit_signal_frame(_config=KnotConfig(id="a"))
             b = emit_signal_b_frame(_config=KnotConfig(id="b"))
-            with pytest.raises(ValueError, match="output_rate_hz"):
+            with self.assertRaisesRegex(ValueError, "output_rate_hz"):
                 MultiRateFusionPipeline(
                     signal_a=a,
                     signal_b=b,
@@ -38,8 +38,7 @@ class TestConstruction:
         assert mrf.output_rate_hz == 8000.0
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_tuple_of_signal_frames(self) -> None:
         with Tapestry() as t:
             a = emit_signal_frame(_config=KnotConfig(id="a"))

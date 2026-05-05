@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -24,9 +24,9 @@ class _PvtSource(Knot):
         return PVTTable(fluid_id="f")
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_negative_cum_oil(self) -> None:
-        with pytest.raises(ValueError, match="cumulative_oil_stb"):
+        with self.assertRaisesRegex(ValueError, "cumulative_oil_stb"):
             with Tapestry():
                 pvt = _PvtSource(_config=KnotConfig(id="src"))
                 MaterialBalanceCalculator(
@@ -39,8 +39,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_ooip_ogip(self) -> None:
         with Tapestry() as t:
             pvt = _PvtSource(_config=KnotConfig(id="src"))

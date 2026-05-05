@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 from pydantic import TypeAdapter
 
 from pirn.domains.data.specialized.lance.lance_dataset import LanceDataset
@@ -17,7 +17,7 @@ class _FakeLanceDataset:
         self.name = name
 
 
-class TestLanceDatasetConstruction:
+class TestLanceDatasetConstruction(unittest.TestCase):
     def test_default_metadata(self) -> None:
         handle = LanceDataset(dataset=_FakeLanceDataset())
         assert handle.source_uri == ""
@@ -33,7 +33,7 @@ class TestLanceDatasetConstruction:
         assert handle.dataset is inner
 
 
-class TestLanceDatasetPydanticSchema:
+class TestLanceDatasetPydanticSchema(unittest.TestCase):
     def test_is_instance_schema_passes_for_real_instance(self) -> None:
         adapter: TypeAdapter[Any] = TypeAdapter(LanceDataset)
         handle = LanceDataset(dataset=_FakeLanceDataset())
@@ -41,5 +41,5 @@ class TestLanceDatasetPydanticSchema:
 
     def test_is_instance_schema_rejects_other_types(self) -> None:
         adapter: TypeAdapter[Any] = TypeAdapter(LanceDataset)
-        with pytest.raises(Exception):
+        with self.assertRaises(Exception):
             adapter.validate_python({"dataset": "no"})

@@ -1,8 +1,8 @@
 """Tests for :class:`FullTrainDeployPipeline`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -22,10 +22,10 @@ from tests.unit.domains.ml._stubs.recording_object_store import (
 )
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_query(self) -> None:
         with Tapestry():
-            with pytest.raises(ValueError, match="query"):
+            with self.assertRaisesRegex(ValueError, "query"):
                 FullTrainDeployPipeline(
                     pool=RecordingDatabasePool(rows=[(1,), (2,)]),
                     query="",
@@ -41,7 +41,7 @@ class TestConstruction:
 
     def test_rejects_empty_metrics(self) -> None:
         with Tapestry():
-            with pytest.raises(ValueError, match="metrics"):
+            with self.assertRaisesRegex(ValueError, "metrics"):
                 FullTrainDeployPipeline(
                     pool=RecordingDatabasePool(rows=[(1,)]),
                     query="SELECT 1",
@@ -56,8 +56,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_returns_model_id_and_eval_report(self) -> None:
         rows = [(1.0, 0), (2.0, 1), (3.0, 0), (4.0, 1), (5.0, 0)] * 4
         lineage = RecordingLineageStore()

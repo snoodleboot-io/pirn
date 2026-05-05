@@ -8,6 +8,9 @@ package does not provide it.
 """
 
 from __future__ import annotations
+import unittest
+import tempfile
+from pathlib import Path
 
 import pytest
 
@@ -18,15 +21,15 @@ from pirn.domains.data.specialized.lance.lance_source import LanceSource
 from pirn.tapestry import Tapestry
 
 
-class TestLanceSourceConstruction:
+class TestLanceSourceConstruction(unittest.TestCase):
     def test_rejects_empty_path(self) -> None:
         with Tapestry():
-            with pytest.raises(ValueError, match="non-empty"):
+            with self.assertRaisesRegex(ValueError, "non-empty"):
                 LanceSource(path="", _config=KnotConfig(id="src"))
 
     def test_rejects_non_string_path(self) -> None:
         with Tapestry():
-            with pytest.raises(ValueError, match="non-empty"):
+            with self.assertRaisesRegex(ValueError, "non-empty"):
                 LanceSource(path=123, _config=KnotConfig(id="src"))  # type: ignore[arg-type]
 
     def test_path_is_exposed(self) -> None:
@@ -35,18 +38,26 @@ class TestLanceSourceConstruction:
         assert src.path == "/tmp/x.lance"
 
 
-@pytest.mark.asyncio
-class TestLanceSourceProcess:
-    async def test_reads_lance_dataset_from_disk(self, tmp_path) -> None:
-        lance = pytest.importorskip("lance")
+class TestLanceSourceProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_reads_lance_dataset_from_disk(self) -> None:
+        _td_test_reads_lance_dataset_from_disk = tempfile.TemporaryDirectory()
+        self.addCleanup(_td_test_reads_lance_dataset_from_disk.cleanup)
+        tmp_path = Path(_td_test_reads_lance_dataset_from_disk.name)
+        try:
+            import lance
+        except ImportError as _e:
+            self.skipTest("lance not installed")
         if not hasattr(lance, "write_dataset") or not hasattr(lance, "dataset"):
             pytest.skip(
                 "Installed 'lance' package is the unrelated codegen "
                 "package, not pylance"
             )
-        pa = pytest.importorskip("pyarrow")
+        try:
+            import pyarrow
+        except ImportError as _e:
+            self.skipTest("pyarrow not installed")
 
-        table = pa.table({"id": [1, 2, 3], "name": ["a", "b", "c"]})
+        table = pyarrow.table({"id": [1, 2, 3], "name": ["a", "b", "c"]})
         path = str(tmp_path / "ds.lance")
         lance.write_dataset(table, path)
 

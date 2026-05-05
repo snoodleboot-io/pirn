@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import json
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -25,7 +25,7 @@ async def emit_model() -> TrainedModel:
     )
 
 
-class TestModelSerializerHappyPath:
+class TestModelSerializerHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_json_bytes(self) -> None:
         with Tapestry() as t:
             model = emit_model(_config=KnotConfig(id="model"))
@@ -42,11 +42,11 @@ class TestModelSerializerHappyPath:
         assert decoded["format"] == "json"
 
 
-class TestModelSerializerConstruction:
+class TestModelSerializerConstruction(unittest.TestCase):
     def test_rejects_unknown_format(self) -> None:
         with Tapestry():
             model = emit_model(_config=KnotConfig(id="model"))
-            with pytest.raises(ValueError, match="format must be"):
+            with self.assertRaisesRegex(ValueError, "format must be"):
                 ModelSerializer(
                     model=model,
                     format="bogus",

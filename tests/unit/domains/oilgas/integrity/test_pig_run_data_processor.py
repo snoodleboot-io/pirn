@@ -1,8 +1,8 @@
 """Unit tests for :class:`PigRunDataProcessor`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -10,9 +10,9 @@ from pirn.domains.oilgas.integrity.pig_run_data_processor import PigRunDataProce
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_pipeline_id(self) -> None:
-        with pytest.raises(ValueError, match="pipeline_id"):
+        with self.assertRaisesRegex(ValueError, "pipeline_id"):
             PigRunDataProcessor(
                 pipeline_id="",
                 run_path="/x",
@@ -20,7 +20,7 @@ class TestConstruction:
             )
 
     def test_rejects_empty_run_path(self) -> None:
-        with pytest.raises(ValueError, match="run_path"):
+        with self.assertRaisesRegex(ValueError, "run_path"):
             PigRunDataProcessor(
                 pipeline_id="P1",
                 run_path="",
@@ -28,8 +28,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_summary_dict(self) -> None:
         with Tapestry() as t:
             PigRunDataProcessor(

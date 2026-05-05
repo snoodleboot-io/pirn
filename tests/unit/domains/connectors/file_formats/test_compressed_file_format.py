@@ -6,8 +6,8 @@ through compress → decompress without loss.
 """
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.file_formats.compressed_file_format import (
     CompressedFileFormat,
@@ -18,13 +18,13 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 )
 
 
-class TestCompressedFileFormatConstruction:
+class TestCompressedFileFormatConstruction(unittest.TestCase):
     def test_inner_must_be_file_format(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             CompressedFileFormat("not-a-format", codec="gzip")  # type: ignore[arg-type]
 
     def test_invalid_codec_raises(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             CompressedFileFormat(JsonlFormat(), codec="brotli")
 
     def test_name_combines_inner_and_codec(self) -> None:
@@ -45,8 +45,7 @@ class TestCompressedFileFormatConstruction:
         assert fmt.codec == "lz4"
 
 
-class TestCompressedFileFormatGzip:
-    @pytest.mark.asyncio
+class TestCompressedFileFormatGzip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_gzip(self) -> None:
         fmt = CompressedFileFormat(JsonlFormat(), codec="gzip")
         records = [
@@ -57,8 +56,7 @@ class TestCompressedFileFormatGzip:
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
 
-class TestCompressedFileFormatBzip2:
-    @pytest.mark.asyncio
+class TestCompressedFileFormatBzip2(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_bzip2(self) -> None:
         fmt = CompressedFileFormat(JsonlFormat(), codec="bzip2")
         records = [
@@ -68,10 +66,12 @@ class TestCompressedFileFormatBzip2:
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
 
-class TestCompressedFileFormatZstd:
-    @pytest.mark.asyncio
+class TestCompressedFileFormatZstd(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_zstd(self) -> None:
-        pytest.importorskip("zstandard")
+        try:
+            import zstandard
+        except ImportError as _e:
+            self.skipTest("zstandard not installed")
         fmt = CompressedFileFormat(JsonlFormat(), codec="zstd")
         records = [
             {"id": 1, "value": 1.5},
@@ -80,10 +80,12 @@ class TestCompressedFileFormatZstd:
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
 
-class TestCompressedFileFormatSnappy:
-    @pytest.mark.asyncio
+class TestCompressedFileFormatSnappy(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_snappy(self) -> None:
-        pytest.importorskip("snappy")
+        try:
+            import snappy
+        except ImportError as _e:
+            self.skipTest("snappy not installed")
         fmt = CompressedFileFormat(JsonlFormat(), codec="snappy")
         records = [
             {"id": 1, "name": "alpha"},
@@ -93,10 +95,12 @@ class TestCompressedFileFormatSnappy:
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
 
-class TestCompressedFileFormatLz4:
-    @pytest.mark.asyncio
+class TestCompressedFileFormatLz4(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_lz4(self) -> None:
-        pytest.importorskip("lz4")
+        try:
+            import lz4
+        except ImportError as _e:
+            self.skipTest("lz4 not installed")
         fmt = CompressedFileFormat(JsonlFormat(), codec="lz4")
         records = [
             {"id": 1, "data": "alpha"},

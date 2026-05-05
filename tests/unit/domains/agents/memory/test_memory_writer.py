@@ -1,8 +1,8 @@
 """Unit tests for :class:`MemoryWriter`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -22,8 +22,7 @@ async def emit_value() -> dict[str, int]:
     return {"v": 1}
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_writes_and_returns_key(self) -> None:
         store = StubMemoryStore()
         with Tapestry() as t:
@@ -48,7 +47,7 @@ class TestProcess:
         assert "w" not in result.outputs
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_requires_memory_store(self) -> None:
         @knot
         async def k() -> str:
@@ -61,7 +60,7 @@ class TestConstruction:
         with Tapestry():
             kk = k(_config=KnotConfig(id="k"))
             vv = v(_config=KnotConfig(id="v"))
-            with pytest.raises(TypeError, match="MemoryStore"):
+            with self.assertRaisesRegex(TypeError, "MemoryStore"):
                 MemoryWriter(
                     key=kk,
                     value=vv,

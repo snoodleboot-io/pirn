@@ -8,8 +8,8 @@ test does not need a live cluster.
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -25,22 +25,22 @@ class _StubEsClient:
         self.name = name
 
 
-class TestElandSourceConstruction:
+class TestElandSourceConstruction(unittest.TestCase):
     def test_rejects_none_client(self) -> None:
         with Tapestry():
-            with pytest.raises(ValueError, match="es_client"):
+            with self.assertRaisesRegex(ValueError, "es_client"):
                 ElandSource(es_client=None, index="orders", _config=KnotConfig(id="src"))
 
     def test_rejects_empty_index(self) -> None:
         with Tapestry():
-            with pytest.raises(ValueError, match="non-empty"):
+            with self.assertRaisesRegex(ValueError, "non-empty"):
                 ElandSource(
                     es_client=_StubEsClient(), index="", _config=KnotConfig(id="src"),
                 )
 
     def test_rejects_non_string_index(self) -> None:
         with Tapestry():
-            with pytest.raises(ValueError, match="non-empty"):
+            with self.assertRaisesRegex(ValueError, "non-empty"):
                 ElandSource(
                     es_client=_StubEsClient(), index=123, _config=KnotConfig(id="src"),  # type: ignore[arg-type]
                 )
@@ -55,10 +55,12 @@ class TestElandSourceConstruction:
         assert src.index == "orders"
 
 
-@pytest.mark.asyncio
-class TestElandSourceProcess:
-    async def test_emits_eland_dataframe_via_stubbed_eland(self, monkeypatch) -> None:
-        pytest.importorskip("eland")
+class TestElandSourceProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_emits_eland_dataframe_via_stubbed_eland(self) -> None:
+        try:
+            import eland
+        except ImportError as _e:
+            self.skipTest("eland not installed")
         import eland as ed
 
         captured: dict[str, Any] = {}
@@ -68,12 +70,11 @@ class TestElandSourceProcess:
                 captured["es_client"] = es_client
                 captured["es_index_pattern"] = es_index_pattern
 
-        monkeypatch.setattr(ed, "DataFrame", _FakeFrame)
         client = _StubEsClient()
-
-        with Tapestry() as t:
-            ElandSource(es_client=client, index="orders", _config=KnotConfig(id="src"))
-        result = await t.run(RunRequest())
+        with unittest.mock.patch.object(ed, "DataFrame", _FakeFrame):
+            with Tapestry() as t:
+                ElandSource(es_client=client, index="orders", _config=KnotConfig(id="src"))
+            result = await t.run(RunRequest())
 
         emitted = result.outputs["src"]
         assert isinstance(emitted, ElandDataFrame)

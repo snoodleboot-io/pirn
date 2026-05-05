@@ -1,8 +1,8 @@
 """Tests for :class:`NamedEntityRecognitionPipeline`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -16,10 +16,10 @@ from tests.unit.domains.ml._stubs.recording_database_pool import (
 )
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_text_column(self) -> None:
         with Tapestry():
-            with pytest.raises(ValueError, match="text_column"):
+            with self.assertRaisesRegex(ValueError, "text_column"):
                 NamedEntityRecognitionPipeline(
                     pool=RecordingDatabasePool(rows=[("text", "O")]),
                     query="SELECT 1",
@@ -29,8 +29,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_ner_report(self) -> None:
         rows = [(f"token {i}", "O" if i % 3 != 0 else "B-PER") for i in range(40)]
         with Tapestry() as t:

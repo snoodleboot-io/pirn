@@ -1,8 +1,8 @@
 """Unit tests for :class:`EEGRawIngestor`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -11,9 +11,9 @@ from pirn.domains.health.types.raw_eeg import RawEEG
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_path(self) -> None:
-        with pytest.raises(ValueError, match="non-empty"):
+        with self.assertRaisesRegex(ValueError, "non-empty"):
             EEGRawIngestor(
                 recording_path="",
                 subject_id="S1",
@@ -24,7 +24,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_int_channel(self) -> None:
-        with pytest.raises(TypeError, match="channel_count"):
+        with self.assertRaisesRegex(TypeError, "channel_count"):
             EEGRawIngestor(
                 recording_path="x",
                 subject_id="S1",
@@ -35,7 +35,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_positive_channel(self) -> None:
-        with pytest.raises(ValueError, match="positive"):
+        with self.assertRaisesRegex(ValueError, "positive"):
             EEGRawIngestor(
                 recording_path="x",
                 subject_id="S1",
@@ -46,7 +46,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_positive_rate(self) -> None:
-        with pytest.raises(ValueError, match="positive"):
+        with self.assertRaisesRegex(ValueError, "positive"):
             EEGRawIngestor(
                 recording_path="x",
                 subject_id="S1",
@@ -57,8 +57,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_raw_eeg(self) -> None:
         with Tapestry() as t:
             EEGRawIngestor(

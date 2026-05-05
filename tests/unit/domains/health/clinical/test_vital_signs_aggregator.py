@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,24 +14,23 @@ from pirn.domains.health.clinical.vital_signs_aggregator import (
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_sequence(self) -> None:
-        with pytest.raises(TypeError, match="rows"):
+        with self.assertRaisesRegex(TypeError, "rows"):
             VitalSignsAggregator(
                 rows=42,  # type: ignore[arg-type]
                 _config=KnotConfig(id="a"),
             )
 
     def test_rejects_non_mapping_row(self) -> None:
-        with pytest.raises(TypeError, match="row"):
+        with self.assertRaisesRegex(TypeError, "row"):
             VitalSignsAggregator(
                 rows=["x"],  # type: ignore[list-item]
                 _config=KnotConfig(id="a"),
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_aggregates_per_patient(self) -> None:
         rows = (
             {"patient_id": "P1", "vital_name": "hr", "value": 70.0},

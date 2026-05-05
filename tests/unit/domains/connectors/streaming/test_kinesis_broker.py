@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.message_broker import MessageBroker
 from pirn.domains.connectors.streaming.kinesis_broker import KinesisBroker
@@ -17,20 +17,13 @@ from pirn.domains.connectors.streaming.kinesis_config import KinesisConfig
 class StubKinesis:
     """Mirrors the slice of the aioboto3 Kinesis client surface we depend on."""
 
-    def __init__(
-        self,
-        *,
-        records: list[dict[str, Any]] | None = None,
-        shards: list[str] | None = None,
-    ) -> None:
+    def __init__(self, *, records: list[dict[str, Any]] | None = None, shards: list[str] | None = None,) -> None:
         self.put_records: list[dict[str, Any]] = []
         self._records = records or []
         self._shards = shards or ["shard-000"]
         self.closed = False
 
-    async def put_record(
-        self, *, StreamName: str, Data: bytes, PartitionKey: str
-    ) -> dict[str, Any]:
+    async def put_record(self, *, StreamName: str, Data: bytes, PartitionKey: str) -> dict[str, Any]:
         self.put_records.append(
             {"StreamName": StreamName, "Data": Data, "PartitionKey": PartitionKey}
         )
@@ -43,13 +36,7 @@ class StubKinesis:
             }
         }
 
-    async def get_shard_iterator(
-        self,
-        *,
-        StreamName: str,
-        ShardId: str,
-        ShardIteratorType: str,
-    ) -> dict[str, Any]:
+    async def get_shard_iterator(self, *, StreamName: str, ShardId: str, ShardIteratorType: str,) -> dict[str, Any]:
         return {"ShardIterator": f"iter:{ShardId}"}
 
     async def get_records(self, *, ShardIterator: str) -> dict[str, Any]:
@@ -64,21 +51,22 @@ class StubKinesis:
 # ──────────────────────────────────────────────────────── construction
 
 
-def test_implements_message_broker() -> None:
-    broker = KinesisBroker(KinesisConfig(region="us-east-1"), client=StubKinesis())
-    assert isinstance(broker, MessageBroker)
 
-
-def test_rejects_non_config() -> None:
-    with pytest.raises(TypeError, match="must be KinesisConfig"):
-        KinesisBroker("not-a-config", client=StubKinesis())  # type: ignore[arg-type]
-
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_message_broker(self) -> None:
+        broker = KinesisBroker(KinesisConfig(region="us-east-1"), client=StubKinesis())
+        assert isinstance(broker, MessageBroker)
+    
+    
+    def test_rejects_non_config(self) -> None:
+        with self.assertRaisesRegex(TypeError, "must be KinesisConfig"):
+            KinesisBroker("not-a-config", client=StubKinesis())  # type: ignore[arg-type]
+    
+    
 # ─────────────────────────────────────────────────────────────── publish
 
 
-@pytest.mark.asyncio
-class TestPublish:
+class TestPublish(unittest.IsolatedAsyncioTestCase):
     async def test_publish_bytes_value_uses_default_partition_key(self) -> None:
         stub = StubKinesis()
         broker = KinesisBroker(KinesisConfig(region="us-east-1"), client=stub)
@@ -96,20 +84,19 @@ class TestPublish:
 
     async def test_rejects_non_bytes_value(self) -> None:
         broker = KinesisBroker(KinesisConfig(region="us-east-1"), client=StubKinesis())
-        with pytest.raises(TypeError, match="value must be bytes"):
+        with self.assertRaisesRegex(TypeError, "value must be bytes"):
             await broker.publish("t", "string")  # type: ignore[arg-type]
 
     async def test_rejects_non_bytes_key(self) -> None:
         broker = KinesisBroker(KinesisConfig(region="us-east-1"), client=StubKinesis())
-        with pytest.raises(TypeError, match="key must be bytes"):
+        with self.assertRaisesRegex(TypeError, "key must be bytes"):
             await broker.publish("t", b"v", key="not-bytes")  # type: ignore[arg-type]
 
 
 # ─────────────────────────────────────────────────────────────── consume
 
 
-@pytest.mark.asyncio
-class TestConsume:
+class TestConsume(unittest.IsolatedAsyncioTestCase):
     async def test_yields_records_from_shard(self) -> None:
         stub = StubKinesis(
             records=[
@@ -127,8 +114,7 @@ class TestConsume:
 # ───────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_is_idempotent(self) -> None:
         stub = StubKinesis()
         broker = KinesisBroker(KinesisConfig(region="us-east-1"), client=stub)
@@ -140,14 +126,14 @@ class TestLifecycle:
     async def test_publish_after_close_raises(self) -> None:
         broker = KinesisBroker(KinesisConfig(region="us-east-1"), client=StubKinesis())
         await broker.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await broker.publish("t", b"v")
 
 
 # ───────────────────────────────────────────────────── credential safety
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_repr_redacts_credentials(self) -> None:
         cfg = KinesisConfig(
             region="us-east-1",

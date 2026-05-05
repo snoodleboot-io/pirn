@@ -1,8 +1,8 @@
 """Tests for :class:`ModelLineageTracker`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -50,14 +50,14 @@ async def emit_report() -> EvalReport:
     )
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_lineage_store(self) -> None:
         with Tapestry():
             dataset = emit_dataset(_config=KnotConfig(id="ds"))
             split = emit_split(_config=KnotConfig(id="split"))
             model = emit_model(_config=KnotConfig(id="model"))
             report = emit_report(_config=KnotConfig(id="report"))
-            with pytest.raises(TypeError, match="lineage"):
+            with self.assertRaisesRegex(TypeError, "lineage"):
                 ModelLineageTracker(
                     dataset=dataset,
                     split=split,
@@ -68,8 +68,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_one_event_per_stage(self) -> None:
         lineage = RecordingLineageStore()
         with Tapestry() as t:

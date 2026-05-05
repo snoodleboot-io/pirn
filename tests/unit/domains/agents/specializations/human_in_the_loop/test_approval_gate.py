@@ -1,8 +1,8 @@
 """Tests for :class:`ApprovalGate`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -13,11 +13,10 @@ from pirn.domains.agents.types.agent_response import AgentResponse
 from pirn.tapestry import Tapestry
 
 
-@pytest.mark.asyncio
-class TestApprovalGateConstruction:
+class TestApprovalGateConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_bool_auto_approve(self) -> None:
         response = AgentResponse(content="ok", finish_reason="stop")
-        with pytest.raises(TypeError, match="auto_approve must be a bool"):
+        with self.assertRaisesRegex(TypeError, "auto_approve must be a bool"):
             with Tapestry():
                 ApprovalGate(
                     response=response,
@@ -26,8 +25,7 @@ class TestApprovalGateConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestApprovalGateAutoApprove:
+class TestApprovalGateAutoApprove(unittest.IsolatedAsyncioTestCase):
     async def test_returns_true_when_auto_approve(self) -> None:
         response = AgentResponse(content="draft", finish_reason="stop")
         with Tapestry() as t:
@@ -53,7 +51,7 @@ class TestApprovalGateAutoApprove:
         assert result.outputs["ag"] is False
 
     async def test_rejects_non_agent_response(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             with Tapestry():
                 ApprovalGate(
                     response="not-a-response",  # type: ignore[arg-type]

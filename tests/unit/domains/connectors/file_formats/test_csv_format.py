@@ -6,8 +6,8 @@ of pirn (per Phase 4 PRD).
 """
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.file_formats.csv_format import CsvFormat
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
@@ -15,7 +15,7 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 )
 
 
-class TestCsvFormatConstruction:
+class TestCsvFormatConstruction(unittest.TestCase):
     def test_default_construction(self) -> None:
         fmt = CsvFormat()
         assert fmt.delimiter == ","
@@ -25,45 +25,45 @@ class TestCsvFormatConstruction:
         assert fmt.encoding == "utf-8"
 
     def test_delimiter_must_be_str(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             CsvFormat(delimiter=1)  # type: ignore[arg-type]
 
     def test_delimiter_must_be_single_char(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             CsvFormat(delimiter=",,")
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             CsvFormat(delimiter="")
 
     def test_quotechar_must_be_str(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             CsvFormat(quotechar=1)  # type: ignore[arg-type]
 
     def test_quotechar_must_be_single_char(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             CsvFormat(quotechar='""')
 
     def test_has_header_must_be_bool(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             CsvFormat(has_header="yes")  # type: ignore[arg-type]
 
     def test_column_names_required_when_no_header(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             CsvFormat(has_header=False)
 
     def test_column_names_must_be_sequence_of_str(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             CsvFormat(column_names="abc")  # type: ignore[arg-type]
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             CsvFormat(column_names=[1, 2])  # type: ignore[list-item]
 
     def test_encoding_must_be_nonempty_str(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             CsvFormat(encoding=123)  # type: ignore[arg-type]
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             CsvFormat(encoding="")
 
 
-class TestCsvFormatProperties:
+class TestCsvFormatProperties(unittest.TestCase):
     def test_name(self) -> None:
         assert CsvFormat().name == "csv"
 
@@ -71,8 +71,7 @@ class TestCsvFormatProperties:
         assert CsvFormat().streaming is True
 
 
-class TestCsvFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestCsvFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         fmt = CsvFormat()
         records = [
@@ -82,7 +81,6 @@ class TestCsvFormatRoundTrip:
         ]
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_empty(self) -> None:
         fmt = CsvFormat(
             has_header=False,
@@ -90,13 +88,11 @@ class TestCsvFormatRoundTrip:
         )
         await FormatRoundTrip.assert_round_trip(fmt, [])
 
-    @pytest.mark.asyncio
     async def test_round_trip_single_row(self) -> None:
         fmt = CsvFormat()
         records = [{"id": "1", "name": "only", "active": "true"}]
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_no_header(self) -> None:
         fmt = CsvFormat(
             has_header=False,
@@ -108,7 +104,6 @@ class TestCsvFormatRoundTrip:
         ]
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_custom_delimiter(self) -> None:
         fmt = CsvFormat(delimiter=";")
         records = [

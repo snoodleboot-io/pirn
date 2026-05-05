@@ -7,8 +7,8 @@ Uses an injected stub client mirroring ``simple_salesforce.Salesforce``'s
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.capabilities.record_writer import RecordWriter
@@ -42,13 +42,7 @@ class FakeSalesforceClient:
         self.queries.append(soql)
         return self.query_response
 
-    def restful(
-        self,
-        path: str,
-        method: str = "GET",
-        params: dict[str, Any] | None = None,
-        json: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
+    def restful(self, path: str, method: str = "GET", params: dict[str, Any] | None = None, json: dict[str, Any] | None = None,) -> dict[str, Any]:
         self.restful_calls.append(
             {"path": path, "method": method, "params": params, "json": json}
         )
@@ -58,28 +52,29 @@ class FakeSalesforceClient:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-def test_implements_api_client() -> None:
-    client = SalesforceClient(client=FakeSalesforceClient())
-    assert isinstance(client, ApiClient)
 
-
-def test_construction_requires_config_or_client() -> None:
-    with pytest.raises(TypeError, match="config= or client="):
-        SalesforceClient()
-
-
-def test_sensitive_fields_declared() -> None:
-    cfg = SalesforceConfig()
-    assert "password" in cfg.sensitive_fields
-    assert "security_token" in cfg.sensitive_fields
-    assert "consumer_secret" in cfg.sensitive_fields
-
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_api_client(self) -> None:
+        client = SalesforceClient(client=FakeSalesforceClient())
+        assert isinstance(client, ApiClient)
+    
+    
+    def test_construction_requires_config_or_client(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or client="):
+            SalesforceClient()
+    
+    
+    def test_sensitive_fields_declared(self) -> None:
+        cfg = SalesforceConfig()
+        assert "password" in cfg.sensitive_fields
+        assert "security_token" in cfg.sensitive_fields
+        assert "consumer_secret" in cfg.sensitive_fields
+    
+    
 # ────────────────────────────────────────────────────────── delegation
 
 
-@pytest.mark.asyncio
-class TestRequest:
+class TestRequest(unittest.IsolatedAsyncioTestCase):
     async def test_rest_get_dispatches_to_restful(self) -> None:
         fake = FakeSalesforceClient()
         client = SalesforceClient(client=fake)
@@ -129,8 +124,7 @@ class TestRequest:
 # ─────────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_closes_session(self) -> None:
         fake = FakeSalesforceClient()
         client = SalesforceClient(client=fake)
@@ -145,14 +139,14 @@ class TestLifecycle:
     async def test_request_after_close_raises(self) -> None:
         client = SalesforceClient(client=FakeSalesforceClient())
         await client.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await client.request("GET", "/foo")
 
 
 # ────────────────────────────────────────────────────────── credential safety
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_repr_redacts_password_and_token(self) -> None:
         cfg = SalesforceConfig(
             username="alice",
@@ -170,29 +164,28 @@ class TestCredentialSafety:
 # ───────────────────────────────────────────────────────── capability mixins
 
 
-def test_implements_table_source_and_record_writer() -> None:
-    client = SalesforceClient(client=FakeSalesforceClient())
-    assert isinstance(client, TableSource)
-    assert isinstance(client, RecordWriter)
-
-
-def test_construction_rejects_empty_soql_query() -> None:
-    with pytest.raises(ValueError, match="soql_query"):
-        SalesforceClient(client=FakeSalesforceClient(), soql_query="")
-
-
-def test_construction_rejects_empty_sobject_type() -> None:
-    with pytest.raises(ValueError, match="sobject_type"):
-        SalesforceClient(client=FakeSalesforceClient(), sobject_type="")
-
-
-def test_default_sobject_type_is_account() -> None:
-    client = SalesforceClient(client=FakeSalesforceClient())
-    assert client.sobject_type == "Account"
-
-
-@pytest.mark.asyncio
-class TestFetchPage:
+    def test_implements_table_source_and_record_writer(self) -> None:
+        client = SalesforceClient(client=FakeSalesforceClient())
+        assert isinstance(client, TableSource)
+        assert isinstance(client, RecordWriter)
+    
+    
+    def test_construction_rejects_empty_soql_query(self) -> None:
+        with self.assertRaisesRegex(ValueError, "soql_query"):
+            SalesforceClient(client=FakeSalesforceClient(), soql_query="")
+    
+    
+    def test_construction_rejects_empty_sobject_type(self) -> None:
+        with self.assertRaisesRegex(ValueError, "sobject_type"):
+            SalesforceClient(client=FakeSalesforceClient(), sobject_type="")
+    
+    
+    def test_default_sobject_type_is_account(self) -> None:
+        client = SalesforceClient(client=FakeSalesforceClient())
+        assert client.sobject_type == "Account"
+    
+    
+class TestFetchPage(unittest.IsolatedAsyncioTestCase):
     async def test_fetch_page_initial_done(self) -> None:
         fake = FakeSalesforceClient()
         fake.query_response = {
@@ -242,12 +235,11 @@ class TestFetchPage:
 
     async def test_fetch_page_without_query_or_cursor_raises(self) -> None:
         client = SalesforceClient(client=FakeSalesforceClient())
-        with pytest.raises(RuntimeError, match="no soql_query"):
+        with self.assertRaisesRegex(RuntimeError, "no soql_query"):
             await client.fetch_page()
 
 
-@pytest.mark.asyncio
-class TestSoqlIterator:
+class TestSoqlIterator(unittest.IsolatedAsyncioTestCase):
     async def test_soql_yields_all_rows_across_pages(self) -> None:
         fake = FakeSalesforceClient()
         fake.query_response = {
@@ -267,13 +259,12 @@ class TestSoqlIterator:
 
     async def test_soql_rejects_empty_query(self) -> None:
         client = SalesforceClient(client=FakeSalesforceClient())
-        with pytest.raises(ValueError, match="non-empty"):
+        with self.assertRaisesRegex(ValueError, "non-empty"):
             async for _ in client.soql(""):
                 pass
 
 
-@pytest.mark.asyncio
-class TestWriteRecords:
+class TestWriteRecords(unittest.IsolatedAsyncioTestCase):
     async def test_write_records_posts_each_record(self) -> None:
         fake = FakeSalesforceClient()
         client = SalesforceClient(client=fake, sobject_type="Contact")
@@ -287,9 +278,7 @@ class TestWriteRecords:
         assert fake.restful_calls[0]["json"] == {"Name": "Alice"}
         assert fake.restful_calls[1]["json"] == {"Name": "Bob"}
 
-    async def test_write_records_default_sobject_type_is_account(
-        self,
-    ) -> None:
+    async def test_write_records_default_sobject_type_is_account(self,) -> None:
         fake = FakeSalesforceClient()
         client = SalesforceClient(client=fake)
         count = await client.write_records([{"Name": "Acme"}])

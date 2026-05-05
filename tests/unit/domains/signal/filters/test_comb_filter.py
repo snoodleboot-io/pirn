@@ -1,8 +1,8 @@
 """Unit tests for :class:`CombFilter`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,23 +12,23 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.signal.conftest import emit_signal_frame
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_delay(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="delay_samples"):
+            with self.assertRaisesRegex(ValueError, "delay_samples"):
                 CombFilter(signal=sig, delay_samples=0, gain=0.5, _config=KnotConfig(id="f"))
 
     def test_rejects_gain_above_one(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="gain"):
+            with self.assertRaisesRegex(ValueError, "gain"):
                 CombFilter(signal=sig, delay_samples=10, gain=1.1, _config=KnotConfig(id="f"))
 
     def test_rejects_negative_gain(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="gain"):
+            with self.assertRaisesRegex(ValueError, "gain"):
                 CombFilter(signal=sig, delay_samples=10, gain=-0.1, _config=KnotConfig(id="f"))
 
     def test_accepts_boundary_gain_zero(self) -> None:
@@ -42,8 +42,7 @@ class TestConstruction:
             CombFilter(signal=sig, delay_samples=5, gain=1.0, _config=KnotConfig(id="f"))
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_signal_frame(self) -> None:
         with Tapestry() as t:
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
 import pytest
 
@@ -25,9 +26,9 @@ class _GRSource(Knot):
         ]
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_gr_shale_lte_gr_clean(self) -> None:
-        with pytest.raises(ValueError, match="gr_shale"):
+        with self.assertRaisesRegex(ValueError, "gr_shale"):
             with Tapestry():
                 src = _GRSource(_config=KnotConfig(id="src"))
                 VshaleCalculator(
@@ -39,7 +40,7 @@ class TestConstruction:
                 )
 
     def test_rejects_invalid_method(self) -> None:
-        with pytest.raises(ValueError, match="method"):
+        with self.assertRaisesRegex(ValueError, "method"):
             with Tapestry():
                 src = _GRSource(_config=KnotConfig(id="src"))
                 VshaleCalculator(
@@ -51,8 +52,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_linear_vshale(self) -> None:
         with Tapestry() as t:
             src = _GRSource(_config=KnotConfig(id="src"))
@@ -70,18 +70,19 @@ class TestProcess:
         assert out[1]["vshale"] == pytest.approx(1.0)
         assert 0.0 < out[2]["vshale"] < 1.0
 
-    @pytest.mark.parametrize("method", ["larionov_older", "larionov_tertiary", "clavier"])
-    async def test_nonlinear_methods_return_valid_vshale(self, method: str) -> None:
-        with Tapestry() as t:
-            src = _GRSource(_config=KnotConfig(id="src"))
-            VshaleCalculator(
-                gr_log=src,
-                gr_clean=20.0,
-                gr_shale=120.0,
-                method=method,
-                _config=KnotConfig(id="vsh"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["vsh"]
-        for entry in out:
-            assert 0.0 <= entry["vshale"] <= 1.0
+    async def test_nonlinear_methods_return_valid_vshale(self) -> None:
+        for method in ["larionov_older", "larionov_tertiary", "clavier"]:
+            with self.subTest(method=method):
+                with Tapestry() as t:
+                    src = _GRSource(_config=KnotConfig(id="src"))
+                    VshaleCalculator(
+                        gr_log=src,
+                        gr_clean=20.0,
+                        gr_shale=120.0,
+                        method=method,
+                        _config=KnotConfig(id="vsh"),
+                    )
+                result = await t.run(RunRequest())
+                out = result.outputs["vsh"]
+                for entry in out:
+                    assert 0.0 <= entry["vshale"] <= 1.0

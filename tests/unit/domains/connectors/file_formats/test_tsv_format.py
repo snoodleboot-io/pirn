@@ -1,8 +1,8 @@
 """Unit tests for :class:`TsvFormat`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.file_formats.tsv_format import TsvFormat
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
@@ -10,7 +10,7 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 )
 
 
-class TestTsvFormatConstruction:
+class TestTsvFormatConstruction(unittest.TestCase):
     def test_default_construction(self) -> None:
         fmt = TsvFormat()
         assert fmt.delimiter == "\t"
@@ -20,15 +20,15 @@ class TestTsvFormatConstruction:
         assert fmt.encoding == "utf-8"
 
     def test_delimiter_must_be_single_char(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             TsvFormat(delimiter="\t\t")
 
     def test_column_names_required_when_no_header(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             TsvFormat(has_header=False)
 
 
-class TestTsvFormatProperties:
+class TestTsvFormatProperties(unittest.TestCase):
     def test_name(self) -> None:
         assert TsvFormat().name == "tsv"
 
@@ -36,8 +36,7 @@ class TestTsvFormatProperties:
         assert TsvFormat().streaming is True
 
 
-class TestTsvFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestTsvFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         fmt = TsvFormat()
         records = [
@@ -47,7 +46,6 @@ class TestTsvFormatRoundTrip:
         ]
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_empty(self) -> None:
         fmt = TsvFormat(
             has_header=False,
@@ -55,13 +53,11 @@ class TestTsvFormatRoundTrip:
         )
         await FormatRoundTrip.assert_round_trip(fmt, [])
 
-    @pytest.mark.asyncio
     async def test_round_trip_single_row(self) -> None:
         fmt = TsvFormat()
         records = [{"id": "1", "name": "only", "active": "true"}]
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_no_header(self) -> None:
         fmt = TsvFormat(
             has_header=False,

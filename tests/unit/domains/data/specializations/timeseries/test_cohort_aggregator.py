@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -33,9 +33,9 @@ def _make(**kwargs):
     return knot
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_period(self) -> None:
-        with pytest.raises(ValueError, match="period_days"):
+        with self.assertRaisesRegex(ValueError, "period_days"):
             _make(
                 user_column="uid",
                 timestamp_column="ts",
@@ -44,7 +44,7 @@ class TestConstruction:
             )
 
     def test_rejects_invalid_aggregation(self) -> None:
-        with pytest.raises(ValueError, match="aggregation"):
+        with self.assertRaisesRegex(ValueError, "aggregation"):
             _make(
                 user_column="uid",
                 timestamp_column="ts",
@@ -53,8 +53,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestBehaviour:
+class TestBehaviour(unittest.IsolatedAsyncioTestCase):
     async def test_same_cohort_same_period(self) -> None:
         rows = [
             {"uid": "u1", "ts": _ts(1), "revenue": 10},

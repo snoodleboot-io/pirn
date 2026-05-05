@@ -1,8 +1,8 @@
 """Tests for :class:`HyperbandTuner`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -24,11 +24,11 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_max_configs_below_one(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="max_configs must be >= 1"):
+            with self.assertRaisesRegex(ValueError, "max_configs must be >= 1"):
                 HyperbandTuner(
                     split=split,
                     algorithm="rf",
@@ -41,7 +41,7 @@ class TestConstruction:
     def test_rejects_empty_primary_metric(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="primary_metric"):
+            with self.assertRaisesRegex(ValueError, "primary_metric"):
                 HyperbandTuner(
                     split=split,
                     algorithm="rf",
@@ -51,7 +51,7 @@ class TestConstruction:
                 )
 
 
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_best_model_eval_report_and_rounds(self) -> None:
         with Tapestry() as t:
             split = emit_split(_config=KnotConfig(id="split"))

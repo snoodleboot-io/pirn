@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -13,9 +13,9 @@ from pirn.domains.health.types.wsi_tile import WSITile
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_sequence(self) -> None:
-        with pytest.raises(TypeError, match="tiles"):
+        with self.assertRaisesRegex(TypeError, "tiles"):
             CellDetector(
                 tiles=42,  # type: ignore[arg-type]
                 model_name="m",
@@ -23,7 +23,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_tile(self) -> None:
-        with pytest.raises(TypeError, match="WSITile"):
+        with self.assertRaisesRegex(TypeError, "WSITile"):
             CellDetector(
                 tiles=["x"],  # type: ignore[list-item]
                 model_name="m",
@@ -31,7 +31,7 @@ class TestConstruction:
             )
 
     def test_rejects_empty_model(self) -> None:
-        with pytest.raises(ValueError, match="non-empty"):
+        with self.assertRaisesRegex(ValueError, "non-empty"):
             CellDetector(
                 tiles=(),
                 model_name="",
@@ -39,8 +39,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_per_tile_count_mapping(self) -> None:
         tiles = (WSITile(slide_id="S", tile_x=0, tile_y=0, level=0, width=512, height=512),)
         with Tapestry() as t:

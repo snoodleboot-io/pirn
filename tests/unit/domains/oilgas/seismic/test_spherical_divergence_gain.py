@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
 import pytest
 
@@ -27,9 +28,9 @@ class _DataSource(Knot):
         }
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_velocity(self) -> None:
-        with pytest.raises(ValueError, match="velocity_m_s"):
+        with self.assertRaisesRegex(ValueError, "velocity_m_s"):
             with Tapestry():
                 src = _DataSource(_config=KnotConfig(id="src"))
                 SphericalDivergenceGain(
@@ -39,8 +40,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_applies_gain_correction(self) -> None:
         with Tapestry() as t:
             src = _DataSource(_config=KnotConfig(id="src"))

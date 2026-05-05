@@ -1,11 +1,19 @@
 """Round-trip and validation tests for :class:`WitsmlFormat`."""
 
 from __future__ import annotations
+import sys
+import unittest
+import unittest.mock
 
-import pytest
 
-pytest.importorskip("defusedxml")
-pytest.importorskip("lxml")
+try:
+    import defusedxml
+except ImportError as _e:
+    raise unittest.SkipTest("defusedxml not installed") from _e
+try:
+    import lxml
+except ImportError as _e:
+    raise unittest.SkipTest("lxml not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -38,7 +46,7 @@ def _simple_records() -> list[dict]:
     ]
 
 
-class TestWitsmlFormatConstruction:
+class TestWitsmlFormatConstruction(unittest.TestCase):
     def test_name(self) -> None:
         assert WitsmlFormat().name == "witsml"
 
@@ -49,8 +57,7 @@ class TestWitsmlFormatConstruction:
         assert isinstance(WitsmlFormat(), BatchFileFormat)
 
 
-class TestWitsmlFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestWitsmlFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_two_records(self) -> None:
         fmt = WitsmlFormat()
         records = _simple_records()
@@ -61,7 +68,6 @@ class TestWitsmlFormatRoundTrip:
             for key, val in orig.items():
                 assert dec.get(key) == val
 
-    @pytest.mark.asyncio
     async def test_round_trip_single_record(self) -> None:
         fmt = WitsmlFormat()
         records = [{"name": "Test Log", "wellName": "Test-1"}]
@@ -70,7 +76,6 @@ class TestWitsmlFormatRoundTrip:
         assert len(decoded) == 1
         assert decoded[0].get("name") == "Test Log"
 
-    @pytest.mark.asyncio
     async def test_decode_minimal_witsml_xml(self) -> None:
         fmt = WitsmlFormat()
 
@@ -87,37 +92,28 @@ class TestWitsmlFormatRoundTrip:
         assert "Log B" in names
 
 
-class TestWitsmlFormatErrors:
-    @pytest.mark.asyncio
+class TestWitsmlFormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_decode_invalid_xml_raises(self) -> None:
         fmt = WitsmlFormat()
 
         async def _bad_iter():
             yield b"not xml at all <<<"
 
-        with pytest.raises(Exception):
+        with self.assertRaises(Exception):
             record_iter = await fmt.read(_bad_iter())
             async for _ in record_iter:
                 pass
 
 
-class TestWitsmlFormatMissingDep:
-    def test_defusedxml_import_error_message(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        import sys
-        monkeypatch.setitem(sys.modules, "defusedxml", None)  # type: ignore[arg-type]
-        monkeypatch.setitem(sys.modules, "defusedxml.ElementTree", None)  # type: ignore[arg-type]
-        fmt = WitsmlFormat()
-        with pytest.raises(ImportError, match="pirn\\[oilgas\\]"):
-            fmt._load_defusedxml()
+class TestWitsmlFormatMissingDep(unittest.TestCase):
+    def test_defusedxml_import_error_message(self) -> None:
+        with unittest.mock.patch.dict(sys.modules, {"defusedxml": None, "defusedxml.ElementTree": None}):
+            fmt = WitsmlFormat()
+            with self.assertRaisesRegex(ImportError, "pirn\\[oilgas\\]"):
+                fmt._load_defusedxml()
 
-    def test_lxml_import_error_message(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        import sys
-        monkeypatch.setitem(sys.modules, "lxml", None)  # type: ignore[arg-type]
-        monkeypatch.setitem(sys.modules, "lxml.etree", None)  # type: ignore[arg-type]
-        fmt = WitsmlFormat()
-        with pytest.raises(ImportError, match="pirn\\[oilgas\\]"):
-            fmt._load_lxml()
+    def test_lxml_import_error_message(self) -> None:
+        with unittest.mock.patch.dict(sys.modules, {"lxml": None, "lxml.etree": None}):
+            fmt = WitsmlFormat()
+            with self.assertRaisesRegex(ImportError, "pirn\\[oilgas\\]"):
+                fmt._load_lxml()

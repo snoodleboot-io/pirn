@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import logging
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.graph.orientdb_config import OrientDBConfig
@@ -50,27 +50,28 @@ class FakeOrientClient:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-def test_implements_database_connection_pool() -> None:
-    pool = OrientDBPool(client=FakeOrientClient())
-    assert isinstance(pool, DatabaseConnectionPool)
 
-
-def test_construction_requires_config_or_client() -> None:
-    with pytest.raises(TypeError, match="config= or client="):
-        OrientDBPool()
-
-
-def test_config_with_empty_database_raises_value_error() -> None:
-    cfg = OrientDBConfig(host="localhost", database="")
-    with pytest.raises(ValueError, match="database must be non-empty"):
-        OrientDBPool(config=cfg)
-
-
+class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
+    def test_implements_database_connection_pool(self) -> None:
+        pool = OrientDBPool(client=FakeOrientClient())
+        assert isinstance(pool, DatabaseConnectionPool)
+    
+    
+    def test_construction_requires_config_or_client(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or client="):
+            OrientDBPool()
+    
+    
+    def test_config_with_empty_database_raises_value_error(self) -> None:
+        cfg = OrientDBConfig(host="localhost", database="")
+        with self.assertRaisesRegex(ValueError, "database must be non-empty"):
+            OrientDBPool(config=cfg)
+    
+    
 # ────────────────────────────────────────────────────────────── delegation
 
 
-@pytest.mark.asyncio
-class TestDelegation:
+class TestDelegation(unittest.IsolatedAsyncioTestCase):
     async def test_execute_delegates_to_client_command(self) -> None:
         fake = FakeOrientClient()
         pool = OrientDBPool(client=fake)
@@ -112,8 +113,7 @@ class TestDelegation:
 # ─────────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_calls_db_close(self) -> None:
         fake = FakeOrientClient()
         pool = OrientDBPool(client=fake)
@@ -123,7 +123,7 @@ class TestLifecycle:
     async def test_acquire_after_close_raises(self) -> None:
         pool = OrientDBPool(client=FakeOrientClient())
         await pool.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await pool.acquire()
 
     async def test_close_clears_credentials(self) -> None:
@@ -135,14 +135,14 @@ class TestLifecycle:
     async def test_use_after_close_raises(self) -> None:
         pool = OrientDBPool(config=OrientDBConfig(database="testdb"), client=FakeOrientClient())
         await pool.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await pool.acquire()
 
 
 # ──────────────────────────────────────────────────────── credential safety
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_repr_redacts_password(self) -> None:
         cfg = OrientDBConfig(password="orient-secret")
         assert "orient-secret" not in repr(cfg)
@@ -164,9 +164,9 @@ class TestCredentialSafety:
 # ────────────────────────────────────────────────────────────── log events
 
 
-@pytest.mark.asyncio
-async def test_close_emits_debug_log(caplog: pytest.LogCaptureFixture) -> None:
-    pool = OrientDBPool(client=FakeOrientClient())
-    with caplog.at_level(logging.DEBUG):
-        await pool.close()
-    assert any("orientdb.close" in r.message for r in caplog.records)
+    async def test_close_emits_debug_log(self) -> None:
+        # TODO(unittest-migrate): replace 'caplog' built-in
+        pool = OrientDBPool(client=FakeOrientClient())
+        with caplog.at_level(logging.DEBUG):
+            await pool.close()
+        assert any("orientdb.close" in r.message for r in caplog.records)

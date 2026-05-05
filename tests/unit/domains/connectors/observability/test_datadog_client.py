@@ -8,8 +8,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.capabilities.event_emitter import EventEmitter
@@ -28,15 +28,7 @@ class FakeDatadog:
         self.response: Any = {"status": "ok"}
         self.closed = False
 
-    def call_api(
-        self,
-        method: str,
-        path: str,
-        *,
-        query_params: Any = None,
-        body: Any = None,
-        header_params: Any = None,
-    ) -> Any:
+    def call_api(self, method: str, path: str, *, query_params: Any = None, body: Any = None, header_params: Any = None,) -> Any:
         self.calls.append(
             (
                 method,
@@ -57,25 +49,26 @@ class FakeDatadog:
 # ──────────────────────────────────────────────────────────── conformance
 
 
-def test_implements_api_client() -> None:
-    client = DatadogClient(client=FakeDatadog())
-    assert isinstance(client, ApiClient)
 
-
-def test_construction_requires_config_or_client() -> None:
-    with pytest.raises(TypeError, match="config= or client="):
-        DatadogClient()
-
-
-def test_sensitive_fields_listed() -> None:
-    assert DatadogConfig.sensitive_fields == ("api_key", "app_key")
-
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_api_client(self) -> None:
+        client = DatadogClient(client=FakeDatadog())
+        assert isinstance(client, ApiClient)
+    
+    
+    def test_construction_requires_config_or_client(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or client="):
+            DatadogClient()
+    
+    
+    def test_sensitive_fields_listed(self) -> None:
+        assert DatadogConfig.sensitive_fields == ("api_key", "app_key")
+    
+    
 # ──────────────────────────────────────────────────────────── request
 
 
-@pytest.mark.asyncio
-class TestRequest:
+class TestRequest(unittest.IsolatedAsyncioTestCase):
     async def test_request_dispatches_get(self) -> None:
         fake = FakeDatadog()
         fake.response = {"metrics": ["system.cpu.user"]}
@@ -111,20 +104,19 @@ class TestRequest:
 
     async def test_request_rejects_empty_method(self) -> None:
         client = DatadogClient(client=FakeDatadog())
-        with pytest.raises(ValueError, match="method"):
+        with self.assertRaisesRegex(ValueError, "method"):
             await client.request("", "/api/v1/metrics")
 
     async def test_request_rejects_empty_path(self) -> None:
         client = DatadogClient(client=FakeDatadog())
-        with pytest.raises(ValueError, match="path"):
+        with self.assertRaisesRegex(ValueError, "path"):
             await client.request("GET", "")
 
 
 # ──────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_closes_underlying_client(self) -> None:
         fake = FakeDatadog()
         client = DatadogClient(client=fake)
@@ -139,14 +131,14 @@ class TestLifecycle:
     async def test_request_after_close_raises(self) -> None:
         client = DatadogClient(client=FakeDatadog())
         await client.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await client.request("GET", "/api/v1/metrics")
 
 
 # ──────────────────────────────────────────────────────── credential safety
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_repr_redacts_keys(self) -> None:
         cfg = DatadogConfig(
             api_key="dd-secret",
@@ -172,36 +164,35 @@ class TestCredentialSafety:
 # ──────────────────────────────────────────────────────── capabilities
 
 
-def test_implements_table_source() -> None:
-    client = DatadogClient(client=FakeDatadog())
-    assert isinstance(client, TableSource)
-
-
-def test_implements_event_emitter() -> None:
-    client = DatadogClient(client=FakeDatadog())
-    assert isinstance(client, EventEmitter)
-
-
-def test_implements_metric_query() -> None:
-    client = DatadogClient(client=FakeDatadog())
-    assert isinstance(client, MetricQuery)
-
-
-def test_default_resource_is_metrics() -> None:
-    client = DatadogClient(client=FakeDatadog())
-    assert client.resource == "metrics"
-
-
-def test_resource_must_be_non_empty() -> None:
-    with pytest.raises(ValueError, match="resource"):
-        DatadogClient(client=FakeDatadog(), resource="")
-
-
+    def test_implements_table_source(self) -> None:
+        client = DatadogClient(client=FakeDatadog())
+        assert isinstance(client, TableSource)
+    
+    
+    def test_implements_event_emitter(self) -> None:
+        client = DatadogClient(client=FakeDatadog())
+        assert isinstance(client, EventEmitter)
+    
+    
+    def test_implements_metric_query(self) -> None:
+        client = DatadogClient(client=FakeDatadog())
+        assert isinstance(client, MetricQuery)
+    
+    
+    def test_default_resource_is_metrics(self) -> None:
+        client = DatadogClient(client=FakeDatadog())
+        assert client.resource == "metrics"
+    
+    
+    def test_resource_must_be_non_empty(self) -> None:
+        with self.assertRaisesRegex(ValueError, "resource"):
+            DatadogClient(client=FakeDatadog(), resource="")
+    
+    
 # ─────────────────────────────────────────────────── TableSource adapter
 
 
-@pytest.mark.asyncio
-class TestFetchPage:
+class TestFetchPage(unittest.IsolatedAsyncioTestCase):
     async def test_first_page_uses_zero_index(self) -> None:
         fake = FakeDatadog()
         fake.response = {
@@ -234,7 +225,7 @@ class TestFetchPage:
 
     async def test_invalid_cursor_raises(self) -> None:
         client = DatadogClient(client=FakeDatadog())
-        with pytest.raises(ValueError, match="invalid cursor"):
+        with self.assertRaisesRegex(ValueError, "invalid cursor"):
             await client.fetch_page(cursor="not-a-number")
 
     async def test_resource_routed_to_path(self) -> None:
@@ -248,8 +239,7 @@ class TestFetchPage:
 # ─────────────────────────────────────────────────── EventEmitter adapter
 
 
-@pytest.mark.asyncio
-class TestEmit:
+class TestEmit(unittest.IsolatedAsyncioTestCase):
     async def test_emit_routes_to_submit_metric(self) -> None:
         fake = FakeDatadog()
         client = DatadogClient(client=fake)
@@ -275,9 +265,9 @@ class TestEmit:
 
     async def test_emit_requires_metric_and_points(self) -> None:
         client = DatadogClient(client=FakeDatadog())
-        with pytest.raises(ValueError, match="metric"):
+        with self.assertRaisesRegex(ValueError, "metric"):
             await client.emit({"points": []})
-        with pytest.raises(ValueError, match="metric"):
+        with self.assertRaisesRegex(ValueError, "metric"):
             await client.emit({"metric": "x"})
 
     async def test_submit_metric_without_tags(self) -> None:
@@ -295,15 +285,14 @@ class TestEmit:
 
     async def test_submit_metric_rejects_empty_name(self) -> None:
         client = DatadogClient(client=FakeDatadog())
-        with pytest.raises(ValueError, match="name"):
+        with self.assertRaisesRegex(ValueError, "name"):
             await client.submit_metric("", [[1700000000, 1]])
 
 
 # ─────────────────────────────────────────────────── MetricQuery adapter
 
 
-@pytest.mark.asyncio
-class TestQuery:
+class TestQuery(unittest.IsolatedAsyncioTestCase):
     async def test_query_converts_datetimes_to_timestamps(self) -> None:
         fake = FakeDatadog()
         fake.response = {"series": []}
@@ -325,12 +314,12 @@ class TestQuery:
 
     async def test_query_requires_start_and_end(self) -> None:
         client = DatadogClient(client=FakeDatadog())
-        with pytest.raises(ValueError, match="start and end"):
+        with self.assertRaisesRegex(ValueError, "start and end"):
             await client.query("system.cpu.user")
 
     async def test_query_rejects_empty_query(self) -> None:
         client = DatadogClient(client=FakeDatadog())
-        with pytest.raises(ValueError, match="query"):
+        with self.assertRaisesRegex(ValueError, "query"):
             await client.query(
                 "",
                 start=datetime(2024, 1, 1, tzinfo=timezone.utc),

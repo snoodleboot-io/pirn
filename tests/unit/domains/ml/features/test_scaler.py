@@ -1,8 +1,8 @@
 """Tests for :class:`Scaler`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -24,7 +24,7 @@ async def emit_split() -> DataSplit:
     return _split()
 
 
-class TestScalerHappyPath:
+class TestScalerHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_renamed_split(self) -> None:
         with Tapestry() as t:
             split = emit_split(_config=KnotConfig(id="split"))
@@ -43,11 +43,11 @@ class TestScalerHappyPath:
         assert out.test.row_count == 20
 
 
-class TestScalerConstruction:
+class TestScalerConstruction(unittest.TestCase):
     def test_rejects_unknown_method(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="method must be"):
+            with self.assertRaisesRegex(ValueError, "method must be"):
                 Scaler(
                     split=split,
                     columns=("a",),

@@ -1,9 +1,9 @@
 """Tests for :class:`PyarrowCast`."""
 
 from __future__ import annotations
+import unittest
 
 import pyarrow as pa
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -20,8 +20,7 @@ async def emit_strings() -> PyarrowDataBatch:
     )
 
 
-@pytest.mark.asyncio
-class TestPyarrowCast:
+class TestPyarrowCast(unittest.IsolatedAsyncioTestCase):
     async def test_casts_with_pyarrow_dtype(self) -> None:
         with Tapestry() as t:
             batch = emit_strings(_config=KnotConfig(id="src"))
@@ -60,7 +59,7 @@ class TestPyarrowCast:
         assert out.table.schema.field("id").type == pa.string()
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_casts(self) -> None:
         @knot
         async def empty() -> PyarrowDataBatch:
@@ -68,7 +67,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="non-empty"):
+            with self.assertRaisesRegex(TypeError, "non-empty"):
                 PyarrowCast(
                     batch=batch, casts={},
                     _config=KnotConfig(id="c"),
@@ -81,7 +80,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="DataType"):
+            with self.assertRaisesRegex(TypeError, "DataType"):
                 PyarrowCast(
                     batch=batch, casts={"id": list},
                     _config=KnotConfig(id="c"),

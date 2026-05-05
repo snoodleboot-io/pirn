@@ -1,8 +1,8 @@
 """Tests for :class:`pirn.domains.data.transforms.deduplicate.Deduplicate`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -24,8 +24,7 @@ async def emit_with_dups() -> DataBatch:
     return DataBatch(rows=rows)
 
 
-@pytest.mark.asyncio
-class TestDeduplicate:
+class TestDeduplicate(unittest.IsolatedAsyncioTestCase):
     async def test_keeps_first_occurrence_of_each_key(self) -> None:
         with Tapestry() as t:
             batch = emit_with_dups(_config=KnotConfig(id="batch"))
@@ -75,14 +74,14 @@ class TestDeduplicate:
         assert out.row_count == 1
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_string_keys_argument(self) -> None:
         @knot
         async def empty() -> DataBatch:
             return DataBatch()
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="sequence"):
+            with self.assertRaisesRegex(TypeError, "sequence"):
                 Deduplicate(
                     batch=batch, keys="id",  # type: ignore[arg-type]
                     _config=KnotConfig(id="d"),
@@ -94,7 +93,7 @@ class TestConstruction:
             return DataBatch()
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(ValueError, match="non-empty"):
+            with self.assertRaisesRegex(ValueError, "non-empty"):
                 Deduplicate(
                     batch=batch, keys=(),
                     _config=KnotConfig(id="d"),

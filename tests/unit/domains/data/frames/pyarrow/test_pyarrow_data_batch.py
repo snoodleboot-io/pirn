@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from datetime import timezone
+import unittest
 
 import pyarrow as pa
 
 from pirn.domains.data.frames.pyarrow.pyarrow_data_batch import PyarrowDataBatch
 
 
-class TestPyarrowDataBatch:
+class TestPyarrowDataBatch(unittest.TestCase):
     def test_row_count_and_columns_reflect_table(self) -> None:
         table = pa.table({"id": [1, 2, 3], "name": ["a", "b", "c"]})
         batch = PyarrowDataBatch(table=table, source_uri="memory://test")

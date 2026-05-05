@@ -1,9 +1,9 @@
 """Tests for :class:`DatafusionFilter`."""
 
 from __future__ import annotations
+import unittest
 
 import datafusion as df
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -31,8 +31,7 @@ async def emit_users() -> DatafusionDataBatch:
     return DatafusionDataBatch(frame=frame, context=ctx)
 
 
-@pytest.mark.asyncio
-class TestDatafusionFilter:
+class TestDatafusionFilter(unittest.IsolatedAsyncioTestCase):
     async def test_keeps_rows_matching_predicate(self) -> None:
         with Tapestry() as t:
             batch = emit_users(_config=KnotConfig(id="users"))
@@ -73,7 +72,7 @@ class TestDatafusionFilter:
         assert ids == [1, 3]
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_neither_predicate_nor_expression(self) -> None:
         @knot
         async def empty() -> DatafusionDataBatch:
@@ -83,7 +82,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="provide either"):
+            with self.assertRaisesRegex(TypeError, "provide either"):
                 DatafusionFilter(
                     batch=batch,
                     _config=KnotConfig(id="f"),
@@ -98,7 +97,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(ValueError, match="empty"):
+            with self.assertRaisesRegex(ValueError, "empty"):
                 DatafusionFilter(
                     batch=batch, predicate="   ",
                     _config=KnotConfig(id="f"),
@@ -113,7 +112,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(ValueError, match="forbidden"):
+            with self.assertRaisesRegex(ValueError, "forbidden"):
                 DatafusionFilter(
                     batch=batch,
                     predicate="1 = 1; DROP TABLE users",
@@ -129,7 +128,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="not both"):
+            with self.assertRaisesRegex(TypeError, "not both"):
                 DatafusionFilter(
                     batch=batch,
                     predicate="x",

@@ -1,8 +1,8 @@
 """Unit tests for :class:`SelfConsistencyEnsemble`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,8 +14,7 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 
-@pytest.mark.asyncio
-class TestSelfConsistencyEnsembleProcess:
+class TestSelfConsistencyEnsembleProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_majority_vote_answer(self) -> None:
         llm = StubLLMProvider(["Paris", "Paris", "London"])
         with Tapestry() as t:
@@ -56,10 +55,9 @@ class TestSelfConsistencyEnsembleProcess:
         assert result.outputs["sce"].content == "only answer"
 
 
-@pytest.mark.asyncio
-class TestSelfConsistencyEnsembleConstruction:
+class TestSelfConsistencyEnsembleConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
-        with pytest.raises(TypeError, match="LLMProvider"):
+        with self.assertRaisesRegex(TypeError, "LLMProvider"):
             with Tapestry():
                 SelfConsistencyEnsemble(
                     prompt="q",
@@ -69,7 +67,7 @@ class TestSelfConsistencyEnsembleConstruction:
 
     async def test_rejects_zero_samples(self) -> None:
         llm = StubLLMProvider(["x"])
-        with pytest.raises(ValueError, match="samples must be a positive int"):
+        with self.assertRaisesRegex(ValueError, "samples must be a positive int"):
             with Tapestry():
                 SelfConsistencyEnsemble(
                     prompt="q",

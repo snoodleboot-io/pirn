@@ -6,8 +6,8 @@ Uses an injected stub httpx client. No network needed.
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.messaging.teams_client import TeamsClient
@@ -36,26 +36,27 @@ class FakeHTTPXClient:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-def test_implements_api_client() -> None:
-    client = TeamsClient(client=FakeHTTPXClient())
-    assert isinstance(client, ApiClient)
 
-
-def test_construction_requires_config_or_client() -> None:
-    with pytest.raises(TypeError, match="config= or client="):
-        TeamsClient()
-
-
-def test_sensitive_fields_declared() -> None:
-    cfg = TeamsConfig()
-    assert "webhook_url" in cfg.sensitive_fields
-
-
+class _StandaloneTests(unittest.TestCase):
+    def test_implements_api_client(self) -> None:
+        client = TeamsClient(client=FakeHTTPXClient())
+        assert isinstance(client, ApiClient)
+    
+    
+    def test_construction_requires_config_or_client(self) -> None:
+        with self.assertRaisesRegex(TypeError, "config= or client="):
+            TeamsClient()
+    
+    
+    def test_sensitive_fields_declared(self) -> None:
+        cfg = TeamsConfig()
+        assert "webhook_url" in cfg.sensitive_fields
+    
+    
 # ────────────────────────────────────────────────────────────── send_message
 
 
-@pytest.mark.asyncio
-class TestSendMessage:
+class TestSendMessage(unittest.IsolatedAsyncioTestCase):
     async def test_send_message_posts_adaptive_card(self) -> None:
         fake = FakeHTTPXClient()
         cfg = TeamsConfig(webhook_url="https://hook.example.com/webhook")
@@ -79,8 +80,7 @@ class TestSendMessage:
 # ─────────────────────────────────────────────────────────────── send_card
 
 
-@pytest.mark.asyncio
-class TestSendCard:
+class TestSendCard(unittest.IsolatedAsyncioTestCase):
     async def test_send_card_posts_payload(self) -> None:
         fake = FakeHTTPXClient()
         cfg = TeamsConfig(webhook_url="https://hook.example.com/webhook")
@@ -93,8 +93,7 @@ class TestSendCard:
 # ────────────────────────────────────────────────────────────── lifecycle
 
 
-@pytest.mark.asyncio
-class TestLifecycle:
+class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_calls_aclose(self) -> None:
         fake = FakeHTTPXClient()
         client = TeamsClient(client=fake)
@@ -110,7 +109,7 @@ class TestLifecycle:
 # ────────────────────────────────────────────────────────── credential safety
 
 
-class TestCredentialSafety:
+class TestCredentialSafety(unittest.TestCase):
     def test_repr_redacts_webhook_url(self) -> None:
         cfg = TeamsConfig(webhook_url="https://hook.example.com/supersecret")
         text = repr(cfg)
@@ -124,8 +123,7 @@ class TestCredentialSafety:
         assert "supersecret" not in str(d)
 
 
-@pytest.mark.asyncio
-class TestSecurity:
+class TestSecurity(unittest.IsolatedAsyncioTestCase):
     async def test_close_clears_credentials(self) -> None:
         client = TeamsClient(
             config=TeamsConfig(webhook_url="https://hook.example.com/tok"),
@@ -141,5 +139,5 @@ class TestSecurity:
             client=FakeHTTPXClient(),
         )
         await client.close()
-        with pytest.raises(RuntimeError, match="closed"):
+        with self.assertRaisesRegex(RuntimeError, "closed"):
             await client.send_message("Hello")

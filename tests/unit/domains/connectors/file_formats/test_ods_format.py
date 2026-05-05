@@ -1,10 +1,13 @@
 """Round-trip and validation tests for :class:`OdsFormat`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
-pytest.importorskip("odf")
+try:
+    import odf
+except ImportError as _e:
+    raise unittest.SkipTest("odf not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -17,7 +20,7 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 )
 
 
-class TestOdsFormatConstruction:
+class TestOdsFormatConstruction(unittest.TestCase):
     def test_default_arguments(self) -> None:
         fmt = OdsFormat()
         assert fmt.sheet_name == "Sheet1"
@@ -29,19 +32,19 @@ class TestOdsFormatConstruction:
         assert fmt.has_header is False
 
     def test_empty_sheet_name(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             OdsFormat(sheet_name="")
 
     def test_non_string_sheet_name(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             OdsFormat(sheet_name=123)  # type: ignore[arg-type]
 
     def test_non_bool_has_header(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             OdsFormat(has_header="yes")  # type: ignore[arg-type]
 
 
-class TestOdsFormatBasics:
+class TestOdsFormatBasics(unittest.TestCase):
     def test_name(self) -> None:
         assert OdsFormat().name == "ods"
 
@@ -52,8 +55,7 @@ class TestOdsFormatBasics:
         assert isinstance(OdsFormat(), BatchFileFormat)
 
 
-class TestOdsFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestOdsFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         records = [
             {"id": 1, "name": "alpha", "score": 1.5},
@@ -63,18 +65,15 @@ class TestOdsFormatRoundTrip:
         fmt = OdsFormat()
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_empty(self) -> None:
         fmt = OdsFormat()
         await FormatRoundTrip.assert_round_trip(fmt, [])
 
-    @pytest.mark.asyncio
     async def test_round_trip_single_row(self) -> None:
         records = [{"id": 42, "name": "solo", "score": 9.0}]
         fmt = OdsFormat()
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_round_trip_custom_sheet(self) -> None:
         records = [
             {"id": 1, "name": "alpha"},
@@ -83,11 +82,10 @@ class TestOdsFormatRoundTrip:
         fmt = OdsFormat(sheet_name="Custom")
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
-    @pytest.mark.asyncio
     async def test_decode_unknown_sheet_raises(self) -> None:
         records = [{"id": 1, "name": "alpha"}]
         writer = OdsFormat(sheet_name="Sheet1")
         payload = await FormatRoundTrip.encode(writer, records)
         reader = OdsFormat(sheet_name="Missing")
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.decode(reader, payload)

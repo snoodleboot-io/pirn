@@ -1,8 +1,8 @@
 """Tests for :class:`TimeSeriesSplitterValidator`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -25,11 +25,11 @@ async def emit_dataset() -> MLDataset:
     )
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_n_splits_below_two(self) -> None:
         with Tapestry():
             dataset = emit_dataset(_config=KnotConfig(id="dataset"))
-            with pytest.raises(ValueError, match="n_splits"):
+            with self.assertRaisesRegex(ValueError, "n_splits"):
                 TimeSeriesSplitterValidator(
                     dataset=dataset,
                     time_column="t",
@@ -42,7 +42,7 @@ class TestConstruction:
     def test_rejects_empty_time_column(self) -> None:
         with Tapestry():
             dataset = emit_dataset(_config=KnotConfig(id="dataset"))
-            with pytest.raises(ValueError, match="time_column"):
+            with self.assertRaisesRegex(ValueError, "time_column"):
                 TimeSeriesSplitterValidator(
                     dataset=dataset,
                     time_column="",
@@ -52,7 +52,7 @@ class TestConstruction:
                 )
 
 
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_aggregates_metrics_across_walk_forward_splits(self) -> None:
         with Tapestry() as t:
             dataset = emit_dataset(_config=KnotConfig(id="dataset"))

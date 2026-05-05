@@ -1,8 +1,8 @@
 """Unit tests for :class:`ANCPipeline`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -15,12 +15,12 @@ from tests.unit.domains.signal.conftest import (
 )
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_zero_step_size(self) -> None:
         with Tapestry():
             ref = emit_signal_frame(_config=KnotConfig(id="ref"))
             err = emit_reference_frame(_config=KnotConfig(id="err"))
-            with pytest.raises(ValueError, match="step_size"):
+            with self.assertRaisesRegex(ValueError, "step_size"):
                 ANCPipeline(
                     reference=ref,
                     error=err,
@@ -33,7 +33,7 @@ class TestConstruction:
         with Tapestry():
             ref = emit_signal_frame(_config=KnotConfig(id="ref"))
             err = emit_reference_frame(_config=KnotConfig(id="err"))
-            with pytest.raises(ValueError, match="step_size"):
+            with self.assertRaisesRegex(ValueError, "step_size"):
                 ANCPipeline(
                     reference=ref,
                     error=err,
@@ -46,7 +46,7 @@ class TestConstruction:
         with Tapestry():
             ref = emit_signal_frame(_config=KnotConfig(id="ref"))
             err = emit_reference_frame(_config=KnotConfig(id="err"))
-            with pytest.raises(ValueError, match="filter_length"):
+            with self.assertRaisesRegex(ValueError, "filter_length"):
                 ANCPipeline(
                     reference=ref,
                     error=err,
@@ -70,8 +70,7 @@ class TestConstruction:
         assert anc.filter_length == 32
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_signal_frame(self) -> None:
         with Tapestry() as t:
             ref = emit_signal_frame(_config=KnotConfig(id="ref"))

@@ -1,8 +1,8 @@
 """Unit tests for :class:`ButterworthFilter`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,11 +12,11 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.signal.conftest import emit_signal_frame
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_order(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="positive integer"):
+            with self.assertRaisesRegex(ValueError, "positive integer"):
                 ButterworthFilter(
                     signal=sig,
                     order=0,
@@ -27,7 +27,7 @@ class TestConstruction:
     def test_rejects_invalid_band_type(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="band_type"):
+            with self.assertRaisesRegex(ValueError, "band_type"):
                 ButterworthFilter(
                     signal=sig,
                     order=4,
@@ -39,7 +39,7 @@ class TestConstruction:
     def test_rejects_scalar_cutoff_for_bandpass(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="bandpass/bandstop"):
+            with self.assertRaisesRegex(ValueError, "bandpass/bandstop"):
                 ButterworthFilter(
                     signal=sig,
                     order=4,
@@ -51,7 +51,7 @@ class TestConstruction:
     def test_rejects_invalid_band_bounds(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="0 < low < high"):
+            with self.assertRaisesRegex(ValueError, "0 < low < high"):
                 ButterworthFilter(
                     signal=sig,
                     order=4,
@@ -63,7 +63,7 @@ class TestConstruction:
     def test_rejects_non_positive_lowpass_cutoff(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="positive scalar"):
+            with self.assertRaisesRegex(ValueError, "positive scalar"):
                 ButterworthFilter(
                     signal=sig,
                     order=4,
@@ -72,8 +72,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_signal_frame_with_band_marker(self) -> None:
         with Tapestry() as t:
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))

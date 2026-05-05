@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import struct
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -31,7 +31,7 @@ def _synthetic_gh1(
     return bytes(header)
 
 
-class TestSegdFormatConstruction:
+class TestSegdFormatConstruction(unittest.TestCase):
     def test_name(self) -> None:
         assert SegdFormat().name == "segd"
 
@@ -42,8 +42,7 @@ class TestSegdFormatConstruction:
         assert isinstance(SegdFormat(), BatchFileFormat)
 
 
-class TestSegdFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestSegdFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_decode_synthetic_header(self) -> None:
         fmt = SegdFormat()
         payload = _synthetic_gh1(
@@ -62,7 +61,6 @@ class TestSegdFormatRoundTrip:
         assert len(records) == 1
         assert records[0]["raw_header"] == payload
 
-    @pytest.mark.asyncio
     async def test_decode_returns_raw_header(self) -> None:
         fmt = SegdFormat()
         payload = _synthetic_gh1()
@@ -78,7 +76,6 @@ class TestSegdFormatRoundTrip:
         assert isinstance(records[0]["raw_header"], bytes)
         assert len(records[0]["raw_header"]) == 32
 
-    @pytest.mark.asyncio
     async def test_decode_record_has_required_keys(self) -> None:
         fmt = SegdFormat()
         payload = _synthetic_gh1()
@@ -97,21 +94,18 @@ class TestSegdFormatRoundTrip:
         assert "raw_header" in r
 
 
-class TestSegdFormatErrors:
-    @pytest.mark.asyncio
+class TestSegdFormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_encode_raises_not_implemented(self) -> None:
         fmt = SegdFormat()
-        with pytest.raises(NotImplementedError, match="write is not supported"):
+        with self.assertRaisesRegex(NotImplementedError, "write is not supported"):
             await fmt._encode_full([])
 
-    @pytest.mark.asyncio
     async def test_decode_too_short_raises(self) -> None:
         fmt = SegdFormat()
-        with pytest.raises(ValueError, match="too short"):
+        with self.assertRaisesRegex(ValueError, "too short"):
             await fmt._decode_full(b"\x00" * 10)
 
-    @pytest.mark.asyncio
     async def test_decode_non_bytes_raises(self) -> None:
         fmt = SegdFormat()
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             await fmt._decode_full("not bytes")  # type: ignore[arg-type]

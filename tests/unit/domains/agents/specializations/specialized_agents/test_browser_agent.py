@@ -1,8 +1,8 @@
 """Tests for :class:`BrowserAgent`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -17,11 +17,10 @@ from tests.unit.domains.agents.specializations.conftest import (
 )
 
 
-@pytest.mark.asyncio
-class TestBrowserAgentConstruction:
+class TestBrowserAgentConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_tool(self) -> None:
         llm = StubLLMProvider(["Final Answer: done"])
-        with pytest.raises(TypeError, match="browser_tool must be a Tool"):
+        with self.assertRaisesRegex(TypeError, "browser_tool must be a Tool"):
             with Tapestry():
                 BrowserAgent(
                     goal="open page",
@@ -33,7 +32,7 @@ class TestBrowserAgentConstruction:
     async def test_rejects_zero_max_steps(self) -> None:
         llm = StubLLMProvider(["Final Answer: done"])
         tool = StubTool(name="browser")
-        with pytest.raises(ValueError, match="max_steps"):
+        with self.assertRaisesRegex(ValueError, "max_steps"):
             with Tapestry():
                 BrowserAgent(
                     goal="open page",
@@ -44,8 +43,7 @@ class TestBrowserAgentConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestBrowserAgentHappyPath:
+class TestBrowserAgentHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_drives_browser_to_final_answer(self) -> None:
         llm = StubLLMProvider(
             [

@@ -7,11 +7,14 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
+import unittest
 
 import numpy as np
-import pytest
 
-pytest.importorskip("pyedflib")
+try:
+    import pyedflib
+except ImportError as _e:
+    raise unittest.SkipTest("pyedflib not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -61,7 +64,7 @@ async def _decode_bytes(
 # Construction
 # ---------------------------------------------------------------------------
 
-class TestEdfPlusFormatConstruction:
+class TestEdfPlusFormatConstruction(unittest.TestCase):
     def test_is_batch_format(self) -> None:
         assert isinstance(EdfPlusFormat(), BatchFileFormat)
 
@@ -82,7 +85,7 @@ class TestEdfPlusFormatConstruction:
 # PHI sanitisation
 # ---------------------------------------------------------------------------
 
-class TestEdfPlusFormatPhiSanitisation:
+class TestEdfPlusFormatPhiSanitisation(unittest.IsolatedAsyncioTestCase):
     def test_phi_fields_inherited(self) -> None:
         phi = EdfPlusFormat._phi_header_fields
         assert "patientname" in phi
@@ -90,7 +93,6 @@ class TestEdfPlusFormatPhiSanitisation:
         assert "birthdate" in phi
         assert "admincode" in phi
 
-    @pytest.mark.asyncio
     async def test_decoded_signal_records_have_no_phi_keys(self) -> None:
         records = _make_signal_records(n_channels=1)
         fmt = EdfPlusFormat()
@@ -107,8 +109,7 @@ class TestEdfPlusFormatPhiSanitisation:
 # Round-trip
 # ---------------------------------------------------------------------------
 
-class TestEdfPlusFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestEdfPlusFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_signals_only(self) -> None:
         records = _make_signal_records(n_channels=2, n_samples=256)
         fmt = EdfPlusFormat()
@@ -120,7 +121,6 @@ class TestEdfPlusFormatRoundTrip:
             assert rec["signal_index"] == idx
             assert rec["label"] == f"EEG{idx+1}"
 
-    @pytest.mark.asyncio
     async def test_round_trip_with_annotations(self) -> None:
         records = _make_signal_records(n_channels=1, n_samples=256)
         annotation_record = {
@@ -141,8 +141,7 @@ class TestEdfPlusFormatRoundTrip:
 # Errors
 # ---------------------------------------------------------------------------
 
-class TestEdfPlusFormatErrors:
-    @pytest.mark.asyncio
+class TestEdfPlusFormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_encode_empty_raises_value_error(self) -> None:
         fmt = EdfPlusFormat()
 
@@ -150,7 +149,7 @@ class TestEdfPlusFormatErrors:
             return
             yield
 
-        with pytest.raises(ValueError, match="empty"):
+        with self.assertRaisesRegex(ValueError, "empty"):
             async for _ in await fmt.write(_empty()):
                 pass
 
@@ -159,8 +158,8 @@ class TestEdfPlusFormatErrors:
 # Missing dependency
 # ---------------------------------------------------------------------------
 
-class TestEdfPlusFormatMissingDep:
+class TestEdfPlusFormatMissingDep(unittest.TestCase):
     def test_load_pyedflib_raises_on_missing(self) -> None:
         with patch.dict("sys.modules", {"pyedflib": None}):
-            with pytest.raises(ImportError, match="pirn\\[health\\]"):
+            with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
                 EdfPlusFormat._load_pyedflib()

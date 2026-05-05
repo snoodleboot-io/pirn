@@ -1,8 +1,8 @@
 """Unit tests for :class:`LLMCall`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -21,8 +21,7 @@ async def emit_context() -> AgentContext:
     )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_calls_llm_with_wire_messages(self) -> None:
         llm = StubLLMProvider(responses=["hello back"])
         with Tapestry() as t:
@@ -47,7 +46,7 @@ class TestProcess:
         assert result.outputs["c"]["content"] == "x"
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_requires_llm_provider(self) -> None:
         @knot
         async def empty() -> AgentContext:
@@ -55,7 +54,7 @@ class TestConstruction:
 
         with Tapestry():
             ctx = empty(_config=KnotConfig(id="ctx"))
-            with pytest.raises(TypeError, match="LLMProvider"):
+            with self.assertRaisesRegex(TypeError, "LLMProvider"):
                 LLMCall(
                     context=ctx,
                     llm="bad",  # type: ignore[arg-type]
@@ -70,7 +69,7 @@ class TestConstruction:
         with Tapestry():
             ctx = empty(_config=KnotConfig(id="ctx"))
             llm = StubLLMProvider(responses=[])
-            with pytest.raises(ValueError, match="model"):
+            with self.assertRaisesRegex(ValueError, "model"):
                 LLMCall(
                     context=ctx,
                     llm=llm,

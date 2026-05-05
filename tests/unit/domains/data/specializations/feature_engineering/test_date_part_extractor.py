@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from datetime import datetime
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -29,22 +29,21 @@ def _make(**kwargs):
     return knot
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_parts(self) -> None:
-        with pytest.raises(ValueError, match="parts"):
+        with self.assertRaisesRegex(ValueError, "parts"):
             _make(column="ts", parts=[])
 
     def test_rejects_unknown_part(self) -> None:
-        with pytest.raises(ValueError, match="unsupported parts"):
+        with self.assertRaisesRegex(ValueError, "unsupported parts"):
             _make(column="ts", parts=["year", "nanosecond"])
 
     def test_rejects_invalid_column(self) -> None:
-        with pytest.raises(ValueError, match="plain identifier"):
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
             _make(column="bad col", parts=["year"])
 
 
-@pytest.mark.asyncio
-class TestBehaviour:
+class TestBehaviour(unittest.IsolatedAsyncioTestCase):
     async def test_extracts_year_month_day(self) -> None:
         rows = [{"ts": datetime(2024, 6, 15, 10, 30)}]
         knot = _make(column="ts", parts=["year", "month", "day"])

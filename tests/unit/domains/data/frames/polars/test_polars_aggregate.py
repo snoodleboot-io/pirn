@@ -1,6 +1,7 @@
 """Tests for :class:`PolarsAggregate`."""
 
 from __future__ import annotations
+import unittest
 
 import polars as pl
 import pytest
@@ -26,8 +27,7 @@ async def emit_orders() -> PolarsDataBatch:
     )
 
 
-@pytest.mark.asyncio
-class TestPolarsAggregate:
+class TestPolarsAggregate(unittest.IsolatedAsyncioTestCase):
     async def test_sum_per_region(self) -> None:
         with Tapestry() as t:
             batch = emit_orders(_config=KnotConfig(id="orders"))
@@ -89,7 +89,7 @@ class TestPolarsAggregate:
         assert out.row_count == 3
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_expr_in_aggs(self) -> None:
         @knot
         async def empty() -> PolarsDataBatch:
@@ -97,7 +97,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="polars.Expr"):
+            with self.assertRaisesRegex(TypeError, "polars.Expr"):
                 PolarsAggregate(
                     batch=batch, by=("a",), aggs=("sum(amount)",),  # type: ignore[arg-type]
                     _config=KnotConfig(id="a"),
@@ -110,7 +110,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(ValueError, match="non-empty"):
+            with self.assertRaisesRegex(ValueError, "non-empty"):
                 PolarsAggregate(
                     batch=batch, by=(),
                     aggs=(pl.col("x").sum(),),

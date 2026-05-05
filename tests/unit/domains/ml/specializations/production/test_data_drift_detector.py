@@ -1,8 +1,8 @@
 """Tests for :class:`DataDriftDetector`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -29,12 +29,12 @@ async def emit_current() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_empty_features(self) -> None:
         with Tapestry():
             ref = emit_reference(_config=KnotConfig(id="r"))
             cur = emit_current(_config=KnotConfig(id="c"))
-            with pytest.raises(ValueError, match="features"):
+            with self.assertRaisesRegex(ValueError, "features"):
                 DataDriftDetector(
                     reference=ref,
                     current=cur,
@@ -46,7 +46,7 @@ class TestConstruction:
         with Tapestry():
             ref = emit_reference(_config=KnotConfig(id="r"))
             cur = emit_current(_config=KnotConfig(id="c"))
-            with pytest.raises(ValueError, match="psi_threshold"):
+            with self.assertRaisesRegex(ValueError, "psi_threshold"):
                 DataDriftDetector(
                     reference=ref,
                     current=cur,
@@ -56,8 +56,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_drift_report(self) -> None:
         with Tapestry() as t:
             ref = emit_reference(_config=KnotConfig(id="r"))

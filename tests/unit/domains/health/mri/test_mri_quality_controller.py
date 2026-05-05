@@ -1,8 +1,8 @@
 """Unit tests for :class:`MRIQualityController`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -11,9 +11,9 @@ from pirn.domains.health.mri.mri_quality_controller import MRIQualityController
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_invalid_modality(self) -> None:
-        with pytest.raises(ValueError, match="modality"):
+        with self.assertRaisesRegex(ValueError, "modality"):
             MRIQualityController(
                 mri_data=Parameter("md", dict, default={}, _config=KnotConfig(id="md")),
                 snr_threshold=10.0,
@@ -23,7 +23,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_positive_snr_threshold(self) -> None:
-        with pytest.raises(ValueError, match="snr_threshold"):
+        with self.assertRaisesRegex(ValueError, "snr_threshold"):
             MRIQualityController(
                 mri_data=Parameter("md", dict, default={}, _config=KnotConfig(id="md")),
                 snr_threshold=0.0,
@@ -33,7 +33,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_positive_motion_threshold(self) -> None:
-        with pytest.raises(ValueError, match="motion_threshold_mm"):
+        with self.assertRaisesRegex(ValueError, "motion_threshold_mm"):
             MRIQualityController(
                 mri_data=Parameter("md", dict, default={}, _config=KnotConfig(id="md")),
                 snr_threshold=10.0,
@@ -43,8 +43,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_dict(self) -> None:
         mri = {"nifti_path": "scan.nii.gz", "motion_params": [0.1, 0.2]}
         with Tapestry() as t:

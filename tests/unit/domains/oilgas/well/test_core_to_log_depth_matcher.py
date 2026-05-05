@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -29,9 +29,9 @@ class _LogSource(Knot):
         return [{"depth_ft": 1001.5, "value": 0.14}, {"depth_ft": 1006.0, "value": 0.17}]
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_max_shift(self) -> None:
-        with pytest.raises(ValueError, match="max_shift_ft"):
+        with self.assertRaisesRegex(ValueError, "max_shift_ft"):
             with Tapestry():
                 c = _CoreSource(_config=KnotConfig(id="c"))
                 l = _LogSource(_config=KnotConfig(id="l"))
@@ -40,8 +40,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_matches_depths(self) -> None:
         with Tapestry() as t:
             c = _CoreSource(_config=KnotConfig(id="c"))

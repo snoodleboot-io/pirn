@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+import unittest
 
-import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -23,9 +23,9 @@ class _PigRunSource(Knot):
         return {"feature_count": 10}
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_numeric_years(self) -> None:
-        with pytest.raises(TypeError, match="years_between"):
+        with self.assertRaisesRegex(TypeError, "years_between"):
             with Tapestry():
                 prev = _PigRunSource(_config=KnotConfig(id="prev"))
                 cur = _PigRunSource(_config=KnotConfig(id="cur"))
@@ -37,7 +37,7 @@ class TestConstruction:
                 )
 
     def test_rejects_non_positive_years(self) -> None:
-        with pytest.raises(ValueError, match="positive"):
+        with self.assertRaisesRegex(ValueError, "positive"):
             with Tapestry():
                 prev = _PigRunSource(_config=KnotConfig(id="prev"))
                 cur = _PigRunSource(_config=KnotConfig(id="cur"))
@@ -49,8 +49,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_corrosion_rate(self) -> None:
         with Tapestry() as t:
             prev = _PigRunSource(_config=KnotConfig(id="prev"))

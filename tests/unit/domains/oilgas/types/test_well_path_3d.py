@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import unittest
 
 from pirn.domains.oilgas.types.well_path_3d import WellPath3D
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_default_values(self) -> None:
         path = WellPath3D()
         assert path.well_id == ""
@@ -22,7 +23,7 @@ class TestConstruction:
         assert path.fetched_at == when
 
 
-class TestAuditDict:
+class TestAuditDict(unittest.TestCase):
     def test_audit_dict_iso_timestamp(self) -> None:
         when = datetime(2026, 1, 1, tzinfo=timezone.utc)
         path = WellPath3D(well_id="W1", point_count=5, fetched_at=when)
@@ -34,7 +35,7 @@ class TestAuditDict:
         }
 
 
-class TestFrozen:
+class TestFrozen(unittest.TestCase):
     def test_frozen_disallows_mutation(self) -> None:
         path = WellPath3D(well_id="W1")
         try:

@@ -1,8 +1,8 @@
 """Unit tests for :class:`CausalRealtimeFilter`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,11 +12,11 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.signal.conftest import emit_signal_frame
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_invalid_filter_type(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="filter_type"):
+            with self.assertRaisesRegex(ValueError, "filter_type"):
                 CausalRealtimeFilter(
                     signal=sig,
                     filter_type="invalid",
@@ -28,7 +28,7 @@ class TestConstruction:
     def test_rejects_non_positive_order(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="positive integer"):
+            with self.assertRaisesRegex(ValueError, "positive integer"):
                 CausalRealtimeFilter(
                     signal=sig,
                     filter_type="lowpass",
@@ -40,7 +40,7 @@ class TestConstruction:
     def test_rejects_scalar_cutoff_for_bandpass(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="bandpass/bandstop"):
+            with self.assertRaisesRegex(ValueError, "bandpass/bandstop"):
                 CausalRealtimeFilter(
                     signal=sig,
                     filter_type="bandpass",
@@ -52,7 +52,7 @@ class TestConstruction:
     def test_rejects_non_positive_lowpass_cutoff(self) -> None:
         with Tapestry():
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with pytest.raises(ValueError, match="positive scalar"):
+            with self.assertRaisesRegex(ValueError, "positive scalar"):
                 CausalRealtimeFilter(
                     signal=sig,
                     filter_type="lowpass",
@@ -62,8 +62,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_signal_frame_with_type_marker(self) -> None:
         with Tapestry() as t:
             sig = emit_signal_frame(_config=KnotConfig(id="sig"))

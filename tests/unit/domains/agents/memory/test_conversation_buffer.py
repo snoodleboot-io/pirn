@@ -1,8 +1,8 @@
 """Unit tests for :class:`ConversationBuffer`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -17,8 +17,7 @@ async def emit_new_message() -> AgentMessage:
     return AgentMessage(role="user", content="latest")
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_appends_with_unbounded_history(self) -> None:
         history = (
             AgentMessage(role="user", content="a"),
@@ -56,7 +55,7 @@ class TestProcess:
         assert out[0].content == "m3"
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_max_size(self) -> None:
         @knot
         async def m() -> AgentMessage:
@@ -64,7 +63,7 @@ class TestConstruction:
 
         with Tapestry():
             new_msg = m(_config=KnotConfig(id="m"))
-            with pytest.raises(ValueError, match="positive"):
+            with self.assertRaisesRegex(ValueError, "positive"):
                 ConversationBuffer(
                     new_message=new_msg,
                     max_size=0,

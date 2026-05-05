@@ -1,8 +1,8 @@
 """Tests for :class:`KFoldCrossValidator`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -22,11 +22,11 @@ async def emit_dataset() -> MLDataset:
     )
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_k_below_two(self) -> None:
         with Tapestry():
             dataset = emit_dataset(_config=KnotConfig(id="dataset"))
-            with pytest.raises(ValueError, match="k must be >= 2"):
+            with self.assertRaisesRegex(ValueError, "k must be >= 2"):
                 KFoldCrossValidator(
                     dataset=dataset,
                     algorithm="rf",
@@ -38,7 +38,7 @@ class TestConstruction:
     def test_rejects_empty_algorithm(self) -> None:
         with Tapestry():
             dataset = emit_dataset(_config=KnotConfig(id="dataset"))
-            with pytest.raises(ValueError, match="algorithm"):
+            with self.assertRaisesRegex(ValueError, "algorithm"):
                 KFoldCrossValidator(
                     dataset=dataset,
                     algorithm="",
@@ -49,7 +49,7 @@ class TestConstruction:
     def test_rejects_empty_metrics(self) -> None:
         with Tapestry():
             dataset = emit_dataset(_config=KnotConfig(id="dataset"))
-            with pytest.raises(ValueError, match="metrics must be non-empty"):
+            with self.assertRaisesRegex(ValueError, "metrics must be non-empty"):
                 KFoldCrossValidator(
                     dataset=dataset,
                     algorithm="rf",
@@ -59,7 +59,7 @@ class TestConstruction:
 
     def test_rejects_non_knot_dataset(self) -> None:
         with Tapestry():
-            with pytest.raises(TypeError, match="dataset must be a Knot"):
+            with self.assertRaisesRegex(TypeError, "dataset must be a Knot"):
                 KFoldCrossValidator(
                     dataset="not_a_knot",  # type: ignore[arg-type]
                     algorithm="rf",
@@ -68,7 +68,7 @@ class TestConstruction:
                 )
 
 
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_aggregates_mean_and_std_metrics(self) -> None:
         with Tapestry() as t:
             dataset = emit_dataset(_config=KnotConfig(id="dataset"))

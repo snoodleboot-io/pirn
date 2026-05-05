@@ -1,8 +1,8 @@
 """Unit tests for :class:`VolumetricEstimator`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -10,9 +10,9 @@ from pirn.domains.oilgas.reservoir.volumetric_estimator import VolumetricEstimat
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_positive_area(self) -> None:
-        with pytest.raises(ValueError, match="area_acres"):
+        with self.assertRaisesRegex(ValueError, "area_acres"):
             VolumetricEstimator(
                 area_acres=0.0,
                 net_thickness_ft=10.0,
@@ -23,7 +23,7 @@ class TestConstruction:
             )
 
     def test_rejects_porosity_out_of_range(self) -> None:
-        with pytest.raises(ValueError, match="porosity_fraction"):
+        with self.assertRaisesRegex(ValueError, "porosity_fraction"):
             VolumetricEstimator(
                 area_acres=100.0,
                 net_thickness_ft=10.0,
@@ -34,7 +34,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_numeric_sw(self) -> None:
-        with pytest.raises(TypeError, match="water_saturation_fraction"):
+        with self.assertRaisesRegex(TypeError, "water_saturation_fraction"):
             VolumetricEstimator(
                 area_acres=100.0,
                 net_thickness_ft=10.0,
@@ -45,8 +45,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_positive_ooip(self) -> None:
         with Tapestry() as t:
             VolumetricEstimator(

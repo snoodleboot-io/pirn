@@ -1,8 +1,8 @@
 """Unit tests for :class:`SelfCritiqueRevise`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,8 +14,7 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 
-@pytest.mark.asyncio
-class TestSelfCritiqueReviseProcess:
+class TestSelfCritiqueReviseProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_revised_answer_as_agent_response(self) -> None:
         llm = StubLLMProvider(["initial answer", "it lacks detail", "revised answer"])
         with Tapestry() as t:
@@ -57,10 +56,9 @@ class TestSelfCritiqueReviseProcess:
         assert "what is x?" in user_content
 
 
-@pytest.mark.asyncio
-class TestSelfCritiqueReviseConstruction:
+class TestSelfCritiqueReviseConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
-        with pytest.raises(TypeError, match="LLMProvider"):
+        with self.assertRaisesRegex(TypeError, "LLMProvider"):
             with Tapestry():
                 SelfCritiqueRevise(
                     prompt="q",

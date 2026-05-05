@@ -1,8 +1,8 @@
 """Tests for :class:`pirn.domains.data.transforms.cast.Cast`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -35,8 +35,7 @@ async def emit_with_invalid() -> DataBatch:
     return DataBatch(rows=rows)
 
 
-@pytest.mark.asyncio
-class TestCast:
+class TestCast(unittest.IsolatedAsyncioTestCase):
     async def test_casts_values_per_column(self) -> None:
         with Tapestry() as t:
             batch = emit_string_users(_config=KnotConfig(id="users"))
@@ -92,14 +91,14 @@ class TestCast:
         )
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_type_value(self) -> None:
         @knot
         async def empty() -> DataBatch:
             return DataBatch()
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="must be a type"):
+            with self.assertRaisesRegex(TypeError, "must be a type"):
                 Cast(
                     batch=batch, casts={"a": "int"},  # type: ignore[dict-item]
                     _config=KnotConfig(id="c"),

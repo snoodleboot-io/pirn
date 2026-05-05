@@ -1,8 +1,8 @@
 """Tests for :class:`DataVaultSatelliteLoader`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,43 +12,6 @@ from pirn.domains.data.specializations.data_vault.data_vault_satellite_loader im
     DataVaultSatelliteLoader,
 )
 from pirn.tapestry import Tapestry
-
-
-@pytest.fixture
-async def source_pool() -> SqlitePool:
-    pool = SqlitePool(SqliteConfig(database=":memory:"))
-    await pool.execute(
-        "CREATE TABLE raw_customer_attr ("
-        "  hub_hk TEXT NOT NULL,"
-        "  hash_diff TEXT NOT NULL,"
-        "  name TEXT NOT NULL,"
-        "  email TEXT NOT NULL"
-        ")"
-    )
-    await pool.execute_many(
-        "INSERT INTO raw_customer_attr (hub_hk, hash_diff, name, email) VALUES (?, ?, ?, ?)",
-        [("hk_1", "diff_a", "Alice", "alice@example.com")],
-    )
-    yield pool
-    await pool.close()
-
-
-@pytest.fixture
-async def target_pool() -> SqlitePool:
-    pool = SqlitePool(SqliteConfig(database=":memory:"))
-    await pool.execute(
-        "CREATE TABLE sat_customer ("
-        "  hub_hk TEXT NOT NULL,"
-        "  hash_diff TEXT NOT NULL,"
-        "  name TEXT NOT NULL,"
-        "  email TEXT NOT NULL,"
-        "  load_date TEXT NOT NULL,"
-        "  load_end_date TEXT,"
-        "  record_source TEXT NOT NULL"
-        ")"
-    )
-    yield pool
-    await pool.close()
 
 
 def _run_loader(
@@ -72,9 +35,47 @@ def _run_loader(
     return t
 
 
-class TestConstruction:
-    def test_rejects_non_pool_source(self, target_pool: SqlitePool) -> None:
-        with pytest.raises(TypeError, match="DatabaseConnectionPool"):
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self) -> None:
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute(
+            "CREATE TABLE raw_customer_attr ("
+            "  hub_hk TEXT NOT NULL,"
+            "  hash_diff TEXT NOT NULL,"
+            "  name TEXT NOT NULL,"
+            "  email TEXT NOT NULL"
+            ")"
+        )
+        await pool.execute_many(
+            "INSERT INTO raw_customer_attr (hub_hk, hash_diff, name, email) VALUES (?, ?, ?, ?)",
+            [("hk_1", "diff_a", "Alice", "alice@example.com")],
+        )
+        self.source_pool = pool
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute(
+            "CREATE TABLE sat_customer ("
+            "  hub_hk TEXT NOT NULL,"
+            "  hash_diff TEXT NOT NULL,"
+            "  name TEXT NOT NULL,"
+            "  email TEXT NOT NULL,"
+            "  load_date TEXT NOT NULL,"
+            "  load_end_date TEXT,"
+            "  record_source TEXT NOT NULL"
+            ")"
+        )
+        self.target_pool = pool
+
+    async def asyncTearDown(self) -> None:
+        await self.source_pool.close()
+        
+        
+        await self.target_pool.close()
+        
+        
+    def test_rejects_non_pool_source(self) -> None:
+        target_pool = self.target_pool
+        with self.assertRaisesRegex(TypeError, "DatabaseConnectionPool"):
             with Tapestry():
                 DataVaultSatelliteLoader(
                     source_pool="bad",  # type: ignore[arg-type]
@@ -87,10 +88,10 @@ class TestConstruction:
                     _config=KnotConfig(id="sat"),
                 )
 
-    def test_rejects_empty_record_source(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
-        with pytest.raises(ValueError, match="record_source"):
+    def test_rejects_empty_record_source(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
+        with self.assertRaisesRegex(ValueError, "record_source"):
             with Tapestry():
                 DataVaultSatelliteLoader(
                     source_pool=source_pool,
@@ -103,10 +104,10 @@ class TestConstruction:
                     _config=KnotConfig(id="sat"),
                 )
 
-    def test_rejects_attribute_clashing_with_envelope(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
-        with pytest.raises(ValueError, match="clash"):
+    def test_rejects_attribute_clashing_with_envelope(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
+        with self.assertRaisesRegex(ValueError, "clash"):
             with Tapestry():
                 DataVaultSatelliteLoader(
                     source_pool=source_pool,
@@ -119,10 +120,10 @@ class TestConstruction:
                     _config=KnotConfig(id="sat"),
                 )
 
-    def test_rejects_invalid_target_table(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
-        with pytest.raises(ValueError, match="plain identifier"):
+    def test_rejects_invalid_target_table(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
+        with self.assertRaisesRegex(ValueError, "plain identifier"):
             with Tapestry():
                 DataVaultSatelliteLoader(
                     source_pool=source_pool,
@@ -136,11 +137,47 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestSatelliteLoaderBehaviour:
-    async def test_first_run_inserts_row(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
+class TestSatelliteLoaderBehaviour(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self) -> None:
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute(
+            "CREATE TABLE raw_customer_attr ("
+            "  hub_hk TEXT NOT NULL,"
+            "  hash_diff TEXT NOT NULL,"
+            "  name TEXT NOT NULL,"
+            "  email TEXT NOT NULL"
+            ")"
+        )
+        await pool.execute_many(
+            "INSERT INTO raw_customer_attr (hub_hk, hash_diff, name, email) VALUES (?, ?, ?, ?)",
+            [("hk_1", "diff_a", "Alice", "alice@example.com")],
+        )
+        self.source_pool = pool
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute(
+            "CREATE TABLE sat_customer ("
+            "  hub_hk TEXT NOT NULL,"
+            "  hash_diff TEXT NOT NULL,"
+            "  name TEXT NOT NULL,"
+            "  email TEXT NOT NULL,"
+            "  load_date TEXT NOT NULL,"
+            "  load_end_date TEXT,"
+            "  record_source TEXT NOT NULL"
+            ")"
+        )
+        self.target_pool = pool
+
+    async def asyncTearDown(self) -> None:
+        await self.source_pool.close()
+        
+        
+        await self.target_pool.close()
+        
+        
+    async def test_first_run_inserts_row(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
         with Tapestry() as t:
             DataVaultSatelliteLoader(
                 source_pool=source_pool,
@@ -160,9 +197,9 @@ class TestSatelliteLoaderBehaviour:
         assert len(rows) == 1
         assert rows[0] == ("hk_1", "Alice", None)
 
-    async def test_rerun_with_same_diff_is_noop(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
+    async def test_rerun_with_same_diff_is_noop(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
         for run_id in ("sat_r1", "sat_r2"):
             with Tapestry() as t:
                 DataVaultSatelliteLoader(
@@ -179,9 +216,9 @@ class TestSatelliteLoaderBehaviour:
         rows = await target_pool.fetch_all("SELECT hub_hk FROM sat_customer")
         assert len(rows) == 1
 
-    async def test_changed_diff_closes_old_and_inserts_new(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
+    async def test_changed_diff_closes_old_and_inserts_new(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
         with Tapestry() as t:
             DataVaultSatelliteLoader(
                 source_pool=source_pool,

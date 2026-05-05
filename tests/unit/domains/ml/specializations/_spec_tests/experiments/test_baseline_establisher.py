@@ -1,8 +1,8 @@
 """Tests for :class:`BaselineEstablisher`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -27,10 +27,10 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_knot_split(self) -> None:
         with Tapestry():
-            with pytest.raises(TypeError, match="split must be a Knot"):
+            with self.assertRaisesRegex(TypeError, "split must be a Knot"):
                 BaselineEstablisher(
                     split="not-a-knot",  # type: ignore[arg-type]
                     _config=KnotConfig(id="bad"),
@@ -39,7 +39,7 @@ class TestConstruction:
     def test_rejects_empty_algorithm(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="algorithm"):
+            with self.assertRaisesRegex(ValueError, "algorithm"):
                 BaselineEstablisher(
                     split=split,
                     algorithm="",
@@ -49,7 +49,7 @@ class TestConstruction:
     def test_rejects_empty_metrics(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with pytest.raises(ValueError, match="metrics"):
+            with self.assertRaisesRegex(ValueError, "metrics"):
                 BaselineEstablisher(
                     split=split,
                     metrics=(),
@@ -57,7 +57,7 @@ class TestConstruction:
                 )
 
 
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_baseline_eval_report(self) -> None:
         with Tapestry() as t:
             split = emit_split(_config=KnotConfig(id="split"))

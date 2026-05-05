@@ -1,10 +1,13 @@
 """Unit tests for :class:`SnappyCodec`. Skipped if ``snappy`` is missing."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
-pytest.importorskip("snappy")
+try:
+    import snappy
+except ImportError as _e:
+    raise unittest.SkipTest("snappy not installed") from _e
 
 from pirn.domains.connectors.file_formats.codecs.snappy_codec import SnappyCodec  # noqa: E402
 from tests.unit.domains.connectors.file_formats.codecs._codec_round_trip import (  # noqa: E402
@@ -12,18 +15,16 @@ from tests.unit.domains.connectors.file_formats.codecs._codec_round_trip import 
 )
 
 
-class TestSnappyCodecBasics:
+class TestSnappyCodecBasics(unittest.TestCase):
     def test_default_construction(self) -> None:
         assert SnappyCodec().name == "snappy"
 
 
-class TestSnappyCodecRoundTrip:
-    @pytest.mark.asyncio
+class TestSnappyCodecRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_bytes(self) -> None:
         payload = b"hello world " * 100
         await CodecRoundTrip.round_trip(SnappyCodec(), payload)
 
-    @pytest.mark.asyncio
     async def test_compresses_smaller(self) -> None:
         # Snappy is a fast, low-ratio codec — heavier repetition needed
         # to clear the framing overhead on small payloads.
@@ -34,6 +35,5 @@ class TestSnappyCodecRoundTrip:
             f"got {len(compressed)} >= {len(payload)}"
         )
 
-    @pytest.mark.asyncio
     async def test_empty_input(self) -> None:
         await CodecRoundTrip.round_trip(SnappyCodec(), b"")

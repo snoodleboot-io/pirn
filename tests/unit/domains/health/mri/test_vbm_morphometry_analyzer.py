@@ -1,8 +1,8 @@
 """Unit tests for :class:`VBMMorphometryAnalyzer`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -11,9 +11,9 @@ from pirn.domains.health.mri.vbm_morphometry_analyzer import VBMMorphometryAnaly
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_invalid_tissue_type(self) -> None:
-        with pytest.raises(ValueError, match="tissue_type"):
+        with self.assertRaisesRegex(ValueError, "tissue_type"):
             VBMMorphometryAnalyzer(
                 normalized_image=Parameter("ni", dict, default={}, _config=KnotConfig(id="ni")),
                 tissue_type="myelin",
@@ -22,7 +22,7 @@ class TestConstruction:
             )
 
     def test_rejects_non_positive_smoothing(self) -> None:
-        with pytest.raises(ValueError, match="smoothing_fwhm_mm"):
+        with self.assertRaisesRegex(ValueError, "smoothing_fwhm_mm"):
             VBMMorphometryAnalyzer(
                 normalized_image=Parameter("ni", dict, default={}, _config=KnotConfig(id="ni")),
                 tissue_type="gray_matter",
@@ -31,8 +31,7 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestProcess:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_dict(self) -> None:
         image_data = {
             "nifti_path": "normalized.nii.gz",

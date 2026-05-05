@@ -1,11 +1,12 @@
 """Tests for :class:`pirn.domains.connectors.dsn_scrubber.DsnScrubber`."""
 
 from __future__ import annotations
+import unittest
 
 from pirn.domains.connectors.dsn_scrubber import DsnScrubber
 
 
-class TestDsnScrubber:
+class TestDsnScrubber(unittest.TestCase):
     def test_redacts_inline_password_in_dsn(self) -> None:
         scrubber = DsnScrubber()
         out = scrubber.scrub("postgres://alice:s3cret@db.example.com:5432/main")

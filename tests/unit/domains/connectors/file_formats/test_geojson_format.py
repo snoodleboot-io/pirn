@@ -1,8 +1,8 @@
 """Round-trip and validation tests for :class:`GeoJsonFormat`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.domains.connectors.file_formats.geojson_format import (
     GeoJsonFormat,
@@ -35,21 +35,21 @@ def _point_features() -> list[dict[str, object]]:
     ]
 
 
-class TestGeoJsonFormatConstruction:
+class TestGeoJsonFormatConstruction(unittest.TestCase):
     def test_default_construction(self) -> None:
         fmt = GeoJsonFormat()
         assert fmt.encoding == "utf-8"
 
     def test_invalid_encoding_type(self) -> None:
-        with pytest.raises(TypeError):
+        with self.assertRaises(TypeError):
             GeoJsonFormat(encoding=1)  # type: ignore[arg-type]
 
     def test_empty_encoding_rejected(self) -> None:
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             GeoJsonFormat(encoding="")
 
 
-class TestGeoJsonFormatBasics:
+class TestGeoJsonFormatBasics(unittest.TestCase):
     def test_name(self) -> None:
         assert GeoJsonFormat().name == "geojson"
 
@@ -60,25 +60,21 @@ class TestGeoJsonFormatBasics:
         assert isinstance(GeoJsonFormat(), StreamingFileFormat)
 
 
-class TestGeoJsonFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestGeoJsonFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         fmt = GeoJsonFormat()
         await FormatRoundTrip.assert_round_trip(fmt, _point_features())
 
-    @pytest.mark.asyncio
     async def test_round_trip_empty(self) -> None:
         fmt = GeoJsonFormat()
         await FormatRoundTrip.assert_round_trip(fmt, [])
 
-    @pytest.mark.asyncio
     async def test_round_trip_single(self) -> None:
         fmt = GeoJsonFormat()
         await FormatRoundTrip.assert_round_trip(fmt, _point_features()[:1])
 
-    @pytest.mark.asyncio
     async def test_read_rejects_non_feature_collection(self) -> None:
         fmt = GeoJsonFormat()
         payload = b'{"type": "Point", "coordinates": [1.0, 2.0]}'
-        with pytest.raises(ValueError):
+        with self.assertRaises(ValueError):
             await FormatRoundTrip.decode(fmt, payload)

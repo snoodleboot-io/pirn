@@ -1,6 +1,7 @@
 """Tests for :class:`DatasetLoader`."""
 
 from __future__ import annotations
+import unittest
 
 import pytest
 
@@ -14,7 +15,7 @@ from tests.unit.domains.ml._stubs.recording_database_pool import (
 )
 
 
-class TestDatasetLoaderHappyPath:
+class TestDatasetLoaderHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_loads_metadata_from_pool_query(self) -> None:
         pool = RecordingDatabasePool(rows=[(1,), (2,), (3,)])
         with Tapestry() as t:
@@ -37,7 +38,7 @@ class TestDatasetLoaderHappyPath:
         assert pool.queries == [("SELECT id FROM customers", None)]
 
 
-class TestDatasetLoaderConstruction:
+class TestDatasetLoaderConstruction(unittest.TestCase):
     def test_rejects_missing_inputs(self) -> None:
         with Tapestry():
             with pytest.raises(
@@ -52,7 +53,7 @@ class TestDatasetLoaderConstruction:
     def test_rejects_pool_query_and_parquet_together(self) -> None:
         pool = RecordingDatabasePool()
         with Tapestry():
-            with pytest.raises(ValueError, match="exactly one of"):
+            with self.assertRaisesRegex(ValueError, "exactly one of"):
                 DatasetLoader(
                     name="customers",
                     feature_names=("a",),
@@ -65,7 +66,7 @@ class TestDatasetLoaderConstruction:
     def test_rejects_empty_feature_names(self) -> None:
         pool = RecordingDatabasePool()
         with Tapestry():
-            with pytest.raises(ValueError, match="feature_names"):
+            with self.assertRaisesRegex(ValueError, "feature_names"):
                 DatasetLoader(
                     name="customers",
                     feature_names=(),

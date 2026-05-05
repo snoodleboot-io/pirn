@@ -1,11 +1,19 @@
 """Tests for :class:`CdaXmlFormat` — CDA XML clinical document format."""
 
 from __future__ import annotations
+import sys
+import unittest
+import unittest.mock
 
-import pytest
 
-pytest.importorskip("lxml")
-pytest.importorskip("defusedxml")
+try:
+    import lxml
+except ImportError as _e:
+    raise unittest.SkipTest("lxml not installed") from _e
+try:
+    import defusedxml
+except ImportError as _e:
+    raise unittest.SkipTest("defusedxml not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -74,7 +82,7 @@ async def _decode(fmt: CdaXmlFormat, payload: bytes) -> list[dict]:
 # Construction
 # ---------------------------------------------------------------------------
 
-class TestCdaXmlFormatConstruction:
+class TestCdaXmlFormatConstruction(unittest.TestCase):
     def test_is_batch_format(self) -> None:
         assert isinstance(CdaXmlFormat(), BatchFileFormat)
 
@@ -89,7 +97,7 @@ class TestCdaXmlFormatConstruction:
 # PHI sanitisation
 # ---------------------------------------------------------------------------
 
-class TestCdaXmlFormatPhiSanitisation:
+class TestCdaXmlFormatPhiSanitisation(unittest.IsolatedAsyncioTestCase):
     def test_phi_keywords_frozenset(self) -> None:
         assert isinstance(CdaXmlFormat._phi_keywords, frozenset)
         assert "name" in CdaXmlFormat._phi_keywords
@@ -97,26 +105,22 @@ class TestCdaXmlFormatPhiSanitisation:
         assert "addr" in CdaXmlFormat._phi_keywords
         assert "telecom" in CdaXmlFormat._phi_keywords
 
-    @pytest.mark.asyncio
     async def test_record_has_document_id(self) -> None:
         records = await _decode(CdaXmlFormat(), _make_cda_xml(doc_id="DOC001"))
         assert records[0]["document_id"] == "DOC001"
 
-    @pytest.mark.asyncio
     async def test_record_has_title(self) -> None:
         records = await _decode(
             CdaXmlFormat(), _make_cda_xml(title="Discharge Summary")
         )
         assert records[0]["title"] == "Discharge Summary"
 
-    @pytest.mark.asyncio
     async def test_record_has_effective_time(self) -> None:
         records = await _decode(
             CdaXmlFormat(), _make_cda_xml(effective_time="20230601")
         )
         assert records[0]["effective_time"] == "20230601"
 
-    @pytest.mark.asyncio
     async def test_body_contains_sections(self) -> None:
         records = await _decode(CdaXmlFormat(), _make_cda_xml())
         body = records[0]["body"]
@@ -128,8 +132,7 @@ class TestCdaXmlFormatPhiSanitisation:
 # Round-trip
 # ---------------------------------------------------------------------------
 
-class TestCdaXmlFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestCdaXmlFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_single_document(self) -> None:
         records = [
             {
@@ -148,7 +151,6 @@ class TestCdaXmlFormatRoundTrip:
         assert decoded[0]["title"] == "Discharge Summary"
         assert decoded[0]["effective_time"] == "20230601"
 
-    @pytest.mark.asyncio
     async def test_round_trip_body_sections_preserved(self) -> None:
         records = [
             {
@@ -170,19 +172,17 @@ class TestCdaXmlFormatRoundTrip:
 # Error paths
 # ---------------------------------------------------------------------------
 
-class TestCdaXmlFormatErrors:
-    @pytest.mark.asyncio
+class TestCdaXmlFormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_invalid_xml_raises(self) -> None:
         fmt = CdaXmlFormat()
 
         async def _iter():
             yield b"not xml <<<<"
 
-        with pytest.raises(Exception):
+        with self.assertRaises(Exception):
             async for _ in await fmt.read(_iter()):
                 pass
 
-    @pytest.mark.asyncio
     async def test_encode_empty_raises(self) -> None:
         fmt = CdaXmlFormat()
 
@@ -190,7 +190,7 @@ class TestCdaXmlFormatErrors:
             return
             yield
 
-        with pytest.raises(ValueError, match="empty"):
+        with self.assertRaisesRegex(ValueError, "empty"):
             async for _ in await fmt.write(_empty()):
                 pass
 
@@ -199,23 +199,15 @@ class TestCdaXmlFormatErrors:
 # Missing dependency
 # ---------------------------------------------------------------------------
 
-class TestCdaXmlFormatMissingDep:
-    def test_missing_defusedxml_raises(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        import sys
-        monkeypatch.setitem(sys.modules, "defusedxml", None)  # type: ignore[arg-type]
-        monkeypatch.setitem(sys.modules, "defusedxml.ElementTree", None)  # type: ignore[arg-type]
-        fmt = CdaXmlFormat()
-        with pytest.raises(ImportError, match="pirn\\[health\\]"):
-            fmt._load_defusedxml()
+class TestCdaXmlFormatMissingDep(unittest.TestCase):
+    def test_missing_defusedxml_raises(self) -> None:
+        with unittest.mock.patch.dict(sys.modules, {"defusedxml": None, "defusedxml.ElementTree": None}):
+            fmt = CdaXmlFormat()
+            with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
+                fmt._load_defusedxml()
 
-    def test_missing_lxml_raises(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        import sys
-        monkeypatch.setitem(sys.modules, "lxml", None)  # type: ignore[arg-type]
-        monkeypatch.setitem(sys.modules, "lxml.etree", None)  # type: ignore[arg-type]
-        fmt = CdaXmlFormat()
-        with pytest.raises(ImportError, match="pirn\\[health\\]"):
-            fmt._load_lxml()
+    def test_missing_lxml_raises(self) -> None:
+        with unittest.mock.patch.dict(sys.modules, {"lxml": None, "lxml.etree": None}):
+            fmt = CdaXmlFormat()
+            with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
+                fmt._load_lxml()

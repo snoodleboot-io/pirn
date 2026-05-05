@@ -1,9 +1,9 @@
 """Tests for :class:`PandasCast`."""
 
 from __future__ import annotations
+import unittest
 
 import pandas as pd
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -20,8 +20,7 @@ async def emit_string_columns() -> PandasDataBatch:
     )
 
 
-@pytest.mark.asyncio
-class TestPandasCast:
+class TestPandasCast(unittest.IsolatedAsyncioTestCase):
     async def test_python_primitives_are_translated_to_pandas_dtypes(self) -> None:
         with Tapestry() as t:
             batch = emit_string_columns(_config=KnotConfig(id="users"))
@@ -61,7 +60,7 @@ class TestPandasCast:
         assert out.frame["id"].dtype == object
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_unknown_dtype_kind(self) -> None:
         @knot
         async def empty() -> PandasDataBatch:
@@ -69,7 +68,7 @@ class TestConstruction:
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with pytest.raises(TypeError, match="Pandas dtype"):
+            with self.assertRaisesRegex(TypeError, "Pandas dtype"):
                 PandasCast(
                     batch=batch,
                     casts={"a": 123},  # type: ignore[dict-item]

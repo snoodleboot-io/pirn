@@ -1,8 +1,10 @@
 """Tests for :class:`ScdType6Hybrid`."""
 
 from __future__ import annotations
+import unittest
+import tempfile
+from pathlib import Path
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -12,45 +14,6 @@ from pirn.domains.data.specializations.scd.scd_type_6_hybrid import (
     ScdType6Hybrid,
 )
 from pirn.tapestry import Tapestry
-
-
-@pytest.fixture
-async def source_pool() -> SqlitePool:
-    pool = SqlitePool(SqliteConfig(database=":memory:"))
-    await pool.execute(
-        "CREATE TABLE customers ("
-        "  id INTEGER PRIMARY KEY,"
-        "  name TEXT NOT NULL,"
-        "  region TEXT NOT NULL"
-        ")"
-    )
-    await pool.execute_many(
-        "INSERT INTO customers (id, name, region) VALUES (?, ?, ?)",
-        [(1, "Alice", "EU"), (2, "Bob", "US")],
-    )
-    yield pool
-    await pool.close()
-
-
-@pytest.fixture
-async def target_pool(tmp_path) -> SqlitePool:
-    pool = SqlitePool(SqliteConfig(database=str(tmp_path / "scd6.db")))
-    await pool.execute(
-        "CREATE TABLE customers ("
-        "  id INTEGER NOT NULL,"
-        "  name TEXT NOT NULL,"
-        "  region TEXT NOT NULL,"
-        "  current_name TEXT,"
-        "  current_region TEXT,"
-        "  prev_name TEXT,"
-        "  prev_region TEXT,"
-        "  valid_from TEXT NOT NULL,"
-        "  valid_to TEXT,"
-        "  is_current INTEGER NOT NULL"
-        ")"
-    )
-    yield pool
-    await pool.close()
 
 
 def _make_scd6(source_pool: SqlitePool, target_pool: SqlitePool) -> ScdType6Hybrid:
@@ -67,9 +30,52 @@ def _make_scd6(source_pool: SqlitePool, target_pool: SqlitePool) -> ScdType6Hybr
     )
 
 
-class TestConstruction:
-    def test_rejects_non_pool(self, target_pool: SqlitePool) -> None:
-        with pytest.raises(TypeError, match="DatabaseConnectionPool"):
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self) -> None:
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute(
+            "CREATE TABLE customers ("
+            "  id INTEGER PRIMARY KEY,"
+            "  name TEXT NOT NULL,"
+            "  region TEXT NOT NULL"
+            ")"
+        )
+        await pool.execute_many(
+            "INSERT INTO customers (id, name, region) VALUES (?, ?, ?)",
+            [(1, "Alice", "EU"), (2, "Bob", "US")],
+        )
+        self.source_pool = pool
+        self._tmp_target_pool = tempfile.TemporaryDirectory()
+        tmp_path = Path(self._tmp_target_pool.name)
+        pool = SqlitePool(SqliteConfig(database=str(tmp_path / "scd6.db")))
+        await pool.execute(
+            "CREATE TABLE customers ("
+            "  id INTEGER NOT NULL,"
+            "  name TEXT NOT NULL,"
+            "  region TEXT NOT NULL,"
+            "  current_name TEXT,"
+            "  current_region TEXT,"
+            "  prev_name TEXT,"
+            "  prev_region TEXT,"
+            "  valid_from TEXT NOT NULL,"
+            "  valid_to TEXT,"
+            "  is_current INTEGER NOT NULL"
+            ")"
+        )
+        self.target_pool = pool
+
+    async def asyncTearDown(self) -> None:
+        await self.source_pool.close()
+        
+        
+        await self.target_pool.close()
+        
+        
+        self._tmp_target_pool.cleanup()
+    def test_rejects_non_pool(self) -> None:
+        target_pool = self.target_pool
+        with self.assertRaisesRegex(TypeError, "DatabaseConnectionPool"):
             ScdType6Hybrid(
                 source_pool="bad",  # type: ignore[arg-type]
                 source_query="SELECT 1",
@@ -82,10 +88,10 @@ class TestConstruction:
                 _config=KnotConfig(id="scd6"),
             )
 
-    def test_rejects_missing_current_column_entry(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
-        with pytest.raises(ValueError, match="current_columns missing"):
+    def test_rejects_missing_current_column_entry(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
+        with self.assertRaisesRegex(ValueError, "current_columns missing"):
             ScdType6Hybrid(
                 source_pool=source_pool,
                 source_query="SELECT 1",
@@ -98,10 +104,10 @@ class TestConstruction:
                 _config=KnotConfig(id="scd6"),
             )
 
-    def test_rejects_missing_previous_column_entry(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
-        with pytest.raises(ValueError, match="previous_columns missing"):
+    def test_rejects_missing_previous_column_entry(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
+        with self.assertRaisesRegex(ValueError, "previous_columns missing"):
             ScdType6Hybrid(
                 source_pool=source_pool,
                 source_query="SELECT 1",
@@ -114,10 +120,10 @@ class TestConstruction:
                 _config=KnotConfig(id="scd6"),
             )
 
-    def test_rejects_key_tracked_overlap(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
-        with pytest.raises(ValueError, match="overlap"):
+    def test_rejects_key_tracked_overlap(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
+        with self.assertRaisesRegex(ValueError, "overlap"):
             ScdType6Hybrid(
                 source_pool=source_pool,
                 source_query="SELECT 1",
@@ -131,11 +137,52 @@ class TestConstruction:
             )
 
 
-@pytest.mark.asyncio
-class TestScdType6Behaviour:
-    async def test_first_run_inserts_with_null_previous(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
+class TestScdType6Behaviour(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self) -> None:
+        pool = SqlitePool(SqliteConfig(database=":memory:"))
+        await pool.execute(
+            "CREATE TABLE customers ("
+            "  id INTEGER PRIMARY KEY,"
+            "  name TEXT NOT NULL,"
+            "  region TEXT NOT NULL"
+            ")"
+        )
+        await pool.execute_many(
+            "INSERT INTO customers (id, name, region) VALUES (?, ?, ?)",
+            [(1, "Alice", "EU"), (2, "Bob", "US")],
+        )
+        self.source_pool = pool
+        self._tmp_target_pool = tempfile.TemporaryDirectory()
+        tmp_path = Path(self._tmp_target_pool.name)
+        pool = SqlitePool(SqliteConfig(database=str(tmp_path / "scd6.db")))
+        await pool.execute(
+            "CREATE TABLE customers ("
+            "  id INTEGER NOT NULL,"
+            "  name TEXT NOT NULL,"
+            "  region TEXT NOT NULL,"
+            "  current_name TEXT,"
+            "  current_region TEXT,"
+            "  prev_name TEXT,"
+            "  prev_region TEXT,"
+            "  valid_from TEXT NOT NULL,"
+            "  valid_to TEXT,"
+            "  is_current INTEGER NOT NULL"
+            ")"
+        )
+        self.target_pool = pool
+
+    async def asyncTearDown(self) -> None:
+        await self.source_pool.close()
+        
+        
+        await self.target_pool.close()
+        
+        
+        self._tmp_target_pool.cleanup()
+    async def test_first_run_inserts_with_null_previous(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
         with Tapestry() as t:
             _make_scd6(source_pool, target_pool)
         result = await t.run(RunRequest())
@@ -151,9 +198,9 @@ class TestScdType6Behaviour:
             assert row[3] is None
             assert row[4] is None
 
-    async def test_second_run_closes_old_and_inserts_new(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
+    async def test_second_run_closes_old_and_inserts_new(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
         with Tapestry() as t:
             _make_scd6(source_pool, target_pool)
         assert (await t.run(RunRequest())).succeeded
@@ -175,9 +222,9 @@ class TestScdType6Behaviour:
         assert new_alice[1] == "APAC"
         assert new_alice[3] == "EU"
 
-    async def test_current_columns_backfilled_on_all_rows(
-        self, source_pool: SqlitePool, target_pool: SqlitePool
-    ) -> None:
+    async def test_current_columns_backfilled_on_all_rows(self) -> None:
+        source_pool = self.source_pool
+        target_pool = self.target_pool
         with Tapestry() as t:
             _make_scd6(source_pool, target_pool)
         assert (await t.run(RunRequest())).succeeded

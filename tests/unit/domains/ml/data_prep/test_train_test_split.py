@@ -1,8 +1,8 @@
 """Tests for :class:`TrainTestSplit`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -24,7 +24,7 @@ async def emit_dataset() -> MLDataset:
     )
 
 
-class TestTrainTestSplitHappyPath:
+class TestTrainTestSplitHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_three_partitions(self) -> None:
         with Tapestry() as t:
             dataset = emit_dataset(_config=KnotConfig(id="dataset"))
@@ -46,11 +46,11 @@ class TestTrainTestSplitHappyPath:
         assert out.test.target_name == "y"
 
 
-class TestTrainTestSplitConstruction:
+class TestTrainTestSplitConstruction(unittest.TestCase):
     def test_rejects_test_fraction_at_one(self) -> None:
         with Tapestry():
             dataset = emit_dataset(_config=KnotConfig(id="dataset"))
-            with pytest.raises(ValueError, match="test_fraction"):
+            with self.assertRaisesRegex(ValueError, "test_fraction"):
                 TrainTestSplit(
                     dataset=dataset,
                     test_fraction=1.0,
@@ -60,7 +60,7 @@ class TestTrainTestSplitConstruction:
     def test_rejects_combined_fractions_at_one(self) -> None:
         with Tapestry():
             dataset = emit_dataset(_config=KnotConfig(id="dataset"))
-            with pytest.raises(ValueError, match="must be < 1"):
+            with self.assertRaisesRegex(ValueError, "must be < 1"):
                 TrainTestSplit(
                     dataset=dataset,
                     test_fraction=0.6,

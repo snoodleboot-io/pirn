@@ -1,10 +1,13 @@
 """Round-trip and validation tests for :class:`RootFormat`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
-pytest.importorskip("uproot")
+try:
+    import uproot
+except ImportError as _e:
+    raise unittest.SkipTest("uproot not installed") from _e
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
@@ -36,7 +39,7 @@ def _make_root_payload() -> bytes:
             os.remove(tmp)
 
 
-class TestRootFormatConstruction:
+class TestRootFormatConstruction(unittest.TestCase):
     def test_name(self) -> None:
         assert RootFormat().name == "root"
 
@@ -47,8 +50,7 @@ class TestRootFormatConstruction:
         assert isinstance(RootFormat(), BatchFileFormat)
 
 
-class TestRootFormatRoundTrip:
-    @pytest.mark.asyncio
+class TestRootFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_decode_tree(self) -> None:
         payload = _make_root_payload()
         fmt = RootFormat()
@@ -62,7 +64,6 @@ class TestRootFormatRoundTrip:
         assert isinstance(first["branches"], list)
         assert isinstance(first["data"], dict)
 
-    @pytest.mark.asyncio
     async def test_decode_entries_count(self) -> None:
         payload = _make_root_payload()
         fmt = RootFormat()
@@ -70,7 +71,6 @@ class TestRootFormatRoundTrip:
         assert len(records) >= 1
         assert records[0]["n_entries"] == 3
 
-    @pytest.mark.asyncio
     async def test_decode_branch_data_bytes(self) -> None:
         import numpy as np
 
@@ -84,29 +84,28 @@ class TestRootFormatRoundTrip:
         for branch_bytes in data.values():
             assert isinstance(branch_bytes, bytes)
 
-    @pytest.mark.asyncio
     async def test_encode_raises_not_implemented(self) -> None:
         fmt = RootFormat()
-        with pytest.raises(NotImplementedError, match="RootFormat"):
+        with self.assertRaisesRegex(NotImplementedError, "RootFormat"):
             await FormatRoundTrip.encode(fmt, [{"tree_name": "t", "n_entries": 0, "branches": [], "data": {}}])
 
 
-class TestRootFormatErrors:
-    @pytest.mark.asyncio
+class TestRootFormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_decode_invalid_bytes_raises(self) -> None:
         fmt = RootFormat()
 
         async def _bad_iter():
             yield b"not a root file at all"
 
-        with pytest.raises(Exception):
+        with self.assertRaises(Exception):
             record_iter = await fmt.read(_bad_iter())
             async for _ in record_iter:
                 pass
 
 
-class TestRootFormatMissingDep:
-    def test_import_error_message(self, monkeypatch: pytest.MonkeyPatch) -> None:
+class TestRootFormatMissingDep(unittest.TestCase):
+    def test_import_error_message(self) -> None:
+        # TODO(unittest-migrate): replace 'monkeypatch' built-in fixture — use unittest.mock.patch / assertLogs
         import builtins
 
         real_import = builtins.__import__
@@ -117,5 +116,5 @@ class TestRootFormatMissingDep:
             return real_import(name, *args, **kwargs)
 
         monkeypatch.setattr(builtins, "__import__", _block_uproot)
-        with pytest.raises(ImportError, match="pirn\\[physics\\]"):
+        with self.assertRaisesRegex(ImportError, "pirn\\[physics\\]"):
             RootFormat._load_uproot()

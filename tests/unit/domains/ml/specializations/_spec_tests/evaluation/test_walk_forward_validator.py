@@ -1,8 +1,8 @@
 """Tests for :class:`WalkForwardValidator`."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -25,11 +25,11 @@ async def emit_dataset() -> MLDataset:
     )
 
 
-class TestConstruction:
+class TestConstruction(unittest.TestCase):
     def test_rejects_zero_train_window(self) -> None:
         with Tapestry():
             dataset = emit_dataset(_config=KnotConfig(id="ds"))
-            with pytest.raises(ValueError, match="train_window must be >= 1"):
+            with self.assertRaisesRegex(ValueError, "train_window must be >= 1"):
                 WalkForwardValidator(
                     dataset=dataset,
                     time_column="ts",
@@ -42,7 +42,7 @@ class TestConstruction:
     def test_rejects_empty_algorithm(self) -> None:
         with Tapestry():
             dataset = emit_dataset(_config=KnotConfig(id="ds"))
-            with pytest.raises(ValueError, match="algorithm"):
+            with self.assertRaisesRegex(ValueError, "algorithm"):
                 WalkForwardValidator(
                     dataset=dataset,
                     time_column="ts",
@@ -53,8 +53,7 @@ class TestConstruction:
                 )
 
 
-@pytest.mark.asyncio
-class TestHappyPath:
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_one_report_per_step(self) -> None:
         with Tapestry() as t:
             dataset = emit_dataset(_config=KnotConfig(id="ds"))
