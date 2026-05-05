@@ -8,6 +8,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.domains.agents._regex_utils import compile_safe_pattern, search_any
 from pirn.domains.agents.types.agent_response import AgentResponse
 
 
@@ -44,13 +45,15 @@ class HandoffCheck(Knot):
                     f"HandoffCheck: escalation_patterns[{index}] must be a "
                     f"non-empty string, got {pattern!r}"
                 )
-            try:
-                compiled.append(re.compile(pattern, flags=re.IGNORECASE))
-            except re.error as exc:
-                raise ValueError(
-                    f"HandoffCheck: escalation_patterns[{index}] is not a "
-                    f"valid regex: {exc}"
-                ) from exc
+            compiled.append(
+                compile_safe_pattern(
+                    pattern,
+                    index=index,
+                    owner="HandoffCheck",
+                    field="escalation_patterns",
+                    flags=re.IGNORECASE,
+                )
+            )
         super().__init__(
             response=response,
             escalation_patterns=tuple(escalation_patterns),
@@ -83,7 +86,5 @@ class HandoffCheck(Knot):
                 f"got {type(response).__name__}"
             )
         del escalation_patterns
-        for pattern in self._mutable_compiled:
-            if pattern.search(response.content):
-                return True
-        return False
+        match = await search_any(self._mutable_compiled, response.content)
+        return match is not None

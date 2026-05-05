@@ -9,12 +9,14 @@ replaces matches with the literal ``"<redacted>"``. Returns a new
 
 from __future__ import annotations
 
+import asyncio
 import re
 from collections.abc import Sequence
 from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.domains.agents._regex_utils import compile_safe_pattern
 from pirn.domains.agents.types.agent_response import AgentResponse
 
 
@@ -36,7 +38,9 @@ class PIIResponseRedactor(Knot):
                     f"PIIResponseRedactor: patterns[{index}] must be a "
                     f"string, got {type(raw).__name__}"
                 )
-            compiled.append(re.compile(raw))
+            compiled.append(
+                compile_safe_pattern(raw, index=index, owner="PIIResponseRedactor", field="patterns")
+            )
         self._compiled = tuple(compiled)
         super().__init__(response=response, _config=_config, **kwargs)
 
@@ -61,9 +65,14 @@ class PIIResponseRedactor(Knot):
                 "PIIResponseRedactor: response must be an AgentResponse, "
                 f"got {type(response).__name__}"
             )
-        redacted = response.content
-        for pattern in self._compiled:
-            redacted = pattern.sub("<redacted>", redacted)
+        content = response.content
+
+        def _apply_pii(c: str = content) -> str:
+            for p in self._compiled:
+                c = p.sub("<redacted>", c)
+            return c
+
+        redacted = await asyncio.to_thread(_apply_pii)
         if redacted == response.content:
             return response
         return AgentResponse(

@@ -9,6 +9,25 @@ from typing import ClassVar
 from pirn.domains.connectors.connection_config import ConnectionConfig
 from pirn.domains.connectors.connection_config_decorator import connection_config
 
+_ALLOWED_DUCKDB_CONFIG_KEYS: frozenset[str] = frozenset(
+    {
+        "threads",
+        "memory_limit",
+        "max_memory",
+        "temp_directory",
+        "default_order",
+        "null_order",
+        "checkpoint_threshold",
+        "wal_autocheckpoint",
+        "worker_threads",
+        "external_threads",
+        "access_mode",
+        "log_query_path",
+        "preserve_insertion_order",
+        "arrow_large_buffer_size",
+    }
+)
+
 
 @connection_config(frozen=True)
 class DuckdbConfig(ConnectionConfig):
@@ -21,7 +40,9 @@ class DuckdbConfig(ConnectionConfig):
     read_only:
         Open in read-only mode (forbids writes).
     config:
-        Per-connection DuckDB config (e.g. ``threads``, ``memory_limit``).
+        Per-connection DuckDB config keys. Only safe, non-network-enabling
+        keys are permitted (e.g. ``threads``, ``memory_limit``). Keys that
+        enable external access or extension loading are rejected.
     """
 
     database: str | Path = ":memory:"
@@ -29,3 +50,11 @@ class DuckdbConfig(ConnectionConfig):
     config: tuple[tuple[str, str], ...] = field(default_factory=tuple)
 
     sensitive_fields: ClassVar[tuple[str, ...]] = ()
+
+    def __post_init__(self) -> None:
+        for index, (key, _value) in enumerate(self.config):
+            if key not in _ALLOWED_DUCKDB_CONFIG_KEYS:
+                raise ValueError(
+                    f"DuckdbConfig: config[{index}] key {key!r} is not in the "
+                    f"allowlist. Permitted keys: {sorted(_ALLOWED_DUCKDB_CONFIG_KEYS)}"
+                )

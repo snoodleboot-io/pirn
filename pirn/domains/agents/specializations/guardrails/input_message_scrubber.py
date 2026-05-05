@@ -9,12 +9,14 @@ cleaned tuple of messages.
 
 from __future__ import annotations
 
+import asyncio
 import re
 from collections.abc import Sequence
 from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.domains.agents._regex_utils import compile_safe_pattern
 from pirn.domains.agents.types.agent_message import AgentMessage
 
 
@@ -37,7 +39,9 @@ class InputMessageScrubber(Knot):
                     f"InputMessageScrubber: deny_patterns[{index}] must be a "
                     f"string, got {type(raw).__name__}"
                 )
-            deny_compiled.append(re.compile(raw))
+            deny_compiled.append(
+                compile_safe_pattern(raw, index=index, owner="InputMessageScrubber", field="deny_patterns")
+            )
         pii_compiled: list[re.Pattern[str]] = []
         for index, raw in enumerate(pii_patterns):
             if not isinstance(raw, str):
@@ -45,7 +49,9 @@ class InputMessageScrubber(Knot):
                     f"InputMessageScrubber: pii_patterns[{index}] must be a "
                     f"string, got {type(raw).__name__}"
                 )
-            pii_compiled.append(re.compile(raw))
+            pii_compiled.append(
+                compile_safe_pattern(raw, index=index, owner="InputMessageScrubber", field="pii_patterns")
+            )
         self._deny_compiled = tuple(deny_compiled)
         self._pii_compiled = tuple(pii_compiled)
         super().__init__(messages=messages, _config=_config, **kwargs)
@@ -74,15 +80,27 @@ class InputMessageScrubber(Knot):
                     f"InputMessageScrubber: messages[{index}] must be an "
                     f"AgentMessage, got {type(message).__name__}"
                 )
-            for pattern in self._deny_compiled:
-                if pattern.search(message.content):
-                    raise ValueError(
-                        f"InputMessageScrubber: messages[{index}] matched "
-                        f"deny pattern {pattern.pattern!r}"
-                    )
-            redacted_content = message.content
-            for pattern in self._pii_compiled:
-                redacted_content = pattern.sub("<redacted>", redacted_content)
+            content = message.content
+
+            def _check_deny(c: str = content) -> re.Pattern[str] | None:
+                for p in self._deny_compiled:
+                    if p.search(c):
+                        return p
+                return None
+
+            denied = await asyncio.to_thread(_check_deny)
+            if denied is not None:
+                raise ValueError(
+                    f"InputMessageScrubber: messages[{index}] matched "
+                    f"deny pattern {denied.pattern!r}"
+                )
+
+            def _apply_pii(c: str = content) -> str:
+                for p in self._pii_compiled:
+                    c = p.sub("<redacted>", c)
+                return c
+
+            redacted_content = await asyncio.to_thread(_apply_pii)
             cleaned.append(
                 AgentMessage(
                     role=message.role,

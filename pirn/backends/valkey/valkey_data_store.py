@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import logging
+import os
 from typing import Any
 
 from pirn.backends._signer import _Signer
 from pirn.backends.base.data_store import DataStore
 from pirn.backends.valkey._lazy_client import _LazyClient
+
+_logger = logging.getLogger(__name__)
 
 
 class ValKeyDataStore(DataStore):
@@ -32,6 +36,19 @@ class ValKeyDataStore(DataStore):
                 "remote-code-execution sink. Pass a `signer=` (production) "
                 "or `allow_unsigned=True` (single-tenant dev / test only) "
                 "to acknowledge the trust-boundary assumption."
+            )
+        if signer is None and allow_unsigned:
+            if os.environ.get("PIRN_ALLOW_UNSIGNED") != "1":
+                raise ValueError(
+                    "ValKeyDataStore: allow_unsigned=True requires the environment "
+                    "variable PIRN_ALLOW_UNSIGNED=1 to be set. "
+                    "This prevents accidental unsigned stores in production. "
+                    "Set PIRN_ALLOW_UNSIGNED=1 only in development or test environments."
+                )
+            _logger.warning(
+                "ValKeyDataStore constructed without HMAC signing (allow_unsigned=True). "
+                "cloudpickle.loads on attacker-controlled bytes is an RCE sink. "
+                "Ensure the backing store is within the same trust boundary as this process.",
             )
         self._client = _LazyClient(client=client, config=config)
         self._ttl = ttl_seconds

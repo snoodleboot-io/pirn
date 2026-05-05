@@ -8,6 +8,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.domains.agents._regex_utils import compile_safe_pattern, search_any
 from pirn.domains.agents.types.agent_message import AgentMessage
 from pirn.domains.agents.types.agent_response import AgentResponse
 
@@ -36,6 +37,8 @@ class SafetyCheck(Knot):
             raise TypeError(
                 "SafetyCheck: deny_patterns must be a sequence of regex strings"
             )
+        if not deny_patterns:
+            raise ValueError("SafetyCheck: deny_patterns must be non-empty")
         compiled: list[re.Pattern[str]] = []
         for index, pattern in enumerate(deny_patterns):
             if not isinstance(pattern, str) or not pattern:
@@ -43,13 +46,15 @@ class SafetyCheck(Knot):
                     f"SafetyCheck: deny_patterns[{index}] must be a non-empty "
                     f"string, got {pattern!r}"
                 )
-            try:
-                compiled.append(re.compile(pattern, flags=re.IGNORECASE))
-            except re.error as exc:
-                raise ValueError(
-                    f"SafetyCheck: deny_patterns[{index}] is not a valid regex: "
-                    f"{exc}"
-                ) from exc
+            compiled.append(
+                compile_safe_pattern(
+                    pattern,
+                    index=index,
+                    owner="SafetyCheck",
+                    field="deny_patterns",
+                    flags=re.IGNORECASE,
+                )
+            )
         super().__init__(
             message=message,
             deny_patterns=tuple(deny_patterns),
@@ -83,7 +88,5 @@ class SafetyCheck(Knot):
             )
         del deny_patterns  # consumed at construction; compiled patterns used here
         content = message.content
-        for pattern in self._mutable_compiled:
-            if pattern.search(content):
-                return False
-        return True
+        match = await search_any(self._mutable_compiled, content)
+        return match is None

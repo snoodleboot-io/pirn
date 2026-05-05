@@ -79,8 +79,10 @@ class GCSDataStore(_CloudObjectStore):
             try:
                 await storage.download_metadata(self._bucket, key)
                 return True
-            except Exception:
-                return False
+            except Exception as exc:
+                if "404" in str(exc) or "Not Found" in str(exc):
+                    return False
+                raise
 
     async def _delete_key(self, key: str) -> None:
         async with self.__storage() as storage:

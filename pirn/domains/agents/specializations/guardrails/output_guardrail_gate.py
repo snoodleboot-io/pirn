@@ -16,6 +16,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.domains.agents._regex_utils import compile_safe_pattern
 from pirn.domains.agents.specializations.guardrails.output_response_validator import (
     OutputResponseValidator,
 )
@@ -42,7 +43,7 @@ class OutputGuardrailGate(SubTapestry):
                     f"OutputGuardrailGate: deny_patterns[{index}] must be a "
                     f"string, got {type(raw).__name__}"
                 )
-            re.compile(raw)
+            compile_safe_pattern(raw, index=index, owner="OutputGuardrailGate", field="deny_patterns")
         for index, name in enumerate(allowed_tool_names):
             if not isinstance(name, str):
                 raise TypeError(

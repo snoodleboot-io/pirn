@@ -8,12 +8,14 @@ On success the response is returned unchanged.
 
 from __future__ import annotations
 
+import asyncio
 import re
 from collections.abc import Sequence
 from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.domains.agents._regex_utils import compile_safe_pattern, search_any
 from pirn.domains.agents.types.agent_response import AgentResponse
 
 
@@ -36,7 +38,9 @@ class OutputResponseValidator(Knot):
                     f"OutputResponseValidator: deny_patterns[{index}] must be "
                     f"a string, got {type(raw).__name__}"
                 )
-            deny_compiled.append(re.compile(raw))
+            deny_compiled.append(
+                compile_safe_pattern(raw, index=index, owner="OutputResponseValidator", field="deny_patterns")
+            )
         for index, name in enumerate(allowed_tool_names):
             if not isinstance(name, str):
                 raise TypeError(
@@ -69,12 +73,12 @@ class OutputResponseValidator(Knot):
                 "OutputResponseValidator: response must be an AgentResponse, "
                 f"got {type(response).__name__}"
             )
-        for pattern in self._deny_compiled:
-            if pattern.search(response.content):
-                raise ValueError(
-                    "OutputResponseValidator: response content matched deny "
-                    f"pattern {pattern.pattern!r}"
-                )
+        match = await search_any(self._deny_compiled, response.content)
+        if match is not None:
+            raise ValueError(
+                "OutputResponseValidator: response content matched deny "
+                f"pattern {match.re.pattern!r}"
+            )
         for index, call in enumerate(response.tool_calls):
             if call.tool_name not in self._allowed_tool_names:
                 raise ValueError(

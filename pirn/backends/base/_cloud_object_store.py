@@ -14,12 +14,16 @@ the four raw-bytes IO primitives.
 
 from __future__ import annotations
 
+import logging
+import os
 from typing import TYPE_CHECKING, Any
 
 from pirn.backends.base.data_store import DataStore
 
 if TYPE_CHECKING:
     from pirn.backends._signer import _Signer
+
+_logger = logging.getLogger(__name__)
 
 
 class _CloudObjectStore(DataStore):
@@ -46,6 +50,20 @@ class _CloudObjectStore(DataStore):
                 "remote-code-execution sink. Pass a `signer=` (production) "
                 "or `allow_unsigned=True` (single-tenant dev / test only) "
                 "to acknowledge the trust-boundary assumption."
+            )
+        if signer is None and allow_unsigned:
+            if os.environ.get("PIRN_ALLOW_UNSIGNED") != "1":
+                raise ValueError(
+                    f"{type(self).__name__}: allow_unsigned=True requires the "
+                    "environment variable PIRN_ALLOW_UNSIGNED=1 to be set. "
+                    "This prevents accidental unsigned stores in production. "
+                    "Set PIRN_ALLOW_UNSIGNED=1 only in development or test environments."
+                )
+            _logger.warning(
+                "%s constructed without HMAC signing (allow_unsigned=True). "
+                "cloudpickle.loads on attacker-controlled bytes is an RCE sink. "
+                "Ensure the backing store is within the same trust boundary as this process.",
+                type(self).__name__,
             )
         self.__signer = signer
 

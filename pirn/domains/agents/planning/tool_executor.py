@@ -10,6 +10,9 @@ from pirn.core.knot_config import KnotConfig
 from pirn.domains.agents.tool import Tool
 from pirn.domains.agents.types.tool_call import ToolCall
 from pirn.domains.agents.types.tool_result import ToolResult
+from pirn.domains.connectors.dsn_scrubber import DsnScrubber
+
+_scrubber = DsnScrubber()
 
 
 class ToolExecutor(Knot):
@@ -84,6 +87,6 @@ class ToolExecutor(Knot):
             return ToolResult(
                 call_id=call.call_id,
                 result=None,
-                error=f"{type(exc).__name__}: {exc}",
+                error=f"{type(exc).__name__}: {_scrubber.scrub(str(exc))}",
             )
         return ToolResult(call_id=call.call_id, result=value, error=None)

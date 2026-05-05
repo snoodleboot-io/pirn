@@ -14,6 +14,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.domains.agents._regex_utils import compile_safe_pattern
 from pirn.domains.agents.specializations.guardrails.pii_response_redactor import (
     PIIResponseRedactor,
 )
@@ -50,7 +51,7 @@ class PIIRedactorGate(SubTapestry):
                         f"PIIRedactorGate: patterns[{index}] must be a "
                         f"string, got {type(raw).__name__}"
                     )
-                re.compile(raw)
+                compile_safe_pattern(raw, index=index, owner="PIIRedactorGate", field="patterns")
                 collected.append(raw)
             effective = tuple(collected)
         self._patterns = effective

@@ -41,7 +41,14 @@ class _Signer:
                 f"Environment variable {var!r} is not set or empty. "
                 "Set it to a base64-encoded signing key before constructing a signed DataStore."
             )
-        return cls(base64.b64decode(raw))
+        decoded = base64.b64decode(raw)
+        if len(decoded) < 32:
+            raise ValueError(
+                f"Environment variable {var!r} decoded to {len(decoded)} bytes; "
+                "HMAC-SHA256 requires at least 32 bytes of key material. "
+                "Generate a key with: python -c \"import secrets,base64; print(base64.b64encode(secrets.token_bytes(32)).decode())\""
+            )
+        return cls(decoded)
 
     @classmethod
     def test_signer(cls) -> _Signer:
@@ -51,7 +58,18 @@ class _Signer:
         env-var setup or real key material. **Never use in production.**
         Production signers must come from :meth:`from_env` or a manual
         construction with a per-deployment key.
+
+        Raises:
+            RuntimeError: If called outside a test or CI environment
+                (i.e. when PIRN_ENV is not set to "test" or "ci").
         """
+        env = os.environ.get("PIRN_ENV", "").lower()
+        if env not in ("test", "ci"):
+            raise RuntimeError(
+                "_Signer.test_signer() must not be called in production. "
+                "Set PIRN_ENV=test or PIRN_ENV=ci to use this method in a "
+                "test or CI environment. Use _Signer.from_env() for production."
+            )
         return cls(b"pirn-test-signer-key-not-for-production")
 
     def sign(self, payload: bytes) -> bytes:

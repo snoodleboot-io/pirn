@@ -21,6 +21,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.domains.agents._regex_utils import compile_safe_pattern
 from pirn.domains.agents.specializations.guardrails.input_message_scrubber import (
     InputMessageScrubber,
 )
@@ -48,7 +49,9 @@ class InputGuardrailGate(SubTapestry):
                     f"InputGuardrailGate: deny_patterns[{index}] must be a "
                     f"string, got {type(raw).__name__}"
                 )
-            deny_compiled.append(re.compile(raw))
+            deny_compiled.append(
+                compile_safe_pattern(raw, index=index, owner="InputGuardrailGate", field="deny_patterns")
+            )
         pii_compiled: list[re.Pattern[str]] = []
         for index, raw in enumerate(pii_patterns):
             if not isinstance(raw, str):
@@ -56,7 +59,9 @@ class InputGuardrailGate(SubTapestry):
                     f"InputGuardrailGate: pii_patterns[{index}] must be a "
                     f"string, got {type(raw).__name__}"
                 )
-            pii_compiled.append(re.compile(raw))
+            pii_compiled.append(
+                compile_safe_pattern(raw, index=index, owner="InputGuardrailGate", field="pii_patterns")
+            )
         self._deny_patterns = tuple(deny_patterns)
         self._pii_patterns = tuple(pii_patterns)
         self._deny_compiled = tuple(deny_compiled)
