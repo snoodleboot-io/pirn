@@ -11,11 +11,27 @@ Two common shapes covered by examples in tests:
 
 - *Cumulative / rolling*: ``pl.col("amount").rolling_mean(window_size=3).alias("avg3")``
 - *Partitioned ranking*: ``pl.col("amount").rank().over("region").alias("rank_in_region")``
+
+Algorithm:
+    1. Validate ``windows`` as a non-empty sequence of ``polars.Expr``
+       objects.
+    2. Call ``frame.with_columns(list(windows))`` to evaluate the window
+       expressions and append them as new named columns.
+    3. Return the extended frame wrapped in a new :class:`PolarsDataBatch`.
+
+References:
+    [1] Polars — DataFrame.with_columns:
+        https://docs.pola.rs/api/python/stable/reference/dataframe/api/polars.DataFrame.with_columns.html
+    [2] Polars — window functions (over):
+        https://docs.pola.rs/user-guide/expressions/window-functions/
+    [3] Polars — rolling aggregations:
+        https://docs.pola.rs/user-guide/expressions/aggregation/
 """
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 import polars as pl
 
@@ -31,10 +47,27 @@ class PolarsWindowCalc(Knot):
         self,
         *,
         batch: Knot,
-        windows: Sequence[pl.Expr],
+        windows: Knot | Sequence[pl.Expr],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(batch=batch, windows=windows, _config=_config, **kwargs)
+
+    async def process(
+        self,
+        batch: PolarsDataBatch,
+        windows: Any,
+        **_: Any,
+    ) -> PolarsDataBatch:
+        """Evaluate the configured window expressions and append them as new columns to the batch.
+
+        Args:
+            batch: The upstream PolarsDataBatch to extend with window columns.
+            windows: Sequence of polars.Expr window expressions.
+
+        Returns:
+            A new PolarsDataBatch with the window expression columns appended.
+        """
         if not isinstance(windows, Sequence) or isinstance(windows, (str, bytes)):
             raise TypeError(
                 "PolarsWindowCalc: windows must be a sequence of polars.Expr"
@@ -47,20 +80,4 @@ class PolarsWindowCalc(Knot):
                     "PolarsWindowCalc: every entry in windows must be a polars.Expr; "
                     f"got {type(expression).__name__}"
                 )
-        self._windows: tuple[pl.Expr, ...] = tuple(windows)
-        super().__init__(batch=batch, _config=_config, **kwargs)
-
-    @property
-    def windows(self) -> tuple[pl.Expr, ...]:
-        return self._windows
-
-    async def process(self, batch: PolarsDataBatch, **_: Any) -> PolarsDataBatch:
-        """Evaluate the configured window expressions and append them as new columns to the batch.
-
-        Args:
-            batch: The upstream PolarsDataBatch to extend with window columns.
-
-        Returns:
-            A new PolarsDataBatch with the window expression columns appended.
-        """
-        return batch.with_frame(batch.frame.with_columns(list(self._windows)))
+        return batch.with_frame(batch.frame.with_columns(list(windows)))

@@ -1,6 +1,7 @@
 """Tests for :class:`PolarsJoin`."""
 
 from __future__ import annotations
+
 import unittest
 
 import polars as pl
@@ -29,6 +30,10 @@ async def emit_orders() -> PolarsDataBatch:
             {"user_id": [1, 1, 2, 4], "amount": [10.0, 20.0, 30.0, 40.0]}
         )
     )
+
+
+def _empty_batch() -> PolarsDataBatch:
+    return PolarsDataBatch(frame=pl.DataFrame({"x": [1]}))
 
 
 class TestPolarsJoin(unittest.IsolatedAsyncioTestCase):
@@ -103,60 +108,76 @@ class TestPolarsJoin(unittest.IsolatedAsyncioTestCase):
         assert out.row_count == 6   # 2 × 3
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_unknown_how(self) -> None:
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_how_from_upstream_knot(self) -> None:
+        @knot
+        async def emit_how() -> object:
+            return "inner"
+
+        with Tapestry() as t:
+            users  = emit_users(_config=KnotConfig(id="users"))
+            orders = emit_orders(_config=KnotConfig(id="orders"))
+            how_knot = emit_how(_config=KnotConfig(id="how"))
+            PolarsJoin(
+                left=users, right=orders, on="user_id", how=how_knot,
+                _config=KnotConfig(id="joined"),
+            )
+        result = await t.run(RunRequest())
+        out: PolarsDataBatch = result.outputs["joined"]
+        assert out.row_count == 3
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self, **kwargs: object) -> PolarsJoin:
         @knot
         async def empty() -> PolarsDataBatch:
-            return PolarsDataBatch(frame=pl.DataFrame())
+            return PolarsDataBatch(frame=pl.DataFrame({"x": [1]}))
 
         with Tapestry():
             left  = empty(_config=KnotConfig(id="l"))
             right = empty(_config=KnotConfig(id="r"))
-            with self.assertRaisesRegex(ValueError, "how must be one of"):
-                PolarsJoin(
-                    left=left, right=right, on="x", how="diagonal",
-                    _config=KnotConfig(id="j"),
-                )
+            return PolarsJoin(
+                left=left, right=right, on="x",
+                _config=KnotConfig(id="j"),
+                **kwargs,
+            )
 
-    def test_rejects_both_on_and_left_on(self) -> None:
-        @knot
-        async def empty() -> PolarsDataBatch:
-            return PolarsDataBatch(frame=pl.DataFrame())
+    async def test_rejects_unknown_how(self) -> None:
+        k = self._make_knot()
+        left = _empty_batch()
+        right = _empty_batch()
+        with self.assertRaisesRegex(ValueError, "how must be one of"):
+            await k.process(
+                left=left, right=right, on="x", left_on=None,
+                right_on=None, how="diagonal", suffix="_right",
+            )
 
-        with Tapestry():
-            left  = empty(_config=KnotConfig(id="l"))
-            right = empty(_config=KnotConfig(id="r"))
-            with self.assertRaisesRegex(TypeError, "not both"):
-                PolarsJoin(
-                    left=left, right=right,
-                    on="x", left_on="x", right_on="x",
-                    _config=KnotConfig(id="j"),
-                )
+    async def test_rejects_both_on_and_left_on(self) -> None:
+        k = self._make_knot()
+        left = _empty_batch()
+        right = _empty_batch()
+        with self.assertRaisesRegex(TypeError, "not both"):
+            await k.process(
+                left=left, right=right, on="x", left_on="x",
+                right_on="x", how="inner", suffix="_right",
+            )
 
-    def test_requires_keys_for_non_cross_join(self) -> None:
-        @knot
-        async def empty() -> PolarsDataBatch:
-            return PolarsDataBatch(frame=pl.DataFrame())
+    async def test_requires_keys_for_non_cross_join(self) -> None:
+        k = self._make_knot()
+        left = _empty_batch()
+        right = _empty_batch()
+        with self.assertRaisesRegex(TypeError, "provide on="):
+            await k.process(
+                left=left, right=right, on=None, left_on=None,
+                right_on=None, how="inner", suffix="_right",
+            )
 
-        with Tapestry():
-            left  = empty(_config=KnotConfig(id="l"))
-            right = empty(_config=KnotConfig(id="r"))
-            with self.assertRaisesRegex(TypeError, "provide on="):
-                PolarsJoin(
-                    left=left, right=right, how="inner",
-                    _config=KnotConfig(id="j"),
-                )
-
-    def test_cross_join_rejects_keys(self) -> None:
-        @knot
-        async def empty() -> PolarsDataBatch:
-            return PolarsDataBatch(frame=pl.DataFrame())
-
-        with Tapestry():
-            left  = empty(_config=KnotConfig(id="l"))
-            right = empty(_config=KnotConfig(id="r"))
-            with self.assertRaisesRegex(TypeError, "cross join takes no"):
-                PolarsJoin(
-                    left=left, right=right, how="cross", on="x",
-                    _config=KnotConfig(id="j"),
-                )
+    async def test_cross_join_rejects_keys(self) -> None:
+        k = self._make_knot()
+        left = _empty_batch()
+        right = _empty_batch()
+        with self.assertRaisesRegex(TypeError, "cross join takes no"):
+            await k.process(
+                left=left, right=right, on="x", left_on=None,
+                right_on=None, how="cross", suffix="_right",
+            )

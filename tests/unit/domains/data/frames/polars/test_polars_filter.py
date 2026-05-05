@@ -1,6 +1,7 @@
 """Tests for :class:`PolarsFilter`."""
 
 from __future__ import annotations
+
 import unittest
 
 import polars as pl
@@ -15,6 +16,18 @@ from pirn.tapestry import Tapestry
 
 @knot
 async def emit_users() -> PolarsDataBatch:
+    return PolarsDataBatch(
+        frame=pl.DataFrame(
+            {
+                "id":     [1, 2, 3, 4],
+                "active": [True, False, True, False],
+                "region": ["EU", "US", "US", "EU"],
+            }
+        )
+    )
+
+
+def _users_batch() -> PolarsDataBatch:
     return PolarsDataBatch(
         frame=pl.DataFrame(
             {
@@ -52,17 +65,52 @@ class TestPolarsFilter(unittest.IsolatedAsyncioTestCase):
         assert tuple(out.frame["id"].to_list()) == (1,)
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_python_callable(self) -> None:
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_expression_from_upstream_knot(self) -> None:
+        @knot
+        async def emit_expression() -> object:
+            return pl.col("active")
+
+        with Tapestry() as t:
+            batch = emit_users(_config=KnotConfig(id="users"))
+            expr_knot = emit_expression(_config=KnotConfig(id="expr"))
+            PolarsFilter(
+                batch=batch,
+                expression=expr_knot,
+                _config=KnotConfig(id="filtered"),
+            )
+        result = await t.run(RunRequest())
+        out: PolarsDataBatch = result.outputs["filtered"]
+        assert tuple(out.frame["id"].to_list()) == (1, 3)
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self, **kwargs: object) -> PolarsFilter:
         @knot
         async def empty() -> PolarsDataBatch:
             return PolarsDataBatch(frame=pl.DataFrame())
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "polars.Expr"):
-                PolarsFilter(
-                    batch=batch,
-                    expression=lambda r: True,  # type: ignore[arg-type]
-                    _config=KnotConfig(id="f"),
-                )
+            return PolarsFilter(
+                batch=batch,
+                expression=pl.col("active"),
+                _config=KnotConfig(id="f"),
+                **kwargs,
+            )
+
+    async def test_rejects_python_callable(self) -> None:
+        k = self._make_knot()
+        with self.assertRaisesRegex(TypeError, "polars.Expr"):
+            await k.process(
+                batch=_users_batch(),
+                expression=lambda r: True,
+            )
+
+    async def test_rejects_string_expression(self) -> None:
+        k = self._make_knot()
+        with self.assertRaisesRegex(TypeError, "polars.Expr"):
+            await k.process(
+                batch=_users_batch(),
+                expression="active == True",
+            )

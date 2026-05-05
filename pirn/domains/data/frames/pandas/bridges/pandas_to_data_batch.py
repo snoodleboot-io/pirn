@@ -36,7 +36,7 @@ class PandasToDataBatch(Knot):
             batch: The PandasDataBatch whose DataFrame is materialised to row dicts.
 
         Returns:
-            A Tier-1 DataBatch containing the materialised rows with source_uri and fetched_at preserved.
+            A Tier-1 DataBatch with materialised rows, source_uri, and fetched_at preserved.
         """
         rows = tuple(batch.frame.to_dict(orient="records"))
         return DataBatch(

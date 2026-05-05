@@ -1,6 +1,7 @@
 """Tests for :class:`PolarsAggregate`."""
 
 from __future__ import annotations
+
 import unittest
 
 import polars as pl
@@ -22,6 +23,17 @@ async def emit_orders() -> PolarsDataBatch:
                 "region":   ["EU", "EU", "EU", "US", "US"],
                 "amount":   [10.0, 25.0, 5.0,  100.0, None],
                 "customer": ["alice", "bob", "alice", "carol", "carol"],
+            }
+        )
+    )
+
+
+def _orders_batch() -> PolarsDataBatch:
+    return PolarsDataBatch(
+        frame=pl.DataFrame(
+            {
+                "region": ["EU", "EU", "US"],
+                "amount": [10.0, 25.0, 100.0],
             }
         )
     )
@@ -89,30 +101,65 @@ class TestPolarsAggregate(unittest.IsolatedAsyncioTestCase):
         assert out.row_count == 3
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_expr_in_aggs(self) -> None:
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_by_from_upstream_knot(self) -> None:
+        @knot
+        async def emit_by() -> object:
+            return ("region",)
+
+        with Tapestry() as t:
+            batch = emit_orders(_config=KnotConfig(id="orders"))
+            by_knot = emit_by(_config=KnotConfig(id="by"))
+            PolarsAggregate(
+                batch=batch,
+                by=by_knot,
+                aggs=(pl.col("amount").sum().alias("total"),),
+                _config=KnotConfig(id="agg"),
+            )
+        result = await t.run(RunRequest())
+        out: PolarsDataBatch = result.outputs["agg"]
+        assert "total" in out.frame.columns
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self, **kwargs: object) -> PolarsAggregate:
         @knot
         async def empty() -> PolarsDataBatch:
             return PolarsDataBatch(frame=pl.DataFrame())
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "polars.Expr"):
-                PolarsAggregate(
-                    batch=batch, by=("a",), aggs=("sum(amount)",),  # type: ignore[arg-type]
-                    _config=KnotConfig(id="a"),
-                )
+            return PolarsAggregate(
+                batch=batch,
+                by=("region",),
+                aggs=(pl.col("amount").sum().alias("total"),),
+                _config=KnotConfig(id="a"),
+                **kwargs,
+            )
 
-    def test_rejects_empty_by(self) -> None:
-        @knot
-        async def empty() -> PolarsDataBatch:
-            return PolarsDataBatch(frame=pl.DataFrame())
+    async def test_rejects_non_expr_in_aggs(self) -> None:
+        k = self._make_knot()
+        with self.assertRaisesRegex(TypeError, "polars.Expr"):
+            await k.process(
+                batch=_orders_batch(),
+                by=("region",),
+                aggs=("sum(amount)",),
+            )
 
-        with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(ValueError, "non-empty"):
-                PolarsAggregate(
-                    batch=batch, by=(),
-                    aggs=(pl.col("x").sum(),),
-                    _config=KnotConfig(id="a"),
-                )
+    async def test_rejects_empty_by(self) -> None:
+        k = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "non-empty"):
+            await k.process(
+                batch=_orders_batch(),
+                by=(),
+                aggs=(pl.col("amount").sum().alias("total"),),
+            )
+
+    async def test_rejects_empty_aggs(self) -> None:
+        k = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "non-empty"):
+            await k.process(
+                batch=_orders_batch(),
+                by=("region",),
+                aggs=(),
+            )

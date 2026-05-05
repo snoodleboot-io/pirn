@@ -1,6 +1,7 @@
 """Tests for :class:`PandasAggregate`."""
 
 from __future__ import annotations
+
 import unittest
 
 import pandas as pd
@@ -26,6 +27,10 @@ async def emit_orders() -> PandasDataBatch:
             }
         )
     )
+
+
+def _empty_batch() -> PandasDataBatch:
+    return PandasDataBatch(frame=pd.DataFrame({"a": [1]}))
 
 
 class TestPandasAggregate(unittest.IsolatedAsyncioTestCase):
@@ -92,33 +97,74 @@ class TestPandasAggregate(unittest.IsolatedAsyncioTestCase):
         assert out.row_count == 3
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_spec_in_aggs(self) -> None:
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_by_from_upstream_knot(self) -> None:
+        @knot
+        async def emit_by() -> object:
+            return ("region",)
+
+        with Tapestry() as t:
+            batch = emit_orders(_config=KnotConfig(id="orders"))
+            by_knot = emit_by(_config=KnotConfig(id="by"))
+            PandasAggregate(
+                batch=batch,
+                by=by_knot,
+                aggs={"total": AggregateSpec(source="amount", function="sum")},
+                _config=KnotConfig(id="agg"),
+            )
+        result = await t.run(RunRequest())
+        out: PandasDataBatch = result.outputs["agg"]
+        assert "total" in out.frame.columns
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self, **kwargs: object) -> PandasAggregate:
         @knot
         async def empty() -> PandasDataBatch:
-            return PandasDataBatch(frame=pd.DataFrame())
+            return PandasDataBatch(frame=pd.DataFrame({"a": [1]}))
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "AggregateSpec"):
-                PandasAggregate(
-                    batch=batch,
-                    by=("a",),
-                    aggs={"total": "sum(amount)"},  # type: ignore[dict-item]
-                    _config=KnotConfig(id="a"),
-                )
+            return PandasAggregate(
+                batch=batch,
+                by=("a",),
+                aggs={"n": AggregateSpec(source="a", function="count")},
+                _config=KnotConfig(id="agg"),
+                **kwargs,
+            )
 
-    def test_rejects_empty_by(self) -> None:
-        @knot
-        async def empty() -> PandasDataBatch:
-            return PandasDataBatch(frame=pd.DataFrame())
+    async def test_rejects_string_by(self) -> None:
+        k = self._make_knot()
+        with self.assertRaisesRegex(TypeError, "sequence"):
+            await k.process(
+                batch=_empty_batch(),
+                by="region",
+                aggs={"n": AggregateSpec(source="a", function="count")},
+            )
 
-        with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(ValueError, "non-empty"):
-                PandasAggregate(
-                    batch=batch,
-                    by=(),
-                    aggs={"total": AggregateSpec(source="x", function="sum")},
-                    _config=KnotConfig(id="a"),
-                )
+    async def test_rejects_empty_by(self) -> None:
+        k = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "non-empty"):
+            await k.process(
+                batch=_empty_batch(),
+                by=(),
+                aggs={"n": AggregateSpec(source="a", function="count")},
+            )
+
+    async def test_rejects_non_spec_in_aggs(self) -> None:
+        k = self._make_knot()
+        with self.assertRaisesRegex(TypeError, "AggregateSpec"):
+            await k.process(
+                batch=_empty_batch(),
+                by=("a",),
+                aggs={"total": "sum(amount)"},
+            )
+
+    async def test_rejects_empty_aggs(self) -> None:
+        k = self._make_knot()
+        with self.assertRaisesRegex(TypeError, "non-empty"):
+            await k.process(
+                batch=_empty_batch(),
+                by=("a",),
+                aggs={},
+            )

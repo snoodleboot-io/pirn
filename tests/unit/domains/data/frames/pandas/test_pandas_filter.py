@@ -1,6 +1,7 @@
 """Tests for :class:`PandasFilter`."""
 
 from __future__ import annotations
+
 import unittest
 
 import pandas as pd
@@ -15,6 +16,18 @@ from pirn.tapestry import Tapestry
 
 @knot
 async def emit_users() -> PandasDataBatch:
+    return PandasDataBatch(
+        frame=pd.DataFrame(
+            {
+                "id":     [1, 2, 3, 4],
+                "active": [True, False, True, False],
+                "region": ["EU", "US", "US", "EU"],
+            }
+        )
+    )
+
+
+def _users_batch() -> PandasDataBatch:
     return PandasDataBatch(
         frame=pd.DataFrame(
             {
@@ -52,17 +65,44 @@ class TestPandasFilter(unittest.IsolatedAsyncioTestCase):
         assert tuple(out.frame["id"].tolist()) == (1,)
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_callable_predicate(self) -> None:
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_predicate_from_upstream_knot(self) -> None:
+        @knot
+        async def emit_predicate() -> object:
+            return lambda df: df["active"]
+
+        with Tapestry() as t:
+            batch = emit_users(_config=KnotConfig(id="users"))
+            pred_knot = emit_predicate(_config=KnotConfig(id="pred"))
+            PandasFilter(
+                batch=batch,
+                predicate=pred_knot,
+                _config=KnotConfig(id="filtered"),
+            )
+        result = await t.run(RunRequest())
+        out: PandasDataBatch = result.outputs["filtered"]
+        assert tuple(out.frame["id"].tolist()) == (1, 3)
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self, **kwargs: object) -> PandasFilter:
         @knot
         async def empty() -> PandasDataBatch:
             return PandasDataBatch(frame=pd.DataFrame())
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "callable"):
-                PandasFilter(
-                    batch=batch,
-                    predicate="active == True",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="f"),
-                )
+            return PandasFilter(
+                batch=batch,
+                predicate=lambda df: df["active"],
+                _config=KnotConfig(id="f"),
+                **kwargs,
+            )
+
+    async def test_rejects_non_callable_predicate(self) -> None:
+        k = self._make_knot()
+        with self.assertRaisesRegex(TypeError, "callable"):
+            await k.process(
+                batch=_users_batch(),
+                predicate="active == True",
+            )

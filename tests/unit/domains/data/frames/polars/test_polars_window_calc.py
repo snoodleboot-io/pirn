@@ -1,6 +1,7 @@
 """Tests for :class:`PolarsWindowCalc`."""
 
 from __future__ import annotations
+
 import unittest
 
 import polars as pl
@@ -20,6 +21,17 @@ async def emit_orders() -> PolarsDataBatch:
             {
                 "region": ["EU", "EU", "EU", "US", "US"],
                 "amount": [10.0, 25.0, 5.0,  100.0, 50.0],
+            }
+        )
+    )
+
+
+def _orders_batch() -> PolarsDataBatch:
+    return PolarsDataBatch(
+        frame=pl.DataFrame(
+            {
+                "region": ["EU", "EU", "US"],
+                "amount": [10.0, 25.0, 100.0],
             }
         )
     )
@@ -61,30 +73,52 @@ class TestPolarsWindowCalc(unittest.IsolatedAsyncioTestCase):
         ]
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_windows(self) -> None:
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_windows_from_upstream_knot(self) -> None:
+        @knot
+        async def emit_windows() -> object:
+            return (pl.col("amount").cum_sum().alias("running_total"),)
+
+        with Tapestry() as t:
+            batch = emit_orders(_config=KnotConfig(id="orders"))
+            windows_knot = emit_windows(_config=KnotConfig(id="windows"))
+            PolarsWindowCalc(
+                batch=batch,
+                windows=windows_knot,
+                _config=KnotConfig(id="cum"),
+            )
+        result = await t.run(RunRequest())
+        out: PolarsDataBatch = result.outputs["cum"]
+        assert "running_total" in out.column_names
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self, **kwargs: object) -> PolarsWindowCalc:
         @knot
         async def empty() -> PolarsDataBatch:
             return PolarsDataBatch(frame=pl.DataFrame())
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(ValueError, "non-empty"):
-                PolarsWindowCalc(
-                    batch=batch, windows=(),
-                    _config=KnotConfig(id="w"),
-                )
+            return PolarsWindowCalc(
+                batch=batch,
+                windows=(pl.col("x").cum_sum().alias("y"),),
+                _config=KnotConfig(id="w"),
+                **kwargs,
+            )
 
-    def test_rejects_non_expr(self) -> None:
-        @knot
-        async def empty() -> PolarsDataBatch:
-            return PolarsDataBatch(frame=pl.DataFrame())
+    async def test_rejects_empty_windows(self) -> None:
+        k = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "non-empty"):
+            await k.process(
+                batch=_orders_batch(),
+                windows=(),
+            )
 
-        with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "polars.Expr"):
-                PolarsWindowCalc(
-                    batch=batch,
-                    windows=("rank()",),  # type: ignore[arg-type]
-                    _config=KnotConfig(id="w"),
-                )
+    async def test_rejects_non_expr(self) -> None:
+        k = self._make_knot()
+        with self.assertRaisesRegex(TypeError, "polars.Expr"):
+            await k.process(
+                batch=_orders_batch(),
+                windows=("rank()",),
+            )

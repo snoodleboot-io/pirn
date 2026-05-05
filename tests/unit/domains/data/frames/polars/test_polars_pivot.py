@@ -1,6 +1,7 @@
 """Tests for :class:`PolarsPivot`."""
 
 from __future__ import annotations
+
 import unittest
 
 import polars as pl
@@ -21,6 +22,18 @@ async def emit_long() -> PolarsDataBatch:
                 "user":   ["alice", "alice", "bob",   "bob"],
                 "metric": ["clicks", "views", "clicks", "views"],
                 "value":  [3,         100,    7,        200],
+            }
+        )
+    )
+
+
+def _long_batch() -> PolarsDataBatch:
+    return PolarsDataBatch(
+        frame=pl.DataFrame(
+            {
+                "user":   ["alice", "alice"],
+                "metric": ["clicks", "views"],
+                "value":  [3, 100],
             }
         )
     )
@@ -74,30 +87,63 @@ class TestPolarsPivot(unittest.IsolatedAsyncioTestCase):
         assert alice["views"] == 5
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_unknown_aggregate(self) -> None:
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_aggregate_function_from_upstream_knot(self) -> None:
+        @knot
+        async def emit_agg_fn() -> object:
+            return "first"
+
+        with Tapestry() as t:
+            batch = emit_long(_config=KnotConfig(id="long"))
+            agg_knot = emit_agg_fn(_config=KnotConfig(id="agg_fn"))
+            PolarsPivot(
+                batch=batch,
+                on="metric",
+                index="user",
+                values="value",
+                aggregate_function=agg_knot,
+                _config=KnotConfig(id="wide"),
+            )
+        result = await t.run(RunRequest())
+        out: PolarsDataBatch = result.outputs["wide"]
+        assert set(out.column_names) == {"user", "clicks", "views"}
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self, **kwargs: object) -> PolarsPivot:
         @knot
         async def empty() -> PolarsDataBatch:
             return PolarsDataBatch(frame=pl.DataFrame())
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(ValueError, "aggregate_function"):
-                PolarsPivot(
-                    batch=batch, on="x", index="y", values="z",
-                    aggregate_function="median",
-                    _config=KnotConfig(id="p"),
-                )
+            return PolarsPivot(
+                batch=batch,
+                on="metric",
+                index="user",
+                values="value",
+                _config=KnotConfig(id="p"),
+                **kwargs,
+            )
 
-    def test_rejects_empty_string_column(self) -> None:
-        @knot
-        async def empty() -> PolarsDataBatch:
-            return PolarsDataBatch(frame=pl.DataFrame())
+    async def test_rejects_unknown_aggregate(self) -> None:
+        k = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "aggregate_function"):
+            await k.process(
+                batch=_long_batch(),
+                on="metric",
+                index="user",
+                values="value",
+                aggregate_function="median",
+            )
 
-        with Tapestry():
-            batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(ValueError, "non-empty"):
-                PolarsPivot(
-                    batch=batch, on="", index="y", values="z",
-                    _config=KnotConfig(id="p"),
-                )
+    async def test_rejects_empty_string_column(self) -> None:
+        k = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "non-empty"):
+            await k.process(
+                batch=_long_batch(),
+                on="",
+                index="user",
+                values="value",
+                aggregate_function="first",
+            )

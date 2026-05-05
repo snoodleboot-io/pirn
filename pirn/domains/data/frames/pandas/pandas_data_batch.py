@@ -13,7 +13,7 @@ unified behind a generic ``Frame`` interface.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import pandas as pd
@@ -42,7 +42,7 @@ class PandasDataBatch:
     frame: pd.DataFrame
     source_uri: str = ""
     fetched_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
 
     @property
@@ -53,7 +53,7 @@ class PandasDataBatch:
     def column_names(self) -> tuple[str, ...]:
         return tuple(self.frame.columns)
 
-    def with_frame(self, frame: pd.DataFrame) -> "PandasDataBatch":
+    def with_frame(self, frame: pd.DataFrame) -> PandasDataBatch:
         """Return a copy with ``frame`` replaced; metadata preserved."""
         return PandasDataBatch(
             frame=frame,

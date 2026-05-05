@@ -9,11 +9,33 @@ Supports the standard Polars join strategies (``inner``, ``left``,
 ``right``, ``full``, ``semi``, ``anti``, ``cross``). When ``on`` is a
 single string or sequence, both frames join on those columns. When
 ``left_on`` / ``right_on`` are supplied separately, they may differ.
+
+Algorithm:
+    1. Validate ``how`` against the allowed set.
+    2. Normalise ``on``, ``left_on``, ``right_on`` to
+       ``tuple[str, ...]`` via :meth:`_coerce_keys`, which also
+       validates each column name via :class:`IdentifierValidator`.
+    3. For cross joins, assert no key columns are provided.
+    4. For other joins, validate that exactly one of ``on`` or
+       ``(left_on, right_on)`` is provided via :meth:`_validate_keys`.
+    5. Call ``left.frame.join(right.frame, ...)`` with the resolved
+       keys, strategy, and suffix.
+    6. Return the joined frame wrapped in a new :class:`PolarsDataBatch`.
+
+References:
+    [1] Polars — DataFrame.join:
+        https://docs.pola.rs/api/python/stable/reference/dataframe/api/polars.DataFrame.join.html
+    [2] Polars — join strategies:
+        https://docs.pola.rs/user-guide/transformations/joins/
+    [3] Alternative: pandas DataFrame.merge (chosen Polars here for
+        vectorised, lazy-compatible execution):
+        https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.merge.html
 """
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -29,19 +51,59 @@ class PolarsJoin(Knot):
         *,
         left: Knot,
         right: Knot,
-        on: str | Sequence[str] | None = None,
-        left_on: str | Sequence[str] | None = None,
-        right_on: str | Sequence[str] | None = None,
-        how: str = "inner",
-        suffix: str = "_right",
+        on: Knot | str | Sequence[str] | None = None,
+        left_on: Knot | str | Sequence[str] | None = None,
+        right_on: Knot | str | Sequence[str] | None = None,
+        how: Knot | str = "inner",
+        suffix: Knot | str = "_right",
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            left=left,
+            right=right,
+            on=on,
+            left_on=left_on,
+            right_on=right_on,
+            how=how,
+            suffix=suffix,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        left: PolarsDataBatch,
+        right: PolarsDataBatch,
+        on: Any,
+        left_on: Any,
+        right_on: Any,
+        how: Any,
+        suffix: Any,
+        **_: Any,
+    ) -> PolarsDataBatch:
+        """Join the left and right Polars batches on the configured keys and return the result.
+
+        Args:
+            left: The left-side PolarsDataBatch.
+            right: The right-side PolarsDataBatch to join against.
+            on: Column(s) shared by both frames, or None.
+            left_on: Left-side key column(s), or None.
+            right_on: Right-side key column(s), or None.
+            how: Join strategy.
+            suffix: Suffix applied to overlapping right-side columns.
+
+        Returns:
+            A new PolarsDataBatch containing the joined frame.
+        """
         allowed_how = ("inner", "left", "right", "full", "semi", "anti", "cross")
         if how not in allowed_how:
             raise ValueError(
                 f"PolarsJoin: how must be one of {list(allowed_how)}, got {how!r}"
             )
+        on_coerced = self._coerce_keys("on", on)
+        left_on_coerced = self._coerce_keys("left_on", left_on)
+        right_on_coerced = self._coerce_keys("right_on", right_on)
         if how == "cross":
             if on is not None or left_on is not None or right_on is not None:
                 raise TypeError(
@@ -49,49 +111,26 @@ class PolarsJoin(Knot):
                 )
         else:
             self._validate_keys(on, left_on, right_on)
-        self._on = self._coerce_keys("on", on)
-        self._left_on = self._coerce_keys("left_on", left_on)
-        self._right_on = self._coerce_keys("right_on", right_on)
-        self._how = how
-        self._suffix = suffix
-        super().__init__(left=left, right=right, _config=_config, **kwargs)
-
-    @property
-    def how(self) -> str:
-        return self._how
-
-    async def process(
-        self, left: PolarsDataBatch, right: PolarsDataBatch, **_: Any
-    ) -> PolarsDataBatch:
-        """Join the left and right Polars batches on the configured keys and return the result.
-
-        Args:
-            left: The left-side PolarsDataBatch.
-            right: The right-side PolarsDataBatch to join against.
-
-        Returns:
-            A new PolarsDataBatch containing the joined frame.
-        """
-        kwargs: dict[str, Any] = {"how": self._how, "suffix": self._suffix}
-        if self._how == "cross":
-            joined = left.frame.join(right.frame, **kwargs)
-        elif self._on is not None:
-            joined = left.frame.join(right.frame, on=list(self._on), **kwargs)
+        join_kwargs: dict[str, Any] = {"how": how, "suffix": suffix}
+        if how == "cross":
+            joined = left.frame.join(right.frame, **join_kwargs)
+        elif on_coerced is not None:
+            joined = left.frame.join(right.frame, on=list(on_coerced), **join_kwargs)
         else:
-            assert self._left_on is not None and self._right_on is not None
+            assert left_on_coerced is not None and right_on_coerced is not None
             joined = left.frame.join(
                 right.frame,
-                left_on=list(self._left_on),
-                right_on=list(self._right_on),
-                **kwargs,
+                left_on=list(left_on_coerced),
+                right_on=list(right_on_coerced),
+                **join_kwargs,
             )
         return left.with_frame(joined)
 
     def _validate_keys(
         self,
-        on: str | Sequence[str] | None,
-        left_on: str | Sequence[str] | None,
-        right_on: str | Sequence[str] | None,
+        on: Any,
+        left_on: Any,
+        right_on: Any,
     ) -> None:
         if on is not None and (left_on is not None or right_on is not None):
             raise TypeError(

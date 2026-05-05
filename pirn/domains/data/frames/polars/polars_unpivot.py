@@ -3,11 +3,28 @@
 Inverse of :class:`PolarsPivot`. Selected ``on`` columns collapse into
 two: a name column (default ``"variable"``) and a value column (default
 ``"value"``). ``index`` columns are repeated for each row produced.
+
+Algorithm:
+    1. Validate ``variable_name`` and ``value_name`` as non-empty strings.
+    2. Coerce and validate ``on`` as a non-empty sequence of non-empty
+       strings via :meth:`_coerce_columns`.
+    3. Coerce and validate ``index`` as an optional sequence of non-empty
+       strings (may be empty or None).
+    4. Call ``frame.unpivot(on=..., index=..., variable_name=...,
+       value_name=...)`` to reshape the frame.
+    5. Return the result wrapped in a new :class:`PolarsDataBatch`.
+
+References:
+    [1] Polars — DataFrame.unpivot:
+        https://docs.pola.rs/api/python/stable/reference/dataframe/api/polars.DataFrame.unpivot.html
+    [2] Polars — reshaping guide:
+        https://docs.pola.rs/user-guide/transformations/unpivot/
 """
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -21,50 +38,60 @@ class PolarsUnpivot(Knot):
         self,
         *,
         batch: Knot,
-        on: Sequence[str],
-        index: Sequence[str] | None = None,
-        variable_name: str = "variable",
-        value_name: str = "value",
+        on: Knot | Sequence[str],
+        index: Knot | Sequence[str] | None = None,
+        variable_name: Knot | str = "variable",
+        value_name: Knot | str = "value",
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not variable_name:
-            raise ValueError("PolarsUnpivot: variable_name must be non-empty")
-        if not value_name:
-            raise ValueError("PolarsUnpivot: value_name must be non-empty")
-        self._on = self._coerce_columns("on", on, allow_empty=False)
-        self._index = (
-            self._coerce_columns("index", index, allow_empty=True)
-            if index is not None
-            else ()
+        super().__init__(
+            batch=batch,
+            on=on,
+            index=index,
+            variable_name=variable_name,
+            value_name=value_name,
+            _config=_config,
+            **kwargs,
         )
-        self._variable_name = variable_name
-        self._value_name = value_name
-        super().__init__(batch=batch, _config=_config, **kwargs)
 
-    @property
-    def on(self) -> tuple[str, ...]:
-        return self._on
-
-    @property
-    def index(self) -> tuple[str, ...]:
-        return self._index
-
-    async def process(self, batch: PolarsDataBatch, **_: Any) -> PolarsDataBatch:
+    async def process(
+        self,
+        batch: PolarsDataBatch,
+        on: Any,
+        index: Any,
+        variable_name: Any,
+        value_name: Any,
+        **_: Any,
+    ) -> PolarsDataBatch:
         """Unpivot the configured columns from wide to long format and return the result.
 
         Args:
             batch: The upstream PolarsDataBatch to reshape.
+            on: Columns to collapse into name/value pairs.
+            index: Columns to keep as identifiers (repeated per row produced).
+            variable_name: Name for the new column holding original column names.
+            value_name: Name for the new column holding original values.
 
         Returns:
             A new PolarsDataBatch in long format with variable and value columns.
         """
+        if not variable_name:
+            raise ValueError("PolarsUnpivot: variable_name must be non-empty")
+        if not value_name:
+            raise ValueError("PolarsUnpivot: value_name must be non-empty")
+        on_coerced = self._coerce_columns("on", on, allow_empty=False)
+        index_coerced = (
+            self._coerce_columns("index", index, allow_empty=True)
+            if index is not None
+            else ()
+        )
         return batch.with_frame(
             batch.frame.unpivot(
-                on=list(self._on),
-                index=list(self._index) if self._index else None,
-                variable_name=self._variable_name,
-                value_name=self._value_name,
+                on=list(on_coerced),
+                index=list(index_coerced) if index_coerced else None,
+                variable_name=variable_name,
+                value_name=value_name,
             )
         )
 

@@ -1,6 +1,7 @@
 """Tests for :class:`PandasCast`."""
 
 from __future__ import annotations
+
 import unittest
 
 import pandas as pd
@@ -15,6 +16,12 @@ from pirn.tapestry import Tapestry
 
 @knot
 async def emit_string_columns() -> PandasDataBatch:
+    return PandasDataBatch(
+        frame=pd.DataFrame({"id": ["1", "2"], "amount": ["12.5", "99.0"]})
+    )
+
+
+def _string_batch() -> PandasDataBatch:
     return PandasDataBatch(
         frame=pd.DataFrame({"id": ["1", "2"], "amount": ["12.5", "99.0"]})
     )
@@ -60,17 +67,60 @@ class TestPandasCast(unittest.IsolatedAsyncioTestCase):
         assert out.frame["id"].dtype == object
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_unknown_dtype_kind(self) -> None:
+class TestWiring(unittest.IsolatedAsyncioTestCase):
+    async def test_casts_from_upstream_knot(self) -> None:
+        @knot
+        async def emit_casts() -> object:
+            return {"id": int}
+
+        with Tapestry() as t:
+            batch = emit_string_columns(_config=KnotConfig(id="users"))
+            casts_knot = emit_casts(_config=KnotConfig(id="casts"))
+            PandasCast(
+                batch=batch,
+                casts=casts_knot,
+                _config=KnotConfig(id="casted"),
+            )
+        result = await t.run(RunRequest())
+        out: PandasDataBatch = result.outputs["casted"]
+        assert str(out.frame["id"].dtype) == "int64"
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self, **kwargs: object) -> PandasCast:
         @knot
         async def empty() -> PandasDataBatch:
             return PandasDataBatch(frame=pd.DataFrame())
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            with self.assertRaisesRegex(TypeError, "Pandas dtype"):
-                PandasCast(
-                    batch=batch,
-                    casts={"a": 123},  # type: ignore[dict-item]
-                    _config=KnotConfig(id="c"),
-                )
+            return PandasCast(
+                batch=batch,
+                casts={"id": int},
+                _config=KnotConfig(id="c"),
+                **kwargs,
+            )
+
+    async def test_rejects_unknown_dtype_kind(self) -> None:
+        k = self._make_knot()
+        with self.assertRaisesRegex(TypeError, "Pandas dtype"):
+            await k.process(
+                batch=_string_batch(),
+                casts={"id": 123},
+            )
+
+    async def test_rejects_empty_casts(self) -> None:
+        k = self._make_knot()
+        with self.assertRaisesRegex(TypeError, "non-empty"):
+            await k.process(
+                batch=_string_batch(),
+                casts={},
+            )
+
+    async def test_rejects_non_string_key(self) -> None:
+        k = self._make_knot()
+        with self.assertRaisesRegex(TypeError, "non-empty strings"):
+            await k.process(
+                batch=_string_batch(),
+                casts={"": int},
+            )
