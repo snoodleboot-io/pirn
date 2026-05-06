@@ -86,7 +86,7 @@ handle_tool(payload=route["tool_call"], _config=KnotConfig(id="handle_tool"))
 handle_resp(payload=route["response"], _config=KnotConfig(id="handle_resp"))
 ```
 
-**See also:** [`examples/financial/loan_underwriting.py`](../../examples/financial/loan_underwriting.py) — Branch + Aggregator for loan underwriting track routing.
+**See also:** `examples/financial/loan_underwriting.py` — Branch + Aggregator for loan underwriting track routing.
 
 ---
 
@@ -162,7 +162,7 @@ entries = process_entry(k=DictMap(lookup), v=DictMap(lookup), _config=KnotConfig
 - Both `DictMap` inputs must reference the same source knot.
 - Output type is always `list[T]`.
 
-**See also:** [`examples/lab_batch/lab_batch.py`](../../examples/lab_batch/lab_batch.py) — batch pathology sample processing with chained Maps.
+**See also:** `examples/lab_batch/lab_batch.py` — batch pathology sample processing with chained Maps.
 
 ---
 
@@ -258,7 +258,7 @@ except SubTapestryError as e:
     print(e.inner_result.exceptions)
 ```
 
-**See also:** [`examples/pipeline_composition/sub_tapestry.py`](../../examples/pipeline_composition/sub_tapestry.py), [Visualization — SubTapestry drill-down](../guides/visualization.md#subtapestry-drill-down)
+**See also:** `examples/pipeline_composition/sub_tapestry.py`, [Visualization — SubTapestry drill-down](../guides/visualization.md#subtapestry-drill-down)
 
 ---
 
@@ -331,4 +331,4 @@ class Refiner(LoopSubTapestry[RefinementState]):
 
 Each iteration is a knot in one loop run; the knots are chained by real parent edges so lineage and the explorer reflect the true sequential (or parallel) execution history. Drill into any iteration knot to see its inner tapestry.
 
-**See also:** [`examples/llm_agent/agent_loop.py`](../../examples/llm_agent/agent_loop.py) — dynamic DAG agent loop built on extensible tapestry and `get_current_store()`.
+**See also:** `examples/llm_agent/agent_loop.py` — dynamic DAG agent loop built on extensible tapestry and `get_current_store()`.

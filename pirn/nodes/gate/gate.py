@@ -42,15 +42,26 @@ class Gate(Knot):
         self._mutable_output_adapter = None
         self._mutable_mapped_inputs: dict = {}
 
-        from pirn.tapestry import _CURRENT_TAPESTRY
+        from pirn.tapestry import _current_tapestry
 
-        target = tapestry or _CURRENT_TAPESTRY.get(None)
+        target = tapestry or _current_tapestry.get(None)
         if target is not None:
             target.register(self)
 
         self._frozen = True
 
     async def process(self, input: Any, **_: Any) -> Any:  # type: ignore[override]
+        """Pass the input through if the predicate is truthy, or raise to signal gate closure.
+
+        Args:
+            input: Value produced by the upstream knot, evaluated by the predicate.
+
+        Returns:
+            The input value unchanged when the predicate returns truthy.
+
+        Raises:
+            _GateClosed: If the predicate returns falsy; converted to Skipped by ``__call__``.
+        """
         if self._mutable_predicate(input):
             return input
         raise _GateClosed

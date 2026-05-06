@@ -1,0 +1,52 @@
+"""Unit tests for :class:`AudioFeatureExtractor`."""
+
+from __future__ import annotations
+
+import unittest
+
+import pytest
+
+from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.domains.signal.audio.audio_feature_extractor import AudioFeatureExtractor
+from pirn.domains.signal.types.signal_frame import SignalFrame
+from tests.unit.domains.signal.conftest import make_signal_frame
+
+_SIGNAL = make_signal_frame()
+
+
+def _up(name: str = "signal") -> Parameter:
+    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
+
+
+class TestAudioFeatureExtractor(unittest.IsolatedAsyncioTestCase):
+    def _make(self) -> AudioFeatureExtractor:
+        return AudioFeatureExtractor(
+            signal=_up(),
+            n_mfcc=13,
+            n_fft=512,
+            hop_length=256,
+            _config=KnotConfig(id="fe"),
+        )
+
+    async def test_rejects_non_positive_n_mfcc(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="n_mfcc"):
+            await knot.process(_SIGNAL, n_mfcc=0, n_fft=512, hop_length=256)
+
+    async def test_rejects_non_positive_n_fft(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="n_fft"):
+            await knot.process(_SIGNAL, n_mfcc=13, n_fft=0, hop_length=256)
+
+    async def test_rejects_non_positive_hop_length(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="hop_length"):
+            await knot.process(_SIGNAL, n_mfcc=13, n_fft=512, hop_length=0)
+
+    async def test_emits_feature_dict(self) -> None:
+        knot = self._make()
+        out = await knot.process(_SIGNAL, n_mfcc=13, n_fft=512, hop_length=256)
+        assert isinstance(out, dict)
+        assert "rms_energy" in out
+        assert "mfcc_mean" in out

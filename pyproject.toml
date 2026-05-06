@@ -18,15 +18,14 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-    "asyncpg>=0.31.0",
     "cloudpickle>=3.0",
     "pydantic>=2.0",
     "pyyaml>=6.0",
     "sweet-tea>=0.2.46",
-    "valkey-glide>=2.3.1",
 ]
 
 [project.scripts]
@@ -43,50 +42,364 @@ dev = [
     "pyright>=1.1",
     "cyclonedx-bom>=4.0",
 ]
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Persistence backends — install the ones for your deployment shape.
+# ─────────────────────────────────────────────────────────────────────────────
 sqlite = ["aiosqlite>=0.19"]
 duckdb = ["duckdb>=0.10"]
-postgres = ["asyncpg>=0.29"]
-valkey = ["valkey-glide>=2.0"]
+postgres = ["asyncpg>=0.31"]
+valkey = ["valkey-glide>=2.3"]
 s3 = ["aioboto3>=12.0"]
 gcs = ["gcloud-aio-storage>=9.0"]
 azure = ["azure-storage-blob>=12.0"]
+
 # Distributed dispatchers.
 dask = ["dask[distributed]>=2024.1"]
 docs = ["mkdocs>=1.6", "mkdocstrings[python]>=0.25", "pymdown-extensions>=10.0"]
 ray = ["ray>=2.9"]
 celery = ["celery>=5.3"]
+
 # Triggers / emitters.
 kafka = ["aiokafka>=0.13.0"]
 http = ["httpx>=0.26", "starlette>=0.36"]
 otel = ["opentelemetry-api>=1.20", "opentelemetry-sdk>=1.20"]
-# Convenience aggregate.
-all = [
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Domain knot libraries (pirn/domains/*) — heavy deps isolated per domain.
+# ─────────────────────────────────────────────────────────────────────────────
+data    = ["pandas>=2.0", "pyarrow>=14.0"]
+agents  = []  # no heavy core deps; LLM/memory/tool providers are user-supplied
+ml      = ["numpy>=1.26", "pandas>=2.0", "scikit-learn>=1.4"]
+health  = [
+    "pydicom>=2.4",
+    "mne>=1.6",
+    "nibabel>=5.2",
+    "pyfaidx>=0.7",
+    "pysam>=0.22",
+    "fhir.resources>=7.1",
+    "pyedflib>=0.1.42",
+]
+signal  = ["scipy>=1.12", "pywavelets>=1.5", "librosa>=0.10"]
+oilgas  = ["segyio>=1.9.14", "lasio>=0.32"]
+# Genomics extra — subset of `health` for callers that only need the
+# genomics file formats (FASTA, FASTQ, VCF, BCF).
+genomics = ["pyfaidx>=0.7", "pysam>=0.22"]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Tiered data-domain engines — see ARD: Tiered Data-Domain Architecture.
+# Each tier is its own opt-in. Tier-1 (DataBatch, dict-based) ships with
+# the `data` extra above; the rest layer on top.
+# ─────────────────────────────────────────────────────────────────────────────
+# Tier 0 — foundational columnar / specialized layouts
+arrow   = ["pyarrow>=14.0"]
+parquet = ["pyarrow>=14.0"]
+xarray  = ["xarray>=2024.0"]
+awkward = ["awkward>=2.5"]
+
+# Tier 2 — single-machine native frames (CPU)
+polars     = ["polars>=0.20"]
+datafusion = ["datafusion>=40.0"]
+# NOTE: Datatable (H2O.ai) and Vaex are intentionally NOT shipped as
+# pirn extras. Both projects are effectively in maintenance mode and
+# have not produced wheels for recent Python releases (Vaex stops at
+# 3.11, Datatable at 3.10). Their workloads are covered by Polars and
+# DuckDB at Tier 2 and by Dask/Ray at Tier 3.
+
+# Tier 2-GPU
+# NOTE: cuDF (NVIDIA Rapids) requires CUDA at install time and only
+# publishes Linux x86_64 wheels for systems with a compatible GPU stack.
+# Including it in pirn's optional-extras would cause uv's universal
+# resolution to fail on non-GPU hosts (and on Windows/macOS entirely).
+# Users with CUDA install it directly:
+#     pip install 'cudf-cu12>=24.0'
+# Pirn's Tier 2-GPU knots, when they land, will detect cuDF lazily at
+# import time and fail with an actionable message if it's missing.
+
+# Tier 2.5 — out-of-core / drop-in distributed
+# Pinned below 3.14 until upstream ships 3.14 wheels.
+modin = ["modin>=0.30; python_version<'3.14'"]
+
+# Tier 3 — push-down / lazy / distributed
+ibis    = ["ibis-framework>=9.0", "pyarrow-hotfix>=0.7"]
+spark   = ["pyspark>=4.0"]
+ray-data = ["ray[data]>=2.10"]
+# Note: existing `dask` extra above already covers Dask.
+
+# Tier 3 — streaming dataflow
+# Pathway and Bytewax both ship Rust-built wheels and currently target
+# 3.13 and below. Pinned until upstream catches up to 3.14.
+pathway = ["pathway>=0.13; python_version<'3.11'"]
+bytewax = ["bytewax>=0.21; python_version<'3.13'"]
+
+# Tier 4 — specialized
+lance = ["pylance>=0.18"]
+eland = ["eland>=8.13"]
+
+# Lakehouse table formats — see pirn/domains/data/lakehouse/.
+# Each is gated behind its own extra so installing pirn without the
+# vendor SDK works fine. Hudi's Python ecosystem is read-only as of
+# mid-2026; production writes require the Spark/Java writer.
+delta   = ["deltalake>=0.17"]
+iceberg = ["pyiceberg>=0.6"]
+# TODO: Hudi Python writer is not yet on PyPI under a stable name.
+# When ``hudi-python``/``pyhudi`` reaches a stable release, declare it
+# here. For now ``pirn[hudi]`` is a no-op marker — the read path uses
+# pyarrow (already pulled in via ``pirn[data]``).
+hudi    = []
+
+# Validation frameworks (cross-tier; integrate with quality knots)
+pandera           = ["pandera>=0.20"]
+great-expectations = ["great-expectations>=0.18"]
+
+# Convenience aggregate that pulls every Tier-2 single-machine CPU frame engine.
+all-frames = [
+    "polars>=0.20",
+    "pandas>=2.0",
+    "pyarrow>=14.0",
+    "duckdb>=0.10",
+    "datafusion>=40.0",
+]
+
+# Convenience aggregate for the lazy/push-down tier.
+all-lazy = [
+    "ibis-framework>=9.0",
+    "pyspark>=4.0",
+    "ray[data]>=2.10",
+    "dask[distributed]>=2024.1",
+]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Additional connector extras (pirn/domains/connectors/) — per backend.
+# Reuses existing persistence extras (postgres, sqlite, duckdb, s3, gcs,
+# azure, kafka, valkey) where the underlying library is the same.
+# ─────────────────────────────────────────────────────────────────────────────
+mysql      = ["aiomysql>=0.2"]
+bigquery   = ["google-cloud-bigquery>=3.0"]
+snowflake  = ["snowflake-connector-python>=3.0"]
+redshift   = ["asyncpg>=0.29"]                  # PostgreSQL wire protocol
+clickhouse = ["clickhouse-connect>=0.7"]
+databricks = ["databricks-sql-connector>=3.0"]
+mssql      = ["aioodbc>=0.5"]
+oracle     = ["oracledb>=2.0"]
+kinesis    = ["aioboto3>=12.0"]
+pubsub     = ["google-cloud-pubsub>=2.0"]
+rabbitmq   = ["aio-pika>=9.0"]
+azure-servicebus = ["azure-servicebus>=7.0"]
+salesforce = ["simple-salesforce>=1.12"]
+hubspot    = ["hubspot-api-client>=8.0"]
+stripe    = ["stripe>=7.0"]
+github    = ["PyGithub>=2.0"]
+jira      = ["atlassian-python-api>=3.0"]
+zendesk   = ["zenpy>=2.0"]
+twilio    = ["twilio>=8.0"]
+shopify   = ["ShopifyAPI>=12.0"]
+datadog   = ["datadog-api-client>=2.0"]
+prometheus = ["prometheus-client>=0.19"]
+grafana   = ["httpx>=0.26"]
+google-analytics = ["google-analytics-data>=0.18"]
+mixpanel  = ["mixpanel>=4.10"]
+amplitude = ["amplitude-analytics>=1.1"]
+
+# Compression codecs for CompressedFileFormat (pirn/domains/connectors/
+# file_formats/codecs/). gzip and bzip2 are stdlib — no extra needed.
+zstd   = ["zstandard>=0.22"]
+snappy = ["python-snappy>=0.7"]
+lz4    = ["lz4>=4.3"]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# File format extras (pirn/domains/connectors/file_formats/).
+# Each tabular file format with non-trivial deps gets its own extra so
+# the core install stays small.
+# ─────────────────────────────────────────────────────────────────────────────
+# Scientific / domain-specific file formats that were previously bundled in core.
+asdf    = ["asdf>=5.3.0"]
+fits    = ["astropy>=7.2.0"]
+grib    = ["cfgrib>=0.9.15.1"]
+dlis    = ["dlisio>=1.0.4"]
+hl7     = ["hl7>=0.4.5"]
+audio   = ["pydub>=0.25.1"]
+spss    = ["pyreadstat>=1.3.4"]
+root    = ["uproot>=5.7.4"]
+
+avro    = ["fastavro>=1.9"]
+orc     = ["pyarrow>=14.0"]
+feather = ["pyarrow>=14.0"]
+xlsx    = ["openpyxl>=3.1", "xlsxwriter>=3.2"]
+ods     = ["odfpy>=1.4"]
+pdf     = ["pypdf>=4.0", "reportlab>=4.0"]
+docx    = ["python-docx>=1.1"]
+pptx    = ["python-pptx>=0.6"]
+html    = ["beautifulsoup4>=4.12", "lxml>=5.0"]
+markdown = ["markdown-it-py>=3.0", "markdown>=3.5"]
+epub     = ["ebooklib>=0.18"]
+rtf      = ["striprtf>=0.0.27"]
+# Scientific tabular formats — multi-dimensional or compound-typed binaries.
+hdf5     = ["h5py>=3.10"]
+zarr     = ["zarr>=2.16"]
+matlab   = ["scipy>=1.12"]
+netcdf   = ["netcdf4>=1.6"]
+# Image formats — single-image (PNG/JPEG/WebP/HEIC) or multi-page (TIFF).
+image    = ["Pillow>=10.0"]
+tiff     = ["tifffile>=2026.3.3", "Pillow>=10.0", "imagecodecs>=2026.3.6"]
+heic     = ["pillow-heif>=1.3.0"]
+# Geospatial formats — vector + raster.
+shapefile  = ["pyshp>=2.3"]
+geojson    = ["geojson>=3.1"]
+kml        = ["simplekml>=1.3", "lxml>=5.0"]
+geotiff    = ["rasterio>=1.3"]
+geopackage = ["fiona>=1.10.1"]
+# ML artefact formats — whole-model encoders/decoders.
+onnx        = ["onnx>=1.16"]
+safetensors = ["safetensors>=0.4", "numpy>=1.26"]
+joblib      = ["joblib>=1.4"]
+pytorch     = ["torch>=2.0"]
+tensorflow  = ["tensorflow>=2.21; python_version<'3.14'"]
+gguf        = ["gguf>=0.10"]
+tflite      = ["ai-edge-litert>=2.1; python_version<'3.14'"]
+
+# BI / data-catalog connectors (pirn/domains/connectors/bi_catalog/).
+# dbt artifacts is stdlib-only — no extra needed.
+fivetran      = ["httpx>=0.26"]
+airbyte       = ["httpx>=0.26"]
+datahub       = ["httpx>=0.26"]
+open-metadata = ["httpx>=0.26"]
+alation       = ["httpx>=0.26"]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Convenience aggregates.
+# ─────────────────────────────────────────────────────────────────────────────
+all-db = [
     "aiosqlite>=0.19",
     "duckdb>=0.10",
     "asyncpg>=0.29",
-    "valkey-glide>=2.0",
+    "aiomysql>=0.2",
+    "google-cloud-bigquery>=3.0",
+    "snowflake-connector-python>=3.0",
+    "clickhouse-connect>=0.7",
+    "databricks-sql-connector>=3.0",
+    "aioodbc>=0.5",
+    # Oracle (oracledb) is intentionally NOT in all-db so the convenience
+    # aggregate stays installable in environments without Oracle Instant
+    # Client / wheels for every (Python, OS) combination. Users who need
+    # Oracle install ``pirn[oracle]`` directly.
+]
+all-storage = [
     "aioboto3>=12.0",
     "gcloud-aio-storage>=9.0",
     "azure-storage-blob>=12.0",
+]
+all-stream = [
+    "aiokafka>=0.13.0",
+    "google-cloud-pubsub>=2.0",
+    "aio-pika>=9.0",
+    "azure-servicebus>=7.0",
+    "valkey-glide>=2.0",
+]
+all-saas = [
+    "simple-salesforce>=1.12",
+    "hubspot-api-client>=8.0",
+    "stripe>=7.0",
+    "PyGithub>=2.0",
+    "atlassian-python-api>=3.0",
+    "ShopifyAPI>=12.0",
+]
+all-observability = [
+    "opentelemetry-api>=1.20",
+    "opentelemetry-sdk>=1.20",
+    "datadog-api-client>=2.0",
+    "prometheus-client>=0.19",
+]
+all-domains = [
+    # data
+    "pandas>=2.0", "pyarrow>=14.0",
+    # ml
+    "numpy>=1.26", "scikit-learn>=1.4",
+    # health
+    "pydicom>=2.4", "mne>=1.6", "nibabel>=5.2", "pyfaidx>=0.7", "pysam>=0.22", "fhir.resources>=7.1",
+    # signal
+    "scipy>=1.12", "pywavelets>=1.5", "librosa>=0.10",
+    # oilgas
+    "segyio>=1.9", "lasio>=0.31",
+]
+all = [
+    # persistence backends
+    "aiosqlite>=0.19",
+    "duckdb>=0.10",
+    "asyncpg>=0.31",
+    "valkey-glide>=2.3",
+    "aioboto3>=12.0",
+    "gcloud-aio-storage>=9.0",
+    "azure-storage-blob>=12.0",
+    # dispatchers
     "dask[distributed]>=2024.1",
     "ray>=2.9",
     "celery>=5.3",
+    # triggers / emitters
     "aiokafka>=0.13.0",
     "httpx>=0.26",
     "starlette>=0.36",
     "opentelemetry-api>=1.20",
     "opentelemetry-sdk>=1.20",
+    # additional connectors
+    "aiomysql>=0.2",
+    "google-cloud-bigquery>=3.0",
+    "snowflake-connector-python>=3.0",
+    "clickhouse-connect>=0.7",
+    "databricks-sql-connector>=3.0",
+    "aioodbc>=0.5",
+    # Oracle excluded from "all" for the same reason as "all-db" — see comment
+    # there. Install ``pirn[oracle]`` directly when needed.
+    "google-cloud-pubsub>=2.0",
+    "aio-pika>=9.0",
+    "azure-servicebus>=7.0",
+    "simple-salesforce>=1.12",
+    "hubspot-api-client>=8.0",
+    "stripe>=7.0",
+    "PyGithub>=2.0",
+    "atlassian-python-api>=3.0",
+    "ShopifyAPI>=12.0",
+    "datadog-api-client>=2.0",
+    "prometheus-client>=0.19",
+    # domain extras
+    "pandas>=2.0",
+    "pyarrow>=14.0",
+    "numpy>=1.26",
+    "scikit-learn>=1.4",
+    "pydicom>=2.4",
+    "mne>=1.6",
+    "nibabel>=5.2",
+    "pyfaidx>=0.7",
+    "pysam>=0.22",
+    "fhir.resources>=7.1",
+    "scipy>=1.12",
+    "pywavelets>=1.5",
+    "librosa>=0.10",
+    "segyio>=1.9.14",
+    "lasio>=0.32",
+    # scientific / domain file formats (formerly misplaced in core)
+    "asdf>=5.3.0",
+    "astropy>=7.2.0",
+    "cfgrib>=0.9.15.1",
+    "dlisio>=1.0.4",
+    "hl7>=0.4.5",
+    "pydub>=0.25.1",
+    "pyreadstat>=1.3.4",
+    "uproot>=5.7.4",
+    "fiona>=1.10.1",
+    "pillow-heif>=1.3.0",
+    "tifffile>=2026.3.3",
 ]
 
 [tool.hatch.build.targets.wheel]
 packages = ["pirn"]
 
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
-# Default run excludes slow and mutation; opt in with --slow / --mutation.
-addopts = "--strict-markers -ra --ignore=tests/perf"
+# Default run excludes slow and mutation; opt in with -m slow / -m mutation.
+addopts = "--strict-markers -ra --ignore=tests/perf -m 'not slow and not mutation'"
 markers = [
     "slow: tests that take meaningful wall-clock time",
     "mutation: mutation-test-specific assertions",
@@ -108,9 +421,11 @@ runner = ".venv/bin/python -m pytest tests/ -x -q --no-header"
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+exclude = ["tests/"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "RUF"]
+ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
 # Tests often use `var = side_effect_call()` where the variable's purpose is
@@ -134,9 +449,11 @@ select = ["E", "F", "I", "B", "UP", "RUF"]
 include = ["pirn"]
 reportMissingImports = false  # too noisy with optional extras
 reportMissingModuleSource = false
+reportIncompatibleMethodOverride = "none"  # Knot.process(**kwargs) pattern; overrides add typed params intentionally
 
 [dependency-groups]
 dev = [
+    "pre-commit>=4.6.0",
     "pytest-benchmark>=5.2.3",
     "pytest-timeout>=2.4.0",
 ]

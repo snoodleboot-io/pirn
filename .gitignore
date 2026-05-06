@@ -32,3 +32,12 @@ mutants/
 .DS_Store
 Thumbs.db
 site/
+
+# Generated SQLite databases — pirn's SQLiteHistory/SQLiteStore default
+# to "pirn.db" in cwd; examples write a sibling pirn.db; CI drops a
+# ci_history.db. None of these are source — they're regenerated on
+# every run.
+*.db
+*.db-journal
+*.db-wal
+*.db-shm

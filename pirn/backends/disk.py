@@ -34,15 +34,26 @@ class LocalDiskDataStore(_CloudObjectStore):
     calling event loop isn't blocked on disk IO.
     """
 
-    def __init__(self, root: str | Path, *, signer: _Signer | None = None) -> None:
-        super().__init__(signer=signer)
+    def __init__(
+        self,
+        root: str | Path,
+        *,
+        signer: _Signer | None = None,
+        allow_unsigned: bool = False,
+    ) -> None:
+        super().__init__(signer=signer, allow_unsigned=allow_unsigned)
         self._root = Path(root)
         self._root.mkdir(parents=True, exist_ok=True)
 
     def _object_key(self, content_hash: str) -> str:
         clean = content_hash.removeprefix("sha256:")
         prefix = clean[:2] if len(clean) >= 2 else "_"
-        return str(self._root / prefix / f"{clean}.pkl")
+        resolved = (self._root / prefix / f"{clean}.pkl").resolve()
+        if not resolved.is_relative_to(self._root.resolve()):
+            raise ValueError(
+                f"LocalDiskDataStore: content_hash {content_hash!r} resolves outside the store root"
+            )
+        return str(resolved)
 
     async def _put_bytes(self, key: str, payload: bytes) -> None:
         await asyncio.to_thread(self.__write, Path(key), payload)

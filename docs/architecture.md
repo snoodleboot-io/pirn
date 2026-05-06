@@ -423,7 +423,7 @@ When `extensible_store` is passed to `engine.execute`, the engine subscribes to 
 3. Re-runs `_bind_parameters` for any new Parameter knots.
 4. Extends `remaining` with new knot ids.
 
-Requires the store to implement `SubscribableStore` (`pirn/backends/subscribe.py`). Only `InMemoryStore` implements this in Phase 3; Postgres and ValKey support is planned (see `docs/subscribable-stores.md`).
+Requires the store to implement `SubscribableStore` (`pirn/backends/subscribe.py`). `InMemoryStore`, `PostgresStore`, and `ValKeyStore` all implement this protocol (see `docs/subscribable-stores.md`).
 
 ### 3.4 Storage Layer
 
@@ -658,11 +658,11 @@ See [Section 6](#6-distributed-execution) for serialization details.
 |---------|:---:|:---:|:---:|:---:|-------|
 | `InMemoryStore` / `InMemoryHistory` / `InMemoryDataStore` | Y | Y | Y | Y | Default. Single-process, lost on exit. Thread-safe via locks. |
 | `SQLiteStore` / `SQLiteHistory` | Y | Y | — | N | Single-host durable. Single-writer model; WAL mode recommended. |
-| `PostgresStore` / `PostgresHistory` | Y | Y | — | Planned | OLTP. Async via `asyncpg`. Connection pool required. |
+| `PostgresStore` / `PostgresHistory` | Y | Y | — | Y | OLTP. Async via `asyncpg`. Connection pool required. |
 | `DuckDBHistory` | — | Y | — | N | OLAP queries on lineage. Best as a read-replica target. |
 | `LocalDiskDataStore` | — | — | Y | N | Single-host file-per-value storage. |
 | `S3DataStore` | — | — | Y | N | Distributed object storage. Requires `aioboto3`. |
-| `ValkeyStore` / `ValkeyDataStore` | Y | — | Y | Planned | Low-latency. Requires `valkey-glide`. TTL support on DataStore. |
+| `ValkeyStore` / `ValkeyDataStore` | Y | — | Y | Y | Low-latency. Requires `valkey-glide`. TTL support on DataStore. |
 
 ### Deployment Guidance
 

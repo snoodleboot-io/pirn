@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
@@ -9,6 +10,8 @@ from pirn.backends.base.subscribable_store import SubscribableStore
 from pirn.backends.base.tapestry_snapshot import TapestrySnapshot
 from pirn.backends.base.tapestry_store import TapestryStore
 from pirn.backends.postgres._lazy_pool import _LazyPool
+
+_logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from pirn.core.knot import Knot
@@ -153,7 +156,11 @@ class PostgresStore(TapestryStore, SubscribableStore):
             try:
                 cb(knot)
             except Exception:
-                pass
+                _logger.warning(
+                    "PostgresStore: subscriber callback raised an exception for knot %r",
+                    payload,
+                    exc_info=True,
+                )
 
     async def _listen_loop(self) -> None:
         pool = await self._pool.get()

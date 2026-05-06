@@ -24,13 +24,20 @@ import json
 from collections.abc import Mapping, Sequence, Set
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
+
+# Module-level cache to avoid rebuilding ``TypeAdapter`` per
+# ``_canonicalise`` call. Constructing a TypeAdapter walks the type and
+# builds a schema/validator pair (~10-100 µs); at millions of
+# canonicalisations per tapestry the cost compounds. Keyed by the runtime
+# type so different concrete types remain isolated.
+_type_adapter_cache: dict[type, TypeAdapter] = {}
 
 
 class _Unhashable(Exception):
     """Internal sentinel used by ``_canonicalise`` to bail on opaque values."""
 
-    SENTINEL = "unhashable"
+    sentinel = "unhashable"
 
 
 def content_hash(value: Any) -> str:
@@ -54,7 +61,7 @@ def content_hash(value: Any) -> str:
     try:
         canonical = _canonicalise(value)
     except _Unhashable:
-        return f"sha256:{_Unhashable.SENTINEL}:{type(value).__name__}"
+        return f"sha256:{_Unhashable.sentinel}:{type(value).__name__}"
     payload = json.dumps(canonical, separators=(",", ":"), sort_keys=False).encode("utf-8")
     digest = hashlib.sha256(payload).hexdigest()
     return f"sha256:{digest}"
@@ -68,11 +75,34 @@ def _canonicalise(value: Any) -> Any:
     serialised.  Without the tags, ``{"x": 1}`` and ``["x", 1]`` could in
     principle hash the same after JSON serialisation; with the tags they
     cannot.
+
+    Two extension hooks are honoured ahead of the built-in branches:
+
+    * ``__pirn_canonical__()`` — sanctioned, type-controlled hook. A type
+      that wants explicit control over its content-hash form returns a
+      primitive (dict / list / str / int / etc.) and ``_canonicalise``
+      recurses into the result. This is the preferred form because it is
+      cheap (no pydantic round-trip) and makes the canonical shape
+      visible at the call site of the hook.
+    * Pydantic-aware fallback for types declaring
+      ``__get_pydantic_core_schema__`` but **not** subclassing
+      ``BaseModel`` (e.g. frozen dataclasses backed by
+      :class:`PirnOpaqueValue`). ``TypeAdapter.dump_python`` honours the
+      type's custom serialiser, producing a JSON-friendly dict that we
+      then canonicalise normally. Without this branch the canonicaliser
+      walks dataclass ``type`` fields and hits ``_Unhashable`` for
+      anything containing a ``Mapping[str, type]`` (DataSchema columns).
     """
+    # Primitive isinstance check FIRST — common case; avoids the
+    # ``hasattr`` exception path for every plain int/str/bool/None.
     if value is None or isinstance(value, (bool, int, float, str)):
         return value
     if isinstance(value, bytes):
         return {"__bytes__": value.hex()}
+    # Sanctioned hook — types control their canonical form explicitly
+    # when this is defined.
+    if hasattr(value, "__pirn_canonical__"):
+        return _canonicalise(value.__pirn_canonical__())
     if isinstance(value, BaseModel):
         # Model JSON, then re-canonicalise the resulting dict so nested
         # non-Pydantic values are handled consistently.
@@ -80,6 +110,24 @@ def _canonicalise(value: Any) -> Any:
             "__model__": value.__class__.__name__,
             "data": _canonicalise(value.model_dump(mode="json")),
         }
+    # Pydantic-aware fallback for non-``BaseModel`` types declaring a
+    # custom core schema. Excludes containers so the dedicated branches
+    # below remain authoritative. ``TypeAdapter`` instances are cached
+    # per concrete type to amortise schema-construction cost.
+    if not isinstance(value, (list, tuple, dict, set, frozenset)) and hasattr(
+        type(value), "__get_pydantic_core_schema__"
+    ):
+        value_type = type(value)
+        try:
+            adapter = _type_adapter_cache.get(value_type)
+            if adapter is None:
+                adapter = TypeAdapter(value_type)
+                _type_adapter_cache[value_type] = adapter
+            return _canonicalise(adapter.dump_python(value, mode="json"))
+        except Exception:
+            # Fall through to the container/Mapping/Sequence branches
+            # below; if those also fail we end up at ``_Unhashable``.
+            pass
     if isinstance(value, Mapping):
         # Sort by str(key) for determinism.  Keys must serialise to strings
         # in JSON anyway.

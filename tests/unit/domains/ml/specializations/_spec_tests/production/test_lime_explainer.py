@@ -1,0 +1,69 @@
+"""Tests for :class:`LIMEExplainer`."""
+
+from __future__ import annotations
+
+import unittest
+
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.run_request import RunRequest
+from pirn.domains.ml.specializations.production.lime_explainer import LIMEExplainer
+from pirn.domains.ml.types.data_split import DataSplit
+from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.tapestry import Tapestry
+
+
+@knot
+async def emit_split() -> DataSplit:
+    train = MLDataset(name="d:train", feature_names=("a", "b"), row_count=80)
+    test = MLDataset(name="d:test", feature_names=("a", "b"), row_count=20)
+    return DataSplit(train=train, test=test)
+
+
+@knot
+async def emit_model() -> TrainedModel:
+    return TrainedModel(
+        model_id="m1",
+        algorithm="rf",
+        feature_names=("a", "b"),
+        target_name="y",
+    )
+
+
+def _fixtures():
+    train = MLDataset(name="d:train", feature_names=("a", "b"), row_count=80)
+    test = MLDataset(name="d:test", feature_names=("a", "b"), row_count=20)
+    split = DataSplit(train=train, test=test)
+    model = TrainedModel(
+        model_id="m1", algorithm="rf", feature_names=("a", "b"), target_name="y"
+    )
+    return model, split
+
+
+class TestProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_zero_n_samples(self) -> None:
+        with Tapestry():
+            k = LIMEExplainer.__new__(LIMEExplainer)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        model, split = _fixtures()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(model=model, split=split, n_samples=0)
+
+
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
+    async def test_emits_feature_importance(self) -> None:
+        with Tapestry() as t:
+            split = emit_split(_config=KnotConfig(id="split"))
+            model = emit_model(_config=KnotConfig(id="model"))
+            LIMEExplainer(
+                model=model,
+                split=split,
+                n_samples=50,
+                _config=KnotConfig(id="lime"),
+            )
+        result = await t.run(RunRequest())
+        assert result.succeeded
+        out = result.outputs["lime"]
+        assert "feature_importance" in out
+        assert "n_explained" in out

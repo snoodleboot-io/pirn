@@ -20,25 +20,29 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import ClassVar
 
 
-def generate_explorer_html(folder: str | Path) -> str:
-    folder = Path(folder).resolve()
-    from pirn.viz._scanner import scan_folder
+class ExplorerHtmlGenerator:
+    """Render the multi-tapestry explorer as a self-contained HTML page."""
 
-    tapestries, runs = scan_folder(folder)
-    data = json.dumps(
-        {
-            "tapestries": [t.to_dict() for t in tapestries],
-            "runs": runs,
-            "folder": str(folder),
-        },
-        indent=2,
-    )
-    return _TEMPLATE.replace("__EXPLORER_DATA__", data)
+    @classmethod
+    def generate(cls, folder: str | Path) -> str:
+        folder = Path(folder).resolve()
+        from pirn.viz._scanner import scan_folder
 
+        tapestries, runs = scan_folder(folder)
+        data = json.dumps(
+            {
+                "tapestries": [t.to_dict() for t in tapestries],
+                "runs": runs,
+                "folder": str(folder),
+            },
+            indent=2,
+        )
+        return cls._template.replace("__EXPLORER_DATA__", data)
 
-_TEMPLATE = r"""<!DOCTYPE html>
+    _template: ClassVar[str] = r"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -1355,3 +1359,8 @@ function esc(s) {
 </body>
 </html>
 """
+
+
+def generate_explorer_html(folder: str | Path) -> str:
+    """Public wrapper around :meth:`ExplorerHtmlGenerator.generate`."""
+    return ExplorerHtmlGenerator.generate(folder)

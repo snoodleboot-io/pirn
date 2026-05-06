@@ -42,8 +42,9 @@ class S3DataStore(_CloudObjectStore):
         endpoint_url: str | None = None,
         session: Any = None,
         signer: _Signer | None = None,
+        allow_unsigned: bool = False,
     ) -> None:
-        super().__init__(signer=signer)
+        super().__init__(signer=signer, allow_unsigned=allow_unsigned)
         self._bucket = bucket
         self._prefix = prefix
         self._region = region
@@ -91,8 +92,17 @@ class S3DataStore(_CloudObjectStore):
             try:
                 await s3.head_object(Bucket=self._bucket, Key=key)
                 return True
-            except Exception:
-                return False
+            except Exception as exc:
+                err_name = type(exc).__name__
+                err_str = str(exc)
+                if (
+                    "NoSuchKey" in err_name
+                    or "NoSuchKey" in err_str
+                    or "404" in err_str
+                    or "NotFound" in err_name
+                ):
+                    return False
+                raise
 
     async def _delete_key(self, key: str) -> None:
         session = await self.__client()

@@ -120,7 +120,7 @@ async def test_valkey_store_idempotent_same_instance(valkey_client):
 async def test_valkey_data_store_put_and_get_round_trips(valkey_client):
     from pirn.backends.valkey.valkey_data_store import ValKeyDataStore
 
-    ds = ValKeyDataStore(client=valkey_client)
+    ds = ValKeyDataStore(client=valkey_client, allow_unsigned=True)
     await ds.put("sha256:abc", {"key": "value"})
     result = await ds.get("sha256:abc")
     assert result == {"key": "value"}
@@ -129,7 +129,7 @@ async def test_valkey_data_store_put_and_get_round_trips(valkey_client):
 async def test_valkey_data_store_has_present_and_missing(valkey_client):
     from pirn.backends.valkey.valkey_data_store import ValKeyDataStore
 
-    ds = ValKeyDataStore(client=valkey_client)
+    ds = ValKeyDataStore(client=valkey_client, allow_unsigned=True)
     assert not await ds.has("sha256:missing")
     await ds.put("sha256:present", 42)
     assert await ds.has("sha256:present")
@@ -138,7 +138,7 @@ async def test_valkey_data_store_has_present_and_missing(valkey_client):
 async def test_valkey_data_store_scrub_removes_key(valkey_client):
     from pirn.backends.valkey.valkey_data_store import ValKeyDataStore
 
-    ds = ValKeyDataStore(client=valkey_client)
+    ds = ValKeyDataStore(client=valkey_client, allow_unsigned=True)
     await ds.put("sha256:scrubme", "value")
     await ds.scrub("sha256:scrubme")
     assert not await ds.has("sha256:scrubme")
@@ -147,7 +147,7 @@ async def test_valkey_data_store_scrub_removes_key(valkey_client):
 async def test_valkey_data_store_get_missing_raises_keyerror(valkey_client):
     from pirn.backends.valkey.valkey_data_store import ValKeyDataStore
 
-    ds = ValKeyDataStore(client=valkey_client)
+    ds = ValKeyDataStore(client=valkey_client, allow_unsigned=True)
     with pytest.raises(KeyError):
         await ds.get("sha256:nope")
 
@@ -156,7 +156,7 @@ async def test_valkey_data_store_ttl_actually_expires(valkey_client):
     """TTL expiry requires a real server — a mock can't verify this."""
     from pirn.backends.valkey.valkey_data_store import ValKeyDataStore
 
-    ds = ValKeyDataStore(client=valkey_client, ttl_seconds=1)
+    ds = ValKeyDataStore(client=valkey_client, ttl_seconds=1, allow_unsigned=True)
     await ds.put("sha256:expiring", "gone soon")
     assert await ds.has("sha256:expiring")
 
@@ -168,7 +168,7 @@ async def test_valkey_data_store_concurrent_put_get(valkey_client):
     """100 parallel puts followed by 100 gets must all round-trip."""
     from pirn.backends.valkey.valkey_data_store import ValKeyDataStore
 
-    ds = ValKeyDataStore(client=valkey_client)
+    ds = ValKeyDataStore(client=valkey_client, allow_unsigned=True)
     hashes = [f"sha256:concurrent_{i}" for i in range(100)]
 
     await asyncio.gather(*[ds.put(h, i) for i, h in enumerate(hashes)])

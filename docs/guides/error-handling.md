@@ -219,4 +219,4 @@ result = await t.run(request, emitter_error_policy=EmitterErrorPolicy.RAISE)
 
 ---
 
-**See also:** [Concepts — Ok / Err / Skipped](../getting-started/concepts.md#ok--err--skipped), [API — Core](../api/core.md)
+**See also:** [Concepts — Ok / Err / Skipped](../getting-started/concepts.md#ok-err-skipped), [API — Core](../api/core.md)

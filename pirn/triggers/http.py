@@ -74,7 +74,7 @@ class WebhookTrigger(Trigger):
         self._queue: asyncio.Queue[RunRequest] = asyncio.Queue()
         self._closed = False
         # Sentinel pushed on close() to wake the consumer.
-        self._SENTINEL: Any = object()
+        self._sentinel: Any = object()
         # Build the ASGI app lazily in case starlette isn't installed.
         self._app: Any = None
 
@@ -147,7 +147,7 @@ class WebhookTrigger(Trigger):
     async def stream(self) -> AsyncIterator[RunRequest]:
         while not self._closed:
             item = await self._queue.get()
-            if item is self._SENTINEL:
+            if item is self._sentinel:
                 return
             yield item
 
@@ -158,7 +158,7 @@ class WebhookTrigger(Trigger):
 
     async def close(self) -> None:
         self._closed = True
-        await self._queue.put(self._SENTINEL)
+        await self._queue.put(self._sentinel)
 
     @staticmethod
     def __default_request_builder(payload: dict, request: Any) -> RunRequest:

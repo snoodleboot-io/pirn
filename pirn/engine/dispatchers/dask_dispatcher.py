@@ -5,17 +5,17 @@ a Dask task; results come back as ``pirn.Result`` instances.
 
 Construction:
 
-* ``DaskDispatcher(client=<dask.distributed.Client>)`` — inject an
+* ``DaskDispatcher(client=<dask.distributed.Client>)`` - inject an
   existing client (production / tests).
-* ``DaskDispatcher(scheduler="tcp://...")`` — connect lazily on first
+* ``DaskDispatcher(scheduler="tcp://...")`` - connect lazily on first
   use.
-* ``DaskDispatcher.local()`` — convenience factory that builds an
+* ``DaskDispatcher.local()`` - convenience factory that builds an
   in-process ``LocalCluster`` for development.
 
 Note on serialization: knots may hold callables, Pydantic models, and
 arbitrary user values.  Dask uses cloudpickle by default which handles
 most cases.  If a particular knot fails to serialize, refactor it to
-hold only picklable references — or use ``LocalDispatcher`` /
+hold only picklable references - or use ``LocalDispatcher`` /
 ``ThreadDispatcher`` for that knot.
 """
 
@@ -71,8 +71,9 @@ class DaskDispatcher:
         # Submit a task that calls the knot and returns its Result.
         # Dask's Client.submit takes the function and its args; we wrap
         # the await in a sync helper so Dask workers don't need to run
-        # an async loop.
-        future = client.submit(_dask_run_knot, knot, dict(inputs))
+        # an async loop.  The static method is referenced by qualified
+        # name so cloudpickle can serialise it across worker boundaries.
+        future = client.submit(DaskDispatcher._dask_run_knot, knot, dict(inputs))
         # Awaiting the future converts it from a Dask future to the
         # actual return value (or re-raises an exception).
         return (
@@ -81,14 +82,20 @@ class DaskDispatcher:
 
     async def shutdown(self) -> None:
         if self._client is not None:
-            await self._client.close()
+            await self._client.close()  # type: ignore[misc]
 
+    @staticmethod
+    def _dask_run_knot(knot: Knot, inputs: dict[str, Any]) -> Result[Any]:
+        """Run a knot in a Dask worker process.
 
-def _dask_run_knot(knot: Knot, inputs: dict[str, Any]) -> Result[Any]:
-    """Run a knot in a Dask worker process.
+        Each worker has no event loop, so we spin one up via ``asyncio.run``
+        for the duration of the knot call.  This mirrors ThreadDispatcher's
+        approach.
 
-    Each worker has no event loop, so we spin one up via ``asyncio.run``
-    for the duration of the knot call.  This mirrors ThreadDispatcher's
-    approach.
-    """
-    return asyncio.run(knot(inputs))
+        Implemented as ``@staticmethod`` rather than a free function so
+        it lives on the dispatcher class while still being trivially
+        cloudpickle-serialisable: cloudpickle pickles static methods by
+        qualified name reference (``DaskDispatcher._dask_run_knot``),
+        which the worker resolves via a normal import.
+        """
+        return asyncio.run(knot(inputs))

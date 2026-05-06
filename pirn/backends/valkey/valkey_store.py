@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from pirn.backends.base.subscribable_store import SubscribableStore
-from pirn.backends.base.tapestry_snapshot import TapestrySnapshot
-from pirn.backends.base.tapestry_store import TapestryStore
-from pirn.backends.valkey._lazy_client import _LazyClient
+
+_logger = logging.getLogger(__name__)
+from pirn.backends.base.tapestry_snapshot import TapestrySnapshot  # noqa: E402
+from pirn.backends.base.tapestry_store import TapestryStore  # noqa: E402
+from pirn.backends.valkey._lazy_client import _LazyClient  # noqa: E402
 
 if TYPE_CHECKING:
     from pirn.core.knot import Knot
@@ -106,7 +109,11 @@ class ValKeyStore(TapestryStore, SubscribableStore):
             try:
                 cb(knot)
             except Exception:
-                pass
+                _logger.warning(
+                    "ValKeyStore: subscriber callback raised an exception for knot %r",
+                    knot_id,
+                    exc_info=True,
+                )
 
     async def _listen_loop(self) -> None:
         try:

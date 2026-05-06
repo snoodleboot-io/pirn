@@ -74,16 +74,24 @@ class SubTapestry(Knot):
 
     def __init__(self, **kwargs: Any) -> None:
         # Capture the outer history *before* super().__init__ freezes the object.
-        from pirn.tapestry import _CURRENT_TAPESTRY
+        from pirn.tapestry import _current_tapestry
 
         explicit_tapestry = kwargs.get("tapestry")
-        outer = explicit_tapestry or _CURRENT_TAPESTRY.get(None)
+        outer = explicit_tapestry or _current_tapestry.get(None)
         outer_history: RunHistory | None = outer.history if outer is not None else None
         super().__init__(**kwargs)
         # Bypass freeze guard to stash history for use in _run_inner.
         object.__setattr__(self, "_mutable_outer_history", outer_history)
 
     async def process(self, **_: Any) -> Any:
+        """Override in subclasses to build and run an inner tapestry pipeline and return its RunResult.
+
+        Returns:
+            RunResult from the inner tapestry pipeline built and executed by the subclass implementation.
+
+        Raises:
+            NotImplementedError: Always; subclasses must override this method.
+        """
         raise NotImplementedError(f"{type(self).__name__} must implement process()")
 
     async def _run_inner(
@@ -103,14 +111,14 @@ class SubTapestry(Knot):
         """
         from pirn.backends.in_memory.in_memory_history import InMemoryHistory
         from pirn.core.run_request import RunRequest
-        from pirn.tapestry import _CURRENT_HISTORY, _CURRENT_RUN_ID
+        from pirn.tapestry import _current_history, _current_run_id
 
         outer_history: RunHistory | None = object.__getattribute__(self, "_mutable_outer_history")
         # Knots constructed dynamically mid-run (outside a `with Tapestry():` block)
         # have no outer history at construction time.  Fall back to the context var
         # set by the enclosing Tapestry.run() call.
         if outer_history is None:
-            outer_history = _CURRENT_HISTORY.get(None)
+            outer_history = _current_history.get(None)
         # Inject the outer history into the inner tapestry so inner runs are
         # recorded to the same store and appear in the explorer.
         if outer_history is not None and not isinstance(outer_history, InMemoryHistory):
@@ -119,7 +127,7 @@ class SubTapestry(Knot):
         # If no explicit parent_run_id was supplied, inherit from the context
         # var set by the enclosing Tapestry.run() call.
         if parent_run_id is None:
-            parent_run_id = _CURRENT_RUN_ID.get(None)
+            parent_run_id = _current_run_id.get(None)
 
         result = await tapestry.run(
             RunRequest(),

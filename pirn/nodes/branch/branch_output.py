@@ -38,15 +38,27 @@ class BranchOutput(Knot):
         self._mutable_output_adapter = None
         self._mutable_mapped_inputs: dict = {}
 
-        from pirn.tapestry import _CURRENT_TAPESTRY
+        from pirn.tapestry import _current_tapestry
 
-        target = tapestry or _CURRENT_TAPESTRY.get(None)
+        target = tapestry or _current_tapestry.get(None)
         if target is not None:
             target.register(self)
 
         self._frozen = True
 
     async def process(self, chosen: str, passthrough: Any, **_: Any) -> Any:  # type: ignore[override]
+        """Return the passthrough value if this branch was selected, or raise to signal it was not.
+
+        Args:
+            chosen: Branch name selected by the upstream Branch knot.
+            passthrough: Original input value forwarded from the Branch's input knot.
+
+        Returns:
+            The passthrough value when this branch's name matches the chosen branch.
+
+        Raises:
+            _BranchNotSelected: If this branch was not the one selected; converted to Skipped by ``__call__``.
+        """
         if chosen == self._mutable_branch_name:
             return passthrough
         raise _BranchNotSelected(self._mutable_branch_name)

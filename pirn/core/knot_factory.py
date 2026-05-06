@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import functools
 from collections.abc import Callable
+from inspect import iscoroutinefunction
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -65,7 +66,7 @@ class KnotFactory:
     def create(cls, fn: Callable[..., Any]) -> KnotFactory:
         """Build a KnotFactory for ``fn``, generating the Knot subclass."""
         make_process = (
-            cls.__make_async_process if asyncio.iscoroutinefunction(fn) else cls.__make_sync_process
+            cls.__make_async_process if iscoroutinefunction(fn) else cls.__make_sync_process
         )
         knot_cls = type(
             fn.__name__,

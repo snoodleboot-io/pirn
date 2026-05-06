@@ -186,4 +186,4 @@ print(lineage["enriched"].outcome)       # "ok"
 
 ---
 
-**See also:** [Nodes — Map](../api/nodes.md#map), [Nodes — Reduce](../api/nodes.md#reduce), [Concepts](../getting-started/concepts.md)
+**See also:** [Nodes — Map](../api/nodes.md#map-zipmap-dictmap), [Nodes — Reduce](../api/nodes.md#reduce), [Concepts](../getting-started/concepts.md)

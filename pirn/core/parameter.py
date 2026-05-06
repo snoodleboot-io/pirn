@@ -71,9 +71,9 @@ class Parameter(Knot):
         self._mutable_value: Any = _Unset
 
         # Self-register.
-        from pirn.tapestry import _CURRENT_TAPESTRY
+        from pirn.tapestry import _current_tapestry
 
-        target = tapestry or _CURRENT_TAPESTRY.get(None)
+        target = tapestry or _current_tapestry.get(None)
         if target is not None:
             target.register(self)
 
@@ -118,6 +118,14 @@ class Parameter(Knot):
         self._mutable_value = value
 
     async def process(self, **_: Any) -> Any:
+        """Return the bound parameter value, falling back to the declared default.
+
+        Returns:
+            The bound parameter value, or the declared default if no value was bound.
+
+        Raises:
+            UnboundParameterError: If no value is bound and no default is declared.
+        """
         if self._mutable_value is not _Unset:
             return self._mutable_value
         if self.has_default:

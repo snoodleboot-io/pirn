@@ -240,6 +240,14 @@ The outer history backend is automatically propagated to inner runs, so inner li
 
 ---
 
+## Knot Registry
+
+For a knot to be resolvable by name (in YAML pipelines, dynamic dispatch, or `AbstractInverterFactory[Knot]` lookups), it must be registered with `sweet_tea`'s global `Registry`. Pirn auto-registers its own classes at import time. **For your own project's knots, you must call `Registry.fill_registry()` from your package's `__init__.py`** so they're discovered too.
+
+**See also:** [Knot Registration](../guides/knot-registration.md), [YAML Pipelines](../guides/yaml-pipelines.md)
+
+---
+
 ## TapestryStore
 
 The backend that stores the tapestry *definition* — the registered knots. Three protocols are implemented: `register`, `get`, `all`, `snapshot`.

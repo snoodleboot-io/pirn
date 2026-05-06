@@ -1,8 +1,8 @@
 """Tests for the import allowlist feature in the YAML pipeline loader (H-2)."""
 
 from __future__ import annotations
+import unittest
 
-import pytest
 
 from pirn.yaml_loader.loader import load_pipeline
 
@@ -29,7 +29,7 @@ def _yaml(ref: str, allow: bool = True, prefixes: list[str] | None = None) -> st
     )
 
 
-class TestAllowlistPassthrough:
+class TestAllowlistPassthrough(unittest.TestCase):
     """Caller-supplied allowed_module_prefixes via load_pipeline kwarg."""
 
     def test_allowed_prefix_passes(self) -> None:
@@ -43,7 +43,7 @@ class TestAllowlistPassthrough:
 
     def test_disallowed_prefix_raises(self) -> None:
         """A ref outside the allowed prefix raises ValueError."""
-        with pytest.raises(ValueError, match="allowed_module_prefixes"):
+        with self.assertRaisesRegex(ValueError, "allowed_module_prefixes"):
             load_pipeline(
                 _yaml("os.system", allow=True),
                 allowed_module_prefixes=["myapp"],
@@ -59,19 +59,19 @@ class TestAllowlistPassthrough:
 
     def test_allow_callable_refs_false_raises_regardless(self) -> None:
         """When allow_callable_refs=False, unknown refs raise regardless of allowlist."""
-        with pytest.raises(ValueError, match="allow_callable_refs"):
+        with self.assertRaisesRegex(ValueError, "allow_callable_refs"):
             load_pipeline(
                 _yaml("pirn.core.knot.Knot", allow=False),
                 allowed_module_prefixes=["pirn"],
             )
 
 
-class TestAllowlistInYAML:
+class TestAllowlistInYAML(unittest.TestCase):
     """allowed_module_prefixes specified inside the YAML spec."""
 
     def test_yaml_allowlist_blocks_disallowed(self) -> None:
         """allowed_module_prefixes in YAML blocks imports outside the list."""
-        with pytest.raises(ValueError, match="allowed_module_prefixes"):
+        with self.assertRaisesRegex(ValueError, "allowed_module_prefixes"):
             load_pipeline(_yaml("os.system", allow=True, prefixes=["myapp"]))
 
     def test_yaml_allowlist_permits_allowed(self) -> None:

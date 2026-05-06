@@ -24,8 +24,11 @@ spec:
   mutation_tool: mutmut
 variant: verbose
 active_personas:
+  - technical_writer
   - backend_software_engineer
+  - architect
   - qa_tester
+  - devops_engineer
   - security_engineer
   - product_manager
   - technical_writer

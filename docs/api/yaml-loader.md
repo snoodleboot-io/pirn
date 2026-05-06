@@ -238,26 +238,42 @@ Combines multiple parent outputs via a merge function.
 
 ---
 
-## `KnotRegistry`
+## Knot resolution: `Registry.fill_registry` + `AbstractInverterFactory[Knot]`
 
-For `Knot` subclasses, register them globally so the loader can resolve them by name without passing `known_callables` on every call.
+Pirn delegates Knot registration entirely to `sweet_tea.registry.Registry`. At import time, pirn auto-registers every Knot subclass defined under the `pirn` package via `Registry.fill_registry()`. The YAML loader resolves YAML `callable: <name>` strings through `sweet_tea.abstract_inverter_factory.AbstractInverterFactory[Knot]`, which performs a typed lookup against the registry and returns the class definition (instantiation is deferred so the loader can pass its assembled kwargs).
 
-```python
-from pirn.yaml_loader.knot_registry import KnotRegistry
-
-KnotRegistry.register("MyKnot", MyKnot)
-```
-
-Auto-discover all `Knot` subclasses in a package using `sweet_tea`:
+**For your own knots**, call `Registry.fill_registry()` from your project's package init:
 
 ```python
+# myapp/__init__.py
 from sweet_tea.registry import Registry
 
-Registry.fill_registry(module="myapp")  # scans myapp recursively
+Registry.fill_registry()   # scans myapp/ and registers every class defined here
+```
+
+After import, your knots are resolvable by name from any YAML pipeline:
+
+```python
 tapestry = load_pipeline(yaml_text)     # no known_callables needed
 ```
 
-`known_callables` passed to `load_pipeline` takes priority over `KnotRegistry`.
+For one-off registrations (e.g. registering an `@knot`-decorated factory), use `Registry.register` directly:
+
+```python
+from sweet_tea.registry import Registry
+Registry.register("my_alias", MyKnot, library="myapp")
+```
+
+To scope a manual lookup to a specific library, pass `library=` to `AbstractInverterFactory[Knot].create`:
+
+```python
+from sweet_tea.abstract_inverter_factory import AbstractInverterFactory
+from pirn.core.knot import Knot
+
+knot_class = AbstractInverterFactory[Knot].create("my_knot", library="myapp")
+```
+
+`known_callables` passed to `load_pipeline` still takes priority over the registry-based resolution.
 
 ---
 

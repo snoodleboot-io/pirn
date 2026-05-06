@@ -447,6 +447,31 @@ To report a vulnerability, see [SECURITY.md](SECURITY.md).
 | [docs/subscribable-stores.md](docs/subscribable-stores.md) | Mid-run extension and subscribable store protocol |
 | [SECURITY.md](SECURITY.md) | Responsible disclosure policy |
 
+## Domain libraries
+
+pirn ships domain-specific knot libraries for common data engineering and ML workloads. All domain libraries live under `pirn/domains/` in the same package — dependencies are isolated via optional extras so you install only what your project uses.
+
+| Domain | Description | Extra |
+|--------|-------------|-------|
+| Data | Tiered data-frame knots (pandas, Polars, Ibis, Spark, DuckDB), lakehouse adapters, tabular transforms | `pirn[data]` |
+| Agents | LLM-backed knots, tool use, memory stores, planning, RAG, ReAct, multi-agent patterns | `pirn[agents]` |
+| ML | Data prep, feature engineering, training, evaluation, deployment, feature stores | `pirn[ml]` |
+| Health | DICOM, FHIR, HL7v2, EDF/BDF, NIfTI, FASTA/FASTQ, VCF — medical imaging, genomics, clinical data | `pirn[health]` |
+| Signal | Time-series, DSP, audio (WAV/FLAC/MP3), EEG/BDF, wavelet transforms | `pirn[signal]` |
+| Oil & Gas | SEG-Y seismic, LAS well-log, WITSML — subsurface data connectors | `pirn[oilgas]` |
+
+### File format coverage
+
+pirn ships approximately 98 file formats across 16 categories: universal tabular (CSV, Parquet, ORC, Avro, Feather), office documents (XLSX, ODS, DOCX, PPTX, PDF, RTF), scientific (HDF5, NetCDF, Zarr, MATLAB), image (PNG, JPEG, TIFF, WebP, HEIC), geospatial (GeoJSON, Shapefile, KML, GeoTIFF, GeoPackage), ML artifacts (ONNX, SafeTensors, Joblib, PyTorch, TF SavedModel, GGUF, TFLite), compression codecs (gzip, bzip2, zstd, snappy, lz4), archive formats (tar, zip), lakehouse table formats (Delta Lake, Apache Iceberg, Apache Hudi), healthcare (DICOM, FHIR, HL7v2, EDF/BDF, CDA, NIfTI), genomics (FASTA, FASTQ, VCF, BCF), markup (HTML, Markdown, ePub), and more. See [docs/connectors/index.md](docs/connectors/index.md) for the full format matrix.
+
+### PHI safety
+
+Healthcare formats (DICOM, FHIR, HL7v2, EDF/BDF, CDA) include built-in PHI redaction support. Sensitive fields — patient names, dates of birth, MRNs, and other HIPAA-defined identifiers — can be scrubbed or pseudonymised before records flow into downstream knots. Redaction is opt-in per format instance and is audited through pirn's standard content-addressed lineage so every scrub event is traceable.
+
+### ML deserialization security
+
+`JoblibFormat` and `PytorchFormat` use pickle internally. Both constructors refuse to proceed without either a `_Signer` instance (HMAC-SHA256 signs payloads before emission and verifies before deserialisation) or an explicit `allow_unsigned=True` acknowledgement (intended for single-tenant dev/test environments only). `SafetensorsFormat` is RCE-safe by design and requires no signer. See [docs/domains/ml.md](docs/domains/ml.md) for the full security property table.
+
 ## Philosophy
 
 * **Declarative wiring, imperative bodies.** Wiring happens in `Tapestry`

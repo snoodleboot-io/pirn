@@ -1,11 +1,30 @@
 from __future__ import annotations
 
+import base64
 import json
 from typing import Any
 
 from pirn.backends.base.run_history import RunHistory
 from pirn.backends.sqlite._migrations import apply_migrations
 from pirn.core.lineage import KnotLineage
+
+
+def _json_default(obj: Any) -> Any:
+    """Fallback serializer: handle types pydantic model_dump leaves as Python objects."""
+    if isinstance(obj, bytes):
+        return {"__bytes_b64__": base64.b64encode(obj).decode()}
+    if hasattr(obj, "isoformat"):
+        return obj.isoformat()
+    if hasattr(obj, "__dataclass_fields__"):
+        import dataclasses
+
+        return dataclasses.asdict(obj)
+    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
+
+def _model_to_json(model: Any) -> str:
+    """Serialize a pydantic model to JSON, handling bytes fields gracefully."""
+    return json.dumps(model.model_dump(mode="python"), default=_json_default)
 
 
 class SQLiteHistory(RunHistory):
@@ -133,7 +152,7 @@ class SQLiteHistory(RunHistory):
                 json.dumps(result.runtime_info),
                 result.parent_run_id,
                 result.parent_knot_id,
-                result.model_dump_json(),
+                _model_to_json(result),
             ),
         )
         if result.lineage:
@@ -156,7 +175,7 @@ class SQLiteHistory(RunHistory):
                         rec.dispatcher,
                         rec.started_at.isoformat(),
                         rec.finished_at.isoformat(),
-                        rec.model_dump_json(),
+                        _model_to_json(rec),
                     )
                     for rec in result.lineage
                 ],

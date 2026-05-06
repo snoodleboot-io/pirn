@@ -156,7 +156,7 @@ async def test_valkey_store_records_full_class_path():
 
 async def test_valkey_data_store_put_pickles_value():
     client = _FakeGlideClient()
-    ds = ValKeyDataStore(client=client)
+    ds = ValKeyDataStore(client=client, allow_unsigned=True)
     await ds.put("sha256:abc", {"key": "value"})
 
     stored = client.strings["pirn:data:sha256:abc"]
@@ -165,21 +165,21 @@ async def test_valkey_data_store_put_pickles_value():
 
 async def test_valkey_data_store_get_unpickles():
     client = _FakeGlideClient()
-    ds = ValKeyDataStore(client=client)
+    ds = ValKeyDataStore(client=client, allow_unsigned=True)
     await ds.put("sha256:abc", [1, 2, 3])
     assert await ds.get("sha256:abc") == [1, 2, 3]
 
 
 async def test_valkey_data_store_get_missing_raises_keyerror():
     client = _FakeGlideClient()
-    ds = ValKeyDataStore(client=client)
+    ds = ValKeyDataStore(client=client, allow_unsigned=True)
     with pytest.raises(KeyError):
         await ds.get("sha256:nope")
 
 
 async def test_valkey_data_store_has():
     client = _FakeGlideClient()
-    ds = ValKeyDataStore(client=client)
+    ds = ValKeyDataStore(client=client, allow_unsigned=True)
     assert not await ds.has("sha256:k")
     await ds.put("sha256:k", 1)
     assert await ds.has("sha256:k")
@@ -187,7 +187,7 @@ async def test_valkey_data_store_has():
 
 async def test_valkey_data_store_scrub_removes():
     client = _FakeGlideClient()
-    ds = ValKeyDataStore(client=client)
+    ds = ValKeyDataStore(client=client, allow_unsigned=True)
     await ds.put("sha256:k", "v")
     await ds.scrub("sha256:k")
     assert not await ds.has("sha256:k")
@@ -195,14 +195,14 @@ async def test_valkey_data_store_scrub_removes():
 
 async def test_valkey_data_store_ttl_propagates():
     client = _FakeGlideClient()
-    ds = ValKeyDataStore(client=client, ttl_seconds=300)
+    ds = ValKeyDataStore(client=client, ttl_seconds=300, allow_unsigned=True)
     await ds.put("sha256:expiring", "v")
     assert client.ttls["pirn:data:sha256:expiring"] == 300
 
 
 async def test_valkey_data_store_no_ttl_when_unspecified():
     client = _FakeGlideClient()
-    ds = ValKeyDataStore(client=client)
+    ds = ValKeyDataStore(client=client, allow_unsigned=True)
     await ds.put("sha256:permanent", "v")
     assert "pirn:data:sha256:permanent" not in client.ttls
 
@@ -212,7 +212,7 @@ async def test_valkey_data_store_round_trips_complex_objects():
     from pirn.core.lineage import KnotLineage
 
     client = _FakeGlideClient()
-    ds = ValKeyDataStore(client=client)
+    ds = ValKeyDataStore(client=client, allow_unsigned=True)
 
     rec = KnotLineage(
         run_id="r",

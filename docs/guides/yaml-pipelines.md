@@ -195,30 +195,20 @@ The loader's `_resolve_callable` checks `known_callables` first. In strict mode,
 
 ### Auto-discovery with `fill_registry`
 
-For `Knot` subclasses, use `sweet_tea`'s `fill_registry` at your application entry point. It recursively scans the package and registers every `Knot` subclass it finds — no manual dict required:
+Pirn calls `Registry.fill_registry()` on its own tree at import time, so every built-in pirn Knot is resolvable by name out of the box. **For your own knots, you must call** `Registry.fill_registry()` **from your project's package init** — otherwise the loader will not find them:
 
 ```python
-# main.py (or wherever your app starts)
+# myapp/__init__.py
 from sweet_tea.registry import Registry
 
-Registry.fill_registry(module="myapp")   # scan your entire package
-
-tapestry = load_pipeline(yaml_text)      # no known_callables needed
+Registry.fill_registry()   # scans myapp/ and registers every class defined in it
 ```
 
-The YAML loader checks `KnotRegistry` automatically after `known_callables`, so any class registered via `fill_registry` is resolved by name.
+After that, any `Knot` subclass under `myapp/` is resolvable from YAML by its snake-case class name, with no `known_callables` argument needed.
 
-For `@knot`-decorated functions (which produce factories, not importable classes), register them explicitly:
+`known_callables` remains supported as a per-call override with the highest priority — useful in tests or when the same callable needs multiple pipeline-specific aliases.
 
-```python
-from pirn.yaml_loader.knot_registry import KnotRegistry
-from myapp.knots import score_text, route_selector
-
-KnotRegistry.register("score_text", score_text)
-KnotRegistry.register("route_selector", route_selector)
-```
-
-`known_callables` remains supported as a per-call override with the highest priority — useful in tests or when the same callable has multiple pipeline-specific aliases.
+**For the full registration story** — manual `Registry.register` calls, registering `@knot`-decorated factories, library scoping, troubleshooting, and lifecycle rules — see the [Knot Registration guide](knot-registration.md).
 
 ---
 

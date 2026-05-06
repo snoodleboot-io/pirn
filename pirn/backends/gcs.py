@@ -35,8 +35,9 @@ class GCSDataStore(_CloudObjectStore):
         service_file: str | None = None,
         session: Any = None,
         signer: _Signer | None = None,
+        allow_unsigned: bool = False,
     ) -> None:
-        super().__init__(signer=signer)
+        super().__init__(signer=signer, allow_unsigned=allow_unsigned)
         self._bucket = bucket
         self._prefix = prefix
         self._service_file = service_file
@@ -78,8 +79,10 @@ class GCSDataStore(_CloudObjectStore):
             try:
                 await storage.download_metadata(self._bucket, key)
                 return True
-            except Exception:
-                return False
+            except Exception as exc:
+                if "404" in str(exc) or "Not Found" in str(exc):
+                    return False
+                raise
 
     async def _delete_key(self, key: str) -> None:
         async with self.__storage() as storage:

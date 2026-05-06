@@ -39,8 +39,13 @@ markdown_extensions:
   - pymdownx.details
   - pymdownx.inlinehilite
   - pymdownx.snippets
+  - pymdownx.arithmatex:
+      generic: true
   - toc:
       permalink: true
+
+extra_javascript:
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
 
 nav:
   - Home: index.md
@@ -49,6 +54,7 @@ nav:
     - Concepts: getting-started/concepts.md
     - First Pipeline: getting-started/first-pipeline.md
   - Guides:
+    - Knot Registration: guides/knot-registration.md
     - YAML Pipelines: guides/yaml-pipelines.md
     - Error Handling: guides/error-handling.md
     - Backends: guides/backends.md
@@ -75,3 +81,16 @@ nav:
     - Branching Pipelines: cookbook/branching.md
     - Streaming Sources: cookbook/streaming.md
     - Testing Patterns: cookbook/testing-patterns.md
+  - Domains:
+    - Data: domains/data.md
+    - Agents: domains/agents.md
+    - ML: domains/ml.md
+    - Health: domains/health.md
+    - Signal: domains/signal.md
+    - Oil & Gas: domains/oilgas.md
+  - Connectors:
+    - Format Matrix: connectors/index.md
+  - Contributing:
+    - Domain Knots: contributing/domain-knots.md
+    - Knot Design Rules: contributing/knot-design-rules.md
+    - Knot Remediation Process: contributing/knot-remediation-process.md

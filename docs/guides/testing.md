@@ -4,6 +4,32 @@ This guide covers how to write tests for pirn pipelines at three levels: unit te
 
 ---
 
+## System prerequisites
+
+Some optional extras wrap native libraries that must be present before `uv sync --all-extras` will succeed. If you run the full test suite locally, install these first:
+
+```bash
+# Debian / Ubuntu
+sudo apt-get install -y \
+  gdal-bin libgdal-dev \
+  libsndfile1 \
+  libbz2-dev liblzma-dev libcurl4-openssl-dev \
+  ffmpeg
+```
+
+| Extra | Requires |
+|-------|---------|
+| `geopackage` | GDAL (`gdal-bin libgdal-dev`) |
+| `signal` | libsndfile (`libsndfile1`) |
+| `health` | HTSlib / compression libs (`libbz2-dev liblzma-dev libcurl4-openssl-dev`) |
+| `oilgas` | libsegyio (build from source) or `libsegyio-dev` |
+| `grib` | ecCodes C library (`libeccodes-dev`) |
+| audio formats | ffmpeg (`ffmpeg`) |
+
+Tests that require an uninstalled native dependency skip automatically — you will see `SKIPPED [reason: ...]` in pytest output.
+
+---
+
 ## Philosophy
 
 - Test knots in isolation first — their `process()` method is just an async function.
@@ -35,15 +61,18 @@ async def test_score_text_toxic():
     assert result > 0.3
 ```
 
-`@knot`-decorated functions expose their original function as `.fn`. For Knot subclasses, instantiate and call `process()` directly:
+`@knot`-decorated functions expose their original function as `.fn`. For Knot subclasses, instantiate normally inside a `with Tapestry():` block (so the knot registers and wiring runs), then call `process()` directly with plain values:
 
 ```python
+from pirn import Tapestry, KnotConfig, Parameter
 from myapp.knots import EnrichUser
 
 @pytest.mark.asyncio
 async def test_enrich_user():
-    knot_instance = EnrichUser.__new__(EnrichUser)  # skip __init__ / wiring
-    result = await knot_instance.process(
+    with Tapestry() as t:
+        upstream = Parameter("user_id", str, _config=KnotConfig(id="up"))
+        knot = EnrichUser(user_id=upstream, _config=KnotConfig(id="enrich"))
+    result = await knot.process(
         user_id="u123",
         lookup_table={"u123": {"name": "Alice", "tier": "premium"}},
     )

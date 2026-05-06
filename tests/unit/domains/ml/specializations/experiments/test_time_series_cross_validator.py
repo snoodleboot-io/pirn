@@ -1,0 +1,105 @@
+"""Unit tests for :class:`TimeSeriesCrossValidator`."""
+
+from __future__ import annotations
+
+import unittest
+from typing import Any
+
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
+from pirn.domains.ml.specializations.experiments.time_series_cross_validator import (
+    TimeSeriesCrossValidator,
+)
+from pirn.tapestry import Tapestry
+
+
+class _KnotStub(Knot):
+    def __init__(self, *, _config: KnotConfig, **kwargs: Any) -> None:
+        super().__init__(_config=_config, **kwargs)
+
+    async def process(self, **_: Any) -> None:
+        return None
+
+
+def _make_validator() -> TimeSeriesCrossValidator:
+    with Tapestry():
+        stub = _KnotStub(_config=KnotConfig(id="d"))
+        return TimeSeriesCrossValidator(
+            dataset=stub,
+            algorithm="arima",
+            metrics=["mape"],
+            n_splits=5,
+            _config=KnotConfig(id="tscv"),
+        )
+
+
+class TestConstruction(unittest.TestCase):
+    def test_valid_construction(self) -> None:
+        with Tapestry() as t:
+            TimeSeriesCrossValidator(
+                dataset=_KnotStub(_config=KnotConfig(id="d")),
+                algorithm="arima",
+                metrics=["mape"],
+                n_splits=5,
+                _config=KnotConfig(id="tscv"),
+            )
+        self.assertIsNotNone(t._store.get("tscv"))
+
+
+class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_n_splits_less_than_2(self) -> None:
+        validator = _make_validator()
+        from pirn.domains.ml.types.ml_dataset import MLDataset
+
+        ds = MLDataset(
+            name="ds",
+            feature_names=("x",),
+            target_name="y",
+            row_count=10,
+            source_uri="memory://ds",
+        )
+        with self.assertRaises(ValueError):
+            await validator.process(
+                dataset=ds,
+                algorithm="arima",
+                metrics=["mape"],
+                n_splits=1,
+            )
+
+    async def test_rejects_empty_algorithm(self) -> None:
+        validator = _make_validator()
+        from pirn.domains.ml.types.ml_dataset import MLDataset
+
+        ds = MLDataset(
+            name="ds",
+            feature_names=("x",),
+            target_name="y",
+            row_count=10,
+            source_uri="memory://ds",
+        )
+        with self.assertRaises(ValueError):
+            await validator.process(
+                dataset=ds,
+                algorithm="",
+                metrics=["mape"],
+                n_splits=5,
+            )
+
+    async def test_rejects_empty_metrics(self) -> None:
+        validator = _make_validator()
+        from pirn.domains.ml.types.ml_dataset import MLDataset
+
+        ds = MLDataset(
+            name="ds",
+            feature_names=("x",),
+            target_name="y",
+            row_count=10,
+            source_uri="memory://ds",
+        )
+        with self.assertRaises(ValueError):
+            await validator.process(
+                dataset=ds,
+                algorithm="arima",
+                metrics=[],
+                n_splits=5,
+            )

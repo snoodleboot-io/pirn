@@ -56,6 +56,21 @@ The base install gives you the full API with in-memory backends — no database,
     pip install pirn[all]
     ```
 
+### System prerequisites for some extras
+
+A few optional extras wrap C/Fortran/native libraries that must be present before `pip install` (or `uv add`) will succeed. Install the system packages first:
+
+| Extra | What it needs | Debian / Ubuntu |
+|-------|--------------|-----------------|
+| `geopackage` | GDAL | `sudo apt install gdal-bin libgdal-dev` |
+| `oilgas` | libsegyio (segyio), no system dep for lasio | `sudo apt install libsegyio-dev` or build segyio from source |
+| `health` (pysam) | HTSlib / compression libs | `sudo apt install libbz2-dev liblzma-dev libcurl4-openssl-dev` |
+| `signal` (librosa) | libsndfile | `sudo apt install libsndfile1` |
+| `grib` (cfgrib) | ecCodes C library | `sudo apt install libeccodes-dev` |
+| audio formats (AAC, MP3, M4A) | ffmpeg (used by pydub) | `sudo apt install ffmpeg` |
+
+Extras without system deps (`duckdb`, `polars`, `datafusion`, `s3`, `otel`, etc.) install with a plain `pip install pirn[extra]` on any platform.
+
 ---
 
 ## Hello World knot
@@ -84,10 +99,11 @@ def to_upper(text: str) -> str:
 You can also subclass `Knot` directly for richer behaviour:
 
 ```python
+from typing import Any
 from pirn import Knot, KnotConfig
 
 class EnrichUser(Knot):
-    async def process(self, user_id: str, lookup_table: dict) -> dict:
+    async def process(self, user_id: str, lookup_table: dict, **_: Any) -> dict:
         return lookup_table.get(user_id, {})
 ```
 

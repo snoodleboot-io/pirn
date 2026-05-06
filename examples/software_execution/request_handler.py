@@ -16,6 +16,7 @@ Run with:
 
 import asyncio
 import json
+import os
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -172,7 +173,9 @@ async def main() -> None:
         RunRequest(
             parameters={
                 "raw_body": json.dumps({"action": "summarise", "text": "Hello"}),
-                "headers_json": json.dumps({"Authorization": "Bearer valid-token-xyz"}),
+                "headers_json": json.dumps(
+                    {"Authorization": f"Bearer {os.environ.get('DEMO_TOKEN', '<set DEMO_TOKEN>')}"}
+                ),
                 "required_scope": "write",
             }
         )

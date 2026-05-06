@@ -34,8 +34,9 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import types as _types
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, get_type_hints
+from typing import TYPE_CHECKING, Any, Union, get_args, get_origin, get_type_hints
 
 from pydantic import TypeAdapter, ValidationError
 
@@ -49,6 +50,68 @@ from pirn.nodes.map_markers import DictMap, Map, MapTypeError, ZipMap
 
 if TYPE_CHECKING:
     from pirn.tapestry import Tapestry
+
+
+# ---------------------------------------------------------------------------
+# Coercion helpers
+# ---------------------------------------------------------------------------
+
+
+def _is_knot_cls(a: Any) -> bool:
+    """Return True if *a* is Knot or a subclass of Knot."""
+    try:
+        return isinstance(a, type) and issubclass(a, Knot)
+    except TypeError:
+        return False
+
+
+def _extract_coercible_type(hint: Any) -> tuple[Any, Any] | None:
+    """Return ``(coerce_type, adapter_type)`` for a ``Knot | T`` union hint.
+
+    *coerce_type* is the non-Knot, non-NoneType member — used as the
+    ``type_`` when wrapping a scalar in a ``Parameter``.
+    *adapter_type* is the full union with Knot removed (NoneType kept) —
+    used as the pydantic validation type so ``None`` is accepted when the
+    original hint included it.
+
+    Returns ``None`` if the hint is not a Union that contains Knot alongside
+    at least one non-Knot, non-NoneType member.
+    """
+    origin = get_origin(hint)
+    args: tuple[Any, ...] = ()
+
+    if origin is Union:
+        args = get_args(hint)
+    else:
+        try:
+            if isinstance(hint, _types.UnionType):
+                args = get_args(hint)
+        except AttributeError:
+            pass
+
+    if not args:
+        return None
+
+    has_knot = any(_is_knot_cls(a) for a in args)
+    if not has_knot:
+        return None
+
+    non_knot_non_none = [a for a in args if a is not type(None) and not _is_knot_cls(a)]
+    if not non_knot_non_none:
+        return None
+
+    coerce_type = non_knot_non_none[0] if len(non_knot_non_none) == 1 else Any
+
+    # adapter_type: all args except Knot subclasses — preserves None.
+    adapter_args = [a for a in args if not _is_knot_cls(a)]
+    if len(adapter_args) == 1:
+        adapter_type: Any = adapter_args[0]
+    elif adapter_args:
+        adapter_type = Union[tuple(adapter_args)]  # noqa: UP007
+    else:
+        adapter_type = coerce_type
+
+    return coerce_type, adapter_type
 
 
 class Knot:
@@ -65,6 +128,10 @@ class Knot:
     _frozen: bool = False
 
     _reserved_kwargs: frozenset[str] = frozenset({"_config", "tapestry"})
+
+    # Populated by __init_subclass__ for each class that defines process().
+    # Maps param name -> scalar type extracted from ``Knot | T`` union hints.
+    _coercible_params: dict[str, Any] = {}  # noqa: RUF012
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
@@ -90,6 +157,22 @@ class Knot:
                     f"{cls.__name__}.process must include '**_: Any' to absorb "
                     "implicit dependencies; add it after all named parameters"
                 )
+
+            # Cache which params have ``Knot | T`` union hints so __init__ can
+            # auto-coerce scalar values to Parameter nodes without the author
+            # needing to call any explicit helper.
+            try:
+                hints = get_type_hints(cls.__dict__["process"])
+            except Exception:
+                hints = {}
+            coercible: dict[str, Any] = {}
+            for pname, hint in hints.items():
+                if pname in ("self", "return"):
+                    continue
+                result = _extract_coercible_type(hint)
+                if result is not None:
+                    coercible[pname] = result  # (coerce_type, adapter_type)
+            cls._coercible_params = coercible
 
     def __init__(self, **kwargs: Any) -> None:
         # Pull framework-reserved kwargs out first.
@@ -186,6 +269,27 @@ class Knot:
                 f"input(s) {sorted(missing)!r}"
             )
 
+        # Auto-coerce scalars for params annotated ``Knot | T``.
+        # Wraps the scalar in a Parameter(default=value) so it becomes a real
+        # graph node with lineage, rather than invisible config.
+        coercible = type(self)._coercible_params
+        if coercible:
+            from pirn.core.parameter import Parameter  # local: avoids circular import
+
+            for pname, (coerce_type, _adapter_type) in coercible.items():
+                if pname not in kwargs:
+                    continue
+                value = kwargs[pname]
+                if value is None or isinstance(value, Knot):
+                    continue
+                kwargs[pname] = Parameter(
+                    name=f"{config.id}__{pname}",
+                    type_=coerce_type,
+                    default=value,
+                    _config=KnotConfig(id=f"auto:{config.id}:{pname}"),
+                    tapestry=explicit_tapestry,
+                )
+
         # Partition kwargs: explicit parents/configs (named in process) and
         # implicit parents (extra Knot kwargs absorbed by **_).
         parents: dict[str, Knot] = {}
@@ -225,9 +329,9 @@ class Knot:
         # Self-register with the active tapestry (if any) or with the
         # explicitly passed one.  Done last so the knot is fully built
         # before the tapestry sees it.
-        from pirn.tapestry import _CURRENT_TAPESTRY
+        from pirn.tapestry import _current_tapestry
 
-        target_tapestry = explicit_tapestry or _CURRENT_TAPESTRY.get(None)
+        target_tapestry = explicit_tapestry or _current_tapestry.get(None)
         if target_tapestry is not None:
             target_tapestry.register(self)
 
@@ -237,10 +341,12 @@ class Knot:
 
     @property
     def knot_id(self) -> str:
+        """Stable string identifier for this knot within its tapestry."""
         return self._mutable_config.id
 
     @property
     def config(self) -> KnotConfig:
+        """The ``KnotConfig`` supplied at construction."""
         return self._mutable_config
 
     @property
@@ -260,6 +366,7 @@ class Knot:
 
     @property
     def is_optional(self) -> bool:
+        """True if this knot is wrapped in an ``Optional`` node."""
         return isinstance(self, Optional)
 
     # ------------------------------------------------------------- user-impl
@@ -368,6 +475,7 @@ class Knot:
         except Exception:
             hints = {}
 
+        coercible = type(self)._coercible_params
         input_adapters: dict[str, TypeAdapter] = {}
         for name, param in sig.parameters.items():
             if name == "self":
@@ -380,6 +488,12 @@ class Knot:
             ann = hints.get(name, param.annotation)
             if ann is inspect.Parameter.empty:
                 continue
+            # For ``Knot | T`` params the engine resolves the parent before
+            # calling process(), so the runtime value is always T, not Knot.
+            # Validate against T so pydantic doesn't try to schema Knot.
+            coerce_result = coercible.get(name)
+            if coerce_result is not None:
+                ann = coerce_result[1]  # adapter_type (non-Knot, None-preserving)
             input_adapters[name] = TypeAdapter(ann)
 
         ret = hints.get("return", sig.return_annotation)

@@ -1,18 +1,29 @@
 """Shared serialization base for object-store-backed DataStores.
 
 All cloud and local-disk DataStore implementations inherit from this class.
-It handles cloudpickle serialization and optional HMAC signing; subclasses
-implement the four raw-bytes IO primitives.
+It handles cloudpickle serialization and HMAC signing; subclasses implement
+the four raw-bytes IO primitives.
+
+.. note::
+    ``cloudpickle.loads`` on attacker-controlled bytes is a remote-code-
+    execution sink. Pirn refuses to construct an unsigned store unless
+    the caller explicitly passes ``allow_unsigned=True`` to acknowledge
+    that the cache backing is in the same trust boundary as the pirn
+    process. Production deployments MUST pass a real ``signer``.
 """
 
 from __future__ import annotations
 
+import logging
+import os
 from typing import TYPE_CHECKING, Any
 
 from pirn.backends.base.data_store import DataStore
 
 if TYPE_CHECKING:
     from pirn.backends._signer import _Signer
+
+_logger = logging.getLogger(__name__)
 
 
 class _CloudObjectStore(DataStore):
@@ -26,7 +37,34 @@ class _CloudObjectStore(DataStore):
         _delete_key(key)          async
     """
 
-    def __init__(self, *, signer: _Signer | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        signer: _Signer | None = None,
+        allow_unsigned: bool = False,
+    ) -> None:
+        if signer is None and not allow_unsigned:
+            raise ValueError(
+                f"{type(self).__name__}: refusing to construct an unsigned "
+                "store. cloudpickle.loads on attacker-controlled bytes is a "
+                "remote-code-execution sink. Pass a `signer=` (production) "
+                "or `allow_unsigned=True` (single-tenant dev / test only) "
+                "to acknowledge the trust-boundary assumption."
+            )
+        if signer is None and allow_unsigned:
+            if os.environ.get("PIRN_ALLOW_UNSIGNED") != "1":
+                raise ValueError(
+                    f"{type(self).__name__}: allow_unsigned=True requires the "
+                    "environment variable PIRN_ALLOW_UNSIGNED=1 to be set. "
+                    "This prevents accidental unsigned stores in production. "
+                    "Set PIRN_ALLOW_UNSIGNED=1 only in development or test environments."
+                )
+            _logger.warning(
+                "%s constructed without HMAC signing (allow_unsigned=True). "
+                "cloudpickle.loads on attacker-controlled bytes is an RCE sink. "
+                "Ensure the backing store is within the same trust boundary as this process.",
+                type(self).__name__,
+            )
         self.__signer = signer
 
     def _serialize(self, value: Any) -> bytes:

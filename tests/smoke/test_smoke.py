@@ -4,9 +4,9 @@ from __future__ import annotations
 
 
 def test_package_imports():
-    import pirn
+    from importlib.metadata import version
 
-    assert pirn.__version__ == "0.3.0"
+    assert version("pirn") == "0.3.0"
 
 
 def test_core_public_surface():

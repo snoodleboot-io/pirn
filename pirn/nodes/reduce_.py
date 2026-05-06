@@ -33,26 +33,28 @@ from __future__ import annotations
 
 import inspect
 from collections.abc import Callable
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-_UNSET = object()
-
 
 class Reduce(Knot):
     """Fold a list parent into a single value."""
+
+    _unset: ClassVar[object] = object()
 
     def __init__(
         self,
         *,
         of: Knot,
         combine: Callable[..., Any],
-        initial: Any = _UNSET,
+        initial: Any = ...,
         _config: KnotConfig | None = None,
         tapestry: Any = None,
     ) -> None:
+        if initial is ...:
+            initial = Reduce._unset
         if not isinstance(of, Knot):
             raise TypeError("Reduce: 'of' must be a Knot producing a list")
         if not callable(combine):
@@ -79,7 +81,7 @@ class Reduce(Knot):
             self._mutable_form = "whole"
         elif n_required == 2:
             self._mutable_form = "pairwise"
-            if initial is _UNSET:
+            if initial is Reduce._unset:
                 raise TypeError("Reduce: pairwise combine (2 required args) requires 'initial'")
         else:
             raise TypeError(f"Reduce: 'combine' must take 1 or 2 required args, got {n_required}")
@@ -94,15 +96,23 @@ class Reduce(Knot):
         self._mutable_output_adapter = None
         self._mutable_mapped_inputs: dict = {}
 
-        from pirn.tapestry import _CURRENT_TAPESTRY
+        from pirn.tapestry import _current_tapestry
 
-        target = tapestry or _CURRENT_TAPESTRY.get(None)
+        target = tapestry or _current_tapestry.get(None)
         if target is not None:
             target.register(self)
 
         self._frozen = True
 
     async def process(self, of: list[Any], **_: Any) -> Any:  # type: ignore[override]
+        """Fold the input list into a single value using the configured combine callable.
+
+        Args:
+            of: List of items produced by the parent knot to reduce.
+
+        Returns:
+            Single value resulting from applying combine to the list, either whole-list or pairwise.
+        """
         if self._mutable_form == "whole":
             return self._mutable_combine(of)
         # Pairwise.

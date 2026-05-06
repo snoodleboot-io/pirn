@@ -1,7 +1,7 @@
 # Claude Configuration
 
-**Last Updated:** 2026-04-29  
-**Agent Count:** 18 primary agents  
+**Last Updated:** 2026-05-03  
+**Agent Count:** 24 primary agents  
 **Persona:** Software Engineer
 
 ## Core Conventions
@@ -27,6 +27,10 @@ Match the user's request to **ONE** agent and load **ONLY** that file.
 |-------|---------|-----------|
 | incident-agent | Manage incident response, triage, postmortems, and on-call processes | .claude/agents/incident-agent.md |
 | refactor-agent | Improve code structure while preserving behavior | .claude/agents/refactor-agent.md |
+| frontend-agent | Build accessible, performant user interfaces for web and mobile platforms | .claude/agents/frontend-agent.md |
+| data-agent | Design data pipelines, warehouses, and data quality systems | .claude/agents/data-agent.md |
+| architect-agent | System design, architecture planning, and technical decision making | .claude/agents/architect-agent.md |
+| observability-agent | Design monitoring, logging, tracing, and alerting systems | .claude/agents/observability-agent.md |
 | code-agent | Implement features and make direct code changes | .claude/agents/code-agent.md |
 | migration-agent | Handle dependency upgrades and framework migrations | .claude/agents/migration-agent.md |
 | review-agent | Code, performance, and accessibility reviews | .claude/agents/review-agent.md |
@@ -40,7 +44,9 @@ Match the user's request to **ONE** agent and load **ONLY** that file.
 | compliance-agent | SOC 2, ISO 27001, GDPR, HIPAA, PCI-DSS compliance | .claude/agents/compliance-agent.md |
 | plan-agent | Develops PRDs and works with architects to create ARDs | .claude/agents/plan-agent.md |
 | document-agent | Generate documentation, READMEs, and changelogs | .claude/agents/document-agent.md |
+| mlai-agent | Design machine learning pipelines, model training, deployment, and inference systems with specialized expertise | .claude/agents/mlai-agent.md |
 | enforcement-agent | Reviews code against established coding standards and creates change requests | .claude/agents/enforcement-agent.md |
+| devops-agent | Automate deployment, infrastructure, CI/CD pipelines, and cloud operations | .claude/agents/devops-agent.md |
 | backend-agent | Design scalable backend systems, APIs, microservices, and distributed architectures | .claude/agents/backend-agent.md |
 | debug-agent | Diagnose and fix bugs, issues, and errors | .claude/agents/debug-agent.md |
 

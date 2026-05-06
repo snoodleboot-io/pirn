@@ -21,10 +21,24 @@ class Sink(Knot):
     return type is conventionally None but not enforced — a sink that
     returns a confirmation receipt is fine.
 
+    Follow the two-layer knot pattern: declare all inputs as
+    ``Knot | scalar_type`` in ``__init__`` and as resolved plain types
+    in ``process()``.
+
     Example::
 
         class WriteUsers(Sink):
-            async def process(self, users: list[dict], path: str) -> None:
+            def __init__(
+                self,
+                *,
+                users: Knot,
+                path: Knot | str,
+                _config: KnotConfig,
+                **kwargs: Any,
+            ) -> None:
+                super().__init__(users=users, path=path, _config=_config, **kwargs)
+
+            async def process(self, users: list[dict], path: str, **_: Any) -> None:
                 with open(path, "w") as f:
                     json.dump(users, f)
 
