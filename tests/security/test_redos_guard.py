@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.agents._regex_utils import _MAX_PATTERN_LENGTH, compile_safe_pattern
+from pirn.domains.agents._regex_utils import _max_pattern_length, compile_safe_pattern
 
 
 class TestCompileSafePattern(unittest.TestCase):
@@ -13,15 +13,15 @@ class TestCompileSafePattern(unittest.TestCase):
         assert p.pattern == r"\bpassword\b"
 
     def test_pattern_exceeding_max_length_rejected(self) -> None:
-        long_pattern = "a" * (_MAX_PATTERN_LENGTH + 1)
+        long_pattern = "a" * (_max_pattern_length + 1)
         with self.assertRaises(ValueError) as ctx:
             compile_safe_pattern(long_pattern, index=0, owner="Test", field="patterns")
         assert "maximum pattern length" in str(ctx.exception)
 
     def test_pattern_at_exact_max_length_accepted(self) -> None:
-        pattern = "a" * _MAX_PATTERN_LENGTH
+        pattern = "a" * _max_pattern_length
         p = compile_safe_pattern(pattern, index=0, owner="Test", field="patterns")
-        assert len(p.pattern) == _MAX_PATTERN_LENGTH
+        assert len(p.pattern) == _max_pattern_length
 
     def test_invalid_regex_rejected(self) -> None:
         with self.assertRaises(ValueError) as ctx:
@@ -29,7 +29,7 @@ class TestCompileSafePattern(unittest.TestCase):
         assert "valid regex" in str(ctx.exception)
 
     def test_error_message_includes_owner_and_field(self) -> None:
-        long_pattern = "x" * (_MAX_PATTERN_LENGTH + 1)
+        long_pattern = "x" * (_max_pattern_length + 1)
         with self.assertRaises(ValueError) as ctx:
             compile_safe_pattern(long_pattern, index=2, owner="SafetyCheck", field="deny_patterns")
         msg = str(ctx.exception)
@@ -45,7 +45,7 @@ class TestSafetyCheckReDoSGuard(unittest.TestCase):
         from pirn.domains.agents.types.agent_message import AgentMessage
         from pirn.tapestry import Tapestry
 
-        long_pattern = "a" * (_MAX_PATTERN_LENGTH + 1)
+        long_pattern = "a" * (_max_pattern_length + 1)
 
         @knot
         async def m() -> AgentMessage:
@@ -85,7 +85,7 @@ class TestHandoffCheckReDoSGuard(unittest.TestCase):
         from pirn.domains.agents.types.agent_response import AgentResponse
         from pirn.tapestry import Tapestry
 
-        long_pattern = "b" * (_MAX_PATTERN_LENGTH + 1)
+        long_pattern = "b" * (_max_pattern_length + 1)
 
         @knot
         async def r() -> AgentResponse:
