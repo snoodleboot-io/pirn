@@ -70,6 +70,8 @@ class FeatureStoreWriter(SubTapestry):
         Raises:
             TypeError: If feature_store is not a FeatureStoreProvider or inner writer fails.
         """
+        if not isinstance(split, DataSplit):
+            raise TypeError("FeatureStoreWriter: split must be a DataSplit")
         if not isinstance(feature_store, FeatureStoreProvider):
             raise TypeError("FeatureStoreWriter: feature_store must be a FeatureStoreProvider")
         with Tapestry() as inner:

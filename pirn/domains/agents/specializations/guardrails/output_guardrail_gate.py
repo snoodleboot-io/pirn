@@ -34,7 +34,7 @@ from pirn.domains.agents.specializations.guardrails.output_response_validator im
     OutputResponseValidator,
 )
 from pirn.domains.agents.types.agent_response import AgentResponse
-from pirn.nodes.sub_tapestry import SubTapestry
+from pirn.nodes.sub_tapestry import SubTapestry, SubTapestryError
 from pirn.tapestry import Tapestry
 
 
@@ -83,7 +83,13 @@ class OutputGuardrailGate(SubTapestry):
                 allowed_tool_names=tuple(allowed_tool_names),
                 _config=KnotConfig(id="validate"),
             )
-        inner_result = await self._run_inner(inner)
+        try:
+            inner_result = await self._run_inner(inner)
+        except SubTapestryError as exc:
+            msg = (
+                exc.inner_result.exceptions[0].message if exc.inner_result.exceptions else str(exc)
+            )
+            raise ValueError(msg) from exc
         validated = inner_result.outputs.get("validate")
         if not isinstance(validated, AgentResponse):
             raise RuntimeError(
