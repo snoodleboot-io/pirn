@@ -49,6 +49,10 @@ jobs:
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7.6.0
         with:
           enable-cache: true
+          # Must match pythonVersion in pyrightconfig.json. Pyright uses the
+          # interpreter to resolve optional-extra stubs (polars, duckdb, etc.);
+          # a version mismatch causes spurious attribute-access errors on those
+          # packages even when --all-extras is installed.
           python-version: "3.12"
 
       - name: Install dev dependencies
