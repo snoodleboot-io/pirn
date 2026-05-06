@@ -7,7 +7,7 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
-from pirn.tapestry import _CURRENT_TAPESTRY, Tapestry, current_tapestry
+from pirn.tapestry import _current_tapestry, Tapestry, current_tapestry
 
 
 @knot
@@ -24,11 +24,11 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
     
     
     def test_with_block_sets_contextvar(self):
-        assert _CURRENT_TAPESTRY.get(None) is None
+        assert _current_tapestry.get(None) is None
         with Tapestry() as t:
-            assert _CURRENT_TAPESTRY.get(None) is t
+            assert _current_tapestry.get(None) is t
             assert current_tapestry() is t
-        assert _CURRENT_TAPESTRY.get(None) is None
+        assert _current_tapestry.get(None) is None
     
     
     def test_with_block_restores_outer_context(self):
