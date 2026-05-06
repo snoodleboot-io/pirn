@@ -9,6 +9,7 @@ from typing import ClassVar
 from pirn.domains.connectors.connection_config import ConnectionConfig
 from pirn.domains.connectors.connection_config_decorator import connection_config
 
+
 @connection_config(frozen=True)
 class DuckdbConfig(ConnectionConfig):
     """Configuration for a DuckDB connection.

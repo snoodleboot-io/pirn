@@ -10,6 +10,7 @@ from typing import ClassVar
 from pirn.domains.connectors.connection_config import ConnectionConfig
 from pirn.domains.connectors.connection_config_decorator import connection_config
 
+
 @connection_config(frozen=True)
 class SqliteConfig(ConnectionConfig):
     """Configuration for an async SQLite connection.
