@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import unittest
-from datetime import datetime, timezone
-from unittest.mock import MagicMock
+from datetime import UTC, datetime
 
 try:
     import ray.data
@@ -12,6 +11,10 @@ except ImportError as _e:
     raise unittest.SkipTest("ray not installed") from _e
 
 from pirn.domains.data.lazy.ray.ray_dataset import RayDataset
+
+import pytest
+
+pytestmark = pytest.mark.slow
 
 
 def _make_ray_dataset() -> ray.data.Dataset:
@@ -28,7 +31,7 @@ class TestRayDataset(unittest.TestCase):
 
     def test_with_dataset_preserves_metadata(self) -> None:
         ds = _make_ray_dataset()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         rds = RayDataset(dataset=ds, backend_name="custom", source_uri="s3://b/k", fetched_at=now)
         new_ds = _make_ray_dataset()
         rds2 = rds.with_dataset(new_ds)

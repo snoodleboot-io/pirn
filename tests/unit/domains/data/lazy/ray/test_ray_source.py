@@ -14,6 +14,10 @@ from pirn.core.knot_config import KnotConfig
 from pirn.domains.data.lazy.ray.ray_dataset import RayDataset
 from pirn.domains.data.lazy.ray.ray_source import RaySource
 
+import pytest
+
+pytestmark = pytest.mark.slow
+
 
 def _make_dataset() -> ray.data.Dataset:
     return ray.data.from_items([{"x": 1}])

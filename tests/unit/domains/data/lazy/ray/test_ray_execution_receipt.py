@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 import unittest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pirn.domains.data.lazy.ray.ray_execution_receipt import RayExecutionReceipt
+
+import pytest
+
+pytestmark = pytest.mark.slow
 
 
 class TestRayExecutionReceipt(unittest.TestCase):
@@ -20,7 +24,7 @@ class TestRayExecutionReceipt(unittest.TestCase):
         self.assertIsNone(receipt.block_count)
 
     def test_construction_with_all_fields(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         receipt = RayExecutionReceipt(
             backend_name="ray",
             target_path="s3://bucket/out",

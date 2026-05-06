@@ -18,6 +18,10 @@ from pirn.domains.data.lazy.ray.ray_dataset import RayDataset
 from pirn.nodes.source import Source
 from pirn.tapestry import Tapestry
 
+import pytest
+
+pytestmark = pytest.mark.slow
+
 
 def _make_batch() -> RayDataset:
     ds = ray.data.from_items([{"region": "EU", "amount": 10}, {"region": "US", "amount": 5}])

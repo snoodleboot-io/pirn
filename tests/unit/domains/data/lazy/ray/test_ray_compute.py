@@ -19,6 +19,10 @@ from pirn.domains.data.lazy.ray.ray_execution_receipt import RayExecutionReceipt
 from pirn.nodes.source import Source
 from pirn.tapestry import Tapestry
 
+import pytest
+
+pytestmark = pytest.mark.slow
+
 
 def _batch() -> RayDataset:
     ds = ray.data.from_items([{"x": 1}, {"x": 2}])
