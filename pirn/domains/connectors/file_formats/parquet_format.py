@@ -108,7 +108,7 @@ class ParquetFormat(StreamingFileFormat):
         pq.write_table(
             table,
             buffer,
-            compression=self._compression,
+            compression=self._compression or "snappy",
             row_group_size=self._row_group_size,
         )
         payload = buffer.getvalue().to_pybytes()

@@ -58,6 +58,8 @@ class CouchDBPool(DatabaseConnectionPool):
         Returns the document ``_id``.
         """
         await self._ensure_session()
+        if self._session is None:
+            raise RuntimeError("CouchDBPool: not connected — call connect() first")
         assert self._config is not None
         doc_data = args[0] if args else {}
         db = await self._session[self._config.database]
@@ -68,6 +70,8 @@ class CouchDBPool(DatabaseConnectionPool):
     async def fetch_all(self, query: str, *args: Any) -> list[Any]:
         """Fetch documents via Mango selector; ``query`` is a JSON selector string."""
         await self._ensure_session()
+        if self._session is None:
+            raise RuntimeError("CouchDBPool: not connected — call connect() first")
         assert self._config is not None
         try:
             selector = json.loads(query)
@@ -80,6 +84,8 @@ class CouchDBPool(DatabaseConnectionPool):
     async def execute_many(self, query: str, args_seq: Iterable[Iterable[Any]]) -> None:
         """Bulk-save documents via _bulk_docs."""
         await self._ensure_session()
+        if self._session is None:
+            raise RuntimeError("CouchDBPool: not connected — call connect() first")
         assert self._config is not None
         db = await self._session[self._config.database]
         docs = list(args_seq)

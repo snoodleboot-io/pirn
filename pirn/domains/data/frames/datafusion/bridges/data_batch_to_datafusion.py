@@ -82,4 +82,4 @@ class DataBatchToDatafusion(Knot):
             # DataFusion has no native "empty DataFrame" constructor that
             # matches the user's column shape, so synthesise a zero-row frame.
             return context.sql("SELECT NULL AS _empty WHERE FALSE")
-        return context.from_pylist(list(batch.rows))
+        return context.from_pylist(list(dict(r) for r in batch.rows))

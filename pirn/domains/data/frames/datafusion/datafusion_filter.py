@@ -104,7 +104,7 @@ class DatafusionFilter(Knot):
                 raise TypeError(
                     "DatafusionFilter: expression must be callable(frame) -> datafusion.Expr"
                 )
-            filtered = batch.frame.filter(expression(batch.frame))
+            filtered = batch.frame.filter(expression(batch.frame))  # type: ignore[arg-type]
         return batch.with_frame(filtered)
 
     @staticmethod

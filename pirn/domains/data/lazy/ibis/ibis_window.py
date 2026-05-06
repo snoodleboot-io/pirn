@@ -87,7 +87,7 @@ class IbisWindow(Knot):
             )
         result = windows(batch.expression)
         if isinstance(result, (list, tuple)):
-            mutated = batch.expression.mutate(*result)
+            mutated = batch.expression.mutate(*result)  # type: ignore[arg-type]
         else:
-            mutated = batch.expression.mutate(result)
+            mutated = batch.expression.mutate(result)  # type: ignore[arg-type]
         return batch.with_expression(mutated)

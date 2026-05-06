@@ -56,6 +56,8 @@ class CosmosDBPool(DatabaseConnectionPool):
     async def execute(self, query: str, *args: Any) -> str:
         """Upsert an item; ``args[0]`` is the item dict. Returns item id."""
         await self._ensure_container()
+        if self._container is None:
+            raise RuntimeError("CosmosDBPool: not connected — call connect() first")
         item = args[0] if args else {}
         result = await self._container.upsert_item(item)
         return str(result.get("id", ""))
@@ -63,6 +65,8 @@ class CosmosDBPool(DatabaseConnectionPool):
     async def fetch_all(self, query: str, *args: Any) -> list[Any]:
         """Execute a SQL query against the container and return all items."""
         await self._ensure_container()
+        if self._container is None:
+            raise RuntimeError("CosmosDBPool: not connected — call connect() first")
         return [
             item
             async for item in self._container.query_items(
@@ -74,6 +78,8 @@ class CosmosDBPool(DatabaseConnectionPool):
     async def execute_many(self, query: str, args_seq: Iterable[Iterable[Any]]) -> None:
         """Upsert each item dict yielded by args_seq."""
         await self._ensure_container()
+        if self._container is None:
+            raise RuntimeError("CosmosDBPool: not connected — call connect() first")
         for args in args_seq:
             item = args if isinstance(args, dict) else (next(iter(args)) if args else {})
             await self._container.upsert_item(item)

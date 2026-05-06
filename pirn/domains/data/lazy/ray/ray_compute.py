@@ -152,7 +152,7 @@ class RayCompute(Sink):
             method = getattr(dataset, attr, None)
             if callable(method):
                 try:
-                    return int(method())
+                    return int(method())  # type: ignore[arg-type]
                 except Exception:
                     return None
         return None

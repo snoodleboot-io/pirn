@@ -57,6 +57,8 @@ class FirestorePool(DatabaseConnectionPool):
         Returns the new document id.
         """
         await self._ensure_client()
+        if self._client is None:
+            raise RuntimeError("FirestorePool: not connected — call connect() first")
         doc_data = args[0] if args else {}
         _timestamp, doc_ref = await self._client.collection(query).add(doc_data)
         return doc_ref.id
@@ -67,6 +69,8 @@ class FirestorePool(DatabaseConnectionPool):
         ``args[0]`` is an optional filter dict (field equality filters).
         """
         await self._ensure_client()
+        if self._client is None:
+            raise RuntimeError("FirestorePool: not connected — call connect() first")
         col_ref = self._client.collection(query)
         if args and isinstance(args[0], dict):
             for field, value in args[0].items():
@@ -77,6 +81,8 @@ class FirestorePool(DatabaseConnectionPool):
     async def execute_many(self, query: str, args_seq: Iterable[Iterable[Any]]) -> None:
         """Batch-write documents to ``query`` collection."""
         await self._ensure_client()
+        if self._client is None:
+            raise RuntimeError("FirestorePool: not connected — call connect() first")
         batch = self._client.batch()
         col_ref = self._client.collection(query)
         for args in args_seq:

@@ -85,7 +85,7 @@ class PyarrowFilter(Knot):
         if expression is not None and predicate is not None:
             raise TypeError("PyarrowFilter: pass either expression= or predicate=, not both")
         if expression is not None:
-            if not isinstance(expression, pc.Expression):
+            if not isinstance(expression, pc.Expression):  # type: ignore[attr-defined]
                 raise TypeError(
                     "PyarrowFilter: expression must be a pyarrow.compute.Expression; "
                     "for row-by-row Python callables use the Tier-1 "

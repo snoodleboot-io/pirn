@@ -50,6 +50,8 @@ class KdbPool(DatabaseConnectionPool):
 
     async def execute(self, query: str, *args: Any) -> str:
         await self._ensure_connection()
+        if self._connection is None:
+            raise RuntimeError("KdbPool: not connected — call connect() first")
         try:
             result = await asyncio.to_thread(self._connection.sync, query, *args)
         except Exception as exc:
@@ -58,6 +60,8 @@ class KdbPool(DatabaseConnectionPool):
 
     async def fetch_all(self, query: str, *args: Any) -> list[Any]:
         await self._ensure_connection()
+        if self._connection is None:
+            raise RuntimeError("KdbPool: not connected — call connect() first")
         try:
             result = await asyncio.to_thread(self._connection.sync, query, *args)
         except Exception as exc:
@@ -66,6 +70,8 @@ class KdbPool(DatabaseConnectionPool):
 
     async def execute_many(self, query: str, args_seq: Iterable[Iterable[Any]]) -> None:
         await self._ensure_connection()
+        if self._connection is None:
+            raise RuntimeError("KdbPool: not connected — call connect() first")
         for args in args_seq:
             try:
                 await asyncio.to_thread(self._connection.sync, query, *args)

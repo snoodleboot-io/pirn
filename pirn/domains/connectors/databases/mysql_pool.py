@@ -67,12 +67,12 @@ class MySQLPool(DatabaseConnectionPool):
             if callable(close_fn):
                 result = close_fn()
                 if hasattr(result, "__await__"):
-                    await result
+                    await result  # type: ignore[misc]
             wait_fn = getattr(self._pool, "wait_closed", None)
             if callable(wait_fn):
                 result = wait_fn()
                 if hasattr(result, "__await__"):
-                    await result
+                    await result  # type: ignore[misc]
             self._pool = None
         self._clear_credentials()
         self._closed = True
@@ -96,7 +96,7 @@ class MySQLPool(DatabaseConnectionPool):
                 if callable(commit_fn):
                     result = commit_fn()
                     if hasattr(result, "__await__"):
-                        await result
+                        await result  # type: ignore[misc]
                 return rowcount
             finally:
                 await cursor.close()
@@ -141,7 +141,7 @@ class MySQLPool(DatabaseConnectionPool):
                 if callable(commit_fn):
                     result = commit_fn()
                     if hasattr(result, "__await__"):
-                        await result
+                        await result  # type: ignore[misc]
                 return rowcount
             finally:
                 await cursor.close()

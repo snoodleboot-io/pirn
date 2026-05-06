@@ -92,6 +92,6 @@ class DatafusionAggregate(Knot):
         agg_exprs: list[df.Expr] = []
         for output, expression in aggs.items():
             expr = expression(batch.frame) if callable(expression) else expression
-            agg_exprs.append(expr.alias(output))
+            agg_exprs.append(expr.alias(output))  # type: ignore[attr-defined]
         aggregated = batch.frame.aggregate(group_exprs, agg_exprs)
         return batch.with_frame(aggregated)

@@ -48,7 +48,7 @@ class AirtableClient(ApiClient, TableSource):
         *,
         offset: str | None = None,
         page_size: int | None = None,
-    ) -> tuple[list[dict], str | None]:
+    ) -> tuple[list[Mapping[str, Any]], str | None]:
         """List records from the configured table.
 
         Parameters
@@ -76,7 +76,7 @@ class AirtableClient(ApiClient, TableSource):
         path = self._table_path()
         self._logger.debug("airtable.list_records path=%s", path)
         response = await self.request("GET", path, params=params or None)
-        records = list(response.get("records") or ())
+        records: list[Mapping[str, Any]] = list(response.get("records") or [])
         next_offset = response.get("offset") or None
         return records, next_offset
 
@@ -129,7 +129,7 @@ class AirtableClient(ApiClient, TableSource):
         cursor: str | None = None,
         *,
         page_size: int | None = None,
-    ) -> tuple[list[dict], str | None]:
+    ) -> tuple[list[Mapping[str, Any]], str | None]:
         """:class:`TableSource` adapter — delegates to :meth:`list_records`."""
         return await self.list_records(offset=cursor, page_size=page_size)
 

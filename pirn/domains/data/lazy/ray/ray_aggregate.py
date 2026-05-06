@@ -101,7 +101,7 @@ class RayAggregate(Knot):
             if not callable(aggregator):
                 raise TypeError("RayAggregate: aggregator must be a callable (dataset) -> dataset")
             aggregated = aggregator(batch.dataset)
-            return batch.with_dataset(aggregated)
+            return batch.with_dataset(aggregated)  # type: ignore[arg-type]
 
         # Declarative mode
         if isinstance(by, str):

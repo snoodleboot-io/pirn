@@ -163,7 +163,7 @@ class CdaXmlFormat(BatchFileFormat):
     @staticmethod
     def _load_lxml() -> Any:
         try:
-            from lxml import etree
+            from lxml import etree  # type: ignore[attr-defined]
         except ImportError as exc:
             raise ImportError(
                 "CdaXmlFormat requires lxml. Install with `pip install pirn[health]`."

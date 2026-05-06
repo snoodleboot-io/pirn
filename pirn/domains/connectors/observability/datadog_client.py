@@ -88,7 +88,7 @@ class DatadogClient(ApiClient, TableSource, EventEmitter, MetricQuery):
         path = f"/api/v1/{self._resource}"
         response = await self.request("GET", path, params=params)
         rows_obj = response.get("data") if isinstance(response, Mapping) else None
-        rows = list(rows_obj or ())
+        rows: list[Mapping[str, Any]] = list(rows_obj or [])
         next_cursor: str | None = None
         if isinstance(response, Mapping):
             meta = response.get("meta")
@@ -242,13 +242,15 @@ class DatadogClient(ApiClient, TableSource, EventEmitter, MetricQuery):
         if self._config is None:
             raise RuntimeError("DatadogClient: missing config and no injected client")
 
+        assert self._config is not None  # guarded by RuntimeError above
+
         def _build() -> Any:
             configuration = Configuration()
-            if self._config.api_key is not None:
-                configuration.api_key["apiKeyAuth"] = self._config.api_key
-            if self._config.app_key is not None:
-                configuration.api_key["appKeyAuth"] = self._config.app_key
-            configuration.server_variables["site"] = self._config.site
+            if self._config.api_key is not None:  # type: ignore[union-attr]
+                configuration.api_key["apiKeyAuth"] = self._config.api_key  # type: ignore[union-attr]
+            if self._config.app_key is not None:  # type: ignore[union-attr]
+                configuration.api_key["appKeyAuth"] = self._config.app_key  # type: ignore[union-attr]
+            configuration.server_variables["site"] = self._config.site  # type: ignore[union-attr]
             return DatadogApiClient(configuration)
 
         try:

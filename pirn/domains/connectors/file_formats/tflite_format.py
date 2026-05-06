@@ -122,7 +122,7 @@ class TfliteFormat(BatchFileFormat):
         except ImportError:
             pass
         try:
-            from tensorflow.lite import Interpreter as TfInterpreter
+            from tensorflow.lite import Interpreter as TfInterpreter  # type: ignore[attr-defined]
 
             return TfInterpreter
         except ImportError as exc:

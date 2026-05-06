@@ -70,7 +70,7 @@ class StringNormalizer(Knot):
         remove_punctuation: bool,
     ) -> str:
         if unicode_form != "none":
-            value = unicodedata.normalize(unicode_form, value)
+            value = unicodedata.normalize(unicode_form, value)  # type: ignore[arg-type]
         if lowercase:
             value = value.lower()
         if strip:

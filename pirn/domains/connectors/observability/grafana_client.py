@@ -105,7 +105,7 @@ class GrafanaClient(ApiClient, TableSource, MetricQuery):
         """Vendor-typed dashboard search via ``/api/search``."""
         params = {"type": "dash-db", "page": page, "limit": limit}
         response = await self.request("GET", "/api/search", params=params)
-        rows = list(response or ())
+        rows: list[Mapping[str, Any]] = list(response or [])
         next_cursor = str(page + 1) if len(rows) >= limit else None
         return rows, next_cursor
 
@@ -118,7 +118,7 @@ class GrafanaClient(ApiClient, TableSource, MetricQuery):
         """Vendor-typed folder list via ``/api/folders``."""
         params = {"page": page, "limit": limit}
         response = await self.request("GET", "/api/folders", params=params)
-        rows = list(response or ())
+        rows: list[Mapping[str, Any]] = list(response or [])
         next_cursor = str(page + 1) if len(rows) >= limit else None
         return rows, next_cursor
 
@@ -135,7 +135,7 @@ class GrafanaClient(ApiClient, TableSource, MetricQuery):
         the :class:`TableSource` contract is honoured.
         """
         response = await self.request("GET", "/api/datasources")
-        all_rows = list(response or ())
+        all_rows: list[Mapping[str, Any]] = list(response or [])
         offset = max(page - 1, 0) * limit
         rows = all_rows[offset : offset + limit]
         next_cursor = str(page + 1) if offset + limit < len(all_rows) else None
@@ -221,7 +221,7 @@ class GrafanaClient(ApiClient, TableSource, MetricQuery):
         if self._client is not None:
             aclose = getattr(self._client, "aclose", None)
             if callable(aclose):
-                await aclose()
+                await aclose()  # type: ignore[misc]
             self._client = None
         self._clear_credentials()
         self._closed = True

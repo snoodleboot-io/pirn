@@ -126,6 +126,6 @@ class PyarrowDeduplicate(Knot):
         # PyArrow's convention.
         first_indices = grouped.column(f"{idx_name}_min")
         # Sort ascending so output order == input order of first occurrences.
-        sort_indices = pc.sort_indices(first_indices)
+        sort_indices = pc.sort_indices(first_indices)  # type: ignore[attr-defined]
         ordered_indices = pc.take(first_indices, sort_indices)
         return batch.with_table(table.take(ordered_indices))

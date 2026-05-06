@@ -134,5 +134,8 @@ class DaskAggregate(Knot):
                 raise TypeError("DaskAggregate: aggs is required when by is supplied")
             if not isinstance(aggs, dict) or not aggs:
                 raise TypeError("DaskAggregate: aggs must be a non-empty dict")
-            aggregated = batch.frame.groupby(list(by)).agg(aggs).reset_index()
-        return batch.with_frame(aggregated)
+            _grouped = batch.frame.groupby(list(by)).agg(aggs)
+            if _grouped is None:
+                raise RuntimeError("DaskAggregate: groupby().agg() returned None")
+            aggregated = _grouped.reset_index()  # type: ignore[arg-type]
+        return batch.with_frame(aggregated)  # type: ignore[arg-type]

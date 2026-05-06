@@ -75,4 +75,4 @@ class PandasFilter(Knot):
                 "use the Tier-1 pirn.domains.data.transforms.filter.Filter knot instead"
             )
         mask = predicate(batch.frame)
-        return batch.with_frame(batch.frame[mask].reset_index(drop=True))
+        return batch.with_frame(batch.frame[mask].reset_index(drop=True))  # type: ignore[arg-type]

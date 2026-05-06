@@ -152,7 +152,7 @@ class PrometheusClient(ApiClient, MetricQuery):
         if self._client is not None:
             aclose = getattr(self._client, "aclose", None)
             if callable(aclose):
-                await aclose()
+                await aclose()  # type: ignore[misc]
             self._client = None
         self._clear_credentials()
         self._closed = True

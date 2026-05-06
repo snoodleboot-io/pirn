@@ -45,6 +45,18 @@ class DatabaseConnectionPool(PirnOpaqueValue):
         """Close the pool and release any underlying resources."""
         raise NotImplementedError(f"{type(self).__name__} must implement close()")
 
+    async def fetch_all(self, query: str, *args: Any) -> list[Any]:
+        """Execute *query* and return all rows as a list."""
+        raise NotImplementedError(f"{type(self).__name__} must implement fetch_all()")
+
+    async def execute(self, query: str, *args: Any) -> Any:
+        """Execute *query* and return a driver-specific result."""
+        raise NotImplementedError(f"{type(self).__name__} must implement execute()")
+
+    async def execute_many(self, query: str, args_seq: Any) -> None:
+        """Execute *query* once per item in *args_seq*."""
+        raise NotImplementedError(f"{type(self).__name__} must implement execute_many()")
+
     # Per-engine placeholder grammar. The default regex rejects Python
     # brace interpolation (``{...}``) and printf-style (``%s``/``%d``).
     # Subclasses override ``_inline_interpolation_pattern`` when their

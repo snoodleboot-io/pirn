@@ -200,9 +200,9 @@ class IcebergTable(LakehouseTable):
                 "`pip install pirn[iceberg]`."
             ) from exc
         items = list(filter.items())
-        expr = EqualTo(items[0][0], items[0][1])
+        expr = EqualTo(items[0][0], items[0][1])  # type: ignore[call-arg]
         for key, value in items[1:]:
-            expr = And(expr, EqualTo(key, value))
+            expr = And(expr, EqualTo(key, value))  # type: ignore[call-arg]
         return expr
 
     @staticmethod

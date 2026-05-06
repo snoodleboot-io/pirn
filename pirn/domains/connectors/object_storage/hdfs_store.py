@@ -43,7 +43,7 @@ class HDFSStore(ObjectStore):
             if callable(close_fn):
                 result = close_fn()
                 if hasattr(result, "__await__"):
-                    await result
+                    await result  # type: ignore[misc]
             self._client = None
         self._closed = True
         self._logger.debug("hdfs.close")
@@ -143,7 +143,7 @@ class HDFSStore(ObjectStore):
                 "HDFSStore (PyArrow) requires pyarrow; install via `pip install pirn[hdfs-arrow]`"
             ) from exc
         config = self._config
-        fs = pafs.HadoopFileSystem(
+        fs = pafs.HadoopFileSystem(  # type: ignore[attr-defined]
             host=config.namenode_host,
             port=config.namenode_port,
             user=config.user or None,

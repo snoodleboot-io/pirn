@@ -48,6 +48,8 @@ class ShapefileFormat(BatchFileFormat):
             shp_bytes = self._read_member(archive, ".shp")
             dbf_bytes = self._read_member(archive, ".dbf")
             shx_bytes = self._read_member(archive, ".shx", optional=True)
+        assert shp_bytes is not None
+        assert dbf_bytes is not None
         kwargs: dict[str, Any] = {
             "shp": io.BytesIO(shp_bytes),
             "dbf": io.BytesIO(dbf_bytes),

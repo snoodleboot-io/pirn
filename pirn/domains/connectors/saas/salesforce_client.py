@@ -142,7 +142,7 @@ class SalesforceClient(ApiClient, TableSource, RecordWriter):
     ) -> tuple[list[Mapping[str, Any]], str | None]:
         if not isinstance(response, Mapping):
             return [], None
-        rows = list(response.get("records") or ())
+        rows: list[Mapping[str, Any]] = list(response.get("records") or [])
         done = bool(response.get("done", True))
         next_url = response.get("nextRecordsUrl")
         next_cursor = str(next_url) if (not done and next_url) else None

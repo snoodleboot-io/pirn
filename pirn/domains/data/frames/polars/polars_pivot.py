@@ -102,7 +102,7 @@ class PolarsPivot(Knot):
                 on=list(on_coerced),
                 index=list(index_coerced),
                 values=list(values_coerced),
-                aggregate_function=aggregate_function,
+                aggregate_function=aggregate_function,  # type: ignore[arg-type]
             )
         )
 

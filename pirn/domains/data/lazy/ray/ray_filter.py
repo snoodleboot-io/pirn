@@ -67,4 +67,4 @@ class RayFilter(Knot):
         """
         if not callable(predicate):
             raise TypeError("RayFilter: predicate must be a callable (row) -> bool")
-        return batch.with_dataset(batch.dataset.filter(predicate))
+        return batch.with_dataset(batch.dataset.filter(predicate))  # type: ignore[arg-type]

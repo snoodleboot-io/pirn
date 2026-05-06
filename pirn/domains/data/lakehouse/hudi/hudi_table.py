@@ -164,7 +164,7 @@ class HudiTable(LakehouseTable):
         scan_fn = getattr(table, "scan_pylist", None)
         if not callable(scan_fn):
             raise TypeError("HudiTable: injected table must define scan_pylist() -> list[dict]")
-        rows = list(scan_fn())
+        rows = list(scan_fn())  # type: ignore[arg-type]
         if columns is None:
             return [dict(row) for row in rows]
         cols = tuple(columns)

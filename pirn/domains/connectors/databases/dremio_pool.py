@@ -120,7 +120,7 @@ class DremioPool(DatabaseConnectionPool):
             options = flight.FlightCallOptions(  # type: ignore[attr-defined]
                 headers=[(b"authorization", f"Basic {encoded}".encode())]
             )
-            client = flight.FlightClient(location, generic_options=[])
+            client = flight.FlightClient(location, generic_options=[])  # type: ignore[attr-defined]
             client._call_options = options
             return client
 

@@ -89,7 +89,7 @@ class TextTokenCounter(Knot):
         try:
             import tiktoken as _tiktoken
 
-            _ = _tiktoken
+            _t = _tiktoken
             tokenizer = f"tiktoken:{tiktoken_encoding}"
         except ImportError:
             tokenizer = "whitespace"

@@ -157,7 +157,7 @@ class BridgeTableBuilder(Knot):
             rk_values = tuple(row_dict[k] for k in rk_tuple)
             if auto_weight:
                 group_key = tuple(row_dict[k] for k in gk_tuple)
-                weight = 1.0 / group_counts[group_key]
+                weight = 1.0 / group_counts[group_key]  # type: ignore[possibly-undefined]
             else:
                 weight = row_dict[weight_column]
             await target_pool.execute(insert_q, (*lk_values, *rk_values, weight))

@@ -81,7 +81,7 @@ class ArrowIpcFormat(StreamingFileFormat):
 
         sink = pa.BufferOutputStream()
         options = (
-            ipc.IpcWriteOptions(compression=self._compression)
+            ipc.IpcWriteOptions(compression=self._compression)  # type: ignore[attr-defined]
             if self._compression is not None
             else None
         )

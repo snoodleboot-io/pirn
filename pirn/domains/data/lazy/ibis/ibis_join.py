@@ -126,7 +126,7 @@ class IbisJoin(Knot):
             condition = predicates(left.expression, right.expression)
             joined = left.expression.join(
                 right.expression,
-                predicates=condition,
+                predicates=condition,  # type: ignore[arg-type]
                 how=how,
             )
         elif isinstance(predicates, str):

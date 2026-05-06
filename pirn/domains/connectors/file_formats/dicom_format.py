@@ -145,8 +145,8 @@ class DicomFormat(BatchFileFormat):
             sop_instance = generate_uid()
         # SecondaryCaptureImageStorage — generic SOP class for round-trip
         # tests where no specific modality storage class is required.
-        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.7"
-        file_meta.MediaStorageSOPInstanceUID = sop_instance
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.7"  # type: ignore[misc]
+        file_meta.MediaStorageSOPInstanceUID = sop_instance  # type: ignore[misc]
         file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
 
         dataset = Dataset()

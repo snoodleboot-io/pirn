@@ -185,7 +185,7 @@ class ArchiveFileFormat(FileFormat):
             tf = tarfile.open(fileobj=io.BytesIO(raw), mode="r:")
         else:
             mode = ArchiveFileFormat._tar_modes.get(archive_type, "r:*")
-            tf = tarfile.open(fileobj=io.BytesIO(payload), mode=mode)
+            tf = tarfile.open(fileobj=io.BytesIO(payload), mode=mode)  # type: ignore[call-overload]
 
         try:
             for member in tf.getmembers():
@@ -236,12 +236,12 @@ class ArchiveFileFormat(FileFormat):
         archive_type: str,
     ) -> bytes:
         buf = io.BytesIO()
+        raw_buf = io.BytesIO()
         if archive_type == "tar.zst":
-            raw_buf = io.BytesIO()
             tf = tarfile.open(fileobj=raw_buf, mode="w:")
         else:
             mode = ArchiveFileFormat._tar_write_modes.get(archive_type, "w:")
-            tf = tarfile.open(fileobj=buf, mode=mode)
+            tf = tarfile.open(fileobj=buf, mode=mode)  # type: ignore[call-overload]
 
         try:
             for member_name, member_records in grouped.items():

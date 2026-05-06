@@ -116,7 +116,7 @@ class JiraClient(ApiClient, TableSource):
     ) -> tuple[list[Mapping[str, Any]], str | None]:
         if not isinstance(response, Mapping):
             return [], None
-        issues = list(response.get("issues") or ())
+        issues: list[Mapping[str, Any]] = list(response.get("issues") or [])
         total = response.get("total")
         response_start = response.get("startAt", start_at)
         response_max = response.get("maxResults", max_results)

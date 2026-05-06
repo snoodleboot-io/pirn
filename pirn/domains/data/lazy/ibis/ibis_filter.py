@@ -74,4 +74,4 @@ class IbisFilter(Knot):
         if not callable(predicate):
             raise TypeError("IbisFilter: predicate must be a callable (table) -> ibis.Expr")
         expression = predicate(batch.expression)
-        return batch.with_expression(batch.expression.filter(expression))
+        return batch.with_expression(batch.expression.filter(expression))  # type: ignore[arg-type]

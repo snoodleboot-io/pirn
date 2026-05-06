@@ -55,12 +55,16 @@ class CouchbasePool(DatabaseConnectionPool):
     async def execute(self, query: str, *args: Any) -> str:
         """Execute a N1QL/SQL++ query; returns status string."""
         await self._ensure_cluster()
+        if self._cluster is None:
+            raise RuntimeError("CouchbasePool: not connected — call connect() first")
         result = await asyncio.to_thread(self._cluster.query, query, *args)
         return str(result.meta_data().status)
 
     async def fetch_all(self, query: str, *args: Any) -> list[Any]:
         """Execute a N1QL/SQL++ query and return all result rows."""
         await self._ensure_cluster()
+        if self._cluster is None:
+            raise RuntimeError("CouchbasePool: not connected — call connect() first")
         result = await asyncio.to_thread(self._cluster.query, query, *args)
         return list(result.rows())
 

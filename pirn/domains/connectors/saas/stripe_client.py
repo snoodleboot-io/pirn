@@ -108,7 +108,7 @@ class StripeClient(ApiClient, TableSource):
         if limit is not None:
             params["limit"] = limit
         response = await self.request("GET", f"/v1/{object_type}", params=params or None)
-        rows = list(response.get("data") or ())
+        rows: list[Mapping[str, Any]] = list(response.get("data") or [])
         has_more = bool(response.get("has_more"))
         next_cursor = rows[-1].get("id") if has_more and rows else None
         return rows, next_cursor

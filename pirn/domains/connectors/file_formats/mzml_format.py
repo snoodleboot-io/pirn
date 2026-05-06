@@ -193,7 +193,7 @@ class MzmlFormat(BatchFileFormat):
     @staticmethod
     def _load_lxml() -> Any:
         try:
-            from lxml import etree
+            from lxml import etree  # type: ignore[attr-defined]
         except ImportError as exc:
             raise ImportError(
                 "MzmlFormat requires lxml. Install with `pip install pirn[health]`."

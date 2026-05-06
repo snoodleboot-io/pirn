@@ -116,10 +116,10 @@ class PandasAggregate(Knot):
                     series = group[spec.source]
                 else:
                     series = pd.Series(dtype=object)
-                row[output_name] = self._apply(spec.function, series)
+                row[output_name] = self._apply(spec.function, series)  # type: ignore[arg-type]
             out_rows.append(row)
         column_order = list(by_tuple) + list(aggs_dict.keys())
-        result = pd.DataFrame(out_rows, columns=column_order)
+        result = pd.DataFrame(out_rows, columns=column_order)  # type: ignore[arg-type]
         return batch.with_frame(result)
 
     def _apply(self, function: str, series: pd.Series) -> Any:

@@ -78,7 +78,7 @@ class PolarsCast(Knot):
         }
         if not applicable:
             return batch
-        return batch.with_frame(batch.frame.cast(applicable))
+        return batch.with_frame(batch.frame.cast(applicable))  # type: ignore[arg-type]
 
     def _normalise_dtype(self, column: str, dtype: Any) -> pl.DataType:
         # Already a Polars dtype? Pass through.
