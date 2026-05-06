@@ -107,7 +107,7 @@ def _extract_coercible_type(hint: Any) -> tuple[Any, Any] | None:
     if len(adapter_args) == 1:
         adapter_type: Any = adapter_args[0]
     elif adapter_args:
-        adapter_type = Union[tuple(adapter_args)]
+        adapter_type = Union[tuple(adapter_args)]  # noqa: UP007
     else:
         adapter_type = coerce_type
 
@@ -131,7 +131,7 @@ class Knot:
 
     # Populated by __init_subclass__ for each class that defines process().
     # Maps param name -> scalar type extracted from ``Knot | T`` union hints.
-    _coercible_params: dict[str, Any] = {}
+    _coercible_params: dict[str, Any] = {}  # noqa: RUF012
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)

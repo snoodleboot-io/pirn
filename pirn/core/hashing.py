@@ -26,7 +26,6 @@ from typing import Any
 
 from pydantic import BaseModel, TypeAdapter
 
-
 # Module-level cache to avoid rebuilding ``TypeAdapter`` per
 # ``_canonicalise`` call. Constructing a TypeAdapter walks the type and
 # builds a schema/validator pair (~10-100 µs); at millions of

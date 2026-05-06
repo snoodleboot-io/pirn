@@ -9,9 +9,9 @@ from typing import TYPE_CHECKING, Any
 from pirn.backends.base.subscribable_store import SubscribableStore
 
 _logger = logging.getLogger(__name__)
-from pirn.backends.base.tapestry_snapshot import TapestrySnapshot
-from pirn.backends.base.tapestry_store import TapestryStore
-from pirn.backends.valkey._lazy_client import _LazyClient
+from pirn.backends.base.tapestry_snapshot import TapestrySnapshot  # noqa: E402
+from pirn.backends.base.tapestry_store import TapestryStore  # noqa: E402
+from pirn.backends.valkey._lazy_client import _LazyClient  # noqa: E402
 
 if TYPE_CHECKING:
     from pirn.core.knot import Knot

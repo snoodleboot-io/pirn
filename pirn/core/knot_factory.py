@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import asyncio
 import functools
-from inspect import iscoroutinefunction
 from collections.abc import Callable
+from inspect import iscoroutinefunction
 from typing import Any
 
 from pirn.core.knot import Knot
