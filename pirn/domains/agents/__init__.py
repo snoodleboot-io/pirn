@@ -13,4 +13,4 @@ See ``planning/current/domain-knot-libraries-prd.md`` for the full catalog.
 
 from pirn.domains.agents.tool_decorator import FunctionTool, tool
 
-__all__ = ["tool", "FunctionTool"]
+__all__ = ["FunctionTool", "tool"]

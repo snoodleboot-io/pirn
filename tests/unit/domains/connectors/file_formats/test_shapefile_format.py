@@ -1,11 +1,11 @@
 """Round-trip and validation tests for :class:`ShapefileFormat`."""
 
 from __future__ import annotations
+
 import unittest
 
-
 try:
-    import shapefile
+    import shapefile  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("shapefile not installed") from _e
 

@@ -84,10 +84,10 @@ class RationalResamplerPipeline(Knot):
                 "RationalResamplerPipeline: downsample_factor must be a positive integer"
             )
         common = gcd(upsample_factor, downsample_factor)
-        l = upsample_factor // common
+        up = upsample_factor // common
         m = downsample_factor // common
-        new_rate = (signal.sample_rate_hz * l) / m
-        new_samples = (signal.samples_per_channel * l) // m
+        new_rate = (signal.sample_rate_hz * up) / m
+        new_samples = (signal.samples_per_channel * up) // m
         return SignalFrame(
             signal_id=f"{signal.signal_id}:rational",
             channel_count=signal.channel_count,

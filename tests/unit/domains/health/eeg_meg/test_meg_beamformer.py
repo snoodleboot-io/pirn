@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.domains.health.eeg_meg.meg_beamformer import MEGBeamformer
 from pirn.tapestry import Tapestry
-
 
 _MEG_DATA: dict[str, Any] = {
     "n_channels": 306,

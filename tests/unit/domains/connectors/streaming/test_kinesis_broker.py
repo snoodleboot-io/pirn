@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 from pirn.domains.connectors.message_broker import MessageBroker
 from pirn.domains.connectors.streaming.kinesis_broker import KinesisBroker
 from pirn.domains.connectors.streaming.kinesis_config import KinesisConfig
-
 
 # ──────────────────────────────────────────────────────────── stub client
 
@@ -17,13 +15,17 @@ from pirn.domains.connectors.streaming.kinesis_config import KinesisConfig
 class StubKinesis:
     """Mirrors the slice of the aioboto3 Kinesis client surface we depend on."""
 
-    def __init__(self, *, records: list[dict[str, Any]] | None = None, shards: list[str] | None = None,) -> None:
+    def __init__(
+        self, *, records: list[dict[str, Any]] | None = None, shards: list[str] | None = None,
+    ) -> None:
         self.put_records: list[dict[str, Any]] = []
         self._records = records or []
         self._shards = shards or ["shard-000"]
         self.closed = False
 
-    async def put_record(self, *, StreamName: str, Data: bytes, PartitionKey: str) -> dict[str, Any]:
+    async def put_record(
+        self, *, StreamName: str, Data: bytes, PartitionKey: str
+    ) -> dict[str, Any]:
         self.put_records.append(
             {"StreamName": StreamName, "Data": Data, "PartitionKey": PartitionKey}
         )
@@ -36,7 +38,9 @@ class StubKinesis:
             }
         }
 
-    async def get_shard_iterator(self, *, StreamName: str, ShardId: str, ShardIteratorType: str,) -> dict[str, Any]:
+    async def get_shard_iterator(
+        self, *, StreamName: str, ShardId: str, ShardIteratorType: str,
+    ) -> dict[str, Any]:
         return {"ShardIterator": f"iter:{ShardId}"}
 
     async def get_records(self, *, ShardIterator: str) -> dict[str, Any]:

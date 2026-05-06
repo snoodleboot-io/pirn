@@ -12,5 +12,4 @@ and unit-tests; only the knots that need the real SDKs at runtime fail.
 
 from __future__ import annotations
 
-
 __all__: list[str] = []

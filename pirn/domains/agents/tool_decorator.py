@@ -26,12 +26,11 @@ from __future__ import annotations
 
 import asyncio
 import inspect
-from inspect import iscoroutinefunction
 from collections.abc import Callable, Mapping
+from inspect import iscoroutinefunction
 from typing import Any, Union, get_type_hints
 
 from pirn.domains.agents.tool import Tool
-
 
 # ---------------------------------------------------------------------------
 # JSON Schema type mapping

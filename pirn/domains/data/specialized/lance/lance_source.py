@@ -24,9 +24,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.data.specialized.lance.lance_dataset import LanceDataset
-from pirn.core.knot import Knot
 from pirn.nodes.source import Source
 
 

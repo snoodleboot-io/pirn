@@ -5,14 +5,12 @@ Uses injected fakes — no real Firestore or google-cloud-firestore needed.
 
 from __future__ import annotations
 
-from typing import Any, AsyncIterator
 import unittest
-
+from typing import Any
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.document.firestore_config import FirestoreConfig
 from pirn.domains.connectors.document.firestore_pool import FirestorePool
-
 
 # ──────────────────────────────────────────────────────────── fakes
 
@@ -40,18 +38,18 @@ class FakeCollectionRef:
         self.added.append(doc)
         return (None, FakeDocRef("new-doc-id"))
 
-    def where(self, field: str, op: str, value: Any) -> "FakeCollectionRef":
+    def where(self, field: str, op: str, value: Any) -> FakeCollectionRef:
         col = FakeCollectionRef(self._docs)
-        col._filters = list(self._filters) + [(field, op, value)]
+        col._filters = [*list(self._filters), (field, op, value)]
         return col
 
     def document(self) -> FakeDocRef:
         return FakeDocRef("batch-doc-id")
 
-    def stream(self) -> "FakeCollectionRef":
+    def stream(self) -> FakeCollectionRef:
         return self
 
-    def __aiter__(self) -> "FakeCollectionRef":
+    def __aiter__(self) -> FakeCollectionRef:
         self._iter = iter(self._docs)
         return self
 
@@ -59,7 +57,7 @@ class FakeCollectionRef:
         try:
             return FakeDocSnapshot(next(self._iter))
         except StopIteration:
-            raise StopAsyncIteration
+            raise StopAsyncIteration from None
 
 
 class FakeBatch:
@@ -127,7 +125,7 @@ class _StandaloneTests(unittest.TestCase):
 
 class TestOperations(unittest.IsolatedAsyncioTestCase):
     async def test_execute_adds_document(self) -> None:
-        pool, fake_client = make_pool()
+        pool, _fake_client = make_pool()
         doc = {"name": "Alice", "age": 30}
         result = await pool.execute("users", doc)
         assert result == "new-doc-id"

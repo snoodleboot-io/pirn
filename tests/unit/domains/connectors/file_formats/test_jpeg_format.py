@@ -6,11 +6,11 @@ the decoded payload has the expected data length.
 """
 
 from __future__ import annotations
+
 import unittest
 
-
 try:
-    import PIL
+    import PIL  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("PIL not installed") from _e
 

@@ -16,7 +16,8 @@ In addition to :meth:`request`, the client implements:
 from __future__ import annotations
 
 import logging
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.bi_catalog.airbyte_config import AirbyteConfig

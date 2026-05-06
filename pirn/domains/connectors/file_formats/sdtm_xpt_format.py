@@ -55,7 +55,7 @@ class SdtmXptFormat(BatchFileFormat):
         column_labels: dict[str, str] = {}
         if hasattr(meta, "column_labels") and meta.column_labels:
             column_labels = dict(
-                zip(meta.column_names, meta.column_labels)
+                zip(meta.column_names, meta.column_labels, strict=False)
             )
         file_label: str = ""
         if hasattr(meta, "file_label") and meta.file_label:

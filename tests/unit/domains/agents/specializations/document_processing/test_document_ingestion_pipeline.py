@@ -2,16 +2,15 @@
 
 from __future__ import annotations
 
+import tempfile
+import unittest
 from collections.abc import AsyncIterator, Mapping
 from pathlib import Path
 from typing import Any
-import unittest
-import tempfile
-
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.agents.memory_store import MemoryStore
-from pirn.domains.agents.specializations.document_processing.document_ingestion_pipeline import (  # noqa: E501
+from pirn.domains.agents.specializations.document_processing.document_ingestion_pipeline import (
     DocumentIngestionPipeline,
 )
 from pirn.tapestry import Tapestry

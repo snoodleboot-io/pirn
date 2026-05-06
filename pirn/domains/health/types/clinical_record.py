@@ -9,7 +9,7 @@ through the pipeline.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
@@ -22,7 +22,7 @@ class ClinicalRecord(PirnOpaqueValue):
     patient_id: str = ""
     encounter_id: str = ""
     observation_codes: tuple[str, ...] = ()
-    observed_at: datetime = datetime(1970, 1, 1, tzinfo=timezone.utc)
+    observed_at: datetime = datetime(1970, 1, 1, tzinfo=UTC)
     source_system: str = ""
 
     def _pirn_audit_dict(self) -> dict[str, Any]:

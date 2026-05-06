@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import unittest
+from datetime import UTC, datetime
 
 from pirn.domains.agents.types.agent_message import AgentMessage
 
@@ -17,7 +17,7 @@ class TestRoundtrip(unittest.TestCase):
         assert msg.name is None
 
     def test_construct_full_fields(self) -> None:
-        when = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        when = datetime(2026, 1, 1, tzinfo=UTC)
         msg = AgentMessage(
             role="tool",
             content="42",

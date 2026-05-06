@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import unittest
+from datetime import UTC, datetime
 
 from pirn.domains.oilgas.types.scada_time_series import ScadaTimeSeries
 
@@ -17,7 +17,7 @@ class TestConstruction(unittest.TestCase):
         assert isinstance(series.fetched_at, datetime)
 
     def test_full_values(self) -> None:
-        when = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        when = datetime(2026, 1, 1, tzinfo=UTC)
         series = ScadaTimeSeries(
             sensor_id="s",
             sample_count=10,
@@ -32,7 +32,7 @@ class TestConstruction(unittest.TestCase):
 
 class TestAuditDict(unittest.TestCase):
     def test_audit_dict_keys(self) -> None:
-        when = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        when = datetime(2026, 1, 1, tzinfo=UTC)
         series = ScadaTimeSeries(
             sensor_id="s",
             sample_count=2,

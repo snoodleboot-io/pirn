@@ -23,8 +23,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Mapping
 from datetime import datetime
-from typing import Any, Mapping
+from typing import Any
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.capabilities.event_emitter import EventEmitter
@@ -249,6 +250,8 @@ class DatadogClient(ApiClient, TableSource, EventEmitter, MetricQuery):
         try:
             from datadog_api_client import (  # type: ignore[import-not-found]
                 ApiClient as DatadogApiClient,
+            )
+            from datadog_api_client import (
                 Configuration,
             )
         except ImportError as exc:

@@ -1,8 +1,8 @@
 """Tests for :class:`EmbeddingProvider`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.domains.ml.embedding_provider import EmbeddingProvider
 

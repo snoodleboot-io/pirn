@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 from pirn.domains.connectors.message_broker import MessageBroker
 from pirn.domains.connectors.streaming.azure_servicebus_broker import (
@@ -13,7 +12,6 @@ from pirn.domains.connectors.streaming.azure_servicebus_broker import (
 from pirn.domains.connectors.streaming.azure_servicebus_config import (
     AzureServiceBusConfig,
 )
-
 
 # ──────────────────────────────────────────────────────────── stub layer
 
@@ -24,7 +22,7 @@ class StubSender:
         self.entered = False
         self.exited = False
 
-    async def __aenter__(self) -> "StubSender":
+    async def __aenter__(self) -> StubSender:
         self.entered = True
         return self
 
@@ -42,14 +40,14 @@ class StubReceiver:
         self.entered = False
         self.exited = False
 
-    async def __aenter__(self) -> "StubReceiver":
+    async def __aenter__(self) -> StubReceiver:
         self.entered = True
         return self
 
     async def __aexit__(self, *_args: Any) -> None:
         self.exited = True
 
-    def __aiter__(self) -> "StubReceiver":
+    def __aiter__(self) -> StubReceiver:
         return self
 
     async def __anext__(self) -> Any:

@@ -8,16 +8,14 @@ can assert against exact lineage shape.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
-from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.domains.signal.types.signal_frame import SignalFrame
 
-
-_FIXED_FETCHED_AT = datetime(2026, 1, 1, tzinfo=timezone.utc)
+_FIXED_FETCHED_AT = datetime(2026, 1, 1, tzinfo=UTC)
 
 
 def make_signal_frame(

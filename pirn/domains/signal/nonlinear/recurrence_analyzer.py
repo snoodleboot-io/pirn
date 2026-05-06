@@ -5,7 +5,7 @@ Algorithm:
     2. Validate embedding_dim and time_delay (positive integers) and
        recurrence_threshold (positive float).
     3. Reconstruct the phase space via Takens delay embedding.
-    4. Build the recurrence matrix R(i, j) = Θ(ε − ‖x_i − x_j‖).
+    4. Build the recurrence matrix R(i, j) = Theta(eps - ||x_i - x_j||).
     5. Compute RQA measures: recurrence rate (RR), determinism (DET),
        average diagonal line length (L), laminarity (LAM), trapping time (TT).
     6. Return a result mapping with the RQA measures and parameters.
@@ -27,7 +27,8 @@ References:
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig

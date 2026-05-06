@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import unittest
 from collections.abc import Mapping
 from typing import Any
-import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.agents.specializations.memory_patterns.procedural_memory_writer import (

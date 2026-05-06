@@ -1,6 +1,7 @@
 """Tests for :class:`DatafusionToDataBatch`."""
 
 from __future__ import annotations
+
 import unittest
 
 import datafusion as df

@@ -1,4 +1,5 @@
-"""Tests for :class:`pirn.domains.connectors.object_storage.local_filesystem_config.LocalFilesystemConfig`."""
+"""Tests for :class:`pirn.domains.connectors.object_storage.local_filesystem_config.LocalFilesystemConfig`.
+"""
 
 from __future__ import annotations
 

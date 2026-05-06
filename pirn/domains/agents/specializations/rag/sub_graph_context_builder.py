@@ -119,4 +119,4 @@ class SubGraphContextBuilder(Knot):
             }
             for relation in relations
         ]
-        return [{"hops": hop_count}] + block_entities + block_relations
+        return [{"hops": hop_count}, *block_entities, *block_relations]

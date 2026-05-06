@@ -7,15 +7,13 @@ real Twilio account needed.
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.capabilities.record_writer import RecordWriter
 from pirn.domains.connectors.saas.twilio_client import TwilioClient
 from pirn.domains.connectors.saas.twilio_config import TwilioConfig
-
 
 # ──────────────────────────────────────────────────────────── fake client
 
@@ -26,7 +24,9 @@ class FakeTwilioClient:
         self.response: Any = {"sid": "SM123", "status": "queued"}
         self.closed = False
 
-    def request(self, method: str, uri: str, params: Any = None, data: Any = None, headers: Any = None,) -> Any:
+    def request(
+        self, method: str, uri: str, params: Any = None, data: Any = None, headers: Any = None,
+    ) -> Any:
         self.calls.append((method, uri, params, data, headers))
         return self.response
 

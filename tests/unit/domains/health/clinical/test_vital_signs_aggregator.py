@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 import unittest
-
+from collections.abc import Mapping
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.clinical.vital_signs_aggregator import (
     VitalSignsAggregator,
 )
-
 
 _CFG = KnotConfig(id="a")
 _KNOT = VitalSignsAggregator(rows=[], _config=_CFG)

@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 from pirn.domains.connectors.message_broker import MessageBroker
 from pirn.domains.connectors.streaming.kafka_broker import KafkaBroker
 from pirn.domains.connectors.streaming.kafka_config import KafkaConfig
-
 
 # ───────────────────────────────────────────────────────── stub producer
 
@@ -26,7 +24,10 @@ class StubProducer:
     async def stop(self) -> None:
         self.stopped = True
 
-    async def send_and_wait(self, topic: str, *, value: bytes, key: bytes | None = None, headers: list[tuple[str, bytes]] | None = None,) -> None:
+    async def send_and_wait(
+        self, topic: str, *, value: bytes,
+        key: bytes | None = None, headers: list[tuple[str, bytes]] | None = None,
+    ) -> None:
         self.published.append(
             {"topic": topic, "value": value, "key": key, "headers": headers}
         )

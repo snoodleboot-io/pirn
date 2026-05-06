@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import unittest
+from datetime import UTC, datetime
 
 from pirn.domains.ml.types.eval_report import EvalReport
 
 
 class TestEvalReport(unittest.TestCase):
     def test_construction_and_audit_dict(self) -> None:
-        evaluated_at = datetime(2026, 4, 29, 8, 0, tzinfo=timezone.utc)
+        evaluated_at = datetime(2026, 4, 29, 8, 0, tzinfo=UTC)
         report = EvalReport(
             model_id="rf:xyz",
             metrics={"accuracy": 0.91, "f1": 0.87},

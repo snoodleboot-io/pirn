@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import io
+import unittest
 import zipfile
 from unittest.mock import patch
-import unittest
-
 
 try:
-    import bids
+    import bids  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("bids not installed") from _e
 
@@ -22,7 +21,6 @@ from pirn.domains.connectors.file_formats.bids_dataset_format import (
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

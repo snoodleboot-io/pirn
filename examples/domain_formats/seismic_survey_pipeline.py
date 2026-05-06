@@ -34,8 +34,8 @@ import hashlib
 import math
 import random
 import struct
-from pathlib import Path
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, ClassVar
 
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
@@ -140,7 +140,9 @@ def _rng(survey: str, extra: str = "") -> random.Random:
     return random.Random(seed)
 
 
-def _synthetic_traces(survey_name: str, n_traces: int = 120, n_samples: int = 500) -> list[TraceRecord]:
+def _synthetic_traces(
+    survey_name: str, n_traces: int = 120, n_samples: int = 500
+) -> list[TraceRecord]:
     """Return synthetic trace records shaped like SegyFormat output."""
     rng = _rng(survey_name)
     records: list[TraceRecord] = []
@@ -390,7 +392,7 @@ class HorizonPicker(Knot):
         peaks.sort(key=lambda x: x[0])
 
         horizons: list[HorizonPick] = []
-        for (idx, amp), name in zip(peaks, self._HORIZON_NAMES):
+        for (idx, amp), name in zip(peaks, self._HORIZON_NAMES, strict=False):
             twt_ms = idx * dt_ms
             consistency = sum(
                 1 for t in survey.traces if abs(t[idx]) > threshold * 0.5

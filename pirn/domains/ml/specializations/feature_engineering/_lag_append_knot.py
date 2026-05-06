@@ -19,8 +19,9 @@ References:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Sequence
+from collections.abc import Sequence
+from datetime import UTC, datetime
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -82,7 +83,7 @@ class _LagAppendKnot(Knot):
         lag_tuple = tuple(lags)
         if not lag_tuple:
             raise ValueError("_LagAppendKnot: lags must be non-empty")
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return DataSplit(
             train=self._add_lag_features(split.train, column_tuple, lag_tuple, now),
             test=self._add_lag_features(split.test, column_tuple, lag_tuple, now),

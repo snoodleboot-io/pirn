@@ -20,7 +20,7 @@ Math:
     declining production.
 
 References:
-    - Arps, J.J. (1945). Analysis of decline curves. *Trans. AIME*, 160, 228–247.
+    - Arps, J.J. (1945). Analysis of decline curves. *Trans. AIME*, 160, 228-247.
     - Ahmed, T. (2010). *Reservoir Engineering Handbook*, 4th ed. Gulf
       Professional Publishing, Chapter 11.
 """

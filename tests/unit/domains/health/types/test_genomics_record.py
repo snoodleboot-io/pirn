@@ -1,6 +1,7 @@
 """Unit tests for :class:`GenomicsRecord`."""
 
 from __future__ import annotations
+
 import unittest
 
 from pirn.domains.health.types.genomics_record import GenomicsRecord

@@ -10,7 +10,7 @@ Algorithm:
        :class:`LLMProvider`, ``top_k`` a positive integer.
     3. If ``documents`` is empty, return ``[]`` immediately.
     4. For each document, extract its text representation and ask the LLM
-       to score its relevance to ``query`` on a 0.0–1.0 scale.
+       to score its relevance to ``query`` on a 0.0-1.0 scale.
     5. Parse the LLM response as a float; default to 0.0 on parse error.
     6. Sort documents descending by score and return the top ``top_k``.
 

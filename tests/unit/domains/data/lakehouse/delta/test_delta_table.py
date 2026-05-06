@@ -70,7 +70,7 @@ class StubDt:
             {"version": 1, "operation": "MERGE"},
         ]
 
-    def merge(self, *, source: Any, predicate: str, source_alias: str, target_alias: str,) -> _Builder:
+    def merge(self, *, source: Any, predicate: str, source_alias: str, target_alias: str,) -> Any:
         self.merge_calls.append(
             {
                 "predicate": predicate,

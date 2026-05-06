@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
@@ -17,7 +17,7 @@ class ScadaTimeSeries(PirnOpaqueValue):
     sample_count: int = 0
     sample_interval_sec: float = 0.0
     fetched_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
 
     def _pirn_audit_dict(self) -> dict[str, Any]:

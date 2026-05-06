@@ -11,7 +11,8 @@ Install with ``pirn[lz4]``.
 
 from __future__ import annotations
 
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 from pirn.domains.connectors.file_formats.codec import Codec
 

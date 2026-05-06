@@ -7,7 +7,8 @@ and can fetch full metadata for a specific entity id.
 
 from __future__ import annotations
 
-from typing import Any, AsyncIterator, Mapping
+from collections.abc import AsyncIterator, Mapping
+from typing import Any
 
 
 class MetadataCatalog:

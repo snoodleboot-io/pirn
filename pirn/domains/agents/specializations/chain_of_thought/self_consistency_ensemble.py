@@ -87,7 +87,7 @@ class SelfConsistencyEnsemble(Knot):
         normalised = [a.strip().lower() for a in answers]
         counts: Counter[str] = Counter(normalised)
         top_normal = counts.most_common(1)[0][0]
-        for original, norm in zip(answers, normalised):
+        for original, norm in zip(answers, normalised, strict=False):
             if norm == top_normal:
                 return original.strip()
         return answers[0].strip()

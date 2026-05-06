@@ -1,12 +1,12 @@
 """Tests for :class:`JsonExtractorPipeline`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.agents.specializations.structured_output.json_extractor_pipeline import (  # noqa: E501
+from pirn.domains.agents.specializations.structured_output.json_extractor_pipeline import (
     JsonExtractorPipeline,
 )
 from pirn.tapestry import Tapestry

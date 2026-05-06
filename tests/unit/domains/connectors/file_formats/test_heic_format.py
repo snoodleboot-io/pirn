@@ -6,15 +6,15 @@ expected raw length.
 """
 
 from __future__ import annotations
+
 import unittest
 
-
 try:
-    import PIL
+    import PIL  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("PIL not installed") from _e
 try:
-    import pillow_heif
+    import pillow_heif  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("pillow_heif not installed") from _e
 

@@ -1,6 +1,7 @@
 """Tests for :class:`GreatExpectationsPandasValidator`."""
 
 from __future__ import annotations
+
 import unittest
 
 import pandas as pd

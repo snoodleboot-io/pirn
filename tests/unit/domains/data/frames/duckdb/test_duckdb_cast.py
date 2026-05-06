@@ -1,6 +1,7 @@
 """Tests for :class:`DuckdbCast`."""
 
 from __future__ import annotations
+
 import unittest
 
 import duckdb
@@ -46,7 +47,7 @@ class TestDuckdbCast(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         out: DuckdbDataBatch = result.outputs["casted"]
         # DuckDB returns lower-case logical type names.
-        type_by_column = dict(zip(out.column_names, out.relation.types))
+        type_by_column = dict(zip(out.column_names, out.relation.types, strict=False))
         assert "INTEGER" in str(type_by_column["id"]).upper()
         assert "DOUBLE" in str(type_by_column["amount"]).upper()
 
@@ -73,7 +74,7 @@ class TestDuckdbCast(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         out: DuckdbDataBatch = result.outputs["casted"]
-        type_by_column = dict(zip(out.column_names, out.relation.types))
+        type_by_column = dict(zip(out.column_names, out.relation.types, strict=False))
         assert "DECIMAL" in str(type_by_column["amount"]).upper()
 
 
@@ -93,7 +94,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         out: DuckdbDataBatch = result.outputs["casted"]
-        type_by_column = dict(zip(out.column_names, out.relation.types))
+        type_by_column = dict(zip(out.column_names, out.relation.types, strict=False))
         assert "INTEGER" in str(type_by_column["id"]).upper()
 
 

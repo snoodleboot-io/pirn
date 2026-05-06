@@ -26,7 +26,8 @@ References:
 
 from __future__ import annotations
 
-from typing import Any, Mapping, Sequence
+from collections.abc import Mapping, Sequence
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -130,7 +131,7 @@ class AblationStudyPipeline(SubTapestry):
                     "AblationStudyPipeline: every metric name must be a non-empty string"
                 )
         frozen_groups = {name: tuple(cols) for name, cols in fg.items()}
-        arm_names = [self._full_arm_name] + sorted(frozen_groups.keys())
+        arm_names = [self._full_arm_name, *sorted(frozen_groups.keys())]
         with Tapestry() as inner:
             split_node = _emit_value(
                 value=split, _config=KnotConfig(id="split")

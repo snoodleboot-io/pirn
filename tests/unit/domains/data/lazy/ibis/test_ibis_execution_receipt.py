@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import unittest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pirn.domains.data.lazy.ibis.ibis_execution_receipt import IbisExecutionReceipt
 
@@ -21,7 +21,7 @@ class TestIbisExecutionReceipt(unittest.TestCase):
         self.assertIsNone(receipt.row_count)
 
     def test_construction_with_all_fields(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         receipt = IbisExecutionReceipt(
             backend_name="sqlite",
             target_table="output_table",

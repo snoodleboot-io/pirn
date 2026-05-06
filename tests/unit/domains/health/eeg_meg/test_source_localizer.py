@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 import unittest
-
+from collections.abc import Mapping
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.eeg_meg.source_localizer import SourceLocalizer
 from pirn.domains.health.types.signal_frame import SignalFrame
-
 
 _CFG = KnotConfig(id="s")
 _SIGNAL = SignalFrame()

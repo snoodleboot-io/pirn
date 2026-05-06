@@ -8,7 +8,7 @@ import unittest
 import pytest
 
 try:
-    import pydub
+    import pydub  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("pydub not installed") from _e
 

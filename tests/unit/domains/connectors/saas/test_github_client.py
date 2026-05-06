@@ -7,15 +7,13 @@ needed.
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.capabilities.table_source import TableSource
 from pirn.domains.connectors.saas.github_client import GitHubClient
 from pirn.domains.connectors.saas.github_config import GitHubConfig
-
 
 # ──────────────────────────────────────────────────────────── fake client
 
@@ -25,7 +23,9 @@ class FakeRequester:
         self.calls: list[tuple[str, str, Any, Any, Any]] = []
         self.response: Any = ({"X-Stub": "1"}, {"ok": True})
 
-    def requestJsonAndCheck(self, method: str, url: str, parameters: Any, headers: Any, input: Any,) -> Any:
+    def requestJsonAndCheck(
+        self, method: str, url: str, parameters: Any, headers: Any, input: Any,
+    ) -> Any:
         self.calls.append((method, url, parameters, headers, input))
         return self.response
 

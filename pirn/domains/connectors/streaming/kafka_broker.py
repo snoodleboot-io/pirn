@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, AsyncIterator, Callable
+from collections.abc import AsyncIterator, Callable
+from typing import Any
 
 from pirn.domains.connectors.message_broker import MessageBroker
 from pirn.domains.connectors.streaming.kafka_config import KafkaConfig

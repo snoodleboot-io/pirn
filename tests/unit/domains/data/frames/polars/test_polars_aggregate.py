@@ -51,7 +51,7 @@ class TestPolarsAggregate(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         out: PolarsDataBatch = result.outputs["agg"]
-        totals = dict(zip(out.frame["region"].to_list(), out.frame["total"].to_list()))
+        totals = dict(zip(out.frame["region"].to_list(), out.frame["total"].to_list(), strict=False))
         assert totals["EU"] == 40.0
         assert totals["US"] == 100.0
 

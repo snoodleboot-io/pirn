@@ -6,14 +6,12 @@ Server installation needed.
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.databases.mssql_config import MssqlConfig
 from pirn.domains.connectors.databases.mssql_pool import MssqlPool
-
 
 # ──────────────────────────────────────────────────────────── fake pool
 
@@ -21,7 +19,7 @@ from pirn.domains.connectors.databases.mssql_pool import MssqlPool
 class FakeMssqlCursor:
     def __init__(
         self, parent: FakeMssqlConnection
-    ) -> None:  # noqa: F821 - forward ref OK
+    ) -> None:
         self._parent = parent
         self._last_query: str | None = None
         self.rowcount = 0
@@ -46,7 +44,7 @@ class FakeMssqlCursor:
 
 
 class FakeMssqlConnection:
-    def __init__(self, parent_pool: FakeAioodbcPool) -> None:  # noqa: F821
+    def __init__(self, parent_pool: FakeAioodbcPool) -> None:
         self.parent_pool = parent_pool
         self.committed = 0
 

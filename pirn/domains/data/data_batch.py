@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Mapping
+from datetime import UTC, datetime
+from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 from pirn.domains.data.data_schema import DataSchema
@@ -37,14 +38,14 @@ class DataBatch(PirnOpaqueValue):
     schema: DataSchema = field(default_factory=DataSchema)
     source_uri: str = ""
     fetched_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
 
     @property
     def row_count(self) -> int:
         return len(self.rows)
 
-    def with_rows(self, rows: tuple[Mapping[str, Any], ...]) -> "DataBatch":
+    def with_rows(self, rows: tuple[Mapping[str, Any], ...]) -> DataBatch:
         """Copy with ``rows`` replaced; schema/uri/fetched_at preserved."""
         return DataBatch(
             rows=rows,
@@ -53,7 +54,7 @@ class DataBatch(PirnOpaqueValue):
             fetched_at=self.fetched_at,
         )
 
-    def with_schema(self, schema: DataSchema) -> "DataBatch":
+    def with_schema(self, schema: DataSchema) -> DataBatch:
         """Copy with ``schema`` replaced; rows preserved."""
         return DataBatch(
             rows=self.rows,

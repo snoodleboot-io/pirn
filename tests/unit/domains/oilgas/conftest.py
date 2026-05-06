@@ -10,7 +10,7 @@ process behaviour.
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Mapping
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -139,4 +139,4 @@ def sample_scada_series() -> ScadaTimeSeries:
 
 @pytest.fixture
 def fixed_since() -> datetime:
-    return datetime(2026, 1, 1, tzinfo=timezone.utc)
+    return datetime(2026, 1, 1, tzinfo=UTC)

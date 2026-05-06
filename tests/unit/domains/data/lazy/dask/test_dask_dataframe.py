@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import unittest
-from datetime import datetime, timezone
-from unittest.mock import MagicMock
+from datetime import UTC, datetime
 
 try:
     import dask.dataframe as dd
@@ -40,7 +39,7 @@ class TestDaskDataFrame(unittest.TestCase):
 
     def test_with_frame_preserves_metadata(self) -> None:
         frame = _make_dask_frame()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         ddf = DaskDataFrame(frame=frame, backend_name="custom", source_uri="s3://b/k", fetched_at=now)
         new_frame = _make_dask_frame()
         ddf2 = ddf.with_frame(new_frame)

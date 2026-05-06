@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 import unittest
+from collections.abc import Mapping
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.mri.region_of_interest_extractor import RegionOfInterestExtractor

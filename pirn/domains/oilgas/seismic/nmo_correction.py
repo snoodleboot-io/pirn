@@ -18,7 +18,7 @@ Math:
 
 References:
     - Dix, C.H. (1955). Seismic velocities from surface measurements.
-      *Geophysics*, 20(1), 68–86.
+      *Geophysics*, 20(1), 68-86.
     - Yilmaz, Ö. (2001). *Seismic Data Analysis*, 2nd ed. SEG, Chapter 3
       (NMO correction and stacking velocity analysis).
 """

@@ -22,8 +22,9 @@ References:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Sequence
+from collections.abc import Sequence
+from datetime import UTC, datetime
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -91,7 +92,7 @@ class _FeatureStoreReaderKnot(Knot):
         # providers fail loudly at run time.
         probe_keys = [{key: "" for key in entity_key_tuple}]
         await feature_store.get_features(probe_keys, feature_name_tuple)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return DataSplit(
             train=self._extend(split.train, feature_name_tuple, now),
             test=self._extend(split.test, feature_name_tuple, now),

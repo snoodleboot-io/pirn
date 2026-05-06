@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import unittest
+from datetime import UTC, datetime
 
 from pirn.domains.health.types.dicom_series import DICOMSeries
 
@@ -17,7 +17,7 @@ class TestConstruction(unittest.TestCase):
         assert series.num_frames == 0
 
     def test_full(self) -> None:
-        when = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        when = datetime(2026, 1, 1, tzinfo=UTC)
         series = DICOMSeries(
             study_uid="ST",
             series_uid="SE",
@@ -34,7 +34,7 @@ class TestConstruction(unittest.TestCase):
 
 class TestAuditDict(unittest.TestCase):
     def test_audit_dict_primitives(self) -> None:
-        when = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        when = datetime(2026, 1, 1, tzinfo=UTC)
         series = DICOMSeries(
             study_uid="ST",
             series_uid="SE",

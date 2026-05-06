@@ -39,7 +39,7 @@ class OpenSlideFormat(BatchFileFormat):
         tile_size: Tile size in pixels used when recording ``tile_size``
             in each level record. Default 256.
         max_decode_pixels: If set, levels whose total pixel count
-            (width × height) is ≤ this value will have their raw RGB
+            (width x height) is <= this value will have their raw RGB
             bytes materialised into the ``data`` field. Levels above
             the threshold emit ``data=None``. If ``None`` (default),
             ``data`` is always ``None``.
@@ -135,7 +135,6 @@ class OpenSlideFormat(BatchFileFormat):
     def _read_level_bytes(
         slide: Any, level: int, dimensions: tuple[int, int]
     ) -> bytes:
-        from PIL import Image as PilImage
 
         region = slide.read_region((0, 0), level, dimensions)
         rgb = region.convert("RGB")

@@ -18,7 +18,7 @@ References:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -75,7 +75,7 @@ class TFIDFExtractor(Knot):
             raise TypeError("TFIDFExtractor: max_features must be an int")
         if max_features < 1:
             raise ValueError("TFIDFExtractor: max_features must be >= 1")
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return DataSplit(
             train=self._add_tfidf_features(split.train, text_column, max_features, now),
             test=self._add_tfidf_features(split.test, text_column, max_features, now),

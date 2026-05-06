@@ -6,12 +6,11 @@ unsigned payloads unless the caller passes ``allow_unsigned=True``.
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 try:
-    import joblib
+    import joblib  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("joblib not installed") from _e
 

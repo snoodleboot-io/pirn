@@ -17,8 +17,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.connectors.object_store import ObjectStore
 from pirn.domains.connectors.knots.object_store_knot import ObjectStoreKnot
+from pirn.domains.connectors.object_store import ObjectStore
 from pirn.nodes.sink import Sink
 
 

@@ -1,8 +1,8 @@
 """Unit tests for :class:`PatientCohortBuilder`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_result import RunResult
@@ -10,7 +10,6 @@ from pirn.domains.health.clinical.patient_cohort_builder import (
     PatientCohortBuilder,
 )
 from pirn.domains.health.types.clinical_record import ClinicalRecord
-
 
 _CFG = KnotConfig(id="b")
 _RECORDS: tuple[ClinicalRecord, ...] = ()

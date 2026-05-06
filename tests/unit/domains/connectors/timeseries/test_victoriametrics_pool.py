@@ -5,16 +5,14 @@ Uses an injected httpx-style stub — no real VictoriaMetrics needed.
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.timeseries.victoriametrics_config import (
     VictoriaMetricsConfig,
 )
 from pirn.domains.connectors.timeseries.victoriametrics_pool import VictoriaMetricsPool
-
 
 # ──────────────────────────────────────────────────────────── fake client
 
@@ -39,7 +37,9 @@ class FakeHTTPXClient:
         self._query_result = query_result or []
         self.closed = False
 
-    async def post(self, url: str, content: str, headers: dict[str, str] | None = None) -> FakeHTTPXResponse:
+    async def post(
+        self, url: str, content: str, headers: dict[str, str] | None = None
+    ) -> FakeHTTPXResponse:
         self.posted.append({"url": url, "content": content})
         return FakeHTTPXResponse({}, status_code=204)
 

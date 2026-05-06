@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pirn.domains.data.quality_check import QualityCheck
 
@@ -21,7 +21,7 @@ class QualityReport:
     checks: tuple[QualityCheck, ...] = ()
     row_count: int = 0
     sampled_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
 
     def __post_init__(self) -> None:

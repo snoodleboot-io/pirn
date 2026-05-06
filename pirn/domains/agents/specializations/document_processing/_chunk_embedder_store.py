@@ -42,7 +42,10 @@ class _ChunkEmbedderStore(Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        super().__init__(chunks=chunks, source=source, embedder=embedder, store=store, _config=_config, **kwargs)
+        super().__init__(
+            chunks=chunks, source=source, embedder=embedder, store=store,
+            _config=_config, **kwargs,
+        )
 
     async def process(
         self,
@@ -88,7 +91,7 @@ class _ChunkEmbedderStore(Knot):
                         "embedding": list(vector),
                     },
                 )
-                for index, (chunk, vector) in enumerate(zip(chunks, embeddings))
+                for index, (chunk, vector) in enumerate(zip(chunks, embeddings, strict=False))
             )
         )
         return len(chunks)

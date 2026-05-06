@@ -1,6 +1,7 @@
 """Unit tests for :class:`AgentContext`."""
 
 from __future__ import annotations
+
 import unittest
 
 from pirn.domains.agents.types.agent_context import AgentContext

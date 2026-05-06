@@ -8,7 +8,8 @@ the bytes, and assert equality. The helper handles both
 
 from __future__ import annotations
 
-from typing import Any, AsyncIterator, Mapping, Sequence
+from collections.abc import AsyncIterator, Mapping, Sequence
+from typing import Any
 
 from pirn.domains.connectors.file_format import FileFormat
 

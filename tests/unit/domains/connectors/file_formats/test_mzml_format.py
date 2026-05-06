@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
 import unittest
-
+from unittest.mock import patch
 
 try:
-    import pyteomics
+    import pyteomics  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("pyteomics not installed") from _e
 
@@ -18,7 +17,6 @@ from pirn.domains.connectors.file_formats.mzml_format import MzmlFormat
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -169,7 +167,7 @@ class TestMzmlFormatErrors(unittest.IsolatedAsyncioTestCase):
         async def _iter():
             yield b"<not valid mzml"
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception):  # noqa: B017
             async for _ in await fmt.read(_iter()):
                 pass
 

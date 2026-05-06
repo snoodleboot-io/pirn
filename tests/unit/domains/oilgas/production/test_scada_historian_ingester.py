@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import unittest
+from datetime import UTC, datetime
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.oilgas.production.scada_historian_ingester import (
@@ -12,7 +12,7 @@ from pirn.domains.oilgas.production.scada_historian_ingester import (
 from pirn.domains.oilgas.types.scada_time_series import ScadaTimeSeries
 from tests.unit.domains.oilgas.conftest import StubHistorianConnection
 
-_SINCE = datetime(2026, 1, 1, tzinfo=timezone.utc)
+_SINCE = datetime(2026, 1, 1, tzinfo=UTC)
 _HISTORIAN = StubHistorianConnection()
 
 

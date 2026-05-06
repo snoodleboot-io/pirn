@@ -1,8 +1,8 @@
 """Tests for :class:`OutputGuardrailGate`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -39,7 +39,7 @@ class TestOutputGuardrailGateProcessDirect(unittest.IsolatedAsyncioTestCase):
     async def test_process_raises_for_deny_pattern_match(self) -> None:
         k = _make_knot()
         response = AgentResponse(content="this is BAD content", finish_reason="stop")
-        with self.assertRaises(Exception):
+        with self.assertRaises((TypeError, ValueError)):
             await k.process(
                 response=response,
                 deny_patterns=(r"BAD",),
@@ -53,7 +53,7 @@ class TestOutputGuardrailGateProcessDirect(unittest.IsolatedAsyncioTestCase):
             tool_calls=(ToolCall(tool_name="rogue", arguments={}, call_id="c1"),),
             finish_reason="stop",
         )
-        with self.assertRaises(Exception):
+        with self.assertRaises((TypeError, ValueError)):
             await k.process(
                 response=response,
                 deny_patterns=(),

@@ -1,6 +1,7 @@
 """Tests for :class:`DuckdbJoin`."""
 
 from __future__ import annotations
+
 import unittest
 
 import duckdb
@@ -154,7 +155,7 @@ class TestDuckdbJoin(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         out: DuckdbDataBatch = result.outputs["joined"]
         rows = out.relation.fetchall()
-        assert len(rows) == 6  # 2 × 3
+        assert len(rows) == 6  # 2 x 3
 
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):

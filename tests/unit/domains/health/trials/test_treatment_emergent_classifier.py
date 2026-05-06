@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import unittest
+from datetime import UTC, datetime
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.trials.treatment_emergent_classifier import (
@@ -18,17 +18,17 @@ _EVENTS = (
         subject_id="S-1",
         visit_number=1,
         observation_codes=("AE001",),
-        observed_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
+        observed_at=datetime(2026, 4, 1, tzinfo=UTC),
     ),
     ClinicalTrialRecord(
         trial_id="T-1",
         subject_id="S-1",
         visit_number=2,
         observation_codes=("AE002",),
-        observed_at=datetime(2026, 5, 1, tzinfo=timezone.utc),
+        observed_at=datetime(2026, 5, 1, tzinfo=UTC),
     ),
 )
-_EXPOSURES = {"S-1": datetime(2026, 4, 15, tzinfo=timezone.utc)}
+_EXPOSURES = {"S-1": datetime(2026, 4, 15, tzinfo=UTC)}
 
 
 def _make_knot() -> TreatmentEmergentClassifier:

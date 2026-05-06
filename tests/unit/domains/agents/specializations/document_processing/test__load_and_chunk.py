@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import tempfile
 import os
-from pathlib import Path
+import tempfile
 import unittest
+from pathlib import Path
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.agents.specializations.document_processing._load_and_chunk import (

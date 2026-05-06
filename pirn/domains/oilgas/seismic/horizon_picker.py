@@ -12,9 +12,9 @@ Algorithm:
 
 References:
     - Dalley, R.M. et al. (1989). Dip and azimuth displays for 3D seismic
-      interpretation. *First Break*, 7(3), 86–95.
+      interpretation. *First Break*, 7(3), 86-95.
     - Tingdahl, K.M. & de Rooij, M. (2005). Semi-automatic detection of faults
-      in 3D seismic data. *Geophysical Prospecting*, 53(4), 533–542.
+      in 3D seismic data. *Geophysical Prospecting*, 53(4), 533-542.
 """
 
 from __future__ import annotations

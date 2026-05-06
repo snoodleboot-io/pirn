@@ -5,8 +5,9 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import AsyncIterator, BinaryIO
+from typing import BinaryIO
 
 from pirn.domains.connectors.object_storage.local_filesystem_config import (
     LocalFilesystemConfig,

@@ -21,7 +21,7 @@ Math:
 
 References:
     - Horner, D.R. (1951). Pressure build-up in wells. *Proc. Third World
-      Petroleum Congress*, Section II, 503–523.
+      Petroleum Congress*, Section II, 503-523.
     - Matthews, C.S. & Russell, D.G. (1967). *Pressure Buildup and Flow Tests
       in Wells*. SPE Monograph Volume 1.
 """
@@ -31,7 +31,6 @@ from __future__ import annotations
 from typing import Any
 
 from pirn.core.knot import Knot
-from pirn.core.knot_config import KnotConfig
 from pirn.domains.oilgas.types.scada_time_series import ScadaTimeSeries
 
 

@@ -31,13 +31,13 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.agents.llm_provider import LLMProvider
-from pirn.domains.agents.specializations.specialized_agents._code_generator import (  # noqa: E501
+from pirn.domains.agents.specializations.specialized_agents._code_generator import (
     _CodeGenerator,
 )
 from pirn.domains.agents.specializations.specialized_agents._code_linter import (
     _CodeLinter,
 )
-from pirn.domains.agents.specializations.specialized_agents._code_response_formatter import (  # noqa: E501
+from pirn.domains.agents.specializations.specialized_agents._code_response_formatter import (
     _CodeResponseFormatter,
 )
 from pirn.domains.agents.types.agent_response import AgentResponse

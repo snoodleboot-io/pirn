@@ -22,10 +22,10 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping, Sequence
 from typing import Any
 
+from pirn.domains.connectors.file_formats._sam_utils import _SamUtils
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
-from pirn.domains.connectors.file_formats._sam_utils import _SamUtils
 
 
 class CramFormat(BatchFileFormat):

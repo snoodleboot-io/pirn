@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.domains.health.eeg_meg.eeg_ica_decomposer import EEGICADecomposer
 from pirn.tapestry import Tapestry
-
 
 _EEG_DATA: dict[str, Any] = {
     "n_channels": 64,

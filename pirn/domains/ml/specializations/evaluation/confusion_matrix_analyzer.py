@@ -22,7 +22,8 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import Any, Mapping, Sequence
+from collections.abc import Mapping, Sequence
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -81,7 +82,7 @@ class ConfusionMatrixAnalyzer(Knot):
             for i in range(n)
         ]
         per_class: dict[str, dict[str, float]] = {}
-        for idx, label in enumerate(labels):
+        for _idx, label in enumerate(labels):
             per_class[label] = {
                 "precision": self._metric_value(model, split, label, "precision"),
                 "recall": self._metric_value(model, split, label, "recall"),

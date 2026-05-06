@@ -49,10 +49,10 @@ class TestElandSourceValidation(unittest.IsolatedAsyncioTestCase):
 class TestElandSourceProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_eland_dataframe_via_stubbed_eland(self) -> None:
         try:
-            import eland
+            import eland as ed
         except ImportError:
             self.skipTest("eland not installed")
-        import eland as ed
+            return
 
         captured: dict[str, Any] = {}
 

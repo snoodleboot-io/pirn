@@ -19,7 +19,7 @@ Math:
 
 References:
     - Snyder, J.P. (1987). *Map Projections — A Working Manual*. USGS
-      Professional Paper 1395, pp. 56–64.
+      Professional Paper 1395, pp. 56-64.
     - EPSG Geodetic Parameter Registry: https://epsg.org
 """
 

@@ -1,8 +1,8 @@
 """Tests for :class:`FeatureStoreWriter`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -53,7 +53,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
         with Tapestry():
             k = FeatureStoreWriter.__new__(FeatureStoreWriter)
             object.__setattr__(k, "_config", KnotConfig(id="x"))
-        with self.assertRaises(Exception):
+        with self.assertRaises((TypeError, ValueError)):
             await k.process(
                 split="not-a-split",  # type: ignore[arg-type]
                 feature_store=RecordingFeatureStoreProvider(),

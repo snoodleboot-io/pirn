@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import unittest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.clinical._pass_through import _PassThrough
@@ -14,7 +14,7 @@ def _record(patient_id: str = "P1") -> ClinicalRecord:
     return ClinicalRecord(
         patient_id=patient_id,
         encounter_id="E1",
-        observed_at=datetime.now(timezone.utc),
+        observed_at=datetime.now(UTC),
     )
 
 

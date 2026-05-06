@@ -19,8 +19,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.connectors.message_broker import MessageBroker
 from pirn.domains.connectors.knots.message_broker_knot import MessageBrokerKnot
+from pirn.domains.connectors.message_broker import MessageBroker
 from pirn.nodes.sink import Sink
 
 

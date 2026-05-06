@@ -18,7 +18,7 @@ Math:
 
 References:
     - Newman, P. (1973). Divergence effects in a layered earth. *Geophysics*,
-      38(3), 481–488.
+      38(3), 481-488.
     - Yilmaz, Ö. (2001). *Seismic Data Analysis*, 2nd ed. SEG, Chapter 2
       (amplitude corrections and gain recovery).
 """

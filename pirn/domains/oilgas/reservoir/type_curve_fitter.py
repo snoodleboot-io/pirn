@@ -20,7 +20,7 @@ Math:
 
 References:
     - Arps, J.J. (1945). Analysis of decline curves. *Trans. AIME*, 160,
-      228–247. SPE-945228-G.
+      228-247. SPE-945228-G.
     - Robertson, S. (1988). Generalized hyperbolic equation. SPE-18731-MS.
 """
 

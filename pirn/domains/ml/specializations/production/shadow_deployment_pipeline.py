@@ -22,8 +22,9 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timezone
-from typing import Any, Mapping
+from collections.abc import Mapping
+from datetime import UTC, datetime
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -103,7 +104,7 @@ class ShadowDeploymentPipeline(SubTapestry):
         inner_result = await self._run_inner(inner)
         champion_deployment_id: str = inner_result.outputs["deploy-champion"]
         challenger_deployment_id: str = inner_result.outputs["deploy-challenger"]
-        recorded_at = datetime.now(timezone.utc).isoformat()
+        recorded_at = datetime.now(UTC).isoformat()
         divergence_id = self._derive_divergence_id(champion, challenger, recorded_at)
         await lineage.log_event(
             "shadow_divergence",

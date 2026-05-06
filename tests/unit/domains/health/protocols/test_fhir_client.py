@@ -1,8 +1,8 @@
 """Unit tests for :class:`FHIRClient` interface."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.domains.health.protocols.fhir_client import FHIRClient
 

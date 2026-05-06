@@ -6,8 +6,8 @@ that mimics that method exercises the knot without requiring pylance.
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
+from typing import Any
 
 import pyarrow as pa
 

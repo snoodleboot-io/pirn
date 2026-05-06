@@ -6,8 +6,8 @@ Algorithm:
        threshold_mode (``soft`` or ``hard``).
     3. Apply the DWT to decompose the signal into level detail subbands.
     4. Estimate the noise standard deviation from the finest-scale detail coefficients
-       using the MAD estimator: σ̂ = MAD(d₁) / 0.6745.
-    5. Compute the universal threshold: λ = σ̂ √(2 log N).
+       using the MAD estimator: sigma_hat = MAD(d1) / 0.6745.
+    5. Compute the universal threshold: lambda = sigma_hat * sqrt(2 log N).
     6. Apply the selected thresholding to each detail subband:
        - ``soft``: d̂ = sign(d) max(|d| - λ, 0)
        - ``hard``: d̂ = d · 1[|d| > λ]

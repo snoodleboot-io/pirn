@@ -1,13 +1,12 @@
 """Unit tests for :class:`ArtifactRemover`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.eeg_meg.artifact_remover import ArtifactRemover
 from pirn.domains.health.types.signal_frame import SignalFrame
-
 
 _CFG = KnotConfig(id="r")
 _SIGNAL = SignalFrame(signal_id="s")

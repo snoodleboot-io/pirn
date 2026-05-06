@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import unittest
+from datetime import UTC, datetime
 
 from pirn.domains.health.types.clinical_record import ClinicalRecord
 
@@ -17,7 +17,7 @@ class TestConstruction(unittest.TestCase):
         assert record.source_system == ""
 
     def test_full_construction(self) -> None:
-        when = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        when = datetime(2026, 1, 1, tzinfo=UTC)
         record = ClinicalRecord(
             patient_id="P1",
             encounter_id="E1",
@@ -34,7 +34,7 @@ class TestConstruction(unittest.TestCase):
 
 class TestAuditDict(unittest.TestCase):
     def test_audit_dict_primitives(self) -> None:
-        when = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        when = datetime(2026, 1, 1, tzinfo=UTC)
         record = ClinicalRecord(
             patient_id="P1",
             encounter_id="E1",

@@ -127,7 +127,7 @@ class TreeOfThought(Knot):
                 self._expand(path, llm, k_candidates) for path, _ in beam
             ]
             expanded_batches = await asyncio.gather(*expansion_tasks)
-            for (parent_path, _), new_thoughts in zip(beam, expanded_batches):
+            for (parent_path, _), new_thoughts in zip(beam, expanded_batches, strict=False):
                 for thought in new_thoughts:
                     combined = f"{parent_path}\n{thought}"
                     candidates.append((combined, 0.0))
@@ -135,7 +135,7 @@ class TreeOfThought(Knot):
                 *[self._score(path, llm) for path, _ in candidates]
             )
             beam = sorted(
-                zip([p for p, _ in candidates], scored),
+                zip([p for p, _ in candidates], scored, strict=False),
                 key=lambda pair: pair[1],
                 reverse=True,
             )[:beam_width]

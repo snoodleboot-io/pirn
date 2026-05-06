@@ -38,7 +38,7 @@ from pirn.domains.agents.specializations.specialized_agents._sql_executor import
 from pirn.domains.agents.specializations.specialized_agents._sql_generator import (
     _SQLGenerator,
 )
-from pirn.domains.agents.specializations.specialized_agents._sql_response_formatter import (  # noqa: E501
+from pirn.domains.agents.specializations.specialized_agents._sql_response_formatter import (
     _SQLResponseFormatter,
 )
 from pirn.domains.agents.types.agent_response import AgentResponse

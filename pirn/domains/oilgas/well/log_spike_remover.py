@@ -22,7 +22,7 @@ Math:
 References:
     - Leys, C. et al. (2013). Detecting outliers: do not use standard
       deviation around the mean, use absolute deviation around the median.
-      *Journal of Experimental Social Psychology*, 49(4), 764–766.
+      *Journal of Experimental Social Psychology*, 49(4), 764-766.
     - Rider, M.H. & Kennedy, M. (2011). *The Geological Interpretation of
       Well Logs*, 3rd ed. Rider-French Consulting, Chapter 2 (log quality
       control).

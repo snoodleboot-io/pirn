@@ -1,20 +1,19 @@
 """Unit tests for :class:`DuckdbPool`."""
 
 from __future__ import annotations
-import unittest
+
 import tempfile
+import unittest
 from pathlib import Path
 
-
 try:
-    import duckdb
+    import duckdb  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("duckdb not installed") from _e
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.databases.duckdb_config import DuckdbConfig
 from pirn.domains.connectors.databases.duckdb_pool import DuckdbPool
-
 
 
 class _StandaloneTests(unittest.TestCase):
@@ -111,6 +110,6 @@ class TestLifecycle(unittest.IsolatedAsyncioTestCase):
         rows = await ro_pool.fetch_all("SELECT x FROM t")
         assert rows == [(1,)]
         # Writes are rejected by DuckDB.
-        with self.assertRaises(Exception):  # noqa: BLE001 — DuckDB raises a specific error class
+        with self.assertRaises(Exception):  # noqa: B017
             await ro_pool.execute("INSERT INTO t VALUES (?)", (2,))
         await ro_pool.close()

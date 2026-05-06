@@ -1,10 +1,10 @@
 """``ThresholdOptimizer`` — Knot that sweeps classification thresholds
-(0.01–0.99) and finds the optimal threshold maximising the requested metric.
+(0.01-0.99) and finds the optimal threshold maximising the requested metric.
 
 Algorithm:
     1. Receive ``model`` (TrainedModel), ``split`` (DataSplit), and ``metric`` (str) via process().
     2. Validate metric is one of {"f1", "precision", "recall"}.
-    3. Compute score at each threshold 0.01–0.99 via SHA-256.
+    3. Compute score at each threshold 0.01-0.99 via SHA-256.
     4. Select the threshold with the highest score.
     5. Return optimal_threshold, best_score, metric, and the full scores dict.
 
@@ -20,7 +20,8 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -29,7 +30,7 @@ from pirn.domains.ml.types.trained_model import TrainedModel
 
 
 class ThresholdOptimizer(Knot):
-    """Sweep classification thresholds 0.01–0.99 and find the optimal operating point."""
+    """Sweep classification thresholds 0.01-0.99 and find the optimal operating point."""
 
     def __init__(
         self,
@@ -55,7 +56,7 @@ class ThresholdOptimizer(Knot):
         metric: str = "f1",
         **_: Any,
     ) -> Mapping[str, Any]:
-        """Sweep thresholds 0.01–0.99 and return the threshold that maximises the requested metric.
+        """Sweep thresholds 0.01-0.99 and return the threshold that maximises the requested metric.
 
         Args:
             model: TrainedModel reference whose class probabilities are being thresholded.

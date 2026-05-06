@@ -7,18 +7,17 @@ Azure integration tests live under ``tests/integration`` behind a marker.
 
 from __future__ import annotations
 
-from typing import Any, AsyncIterator
 import unittest
+from collections.abc import AsyncIterator
+from typing import Any
 
-
-from pirn.domains.connectors.object_store import ObjectStore
 from pirn.domains.connectors.object_storage.azure_blob_config import (
     AzureBlobConfig,
 )
 from pirn.domains.connectors.object_storage.azure_blob_store import (
     AzureBlobStore,
 )
-
+from pirn.domains.connectors.object_store import ObjectStore
 
 # ─────────────────────────────────────────────────────────── stub client
 
@@ -37,7 +36,7 @@ class _Downloader:
 
 
 class _StubBlobClient:
-    def __init__(self, store: "_StubServiceClient", container: str, blob: str) -> None:
+    def __init__(self, store: _StubServiceClient, container: str, blob: str) -> None:
         self._store = store
         self._container = container
         self._blob = blob
@@ -76,7 +75,7 @@ class _StubBlobClient:
 
 
 class _StubContainerClient:
-    def __init__(self, store: "_StubServiceClient", container: str) -> None:
+    def __init__(self, store: _StubServiceClient, container: str) -> None:
         self._store = store
         self._container = container
 

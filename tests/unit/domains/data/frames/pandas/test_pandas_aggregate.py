@@ -45,7 +45,7 @@ class TestPandasAggregate(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         out: PandasDataBatch = result.outputs["agg"]
-        totals = dict(zip(out.frame["region"].tolist(), out.frame["total"].tolist()))
+        totals = dict(zip(out.frame["region"].tolist(), out.frame["total"].tolist(), strict=False))
         assert totals["EU"] == 40.0
         assert totals["US"] == 100.0
 

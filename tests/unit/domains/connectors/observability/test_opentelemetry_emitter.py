@@ -7,10 +7,10 @@ exporter or collector needed.
 
 from __future__ import annotations
 
-from contextlib import contextmanager
-from typing import Any, Iterator
 import unittest
-
+from collections.abc import Iterator
+from contextlib import contextmanager
+from typing import Any
 
 from pirn.domains.connectors.observability.opentelemetry_config import (
     OpenTelemetryConfig,
@@ -18,7 +18,6 @@ from pirn.domains.connectors.observability.opentelemetry_config import (
 from pirn.domains.connectors.observability.opentelemetry_emitter import (
     OpenTelemetryEmitter,
 )
-
 
 # ──────────────────────────────────────────────────────────── fake tracer
 

@@ -16,7 +16,8 @@ Codec implementations live under ``codecs/`` and provide
 
 from __future__ import annotations
 
-from typing import Any, AsyncIterator, ClassVar, Mapping
+from collections.abc import AsyncIterator, Mapping
+from typing import Any, ClassVar
 
 from pirn.domains.connectors.file_format import FileFormat
 

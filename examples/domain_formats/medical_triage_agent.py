@@ -38,8 +38,8 @@ import asyncio
 import hashlib
 import random
 import struct
-from pathlib import Path
 from dataclasses import dataclass, replace
+from pathlib import Path
 from typing import Any, ClassVar
 
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory

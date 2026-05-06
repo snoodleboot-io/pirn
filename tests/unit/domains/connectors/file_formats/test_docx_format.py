@@ -1,11 +1,11 @@
 """Round-trip and validation tests for :class:`DocxFormat`."""
 
 from __future__ import annotations
+
 import unittest
 
-
 try:
-    import docx
+    import docx  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("docx not installed") from _e
 

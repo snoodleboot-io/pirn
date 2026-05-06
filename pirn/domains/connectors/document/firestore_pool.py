@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.document.firestore_config import FirestoreConfig
@@ -81,7 +82,7 @@ class FirestorePool(DatabaseConnectionPool):
         batch = self._client.batch()
         col_ref = self._client.collection(query)
         for args in args_seq:
-            doc_data = args if isinstance(args, dict) else (list(args)[0] if args else {})
+            doc_data = args if isinstance(args, dict) else (next(iter(args)) if args else {})
             doc_ref = col_ref.document()
             batch.set(doc_ref, doc_data)
         await batch.commit()
@@ -107,6 +108,7 @@ class FirestorePool(DatabaseConnectionPool):
             credentials = None
             if self._config.credentials_json:
                 import json
+
                 from google.oauth2 import service_account
 
                 try:

@@ -12,8 +12,8 @@ credential-leaking ``__repr__`` — this decorator removes that foot-gun.
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Callable, TypeVar, overload
-
+from collections.abc import Callable
+from typing import Any, TypeVar, overload
 
 _T = TypeVar("_T")
 

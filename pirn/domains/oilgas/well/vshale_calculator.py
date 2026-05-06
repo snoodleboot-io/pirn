@@ -28,7 +28,7 @@ References:
       (gamma-ray Vshale transforms).
     - Clavier, C., Hoyle, W. & Meunier, D. (1971). Quantitative
       interpretation of thermal neutron decay time logs. *JPT*, 23(6),
-      743–755. SPE-2658-PA.
+      743-755. SPE-2658-PA.
 """
 
 from __future__ import annotations

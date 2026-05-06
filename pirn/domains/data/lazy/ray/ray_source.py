@@ -39,9 +39,9 @@ from typing import Any
 
 import ray.data
 
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.data.lazy.ray.ray_dataset import RayDataset
-from pirn.core.knot import Knot
 from pirn.nodes.source import Source
 
 

@@ -40,7 +40,7 @@ class FlacFormat(BatchFileFormat):
             raise ValueError(
                 "FlacFormat: payload is empty — cannot decode FLAC"
             )
-        sf, np = self._load_deps()
+        sf, _np = self._load_deps()
         with tempfile.NamedTemporaryFile(suffix=".flac") as tmp:
             tmp.write(payload)
             tmp.flush()
@@ -83,8 +83,8 @@ class FlacFormat(BatchFileFormat):
     @staticmethod
     def _load_deps() -> tuple[Any, Any]:
         try:
-            import soundfile as sf
             import numpy as np
+            import soundfile as sf
         except ImportError as exc:
             raise ImportError(
                 "FlacFormat requires soundfile and numpy. Install with "

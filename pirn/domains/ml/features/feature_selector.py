@@ -19,7 +19,7 @@ References:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
@@ -76,7 +76,7 @@ class FeatureSelector(Knot):
                 f"FeatureSelector: method must be one of "
                 f"{sorted(self.valid_methods)}"
             )
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return DataSplit(
             train=self._reduce(split.train, k, method, now),
             test=self._reduce(split.test, k, method, now),

@@ -28,7 +28,6 @@ from __future__ import annotations
 from typing import Any
 
 from pirn.core.knot import Knot
-from pirn.core.knot_config import KnotConfig
 
 
 class EspHealthMonitor(Knot):
@@ -53,7 +52,7 @@ class EspHealthMonitor(Knot):
             temperature_threshold_c: Positive temperature alert threshold in °C.
 
         Returns:
-            Dict with ``health_score`` (float 0–100), ``alerts`` (list[str]),
+            Dict with ``health_score`` (float 0-100), ``alerts`` (list[str]),
             and ``recommended_action`` (str).
         """
         for label, value in (

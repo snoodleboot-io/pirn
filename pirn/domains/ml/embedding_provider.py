@@ -8,7 +8,7 @@ Pirn treats providers as opaque (see
 
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 

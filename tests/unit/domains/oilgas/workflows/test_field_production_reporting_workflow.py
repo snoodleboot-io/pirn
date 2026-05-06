@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import unittest
-
+from datetime import UTC, datetime
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,7 +13,7 @@ from pirn.domains.oilgas.workflows.field_production_reporting_workflow import (
 )
 from pirn.tapestry import Tapestry
 
-_SINCE = datetime(2026, 1, 1, tzinfo=timezone.utc)
+_SINCE = datetime(2026, 1, 1, tzinfo=UTC)
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
+from typing import Any
 
 from pydantic import TypeAdapter
 
@@ -41,5 +41,5 @@ class TestElandDataFramePydanticSchema(unittest.TestCase):
 
     def test_is_instance_schema_rejects_other_types(self) -> None:
         adapter: TypeAdapter[Any] = TypeAdapter(ElandDataFrame)
-        with self.assertRaises(Exception):
+        with self.assertRaises((TypeError, ValueError)):
             adapter.validate_python({"frame": "no"})

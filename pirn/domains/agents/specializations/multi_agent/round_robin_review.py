@@ -25,7 +25,6 @@ N/A — pirn-native implementation only.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from typing import Any
 
 from pirn.core.knot import Knot

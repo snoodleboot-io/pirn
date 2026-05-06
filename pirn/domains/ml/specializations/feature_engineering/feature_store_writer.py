@@ -22,8 +22,8 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
-from pirn.domains.ml.features.feature_store import FeatureStore
 from pirn.domains.ml.feature_store_provider import FeatureStoreProvider
+from pirn.domains.ml.features.feature_store import FeatureStore
 from pirn.domains.ml.types.data_split import DataSplit
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry

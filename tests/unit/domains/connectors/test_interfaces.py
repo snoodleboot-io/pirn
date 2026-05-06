@@ -6,8 +6,8 @@ silently drops an interface method is caught.
 """
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.file_format import FileFormat

@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.domains.health.eeg_meg.eeg_montage_applier import EEGMontageApplier
 from pirn.tapestry import Tapestry
-
 
 _EEG_DATA: dict[str, Any] = {
     "channels": ["Fp1", "Fp2", "F3", "F4", "C3", "C4", "EOG"],

@@ -19,7 +19,7 @@ Math:
     $$|H(j\\omega)|^2 = \\frac{1}{1 + (\\omega / \\omega_c)^{2n}}$$
 
     where $n$ = order and $\\omega_c = 2\\pi f_{\\text{cutoff}}$.
-    The −3 dB point occurs exactly at $\\omega_c$.
+    The -3 dB point occurs exactly at $\\omega_c$.
 
 References:
     - Butterworth, S. (1930). "On the theory of filter amplifiers." Wireless Engineer, 7, 536-541.

@@ -25,7 +25,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig

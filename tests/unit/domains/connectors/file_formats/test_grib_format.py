@@ -1,16 +1,17 @@
 """Round-trip and validation tests for :class:`GribFormat`."""
 
 from __future__ import annotations
+
 import unittest
 
 import pytest
 
 try:
-    import cfgrib
+    import cfgrib  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("cfgrib not installed") from _e
 try:
-    import eccodes
+    import eccodes  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("eccodes not installed") from _e
 
@@ -25,10 +26,9 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 
 def _make_grib_payload() -> bytes:
     """Return a minimal GRIB2 file as bytes using eccodes."""
-    import eccodes
-    import tempfile
-    import os
     import io
+
+    import eccodes
 
     buf = io.BytesIO()
     # Create a minimal GRIB2 sample (surface temperature)
@@ -74,7 +74,7 @@ class TestGribFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
 
     async def test_decode_structure(self) -> None:
         try:
-            import eccodes
+            import eccodes  # noqa: F401
         except ImportError as _e:
             self.skipTest("eccodes not installed")
         try:

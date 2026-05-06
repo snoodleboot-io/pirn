@@ -1,11 +1,14 @@
 """Unit tests for :class:`FunctionalConnectivityExtractor`."""
 
 from __future__ import annotations
+
 import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.health.mri.functional_connectivity_extractor import FunctionalConnectivityExtractor
+from pirn.domains.health.mri.functional_connectivity_extractor import (
+    FunctionalConnectivityExtractor,
+)
 from pirn.tapestry import Tapestry
 
 _CFG = KnotConfig(id="f")

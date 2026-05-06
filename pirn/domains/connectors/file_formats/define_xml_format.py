@@ -21,9 +21,7 @@ from __future__ import annotations
 
 import io
 from collections.abc import Iterable, Mapping
-from typing import Any
-
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,

@@ -5,15 +5,15 @@ TIFF supports multiple pages. With a lossless compression (the default
 """
 
 from __future__ import annotations
+
 import unittest
 
-
 try:
-    import tifffile
+    import tifffile  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("tifffile not installed") from _e
 try:
-    import numpy
+    import numpy  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("numpy not installed") from _e
 

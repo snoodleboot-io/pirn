@@ -21,7 +21,7 @@ Math:
 
 References:
     - Ormsby, J.F.A. (1961). Design of numerical filters with applications to
-      missile data processing. *Journal of the ACM*, 8(3), 440–466.
+      missile data processing. *Journal of the ACM*, 8(3), 440-466.
     - Sheriff, R.E. & Geldart, L.P. (1995). *Exploration Seismology*, 2nd ed.
       Cambridge University Press, Chapter 9 (filtering).
 """

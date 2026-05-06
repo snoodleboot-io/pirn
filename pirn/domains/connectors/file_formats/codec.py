@@ -8,7 +8,7 @@ so they layer cleanly with streaming file formats.
 
 from __future__ import annotations
 
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 
 
 class Codec:

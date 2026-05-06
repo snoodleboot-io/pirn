@@ -1,10 +1,11 @@
 """Tests for :class:`YamlExtractorPipeline`."""
 
 from __future__ import annotations
+
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.agents.specializations.structured_output.yaml_extractor_pipeline import (  # noqa: E501
+from pirn.domains.agents.specializations.structured_output.yaml_extractor_pipeline import (
     YamlExtractorPipeline,
 )
 from pirn.tapestry import Tapestry

@@ -21,7 +21,8 @@ import asyncio
 import json
 import logging
 import os
-from typing import Any, AsyncIterator, ClassVar, Mapping
+from collections.abc import AsyncIterator, Mapping
+from typing import Any, ClassVar
 
 from pirn.domains.connectors.bi_catalog.dbt_artifacts_config import (
     DbtArtifactsConfig,
@@ -188,5 +189,5 @@ class DbtArtifactsReader(MetadataCatalog):
 
     @staticmethod
     def _read_json_file(path: str) -> dict:
-        with open(path, "r", encoding="utf-8") as handle:
+        with open(path, encoding="utf-8") as handle:
             return json.load(handle)

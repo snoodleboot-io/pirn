@@ -1,8 +1,8 @@
 """Tests for :class:`WalkForwardValidator`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -39,7 +39,7 @@ def _make_validator() -> WalkForwardValidator:
     return validator
 
 
-def _dataset() -> "MLDataset":
+def _dataset() -> MLDataset:
     return MLDataset(
         name="ts-data", feature_names=("a",), target_name="y", row_count=100
     )

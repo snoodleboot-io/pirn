@@ -14,8 +14,9 @@ because it is a structured mapping.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import field
-from typing import ClassVar, Mapping
+from typing import ClassVar
 
 from pirn.domains.connectors.connection_config import ConnectionConfig
 from pirn.domains.connectors.connection_config_decorator import connection_config

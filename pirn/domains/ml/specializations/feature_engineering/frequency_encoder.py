@@ -19,7 +19,7 @@ References:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -77,7 +77,7 @@ class FrequencyEncoder(Knot):
         df = float(default_frequency)
         if df < 0.0:
             raise ValueError("FrequencyEncoder: default_frequency must be >= 0.0")
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         suffix = "freq_encoded"
         return DataSplit(
             train=self._mark(split.train, suffix, now),

@@ -20,7 +20,7 @@ Math:
     (per year), and :math:`b` is the hyperbolic exponent.
 
 References:
-    - Arps, J.J. (1945). Analysis of decline curves. *Trans. AIME*, 160, 228–247.
+    - Arps, J.J. (1945). Analysis of decline curves. *Trans. AIME*, 160, 228-247.
     - SPE-1476-PA, Vogel (1968); extended by Fetkovich (1980) SPE-4629-PA.
 """
 

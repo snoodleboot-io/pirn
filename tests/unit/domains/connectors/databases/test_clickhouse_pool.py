@@ -6,14 +6,12 @@ Uses an injected stub client mirroring the slice of
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.databases.clickhouse_config import ClickhouseConfig
 from pirn.domains.connectors.databases.clickhouse_pool import ClickhousePool
-
 
 # ──────────────────────────────────────────────────────────── fake client
 

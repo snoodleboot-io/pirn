@@ -71,7 +71,7 @@ class PHIRedactor(Knot):
 
         def _hash_id(value: str) -> str:
             digest = hashlib.sha256(
-                f"{salt}|{value}".encode("utf-8")
+                f"{salt}|{value}".encode()
             ).hexdigest()
             return digest[:16]
 

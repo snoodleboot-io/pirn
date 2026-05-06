@@ -26,7 +26,7 @@ References:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -127,7 +127,7 @@ class WalkForwardValidator(SubTapestry):
                 f"test_window={test_window}; need at least {required} rows"
             )
         reports: list[EvalReport] = []
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         for step in range(n_steps):
             train_partition = self._mk(dataset, step, "train", train_window, now)
             test_partition = self._mk(dataset, step, "test", test_window, now)

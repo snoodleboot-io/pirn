@@ -31,7 +31,7 @@ References:
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -124,7 +124,7 @@ class TrainTestSplit(Knot):
                 "TrainTestSplit: requested fractions exceed dataset size"
             )
         train_count = total - test_count - validation_count
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         train = self._mk(dataset, "train", train_count, now)
         test = self._mk(dataset, "test", test_count, now)
         validation = (

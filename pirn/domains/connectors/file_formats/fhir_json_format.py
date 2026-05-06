@@ -118,7 +118,7 @@ class FhirJsonFormat(BatchFileFormat):
     @staticmethod
     def _load_fhir() -> Any:
         try:
-            import fhir.resources  # noqa: F401
+            import fhir.resources
         except ImportError as exc:
             raise ImportError(
                 "FhirJsonFormat requires fhir.resources. Install with "

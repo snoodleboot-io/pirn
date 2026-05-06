@@ -1,17 +1,15 @@
 """Tests for :class:`FhirJsonFormat` — FHIR JSON Bundle format."""
 
 from __future__ import annotations
-import sys
 
 import hashlib
 import json
-from unittest.mock import patch
+import sys
 import unittest
 import unittest.mock
 
-
 try:
-    import fhir
+    import fhir  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("fhir not installed") from _e
 
@@ -22,7 +20,6 @@ from pirn.domains.connectors.file_formats.fhir_json_format import FhirJsonFormat
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -191,7 +188,7 @@ class TestFhirJsonFormatErrors(unittest.IsolatedAsyncioTestCase):
         async def _iter():
             yield b"not json at all {{{{"
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception):  # noqa: B017
             async for _ in await fmt.read(_iter()):
                 pass
 

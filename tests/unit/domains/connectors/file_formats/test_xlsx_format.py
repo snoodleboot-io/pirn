@@ -1,15 +1,15 @@
 """Round-trip and validation tests for :class:`XlsxFormat`."""
 
 from __future__ import annotations
+
 import unittest
 
-
 try:
-    import openpyxl
+    import openpyxl  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("openpyxl not installed") from _e
 try:
-    import xlsxwriter
+    import xlsxwriter  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("xlsxwriter not installed") from _e
 

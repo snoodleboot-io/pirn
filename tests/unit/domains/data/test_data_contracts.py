@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import timezone
 import unittest
-
+from datetime import UTC
 
 from pirn.domains.data.data_batch import DataBatch
 from pirn.domains.data.data_schema import DataSchema
 from pirn.domains.data.quality_check import QualityCheck
 from pirn.domains.data.quality_report import QualityReport
-
 
 # ────────────────────────────────────────────────────────────── DataSchema
 
@@ -53,7 +51,7 @@ class TestDataBatch(unittest.TestCase):
     def test_default_is_empty_with_utc_fetched_at(self) -> None:
         b = DataBatch()
         assert b.row_count == 0
-        assert b.fetched_at.tzinfo is timezone.utc
+        assert b.fetched_at.tzinfo is UTC
 
     def test_with_rows_preserves_schema(self) -> None:
         schema = DataSchema(columns={"id": int})
@@ -73,7 +71,7 @@ class TestDataBatch(unittest.TestCase):
 
     def test_dataclass_is_frozen(self) -> None:
         b = DataBatch()
-        with self.assertRaises(Exception):  # FrozenInstanceError or similar
+        with self.assertRaises((TypeError, AttributeError)):  # FrozenInstanceError or similar
             b.rows = ({"id": 1},)  # type: ignore[misc]
 
 
@@ -109,4 +107,4 @@ class TestQualityReport(unittest.TestCase):
 
     def test_default_sampled_at_is_utc(self) -> None:
         r = QualityReport(passed=True)
-        assert r.sampled_at.tzinfo is timezone.utc
+        assert r.sampled_at.tzinfo is UTC

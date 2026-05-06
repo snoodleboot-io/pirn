@@ -12,20 +12,18 @@ Covers:
 
 from __future__ import annotations
 
-from pathlib import Path
-from typing import AsyncIterator
-import unittest
 import tempfile
+import unittest
+from collections.abc import AsyncIterator
+from pathlib import Path
 
-
-from pirn.domains.connectors.object_store import ObjectStore
 from pirn.domains.connectors.object_storage.local_filesystem_config import (
     LocalFilesystemConfig,
 )
 from pirn.domains.connectors.object_storage.local_filesystem_store import (
     LocalFilesystemStore,
 )
-
+from pirn.domains.connectors.object_store import ObjectStore
 
 # ───────────────────────────────────────────────────────────── helpers
 
@@ -172,9 +170,9 @@ class TestPathSafety(unittest.IsolatedAsyncioTestCase):
 
     async def test_traversal_message_does_not_echo_resolved_absolute_path(self) -> None:
         store = self.store
-        _td_test_traversal_message_does_not_echo_resolved_absolute_path = tempfile.TemporaryDirectory()
-        self.addCleanup(_td_test_traversal_message_does_not_echo_resolved_absolute_path.cleanup)
-        tmp_path = Path(_td_test_traversal_message_does_not_echo_resolved_absolute_path.name)
+        _td_traversal = tempfile.TemporaryDirectory()
+        self.addCleanup(_td_traversal.cleanup)
+        tmp_path = Path(_td_traversal.name)
         # The error must not echo the resolved absolute path — that could
         # leak filesystem layout to a caller that supplied a traversal.
         with self.assertRaises(PermissionError) as exc_info:

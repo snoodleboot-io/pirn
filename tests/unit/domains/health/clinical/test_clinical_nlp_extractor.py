@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 import unittest
-
+from collections.abc import Mapping
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.clinical.clinical_nlp_extractor import (
     ClinicalNLPExtractor,
 )
 from tests.unit.domains.agents.conftest import StubLLMProvider
-
 
 _CFG = KnotConfig(id="x")
 _PROVIDER = StubLLMProvider(["ok"])

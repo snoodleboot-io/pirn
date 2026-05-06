@@ -25,13 +25,11 @@ References:
 
 from __future__ import annotations
 
-import re
 from collections.abc import Sequence
 from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.agents._regex_utils import compile_safe_pattern
 from pirn.domains.agents.specializations.guardrails.output_response_validator import (
     OutputResponseValidator,
 )

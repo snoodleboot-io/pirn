@@ -2,17 +2,15 @@
 
 from __future__ import annotations
 
-import tempfile
+import unittest
 from collections.abc import Mapping
-from pathlib import Path
 from typing import Any
 from unittest.mock import patch
-import unittest
 
 import numpy as np
 
 try:
-    import pyedflib
+    import pyedflib  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("pyedflib not installed") from _e
 
@@ -24,7 +22,6 @@ from pirn.domains.connectors.file_formats.edf_plus_format import EdfPlusFormat
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -129,7 +126,7 @@ class TestEdfPlusFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
                 {"onset": 2.0, "duration": -1.0, "text": "response"},
             ]
         }
-        all_records = records + [annotation_record]
+        all_records = [*records, annotation_record]
         fmt = EdfPlusFormat()
         payload = await FormatRoundTrip.encode(fmt, all_records)
         decoded = await FormatRoundTrip.decode(fmt, payload)

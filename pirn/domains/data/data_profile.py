@@ -11,7 +11,7 @@ want thresholds enforced (or use :class:`NullRateCheck` /
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 
@@ -37,7 +37,7 @@ class DataProfile:
     column_count: int
     columns: tuple[ColumnProfile, ...] = ()
     sampled_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
 
     def column(self, name: str) -> ColumnProfile | None:

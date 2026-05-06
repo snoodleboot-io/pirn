@@ -8,7 +8,8 @@ received. Stdlib only — no optional dependency.
 from __future__ import annotations
 
 import json
-from typing import Any, AsyncIterator, Mapping
+from collections.abc import AsyncIterator, Mapping
+from typing import Any
 
 from pirn.domains.connectors.file_formats.streaming_file_format import (
     StreamingFileFormat,

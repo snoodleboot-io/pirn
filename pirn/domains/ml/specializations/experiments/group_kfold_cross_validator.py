@@ -21,9 +21,10 @@ References:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from collections.abc import Sequence
+from datetime import UTC, datetime
 from types import MappingProxyType
-from typing import Any, Sequence
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -168,7 +169,7 @@ class GroupKFoldCrossValidator(SubTapestry):
                     "per_fold_metrics": per_fold,
                 }
             ),
-            evaluated_at=datetime.now(timezone.utc),
+            evaluated_at=datetime.now(UTC),
         )
 
     def _aggregate(

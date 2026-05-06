@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import unittest
+from datetime import UTC, datetime
 
 from pirn.domains.oilgas.types.well_path_3d import WellPath3D
 
@@ -16,7 +16,7 @@ class TestConstruction(unittest.TestCase):
         assert isinstance(path.fetched_at, datetime)
 
     def test_full_values(self) -> None:
-        when = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        when = datetime(2026, 1, 1, tzinfo=UTC)
         path = WellPath3D(well_id="W1", point_count=128, fetched_at=when)
         assert path.well_id == "W1"
         assert path.point_count == 128
@@ -25,7 +25,7 @@ class TestConstruction(unittest.TestCase):
 
 class TestAuditDict(unittest.TestCase):
     def test_audit_dict_iso_timestamp(self) -> None:
-        when = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        when = datetime(2026, 1, 1, tzinfo=UTC)
         path = WellPath3D(well_id="W1", point_count=5, fetched_at=when)
         d = path._pirn_audit_dict()
         assert d == {

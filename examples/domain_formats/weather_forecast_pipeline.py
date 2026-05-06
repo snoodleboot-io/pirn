@@ -34,9 +34,9 @@ import hashlib
 import math
 import random
 import struct
-from pathlib import Path
 from dataclasses import dataclass
-from typing import Any
+from pathlib import Path
+from typing import Any, ClassVar
 
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.core.knot import Knot
@@ -113,7 +113,7 @@ class Forecast:
         return (
             f"[{self.region}] valid {self.valid_time}\n"
             f"  Temp     : {t.surface_celsius:.1f}°C surface · "
-            f"range {t.min_celsius:.1f}–{t.max_celsius:.1f}°C · "
+            f"range {t.min_celsius:.1f}-{t.max_celsius:.1f}°C · "
             f"lapse {t.lapse_rate_c_per_km:.1f}°C/km\n"
             f"  Pressure : {p.surface_hpa:.0f} hPa ({p.system_type}) · "
             f"tendency {p.tendency_hpa_per_hour:+.1f} hPa/hr\n"
@@ -336,7 +336,7 @@ class PressureProcessor(Knot):
 class WindProcessor(Knot):
     """Derives mean speed, gust estimate, direction, and Beaufort scale."""
 
-    _BEAUFORT: list[tuple[float, str]] = [
+    _BEAUFORT: ClassVar[list[tuple[float, str]]] = [
         (0.3, "Calm"), (1.6, "Light air"), (3.4, "Light breeze"),
         (5.5, "Gentle breeze"), (8.0, "Moderate breeze"), (10.8, "Fresh breeze"),
         (13.9, "Strong breeze"), (17.2, "Near gale"), (20.8, "Gale"),

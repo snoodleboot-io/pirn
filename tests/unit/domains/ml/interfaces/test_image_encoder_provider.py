@@ -1,8 +1,8 @@
 """Tests for :class:`ImageEncoderProvider`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.domains.ml.image_encoder_provider import ImageEncoderProvider
 

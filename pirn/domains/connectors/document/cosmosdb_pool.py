@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.document.cosmosdb_config import CosmosDBConfig
@@ -76,7 +77,7 @@ class CosmosDBPool(DatabaseConnectionPool):
         """Upsert each item dict yielded by args_seq."""
         await self._ensure_container()
         for args in args_seq:
-            item = args if isinstance(args, dict) else (list(args)[0] if args else {})
+            item = args if isinstance(args, dict) else (next(iter(args)) if args else {})
             await self._container.upsert_item(item)
 
     async def _ensure_container(self) -> None:

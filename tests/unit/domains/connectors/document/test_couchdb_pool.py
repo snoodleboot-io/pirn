@@ -6,14 +6,12 @@ Uses injected fakes — no real CouchDB or aiocouch needed.
 from __future__ import annotations
 
 import json
-from typing import Any
 import unittest
-
+from typing import Any
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.document.couchdb_config import CouchDBConfig
 from pirn.domains.connectors.document.couchdb_pool import CouchDBPool
-
 
 # ──────────────────────────────────────────────────────────── fakes
 
@@ -51,9 +49,6 @@ class FakeCouchSession:
     def __init__(self, db: FakeCouchDB_DB | None = None) -> None:
         self._db = db or FakeCouchDB_DB()
         self.closed = False
-
-    def __getitem__(self, name: str) -> FakeCouchDB_DB:
-        return self._db
 
     async def __getitem__(self, name: str) -> FakeCouchDB_DB:  # type: ignore[misc]
         return self._db

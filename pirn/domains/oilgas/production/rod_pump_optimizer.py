@@ -22,7 +22,7 @@ References:
     - API RP 11L (4th ed., 1988) — Recommended Practice for Design
       Calculations for Sucker Rod Pumping Systems.
     - Gibbs, S.G. (1963). Predicting the behaviour of sucker-rod pumping
-      systems. *JPT*, 15(7), 769–778. SPE-588-PA.
+      systems. *JPT*, 15(7), 769-778. SPE-588-PA.
 """
 
 from __future__ import annotations
@@ -30,7 +30,6 @@ from __future__ import annotations
 from typing import Any
 
 from pirn.core.knot import Knot
-from pirn.core.knot_config import KnotConfig
 
 
 class RodPumpOptimizer(Knot):

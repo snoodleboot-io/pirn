@@ -12,7 +12,7 @@ References:
       Format*. Society of Exploration Geophysicists (trace header byte
       positions).
     - Barry, K.M., Cavers, D.A. & Kneale, C.W. (1975). Recommended standards
-      for digital tape formats. *Geophysics*, 40(2), 344–352.
+      for digital tape formats. *Geophysics*, 40(2), 344-352.
 """
 
 from __future__ import annotations

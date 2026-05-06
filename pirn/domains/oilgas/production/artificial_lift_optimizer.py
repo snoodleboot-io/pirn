@@ -17,7 +17,7 @@ Math:
 
 References:
     - Vogel, J.V. (1968). Inflow performance relationships for solution-gas
-      drive wells. *JPT*, 20(1), 83–92. SPE-1476-PA.
+      drive wells. *JPT*, 20(1), 83-92. SPE-1476-PA.
     - Lea, J.F., Nickens, H.V. & Wells, M.R. (2008). *Gas Well Deliquification*,
       2nd ed. Gulf Professional Publishing, Chapter 3.
 """

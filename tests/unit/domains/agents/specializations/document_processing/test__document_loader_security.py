@@ -3,15 +3,14 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
-from typing import Any
+import tempfile
 import unittest
 import unittest.mock
-import tempfile
-
+from pathlib import Path
+from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.agents.specializations.document_processing._document_loader import (  # noqa: E501
+from pirn.domains.agents.specializations.document_processing._document_loader import (
     _DocumentLoader,
 )
 from pirn.tapestry import Tapestry
@@ -167,7 +166,7 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
             def __init__(self, *args: Any, **kwargs: Any) -> None:
                 self.kwargs = kwargs
 
-            async def __aenter__(self) -> "_StubAsyncClient":
+            async def __aenter__(self) -> _StubAsyncClient:
                 return self
 
             async def __aexit__(self, *args: Any) -> None:

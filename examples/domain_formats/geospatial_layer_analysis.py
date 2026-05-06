@@ -57,15 +57,15 @@ import math
 import random
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, ClassVar, Optional
+from typing import Any, ClassVar
 
+from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.core.error_policy import ErrorPolicy
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.core.result import Ok, Result
+from pirn.core.result import Ok
 from pirn.core.run_request import RunRequest
-from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.tapestry import Tapestry
 
 # ----------------------------------------------------------------- models
@@ -102,7 +102,7 @@ class ElevationData:
 class LandCoverData:
     feature_id: str
     primary_class: str
-    secondary_class: Optional[str]
+    secondary_class: str | None
     impervious_pct: float
     canopy_pct: float
 
@@ -162,7 +162,11 @@ class CoreAssessmentKnot(Knot):
             area_ha = abs(shoelace) / 2.0 * (111_000.0**2) / 10_000.0
             perimeter_m = 0.0
             for i in range(n):
-                dx = (flat[(i + 1) % n][0] - flat[i][0]) * 111_000.0 * math.cos(math.radians(centroid_lat))
+                dx = (
+                    (flat[(i + 1) % n][0] - flat[i][0])
+                    * 111_000.0
+                    * math.cos(math.radians(centroid_lat))
+                )
                 dy = (flat[(i + 1) % n][1] - flat[i][1]) * 111_000.0
                 perimeter_m += math.hypot(dx, dy)
         else:
@@ -318,10 +322,14 @@ class SuitabilityScorer(Knot):
             lc: LandCoverData = land_cover.value
             if lc.impervious_pct > 80.0:
                 score -= 0.10
-                factors["land_cover"] = f"{lc.primary_class} ({lc.impervious_pct:.0f}% impervious — penalty)"
+                factors["land_cover"] = (
+                    f"{lc.primary_class} ({lc.impervious_pct:.0f}% impervious - penalty)"
+                )
             elif lc.impervious_pct < 20.0:
                 score += 0.06
-                factors["land_cover"] = f"{lc.primary_class} ({lc.impervious_pct:.0f}% impervious — bonus)"
+                factors["land_cover"] = (
+                    f"{lc.primary_class} ({lc.impervious_pct:.0f}% impervious - bonus)"
+                )
             else:
                 factors["land_cover"] = f"{lc.primary_class} ({lc.impervious_pct:.0f}% impervious)"
         else:
@@ -410,7 +418,7 @@ def _synthetic_features(region: str, n: int) -> list[GeoFeature]:
             geometry_type = "Point"
             coords: list = [round(lon, 6), round(lat, 6)]
         else:
-            d = rng.uniform(0.001, 0.012)  # roughly 100 m – 1 km side
+            d = rng.uniform(0.001, 0.012)  # roughly 100 m - 1 km side
             geometry_type = "Polygon"
             coords = [[
                 [round(lon,       6), round(lat,       6)],

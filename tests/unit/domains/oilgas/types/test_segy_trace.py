@@ -1,6 +1,7 @@
 """Unit tests for :class:`SegyTrace`."""
 
 from __future__ import annotations
+
 import unittest
 
 from pirn.domains.oilgas.types.segy_trace import SegyTrace

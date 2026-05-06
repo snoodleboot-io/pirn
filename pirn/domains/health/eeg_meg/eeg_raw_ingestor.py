@@ -19,7 +19,7 @@ References:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -109,5 +109,5 @@ class EEGRawIngestor(Knot):
             channel_count=channel_count,
             sample_rate_hz=float(sample_rate_hz),
             duration_sec=float(duration_sec),
-            fetched_at=datetime.now(timezone.utc),
+            fetched_at=datetime.now(UTC),
         )

@@ -7,13 +7,11 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.feature_engineering.ngram_extractor import (
     NGramExtractor,
 )
 from pirn.domains.ml.types.data_split import DataSplit
 from pirn.domains.ml.types.ml_dataset import MLDataset
-from pirn.tapestry import Tapestry
 
 
 class _SplitSource(Knot):

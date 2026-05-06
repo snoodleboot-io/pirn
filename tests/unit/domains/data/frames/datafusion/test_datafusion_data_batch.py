@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import timezone
 import unittest
+from datetime import UTC
 
 import datafusion as df
 
@@ -25,7 +25,7 @@ class TestDatafusionDataBatch(unittest.TestCase):
         ctx = df.SessionContext()
         frame = ctx.from_pylist([{"x": 1}])
         batch = DatafusionDataBatch(frame=frame, context=ctx)
-        assert batch.fetched_at.tzinfo is timezone.utc
+        assert batch.fetched_at.tzinfo is UTC
 
     def test_with_frame_preserves_metadata(self) -> None:
         ctx = df.SessionContext()

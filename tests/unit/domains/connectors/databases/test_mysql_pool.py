@@ -6,14 +6,12 @@ aiomysql driver installation required.
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.databases.mysql_config import MySQLConfig
 from pirn.domains.connectors.databases.mysql_pool import MySQLPool
-
 
 # ──────────────────────────────────────────────────────────── fake pool
 
@@ -21,7 +19,7 @@ from pirn.domains.connectors.databases.mysql_pool import MySQLPool
 class FakeMysqlCursor:
     def __init__(
         self, parent: FakeMysqlConnection
-    ) -> None:  # noqa: F821 - forward ref OK
+    ) -> None:
         self._parent = parent
         self._last_query: str | None = None
         self.rowcount = 0
@@ -46,7 +44,7 @@ class FakeMysqlCursor:
 
 
 class FakeMysqlConnection:
-    def __init__(self, parent_pool: FakeAiomysqlPool) -> None:  # noqa: F821
+    def __init__(self, parent_pool: FakeAiomysqlPool) -> None:
         self.parent_pool = parent_pool
         self.committed = 0
 

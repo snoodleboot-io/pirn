@@ -1,17 +1,17 @@
 """Tests for :class:`CdaXmlFormat` — CDA XML clinical document format."""
 
 from __future__ import annotations
+
 import sys
 import unittest
 import unittest.mock
 
-
 try:
-    import lxml
+    import lxml  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("lxml not installed") from _e
 try:
-    import defusedxml
+    import defusedxml  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("defusedxml not installed") from _e
 
@@ -65,7 +65,7 @@ def _make_cda_xml(
     </structuredBody>
   </component>
 </ClinicalDocument>
-""".encode("utf-8")
+""".encode()
 
 
 async def _decode(fmt: CdaXmlFormat, payload: bytes) -> list[dict]:
@@ -179,7 +179,7 @@ class TestCdaXmlFormatErrors(unittest.IsolatedAsyncioTestCase):
         async def _iter():
             yield b"not xml <<<<"
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception):  # noqa: B017
             async for _ in await fmt.read(_iter()):
                 pass
 
@@ -201,7 +201,9 @@ class TestCdaXmlFormatErrors(unittest.IsolatedAsyncioTestCase):
 
 class TestCdaXmlFormatMissingDep(unittest.TestCase):
     def test_missing_defusedxml_raises(self) -> None:
-        with unittest.mock.patch.dict(sys.modules, {"defusedxml": None, "defusedxml.ElementTree": None}):
+        with unittest.mock.patch.dict(
+            sys.modules, {"defusedxml": None, "defusedxml.ElementTree": None}
+        ):
             fmt = CdaXmlFormat()
             with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
                 fmt._load_defusedxml()

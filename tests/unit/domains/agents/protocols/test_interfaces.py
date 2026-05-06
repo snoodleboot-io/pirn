@@ -5,8 +5,8 @@ when not overridden. This file pins those contracts.
 """
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.domains.agents.llm_provider import LLMProvider
 from pirn.domains.agents.memory_store import MemoryStore

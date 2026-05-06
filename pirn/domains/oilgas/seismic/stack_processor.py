@@ -14,7 +14,7 @@ Math:
 
 References:
     - Mayne, W.H. (1962). Common reflection point horizontal data stacking
-      techniques. *Geophysics*, 27(6), 927–938.
+      techniques. *Geophysics*, 27(6), 927-938.
     - Yilmaz, Ö. (2001). *Seismic Data Analysis*, 2nd ed. SEG, Chapter 3
       (CMP stacking).
 """

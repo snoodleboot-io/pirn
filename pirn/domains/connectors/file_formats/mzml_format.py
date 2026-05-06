@@ -52,6 +52,7 @@ class MzmlFormat(BatchFileFormat):
     ) -> bytes:
         lxml_etree = self._load_lxml()
         import io as _io
+
         import numpy as np
 
         materialised = list(records)
@@ -97,7 +98,7 @@ class MzmlFormat(BatchFileFormat):
         retention_time = 0.0
         if scan_info:
             rt_raw = scan_info[0].get("scan start time", 0.0)
-            rt_unit = scan_info[0].get(
+            _rt_unit = scan_info[0].get(
                 "scan start time", {}
             )
             retention_time = float(rt_raw) if rt_raw else 0.0
@@ -177,7 +178,7 @@ class MzmlFormat(BatchFileFormat):
             spec_el, "binaryDataArrayList", count="2"
         )
 
-        for arr, accession, array_name in (
+        for arr, _accession, array_name in (
             (mz_arr, "MS:1000514", "m/z array"),
             (intensity_arr, "MS:1000515", "intensity array"),
         ):

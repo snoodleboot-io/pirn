@@ -27,7 +27,7 @@ None.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -91,7 +91,7 @@ class EpisodicEpisodeWriter(Knot):
         if message_tuple:
             timestamp = message_tuple[-1].created_at
         else:
-            timestamp = datetime.now(timezone.utc)
+            timestamp = datetime.now(UTC)
         key = f"episode:{session_id}:{timestamp.isoformat()}"
         payload: dict[str, Any] = {
             "session_id": session_id,

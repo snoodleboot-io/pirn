@@ -1,15 +1,15 @@
 """Round-trip and validation tests for :class:`SegyFormat`."""
 
 from __future__ import annotations
+
 import unittest
 
-
 try:
-    import segyio
+    import segyio  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("segyio not installed") from _e
 try:
-    import numpy
+    import numpy  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("numpy not installed") from _e
 

@@ -21,7 +21,7 @@ Math:
 References:
     - Gaymard, R. & Poupon, A. (1968). Response of neutron and formation
       density logs in hydrocarbon bearing formations. *The Log Analyst*,
-      9(5), 3–12.
+      9(5), 3-12.
     - Ellis, D.V. & Singer, J.M. (2007). *Well Logging for Earth Scientists*,
       2nd ed. Springer, Chapter 14 (porosity measurement).
 """
@@ -103,6 +103,6 @@ class PorosityCalculator(Knot):
             )
         return LASFile(
             well_id=las_file.well_id,
-            curves=las_file.curves + (f"PHI_{method}",),
+            curves=(*las_file.curves, f"PHI_{method}"),
             depth_unit=las_file.depth_unit,
         )

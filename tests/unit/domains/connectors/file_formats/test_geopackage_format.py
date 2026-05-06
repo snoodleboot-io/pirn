@@ -1,12 +1,13 @@
 """Round-trip and validation tests for :class:`GeopackageFormat`."""
 
 from __future__ import annotations
+
 import unittest
 
 import pytest
 
 try:
-    import fiona
+    import fiona  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("fiona not installed") from _e
 

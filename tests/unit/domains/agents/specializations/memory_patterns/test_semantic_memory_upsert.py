@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
+import unittest
 from collections.abc import AsyncIterator, Mapping
 from typing import Any
-import unittest
-
-import hashlib
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.agents.memory_store import MemoryStore
@@ -67,7 +66,7 @@ class TestSemanticMemoryUpsertProcess(unittest.IsolatedAsyncioTestCase):
         store = RecordingMemoryStore()
         llm = StubLLMProvider(["existing fact"])
         response = AgentResponse(content="existing fact")
-        key = "fact:" + hashlib.sha256("existing fact".encode()).hexdigest()[:16]
+        key = "fact:" + hashlib.sha256(b"existing fact").hexdigest()[:16]
         await store.store(key, {"fact": "existing fact"})
         count = await k.process(response=response, llm=llm, store=store)
         assert count == 0

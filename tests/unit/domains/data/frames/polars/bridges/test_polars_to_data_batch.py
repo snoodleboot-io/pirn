@@ -1,6 +1,7 @@
 """Tests for :class:`PolarsToDataBatch`."""
 
 from __future__ import annotations
+
 import unittest
 
 import polars as pl

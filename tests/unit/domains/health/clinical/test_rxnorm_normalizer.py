@@ -1,12 +1,11 @@
 """Unit tests for :class:`RxNormNormalizer`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.clinical.rxnorm_normalizer import RxNormNormalizer
-
 
 _CFG = KnotConfig(id="n")
 _KNOT = RxNormNormalizer(drug_names=[], mapping={}, _config=_CFG)

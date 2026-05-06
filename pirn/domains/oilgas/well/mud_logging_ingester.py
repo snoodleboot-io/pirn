@@ -13,7 +13,7 @@ References:
     - IADC Mud Logging Manual (1999), Section 3 (mud log data recording and
       quality control).
     - Swanson, B.F. (1981). A simple correlation between permeabilities and
-      mercury capillary pressures. *JPT*, 33(12), 2498–2504. (mud-log
+      mercury capillary pressures. *JPT*, 33(12), 2498-2504. (mud-log
       gas-show interpretation context.)
 """
 

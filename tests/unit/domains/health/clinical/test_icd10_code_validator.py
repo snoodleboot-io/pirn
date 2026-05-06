@@ -1,14 +1,13 @@
 """Unit tests for :class:`ICD10CodeValidator`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.clinical.icd10_code_validator import (
     ICD10CodeValidator,
 )
-
 
 _CFG = KnotConfig(id="v")
 

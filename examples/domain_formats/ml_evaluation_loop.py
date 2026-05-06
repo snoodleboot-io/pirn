@@ -26,8 +26,8 @@ import hashlib
 import math
 import random
 import statistics
+from dataclasses import dataclass, replace
 from pathlib import Path
-from dataclasses import dataclass, field, replace
 
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.core.knot import Knot
@@ -396,7 +396,7 @@ class MetricsAggregator(Knot):
         latencies = [b.latency_ms for b in batches]
         latencies_sorted = sorted(latencies)
         p50 = statistics.median(latencies_sorted)
-        p99_idx = max(0, int(math.ceil(0.99 * len(latencies_sorted))) - 1)
+        p99_idx = max(0, math.ceil(0.99 * len(latencies_sorted)) - 1)
         p99 = latencies_sorted[p99_idx]
 
         return ModelMetrics(
@@ -414,7 +414,9 @@ class MetricsAggregator(Knot):
 class PromotionGate(Knot):
     """Decide promote/reject; register next ModelEvaluator or _RegistryReport."""
 
-    async def process(self, metrics: ModelMetrics, queue: EvaluationQueue, **_) -> PromotionDecision:  # type: ignore[override]
+    async def process(  # type: ignore[override]
+        self, metrics: ModelMetrics, queue: EvaluationQueue, **_
+    ) -> PromotionDecision:
         reasons: list[str] = []
         if metrics.accuracy < ACCURACY_THRESHOLD:
             reasons.append(f"accuracy {metrics.accuracy:.3f} < {ACCURACY_THRESHOLD}")
@@ -433,7 +435,7 @@ class PromotionGate(Knot):
             metrics=metrics,
         )
 
-        new_decisions = queue.decisions + (decision,)
+        new_decisions = (*queue.decisions, decision)
         new_queue = queue.evolve(
             model_idx=queue.model_idx + 1,
             decisions=new_decisions,

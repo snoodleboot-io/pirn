@@ -1,6 +1,7 @@
 """Unit tests for :class:`FFTAnalyzer`."""
 
 from __future__ import annotations
+
 import unittest
 
 import pytest

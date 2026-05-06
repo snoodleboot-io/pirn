@@ -1,11 +1,11 @@
 """Round-trip and validation tests for :class:`NumpyNpzFormat`."""
 
 from __future__ import annotations
+
 import unittest
 
-
 try:
-    import numpy
+    import numpy  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("numpy not installed") from _e
 

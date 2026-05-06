@@ -17,7 +17,8 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import Any, ClassVar, Mapping
+from collections.abc import Mapping
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig

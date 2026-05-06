@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
+from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.trials.propensity_score_matcher_pipeline import (

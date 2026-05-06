@@ -17,8 +17,9 @@ References:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Sequence
+from collections.abc import Sequence
+from datetime import UTC, datetime
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -82,7 +83,7 @@ class InteractionFeatureGenerator(Knot):
                     "tuple of two non-empty strings"
                 )
         cleaned_pairs = tuple((str(a), str(b)) for a, b in pairs_tuple)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return DataSplit(
             train=self._add_interaction_features(split.train, cleaned_pairs, now),
             test=self._add_interaction_features(split.test, cleaned_pairs, now),

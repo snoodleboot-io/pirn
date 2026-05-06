@@ -1,16 +1,16 @@
 """Unit tests for :class:`ZstdCodec`. Skipped if ``zstandard`` is missing."""
 
 from __future__ import annotations
+
 import unittest
 
-
 try:
-    import zstandard
+    import zstandard  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("zstandard not installed") from _e
 
-from pirn.domains.connectors.file_formats.codecs.zstd_codec import ZstdCodec  # noqa: E402
-from tests.unit.domains.connectors.file_formats.codecs._codec_round_trip import (  # noqa: E402
+from pirn.domains.connectors.file_formats.codecs.zstd_codec import ZstdCodec
+from tests.unit.domains.connectors.file_formats.codecs._codec_round_trip import (
     CodecRoundTrip,
 )
 

@@ -83,8 +83,8 @@ class FastqRead:
 class ReadQC:
     seq_id: str
     mean_quality: float
-    gc_content: float  # fraction 0.0–1.0
-    n_fraction: float  # fraction 0.0–1.0
+    gc_content: float  # fraction 0.0-1.0
+    n_fraction: float  # fraction 0.0-1.0
     pass_qc: bool
     fail_reason: str  # empty string when pass_qc is True
 
@@ -301,7 +301,6 @@ def build_tapestry(history=None) -> Tapestry:
 
 def _synthetic_reads(run_name: str, n_reads: int) -> list[FastqRead]:
     """Generate realistic synthetic FASTQ records for testing."""
-    rng = random.Random(run_name)
     normal_bases = "ATGC"
     reads: list[FastqRead] = []
 
@@ -322,7 +321,7 @@ def _synthetic_reads(run_name: str, n_reads: int) -> list[FastqRead]:
 
         # Build quality string
         if variant < 0.08:
-            # Low-quality tail — last 20 bases are poor quality (Phred 15–19)
+            # Low-quality tail - last 20 bases are poor quality (Phred 15-19)
             good_len = read_length - 20
             good_qual = "".join(
                 chr(read_rng.randint(25, 40) + 33) for _ in range(good_len)
@@ -340,7 +339,10 @@ def _synthetic_reads(run_name: str, n_reads: int) -> list[FastqRead]:
         if variant > 0.85:
             adapter = _KNOWN_ADAPTER
             seq = adapter + seq[:read_length - len(adapter)]
-            qual = "".join(chr(read_rng.randint(20, 35) + 33) for _ in range(len(adapter))) + qual[len(adapter):]
+            adapter_qual = "".join(
+                chr(read_rng.randint(20, 35) + 33) for _ in range(len(adapter))
+            )
+            qual = adapter_qual + qual[len(adapter):]
 
         description = f"instrument=SYNTH flowcell=FC{run_name} lane={read_rng.randint(1, 8)}"
 

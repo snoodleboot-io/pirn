@@ -80,10 +80,11 @@ class BrainVisionFormat(BatchFileFormat):
     def _decode_with_mne(
         cls, bundle: dict[str, bytes]
     ) -> list[Mapping[str, Any]]:
-        import mne
-        import numpy as np
         import tempfile
         from pathlib import Path
+
+        import mne
+        import numpy as np
 
         with tempfile.TemporaryDirectory() as tmpdir:
             base = Path(tmpdir) / "recording"
@@ -128,7 +129,6 @@ class BrainVisionFormat(BatchFileFormat):
         cls, bundle: dict[str, bytes]
     ) -> list[Mapping[str, Any]]:
         """Pure-Python BrainVision decoder (no mne required)."""
-        import configparser
         import numpy as np
 
         vhdr_text = bundle.get("recording.vhdr", b"").decode(
@@ -221,11 +221,10 @@ class BrainVisionFormat(BatchFileFormat):
                 "at least one channel record is required."
             )
 
-        n_channels = len(materialised)
         sfreq = float(materialised[0].get("sample_rate", 1000.0))
         ch_names = [str(r.get("channel_name", f"Ch{r['channel_index']+1}")) for r in materialised]
 
-        # Build data matrix (channels × samples)
+        # Build data matrix (channels x samples)
         arrays = []
         for rec in materialised:
             data_bytes = rec.get("data", b"")
@@ -242,7 +241,7 @@ class BrainVisionFormat(BatchFileFormat):
             padded.append(arr)
 
         data_matrix = np.stack(padded, axis=0)  # (n_channels, n_samples)
-        # Interleaved binary (MULTIPLEXED = sample × channel)
+        # Interleaved binary (MULTIPLEXED = sample x channel)
         eeg_bytes = data_matrix.T.astype(np.float32).tobytes()
 
         vhdr_text = self._build_vhdr(ch_names, sfreq, n_samples)

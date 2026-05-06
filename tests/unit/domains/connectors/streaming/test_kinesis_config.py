@@ -33,7 +33,9 @@ class TestKinesisConfig(unittest.TestCase):
         self.assertIn("session_token", KinesisConfig.sensitive_fields)
 
     def test_repr_redacts_credentials(self) -> None:
-        cfg = KinesisConfig(access_key_id="AKIA", secret_access_key="xK9mP2wQrT", session_token="tok")
+        cfg = KinesisConfig(
+            access_key_id="AKIA", secret_access_key="xK9mP2wQrT", session_token="tok"
+        )
         text = repr(cfg)
         self.assertNotIn("xK9mP2wQrT", text)
         self.assertIn("<redacted>", text)

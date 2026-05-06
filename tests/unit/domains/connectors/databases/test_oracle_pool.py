@@ -6,14 +6,12 @@ Uses an injected stub client that mirrors the cursor-based slice of the
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.databases.oracle_config import OracleConfig
 from pirn.domains.connectors.databases.oracle_pool import OraclePool
-
 
 # ──────────────────────────────────────────────────────────── fake client
 
@@ -21,7 +19,7 @@ from pirn.domains.connectors.databases.oracle_pool import OraclePool
 class FakeOracleCursor:
     def __init__(
         self, parent: FakeOracleClient
-    ) -> None:  # noqa: F821 - forward ref OK
+    ) -> None:
         self._parent = parent
         self._last_query: str | None = None
         self.rowcount = 0

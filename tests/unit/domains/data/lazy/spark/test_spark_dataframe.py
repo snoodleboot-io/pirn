@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import unittest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 from pirn.domains.data.lazy.spark.spark_dataframe import SparkDataFrame
@@ -30,7 +30,7 @@ class TestSparkDataFrame(unittest.TestCase):
 
     def test_with_frame_preserves_metadata(self) -> None:
         frame = _mock_frame(["a"])
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         sdf = SparkDataFrame(frame=frame, backend_name="custom", source_uri="s3://b", fetched_at=now)
         new_frame = _mock_frame(["b"])
         sdf2 = sdf.with_frame(new_frame)

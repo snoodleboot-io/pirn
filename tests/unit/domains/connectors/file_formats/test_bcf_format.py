@@ -1,11 +1,11 @@
 """Round-trip and validation tests for :class:`BcfFormat`."""
 
 from __future__ import annotations
+
 import unittest
 
-
 try:
-    import pysam
+    import pysam  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("pysam not installed") from _e
 

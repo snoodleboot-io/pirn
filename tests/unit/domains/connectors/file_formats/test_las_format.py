@@ -1,15 +1,15 @@
 """Round-trip and validation tests for :class:`LasFormat`."""
 
 from __future__ import annotations
+
 import unittest
 
-
 try:
-    import lasio
+    import lasio  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("lasio not installed") from _e
 try:
-    import numpy
+    import numpy  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("numpy not installed") from _e
 
@@ -75,9 +75,9 @@ class TestLasFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
         assert len(decoded) == 1
         assert decoded[0]["curves"] == record["curves"]
         for orig_row, dec_row in zip(
-            record["data"], decoded[0]["data"]
+            record["data"], decoded[0]["data"], strict=False
         ):
-            for o, d in zip(orig_row, dec_row):
+            for o, d in zip(orig_row, dec_row, strict=False):
                 assert abs(o - d) < 1e-4
 
     async def test_round_trip_multi_curve(self) -> None:

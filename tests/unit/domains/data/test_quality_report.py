@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime
 
 from pirn.domains.data.quality_check import QualityCheck
 from pirn.domains.data.quality_report import QualityReport

@@ -6,10 +6,9 @@ Uses an injected stub client that mirrors the ``call_api`` slice of
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any
 import unittest
-
+from datetime import UTC, datetime
+from typing import Any
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.capabilities.event_emitter import EventEmitter
@@ -17,7 +16,6 @@ from pirn.domains.connectors.capabilities.metric_query import MetricQuery
 from pirn.domains.connectors.capabilities.table_source import TableSource
 from pirn.domains.connectors.observability.datadog_client import DatadogClient
 from pirn.domains.connectors.observability.datadog_config import DatadogConfig
-
 
 # ──────────────────────────────────────────────────────────── fake client
 
@@ -28,7 +26,10 @@ class FakeDatadog:
         self.response: Any = {"status": "ok"}
         self.closed = False
 
-    def call_api(self, method: str, path: str, *, query_params: Any = None, body: Any = None, header_params: Any = None,) -> Any:
+    def call_api(
+        self, method: str, path: str, *,
+        query_params: Any = None, body: Any = None, header_params: Any = None,
+    ) -> Any:
         self.calls.append(
             (
                 method,
@@ -297,8 +298,8 @@ class TestQuery(unittest.IsolatedAsyncioTestCase):
         fake = FakeDatadog()
         fake.response = {"series": []}
         client = DatadogClient(client=fake)
-        start = datetime(2024, 1, 1, tzinfo=timezone.utc)
-        end = datetime(2024, 1, 2, tzinfo=timezone.utc)
+        start = datetime(2024, 1, 1, tzinfo=UTC)
+        end = datetime(2024, 1, 2, tzinfo=UTC)
         result = await client.query(
             "avg:system.cpu.user{*}", start=start, end=end
         )
@@ -322,16 +323,16 @@ class TestQuery(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(ValueError, "query"):
             await client.query(
                 "",
-                start=datetime(2024, 1, 1, tzinfo=timezone.utc),
-                end=datetime(2024, 1, 2, tzinfo=timezone.utc),
+                start=datetime(2024, 1, 1, tzinfo=UTC),
+                end=datetime(2024, 1, 2, tzinfo=UTC),
             )
 
     async def test_query_metrics_passes_params(self) -> None:
         fake = FakeDatadog()
         fake.response = {"series": [{"name": "cpu"}]}
         client = DatadogClient(client=fake)
-        start = datetime(2024, 6, 1, tzinfo=timezone.utc)
-        end = datetime(2024, 6, 2, tzinfo=timezone.utc)
+        start = datetime(2024, 6, 1, tzinfo=UTC)
+        end = datetime(2024, 6, 2, tzinfo=UTC)
         result = await client.query_metrics(
             "system.cpu.user", start=start, end=end
         )

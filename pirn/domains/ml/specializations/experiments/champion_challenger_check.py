@@ -30,7 +30,7 @@ References:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import MappingProxyType
 from typing import Any
 
@@ -163,7 +163,7 @@ class ChampionChallengerCheck(SubTapestry):
                     "challenger_wins": challenger_wins,
                 }
             ),
-            evaluated_at=datetime.now(timezone.utc),
+            evaluated_at=datetime.now(UTC),
         )
         return {
             "challenger_wins": challenger_wins,

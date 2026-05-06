@@ -2,18 +2,17 @@
 
 from __future__ import annotations
 
-import io
 import tempfile
+import unittest
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
-import unittest
 
 import numpy as np
 
 try:
-    import pyedflib
+    import pyedflib  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("pyedflib not installed") from _e
 
@@ -24,7 +23,6 @@ from pirn.domains.connectors.file_formats.edf_format import EdfFormat
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -205,7 +203,7 @@ class TestEdfFormatErrors(unittest.IsolatedAsyncioTestCase):
         async def _iter():
             yield b"this is definitely not an edf file"
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception):  # noqa: B017
             async for _ in await fmt.read(_iter()):
                 pass
 

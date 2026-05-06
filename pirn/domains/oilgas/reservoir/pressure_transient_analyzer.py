@@ -25,7 +25,7 @@ Math:
 
 References:
     - Horner, D.R. (1951). Pressure build-up in wells. *Proc. Third World
-      Petroleum Congress*, Section II, 503–523.
+      Petroleum Congress*, Section II, 503-523.
     - Earlougher, R.C. (1977). *Advances in Well Test Analysis*. SPE
       Monograph Volume 5.
 """

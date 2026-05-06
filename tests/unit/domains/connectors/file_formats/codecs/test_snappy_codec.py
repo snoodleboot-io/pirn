@@ -1,16 +1,16 @@
 """Unit tests for :class:`SnappyCodec`. Skipped if ``snappy`` is missing."""
 
 from __future__ import annotations
+
 import unittest
 
-
 try:
-    import snappy
+    import snappy  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("snappy not installed") from _e
 
-from pirn.domains.connectors.file_formats.codecs.snappy_codec import SnappyCodec  # noqa: E402
-from tests.unit.domains.connectors.file_formats.codecs._codec_round_trip import (  # noqa: E402
+from pirn.domains.connectors.file_formats.codecs.snappy_codec import SnappyCodec
+from tests.unit.domains.connectors.file_formats.codecs._codec_round_trip import (
     CodecRoundTrip,
 )
 

@@ -1,14 +1,13 @@
 """Unit tests for :class:`LabResultNormalizer`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.clinical.lab_result_normalizer import (
     LabResultNormalizer,
 )
-
 
 _CFG = KnotConfig(id="n")
 _KNOT = LabResultNormalizer(rows=[], unit_conversions={}, target_unit="mg/dL", _config=_CFG)

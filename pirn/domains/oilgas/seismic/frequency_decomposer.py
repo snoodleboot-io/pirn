@@ -18,14 +18,15 @@ Math:
 References:
     - Partyka, G., Gridley, J. & Lopez, J. (1999). Interpretational
       applications of spectral decomposition in reservoir characterisation.
-      *TLE*, 18(3), 353–360.
+      *TLE*, 18(3), 353-360.
     - Liu, J. & Marfurt, K.J. (2007). Instantaneous spectral attributes to
-      support seismic interpretation. *Geophysics*, 72(2), P23–P35.
+      support seismic interpretation. *Geophysics*, 72(2), P23-P35.
 """
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig

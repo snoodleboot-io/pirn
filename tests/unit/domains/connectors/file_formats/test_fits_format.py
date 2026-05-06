@@ -1,11 +1,11 @@
 """Round-trip and validation tests for :class:`FitsFormat`."""
 
 from __future__ import annotations
+
 import unittest
 
-
 try:
-    import astropy
+    import astropy  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("astropy not installed") from _e
 
@@ -20,8 +20,9 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 
 def _make_fits_payload() -> bytes:
     """Return a minimal valid FITS file as bytes."""
-    from astropy.io import fits
     import io
+
+    from astropy.io import fits
 
     hdul = fits.HDUList([fits.PrimaryHDU()])
     buf = io.BytesIO()
@@ -31,9 +32,10 @@ def _make_fits_payload() -> bytes:
 
 def _make_fits_payload_with_data() -> bytes:
     """Return a FITS file with image data."""
-    from astropy.io import fits
     import io
+
     import numpy as np
+    from astropy.io import fits
 
     primary = fits.PrimaryHDU(data=np.array([1, 2, 3], dtype=np.uint8))
     hdul = fits.HDUList([primary])
@@ -76,8 +78,9 @@ class TestFitsFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
         assert len(first["data"]) > 0
 
     async def test_encode_produces_valid_fits(self) -> None:
-        from astropy.io import fits
         import io
+
+        from astropy.io import fits
 
         records = [
             {
@@ -96,9 +99,10 @@ class TestFitsFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
             assert len(hdul) >= 1
 
     async def test_encode_then_decode_preserves_hdu_count(self) -> None:
-        from astropy.io import fits
         import io
+
         import numpy as np
+        from astropy.io import fits
 
         primary = fits.PrimaryHDU(data=np.array([10, 20], dtype=np.uint8))
         hdul = fits.HDUList([primary])
@@ -121,7 +125,7 @@ class TestFitsFormatErrors(unittest.IsolatedAsyncioTestCase):
         async def _bad_iter():
             yield b"not a fits file at all !@#$"
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception):  # noqa: B017
             record_iter = await fmt.read(_bad_iter())
             async for _ in record_iter:
                 pass
@@ -130,6 +134,8 @@ class TestFitsFormatErrors(unittest.IsolatedAsyncioTestCase):
 class TestFitsFormatMissingDep(unittest.TestCase):
     def test_import_error_message(self) -> None:
         import unittest.mock
-        with unittest.mock.patch.dict("sys.modules", {"astropy": None, "astropy.io": None, "astropy.io.fits": None}):
+        with unittest.mock.patch.dict(
+            "sys.modules", {"astropy": None, "astropy.io": None, "astropy.io.fits": None}
+        ):
             with self.assertRaisesRegex(ImportError, "pirn\\[astronomy\\]"):
                 FitsFormat._load_fits()

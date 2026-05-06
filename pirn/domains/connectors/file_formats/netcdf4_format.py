@@ -140,7 +140,7 @@ class Netcdf4Format(BatchFileFormat):
         group = cls._resolve_or_create_group(ds, group_path)
 
         # Create dimensions that don't already exist in this group
-        for dim_name, dim_size in zip(dimensions, shape):
+        for dim_name, dim_size in zip(dimensions, shape, strict=False):
             if dim_name not in group.dimensions:
                 group.createDimension(dim_name, dim_size)
 

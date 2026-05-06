@@ -48,7 +48,10 @@ class EmbeddingIndexer(Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        super().__init__(chunks=chunks, embedding_provider=embedding_provider, store=store, _config=_config, **kwargs)
+        super().__init__(
+            chunks=chunks, embedding_provider=embedding_provider, store=store,
+            _config=_config, **kwargs,
+        )
 
     async def process(
         self,

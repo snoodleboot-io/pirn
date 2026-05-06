@@ -22,7 +22,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, AsyncIterator, Iterable, Mapping
+from collections.abc import AsyncIterator, Iterable, Mapping
+from typing import Any
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.capabilities.record_writer import RecordWriter

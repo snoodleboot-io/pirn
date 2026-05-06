@@ -1,14 +1,13 @@
 """Unit tests for :class:`SnomedCTNormalizer`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.clinical.snomed_ct_normalizer import (
     SnomedCTNormalizer,
 )
-
 
 _CFG = KnotConfig(id="n")
 _KNOT = SnomedCTNormalizer(codes=[], mapping={}, _config=_CFG)

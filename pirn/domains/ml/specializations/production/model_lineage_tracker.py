@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -86,7 +86,7 @@ class ModelLineageTracker(Knot):
         """
         if not isinstance(lineage, LineageStore):
             raise TypeError("ModelLineageTracker: lineage must be a LineageStore")
-        recorded_at = datetime.now(timezone.utc).isoformat()
+        recorded_at = datetime.now(UTC).isoformat()
         dataset_hash = self._hash(
             {
                 "name": dataset.name,

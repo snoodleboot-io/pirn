@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import unittest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pirn.domains.data.lazy.dask.dask_execution_receipt import DaskExecutionReceipt
 
 
 class TestDaskExecutionReceipt(unittest.TestCase):
     def test_construction_with_target_path(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         receipt = DaskExecutionReceipt(
             backend_name="dask",
             target_path="s3://bucket/out",

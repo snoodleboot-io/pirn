@@ -1,23 +1,21 @@
 """Tests for :class:`FhirXmlFormat` — FHIR XML Bundle format."""
 
 from __future__ import annotations
-import sys
 
-import hashlib
+import sys
 import unittest
 import unittest.mock
 
-
 try:
-    import fhir
+    import fhir  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("fhir not installed") from _e
 try:
-    import lxml
+    import lxml  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("lxml not installed") from _e
 try:
-    import defusedxml
+    import defusedxml  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("defusedxml not installed") from _e
 
@@ -43,7 +41,7 @@ def _make_bundle_xml(resources_xml: list[str]) -> bytes:
         f"<type value='collection'/>"
         f"{entries}"
         f"</Bundle>"
-    ).encode("utf-8")
+    ).encode()
 
 
 def _minimal_patient_xml() -> str:
@@ -184,7 +182,7 @@ class TestFhirXmlFormatErrors(unittest.IsolatedAsyncioTestCase):
         async def _iter():
             yield b"not xml <<<<"
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception):  # noqa: B017
             async for _ in await fmt.read(_iter()):
                 pass
 
@@ -201,7 +199,9 @@ class TestFhirXmlFormatMissingDep(unittest.TestCase):
                 fmt._load_fhir()
 
     def test_missing_defusedxml_raises(self) -> None:
-        with unittest.mock.patch.dict(sys.modules, {"defusedxml": None, "defusedxml.ElementTree": None}):
+        with unittest.mock.patch.dict(
+            sys.modules, {"defusedxml": None, "defusedxml.ElementTree": None}
+        ):
             fmt = FhirXmlFormat()
             with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
                 fmt._load_defusedxml()

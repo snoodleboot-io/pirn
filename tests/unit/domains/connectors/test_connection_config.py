@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import logging
+import unittest
 from dataclasses import dataclass
 from typing import ClassVar
-import unittest
-
 
 from pirn.domains.connectors.connection_config import ConnectionConfig
 from pirn.domains.connectors.connection_config_decorator import connection_config
@@ -125,7 +124,8 @@ class TestAuditDict(unittest.TestCase):
 
 class TestLoggingDoesNotLeak(unittest.TestCase):
     def test_logger_with_config_does_not_leak_password(self) -> None:
-        # TODO(unittest-migrate): replace 'caplog' built-in fixture — use unittest.mock.patch / assertLogs
+        # TODO(unittest-migrate): replace 'caplog' built-in fixture
+        # use unittest.mock.patch / assertLogs
         cfg = FakePostgresConfig("h", 5432, "alice", "leaky-pw-1", "d", "tok-2")
         log = logging.getLogger("test.connectors")
         with self.assertLogs(level=logging.DEBUG) as cm:

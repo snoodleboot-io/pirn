@@ -4,14 +4,13 @@ from __future__ import annotations
 
 import hashlib
 import io
+import unittest
 from collections.abc import Mapping
 from typing import Any
-from unittest.mock import MagicMock, patch
-import unittest
-
+from unittest.mock import patch
 
 try:
-    import pydicom
+    import pydicom  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("pydicom not installed") from _e
 
@@ -22,7 +21,6 @@ from pirn.domains.connectors.file_formats.dicom_format import DicomFormat
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -255,7 +253,7 @@ class TestDicomDecodeErrors(unittest.IsolatedAsyncioTestCase):
         async def _iter():
             yield b"this is not a dicom file at all"
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception):  # noqa: B017
             async for _ in await fmt.read(_iter()):
                 pass
 
@@ -302,7 +300,6 @@ class TestDicomEncodeErrors(unittest.IsolatedAsyncioTestCase):
 class TestDicomRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         """Encode a minimal record and decode it back; check non-PHI fields."""
-        import pydicom
         from pydicom.uid import generate_uid
 
         sop_uid = generate_uid()

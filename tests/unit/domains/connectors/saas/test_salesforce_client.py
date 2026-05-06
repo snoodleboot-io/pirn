@@ -6,16 +6,14 @@ Uses an injected stub client mirroring ``simple_salesforce.Salesforce``'s
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.capabilities.record_writer import RecordWriter
 from pirn.domains.connectors.capabilities.table_source import TableSource
 from pirn.domains.connectors.saas.salesforce_client import SalesforceClient
 from pirn.domains.connectors.saas.salesforce_config import SalesforceConfig
-
 
 # ──────────────────────────────────────────────────────────── fake client
 
@@ -42,7 +40,10 @@ class FakeSalesforceClient:
         self.queries.append(soql)
         return self.query_response
 
-    def restful(self, path: str, method: str = "GET", params: dict[str, Any] | None = None, json: dict[str, Any] | None = None,) -> dict[str, Any]:
+    def restful(
+        self, path: str, method: str = "GET",
+        params: dict[str, Any] | None = None, json: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         self.restful_calls.append(
             {"path": path, "method": method, "params": params, "json": json}
         )

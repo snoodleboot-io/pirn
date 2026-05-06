@@ -24,9 +24,9 @@ Math:
 
 References:
     - Arps, J.J. (1945). Analysis of decline curves. *Trans. AIME*, 160,
-      228–247. SPE-945228-G.
+      228-247. SPE-945228-G.
     - Fetkovich, M.J. (1980). Decline curve analysis using type curves.
-      *JPT*, 32(6), 1065–1077. SPE-4629-PA.
+      *JPT*, 32(6), 1065-1077. SPE-4629-PA.
 """
 
 from __future__ import annotations

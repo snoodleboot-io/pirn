@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import unittest
+from datetime import UTC, datetime
 
 from pirn.domains.ml.types.data_split import DataSplit
 from pirn.domains.ml.types.ml_dataset import MLDataset
@@ -11,7 +11,7 @@ from pirn.domains.ml.types.ml_dataset import MLDataset
 
 class TestDataSplit(unittest.TestCase):
     def test_construction_and_audit_dict(self) -> None:
-        fetched_at = datetime(2026, 4, 29, 0, 0, tzinfo=timezone.utc)
+        fetched_at = datetime(2026, 4, 29, 0, 0, tzinfo=UTC)
         train = MLDataset(
             name="d:train",
             feature_names=("a",),

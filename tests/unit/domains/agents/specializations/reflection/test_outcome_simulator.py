@@ -1,8 +1,8 @@
 """Unit tests for :class:`OutcomeSimulator`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -14,7 +14,6 @@ from pirn.domains.agents.specializations.reflection.simulation_result import (
 )
 from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
-
 
 _SIMULATION_RESPONSE = (
     "Best case:\nEverything works perfectly.\n"

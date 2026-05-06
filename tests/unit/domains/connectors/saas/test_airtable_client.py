@@ -5,15 +5,13 @@ Uses an injected stub httpx client. No network needed.
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.capabilities.table_source import TableSource
 from pirn.domains.connectors.saas.airtable_client import AirtableClient
 from pirn.domains.connectors.saas.airtable_config import AirtableConfig
-
 
 # ──────────────────────────────────────────────────────────── fake client
 

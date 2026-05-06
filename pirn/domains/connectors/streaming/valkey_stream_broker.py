@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 from pirn.domains.connectors.message_broker import MessageBroker
 from pirn.domains.connectors.streaming.valkey_record import ValkeyRecord
@@ -125,7 +126,7 @@ class ValkeyStreamBroker(MessageBroker):
     ) -> None:
         try:
             await client.xgroup_create(topic, group, mkstream=True)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             message = str(exc)
             if "BUSYGROUP" not in message and "already exists" not in message:
                 raise

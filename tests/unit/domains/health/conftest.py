@@ -8,7 +8,7 @@ Each one is deterministic so the tests assert on exact output shapes.
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Mapping
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pirn.domains.health.protocols.fhir_client import FHIRClient
@@ -64,7 +64,7 @@ class StubPACSClient(PACSClient):
             series_uid=series_uid,
             modality="MR",
             num_frames=1,
-            fetched_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            fetched_at=datetime(2026, 1, 1, tzinfo=UTC),
         )
 
     async def close(self) -> None:

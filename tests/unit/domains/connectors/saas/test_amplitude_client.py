@@ -10,10 +10,9 @@ from __future__ import annotations
 
 import sys
 import types
+import unittest
 from dataclasses import dataclass
 from typing import Any
-import unittest
-
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.capabilities.event_emitter import EventEmitter

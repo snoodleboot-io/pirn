@@ -47,7 +47,7 @@ class GribFormat(BatchFileFormat):
     async def _decode_full(
         self, payload: bytes
     ) -> Iterable[Mapping[str, Any]]:
-        cfgrib, eccodes = self._load_cfgrib_eccodes()
+        _cfgrib, eccodes = self._load_cfgrib_eccodes()
         tmp_path = self._write_temp(payload, ".grib2")
         records: list[Mapping[str, Any]] = []
         try:

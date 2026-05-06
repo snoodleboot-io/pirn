@@ -1,8 +1,8 @@
 """Tests for :class:`AblationStudyPipeline`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -96,6 +96,6 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         reports = result.outputs["ablation"]
         assert isinstance(reports, dict)
         assert set(reports.keys()) == {"full", "g1", "g2"}
-        for arm, report in reports.items():
+        for _arm, report in reports.items():
             assert isinstance(report, EvalReport)
             assert "accuracy" in report.metrics

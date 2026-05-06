@@ -6,7 +6,7 @@ to load a full object into memory.
 
 from __future__ import annotations
 
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 

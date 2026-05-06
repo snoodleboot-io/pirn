@@ -7,8 +7,8 @@ offline.
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
+from typing import Any
 
 import pandas as pd
 
@@ -28,10 +28,10 @@ class _FakeFrame:
 class TestElandToPandas(unittest.IsolatedAsyncioTestCase):
     async def test_materialises_via_stubbed_eland_to_pandas(self) -> None:
         try:
-            import eland
-        except ImportError as _e:
+            import eland as ed
+        except ImportError:
             self.skipTest("eland not installed")
-        import eland as ed
+            return
 
         captured: dict[str, Any] = {}
         out_df = pd.DataFrame({"id": [1, 2], "name": ["a", "b"]})

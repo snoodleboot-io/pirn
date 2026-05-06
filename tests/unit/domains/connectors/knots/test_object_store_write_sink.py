@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import tempfile
-from pathlib import Path
 import unittest
+from pathlib import Path
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.connectors.knots.object_store_knot import ObjectStoreKnot

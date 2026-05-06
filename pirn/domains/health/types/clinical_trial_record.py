@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
@@ -17,7 +17,7 @@ class ClinicalTrialRecord(PirnOpaqueValue):
     subject_id: str = ""
     visit_number: int = 0
     observation_codes: tuple[str, ...] = ()
-    observed_at: datetime = datetime(1970, 1, 1, tzinfo=timezone.utc)
+    observed_at: datetime = datetime(1970, 1, 1, tzinfo=UTC)
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
         return {

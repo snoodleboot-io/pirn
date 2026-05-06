@@ -19,7 +19,7 @@ Install: ``pip install pirn[health]``.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Mapping
 from typing import Any
 
 from pirn.domains.connectors.file_formats.edf_format import EdfFormat
@@ -43,7 +43,7 @@ class EdfPlusFormat(EdfFormat):
         records = super()._read_signals(pyedflib, path)
         annotations = cls._read_annotations(pyedflib, path)
         if annotations is not None:
-            records = list(records) + [{"_edfplus_annotations": annotations}]
+            records = [*records, {"_edfplus_annotations": annotations}]
         return records
 
     @staticmethod
@@ -58,7 +58,7 @@ class EdfPlusFormat(EdfFormat):
                 if raw is None or len(raw) == 0:
                     return annotations
                 onsets, durations, descriptions = raw
-                for onset, duration, text in zip(onsets, durations, descriptions):
+                for onset, duration, text in zip(onsets, durations, descriptions, strict=False):
                     annotations.append(
                         {
                             "onset": float(onset),

@@ -11,7 +11,8 @@ from __future__ import annotations
 
 import csv
 import io
-from typing import Any, AsyncIterator, Mapping, Sequence
+from collections.abc import AsyncIterator, Mapping, Sequence
+from typing import Any
 
 from pirn.domains.connectors.file_formats.streaming_file_format import (
     StreamingFileFormat,

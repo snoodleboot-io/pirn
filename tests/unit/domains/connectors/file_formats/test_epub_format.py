@@ -1,11 +1,11 @@
 """Round-trip and validation tests for :class:`EpubFormat`."""
 
 from __future__ import annotations
+
 import unittest
 
-
 try:
-    import ebooklib
+    import ebooklib  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("ebooklib not installed") from _e
 

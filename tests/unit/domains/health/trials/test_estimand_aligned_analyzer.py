@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import unittest
+from datetime import UTC, datetime
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.trials.estimand_aligned_analyzer import EstimandAlignedAnalyzer
@@ -16,14 +16,14 @@ _RECORDS = (
         subject_id="S-1",
         visit_number=1,
         observation_codes=("AE001",),
-        observed_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
+        observed_at=datetime(2026, 4, 1, tzinfo=UTC),
     ),
     ClinicalTrialRecord(
         trial_id="T-1",
         subject_id="S-1",
         visit_number=2,
         observation_codes=("DISCONT",),
-        observed_at=datetime(2026, 4, 5, tzinfo=timezone.utc),
+        observed_at=datetime(2026, 4, 5, tzinfo=UTC),
     ),
 )
 

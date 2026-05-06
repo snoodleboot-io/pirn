@@ -105,7 +105,7 @@ class TestPolarsJoin(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         out: PolarsDataBatch = result.outputs["joined"]
-        assert out.row_count == 6   # 2 × 3
+        assert out.row_count == 6   # 2 x 3
 
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):

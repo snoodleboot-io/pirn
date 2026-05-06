@@ -25,7 +25,6 @@ References:
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Sequence
 from typing import Any
 
 from pirn.core.knot import Knot

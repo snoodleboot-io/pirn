@@ -19,14 +19,15 @@ Algorithm:
 
 References:
     - White, R.E. (1980). Partial coherence matching of synthetic seismograms
-      with seismic traces. *Geophysical Prospecting*, 28(3), 333–358.
+      with seismic traces. *Geophysical Prospecting*, 28(3), 333-358.
     - Simm, R. & Bacon, M. (2014). *Seismic Amplitude: An Interpreter's
       Handbook*. Cambridge University Press, Chapter 3 (well-to-seismic tie).
 """
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig

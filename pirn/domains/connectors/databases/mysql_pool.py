@@ -9,7 +9,8 @@ reject only ``{...}``-style brace interpolation; ``%s`` is allowed.
 from __future__ import annotations
 
 import logging
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.databases.mysql_config import MySQLConfig

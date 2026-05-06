@@ -1,6 +1,7 @@
 """Unit tests for :class:`ToolResult`."""
 
 from __future__ import annotations
+
 import unittest
 
 from pirn.domains.agents.types.tool_result import ToolResult

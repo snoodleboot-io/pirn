@@ -21,7 +21,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.capabilities.table_source import TableSource
@@ -190,7 +191,7 @@ class StripeClient(ApiClient, TableSource):
         if self._config.api_version is not None:
             kwargs["stripe_version"] = self._config.api_version
         try:
-            factory = getattr(stripe, "StripeClient")
+            factory = stripe.StripeClient
             client = await asyncio.to_thread(factory, **kwargs)
         except Exception as exc:
             self._reraise_scrubbed(exc)

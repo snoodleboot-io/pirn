@@ -29,9 +29,10 @@ import hashlib
 import itertools
 import json
 import random
-from datetime import datetime, timezone
+from collections.abc import Mapping, Sequence
+from datetime import UTC, datetime
 from types import MappingProxyType
-from typing import Any, ClassVar, Mapping, Sequence
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -142,7 +143,7 @@ class HyperparamSearch(Knot):
             hyperparameters=MappingProxyType(dict(best)),
             feature_names=split.train.feature_names,
             target_name=split.train.target_name,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
 
     def _enumerate(
@@ -156,14 +157,14 @@ class HyperparamSearch(Knot):
         value_lists = [list(search_space[n]) for n in names]
         if strategy == "grid":
             return [
-                dict(zip(names, combo))
+                dict(zip(names, combo, strict=False))
                 for combo in itertools.product(*value_lists)
             ]
         # random + bayesian both walk the cartesian product up to n_trials,
         # the bayesian variant additionally shuffles to a deterministic order.
         rng = random.Random(random_seed)
         full = [
-            dict(zip(names, combo))
+            dict(zip(names, combo, strict=False))
             for combo in itertools.product(*value_lists)
         ]
         rng.shuffle(full)

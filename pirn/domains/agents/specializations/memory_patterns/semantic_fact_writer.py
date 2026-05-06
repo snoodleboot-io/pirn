@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -70,7 +70,7 @@ class SemanticFactWriter(Knot):
                 f"got {type(store).__name__}"
             )
         count = 0
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         for fact in facts:
             if not isinstance(fact, str):
                 raise TypeError(

@@ -24,9 +24,10 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from datetime import datetime, timezone
+from collections.abc import Sequence
+from datetime import UTC, datetime
 from types import MappingProxyType
-from typing import Any, ClassVar, Sequence
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -108,7 +109,7 @@ class EnsembleBuilder(Knot):
             hyperparameters=merged_hyperparameters,
             feature_names=feature_names,
             target_name=target_name,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
 
     def _derive_model_id(self, children: Sequence[TrainedModel], strategy: str) -> str:

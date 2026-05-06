@@ -1,14 +1,13 @@
 """Unit tests for :class:`DiagnosisCodeRollup`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.clinical.diagnosis_code_rollup import (
     DiagnosisCodeRollup,
 )
-
 
 _CFG = KnotConfig(id="r")
 

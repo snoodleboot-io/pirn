@@ -1,6 +1,7 @@
 """Unit tests for :class:`FormationTop`."""
 
 from __future__ import annotations
+
 import unittest
 
 from pirn.domains.oilgas.types.formation_top import FormationTop

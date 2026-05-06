@@ -1,6 +1,7 @@
 """Unit tests for :class:`PVTTable`."""
 
 from __future__ import annotations
+
 import unittest
 
 from pirn.domains.oilgas.types.pvt_table import PVTTable

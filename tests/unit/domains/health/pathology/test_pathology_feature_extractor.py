@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 import unittest
+from collections.abc import Mapping
 
 import pytest
 

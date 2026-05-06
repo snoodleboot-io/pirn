@@ -24,10 +24,10 @@ Math:
 References:
     - Archie, G.E. (1942). The electrical resistivity log as an aid in
       determining some reservoir characteristics. *Trans. AIME*, 146,
-      54–62. SPE-942054-G.
+      54-62. SPE-942054-G.
     - Simandoux, P. (1963). Dielectric measurements in porous media and
       application to shaly formation measurement. *Revue de l'Institut
-      Français du Pétrole*, supplementary issue, 193–215.
+      Français du Pétrole*, supplementary issue, 193-215.
 """
 
 from __future__ import annotations
@@ -106,6 +106,6 @@ class WaterSaturationCalculator(Knot):
                 )
         return LASFile(
             well_id=las_file.well_id,
-            curves=las_file.curves + (f"SW_{method}",),
+            curves=(*las_file.curves, f"SW_{method}"),
             depth_unit=las_file.depth_unit,
         )

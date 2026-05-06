@@ -1,8 +1,8 @@
 """Unit tests for :class:`Bzip2Codec`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.domains.connectors.file_formats.codecs.bzip2_codec import Bzip2Codec
 from tests.unit.domains.connectors.file_formats.codecs._codec_round_trip import (

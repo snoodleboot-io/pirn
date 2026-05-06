@@ -25,6 +25,7 @@ from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 
+
 class Hl7v2Format(BatchFileFormat):
     """Whole-file HL7 v2 encoder/decoder backed by ``hl7``.
 

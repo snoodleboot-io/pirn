@@ -4,7 +4,7 @@ Algorithm:
     1. Receive the input signal frame, embedding_dim, and component_count.
     2. Validate embedding_dim (integer > 1), component_count (positive integer,
        must not exceed embedding_dim).
-    3. Embed the signal into a trajectory matrix of shape (embedding_dim × K)
+    3. Embed the signal into a trajectory matrix of shape (embedding_dim x K)
        where K = N - embedding_dim + 1.
     4. Compute the SVD of the trajectory matrix; retain the top component_count
        singular triplets.

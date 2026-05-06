@@ -1,11 +1,11 @@
 """Round-trip and validation tests for :class:`RootFormat`."""
 
 from __future__ import annotations
+
 import unittest
 
-
 try:
-    import uproot
+    import uproot  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("uproot not installed") from _e
 
@@ -20,10 +20,11 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 
 def _make_root_payload() -> bytes:
     """Return a minimal ROOT file containing one TTree as bytes."""
-    import uproot
-    import numpy as np
-    import tempfile
     import os
+    import tempfile
+
+    import numpy as np
+    import uproot
 
     tmp = tempfile.mktemp(suffix=".root")
     try:
@@ -72,7 +73,6 @@ class TestRootFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
         assert records[0]["n_entries"] == 3
 
     async def test_decode_branch_data_bytes(self) -> None:
-        import numpy as np
 
         payload = _make_root_payload()
         fmt = RootFormat()
@@ -87,7 +87,9 @@ class TestRootFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_encode_raises_not_implemented(self) -> None:
         fmt = RootFormat()
         with self.assertRaisesRegex(NotImplementedError, "RootFormat"):
-            await FormatRoundTrip.encode(fmt, [{"tree_name": "t", "n_entries": 0, "branches": [], "data": {}}])
+            await FormatRoundTrip.encode(
+                fmt, [{"tree_name": "t", "n_entries": 0, "branches": [], "data": {}}]
+            )
 
 
 class TestRootFormatErrors(unittest.IsolatedAsyncioTestCase):
@@ -97,7 +99,7 @@ class TestRootFormatErrors(unittest.IsolatedAsyncioTestCase):
         async def _bad_iter():
             yield b"not a root file at all"
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception):  # noqa: B017
             record_iter = await fmt.read(_bad_iter())
             async for _ in record_iter:
                 pass

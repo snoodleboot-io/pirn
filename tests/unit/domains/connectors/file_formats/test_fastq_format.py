@@ -1,8 +1,8 @@
 """Round-trip and validation tests for :class:`FastqFormat`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.domains.connectors.file_formats.fastq_format import (
     FastqFormat,

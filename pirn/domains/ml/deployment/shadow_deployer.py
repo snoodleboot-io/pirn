@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -63,7 +63,7 @@ class ShadowDeployer(Knot):
             raise TypeError(
                 "ShadowDeployer: model must resolve to a TrainedModel"
             )
-        deployed_at = datetime.now(timezone.utc)
+        deployed_at = datetime.now(UTC)
         deployment_id = self._derive_deployment_id(model, deployed_at)
         await registry.log_event(
             "shadow_deployment",

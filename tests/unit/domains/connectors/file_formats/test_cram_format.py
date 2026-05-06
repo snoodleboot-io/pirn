@@ -8,13 +8,12 @@ it for reference-based decompression.
 
 from __future__ import annotations
 
-from pathlib import Path
-import unittest
 import tempfile
-
+import unittest
+from pathlib import Path
 
 try:
-    import pysam
+    import pysam  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("pysam not installed") from _e
 

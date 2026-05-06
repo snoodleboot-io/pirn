@@ -34,7 +34,10 @@ class MultiTurnContextAssembler(Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        super().__init__(messages=messages, max_turns=max_turns, max_tokens=max_tokens, _config=_config, **kwargs)
+        super().__init__(
+            messages=messages, max_turns=max_turns, max_tokens=max_tokens,
+            _config=_config, **kwargs,
+        )
 
     async def process(
         self,

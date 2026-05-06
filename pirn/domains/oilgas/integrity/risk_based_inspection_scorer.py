@@ -4,7 +4,7 @@ Algorithm:
     1. Receive a corrosion assessment dict and a ``consequence_score`` in [0, 1].
     2. Validate that ``consequence_score`` is numeric and in [0, 1].
     3. Derive probability-of-failure from the max corrosion rate.
-    4. Compute risk score = probability_of_failure × consequence.
+    4. Compute risk score = probability_of_failure x consequence.
     5. Return a dict with all three values.
 
 Math:

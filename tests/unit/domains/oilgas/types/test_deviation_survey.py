@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import unittest
+from datetime import UTC, datetime
 
 from pirn.domains.oilgas.types.deviation_survey import DeviationSurvey
 
@@ -16,7 +16,7 @@ class TestConstruction(unittest.TestCase):
         assert isinstance(survey.fetched_at, datetime)
 
     def test_full_values(self) -> None:
-        when = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        when = datetime(2026, 1, 1, tzinfo=UTC)
         survey = DeviationSurvey(well_id="W1", station_count=10, fetched_at=when)
         assert survey.well_id == "W1"
         assert survey.station_count == 10
@@ -25,7 +25,7 @@ class TestConstruction(unittest.TestCase):
 
 class TestAuditDict(unittest.TestCase):
     def test_audit_dict_keys(self) -> None:
-        when = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        when = datetime(2026, 1, 1, tzinfo=UTC)
         survey = DeviationSurvey(well_id="W1", station_count=3, fetched_at=when)
         d = survey._pirn_audit_dict()
         assert d == {

@@ -1,11 +1,11 @@
 """Round-trip and validation tests for :class:`Netcdf4Format`."""
 
 from __future__ import annotations
+
 import unittest
 
-
 try:
-    import netCDF4
+    import netCDF4  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("netCDF4 not installed") from _e
 
@@ -20,10 +20,11 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 
 def _make_single_group_payload() -> bytes:
     """Return a minimal multi-group NetCDF4 file as bytes."""
+    import os
+    import tempfile
+
     import netCDF4
     import numpy as np
-    import tempfile
-    import os
 
     tmp = tempfile.mktemp(suffix=".nc")
     try:
@@ -43,10 +44,11 @@ def _make_single_group_payload() -> bytes:
 
 def _make_multi_group_payload() -> bytes:
     """Return a NetCDF4 file with multiple groups."""
+    import os
+    import tempfile
+
     import netCDF4
     import numpy as np
-    import tempfile
-    import os
 
     tmp = tempfile.mktemp(suffix=".nc")
     try:
@@ -166,7 +168,7 @@ class TestNetcdf4FormatErrors(unittest.IsolatedAsyncioTestCase):
         async def _bad_iter():
             yield b"not a netcdf4 file"
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception):  # noqa: B017
             record_iter = await fmt.read(_bad_iter())
             async for _ in record_iter:
                 pass

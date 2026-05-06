@@ -23,7 +23,7 @@ Math:
 References:
     - Camponogara, E. & Nakashima, P.H. (2006). Solving a gas-lift optimization
       problem by dynamic programming. *European Journal of Operational Research*,
-      174(3), 1220–1246.
+      174(3), 1220-1246.
     - Takacs, G. (2005). *Gas Lift Manual*. PennWell Corporation, Chapter 5.
 """
 
@@ -32,7 +32,6 @@ from __future__ import annotations
 from typing import Any
 
 from pirn.core.knot import Knot
-from pirn.core.knot_config import KnotConfig
 
 
 class GasLiftOptimizer(Knot):

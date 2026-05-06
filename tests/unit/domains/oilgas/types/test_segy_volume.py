@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import unittest
+from datetime import UTC, datetime
 
 from pirn.domains.oilgas.types.segy_volume import SegyVolume
 
@@ -18,7 +18,7 @@ class TestConstruction(unittest.TestCase):
         assert isinstance(vol.fetched_at, datetime)
 
     def test_full_values(self) -> None:
-        when = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        when = datetime(2026, 1, 1, tzinfo=UTC)
         vol = SegyVolume(
             volume_id="vol-1",
             inline_count=10,
@@ -35,7 +35,7 @@ class TestConstruction(unittest.TestCase):
 
 class TestAuditDict(unittest.TestCase):
     def test_audit_dict_keys(self) -> None:
-        when = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        when = datetime(2026, 1, 1, tzinfo=UTC)
         vol = SegyVolume(volume_id="v", inline_count=1, fetched_at=when)
         d = vol._pirn_audit_dict()
         assert d["volume_id"] == "v"

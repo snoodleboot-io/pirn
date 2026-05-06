@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any, Iterable, Mapping
 import unittest
-
+from collections.abc import Iterable, Mapping
+from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot

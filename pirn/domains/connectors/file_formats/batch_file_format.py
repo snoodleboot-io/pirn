@@ -10,7 +10,8 @@ PDF, HDF5, DICOM, OpenSlide, etc.
 
 from __future__ import annotations
 
-from typing import Any, AsyncIterator, Iterable, Mapping
+from collections.abc import AsyncIterator, Iterable, Mapping
+from typing import Any
 
 from pirn.domains.connectors.file_format import FileFormat
 

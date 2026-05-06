@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import timezone
 import unittest
+from datetime import UTC
 
 import pandas as pd
 
@@ -19,7 +19,7 @@ class TestPandasDataBatch(unittest.TestCase):
 
     def test_default_fetched_at_is_utc(self) -> None:
         batch = PandasDataBatch(frame=pd.DataFrame())
-        assert batch.fetched_at.tzinfo is timezone.utc
+        assert batch.fetched_at.tzinfo is UTC
 
     def test_with_frame_preserves_metadata(self) -> None:
         original = PandasDataBatch(

@@ -6,14 +6,12 @@ No real Slack account or network needed.
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.messaging.slack_client import SlackClient
 from pirn.domains.connectors.messaging.slack_config import SlackConfig
-
 
 # ──────────────────────────────────────────────────────────── fake client
 

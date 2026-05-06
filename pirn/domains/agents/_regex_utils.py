@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import re
-from typing import Sequence
+from collections.abc import Sequence
 
 _MAX_PATTERN_LENGTH = 500
 

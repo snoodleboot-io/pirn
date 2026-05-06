@@ -19,8 +19,9 @@ References:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, ClassVar, Sequence
+from collections.abc import Sequence
+from datetime import UTC, datetime
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -101,7 +102,7 @@ class RollingStatisticsGenerator(Knot):
                     f"RollingStatisticsGenerator: statistic {stat!r} must be "
                     f"one of {sorted(self.valid_statistics)}"
                 )
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return DataSplit(
             train=self._add_rolling_features(split.train, column_tuple, window_tuple, stat_tuple, now),
             test=self._add_rolling_features(split.test, column_tuple, window_tuple, stat_tuple, now),

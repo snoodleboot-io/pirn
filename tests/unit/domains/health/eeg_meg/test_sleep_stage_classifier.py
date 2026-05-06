@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.domains.health.eeg_meg.sleep_stage_classifier import SleepStageClassifier
 from pirn.tapestry import Tapestry
-
 
 _PSG_DATA: dict[str, Any] = {
     "epochs": [

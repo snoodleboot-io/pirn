@@ -4,7 +4,7 @@ Algorithm:
     1. Receive ``fluid_id``, ``pressure_count``, and ``temperature_count`` inputs.
     2. Validate all inputs: ``fluid_id`` is non-empty, both counts are positive integers.
     3. Build a pressure-temperature grid of size
-       ``pressure_count × temperature_count``.
+       ``pressure_count x temperature_count``.
     4. Return a PVTTable reference.
 
 

@@ -1,8 +1,8 @@
 """Tests for :class:`WellDataService` interface contract."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.domains.oilgas.protocols.well_data_service import WellDataService
 

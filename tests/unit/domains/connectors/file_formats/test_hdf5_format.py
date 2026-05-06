@@ -1,15 +1,15 @@
 """Round-trip and validation tests for :class:`Hdf5Format`."""
 
 from __future__ import annotations
+
 import unittest
 
-
 try:
-    import h5py
+    import h5py  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("h5py not installed") from _e
 try:
-    import numpy
+    import numpy  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("numpy not installed") from _e
 

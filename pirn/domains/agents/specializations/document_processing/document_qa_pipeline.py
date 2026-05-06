@@ -38,10 +38,10 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.agents.llm_provider import LLMProvider
-from pirn.domains.agents.specializations.document_processing._qa_load_and_chunk import (  # noqa: E501
+from pirn.domains.agents.specializations.document_processing._qa_load_and_chunk import (
     _QALoadAndChunk,
 )
-from pirn.domains.agents.specializations.document_processing._qa_retrieve_and_answer import (  # noqa: E501
+from pirn.domains.agents.specializations.document_processing._qa_retrieve_and_answer import (
     _QARetrieveAndAnswer,
 )
 from pirn.domains.agents.types.agent_response import AgentResponse

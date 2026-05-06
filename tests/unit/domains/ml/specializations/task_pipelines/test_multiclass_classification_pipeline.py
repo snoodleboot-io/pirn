@@ -9,7 +9,6 @@ from pirn.domains.connectors.database_connection_pool import DatabaseConnectionP
 from pirn.domains.ml.specializations.task_pipelines.multiclass_classification_pipeline import (
     MulticlassClassificationPipeline,
 )
-from pirn.tapestry import Tapestry
 
 
 class _StubPool(DatabaseConnectionPool):

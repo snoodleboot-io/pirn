@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any, AsyncIterator, Mapping
 import unittest
-
+from collections.abc import AsyncIterator, Mapping
+from typing import Any
 
 from pirn.domains.connectors.file_formats.plain_text_format import (
     PlainTextFormat,

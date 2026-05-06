@@ -22,7 +22,7 @@ References:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -112,5 +112,5 @@ class Sampler(Knot):
             target_name=dataset.target_name,
             row_count=row_count,
             source_uri=dataset.source_uri,
-            fetched_at=datetime.now(timezone.utc),
+            fetched_at=datetime.now(UTC),
         )

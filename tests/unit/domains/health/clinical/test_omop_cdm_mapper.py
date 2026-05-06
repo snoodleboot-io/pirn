@@ -1,13 +1,12 @@
 """Unit tests for :class:`OMOPCDMMapper`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.clinical.omop_cdm_mapper import OMOPCDMMapper
 from pirn.domains.health.types.clinical_record import ClinicalRecord
-
 
 _CFG = KnotConfig(id="m")
 _RECORD = ClinicalRecord(patient_id="P1", encounter_id="E1")

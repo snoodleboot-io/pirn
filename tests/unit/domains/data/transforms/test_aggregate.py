@@ -1,6 +1,7 @@
 """Tests for :class:`pirn.domains.data.transforms.aggregate.Aggregate`."""
 
 from __future__ import annotations
+
 import unittest
 
 import pytest

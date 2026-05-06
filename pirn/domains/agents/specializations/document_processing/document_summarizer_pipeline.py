@@ -34,10 +34,10 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.agents.llm_provider import LLMProvider
-from pirn.domains.agents.specializations.document_processing._load_and_chunk import (  # noqa: E501
+from pirn.domains.agents.specializations.document_processing._load_and_chunk import (
     _LoadAndChunk,
 )
-from pirn.domains.agents.specializations.document_processing._map_reduce_summariser import (  # noqa: E501
+from pirn.domains.agents.specializations.document_processing._map_reduce_summariser import (
     _MapReduceSummariser,
 )
 from pirn.nodes.sub_tapestry import SubTapestry

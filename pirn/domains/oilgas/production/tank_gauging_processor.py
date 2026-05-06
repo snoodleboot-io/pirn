@@ -5,7 +5,7 @@ Algorithm:
        and a ``bsw_correction_factor`` in [0, 1].
     2. Validate that ``tank_table`` is a dict and ``bsw_correction_factor`` is in [0, 1].
     3. Interpolate tank volumes at the opening and closing gauge levels.
-    4. Compute gross volume = |closing_vol − opening_vol|.
+    4. Compute gross volume = |closing_vol - opening_vol|.
     5. Apply BS&W fraction and correction factor to derive net oil and adjusted volumes.
     6. Return gross, net oil, and BS&W-adjusted volumes.
 
@@ -33,7 +33,6 @@ from __future__ import annotations
 from typing import Any
 
 from pirn.core.knot import Knot
-from pirn.core.knot_config import KnotConfig
 
 
 class TankGaugingProcessor(Knot):

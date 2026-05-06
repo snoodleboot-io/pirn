@@ -1,15 +1,14 @@
 """Unit tests for :class:`MedicationReconciliationPipeline`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_result import RunResult
 from pirn.domains.health.clinical.medication_reconciliation_pipeline import (
     MedicationReconciliationPipeline,
 )
-
 
 _CFG = KnotConfig(id="m")
 

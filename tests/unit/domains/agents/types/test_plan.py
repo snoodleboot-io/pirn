@@ -1,6 +1,7 @@
 """Unit tests for :class:`Plan`."""
 
 from __future__ import annotations
+
 import unittest
 
 from pirn.domains.agents.types.plan import Plan

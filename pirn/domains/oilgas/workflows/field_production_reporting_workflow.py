@@ -9,7 +9,7 @@ Algorithm:
        parameters, and KPI / forecast configuration.
     2. Validate all string and numeric inputs in ``process()``.
     3. Build and wire an inner ``Tapestry`` with:
-       - ``ScadaHistorianIngester`` (×3) for oil, gas, and water rates,
+       - ``ScadaHistorianIngester`` (x3) for oil, gas, and water rates,
        - ``ProductionTestValidator`` for rate QC,
        - ``GasOilRatioCalculator``, ``WaterCutTracker``, ``DeclineRateEstimator``,
        - ``DeclineCurveAnalyzer`` and ``ProductionForecaster``.
@@ -20,7 +20,7 @@ References:
     - API RP 44 (2nd ed., 2015) — Recommended Practice for Sampling
       Petroleum Reservoir Fluids (production rate QC context).
     - Arps, J.J. (1945). Analysis of decline curves. *Trans. AIME*, 160,
-      228–247. SPE-945228-G.
+      228-247. SPE-945228-G.
 """
 
 from __future__ import annotations

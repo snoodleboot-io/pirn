@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any, AsyncIterator
 import unittest
+from collections.abc import AsyncIterator
+from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.connectors.knots.message_broker_knot import MessageBrokerKnot
@@ -17,7 +18,10 @@ class StubBroker(MessageBroker):
     def __init__(self) -> None:
         self.published: list[dict[str, Any]] = []
 
-    async def publish(self, topic: str, value: bytes, *, key: bytes | None = None, headers: dict[str, bytes] | None = None) -> None:
+    async def publish(
+        self, topic: str, value: bytes, *,
+        key: bytes | None = None, headers: dict[str, bytes] | None = None,
+    ) -> None:
         self.published.append(
             {"topic": topic, "value": value, "key": key, "headers": headers}
         )

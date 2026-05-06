@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime
 
 from pirn.domains.data.data_profile import ColumnProfile, DataProfile
 

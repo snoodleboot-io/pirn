@@ -10,7 +10,7 @@ Algorithm:
 
 Math:
     NACE SP0169-2013 specifies cathodic protection criterion as a negative
-    pipe-to-soil potential ≤ −850 mV (CSE). The coverage fraction is:
+    pipe-to-soil potential <= -850 mV (CSE). The coverage fraction is:
 
     $$\\text{coverage} = \\frac{|\\{t : V(t) \\leq V_{\\text{thresh}}\\}|}{N}$$
 

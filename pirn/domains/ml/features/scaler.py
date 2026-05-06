@@ -19,8 +19,9 @@ References:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, ClassVar, Sequence
+from collections.abc import Sequence
+from datetime import UTC, datetime
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -80,7 +81,7 @@ class Scaler(Knot):
                 f"Scaler: method must be one of {sorted(self.valid_methods)}"
             )
         suffix = f"scaled_{method}"
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return DataSplit(
             train=self._mark(split.train, suffix, now),
             test=self._mark(split.test, suffix, now),

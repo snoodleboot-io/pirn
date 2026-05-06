@@ -109,7 +109,7 @@ class _QARetrieveAndAnswer(Knot):
         chunk_vecs = embeddings[1:]
         scored = [
             (self._cosine(question_vec, chunk_vec), chunk)
-            for chunk_vec, chunk in zip(chunk_vecs, chunks)
+            for chunk_vec, chunk in zip(chunk_vecs, chunks, strict=False)
         ]
         scored.sort(key=lambda pair: pair[0], reverse=True)
         top = [chunk for _, chunk in scored[:top_k]]
@@ -141,7 +141,7 @@ class _QARetrieveAndAnswer(Knot):
     def _cosine(a: list[float], b: list[float]) -> float:
         if len(a) != len(b) or not a:
             return 0.0
-        dot = sum(x * y for x, y in zip(a, b))
+        dot = sum(x * y for x, y in zip(a, b, strict=False))
         norm_a = math.sqrt(sum(x * x for x in a))
         norm_b = math.sqrt(sum(y * y for y in b))
         if norm_a == 0.0 or norm_b == 0.0:

@@ -7,14 +7,12 @@ real BigQuery account needed.
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.databases.bigquery_config import BigqueryConfig
 from pirn.domains.connectors.databases.bigquery_pool import BigqueryPool
-
 
 # ──────────────────────────────────────────────────────────── fake client
 

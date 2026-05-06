@@ -1,15 +1,15 @@
 """Round-trip and validation tests for :class:`MarkdownFormat`."""
 
 from __future__ import annotations
+
 import unittest
 
-
 try:
-    import markdown_it
+    import markdown_it  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("markdown_it not installed") from _e
 try:
-    import markdown
+    import markdown  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("markdown not installed") from _e
 

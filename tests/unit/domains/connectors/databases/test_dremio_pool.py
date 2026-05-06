@@ -5,14 +5,12 @@ Uses an injected stub Flight connection. No Dremio server needed.
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.databases.dremio_config import DremioConfig
 from pirn.domains.connectors.databases.dremio_pool import DremioPool
-
 
 # ──────────────────────────────────────────────────────────── fake connection
 
@@ -43,7 +41,7 @@ class FakeBatch:
             def __init__(self, values: list) -> None:
                 self._values = values
 
-            def __getitem__(self, i: int) -> "_PyValue":
+            def __getitem__(self, i: int) -> _PyValue:
                 return _PyValue(self._values[i])
 
         class _PyValue:
@@ -85,11 +83,11 @@ class FakeDremioConnection:
         self._rows = rows or [{"id": 1, "name": "Alice"}]
         self.closed = False
 
-    def do_get(self, ticket: Any) -> "list[FakeBatch]":
+    def do_get(self, ticket: Any) -> list[FakeBatch]:
         self.calls.append("do_get")
         return [ticket]
 
-    def do_action(self, action: Any) -> "list[FakeFlightAction]":
+    def do_action(self, action: Any) -> list[FakeFlightAction]:
         self.calls.append("do_action")
         return [FakeFlightAction(b"1")]
 

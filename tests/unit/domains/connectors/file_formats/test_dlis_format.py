@@ -1,6 +1,7 @@
 """Tests for :class:`DlisFormat`."""
 
 from __future__ import annotations
+
 import sys
 import unittest
 import unittest.mock
@@ -27,7 +28,7 @@ class TestDlisFormatConstruction(unittest.TestCase):
 class TestDlisFormatDecode(unittest.IsolatedAsyncioTestCase):
     async def test_decode_requires_dlisio(self) -> None:
         try:
-            import dlisio
+            import dlisio  # noqa: F401
         except ImportError as _e:
             self.skipTest("dlisio not installed")
         pytest.skip("DLIS fixture too complex to synthesise in-memory")

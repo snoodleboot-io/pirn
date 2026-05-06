@@ -22,9 +22,9 @@ Math:
 References:
     - Timur, A. (1968). An investigation of permeability, porosity, and
       residual water saturation relationships for sandstone reservoirs.
-      *The Log Analyst*, 9(4), 8–17.
+      *The Log Analyst*, 9(4), 8-17.
     - Coates, G.R. & Dumanoir, J.L. (1974). A new approach to improved log-
-      derived permeability. *The Log Analyst*, 15(1), 17–31.
+      derived permeability. *The Log Analyst*, 15(1), 17-31.
 """
 
 from __future__ import annotations
@@ -68,6 +68,6 @@ class PermeabilityEstimator(Knot):
             )
         return LASFile(
             well_id=las_file.well_id,
-            curves=las_file.curves + (f"K_{method}",),
+            curves=(*las_file.curves, f"K_{method}"),
             depth_unit=las_file.depth_unit,
         )

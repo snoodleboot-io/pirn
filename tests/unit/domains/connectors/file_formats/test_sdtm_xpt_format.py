@@ -1,11 +1,11 @@
 """Tests for :class:`SdtmXptFormat` — SDTM SAS Transport (XPT) format."""
 
 from __future__ import annotations
+
 import unittest
 
-
 try:
-    import pyreadstat
+    import pyreadstat  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("pyreadstat not installed") from _e
 
@@ -17,21 +17,25 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _make_xpt_bytes(rows: list[dict], column_labels: dict | None = None, file_label: str = "") -> bytes:
+def _make_xpt_bytes(
+    rows: list[dict], column_labels: dict | None = None, file_label: str = ""
+) -> bytes:
     """Create a minimal XPT file using pyreadstat."""
     import tempfile
     from pathlib import Path
+
     import pandas as pd
     import pyreadstat
 
     df = pd.DataFrame(rows)
     col_names = list(df.columns)
-    labels = [column_labels.get(c, "") for c in col_names] if column_labels else [""] * len(col_names)
+    labels = (
+        [column_labels.get(c, "") for c in col_names] if column_labels else [""] * len(col_names)
+    )
 
     with tempfile.NamedTemporaryFile(suffix=".xpt", delete=False) as tmp:
         tmp_path = tmp.name
@@ -135,7 +139,7 @@ class TestSdtmXptFormatErrors(unittest.IsolatedAsyncioTestCase):
         async def _iter():
             yield b"this is not an xpt file"
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception):  # noqa: B017
             async for _ in await fmt.read(_iter()):
                 pass
 

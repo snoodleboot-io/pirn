@@ -21,7 +21,7 @@ References:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -86,7 +86,7 @@ class EmbeddingExtractor(Knot):
         # rather than the full column (we don't have rows here).
         await embedding_provider.embed([text_column])
         feature = f"{text_column}_embedding"
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return DataSplit(
             train=self._add_feature(split.train, feature, now),
             test=self._add_feature(split.test, feature, now),
@@ -106,7 +106,7 @@ class EmbeddingExtractor(Knot):
         if feature in dataset.feature_names:
             features = dataset.feature_names
         else:
-            features = dataset.feature_names + (feature,)
+            features = (*dataset.feature_names, feature)
         return MLDataset(
             name=f"{dataset.name}:embedded",
             feature_names=features,

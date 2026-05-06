@@ -20,7 +20,7 @@ References:
     - API MPMS Chapter 20 — Measurement of Liquid Hydrocarbons by Weight (field
       boundary conventions).
     - Aurenhammer, F. (1991). Voronoi diagrams — a survey of a fundamental
-      geometric data structure. *ACM Computing Surveys*, 23(3), 345–405.
+      geometric data structure. *ACM Computing Surveys*, 23(3), 345-405.
 """
 
 from __future__ import annotations

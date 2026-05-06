@@ -6,10 +6,11 @@ that downstream knots resolve via the registered model id.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import MappingProxyType
-from typing import Any, Mapping
+from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
@@ -26,7 +27,7 @@ class TrainedModel(PirnOpaqueValue):
     feature_names: tuple[str, ...] = ()
     target_name: str | None = None
     created_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
 
     def _pirn_audit_dict(self) -> dict[str, Any]:

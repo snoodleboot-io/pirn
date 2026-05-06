@@ -6,8 +6,8 @@ through compress → decompress without loss.
 """
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.domains.connectors.file_formats.compressed_file_format import (
     CompressedFileFormat,
@@ -69,7 +69,7 @@ class TestCompressedFileFormatBzip2(unittest.IsolatedAsyncioTestCase):
 class TestCompressedFileFormatZstd(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_zstd(self) -> None:
         try:
-            import zstandard
+            import zstandard  # noqa: F401
         except ImportError as _e:
             self.skipTest("zstandard not installed")
         fmt = CompressedFileFormat(JsonlFormat(), codec="zstd")
@@ -83,7 +83,7 @@ class TestCompressedFileFormatZstd(unittest.IsolatedAsyncioTestCase):
 class TestCompressedFileFormatSnappy(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_snappy(self) -> None:
         try:
-            import snappy
+            import snappy  # noqa: F401
         except ImportError as _e:
             self.skipTest("snappy not installed")
         fmt = CompressedFileFormat(JsonlFormat(), codec="snappy")
@@ -98,7 +98,7 @@ class TestCompressedFileFormatSnappy(unittest.IsolatedAsyncioTestCase):
 class TestCompressedFileFormatLz4(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_lz4(self) -> None:
         try:
-            import lz4
+            import lz4  # noqa: F401
         except ImportError as _e:
             self.skipTest("lz4 not installed")
         fmt = CompressedFileFormat(JsonlFormat(), codec="lz4")

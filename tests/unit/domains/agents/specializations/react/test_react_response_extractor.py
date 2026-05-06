@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.agents.specializations.react.react_response_extractor import (
     ReActResponseExtractor,
@@ -19,7 +18,9 @@ class TestReActResponseExtractorProcess(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             src = t  # dummy reference; knot needs a Knot parent
             # We need a real Knot parent — use a minimal passthrough
-            from pirn.domains.agents.specializations.react.messages_passthrough import MessagesPassthrough
+            from pirn.domains.agents.specializations.react.messages_passthrough import (
+                MessagesPassthrough,
+            )
             seed = MessagesPassthrough(messages=[], _config=KnotConfig(id="seed"))
             return ReActResponseExtractor(messages=seed, _config=KnotConfig(id="rre"))
 

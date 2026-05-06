@@ -1,12 +1,12 @@
 """Tests for :class:`ResearchAgent`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.agents.specializations.specialized_agents.research_agent import (  # noqa: E501
+from pirn.domains.agents.specializations.specialized_agents.research_agent import (
     ResearchAgent,
 )
 from pirn.domains.agents.types.agent_response import AgentResponse

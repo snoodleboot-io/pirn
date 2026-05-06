@@ -23,7 +23,7 @@ None.
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -96,7 +96,7 @@ class ProceduralMemoryWriter(Knot):
             "task": task_description,
             "response": agent_response.content,
             "finish_reason": agent_response.finish_reason,
-            "stored_at": datetime.now(timezone.utc).isoformat(),
+            "stored_at": datetime.now(UTC).isoformat(),
         }
         await store.store(key, payload)
         return key

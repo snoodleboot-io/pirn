@@ -1,6 +1,7 @@
 """Unit tests for :class:`WSITile`."""
 
 from __future__ import annotations
+
 import unittest
 
 from pirn.domains.health.types.wsi_tile import WSITile

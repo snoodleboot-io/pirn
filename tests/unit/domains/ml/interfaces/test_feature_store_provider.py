@@ -1,8 +1,8 @@
 """Tests for :class:`FeatureStoreProvider`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.domains.ml.feature_store_provider import FeatureStoreProvider
 

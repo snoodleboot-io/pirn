@@ -5,7 +5,7 @@ Algorithm:
     2. Validate n_mels, n_fft, and hop_length (hop_length must not exceed n_fft).
     3. Compute the STFT with window size n_fft and hop size hop_length.
     4. Square the magnitude spectrum to obtain the power spectrum.
-    5. Apply a mel filterbank matrix M ∈ R^{n_mels × (n_fft/2+1)} to obtain
+    5. Apply a mel filterbank matrix M in R^{n_mels x (n_fft/2+1)} to obtain
        mel-band energies.
     6. Optionally convert to dB: S_mel_db = 10 log10(S_mel).
     7. Return a SpectrumFrame with frequency_bins = n_mels.

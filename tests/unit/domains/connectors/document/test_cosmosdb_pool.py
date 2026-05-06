@@ -5,14 +5,13 @@ Uses injected fakes — no real Azure Cosmos DB or azure-cosmos needed.
 
 from __future__ import annotations
 
-from typing import Any, AsyncIterator
 import unittest
-
+from collections.abc import AsyncIterator
+from typing import Any
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.document.cosmosdb_config import CosmosDBConfig
 from pirn.domains.connectors.document.cosmosdb_pool import CosmosDBPool
-
 
 # ──────────────────────────────────────────────────────────── fakes
 
@@ -30,7 +29,9 @@ class FakeCosmosContainer:
             result["id"] = "generated-id"
         return result
 
-    async def query_items(self, query: str, enable_cross_partition_query: bool = False) -> AsyncIterator[dict[str, Any]]:
+    async def query_items(
+        self, query: str, enable_cross_partition_query: bool = False
+    ) -> AsyncIterator[dict[str, Any]]:
         for item in self._items:
             yield item
 

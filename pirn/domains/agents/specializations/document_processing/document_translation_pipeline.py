@@ -31,10 +31,10 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.agents.llm_provider import LLMProvider
-from pirn.domains.agents.specializations.document_processing._chunk_translator import (  # noqa: E501
+from pirn.domains.agents.specializations.document_processing._chunk_translator import (
     _ChunkTranslator,
 )
-from pirn.domains.agents.specializations.document_processing._translation_load_and_chunk import (  # noqa: E501
+from pirn.domains.agents.specializations.document_processing._translation_load_and_chunk import (
     _TranslationLoadAndChunk,
 )
 from pirn.nodes.sub_tapestry import SubTapestry

@@ -2,17 +2,15 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from datetime import datetime, timezone
 import unittest
-
+from collections.abc import Mapping
+from datetime import UTC, datetime
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.clinical.encounter_timeline_assembler import (
     EncounterTimelineAssembler,
 )
 from pirn.domains.health.types.clinical_record import ClinicalRecord
-
 
 _CFG = KnotConfig(id="a")
 
@@ -29,8 +27,8 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             await knot.process(records=["x"])  # type: ignore[list-item]
 
     async def test_groups_and_sorts_by_time(self) -> None:
-        early = datetime(2026, 1, 1, tzinfo=timezone.utc)
-        late = datetime(2026, 2, 1, tzinfo=timezone.utc)
+        early = datetime(2026, 1, 1, tzinfo=UTC)
+        late = datetime(2026, 2, 1, tzinfo=UTC)
         records = (
             ClinicalRecord(patient_id="P1", observed_at=late),
             ClinicalRecord(patient_id="P1", observed_at=early),

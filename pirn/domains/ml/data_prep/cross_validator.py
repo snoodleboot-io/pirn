@@ -21,7 +21,7 @@ References:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -80,7 +80,7 @@ class CrossValidator(Knot):
             )
         base = total // k
         remainder = total - base * k
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         folds: list[DataSplit] = []
         for fold_index in range(k):
             test_count = base + (1 if fold_index < remainder else 0)

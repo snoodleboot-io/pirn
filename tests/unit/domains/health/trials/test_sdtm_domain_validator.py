@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import unittest
+from datetime import UTC, datetime
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.trials.sdtm_domain_validator import SDTMDomainValidator
@@ -21,7 +21,7 @@ def _record(
         subject_id=subject_id,
         visit_number=visit_number,
         observation_codes=("AE001",),
-        observed_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
+        observed_at=datetime(2026, 4, 1, tzinfo=UTC),
     )
 
 

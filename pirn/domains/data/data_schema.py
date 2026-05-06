@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any, Mapping
+from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
@@ -48,7 +49,7 @@ class DataSchema(PirnOpaqueValue):
         """Return True if ``column`` is permitted to hold ``None``."""
         return column in self.nullable
 
-    def with_columns(self, columns: Mapping[str, type]) -> "DataSchema":
+    def with_columns(self, columns: Mapping[str, type]) -> DataSchema:
         """Return a new schema with the given columns merged in."""
         merged = dict(self.columns)
         merged.update(columns)

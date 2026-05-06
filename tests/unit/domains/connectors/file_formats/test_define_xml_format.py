@@ -1,17 +1,17 @@
 """Tests for :class:`DefineXmlFormat` — CDISC Define-XML 2.x format."""
 
 from __future__ import annotations
+
 import sys
 import unittest
 import unittest.mock
 
-
 try:
-    import lxml
+    import lxml  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("lxml not installed") from _e
 try:
-    import defusedxml
+    import defusedxml  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("defusedxml not installed") from _e
 
@@ -54,7 +54,7 @@ def _make_define_xml(items: list[dict]) -> bytes:
     </MetaDataVersion>
   </Study>
 </ODM>
-""".encode("utf-8")
+""".encode()
 
 
 async def _decode(fmt: DefineXmlFormat, payload: bytes) -> list[dict]:
@@ -94,7 +94,8 @@ class TestDefineXmlFormatNoPhiRequired(unittest.IsolatedAsyncioTestCase):
 
     async def test_record_shape(self) -> None:
         payload = _make_define_xml(
-            [{"oid": "IT.SUBJ", "name": "SUBJ", "data_type": "text", "length": 20, "label": "Subject ID"}]
+            [{"oid": "IT.SUBJ", "name": "SUBJ", "data_type": "text", "length": 20,
+              "label": "Subject ID"}]
         )
         records = await _decode(DefineXmlFormat(), payload)
         assert len(records) == 1
@@ -107,7 +108,8 @@ class TestDefineXmlFormatNoPhiRequired(unittest.IsolatedAsyncioTestCase):
 
     async def test_fields_decoded_correctly(self) -> None:
         payload = _make_define_xml(
-            [{"oid": "IT.AGE", "name": "AGE", "data_type": "integer", "length": 3, "label": "Age in years"}]
+            [{"oid": "IT.AGE", "name": "AGE", "data_type": "integer", "length": 3,
+              "label": "Age in years"}]
         )
         records = await _decode(DefineXmlFormat(), payload)
         assert records[0]["oid"] == "IT.AGE"
@@ -118,7 +120,8 @@ class TestDefineXmlFormatNoPhiRequired(unittest.IsolatedAsyncioTestCase):
 
     async def test_multiple_items(self) -> None:
         items = [
-            {"oid": "IT.SUBJ", "name": "SUBJ", "data_type": "text", "length": 20, "label": "Subject"},
+            {"oid": "IT.SUBJ", "name": "SUBJ", "data_type": "text",
+             "length": 20, "label": "Subject"},
             {"oid": "IT.AGE", "name": "AGE", "data_type": "integer", "length": 3, "label": None},
             {"oid": "IT.SEX", "name": "SEX", "data_type": "text", "length": 1, "label": "Sex"},
         ]
@@ -158,7 +161,8 @@ class TestDefineXmlFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
 
     async def test_round_trip_multiple_items(self) -> None:
         records = [
-            {"oid": "IT.SUBJ", "name": "SUBJ", "data_type": "text", "length": 20, "label": "Subject"},
+            {"oid": "IT.SUBJ", "name": "SUBJ", "data_type": "text",
+             "length": 20, "label": "Subject"},
             {"oid": "IT.AGE", "name": "AGE", "data_type": "integer", "length": 3, "label": None},
         ]
         fmt = DefineXmlFormat()
@@ -181,7 +185,7 @@ class TestDefineXmlFormatErrors(unittest.IsolatedAsyncioTestCase):
         async def _iter():
             yield b"not xml <<<<"
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception):  # noqa: B017
             async for _ in await fmt.read(_iter()):
                 pass
 
@@ -192,7 +196,9 @@ class TestDefineXmlFormatErrors(unittest.IsolatedAsyncioTestCase):
 
 class TestDefineXmlFormatMissingDep(unittest.TestCase):
     def test_missing_defusedxml_raises(self) -> None:
-        with unittest.mock.patch.dict(sys.modules, {"defusedxml": None, "defusedxml.ElementTree": None}):
+        with unittest.mock.patch.dict(
+            sys.modules, {"defusedxml": None, "defusedxml.ElementTree": None}
+        ):
             fmt = DefineXmlFormat()
             with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
                 fmt._load_defusedxml()

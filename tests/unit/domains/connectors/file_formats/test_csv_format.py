@@ -6,8 +6,8 @@ of pirn (per Phase 4 PRD).
 """
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.domains.connectors.file_formats.csv_format import CsvFormat
 from tests.unit.domains.connectors.file_formats._format_round_trip import (

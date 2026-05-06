@@ -16,13 +16,13 @@ from __future__ import annotations
 
 import hashlib
 import io
-import json
 from collections.abc import Iterable, Mapping
 from typing import Any, ClassVar
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+
 
 class FhirXmlFormat(BatchFileFormat):
     """Whole-file FHIR XML Bundle encoder/decoder.
@@ -172,7 +172,7 @@ class FhirXmlFormat(BatchFileFormat):
     @staticmethod
     def _load_fhir() -> Any:
         try:
-            import fhir.resources  # noqa: F401
+            import fhir.resources
         except ImportError as exc:
             raise ImportError(
                 "FhirXmlFormat requires fhir.resources. Install with "

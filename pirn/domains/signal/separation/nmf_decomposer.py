@@ -3,10 +3,10 @@
 Algorithm:
     1. Receive the input signal frame, component_count, and max_iterations.
     2. Validate component_count and max_iterations (positive integers).
-    3. Initialise the basis matrix W (channel_count × component_count) and
-       coefficient matrix H (component_count × samples_per_channel) non-negatively.
+    3. Initialise the basis matrix W (channel_count x component_count) and
+       coefficient matrix H (component_count x samples_per_channel) non-negatively.
     4. Apply multiplicative update rules to minimise the Frobenius-norm reconstruction
-       error ‖V − WH‖_F subject to W, H ≥ 0.
+       error ||V - WH||_F subject to W, H >= 0.
     5. Return a SourceFrame with the estimated components.
 
 Math:

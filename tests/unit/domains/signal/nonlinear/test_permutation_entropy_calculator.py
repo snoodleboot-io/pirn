@@ -8,7 +8,9 @@ import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.signal.nonlinear.permutation_entropy_calculator import PermutationEntropyCalculator
+from pirn.domains.signal.nonlinear.permutation_entropy_calculator import (
+    PermutationEntropyCalculator,
+)
 from pirn.domains.signal.types.signal_frame import SignalFrame
 from tests.unit.domains.signal.conftest import make_signal_frame
 

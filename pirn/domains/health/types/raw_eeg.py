@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
@@ -11,13 +11,13 @@ from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 @dataclass(frozen=True)
 class RawEEG(PirnOpaqueValue):
-    """Reference to a raw EEG recording (channels × samples)."""
+    """Reference to a raw EEG recording (channels x samples)."""
 
     subject_id: str = ""
     channel_count: int = 0
     sample_rate_hz: float = 0.0
     duration_sec: float = 0.0
-    fetched_at: datetime = datetime(1970, 1, 1, tzinfo=timezone.utc)
+    fetched_at: datetime = datetime(1970, 1, 1, tzinfo=UTC)
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
         return {

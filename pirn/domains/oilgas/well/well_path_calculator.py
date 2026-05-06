@@ -22,7 +22,7 @@ Math:
 
 References:
     - Craig, J.T. & Randall, B.V. (1976). Directional survey calculation.
-      *Petroleum Engineer*, March, 38–54.
+      *Petroleum Engineer*, March, 38-54.
     - API RP 11V10 (2004) — Design of Pumping Facilities (directional survey
       computation methods).
 """

@@ -1,11 +1,11 @@
 """Tests for :class:`Hl7v2Format` — HL7 v2 message format."""
 
 from __future__ import annotations
+
 import unittest
 
-
 try:
-    import hl7
+    import hl7  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("hl7 not installed") from _e
 
@@ -16,7 +16,6 @@ from pirn.domains.connectors.file_formats.hl7v2_format import Hl7v2Format
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -139,7 +138,7 @@ class TestHl7v2FormatErrors(unittest.IsolatedAsyncioTestCase):
         async def _iter():
             yield b"NOT|A|VALID|HL7|MESSAGE\r"
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception):  # noqa: B017
             async for _ in await fmt.read(_iter()):
                 pass
 

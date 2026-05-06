@@ -22,11 +22,11 @@ Math:
 
 References:
     - Corey, A.T. (1954). The interrelation between gas and oil relative
-      permeabilities. *Producers Monthly*, 19(1), 38–41.
+      permeabilities. *Producers Monthly*, 19(1), 38-41.
     - Brooks, R.H. & Corey, A.T. (1964). *Hydraulic Properties of Porous
       Media*. Colorado State University Hydrology Paper No. 3.
     - Stone, H.L. (1970). Probability model for estimating three-phase
-      relative permeability. *JPT*, 22(2), 214–218. SPE-2116-PA.
+      relative permeability. *JPT*, 22(2), 214-218. SPE-2116-PA.
 """
 
 from __future__ import annotations

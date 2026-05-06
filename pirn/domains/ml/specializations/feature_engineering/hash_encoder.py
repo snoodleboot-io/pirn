@@ -18,7 +18,7 @@ References:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -76,7 +76,7 @@ class HashEncoder(Knot):
             raise TypeError("HashEncoder: n_components must be an int")
         if n_components < 1:
             raise ValueError("HashEncoder: n_components must be >= 1")
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return DataSplit(
             train=self._add_hash_features(split.train, categorical_column, n_components, now),
             test=self._add_hash_features(split.test, categorical_column, n_components, now),

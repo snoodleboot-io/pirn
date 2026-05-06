@@ -1,16 +1,16 @@
 """Unit tests for :class:`Lz4Codec`. Skipped if ``lz4`` is missing."""
 
 from __future__ import annotations
+
 import unittest
 
-
 try:
-    import lz4
+    import lz4  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("lz4 not installed") from _e
 
-from pirn.domains.connectors.file_formats.codecs.lz4_codec import Lz4Codec  # noqa: E402
-from tests.unit.domains.connectors.file_formats.codecs._codec_round_trip import (  # noqa: E402
+from pirn.domains.connectors.file_formats.codecs.lz4_codec import Lz4Codec
+from tests.unit.domains.connectors.file_formats.codecs._codec_round_trip import (
     CodecRoundTrip,
 )
 

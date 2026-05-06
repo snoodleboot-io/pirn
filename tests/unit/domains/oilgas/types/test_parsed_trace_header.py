@@ -1,6 +1,7 @@
 """Unit tests for :class:`ParsedTraceHeader`."""
 
 from __future__ import annotations
+
 import unittest
 
 from pirn.domains.oilgas.types.parsed_trace_header import ParsedTraceHeader

@@ -16,8 +16,9 @@ writer reaches parity.
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator, Mapping, Sequence
 from datetime import datetime
-from typing import Any, AsyncIterator, Mapping, Sequence
+from typing import Any
 
 from pirn.domains.data.lakehouse.iceberg.iceberg_table_config import (
     IcebergTableConfig,

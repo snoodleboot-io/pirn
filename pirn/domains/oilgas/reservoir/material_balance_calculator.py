@@ -23,7 +23,7 @@ Math:
 
 References:
     - Havlena, D. & Odeh, A.S. (1963). The material balance as an equation
-      of a straight line. *JPT*, 15(8), 896–900. SPE-559-PA.
+      of a straight line. *JPT*, 15(8), 896-900. SPE-559-PA.
     - Dake, L.P. (1983). *Fundamentals of Reservoir Engineering*. Elsevier,
       Chapter 9 (material balance methods).
 """

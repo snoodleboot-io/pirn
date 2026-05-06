@@ -6,14 +6,12 @@ No real Stripe account or network needed.
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.saas.stripe_client import StripeClient
 from pirn.domains.connectors.saas.stripe_config import StripeConfig
-
 
 # ──────────────────────────────────────────────────────────── fake client
 
@@ -26,7 +24,12 @@ class FakeStripeClient:
         self.response: dict[str, Any] = {"object": "list", "data": []}
         self.closed = False
 
-    def raw_request(self, method: str, path: str, params: dict[str, Any] | None = None, body: dict[str, Any] | None = None, headers: dict[str, Any] | None = None,) -> dict[str, Any]:
+    def raw_request(
+        self, method: str, path: str,
+        params: dict[str, Any] | None = None,
+        body: dict[str, Any] | None = None,
+        headers: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         self.calls.append(
             {
                 "method": method,

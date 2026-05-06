@@ -20,8 +20,9 @@ Concrete implementations live under ``delta/``, ``iceberg/``, and
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator, Mapping, Sequence
 from datetime import datetime
-from typing import Any, AsyncIterator, Mapping, Sequence
+from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 

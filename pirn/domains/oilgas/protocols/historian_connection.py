@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator, Mapping
 from datetime import datetime
-from typing import AsyncIterator, Mapping
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 

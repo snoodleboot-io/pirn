@@ -1,15 +1,15 @@
 """Round-trip and validation tests for :class:`OrcFormat`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 try:
     import pyarrow
 except ImportError as _e:
     raise unittest.SkipTest("pyarrow not installed") from _e
 try:
-    import pyarrow.orc
+    import pyarrow.orc  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("pyarrow.orc not installed") from _e
 

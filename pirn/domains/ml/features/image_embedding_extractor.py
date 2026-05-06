@@ -22,7 +22,7 @@ References:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -87,7 +87,7 @@ class ImageEmbeddingExtractor(Knot):
         # single probe rather than the full image column.
         await image_encoder.encode([image_column.encode("utf-8")])
         feature = f"{image_column}_embedding"
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return DataSplit(
             train=self._add_feature(split.train, feature, now),
             test=self._add_feature(split.test, feature, now),
@@ -107,7 +107,7 @@ class ImageEmbeddingExtractor(Knot):
         if feature in dataset.feature_names:
             features = dataset.feature_names
         else:
-            features = dataset.feature_names + (feature,)
+            features = (*dataset.feature_names, feature)
         return MLDataset(
             name=f"{dataset.name}:image-embedded",
             feature_names=features,

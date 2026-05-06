@@ -7,8 +7,8 @@ requiring a live Elasticsearch cluster.
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
+from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -25,7 +25,7 @@ class _FakeFrame:
         self.name = name
         self.last_mask: Any = None
 
-    def __getitem__(self, mask: Any) -> "_FakeFrame":
+    def __getitem__(self, mask: Any) -> _FakeFrame:
         child = _FakeFrame(name=f"{self.name}[mask]")
         child.last_mask = mask
         return child

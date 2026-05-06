@@ -65,6 +65,6 @@ class LithologyClassifier(Knot):
             )
         return LASFile(
             well_id=las_file.well_id,
-            curves=las_file.curves + ("LITH",),
+            curves=(*las_file.curves, "LITH"),
             depth_unit=las_file.depth_unit,
         )

@@ -7,15 +7,15 @@ byte equality.
 """
 
 from __future__ import annotations
+
 import unittest
 
-
 try:
-    import pypdf
+    import pypdf  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("pypdf not installed") from _e
 try:
-    import reportlab
+    import reportlab  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("reportlab not installed") from _e
 

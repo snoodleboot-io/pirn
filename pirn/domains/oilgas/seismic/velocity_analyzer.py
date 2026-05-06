@@ -17,7 +17,7 @@ Math:
 References:
     - Taner, M.T. & Koehler, F. (1969). Velocity spectra — digital computer
       derivation and applications of velocity functions. *Geophysics*,
-      34(6), 859–881.
+      34(6), 859-881.
     - Yilmaz, Ö. (2001). *Seismic Data Analysis*, 2nd ed. SEG, Chapter 3
       (velocity analysis and semblance).
 """

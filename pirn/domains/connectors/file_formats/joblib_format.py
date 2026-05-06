@@ -42,7 +42,7 @@ class JoblibFormat(BatchFileFormat):
 
     def __init__(
         self,
-        signer: "_Signer | None" = None,
+        signer: _Signer | None = None,
         allow_unsigned: bool = False,
     ) -> None:
         if not isinstance(allow_unsigned, bool):

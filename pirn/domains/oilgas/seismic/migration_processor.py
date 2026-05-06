@@ -21,9 +21,9 @@ Math:
 
 References:
     - Stolt, R.H. (1978). Migration by Fourier transform. *Geophysics*,
-      43(1), 23–48.
+      43(1), 23-48.
     - Gazdag, J. (1978). Wave equation migration with the phase-shift method.
-      *Geophysics*, 43(7), 1342–1351.
+      *Geophysics*, 43(7), 1342-1351.
     - Yilmaz, Ö. (2001). *Seismic Data Analysis*, 2nd ed. SEG, Chapter 4
       (migration methods).
 """

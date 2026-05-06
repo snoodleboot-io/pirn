@@ -11,7 +11,8 @@ Zendesk ticket create-only, ...).
 
 from __future__ import annotations
 
-from typing import Any, Iterable, Mapping
+from collections.abc import Iterable, Mapping
+from typing import Any
 
 
 class RecordWriter:

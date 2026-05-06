@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import unittest
+from datetime import UTC, datetime
 
 from pirn.domains.oilgas.types.las_file import LASFile
 
@@ -17,7 +17,7 @@ class TestConstruction(unittest.TestCase):
         assert isinstance(las.fetched_at, datetime)
 
     def test_full_values(self) -> None:
-        when = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        when = datetime(2026, 1, 1, tzinfo=UTC)
         las = LASFile(
             well_id="well-A",
             curves=("GR", "RHOB"),
@@ -32,7 +32,7 @@ class TestConstruction(unittest.TestCase):
 
 class TestAuditDict(unittest.TestCase):
     def test_audit_dict_curves_as_list(self) -> None:
-        when = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        when = datetime(2026, 1, 1, tzinfo=UTC)
         las = LASFile(
             well_id="well-A", curves=("GR",), depth_unit="m", fetched_at=when
         )

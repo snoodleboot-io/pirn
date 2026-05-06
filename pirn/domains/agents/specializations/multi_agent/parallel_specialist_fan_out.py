@@ -81,7 +81,7 @@ class ParallelSpecialistFanOut(SubTapestry):
         ]
         raw_results = await asyncio.gather(*coros)
         materialised: dict[str, AgentResponse] = {}
-        for name, raw in zip(names, raw_results):
+        for name, raw in zip(names, raw_results, strict=False):
             if isinstance(raw, AgentResponse):
                 materialised[name] = raw
             else:

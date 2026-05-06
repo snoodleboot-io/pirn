@@ -2,18 +2,17 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-import unittest
 import tempfile
-
+import unittest
+from pathlib import Path
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.agents.specializations.document_processing.document_qa_pipeline import (  # noqa: E501
+from pirn.core.run_request import RunRequest
+from pirn.domains.agents.specializations.document_processing.document_qa_pipeline import (
     DocumentQAPipeline,
 )
 from pirn.domains.agents.types.agent_response import AgentResponse
 from pirn.tapestry import Tapestry
-from pirn.core.run_request import RunRequest
 from tests.unit.domains.agents.specializations.conftest import (
     StubEmbeddingProvider,
     StubLLMProvider,

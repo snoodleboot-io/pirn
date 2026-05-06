@@ -1,11 +1,11 @@
 """Round-trip and validation tests for :class:`OdsFormat`."""
 
 from __future__ import annotations
+
 import unittest
 
-
 try:
-    import odf
+    import odf  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("odf not installed") from _e
 

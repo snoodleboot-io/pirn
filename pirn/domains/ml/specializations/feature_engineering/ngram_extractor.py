@@ -18,7 +18,7 @@ References:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
@@ -92,7 +92,7 @@ class NGramExtractor(Knot):
             raise TypeError("NGramExtractor: max_features must be an int")
         if max_features < 1:
             raise ValueError("NGramExtractor: max_features must be >= 1")
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return DataSplit(
             train=self._add_ngram_features(split.train, text_column, n, analyzer, max_features, now),
             test=self._add_ngram_features(split.test, text_column, n, analyzer, max_features, now),

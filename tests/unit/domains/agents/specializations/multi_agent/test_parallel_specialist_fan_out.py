@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
+from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -13,7 +13,6 @@ from pirn.domains.agents.specializations.multi_agent.parallel_specialist_fan_out
 from pirn.domains.agents.types.agent_response import AgentResponse
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
-
 
 _SPEC_REGISTRY: dict[str, str] = {}
 

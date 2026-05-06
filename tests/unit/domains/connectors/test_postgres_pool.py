@@ -7,16 +7,12 @@ real Postgres needed. Real-Postgres integration tests live under
 
 from __future__ import annotations
 
-import logging
-from typing import Any
-from unittest.mock import AsyncMock
 import unittest
-
+from typing import Any
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.databases.postgres_config import PostgresConfig
 from pirn.domains.connectors.databases.postgres_pool import PostgresPool
-
 
 # ──────────────────────────────────────────────────────────── fake pool
 

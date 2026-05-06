@@ -1,8 +1,8 @@
 """Round-trip and validation tests for :class:`GeoJsonFormat`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.domains.connectors.file_formats.geojson_format import (
     GeoJsonFormat,

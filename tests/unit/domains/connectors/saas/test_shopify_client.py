@@ -7,15 +7,13 @@ store or network needed.
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.capabilities.table_source import TableSource
 from pirn.domains.connectors.saas.shopify_client import ShopifyClient
 from pirn.domains.connectors.saas.shopify_config import ShopifyConfig
-
 
 # ──────────────────────────────────────────────────────────── fake client
 
@@ -28,7 +26,9 @@ class FakeShopifyConnection:
         self.response: dict[str, Any] = {"products": []}
         self.closed = False
 
-    def request(self, method: str, path: str, headers: dict[str, str] | None = None, data: Any = None,) -> dict[str, Any]:
+    def request(
+        self, method: str, path: str, headers: dict[str, str] | None = None, data: Any = None,
+    ) -> dict[str, Any]:
         self.calls.append(
             {"method": method, "path": path, "headers": headers, "data": data}
         )
@@ -147,7 +147,9 @@ class FakeShopifyConnectionWithHeaders:
         self.response: Any = response
         self.closed = False
 
-    def request(self, method: str, path: str, headers: dict[str, str] | None = None, data: Any = None,) -> Any:
+    def request(
+        self, method: str, path: str, headers: dict[str, str] | None = None, data: Any = None,
+    ) -> Any:
         self.calls.append(
             {"method": method, "path": path, "headers": headers, "data": data}
         )

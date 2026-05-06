@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import unittest
 
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest

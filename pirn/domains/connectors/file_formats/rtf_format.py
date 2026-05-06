@@ -14,7 +14,8 @@ Install: ``pip install pirn[rtf]``.
 
 from __future__ import annotations
 
-from typing import Any, Iterable, Mapping
+from collections.abc import Iterable, Mapping
+from typing import Any
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,

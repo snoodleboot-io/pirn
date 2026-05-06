@@ -8,7 +8,8 @@ with :class:`pirn.domains.connectors.database_connection_pool.DatabaseConnection
 from __future__ import annotations
 
 import logging
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.databases.sqlite_config import SqliteConfig

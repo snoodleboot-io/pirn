@@ -23,13 +23,14 @@ Algorithm:
 References:
     - Archie, G.E. (1942). The electrical resistivity log as an aid in
       determining some reservoir characteristics. *Trans. AIME*, 146,
-      54–62. SPE-942054-G.
+      54-62. SPE-942054-G.
     - LAS 2.0 File Format Standard (1992), Canadian Well Logging Society.
 """
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig

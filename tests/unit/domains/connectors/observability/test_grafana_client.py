@@ -6,17 +6,15 @@ needed.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any
 import unittest
-
+from datetime import UTC, datetime
+from typing import Any
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.capabilities.metric_query import MetricQuery
 from pirn.domains.connectors.capabilities.table_source import TableSource
 from pirn.domains.connectors.observability.grafana_client import GrafanaClient
 from pirn.domains.connectors.observability.grafana_config import GrafanaConfig
-
 
 # ──────────────────────────────────────────────────────────── fake client
 
@@ -38,7 +36,9 @@ class FakeHttpx:
         self.response: Any = {"id": 1}
         self.closed = False
 
-    async def request(self, method: str, path: str, *, params: Any = None, json: Any = None, headers: Any = None,) -> FakeResponse:
+    async def request(
+        self, method: str, path: str, *, params: Any = None, json: Any = None, headers: Any = None,
+    ) -> FakeResponse:
         self.calls.append(
             (
                 method,
@@ -331,8 +331,8 @@ class TestQuery(unittest.IsolatedAsyncioTestCase):
         client = GrafanaClient(
             client=fake, datasource_uid="prom-uid"
         )
-        start = datetime(2024, 1, 1, tzinfo=timezone.utc)
-        end = datetime(2024, 1, 2, tzinfo=timezone.utc)
+        start = datetime(2024, 1, 1, tzinfo=UTC)
+        end = datetime(2024, 1, 2, tzinfo=UTC)
         result = await client.query("up", start=start, end=end, step="30s")
         assert result == fake.response
         method, path, opts = fake.calls[0]

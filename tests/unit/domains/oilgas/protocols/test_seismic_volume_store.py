@@ -1,8 +1,8 @@
 """Tests for :class:`SeismicVolumeStore` interface contract."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.domains.oilgas.protocols.seismic_volume_store import SeismicVolumeStore
 

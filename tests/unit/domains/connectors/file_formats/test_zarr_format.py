@@ -1,16 +1,17 @@
 """Round-trip and validation tests for :class:`ZarrFormat`."""
 
 from __future__ import annotations
+
 import unittest
 
 import pytest
 
 try:
-    import zarr
+    import zarr  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("zarr not installed") from _e
 try:
-    import numpy
+    import numpy  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("numpy not installed") from _e
 

@@ -20,8 +20,9 @@ References:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from typing import Any, Mapping, Sequence
+from collections.abc import Mapping, Sequence
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -110,9 +111,9 @@ class ContinuousTrainingPipeline(SubTapestry):
             recorded = datetime.fromisoformat(recorded_at)
         except ValueError:
             return False, None
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if recorded.tzinfo is None:
-            recorded = recorded.replace(tzinfo=timezone.utc)
+            recorded = recorded.replace(tzinfo=UTC)
         if now - recorded < timedelta(days=freshness_window_days):
             return True, last_model_id
         return False, None

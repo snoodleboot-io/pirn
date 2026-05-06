@@ -18,8 +18,9 @@ References:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Sequence
+from collections.abc import Sequence
+from datetime import UTC, datetime
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -84,7 +85,7 @@ class FourierFeatureGenerator(Knot):
                 raise TypeError("FourierFeatureGenerator: every period must be an int")
             if period < 2:
                 raise ValueError("FourierFeatureGenerator: every period must be >= 2")
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return DataSplit(
             train=self._add_fourier_features(split.train, column_tuple, period_tuple, now),
             test=self._add_fourier_features(split.test, column_tuple, period_tuple, now),

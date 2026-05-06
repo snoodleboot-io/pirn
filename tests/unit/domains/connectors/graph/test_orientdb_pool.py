@@ -7,14 +7,12 @@ live under ``tests/integration`` behind the ``needs_orientdb`` marker.
 from __future__ import annotations
 
 import logging
-from typing import Any
 import unittest
-
+from typing import Any
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.graph.orientdb_config import OrientDBConfig
 from pirn.domains.connectors.graph.orientdb_pool import OrientDBPool
-
 
 # ──────────────────────────────────────────────────────────────── fakes
 
@@ -164,9 +162,9 @@ class TestCredentialSafety(unittest.TestCase):
 # ────────────────────────────────────────────────────────────── log events
 
 
+class TestLogEvents(unittest.IsolatedAsyncioTestCase):
     async def test_close_emits_debug_log(self) -> None:
-        # TODO(unittest-migrate): replace 'caplog' built-in
         pool = OrientDBPool(client=FakeOrientClient())
-        with caplog.at_level(logging.DEBUG):
+        with self.assertLogs("pirn", level=logging.DEBUG) as cm:
             await pool.close()
-        assert any("orientdb.close" in r.message for r in caplog.records)
+        assert any("orientdb.close" in msg for msg in cm.output)

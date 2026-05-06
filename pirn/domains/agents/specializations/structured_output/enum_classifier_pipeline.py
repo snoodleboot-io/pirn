@@ -28,7 +28,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.agents.llm_provider import LLMProvider
-from pirn.domains.agents.specializations.structured_output._enum_classifier_attempt import (  # noqa: E501
+from pirn.domains.agents.specializations.structured_output._enum_classifier_attempt import (
     _EnumClassifierAttempt,
 )
 from pirn.nodes.sub_tapestry import SubTapestry

@@ -7,8 +7,8 @@ output shapes.
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Mapping, Sequence
-from typing import Any, Callable
+from collections.abc import AsyncIterator, Callable, Mapping, Sequence
+from typing import Any
 
 from pirn.domains.agents.llm_provider import LLMProvider
 from pirn.domains.agents.memory_store import MemoryStore

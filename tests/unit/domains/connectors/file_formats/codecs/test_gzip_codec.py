@@ -1,8 +1,8 @@
 """Unit tests for :class:`GzipCodec`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.domains.connectors.file_formats.codecs.gzip_codec import GzipCodec
 from tests.unit.domains.connectors.file_formats.codecs._codec_round_trip import (

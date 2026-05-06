@@ -1,15 +1,14 @@
 """Unit tests for :class:`FHIRPatientIngestor`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.clinical.fhir_patient_ingestor import (
     FHIRPatientIngestor,
 )
 from tests.unit.domains.health.conftest import StubFHIRClient
-
 
 _CFG = KnotConfig(id="i")
 _CLIENT = StubFHIRClient()

@@ -32,7 +32,6 @@ import zipfile
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )

@@ -6,7 +6,7 @@ is the tab character. Stdlib ``csv`` module — no optional dependency.
 
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 from pirn.domains.connectors.file_formats.csv_format import CsvFormat
 

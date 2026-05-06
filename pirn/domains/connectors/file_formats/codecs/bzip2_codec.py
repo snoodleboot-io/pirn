@@ -9,7 +9,7 @@ for very large single objects.
 from __future__ import annotations
 
 import bz2
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 
 from pirn.domains.connectors.file_formats.codec import Codec
 

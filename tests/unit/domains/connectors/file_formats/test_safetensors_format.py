@@ -2,16 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 try:
-    import safetensors
+    import safetensors  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("safetensors not installed") from _e
 try:
-    import numpy
+    import numpy  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("numpy not installed") from _e
 

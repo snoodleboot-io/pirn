@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import io
+import unittest
 import zipfile
 from collections.abc import Mapping
 from typing import Any
 from unittest.mock import patch
-import unittest
 
 import numpy as np
 
@@ -20,7 +20,6 @@ from pirn.domains.connectors.file_formats.brainvision_format import (
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -221,7 +220,7 @@ class TestBrainVisionFormatErrors(unittest.IsolatedAsyncioTestCase):
         async def _iter():
             yield b"this is not a zip file at all"
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception):  # noqa: B017
             async for _ in await fmt.read(_iter()):
                 pass
 

@@ -19,7 +19,7 @@ References:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -65,6 +65,6 @@ class HL7v2MessageParser(Knot):
             patient_id="",
             encounter_id="",
             observation_codes=(),
-            observed_at=datetime.now(timezone.utc),
+            observed_at=datetime.now(UTC),
             source_system="hl7v2",
         )

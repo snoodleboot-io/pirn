@@ -1,13 +1,12 @@
 """Unit tests for :class:`EpochExtractor`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.eeg_meg.epoch_extractor import EpochExtractor
 from pirn.domains.health.types.signal_frame import SignalFrame
-
 
 _CFG = KnotConfig(id="e")
 _SIGNAL = SignalFrame(signal_id="s", channel_count=4, sample_rate_hz=250.0, samples_per_channel=2500)

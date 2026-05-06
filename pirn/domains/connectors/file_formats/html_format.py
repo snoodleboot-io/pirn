@@ -159,7 +159,7 @@ class HtmlFormat(BatchFileFormat):
     @staticmethod
     def _load_lxml() -> Any:
         try:
-            import lxml  # noqa: F401  (parser-discovery only)
+            import lxml
         except ImportError as exc:
             raise ImportError(
                 "HtmlFormat requires lxml. Install with "

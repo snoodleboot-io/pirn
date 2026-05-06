@@ -6,11 +6,11 @@ survival (whitespace-normalised) rather than byte equality.
 """
 
 from __future__ import annotations
+
 import unittest
 
-
 try:
-    import pptx
+    import pptx  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("pptx not installed") from _e
 

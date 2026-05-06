@@ -5,14 +5,12 @@ Uses an injected stub httpx client. No network needed.
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.messaging.teams_client import TeamsClient
 from pirn.domains.connectors.messaging.teams_config import TeamsConfig
-
 
 # ──────────────────────────────────────────────────────────── fake client
 

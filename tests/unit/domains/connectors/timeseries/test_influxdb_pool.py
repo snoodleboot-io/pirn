@@ -5,14 +5,12 @@ Uses injected stubs — no real InfluxDB needed.
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.timeseries.influxdb_config import InfluxDBConfig
 from pirn.domains.connectors.timeseries.influxdb_pool import InfluxDBPool
-
 
 # ──────────────────────────────────────────────────────────── fake objects
 
@@ -46,7 +44,11 @@ class FakeInfluxQueryAPI:
 
 
 class FakeInfluxClient:
-    def __init__(self, write_api: FakeInfluxWriteAPI | None = None, query_api: FakeInfluxQueryAPI | None = None,) -> None:
+    def __init__(
+        self,
+        write_api: FakeInfluxWriteAPI | None = None,
+        query_api: FakeInfluxQueryAPI | None = None,
+    ) -> None:
         self._write_api = write_api or FakeInfluxWriteAPI()
         self._query_api = query_api or FakeInfluxQueryAPI()
         self.closed = False

@@ -15,10 +15,10 @@ Install: ``pip install pirn[epub]``.
 
 from __future__ import annotations
 
-import io
 import os
 import tempfile
-from typing import Any, Iterable, Mapping
+from collections.abc import Iterable, Mapping
+from typing import Any
 
 from pirn.domains.connectors.file_formats._html_stripper import _HtmlStripper
 from pirn.domains.connectors.file_formats.batch_file_format import (

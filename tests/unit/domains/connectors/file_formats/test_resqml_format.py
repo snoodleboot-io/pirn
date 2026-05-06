@@ -1,17 +1,17 @@
 """Round-trip and validation tests for :class:`ResqmlFormat`."""
 
 from __future__ import annotations
+
 import sys
 import unittest
 import unittest.mock
 
-
 try:
-    import defusedxml
+    import defusedxml  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("defusedxml not installed") from _e
 try:
-    import lxml
+    import lxml  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("lxml not installed") from _e
 
@@ -76,7 +76,7 @@ class TestResqmlFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
         payload = await FormatRoundTrip.encode(fmt, records)
         decoded = await FormatRoundTrip.decode(fmt, payload)
         assert len(decoded) == len(records)
-        for orig, dec in zip(records, decoded):
+        for orig, dec in zip(records, decoded, strict=False):
             for key, val in orig.items():
                 assert dec.get(key) == val
 
@@ -108,7 +108,7 @@ class TestResqmlFormatErrors(unittest.IsolatedAsyncioTestCase):
         async def _bad_iter():
             yield b"<broken xml >>>"
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception):  # noqa: B017
             record_iter = await fmt.read(_bad_iter())
             async for _ in record_iter:
                 pass
@@ -116,7 +116,9 @@ class TestResqmlFormatErrors(unittest.IsolatedAsyncioTestCase):
 
 class TestResqmlFormatMissingDep(unittest.TestCase):
     def test_defusedxml_import_error_message(self) -> None:
-        with unittest.mock.patch.dict(sys.modules, {"defusedxml": None, "defusedxml.ElementTree": None}):
+        with unittest.mock.patch.dict(
+            sys.modules, {"defusedxml": None, "defusedxml.ElementTree": None}
+        ):
             fmt = ResqmlFormat()
             with self.assertRaisesRegex(ImportError, "pirn\\[oilgas\\]"):
                 fmt._load_defusedxml()

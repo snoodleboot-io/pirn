@@ -1,8 +1,8 @@
 """Unit tests for :class:`JsonlFormat`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.domains.connectors.file_formats.jsonl_format import JsonlFormat
 from tests.unit.domains.connectors.file_formats._format_round_trip import (

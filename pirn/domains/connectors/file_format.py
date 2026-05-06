@@ -17,7 +17,8 @@ Multi-file archives (tar, zip) get their own wrapper shape.
 
 from __future__ import annotations
 
-from typing import Any, AsyncIterator, Mapping
+from collections.abc import AsyncIterator, Mapping
+from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 

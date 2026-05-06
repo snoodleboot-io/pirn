@@ -26,7 +26,7 @@ References:
     - Yilmaz, Ö. (2001). *Seismic Data Analysis*, 2nd ed. SEG,
       Chapter 6 (F-K filtering and ground-roll attenuation).
     - Treitel, S. & Lines, L. (2001). Past, present, and future of geophysical
-      inversion — a new millennium analysis. *Geophysics*, 66(1), 21–24.
+      inversion — a new millennium analysis. *Geophysics*, 66(1), 21-24.
 """
 
 from __future__ import annotations

@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
 import unittest
-
+from unittest.mock import patch
 
 try:
-    import nibabel
+    import nibabel  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("nibabel not installed") from _e
 
@@ -18,7 +17,6 @@ from pirn.domains.connectors.file_formats.nifti_format import NiftiFormat
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -34,7 +32,6 @@ def _make_nifti_bytes() -> bytes:
 
     data = np.zeros((4, 4, 4), dtype=np.float32)
     data[1, 1, 1] = 1.0
-    import io as _io
 
     affine = np.eye(4)
     img = nib.Nifti1Image(data, affine)

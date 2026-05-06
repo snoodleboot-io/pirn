@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import timezone
 import unittest
+from datetime import UTC
 
 import polars as pl
 
@@ -19,7 +19,7 @@ class TestPolarsDataBatch(unittest.TestCase):
 
     def test_default_fetched_at_is_utc(self) -> None:
         batch = PolarsDataBatch(frame=pl.DataFrame())
-        assert batch.fetched_at.tzinfo is timezone.utc
+        assert batch.fetched_at.tzinfo is UTC
 
     def test_with_frame_preserves_metadata(self) -> None:
         original = PolarsDataBatch(

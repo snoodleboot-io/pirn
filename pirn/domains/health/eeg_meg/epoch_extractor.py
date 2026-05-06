@@ -93,7 +93,7 @@ class EpochExtractor(Knot):
         # Production: slice the underlying ndarray around each event time.
         epoch_samples = max(
             1,
-            int(round((float(tmax_sec) - float(tmin_sec)) * signal.sample_rate_hz)),
+            round((float(tmax_sec) - float(tmin_sec)) * signal.sample_rate_hz),
         )
         return tuple(
             SignalFrame(

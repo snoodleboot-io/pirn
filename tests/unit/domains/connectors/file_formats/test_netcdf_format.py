@@ -6,15 +6,15 @@ therefore use ``int``, ``float``, and ``str`` only.
 """
 
 from __future__ import annotations
+
 import unittest
 
-
 try:
-    import netCDF4
+    import netCDF4  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("netCDF4 not installed") from _e
 try:
-    import numpy
+    import numpy  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("numpy not installed") from _e
 

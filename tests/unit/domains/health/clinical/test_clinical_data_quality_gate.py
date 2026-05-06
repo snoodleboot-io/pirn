@@ -1,17 +1,16 @@
 """Unit tests for :class:`ClinicalDataQualityCheck`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.clinical.clinical_data_quality_gate import (
-    ClinicalDataQualityError,
     ClinicalDataQualityCheck,
+    ClinicalDataQualityError,
     ClinicalDataQualityGate,
 )
 from pirn.domains.health.types.clinical_record import ClinicalRecord
-
 
 _CFG = KnotConfig(id="g")
 

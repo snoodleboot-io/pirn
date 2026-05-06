@@ -21,7 +21,7 @@ References:
     - API Specification 5CT (11th ed., 2018) — Specification for Casing and
       Tubing (burst and collapse ratings).
     - Prentice, C.M. (1970). Maximum load casing design. *JPT*, 22(7),
-      805–811. SPE-2560-PA.
+      805-811. SPE-2560-PA.
 """
 
 from __future__ import annotations

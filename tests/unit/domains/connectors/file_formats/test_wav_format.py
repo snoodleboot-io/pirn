@@ -5,7 +5,6 @@ from __future__ import annotations
 import struct
 import unittest
 
-
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )

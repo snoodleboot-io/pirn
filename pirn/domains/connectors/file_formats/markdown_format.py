@@ -21,7 +21,8 @@ Install: ``pip install pirn[markdown]``.
 
 from __future__ import annotations
 
-from typing import Any, ClassVar, Iterable, Mapping
+from collections.abc import Iterable, Mapping
+from typing import Any, ClassVar
 
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,

@@ -1,13 +1,12 @@
 """Unit tests for :class:`BandpassFilter`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.eeg_meg.bandpass_filter import BandpassFilter
 from pirn.domains.health.types.signal_frame import SignalFrame
-
 
 _CFG = KnotConfig(id="b")
 _SIGNAL = SignalFrame(signal_id="s")

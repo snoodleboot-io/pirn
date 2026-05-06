@@ -8,8 +8,9 @@ construction / per-call time so importing this module does not require
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator, Mapping, Sequence
 from datetime import datetime
-from typing import Any, AsyncIterator, Mapping, Sequence
+from typing import Any
 
 from pirn.domains.data.lakehouse.delta.delta_table_config import DeltaTableConfig
 from pirn.domains.data.lakehouse.lakehouse_table import LakehouseTable

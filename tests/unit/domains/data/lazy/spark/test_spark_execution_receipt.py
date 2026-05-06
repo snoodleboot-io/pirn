@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import unittest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pirn.domains.data.lazy.spark.spark_execution_receipt import SparkExecutionReceipt
 
 
 class TestSparkExecutionReceipt(unittest.TestCase):
     def test_construction_with_output_path(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         receipt = SparkExecutionReceipt(
             succeeded=True,
             row_count=None,

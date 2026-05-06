@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 from pirn.domains.ml.image_encoder_provider import ImageEncoderProvider
 

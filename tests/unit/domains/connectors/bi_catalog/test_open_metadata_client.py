@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.bi_catalog.open_metadata_client import (
@@ -33,7 +32,9 @@ class FakeHttpx:
         self.responses: dict[tuple[str, str], Any] = {}
         self.closed = False
 
-    async def request(self, method: str, url: str, *, params: Any = None, json: Any = None, headers: Any = None,) -> FakeResponse:
+    async def request(
+        self, method: str, url: str, *, params: Any = None, json: Any = None, headers: Any = None,
+    ) -> FakeResponse:
         self.calls.append(
             {
                 "method": method,

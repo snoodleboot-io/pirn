@@ -5,8 +5,8 @@ Uses pre-loaded ``manifest=`` / ``run_results=`` mappings so no real
 """
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.domains.connectors.bi_catalog.dbt_artifacts_config import (
     DbtArtifactsConfig,
@@ -17,7 +17,6 @@ from pirn.domains.connectors.bi_catalog.dbt_artifacts_reader import (
 from pirn.domains.connectors.capabilities.metadata_catalog import (
     MetadataCatalog,
 )
-
 
 
 class _StandaloneTests(unittest.TestCase):

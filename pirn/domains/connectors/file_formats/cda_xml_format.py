@@ -27,6 +27,7 @@ from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 
+
 class CdaXmlFormat(BatchFileFormat):
     """Whole-file CDA XML encoder/decoder.
 

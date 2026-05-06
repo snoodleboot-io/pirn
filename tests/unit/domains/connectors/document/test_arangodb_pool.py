@@ -5,14 +5,12 @@ Uses injected fakes — no real ArangoDB or python-arango needed.
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.document.arangodb_config import ArangoDBConfig
 from pirn.domains.connectors.document.arangodb_pool import ArangoDBPool
-
 
 # ──────────────────────────────────────────────────────────── fakes
 

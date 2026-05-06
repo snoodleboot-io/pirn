@@ -22,7 +22,7 @@ References:
       Wiley-Interscience, Chapter 3 (kriging methods).
     - Shepherd, D. (1968). A two-dimensional interpolation function for
       irregularly-spaced data. *ACM National Conference Proceedings*,
-      517–524. ACM-DL-1968-8028.
+      517-524. ACM-DL-1968-8028.
 """
 
 from __future__ import annotations

@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
-from datetime import datetime, timezone
 import unittest
+from collections.abc import Mapping
+from datetime import UTC, datetime
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -19,21 +19,21 @@ _RECORDS: tuple[ClinicalTrialRecord, ...] = (
         subject_id="S-1",
         visit_number=1,
         observation_codes=("AE001", "AE002"),
-        observed_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
+        observed_at=datetime(2026, 4, 1, tzinfo=UTC),
     ),
     ClinicalTrialRecord(
         trial_id="T-1",
         subject_id="S-1",
         visit_number=2,
         observation_codes=("AE001",),
-        observed_at=datetime(2026, 4, 2, tzinfo=timezone.utc),
+        observed_at=datetime(2026, 4, 2, tzinfo=UTC),
     ),
     ClinicalTrialRecord(
         trial_id="T-1",
         subject_id="S-2",
         visit_number=1,
         observation_codes=("AE002",),
-        observed_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
+        observed_at=datetime(2026, 4, 1, tzinfo=UTC),
     ),
 )
 

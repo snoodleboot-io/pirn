@@ -30,9 +30,10 @@ References:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from collections.abc import Sequence
+from datetime import UTC, datetime
 from types import MappingProxyType
-from typing import Any, Sequence
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -163,7 +164,7 @@ class TimeSeriesSplitterValidator(SubTapestry):
                     "per_split_metrics": per_split_metrics,
                 }
             ),
-            evaluated_at=datetime.now(timezone.utc),
+            evaluated_at=datetime.now(UTC),
         )
 
     def _build_splits(self, dataset: MLDataset, n_splits: int) -> list[DataSplit]:
@@ -174,7 +175,7 @@ class TimeSeriesSplitterValidator(SubTapestry):
             )
         chunk = total // (n_splits + 1)
         splits: list[DataSplit] = []
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         for split_index in range(n_splits):
             train_count = chunk * (split_index + 1)
             test_count = chunk

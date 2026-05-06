@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import unittest
-
+from datetime import UTC, datetime
 
 from pirn.domains.oilgas.protocols.historian_connection import HistorianConnection
 
@@ -13,7 +12,7 @@ class TestHistorianConnectionInterface(unittest.IsolatedAsyncioTestCase):
     async def test_fetch_tag_raises_not_implemented(self) -> None:
         with self.assertRaisesRegex(NotImplementedError, "fetch_tag"):
             await HistorianConnection().fetch_tag(
-                "tag", datetime(2026, 1, 1, tzinfo=timezone.utc)
+                "tag", datetime(2026, 1, 1, tzinfo=UTC)
             )
 
     async def test_close_raises_not_implemented(self) -> None:

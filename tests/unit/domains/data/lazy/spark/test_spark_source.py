@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.data.lazy.spark.spark_dataframe import SparkDataFrame

@@ -22,9 +22,9 @@ Math:
 
 References:
     - Taner, M.T., Koehler, F. & Sheriff, R.E. (1979). Complex seismic trace
-      analysis. *Geophysics*, 44(6), 1041–1063.
+      analysis. *Geophysics*, 44(6), 1041-1063.
     - Chopra, S. & Marfurt, K.J. (2005). Seismic attributes — a historical
-      perspective. *Geophysics*, 70(5), 3SO–28SO.
+      perspective. *Geophysics*, 70(5), 3SO-28SO.
 """
 
 from __future__ import annotations

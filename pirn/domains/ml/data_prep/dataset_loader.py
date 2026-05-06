@@ -20,8 +20,9 @@ References:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Sequence
+from collections.abc import Sequence
+from datetime import UTC, datetime
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -127,7 +128,7 @@ class DatasetLoader(Knot):
             target_name=target_name,
             row_count=row_count,
             source_uri=source_uri,
-            fetched_at=datetime.now(timezone.utc),
+            fetched_at=datetime.now(UTC),
         )
 
     async def _count_pool_rows(self, pool: DatabaseConnectionPool, query: str) -> int:

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import timezone
 import unittest
+from datetime import UTC
 
 import duckdb
 
@@ -24,7 +24,7 @@ class TestDuckdbDataBatch(unittest.TestCase):
         connection = duckdb.connect(database=":memory:")
         relation = connection.sql("SELECT 1 AS x")
         batch = DuckdbDataBatch(relation=relation, connection=connection)
-        assert batch.fetched_at.tzinfo is timezone.utc
+        assert batch.fetched_at.tzinfo is UTC
 
     def test_with_relation_preserves_metadata(self) -> None:
         connection = duckdb.connect(database=":memory:")

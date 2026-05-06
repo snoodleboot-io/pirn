@@ -6,14 +6,12 @@ Uses an injected stub client mirroring the cursor-based slice of
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.databases.databricks_config import DatabricksConfig
 from pirn.domains.connectors.databases.databricks_pool import DatabricksPool
-
 
 # ──────────────────────────────────────────────────────────── fake client
 
@@ -21,7 +19,7 @@ from pirn.domains.connectors.databases.databricks_pool import DatabricksPool
 class FakeDatabricksCursor:
     def __init__(
         self, parent: FakeDatabricksClient
-    ) -> None:  # noqa: F821 - forward ref OK
+    ) -> None:
         self._parent = parent
         self._last_query: str | None = None
         self.rowcount = 0

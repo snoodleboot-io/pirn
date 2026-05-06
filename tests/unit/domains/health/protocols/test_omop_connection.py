@@ -1,8 +1,8 @@
 """Unit tests for :class:`OMOPConnection` interface."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.domains.health.protocols.omop_connection import OMOPConnection
 

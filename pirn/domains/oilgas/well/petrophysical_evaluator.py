@@ -19,7 +19,7 @@ Math:
 References:
     - Archie, G.E. (1942). The electrical resistivity log as an aid in
       determining some reservoir characteristics. *Trans. AIME*, 146,
-      54–62. SPE-942054-G.
+      54-62. SPE-942054-G.
     - Dresser Industries (1979). *Log Interpretation Charts*. Dresser Atlas,
       Chapter 2 (porosity and fluid saturation).
 """
@@ -58,7 +58,7 @@ class PetrophysicalEvaluator(Knot):
         Returns:
             LASFile with ``VSH``, ``PHIE``, and ``SW`` curves appended.
         """
-        interpreted_curves = las_file.curves + ("VSH", "PHIE", "SW")
+        interpreted_curves = (*las_file.curves, "VSH", "PHIE", "SW")
         return LASFile(
             well_id=las_file.well_id,
             curves=interpreted_curves,

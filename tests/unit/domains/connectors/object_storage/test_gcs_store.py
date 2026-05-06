@@ -7,14 +7,13 @@ behind a marker.
 
 from __future__ import annotations
 
-from typing import Any, AsyncIterator
 import unittest
+from collections.abc import AsyncIterator
+from typing import Any
 
-
-from pirn.domains.connectors.object_store import ObjectStore
 from pirn.domains.connectors.object_storage.gcs_config import GCSConfig
 from pirn.domains.connectors.object_storage.gcs_store import GCSStore
-
+from pirn.domains.connectors.object_store import ObjectStore
 
 # ─────────────────────────────────────────────────────────── stub client
 
@@ -67,7 +66,9 @@ class StubGCSClient:
         )
         self.objects.pop((bucket, object_name), None)
 
-    async def list_objects(self, *, bucket: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def list_objects(
+        self, *, bucket: str, params: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         params = params or {}
         prefix = params.get("prefix", "")
         page_token = params.get("pageToken")

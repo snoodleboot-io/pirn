@@ -6,9 +6,8 @@ Uses an injected stub client that mirrors the slice of the
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.saas.mixpanel_client import MixpanelClient

@@ -1,11 +1,11 @@
 """Round-trip and validation tests for :class:`AsdfFormat`."""
 
 from __future__ import annotations
+
 import unittest
 
-
 try:
-    import asdf
+    import asdf  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("asdf not installed") from _e
 
@@ -20,8 +20,9 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 
 def _make_asdf_payload(tree: dict | None = None) -> bytes:
     """Return a minimal ASDF file as bytes."""
-    import asdf
     import io
+
+    import asdf
 
     if tree is None:
         tree = {"instrument": "test", "version": 1}
@@ -53,8 +54,9 @@ class TestAsdfFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
         assert record.get("answer") == 42
 
     async def test_encode_produces_valid_asdf(self) -> None:
-        import asdf
         import io
+
+        import asdf
 
         record = {"mission": "test_mission", "count": 7}
         fmt = AsdfFormat()
@@ -73,8 +75,9 @@ class TestAsdfFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
         assert len(records) == 1
 
     async def test_encode_empty_records_produces_valid_asdf(self) -> None:
-        import asdf
         import io
+
+        import asdf
 
         fmt = AsdfFormat()
         payload = await FormatRoundTrip.encode(fmt, [])
@@ -90,7 +93,7 @@ class TestAsdfFormatErrors(unittest.IsolatedAsyncioTestCase):
         async def _bad_iter():
             yield b"not an asdf file !@#$%^&*()"
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception):  # noqa: B017
             record_iter = await fmt.read(_bad_iter())
             async for _ in record_iter:
                 pass

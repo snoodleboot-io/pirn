@@ -32,8 +32,8 @@ from __future__ import annotations
 
 import asyncio
 import random
+from dataclasses import dataclass
 from pathlib import Path
-from dataclasses import dataclass, field
 from typing import Any
 
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
@@ -206,8 +206,8 @@ async def parse_results(message: Hl7Message) -> list[LabResult]:
     for seg in obx_segments:
         f = seg["fields"]
 
-        def _get(idx: int, default: str = "") -> str:
-            return f[idx] if idx < len(f) else default
+        def _get(idx: int, default: str = "", *, _f: list = f) -> str:
+            return _f[idx] if idx < len(_f) else default
 
         results.append(
             LabResult(
@@ -302,7 +302,9 @@ async def route_message(message: Hl7Message) -> RunResult:
             _config=KnotConfig(id="result_processor", validate_io=False),
         )
     else:
-        raise ValueError(f"unknown message type prefix: {prefix!r} (full: {message.message_type!r})")
+        raise ValueError(
+            f"unknown message type prefix: {prefix!r} (full: {message.message_type!r})"
+        )
     return await processor.process(message=message)
 
 
@@ -537,7 +539,11 @@ async def main() -> None:
         if not result.succeeded:
             exc_info = result.exceptions[0] if result.exceptions else None
             err_msg = exc_info.message[:60] if exc_info else "unknown error"
-            print(f"{msg.encounter_id:>10}  {msg.message_type:<12}  {'ERROR':<12}  {'':6}  {err_msg}")
+            err_line = (
+                f"{msg.encounter_id:>10}  {msg.message_type:<12}"
+                f"  {'ERROR':<12}  {'':6}  {err_msg}"
+            )
+            print(err_line)
             continue
 
         log_entry: dict[str, Any] = result.outputs.get("event_log", {})
@@ -547,11 +553,20 @@ async def main() -> None:
         details = log_entry.get("details", {})
 
         if kind == "admission" or kind == "discharge":
-            brief = f"dept={details.get('department')} acuity={details.get('acuity')} bed={details.get('bed_id')}"
+            brief = (
+                f"dept={details.get('department')} acuity={details.get('acuity')}"
+                f" bed={details.get('bed_id')}"
+            )
         elif kind == "order":
-            brief = f"order_id={details.get('order_id')} codes={details.get('test_codes')} priority={details.get('priority')}"
+            brief = (
+                f"order_id={details.get('order_id')} codes={details.get('test_codes')}"
+                f" priority={details.get('priority')}"
+            )
         elif kind == "result":
-            brief = f"results={details.get('result_count')} critical={details.get('critical_count')} flags={details.get('flags')}"
+            brief = (
+                f"results={details.get('result_count')}"
+                f" critical={details.get('critical_count')} flags={details.get('flags')}"
+            )
         else:
             brief = str(details)[:60]
 

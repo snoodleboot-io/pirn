@@ -3,13 +3,10 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Optional
 import unittest
-
 
 from pirn.domains.agents.tool import Tool
 from pirn.domains.agents.tool_decorator import FunctionTool, tool
-
 
 # ----------------------------------------------------------------- fixtures
 
@@ -23,11 +20,11 @@ async def async_search(query: str, max_results: int = 5) -> str:
 @tool
 def sync_calc(expression: str) -> str:
     """Evaluate a mathematical expression."""
-    return str(eval(expression, {"__builtins__": {}}))  # noqa: S307 — test only
+    return str(eval(expression, {"__builtins__": {}}))
 
 
 @tool
-async def optional_param(topic: str, context: Optional[str] = None) -> str:
+async def optional_param(topic: str, context: str | None = None) -> str:
     """Look up a document, optionally scoped to a context."""
     return topic
 
@@ -152,7 +149,8 @@ class _StandaloneTests(unittest.TestCase):
     
     
     def test_top_level_import(self):
-        from pirn.domains.agents import tool as imported_tool, FunctionTool as ImportedFunctionTool
+        from pirn.domains.agents import FunctionTool as ImportedFunctionTool
+        from pirn.domains.agents import tool as imported_tool
     
         assert imported_tool is tool
         assert ImportedFunctionTool is FunctionTool

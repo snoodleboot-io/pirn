@@ -26,10 +26,10 @@ Math:
 References:
     - Hampson, D.P., Schuelke, J.S. & Quirein, J.A. (2001). Use of
       multiattribute transforms to predict log properties from seismic data.
-      *Geophysics*, 66(1), 220–236.
+      *Geophysics*, 66(1), 220-236.
     - Russell, B.H. & Hampson, D.P. (1991). Comparison of post-stack seismic
       inversion methods. SEG Technical Program Expanded Abstracts,
-      876–878. SEG-1991-0876.
+      876-878. SEG-1991-0876.
 """
 
 from __future__ import annotations

@@ -6,15 +6,15 @@ survival.
 """
 
 from __future__ import annotations
+
 import unittest
 
-
 try:
-    import rasterio
+    import rasterio  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("rasterio not installed") from _e
 try:
-    import numpy
+    import numpy  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("numpy not installed") from _e
 

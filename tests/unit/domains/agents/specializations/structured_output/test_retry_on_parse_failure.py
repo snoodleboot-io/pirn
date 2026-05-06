@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from typing import Any
 import unittest
 
 from pirn.core.knot_config import KnotConfig

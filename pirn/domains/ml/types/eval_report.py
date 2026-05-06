@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import MappingProxyType
-from typing import Any, Mapping
+from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
@@ -23,7 +24,7 @@ class EvalReport(PirnOpaqueValue):
         default_factory=lambda: MappingProxyType({})
     )
     evaluated_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
 
     def _pirn_audit_dict(self) -> dict[str, Any]:

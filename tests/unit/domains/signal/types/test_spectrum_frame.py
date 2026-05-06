@@ -1,6 +1,7 @@
 """Unit tests for :class:`SpectrumFrame`."""
 
 from __future__ import annotations
+
 import unittest
 
 from pirn.domains.signal.types.spectrum_frame import SpectrumFrame

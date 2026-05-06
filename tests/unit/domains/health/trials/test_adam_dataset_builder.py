@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from datetime import datetime, timezone
 import unittest
+from datetime import UTC, datetime
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -18,7 +17,7 @@ _RECORDS: tuple[ClinicalTrialRecord, ...] = (
         trial_id="T-1",
         subject_id="S-1",
         visit_number=2,
-        observed_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
+        observed_at=datetime(2026, 4, 1, tzinfo=UTC),
     ),
 )
 _DERIVATIONS = {"AVISITN": "visit_number"}

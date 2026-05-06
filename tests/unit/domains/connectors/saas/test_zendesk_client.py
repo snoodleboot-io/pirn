@@ -8,16 +8,14 @@ account needed.
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.capabilities.record_writer import RecordWriter
 from pirn.domains.connectors.capabilities.table_source import TableSource
 from pirn.domains.connectors.saas.zendesk_client import ZendeskClient
 from pirn.domains.connectors.saas.zendesk_config import ZendeskConfig
-
 
 # ──────────────────────────────────────────────────────────── fake clients
 
@@ -30,7 +28,9 @@ class FakeZenpyTopLevel:
         self.response: Any = {"ok": True}
         self.closed = False
 
-    def request(self, method: str, path: str, params: Any = None, body: Any = None, headers: Any = None,) -> Any:
+    def request(
+        self, method: str, path: str, params: Any = None, body: Any = None, headers: Any = None,
+    ) -> Any:
         self.calls.append((method, path, params, body, headers))
         return self.response
 
@@ -202,7 +202,7 @@ class TestFetchPage(unittest.IsolatedAsyncioTestCase):
         rows, cursor = await client.fetch_page()
         assert rows == [{"id": 1}, {"id": 2}]
         assert cursor is None
-        method, path, params, _, _ = fake.calls[0]
+        method, path, _params, _, _ = fake.calls[0]
         assert method == "GET"
         assert path == "/api/v2/tickets.json"
 

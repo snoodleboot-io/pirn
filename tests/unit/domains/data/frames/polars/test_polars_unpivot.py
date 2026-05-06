@@ -53,7 +53,7 @@ class TestPolarsUnpivot(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         out: PolarsDataBatch = result.outputs["long"]
-        assert out.row_count == 4   # 2 users × 2 metrics
+        assert out.row_count == 4   # 2 users x 2 metrics
         assert set(out.column_names) == {"user", "metric", "value"}
 
     async def test_default_variable_and_value_names(self) -> None:

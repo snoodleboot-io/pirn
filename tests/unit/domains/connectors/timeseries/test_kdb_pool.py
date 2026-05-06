@@ -5,14 +5,12 @@ Uses an injected synchronous stub connection — no real kdb+ needed.
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.timeseries.kdb_config import KdbConfig
 from pirn.domains.connectors.timeseries.kdb_pool import KdbPool
-
 
 # ──────────────────────────────────────────────────────────── fake connection
 

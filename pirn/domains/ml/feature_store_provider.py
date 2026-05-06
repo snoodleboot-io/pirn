@@ -9,7 +9,8 @@ descending into live store state.
 
 from __future__ import annotations
 
-from typing import Any, Iterable, Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
+from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 

@@ -12,7 +12,7 @@ Algorithm:
 
 References:
     - North American Stratigraphic Code (2005). *AAPG Bulletin*, 89(11),
-      1547–1591 (formation nomenclature and correlation).
+      1547-1591 (formation nomenclature and correlation).
     - Vail, P.R. et al. (1977). Seismic stratigraphy and global changes of
       sea level. *AAPG Memoir 26*, Chapter 1 (stratigraphic surface picking).
 """

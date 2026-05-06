@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import unittest
-
+from datetime import UTC, datetime
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -19,7 +18,7 @@ def _report(value: float) -> EvalReport:
         model_id="m1",
         metrics={"accuracy": value},
         dataset_name="d:test",
-        evaluated_at=datetime.now(timezone.utc),
+        evaluated_at=datetime.now(UTC),
     )
 
 

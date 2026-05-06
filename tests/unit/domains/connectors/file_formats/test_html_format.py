@@ -5,15 +5,15 @@ assert content survival rather than byte equality.
 """
 
 from __future__ import annotations
+
 import unittest
 
-
 try:
-    import bs4
+    import bs4  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("bs4 not installed") from _e
 try:
-    import lxml
+    import lxml  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("lxml not installed") from _e
 

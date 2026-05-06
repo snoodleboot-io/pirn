@@ -7,15 +7,13 @@ live under ``tests/integration`` behind the ``needs_neo4j`` marker.
 from __future__ import annotations
 
 import logging
-from typing import Any
 import unittest
 import unittest.mock
-
+from typing import Any
 
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.connectors.graph.neo4j_config import Neo4jConfig
 from pirn.domains.connectors.graph.neo4j_pool import Neo4jPool
-
 
 # ──────────────────────────────────────────────────────────────── fakes
 

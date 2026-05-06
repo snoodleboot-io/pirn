@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import tempfile
 import os
-from pathlib import Path
-from typing import Any
+import tempfile
 import unittest
+from pathlib import Path
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest

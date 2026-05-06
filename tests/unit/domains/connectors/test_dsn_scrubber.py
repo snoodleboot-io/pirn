@@ -1,6 +1,7 @@
 """Tests for :class:`pirn.domains.connectors.dsn_scrubber.DsnScrubber`."""
 
 from __future__ import annotations
+
 import unittest
 
 from pirn.domains.connectors.dsn_scrubber import DsnScrubber

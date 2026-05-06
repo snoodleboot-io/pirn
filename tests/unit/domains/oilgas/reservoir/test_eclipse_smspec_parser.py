@@ -1,6 +1,7 @@
 """Unit tests for :class:`EclipseSmspecParser`."""
 
 from __future__ import annotations
+
 import unittest
 
 from pirn.core.knot_config import KnotConfig

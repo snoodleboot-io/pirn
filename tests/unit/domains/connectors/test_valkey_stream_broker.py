@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
 
 from pirn.domains.connectors.message_broker import MessageBroker
 from pirn.domains.connectors.streaming.valkey_stream_broker import ValkeyStreamBroker
 from pirn.domains.connectors.streaming.valkey_stream_config import ValkeyStreamConfig
-
 
 # ──────────────────────────────────────────────────────────── stub client
 
@@ -28,7 +25,9 @@ class StubValkey:
         # Track which entries have been delivered per group.
         self._delivered: dict[tuple[str, str], int] = {}
 
-    async def xadd(self, stream: str, fields: dict[bytes, bytes], *, maxlen: int | None = None) -> bytes:
+    async def xadd(
+        self, stream: str, fields: dict[bytes, bytes], *, maxlen: int | None = None
+    ) -> bytes:
         self.streams.setdefault(stream, [])
         entry_id = f"0-{len(self.streams[stream]) + 1}".encode()
         self.streams[stream].append((entry_id, fields))
@@ -42,7 +41,9 @@ class StubValkey:
             self.streams[stream] = []
         return "OK"
 
-    async def xreadgroup(self, group: str, consumer: str, streams: dict[str, str], *, count: int, block: int,) -> list[tuple[str, list[tuple[bytes, dict[bytes, bytes]]]]]:
+    async def xreadgroup(
+        self, group: str, consumer: str, streams: dict[str, str], *, count: int, block: int,
+    ) -> list[tuple[str, list[tuple[bytes, dict[bytes, bytes]]]]]:
         # Return all undelivered entries for the first stream argument.
         out: list[tuple[str, list[tuple[bytes, dict[bytes, bytes]]]]] = []
         for stream in streams:

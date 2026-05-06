@@ -1,15 +1,15 @@
 """Round-trip and validation tests for :class:`KmlFormat`."""
 
 from __future__ import annotations
+
 import unittest
 
-
 try:
-    import simplekml
+    import simplekml  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("simplekml not installed") from _e
 try:
-    import lxml
+    import lxml  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("lxml not installed") from _e
 

@@ -5,8 +5,8 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.agents.llm_provider_knot import LLMProviderKnot
 from pirn.domains.agents.llm_provider import LLMProvider
+from pirn.domains.agents.llm_provider_knot import LLMProviderKnot
 from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 

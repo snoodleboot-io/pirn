@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 from pirn.domains.connectors.message_broker import MessageBroker
 from pirn.domains.connectors.streaming.pubsub_broker import PubSubBroker
 from pirn.domains.connectors.streaming.pubsub_config import PubSubConfig
-
 
 # ─────────────────────────────────────────────────────────── stub future
 

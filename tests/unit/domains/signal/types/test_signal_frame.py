@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import unittest
+from datetime import UTC, datetime
 
 from pirn.domains.signal.types.signal_frame import SignalFrame
 
@@ -18,7 +18,7 @@ class TestRoundtrip(unittest.TestCase):
         assert isinstance(frame.fetched_at, datetime)
 
     def test_construct_with_full_kwargs(self) -> None:
-        when = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        when = datetime(2026, 1, 1, tzinfo=UTC)
         frame = SignalFrame(
             signal_id="sig-1",
             channel_count=2,
@@ -33,7 +33,7 @@ class TestRoundtrip(unittest.TestCase):
         assert frame.fetched_at == when
 
     def test_audit_dict_returns_json_primitives(self) -> None:
-        when = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        when = datetime(2026, 1, 1, tzinfo=UTC)
         frame = SignalFrame(
             signal_id="sig-2",
             channel_count=1,

@@ -2,20 +2,18 @@
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 from pirn.domains.connectors.message_broker import MessageBroker
 from pirn.domains.connectors.streaming.rabbitmq_broker import RabbitMQBroker
 from pirn.domains.connectors.streaming.rabbitmq_config import RabbitMQConfig
 
-
 # ──────────────────────────────────────────────────────────── stub layer
 
 
 class StubMessageContext:
-    async def __aenter__(self) -> "StubMessageContext":
+    async def __aenter__(self) -> StubMessageContext:
         return self
 
     async def __aexit__(self, *_args: Any) -> None:
@@ -34,13 +32,13 @@ class StubQueueIterator:
     def __init__(self, messages: list[StubMessage]) -> None:
         self._messages = list(messages)
 
-    async def __aenter__(self) -> "StubQueueIterator":
+    async def __aenter__(self) -> StubQueueIterator:
         return self
 
     async def __aexit__(self, *_args: Any) -> None:
         return None
 
-    def __aiter__(self) -> "StubQueueIterator":
+    def __aiter__(self) -> StubQueueIterator:
         return self
 
     async def __anext__(self) -> StubMessage:

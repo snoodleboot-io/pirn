@@ -19,10 +19,10 @@ Math:
 References:
     - Bahorich, M.S. & Farmer, S.L. (1995). 3-D seismic discontinuity for
       faults and stratigraphic features: the coherence cube. *TLE*, 14(10),
-      1053–1058.
+      1053-1058.
     - Marfurt, K.J., Kirlin, R.L., Farmer, S.L. & Bahorich, M.S. (1998).
       3-D seismic attributes using a semblance-based coherency algorithm.
-      *Geophysics*, 63(4), 1150–1165.
+      *Geophysics*, 63(4), 1150-1165.
 """
 
 from __future__ import annotations

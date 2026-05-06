@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import AsyncIterator, Mapping
+from collections.abc import AsyncIterator, Mapping
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 

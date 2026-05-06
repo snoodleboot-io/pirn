@@ -9,9 +9,9 @@ import ibis
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
+from pirn.domains.data.lazy.ibis.ibis_connection import IbisConnection
 from pirn.domains.data.lazy.ibis.ibis_join import IbisJoin
 from pirn.domains.data.lazy.ibis.ibis_source import IbisSource
-from pirn.domains.data.lazy.ibis.ibis_connection import IbisConnection
 from pirn.domains.data.lazy.ibis.ibis_table import IbisTable
 from pirn.tapestry import Tapestry
 

@@ -1,6 +1,7 @@
 """Tests for :class:`DuckdbFilter`."""
 
 from __future__ import annotations
+
 import unittest
 
 import duckdb

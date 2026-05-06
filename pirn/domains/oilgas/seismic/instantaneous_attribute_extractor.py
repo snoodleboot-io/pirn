@@ -21,10 +21,10 @@ Math:
 
 References:
     - Taner, M.T., Koehler, F. & Sheriff, R.E. (1979). Complex seismic trace
-      analysis. *Geophysics*, 44(6), 1041–1063.
+      analysis. *Geophysics*, 44(6), 1041-1063.
     - Barnes, A.E. (1993). Instantaneous spectral bandwidth and dominant
       frequency with applications to seismic reflection data. *Geophysics*,
-      58(3), 419–428.
+      58(3), 419-428.
 """
 
 from __future__ import annotations

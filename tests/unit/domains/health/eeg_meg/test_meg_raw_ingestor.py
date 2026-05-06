@@ -1,13 +1,12 @@
 """Unit tests for :class:`MEGRawIngestor`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.eeg_meg.meg_raw_ingestor import MEGRawIngestor
 from pirn.domains.health.types.signal_frame import SignalFrame
-
 
 _CFG = KnotConfig(id="i")
 _KNOT = MEGRawIngestor(

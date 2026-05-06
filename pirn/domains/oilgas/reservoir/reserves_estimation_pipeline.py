@@ -28,7 +28,7 @@ References:
     - SPE-PRMS-2018 — Petroleum Resources Management System, Section 2
       (reserves categories and uncertainty).
     - Arps, J.J. (1945). Analysis of decline curves. *Trans. AIME*, 160,
-      228–247. SPE-945228-G.
+      228-247. SPE-945228-G.
     - Ahmed, T. (2010). *Reservoir Engineering Handbook*, 4th ed. Gulf
       Professional Publishing, Chapter 11 (reserves estimation).
 """

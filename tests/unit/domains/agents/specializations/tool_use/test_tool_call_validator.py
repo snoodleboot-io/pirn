@@ -2,17 +2,16 @@
 
 from __future__ import annotations
 
+import unittest
 from collections.abc import Mapping
 from typing import Any
-import unittest
-
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.agents.tool import Tool
 from pirn.domains.agents.specializations.tool_use.tool_call_validator import (
     ToolCallValidator,
 )
+from pirn.domains.agents.tool import Tool
 from pirn.domains.agents.types.tool_call import ToolCall
 from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.specializations.conftest import StubTool

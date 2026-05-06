@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 from pirn.domains.connectors.message_broker import MessageBroker
 from pirn.domains.connectors.streaming.kinesis_config import KinesisConfig
@@ -93,7 +94,6 @@ class KinesisBroker(MessageBroker):
         directly if you need them.
         """
         client = await self._ensure_client()
-        config = self._config
 
         async def _iter() -> AsyncIterator[Any]:
             shards_response = await client.describe_stream(StreamName=topic)

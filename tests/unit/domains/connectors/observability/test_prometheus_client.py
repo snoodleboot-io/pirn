@@ -6,10 +6,9 @@ server needed.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any
 import unittest
-
+from datetime import UTC, datetime
+from typing import Any
 
 from pirn.domains.connectors.api_client import ApiClient
 from pirn.domains.connectors.capabilities.metric_query import MetricQuery
@@ -19,7 +18,6 @@ from pirn.domains.connectors.observability.prometheus_client import (
 from pirn.domains.connectors.observability.prometheus_config import (
     PrometheusConfig,
 )
-
 
 # ──────────────────────────────────────────────────────────── fake client
 
@@ -41,7 +39,9 @@ class FakeHttpx:
         self.response: Any = {"status": "success", "data": {"result": []}}
         self.closed = False
 
-    async def request(self, method: str, path: str, *, params: Any = None, json: Any = None, headers: Any = None,) -> FakeResponse:
+    async def request(
+        self, method: str, path: str, *, params: Any = None, json: Any = None, headers: Any = None,
+    ) -> FakeResponse:
         self.calls.append(
             (
                 method,
@@ -203,7 +203,7 @@ class TestQuery(unittest.IsolatedAsyncioTestCase):
         fake = FakeHttpx()
         fake.response = {"status": "success", "data": {"result": []}}
         client = PrometheusClient(client=fake)
-        ts = datetime(2024, 6, 1, 12, 0, tzinfo=timezone.utc)
+        ts = datetime(2024, 6, 1, 12, 0, tzinfo=UTC)
         await client.query_instant("up", time=ts)
         assert fake.calls[0][2]["params"] == {
             "query": "up",
@@ -217,8 +217,8 @@ class TestQuery(unittest.IsolatedAsyncioTestCase):
             "data": {"resultType": "matrix", "result": []},
         }
         client = PrometheusClient(client=fake)
-        start = datetime(2024, 1, 1, tzinfo=timezone.utc)
-        end = datetime(2024, 1, 2, tzinfo=timezone.utc)
+        start = datetime(2024, 1, 1, tzinfo=UTC)
+        end = datetime(2024, 1, 2, tzinfo=UTC)
         result = await client.query("up", start=start, end=end, step="30s")
         assert result == fake.response
         method, path, opts = fake.calls[0]
@@ -235,8 +235,8 @@ class TestQuery(unittest.IsolatedAsyncioTestCase):
         fake = FakeHttpx()
         fake.response = {"status": "success", "data": {"result": []}}
         client = PrometheusClient(client=fake)
-        start = datetime(2024, 1, 1, tzinfo=timezone.utc)
-        end = datetime(2024, 1, 2, tzinfo=timezone.utc)
+        start = datetime(2024, 1, 1, tzinfo=UTC)
+        end = datetime(2024, 1, 2, tzinfo=UTC)
         await client.query("up", start=start, end=end)
         assert fake.calls[0][2]["params"]["step"] == "60s"
 
@@ -245,7 +245,7 @@ class TestQuery(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(ValueError, "end is required"):
             await client.query(
                 "up",
-                start=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                start=datetime(2024, 1, 1, tzinfo=UTC),
             )
 
     async def test_query_rejects_empty(self) -> None:
@@ -258,7 +258,7 @@ class TestQuery(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(ValueError, "step"):
             await client.query_range(
                 "up",
-                start=datetime(2024, 1, 1, tzinfo=timezone.utc),
-                end=datetime(2024, 1, 2, tzinfo=timezone.utc),
+                start=datetime(2024, 1, 1, tzinfo=UTC),
+                end=datetime(2024, 1, 2, tzinfo=UTC),
                 step="",
             )

@@ -1,8 +1,8 @@
 """Tests for :class:`LineageStore`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.domains.ml.lineage_store import LineageStore
 

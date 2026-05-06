@@ -16,9 +16,10 @@ References:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from collections.abc import Sequence
+from datetime import UTC, datetime
 from itertools import combinations_with_replacement
-from typing import Any, Sequence
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -76,7 +77,7 @@ class PolynomialFeatures(Knot):
         if degree < 2:
             raise ValueError("PolynomialFeatures: degree must be >= 2")
         new_features = self._derive_feature_names(column_tuple, degree)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return DataSplit(
             train=self._extend(split.train, new_features, degree, now),
             test=self._extend(split.test, new_features, degree, now),

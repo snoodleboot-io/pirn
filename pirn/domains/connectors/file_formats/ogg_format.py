@@ -41,7 +41,7 @@ class OggFormat(BatchFileFormat):
             raise ValueError(
                 "OggFormat: payload is empty — cannot decode Ogg"
             )
-        sf, np = self._load_deps()
+        sf, _np = self._load_deps()
         with tempfile.NamedTemporaryFile(suffix=".ogg") as tmp:
             tmp.write(payload)
             tmp.flush()
@@ -83,8 +83,8 @@ class OggFormat(BatchFileFormat):
     @staticmethod
     def _load_deps() -> tuple[Any, Any]:
         try:
-            import soundfile as sf
             import numpy as np
+            import soundfile as sf
         except ImportError as exc:
             raise ImportError(
                 "OggFormat requires soundfile and numpy. Install with "

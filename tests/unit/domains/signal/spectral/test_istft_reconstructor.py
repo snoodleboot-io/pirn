@@ -1,8 +1,8 @@
 """Unit tests for :class:`ISTFTReconstructor`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot

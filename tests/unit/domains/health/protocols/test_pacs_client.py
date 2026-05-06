@@ -1,8 +1,8 @@
 """Unit tests for :class:`PACSClient` interface."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.domains.health.protocols.pacs_client import PACSClient
 

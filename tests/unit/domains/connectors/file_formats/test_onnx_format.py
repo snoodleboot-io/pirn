@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 try:
-    import onnx
+    import onnx  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("onnx not installed") from _e
 

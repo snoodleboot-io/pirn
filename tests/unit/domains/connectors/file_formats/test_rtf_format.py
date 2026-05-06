@@ -1,11 +1,11 @@
 """Round-trip and validation tests for :class:`RtfFormat`."""
 
 from __future__ import annotations
+
 import unittest
 
-
 try:
-    import striprtf
+    import striprtf  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("striprtf not installed") from _e
 

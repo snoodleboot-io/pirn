@@ -1,17 +1,14 @@
 """Unit tests for :class:`ConstitutionalFilter`."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.domains.agents.specializations.reflection.constitutional_filter import (
     ConstitutionalFilter,
-)
-from pirn.domains.agents.specializations.reflection.constitutional_violation_error import (
-    ConstitutionalViolationError,
 )
 from pirn.domains.agents.types.agent_response import AgentResponse
 from pirn.tapestry import Tapestry
