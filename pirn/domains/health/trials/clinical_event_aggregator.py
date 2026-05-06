@@ -13,7 +13,7 @@ Algorithm:
 Math:
     Count for subject *s* and code *c*:
 
-    $$n_{s,c} = |\\{r \\in R : r.\\text{subject} = s,\\, c \\in r.\\text{obs\_codes}\\}|$$
+    $$n_{s,c} = |\\{r \\in R : r.\\text{subject} = s,\\, c \\in r.\\text{obs\\_codes}\\}|$$
 
 References:
     - CDISC. (2022). Clinical Data Interchange Standards Consortium SDTM IG v3.4.

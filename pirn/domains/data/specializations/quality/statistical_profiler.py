@@ -20,10 +20,10 @@ Algorithm:
     5. Return result dict with ``profiles`` list.
 
 Math:
-    $null\_rate_c = \frac{COUNT(c \text{ IS NULL})}{COUNT(*)}$
+    $null\\_rate_c = \\frac{COUNT(c \\text{ IS NULL})}{COUNT(*)}$
 
-    $p_q = x_{\lfloor (N-1) q \rfloor}
-    + \text{frac} \cdot (x_{\lceil (N-1) q \rceil} - x_{\lfloor (N-1) q \rfloor})$
+    $p_q = x_{\\lfloor (N-1) q \\rfloor}
+    + \\text{frac} \\cdot (x_{\\lceil (N-1) q \\rceil} - x_{\\lfloor (N-1) q \\rfloor})$
 
 References:
     [1] pirn — DatabaseConnectionPool interface:

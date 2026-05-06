@@ -321,4 +321,4 @@ Additional optional dependencies that are not automatically installed:
 | `pyproj` | `pip install pyproj` | `CoordinateSystemTransformer` (geospatial sub-domain) |
 | `pyspark` | `pip install pirn[spark]` | Spark-backed distributed processing for large seismic volumes |
 
-**See also:** [Signal Domain — Spectral Analysis](signal.md#pirndomainsignalspectral), [File Formats — Connectors](../api/file-formats.md), [Backends](../guides/backends.md)
+**See also:** [Signal Domain — Spectral Analysis](signal.md#pirndomainssignalspectral), [File Formats — Connectors](../connectors/index.md), [Backends](../guides/backends.md)

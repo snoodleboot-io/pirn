@@ -106,7 +106,7 @@ source = DirectorySource(
 
 When `concatenate=False`, each batch's `source_uri` is `{StoreType}://{individual_key}`, preserving per-file provenance. When `concatenate=True`, per-file lineage is collapsed; the `source_uri` becomes `{StoreType}://{prefix}*`.
 
-**See also:** [ObjectStore Backends](../guides/backends.md#objectstore), [File Formats](../connectors/index.md)
+**See also:** [ObjectStore Backends](../guides/backends.md#datastore), [File Formats](../connectors/index.md)
 
 ---
 

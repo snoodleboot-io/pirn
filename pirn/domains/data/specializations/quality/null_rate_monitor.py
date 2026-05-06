@@ -16,9 +16,9 @@ Algorithm:
     6. Return result dict with all null rates and violations.
 
 Math:
-    $null\_rate_c = \frac{COUNT(c \text{ IS NULL})}{COUNT(*)}$
+    $null\\_rate_c = \\frac{COUNT(c \\text{ IS NULL})}{COUNT(*)}$
 
-    $violated_c = null\_rate_c > threshold_c$
+    $violated_c = null\\_rate_c > threshold_c$
 
 References:
     [1] pirn — DatabaseConnectionPool interface:

@@ -351,4 +351,4 @@ pip install "pirn[signal]"
 
 `scipy` and `pywavelets` are the core dependencies. `librosa` adds the audio analysis knots in `pirn.domains.signal.audio` and pulls in `numpy` and `soundfile` as transitive dependencies.
 
-**See also:** [Health Domain — Biosignal Formats](health.md#healthcare-biosignal-formats), [File Formats — Connectors](../api/file-formats.md)
+**See also:** [Health Domain — Biosignal Formats](health.md#healthcare-biosignal-formats), [File Formats — Connectors](../connectors/index.md)

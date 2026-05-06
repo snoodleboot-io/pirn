@@ -13,7 +13,7 @@ Algorithm:
     5. Compute orphan percentage and return result dict.
 
 Math:
-    $orphaned\_pct = \frac{orphaned\_rows}{total\_rows} \times 100$
+    $orphaned\\_pct = \\frac{orphaned\\_rows}{total\\_rows} \\times 100$
 
 References:
     [1] pirn — DatabaseConnectionPool interface:

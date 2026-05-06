@@ -18,7 +18,7 @@ Math:
 
     Added noise:
 
-    $$x^{(i)}(t) = x(t) + \\varepsilon n^{(i)}(t), \\quad \\varepsilon = \\text{noise\_amplitude}$$
+    $$x^{(i)}(t) = x(t) + \\varepsilon n^{(i)}(t), \\quad \\varepsilon = \\text{noise\\_amplitude}$$
 
 References:
     - Wu, Z. & Huang, N.E. (2009). "Ensemble empirical mode decomposition: a noise-assisted data

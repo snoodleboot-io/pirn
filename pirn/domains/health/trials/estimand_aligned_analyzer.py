@@ -16,7 +16,7 @@ Math:
     For while-on-treatment and hypothetical strategies, records with
     intercurrent events are excluded:
 
-    $$S = \\{r \\in R : \\text{obs\_codes}(r) \\cap C_{IE} = \\emptyset\\}$$
+    $$S = \\{r \\in R : \\text{obs\\_codes}(r) \\cap C_{IE} = \\emptyset\\}$$
 
     where $C_{IE}$ is the set of intercurrent event codes.
 

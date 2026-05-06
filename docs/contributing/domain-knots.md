@@ -18,7 +18,7 @@ Read and follow every convention here — these are enforced by CI:
 - No bare `except:` — always catch a specific exception type.
 - All constructor parameter validation is explicit (type check then value check; raise `TypeError` before `ValueError`).
 
-**See also:** [General Conventions](./../.claude/conventions/core/general.md)
+**See also:** General Conventions (see `.claude/conventions/core/general.md` in the repository root)
 
 ---
 

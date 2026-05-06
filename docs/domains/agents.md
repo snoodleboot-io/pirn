@@ -358,4 +358,4 @@ pip install pinecone-client    # or qdrant-client, weaviate-client, etc.
 
 The `agents` extra deliberately carries no mandatory heavy dependencies. LLM provider SDKs, vector databases, and tool libraries are installed separately so you pull only what your application uses.
 
-**See also:** [Agentic Design Patterns](../../pirn/domains/agents/PATTERNS.md), [Concepts](../getting-started/concepts.md), [Backends](../guides/backends.md)
+**See also:** [Concepts](../getting-started/concepts.md), [Backends](../guides/backends.md)

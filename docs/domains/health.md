@@ -554,4 +554,4 @@ Additional system-level dependencies not installed by pip:
 - **OpenSlide C library** — required by `OpenSlideFormat`. Install via the OS package manager (`apt install openslide-tools`, `brew install openslide`).
 - **ffmpeg** — not used by health formats (audio only), but required by `pirn[audio]` for MP3/AAC/M4A.
 
-**See also:** [File Formats — Connectors](../api/file-formats.md), [Signal Domain](signal.md), [Data Domain](data.md)
+**See also:** [File Formats — Connectors](../connectors/index.md), [Signal Domain](signal.md), [Data Domain](data.md)

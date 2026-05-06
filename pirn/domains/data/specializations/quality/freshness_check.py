@@ -14,9 +14,9 @@ Algorithm:
     6. Return result dict including ``sla_breached`` flag.
 
 Math:
-    $age\_seconds = (t_{now} - t_{max})$ in seconds
+    $age\\_seconds = (t_{now} - t_{max})$ in seconds
 
-    $sla\_breached = age\_seconds > max\_age\_seconds$
+    $sla\\_breached = age\\_seconds > max\\_age\\_seconds$
 
 References:
     [1] pirn — DatabaseConnectionPool interface:

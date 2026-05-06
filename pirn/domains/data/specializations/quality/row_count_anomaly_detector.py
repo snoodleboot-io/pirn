@@ -17,11 +17,11 @@ Algorithm:
     8. Return result dict including ``anomaly_detected`` flag.
 
 Math:
-    $\bar{x}_{prior} = \frac{1}{N} \sum_{i=1}^{N} count_i$
+    $\\bar{x}_{prior} = \\frac{1}{N} \\sum_{i=1}^{N} count_i$
 
-    $deviation = \frac{|count_{current} - \bar{x}_{prior}|}{\bar{x}_{prior}}$
+    $deviation = \\frac{|count_{current} - \\bar{x}_{prior}|}{\\bar{x}_{prior}}$
 
-    $anomaly\_detected = deviation > threshold$
+    $anomaly\\_detected = deviation > threshold$
 
 References:
     [1] pirn — DatabaseConnectionPool interface:

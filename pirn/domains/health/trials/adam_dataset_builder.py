@@ -14,7 +14,7 @@ Algorithm:
 Math:
     Projection of record *r* to derived column *d*:
 
-    $$\\text{row}[d] = r.\\text{source\_field}(d)$$
+    $$\\text{row}[d] = r.\\text{source\\_field}(d)$$
 
 References:
     - CDISC. (2021). Analysis Data Model (ADaM) Implementation Guide v1.3.

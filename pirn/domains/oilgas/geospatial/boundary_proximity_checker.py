@@ -11,7 +11,7 @@ Math:
     Point-in-polygon containment test; the buffer is a Minkowski sum of the
     polygon boundary expanded by ``buffer_distance_m`` metres:
 
-    $$d(p, B) \leq d_{\\text{buffer}}$$
+    $$d(p, B) \\leq d_{\\text{buffer}}$$
 
     where :math:`d(p, B)` is the minimum Euclidean distance from point
     :math:`p` to boundary :math:`B`.
