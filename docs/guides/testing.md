@@ -61,17 +61,17 @@ async def test_score_text_toxic():
     assert result > 0.3
 ```
 
-`@knot`-decorated functions expose their original function as `.fn`. For Knot subclasses, instantiate with upstream knots in `__init__` (wiring only — no validation runs there) and call `process()` directly with plain values:
+`@knot`-decorated functions expose their original function as `.fn`. For Knot subclasses, instantiate normally inside a `with Tapestry():` block (so the knot registers and wiring runs), then call `process()` directly with plain values:
 
 ```python
-from pirn import KnotConfig, Parameter
-from pirn.core.data_batch import DataBatch
+from pirn import Tapestry, KnotConfig, Parameter
 from myapp.knots import EnrichUser
 
 @pytest.mark.asyncio
 async def test_enrich_user():
-    upstream = Parameter("user_id", str, _config=KnotConfig(id="up"))
-    knot = EnrichUser(user_id=upstream, _config=KnotConfig(id="enrich"))
+    with Tapestry() as t:
+        upstream = Parameter("user_id", str, _config=KnotConfig(id="up"))
+        knot = EnrichUser(user_id=upstream, _config=KnotConfig(id="enrich"))
     result = await knot.process(
         user_id="u123",
         lookup_table={"u123": {"name": "Alice", "tier": "premium"}},

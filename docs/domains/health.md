@@ -399,7 +399,7 @@ Clinical data knots for EHR and CDS workflows.
 | `ReadmissionRiskScorer` | Produces a 30-day readmission risk score |
 | `ClinicalNlpExtractor` | Extracts structured entities from clinical free text |
 | `ClinicalTrialEligibilityFilter` | Filters patients against trial inclusion/exclusion criteria |
-| `ClinicalDataQualityCheck` | Quality assessment knot; emits `Err` for records that fail quality checks (`ClinicalDataQualityGate` is a backward-compatible alias) |
+| `ClinicalDataQualityCheck` | Quality assessment knot; emits `Err` for records that fail quality checks |
 
 ---
 
