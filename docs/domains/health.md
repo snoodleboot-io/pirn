@@ -399,7 +399,7 @@ Clinical data knots for EHR and CDS workflows.
 | `ReadmissionRiskScorer` | Produces a 30-day readmission risk score |
 | `ClinicalNlpExtractor` | Extracts structured entities from clinical free text |
 | `ClinicalTrialEligibilityFilter` | Filters patients against trial inclusion/exclusion criteria |
-| `ClinicalDataQualityGate` | Quality gate knot; emits `Err` for records that fail quality checks |
+| `ClinicalDataQualityCheck` | Quality assessment knot; emits `Err` for records that fail quality checks (`ClinicalDataQualityGate` is a backward-compatible alias) |
 
 ---
 
@@ -472,7 +472,7 @@ NGS pipeline knots.
 | `PathwayEnricher` | Gene set / pathway enrichment analysis |
 | `MultiOmicsIntegrator` | Integrates multi-omics datasets |
 | `SingleCellClusterer` | Single-cell RNA-seq clustering |
-| `GenomicsQcGate` | Quality gate for NGS metrics |
+| `GenomicsQCCheck` | Quality assessment knot for NGS metrics (`GenomicsQCGate` is a backward-compatible alias) |
 
 ---
 

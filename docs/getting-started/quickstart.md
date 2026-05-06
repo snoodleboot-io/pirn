@@ -99,10 +99,11 @@ def to_upper(text: str) -> str:
 You can also subclass `Knot` directly for richer behaviour:
 
 ```python
+from typing import Any
 from pirn import Knot, KnotConfig
 
 class EnrichUser(Knot):
-    async def process(self, user_id: str, lookup_table: dict) -> dict:
+    async def process(self, user_id: str, lookup_table: dict, **_: Any) -> dict:
         return lookup_table.get(user_id, {})
 ```
 

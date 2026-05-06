@@ -169,7 +169,7 @@ Knots for measuring model performance.
 | Knot | Description |
 |------|-------------|
 | `Evaluator` | Scores a `TrainedModel` on a test split. Returns an `EvalReport`. |
-| `MetricGate` | Passes through the model only if all required metrics exceed their thresholds. |
+| `MetricCheck` | Checks whether a named metric in an `EvalReport` meets a minimum threshold; raises on failure if configured to do so. |
 | `Explainer` | Computes feature importances or SHAP values. |
 | `FairnessAudit` | Computes demographic parity, equalized odds, and other fairness metrics across protected groups. |
 
@@ -222,7 +222,7 @@ from pirn.domains.ml.data_prep.train_test_split import TrainTestSplit
 from pirn.domains.ml.features.scaler import Scaler
 from pirn.domains.ml.training.trainer import Trainer
 from pirn.domains.ml.evaluation.evaluator import Evaluator
-from pirn.domains.ml.evaluation.metric_gate import MetricGate
+from pirn.domains.ml.evaluation.metric_gate import MetricCheck
 
 from sklearn.linear_model import LogisticRegression
 
@@ -255,17 +255,19 @@ async def main():
             split=scaled,
             _config=KnotConfig(id="eval"),
         )
-        gate = MetricGate(
+        check = MetricCheck(
             report=report,
-            thresholds={"f1": 0.80, "roc_auc": 0.85},
-            _config=KnotConfig(id="gate"),
+            metric="f1",
+            min_value=0.80,
+            raise_on_fail=True,
+            _config=KnotConfig(id="check"),
         )
 
     result = await t.run(
         RunRequest(parameters={"dataset_path": "data/train.csv"})
     )
     print(result.outputs["eval"])   # EvalReport
-    print(result.outputs["gate"])   # True if thresholds met
+    print(result.outputs["check"])  # True if f1 >= 0.80
 
 asyncio.run(main())
 ```
