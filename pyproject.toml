@@ -453,6 +453,7 @@ reportIncompatibleMethodOverride = "none"  # Knot.process(**kwargs) pattern; ove
 
 [dependency-groups]
 dev = [
+    "pre-commit>=4.6.0",
     "pytest-benchmark>=5.2.3",
     "pytest-timeout>=2.4.0",
 ]

@@ -35,8 +35,10 @@ from pirn.domains.data.identifier_validator import IdentifierValidator
 class StringNormalizer(Knot):
     """Apply configurable normalisation steps to string columns."""
 
-    _punct_table: ClassVar[dict[int, None]] = str.maketrans("", "", string.punctuation)
-    _valid_unicode_forms: ClassVar[frozenset[str]] = frozenset(("NFC", "NFD", "NFKC", "NFKD", "none"))
+    _punct_table: ClassVar[dict[int, int | None]] = str.maketrans("", "", string.punctuation)
+    _valid_unicode_forms: ClassVar[frozenset[str]] = frozenset(
+        ("NFC", "NFD", "NFKC", "NFKD", "none")
+    )
 
     def __init__(
         self,
