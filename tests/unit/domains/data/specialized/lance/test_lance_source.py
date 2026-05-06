@@ -1,8 +1,6 @@
 """Tests for :class:`LanceSource`.
 
-Construction-time guards run with no lance dependency required (the real
-``lance`` package is only imported inside ``process()``). End-to-end
-tests skip unless the actual ``lance.dataset`` /
+End-to-end tests skip unless the actual ``lance.dataset`` /
 ``lance.write_dataset`` API is available — the PyPI ``lance`` placeholder
 package does not provide it.
 """
@@ -22,23 +20,22 @@ from pirn.tapestry import Tapestry
 
 
 class TestLanceSourceConstruction(unittest.TestCase):
-    def test_rejects_empty_path(self) -> None:
-        with Tapestry():
-            with self.assertRaisesRegex(ValueError, "non-empty"):
-                LanceSource(path="", _config=KnotConfig(id="src"))
-
-    def test_rejects_non_string_path(self) -> None:
-        with Tapestry():
-            with self.assertRaisesRegex(ValueError, "non-empty"):
-                LanceSource(path=123, _config=KnotConfig(id="src"))  # type: ignore[arg-type]
-
-    def test_path_is_exposed(self) -> None:
-        with Tapestry():
-            src = LanceSource(path="/tmp/x.lance", _config=KnotConfig(id="src"))
-        assert src.path == "/tmp/x.lance"
+    def test_accepts_non_empty_path(self) -> None:
+        src = LanceSource(path="/tmp/x.lance", _config=KnotConfig(id="src"))
+        self.assertIsInstance(src, LanceSource)
 
 
 class TestLanceSourceProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_empty_path(self) -> None:
+        src = LanceSource(path="placeholder", _config=KnotConfig(id="src"))
+        with self.assertRaisesRegex(ValueError, "non-empty"):
+            await src.process(path="")
+
+    async def test_rejects_non_string_path(self) -> None:
+        src = LanceSource(path="placeholder", _config=KnotConfig(id="src"))
+        with self.assertRaisesRegex(ValueError, "non-empty"):
+            await src.process(path=123)  # type: ignore[arg-type]
+
     async def test_reads_lance_dataset_from_disk(self) -> None:
         _td_test_reads_lance_dataset_from_disk = tempfile.TemporaryDirectory()
         self.addCleanup(_td_test_reads_lance_dataset_from_disk.cleanup)

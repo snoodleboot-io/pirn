@@ -8,8 +8,9 @@ observable.
 ML artefacts do not fit the row-of-data model — each artefact is one
 "row". :meth:`_decode_full` yields a single record with the original
 model bytes alongside input/output tensor metadata extracted via
-``tflite_runtime.Interpreter`` (or, when ``tflite_runtime`` is not
-installed, ``tensorflow.lite.Interpreter`` as a fallback).
+``ai_edge_litert.interpreter.Interpreter`` (Google's official TFLite
+successor), falling back to the legacy ``tflite_runtime`` package and
+finally ``tensorflow.lite.Interpreter``.
 
 :meth:`_encode_full` accepts ``model_bytes`` (already a TFLite
 FlatBuffer) and emits them verbatim. Building a TFLite model from
@@ -105,8 +106,9 @@ class TfliteFormat(BatchFileFormat):
         # Python so records survive serialisation across processes.
         normalised: dict[str, Any] = {}
         for key, value in details.items():
-            if hasattr(value, "tolist"):
-                normalised[str(key)] = value.tolist()
+            tolist = getattr(value, "tolist", None)
+            if callable(tolist) and not isinstance(value, type):
+                normalised[str(key)] = tolist()
             elif hasattr(value, "__name__"):
                 normalised[str(key)] = value.__name__
             else:
@@ -126,6 +128,11 @@ class TfliteFormat(BatchFileFormat):
     @staticmethod
     def _load_interpreter() -> Any:
         try:
+            from ai_edge_litert.interpreter import Interpreter
+            return Interpreter
+        except ImportError:
+            pass
+        try:
             from tflite_runtime.interpreter import Interpreter
             return Interpreter
         except ImportError:
@@ -135,7 +142,7 @@ class TfliteFormat(BatchFileFormat):
             return TfInterpreter
         except ImportError as exc:
             raise ImportError(
-                "TfliteFormat requires tflite_runtime or tensorflow. "
+                "TfliteFormat requires ai-edge-litert, tflite_runtime, or tensorflow. "
                 "Install with `pip install pirn[tflite]` or "
                 "`pip install pirn[tensorflow]`."
             ) from exc

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import unittest
-from typing import Any
 
 import duckdb
 
@@ -14,6 +13,7 @@ from pirn.domains.data.data_batch import DataBatch
 from pirn.domains.data.frames.duckdb.bridges.data_batch_to_duckdb import (
     DataBatchToDuckdb,
 )
+from pirn.domains.data.frames.duckdb.duckdb_connection import DuckDBConnection
 from pirn.domains.data.frames.duckdb.duckdb_data_batch import DuckdbDataBatch
 from pirn.tapestry import Tapestry
 
@@ -67,7 +67,8 @@ class TestDataBatchToDuckdb(unittest.IsolatedAsyncioTestCase):
         assert out.relation.fetchall() == []
 
     async def test_uses_supplied_connection(self) -> None:
-        connection = duckdb.connect(database=":memory:")
+        raw_conn = duckdb.connect(database=":memory:")
+        connection = DuckDBConnection(raw_conn)
         with Tapestry() as t:
             batch = emit_users(_config=KnotConfig(id="users"))
             DataBatchToDuckdb(
@@ -77,14 +78,14 @@ class TestDataBatchToDuckdb(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         out: DuckdbDataBatch = result.outputs["duck"]
-        assert out.connection is connection
+        assert out.connection is raw_conn
 
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_connection_from_upstream_knot(self) -> None:
         @knot
-        async def emit_connection() -> Any:
-            return duckdb.connect(database=":memory:")
+        async def emit_connection() -> DuckDBConnection:
+            return DuckDBConnection(duckdb.connect(database=":memory:"))
 
         with Tapestry() as t:
             batch = emit_users(_config=KnotConfig(id="users"))
@@ -111,5 +112,5 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_connection_object(self) -> None:
         k = await self._make_knot()
-        with self.assertRaisesRegex(TypeError, "DuckDBPyConnection"):
+        with self.assertRaisesRegex(TypeError, "DuckDBConnection"):
             await k.process(batch=_make_batch(), connection="not-a-connection")

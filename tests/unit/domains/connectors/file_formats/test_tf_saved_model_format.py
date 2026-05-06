@@ -72,7 +72,7 @@ class TestTfSavedModelFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
         )
         model.compile(optimizer="sgd", loss="mse")
         path = os.path.join(tmp, "saved_model")
-        model.save(path, save_format="tf")
+        tf.saved_model.save(model, path)
         self.saved_model_path = path
         
         

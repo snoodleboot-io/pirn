@@ -1,20 +1,25 @@
 """Tests for :class:`ElandSource`.
 
-Construction-time guards run with no Elasticsearch dependency. End-to-end
-processing is exercised by monkey-patching ``eland.DataFrame`` so the
-test does not need a live cluster.
+Construction-time guards are gone; validation now lives in ``process()``.
+End-to-end processing is exercised by monkey-patching ``eland.DataFrame``
+so the test does not need a live cluster.
 """
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.domains.data.specialized.eland.eland_dataframe import ElandDataFrame
 from pirn.domains.data.specialized.eland.eland_source import ElandSource
+from pirn.domains.data.specialized.eland.elasticsearch_connection import (
+    ElasticsearchConnection,
+)
+from pirn.domains.data.specialized.eland.elasticsearch_connection_knot import (
+    ElasticsearchConnectionKnot,
+)
 from pirn.tapestry import Tapestry
 
 
@@ -25,41 +30,27 @@ class _StubEsClient:
         self.name = name
 
 
-class TestElandSourceConstruction(unittest.TestCase):
-    def test_rejects_none_client(self) -> None:
-        with Tapestry():
-            with self.assertRaisesRegex(ValueError, "es_client"):
-                ElandSource(es_client=None, index="orders", _config=KnotConfig(id="src"))
-
-    def test_rejects_empty_index(self) -> None:
-        with Tapestry():
-            with self.assertRaisesRegex(ValueError, "non-empty"):
-                ElandSource(
-                    es_client=_StubEsClient(), index="", _config=KnotConfig(id="src"),
-                )
-
-    def test_rejects_non_string_index(self) -> None:
-        with Tapestry():
-            with self.assertRaisesRegex(ValueError, "non-empty"):
-                ElandSource(
-                    es_client=_StubEsClient(), index=123, _config=KnotConfig(id="src"),  # type: ignore[arg-type]
-                )
-
-    def test_attributes_are_exposed(self) -> None:
+class TestElandSourceValidation(unittest.IsolatedAsyncioTestCase):
+    async def test_process_rejects_empty_index(self) -> None:
         client = _StubEsClient()
-        with Tapestry():
-            src = ElandSource(
-                es_client=client, index="orders", _config=KnotConfig(id="src"),
-            )
-        assert src.es_client is client
-        assert src.index == "orders"
+        conn = ElasticsearchConnection(client=client)
+        src = object.__new__(ElandSource)
+        with self.assertRaisesRegex(ValueError, "non-empty"):
+            await ElandSource.process(src, connection=conn, index="")
+
+    async def test_process_rejects_non_string_index(self) -> None:
+        client = _StubEsClient()
+        conn = ElasticsearchConnection(client=client)
+        src = object.__new__(ElandSource)
+        with self.assertRaisesRegex(ValueError, "non-empty"):
+            await ElandSource.process(src, connection=conn, index=123)  # type: ignore[arg-type]
 
 
 class TestElandSourceProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_eland_dataframe_via_stubbed_eland(self) -> None:
         try:
             import eland
-        except ImportError as _e:
+        except ImportError:
             self.skipTest("eland not installed")
         import eland as ed
 
@@ -73,7 +64,10 @@ class TestElandSourceProcess(unittest.IsolatedAsyncioTestCase):
         client = _StubEsClient()
         with unittest.mock.patch.object(ed, "DataFrame", _FakeFrame):
             with Tapestry() as t:
-                ElandSource(es_client=client, index="orders", _config=KnotConfig(id="src"))
+                conn_knot = ElasticsearchConnectionKnot(
+                    es_client=client, _config=KnotConfig(id="es_conn")
+                )
+                ElandSource(connection=conn_knot, index="orders", _config=KnotConfig(id="src"))
             result = await t.run(RunRequest())
 
         emitted = result.outputs["src"]

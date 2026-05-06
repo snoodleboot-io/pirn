@@ -11,9 +11,9 @@ For directory-style reads where the prefix matches many files, use
 
 Algorithm:
     1. Validate ``store`` (ObjectStore), ``format`` (FileFormat), ``key``
-       (non-empty string), and optional ``schema`` (DataSchema) at
-       construction time.
-    2. On execution, call ``await store.get(key)`` to fetch raw bytes.
+       (non-empty string), and optional ``schema`` (DataSchema) in
+       ``process()``.
+    2. Call ``await store.get(key)`` to fetch raw bytes.
     3. Pass the byte stream to ``await format.read(body)`` to decode
        records; collect them into a row list.
     4. Return a :class:`DataBatch` stamped with ``source_uri``,
@@ -31,6 +31,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.connectors.file_format import FileFormat
 from pirn.domains.connectors.object_store import ObjectStore
@@ -63,14 +64,34 @@ class FileSource(Source):
     def __init__(
         self,
         *,
+        store: Knot | ObjectStore,
+        format: Knot | FileFormat,
+        key: Knot | str,
+        schema: Knot | DataSchema | None = None,
+        source_uri: Knot | str | None = None,
+        _config: KnotConfig,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            store=store,
+            format=format,
+            key=key,
+            schema=schema,
+            source_uri=source_uri,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        *,
         store: ObjectStore,
         format: FileFormat,
         key: str,
         schema: DataSchema | None = None,
         source_uri: str | None = None,
-        _config: KnotConfig,
-        **kwargs: Any,
-    ) -> None:
+        **_: Any,
+    ) -> DataBatch:
         if not isinstance(store, ObjectStore):
             raise TypeError("FileSource: store must be an ObjectStore instance")
         if not isinstance(format, FileFormat):
@@ -79,30 +100,15 @@ class FileSource(Source):
             raise ValueError("FileSource: key must be a non-empty string")
         if schema is not None and not isinstance(schema, DataSchema):
             raise TypeError("FileSource: schema must be a DataSchema instance")
-        self._store = store
-        self._format = format
-        self._key = key
-        self._schema = schema
-        self._source_uri = source_uri or f"{type(store).__name__}://{key}"
-        super().__init__(_config=_config)
-
-    @property
-    def key(self) -> str:
-        return self._key
-
-    @property
-    def format_name(self) -> str:
-        return self._format.name
-
-    async def process(self, **_: Any) -> DataBatch:
-        body = await self._store.get(self._key)
-        records = await self._format.read(body)
+        resolved_uri = source_uri or f"{type(store).__name__}://{key}"
+        body = await store.get(key)
+        records = await format.read(body)
         rows: list[dict[str, Any]] = []
         async for record in records:
             rows.append(dict(record))
         return DataBatch(
             rows=tuple(rows),
-            schema=self._schema if self._schema is not None else DataSchema(),
-            source_uri=self._source_uri,
+            schema=schema if schema is not None else DataSchema(),
+            source_uri=resolved_uri,
             fetched_at=datetime.now(UTC),
         )

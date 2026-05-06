@@ -61,102 +61,107 @@ class _FakeTable(LakehouseTable):
         pass
 
 
-class TestValidation(unittest.TestCase):
+class TestValidation(unittest.IsolatedAsyncioTestCase):
     def _make_table(self) -> _FakeTable:
         return _FakeTable([])
 
-    def test_rejects_non_lakehouse_table(self) -> None:
-        with self.assertRaisesRegex(TypeError, "LakehouseTable"):
-            LakehouseTableSource(
-                table=object(),  # type: ignore
-                _config=KnotConfig(id="src"),
-            )
+    def _make_src(self) -> LakehouseTableSource:
+        return LakehouseTableSource(
+            table=self._make_table(),
+            _config=KnotConfig(id="src"),
+        )
 
-    def test_rejects_both_snapshot_id_and_timestamp(self) -> None:
+    async def test_rejects_non_lakehouse_table(self) -> None:
+        src = self._make_src()
+        with self.assertRaisesRegex(TypeError, "LakehouseTable"):
+            await src.process(table=object())  # type: ignore
+
+    async def test_rejects_both_snapshot_id_and_timestamp(self) -> None:
+        src = self._make_src()
         with self.assertRaisesRegex(ValueError, "mutually exclusive"):
-            LakehouseTableSource(
+            await src.process(
                 table=self._make_table(),
                 snapshot_id=1,
                 as_of_timestamp=datetime.now(UTC),
-                _config=KnotConfig(id="src"),
             )
 
-    def test_rejects_invalid_schema(self) -> None:
+    async def test_rejects_invalid_schema(self) -> None:
+        src = self._make_src()
         with self.assertRaisesRegex(TypeError, "DataSchema"):
-            LakehouseTableSource(
+            await src.process(
                 table=self._make_table(),
                 schema=object(),  # type: ignore
-                _config=KnotConfig(id="src"),
             )
 
-    def test_snapshot_id_without_timestamp_is_valid(self) -> None:
-        src = LakehouseTableSource(
-            table=self._make_table(),
-            snapshot_id=42,
-            _config=KnotConfig(id="src"),
-        )
-        assert src is not None
+    async def test_snapshot_id_without_timestamp_is_valid(self) -> None:
+        src = self._make_src()
+        batch = await src.process(table=self._make_table(), snapshot_id=42)
+        assert batch is not None
 
-    def test_timestamp_without_snapshot_id_is_valid(self) -> None:
-        src = LakehouseTableSource(
+    async def test_timestamp_without_snapshot_id_is_valid(self) -> None:
+        src = self._make_src()
+        batch = await src.process(
             table=self._make_table(),
             as_of_timestamp=datetime.now(UTC),
-            _config=KnotConfig(id="src"),
         )
-        assert src is not None
+        assert batch is not None
 
 
 class TestLakehouseTableSource(unittest.IsolatedAsyncioTestCase):
+    def _make_src(self) -> LakehouseTableSource:
+        return LakehouseTableSource(
+            table=_FakeTable([]),
+            _config=KnotConfig(id="src"),
+        )
+
     async def test_process_returns_data_batch(self) -> None:
         table = _FakeTable([{"id": 1}, {"id": 2}])
-        src = LakehouseTableSource(table=table, _config=KnotConfig(id="src"))
-        batch = await src.process()
+        src = self._make_src()
+        batch = await src.process(table=table)
         assert isinstance(batch, DataBatch)
 
     async def test_process_rows_match_table_scan(self) -> None:
         rows = [{"id": 1, "val": "a"}, {"id": 2, "val": "b"}]
         table = _FakeTable(rows)
-        src = LakehouseTableSource(table=table, _config=KnotConfig(id="src"))
-        batch = await src.process()
+        src = self._make_src()
+        batch = await src.process(table=table)
         assert len(batch.rows) == 2
         assert batch.rows[0]["id"] == 1
 
     async def test_process_empty_table_returns_empty_batch(self) -> None:
         table = _FakeTable([])
-        src = LakehouseTableSource(table=table, _config=KnotConfig(id="src"))
-        batch = await src.process()
+        src = self._make_src()
+        batch = await src.process(table=table)
         assert batch.rows == ()
 
     async def test_process_passes_snapshot_id_to_scan(self) -> None:
         table = _FakeTable([])
-        src = LakehouseTableSource(table=table, snapshot_id=99, _config=KnotConfig(id="src"))
-        await src.process()
+        src = self._make_src()
+        await src.process(table=table, snapshot_id=99)
         assert table._last_scan_kwargs["snapshot_id"] == 99
 
     async def test_process_passes_filter_to_scan(self) -> None:
         table = _FakeTable([])
         filt = {"col": "val"}
-        src = LakehouseTableSource(table=table, filter=filt, _config=KnotConfig(id="src"))
-        await src.process()
+        src = self._make_src()
+        await src.process(table=table, filter=filt)
         assert table._last_scan_kwargs["filter"] == filt
 
     async def test_process_passes_columns_to_scan(self) -> None:
         table = _FakeTable([])
-        src = LakehouseTableSource(
-            table=table, columns=["id", "name"], _config=KnotConfig(id="src")
-        )
-        await src.process()
+        src = self._make_src()
+        await src.process(table=table, columns=["id", "name"])
         assert table._last_scan_kwargs["columns"] == ("id", "name")
 
     async def test_process_source_uri_contains_table_name(self) -> None:
         table = _FakeTable([], name="my_table")
-        src = LakehouseTableSource(table=table, _config=KnotConfig(id="src"))
-        batch = await src.process()
+        src = self._make_src()
+        batch = await src.process(table=table)
         assert "my_table" in batch.source_uri
 
     async def test_process_schema_propagated(self) -> None:
         schema = DataSchema(columns={"id": int})
         table = _FakeTable([{"id": 1}])
-        src = LakehouseTableSource(table=table, schema=schema, _config=KnotConfig(id="src"))
-        batch = await src.process()
+        src = self._make_src()
+        batch = await src.process(table=table, schema=schema)
         assert batch.schema == schema

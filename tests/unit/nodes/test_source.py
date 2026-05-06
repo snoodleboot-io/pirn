@@ -13,12 +13,11 @@ from pirn.tapestry import Tapestry
 
 
 class _ConstSource(Source):
-    def __init__(self, *, value: Any, **kwargs: Any) -> None:
-        self._value = value
-        super().__init__(**kwargs)
+    def __init__(self, *, value: Knot | Any, _config: KnotConfig, **kwargs: Any) -> None:
+        super().__init__(value=value, _config=_config, **kwargs)
 
-    async def process(self, **_: Any) -> Any:
-        return self._value
+    async def process(self, *, value: Any, **_: Any) -> Any:
+        return value
 
 
 class TestSourceConstruction(unittest.TestCase):
@@ -27,19 +26,14 @@ class TestSourceConstruction(unittest.TestCase):
             src = _ConstSource(value=42, _config=KnotConfig(id="src"))
         self.assertIsInstance(src, Source)
 
-    def test_source_rejects_knot_parent_kwarg(self) -> None:
-        with self.assertRaises(TypeError):
-            with Tapestry():
-                other = _ConstSource(value=1, _config=KnotConfig(id="other"))
-                _ConstSource(value=2, extra=other, _config=KnotConfig(id="src"))
-
-    def test_source_rejects_any_extra_kwarg(self) -> None:
-        with self.assertRaisesRegex(TypeError, "takes no inputs"):
-            with Tapestry():
-                _ConstSource(value=2, extra_arg="x", _config=KnotConfig(id="src"))
-
     def test_source_is_knot_subclass(self) -> None:
         self.assertTrue(issubclass(Source, Knot))
+
+    def test_source_accepts_knot_input(self) -> None:
+        with Tapestry():
+            upstream = _ConstSource(value=1, _config=KnotConfig(id="up"))
+            src = _ConstSource(value=upstream, _config=KnotConfig(id="src"))
+        self.assertIsInstance(src, Source)
 
 
 class TestSourceProcess(unittest.IsolatedAsyncioTestCase):

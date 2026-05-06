@@ -3,7 +3,7 @@
 
 Two construction modes:
 
-1. ``factory: Callable[[], dd.DataFrame]`` — caller supplies any zero-arg
+1. ``factory: Knot | Callable[[], dd.DataFrame]`` — caller supplies any zero-arg
    callable returning a ``dask.dataframe.DataFrame``. The most flexible
    form: works for ``dd.from_pandas(...)``, ``dd.from_delayed(...)``,
    custom registries, etc.
@@ -12,6 +12,22 @@ Two construction modes:
    ``reader=dd.read_parquet`` or ``reader=dd.read_csv``.
 
 Either ``factory`` or ``path`` must be supplied; not both.
+
+Algorithm:
+    1. Receive resolved ``factory``, ``path``, ``reader``, ``reader_kwargs``,
+       ``backend_name``, and ``source_uri`` values in ``process()``.
+    2. Validate mutual exclusion: exactly one of ``factory`` or ``path`` must
+       be provided; ``path`` mode requires a callable ``reader``.
+    3. If ``factory`` is supplied, call ``factory()`` to obtain the deferred
+       ``dask.dataframe.DataFrame``.
+    4. Otherwise call ``reader(path, **reader_kwargs)`` to obtain the frame.
+    5. Wrap the frame in a :class:`DaskDataFrame` and return it.
+
+References:
+    [1] Dask DataFrame API — ``dask.dataframe``:
+        https://docs.dask.org/en/stable/dataframe.html
+    [2] Dask delayed readers (``read_parquet``, ``read_csv``, etc.):
+        https://docs.dask.org/en/stable/dataframe-create.html
 """
 
 from __future__ import annotations
@@ -23,6 +39,7 @@ import dask.dataframe as dd
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.data.lazy.dask.dask_dataframe import DaskDataFrame
+from pirn.core.knot import Knot
 from pirn.nodes.source import Source
 
 
@@ -33,22 +50,45 @@ class DaskSource(Source):
         self,
         *,
         _config: KnotConfig,
+        factory: Knot | Callable[[], dd.DataFrame] | None = None,
+        path: Knot | str | None = None,
+        reader: Knot | Callable[..., dd.DataFrame] | None = None,
+        reader_kwargs: Knot | dict[str, Any] | None = None,
+        backend_name: Knot | str = "dask",
+        source_uri: Knot | str = "",
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            factory=factory,
+            path=path,
+            reader=reader,
+            reader_kwargs=reader_kwargs,
+            backend_name=backend_name,
+            source_uri=source_uri,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        *,
         factory: Callable[[], dd.DataFrame] | None = None,
         path: str | None = None,
         reader: Callable[..., dd.DataFrame] | None = None,
         reader_kwargs: dict[str, Any] | None = None,
         backend_name: str = "dask",
         source_uri: str = "",
-        **kwargs: Any,
-    ) -> None:
+        **_: Any,
+    ) -> DaskDataFrame:
+        """Invoke the factory or path reader to build a deferred DaskDataFrame.
+
+        Returns:
+            A DaskDataFrame wrapping the newly created deferred Dask graph.
+        """
         if factory is None and path is None:
-            raise TypeError(
-                "DaskSource: either factory or path must be supplied"
-            )
+            raise TypeError("DaskSource: either factory or path must be supplied")
         if factory is not None and path is not None:
-            raise TypeError(
-                "DaskSource: factory and path are mutually exclusive"
-            )
+            raise TypeError("DaskSource: factory and path are mutually exclusive")
         if factory is not None and not callable(factory):
             raise TypeError(
                 "DaskSource: factory must be a callable () -> dask.dataframe.DataFrame"
@@ -63,35 +103,18 @@ class DaskSource(Source):
                 )
             if not callable(reader):
                 raise TypeError("DaskSource: reader must be callable")
-        self._factory = factory
-        self._path = path
-        self._reader = reader
-        self._reader_kwargs: dict[str, Any] = dict(reader_kwargs or {})
-        self._backend_name = backend_name
-        self._source_uri = source_uri or (path or "")
-        super().__init__(_config=_config, **kwargs)
 
-    @property
-    def path(self) -> str | None:
-        return self._path
+        resolved_kwargs: dict[str, Any] = dict(reader_kwargs or {})
+        resolved_uri = source_uri or (path or "")
 
-    @property
-    def backend_name(self) -> str:
-        return self._backend_name
-
-    async def process(self, **_: Any) -> DaskDataFrame:
-        """Invoke the factory or path reader to build a deferred DaskDataFrame.
-
-        Returns:
-            A DaskDataFrame wrapping the newly created deferred Dask graph.
-        """
-        if self._factory is not None:
-            frame = self._factory()
+        if factory is not None:
+            frame = factory()
         else:
-            assert self._reader is not None and self._path is not None
-            frame = self._reader(self._path, **self._reader_kwargs)
+            assert reader is not None and path is not None
+            frame = reader(path, **resolved_kwargs)
+
         return DaskDataFrame(
             frame=frame,
-            backend_name=self._backend_name,
-            source_uri=self._source_uri,
+            backend_name=backend_name,
+            source_uri=resolved_uri,
         )

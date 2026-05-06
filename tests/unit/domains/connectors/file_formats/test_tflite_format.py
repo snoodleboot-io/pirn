@@ -1,8 +1,9 @@
 """Round-trip and validation tests for :class:`TfliteFormat`.
 
-The TFLite interpreter ships with both ``tflite_runtime`` and the full
-``tensorflow`` install. Construction tests run unconditionally; tests
-that decode a real model skip when neither runtime is available.
+The TFLite interpreter ships with ``ai_edge_litert`` (preferred),
+the legacy ``tflite_runtime``, or the full ``tensorflow`` install.
+Construction tests run unconditionally; tests that decode a real model
+skip when none of the three runtimes is available.
 """
 
 from __future__ import annotations
@@ -23,7 +24,8 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 
 def _has_tflite_runtime() -> bool:
     return (
-        importlib.util.find_spec("tflite_runtime") is not None
+        importlib.util.find_spec("ai_edge_litert") is not None
+        or importlib.util.find_spec("tflite_runtime") is not None
         or importlib.util.find_spec("tensorflow") is not None
     )
 
@@ -81,10 +83,9 @@ class TestTfliteFormatValidation(unittest.IsolatedAsyncioTestCase):
 class TestTfliteFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         try:
-            import tensorflow
+            import tensorflow as tf
         except ImportError as _e:
             self.skipTest("tensorflow not installed")
-        # Build a tiny model and convert to TFLite to get valid bytes.
         model = tf.keras.Sequential(
             [tf.keras.layers.Dense(2, input_shape=(2,))]
         )

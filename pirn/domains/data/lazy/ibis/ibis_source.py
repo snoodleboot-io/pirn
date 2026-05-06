@@ -1,18 +1,37 @@
-"""``IbisSource`` — a pirn :class:`Source` that binds a Ibis connection +
-table name and emits an :class:`IbisTable` expression.
+"""``IbisSource`` — a pirn :class:`Source` that binds an Ibis connection and
+a table name, emitting an :class:`IbisTable` expression.
 
 The Source has no parents: it produces the deferred expression that
-downstream tier-3 knots extend. The Ibis backend itself is the user's
-responsibility — pirn accepts any object the Ibis ``connection.table()``
-call works on, so any backend Ibis supports works (DuckDB, SQLite,
-Snowflake, BigQuery, Postgres, MySQL, …).
+downstream tier-3 Knots extend. The Ibis backend is supplied via an
+:class:`IbisConnectionKnot` upstream, which wraps any Ibis backend that
+supports the ``connection.table(name)`` contract (DuckDB, SQLite, Snowflake,
+BigQuery, Postgres, MySQL, …).
+
+Algorithm:
+    1. Receive the resolved :class:`IbisConnection` wrapper and a table name
+       string from upstream Knots.
+    2. Validate that ``table`` is a non-empty string.
+    3. Unwrap the Ibis backend via ``connection.backend``.
+    4. Call ``backend.table(table)`` to obtain a deferred Ibis expression.
+    5. Derive the backend label via :meth:`_derive_backend_name` if
+       ``backend_name`` is not supplied.
+    6. Wrap the expression in :class:`IbisTable` and return it.
+
+References:
+    [1] Ibis Project — backends and connections:
+        https://ibis-project.org/backends/
+    [2] Ibis — Table expression API:
+        https://ibis-project.org/reference/expression-tables
 """
 
 from __future__ import annotations
 
 from typing import Any
 
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.domains.data.lazy.ibis.ibis_connection import IbisConnection
+from pirn.domains.data.lazy.ibis.ibis_connection_knot import IbisConnectionKnot
 from pirn.domains.data.lazy.ibis.ibis_table import IbisTable
 from pirn.nodes.source import Source
 
@@ -23,42 +42,55 @@ class IbisSource(Source):
     def __init__(
         self,
         *,
-        connection: Any,
-        table: str,
+        connection: IbisConnectionKnot,
+        table: Knot | str,
         _config: KnotConfig,
-        backend_name: str = "",
-        source_uri: str = "",
+        backend_name: Knot | str = "",
+        source_uri: Knot | str = "",
         **kwargs: Any,
     ) -> None:
-        if connection is None:
-            raise TypeError("IbisSource: connection is required")
-        if not isinstance(table, str) or not table:
-            raise ValueError("IbisSource: table must be a non-empty string")
-        self._connection = connection
-        self._table = table
-        self._backend_name = backend_name or self._derive_backend_name(connection)
-        self._source_uri = source_uri
-        super().__init__(_config=_config, **kwargs)
+        super().__init__(
+            connection=connection,
+            table=table,
+            backend_name=backend_name,
+            source_uri=source_uri,
+            _config=_config,
+            **kwargs,
+        )
 
-    @property
-    def table(self) -> str:
-        return self._table
+    async def process(
+        self,
+        *,
+        connection: IbisConnection,
+        table: str,
+        backend_name: str = "",
+        source_uri: str = "",
+        **_: Any,
+    ) -> IbisTable:
+        """Bind the Ibis connection and table name into a deferred IbisTable expression.
 
-    @property
-    def backend_name(self) -> str:
-        return self._backend_name
-
-    async def process(self, **_: Any) -> IbisTable:
-        """Bind the configured Ibis connection and table name into a deferred IbisTable expression.
+        Args:
+            connection: Resolved :class:`IbisConnection` wrapping the Ibis backend.
+            table: Name of the table to bind.
+            backend_name: Optional label for the backend; derived automatically
+                if not supplied.
+            source_uri: Optional URI for lineage tracking.
 
         Returns:
-            An IbisTable wrapping the deferred expression for the configured table.
+            An :class:`IbisTable` wrapping the deferred expression.
+
+        Raises:
+            ValueError: If ``table`` is empty or not a string.
         """
-        expression = self._connection.table(self._table)
+        if not isinstance(table, str) or not table:
+            raise ValueError("IbisSource: table must be a non-empty string")
+        backend = connection.backend
+        resolved_backend_name = backend_name or self._derive_backend_name(backend)
+        expression = backend.table(table)
         return IbisTable(
             expression=expression,
-            backend_name=self._backend_name,
-            source_uri=self._source_uri,
+            backend_name=resolved_backend_name,
+            source_uri=source_uri,
         )
 
     @staticmethod

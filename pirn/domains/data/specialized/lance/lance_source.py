@@ -4,6 +4,20 @@ Calls :func:`lance.dataset` against the configured path at run time and
 emits a :class:`LanceDataset` adapter. The actual ``lance`` package
 import happens inside :meth:`process` so this module imports cleanly
 when ``pylance`` is not installed.
+
+Algorithm:
+    1. Receive the resolved ``path`` string in ``process()``.
+    2. Validate that ``path`` is a non-empty string.
+    3. Import ``lance`` lazily (raises ``ImportError`` with install
+       instructions if not available).
+    4. Call ``lance.dataset(path)`` to open the dataset on disk.
+    5. Wrap the result in a :class:`LanceDataset` and return it.
+
+References:
+    [1] Lance Python API — ``lance.dataset``:
+        https://lancedb.github.io/lance/api/python/lance.html#lance.dataset
+    [2] LanceDB / Lance file format overview:
+        https://lancedb.github.io/lance/format.html
 """
 
 from __future__ import annotations
@@ -12,6 +26,7 @@ from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.data.specialized.lance.lance_dataset import LanceDataset
+from pirn.core.knot import Knot
 from pirn.nodes.source import Source
 
 
@@ -21,26 +36,27 @@ class LanceSource(Source):
     def __init__(
         self,
         *,
-        path: str,
+        path: Knot | str,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(path, str) or not path:
-            raise ValueError("LanceSource: path must be a non-empty string")
-        self._path = path
-        super().__init__(_config=_config, **kwargs)
+        super().__init__(path=path, _config=_config, **kwargs)
 
-    @property
-    def path(self) -> str:
-        return self._path
-
-    async def process(self, **_: Any) -> LanceDataset:
+    async def process(
+        self,
+        *,
+        path: str,
+        **_: Any,
+    ) -> LanceDataset:
         """Open the configured Lance dataset path and return a LanceDataset adapter.
 
         Returns:
             A LanceDataset wrapping the opened Lance dataset.
         """
+        if not isinstance(path, str) or not path:
+            raise ValueError("LanceSource: path must be a non-empty string")
+
         import lance
 
-        dataset = lance.dataset(self._path)
-        return LanceDataset(dataset=dataset, source_uri=self._path)
+        dataset = lance.dataset(path)
+        return LanceDataset(dataset=dataset, source_uri=path)

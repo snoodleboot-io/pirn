@@ -97,15 +97,7 @@ class TestM4aFormatErrors(unittest.IsolatedAsyncioTestCase):
 
 class TestM4aFormatMissingDep(unittest.TestCase):
     def test_import_error_message(self) -> None:
-        # TODO(unittest-migrate): replace 'monkeypatch' built-in fixture — use unittest.mock.patch / assertLogs
-        import builtins
-        real_import = builtins.__import__
-
-        def _mock_import(name: str, *args, **kwargs):
-            if name == "pydub":
-                raise ImportError("no module named pydub")
-            return real_import(name, *args, **kwargs)
-
-        monkeypatch.setattr(builtins, "__import__", _mock_import)
-        with self.assertRaisesRegex(ImportError, "pirn\\[audio\\]"):
-            M4aFormat._load_pydub()
+        import unittest.mock
+        with unittest.mock.patch.dict("sys.modules", {"pydub": None}):
+            with self.assertRaisesRegex(ImportError, "pirn\\[audio\\]"):
+                M4aFormat._load_pydub()

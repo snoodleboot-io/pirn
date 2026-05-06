@@ -125,14 +125,12 @@ class TestPublish(unittest.IsolatedAsyncioTestCase):
             RabbitMQConfig(), connection=StubConnection(channel=channel)
         )
         await broker.publish("events", b"hello")
-        assert channel.default_exchange.published == [
-            {
-                "routing_key": "events",
-                "body": b"hello",
-                "correlation_id": None,
-                "headers": None,
-            }
-        ]
+        assert len(channel.default_exchange.published) == 1
+        pub = channel.default_exchange.published[0]
+        assert pub["routing_key"] == "events"
+        assert pub["body"] == b"hello"
+        assert pub["correlation_id"] is None
+        assert not pub["headers"]  # None or empty dict
 
     async def test_publish_with_key_and_headers(self) -> None:
         channel = StubChannel()

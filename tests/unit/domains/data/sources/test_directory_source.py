@@ -55,156 +55,139 @@ def _make_simple_format(rows: list[dict[str, Any]]) -> FileFormat:
     return _SimpleFormat()
 
 
-class TestValidation(unittest.TestCase):
+class TestValidation(unittest.IsolatedAsyncioTestCase):
     def _make_store(self) -> _FakeStore:
         return _FakeStore()
 
     def _make_format(self) -> FileFormat:
         return _make_simple_format([])
 
-    def test_rejects_non_object_store(self) -> None:
+    def _make_ds(self, **overrides: Any) -> DirectorySource:
+        return DirectorySource(
+            store=self._make_store(),
+            format=self._make_format(),
+            prefix="data/",
+            _config=KnotConfig(id="ds"),
+            **overrides,
+        )
+
+    async def test_rejects_non_object_store(self) -> None:
+        ds = self._make_ds()
         with self.assertRaisesRegex(TypeError, "ObjectStore"):
-            DirectorySource(
+            await ds.process(
                 store=object(),  # type: ignore[arg-type]
                 format=self._make_format(),
                 prefix="data/",
-                _config=KnotConfig(id="ds"),
             )
 
-    def test_rejects_non_file_format(self) -> None:
+    async def test_rejects_non_file_format(self) -> None:
+        ds = self._make_ds()
         with self.assertRaisesRegex(TypeError, "FileFormat"):
-            DirectorySource(
+            await ds.process(
                 store=self._make_store(),
                 format=object(),  # type: ignore[arg-type]
                 prefix="data/",
-                _config=KnotConfig(id="ds"),
             )
 
-    def test_rejects_non_string_prefix(self) -> None:
+    async def test_rejects_non_string_prefix(self) -> None:
+        ds = self._make_ds()
         with self.assertRaisesRegex(TypeError, "string"):
-            DirectorySource(
+            await ds.process(
                 store=self._make_store(),
                 format=self._make_format(),
                 prefix=None,  # type: ignore[arg-type]
-                _config=KnotConfig(id="ds"),
             )
 
-    def test_rejects_invalid_schema(self) -> None:
+    async def test_rejects_invalid_schema(self) -> None:
+        ds = self._make_ds()
         with self.assertRaisesRegex(TypeError, "DataSchema"):
-            DirectorySource(
+            await ds.process(
                 store=self._make_store(),
                 format=self._make_format(),
                 prefix="",
                 schema=object(),  # type: ignore[arg-type]
-                _config=KnotConfig(id="ds"),
             )
-
-    def test_prefix_property(self) -> None:
-        ds = DirectorySource(
-            store=self._make_store(),
-            format=self._make_format(),
-            prefix="my/prefix/",
-            _config=KnotConfig(id="ds"),
-        )
-        assert ds.prefix == "my/prefix/"
-
-    def test_concatenate_default_false(self) -> None:
-        ds = DirectorySource(
-            store=self._make_store(),
-            format=self._make_format(),
-            prefix="",
-            _config=KnotConfig(id="ds"),
-        )
-        assert ds.concatenate is False
-
-    def test_concatenate_true(self) -> None:
-        ds = DirectorySource(
-            store=self._make_store(),
-            format=self._make_format(),
-            prefix="",
-            concatenate=True,
-            _config=KnotConfig(id="ds"),
-        )
-        assert ds.concatenate is True
 
 
 class TestDirectorySource(unittest.IsolatedAsyncioTestCase):
+    def _make_ds(self, **overrides: Any) -> DirectorySource:
+        return DirectorySource(
+            store=_FakeStore(),
+            format=_make_simple_format([]),
+            prefix="",
+            _config=KnotConfig(id="ds"),
+            **overrides,
+        )
+
     async def test_empty_prefix_yields_empty_tuple(self) -> None:
-        ds = DirectorySource(
+        ds = self._make_ds()
+        result = await ds.process(
             store=_FakeStore({}),
             format=_make_simple_format([]),
             prefix="data/",
-            _config=KnotConfig(id="ds"),
         )
-        result = await ds.process()
         assert result == ()
 
     async def test_per_file_mode_returns_tuple_of_batches(self) -> None:
-        ds = DirectorySource(
+        ds = self._make_ds()
+        result = await ds.process(
             store=_FakeStore({"data/a.csv": b"", "data/b.csv": b""}),
             format=_make_simple_format([{"x": 1}]),
             prefix="data/",
-            _config=KnotConfig(id="ds"),
         )
-        result = await ds.process()
         assert isinstance(result, tuple)
         assert len(result) == 2
         for batch in result:
             assert isinstance(batch, DataBatch)
 
     async def test_per_file_source_uris_per_key(self) -> None:
-        ds = DirectorySource(
+        ds = self._make_ds()
+        result = await ds.process(
             store=_FakeStore({"dir/file1.csv": b""}),
             format=_make_simple_format([]),
             prefix="dir/",
-            _config=KnotConfig(id="ds"),
         )
-        result = await ds.process()
         assert len(result) == 1
         assert "file1.csv" in result[0].source_uri
 
     async def test_concatenate_returns_single_batch(self) -> None:
-        ds = DirectorySource(
+        ds = self._make_ds()
+        result = await ds.process(
             store=_FakeStore({"f1.csv": b"", "f2.csv": b""}),
             format=_make_simple_format([{"x": 1}]),
             prefix="",
             concatenate=True,
-            _config=KnotConfig(id="ds"),
         )
-        result = await ds.process()
         assert isinstance(result, DataBatch)
 
     async def test_concatenate_combines_all_rows(self) -> None:
-        ds = DirectorySource(
+        ds = self._make_ds()
+        result = await ds.process(
             store=_FakeStore({"f1.csv": b"", "f2.csv": b""}),
             format=_make_simple_format([{"x": 1}, {"x": 2}]),
             prefix="",
             concatenate=True,
-            _config=KnotConfig(id="ds"),
         )
-        result = await ds.process()
         assert len(result.rows) == 4
 
     async def test_schema_propagated_to_batches(self) -> None:
         schema = DataSchema(columns={"x": int})
-        ds = DirectorySource(
+        ds = self._make_ds()
+        result = await ds.process(
             store=_FakeStore({"f.csv": b""}),
             format=_make_simple_format([{"x": 1}]),
             prefix="",
             schema=schema,
-            _config=KnotConfig(id="ds"),
         )
-        result = await ds.process()
         for batch in result:
             assert batch.schema == schema
 
     async def test_keys_sorted_in_output(self) -> None:
-        ds = DirectorySource(
+        ds = self._make_ds()
+        result = await ds.process(
             store=_FakeStore({"dir/c.csv": b"", "dir/a.csv": b"", "dir/b.csv": b""}),
             format=_make_simple_format([]),
             prefix="dir/",
-            _config=KnotConfig(id="ds"),
         )
-        result = await ds.process()
         uris = [b.source_uri for b in result]
         assert uris == sorted(uris)

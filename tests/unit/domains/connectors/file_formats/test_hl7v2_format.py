@@ -150,9 +150,8 @@ class TestHl7v2FormatErrors(unittest.IsolatedAsyncioTestCase):
 
 class TestHl7v2FormatMissingDep(unittest.TestCase):
     def test_missing_hl7_raises(self) -> None:
-        # TODO(unittest-migrate): replace 'monkeypatch' built-in fixture — use unittest.mock.patch / assertLogs
-        import sys
-        monkeypatch.setitem(sys.modules, "hl7", None)  # type: ignore[arg-type]
+        import unittest.mock
         fmt = Hl7v2Format()
-        with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
-            fmt._load_hl7()
+        with unittest.mock.patch.dict("sys.modules", {"hl7": None}):
+            with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
+                fmt._load_hl7()

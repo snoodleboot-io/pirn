@@ -146,9 +146,8 @@ class TestSdtmXptFormatErrors(unittest.IsolatedAsyncioTestCase):
 
 class TestSdtmXptFormatMissingDep(unittest.TestCase):
     def test_missing_pyreadstat_raises(self) -> None:
-        # TODO(unittest-migrate): replace 'monkeypatch' built-in fixture — use unittest.mock.patch / assertLogs
-        import sys
-        monkeypatch.setitem(sys.modules, "pyreadstat", None)  # type: ignore[arg-type]
+        import unittest.mock
         fmt = SdtmXptFormat()
-        with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
-            fmt._load_pyreadstat()
+        with unittest.mock.patch.dict("sys.modules", {"pyreadstat": None}):
+            with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
+                fmt._load_pyreadstat()

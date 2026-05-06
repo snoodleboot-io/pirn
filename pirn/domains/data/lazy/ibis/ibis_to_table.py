@@ -49,6 +49,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.domains.data.lazy.ibis.ibis_connection import IbisConnection
 from pirn.domains.data.lazy.ibis.ibis_execution_receipt import IbisExecutionReceipt
 from pirn.domains.data.lazy.ibis.ibis_table import IbisTable
 from pirn.nodes.sink import Sink
@@ -103,16 +104,17 @@ class IbisToTable(Sink):
         if target_table is not None and not target_table:
             raise ValueError("IbisToTable: target_table must be non-empty when set")
 
-        compiled_sql = str(connection.compile(batch.expression))
+        backend = connection.backend if isinstance(connection, IbisConnection) else connection
+        compiled_sql = str(backend.compile(batch.expression))
 
         row_count: int | None = None
         if target_table is None:
-            executed = connection.execute(batch.expression)
+            executed = backend.execute(batch.expression)
             row_count = self._row_count(executed)
         else:
-            self._materialise_to_table(batch, connection, target_table, overwrite)
+            self._materialise_to_table(batch, backend, target_table, overwrite)
             count_expr = batch.expression.count()
-            row_count = int(connection.execute(count_expr))
+            row_count = int(backend.execute(count_expr))
 
         return IbisExecutionReceipt(
             backend_name=batch.backend_name,

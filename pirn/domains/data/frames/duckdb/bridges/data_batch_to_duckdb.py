@@ -53,6 +53,7 @@ import polars as pl
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.data.data_batch import DataBatch
+from pirn.domains.data.frames.duckdb.duckdb_connection import DuckDBConnection
 from pirn.domains.data.frames.duckdb.duckdb_data_batch import DuckdbDataBatch
 
 
@@ -68,36 +69,35 @@ class DataBatchToDuckdb(Knot):
         self,
         *,
         batch: Knot,
-        connection: Knot | duckdb.DuckDBPyConnection | None = None,
+        connection: Knot | DuckDBConnection | None = None,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
         super().__init__(batch=batch, connection=connection, _config=_config, **kwargs)
 
     async def process(
-        self, batch: DataBatch, connection: Any = None, **_: Any
+        self, batch: DataBatch, connection: DuckDBConnection | None = None, **_: Any
     ) -> DuckdbDataBatch:
         """Load the Tier-1 DataBatch rows into a DuckDB relation and return a DuckdbDataBatch.
 
         Args:
             batch: The Tier-1 DataBatch whose rows are loaded into DuckDB.
-            connection: An optional pre-existing DuckDB connection, or None to open a fresh one.
+            connection: An optional pre-existing :class:`DuckDBConnection`, or None to open a fresh one.
 
         Returns:
             A DuckdbDataBatch wrapping a DuckDB relation with the batch's rows.
         """
-        if connection is not None and not isinstance(
-            connection, duckdb.DuckDBPyConnection
-        ):
+        if connection is not None and not isinstance(connection, DuckDBConnection):
             raise TypeError(
-                "DataBatchToDuckdb: connection must be a duckdb.DuckDBPyConnection or None"
+                "DataBatchToDuckdb: connection must be a DuckDBConnection or None"
             )
-        if connection is None:
-            connection = duckdb.connect(database=":memory:")
-        relation = self._build_relation(connection, batch)
+        raw_conn: duckdb.DuckDBPyConnection = (
+            connection.conn if connection is not None else duckdb.connect(database=":memory:")
+        )
+        relation = self._build_relation(raw_conn, batch)
         return DuckdbDataBatch(
             relation=relation,
-            connection=connection,
+            connection=raw_conn,
             source_uri=batch.source_uri,
             fetched_at=batch.fetched_at,
         )

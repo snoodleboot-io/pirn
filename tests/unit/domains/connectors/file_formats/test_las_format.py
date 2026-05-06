@@ -111,10 +111,8 @@ class TestLasFormatErrors(unittest.IsolatedAsyncioTestCase):
 
 class TestLasFormatMissingDep(unittest.TestCase):
     def test_import_error_message(self) -> None:
-        # TODO(unittest-migrate): replace 'monkeypatch' built-in fixture — use unittest.mock.patch / assertLogs
-        import sys
-        monkeypatch.setitem(sys.modules, "lasio", None)  # type: ignore[arg-type]
+        import unittest.mock
         fmt = LasFormat()
-        import pytest as _pytest
-        with _self.assertRaisesRegex(ImportError, "pirn\\[oilgas\\]"):
-            fmt._load_lasio()
+        with unittest.mock.patch.dict("sys.modules", {"lasio": None}):
+            with self.assertRaisesRegex(ImportError, "pirn\\[oilgas\\]"):
+                fmt._load_lasio()

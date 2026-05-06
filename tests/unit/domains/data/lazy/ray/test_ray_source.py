@@ -30,30 +30,13 @@ class TestRaySourceConstruction(unittest.TestCase):
             reader=lambda p: _make_dataset(),
             _config=KnotConfig(id="src"),
         )
-        self.assertEqual(src.path, "/tmp/data")
-
-    def test_rejects_neither(self) -> None:
-        with self.assertRaises(TypeError):
-            RaySource(_config=KnotConfig(id="src"))
-
-    def test_rejects_both(self) -> None:
-        with self.assertRaises(TypeError):
-            RaySource(
-                factory=_make_dataset,
-                path="/tmp/data",
-                reader=lambda p: _make_dataset(),
-                _config=KnotConfig(id="src"),
-            )
-
-    def test_path_without_reader_raises(self) -> None:
-        with self.assertRaises(TypeError):
-            RaySource(path="/tmp/data", _config=KnotConfig(id="src"))
+        self.assertIsInstance(src, RaySource)
 
 
 class TestRaySourceProcess(unittest.IsolatedAsyncioTestCase):
     async def test_factory_emits_ray_dataset(self) -> None:
         src = RaySource(factory=_make_dataset, _config=KnotConfig(id="src"))
-        result = await src.process(**{})
+        result = await src.process(factory=_make_dataset)
         self.assertIsInstance(result, RayDataset)
 
     async def test_reader_called_with_path(self) -> None:
@@ -64,6 +47,32 @@ class TestRaySourceProcess(unittest.IsolatedAsyncioTestCase):
             reader=reader,
             _config=KnotConfig(id="src"),
         )
-        result = await src.process(**{})
+        result = await src.process(path="/tmp/data", reader=reader)
         reader.assert_called_once_with("/tmp/data")
         self.assertIsInstance(result, RayDataset)
+
+    async def test_rejects_neither(self) -> None:
+        src = RaySource(factory=_make_dataset, _config=KnotConfig(id="src"))
+        with self.assertRaises(TypeError):
+            await src.process()
+
+    async def test_rejects_both(self) -> None:
+        src = RaySource(factory=_make_dataset, _config=KnotConfig(id="src"))
+        with self.assertRaises(TypeError):
+            await src.process(factory=_make_dataset, path="/tmp/data", reader=lambda p: _make_dataset())
+
+    async def test_path_without_reader_raises(self) -> None:
+        src = RaySource(factory=_make_dataset, _config=KnotConfig(id="src"))
+        with self.assertRaises(TypeError):
+            await src.process(path="/tmp/data")
+
+    async def test_source_uri_defaults_to_path(self) -> None:
+        ds = _make_dataset()
+        reader = MagicMock(return_value=ds)
+        src = RaySource(
+            path="/tmp/data",
+            reader=reader,
+            _config=KnotConfig(id="src"),
+        )
+        result = await src.process(path="/tmp/data", reader=reader)
+        self.assertEqual(result.source_uri, "/tmp/data")

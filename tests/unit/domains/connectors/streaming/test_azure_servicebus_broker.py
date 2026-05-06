@@ -123,7 +123,11 @@ class TestPublish(unittest.IsolatedAsyncioTestCase):
         sender = client.senders["events"]
         assert len(sender.sent) == 1
         sent_message = sender.sent[0]
-        assert getattr(sent_message, "body", None) == b"hello"
+        body = getattr(sent_message, "body", None)
+        # Real ServiceBusMessage.body is a generator; consume it.
+        if hasattr(body, "__iter__") and not isinstance(body, (bytes, bytearray)):
+            body = b"".join(body)
+        assert body == b"hello"
         assert sender.entered and sender.exited
 
     async def test_publish_with_key_and_headers(self) -> None:
@@ -137,7 +141,10 @@ class TestPublish(unittest.IsolatedAsyncioTestCase):
         )
         sender = client.senders["events"]
         sent = sender.sent[0]
-        assert sent.body == b"v"
+        body = sent.body
+        if hasattr(body, "__iter__") and not isinstance(body, (bytes, bytearray)):
+            body = b"".join(body)
+        assert body == b"v"
         assert sent.session_id == "user-1"
         assert sent.application_properties == {"trace": b"abc"}
 

@@ -26,6 +26,27 @@ def _make_knot(**overrides: Any) -> TextTokenCounter:
 
 
 class TestTextTokenCounter(unittest.IsolatedAsyncioTestCase):
+    async def test_process_directly_with_plain_values(self) -> None:
+        rows = [{"id": 1, "text": "hello world"}, {"id": 2, "text": "one"}]
+        with Tapestry():
+            k = TextTokenCounter(
+                rows=rows,
+                text_column="text",
+                output_column="token_count",
+                tiktoken_encoding="cl100k_base",
+                _config=KnotConfig(id="ttc_direct"),
+            )
+        result = await k.process(
+            rows=rows,
+            text_column="text",
+            output_column="token_count",
+            tiktoken_encoding="cl100k_base",
+        )
+        assert result["succeeded"] is True
+        assert result["rows"][0]["token_count"] == 2
+        assert result["rows"][1]["token_count"] == 1
+        assert "tokenizer" in result
+
     async def test_whitespace_token_count(self) -> None:
         rows = [
             {"id": 1, "text": "hello world foo"},

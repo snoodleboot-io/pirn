@@ -4,6 +4,32 @@ This guide covers how to write tests for pirn pipelines at three levels: unit te
 
 ---
 
+## System prerequisites
+
+Some optional extras wrap native libraries that must be present before `uv sync --all-extras` will succeed. If you run the full test suite locally, install these first:
+
+```bash
+# Debian / Ubuntu
+sudo apt-get install -y \
+  gdal-bin libgdal-dev \
+  libsndfile1 \
+  libbz2-dev liblzma-dev libcurl4-openssl-dev \
+  ffmpeg
+```
+
+| Extra | Requires |
+|-------|---------|
+| `geopackage` | GDAL (`gdal-bin libgdal-dev`) |
+| `signal` | libsndfile (`libsndfile1`) |
+| `health` | HTSlib / compression libs (`libbz2-dev liblzma-dev libcurl4-openssl-dev`) |
+| `oilgas` | libsegyio (build from source) or `libsegyio-dev` |
+| `grib` | ecCodes C library (`libeccodes-dev`) |
+| audio formats | ffmpeg (`ffmpeg`) |
+
+Tests that require an uninstalled native dependency skip automatically — you will see `SKIPPED [reason: ...]` in pytest output.
+
+---
+
 ## Philosophy
 
 - Test knots in isolation first — their `process()` method is just an async function.

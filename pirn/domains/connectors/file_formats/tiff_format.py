@@ -100,11 +100,9 @@ class TiffFormat(BatchFileFormat):
             for record in materialised
         ]
         buf = io.BytesIO()
-        tifffile.imwrite(
-            buf,
-            arrays if len(arrays) > 1 else arrays[0],
-            compression=self._compression,
-        )
+        with tifffile.TiffWriter(buf) as tw:
+            for array in arrays:
+                tw.write(array, compression=self._compression)
         return buf.getvalue()
 
     @staticmethod

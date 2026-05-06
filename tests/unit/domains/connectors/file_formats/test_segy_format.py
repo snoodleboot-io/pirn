@@ -82,9 +82,8 @@ class TestSegyFormatErrors(unittest.IsolatedAsyncioTestCase):
 
 class TestSegyFormatMissingDep(unittest.TestCase):
     def test_import_error_message(self) -> None:
-        # TODO(unittest-migrate): replace 'monkeypatch' built-in fixture — use unittest.mock.patch / assertLogs
-        import sys
-        monkeypatch.setitem(sys.modules, "segyio", None)  # type: ignore[arg-type]
+        import unittest.mock
         fmt = SegyFormat()
-        with self.assertRaisesRegex(ImportError, "pirn\\[oilgas\\]"):
-            fmt._load_segyio()
+        with unittest.mock.patch.dict("sys.modules", {"segyio": None}):
+            with self.assertRaisesRegex(ImportError, "pirn\\[oilgas\\]"):
+                fmt._load_segyio()

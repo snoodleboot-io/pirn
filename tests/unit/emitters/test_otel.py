@@ -63,15 +63,10 @@ class TestOpenTelemetryEmitterConstruction(unittest.TestCase):
         self.assertIsNone(emitter._tracer)
 
     def test_ensure_tracer_raises_without_otel(self) -> None:
-        emitter = OpenTelemetryEmitter()
         with patch.dict("sys.modules", {"opentelemetry": None, "opentelemetry.trace": None}):
-            import sys
-            sys.modules.pop("opentelemetry", None)
-            sys.modules.pop("opentelemetry.trace", None)
-            # Force lazy import failure
-            emitter2 = OpenTelemetryEmitter()
+            emitter = OpenTelemetryEmitter()
             with self.assertRaises(ImportError):
-                emitter2._ensure_tracer()
+                emitter._ensure_tracer()
 
 
 class TestOpenTelemetryEmitterEvents(unittest.IsolatedAsyncioTestCase):

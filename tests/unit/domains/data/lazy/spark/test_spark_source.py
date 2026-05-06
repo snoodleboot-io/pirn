@@ -38,7 +38,7 @@ class TestSparkSourceConstruction(unittest.TestCase):
             spark_session=session,
             path="/tmp/data.parquet",
         )
-        self.assertEqual(src.path, "/tmp/data.parquet")
+        self.assertIsInstance(src, SparkSource)
 
     def test_query_mode(self) -> None:
         session = _mock_session()
@@ -47,30 +47,7 @@ class TestSparkSourceConstruction(unittest.TestCase):
             spark_session=session,
             query="SELECT 1",
         )
-        self.assertEqual(src.query, "SELECT 1")
-
-    def test_rejects_no_session(self) -> None:
-        with self.assertRaises(TypeError):
-            SparkSource(
-                _config=KnotConfig(id="src"),
-                spark_session=None,
-                query="SELECT 1",
-            )
-
-    def test_rejects_neither_path_nor_query(self) -> None:
-        session = _mock_session()
-        with self.assertRaises(TypeError):
-            SparkSource(_config=KnotConfig(id="src"), spark_session=session)
-
-    def test_rejects_both(self) -> None:
-        session = _mock_session()
-        with self.assertRaises(TypeError):
-            SparkSource(
-                _config=KnotConfig(id="src"),
-                spark_session=session,
-                path="/tmp/data",
-                query="SELECT 1",
-            )
+        self.assertIsInstance(src, SparkSource)
 
 
 class TestSparkSourceProcess(unittest.IsolatedAsyncioTestCase):
@@ -83,7 +60,7 @@ class TestSparkSourceProcess(unittest.IsolatedAsyncioTestCase):
             spark_session=session,
             query="SELECT 1 AS id",
         )
-        result = await src.process(**{})
+        result = await src.process(spark_session=session, query="SELECT 1 AS id")
         self.assertIsInstance(result, SparkDataFrame)
         session.sql.assert_called_once_with("SELECT 1 AS id")
 
@@ -96,5 +73,35 @@ class TestSparkSourceProcess(unittest.IsolatedAsyncioTestCase):
             spark_session=session,
             path="/tmp/data.parquet",
         )
-        result = await src.process(**{})
+        result = await src.process(spark_session=session, path="/tmp/data.parquet")
         self.assertIsInstance(result, SparkDataFrame)
+
+    async def test_rejects_no_session(self) -> None:
+        session = _mock_session()
+        src = SparkSource(
+            _config=KnotConfig(id="src"),
+            spark_session=session,
+            query="SELECT 1",
+        )
+        with self.assertRaises(TypeError):
+            await src.process(spark_session=None, query="SELECT 1")
+
+    async def test_rejects_neither_path_nor_query(self) -> None:
+        session = _mock_session()
+        src = SparkSource(
+            _config=KnotConfig(id="src"),
+            spark_session=session,
+            query="SELECT 1",
+        )
+        with self.assertRaises(TypeError):
+            await src.process(spark_session=session)
+
+    async def test_rejects_both(self) -> None:
+        session = _mock_session()
+        src = SparkSource(
+            _config=KnotConfig(id="src"),
+            spark_session=session,
+            query="SELECT 1",
+        )
+        with self.assertRaises(TypeError):
+            await src.process(spark_session=session, path="/tmp/data", query="SELECT 1")

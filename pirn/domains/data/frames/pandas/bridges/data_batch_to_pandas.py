@@ -4,6 +4,19 @@ Tier-2 :class:`PandasDataBatch`.
 Constructs a Pandas frame from the row dicts. ``source_uri`` and
 ``fetched_at`` are propagated unchanged. Used at the seam where a small
 upstream batch (fixture, glue) feeds into a tier-2 transform chain.
+
+Algorithm:
+    1. Receive a Tier-1 :class:`DataBatch` whose ``rows`` is a tuple of
+       ``Mapping[str, Any]`` dicts.
+    2. If ``rows`` is empty, construct an empty ``pd.DataFrame``; otherwise
+       call ``pd.DataFrame(list(rows))`` to materialise all rows at once.
+    3. Wrap the frame in a :class:`PandasDataBatch`, copying ``source_uri``
+       and ``fetched_at`` from the incoming batch unchanged.
+    4. Return the :class:`PandasDataBatch` to the downstream knot.
+
+References:
+    - pandas ``DataFrame`` constructor from a list of dicts:
+      https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html
 """
 
 from __future__ import annotations

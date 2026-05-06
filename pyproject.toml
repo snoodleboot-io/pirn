@@ -22,12 +22,10 @@ classifiers = [
     "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-    "asyncpg>=0.31.0",
     "cloudpickle>=3.0",
     "pydantic>=2.0",
     "pyyaml>=6.0",
     "sweet-tea>=0.2.46",
-    "valkey-glide>=2.3.1",
 ]
 
 [project.scripts]
@@ -50,8 +48,8 @@ dev = [
 # ─────────────────────────────────────────────────────────────────────────────
 sqlite = ["aiosqlite>=0.19"]
 duckdb = ["duckdb>=0.10"]
-postgres = ["asyncpg>=0.29"]
-valkey = ["valkey-glide>=2.0"]
+postgres = ["asyncpg>=0.31"]
+valkey = ["valkey-glide>=2.3"]
 s3 = ["aioboto3>=12.0"]
 gcs = ["gcloud-aio-storage>=9.0"]
 azure = ["azure-storage-blob>=12.0"]
@@ -83,7 +81,7 @@ health  = [
     "pyedflib>=0.1.42",
 ]
 signal  = ["scipy>=1.12", "pywavelets>=1.5", "librosa>=0.10"]
-oilgas  = ["segyio>=1.9", "lasio>=0.31"]
+oilgas  = ["segyio>=1.9.14", "lasio>=0.32"]
 # Genomics extra — subset of `health` for callers that only need the
 # genomics file formats (FASTA, FASTQ, VCF, BCF).
 genomics = ["pyfaidx>=0.7", "pysam>=0.22"]
@@ -123,7 +121,7 @@ datafusion = ["datafusion>=40.0"]
 modin = ["modin>=0.30; python_version<'3.14'"]
 
 # Tier 3 — push-down / lazy / distributed
-ibis    = ["ibis-framework>=9.0"]
+ibis    = ["ibis-framework>=9.0", "pyarrow-hotfix>=0.7"]
 spark   = ["pyspark>=4.0"]
 ray-data = ["ray[data]>=2.10"]
 # Note: existing `dask` extra above already covers Dask.
@@ -131,8 +129,8 @@ ray-data = ["ray[data]>=2.10"]
 # Tier 3 — streaming dataflow
 # Pathway and Bytewax both ship Rust-built wheels and currently target
 # 3.13 and below. Pinned until upstream catches up to 3.14.
-pathway = ["pathway>=0.13; python_version<'3.14'"]
-bytewax = ["bytewax>=0.21; python_version<'3.14'"]
+pathway = ["pathway>=0.13; python_version<'3.11'"]
+bytewax = ["bytewax>=0.21; python_version<'3.13'"]
 
 # Tier 4 — specialized
 lance = ["pylance>=0.18"]
@@ -214,6 +212,16 @@ lz4    = ["lz4>=4.3"]
 # Each tabular file format with non-trivial deps gets its own extra so
 # the core install stays small.
 # ─────────────────────────────────────────────────────────────────────────────
+# Scientific / domain-specific file formats that were previously bundled in core.
+asdf    = ["asdf>=5.3.0"]
+fits    = ["astropy>=7.2.0"]
+grib    = ["cfgrib>=0.9.15.1"]
+dlis    = ["dlisio>=1.0.4"]
+hl7     = ["hl7>=0.4.5"]
+audio   = ["pydub>=0.25.1"]
+spss    = ["pyreadstat>=1.3.4"]
+root    = ["uproot>=5.7.4"]
+
 avro    = ["fastavro>=1.9"]
 orc     = ["pyarrow>=14.0"]
 feather = ["pyarrow>=14.0"]
@@ -233,22 +241,22 @@ matlab   = ["scipy>=1.12"]
 netcdf   = ["netcdf4>=1.6"]
 # Image formats — single-image (PNG/JPEG/WebP/HEIC) or multi-page (TIFF).
 image    = ["Pillow>=10.0"]
-tiff     = ["tifffile>=2024.0", "Pillow>=10.0"]
-heic     = ["pillow-heif>=0.14"]
+tiff     = ["tifffile>=2026.3.3", "Pillow>=10.0", "imagecodecs>=2026.3.6"]
+heic     = ["pillow-heif>=1.3.0"]
 # Geospatial formats — vector + raster.
 shapefile  = ["pyshp>=2.3"]
 geojson    = ["geojson>=3.1"]
 kml        = ["simplekml>=1.3", "lxml>=5.0"]
 geotiff    = ["rasterio>=1.3"]
-geopackage = ["fiona>=1.9"]
+geopackage = ["fiona>=1.10.1"]
 # ML artefact formats — whole-model encoders/decoders.
 onnx        = ["onnx>=1.16"]
 safetensors = ["safetensors>=0.4", "numpy>=1.26"]
 joblib      = ["joblib>=1.4"]
 pytorch     = ["torch>=2.0"]
-tensorflow  = ["tensorflow>=2.16"]
+tensorflow  = ["tensorflow>=2.21"]
 gguf        = ["gguf>=0.10"]
-tflite      = ["tflite-runtime>=2.14"]
+tflite      = ["ai-edge-litert>=2.1; python_version<'3.14'"]
 
 # BI / data-catalog connectors (pirn/domains/connectors/bi_catalog/).
 # dbt artifacts is stdlib-only — no extra needed.
@@ -318,8 +326,8 @@ all = [
     # persistence backends
     "aiosqlite>=0.19",
     "duckdb>=0.10",
-    "asyncpg>=0.29",
-    "valkey-glide>=2.0",
+    "asyncpg>=0.31",
+    "valkey-glide>=2.3",
     "aioboto3>=12.0",
     "gcloud-aio-storage>=9.0",
     "azure-storage-blob>=12.0",
@@ -367,8 +375,20 @@ all = [
     "scipy>=1.12",
     "pywavelets>=1.5",
     "librosa>=0.10",
-    "segyio>=1.9",
-    "lasio>=0.31",
+    "segyio>=1.9.14",
+    "lasio>=0.32",
+    # scientific / domain file formats (formerly misplaced in core)
+    "asdf>=5.3.0",
+    "astropy>=7.2.0",
+    "cfgrib>=0.9.15.1",
+    "dlisio>=1.0.4",
+    "hl7>=0.4.5",
+    "pydub>=0.25.1",
+    "pyreadstat>=1.3.4",
+    "uproot>=5.7.4",
+    "fiona>=1.10.1",
+    "pillow-heif>=1.3.0",
+    "tifffile>=2026.3.3",
 ]
 
 [tool.hatch.build.targets.wheel]

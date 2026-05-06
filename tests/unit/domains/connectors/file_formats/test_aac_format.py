@@ -50,24 +50,33 @@ class TestAacFormatConstruction(unittest.TestCase):
         assert isinstance(AacFormat(), BatchFileFormat)
 
 
+async def _aac_round_trip(record: dict) -> list[dict]:
+    """Encode then decode one record; skip if ffmpeg is absent."""
+    fmt = AacFormat()
+    try:
+        encoded = await FormatRoundTrip.encode(fmt, [record])
+        return await FormatRoundTrip.decode(fmt, encoded)
+    except Exception as exc:
+        if "ffmpeg" in str(exc).lower() or "avconv" in str(exc).lower():
+            pytest.skip("ffmpeg not available")
+        raise
+
+
 class TestAacFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_mono(self) -> None:
-        records = [_pcm_record()]
-        try:
-            await FormatRoundTrip.assert_round_trip(AacFormat(), records)
-        except Exception as exc:
-            if "ffmpeg" in str(exc).lower() or "avconv" in str(exc).lower():
-                pytest.skip("ffmpeg not available")
-            raise
+        original = _pcm_record()
+        decoded = await _aac_round_trip(original)
+        assert len(decoded) == 1
+        # AAC is lossy — verify channel/rate metadata survive; don't compare frames.
+        assert decoded[0]["sample_rate"] == original["sample_rate"]
+        assert decoded[0]["n_channels"] == original["n_channels"]
 
     async def test_round_trip_stereo(self) -> None:
-        records = [_pcm_record(n_channels=2, n_frames=1024)]
-        try:
-            await FormatRoundTrip.assert_round_trip(AacFormat(), records)
-        except Exception as exc:
-            if "ffmpeg" in str(exc).lower() or "avconv" in str(exc).lower():
-                pytest.skip("ffmpeg not available")
-            raise
+        original = _pcm_record(n_channels=2, n_frames=1024)
+        decoded = await _aac_round_trip(original)
+        assert len(decoded) == 1
+        assert decoded[0]["sample_rate"] == original["sample_rate"]
+        assert decoded[0]["n_channels"] == original["n_channels"]
 
 
 class TestAacFormatErrors(unittest.IsolatedAsyncioTestCase):
@@ -97,15 +106,7 @@ class TestAacFormatErrors(unittest.IsolatedAsyncioTestCase):
 
 class TestAacFormatMissingDep(unittest.TestCase):
     def test_import_error_message(self) -> None:
-        # TODO(unittest-migrate): replace 'monkeypatch' built-in fixture — use unittest.mock.patch / assertLogs
-        import builtins
-        real_import = builtins.__import__
-
-        def _mock_import(name: str, *args, **kwargs):
-            if name == "pydub":
-                raise ImportError("no module named pydub")
-            return real_import(name, *args, **kwargs)
-
-        monkeypatch.setattr(builtins, "__import__", _mock_import)
-        with self.assertRaisesRegex(ImportError, "pirn\\[audio\\]"):
-            AacFormat._load_pydub()
+        import unittest.mock
+        with unittest.mock.patch.dict("sys.modules", {"pydub": None}):
+            with self.assertRaisesRegex(ImportError, "pirn\\[audio\\]"):
+                AacFormat._load_pydub()

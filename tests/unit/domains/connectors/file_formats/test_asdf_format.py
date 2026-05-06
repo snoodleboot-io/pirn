@@ -98,16 +98,7 @@ class TestAsdfFormatErrors(unittest.IsolatedAsyncioTestCase):
 
 class TestAsdfFormatMissingDep(unittest.TestCase):
     def test_import_error_message(self) -> None:
-        # TODO(unittest-migrate): replace 'monkeypatch' built-in fixture — use unittest.mock.patch / assertLogs
-        import builtins
-
-        real_import = builtins.__import__
-
-        def _block_asdf(name: str, *args: object, **kwargs: object) -> object:
-            if name == "asdf":
-                raise ImportError("No module named 'asdf'")
-            return real_import(name, *args, **kwargs)
-
-        monkeypatch.setattr(builtins, "__import__", _block_asdf)
-        with self.assertRaisesRegex(ImportError, "pirn\\[astronomy\\]"):
-            AsdfFormat._load_asdf()
+        import unittest.mock
+        with unittest.mock.patch.dict("sys.modules", {"asdf": None}):
+            with self.assertRaisesRegex(ImportError, "pirn\\[astronomy\\]"):
+                AsdfFormat._load_asdf()

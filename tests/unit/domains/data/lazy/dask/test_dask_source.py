@@ -32,30 +32,12 @@ class TestDaskSourceConstruction(unittest.TestCase):
             _config=KnotConfig(id="src"),
         )
         self.assertIsInstance(src, DaskSource)
-        self.assertEqual(src.path, "/tmp/data.parquet")
-
-    def test_rejects_neither_factory_nor_path(self) -> None:
-        with self.assertRaises(TypeError):
-            DaskSource(_config=KnotConfig(id="src"))
-
-    def test_rejects_both_factory_and_path(self) -> None:
-        with self.assertRaises(TypeError):
-            DaskSource(
-                factory=_make_frame,
-                path="/tmp/data.parquet",
-                reader=lambda p: _make_frame(),
-                _config=KnotConfig(id="src"),
-            )
-
-    def test_path_without_reader_raises(self) -> None:
-        with self.assertRaises(TypeError):
-            DaskSource(path="/tmp/data.parquet", _config=KnotConfig(id="src"))
 
 
 class TestDaskSourceProcess(unittest.IsolatedAsyncioTestCase):
     async def test_factory_emits_dask_dataframe(self) -> None:
         src = DaskSource(factory=_make_frame, _config=KnotConfig(id="src"))
-        result = await src.process(**{})
+        result = await src.process(factory=_make_frame)
         self.assertIsInstance(result, DaskDataFrame)
 
     async def test_path_reader_called(self) -> None:
@@ -66,6 +48,32 @@ class TestDaskSourceProcess(unittest.IsolatedAsyncioTestCase):
             reader=reader,
             _config=KnotConfig(id="src"),
         )
-        result = await src.process(**{})
+        result = await src.process(path="/tmp/data.parquet", reader=reader)
         reader.assert_called_once_with("/tmp/data.parquet")
         self.assertIsInstance(result, DaskDataFrame)
+
+    async def test_rejects_neither_factory_nor_path(self) -> None:
+        src = DaskSource(factory=_make_frame, _config=KnotConfig(id="src"))
+        with self.assertRaises(TypeError):
+            await src.process()
+
+    async def test_rejects_both_factory_and_path(self) -> None:
+        src = DaskSource(factory=_make_frame, _config=KnotConfig(id="src"))
+        with self.assertRaises(TypeError):
+            await src.process(factory=_make_frame, path="/tmp/data.parquet", reader=lambda p: _make_frame())
+
+    async def test_path_without_reader_raises(self) -> None:
+        src = DaskSource(factory=_make_frame, _config=KnotConfig(id="src"))
+        with self.assertRaises(TypeError):
+            await src.process(path="/tmp/data.parquet")
+
+    async def test_source_uri_defaults_to_path(self) -> None:
+        frame = _make_frame()
+        reader = MagicMock(return_value=frame)
+        src = DaskSource(
+            path="/tmp/data.parquet",
+            reader=reader,
+            _config=KnotConfig(id="src"),
+        )
+        result = await src.process(path="/tmp/data.parquet", reader=reader)
+        self.assertEqual(result.source_uri, "/tmp/data.parquet")

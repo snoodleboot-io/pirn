@@ -10,6 +10,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.domains.data.lazy.ibis.ibis_source import IbisSource
+from pirn.domains.data.lazy.ibis.ibis_connection import IbisConnection
 from pirn.domains.data.lazy.ibis.ibis_table import IbisTable
 from pirn.domains.data.lazy.ibis.ibis_window import IbisWindow
 from pirn.tapestry import Tapestry
@@ -32,7 +33,7 @@ class TestIbisWindow(unittest.IsolatedAsyncioTestCase):
         con = _make_orders_con()
         with Tapestry() as t:
             src = IbisSource(
-                connection=con, table="orders",
+                connection=IbisConnection(con), table="orders",
                 backend_name="duckdb", _config=KnotConfig(id="src"),
             )
             IbisWindow(
@@ -52,7 +53,7 @@ class TestIbisWindow(unittest.IsolatedAsyncioTestCase):
         con = _make_orders_con()
         with Tapestry() as t:
             src = IbisSource(
-                connection=con, table="orders",
+                connection=IbisConnection(con), table="orders",
                 _config=KnotConfig(id="src"),
             )
             IbisWindow(
@@ -79,7 +80,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
         with Tapestry() as t:
             src = IbisSource(
-                connection=con, table="orders",
+                connection=IbisConnection(con), table="orders",
                 backend_name="duckdb", _config=KnotConfig(id="src"),
             )
             win_knot = emit_windows(_config=KnotConfig(id="win"))
@@ -93,7 +94,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, **kwargs: object) -> IbisWindow:
         con = _make_orders_con()
         with Tapestry():
-            src = IbisSource(connection=con, table="orders", _config=KnotConfig(id="src"))
+            src = IbisSource(connection=IbisConnection(con), table="orders", _config=KnotConfig(id="src"))
             return IbisWindow(
                 batch=src,
                 windows=lambda t: t.amount.cumsum().name("x"),

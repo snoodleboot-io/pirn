@@ -14,9 +14,9 @@ my parquet shards" use cases but loses per-file lineage.
 
 Algorithm:
     1. Validate ``store``, ``format``, ``prefix``, and optional ``schema``
-       at construction time.
-    2. On execution, call ``await store.list(prefix)`` and collect all
-       matching keys; sort them for deterministic ordering.
+       in ``process()``.
+    2. Call ``await store.list(prefix)`` and collect all matching keys;
+       sort them for deterministic ordering.
     3. For each key, fetch bytes via ``store.get(key)`` and decode via
        ``format.read(body)``; build one :class:`DataBatch` per file,
        each stamped with its own ``source_uri``.
@@ -37,6 +37,7 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any
 
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.connectors.file_format import FileFormat
 from pirn.domains.connectors.object_store import ObjectStore
@@ -52,14 +53,34 @@ class DirectorySource(Source):
     def __init__(
         self,
         *,
+        store: Knot | ObjectStore,
+        format: Knot | FileFormat,
+        prefix: Knot | str,
+        concatenate: Knot | bool = False,
+        schema: Knot | DataSchema | None = None,
+        _config: KnotConfig,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            store=store,
+            format=format,
+            prefix=prefix,
+            concatenate=concatenate,
+            schema=schema,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        *,
         store: ObjectStore,
         format: FileFormat,
         prefix: str,
         concatenate: bool = False,
         schema: DataSchema | None = None,
-        _config: KnotConfig,
-        **kwargs: Any,
-    ) -> None:
+        **_: Any,
+    ) -> tuple[DataBatch, ...] | DataBatch:
         if not isinstance(store, ObjectStore):
             raise TypeError("DirectorySource: store must be an ObjectStore instance")
         if not isinstance(format, FileFormat):
@@ -68,47 +89,29 @@ class DirectorySource(Source):
             raise TypeError("DirectorySource: prefix must be a string (use '' for root)")
         if schema is not None and not isinstance(schema, DataSchema):
             raise TypeError("DirectorySource: schema must be a DataSchema instance")
-        self._store = store
-        self._format = format
-        self._prefix = prefix
-        self._concatenate = concatenate
-        self._schema = schema
-        super().__init__(_config=_config)
-
-    @property
-    def prefix(self) -> str:
-        return self._prefix
-
-    @property
-    def concatenate(self) -> bool:
-        return self._concatenate
-
-    async def process(self, **_: Any) -> tuple[DataBatch, ...] | DataBatch:
         keys: list[str] = []
-        key_iter = await self._store.list(self._prefix)
+        key_iter = await store.list(prefix)
         async for k in key_iter:
             keys.append(k)
         keys.sort()
 
         per_file_batches: list[DataBatch] = []
         for k in keys:
-            body = await self._store.get(k)
-            records = await self._format.read(body)
+            body = await store.get(k)
+            records = await format.read(body)
             rows: list[dict[str, Any]] = []
             async for record in records:
                 rows.append(dict(record))
             per_file_batches.append(
                 DataBatch(
                     rows=tuple(rows),
-                    schema=(
-                        self._schema if self._schema is not None else DataSchema()
-                    ),
-                    source_uri=f"{type(self._store).__name__}://{k}",
+                    schema=(schema if schema is not None else DataSchema()),
+                    source_uri=f"{type(store).__name__}://{k}",
                     fetched_at=datetime.now(UTC),
                 )
             )
 
-        if not self._concatenate:
+        if not concatenate:
             return tuple(per_file_batches)
 
         all_rows: list[Mapping[str, Any]] = []
@@ -116,7 +119,7 @@ class DirectorySource(Source):
             all_rows.extend(batch.rows)
         return DataBatch(
             rows=tuple(all_rows),
-            schema=(self._schema if self._schema is not None else DataSchema()),
-            source_uri=f"{type(self._store).__name__}://{self._prefix}*",
+            schema=(schema if schema is not None else DataSchema()),
+            source_uri=f"{type(store).__name__}://{prefix}*",
             fetched_at=datetime.now(UTC),
         )

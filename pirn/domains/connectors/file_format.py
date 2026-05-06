@@ -19,8 +19,10 @@ from __future__ import annotations
 
 from typing import Any, AsyncIterator, Mapping
 
+from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
-class FileFormat:
+
+class FileFormat(PirnOpaqueValue):
     """Base interface every file-format implementation must satisfy."""
 
     @property

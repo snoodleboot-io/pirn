@@ -9,6 +9,7 @@ import ibis
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
+from pirn.domains.data.lazy.ibis.ibis_connection import IbisConnection
 from pirn.domains.data.lazy.ibis.ibis_filter import IbisFilter
 from pirn.domains.data.lazy.ibis.ibis_source import IbisSource
 from pirn.domains.data.lazy.ibis.ibis_table import IbisTable
@@ -33,7 +34,7 @@ class TestIbisFilter(unittest.IsolatedAsyncioTestCase):
         con = _make_orders_con()
         with Tapestry() as t:
             src = IbisSource(
-                connection=con,
+                connection=IbisConnection(con),
                 table="orders",
                 backend_name="duckdb",
                 _config=KnotConfig(id="src"),
@@ -55,7 +56,7 @@ class TestIbisFilter(unittest.IsolatedAsyncioTestCase):
         con = _make_orders_con()
         with Tapestry() as t:
             src = IbisSource(
-                connection=con, table="orders",
+                connection=IbisConnection(con), table="orders",
                 backend_name="duckdb", _config=KnotConfig(id="src"),
             )
             active = IbisFilter(
@@ -84,7 +85,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
         with Tapestry() as t:
             src = IbisSource(
-                connection=con, table="orders",
+                connection=IbisConnection(con), table="orders",
                 backend_name="duckdb", _config=KnotConfig(id="src"),
             )
             pred_knot = emit_predicate(_config=KnotConfig(id="pred"))
@@ -99,7 +100,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, **kwargs: object) -> IbisFilter:
         con = _make_orders_con()
         with Tapestry():
-            src = IbisSource(connection=con, table="orders", _config=KnotConfig(id="src"))
+            src = IbisSource(connection=IbisConnection(con), table="orders", _config=KnotConfig(id="src"))
             return IbisFilter(batch=src, _config=KnotConfig(id="f"), **kwargs)
 
     async def test_rejects_non_callable_predicate(self) -> None:

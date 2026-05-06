@@ -26,6 +26,7 @@ import duckdb
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.domains.data.frames.duckdb.duckdb_connection import DuckDBConnection
 
 
 class DuckDBConnectionKnot(Knot):
@@ -33,16 +34,17 @@ class DuckDBConnectionKnot(Knot):
 
     No inputs beyond ``_config`` — the connection is stateless at construction
     time. Downstream Knots declare this Knot as a typed ``__init__`` parameter
-    and receive the ``duckdb.DuckDBPyConnection`` value in ``process()``.
+    and receive the :class:`DuckDBConnection` value in ``process()``.
     """
 
     def __init__(self, *, _config: KnotConfig, **kwargs: Any) -> None:
         super().__init__(_config=_config, **kwargs)
 
-    async def process(self, **_: Any) -> duckdb.DuckDBPyConnection:
+    async def process(self, **_: Any) -> DuckDBConnection:
         """Open and return a fresh DuckDB in-memory connection.
 
         Returns:
-            A new :class:`duckdb.DuckDBPyConnection` connected to ``:memory:``.
+            A new :class:`DuckDBConnection` wrapping a ``duckdb.DuckDBPyConnection``
+            connected to ``:memory:``.
         """
-        return duckdb.connect(database=":memory:")
+        return DuckDBConnection(duckdb.connect(database=":memory:"))

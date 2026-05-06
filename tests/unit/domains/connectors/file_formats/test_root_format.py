@@ -105,16 +105,7 @@ class TestRootFormatErrors(unittest.IsolatedAsyncioTestCase):
 
 class TestRootFormatMissingDep(unittest.TestCase):
     def test_import_error_message(self) -> None:
-        # TODO(unittest-migrate): replace 'monkeypatch' built-in fixture — use unittest.mock.patch / assertLogs
-        import builtins
-
-        real_import = builtins.__import__
-
-        def _block_uproot(name: str, *args: object, **kwargs: object) -> object:
-            if name == "uproot":
-                raise ImportError("No module named 'uproot'")
-            return real_import(name, *args, **kwargs)
-
-        monkeypatch.setattr(builtins, "__import__", _block_uproot)
-        with self.assertRaisesRegex(ImportError, "pirn\\[physics\\]"):
-            RootFormat._load_uproot()
+        import unittest.mock
+        with unittest.mock.patch.dict("sys.modules", {"uproot": None}):
+            with self.assertRaisesRegex(ImportError, "pirn\\[physics\\]"):
+                RootFormat._load_uproot()

@@ -13,6 +13,12 @@ from pirn.domains.connectors.message_broker import MessageBroker
 from pirn.domains.data.specializations.scd.cdc.debezium_source import (
     DebeziumSource,
 )
+from pirn.domains.data.specializations.scd.cdc.message_broker_connection import (
+    MessageBrokerConnection,
+)
+from pirn.domains.data.specializations.scd.cdc.message_broker_knot import (
+    MessageBrokerKnot,
+)
 from pirn.tapestry import Tapestry
 
 
@@ -61,33 +67,28 @@ def _envelope(
     }
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_broker(self) -> None:
-        with self.assertRaisesRegex(TypeError, "MessageBroker"):
-            DebeziumSource(
-                broker="not-a-broker",  # type: ignore[arg-type]
-                topic="t",
-                _config=KnotConfig(id="cdc"),
-            )
-
-    def test_rejects_empty_topic(self) -> None:
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_process_rejects_non_broker(self) -> None:
+        """process() rejects an empty topic."""
         broker = _StubBroker(records=[])
+        conn = MessageBrokerConnection(client=broker)
+        src = object.__new__(DebeziumSource)
         with self.assertRaisesRegex(ValueError, "topic"):
-            DebeziumSource(
-                broker=broker,
-                topic="",
-                _config=KnotConfig(id="cdc"),
-            )
+            await DebeziumSource.process(src, broker=conn, topic="", max_messages=0)
 
-    def test_rejects_negative_max_messages(self) -> None:
+    async def test_process_rejects_empty_topic(self) -> None:
         broker = _StubBroker(records=[])
+        conn = MessageBrokerConnection(client=broker)
+        src = object.__new__(DebeziumSource)
+        with self.assertRaisesRegex(ValueError, "topic"):
+            await DebeziumSource.process(src, broker=conn, topic="", max_messages=0)
+
+    async def test_process_rejects_negative_max_messages(self) -> None:
+        broker = _StubBroker(records=[])
+        conn = MessageBrokerConnection(client=broker)
+        src = object.__new__(DebeziumSource)
         with self.assertRaisesRegex(ValueError, "max_messages"):
-            DebeziumSource(
-                broker=broker,
-                topic="t",
-                max_messages=-1,
-                _config=KnotConfig(id="cdc"),
-            )
+            await DebeziumSource.process(src, broker=conn, topic="t", max_messages=-1)
 
 
 class TestDebeziumSourceBehaviour(unittest.IsolatedAsyncioTestCase):
@@ -107,15 +108,16 @@ class TestDebeziumSourceBehaviour(unittest.IsolatedAsyncioTestCase):
         ]
         broker = _StubBroker(records)
         with Tapestry() as t:
+            broker_knot = MessageBrokerKnot(broker=broker, _config=KnotConfig(id="mb"))
             DebeziumSource(
-                broker=broker,
+                broker=broker_knot,
                 topic="orders.public.customers",
                 max_messages=3,
                 _config=KnotConfig(id="cdc"),
             )
         result = await t.run(RunRequest())
         assert result.succeeded
-        events = next(iter(result.outputs.values()))
+        events = result.outputs["cdc"]
         assert len(events) == 3
         assert events[0]["op"] == "c"
         assert events[0]["after"] == {"id": 1, "name": "A"}
@@ -132,15 +134,16 @@ class TestDebeziumSourceBehaviour(unittest.IsolatedAsyncioTestCase):
         ]
         broker = _StubBroker(records)
         with Tapestry() as t:
+            broker_knot = MessageBrokerKnot(broker=broker, _config=KnotConfig(id="mb"))
             DebeziumSource(
-                broker=broker,
+                broker=broker_knot,
                 topic="t",
                 max_messages=1,
                 _config=KnotConfig(id="cdc"),
             )
         result = await t.run(RunRequest())
         assert result.succeeded
-        events = next(iter(result.outputs.values()))
+        events = result.outputs["cdc"]
         assert events[0]["op"] == "c"
         assert events[0]["after"] == {"id": 9}
 
@@ -148,8 +151,9 @@ class TestDebeziumSourceBehaviour(unittest.IsolatedAsyncioTestCase):
         records = [_StubRecord(json.dumps([1, 2, 3]))]
         broker = _StubBroker(records)
         with Tapestry() as t:
+            broker_knot = MessageBrokerKnot(broker=broker, _config=KnotConfig(id="mb"))
             DebeziumSource(
-                broker=broker,
+                broker=broker_knot,
                 topic="t",
                 max_messages=1,
                 _config=KnotConfig(id="cdc"),
@@ -161,8 +165,9 @@ class TestDebeziumSourceBehaviour(unittest.IsolatedAsyncioTestCase):
         records = [_StubRecord(json.dumps({"after": {"id": 1}}))]
         broker = _StubBroker(records)
         with Tapestry() as t:
+            broker_knot = MessageBrokerKnot(broker=broker, _config=KnotConfig(id="mb"))
             DebeziumSource(
-                broker=broker,
+                broker=broker_knot,
                 topic="t",
                 max_messages=1,
                 _config=KnotConfig(id="cdc"),
@@ -174,8 +179,9 @@ class TestDebeziumSourceBehaviour(unittest.IsolatedAsyncioTestCase):
         records = [_StubRecord(json.dumps(_envelope("x")))]
         broker = _StubBroker(records)
         with Tapestry() as t:
+            broker_knot = MessageBrokerKnot(broker=broker, _config=KnotConfig(id="mb"))
             DebeziumSource(
-                broker=broker,
+                broker=broker_knot,
                 topic="t",
                 max_messages=1,
                 _config=KnotConfig(id="cdc"),
@@ -187,8 +193,9 @@ class TestDebeziumSourceBehaviour(unittest.IsolatedAsyncioTestCase):
         records = [_StubRecord("{not json")]
         broker = _StubBroker(records)
         with Tapestry() as t:
+            broker_knot = MessageBrokerKnot(broker=broker, _config=KnotConfig(id="mb"))
             DebeziumSource(
-                broker=broker,
+                broker=broker_knot,
                 topic="t",
                 max_messages=1,
                 _config=KnotConfig(id="cdc"),
@@ -204,13 +211,14 @@ class TestDebeziumSourceBehaviour(unittest.IsolatedAsyncioTestCase):
         ]
         broker = _StubBroker(records)
         with Tapestry() as t:
+            broker_knot = MessageBrokerKnot(broker=broker, _config=KnotConfig(id="mb"))
             DebeziumSource(
-                broker=broker,
+                broker=broker_knot,
                 topic="t",
                 max_messages=3,
                 _config=KnotConfig(id="cdc"),
             )
         result = await t.run(RunRequest())
         assert result.succeeded
-        events = next(iter(result.outputs.values()))
+        events = result.outputs["cdc"]
         assert len(events) == 3

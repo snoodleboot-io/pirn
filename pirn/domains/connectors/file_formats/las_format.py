@@ -85,14 +85,14 @@ class LasFormat(BatchFileFormat):
         depth_values = (
             [row[0] for row in data] if data else []
         )
-        las.add_curve(
+        las.append_curve(
             depth_curve,
             np.array(depth_values, dtype=float),
             unit="m",
         )
         for col_idx, curve_name in enumerate(curves[1:], start=1):
             values = [row[col_idx] for row in data] if data else []
-            las.add_curve(
+            las.append_curve(
                 curve_name,
                 np.array(values, dtype=float),
             )

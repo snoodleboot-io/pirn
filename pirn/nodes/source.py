@@ -1,4 +1,4 @@
-"""Source — a knot with no parents that produces a value from outside.
+"""Source — a knot with no computation parents that produces a value from outside.
 
 Sources are like Parameters but the value is produced by ``process``
 rather than supplied via ``RunRequest``.  Examples: read a file, query a
@@ -9,8 +9,9 @@ collection).  Streaming sources are deferred to Phase 3 alongside the
 trigger/emitter machinery.
 
 Source is a thin subclass of Knot.  Subclasses implement ``process``
-with no parameters (other than self).  The type of the returned value is
-the source's contract.
+with declared parameters for their configuration inputs.  Inputs may be
+``Knot | scalar_type``; the framework auto-coerces plain scalars into
+``Parameter`` nodes so they participate in the graph with lineage.
 """
 
 from __future__ import annotations
@@ -23,35 +24,24 @@ from pirn.core.knot import Knot
 class Source(Knot):
     """Base class for one-shot sources.
 
-    Subclass and implement ``async def process(self) -> T``.  The base
-    enforces no parents (sources have none by definition); pass a
-    ``_config=KnotConfig(id=...)`` like any other knot.
+    Subclass and implement ``async def process(self, ...) -> T``.  All
+    configuration inputs are declared as ``Knot | scalar_type`` in
+    ``__init__`` and as resolved plain types in ``process()``, following
+    the standard two-layer knot pattern.
 
     Example::
 
         class ReadConfig(Source):
-            async def process(self) -> dict:
-                with open("config.json") as f:
+            def __init__(self, *, path: Knot | str, _config: KnotConfig, **kwargs: Any) -> None:
+                super().__init__(path=path, _config=_config, **kwargs)
+
+            async def process(self, path: str, **_: Any) -> dict:
+                with open(path) as f:
                     return json.load(f)
 
         with Tapestry() as t:
-            cfg = ReadConfig(_config=KnotConfig(id="config"))
+            cfg = ReadConfig(path="/etc/config.json", _config=KnotConfig(id="config"))
     """
 
     def __init__(self, **kwargs: Any) -> None:
-        # Sources have no inputs; reject any non-framework kwargs to give
-        # a clear error.
-        bad = {
-            k
-            for k in kwargs
-            if k not in {"_config", "tapestry"} and isinstance(kwargs[k], Knot) is not False
-        }
-        # Actually any non-reserved kwarg is an error for a Source — they
-        # take no inputs.
-        bad = set(kwargs) - {"_config", "tapestry"}
-        if bad:
-            raise TypeError(
-                f"{type(self).__name__} is a Source and takes no inputs; "
-                f"got unexpected kwarg(s) {sorted(bad)!r}"
-            )
         super().__init__(**kwargs)

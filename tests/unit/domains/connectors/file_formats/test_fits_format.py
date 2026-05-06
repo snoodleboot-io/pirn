@@ -129,17 +129,7 @@ class TestFitsFormatErrors(unittest.IsolatedAsyncioTestCase):
 
 class TestFitsFormatMissingDep(unittest.TestCase):
     def test_import_error_message(self) -> None:
-        # TODO(unittest-migrate): replace 'monkeypatch' built-in fixture — use unittest.mock.patch / assertLogs
-        import sys
-        import builtins
-
-        real_import = builtins.__import__
-
-        def _block_astropy(name: str, *args: object, **kwargs: object) -> object:
-            if name == "astropy.io.fits" or name == "astropy":
-                raise ImportError("No module named 'astropy'")
-            return real_import(name, *args, **kwargs)
-
-        monkeypatch.setattr(builtins, "__import__", _block_astropy)
-        with self.assertRaisesRegex(ImportError, "pirn\\[astronomy\\]"):
-            FitsFormat._load_fits()
+        import unittest.mock
+        with unittest.mock.patch.dict("sys.modules", {"astropy": None, "astropy.io": None, "astropy.io.fits": None}):
+            with self.assertRaisesRegex(ImportError, "pirn\\[astronomy\\]"):
+                FitsFormat._load_fits()
