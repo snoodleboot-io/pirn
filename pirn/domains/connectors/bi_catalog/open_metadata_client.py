@@ -129,7 +129,7 @@ class OpenMetadataClient(ApiClient, TableSource, MetadataCatalog):
             f"/api/v1/{entity_type}",
             params=params or None,
         )
-        rows = list(response.get("data") or ())
+        rows: list[Mapping[str, Any]] = list(response.get("data") or [])
         paging = response.get("paging") or {}
         next_cursor = paging.get("after")
         return rows, next_cursor if next_cursor else None
@@ -172,7 +172,7 @@ class OpenMetadataClient(ApiClient, TableSource, MetadataCatalog):
         if self._client is not None:
             aclose_fn = getattr(self._client, "aclose", None)
             if callable(aclose_fn):
-                await aclose_fn()
+                await aclose_fn()  # type: ignore[misc]
             self._client = None
         self._clear_credentials()
         self._closed = True

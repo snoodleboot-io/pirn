@@ -24,9 +24,12 @@ in a future release once every existing call site has migrated.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any, Never
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
+
+if TYPE_CHECKING:
+    from pirn.domains.connectors.dsn_scrubber import DsnScrubber
 
 
 class ApiClient(PirnOpaqueValue):
@@ -63,7 +66,9 @@ class ApiClient(PirnOpaqueValue):
         """Close the client and release any underlying resources."""
         raise NotImplementedError(f"{type(self).__name__} must implement close()")
 
-    def _reraise_scrubbed(self, exc: BaseException) -> None:
+    _scrubber: DsnScrubber
+
+    def _reraise_scrubbed(self, exc: BaseException) -> Never:
         """Re-raise ``exc`` with credential markers scrubbed from the message.
 
         Concrete clients construct ``self._scrubber`` (a

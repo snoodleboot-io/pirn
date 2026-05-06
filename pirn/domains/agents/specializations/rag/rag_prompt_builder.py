@@ -42,7 +42,7 @@ class RAGPromptBuilder(Knot):
         self,
         *,
         query: Knot | str,
-        retrieved: Knot,
+        retrieved: Knot | list[Any],
         _config: KnotConfig,
         instruction: Knot | str = ("Answer the question using the retrieved context."),
         **kwargs: Any,

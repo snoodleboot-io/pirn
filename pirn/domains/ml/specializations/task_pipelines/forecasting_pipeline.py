@@ -66,7 +66,7 @@ class ForecastingPipeline(SubTapestry):
 
     async def process(
         self,
-        pool: DatabaseConnectionPool = None,
+        pool: DatabaseConnectionPool | None = None,
         query: str = "",
         time_column: str = "",
         target_column: str = "",

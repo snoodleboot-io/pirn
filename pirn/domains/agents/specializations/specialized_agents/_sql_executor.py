@@ -64,7 +64,7 @@ class _SQLExecutor(Knot):
         # ``str.format`` interpolation in the generated query.
         pool._reject_inline_interpolation(sql)
         if hasattr(pool, "fetch_all"):
-            rows = await pool.fetch_all(sql)
+            rows = await pool.fetch_all(sql)  # type: ignore[attr-defined]
         else:
             connection = await pool.acquire()
             try:

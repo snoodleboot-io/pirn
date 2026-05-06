@@ -11,9 +11,12 @@ that failed to implement them.
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any, Never
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
+
+if TYPE_CHECKING:
+    from pirn.domains.connectors.dsn_scrubber import DsnScrubber
 
 
 class DatabaseConnectionPool(PirnOpaqueValue):
@@ -50,8 +53,9 @@ class DatabaseConnectionPool(PirnOpaqueValue):
     # * MySQL  — uses ``%s`` as the canonical placeholder.
     # * Clickhouse — uses ``{name:Type}`` as a typed placeholder.
     _inline_interpolation_pattern: str = r"\{[^}]*\}|%[sd]"
+    _scrubber: DsnScrubber
 
-    def _reraise_scrubbed(self, exc: BaseException) -> None:
+    def _reraise_scrubbed(self, exc: BaseException) -> Never:
         """Re-raise ``exc`` with credential markers scrubbed from the message.
 
         Concrete pools construct ``self._scrubber`` (a

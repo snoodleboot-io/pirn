@@ -67,7 +67,7 @@ class DimensionalityReductionPipeline(SubTapestry):
 
     async def process(
         self,
-        pool: DatabaseConnectionPool = None,
+        pool: DatabaseConnectionPool | None = None,
         query: str = "",
         feature_names: Sequence[str] = (),
         algorithm: str = "pca",

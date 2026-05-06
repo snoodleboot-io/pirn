@@ -81,11 +81,11 @@ class EpisodicMemoryRetriever(Knot):
             candidate = await candidate
         if hasattr(candidate, "__aiter__"):
             collected: list[Mapping[str, Any]] = []
-            async for item in candidate:
+            async for item in candidate:  # type: ignore[misc]
                 collected.append(item)
                 if len(collected) >= top_k:
                     break
             return collected
         if isinstance(candidate, list):
             return list(candidate[:top_k])
-        return [item for item in candidate][:top_k]
+        return [item for item in candidate][:top_k]  # type: ignore[misc]

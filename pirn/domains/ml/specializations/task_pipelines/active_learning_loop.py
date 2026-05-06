@@ -66,7 +66,7 @@ class ActiveLearningLoop(SubTapestry):
 
     async def process(
         self,
-        pool: DatabaseConnectionPool = None,
+        pool: DatabaseConnectionPool | None = None,
         query: str = "",
         target_column: str = "",
         feature_names: Sequence[str] = (),

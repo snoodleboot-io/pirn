@@ -82,7 +82,7 @@ class DataHubClient(ApiClient, TableSource, MetadataCatalog):
             "count": count,
         }
         response = await self.request("GET", "/entities", params=params)
-        entities = list(response.get("entities") or ())
+        entities: list[Mapping[str, Any]] = list(response.get("entities") or [])
         total = int(response.get("total") or 0)
         next_offset = start + count
         next_cursor = str(next_offset) if next_offset < total else None
@@ -166,7 +166,7 @@ class DataHubClient(ApiClient, TableSource, MetadataCatalog):
         if self._client is not None:
             aclose_fn = getattr(self._client, "aclose", None)
             if callable(aclose_fn):
-                await aclose_fn()
+                await aclose_fn()  # type: ignore[misc]
             self._client = None
         self._clear_credentials()
         self._closed = True

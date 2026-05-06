@@ -108,15 +108,16 @@ class DremioPool(DatabaseConnectionPool):
         if self._config is None:
             raise RuntimeError("DremioPool: missing config and no injected connection")
 
-        scheme = "grpc+tls" if self._config.tls else "grpc+tcp"
-        location = f"{scheme}://{self._config.host}:{self._config.port}"
+        config = self._config
+        scheme = "grpc+tls" if config.tls else "grpc+tcp"
+        location = f"{scheme}://{config.host}:{config.port}"
 
         def _connect() -> Any:
             import base64
 
-            raw = f"{self._config.username}:{self._config.password}"
+            raw = f"{config.username}:{config.password}"
             encoded = base64.b64encode(raw.encode()).decode()
-            options = flight.FlightCallOptions(
+            options = flight.FlightCallOptions(  # type: ignore[attr-defined]
                 headers=[(b"authorization", f"Basic {encoded}".encode())]
             )
             client = flight.FlightClient(location, generic_options=[])

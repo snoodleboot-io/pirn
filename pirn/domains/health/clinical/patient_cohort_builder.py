@@ -106,6 +106,6 @@ class PatientCohortBuilder(SubTapestry):
                     _config=KnotConfig(id=f"cohort-stage-{stage_name}"),
                 )
             # Tie the last stage with the seed for graph completeness.
-            _ = previous
-            _ = seed
+            _prev = previous
+            _seed = seed
         return await self._run_inner(inner)

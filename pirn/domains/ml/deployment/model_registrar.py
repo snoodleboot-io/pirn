@@ -53,7 +53,7 @@ class ModelRegistrar(Knot):
         serialized: bytes,
         model: TrainedModel,
         lineage: LineageStore,
-        store: ObjectStore = None,
+        store: ObjectStore | None = None,
         **_: Any,
     ) -> str:
         """Write model bytes to the object store, log a lineage event, and return the model_id.
@@ -74,6 +74,8 @@ class ModelRegistrar(Knot):
             raise TypeError("ModelRegistrar: serialized must resolve to bytes")
         if not isinstance(model, TrainedModel):
             raise TypeError("ModelRegistrar: model must resolve to a TrainedModel")
+        if store is None:
+            raise TypeError("ModelRegistrar: store must be an ObjectStore")
         key = f"models/{model.model_id}.bin"
         await store.put(key, bytes(serialized))
         await lineage.log_event(

@@ -118,14 +118,14 @@ class ContinuousTrainingPipeline(SubTapestry):
 
     async def process(
         self,
-        pool: DatabaseConnectionPool = None,
+        pool: DatabaseConnectionPool | None = None,
         query: str = "",
         name: str = "",
         feature_names: Sequence[str] = (),
         target_name: str = "",
         algorithm: str = "",
         lineage: LineageStore | None = None,
-        store: ObjectStore = None,
+        store: ObjectStore | None = None,
         metrics: Sequence[str] = (),
         freshness_window_days: int = 1,
         **_: Any,

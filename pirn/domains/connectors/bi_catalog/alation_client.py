@@ -170,7 +170,7 @@ class AlationClient(ApiClient, TableSource, MetadataCatalog):
         if self._client is not None:
             aclose_fn = getattr(self._client, "aclose", None)
             if callable(aclose_fn):
-                await aclose_fn()
+                await aclose_fn()  # type: ignore[misc]
             self._client = None
         self._clear_credentials()
         self._closed = True

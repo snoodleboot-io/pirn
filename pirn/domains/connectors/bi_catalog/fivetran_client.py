@@ -94,7 +94,7 @@ class FivetranClient(ApiClient, TableSource):
             params["limit"] = limit
         response = await self.request("GET", f"/{resource}", params=params or None)
         data = response.get("data") or {}
-        rows = list(data.get("items") or ())
+        rows: list[Mapping[str, Any]] = list(data.get("items") or [])
         next_cursor = data.get("next_cursor")
         return rows, next_cursor if next_cursor else None
 
@@ -129,7 +129,7 @@ class FivetranClient(ApiClient, TableSource):
         if self._client is not None:
             aclose_fn = getattr(self._client, "aclose", None)
             if callable(aclose_fn):
-                await aclose_fn()
+                await aclose_fn()  # type: ignore[misc]
             self._client = None
         self._clear_credentials()
         self._closed = True

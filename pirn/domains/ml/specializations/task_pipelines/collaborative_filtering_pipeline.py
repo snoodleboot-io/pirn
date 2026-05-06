@@ -66,7 +66,7 @@ class CollaborativeFilteringPipeline(SubTapestry):
 
     async def process(
         self,
-        pool: DatabaseConnectionPool = None,
+        pool: DatabaseConnectionPool | None = None,
         query: str = "",
         user_column: str = "",
         item_column: str = "",

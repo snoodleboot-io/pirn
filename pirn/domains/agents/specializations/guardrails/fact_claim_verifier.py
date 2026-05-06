@@ -88,7 +88,7 @@ class FactClaimVerifier(Knot):
                 iterator = await iterator  # type: ignore[assignment]
             hits: list[Any] = []
             if hasattr(iterator, "__aiter__"):
-                async for hit in iterator:
+                async for hit in iterator:  # type: ignore[misc]
                     hits.append(hit)
                     break
             elif isinstance(iterator, list):

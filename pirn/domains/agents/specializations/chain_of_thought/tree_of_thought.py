@@ -110,11 +110,11 @@ class TreeOfThought(Knot):
         if not isinstance(depth, int) or depth <= 0:
             raise ValueError(f"TreeOfThought: depth must be a positive int, got {depth!r}")
         beam: list[tuple[str, float]] = [(prompt, 0.0)]
-        for _ in range(depth):
+        for _i in range(depth):
             candidates: list[tuple[str, float]] = []
-            expansion_tasks = [self._expand(path, llm, k_candidates) for path, _ in beam]
+            expansion_tasks = [self._expand(path, llm, k_candidates) for path, _s in beam]
             expanded_batches = await asyncio.gather(*expansion_tasks)
-            for (parent_path, _), new_thoughts in zip(beam, expanded_batches, strict=False):
+            for (parent_path, _s), new_thoughts in zip(beam, expanded_batches, strict=False):
                 for thought in new_thoughts:
                     combined = f"{parent_path}\n{thought}"
                     candidates.append((combined, 0.0))

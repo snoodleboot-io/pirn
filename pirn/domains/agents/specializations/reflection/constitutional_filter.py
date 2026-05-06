@@ -103,7 +103,7 @@ class ConstitutionalFilter(Knot):
         principles_text = "\n".join(f"- {p}" for p in principles)
         current_content = response.content
 
-        for _ in range(max_revisions):
+        for _i in range(max_revisions):
             messages = [
                 {"role": "system", "content": type(self)._evaluation_system},
                 {

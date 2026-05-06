@@ -62,7 +62,7 @@ class Predictor(Knot):
         model_id: str,
         features: Iterable[Mapping[str, Any]],
         lineage: LineageStore,
-        store: ObjectStore = None,
+        store: ObjectStore | None = None,
         **_: Any,
     ) -> list[Any]:
         """Load the model from the registry and score each feature row, returning a list of predictions.

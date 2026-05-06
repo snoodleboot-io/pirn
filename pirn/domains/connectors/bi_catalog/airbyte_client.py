@@ -98,7 +98,7 @@ class AirbyteClient(ApiClient, TableSource):
             f"/v1/{resource}/list",
             body=body or None,
         )
-        rows = list(response.get("data") or ())
+        rows: list[Mapping[str, Any]] = list(response.get("data") or [])
         next_cursor = response.get("next_cursor")
         return rows, next_cursor if next_cursor else None
 
@@ -133,7 +133,7 @@ class AirbyteClient(ApiClient, TableSource):
         if self._client is not None:
             aclose_fn = getattr(self._client, "aclose", None)
             if callable(aclose_fn):
-                await aclose_fn()
+                await aclose_fn()  # type: ignore[misc]
             self._client = None
         self._clear_credentials()
         self._closed = True

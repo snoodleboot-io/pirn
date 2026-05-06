@@ -60,7 +60,7 @@ class NamedEntityRecognitionPipeline(SubTapestry):
 
     async def process(
         self,
-        pool: DatabaseConnectionPool = None,
+        pool: DatabaseConnectionPool | None = None,
         query: str = "",
         text_column: str = "",
         label_column: str = "",

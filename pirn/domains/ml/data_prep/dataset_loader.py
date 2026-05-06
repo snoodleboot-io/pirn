@@ -104,9 +104,11 @@ class DatasetLoader(Knot):
         if parquet_path is not None and (not isinstance(parquet_path, str) or not parquet_path):
             raise ValueError("DatasetLoader: parquet_path must be a non-empty string")
         if has_pool_query:
+            assert pool is not None and query is not None
             row_count = await self._count_pool_rows(pool, query)
             source_uri = f"db://{type(pool).__name__}"
         else:
+            assert parquet_path is not None
             row_count = await self._count_parquet_rows(parquet_path)
             source_uri = f"file://{parquet_path}"
         return MLDataset(
