@@ -568,8 +568,8 @@ name = "astunparse"
 version = "1.6.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "six" },
-    { name = "wheel" },
+    { name = "six", marker = "python_full_version < '3.14'" },
+    { name = "wheel", marker = "python_full_version < '3.14'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/f3/af/4182184d3c338792894f34a62672919db7ca008c89abee9b564dd34d8029/astunparse-1.6.3.tar.gz", hash = "sha256:5ad93a8456f0d084c3456d059fd9a92cce667963232cbf763eac3bc5b7940872", size = 18290, upload-time = "2019-12-22T18:12:13.129Z" }
 wheels = [
@@ -1068,6 +1068,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/4a/51/cace2747a517667bbbe5fcab1f35958ad05c778251a452c461b8b3649dbe/cfgrib-0.9.15.1.tar.gz", hash = "sha256:d959d8b97e55a63646fa86686b297905ff7f2918a91e3a11d6292dab09598e4d", size = 9746591, upload-time = "2025-09-30T22:46:14.133Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/6d/e8/16c58c57c9ce1474dd1e50090ebd78b008c70fc4f06793da65f9a0aba391/cfgrib-0.9.15.1-py3-none-any.whl", hash = "sha256:f1bee90e86917389be9f767051bf32d00f95f6f4e4312b344567511b3cfd62d2", size = 49123, upload-time = "2025-09-30T22:46:12.206Z" },
+]
+
+[[package]]
+name = "cfgv"
+version = "3.5.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/4e/b5/721b8799b04bf9afe054a3899c6cf4e880fcf8563cc71c15610242490a0c/cfgv-3.5.0.tar.gz", hash = "sha256:d5b1034354820651caa73ede66a6294d6e95c1b00acc5e9b098e917404669132", size = 7334, upload-time = "2025-11-19T20:55:51.612Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/db/3c/33bac158f8ab7f89b2e59426d5fe2e4f63f7ed25df84c036890172b412b5/cfgv-3.5.0-py2.py3-none-any.whl", hash = "sha256:a8dc6b26ad22ff227d2634a65cb388215ce6cc96bbcc5cfde7641ae87e8dacc0", size = 7445, upload-time = "2025-11-19T20:55:50.744Z" },
 ]
 
 [[package]]
@@ -1926,6 +1935,15 @@ wheels = [
 ]
 
 [[package]]
+name = "distlib"
+version = "0.4.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/96/8e/709914eb2b5749865801041647dc7f4e6d00b549cfe88b65ca192995f07c/distlib-0.4.0.tar.gz", hash = "sha256:feec40075be03a04501a973d81f633735b4b69f98b05450592310c0f401a4e0d", size = 614605, upload-time = "2025-07-17T16:52:00.465Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/33/6b/e0547afaf41bf2c42e52430072fa5658766e3d65bd4b03a563d1b6336f57/distlib-0.4.0-py2.py3-none-any.whl", hash = "sha256:9659f7d87e46584a30b5780e43ac7a2143098441670ff0a49d5f9034c54a6c16", size = 469047, upload-time = "2025-07-17T16:51:58.613Z" },
+]
+
+[[package]]
 name = "distributed"
 version = "2026.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2637,7 +2655,7 @@ name = "google-pasta"
 version = "0.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "six" },
+    { name = "six", marker = "python_full_version < '3.14'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/35/4a/0bd53b36ff0323d10d5f24ebd67af2de10a1117f5cf4d7add90df92756f1/google-pasta-0.2.0.tar.gz", hash = "sha256:c9f2c8dfc8f96d0d5808299920721be30c9eec37f2389f28904f454565c8a16e", size = 40430, upload-time = "2020-03-13T18:57:50.34Z" }
 wheels = [
@@ -2897,6 +2915,15 @@ wheels = [
 ]
 
 [[package]]
+name = "identify"
+version = "2.6.19"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/52/63/51723b5f116cc04b061cb6f5a561790abf249d25931d515cd375e063e0f4/identify-2.6.19.tar.gz", hash = "sha256:6be5020c38fcb07da56c53733538a3081ea5aa70d36a156f83044bfbf9173842", size = 99567, upload-time = "2026-04-17T18:39:50.265Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/94/84/d9273cd09688070a6523c4aee4663a8538721b2b755c4962aafae0011e72/identify-2.6.19-py2.py3-none-any.whl", hash = "sha256:20e6a87f786f768c092a721ad107fc9df0eb89347be9396cadf3f4abbd1fb78a", size = 99397, upload-time = "2026-04-17T18:39:49.221Z" },
+]
+
+[[package]]
 name = "idna"
 version = "3.13"
 source = { registry = "https://pypi.org/simple" }
@@ -3065,14 +3092,14 @@ name = "keras"
 version = "3.14.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "absl-py" },
-    { name = "h5py" },
-    { name = "ml-dtypes" },
-    { name = "namex" },
-    { name = "numpy" },
-    { name = "optree" },
-    { name = "packaging" },
-    { name = "rich" },
+    { name = "absl-py", marker = "python_full_version < '3.14'" },
+    { name = "h5py", marker = "python_full_version < '3.14'" },
+    { name = "ml-dtypes", marker = "python_full_version < '3.14'" },
+    { name = "namex", marker = "python_full_version < '3.14'" },
+    { name = "numpy", marker = "python_full_version < '3.14'" },
+    { name = "optree", marker = "python_full_version < '3.14'" },
+    { name = "packaging", marker = "python_full_version < '3.14'" },
+    { name = "rich", marker = "python_full_version < '3.14'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/88/ce/47874047a49eedc2a5d3b41bc4f1f572bb637f51e4351ef3538e49a63800/keras-3.14.0.tar.gz", hash = "sha256:86fcf8249a25264a566ac393c287c7ad657000e5e62615dcaad4b3472a17aeda", size = 1263098, upload-time = "2026-04-03T01:42:16.386Z" }
 wheels = [
@@ -4773,7 +4800,7 @@ name = "optree"
 version = "0.19.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typing-extensions" },
+    { name = "typing-extensions", marker = "python_full_version < '3.14'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/44/63/92328a17ab7836562fe0129e605f685a88db35ce98427c34ff48ee4ec157/optree-0.19.1.tar.gz", hash = "sha256:4497d1c9197b8c6842e511368163d318ce536521ebdcff8bebb7551dcdfac532", size = 177531, upload-time = "2026-05-06T02:32:39.704Z" }
 wheels = [
@@ -5641,7 +5668,7 @@ stripe = [
     { name = "stripe" },
 ]
 tensorflow = [
-    { name = "tensorflow" },
+    { name = "tensorflow", marker = "python_full_version < '3.14'" },
 ]
 tflite = [
     { name = "ai-edge-litert", marker = "python_full_version < '3.14'" },
@@ -5678,6 +5705,7 @@ zstd = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "pre-commit" },
     { name = "pytest-benchmark" },
     { name = "pytest-timeout" },
 ]
@@ -5926,7 +5954,7 @@ requires-dist = [
     { name = "stripe", marker = "extra == 'stripe'", specifier = ">=7.0" },
     { name = "striprtf", marker = "extra == 'rtf'", specifier = ">=0.0.27" },
     { name = "sweet-tea", specifier = ">=0.2.46" },
-    { name = "tensorflow", marker = "extra == 'tensorflow'", specifier = ">=2.21" },
+    { name = "tensorflow", marker = "python_full_version < '3.14' and extra == 'tensorflow'", specifier = ">=2.21" },
     { name = "tifffile", marker = "extra == 'all'", specifier = ">=2026.3.3" },
     { name = "tifffile", marker = "extra == 'tiff'", specifier = ">=2026.3.3" },
     { name = "torch", marker = "extra == 'pytorch'", specifier = ">=2.0" },
@@ -5946,6 +5974,7 @@ provides-extras = ["dev", "sqlite", "duckdb", "postgres", "valkey", "s3", "gcs",
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "pre-commit", specifier = ">=4.6.0" },
     { name = "pytest-benchmark", specifier = ">=5.2.3" },
     { name = "pytest-timeout", specifier = ">=2.4.0" },
 ]
@@ -6008,6 +6037,22 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/83/43/85ef45e8b36c6a48546af7b266592dc32d7f67837a6514d111bced6d7d75/pooch-1.9.0.tar.gz", hash = "sha256:de46729579b9857ffd3e741987a2f6d5e0e03219892c167c6578c0091fb511ed", size = 61788, upload-time = "2026-01-30T19:15:09.649Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/2a/2d/d4bf65e47cea8ff2c794a600c4fd1273a7902f268757c531e0ee9f18aa58/pooch-1.9.0-py3-none-any.whl", hash = "sha256:f265597baa9f760d25ceb29d0beb8186c243d6607b0f60b83ecf14078dbc703b", size = 67175, upload-time = "2026-01-30T19:15:08.36Z" },
+]
+
+[[package]]
+name = "pre-commit"
+version = "4.6.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cfgv" },
+    { name = "identify" },
+    { name = "nodeenv" },
+    { name = "pyyaml" },
+    { name = "virtualenv" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/8e/22/2de9408ac81acbb8a7d05d4cc064a152ccf33b3d480ebe0cd292153db239/pre_commit-4.6.0.tar.gz", hash = "sha256:718d2208cef53fdc38206e40524a6d4d9576d103eb16f0fec11c875e7716e9d9", size = 198525, upload-time = "2026-04-21T20:31:41.613Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/80/6e/4b28b62ecb6aae56769c34a8ff1d661473ec1e9519e2d5f8b2c150086b26/pre_commit-4.6.0-py2.py3-none-any.whl", hash = "sha256:e2cf246f7299edcabcf15f9b0571fdce06058527f0a06535068a86d38089f29b", size = 226472, upload-time = "2026-04-21T20:31:40.092Z" },
 ]
 
 [[package]]
@@ -6997,6 +7042,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/66/c0/0c8b6ad9f17a802ee498c46e004a0eb49bc148f2fd230864601a86dcf6db/python-dateutil-2.9.0.post0.tar.gz", hash = "sha256:37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3", size = 342432, upload-time = "2024-03-01T18:36:20.211Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ec/57/56b9bcc3c9c6a792fcbaf139543cee77261f3651ca9da0c93f5c1221264b/python_dateutil-2.9.0.post0-py2.py3-none-any.whl", hash = "sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427", size = 229892, upload-time = "2024-03-01T18:36:18.57Z" },
+]
+
+[[package]]
+name = "python-discovery"
+version = "1.3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "filelock" },
+    { name = "platformdirs" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ae/e0/cc5a8653e9a24f6cf84768f05064aa8ed5a83dcefd5e2a043db14a1c5f44/python_discovery-1.3.0.tar.gz", hash = "sha256:d098f1e86be5d45fe4d14bf1029294aabbd332f4321179dec85e76cddce834b0", size = 63925, upload-time = "2026-05-05T14:38:39.769Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/30/d4/24d543ab8b8158b7f5a97113c831205f5c900c92c8762b1e7f44b7ea0405/python_discovery-1.3.0-py3-none-any.whl", hash = "sha256:441d9ced3dfce36e113beb35ca302c71c7ef06f3c0f9c227a0b9bb3bd49b9e9f", size = 33124, upload-time = "2026-05-05T14:38:38.539Z" },
 ]
 
 [[package]]
@@ -8221,26 +8279,26 @@ name = "tensorflow"
 version = "2.21.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "absl-py" },
-    { name = "astunparse" },
-    { name = "flatbuffers" },
-    { name = "gast" },
-    { name = "google-pasta" },
-    { name = "grpcio" },
-    { name = "h5py" },
-    { name = "keras" },
-    { name = "libclang" },
-    { name = "ml-dtypes" },
-    { name = "numpy" },
-    { name = "opt-einsum" },
-    { name = "packaging" },
-    { name = "protobuf" },
-    { name = "requests" },
-    { name = "setuptools" },
-    { name = "six" },
-    { name = "termcolor" },
-    { name = "typing-extensions" },
-    { name = "wrapt" },
+    { name = "absl-py", marker = "python_full_version < '3.14'" },
+    { name = "astunparse", marker = "python_full_version < '3.14'" },
+    { name = "flatbuffers", marker = "python_full_version < '3.14'" },
+    { name = "gast", marker = "python_full_version < '3.14'" },
+    { name = "google-pasta", marker = "python_full_version < '3.14'" },
+    { name = "grpcio", marker = "python_full_version < '3.14'" },
+    { name = "h5py", marker = "python_full_version < '3.14'" },
+    { name = "keras", marker = "python_full_version < '3.14'" },
+    { name = "libclang", marker = "python_full_version < '3.14'" },
+    { name = "ml-dtypes", marker = "python_full_version < '3.14'" },
+    { name = "numpy", marker = "python_full_version < '3.14'" },
+    { name = "opt-einsum", marker = "python_full_version < '3.14'" },
+    { name = "packaging", marker = "python_full_version < '3.14'" },
+    { name = "protobuf", marker = "python_full_version < '3.14'" },
+    { name = "requests", marker = "python_full_version < '3.14'" },
+    { name = "setuptools", marker = "python_full_version < '3.14'" },
+    { name = "six", marker = "python_full_version < '3.14'" },
+    { name = "termcolor", marker = "python_full_version < '3.14'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.14'" },
+    { name = "wrapt", marker = "python_full_version < '3.14'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ec/76/b649b02a243c09f0348199dbd81408c1558cfbec2b6d77d820c428a95254/tensorflow-2.21.0-cp311-cp311-macosx_12_0_arm64.whl", hash = "sha256:51f46f4806139d01fc7920cc72a4c75876f80649bf40ff083ab6212ceb43ca88", size = 223405849, upload-time = "2026-03-06T17:23:12.976Z" },
@@ -8678,6 +8736,21 @@ wheels = [
 ]
 
 [[package]]
+name = "virtualenv"
+version = "21.3.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "distlib" },
+    { name = "filelock" },
+    { name = "platformdirs" },
+    { name = "python-discovery" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ec/0d/915c02c94d207b85580eb09bffab54438a709e7288524094fe781da526c2/virtualenv-21.3.1.tar.gz", hash = "sha256:c2305bc1fddeec40699b8370d13f8d431b0701f00ce895061ce493aeded4426b", size = 7613791, upload-time = "2026-05-05T01:34:31.402Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b1/4f/f71e641e504111a5a74e3a20bc52d01bd86788b22699dd3fee1c63253cf6/virtualenv-21.3.1-py3-none-any.whl", hash = "sha256:d1a71cf58f2f9228fff23a1f6ec15d39785c6b32e03658d104974247145edd35", size = 7594539, upload-time = "2026-05-05T01:34:28.98Z" },
+]
+
+[[package]]
 name = "watchdog"
 version = "6.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -8727,7 +8800,7 @@ name = "wheel"
 version = "0.47.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "packaging" },
+    { name = "packaging", marker = "python_full_version < '3.14'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/39/62/75f18a0f03b4219c456652c7780e4d749b929eb605c098ce3a5b6b6bc081/wheel-0.47.0.tar.gz", hash = "sha256:cc72bd1009ba0cf63922e28f94d9d83b920aa2bb28f798a31d0691b02fa3c9b3", size = 63854, upload-time = "2026-04-22T15:51:27.727Z" }
 wheels = [

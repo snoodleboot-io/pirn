@@ -1,10 +1,12 @@
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.11.10
+    rev: v0.15.12
     hooks:
       - id: ruff
         args: [--fix]
+        files: ^pirn/
       - id: ruff-format
+        files: ^pirn/
 
   - repo: local
     hooks:
@@ -14,3 +16,4 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
+        files: ^pirn/

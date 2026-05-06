@@ -31,7 +31,9 @@ class MethylationArrayProcessor(Knot):
     """Process Illumina methylation array data: normalize, QC, compute beta/M values."""
 
     _valid_array_types: ClassVar[frozenset[str]] = frozenset({"epic", "450k", "27k"})
-    _valid_normalizations: ClassVar[frozenset[str]] = frozenset({"ssnoob", "quantile", "noob", "raw"})
+    _valid_normalizations: ClassVar[frozenset[str]] = frozenset(
+        {"ssnoob", "quantile", "noob", "raw"}
+    )
 
     def __init__(
         self,

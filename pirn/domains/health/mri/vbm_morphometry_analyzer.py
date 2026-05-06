@@ -30,7 +30,9 @@ from pirn.core.knot_config import KnotConfig
 class VBMMorphometryAnalyzer(Knot):
     """Voxel-based morphometry analysis of structural MRI to quantify gray matter density."""
 
-    _valid_tissue_types: ClassVar[frozenset[str]] = frozenset({"gray_matter", "white_matter", "csf"})
+    _valid_tissue_types: ClassVar[frozenset[str]] = frozenset(
+        {"gray_matter", "white_matter", "csf"}
+    )
 
     def __init__(
         self,
@@ -78,7 +80,7 @@ class VBMMorphometryAnalyzer(Knot):
                 f"VBMMorphometryAnalyzer: tissue_type must be one of "
                 f"{sorted(self._valid_tissue_types)}"
             )
-        if not isinstance(smoothing_fwhm_mm, (int, float)) or float(smoothing_fwhm_mm) <= 0:
+        if not isinstance(smoothing_fwhm_mm, int | float) or float(smoothing_fwhm_mm) <= 0:
             raise ValueError("VBMMorphometryAnalyzer: smoothing_fwhm_mm must be > 0")
         nifti_path: str = normalized_image.get("nifti_path", "image.nii.gz")
         base = nifti_path.removesuffix(".nii.gz")

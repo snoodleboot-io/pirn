@@ -24,7 +24,9 @@ from pirn.core.knot_config import KnotConfig
 class EEGMontageApplier(Knot):
     """Apply electrode montage (re-reference, set channel positions) to EEG data."""
 
-    _valid_references: ClassVar[frozenset[str]] = frozenset({"average", "linked_mastoids", "cz", "nose"})
+    _valid_references: ClassVar[frozenset[str]] = frozenset(
+        {"average", "linked_mastoids", "cz", "nose"}
+    )
 
     def __init__(
         self,

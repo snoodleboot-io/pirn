@@ -124,7 +124,6 @@ class OpenSlideFormat(BatchFileFormat):
 
     @staticmethod
     def _read_level_bytes(slide: Any, level: int, dimensions: tuple[int, int]) -> bytes:
-
         region = slide.read_region((0, 0), level, dimensions)
         rgb = region.convert("RGB")
         return rgb.tobytes()

@@ -28,7 +28,9 @@ from pirn.core.knot_config import KnotConfig
 class GeneSetEnrichmentRunner(Knot):
     """Run GSEA or over-representation analysis on a ranked gene list."""
 
-    _valid_databases: ClassVar[frozenset[str]] = frozenset({"hallmark", "kegg", "reactome", "go_bp", "go_mf"})
+    _valid_databases: ClassVar[frozenset[str]] = frozenset(
+        {"hallmark", "kegg", "reactome", "go_bp", "go_mf"}
+    )
     _valid_methods: ClassVar[frozenset[str]] = frozenset({"gsea", "ora"})
 
     def __init__(
@@ -81,7 +83,7 @@ class GeneSetEnrichmentRunner(Knot):
             raise ValueError(
                 f"GeneSetEnrichmentRunner: method must be one of {sorted(self._valid_methods)}"
             )
-        if not isinstance(fdr_threshold, (int, float)) or not (0.0 <= float(fdr_threshold) <= 1.0):
+        if not isinstance(fdr_threshold, int | float) or not (0.0 <= float(fdr_threshold) <= 1.0):
             raise ValueError("GeneSetEnrichmentRunner: fdr_threshold must be in [0, 1]")
         return {
             "enriched_sets": [],

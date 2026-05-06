@@ -35,7 +35,9 @@ from pirn.domains.data.identifier_validator import IdentifierValidator
 class DatePartExtractor(Knot):
     """Append calendar-part columns extracted from a datetime column."""
 
-    _valid_parts: ClassVar[frozenset[str]] = frozenset(("year", "month", "day", "hour", "weekday", "quarter"))
+    _valid_parts: ClassVar[frozenset[str]] = frozenset(
+        ("year", "month", "day", "hour", "weekday", "quarter")
+    )
 
     def __init__(
         self,

@@ -131,7 +131,6 @@ class Engine:
         request: RunRequest,
         emitter_error_policy: EmitterErrorPolicy = EmitterErrorPolicy.WARN,
     ) -> RunResult:
-
         # Bind parameters.  Setup-time errors propagate; recovery is the
         # caller's job (correct an unbound parameter and try again).
         self._bind_parameters(shed, ctx)
