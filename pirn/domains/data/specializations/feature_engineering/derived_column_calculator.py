@@ -32,35 +32,37 @@ import ast
 import operator
 from typing import Any
 
+from typing import ClassVar
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.data.identifier_validator import IdentifierValidator
 
-_BIN_OPS: dict[type, Any] = {
-    ast.Add: operator.add,
-    ast.Sub: operator.sub,
-    ast.Mult: operator.mul,
-    ast.Div: operator.truediv,
-    ast.FloorDiv: operator.floordiv,
-    ast.Mod: operator.mod,
-    ast.Pow: operator.pow,
-}
-_CMP_OPS: dict[type, Any] = {
-    ast.Eq: operator.eq,
-    ast.NotEq: operator.ne,
-    ast.Lt: operator.lt,
-    ast.LtE: operator.le,
-    ast.Gt: operator.gt,
-    ast.GtE: operator.ge,
-}
-_UNARY_OPS: dict[type, Any] = {
-    ast.USub: operator.neg,
-    ast.UAdd: operator.pos,
-}
-
 
 class DerivedColumnCalculator(Knot):
     """Append computed columns to each row using safe AST-evaluated expressions."""
+
+    _bin_ops: ClassVar[dict[type, Any]] = {
+        ast.Add: operator.add,
+        ast.Sub: operator.sub,
+        ast.Mult: operator.mul,
+        ast.Div: operator.truediv,
+        ast.FloorDiv: operator.floordiv,
+        ast.Mod: operator.mod,
+        ast.Pow: operator.pow,
+    }
+    _cmp_ops: ClassVar[dict[type, Any]] = {
+        ast.Eq: operator.eq,
+        ast.NotEq: operator.ne,
+        ast.Lt: operator.lt,
+        ast.LtE: operator.le,
+        ast.Gt: operator.gt,
+        ast.GtE: operator.ge,
+    }
+    _unary_ops: ClassVar[dict[type, Any]] = {
+        ast.USub: operator.neg,
+        ast.UAdd: operator.pos,
+    }
 
     def __init__(
         self,
@@ -86,14 +88,14 @@ class DerivedColumnCalculator(Knot):
                 raise ValueError(f"DerivedColumnCalculator: unknown column {node.id!r}")
             return row[node.id]
         if isinstance(node, ast.BinOp):
-            op = _BIN_OPS.get(type(node.op))
+            op = cls._bin_ops.get(type(node.op))
             if op is None:
                 raise ValueError(
                     f"DerivedColumnCalculator: unsupported operator {type(node.op).__name__}"
                 )
             return op(cls._eval_node(node.left, row), cls._eval_node(node.right, row))
         if isinstance(node, ast.UnaryOp):
-            op = _UNARY_OPS.get(type(node.op))
+            op = cls._unary_ops.get(type(node.op))
             if op is None:
                 raise ValueError(
                     f"DerivedColumnCalculator: unsupported unary operator {type(node.op).__name__}"
@@ -102,7 +104,7 @@ class DerivedColumnCalculator(Knot):
         if isinstance(node, ast.Compare):
             left = cls._eval_node(node.left, row)
             for cmp_op, comparator in zip(node.ops, node.comparators, strict=False):
-                op = _CMP_OPS.get(type(cmp_op))
+                op = cls._cmp_ops.get(type(cmp_op))
                 if op is None:
                     raise ValueError(
                         f"DerivedColumnCalculator: unsupported comparison {type(cmp_op).__name__}"

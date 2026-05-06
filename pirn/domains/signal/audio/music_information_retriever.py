@@ -25,6 +25,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
+from typing import ClassVar
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
@@ -37,7 +39,7 @@ class MusicInformationRetriever(Knot):
     (``msaf``, ``mir_eval``).
     """
 
-    _ALLOWED_FEATURES: frozenset[str] = frozenset(
+    _allowed_features: ClassVar[frozenset[str]] = frozenset(
         {"chroma", "tempo", "key", "structure", "harmonic", "percussive"}
     )
 
@@ -77,10 +79,10 @@ class MusicInformationRetriever(Knot):
         if not isinstance(feature_set, tuple) or not feature_set:
             raise ValueError("MusicInformationRetriever: feature_set must be a non-empty tuple")
         for feature in feature_set:
-            if feature not in self._ALLOWED_FEATURES:
+            if feature not in self._allowed_features:
                 raise ValueError(
                     f"MusicInformationRetriever: unknown feature {feature!r}; "
-                    f"allowed: {sorted(self._ALLOWED_FEATURES)!r}"
+                    f"allowed: {sorted(self._allowed_features)!r}"
                 )
         return {
             "signal_id": signal.signal_id,

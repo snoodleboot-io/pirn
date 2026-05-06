@@ -36,7 +36,7 @@ from pirn.domains.agents.tool import Tool
 # JSON Schema type mapping
 # ---------------------------------------------------------------------------
 
-_PY_TO_JSON_TYPE: dict[Any, str] = {
+_py_to_json_type: dict[Any, str] = {
     str: "string",
     int: "integer",
     float: "number",
@@ -101,7 +101,7 @@ def _annotation_to_schema(annotation: Any) -> dict[str, Any]:
     if origin is dict:
         return {"type": "object"}
 
-    json_type = _PY_TO_JSON_TYPE.get(annotation)
+    json_type = _py_to_json_type.get(annotation)
     if json_type:
         return {"type": json_type}
 

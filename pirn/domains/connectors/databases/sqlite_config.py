@@ -10,12 +10,6 @@ from typing import ClassVar
 from pirn.domains.connectors.connection_config import ConnectionConfig
 from pirn.domains.connectors.connection_config_decorator import connection_config
 
-_ALLOWED_JOURNAL_MODES: frozenset[str] = frozenset(
-    {"DELETE", "TRUNCATE", "PERSIST", "MEMORY", "WAL", "OFF"}
-)
-_SAFE_PRAGMA_NAME: re.Pattern[str] = re.compile(r"^[a-z_]+$")
-
-
 @connection_config(frozen=True)
 class SqliteConfig(ConnectionConfig):
     """Configuration for an async SQLite connection.
@@ -35,6 +29,11 @@ class SqliteConfig(ConnectionConfig):
         names must match ``[a-z_]+`` to prevent injection.
     """
 
+    _allowed_journal_modes: ClassVar[frozenset[str]] = frozenset(
+        {"DELETE", "TRUNCATE", "PERSIST", "MEMORY", "WAL", "OFF"}
+    )
+    _safe_pragma_name: ClassVar[re.Pattern[str]] = re.compile(r"^[a-z_]+$")
+
     database: str | Path = ":memory:"
     timeout: float = 5.0
     journal_mode: str = "WAL"
@@ -43,13 +42,13 @@ class SqliteConfig(ConnectionConfig):
     sensitive_fields: ClassVar[tuple[str, ...]] = ()
 
     def __post_init__(self) -> None:
-        if self.journal_mode.upper() not in _ALLOWED_JOURNAL_MODES:
+        if self.journal_mode.upper() not in self._allowed_journal_modes:
             raise ValueError(
                 f"SqliteConfig: journal_mode {self.journal_mode!r} is not allowed. "
-                f"Must be one of: {sorted(_ALLOWED_JOURNAL_MODES)}"
+                f"Must be one of: {sorted(self._allowed_journal_modes)}"
             )
         for index, (name, _value) in enumerate(self.pragmas):
-            if not _SAFE_PRAGMA_NAME.match(name):
+            if not self._safe_pragma_name.match(name):
                 raise ValueError(
                     f"SqliteConfig: pragmas[{index}] name {name!r} contains "
                     "invalid characters. Only lowercase letters and underscores are allowed."

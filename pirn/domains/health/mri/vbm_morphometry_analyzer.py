@@ -23,6 +23,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from typing import ClassVar
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -30,7 +32,7 @@ from pirn.core.knot_config import KnotConfig
 class VBMMorphometryAnalyzer(Knot):
     """Voxel-based morphometry analysis of structural MRI to quantify gray matter density."""
 
-    _VALID_TISSUE_TYPES: frozenset[str] = frozenset({"gray_matter", "white_matter", "csf"})
+    _valid_tissue_types: ClassVar[frozenset[str]] = frozenset({"gray_matter", "white_matter", "csf"})
 
     def __init__(
         self,
@@ -73,10 +75,10 @@ class VBMMorphometryAnalyzer(Knot):
         """
         if not isinstance(normalized_image, dict):
             raise TypeError("VBMMorphometryAnalyzer: normalized_image must be a dict")
-        if not isinstance(tissue_type, str) or tissue_type not in self._VALID_TISSUE_TYPES:
+        if not isinstance(tissue_type, str) or tissue_type not in self._valid_tissue_types:
             raise ValueError(
                 f"VBMMorphometryAnalyzer: tissue_type must be one of "
-                f"{sorted(self._VALID_TISSUE_TYPES)}"
+                f"{sorted(self._valid_tissue_types)}"
             )
         if not isinstance(smoothing_fwhm_mm, (int, float)) or float(smoothing_fwhm_mm) <= 0:
             raise ValueError("VBMMorphometryAnalyzer: smoothing_fwhm_mm must be > 0")

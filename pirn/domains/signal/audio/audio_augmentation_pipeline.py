@@ -26,6 +26,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from typing import ClassVar
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
@@ -40,7 +42,7 @@ class AudioAugmentationPipeline(Knot):
     Production needs ``audiomentations`` or a hand-rolled implementation.
     """
 
-    _VALID_AUGMENTATIONS: frozenset[str] = frozenset(
+    _valid_augmentations: ClassVar[frozenset[str]] = frozenset(
         {"pitch_shift", "time_stretch", "add_noise", "time_mask", "frequency_mask"}
     )
 
@@ -83,7 +85,7 @@ class AudioAugmentationPipeline(Knot):
         """
         if not isinstance(augmentations, tuple) or len(augmentations) == 0:
             raise ValueError("AudioAugmentationPipeline: augmentations must be a non-empty tuple")
-        invalid = set(augmentations) - self._VALID_AUGMENTATIONS
+        invalid = set(augmentations) - self._valid_augmentations
         if invalid:
             raise ValueError(f"AudioAugmentationPipeline: unknown augmentations {sorted(invalid)}")
         if not isinstance(seed, int) or seed < 0:

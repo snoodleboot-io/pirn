@@ -10,7 +10,7 @@ import asyncio
 import re
 from collections.abc import Sequence
 
-_MAX_PATTERN_LENGTH = 500
+_max_pattern_length = 500
 
 
 def compile_safe_pattern(
@@ -24,13 +24,13 @@ def compile_safe_pattern(
     """Compile a user-supplied regex after validating it is within safe length bounds.
 
     Raises:
-        ValueError: If the pattern exceeds _MAX_PATTERN_LENGTH characters or
+        ValueError: If the pattern exceeds _max_pattern_length characters or
             is not a valid regex.
     """
-    if len(raw) > _MAX_PATTERN_LENGTH:
+    if len(raw) > _max_pattern_length:
         raise ValueError(
             f"{owner}: {field}[{index}] exceeds maximum pattern length of "
-            f"{_MAX_PATTERN_LENGTH} characters (got {len(raw)}). "
+            f"{_max_pattern_length} characters (got {len(raw)}). "
             "Long patterns risk catastrophic backtracking."
         )
     try:

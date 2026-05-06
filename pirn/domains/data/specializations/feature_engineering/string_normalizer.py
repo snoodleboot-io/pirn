@@ -25,18 +25,18 @@ from __future__ import annotations
 
 import string
 import unicodedata
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.data.identifier_validator import IdentifierValidator
 
-_PUNCT_TABLE = str.maketrans("", "", string.punctuation)
-_VALID_UNICODE_FORMS = frozenset(("NFC", "NFD", "NFKC", "NFKD", "none"))
-
 
 class StringNormalizer(Knot):
     """Apply configurable normalisation steps to string columns."""
+
+    _punct_table: ClassVar[dict[int, None]] = str.maketrans("", "", string.punctuation)
+    _valid_unicode_forms: ClassVar[frozenset[str]] = frozenset(("NFC", "NFD", "NFKC", "NFKD", "none"))
 
     def __init__(
         self,
@@ -76,7 +76,7 @@ class StringNormalizer(Knot):
         if strip:
             value = value.strip()
         if remove_punctuation:
-            value = value.translate(_PUNCT_TABLE)
+            value = value.translate(StringNormalizer._punct_table)
         return value
 
     async def process(
@@ -92,7 +92,7 @@ class StringNormalizer(Knot):
     ) -> list[dict[str, Any]]:
         col_tuple = tuple(columns)
         IdentifierValidator.validate_columns("columns", col_tuple)
-        if unicode_form not in _VALID_UNICODE_FORMS:
+        if unicode_form not in self._valid_unicode_forms:
             raise ValueError("StringNormalizer: unicode_form must be NFC/NFD/NFKC/NFKD/none")
         result: list[dict[str, Any]] = []
         for row in rows:

@@ -23,6 +23,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from typing import ClassVar
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -30,8 +32,8 @@ from pirn.core.knot_config import KnotConfig
 class MethylationArrayProcessor(Knot):
     """Process Illumina methylation array data: normalize, QC, compute beta/M values."""
 
-    _VALID_ARRAY_TYPES: frozenset[str] = frozenset({"epic", "450k", "27k"})
-    _VALID_NORMALIZATIONS: frozenset[str] = frozenset({"ssnoob", "quantile", "noob", "raw"})
+    _valid_array_types: ClassVar[frozenset[str]] = frozenset({"epic", "450k", "27k"})
+    _valid_normalizations: ClassVar[frozenset[str]] = frozenset({"ssnoob", "quantile", "noob", "raw"})
 
     def __init__(
         self,
@@ -75,15 +77,15 @@ class MethylationArrayProcessor(Knot):
         """
         if not isinstance(idat_data, dict):
             raise TypeError("MethylationArrayProcessor: idat_data must be a dict")
-        if not isinstance(array_type, str) or array_type not in self._VALID_ARRAY_TYPES:
+        if not isinstance(array_type, str) or array_type not in self._valid_array_types:
             raise ValueError(
                 f"MethylationArrayProcessor: array_type must be one of "
-                f"{sorted(self._VALID_ARRAY_TYPES)}"
+                f"{sorted(self._valid_array_types)}"
             )
-        if not isinstance(normalization, str) or normalization not in self._VALID_NORMALIZATIONS:
+        if not isinstance(normalization, str) or normalization not in self._valid_normalizations:
             raise ValueError(
                 f"MethylationArrayProcessor: normalization must be one of "
-                f"{sorted(self._VALID_NORMALIZATIONS)}"
+                f"{sorted(self._valid_normalizations)}"
             )
         return {
             "sample_id": idat_data.get("sample_id", ""),

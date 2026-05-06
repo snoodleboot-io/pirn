@@ -25,16 +25,18 @@ from __future__ import annotations
 
 from typing import Any
 
+from typing import ClassVar
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.data.identifier_validator import IdentifierValidator
 
-_ALLOWED_JOIN_TYPES: frozenset[str] = frozenset({"INNER", "LEFT", "RIGHT", "FULL"})
-
 
 class IntermediateModelKnot(Knot):
     """Join two staging tables into an intermediate layer table."""
+
+    _allowed_join_types: ClassVar[frozenset[str]] = frozenset({"INNER", "LEFT", "RIGHT", "FULL"})
 
     def __init__(
         self,
@@ -107,10 +109,10 @@ class IntermediateModelKnot(Knot):
         if not isinstance(join_type, str):
             raise ValueError("IntermediateModelKnot: join_type must be a non-empty string")
         join_upper = join_type.upper()
-        if join_upper not in _ALLOWED_JOIN_TYPES:
+        if join_upper not in self._allowed_join_types:
             raise ValueError(
                 f"IntermediateModelKnot: join_type must be one of "
-                f"{sorted(_ALLOWED_JOIN_TYPES)!r}, got {join_type!r}"
+                f"{sorted(self._allowed_join_types)!r}, got {join_type!r}"
             )
         IdentifierValidator.validate_column("left_table", left_table)
         IdentifierValidator.validate_column("right_table", right_table)

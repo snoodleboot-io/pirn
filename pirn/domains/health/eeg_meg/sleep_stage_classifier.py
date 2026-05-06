@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from typing import ClassVar
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -26,7 +28,7 @@ from pirn.core.knot_config import KnotConfig
 class SleepStageClassifier(Knot):
     """Classify 30-second PSG epochs into sleep stages (W, N1, N2, N3, REM)."""
 
-    _VALID_STAGES: frozenset[str] = frozenset({"W", "N1", "N2", "N3", "REM"})
+    _valid_stages: ClassVar[frozenset[str]] = frozenset({"W", "N1", "N2", "N3", "REM"})
 
     def __init__(
         self,

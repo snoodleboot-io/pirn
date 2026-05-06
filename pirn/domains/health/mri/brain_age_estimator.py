@@ -23,6 +23,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from typing import ClassVar
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -30,7 +32,7 @@ from pirn.core.knot_config import KnotConfig
 class BrainAgeEstimator(Knot):
     """Estimate biological brain age from structural MRI features."""
 
-    _VALID_POPULATIONS: frozenset[str] = frozenset({"ukbiobank", "adni", "combined"})
+    _valid_populations: ClassVar[frozenset[str]] = frozenset({"ukbiobank", "adni", "combined"})
 
     def __init__(
         self,
@@ -78,11 +80,11 @@ class BrainAgeEstimator(Knot):
             raise ValueError("BrainAgeEstimator: model_name must be non-empty")
         if (
             not isinstance(reference_population, str)
-            or reference_population not in self._VALID_POPULATIONS
+            or reference_population not in self._valid_populations
         ):
             raise ValueError(
                 f"BrainAgeEstimator: reference_population must be one of "
-                f"{sorted(self._VALID_POPULATIONS)}"
+                f"{sorted(self._valid_populations)}"
             )
         chron_age = float(mri_features.get("chronological_age", 0.0))
         return {

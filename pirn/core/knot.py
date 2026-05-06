@@ -329,9 +329,9 @@ class Knot:
         # Self-register with the active tapestry (if any) or with the
         # explicitly passed one.  Done last so the knot is fully built
         # before the tapestry sees it.
-        from pirn.tapestry import _CURRENT_TAPESTRY
+        from pirn.tapestry import _current_tapestry
 
-        target_tapestry = explicit_tapestry or _CURRENT_TAPESTRY.get(None)
+        target_tapestry = explicit_tapestry or _current_tapestry.get(None)
         if target_tapestry is not None:
             target_tapestry.register(self)
 

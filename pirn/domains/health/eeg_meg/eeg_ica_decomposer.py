@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from typing import ClassVar
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -25,7 +27,7 @@ from pirn.core.knot_config import KnotConfig
 class EEGICADecomposer(Knot):
     """Independent component analysis decomposition of EEG data for artifact removal."""
 
-    _VALID_ALGORITHMS: frozenset[str] = frozenset({"fastica", "infomax", "picard"})
+    _valid_algorithms: ClassVar[frozenset[str]] = frozenset({"fastica", "infomax", "picard"})
 
     def __init__(
         self,
@@ -75,7 +77,7 @@ class EEGICADecomposer(Knot):
             raise TypeError("EEGICADecomposer: eeg_data must be a dict")
         if not isinstance(n_components, int) or n_components <= 0:
             raise ValueError("EEGICADecomposer: n_components must be a positive integer")
-        if algorithm not in self._VALID_ALGORITHMS:
+        if algorithm not in self._valid_algorithms:
             raise ValueError(
                 "EEGICADecomposer: algorithm must be one of 'fastica', 'infomax', 'picard'"
             )

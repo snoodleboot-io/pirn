@@ -31,7 +31,7 @@ from pydantic import BaseModel, TypeAdapter
 # builds a schema/validator pair (~10-100 µs); at millions of
 # canonicalisations per tapestry the cost compounds. Keyed by the runtime
 # type so different concrete types remain isolated.
-_TYPE_ADAPTER_CACHE: dict[type, TypeAdapter] = {}
+_type_adapter_cache: dict[type, TypeAdapter] = {}
 
 
 class _Unhashable(Exception):
@@ -119,10 +119,10 @@ def _canonicalise(value: Any) -> Any:
     ):
         value_type = type(value)
         try:
-            adapter = _TYPE_ADAPTER_CACHE.get(value_type)
+            adapter = _type_adapter_cache.get(value_type)
             if adapter is None:
                 adapter = TypeAdapter(value_type)
-                _TYPE_ADAPTER_CACHE[value_type] = adapter
+                _type_adapter_cache[value_type] = adapter
             return _canonicalise(adapter.dump_python(value, mode="json"))
         except Exception:
             # Fall through to the container/Mapping/Sequence branches

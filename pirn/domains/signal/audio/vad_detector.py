@@ -31,6 +31,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from typing import ClassVar
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
@@ -42,7 +44,7 @@ class VADDetector(Knot):
     Production needs ``webrtcvad`` or ``silero-vad``.
     """
 
-    _VALID_FRAME_DURATIONS: frozenset[int] = frozenset({10, 20, 30})
+    _valid_frame_durations: ClassVar[frozenset[int]] = frozenset({10, 20, 30})
 
     def __init__(
         self,
@@ -82,7 +84,7 @@ class VADDetector(Knot):
         Raises:
             ValueError: If frame_duration_ms or aggressiveness are invalid.
         """
-        if frame_duration_ms not in self._VALID_FRAME_DURATIONS:
+        if frame_duration_ms not in self._valid_frame_durations:
             raise ValueError("VADDetector: frame_duration_ms must be one of 10, 20, or 30")
         if not isinstance(aggressiveness, int) or aggressiveness < 0 or aggressiveness > 3:
             raise ValueError("VADDetector: aggressiveness must be an integer in [0, 3]")

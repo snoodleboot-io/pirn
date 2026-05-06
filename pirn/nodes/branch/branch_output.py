@@ -38,9 +38,9 @@ class BranchOutput(Knot):
         self._mutable_output_adapter = None
         self._mutable_mapped_inputs: dict = {}
 
-        from pirn.tapestry import _CURRENT_TAPESTRY
+        from pirn.tapestry import _current_tapestry
 
-        target = tapestry or _CURRENT_TAPESTRY.get(None)
+        target = tapestry or _current_tapestry.get(None)
         if target is not None:
             target.register(self)
 

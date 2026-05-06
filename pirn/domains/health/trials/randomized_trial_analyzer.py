@@ -23,6 +23,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from typing import ClassVar
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -30,7 +32,7 @@ from pirn.core.knot_config import KnotConfig
 class RandomizedTrialAnalyzer(Knot):
     """Perform ITT and per-protocol analyses for a randomized controlled trial."""
 
-    _VALID_ANALYSIS_TYPES: frozenset[str] = frozenset({"itt", "per_protocol", "both"})
+    _valid_analysis_types: ClassVar[frozenset[str]] = frozenset({"itt", "per_protocol", "both"})
 
     def __init__(
         self,
@@ -98,7 +100,7 @@ class RandomizedTrialAnalyzer(Knot):
             raise ValueError("RandomizedTrialAnalyzer: treatment_col must be a non-empty string")
         if not isinstance(outcome_col, str) or not outcome_col:
             raise ValueError("RandomizedTrialAnalyzer: outcome_col must be a non-empty string")
-        if analysis_type not in self._VALID_ANALYSIS_TYPES:
+        if analysis_type not in self._valid_analysis_types:
             raise ValueError(
                 "RandomizedTrialAnalyzer: analysis_type must be one of 'itt', 'per_protocol', 'both'"
             )

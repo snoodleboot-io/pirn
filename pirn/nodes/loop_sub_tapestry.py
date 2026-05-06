@@ -101,7 +101,7 @@ class _IterationChainKnot(SubTapestry):
         object.__setattr__(self, "_mutable_iter_tapestry", _iter_tapestry)
         object.__setattr__(self, "_mutable_iteration_idx", _iteration_idx)
         # Override the history captured by SubTapestry.__init__ (which sees no
-        # _CURRENT_TAPESTRY since we're constructed mid-run, not inside a
+        # _current_tapestry since we're constructed mid-run, not inside a
         # `with Tapestry():` block).  Explicit propagation ensures iteration
         # sub-runs are recorded to the same history store.
         if _outer_history is not None:

@@ -9,26 +9,6 @@ from typing import ClassVar
 from pirn.domains.connectors.connection_config import ConnectionConfig
 from pirn.domains.connectors.connection_config_decorator import connection_config
 
-_ALLOWED_DUCKDB_CONFIG_KEYS: frozenset[str] = frozenset(
-    {
-        "threads",
-        "memory_limit",
-        "max_memory",
-        "temp_directory",
-        "default_order",
-        "null_order",
-        "checkpoint_threshold",
-        "wal_autocheckpoint",
-        "worker_threads",
-        "external_threads",
-        "access_mode",
-        "log_query_path",
-        "preserve_insertion_order",
-        "arrow_large_buffer_size",
-    }
-)
-
-
 @connection_config(frozen=True)
 class DuckdbConfig(ConnectionConfig):
     """Configuration for a DuckDB connection.
@@ -45,6 +25,25 @@ class DuckdbConfig(ConnectionConfig):
         enable external access or extension loading are rejected.
     """
 
+    _allowed_duckdb_config_keys: ClassVar[frozenset[str]] = frozenset(
+        {
+            "threads",
+            "memory_limit",
+            "max_memory",
+            "temp_directory",
+            "default_order",
+            "null_order",
+            "checkpoint_threshold",
+            "wal_autocheckpoint",
+            "worker_threads",
+            "external_threads",
+            "access_mode",
+            "log_query_path",
+            "preserve_insertion_order",
+            "arrow_large_buffer_size",
+        }
+    )
+
     database: str | Path = ":memory:"
     read_only: bool = False
     config: tuple[tuple[str, str], ...] = field(default_factory=tuple)
@@ -53,8 +52,8 @@ class DuckdbConfig(ConnectionConfig):
 
     def __post_init__(self) -> None:
         for index, (key, _value) in enumerate(self.config):
-            if key not in _ALLOWED_DUCKDB_CONFIG_KEYS:
+            if key not in self._allowed_duckdb_config_keys:
                 raise ValueError(
                     f"DuckdbConfig: config[{index}] key {key!r} is not in the "
-                    f"allowlist. Permitted keys: {sorted(_ALLOWED_DUCKDB_CONFIG_KEYS)}"
+                    f"allowlist. Permitted keys: {sorted(self._allowed_duckdb_config_keys)}"
                 )

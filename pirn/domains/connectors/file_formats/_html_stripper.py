@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from html.parser import HTMLParser
+from typing import ClassVar
 
 
 class _HtmlStripper(HTMLParser):
     """Extract plain text from an HTML fragment."""
 
-    _BLOCK_TAGS: frozenset[str] = frozenset(
+    _block_tags: ClassVar[frozenset[str]] = frozenset(
         {"p", "br", "div", "li", "h1", "h2", "h3", "h4", "h5", "h6"}
     )
 
@@ -20,11 +21,11 @@ class _HtmlStripper(HTMLParser):
         self._parts.append(data)
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        if tag in self._BLOCK_TAGS:
+        if tag in self._block_tags:
             self._parts.append("\n")
 
     def handle_endtag(self, tag: str) -> None:
-        if tag in self._BLOCK_TAGS - {"br"}:
+        if tag in self._block_tags - {"br"}:
             self._parts.append("\n")
 
     def text(self) -> str:

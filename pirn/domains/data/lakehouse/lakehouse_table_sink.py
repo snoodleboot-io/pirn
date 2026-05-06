@@ -30,18 +30,20 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Mapping, Sequence
 from typing import Any
 
+from typing import ClassVar
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.data.data_batch import DataBatch
 from pirn.domains.data.lakehouse.lakehouse_table import LakehouseTable
 from pirn.nodes.sink import Sink
 
-_ALLOWED_MODES: tuple[str, ...] = ("append", "overwrite", "merge")
-
 
 class LakehouseTableSink(Sink):
     """Write a :class:`DataBatch` to a lakehouse table; return the new
     snapshot id."""
+
+    _allowed_modes: ClassVar[tuple[str, ...]] = ("append", "overwrite", "merge")
 
     def __init__(
         self,
@@ -76,9 +78,9 @@ class LakehouseTableSink(Sink):
     ) -> str:
         if not isinstance(table, LakehouseTable):
             raise TypeError("LakehouseTableSink: table must be a LakehouseTable instance")
-        if mode not in _ALLOWED_MODES:
+        if mode not in self._allowed_modes:
             raise ValueError(
-                f"LakehouseTableSink: mode must be one of {list(_ALLOWED_MODES)}, got {mode!r}"
+                f"LakehouseTableSink: mode must be one of {list(self._allowed_modes)}, got {mode!r}"
             )
         if mode == "merge" and not (merge_on and list(merge_on)):
             raise ValueError("LakehouseTableSink: mode='merge' requires non-empty merge_on")

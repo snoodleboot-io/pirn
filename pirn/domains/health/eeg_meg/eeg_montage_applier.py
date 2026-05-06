@@ -17,6 +17,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from typing import ClassVar
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -24,7 +26,7 @@ from pirn.core.knot_config import KnotConfig
 class EEGMontageApplier(Knot):
     """Apply electrode montage (re-reference, set channel positions) to EEG data."""
 
-    _VALID_REFERENCES: frozenset[str] = frozenset({"average", "linked_mastoids", "cz", "nose"})
+    _valid_references: ClassVar[frozenset[str]] = frozenset({"average", "linked_mastoids", "cz", "nose"})
 
     def __init__(
         self,
@@ -74,7 +76,7 @@ class EEGMontageApplier(Knot):
             raise TypeError("EEGMontageApplier: eeg_data must be a dict")
         if not isinstance(montage_name, str) or not montage_name:
             raise ValueError("EEGMontageApplier: montage_name must be a non-empty string")
-        if reference not in self._VALID_REFERENCES:
+        if reference not in self._valid_references:
             raise ValueError(
                 "EEGMontageApplier: reference must be one of "
                 "'average', 'linked_mastoids', 'cz', 'nose'"

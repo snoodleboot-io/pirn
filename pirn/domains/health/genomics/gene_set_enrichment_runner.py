@@ -21,6 +21,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from typing import ClassVar
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -28,8 +30,8 @@ from pirn.core.knot_config import KnotConfig
 class GeneSetEnrichmentRunner(Knot):
     """Run GSEA or over-representation analysis on a ranked gene list."""
 
-    _VALID_DATABASES: frozenset[str] = frozenset({"hallmark", "kegg", "reactome", "go_bp", "go_mf"})
-    _VALID_METHODS: frozenset[str] = frozenset({"gsea", "ora"})
+    _valid_databases: ClassVar[frozenset[str]] = frozenset({"hallmark", "kegg", "reactome", "go_bp", "go_mf"})
+    _valid_methods: ClassVar[frozenset[str]] = frozenset({"gsea", "ora"})
 
     def __init__(
         self,
@@ -72,14 +74,14 @@ class GeneSetEnrichmentRunner(Knot):
         Raises:
             ValueError: If gene_set_database or method is invalid, or fdr_threshold is out of range.
         """
-        if not isinstance(gene_set_database, str) or gene_set_database not in self._VALID_DATABASES:
+        if not isinstance(gene_set_database, str) or gene_set_database not in self._valid_databases:
             raise ValueError(
                 f"GeneSetEnrichmentRunner: gene_set_database must be one of "
-                f"{sorted(self._VALID_DATABASES)}"
+                f"{sorted(self._valid_databases)}"
             )
-        if not isinstance(method, str) or method not in self._VALID_METHODS:
+        if not isinstance(method, str) or method not in self._valid_methods:
             raise ValueError(
-                f"GeneSetEnrichmentRunner: method must be one of {sorted(self._VALID_METHODS)}"
+                f"GeneSetEnrichmentRunner: method must be one of {sorted(self._valid_methods)}"
             )
         if not isinstance(fdr_threshold, (int, float)) or not (0.0 <= float(fdr_threshold) <= 1.0):
             raise ValueError("GeneSetEnrichmentRunner: fdr_threshold must be in [0, 1]")

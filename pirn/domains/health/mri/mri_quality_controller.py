@@ -21,6 +21,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from typing import ClassVar
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -28,7 +30,7 @@ from pirn.core.knot_config import KnotConfig
 class MRIQualityController(Knot):
     """Compute MRI quality metrics (SNR, CNR, motion parameters) and flag poor-quality scans."""
 
-    _VALID_MODALITIES: frozenset[str] = frozenset({"T1w", "T2w", "BOLD", "DWI"})
+    _valid_modalities: ClassVar[frozenset[str]] = frozenset({"T1w", "T2w", "BOLD", "DWI"})
 
     def __init__(
         self,
@@ -74,9 +76,9 @@ class MRIQualityController(Knot):
         """
         if not isinstance(mri_data, dict):
             raise TypeError("MRIQualityController: mri_data must be a dict")
-        if not isinstance(modality, str) or modality not in self._VALID_MODALITIES:
+        if not isinstance(modality, str) or modality not in self._valid_modalities:
             raise ValueError(
-                f"MRIQualityController: modality must be one of {sorted(self._VALID_MODALITIES)}"
+                f"MRIQualityController: modality must be one of {sorted(self._valid_modalities)}"
             )
         if not isinstance(snr_threshold, (int, float)) or float(snr_threshold) <= 0:
             raise ValueError("MRIQualityController: snr_threshold must be > 0")

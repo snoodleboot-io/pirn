@@ -32,24 +32,24 @@ if TYPE_CHECKING:
 # ContextVar carrying the active tapestry inside a `with` block.  None when
 # no tapestry context is active.  Async-safe because contextvars are
 # task-local in asyncio.
-_CURRENT_TAPESTRY: ContextVar[Tapestry | None] = ContextVar("pirn_current_tapestry", default=None)
+_current_tapestry: ContextVar[Tapestry | None] = ContextVar("pirn_current_tapestry", default=None)
 
 # ContextVar carrying the run_id of the currently-executing outer run.
 # Set by Tapestry.run() so that SubTapestry._run_inner() can link inner
 # runs to the correct outer run without requiring process() to know it.
-_CURRENT_RUN_ID: ContextVar[str | None] = ContextVar("pirn_current_run_id", default=None)
+_current_run_id: ContextVar[str | None] = ContextVar("pirn_current_run_id", default=None)
 
 # ContextVar carrying the history of the currently-executing run.  Set by
 # Tapestry.run() so that SubTapestry nodes constructed dynamically mid-run
 # (outside any `with Tapestry():` block) can still inherit the outer history
 # and record their inner runs to the same store.
-_CURRENT_HISTORY: ContextVar[Any] = ContextVar("pirn_current_history", default=None)
+_current_history: ContextVar[Any] = ContextVar("pirn_current_history", default=None)
 
 # ContextVar carrying the store of the currently-executing extensible run.
 # Set only when extensible=True.  Knots can call get_current_store() during
 # process() to register new knots into the running tapestry — the engine
 # picks them up between waves.  None in non-extensible runs.
-_CURRENT_STORE: ContextVar[TapestryStore | None] = ContextVar("pirn_current_store", default=None)
+_current_store: ContextVar[TapestryStore | None] = ContextVar("pirn_current_store", default=None)
 
 
 def get_current_store() -> TapestryStore | None:
@@ -65,7 +65,7 @@ def get_current_store() -> TapestryStore | None:
         if store is not None:
             store.register(NextKnot(data=self, _config=KnotConfig(id="next")))
     """
-    return _CURRENT_STORE.get(None)
+    return _current_store.get(None)
 
 
 class Tapestry:
@@ -222,9 +222,9 @@ class Tapestry:
         active_filter = traceback_filter if traceback_filter is not None else self._traceback_filter
 
         engine = Engine(dispatcher=dispatcher or self._dispatcher)
-        token_run_id = _CURRENT_RUN_ID.set(request.run_id)
-        token_store = _CURRENT_STORE.set(self._store if extensible else None)
-        token_history = _CURRENT_HISTORY.set(self._history)
+        token_run_id = _current_run_id.set(request.run_id)
+        token_store = _current_store.set(self._store if extensible else None)
+        token_history = _current_history.set(self._history)
         try:
             return await engine.execute(
                 terminals=chosen,
@@ -239,9 +239,9 @@ class Tapestry:
                 parent_knot_id=_parent_knot_id,
             )
         finally:
-            _CURRENT_RUN_ID.reset(token_run_id)
-            _CURRENT_STORE.reset(token_store)
-            _CURRENT_HISTORY.reset(token_history)
+            _current_run_id.reset(token_run_id)
+            _current_store.reset(token_store)
+            _current_history.reset(token_history)
 
     def add_emitter(self, emitter: Any) -> None:
         """Append an emitter to this tapestry's default emitter list.
@@ -273,13 +273,13 @@ class Tapestry:
         # Set the ContextVar; remember the token so we can reset on exit.
         # If a tapestry is already active, we replace it for this block —
         # ContextVar.reset restores whatever was there before.
-        self._token = _CURRENT_TAPESTRY.set(self)
+        self._token = _current_tapestry.set(self)
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         token, self._token = self._token, None
         if token is not None:
-            _CURRENT_TAPESTRY.reset(token)
+            _current_tapestry.reset(token)
 
     def __repr__(self) -> str:
         return f"<Tapestry knots={len(self._store.all())}>"
@@ -287,4 +287,4 @@ class Tapestry:
 
 def current_tapestry() -> Tapestry | None:
     """Return the tapestry active in the current `with` context, or None."""
-    return _CURRENT_TAPESTRY.get(None)
+    return _current_tapestry.get(None)

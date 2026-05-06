@@ -25,16 +25,18 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
+from typing import ClassVar
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.data.identifier_validator import IdentifierValidator
 
-_SUPPORTED_AGGREGATIONS: frozenset[str] = frozenset({"sum", "count", "avg", "ratio"})
-
 
 class MetricLayerAggregator(Knot):
     """Compute a named metric (sum/count/avg/ratio) with optional dimension slicing."""
+
+    _supported_aggregations: ClassVar[frozenset[str]] = frozenset({"sum", "count", "avg", "ratio"})
 
     def __init__(
         self,
@@ -112,10 +114,10 @@ class MetricLayerAggregator(Knot):
         ):
             if not isinstance(value, str) or not value:
                 raise ValueError(f"MetricLayerAggregator: {label} must be a non-empty string")
-        if aggregation not in _SUPPORTED_AGGREGATIONS:
+        if aggregation not in self._supported_aggregations:
             raise ValueError(
                 f"MetricLayerAggregator: aggregation must be one of "
-                f"{sorted(_SUPPORTED_AGGREGATIONS)!r}, got {aggregation!r}"
+                f"{sorted(self._supported_aggregations)!r}, got {aggregation!r}"
             )
         IdentifierValidator.validate_column("source_table", source_table)
         if aggregation == "ratio":

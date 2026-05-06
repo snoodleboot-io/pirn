@@ -27,16 +27,18 @@ from __future__ import annotations
 
 from typing import Any
 
+from typing import ClassVar
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.data.identifier_validator import IdentifierValidator
 
-_SUPPORTED_DIALECTS: frozenset[str] = frozenset({"postgres", "duckdb"})
-
 
 class RefreshMaterializedView(Knot):
     """Issue REFRESH MATERIALIZED VIEW (or equivalent) for a given view name."""
+
+    _supported_dialects: ClassVar[frozenset[str]] = frozenset({"postgres", "duckdb"})
 
     def __init__(
         self,
@@ -77,10 +79,10 @@ class RefreshMaterializedView(Knot):
             raise TypeError("RefreshMaterializedView: pool must be a DatabaseConnectionPool")
         if not isinstance(view_name, str) or not view_name:
             raise ValueError("RefreshMaterializedView: view_name must be a non-empty string")
-        if dialect not in _SUPPORTED_DIALECTS:
+        if dialect not in self._supported_dialects:
             raise ValueError(
                 f"RefreshMaterializedView: dialect must be one of "
-                f"{sorted(_SUPPORTED_DIALECTS)!r}, got {dialect!r}"
+                f"{sorted(self._supported_dialects)!r}, got {dialect!r}"
             )
         IdentifierValidator.validate_column("view_name", view_name)
         await pool.execute(

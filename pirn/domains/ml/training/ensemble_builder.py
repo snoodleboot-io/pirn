@@ -33,13 +33,12 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.ml.types.trained_model import TrainedModel
 
-_MODEL_KEY_RE = re.compile(r"^model_(\d+)$")
-
 
 class EnsembleBuilder(Knot):
     """Stack / blend multiple :class:`TrainedModel`s into a meta-learner."""
 
     valid_strategies: ClassVar[frozenset[str]] = frozenset({"stacking", "blending", "voting"})
+    _model_key_re: ClassVar[re.Pattern[str]] = re.compile(r"^model_(\d+)$")
 
     def __init__(
         self,
@@ -77,7 +76,7 @@ class EnsembleBuilder(Knot):
         # Collect children in index order from numbered kwargs.
         indexed: list[tuple[int, TrainedModel]] = []
         for key, value in kwargs.items():
-            match = _MODEL_KEY_RE.match(key)
+            match = self._model_key_re.match(key)
             if match is None:
                 continue
             if not isinstance(value, TrainedModel):

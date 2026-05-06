@@ -27,15 +27,17 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
+from typing import ClassVar
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.data.identifier_validator import IdentifierValidator
 
-_VALID_PARTS: frozenset[str] = frozenset(("year", "month", "day", "hour", "weekday", "quarter"))
-
 
 class DatePartExtractor(Knot):
     """Append calendar-part columns extracted from a datetime column."""
+
+    _valid_parts: ClassVar[frozenset[str]] = frozenset(("year", "month", "day", "hour", "weekday", "quarter"))
 
     def __init__(
         self,
@@ -80,11 +82,11 @@ class DatePartExtractor(Knot):
         parts_tuple = tuple(parts)
         if not parts_tuple:
             raise ValueError("DatePartExtractor: parts must be a non-empty sequence")
-        invalid = set(parts_tuple) - _VALID_PARTS
+        invalid = set(parts_tuple) - self._valid_parts
         if invalid:
             raise ValueError(
                 f"DatePartExtractor: unsupported parts {sorted(invalid)!r}; "
-                f"allowed: {sorted(_VALID_PARTS)!r}"
+                f"allowed: {sorted(self._valid_parts)!r}"
             )
 
         def _as_dt(val: Any) -> datetime:
