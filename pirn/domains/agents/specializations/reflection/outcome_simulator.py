@@ -1,4 +1,18 @@
-"""``OutcomeSimulator`` — simulate best/neutral/worst-case outcomes for a proposed action."""
+"""``OutcomeSimulator`` — simulate best/neutral/worst-case outcomes for a proposed action.
+
+Algorithm:
+    1. Build a system prompt instructing the LLM to emit exactly three sections:
+       ``Best case:``, ``Neutral case:``, ``Worst case:``.
+    2. Send the proposed action as the user message.
+    3. Parse the LLM response line-by-line, collecting text under each section header.
+    4. Return a :class:`SimulationResult` with the three extracted strings.
+       Missing sections default to an empty string.
+
+
+References:
+    - Pearl, J., "Causality: Models, Reasoning, and Inference", 2nd ed., Cambridge
+      University Press, 2009. (Motivates structured outcome reasoning.)
+"""
 
 from __future__ import annotations
 
@@ -31,30 +45,30 @@ class OutcomeSimulator(Knot):
         self,
         *,
         action: Knot | str,
-        llm: LLMProvider,
+        llm: Knot | LLMProvider,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "OutcomeSimulator: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
-        self._llm = llm
-        super().__init__(action=action, _config=_config, **kwargs)
+        super().__init__(action=action, llm=llm, _config=_config, **kwargs)
 
-    async def process(self, action: str, **_: Any) -> SimulationResult:
+    async def process(self, action: str, llm: LLMProvider, **_: Any) -> SimulationResult:
         """Simulate best/neutral/worst-case outcomes for the proposed action.
 
         Args:
             action: A description of the proposed action to simulate outcomes for.
+            llm: The LLMProvider to use for simulation.
 
         Returns:
             A SimulationResult with best_case, neutral_case, and worst_case fields.
 
         Raises:
-            TypeError: If action is not a string.
+            TypeError: If action is not a string or llm is not an LLMProvider.
         """
+        if not isinstance(llm, LLMProvider):
+            raise TypeError(
+                "OutcomeSimulator: llm must be an LLMProvider, "
+                f"got {type(llm).__name__}"
+            )
         if not isinstance(action, str):
             raise TypeError(
                 "OutcomeSimulator: action must be a string, "
@@ -64,7 +78,7 @@ class OutcomeSimulator(Knot):
             {"role": "system", "content": type(self)._simulation_system},
             {"role": "user", "content": action},
         ]
-        raw = await self._llm.chat(messages=messages)
+        raw = await llm.chat(messages=messages)
         text = self._extract_text(raw)
         best, neutral, worst = self._parse_outcomes(text)
         return SimulationResult(

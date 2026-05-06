@@ -25,32 +25,50 @@ async def emit_dataset() -> MLDataset:
     )
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_zero_train_window(self) -> None:
-        with Tapestry():
-            dataset = emit_dataset(_config=KnotConfig(id="ds"))
-            with self.assertRaisesRegex(ValueError, "train_window must be >= 1"):
-                WalkForwardValidator(
-                    dataset=dataset,
-                    time_column="ts",
-                    train_window=0,
-                    test_window=10,
-                    algorithm="arima",
-                    _config=KnotConfig(id="bad"),
-                )
+def _make_validator() -> WalkForwardValidator:
+    with Tapestry():
+        dataset = emit_dataset(_config=KnotConfig(id="ds"))
+        validator = WalkForwardValidator(
+            dataset=dataset,
+            time_column="ts",
+            train_window=20,
+            test_window=5,
+            algorithm="arima",
+            _config=KnotConfig(id="walk"),
+        )
+    return validator
 
-    def test_rejects_empty_algorithm(self) -> None:
-        with Tapestry():
-            dataset = emit_dataset(_config=KnotConfig(id="ds"))
-            with self.assertRaisesRegex(ValueError, "algorithm"):
-                WalkForwardValidator(
-                    dataset=dataset,
-                    time_column="ts",
-                    train_window=20,
-                    test_window=5,
-                    algorithm="",
-                    _config=KnotConfig(id="bad"),
-                )
+
+def _dataset() -> "MLDataset":
+    return MLDataset(
+        name="ts-data", feature_names=("a",), target_name="y", row_count=100
+    )
+
+
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_zero_train_window(self) -> None:
+        validator = _make_validator()
+        dataset = _dataset()
+        with self.assertRaises((TypeError, ValueError)):
+            await validator.process(
+                dataset=dataset,
+                time_column="ts",
+                train_window=0,
+                test_window=10,
+                algorithm="arima",
+            )
+
+    async def test_rejects_empty_algorithm(self) -> None:
+        validator = _make_validator()
+        dataset = _dataset()
+        with self.assertRaises((TypeError, ValueError)):
+            await validator.process(
+                dataset=dataset,
+                time_column="ts",
+                train_window=20,
+                test_window=5,
+                algorithm="",
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

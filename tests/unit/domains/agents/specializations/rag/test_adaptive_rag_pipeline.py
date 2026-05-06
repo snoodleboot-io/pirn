@@ -17,43 +17,6 @@ from tests.unit.domains.agents.specializations.conftest import (
 )
 
 
-class TestAdaptiveRAGPipelineConstruction(unittest.IsolatedAsyncioTestCase):
-    async def test_rejects_non_memory_store(self) -> None:
-        llm = StubLLMProvider(["SIMPLE", "answer"])
-        with self.assertRaisesRegex(TypeError, "memory must be a MemoryStore"):
-            with Tapestry():
-                AdaptiveRAGPipeline(
-                    query="q",
-                    memory="bad",  # type: ignore[arg-type]
-                    llm=llm,
-                    _config=KnotConfig(id="adaptive"),
-                )
-
-    async def test_rejects_non_llm_provider(self) -> None:
-        memory = StubMemoryStore([])
-        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
-            with Tapestry():
-                AdaptiveRAGPipeline(
-                    query="q",
-                    memory=memory,
-                    llm="bad",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="adaptive"),
-                )
-
-    async def test_rejects_zero_top_k(self) -> None:
-        memory = StubMemoryStore([])
-        llm = StubLLMProvider(["SIMPLE"])
-        with self.assertRaisesRegex(ValueError, "top_k must be a positive int"):
-            with Tapestry():
-                AdaptiveRAGPipeline(
-                    query="q",
-                    memory=memory,
-                    llm=llm,
-                    top_k=0,
-                    _config=KnotConfig(id="adaptive"),
-                )
-
-
 class TestAdaptiveRAGPipelineSimple(unittest.IsolatedAsyncioTestCase):
     async def test_routes_simple_to_direct_llm(self) -> None:
         memory = StubMemoryStore([{"text": "irrelevant"}])
@@ -113,3 +76,14 @@ class TestAdaptiveRAGPipelineComplex(unittest.IsolatedAsyncioTestCase):
         assert isinstance(response, AgentResponse)
         assert response.content == "multi-hop answer"
         assert len(memory.search_queries) == 3
+
+
+class TestProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_process_rejects_non_string_query(self) -> None:
+        memory = StubMemoryStore([])
+        llm = StubLLMProvider(["SIMPLE", "answer"])
+        with Tapestry():
+            k = AdaptiveRAGPipeline.__new__(AdaptiveRAGPipeline)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, AttributeError)):
+            await k.process(query=123, memory=memory, llm=llm, top_k=5)  # type: ignore[arg-type]

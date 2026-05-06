@@ -1,5 +1,19 @@
 """``NLGEvaluator`` — Knot that computes BLEU, ROUGE-L, and BERTScore
 for generated text versus reference strings.
+
+Algorithm:
+    1. Receive ``model`` (TrainedModel), ``split`` (DataSplit), and
+       ``metrics`` (Sequence[str] | None) via process().
+    2. Resolve metrics to ("bleu", "rouge_l", "bert_score") if not provided.
+    3. Validate all requested metrics are in the allowed set.
+    4. Compute each metric value via SHA-256 of (model_id + test metadata + metric).
+    5. Return a mapping of metric name to score.
+
+Math:
+    metric_value(m) = sha256(model_id || test_name || test_row_count || m)[0:8] / 2^64
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -22,42 +36,47 @@ class NLGEvaluator(Knot):
         *,
         model: Knot,
         split: Knot,
-        metrics: Sequence[str] | None = None,
+        metrics: Knot | Sequence[str] | None = None,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(model, Knot):
-            raise TypeError("NLGEvaluator: model must be a Knot")
-        if not isinstance(split, Knot):
-            raise TypeError("NLGEvaluator: split must be a Knot")
-        allowed = {"bleu", "rouge_l", "bert_score"}
-        selected = tuple(metrics) if metrics is not None else ("bleu", "rouge_l", "bert_score")
-        for m in selected:
-            if m not in allowed:
-                raise ValueError(
-                    f"NLGEvaluator: metric {m!r} not in {allowed}"
-                )
-        self._metrics = selected
-        super().__init__(model=model, split=split, _config=_config, **kwargs)
-
-    @property
-    def metrics(self) -> tuple[str, ...]:
-        return self._metrics
+        super().__init__(
+            model=model,
+            split=split,
+            metrics=metrics,
+            _config=_config,
+            **kwargs,
+        )
 
     async def process(
-        self, model: TrainedModel, split: DataSplit, **_: Any
+        self,
+        model: TrainedModel,
+        split: DataSplit,
+        metrics: Sequence[str] | None = None,
+        **_: Any,
     ) -> Mapping[str, Any]:
         """Compute NLG metrics for generated text versus reference strings from the test split.
 
         Args:
             model: TrainedModel reference for a text generation task.
             split: DataSplit whose test partition contains (generated, reference) text pairs.
+            metrics: Sequence of metric names to compute; defaults to all three NLG metrics.
 
         Returns:
             Mapping with ``bleu``, ``rouge_l``, and/or ``bert_score`` values (each float in [0,1]).
+
+        Raises:
+            ValueError: If any requested metric is not in the allowed set.
         """
+        allowed = {"bleu", "rouge_l", "bert_score"}
+        selected: tuple[str, ...] = (
+            tuple(metrics) if metrics is not None else ("bleu", "rouge_l", "bert_score")
+        )
+        for m in selected:
+            if m not in allowed:
+                raise ValueError(f"NLGEvaluator: metric {m!r} not in {allowed}")
         result: dict[str, Any] = {}
-        for metric in self._metrics:
+        for metric in selected:
             result[metric] = self._metric_value(model, split, metric)
         return result
 

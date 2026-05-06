@@ -1,4 +1,10 @@
-"""Identity knot used to thread a tuple through subsequent filters."""
+"""Identity knot used to thread a tuple through subsequent filters.
+
+Algorithm:
+    1. Receive a tuple of ClinicalRecord objects from an upstream Knot.
+    2. Return the tuple unchanged.
+
+"""
 
 from __future__ import annotations
 
@@ -15,7 +21,7 @@ class _PassThrough(Knot):
     def __init__(
         self,
         *,
-        records: tuple[ClinicalRecord, ...],
+        records: Knot | tuple[ClinicalRecord, ...],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:

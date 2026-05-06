@@ -15,27 +15,21 @@ from tests.unit.domains.agents.specializations.conftest import (
 )
 
 
-class TestEnumClassifierPipelineConstruction(unittest.IsolatedAsyncioTestCase):
+class TestEnumClassifierPipelineValidation(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_empty_labels(self) -> None:
         llm = StubLLMProvider(["positive"])
+        knot = EnumClassifierPipeline.__new__(EnumClassifierPipeline)
         with self.assertRaisesRegex(ValueError, "labels must be a non-empty"):
-            with Tapestry():
-                EnumClassifierPipeline(
-                    prompt="classify",
-                    llm=llm,
-                    labels=(),
-                    _config=KnotConfig(id="classify"),
-                )
+            await knot.process(prompt="classify", llm=llm, labels=())
 
     async def test_rejects_non_llm_provider(self) -> None:
+        knot = EnumClassifierPipeline.__new__(EnumClassifierPipeline)
         with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
-            with Tapestry():
-                EnumClassifierPipeline(
-                    prompt="classify",
-                    llm="not-a-provider",  # type: ignore[arg-type]
-                    labels=("a", "b"),
-                    _config=KnotConfig(id="classify"),
-                )
+            await knot.process(
+                prompt="classify",
+                llm="not-a-provider",  # type: ignore[arg-type]
+                labels=("a", "b"),
+            )
 
 
 class TestEnumClassifierPipelineHappyPath(unittest.IsolatedAsyncioTestCase):

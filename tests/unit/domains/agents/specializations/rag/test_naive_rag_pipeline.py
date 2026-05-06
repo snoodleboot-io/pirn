@@ -17,30 +17,34 @@ from tests.unit.domains.agents.specializations.conftest import (
 )
 
 
-class TestNaiveRAGPipelineConstruction(unittest.IsolatedAsyncioTestCase):
+class TestNaiveRAGPipelineProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_memory_store(self) -> None:
         llm = StubLLMProvider(["answer"])
+        memory = StubMemoryStore([])
+        knot = NaiveRAGPipeline(
+            query="q",
+            memory=memory,
+            llm=llm,
+            _config=KnotConfig(id="rag"),
+        )
         with self.assertRaisesRegex(TypeError, "memory must be a MemoryStore"):
-            with Tapestry():
-                NaiveRAGPipeline(
-                    query="q",
-                    memory="not-a-store",  # type: ignore[arg-type]
-                    llm=llm,
-                    _config=KnotConfig(id="rag"),
-                )
+            await knot.process(
+                query="q",
+                memory="not-a-store",  # type: ignore[arg-type]
+                llm=llm,
+            )
 
     async def test_rejects_zero_top_k(self) -> None:
         memory = StubMemoryStore([{"id": 1}])
         llm = StubLLMProvider(["answer"])
+        knot = NaiveRAGPipeline(
+            query="q",
+            memory=memory,
+            llm=llm,
+            _config=KnotConfig(id="rag"),
+        )
         with self.assertRaisesRegex(ValueError, "top_k must be a positive int"):
-            with Tapestry():
-                NaiveRAGPipeline(
-                    query="q",
-                    memory=memory,
-                    llm=llm,
-                    top_k=0,
-                    _config=KnotConfig(id="rag"),
-                )
+            await knot.process(query="q", memory=memory, llm=llm, top_k=0)
 
 
 class TestNaiveRAGPipelineHappyPath(unittest.IsolatedAsyncioTestCase):

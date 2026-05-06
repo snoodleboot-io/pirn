@@ -22,43 +22,9 @@ class _KnotStub(Knot):
 
 
 class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_search_space(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                BayesianSearchTuner(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    algorithm="xgboost",
-                    search_space={},
-                    primary_metric="accuracy",
-                    _config=KnotConfig(id="bt"),
-                )
-
-    def test_rejects_n_trials_less_than_1(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                BayesianSearchTuner(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    algorithm="xgboost",
-                    search_space={"lr": [0.01, 0.1]},
-                    primary_metric="accuracy",
-                    n_trials=0,
-                    _config=KnotConfig(id="bt"),
-                )
-
-    def test_rejects_empty_primary_metric(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                BayesianSearchTuner(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    algorithm="xgboost",
-                    search_space={"lr": [0.01]},
-                    primary_metric="",
-                    _config=KnotConfig(id="bt"),
-                )
-
-    def test_n_trials_attribute_stored(self) -> None:
-        with Tapestry():
-            bt = BayesianSearchTuner(
+    def test_valid_construction(self) -> None:
+        with Tapestry() as t:
+            BayesianSearchTuner(
                 split=_KnotStub(_config=KnotConfig(id="s")),
                 algorithm="xgboost",
                 search_space={"lr": [0.01, 0.1]},
@@ -66,4 +32,47 @@ class TestConstruction(unittest.TestCase):
                 n_trials=30,
                 _config=KnotConfig(id="bt"),
             )
-        self.assertEqual(bt.n_trials, 30)
+        self.assertIsNotNone(t._store.get("bt"))
+
+
+class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self) -> BayesianSearchTuner:
+        with Tapestry():
+            return BayesianSearchTuner(
+                split=_KnotStub(_config=KnotConfig(id="s")),
+                algorithm="xgboost",
+                search_space={"lr": [0.01, 0.1]},
+                primary_metric="accuracy",
+                _config=KnotConfig(id="bt"),
+            )
+
+    async def test_rejects_empty_search_space(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaises(ValueError):
+            await knot.process(
+                split=object(),  # type: ignore[arg-type]
+                algorithm="xgboost",
+                search_space={},
+                primary_metric="accuracy",
+            )
+
+    async def test_rejects_n_trials_less_than_1(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaises(ValueError):
+            await knot.process(
+                split=object(),  # type: ignore[arg-type]
+                algorithm="xgboost",
+                search_space={"lr": [0.01, 0.1]},
+                primary_metric="accuracy",
+                n_trials=0,
+            )
+
+    async def test_rejects_empty_primary_metric(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaises(ValueError):
+            await knot.process(
+                split=object(),  # type: ignore[arg-type]
+                algorithm="xgboost",
+                search_space={"lr": [0.01]},
+                primary_metric="",
+            )

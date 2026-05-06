@@ -5,6 +5,21 @@ itself is performed concurrently outside the inner tapestry; this knot
 re-publishes the collected responses as the inner pipeline's output so
 the SubTapestry contract — "do real work via an inner tapestry" — is
 preserved and the collected mapping appears in the run history.
+
+Algorithm
+---------
+1. Validate that ``responses`` is a :class:`~collections.abc.Mapping`.
+2. Validate that every key is a :class:`str` and every value is an
+   :class:`AgentResponse`.
+3. Return a shallow copy of the mapping.
+
+Math
+----
+N/A — no quantitative computation.
+
+References
+----------
+N/A — pirn-native implementation only.
 """
 
 from __future__ import annotations
@@ -23,15 +38,10 @@ class SpecialistFanOutCollector(Knot):
     def __init__(
         self,
         *,
-        responses: Mapping[str, AgentResponse],
+        responses: Knot | Mapping[str, AgentResponse],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(responses, Mapping):
-            raise TypeError(
-                "SpecialistFanOutCollector: responses must be a Mapping, "
-                f"got {type(responses).__name__}"
-            )
         super().__init__(responses=responses, _config=_config, **kwargs)
 
     async def process(
@@ -50,6 +60,11 @@ class SpecialistFanOutCollector(Knot):
         Raises:
             TypeError: If any key is not a string or any value is not an AgentResponse.
         """
+        if not isinstance(responses, Mapping):
+            raise TypeError(
+                "SpecialistFanOutCollector: responses must be a Mapping, "
+                f"got {type(responses).__name__}"
+            )
         for name, candidate in responses.items():
             if not isinstance(name, str):
                 raise TypeError(

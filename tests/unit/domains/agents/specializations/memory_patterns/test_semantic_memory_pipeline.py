@@ -6,8 +6,6 @@ from collections.abc import AsyncIterator, Mapping
 from typing import Any
 import unittest
 
-import pytest
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.domains.agents.memory_store import MemoryStore
@@ -29,7 +27,7 @@ class RecordingMemoryStore(MemoryStore):
     async def retrieve(self, key: str) -> Mapping[str, Any] | None:
         return self.writes.get(key)
 
-    async def search(self, query: str, *, top_k: int = 10,) -> AsyncIterator[Mapping[str, Any]]:
+    async def search(self, query: str, *, top_k: int = 10) -> AsyncIterator[Mapping[str, Any]]:
         async def _aiter() -> AsyncIterator[Mapping[str, Any]]:
             if False:
                 yield {}
@@ -43,35 +41,17 @@ class RecordingMemoryStore(MemoryStore):
         return None
 
 
-class TestSemanticMemoryPipelineConstruction(unittest.IsolatedAsyncioTestCase):
-    async def test_rejects_non_llm_provider(self) -> None:
-        store = RecordingMemoryStore()
-        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
-            with Tapestry():
-                SemanticMemoryPipeline(
-                    messages=(AgentMessage(role="user", content="hi"),),
-                    llm="not-a-provider",  # type: ignore[arg-type]
-                    store=store,
-                    _config=KnotConfig(id="sem"),
-                )
-
-    async def test_rejects_empty_extraction_prompt(self) -> None:
-        store = RecordingMemoryStore()
-        llm = StubLLMProvider(["fact"])
-        with pytest.raises(
-            ValueError, match="fact_extraction_prompt"
-        ):
-            with Tapestry():
-                SemanticMemoryPipeline(
-                    messages=(AgentMessage(role="user", content="hi"),),
-                    llm=llm,
-                    store=store,
-                    fact_extraction_prompt="",
-                    _config=KnotConfig(id="sem"),
-                )
+def _make_knot(store: RecordingMemoryStore, llm: StubLLMProvider) -> SemanticMemoryPipeline:
+    with Tapestry():
+        return SemanticMemoryPipeline(
+            messages=(),
+            llm=llm,
+            store=store,
+            _config=KnotConfig(id="sem"),
+        )
 
 
-class TestSemanticMemoryPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
+class TestSemanticMemoryPipelineProcess(unittest.IsolatedAsyncioTestCase):
     async def test_extracts_facts_and_returns_count(self) -> None:
         store = RecordingMemoryStore()
         llm = StubLLMProvider(
@@ -96,3 +76,24 @@ class TestSemanticMemoryPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
         for key, payload in store.writes.items():
             assert key.startswith("semantic:")
             assert isinstance(payload["fact"], str)
+
+    async def test_rejects_non_llm_provider(self) -> None:
+        store = RecordingMemoryStore()
+        k = _make_knot(store, StubLLMProvider([]))
+        with self.assertRaises(TypeError):
+            await k.process(
+                messages=(),
+                llm="bad",  # type: ignore[arg-type]
+                store=store,
+            )
+
+    async def test_rejects_empty_extraction_prompt(self) -> None:
+        store = RecordingMemoryStore()
+        k = _make_knot(store, StubLLMProvider([]))
+        with self.assertRaises(ValueError):
+            await k.process(
+                messages=(),
+                llm=StubLLMProvider([]),
+                store=store,
+                fact_extraction_prompt="",
+            )

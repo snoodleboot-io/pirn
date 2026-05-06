@@ -5,6 +5,15 @@ The knot writes one summary row per partition (train / validation /
 test) using the partition's metadata. Concrete provider implementations
 that need full row payloads should subclass and override the row
 generation.
+
+Algorithm:
+    1. Receive ``split`` (DataSplit) and ``provider`` (FeatureStoreProvider) via process().
+    2. Build one metadata row dict per partition (train, optional validation, test).
+    3. Call provider.write_features(rows) and return the write count.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -25,32 +34,34 @@ class FeatureStore(Knot):
         self,
         *,
         split: Knot,
-        provider: FeatureStoreProvider,
+        provider: Knot | FeatureStoreProvider,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(provider, FeatureStoreProvider):
-            raise TypeError(
-                "FeatureStore: provider must be a FeatureStoreProvider"
-            )
-        self._provider = provider
-        super().__init__(split=split, _config=_config, **kwargs)
+        super().__init__(split=split, provider=provider, _config=_config, **kwargs)
 
-    async def process(self, split: DataSplit, **_: Any) -> int:
+    async def process(
+        self, split: DataSplit, provider: FeatureStoreProvider, **_: Any
+    ) -> int:
         """Write partition metadata rows from the DataSplit to the feature store provider and return the write count.
 
         Args:
             split: DataSplit whose train, test, and optional validation partitions are written.
+            provider: FeatureStoreProvider used to persist the partition metadata rows.
 
         Returns:
             Number of rows written to the feature store provider.
         """
+        if not isinstance(provider, FeatureStoreProvider):
+            raise TypeError(
+                "FeatureStore: provider must be a FeatureStoreProvider"
+            )
         rows: list[dict[str, Any]] = []
         rows.append(self._row(split.train, "train"))
         if split.validation is not None:
             rows.append(self._row(split.validation, "validation"))
         rows.append(self._row(split.test, "test"))
-        return await self._provider.write_features(rows)
+        return await provider.write_features(rows)
 
     def _row(self, dataset: MLDataset, partition: str) -> dict[str, Any]:
         return {

@@ -1,68 +1,51 @@
 """Unit tests for :class:`FIRWindowFilter`."""
 
 from __future__ import annotations
+
 import unittest
 
+import pytest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
+from pirn.core.parameter import Parameter
 from pirn.domains.signal.filters.fir_window_filter import FIRWindowFilter
 from pirn.domains.signal.types.signal_frame import SignalFrame
-from pirn.tapestry import Tapestry
-from tests.unit.domains.signal.conftest import emit_signal_frame
+from tests.unit.domains.signal.conftest import make_signal_frame
+
+_SIGNAL = make_signal_frame()
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_even_num_taps(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "positive odd"):
-                FIRWindowFilter(
-                    signal=sig,
-                    num_taps=64,
-                    cutoff_hz=100.0,
-                    window="hamming",
-                    _config=KnotConfig(id="f"),
-                )
-
-    def test_rejects_non_positive_cutoff(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "positive scalar"):
-                FIRWindowFilter(
-                    signal=sig,
-                    num_taps=63,
-                    cutoff_hz=0.0,
-                    window="hamming",
-                    _config=KnotConfig(id="f"),
-                )
-
-    def test_rejects_invalid_window(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "window"):
-                FIRWindowFilter(
-                    signal=sig,
-                    num_taps=63,
-                    cutoff_hz=100.0,
-                    window="kaiser",
-                    _config=KnotConfig(id="f"),
-                )
+def _up(name: str = "signal") -> Parameter:
+    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
 
 
-class TestProcess(unittest.IsolatedAsyncioTestCase):
+class TestFIRWindowFilter(unittest.IsolatedAsyncioTestCase):
+    def _make(self) -> FIRWindowFilter:
+        return FIRWindowFilter(
+            signal=_up(),
+            num_taps=31,
+            cutoff_hz=500.0,
+            window="hamming",
+            _config=KnotConfig(id="fwf"),
+        )
+
+    async def test_rejects_even_num_taps(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="num_taps"):
+            await knot.process(_SIGNAL, num_taps=32, cutoff_hz=500.0, window="hamming")
+
+    async def test_rejects_non_positive_cutoff(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="cutoff_hz"):
+            await knot.process(_SIGNAL, num_taps=31, cutoff_hz=0.0, window="hamming")
+
+    async def test_rejects_unknown_window(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="window"):
+            await knot.process(_SIGNAL, num_taps=31, cutoff_hz=500.0, window="bartlett")
+
     async def test_emits_signal_frame(self) -> None:
-        with Tapestry() as t:
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            FIRWindowFilter(
-                signal=sig,
-                num_taps=63,
-                cutoff_hz=200.0,
-                window="hann",
-                _config=KnotConfig(id="f"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["f"]
+        knot = self._make()
+        out = await knot.process(_SIGNAL, num_taps=31, cutoff_hz=500.0, window="hamming")
         assert isinstance(out, SignalFrame)
         assert out.signal_id == "test:fir-window"
-        assert out.sample_rate_hz == 1000.0

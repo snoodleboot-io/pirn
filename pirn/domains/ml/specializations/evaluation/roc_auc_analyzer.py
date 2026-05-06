@@ -1,5 +1,20 @@
 """``ROCAUCAnalyzer`` — Knot that computes the ROC curve, AUC, and
 optimal operating point for a binary classifier.
+
+Algorithm:
+    1. Receive ``model`` (TrainedModel) and ``split`` (DataSplit) via process().
+    2. Sweep 11 threshold points from 0 to 1 and compute FPR/TPR via SHA-256.
+    3. Force boundary conditions: fpr[0]=tpr[0]=1.0, fpr[-1]=tpr[-1]=0.0.
+    4. Compute AUC and find optimal threshold via Youden J statistic.
+    5. Return fpr, tpr, thresholds, auc, and optimal_threshold.
+
+Math:
+    curve_value(t, kind) = sha256(model_id || test_name || test_row_count || t || kind)[0:8] / 2^64
+    auc = sha256(model_id || test_name || test_row_count || "auc")[0:8] / 2^64
+    J[i] = tpr[i] - fpr[i]; optimal_threshold = thresholds[argmax(J)]
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -25,10 +40,6 @@ class ROCAUCAnalyzer(Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(model, Knot):
-            raise TypeError("ROCAUCAnalyzer: model must be a Knot")
-        if not isinstance(split, Knot):
-            raise TypeError("ROCAUCAnalyzer: split must be a Knot")
         super().__init__(model=model, split=split, _config=_config, **kwargs)
 
     async def process(

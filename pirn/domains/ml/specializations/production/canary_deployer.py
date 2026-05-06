@@ -1,6 +1,17 @@
 """``CanaryDeployer`` — SubTapestry that routes a configurable percentage
 of traffic to a new model and the rest to the current model, collects
 metrics from both, and returns a comparison report.
+
+Algorithm:
+    1. Receive ``current``, ``candidate``, ``split``, ``canary_fraction``,
+       and ``primary_metric`` via process().
+    2. Validate all inputs.
+    3. Compute deterministic scores for both models.
+    4. Return comparison report with recommendation.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -11,19 +22,11 @@ from typing import Any, Mapping
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
 from pirn.domains.ml.types.data_split import DataSplit
 from pirn.domains.ml.types.trained_model import TrainedModel
-from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
-@knot
-async def _emit_value(value: Any) -> Any:
-    return value
-
-
-class CanaryDeployer(SubTapestry):
+class CanaryDeployer(Knot):
     """Route a configurable traffic share to a new model and compare metrics against the current model."""
 
     def __init__(
@@ -32,44 +35,28 @@ class CanaryDeployer(SubTapestry):
         current: Knot,
         candidate: Knot,
         split: Knot,
-        canary_fraction: float = 0.1,
-        primary_metric: str = "accuracy",
+        canary_fraction: Knot | float = 0.1,
+        primary_metric: Knot | str = "accuracy",
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(current, Knot):
-            raise TypeError("CanaryDeployer: current must be a Knot")
-        if not isinstance(candidate, Knot):
-            raise TypeError("CanaryDeployer: candidate must be a Knot")
-        if not isinstance(split, Knot):
-            raise TypeError("CanaryDeployer: split must be a Knot")
-        if not isinstance(canary_fraction, (int, float)):
-            raise TypeError("CanaryDeployer: canary_fraction must be numeric")
-        if canary_fraction <= 0.0 or canary_fraction >= 1.0:
-            raise ValueError(
-                "CanaryDeployer: canary_fraction must be in (0, 1)"
-            )
-        if not isinstance(primary_metric, str) or not primary_metric:
-            raise ValueError(
-                "CanaryDeployer: primary_metric must be a non-empty string"
-            )
-        self._canary_fraction = float(canary_fraction)
-        self._primary_metric = primary_metric
-        super().__init__(current=current, candidate=candidate, split=split, _config=_config, **kwargs)
-
-    @property
-    def canary_fraction(self) -> float:
-        return self._canary_fraction
-
-    @property
-    def primary_metric(self) -> str:
-        return self._primary_metric
+        super().__init__(
+            current=current,
+            candidate=candidate,
+            split=split,
+            canary_fraction=canary_fraction,
+            primary_metric=primary_metric,
+            _config=_config,
+            **kwargs,
+        )
 
     async def process(
         self,
         current: TrainedModel,
         candidate: TrainedModel,
         split: DataSplit,
+        canary_fraction: float = 0.1,
+        primary_metric: str = "accuracy",
         **_: Any,
     ) -> Mapping[str, Any]:
         """Route canary traffic to candidate model, collect metrics from both, and return comparison report.
@@ -78,31 +65,43 @@ class CanaryDeployer(SubTapestry):
             current: Current production TrainedModel receiving the majority of traffic.
             candidate: New TrainedModel receiving the canary fraction of traffic.
             split: DataSplit used to simulate traffic and evaluate both models.
+            canary_fraction: Fraction of traffic to route to the candidate; must be in (0, 1).
+            primary_metric: Non-empty metric name to compare.
 
         Returns:
             Mapping with ``current_score``, ``candidate_score``, ``canary_fraction``,
             ``primary_metric``, and ``recommendation`` (``"promote"`` or ``"rollback"``).
+
+        Raises:
+            ValueError: If canary_fraction out of range or primary_metric is empty.
         """
-        current_score = self._model_score(current, split, "current")
-        candidate_score = self._model_score(candidate, split, "candidate")
+        if not isinstance(canary_fraction, (int, float)):
+            raise TypeError("CanaryDeployer: canary_fraction must be numeric")
+        if canary_fraction <= 0.0 or canary_fraction >= 1.0:
+            raise ValueError("CanaryDeployer: canary_fraction must be in (0, 1)")
+        if not isinstance(primary_metric, str) or not primary_metric:
+            raise ValueError("CanaryDeployer: primary_metric must be a non-empty string")
+        canary_f = float(canary_fraction)
+        current_score = self._model_score(current, split, "current", primary_metric)
+        candidate_score = self._model_score(candidate, split, "candidate", primary_metric)
         recommendation = "promote" if candidate_score >= current_score else "rollback"
         return {
             "current_score": current_score,
             "candidate_score": candidate_score,
-            "canary_fraction": self._canary_fraction,
-            "primary_metric": self._primary_metric,
+            "canary_fraction": canary_f,
+            "primary_metric": primary_metric,
             "recommendation": recommendation,
         }
 
     def _model_score(
-        self, model: TrainedModel, split: DataSplit, role: str
+        self, model: TrainedModel, split: DataSplit, role: str, primary_metric: str
     ) -> float:
         payload = json.dumps(
             {
                 "model_id": model.model_id,
                 "test_name": split.test.name,
                 "test_row_count": split.test.row_count,
-                "metric": self._primary_metric,
+                "metric": primary_metric,
                 "role": role,
             },
             sort_keys=True,

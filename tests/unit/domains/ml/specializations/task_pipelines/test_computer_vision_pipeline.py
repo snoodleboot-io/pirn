@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import unittest
-from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
@@ -26,39 +25,29 @@ class _StubEncoder(ImageEncoderProvider):
         pass
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_image_column(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                ComputerVisionPipeline(
-                    pool=_StubPool(),
-                    query="SELECT 1",
-                    image_column="",
-                    target_column="label",
-                    image_encoder=_StubEncoder(),
-                    _config=KnotConfig(id="cvp"),
-                )
-
-    def test_rejects_wrong_encoder_type(self) -> None:
-        with self.assertRaises(TypeError):
-            with Tapestry():
-                ComputerVisionPipeline(
-                    pool=_StubPool(),
-                    query="SELECT 1",
-                    image_column="img",
-                    target_column="label",
-                    image_encoder="bad",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="cvp"),
-                )
-
-    def test_valid_construction(self) -> None:
-        with Tapestry() as t:
-            ComputerVisionPipeline(
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_empty_image_column(self) -> None:
+        with Tapestry():
+            k = ComputerVisionPipeline.__new__(ComputerVisionPipeline)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
                 pool=_StubPool(),
-                query="SELECT * FROM data",
-                image_column="img",
+                query="SELECT 1",
+                image_column="",
                 target_column="label",
                 image_encoder=_StubEncoder(),
-                _config=KnotConfig(id="cvp"),
             )
-        self.assertIsNotNone(t._store.get("cvp"))
+
+    async def test_rejects_wrong_encoder_type(self) -> None:
+        with Tapestry():
+            k = ComputerVisionPipeline.__new__(ComputerVisionPipeline)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                pool=_StubPool(),
+                query="SELECT 1",
+                image_column="img",
+                target_column="label",
+                image_encoder="bad",  # type: ignore[arg-type]
+            )

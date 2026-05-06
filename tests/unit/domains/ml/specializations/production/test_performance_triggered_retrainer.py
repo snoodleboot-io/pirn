@@ -28,19 +28,18 @@ async def emit_model() -> TrainedModel:
     return TrainedModel(model_id="m1", algorithm="logistic", feature_names=("a",))
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_metric(self) -> None:
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_empty_metric(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            model = emit_model(_config=KnotConfig(id="model"))
-            with self.assertRaisesRegex(ValueError, "metric"):
-                PerformanceTriggeredRetrainer(
-                    model=model,
-                    split=split,
-                    metric="",
-                    threshold=0.8,
-                    _config=KnotConfig(id="bad"),
-                )
+            k = PerformanceTriggeredRetrainer.__new__(PerformanceTriggeredRetrainer)
+            object.__setattr__(k, "_config", KnotConfig(id="ptr"))
+        split_val = DataSplit(
+            train=MLDataset(name="t", feature_names=("a",), row_count=80),
+            test=MLDataset(name="t2", feature_names=("a",), row_count=20),
+        )
+        model_val = TrainedModel(model_id="m1", algorithm="logistic", feature_names=("a",))
+        with self.assertRaisesRegex((TypeError, ValueError), "metric"):
+            await k.process(model=model_val, split=split_val, metric="", threshold=0.8)
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

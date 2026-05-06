@@ -14,38 +14,26 @@ from pirn.domains.oilgas.well.water_saturation_calculator import (
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_invalid_method(self) -> None:
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_invalid_method(self) -> None:
+        k = WaterSaturationCalculator.__new__(WaterSaturationCalculator)
+        object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaisesRegex(ValueError, "method"):
-            with Tapestry():
-                las = LasFileIngester(
-                    file_path="/x",
-                    well_id="W",
-                    curves=("GR",),
-                    _config=KnotConfig(id="i"),
-                )
-                WaterSaturationCalculator(
-                    las_file=las,
-                    method="bogus",
-                    rw=0.05,
-                    _config=KnotConfig(id="sw"),
-                )
+            await k.process(
+                las_file=LASFile(well_id="W", curves=("GR",)),
+                method="bogus",
+                rw=0.05,
+            )
 
-    def test_rejects_non_positive_rw(self) -> None:
+    async def test_rejects_non_positive_rw(self) -> None:
+        k = WaterSaturationCalculator.__new__(WaterSaturationCalculator)
+        object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaisesRegex(ValueError, "rw"):
-            with Tapestry():
-                las = LasFileIngester(
-                    file_path="/x",
-                    well_id="W",
-                    curves=("GR",),
-                    _config=KnotConfig(id="i"),
-                )
-                WaterSaturationCalculator(
-                    las_file=las,
-                    method="archie",
-                    rw=0.0,
-                    _config=KnotConfig(id="sw"),
-                )
+            await k.process(
+                las_file=LASFile(well_id="W", curves=("GR",)),
+                method="archie",
+                rw=0.0,
+            )
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

@@ -1,74 +1,50 @@
 """Unit tests for :class:`SavitzkyGolayFilter`."""
 
 from __future__ import annotations
+
 import unittest
 
+import pytest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
+from pirn.core.parameter import Parameter
 from pirn.domains.signal.filters.savitzky_golay_filter import SavitzkyGolayFilter
 from pirn.domains.signal.types.signal_frame import SignalFrame
-from pirn.tapestry import Tapestry
-from tests.unit.domains.signal.conftest import emit_signal_frame
+from tests.unit.domains.signal.conftest import make_signal_frame
+
+_SIGNAL = make_signal_frame()
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_positive_window_length(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "positive integer"):
-                SavitzkyGolayFilter(
-                    signal=sig,
-                    window_length=0,
-                    polynomial_order=2,
-                    _config=KnotConfig(id="sg"),
-                )
-
-    def test_rejects_even_window_length(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "odd"):
-                SavitzkyGolayFilter(
-                    signal=sig,
-                    window_length=10,
-                    polynomial_order=2,
-                    _config=KnotConfig(id="sg"),
-                )
-
-    def test_rejects_negative_polynomial_order(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "non-negative"):
-                SavitzkyGolayFilter(
-                    signal=sig,
-                    window_length=11,
-                    polynomial_order=-1,
-                    _config=KnotConfig(id="sg"),
-                )
-
-    def test_rejects_polynomial_order_ge_window_length(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "< window_length"):
-                SavitzkyGolayFilter(
-                    signal=sig,
-                    window_length=11,
-                    polynomial_order=11,
-                    _config=KnotConfig(id="sg"),
-                )
+def _up(name: str = "signal") -> Parameter:
+    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
 
 
-class TestProcess(unittest.IsolatedAsyncioTestCase):
+class TestSavitzkyGolayFilter(unittest.IsolatedAsyncioTestCase):
+    def _make(self) -> SavitzkyGolayFilter:
+        return SavitzkyGolayFilter(
+            signal=_up(),
+            window_length=11,
+            polynomial_order=3,
+            _config=KnotConfig(id="sg"),
+        )
+
+    async def test_rejects_even_window_length(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="window_length"):
+            await knot.process(_SIGNAL, window_length=10, polynomial_order=3)
+
+    async def test_rejects_polynomial_order_ge_window_length(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="polynomial_order"):
+            await knot.process(_SIGNAL, window_length=5, polynomial_order=5)
+
+    async def test_rejects_negative_polynomial_order(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="polynomial_order"):
+            await knot.process(_SIGNAL, window_length=5, polynomial_order=-1)
+
     async def test_emits_signal_frame(self) -> None:
-        with Tapestry() as t:
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            SavitzkyGolayFilter(
-                signal=sig,
-                window_length=11,
-                polynomial_order=2,
-                _config=KnotConfig(id="sg"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["sg"]
+        knot = self._make()
+        out = await knot.process(_SIGNAL, window_length=11, polynomial_order=3)
         assert isinstance(out, SignalFrame)
         assert out.signal_id == "test:savgol"

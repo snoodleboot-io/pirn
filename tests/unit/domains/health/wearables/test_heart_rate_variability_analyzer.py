@@ -14,19 +14,21 @@ from pirn.domains.health.wearables.heart_rate_variability_analyzer import (
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_sequence(self) -> None:
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_non_sequence(self) -> None:
+        inst = object.__new__(HeartRateVariabilityAnalyzer)
         with self.assertRaisesRegex(TypeError, "rr_intervals_ms"):
-            HeartRateVariabilityAnalyzer(
+            await HeartRateVariabilityAnalyzer.process(
+                inst,
                 rr_intervals_ms=42,  # type: ignore[arg-type]
-                _config=KnotConfig(id="h"),
             )
 
-    def test_rejects_non_numeric(self) -> None:
+    async def test_rejects_non_numeric(self) -> None:
+        inst = object.__new__(HeartRateVariabilityAnalyzer)
         with self.assertRaisesRegex(TypeError, "numeric"):
-            HeartRateVariabilityAnalyzer(
+            await HeartRateVariabilityAnalyzer.process(
+                inst,
                 rr_intervals_ms=["x"],  # type: ignore[list-item]
-                _config=KnotConfig(id="h"),
             )
 
 

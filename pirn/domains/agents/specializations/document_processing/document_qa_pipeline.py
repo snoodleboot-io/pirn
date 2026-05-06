@@ -8,6 +8,27 @@ The pipeline does not depend on a global :class:`MemoryStore` — the
 question is scoped to the supplied source, so the embeddings are kept
 in-process for the lifetime of one request and discarded once the
 answer is produced.
+
+Algorithm:
+    1. ``_QALoadAndChunk`` loads the document from a file path or HTTP/HTTPS URL and
+       splits it into overlapping character windows.
+    2. Each chunk is embedded via the ``EmbeddingProvider``; the question is embedded
+       using the same provider.
+    3. Cosine similarity is computed between the question vector and every chunk
+       vector; the top-k chunks are selected.
+    4. ``_QARetrieveAndAnswer`` injects the top-k chunks as context into the LLM
+       prompt and returns the model response as an :class:`AgentResponse`.
+
+Math:
+    Cosine similarity: ``sim(q, c) = (q · c) / (||q|| * ||c||)`` where ``q`` is the
+    query embedding and ``c`` is a chunk embedding. Top-k selection by descending
+    similarity score.
+
+References:
+    - Lewis et al., 2020 — RAG: Retrieval-Augmented Generation for
+      Knowledge-Intensive NLP Tasks (arXiv 2005.11401).
+    - Karpukhin et al., 2020 — Dense Passage Retrieval for Open-Domain QA
+      (arXiv 2004.04906).
 """
 
 from __future__ import annotations
@@ -39,33 +60,18 @@ class DocumentQAPipeline(SubTapestry):
         *,
         source: Knot | str,
         question: Knot | str,
-        llm: LLMProvider,
-        embedder: EmbeddingProvider,
+        llm: Knot | LLMProvider,
+        embedder: Knot | EmbeddingProvider,
         _config: KnotConfig,
-        top_k: int = 3,
+        top_k: Knot | int = 3,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "DocumentQAPipeline: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
-        if not isinstance(embedder, EmbeddingProvider):
-            raise TypeError(
-                "DocumentQAPipeline: embedder must be an EmbeddingProvider, "
-                f"got {type(embedder).__name__}"
-            )
-        if not isinstance(top_k, int) or top_k <= 0:
-            raise ValueError(
-                "DocumentQAPipeline: top_k must be a positive int, "
-                f"got {top_k!r}"
-            )
-        self._llm = llm
-        self._embedder = embedder
-        self._top_k = top_k
         super().__init__(
             source=source,
             question=question,
+            llm=llm,
+            embedder=embedder,
+            top_k=top_k,
             _config=_config,
             **kwargs,
         )
@@ -74,6 +80,9 @@ class DocumentQAPipeline(SubTapestry):
         self,
         source: str,
         question: str,
+        llm: LLMProvider,
+        embedder: EmbeddingProvider,
+        top_k: int = 3,
         **_: Any,
     ) -> AgentResponse:
         """Retrieve the top-k relevant chunks from source and answer the question via the LLM.
@@ -81,13 +90,22 @@ class DocumentQAPipeline(SubTapestry):
         Args:
             source: A local file path or http(s):// URL identifying the document to search.
             question: The natural-language question to answer from the document.
+            llm: The LLM provider to use for answering.
+            embedder: The embedding provider for semantic retrieval.
+            top_k: Number of top chunks to include as context.
 
         Returns:
             An AgentResponse containing the LLM's answer grounded in the retrieved chunks.
 
         Raises:
             TypeError: If source or question is not a non-empty string.
+            ValueError: If top_k is not a positive int.
         """
+        if not isinstance(top_k, int) or top_k <= 0:
+            raise ValueError(
+                "DocumentQAPipeline: top_k must be a positive int, "
+                f"got {top_k!r}"
+            )
         if not isinstance(source, str) or not source:
             raise TypeError(
                 "DocumentQAPipeline: source must be a non-empty string, "
@@ -107,9 +125,9 @@ class DocumentQAPipeline(SubTapestry):
             _QARetrieveAndAnswer(
                 chunks=chunks,
                 question=question,
-                llm=self._llm,
-                embedder=self._embedder,
-                top_k=self._top_k,
+                llm=llm,
+                embedder=embedder,
+                top_k=top_k,
                 _config=KnotConfig(id="answer"),
             )
         inner_result = await self._run_inner(inner)

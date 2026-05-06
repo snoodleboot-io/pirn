@@ -5,50 +5,33 @@ from __future__ import annotations
 from collections.abc import Mapping
 import unittest
 
-
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
-from pirn.domains.health.mri.cortical_thickness_estimator import (
-    CorticalThicknessEstimator,
-)
-from pirn.tapestry import Tapestry
+from pirn.domains.health.mri.cortical_thickness_estimator import CorticalThicknessEstimator
 
-
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_path(self) -> None:
-        with self.assertRaisesRegex(ValueError, "non-empty"):
-            CorticalThicknessEstimator(
-                t1_nifti_path="",
-                regions=[],
-                _config=KnotConfig(id="c"),
-            )
-
-    def test_rejects_non_sequence(self) -> None:
-        with self.assertRaisesRegex(TypeError, "regions"):
-            CorticalThicknessEstimator(
-                t1_nifti_path="x",
-                regions=42,  # type: ignore[arg-type]
-                _config=KnotConfig(id="c"),
-            )
-
-    def test_rejects_non_string_region(self) -> None:
-        with self.assertRaisesRegex(TypeError, "string"):
-            CorticalThicknessEstimator(
-                t1_nifti_path="x",
-                regions=[1],  # type: ignore[list-item]
-                _config=KnotConfig(id="c"),
-            )
+_CFG = KnotConfig(id="c")
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self) -> CorticalThicknessEstimator:
+        return CorticalThicknessEstimator(t1_nifti_path="x", regions=["frontal"], _config=_CFG)
+
+    async def test_rejects_empty_path(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "non-empty"):
+            await knot.process(t1_nifti_path="", regions=[])
+
+    async def test_rejects_non_sequence(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(TypeError, "regions"):
+            await knot.process(t1_nifti_path="x", regions=42)  # type: ignore[arg-type]
+
+    async def test_rejects_non_string_region(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(TypeError, "string"):
+            await knot.process(t1_nifti_path="x", regions=[1])  # type: ignore[list-item]
+
     async def test_returns_per_region_mapping(self) -> None:
-        with Tapestry() as t:
-            CorticalThicknessEstimator(
-                t1_nifti_path="x",
-                regions=["frontal", "parietal"],
-                _config=KnotConfig(id="c"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["c"]
+        knot = self._make_knot()
+        out = await knot.process(t1_nifti_path="x", regions=["frontal", "parietal"])
         assert isinstance(out, Mapping)
         assert set(out.keys()) == {"frontal", "parietal"}

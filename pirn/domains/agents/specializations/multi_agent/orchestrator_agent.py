@@ -11,6 +11,18 @@ Specialists are expected to accept a ``task: str`` kwarg and return
 an :class:`AgentResponse`. They run as sub-pipelines outside the
 orchestrator's inner :class:`Tapestry`; only the routing decision is
 recorded as an inner knot.
+
+Algorithm:
+    1. Validate ``llm``, ``specialists`` (non-empty mapping), and ``task`` (str).
+    2. Build an inner :class:`Tapestry` containing :class:`OrchestratorRouter`
+       with the specialist names.
+    3. Execute via ``self._run_inner(inner)`` to obtain the routing decision.
+    4. Look up the chosen specialist by name; fall back to the first on mismatch.
+    5. Call ``specialist.process(task=task)`` and normalise to :class:`AgentResponse`.
+
+
+References:
+    pirn-native — no external references.
 """
 
 from __future__ import annotations
@@ -36,36 +48,20 @@ class OrchestratorAgent(SubTapestry):
         self,
         *,
         task: Knot | str,
-        llm: LLMProvider,
-        specialists: Mapping[str, SubTapestry],
+        llm: Knot | LLMProvider,
+        specialists: Knot | Any,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "OrchestratorAgent: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
-        if not isinstance(specialists, Mapping) or not specialists:
-            raise ValueError(
-                "OrchestratorAgent: specialists must be a non-empty mapping"
-            )
-        for name, candidate in specialists.items():
-            if not isinstance(name, str) or not name:
-                raise ValueError(
-                    "OrchestratorAgent: specialist names must be non-empty "
-                    f"strings, got {name!r}"
-                )
-            if not isinstance(candidate, SubTapestry):
-                raise TypeError(
-                    f"OrchestratorAgent: specialists[{name!r}] must be a "
-                    f"SubTapestry, got {type(candidate).__name__}"
-                )
-        self._llm = llm
-        self._specialists: dict[str, SubTapestry] = dict(specialists)
-        super().__init__(task=task, _config=_config, **kwargs)
+        super().__init__(task=task, llm=llm, specialists=specialists, _config=_config, **kwargs)
 
-    async def process(self, task: str, **_: Any) -> AgentResponse:
+    async def process(
+        self,
+        task: str,
+        llm: LLMProvider,
+        specialists: Any,
+        **_: Any,
+    ) -> AgentResponse:
         """Route the task to the LLM-selected specialist and return its AgentResponse.
 
         Args:
@@ -77,23 +73,33 @@ class OrchestratorAgent(SubTapestry):
         Raises:
             TypeError: If task is not a string.
         """
+        if not isinstance(llm, LLMProvider):
+            raise TypeError(
+                "OrchestratorAgent: llm must be an LLMProvider, "
+                f"got {type(llm).__name__}"
+            )
+        if not isinstance(specialists, Mapping) or not specialists:
+            raise ValueError(
+                "OrchestratorAgent: specialists must be a non-empty mapping"
+            )
         if not isinstance(task, str):
             raise TypeError(
                 "OrchestratorAgent: task must be a string, "
                 f"got {type(task).__name__}"
             )
+        specialists_dict: dict[str, SubTapestry] = dict(specialists)  # type: ignore[arg-type]
         with Tapestry() as inner:
             OrchestratorRouter(
                 task=task,
-                llm=self._llm,
-                specialist_names=tuple(self._specialists.keys()),
+                llm=llm,
+                specialist_names=tuple(specialists_dict.keys()),
                 _config=KnotConfig(id="route"),
             )
         inner_result = await self._run_inner(inner)
         chosen_name = inner_result.outputs.get("route")
         if not isinstance(chosen_name, str):
-            chosen_name = next(iter(self._specialists))
-        specialist = self._specialists[chosen_name]
+            chosen_name = next(iter(specialists_dict))
+        specialist = specialists_dict[chosen_name]
         result = await specialist.process(task=task)
         if not isinstance(result, AgentResponse):
             return AgentResponse(content=str(result), finish_reason="stop")

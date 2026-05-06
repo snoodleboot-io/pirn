@@ -2,6 +2,18 @@
 
 Production version invokes ``snpEff`` via subprocess; this stub
 validates inputs and returns an annotated VCF path.
+
+Algorithm:
+    1. Receive vcf_path, genome_db, and output_vcf_path strings.
+    2. Validate that all are non-empty strings.
+    3. Run snpEff ann using the configured genome database.
+    4. Write annotated records to output_vcf_path.
+    5. Return the output VCF path.
+
+
+References:
+    - Cingolani et al. (2012) A program for annotating and predicting the effects of single nucleotide polymorphisms (SnpEff).
+    - SnpEff: https://pcingola.github.io/SnpEff/
 """
 
 from __future__ import annotations
@@ -18,12 +30,41 @@ class SnpEffAnnotator(Knot):
     def __init__(
         self,
         *,
-        vcf_path: str,
-        genome_db: str,
-        output_vcf_path: str,
+        vcf_path: Knot | str,
+        genome_db: Knot | str,
+        output_vcf_path: Knot | str,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            vcf_path=vcf_path,
+            genome_db=genome_db,
+            output_vcf_path=output_vcf_path,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        vcf_path: str,
+        genome_db: str,
+        output_vcf_path: str,
+        **_: Any,
+    ) -> str:
+        """Annotate the VCF with SnpEff using the configured genome database and return the annotated VCF path.
+
+        Args:
+            vcf_path: Non-empty path to the input VCF file.
+            genome_db: Non-empty SnpEff genome database identifier.
+            output_vcf_path: Non-empty path for the annotated output VCF file.
+
+        Returns:
+            Path string for the SnpEff-annotated VCF output file.
+
+        Raises:
+            TypeError: If any argument is not a string.
+            ValueError: If any argument is empty.
+        """
         for label, value in (
             ("vcf_path", vcf_path),
             ("genome_db", genome_db),
@@ -33,15 +74,4 @@ class SnpEffAnnotator(Knot):
                 raise TypeError(f"SnpEffAnnotator: {label} must be a string")
             if not value:
                 raise ValueError(f"SnpEffAnnotator: {label} must be non-empty")
-        self._vcf_path = vcf_path
-        self._genome_db = genome_db
-        self._output_vcf_path = output_vcf_path
-        super().__init__(_config=_config, **kwargs)
-
-    async def process(self, **_: Any) -> str:
-        """Annotate the VCF with SnpEff using the configured genome database and return the annotated VCF path.
-
-        Returns:
-            Path string for the SnpEff-annotated VCF output file.
-        """
-        return self._output_vcf_path
+        return output_vcf_path

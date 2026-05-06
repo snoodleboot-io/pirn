@@ -3,6 +3,21 @@
 A :class:`Knot` that presents a task description alongside a mapping of
 agent names to capability descriptions to an LLM and returns the name
 of the agent best suited to handle the task.
+
+Algorithm:
+    1. Receive the resolved ``task`` string, ``llm`` provider, and
+       ``capabilities`` mapping at process time.
+    2. Validate input types; raise on bad types or empty capabilities.
+    3. Render a routing prompt listing all agent-name → description pairs.
+    4. Call ``llm.chat`` with the prompt.
+    5. Extract the text label from the raw LLM response.
+    6. Return the label if it matches a known agent name exactly.
+    7. Fall back to a case-insensitive substring search over known names.
+    8. If no match is found, return the first key in ``capabilities``.
+
+
+References:
+    - pirn-native routing pattern; no external algorithm reference.
 """
 
 from __future__ import annotations
@@ -22,11 +37,36 @@ class CapabilityRouter(Knot):
         self,
         *,
         task: Knot | str,
-        llm: LLMProvider,
-        capabilities: Mapping[str, str],
+        llm: Knot | LLMProvider,
+        capabilities: Knot | Mapping[str, str],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            task=task, llm=llm, capabilities=capabilities, _config=_config, **kwargs
+        )
+
+    async def process(
+        self,
+        task: str,
+        llm: LLMProvider,
+        capabilities: Mapping[str, str],
+        **_: Any,
+    ) -> str:
+        """Select the agent whose capabilities best match the task description.
+
+        Args:
+            task: The task description to match against agent capabilities.
+            llm: The LLM provider used to select the best-fit agent.
+            capabilities: A non-empty mapping of agent names to descriptions.
+
+        Returns:
+            The name of the best-fit agent.
+
+        Raises:
+            TypeError: If task is not a string or llm is not an LLMProvider.
+            ValueError: If capabilities is empty or contains invalid keys.
+        """
         if not isinstance(llm, LLMProvider):
             raise TypeError(
                 "CapabilityRouter: llm must be an LLMProvider, "
@@ -47,26 +87,6 @@ class CapabilityRouter(Knot):
                     f"CapabilityRouter: capabilities[{name!r}] must be a "
                     f"string, got {type(desc).__name__}"
                 )
-        self._llm = llm
-        self._capabilities: dict[str, str] = dict(capabilities)
-        super().__init__(task=task, _config=_config, **kwargs)
-
-    async def process(
-        self,
-        task: str,
-        **_: Any,
-    ) -> str:
-        """Select the agent whose capabilities best match the task description.
-
-        Args:
-            task: The task description to match against agent capabilities.
-
-        Returns:
-            The name of the best-fit agent.
-
-        Raises:
-            TypeError: If task is not a string.
-        """
         if not isinstance(task, str):
             raise TypeError(
                 "CapabilityRouter: task must be a string, "
@@ -74,7 +94,7 @@ class CapabilityRouter(Knot):
             )
         agent_lines = "\n".join(
             f"- {name}: {desc}"
-            for name, desc in self._capabilities.items()
+            for name, desc in capabilities.items()
         )
         prompt = (
             "Select the single best agent for the task below.\n"
@@ -82,14 +102,14 @@ class CapabilityRouter(Knot):
             f"Agents:\n{agent_lines}\n\n"
             f"Task: {task}"
         )
-        raw = await self._llm.chat([{"role": "user", "content": prompt}])
+        raw = await llm.chat([{"role": "user", "content": prompt}])
         label = self._extract_text(raw).strip()
-        if label in self._capabilities:
+        if label in capabilities:
             return label
-        for name in self._capabilities:
+        for name in capabilities:
             if name.lower() in label.lower():
                 return name
-        return next(iter(self._capabilities))
+        return next(iter(capabilities))
 
     @staticmethod
     def _extract_text(raw: Any) -> str:

@@ -2,52 +2,45 @@
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
 
-
-from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.domains.oilgas.production.flowline_pressure_modeler import (
     FlowlinePressureModeler,
 )
 from pirn.domains.oilgas.types.scada_time_series import ScadaTimeSeries
-from pirn.tapestry import Tapestry
 
-
-class _Source(Knot):
-    def __init__(self, *, _config: KnotConfig, **kwargs: Any) -> None:
-        super().__init__(_config=_config, **kwargs)
-
-    async def process(self, **_: Any) -> ScadaTimeSeries:
-        return ScadaTimeSeries(sensor_id="rate", sample_interval_sec=60.0)
-
-
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_positive_diameter(self) -> None:
-        with self.assertRaisesRegex(ValueError, "pipe_inner_diameter_in"):
-            with Tapestry():
-                src = _Source(_config=KnotConfig(id="src"))
-                FlowlinePressureModeler(
-                    rate_series=src,
-                    pipe_inner_diameter_in=0.0,
-                    pipe_length_ft=1000.0,
-                    _config=KnotConfig(id="fp"),
-                )
+_SERIES = ScadaTimeSeries(sensor_id="rate", sample_interval_sec=60.0)
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
-    async def test_returns_dp_series(self) -> None:
-        with Tapestry() as t:
-            src = _Source(_config=KnotConfig(id="src"))
-            FlowlinePressureModeler(
-                rate_series=src,
-                pipe_inner_diameter_in=4.0,
+    def _make_knot(
+        self,
+        pipe_inner_diameter_in: float = 4.0,
+        pipe_length_ft: float = 1000.0,
+    ) -> FlowlinePressureModeler:
+        return FlowlinePressureModeler(
+            rate_series=None,  # type: ignore[arg-type]
+            pipe_inner_diameter_in=pipe_inner_diameter_in,
+            pipe_length_ft=pipe_length_ft,
+            _config=KnotConfig(id="fp", validate_io=False),
+        )
+
+    async def test_rejects_non_positive_diameter(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "pipe_inner_diameter_in"):
+            await knot.process(
+                rate_series=_SERIES,
+                pipe_inner_diameter_in=0.0,
                 pipe_length_ft=1000.0,
-                _config=KnotConfig(id="fp"),
             )
-        result = await t.run(RunRequest())
-        out = result.outputs["fp"]
+
+    async def test_returns_dp_series(self) -> None:
+        knot = self._make_knot()
+        out = await knot.process(
+            rate_series=_SERIES,
+            pipe_inner_diameter_in=4.0,
+            pipe_length_ft=1000.0,
+        )
         assert isinstance(out, ScadaTimeSeries)
         assert "dp:" in out.sensor_id

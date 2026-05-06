@@ -8,6 +8,21 @@ The orchestration layer implements successive halving over a randomly
 sampled initial population using :class:`HyperparamSearch` with the
 ``random`` strategy. Concrete subclasses override scoring to perform
 real partial-fit iterations.
+
+Algorithm:
+    1. Receive ``split`` (DataSplit), ``algorithm``, ``search_space``,
+       ``primary_metric``, ``max_configs``, and ``random_seed`` via process().
+    2. Validate all inputs.
+    3. Compute n_trials from max_configs and log2 rounding.
+    4. Wire HyperparamSearch (random) + Evaluator in an inner Tapestry.
+    5. Run via _run_inner() and return best_model, eval_report, rounds.
+
+Math:
+    rounds = ceil(log2(max_configs))
+    n_trials = max(1, max_configs // 2^(rounds - 1))
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -39,21 +54,59 @@ class HyperbandTuner(SubTapestry):
         self,
         *,
         split: Knot,
-        algorithm: str,
-        search_space: Mapping[str, Sequence[Any]],
-        primary_metric: str,
-        max_configs: int = 16,
-        random_seed: int = 42,
+        algorithm: Knot | str,
+        search_space: Knot | Mapping[str, Sequence[Any]],
+        primary_metric: Knot | str,
+        max_configs: Knot | int = 16,
+        random_seed: Knot | int = 42,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(split, Knot):
-            raise TypeError("HyperbandTuner: split must be a Knot")
+        super().__init__(
+            split=split,
+            algorithm=algorithm,
+            search_space=search_space,
+            primary_metric=primary_metric,
+            max_configs=max_configs,
+            random_seed=random_seed,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        split: DataSplit,
+        algorithm: str = "",
+        search_space: Mapping[str, Sequence[Any]] | None = None,
+        primary_metric: str = "",
+        max_configs: int = 16,
+        random_seed: int = 42,
+        **_: Any,
+    ) -> dict[str, Any]:
+        """Run successive-halving and return the surviving best model and its evaluation.
+
+        Args:
+            split: DataSplit used for candidate training and evaluation.
+            algorithm: Non-empty algorithm name string.
+            search_space: Non-empty mapping of hyperparameter name to candidate values.
+            primary_metric: Non-empty metric name to optimise.
+            max_configs: Maximum initial configurations; must be an int >= 1.
+            random_seed: Seed for deterministic sampling.
+
+        Returns:
+            Dict with ``best_model`` (TrainedModel), ``eval_report`` (EvalReport),
+            and ``rounds`` (int number of halving rounds performed).
+
+        Raises:
+            ValueError: If any input fails validation.
+            TypeError: If the inner search or evaluator returns an unexpected type.
+        """
         if not isinstance(algorithm, str) or not algorithm:
             raise ValueError(
                 "HyperbandTuner: algorithm must be a non-empty string"
             )
-        if not isinstance(search_space, Mapping) or not search_space:
+        ss = search_space or {}
+        if not isinstance(ss, Mapping) or not ss:
             raise ValueError(
                 "HyperbandTuner: search_space must be a non-empty Mapping"
             )
@@ -67,50 +120,26 @@ class HyperbandTuner(SubTapestry):
             raise ValueError("HyperbandTuner: max_configs must be >= 1")
         if not isinstance(random_seed, int):
             raise TypeError("HyperbandTuner: random_seed must be an int")
-        self._algorithm = algorithm
-        self._search_space = {k: tuple(v) for k, v in search_space.items()}
-        self._primary_metric = primary_metric
-        self._max_configs = max_configs
-        self._random_seed = random_seed
-        super().__init__(split=split, _config=_config, **kwargs)
-
-    @property
-    def rounds(self) -> int:
-        return max(1, math.ceil(math.log2(self._max_configs)))
-
-    async def process(
-        self, split: DataSplit, **_: Any
-    ) -> dict[str, Any]:
-        """Run successive-halving and return the surviving best model and its evaluation.
-
-        Args:
-            split: DataSplit used for candidate training and evaluation.
-
-        Returns:
-            Dict with ``best_model`` (TrainedModel), ``eval_report`` (EvalReport),
-            and ``rounds`` (int number of halving rounds performed).
-
-        Raises:
-            TypeError: If the inner search or evaluator returns an unexpected type.
-        """
-        n_trials = max(1, self._max_configs // (2 ** (self.rounds - 1)))
+        frozen_space = {k: tuple(v) for k, v in ss.items()}
+        rounds = max(1, math.ceil(math.log2(max_configs)))
+        n_trials = max(1, max_configs // (2 ** (rounds - 1)))
         with Tapestry() as inner:
             split_node = _emit_value(
                 value=split, _config=KnotConfig(id="split")
             )
             best = HyperparamSearch(
                 split=split_node,
-                algorithm=self._algorithm,
-                search_space=self._search_space,
+                algorithm=algorithm,
+                search_space=frozen_space,
                 strategy="random",
                 n_trials=n_trials,
-                random_seed=self._random_seed,
+                random_seed=random_seed,
                 _config=KnotConfig(id="search"),
             )
             Evaluator(
                 model=best,
                 split=split_node,
-                metrics=(self._primary_metric,),
+                metrics=(primary_metric,),
                 _config=KnotConfig(id="evaluate"),
             )
         result = await self._run_inner(inner)
@@ -127,5 +156,5 @@ class HyperbandTuner(SubTapestry):
         return {
             "best_model": model,
             "eval_report": report,
-            "rounds": self.rounds,
+            "rounds": rounds,
         }

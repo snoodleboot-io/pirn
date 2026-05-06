@@ -26,28 +26,26 @@ class _WitsmlSource(Knot):
         }
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_well_uid(self) -> None:
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_empty_well_uid(self) -> None:
+        k = WitsmlDrillingMonitor.__new__(WitsmlDrillingMonitor)
+        object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaisesRegex(ValueError, "well_uid"):
-            with Tapestry():
-                src = _WitsmlSource(_config=KnotConfig(id="src"))
-                WitsmlDrillingMonitor(
-                    witsml_data=src,
-                    alert_thresholds={"rop_ft_hr": 80.0},
-                    well_uid="",
-                    _config=KnotConfig(id="wdm"),
-                )
+            await k.process(
+                witsml_data={"log_data": []},
+                alert_thresholds={"rop_ft_hr": 80.0},
+                well_uid="",
+            )
 
-    def test_rejects_non_dict_thresholds(self) -> None:
+    async def test_rejects_non_dict_thresholds(self) -> None:
+        k = WitsmlDrillingMonitor.__new__(WitsmlDrillingMonitor)
+        object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaisesRegex(TypeError, "alert_thresholds"):
-            with Tapestry():
-                src = _WitsmlSource(_config=KnotConfig(id="src"))
-                WitsmlDrillingMonitor(
-                    witsml_data=src,
-                    alert_thresholds="not_a_dict",  # type: ignore[arg-type]
-                    well_uid="WELL-001",
-                    _config=KnotConfig(id="wdm"),
-                )
+            await k.process(
+                witsml_data={"log_data": []},
+                alert_thresholds="not_a_dict",  # type: ignore[arg-type]
+                well_uid="WELL-001",
+            )
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

@@ -2,6 +2,17 @@
 
 Converts a :class:`ToolResult` into a human-readable string suitable for
 injection as a message into the next LLM chat turn.
+
+Algorithm:
+    1. Receive the resolved ``tool_result`` at process time.
+    2. Validate that ``tool_result`` is a :class:`ToolResult`.
+    3. If ``tool_result.error`` is set, return a failure message string.
+    4. Otherwise, format ``tool_result.result`` via ``_format_result``.
+    5. Return the formatted string prefixed with the call ID.
+
+
+References:
+    - pirn-native design; no external references.
 """
 
 from __future__ import annotations

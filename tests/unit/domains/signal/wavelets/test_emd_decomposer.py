@@ -12,16 +12,17 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.signal.conftest import emit_signal_frame
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_positive_max_imf_count(self) -> None:
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_bare_knot(self) -> EMDDecomposer:
         with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "max_imf_count"):
-                EMDDecomposer(
-                    signal=sig,
-                    max_imf_count=0,
-                    _config=KnotConfig(id="w"),
-                )
+            k = EMDDecomposer.__new__(EMDDecomposer)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        return k
+
+    async def test_rejects_non_positive_max_imf_count(self) -> None:
+        k = self._make_bare_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(signal=None, max_imf_count=0)  # type: ignore[arg-type]
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

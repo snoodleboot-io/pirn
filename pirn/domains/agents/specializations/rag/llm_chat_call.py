@@ -5,6 +5,19 @@ prompt string, frames it as a one-shot user message, and returns the
 text content extracted from the provider's response. Used inside RAG
 specializations where the upstream knots produce a fully-formed prompt
 string and the downstream knots need a string answer.
+
+Algorithm:
+    1. Validate ``llm``, ``max_tokens``, ``temperature``, and ``prompt``
+       types; raise ``TypeError`` / ``ValueError`` on bad inputs.
+    2. Optionally prepend a system message when ``system`` is non-empty.
+    3. Append a user message containing ``prompt``.
+    4. Call ``llm.chat(messages, **chat_kwargs)`` forwarding
+       ``max_tokens`` and ``temperature`` only when provided.
+    5. Extract and return the text content from the raw response via
+       ``_extract_text``.
+
+References:
+    - pirn-native implementation; no external algorithm reference.
 """
 
 from __future__ import annotations
@@ -23,13 +36,28 @@ class LLMChatCall(Knot):
         self,
         *,
         prompt: Knot | str,
-        llm: LLMProvider,
+        llm: Knot | LLMProvider,
         _config: KnotConfig,
-        system: str | None = None,
-        max_tokens: int | None = None,
-        temperature: float | None = None,
+        system: Knot | str | None = None,
+        max_tokens: Knot | int | None = None,
+        temperature: Knot | float | None = None,
         **kwargs: Any,
     ) -> None:
+        super().__init__(prompt=prompt, llm=llm, system=system, max_tokens=max_tokens, temperature=temperature, _config=_config, **kwargs)
+
+    async def process(self, prompt: str, llm: LLMProvider, system: str | None = None, max_tokens: int | None = None, temperature: float | None = None, **_: Any) -> str:
+        """Send the prompt as a user message to the LLM and return the extracted text response.
+
+        Args:
+            prompt: The fully-formed prompt string to send as a user message.
+
+        Returns:
+            The extracted text content from the LLM response.
+
+        Raises:
+            TypeError: If llm is not an LLMProvider or prompt is not a string.
+            ValueError: If max_tokens is not a positive int or temperature is not a number.
+        """
         if not isinstance(llm, LLMProvider):
             raise TypeError(
                 "LLMChatCall: llm must be an LLMProvider, "
@@ -42,48 +70,27 @@ class LLMChatCall(Knot):
                 "LLMChatCall: max_tokens must be a positive int or None, "
                 f"got {max_tokens!r}"
             )
-        if temperature is not None and not isinstance(
-            temperature, (int, float)
-        ):
+        if temperature is not None and not isinstance(temperature, (int, float)):
             raise ValueError(
                 "LLMChatCall: temperature must be a number or None, "
                 f"got {temperature!r}"
             )
-        self._llm = llm
-        self._system = system
-        self._max_tokens = max_tokens
-        self._temperature = (
-            float(temperature) if temperature is not None else None
-        )
-        super().__init__(prompt=prompt, _config=_config, **kwargs)
-
-    async def process(self, prompt: str, **_: Any) -> str:
-        """Send the prompt as a user message to the LLM and return the extracted text response.
-
-        Args:
-            prompt: The fully-formed prompt string to send as a user message.
-
-        Returns:
-            The extracted text content from the LLM response.
-
-        Raises:
-            TypeError: If prompt is not a string.
-        """
         if not isinstance(prompt, str):
             raise TypeError(
                 "LLMChatCall: prompt must be a string, "
                 f"got {type(prompt).__name__}"
             )
+        actual_temperature = float(temperature) if temperature is not None else None
         chat_messages: list[dict[str, Any]] = []
-        if self._system:
-            chat_messages.append({"role": "system", "content": self._system})
+        if system:
+            chat_messages.append({"role": "system", "content": system})
         chat_messages.append({"role": "user", "content": prompt})
-        kwargs: dict[str, Any] = {}
-        if self._max_tokens is not None:
-            kwargs["max_tokens"] = self._max_tokens
-        if self._temperature is not None:
-            kwargs["temperature"] = self._temperature
-        response = await self._llm.chat(chat_messages, **kwargs)
+        chat_kwargs: dict[str, Any] = {}
+        if max_tokens is not None:
+            chat_kwargs["max_tokens"] = max_tokens
+        if actual_temperature is not None:
+            chat_kwargs["temperature"] = actual_temperature
+        response = await llm.chat(chat_messages, **chat_kwargs)
         return self._extract_text(response)
 
     @staticmethod

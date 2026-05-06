@@ -6,6 +6,22 @@ calls :meth:`MemoryStore.store` under a key of the form
 ``"episode:<session_id>:<created_at_iso>"``. The created-at value of
 the most recent message is used for the timestamp slot so the key is
 deterministic for a given conversation tail.
+
+Algorithm
+---------
+1. Validate every element of ``messages`` is an :class:`AgentMessage`.
+2. Derive the timestamp from the last message's ``created_at`` field,
+   falling back to ``datetime.now(UTC)`` for empty sequences.
+3. Compose the key ``episode:<session_id>:<timestamp_iso>``.
+4. Call ``store.store(key, payload)`` and return the key.
+
+Math
+----
+No mathematical operations.
+
+References
+----------
+None.
 """
 
 from __future__ import annotations
@@ -27,11 +43,34 @@ class EpisodicEpisodeWriter(Knot):
         self,
         *,
         messages: Knot | Sequence[AgentMessage],
-        session_id: str,
-        store: MemoryStore,
+        session_id: Knot | str,
+        store: Knot | MemoryStore,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(messages=messages, session_id=session_id, store=store, _config=_config, **kwargs)
+
+    async def process(
+        self,
+        messages: Sequence[AgentMessage],
+        session_id: str,
+        store: MemoryStore,
+        **_: Any,
+    ) -> str:
+        """Serialize the message tuple as an episode and persist it, returning the storage key.
+
+        Args:
+            messages: The sequence of agent messages forming this episode.
+            session_id: Non-empty string identifying the session.
+            store: The MemoryStore to write the episode into.
+
+        Returns:
+            The storage key under which the episode was persisted.
+
+        Raises:
+            TypeError: If store is not a MemoryStore or any message element is not an AgentMessage.
+            ValueError: If session_id is not a non-empty string.
+        """
         if not isinstance(store, MemoryStore):
             raise TypeError(
                 "EpisodicEpisodeWriter: store must be a MemoryStore, "
@@ -42,26 +81,6 @@ class EpisodicEpisodeWriter(Knot):
                 "EpisodicEpisodeWriter: session_id must be a non-empty string, "
                 f"got {session_id!r}"
             )
-        self._store = store
-        self._session_id = session_id
-        super().__init__(messages=messages, _config=_config, **kwargs)
-
-    async def process(
-        self,
-        messages: Sequence[AgentMessage],
-        **_: Any,
-    ) -> str:
-        """Serialize the message tuple as an episode and persist it, returning the storage key.
-
-        Args:
-            messages: The sequence of agent messages forming this episode.
-
-        Returns:
-            The storage key under which the episode was persisted.
-
-        Raises:
-            TypeError: If any element of messages is not an AgentMessage.
-        """
         message_tuple = tuple(messages)
         for index, candidate in enumerate(message_tuple):
             if not isinstance(candidate, AgentMessage):
@@ -73,11 +92,11 @@ class EpisodicEpisodeWriter(Knot):
             timestamp = message_tuple[-1].created_at
         else:
             timestamp = datetime.now(timezone.utc)
-        key = f"episode:{self._session_id}:{timestamp.isoformat()}"
+        key = f"episode:{session_id}:{timestamp.isoformat()}"
         payload: dict[str, Any] = {
-            "session_id": self._session_id,
+            "session_id": session_id,
             "created_at": timestamp.isoformat(),
             "messages": [m._pirn_audit_dict() for m in message_tuple],
         }
-        await self._store.store(key, payload)
+        await store.store(key, payload)
         return key

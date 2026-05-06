@@ -43,14 +43,12 @@ class TestFeatureSelectorHappyPath(unittest.IsolatedAsyncioTestCase):
         assert out.test.feature_names == ("a", "b")
 
 
-class TestFeatureSelectorConstruction(unittest.TestCase):
-    def test_rejects_unknown_method(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "method must be"):
-                FeatureSelector(
-                    split=split,
-                    k=2,
-                    method="bogus",
-                    _config=KnotConfig(id="bad"),
-                )
+class TestFeatureSelectorProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_unknown_method(self) -> None:
+        selector = FeatureSelector.__new__(FeatureSelector)
+        object.__setattr__(selector, "_config", KnotConfig(id="x"))
+        train = MLDataset(name="d:train", feature_names=("a", "b", "c", "d"), row_count=80)
+        test = MLDataset(name="d:test", feature_names=("a", "b", "c", "d"), row_count=20)
+        split = DataSplit(train=train, test=test)
+        with self.assertRaisesRegex(ValueError, "method must be"):
+            await selector.process(split=split, k=2, method="bogus")

@@ -3,6 +3,17 @@ predictions on 20% holdout using a weighted average.
 
 Returns the blended ensemble :class:`TrainedModel` and its evaluation
 report.
+
+Algorithm:
+    1. Receive ``split``, ``base_algorithms``, and ``metrics`` via process().
+    2. Validate all inputs.
+    3. Create 80/20 blend split, wire base Trainers + EnsembleBuilder +
+       Evaluator in an inner Tapestry.
+    4. Run via _run_inner() and return ensemble model and eval report.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -35,58 +46,60 @@ class BlendingEnsembleBuilder(SubTapestry):
         self,
         *,
         split: Knot,
-        base_algorithms: Sequence[str],
-        metrics: Sequence[str],
+        base_algorithms: Knot | Sequence[str],
+        metrics: Knot | Sequence[str],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(split, Knot):
-            raise TypeError(
-                "BlendingEnsembleBuilder: split must be a Knot"
-            )
-        base_tuple = tuple(base_algorithms)
-        if len(base_tuple) < 2:
-            raise ValueError(
-                "BlendingEnsembleBuilder: at least two base_algorithms are "
-                "required"
-            )
-        for alg in base_tuple:
-            if not isinstance(alg, str) or not alg:
-                raise ValueError(
-                    "BlendingEnsembleBuilder: every base algorithm must be a "
-                    "non-empty string"
-                )
-        metric_tuple = tuple(metrics)
-        if not metric_tuple:
-            raise ValueError(
-                "BlendingEnsembleBuilder: metrics must be non-empty"
-            )
-        for metric in metric_tuple:
-            if not isinstance(metric, str) or not metric:
-                raise ValueError(
-                    "BlendingEnsembleBuilder: every metric name must be a "
-                    "non-empty string"
-                )
-        self._base_algorithms = base_tuple
-        self._metrics = metric_tuple
-        super().__init__(split=split, _config=_config, **kwargs)
+        super().__init__(
+            split=split,
+            base_algorithms=base_algorithms,
+            metrics=metrics,
+            _config=_config,
+            **kwargs,
+        )
 
     async def process(
-        self, split: DataSplit, **_: Any
+        self,
+        split: DataSplit,
+        base_algorithms: Sequence[str] = (),
+        metrics: Sequence[str] = (),
+        **_: Any,
     ) -> dict[str, Any]:
         """Train base models on 80% of training data and blend on 20% holdout.
 
         Args:
             split: DataSplit whose train partition is further divided 80/20
                 for base training and blending.
+            base_algorithms: At least two non-empty algorithm identifiers.
+            metrics: Non-empty sequence of metric names.
 
         Returns:
             Dict with ``ensemble_model`` (TrainedModel), ``eval_report`` (EvalReport),
             and ``n_base_models`` (int).
 
         Raises:
+            ValueError: If fewer than two algorithms or metrics is empty.
             TypeError: If base models or the ensemble do not return the expected types.
         """
+        base_tuple = tuple(base_algorithms)
+        if len(base_tuple) < 2:
+            raise ValueError(
+                "BlendingEnsembleBuilder: at least two base_algorithms are required"
+            )
+        for alg in base_tuple:
+            if not isinstance(alg, str) or not alg:
+                raise ValueError(
+                    "BlendingEnsembleBuilder: every base algorithm must be a non-empty string"
+                )
+        metric_tuple = tuple(metrics)
+        if not metric_tuple:
+            raise ValueError("BlendingEnsembleBuilder: metrics must be non-empty")
+        for metric in metric_tuple:
+            if not isinstance(metric, str) or not metric:
+                raise ValueError(
+                    "BlendingEnsembleBuilder: every metric name must be a non-empty string"
+                )
         train_rows = split.train.row_count
         blend_rows = max(1, train_rows // 5)
         base_rows = train_rows - blend_rows
@@ -112,7 +125,7 @@ class BlendingEnsembleBuilder(SubTapestry):
                 value=blend_split, _config=KnotConfig(id="blend_split")
             )
             base_models = []
-            for i, alg in enumerate(self._base_algorithms):
+            for i, alg in enumerate(base_tuple):
                 model = Trainer(
                     split=split_node,
                     algorithm=alg,
@@ -127,7 +140,7 @@ class BlendingEnsembleBuilder(SubTapestry):
             Evaluator(
                 model=ensemble,
                 split=split_node,
-                metrics=self._metrics,
+                metrics=metric_tuple,
                 _config=KnotConfig(id="evaluate"),
             )
         result = await self._run_inner(inner)
@@ -144,5 +157,5 @@ class BlendingEnsembleBuilder(SubTapestry):
         return {
             "ensemble_model": ensemble_model,
             "eval_report": report,
-            "n_base_models": len(self._base_algorithms),
+            "n_base_models": len(base_tuple),
         }

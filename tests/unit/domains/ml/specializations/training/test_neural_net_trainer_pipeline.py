@@ -38,41 +38,41 @@ class _KnotStub(Knot):
         return None
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_invalid_format(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                NeuralNetTrainerPipeline(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    lineage=_StubLineage(),
-                    store=_StubStore(),
-                    metrics=["val_loss"],
-                    format="keras",
-                    _config=KnotConfig(id="nntp"),
-                )
+def _make_knot() -> NeuralNetTrainerPipeline:
+    with Tapestry():
+        k = NeuralNetTrainerPipeline.__new__(NeuralNetTrainerPipeline)
+        object.__setattr__(k, "_config", KnotConfig(id="nntp"))
+    return k
 
-    def test_rejects_wrong_lineage_type(self) -> None:
-        with self.assertRaises(TypeError):
-            with Tapestry():
-                NeuralNetTrainerPipeline(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    lineage="bad",  # type: ignore[arg-type]
-                    store=_StubStore(),
-                    metrics=["val_loss"],
-                    _config=KnotConfig(id="nntp"),
-                )
 
-    def test_rejects_empty_metrics(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                NeuralNetTrainerPipeline(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    lineage=_StubLineage(),
-                    store=_StubStore(),
-                    metrics=[],
-                    _config=KnotConfig(id="nntp"),
-                )
+def _split():
+    from pirn.domains.ml.types.data_split import DataSplit
+    from pirn.domains.ml.types.ml_dataset import MLDataset
 
+    return DataSplit(
+        train=MLDataset(name="tr", feature_names=["x"], target_name="y", row_count=10, source_uri="mem://"),
+        test=MLDataset(name="te", feature_names=["x"], target_name="y", row_count=5, source_uri="mem://"),
+    )
+
+
+class TestNeuralNetTrainerPipelineValidation(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_invalid_format(self) -> None:
+        k = _make_knot()
+        with self.assertRaises((ValueError, TypeError)):
+            await k.process(split=_split(), lineage=_StubLineage(), store=_StubStore(), metrics=["val_loss"], format="keras")
+
+    async def test_rejects_wrong_lineage_type(self) -> None:
+        k = _make_knot()
+        with self.assertRaises((ValueError, TypeError)):
+            await k.process(split=_split(), lineage="bad", store=_StubStore(), metrics=["val_loss"])  # type: ignore[arg-type]
+
+    async def test_rejects_empty_metrics(self) -> None:
+        k = _make_knot()
+        with self.assertRaises((ValueError, TypeError)):
+            await k.process(split=_split(), lineage=_StubLineage(), store=_StubStore(), metrics=[])
+
+
+class TestNeuralNetTrainerPipelineConstruction(unittest.TestCase):
     def test_valid_construction(self) -> None:
         with Tapestry() as t:
             NeuralNetTrainerPipeline(

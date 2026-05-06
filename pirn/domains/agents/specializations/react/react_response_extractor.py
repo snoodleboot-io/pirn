@@ -7,6 +7,22 @@ becomes the response content and ``finished`` is set to ``True``.
 Otherwise the trailing assistant content is surfaced verbatim with
 ``finished`` set to ``False`` so callers can detect that the loop
 exhausted its iteration budget.
+
+Algorithm:
+    1. Receive the resolved ``messages`` tuple at process time.
+    2. Iterate over messages in reverse order.
+    3. Find the first (most recent) message with role ``"assistant"``.
+    4. If the message content contains ``"Final Answer:"``, split on the
+       marker and return the suffix as the response content with
+       ``finish_reason="stop"``.
+    5. Otherwise return the full content with ``finish_reason="length"``.
+    6. If no assistant message is found, return an empty response with
+       ``finish_reason="length"``.
+
+
+References:
+    - Yao et al. (2023) "ReAct: Synergizing Reasoning and Acting in Language Models"
+      https://arxiv.org/abs/2210.03629
 """
 
 from __future__ import annotations

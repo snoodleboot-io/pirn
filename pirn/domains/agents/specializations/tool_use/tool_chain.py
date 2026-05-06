@@ -3,6 +3,20 @@
 Takes an initial :class:`ToolCall` and a sequence of :class:`Tool` instances.
 Executes the first call, feeds its result as ``input`` to the next tool in
 the chain, and so on. Returns the final :class:`ToolResult`.
+
+Algorithm:
+    1. Receive resolved ``initial_call`` and ``tools`` at process time.
+    2. Validate that ``tools`` is non-empty and each entry is a :class:`Tool`.
+    3. Validate that ``initial_call`` is a :class:`ToolCall`.
+    4. Seed ``current_arguments`` from ``initial_call.arguments``.
+    5. For each tool in sequence: invoke with current arguments, wrap in
+       :class:`ToolResult`, update ``current_arguments`` to ``{"input": raw}``.
+    6. On any exception, return a :class:`ToolResult` with the error string.
+    7. Return the final :class:`ToolResult`.
+
+
+References:
+    - pirn-native design; no external references.
 """
 
 from __future__ import annotations
@@ -24,10 +38,31 @@ class ToolChain(Knot):
         self,
         *,
         initial_call: Knot | ToolCall,
-        tools: Sequence[Tool],
+        tools: Knot | Sequence[Tool],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(initial_call=initial_call, tools=tools, _config=_config, **kwargs)
+
+    async def process(
+        self,
+        initial_call: ToolCall,
+        tools: Sequence[Tool],
+        **_: Any,
+    ) -> ToolResult:
+        """Execute the tool chain, feeding each output as input to the next tool.
+
+        Args:
+            initial_call: The first ToolCall to execute, which seeds the chain.
+            tools: The ordered sequence of Tool instances to execute.
+
+        Returns:
+            The final ToolResult after running all tools in sequence.
+
+        Raises:
+            TypeError: If initial_call is not a ToolCall or any entry in tools is not a Tool.
+            ValueError: If tools is empty.
+        """
         tool_list = list(tools)
         if not tool_list:
             raise ValueError("ToolChain: tools must not be empty")
@@ -37,25 +72,6 @@ class ToolChain(Knot):
                     f"ToolChain: tools[{index}] must be a Tool, "
                     f"got {type(tool).__name__}"
                 )
-        self._tools = tool_list
-        super().__init__(initial_call=initial_call, _config=_config, **kwargs)
-
-    async def process(
-        self,
-        initial_call: ToolCall,
-        **_: Any,
-    ) -> ToolResult:
-        """Execute the tool chain, feeding each output as input to the next tool.
-
-        Args:
-            initial_call: The first ToolCall to execute, which seeds the chain.
-
-        Returns:
-            The final ToolResult after running all tools in sequence.
-
-        Raises:
-            TypeError: If initial_call is not a ToolCall.
-        """
         if not isinstance(initial_call, ToolCall):
             raise TypeError(
                 "ToolChain: initial_call must be a ToolCall, "
@@ -63,13 +79,13 @@ class ToolChain(Knot):
             )
         current_arguments: dict[str, Any] = dict(initial_call.arguments)
         current_call_id = initial_call.call_id
+        last_result: ToolResult | None = None
 
-        for tool in self._tools:
+        for tool in tool_list:
             try:
                 raw = await tool.invoke(current_arguments)
                 last_result = ToolResult(call_id=current_call_id, result=raw)
                 current_arguments = {"input": raw}
-                current_call_id = current_call_id
             except Exception as exc:
                 return ToolResult(
                     call_id=current_call_id,

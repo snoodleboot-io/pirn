@@ -1,4 +1,18 @@
-"""``RAGResponseBuilder`` — wrap an LLM answer string as :class:`AgentResponse`."""
+"""``RAGResponseBuilder`` — wrap an LLM answer string as :class:`AgentResponse`.
+
+Algorithm:
+    1. Receive the LLM-generated ``answer`` string.
+    2. Validate that ``answer`` is a string.
+    3. Construct and return an :class:`AgentResponse` with
+       ``content=answer`` and ``finish_reason="stop"``.
+
+Math:
+    No quantitative computation — this is a pure wrapping step.
+
+References:
+    - :class:`AgentResponse` dataclass in
+      ``pirn.domains.agents.types.agent_response``.
+"""
 
 from __future__ import annotations
 

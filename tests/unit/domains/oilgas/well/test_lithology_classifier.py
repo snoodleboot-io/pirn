@@ -1,49 +1,31 @@
 """Unit tests for :class:`LithologyClassifier`."""
 
 from __future__ import annotations
+
 import unittest
 
-
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.domains.oilgas.types.las_file import LASFile
-from pirn.domains.oilgas.well.las_file_ingester import LasFileIngester
 from pirn.domains.oilgas.well.lithology_classifier import LithologyClassifier
-from pirn.tapestry import Tapestry
 
-
-class TestConstruction(unittest.TestCase):
-    def test_rejects_invalid_method(self) -> None:
-        with self.assertRaisesRegex(ValueError, "method"):
-            with Tapestry():
-                las = LasFileIngester(
-                    file_path="/x",
-                    well_id="W",
-                    curves=("GR",),
-                    _config=KnotConfig(id="i"),
-                )
-                LithologyClassifier(
-                    las_file=las,
-                    method="nope",
-                    _config=KnotConfig(id="lc"),
-                )
+_LAS = LASFile(well_id="W", curves=("GR",))
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self) -> LithologyClassifier:
+        return LithologyClassifier(
+            las_file=None,  # type: ignore[arg-type]
+            method="rule_based",
+            _config=KnotConfig(id="lc", validate_io=False),
+        )
+
+    async def test_rejects_invalid_method(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "method"):
+            await knot.process(las_file=_LAS, method="nope")
+
     async def test_appends_lith_curve(self) -> None:
-        with Tapestry() as t:
-            las = LasFileIngester(
-                file_path="/x",
-                well_id="W",
-                curves=("GR",),
-                _config=KnotConfig(id="i"),
-            )
-            LithologyClassifier(
-                las_file=las,
-                method="rule_based",
-                _config=KnotConfig(id="lc"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["lc"]
+        knot = self._make_knot()
+        out = await knot.process(las_file=_LAS, method="rule_based")
         assert isinstance(out, LASFile)
         assert "LITH" in out.curves

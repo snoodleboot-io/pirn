@@ -5,6 +5,23 @@ configured :class:`MemoryStore` once per claim. Claims that return
 zero hits are recorded as unverified; the original
 :class:`AgentResponse` is returned with a warning footer appended
 when at least one claim could not be verified.
+
+Algorithm:
+    1. Validate that ``response`` is an :class:`AgentResponse`; raise
+       :class:`TypeError` otherwise.
+    2. Iterate over ``claims``; skip any entry that is not a non-empty string.
+    3. For each valid claim, call ``store.search(claim, top_k=1)``; await the
+       result if it is awaitable and consume at most one item from the iterator.
+    4. Collect claims that produced zero hits into ``unverified``.
+    5. If ``unverified`` is empty, return ``response`` unchanged.
+    6. Otherwise build a warning footer listing each unverified claim prefixed
+       with ``"- "`` and return a new :class:`AgentResponse` with the footer
+       appended to the original content.
+
+
+References:
+    - pirn-native: :class:`pirn.domains.agents.memory_store.MemoryStore`
+    - pirn-native: :class:`pirn.domains.agents.types.agent_response.AgentResponse`
 """
 
 from __future__ import annotations
@@ -26,19 +43,14 @@ class FactClaimVerifier(Knot):
         *,
         response: Knot | AgentResponse,
         claims: Knot | Sequence[str],
-        store: MemoryStore,
+        store: Knot | MemoryStore,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(store, MemoryStore):
-            raise TypeError(
-                "FactClaimVerifier: store must be a MemoryStore, "
-                f"got {type(store).__name__}"
-            )
-        self._store = store
         super().__init__(
             response=response,
             claims=claims,
+            store=store,
             _config=_config,
             **kwargs,
         )
@@ -47,6 +59,7 @@ class FactClaimVerifier(Knot):
         self,
         response: AgentResponse,
         claims: Sequence[str],
+        store: MemoryStore,
         **_: Any,
     ) -> AgentResponse:
         """Search the memory store for each claim and return the response with a warning footer for unverified ones.
@@ -70,7 +83,7 @@ class FactClaimVerifier(Knot):
         for claim in claims:
             if not isinstance(claim, str) or not claim:
                 continue
-            iterator = self._store.search(claim, top_k=1)
+            iterator = store.search(claim, top_k=1)
             if hasattr(iterator, "__await__"):
                 iterator = await iterator  # type: ignore[assignment]
             hits: list[Any] = []

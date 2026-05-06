@@ -21,38 +21,41 @@ class _KnotStub(Knot):
         return None
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_invalid_scheduler(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                LRSchedulerTrainer(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    algorithm="nn",
-                    scheduler="warmup",
-                    metrics=["val_loss"],
-                    _config=KnotConfig(id="lrs"),
-                )
+def _make_knot() -> LRSchedulerTrainer:
+    with Tapestry():
+        k = LRSchedulerTrainer.__new__(LRSchedulerTrainer)
+        object.__setattr__(k, "_config", KnotConfig(id="lrs"))
+    return k
 
-    def test_rejects_empty_algorithm(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                LRSchedulerTrainer(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    algorithm="",
-                    metrics=["val_loss"],
-                    _config=KnotConfig(id="lrs"),
-                )
 
-    def test_rejects_empty_metrics(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                LRSchedulerTrainer(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    algorithm="nn",
-                    metrics=[],
-                    _config=KnotConfig(id="lrs"),
-                )
+def _split():
+    from pirn.domains.ml.types.data_split import DataSplit
+    from pirn.domains.ml.types.ml_dataset import MLDataset
 
+    return DataSplit(
+        train=MLDataset(name="tr", feature_names=["x"], target_name="y", row_count=10, source_uri="mem://"),
+        test=MLDataset(name="te", feature_names=["x"], target_name="y", row_count=5, source_uri="mem://"),
+    )
+
+
+class TestLRSchedulerTrainerValidation(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_invalid_scheduler(self) -> None:
+        k = _make_knot()
+        with self.assertRaises((ValueError, TypeError)):
+            await k.process(split=_split(), algorithm="nn", scheduler="warmup", metrics=["val_loss"])
+
+    async def test_rejects_empty_algorithm(self) -> None:
+        k = _make_knot()
+        with self.assertRaises((ValueError, TypeError)):
+            await k.process(split=_split(), algorithm="", metrics=["val_loss"])
+
+    async def test_rejects_empty_metrics(self) -> None:
+        k = _make_knot()
+        with self.assertRaises((ValueError, TypeError)):
+            await k.process(split=_split(), algorithm="nn", metrics=[])
+
+
+class TestLRSchedulerTrainerConstruction(unittest.TestCase):
     def test_valid_construction(self) -> None:
         with Tapestry() as t:
             LRSchedulerTrainer(

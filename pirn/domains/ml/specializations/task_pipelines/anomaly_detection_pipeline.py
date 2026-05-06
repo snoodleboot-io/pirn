@@ -1,12 +1,25 @@
 """``AnomalyDetectionPipeline`` — end-to-end anomaly detection pipeline:
 fits Isolation Forest, LOF, or autoencoder on normal data, scores the
 test set, and returns anomaly flags and scores.
+
+Algorithm:
+    1. Receive ``pool``, ``query``, ``feature_names``, ``algorithm``,
+       and ``contamination`` via process().
+    2. Validate all inputs.
+    3. Wire DatasetLoader → TrainTestSplit → Scaler → Trainer → Evaluator
+       in an inner Tapestry.
+    4. Run via _run_inner() and return the EvalReport.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from typing import Any, ClassVar, Sequence
 
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.connectors.database_connection_pool import (
     DatabaseConnectionPool,
@@ -24,70 +37,78 @@ from pirn.tapestry import Tapestry
 class AnomalyDetectionPipeline(SubTapestry):
     """Fit an anomaly detector on normal data and score the test set."""
 
-    _anomaly_metrics: tuple[str, ...] = (
-        "precision",
-        "recall",
-        "f1",
-        "roc_auc",
+    _anomaly_metrics: tuple[str, ...] = ("precision", "recall", "f1", "roc_auc")
+    valid_algorithms: ClassVar[frozenset[str]] = frozenset(
+        {"isolation_forest", "lof", "autoencoder"}
     )
 
     def __init__(
         self,
         *,
-        pool: DatabaseConnectionPool,
-        query: str,
-        feature_names: Sequence[str],
-        algorithm: str = "isolation_forest",
-        contamination: float = 0.1,
+        pool: Knot | DatabaseConnectionPool,
+        query: Knot | str,
+        feature_names: Knot | Sequence[str],
+        algorithm: Knot | str = "isolation_forest",
+        contamination: Knot | float = 0.1,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError(
-                "AnomalyDetectionPipeline: pool must be a DatabaseConnectionPool"
-            )
-        if not isinstance(query, str) or not query:
-            raise ValueError(
-                "AnomalyDetectionPipeline: query must be a non-empty string"
-            )
-        feature_tuple = tuple(feature_names)
-        if not feature_tuple:
-            raise ValueError(
-                "AnomalyDetectionPipeline: feature_names must be non-empty"
-            )
-        allowed = {"isolation_forest", "lof", "autoencoder"}
-        if algorithm not in allowed:
-            raise ValueError(
-                f"AnomalyDetectionPipeline: algorithm must be one of {allowed}"
-            )
-        if not isinstance(contamination, (int, float)) or not 0.0 < contamination < 0.5:
-            raise ValueError(
-                "AnomalyDetectionPipeline: contamination must be in (0, 0.5)"
-            )
-        self._pool = pool
-        self._query = query
-        self._feature_names = feature_tuple
-        self._algorithm = algorithm
-        self._contamination = float(contamination)
-        super().__init__(_config=_config, **kwargs)
+        super().__init__(
+            pool=pool,
+            query=query,
+            feature_names=feature_names,
+            algorithm=algorithm,
+            contamination=contamination,
+            _config=_config,
+            **kwargs,
+        )
 
-    @property
-    def contamination(self) -> float:
-        return self._contamination
-
-    async def process(self, **_: Any) -> EvalReport:
+    async def process(
+        self,
+        pool: DatabaseConnectionPool = None,
+        query: str = "",
+        feature_names: Sequence[str] = (),
+        algorithm: str = "isolation_forest",
+        contamination: float = 0.1,
+        **_: Any,
+    ) -> EvalReport:
         """Load data, scale, train anomaly detector, and return an EvalReport with anomaly metrics.
+
+        Args:
+            pool: DatabaseConnectionPool for loading the dataset.
+            query: Non-empty SQL query string.
+            feature_names: Non-empty sequence of feature column names.
+            algorithm: Anomaly detection algorithm; must be one of {"isolation_forest", "lof", "autoencoder"}.
+            contamination: Expected fraction of anomalies; must be in (0, 0.5).
 
         Returns:
             EvalReport containing precision, recall, f1, and roc_auc metrics from the evaluation stage.
+
+        Raises:
+            ValueError: If any input fails validation.
+            TypeError: If pool is not a DatabaseConnectionPool.
         """
+        if not isinstance(pool, DatabaseConnectionPool):
+            raise TypeError("AnomalyDetectionPipeline: pool must be a DatabaseConnectionPool")
+        if not isinstance(query, str) or not query:
+            raise ValueError("AnomalyDetectionPipeline: query must be a non-empty string")
+        feature_tuple = tuple(feature_names)
+        if not feature_tuple:
+            raise ValueError("AnomalyDetectionPipeline: feature_names must be non-empty")
+        if algorithm not in self.valid_algorithms:
+            raise ValueError(
+                f"AnomalyDetectionPipeline: algorithm must be one of {sorted(self.valid_algorithms)}"
+            )
+        if not isinstance(contamination, (int, float)) or not 0.0 < contamination < 0.5:
+            raise ValueError("AnomalyDetectionPipeline: contamination must be in (0, 0.5)")
+        contamination_f = float(contamination)
         with Tapestry() as inner:
             dataset = DatasetLoader(
                 name="anomaly-detection",
-                feature_names=self._feature_names,
+                feature_names=feature_tuple,
                 target_name=None,
-                pool=self._pool,
-                query=self._query,
+                pool=pool,
+                query=query,
                 _config=KnotConfig(id="load"),
             )
             split = TrainTestSplit(
@@ -96,14 +117,14 @@ class AnomalyDetectionPipeline(SubTapestry):
             )
             preprocessed = Scaler(
                 split=split,
-                columns=self._feature_names,
+                columns=feature_tuple,
                 method="standardise",
                 _config=KnotConfig(id="preprocess"),
             )
             trained = Trainer(
                 split=preprocessed,
-                algorithm=self._algorithm,
-                hyperparameters={"contamination": self._contamination},
+                algorithm=algorithm,
+                hyperparameters={"contamination": contamination_f},
                 _config=KnotConfig(id="train"),
             )
             Evaluator(

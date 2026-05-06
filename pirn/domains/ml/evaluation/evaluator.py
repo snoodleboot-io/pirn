@@ -4,6 +4,19 @@
 The base class returns a deterministic :class:`EvalReport` so the
 orchestration plan is well-formed offline. Concrete subclasses override
 :meth:`_score` to perform a real fit/predict/score loop.
+
+Algorithm:
+    1. Receive ``model`` (TrainedModel), ``split`` (DataSplit), and ``metrics``
+       (sequence of str) via process().
+    2. Validate that metrics is non-empty and all elements are non-empty strings.
+    3. For each metric, compute a deterministic score via SHA-256(model_id + metric + split).
+    4. Wrap scores in an EvalReport and return.
+
+Math:
+    score[metric] = sha256(model_id || metric || test_name || test_row_count)[0:8] as uint64 / 2^64
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -29,10 +42,28 @@ class Evaluator(Knot):
         *,
         model: Knot,
         split: Knot,
-        metrics: Sequence[str],
+        metrics: Knot | Sequence[str],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(model=model, split=split, metrics=metrics, _config=_config, **kwargs)
+
+    async def process(
+        self, model: TrainedModel, split: DataSplit, metrics: Sequence[str] = (), **_: Any
+    ) -> EvalReport:
+        """Compute each configured metric for the model on the test split and return an EvalReport.
+
+        Args:
+            model: TrainedModel reference to evaluate.
+            split: DataSplit whose test partition is used for scoring.
+            metrics: Non-empty sequence of metric name strings.
+
+        Returns:
+            EvalReport containing all configured metrics and evaluation metadata.
+
+        Raises:
+            ValueError: If metrics is empty or any element is not a non-empty string.
+        """
         metric_tuple = tuple(metrics)
         if not metric_tuple:
             raise ValueError("Evaluator: metrics must be non-empty")
@@ -41,27 +72,8 @@ class Evaluator(Knot):
                 raise ValueError(
                     "Evaluator: every metric name must be a non-empty string"
                 )
-        self._metrics = metric_tuple
-        super().__init__(model=model, split=split, _config=_config, **kwargs)
-
-    @property
-    def metrics(self) -> tuple[str, ...]:
-        return self._metrics
-
-    async def process(
-        self, model: TrainedModel, split: DataSplit, **_: Any
-    ) -> EvalReport:
-        """Compute each configured metric for the model on the test split and return an EvalReport.
-
-        Args:
-            model: TrainedModel reference to evaluate.
-            split: DataSplit whose test partition is used for scoring.
-
-        Returns:
-            EvalReport containing all configured metrics and evaluation metadata.
-        """
         scored = MappingProxyType(
-            {metric: self._score(model, split, metric) for metric in self._metrics}
+            {metric: self._score(model, split, metric) for metric in metric_tuple}
         )
         return EvalReport(
             model_id=model.model_id,
@@ -91,3 +103,4 @@ class Evaluator(Knot):
         )
         digest = hashlib.sha256(payload.encode("utf-8")).digest()
         return int.from_bytes(digest[:8], "big") / float(2**64)
+

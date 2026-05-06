@@ -1,4 +1,16 @@
-"""``ConversationBuffer`` — append a message to a rolling conversation window."""
+"""``ConversationBuffer`` — append a message to a rolling conversation window.
+
+Algorithm:
+    1. Receive the resolved ``new_message``, ``history``, and ``max_size``.
+    2. Validate input types at process time.
+    3. Append ``new_message`` to history.
+    4. If the combined length exceeds ``max_size``, trim the oldest entries.
+    5. Return the trimmed tuple.
+
+
+References:
+    - :class:`pirn.domains.agents.types.agent_message.AgentMessage`
+"""
 
 from __future__ import annotations
 
@@ -23,14 +35,9 @@ class ConversationBuffer(Knot):
         new_message: Knot,
         _config: KnotConfig,
         history: Knot | Sequence[AgentMessage] = (),
-        max_size: int = 50,
+        max_size: Knot | int = 50,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(max_size, int) or max_size <= 0:
-            raise ValueError(
-                "ConversationBuffer: max_size must be a positive int, "
-                f"got {max_size!r}"
-            )
         super().__init__(
             new_message=new_message,
             history=history,
@@ -57,7 +64,8 @@ class ConversationBuffer(Knot):
             A tuple of the most recent messages up to max_size.
 
         Raises:
-            TypeError: If new_message is not an AgentMessage or history contains non-AgentMessage items.
+            TypeError: If new_message or history elements are not AgentMessage instances.
+            ValueError: If max_size is not a positive int.
         """
         if not isinstance(new_message, AgentMessage):
             raise TypeError(
@@ -75,6 +83,11 @@ class ConversationBuffer(Knot):
                     f"ConversationBuffer: history[{index}] must be an "
                     f"AgentMessage, got {type(message).__name__}"
                 )
+        if not isinstance(max_size, int) or max_size <= 0:
+            raise ValueError(
+                "ConversationBuffer: max_size must be a positive int, "
+                f"got {max_size!r}"
+            )
         ordered = (*tuple(history), new_message)
         if len(ordered) <= max_size:
             return ordered

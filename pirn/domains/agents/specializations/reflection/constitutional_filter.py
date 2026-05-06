@@ -1,4 +1,18 @@
-"""``ConstitutionalFilter`` — evaluate and revise a response against a set of principles."""
+"""``ConstitutionalFilter`` — evaluate and revise a response against a set of principles.
+
+Algorithm:
+    1. Format the principles as a bulleted list.
+    2. For each revision attempt (up to ``max_revisions``):
+       a. Ask the LLM to evaluate the current response against the principles.
+       b. If the LLM responds with exactly ``COMPLIANT``, return the current response.
+       c. Otherwise treat the LLM's output as the revised response and continue.
+    3. If violations persist after all attempts, raise :class:`ConstitutionalViolationError`.
+
+
+References:
+    - Bai et al., "Constitutional AI: Harmlessness from AI Feedback", 2022.
+      https://arxiv.org/abs/2212.08073
+"""
 
 from __future__ import annotations
 
@@ -33,11 +47,44 @@ class ConstitutionalFilter(Knot):
         *,
         response: Knot,
         principles: Knot | tuple[str, ...] | list[str],
-        llm: LLMProvider,
+        llm: Knot | LLMProvider,
         _config: KnotConfig,
-        max_revisions: int = 3,
+        max_revisions: Knot | int = 3,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            response=response,
+            principles=principles,
+            llm=llm,
+            max_revisions=max_revisions,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        response: AgentResponse,
+        principles: tuple[str, ...] | list[str],
+        llm: LLMProvider,
+        max_revisions: int = 3,
+        **_: Any,
+    ) -> AgentResponse:
+        """Evaluate response against principles, revise until compliant or raise on failure.
+
+        Args:
+            response: The AgentResponse to evaluate against the constitutional principles.
+            principles: A sequence of principle strings the response must satisfy.
+            llm: The LLMProvider to use for evaluation and revision.
+            max_revisions: Maximum number of revision attempts before raising.
+
+        Returns:
+            A compliant AgentResponse, possibly revised from the original.
+
+        Raises:
+            TypeError: If response is not an AgentResponse or llm is not an LLMProvider.
+            ValueError: If max_revisions is not a positive int.
+            ConstitutionalViolationError: If violations persist after max_revisions attempts.
+        """
         if not isinstance(llm, LLMProvider):
             raise TypeError(
                 "ConstitutionalFilter: llm must be an LLMProvider, "
@@ -48,34 +95,6 @@ class ConstitutionalFilter(Knot):
                 "ConstitutionalFilter: max_revisions must be a positive int, "
                 f"got {max_revisions!r}"
             )
-        self._llm = llm
-        self._max_revisions = max_revisions
-        super().__init__(
-            response=response,
-            principles=principles,
-            _config=_config,
-            **kwargs,
-        )
-
-    async def process(
-        self,
-        response: AgentResponse,
-        principles: tuple[str, ...] | list[str],
-        **_: Any,
-    ) -> AgentResponse:
-        """Evaluate response against principles, revise until compliant or raise on failure.
-
-        Args:
-            response: The AgentResponse to evaluate against the constitutional principles.
-            principles: A sequence of principle strings the response must satisfy.
-
-        Returns:
-            A compliant AgentResponse, possibly revised from the original.
-
-        Raises:
-            TypeError: If response is not an AgentResponse instance.
-            ConstitutionalViolationError: If violations persist after max_revisions attempts.
-        """
         if not isinstance(response, AgentResponse):
             raise TypeError(
                 "ConstitutionalFilter: response must be an AgentResponse, "
@@ -84,7 +103,7 @@ class ConstitutionalFilter(Knot):
         principles_text = "\n".join(f"- {p}" for p in principles)
         current_content = response.content
 
-        for _ in range(self._max_revisions):
+        for _ in range(max_revisions):
             messages = [
                 {"role": "system", "content": type(self)._evaluation_system},
                 {
@@ -95,7 +114,7 @@ class ConstitutionalFilter(Knot):
                     ),
                 },
             ]
-            raw = await self._llm.chat(messages=messages)
+            raw = await llm.chat(messages=messages)
             evaluation = self._extract_text(raw).strip()
             if evaluation.upper() == "COMPLIANT":
                 return AgentResponse(content=current_content)
@@ -103,7 +122,7 @@ class ConstitutionalFilter(Knot):
 
         raise ConstitutionalViolationError(
             "ConstitutionalFilter: response still violates principles after "
-            f"{self._max_revisions} revision(s)"
+            f"{max_revisions} revision(s)"
         )
 
     @staticmethod

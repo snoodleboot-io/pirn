@@ -4,6 +4,17 @@ scheduler.
 Supports ``step``, ``cosine``, and ``reduce_on_plateau`` scheduling
 strategies. Returns the trained model, evaluation report, and the
 scheduler strategy used.
+
+Algorithm:
+    1. Receive ``split``, ``algorithm``, ``scheduler``, ``metrics``,
+       and ``hyperparameters`` via process().
+    2. Validate all inputs.
+    3. Wire Trainer + Evaluator in an inner Tapestry.
+    4. Run via _run_inner() and return model, eval report, and scheduler.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -38,23 +49,54 @@ class LRSchedulerTrainer(SubTapestry):
         self,
         *,
         split: Knot,
-        algorithm: str,
-        scheduler: str = "cosine",
-        metrics: Sequence[str],
-        hyperparameters: Mapping[str, Any] | None = None,
+        algorithm: Knot | str,
+        scheduler: Knot | str = "cosine",
+        metrics: Knot | Sequence[str],
+        hyperparameters: Knot | Mapping[str, Any] | None = None,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(split, Knot):
-            raise TypeError("LRSchedulerTrainer: split must be a Knot")
+        super().__init__(
+            split=split,
+            algorithm=algorithm,
+            scheduler=scheduler,
+            metrics=metrics,
+            hyperparameters=hyperparameters,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        split: DataSplit,
+        algorithm: str = "",
+        scheduler: str = "cosine",
+        metrics: Sequence[str] = (),
+        hyperparameters: Mapping[str, Any] | None = None,
+        **_: Any,
+    ) -> dict[str, Any]:
+        """Train the model with a learning-rate scheduler and return the model, evaluation, and scheduler info.
+
+        Args:
+            split: DataSplit used for training and evaluation.
+            algorithm: Non-empty algorithm identifier.
+            scheduler: LR scheduler strategy; must be one of {"step", "cosine", "reduce_on_plateau"}.
+            metrics: Non-empty sequence of metric names.
+            hyperparameters: Optional mapping of additional hyperparameters.
+
+        Returns:
+            Dict with ``model`` (TrainedModel), ``eval_report`` (EvalReport),
+            and ``scheduler`` (str name of the scheduler used).
+
+        Raises:
+            ValueError: If any input fails validation.
+            TypeError: If the inner trainer or evaluator returns an unexpected type.
+        """
         if not isinstance(algorithm, str) or not algorithm:
-            raise ValueError(
-                "LRSchedulerTrainer: algorithm must be a non-empty string"
-            )
+            raise ValueError("LRSchedulerTrainer: algorithm must be a non-empty string")
         if scheduler not in self.valid_schedulers:
             raise ValueError(
-                f"LRSchedulerTrainer: scheduler must be one of "
-                f"{sorted(self.valid_schedulers)}"
+                f"LRSchedulerTrainer: scheduler must be one of {sorted(self.valid_schedulers)}"
             )
         metric_tuple = tuple(metrics)
         if not metric_tuple:
@@ -62,53 +104,23 @@ class LRSchedulerTrainer(SubTapestry):
         for metric in metric_tuple:
             if not isinstance(metric, str) or not metric:
                 raise ValueError(
-                    "LRSchedulerTrainer: every metric name must be a "
-                    "non-empty string"
+                    "LRSchedulerTrainer: every metric name must be a non-empty string"
                 )
-        if hyperparameters is not None and not isinstance(
-            hyperparameters, Mapping
-        ):
-            raise TypeError(
-                "LRSchedulerTrainer: hyperparameters must be a Mapping"
-            )
-        self._algorithm = algorithm
-        self._scheduler = scheduler
-        self._metrics = metric_tuple
-        self._hyperparameters = (
-            dict(hyperparameters) if hyperparameters is not None else {}
-        )
-        super().__init__(split=split, _config=_config, **kwargs)
-
-    async def process(
-        self, split: DataSplit, **_: Any
-    ) -> dict[str, Any]:
-        """Train the model with a learning-rate scheduler and return the model, evaluation, and scheduler info.
-
-        Args:
-            split: DataSplit used for training and evaluation.
-
-        Returns:
-            Dict with ``model`` (TrainedModel), ``eval_report`` (EvalReport),
-            and ``scheduler`` (str name of the scheduler used).
-
-        Raises:
-            TypeError: If the inner trainer or evaluator returns an unexpected type.
-        """
-        hp = {**self._hyperparameters, "lr_scheduler": self._scheduler}
+        if hyperparameters is not None and not isinstance(hyperparameters, Mapping):
+            raise TypeError("LRSchedulerTrainer: hyperparameters must be a Mapping")
+        hp = {**(dict(hyperparameters) if hyperparameters is not None else {}), "lr_scheduler": scheduler}
         with Tapestry() as inner:
-            split_node = _emit_value(
-                value=split, _config=KnotConfig(id="split")
-            )
+            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
             model = Trainer(
                 split=split_node,
-                algorithm=self._algorithm,
+                algorithm=algorithm,
                 hyperparameters=hp,
                 _config=KnotConfig(id="train"),
             )
             Evaluator(
                 model=model,
                 split=split_node,
-                metrics=self._metrics,
+                metrics=metric_tuple,
                 _config=KnotConfig(id="evaluate"),
             )
         result = await self._run_inner(inner)
@@ -125,5 +137,5 @@ class LRSchedulerTrainer(SubTapestry):
         return {
             "model": trained_model,
             "eval_report": report,
-            "scheduler": self._scheduler,
+            "scheduler": scheduler,
         }

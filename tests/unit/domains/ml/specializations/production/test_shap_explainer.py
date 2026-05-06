@@ -32,9 +32,9 @@ async def emit_model() -> TrainedModel:
 
 class TestConstruction(unittest.TestCase):
     def test_rejects_non_knot_split(self) -> None:
-        with Tapestry():
-            model = emit_model(_config=KnotConfig(id="model"))
-            with self.assertRaisesRegex(TypeError, "split must be a Knot"):
+        with self.assertRaises(TypeError):
+            with Tapestry():
+                model = emit_model(_config=KnotConfig(id="model"))
                 SHAPExplainer(
                     model=model,
                     split="bad",  # type: ignore[arg-type]

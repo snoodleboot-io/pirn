@@ -1,4 +1,16 @@
-"""``TerminationCheck`` — decide whether the agent loop should stop."""
+"""``TerminationCheck`` — decide whether the agent loop should stop.
+
+Algorithm:
+    1. Receive the resolved ``AgentResponse``, ``max_iterations``, and ``current_iteration``.
+    2. Validate input types at process time.
+    3. Return ``True`` immediately if the response finish reason is ``"stop"``.
+    4. Return ``True`` if ``current_iteration >= max_iterations``.
+    5. Otherwise return ``False``.
+
+
+References:
+    - :class:`pirn.domains.agents.types.agent_response.AgentResponse`
+"""
 
 from __future__ import annotations
 
@@ -21,16 +33,11 @@ class TerminationCheck(Knot):
         self,
         *,
         response: Knot,
-        max_iterations: int,
+        max_iterations: Knot | int,
         current_iteration: Knot | int,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(max_iterations, int) or max_iterations <= 0:
-            raise ValueError(
-                "TerminationCheck: max_iterations must be a positive int, "
-                f"got {max_iterations!r}"
-            )
         super().__init__(
             response=response,
             max_iterations=max_iterations,
@@ -57,12 +64,18 @@ class TerminationCheck(Knot):
             True if the response finish reason is "stop" or the iteration limit is reached.
 
         Raises:
-            TypeError: If response is not an AgentResponse or current_iteration is not an int.
+            TypeError: If response is not an AgentResponse or iterations are not ints.
+            ValueError: If max_iterations is not a positive int.
         """
         if not isinstance(response, AgentResponse):
             raise TypeError(
                 "TerminationCheck: response must be an AgentResponse, "
                 f"got {type(response).__name__}"
+            )
+        if not isinstance(max_iterations, int) or max_iterations <= 0:
+            raise ValueError(
+                "TerminationCheck: max_iterations must be a positive int, "
+                f"got {max_iterations!r}"
             )
         if not isinstance(current_iteration, int):
             raise TypeError(

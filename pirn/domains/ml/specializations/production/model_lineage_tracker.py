@@ -1,10 +1,22 @@
-"""``ModelLineageTracker`` — SubTapestry that records the full lineage
+"""``ModelLineageTracker`` — Knot that records the full lineage
 chain for a (dataset, split, model, report) tuple to a
 :class:`LineageStore`.
 
 The tracker emits one event per stage and returns the lineage id (a
 deterministic digest of the resolved model + dataset metadata) so
 downstream knots can attach the chain to a deployment record.
+
+Algorithm:
+    1. Receive ``dataset``, ``split``, ``model``, ``report``, and
+       ``lineage`` via process().
+    2. Validate all inputs.
+    3. Compute deterministic lineage_id from dataset/model/report metadata.
+    4. Log lineage events to the LineageStore.
+    5. Return lineage_id.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -21,10 +33,9 @@ from pirn.domains.ml.types.data_split import DataSplit
 from pirn.domains.ml.types.eval_report import EvalReport
 from pirn.domains.ml.types.ml_dataset import MLDataset
 from pirn.domains.ml.types.trained_model import TrainedModel
-from pirn.nodes.sub_tapestry import SubTapestry
 
 
-class ModelLineageTracker(SubTapestry):
+class ModelLineageTracker(Knot):
     """Record dataset → split → model → report into a lineage store."""
 
     def __init__(
@@ -34,28 +45,16 @@ class ModelLineageTracker(SubTapestry):
         split: Knot,
         model: Knot,
         report: Knot,
-        lineage: LineageStore,
+        lineage: Knot | LineageStore,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(dataset, Knot):
-            raise TypeError("ModelLineageTracker: dataset must be a Knot")
-        if not isinstance(split, Knot):
-            raise TypeError("ModelLineageTracker: split must be a Knot")
-        if not isinstance(model, Knot):
-            raise TypeError("ModelLineageTracker: model must be a Knot")
-        if not isinstance(report, Knot):
-            raise TypeError("ModelLineageTracker: report must be a Knot")
-        if not isinstance(lineage, LineageStore):
-            raise TypeError(
-                "ModelLineageTracker: lineage must be a LineageStore"
-            )
-        self._lineage = lineage
         super().__init__(
             dataset=dataset,
             split=split,
             model=model,
             report=report,
+            lineage=lineage,
             _config=_config,
             **kwargs,
         )
@@ -66,6 +65,7 @@ class ModelLineageTracker(SubTapestry):
         split: DataSplit,
         model: TrainedModel,
         report: EvalReport,
+        lineage: LineageStore | None = None,
         **_: Any,
     ) -> str:
         """Record dataset, split, model, and report as lineage events and return the deterministic lineage_id.
@@ -75,11 +75,17 @@ class ModelLineageTracker(SubTapestry):
             split: DataSplit whose train/test partition names are recorded.
             model: TrainedModel whose model_id and algorithm are logged.
             report: EvalReport whose metrics are captured in the lineage event.
+            lineage: LineageStore to record the events into.
 
         Returns:
             Deterministic 32-character hex lineage identifier derived from the
             dataset hash, model_id, report metrics, and recording timestamp.
+
+        Raises:
+            TypeError: If lineage is not a LineageStore.
         """
+        if not isinstance(lineage, LineageStore):
+            raise TypeError("ModelLineageTracker: lineage must be a LineageStore")
         recorded_at = datetime.now(timezone.utc).isoformat()
         dataset_hash = self._hash(
             {
@@ -98,7 +104,7 @@ class ModelLineageTracker(SubTapestry):
                 "recorded_at": recorded_at,
             }
         )
-        await self._lineage.log_event(
+        await lineage.log_event(
             "dataset_observed",
             {
                 "lineage_id": lineage_id,
@@ -108,7 +114,7 @@ class ModelLineageTracker(SubTapestry):
                 "recorded_at": recorded_at,
             },
         )
-        await self._lineage.log_event(
+        await lineage.log_event(
             "split_observed",
             {
                 "lineage_id": lineage_id,
@@ -120,7 +126,7 @@ class ModelLineageTracker(SubTapestry):
                 "recorded_at": recorded_at,
             },
         )
-        await self._lineage.log_event(
+        await lineage.log_event(
             "model_observed",
             {
                 "lineage_id": lineage_id,
@@ -129,7 +135,7 @@ class ModelLineageTracker(SubTapestry):
                 "recorded_at": recorded_at,
             },
         )
-        await self._lineage.log_event(
+        await lineage.log_event(
             "report_observed",
             {
                 "lineage_id": lineage_id,

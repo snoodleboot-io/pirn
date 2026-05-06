@@ -1,64 +1,45 @@
 """Unit tests for :class:`ClockDriftCorrector`."""
 
 from __future__ import annotations
+
 import unittest
 
+import pytest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
+from pirn.core.parameter import Parameter
 from pirn.domains.signal.resampling.clock_drift_corrector import ClockDriftCorrector
 from pirn.domains.signal.types.signal_frame import SignalFrame
-from pirn.tapestry import Tapestry
-from tests.unit.domains.signal.conftest import emit_signal_frame
+from tests.unit.domains.signal.conftest import make_signal_frame
+
+_SIGNAL = make_signal_frame()
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_positive_reference_rate(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "reference_rate_hz"):
-                ClockDriftCorrector(
-                    signal=sig,
-                    reference_rate_hz=0.0,
-                    measured_rate_hz=1000.0,
-                    _config=KnotConfig(id="cdc"),
-                )
-
-    def test_rejects_non_positive_measured_rate(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "measured_rate_hz"):
-                ClockDriftCorrector(
-                    signal=sig,
-                    reference_rate_hz=1000.0,
-                    measured_rate_hz=-5.0,
-                    _config=KnotConfig(id="cdc"),
-                )
-
-    def test_valid_construction(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            cdc = ClockDriftCorrector(
-                signal=sig,
-                reference_rate_hz=48000.0,
-                measured_rate_hz=47950.0,
-                _config=KnotConfig(id="cdc"),
-            )
-        assert cdc.reference_rate_hz == 48000.0
-        assert cdc.measured_rate_hz == 47950.0
+def _up(name: str = "signal") -> Parameter:
+    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
 
 
-class TestProcess(unittest.IsolatedAsyncioTestCase):
-    async def test_emits_corrected_signal_frame(self) -> None:
-        with Tapestry() as t:
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            ClockDriftCorrector(
-                signal=sig,
-                reference_rate_hz=1000.0,
-                measured_rate_hz=990.0,
-                _config=KnotConfig(id="cdc"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["cdc"]
+class TestClockDriftCorrector(unittest.IsolatedAsyncioTestCase):
+    def _make(self) -> ClockDriftCorrector:
+        return ClockDriftCorrector(
+            signal=_up(),
+            reference_rate_hz=1000.0,
+            measured_rate_hz=999.5,
+            _config=KnotConfig(id="cdc"),
+        )
+
+    async def test_rejects_non_positive_reference_rate(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="reference_rate_hz"):
+            await knot.process(_SIGNAL, reference_rate_hz=0.0, measured_rate_hz=999.5)
+
+    async def test_rejects_non_positive_measured_rate(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="measured_rate_hz"):
+            await knot.process(_SIGNAL, reference_rate_hz=1000.0, measured_rate_hz=0.0)
+
+    async def test_emits_signal_frame(self) -> None:
+        knot = self._make()
+        out = await knot.process(_SIGNAL, reference_rate_hz=1000.0, measured_rate_hz=999.5)
         assert isinstance(out, SignalFrame)
-        assert out.sample_rate_hz == 1000.0
+        assert out.signal_id == "test:drift_corrected"

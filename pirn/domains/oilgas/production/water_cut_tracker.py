@@ -1,4 +1,22 @@
-"""``WaterCutTracker`` — derive water-cut time-series from oil and water rates."""
+"""``WaterCutTracker`` — derive water-cut time-series from oil and water rates.
+
+Algorithm:
+    1. Receive aligned oil-rate and water-rate ScadaTimeSeries.
+    2. For each aligned sample, compute the water-cut fraction.
+    3. Return a ScadaTimeSeries of water-cut fraction values.
+
+Math:
+    Water-cut fraction at time :math:`t`:
+
+    $$f_w(t) = \\frac{q_w(t)}{q_o(t) + q_w(t)}$$
+
+    where :math:`q_w(t)` is water rate (bbl/day) and :math:`q_o(t)` is oil
+    rate (bbl/day). Values range from 0 (no water) to 1 (100 % water).
+
+References:
+    - Craft, B.C. & Hawkins, M.F. (1959). *Applied Petroleum Reservoir
+      Engineering*. Prentice-Hall, Chapter 10 (water-cut definition).
+"""
 
 from __future__ import annotations
 

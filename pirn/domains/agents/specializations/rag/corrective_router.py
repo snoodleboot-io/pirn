@@ -8,6 +8,17 @@ Inputs:
 Output: a ``list[Mapping[str, Any]]`` of "documents" that downstream
 prompt-builder knots can format. Tool fallback wraps the tool result
 in a single-doc list of the form ``[{"source": "fallback", "content": ...}]``.
+
+Algorithm:
+    1. Validate that ``fallback_tool`` is a :class:`Tool` and ``query`` is
+       a string.
+    2. If ``relevant_docs`` is non-empty, return a shallow copy of the list
+       unchanged.
+    3. Otherwise invoke ``fallback_tool.invoke({"input": query})`` and
+       return ``[{"source": "fallback", "content": str(result)}]``.
+
+References:
+    - Corrective RAG: https://arxiv.org/abs/2401.15884
 """
 
 from __future__ import annotations
@@ -28,19 +39,14 @@ class CorrectiveRouter(Knot):
         *,
         query: Knot | str,
         relevant_docs: Knot,
-        fallback_tool: Tool,
+        fallback_tool: Knot | Tool,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(fallback_tool, Tool):
-            raise TypeError(
-                "CorrectiveRouter: fallback_tool must be a Tool, "
-                f"got {type(fallback_tool).__name__}"
-            )
-        self._fallback_tool = fallback_tool
         super().__init__(
             query=query,
             relevant_docs=relevant_docs,
+            fallback_tool=fallback_tool,
             _config=_config,
             **kwargs,
         )
@@ -49,6 +55,7 @@ class CorrectiveRouter(Knot):
         self,
         query: str,
         relevant_docs: list[Mapping[str, Any]],
+        fallback_tool: Tool,
         **_: Any,
     ) -> list[Mapping[str, Any]]:
         """Return relevant_docs when non-empty, otherwise invoke the fallback tool and return its result.
@@ -61,8 +68,13 @@ class CorrectiveRouter(Knot):
             The relevant_docs list if non-empty, otherwise a single-entry list from the fallback tool.
 
         Raises:
-            TypeError: If query is not a string.
+            TypeError: If query is not a string or fallback_tool is not a Tool.
         """
+        if not isinstance(fallback_tool, Tool):
+            raise TypeError(
+                "CorrectiveRouter: fallback_tool must be a Tool, "
+                f"got {type(fallback_tool).__name__}"
+            )
         if not isinstance(query, str):
             raise TypeError(
                 "CorrectiveRouter: query must be a string, "
@@ -70,5 +82,5 @@ class CorrectiveRouter(Knot):
             )
         if relevant_docs:
             return list(relevant_docs)
-        fallback_result = await self._fallback_tool.invoke({"input": query})
+        fallback_result = await fallback_tool.invoke({"input": query})
         return [{"source": "fallback", "content": str(fallback_result)}]

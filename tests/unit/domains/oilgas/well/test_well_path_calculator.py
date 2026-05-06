@@ -23,16 +23,15 @@ class _SurveySource(Knot):
         return DeviationSurvey(well_id="W", station_count=10)
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_invalid_method(self) -> None:
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_invalid_method(self) -> None:
+        k = WellPathCalculator.__new__(WellPathCalculator)
+        object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaisesRegex(ValueError, "method"):
-            with Tapestry():
-                source = _SurveySource(_config=KnotConfig(id="src"))
-                WellPathCalculator(
-                    survey=source,
-                    method="bogus",
-                    _config=KnotConfig(id="wp"),
-                )
+            await k.process(
+                survey=DeviationSurvey(well_id="W", station_count=1),
+                method="bogus",
+            )
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

@@ -8,6 +8,9 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.ml.specializations.production.ab_test_pipeline import ABTestPipeline
+from pirn.domains.ml.types.data_split import DataSplit
+from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.trained_model import TrainedModel
 from pirn.tapestry import Tapestry
 
 
@@ -19,49 +22,52 @@ class _KnotStub(Knot):
         return None
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_invalid_alpha_zero(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                ABTestPipeline(
-                    model_a=_KnotStub(_config=KnotConfig(id="a")),
-                    model_b=_KnotStub(_config=KnotConfig(id="b")),
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    primary_metric="accuracy",
-                    alpha=0.0,
-                    _config=KnotConfig(id="ab"),
-                )
+def _make_split() -> DataSplit:
+    train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
+    test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
+    return DataSplit(train=train, test=test)
 
-    def test_rejects_invalid_alpha_one(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                ABTestPipeline(
-                    model_a=_KnotStub(_config=KnotConfig(id="a")),
-                    model_b=_KnotStub(_config=KnotConfig(id="b")),
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    primary_metric="accuracy",
-                    alpha=1.0,
-                    _config=KnotConfig(id="ab"),
-                )
 
-    def test_rejects_empty_primary_metric(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                ABTestPipeline(
-                    model_a=_KnotStub(_config=KnotConfig(id="a")),
-                    model_b=_KnotStub(_config=KnotConfig(id="b")),
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    primary_metric="",
-                    _config=KnotConfig(id="ab"),
-                )
+def _make_model(model_id: str) -> TrainedModel:
+    return TrainedModel(model_id=model_id, algorithm="logistic", feature_names=("a",))
 
-    def test_primary_metric_attribute(self) -> None:
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_invalid_alpha_zero(self) -> None:
         with Tapestry():
-            ab = ABTestPipeline(
-                model_a=_KnotStub(_config=KnotConfig(id="a")),
-                model_b=_KnotStub(_config=KnotConfig(id="b")),
-                split=_KnotStub(_config=KnotConfig(id="s")),
+            k = ABTestPipeline.__new__(ABTestPipeline)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                model_a=_make_model("a"),
+                model_b=_make_model("b"),
+                split=_make_split(),
                 primary_metric="accuracy",
-                _config=KnotConfig(id="ab"),
+                alpha=0.0,
             )
-        self.assertEqual(ab.primary_metric, "accuracy")
+
+    async def test_rejects_invalid_alpha_one(self) -> None:
+        with Tapestry():
+            k = ABTestPipeline.__new__(ABTestPipeline)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                model_a=_make_model("a"),
+                model_b=_make_model("b"),
+                split=_make_split(),
+                primary_metric="accuracy",
+                alpha=1.0,
+            )
+
+    async def test_rejects_empty_primary_metric(self) -> None:
+        with Tapestry():
+            k = ABTestPipeline.__new__(ABTestPipeline)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                model_a=_make_model("a"),
+                model_b=_make_model("b"),
+                split=_make_split(),
+                primary_metric="",
+                alpha=0.05,
+            )

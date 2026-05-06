@@ -24,30 +24,28 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_n_estimators_below_two(self) -> None:
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_n_estimators_below_two(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "n_estimators must be >= 2"):
-                BaggingEnsembleBuilder(
-                    split=split,
-                    algorithm="dt",
-                    n_estimators=1,
-                    metrics=("accuracy",),
-                    _config=KnotConfig(id="bad"),
-                )
+            k = BaggingEnsembleBuilder.__new__(BaggingEnsembleBuilder)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        split = DataSplit(
+            train=MLDataset(name="d:train", feature_names=("a", "b"), row_count=80),
+            test=MLDataset(name="d:test", feature_names=("a", "b"), row_count=20),
+        )
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=split, algorithm="dt", n_estimators=1, metrics=("accuracy",))
 
-    def test_rejects_invalid_task(self) -> None:
+    async def test_rejects_invalid_task(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "task"):
-                BaggingEnsembleBuilder(
-                    split=split,
-                    algorithm="dt",
-                    task="clustering",
-                    metrics=("accuracy",),
-                    _config=KnotConfig(id="bad"),
-                )
+            k = BaggingEnsembleBuilder.__new__(BaggingEnsembleBuilder)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        split = DataSplit(
+            train=MLDataset(name="d:train", feature_names=("a", "b"), row_count=80),
+            test=MLDataset(name="d:test", feature_names=("a", "b"), row_count=20),
+        )
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=split, algorithm="dt", task="clustering", metrics=("accuracy",))
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

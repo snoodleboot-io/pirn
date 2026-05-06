@@ -20,29 +20,6 @@ class _KnotStub(Knot):
 
 
 class TestConstruction(unittest.TestCase):
-    def test_rejects_max_configs_less_than_1(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                HyperbandTuner(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    algorithm="nn",
-                    search_space={"lr": [0.01]},
-                    primary_metric="val_loss",
-                    max_configs=0,
-                    _config=KnotConfig(id="ht"),
-                )
-
-    def test_rejects_empty_algorithm(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                HyperbandTuner(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    algorithm="",
-                    search_space={"lr": [0.01]},
-                    primary_metric="val_loss",
-                    _config=KnotConfig(id="ht"),
-                )
-
     def test_valid_construction(self) -> None:
         with Tapestry() as t:
             HyperbandTuner(
@@ -54,3 +31,36 @@ class TestConstruction(unittest.TestCase):
                 _config=KnotConfig(id="ht"),
             )
         self.assertIsNotNone(t._store.get("ht"))
+
+
+class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self) -> HyperbandTuner:
+        with Tapestry():
+            return HyperbandTuner(
+                split=_KnotStub(_config=KnotConfig(id="s")),
+                algorithm="nn",
+                search_space={"lr": [0.01]},
+                primary_metric="val_loss",
+                _config=KnotConfig(id="ht"),
+            )
+
+    async def test_rejects_max_configs_less_than_1(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaises(ValueError):
+            await knot.process(
+                split=object(),  # type: ignore[arg-type]
+                algorithm="nn",
+                search_space={"lr": [0.01]},
+                primary_metric="val_loss",
+                max_configs=0,
+            )
+
+    async def test_rejects_empty_algorithm(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaises(ValueError):
+            await knot.process(
+                split=object(),  # type: ignore[arg-type]
+                algorithm="",
+                search_space={"lr": [0.01]},
+                primary_metric="val_loss",
+            )

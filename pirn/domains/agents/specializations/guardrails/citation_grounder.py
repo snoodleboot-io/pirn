@@ -4,6 +4,20 @@ A :class:`Knot` that asks an LLM to rewrite the content of an
 :class:`AgentResponse` so that each claim includes an inline citation
 referencing the supplied source document passages. Returns a new
 :class:`AgentResponse` with the grounded content.
+
+Algorithm:
+    1. Receive an :class:`AgentResponse` and a sequence of source document strings.
+    2. Enumerate the sources as numbered passages ``[1]: ...``, ``[2]: ...``, etc.
+    3. Build a citation-rewrite prompt combining the numbered sources and the
+       original response content and send it to the :class:`LLMProvider`.
+    4. Extract the raw text from the LLM reply and strip surrounding whitespace.
+    5. Return a new :class:`AgentResponse` with the rewritten content and the
+       original ``tool_calls``, ``finish_reason``, and ``usage`` preserved.
+
+
+References:
+    - pirn-native: :class:`pirn.domains.agents.llm_provider.LLMProvider`
+    - pirn-native: :class:`pirn.domains.agents.types.agent_response.AgentResponse`
 """
 
 from __future__ import annotations
@@ -25,24 +39,19 @@ class CitationGrounder(Knot):
         *,
         response: Knot | AgentResponse,
         sources: Knot | Sequence[str],
-        llm: LLMProvider,
+        llm: Knot | LLMProvider,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "CitationGrounder: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
-        self._llm = llm
         super().__init__(
-            response=response, sources=sources, _config=_config, **kwargs
+            response=response, sources=sources, llm=llm, _config=_config, **kwargs
         )
 
     async def process(
         self,
         response: AgentResponse,
         sources: Sequence[str],
+        llm: LLMProvider,
         **_: Any,
     ) -> AgentResponse:
         """Rewrite the response content with inline citations and return it.
@@ -72,7 +81,7 @@ class CitationGrounder(Knot):
             f"Sources:\n{sources_text}\n\n"
             f"Response:\n{response.content}"
         )
-        raw = await self._llm.chat([{"role": "user", "content": prompt}])
+        raw = await llm.chat([{"role": "user", "content": prompt}])
         new_content = self._extract_text(raw).strip()
         return AgentResponse(
             content=new_content,

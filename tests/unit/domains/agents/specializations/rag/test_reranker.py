@@ -11,31 +11,33 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 
-class TestRerankerConstruction(unittest.IsolatedAsyncioTestCase):
+class TestRerankerProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
+        llm = StubLLMProvider(["0.9"])
+        knot = Reranker(
+            query="q",
+            documents=[],
+            llm=llm,
+            _config=KnotConfig(id="rerank"),
+        )
         with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
-            with Tapestry():
-                Reranker(
-                    query="q",
-                    documents=[],
-                    llm="bad",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="rerank"),
-                )
+            await knot.process(
+                query="q",
+                documents=[],
+                llm="bad",  # type: ignore[arg-type]
+            )
 
     async def test_rejects_zero_top_k(self) -> None:
         llm = StubLLMProvider(["0.9"])
+        knot = Reranker(
+            query="q",
+            documents=[],
+            llm=llm,
+            _config=KnotConfig(id="rerank"),
+        )
         with self.assertRaisesRegex(ValueError, "top_k must be a positive int"):
-            with Tapestry():
-                Reranker(
-                    query="q",
-                    documents=[],
-                    llm=llm,
-                    top_k=0,
-                    _config=KnotConfig(id="rerank"),
-                )
+            await knot.process(query="q", documents=[], llm=llm, top_k=0)
 
-
-class TestRerankerHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_returns_empty_for_empty_documents(self) -> None:
         llm = StubLLMProvider([])
         with Tapestry() as t:

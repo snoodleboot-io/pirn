@@ -8,6 +8,8 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.domains.agents.specializations.reflection.outcome_simulator import (
     OutcomeSimulator,
+)
+from pirn.domains.agents.specializations.reflection.simulation_result import (
     SimulationResult,
 )
 from pirn.tapestry import Tapestry
@@ -63,13 +65,28 @@ class TestOutcomeSimulatorProcess(unittest.IsolatedAsyncioTestCase):
         await t.run(RunRequest())
         assert len(llm.calls) == 1
 
-
-class TestOutcomeSimulatorConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
-        with self.assertRaisesRegex(TypeError, "LLMProvider"):
+        with self.assertRaises(TypeError):
             with Tapestry():
                 OutcomeSimulator(
                     action="action",
                     llm=0,  # type: ignore[arg-type]
                     _config=KnotConfig(id="sim"),
                 )
+
+
+class TestProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_process_rejects_non_llm_provider(self) -> None:
+        with Tapestry():
+            k = OutcomeSimulator.__new__(OutcomeSimulator)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises(TypeError):
+            await k.process(action="do something", llm="not-a-provider")  # type: ignore[arg-type]
+
+    async def test_process_rejects_non_string_action(self) -> None:
+        llm = StubLLMProvider(["Best case:\nGood."])
+        with Tapestry():
+            k = OutcomeSimulator.__new__(OutcomeSimulator)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises(TypeError):
+            await k.process(action=42, llm=llm)  # type: ignore[arg-type]

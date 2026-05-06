@@ -1,12 +1,25 @@
 """``ForecastingPipeline`` — end-to-end time-series forecasting
 SubTapestry: data load → split → train → evaluate via
 :class:`TimeSeriesEvalPipeline`.
+
+Algorithm:
+    1. Receive ``pool``, ``query``, ``time_column``, ``target_column``,
+       ``feature_names``, ``horizon``, and ``algorithm`` via process().
+    2. Validate all inputs.
+    3. Wire DatasetLoader → TrainTestSplit → Trainer → TimeSeriesEvalPipeline
+       in an inner Tapestry.
+    4. Run via _run_inner() and return the EvalReport.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
 
 from typing import Any, Sequence
 
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.connectors.database_connection_pool import (
     DatabaseConnectionPool,
@@ -28,72 +41,82 @@ class ForecastingPipeline(SubTapestry):
     def __init__(
         self,
         *,
-        pool: DatabaseConnectionPool,
-        query: str,
-        time_column: str,
-        target_column: str,
-        feature_names: Sequence[str],
-        horizon: int = 7,
-        algorithm: str = "arima",
+        pool: Knot | DatabaseConnectionPool,
+        query: Knot | str,
+        time_column: Knot | str,
+        target_column: Knot | str,
+        feature_names: Knot | Sequence[str],
+        horizon: Knot | int = 7,
+        algorithm: Knot | str = "arima",
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            pool=pool,
+            query=query,
+            time_column=time_column,
+            target_column=target_column,
+            feature_names=feature_names,
+            horizon=horizon,
+            algorithm=algorithm,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        pool: DatabaseConnectionPool = None,
+        query: str = "",
+        time_column: str = "",
+        target_column: str = "",
+        feature_names: Sequence[str] = (),
+        horizon: int = 7,
+        algorithm: str = "arima",
+        **_: Any,
+    ) -> EvalReport:
+        """Load data, split, train a forecasting model with the configured horizon, and return the time-series EvalReport.
+
+        Args:
+            pool: DatabaseConnectionPool for loading the dataset.
+            query: Non-empty SQL query string.
+            time_column: Non-empty name of the time ordering column.
+            target_column: Non-empty name of the target column.
+            feature_names: Non-empty sequence of feature column names.
+            horizon: Forecast horizon; must be int >= 1.
+            algorithm: Non-empty algorithm identifier.
+
+        Returns:
+            EvalReport from the :class:`TimeSeriesEvalPipeline` evaluation
+            stage, covering the configured forecast horizon.
+
+        Raises:
+            ValueError: If any input fails validation.
+            TypeError: If pool is not a DatabaseConnectionPool.
+        """
         if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError(
-                "ForecastingPipeline: pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("ForecastingPipeline: pool must be a DatabaseConnectionPool")
         if not isinstance(query, str) or not query:
-            raise ValueError(
-                "ForecastingPipeline: query must be a non-empty string"
-            )
+            raise ValueError("ForecastingPipeline: query must be a non-empty string")
         if not isinstance(time_column, str) or not time_column:
-            raise ValueError(
-                "ForecastingPipeline: time_column must be a non-empty string"
-            )
+            raise ValueError("ForecastingPipeline: time_column must be a non-empty string")
         if not isinstance(target_column, str) or not target_column:
-            raise ValueError(
-                "ForecastingPipeline: target_column must be a non-empty string"
-            )
+            raise ValueError("ForecastingPipeline: target_column must be a non-empty string")
         feature_tuple = tuple(feature_names)
         if not feature_tuple:
-            raise ValueError(
-                "ForecastingPipeline: feature_names must be non-empty"
-            )
+            raise ValueError("ForecastingPipeline: feature_names must be non-empty")
         if not isinstance(horizon, int):
             raise TypeError("ForecastingPipeline: horizon must be an int")
         if horizon < 1:
             raise ValueError("ForecastingPipeline: horizon must be >= 1")
         if not isinstance(algorithm, str) or not algorithm:
-            raise ValueError(
-                "ForecastingPipeline: algorithm must be a non-empty string"
-            )
-        self._pool = pool
-        self._query = query
-        self._time_column = time_column
-        self._target_column = target_column
-        self._feature_names = feature_tuple
-        self._horizon = horizon
-        self._algorithm = algorithm
-        super().__init__(_config=_config, **kwargs)
-
-    @property
-    def horizon(self) -> int:
-        return self._horizon
-
-    async def process(self, **_: Any) -> EvalReport:
-        """Load data, split, train a forecasting model with the configured horizon, and return the time-series EvalReport.
-
-        Returns:
-            EvalReport from the :class:`TimeSeriesEvalPipeline` evaluation
-            stage, covering the configured forecast horizon.
-        """
+            raise ValueError("ForecastingPipeline: algorithm must be a non-empty string")
         with Tapestry() as inner:
             dataset = DatasetLoader(
                 name="forecasting",
-                feature_names=self._feature_names,
-                target_name=self._target_column,
-                pool=self._pool,
-                query=self._query,
+                feature_names=feature_tuple,
+                target_name=target_column,
+                pool=pool,
+                query=query,
                 _config=KnotConfig(id="load"),
             )
             split = TrainTestSplit(
@@ -102,14 +125,14 @@ class ForecastingPipeline(SubTapestry):
             )
             trained = Trainer(
                 split=split,
-                algorithm=self._algorithm,
-                hyperparameters={"horizon": self._horizon},
+                algorithm=algorithm,
+                hyperparameters={"horizon": horizon},
                 _config=KnotConfig(id="train"),
             )
             TimeSeriesEvalPipeline(
                 model=trained,
                 split=split,
-                time_column=self._time_column,
+                time_column=time_column,
                 _config=KnotConfig(id="evaluate"),
             )
         inner_result = await self._run_inner(inner)

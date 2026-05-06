@@ -66,3 +66,19 @@ class TestCodeLinterProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         # no syntax warning since language != python
         assert all("syntax" not in w for w in result.outputs["cl"])
+
+
+class TestProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_process_returns_empty_list_for_valid_python(self) -> None:
+        with Tapestry():
+            k = _CodeLinter.__new__(_CodeLinter)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        result = await k.process(code="def f(): return 1", language="python")
+        assert result == []
+
+    async def test_process_returns_warning_for_empty_code(self) -> None:
+        with Tapestry():
+            k = _CodeLinter.__new__(_CodeLinter)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        result = await k.process(code="", language="python")
+        assert any("empty" in w for w in result)

@@ -1,53 +1,45 @@
 """Unit tests for :class:`LyapunovExponentEstimator`."""
 
 from __future__ import annotations
+
 import unittest
 
+import pytest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
-from pirn.domains.signal.nonlinear.lyapunov_exponent_estimator import (
-    LyapunovExponentEstimator,
-)
-from pirn.tapestry import Tapestry
-from tests.unit.domains.signal.conftest import emit_signal_frame
+from pirn.core.parameter import Parameter
+from pirn.domains.signal.nonlinear.lyapunov_exponent_estimator import LyapunovExponentEstimator
+from pirn.domains.signal.types.signal_frame import SignalFrame
+from tests.unit.domains.signal.conftest import make_signal_frame
+
+_SIGNAL = make_signal_frame()
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_positive_embedding_dim(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "embedding_dim"):
-                LyapunovExponentEstimator(
-                    signal=sig,
-                    embedding_dim=0,
-                    time_delay=1,
-                    _config=KnotConfig(id="l"),
-                )
-
-    def test_rejects_non_positive_time_delay(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "time_delay"):
-                LyapunovExponentEstimator(
-                    signal=sig,
-                    embedding_dim=2,
-                    time_delay=0,
-                    _config=KnotConfig(id="l"),
-                )
+def _up(name: str = "signal") -> Parameter:
+    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
 
 
-class TestProcess(unittest.IsolatedAsyncioTestCase):
-    async def test_emits_estimator_dict(self) -> None:
-        with Tapestry() as t:
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            LyapunovExponentEstimator(
-                signal=sig,
-                embedding_dim=3,
-                time_delay=1,
-                _config=KnotConfig(id="l"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["l"]
+class TestLyapunovExponentEstimator(unittest.IsolatedAsyncioTestCase):
+    def _make(self) -> LyapunovExponentEstimator:
+        return LyapunovExponentEstimator(
+            signal=_up(),
+            embedding_dim=3,
+            time_delay=1,
+            _config=KnotConfig(id="le"),
+        )
+
+    async def test_rejects_non_positive_embedding_dim(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="embedding_dim"):
+            await knot.process(_SIGNAL, embedding_dim=0, time_delay=1)
+
+    async def test_rejects_non_positive_time_delay(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="time_delay"):
+            await knot.process(_SIGNAL, embedding_dim=3, time_delay=0)
+
+    async def test_emits_mapping(self) -> None:
+        knot = self._make()
+        out = await knot.process(_SIGNAL, embedding_dim=3, time_delay=1)
+        assert isinstance(out, dict)
         assert out["estimator"] == "lyapunov"
-        assert out["embedding_dim"] == 3

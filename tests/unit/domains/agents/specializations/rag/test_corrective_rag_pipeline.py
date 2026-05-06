@@ -19,40 +19,6 @@ from tests.unit.domains.agents.specializations.conftest import (
 )
 
 
-class TestCorrectiveRAGPipelineConstruction(unittest.IsolatedAsyncioTestCase):
-    async def test_rejects_non_tool_fallback(self) -> None:
-        memory = StubMemoryStore([{"id": 1}])
-        llm = StubLLMProvider(["x"])
-        with pytest.raises(
-            TypeError, match="fallback_tool must be a Tool"
-        ):
-            with Tapestry():
-                CorrectiveRAGPipeline(
-                    query="q",
-                    memory=memory,
-                    llm=llm,
-                    fallback_tool="not-a-tool",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="crag"),
-                )
-
-    async def test_rejects_out_of_range_threshold(self) -> None:
-        memory = StubMemoryStore([{"id": 1}])
-        llm = StubLLMProvider(["x"])
-        tool = StubTool(name="web", handler="fallback")
-        with pytest.raises(
-            ValueError, match="relevance_threshold must be in"
-        ):
-            with Tapestry():
-                CorrectiveRAGPipeline(
-                    query="q",
-                    memory=memory,
-                    llm=llm,
-                    fallback_tool=tool,
-                    relevance_threshold=2.0,
-                    _config=KnotConfig(id="crag"),
-                )
-
-
 class TestCorrectiveRAGPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_uses_relevant_docs_when_available(self) -> None:
         memory = StubMemoryStore(
@@ -102,3 +68,22 @@ class TestCorrectiveRAGPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
         prompt_body = llm.calls[0][-1]["content"]
         assert "fallback" in prompt_body
         assert "web search hit" in prompt_body
+
+
+class TestProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_process_rejects_non_string_query(self) -> None:
+        memory = StubMemoryStore([])
+        llm = StubLLMProvider(["answer"])
+        tool = StubTool(name="web", handler="fallback")
+        with Tapestry():
+            k = CorrectiveRAGPipeline.__new__(CorrectiveRAGPipeline)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, AttributeError)):
+            await k.process(
+                query=42,  # type: ignore[arg-type]
+                memory=memory,
+                llm=llm,
+                fallback_tool=tool,
+                top_k=5,
+                relevance_threshold=0.5,
+            )

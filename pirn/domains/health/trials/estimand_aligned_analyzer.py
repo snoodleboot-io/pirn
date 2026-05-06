@@ -6,6 +6,22 @@ principal-stratum, and composite-strategy. Production deployments
 apply strategy-specific imputation and exclusion rules; this stub
 implements the simplest record-level filter consistent with each
 strategy.
+
+Algorithm:
+    1. Validate strategy and intercurrent_event_codes.
+    2. Filter records according to the chosen estimand strategy.
+    3. Return the qualifying records as a tuple.
+
+Math:
+    For while-on-treatment and hypothetical strategies, records with
+    intercurrent events are excluded:
+
+    $$S = \\{r \\in R : \\text{obs\_codes}(r) \\cap C_{IE} = \\emptyset\\}$$
+
+    where $C_{IE}$ is the set of intercurrent event codes.
+
+References:
+    - ICH E9(R1). (2019). Addendum on Estimands and Sensitivity Analysis in Clinical Trials.
 """
 
 from __future__ import annotations
@@ -34,20 +50,44 @@ class EstimandAlignedAnalyzer(Knot):
     def __init__(
         self,
         *,
-        records: Knot,
-        strategy: str,
-        intercurrent_event_codes: Sequence[str] = (),
+        records: Knot | Sequence[ClinicalTrialRecord],
+        strategy: Knot | str,
+        intercurrent_event_codes: Knot | Sequence[str] = (),
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(records, Knot):
-            raise TypeError(
-                "EstimandAlignedAnalyzer: records must be a Knot"
-            )
+        super().__init__(
+            records=records,
+            strategy=strategy,
+            intercurrent_event_codes=intercurrent_event_codes,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        records: Sequence[ClinicalTrialRecord],
+        strategy: str,
+        intercurrent_event_codes: Sequence[str] = (),
+        **_: Any,
+    ) -> tuple[ClinicalTrialRecord, ...]:
+        """Filter trial records according to the estimand strategy.
+
+        Args:
+            records: Sequence of ClinicalTrialRecord objects to filter.
+            strategy: One of 'treatment-policy', 'hypothetical', 'while-on-treatment',
+                'principal-stratum', 'composite-strategy'.
+            intercurrent_event_codes: Sequence of intercurrent event codes.
+
+        Returns:
+            Tuple of ClinicalTrialRecord objects that satisfy the estimand strategy.
+
+        Raises:
+            TypeError: If strategy is not a string or intercurrent_event_codes is not a sequence.
+            ValueError: If strategy is not supported.
+        """
         if not isinstance(strategy, str):
-            raise TypeError(
-                "EstimandAlignedAnalyzer: strategy must be a string"
-            )
+            raise TypeError("EstimandAlignedAnalyzer: strategy must be a string")
         if strategy not in self._supported_strategies:
             raise ValueError(
                 f"EstimandAlignedAnalyzer: strategy {strategy!r} not supported; "
@@ -62,54 +102,23 @@ class EstimandAlignedAnalyzer(Knot):
                 raise ValueError(
                     "EstimandAlignedAnalyzer: intercurrent_event_codes must be non-empty strings"
                 )
-        self._strategy = strategy
-        self._intercurrent_codes = frozenset(intercurrent_event_codes)
-        super().__init__(records=records, _config=_config, **kwargs)
-
-    @property
-    def strategy(self) -> str:
-        return self._strategy
-
-    async def process(
-        self,
-        records: Sequence[ClinicalTrialRecord],
-        **_: Any,
-    ) -> tuple[ClinicalTrialRecord, ...]:
-        """Filter trial records according to the configured estimand strategy and return the qualifying records.
-
-        Args:
-            records: Sequence of ClinicalTrialRecord objects to filter.
-
-        Returns:
-            Tuple of ClinicalTrialRecord objects that satisfy the estimand strategy.
-
-        Raises:
-            RuntimeError: If an unexpected strategy value bypasses the __init__ guard.
-        """
-        if self._strategy in ("treatment-policy", "composite-strategy"):
+        intercurrent_set = frozenset(intercurrent_event_codes)
+        if strategy in ("treatment-policy", "composite-strategy"):
             return tuple(records)
-        if self._strategy == "principal-stratum":
+        if strategy == "principal-stratum":
             return tuple(records)
-        if self._strategy == "while-on-treatment":
+        if strategy in ("while-on-treatment", "hypothetical"):
             return tuple(
                 record
                 for record in records
-                if not self._has_intercurrent_event(record)
+                if not self._has_intercurrent_event(record, intercurrent_set)
             )
-        if self._strategy == "hypothetical":
-            return tuple(
-                record
-                for record in records
-                if not self._has_intercurrent_event(record)
-            )
-        # Defensive — strategy was validated in __init__.
-        raise RuntimeError(
-            f"EstimandAlignedAnalyzer: unhandled strategy {self._strategy!r}"
-        )
+        raise RuntimeError(f"EstimandAlignedAnalyzer: unhandled strategy {strategy!r}")
 
-    def _has_intercurrent_event(self, record: ClinicalTrialRecord) -> bool:
-        if not self._intercurrent_codes:
+    @staticmethod
+    def _has_intercurrent_event(
+        record: ClinicalTrialRecord, intercurrent_codes: frozenset[str]
+    ) -> bool:
+        if not intercurrent_codes:
             return False
-        return any(
-            code in self._intercurrent_codes for code in record.observation_codes
-        )
+        return any(code in intercurrent_codes for code in record.observation_codes)

@@ -28,18 +28,40 @@ async def emit_model() -> TrainedModel:
     return TrainedModel(model_id="m1", algorithm="logistic", feature_names=("a",))
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_zero_batch_size(self) -> None:
+def _make_split() -> DataSplit:
+    train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
+    test = MLDataset(name="d:test", feature_names=("a",), row_count=100)
+    return DataSplit(train=train, test=test)
+
+
+def _make_model() -> TrainedModel:
+    return TrainedModel(model_id="m1", algorithm="logistic", feature_names=("a",))
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_zero_batch_size(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            model = emit_model(_config=KnotConfig(id="model"))
-            with self.assertRaisesRegex(ValueError, "batch_size"):
-                BatchInferencePipeline(
-                    model=model,
-                    split=split,
-                    batch_size=0,
-                    _config=KnotConfig(id="bad"),
-                )
+            k = BatchInferencePipeline.__new__(BatchInferencePipeline)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                model=_make_model(),
+                split=_make_split(),
+                batch_size=0,
+                output_column="prediction",
+            )
+
+    async def test_rejects_empty_output_column(self) -> None:
+        with Tapestry():
+            k = BatchInferencePipeline.__new__(BatchInferencePipeline)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                model=_make_model(),
+                split=_make_split(),
+                batch_size=32,
+                output_column="",
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

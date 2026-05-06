@@ -51,12 +51,11 @@ class TestEnsembleBuilderHappyPath(unittest.IsolatedAsyncioTestCase):
         assert child_ids == ["m1", "m2"]
 
 
-class TestEnsembleBuilderConstruction(unittest.TestCase):
-    def test_rejects_single_model(self) -> None:
+class TestEnsembleBuilderConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_single_model(self) -> None:
+        m1 = TrainedModel(model_id="m1", algorithm="rf", feature_names=("a",), target_name="y")
         with Tapestry():
-            m1 = emit_first_model(_config=KnotConfig(id="m1"))
-            with self.assertRaisesRegex(ValueError, "at least two"):
-                EnsembleBuilder(
-                    models=(m1,),
-                    _config=KnotConfig(id="bad"),
-                )
+            k = EnsembleBuilder.__new__(EnsembleBuilder)
+            object.__setattr__(k, "_config", KnotConfig(id="bad"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(models=(m1,), strategy="stacking")

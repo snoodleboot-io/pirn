@@ -3,6 +3,20 @@ samples from the same group in the same fold.
 
 Prevents data leakage when samples within a group are correlated (e.g.
 multiple records for the same patient or user).
+
+Algorithm:
+    1. Receive ``dataset`` (MLDataset), ``algorithm``, ``metrics``,
+       ``group_column``, and ``k`` via process().
+    2. Validate all inputs.
+    3. Wire CrossValidator in an inner Tapestry to produce k folds.
+    4. Wire Trainer + Evaluator per fold in a second inner Tapestry.
+    5. Aggregate per-fold metrics and return an EvalReport.
+
+Math:
+    mean_metric = sum(fold_metric) / k  for each metric
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -36,70 +50,76 @@ class GroupKFoldCrossValidator(SubTapestry):
         self,
         *,
         dataset: Knot,
-        algorithm: str,
-        metrics: Sequence[str],
-        group_column: str,
-        k: int = 5,
+        algorithm: Knot | str,
+        metrics: Knot | Sequence[str],
+        group_column: Knot | str,
+        k: Knot | int = 5,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(dataset, Knot):
-            raise TypeError(
-                "GroupKFoldCrossValidator: dataset must be a Knot"
-            )
-        if not isinstance(k, int):
-            raise TypeError("GroupKFoldCrossValidator: k must be an int")
-        if k < 2:
-            raise ValueError("GroupKFoldCrossValidator: k must be >= 2")
-        if not isinstance(group_column, str) or not group_column:
-            raise ValueError(
-                "GroupKFoldCrossValidator: group_column must be a non-empty "
-                "string"
-            )
-        if not isinstance(algorithm, str) or not algorithm:
-            raise ValueError(
-                "GroupKFoldCrossValidator: algorithm must be a non-empty "
-                "string"
-            )
-        metric_tuple = tuple(metrics)
-        if not metric_tuple:
-            raise ValueError(
-                "GroupKFoldCrossValidator: metrics must be non-empty"
-            )
-        for metric in metric_tuple:
-            if not isinstance(metric, str) or not metric:
-                raise ValueError(
-                    "GroupKFoldCrossValidator: every metric name must be a "
-                    "non-empty string"
-                )
-        self._k = k
-        self._group_column = group_column
-        self._algorithm = algorithm
-        self._metrics = metric_tuple
-        super().__init__(dataset=dataset, _config=_config, **kwargs)
+        super().__init__(
+            dataset=dataset,
+            algorithm=algorithm,
+            metrics=metrics,
+            group_column=group_column,
+            k=k,
+            _config=_config,
+            **kwargs,
+        )
 
     async def process(
-        self, dataset: MLDataset, **_: Any
+        self,
+        dataset: MLDataset,
+        algorithm: str = "",
+        metrics: Sequence[str] = (),
+        group_column: str = "",
+        k: int = 5,
+        **_: Any,
     ) -> EvalReport:
         """Run group K-fold cross-validation and return an EvalReport with mean metrics.
 
         Args:
             dataset: MLDataset to partition into k group-aware folds.
+            algorithm: Non-empty algorithm name string.
+            metrics: Non-empty sequence of metric name strings.
+            group_column: Non-empty column name that identifies groups.
+            k: Number of folds; must be an int >= 2.
 
         Returns:
             EvalReport with averaged per-fold metrics and group_column recorded
             in details.
 
         Raises:
+            ValueError: If any input fails validation.
             TypeError: If any fold evaluator does not return an EvalReport.
         """
+        if not isinstance(k, int):
+            raise TypeError("GroupKFoldCrossValidator: k must be an int")
+        if k < 2:
+            raise ValueError("GroupKFoldCrossValidator: k must be >= 2")
+        if not isinstance(group_column, str) or not group_column:
+            raise ValueError(
+                "GroupKFoldCrossValidator: group_column must be a non-empty string"
+            )
+        if not isinstance(algorithm, str) or not algorithm:
+            raise ValueError(
+                "GroupKFoldCrossValidator: algorithm must be a non-empty string"
+            )
+        metric_tuple = tuple(metrics)
+        if not metric_tuple:
+            raise ValueError("GroupKFoldCrossValidator: metrics must be non-empty")
+        for metric in metric_tuple:
+            if not isinstance(metric, str) or not metric:
+                raise ValueError(
+                    "GroupKFoldCrossValidator: every metric name must be a non-empty string"
+                )
         with Tapestry() as inner:
             dataset_node = _emit_value(
                 value=dataset, _config=KnotConfig(id="dataset")
             )
             CrossValidator(
                 dataset=dataset_node,
-                k=self._k,
+                k=k,
                 _config=KnotConfig(id="folds"),
             )
         folds_result = await self._run_inner(inner)
@@ -113,13 +133,13 @@ class GroupKFoldCrossValidator(SubTapestry):
                 )
                 model = Trainer(
                     split=split_node,
-                    algorithm=self._algorithm,
+                    algorithm=algorithm,
                     _config=KnotConfig(id=f"train_{fold_index}"),
                 )
                 Evaluator(
                     model=model,
                     split=split_node,
-                    metrics=self._metrics,
+                    metrics=metric_tuple,
                     _config=KnotConfig(id=f"evaluate_{fold_index}"),
                 )
         eval_result = await self._run_inner(inner_eval)
@@ -129,8 +149,7 @@ class GroupKFoldCrossValidator(SubTapestry):
             report = eval_result.outputs[f"evaluate_{fold_index}"]
             if not isinstance(report, EvalReport):
                 raise TypeError(
-                    f"GroupKFoldCrossValidator: fold {fold_index} did not "
-                    "produce an EvalReport"
+                    f"GroupKFoldCrossValidator: fold {fold_index} did not produce an EvalReport"
                 )
             per_fold.append(
                 {name: float(value) for name, value in report.metrics.items()}
@@ -138,14 +157,14 @@ class GroupKFoldCrossValidator(SubTapestry):
 
         aggregated = self._aggregate(per_fold)
         return EvalReport(
-            model_id=f"{self._algorithm}:group_kfold-{self._k}",
+            model_id=f"{algorithm}:group_kfold-{k}",
             dataset_name=dataset.name,
             metrics=MappingProxyType(aggregated),
             details=MappingProxyType(
                 {
-                    "k": self._k,
-                    "group_column": self._group_column,
-                    "algorithm": self._algorithm,
+                    "k": k,
+                    "group_column": group_column,
+                    "algorithm": algorithm,
                     "per_fold_metrics": per_fold,
                 }
             ),

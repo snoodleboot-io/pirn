@@ -3,6 +3,17 @@
 Accepts plain strings, mappings, :class:`AgentMessage` instances, or
 sequences thereof. Anything else fails fast at process time so callers
 cannot smuggle untyped state past the input boundary.
+
+Algorithm:
+    1. Receive the resolved raw input.
+    2. Coerce it to an iterable of items (string, mapping, AgentMessage, or sequence).
+    3. Convert each item into an ``AgentMessage`` with role inference.
+    4. Raise ``ValueError`` if the result is empty.
+    5. Return the tuple of messages.
+
+
+References:
+    - :class:`pirn.domains.agents.types.agent_message.AgentMessage`
 """
 
 from __future__ import annotations

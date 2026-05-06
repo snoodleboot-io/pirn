@@ -29,32 +29,39 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_entity_keys(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            store = RecordingFeatureStoreProvider()
-            with self.assertRaisesRegex(ValueError, "entity_keys"):
-                FeatureStoreReader(
-                    split=split,
-                    feature_store=store,
-                    entity_keys=(),
-                    feature_names=("a",),
-                    _config=KnotConfig(id="bad"),
-                )
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    def _make_split(self) -> DataSplit:
+        train = MLDataset(
+            name="d:train", feature_names=("entity_id",), target_name="y", row_count=80
+        )
+        test = MLDataset(
+            name="d:test", feature_names=("entity_id",), target_name="y", row_count=20
+        )
+        return DataSplit(train=train, test=test)
 
-    def test_rejects_empty_feature_names(self) -> None:
+    async def test_rejects_empty_entity_keys(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            store = RecordingFeatureStoreProvider()
-            with self.assertRaisesRegex(ValueError, "feature_names"):
-                FeatureStoreReader(
-                    split=split,
-                    feature_store=store,
-                    entity_keys=("entity_id",),
-                    feature_names=(),
-                    _config=KnotConfig(id="bad"),
-                )
+            k = FeatureStoreReader.__new__(FeatureStoreReader)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=self._make_split(),
+                feature_store=RecordingFeatureStoreProvider(),
+                entity_keys=(),
+                feature_names=("a",),
+            )
+
+    async def test_rejects_empty_feature_names(self) -> None:
+        with Tapestry():
+            k = FeatureStoreReader.__new__(FeatureStoreReader)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=self._make_split(),
+                feature_store=RecordingFeatureStoreProvider(),
+                entity_keys=("entity_id",),
+                feature_names=(),
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

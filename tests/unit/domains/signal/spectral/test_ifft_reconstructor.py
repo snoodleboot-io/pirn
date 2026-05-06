@@ -26,6 +26,18 @@ class TestConstruction(unittest.TestCase):
             IFFTReconstructor(spectrum=sp, _config=KnotConfig(id="ifft"))
 
 
+class TestProcessDirect(unittest.IsolatedAsyncioTestCase):
+    async def test_process_returns_signal_frame_with_correct_samples(self) -> None:
+        with Tapestry():
+            k = IFFTReconstructor.__new__(IFFTReconstructor)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        spectrum = SpectrumFrame(signal_id="spec", frequency_bins=257, frequency_resolution_hz=1.953)
+        result = await k.process(spectrum=spectrum)
+        assert isinstance(result, SignalFrame)
+        assert result.signal_id == "spec:ifft"
+        assert result.samples_per_channel == (257 - 1) * 2
+
+
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_signal_frame(self) -> None:
         with Tapestry() as t:

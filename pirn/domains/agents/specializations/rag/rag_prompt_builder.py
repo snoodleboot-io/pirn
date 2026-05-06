@@ -5,6 +5,25 @@ produces a single prompt string ready to feed into an LLM call. The
 formatting is deliberately conservative: each retrieved entry is
 serialised on its own line as ``[i] key=value`` pairs so the LLM sees
 a stable, parseable shape.
+
+Algorithm:
+    1. Receive ``query``, ``retrieved`` (list of Mappings), and
+       ``instruction`` strings.
+    2. Validate that ``instruction`` is a non-empty string and ``query``
+       is a string.
+    3. For each entry in ``retrieved``, verify it is a Mapping and render
+       it as ``[i] key=value, ...``.
+    4. Join rendered hits with newlines to form a ``context_block``, or
+       use ``"(no context retrieved)"`` when the list is empty.
+    5. Return the concatenated prompt:
+       ``{instruction}\\n\\nContext:\\n{context_block}\\n\\nQuestion: {query}\\nAnswer:``.
+
+Math:
+    No quantitative computation — assembly is pure string formatting.
+
+References:
+    - Prompt formatting conventions from LangChain RAG templates:
+      https://python.langchain.com/docs/use_cases/question_answering/
 """
 
 from __future__ import annotations
@@ -25,15 +44,11 @@ class RAGPromptBuilder(Knot):
         query: Knot | str,
         retrieved: Knot,
         _config: KnotConfig,
-        instruction: str = (
+        instruction: Knot | str = (
             "Answer the question using the retrieved context."
         ),
         **kwargs: Any,
     ) -> None:
-        if not isinstance(instruction, str) or not instruction:
-            raise ValueError(
-                "RAGPromptBuilder: instruction must be a non-empty string"
-            )
         super().__init__(
             query=query,
             retrieved=retrieved,
@@ -61,7 +76,12 @@ class RAGPromptBuilder(Knot):
 
         Raises:
             TypeError: If query is not a string or any retrieved entry is not a Mapping.
+            ValueError: If instruction is empty.
         """
+        if not isinstance(instruction, str) or not instruction:
+            raise ValueError(
+                "RAGPromptBuilder: instruction must be a non-empty string"
+            )
         if not isinstance(query, str):
             raise TypeError(
                 "RAGPromptBuilder: query must be a string, "

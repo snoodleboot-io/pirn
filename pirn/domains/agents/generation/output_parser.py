@@ -1,4 +1,18 @@
-"""``OutputParser`` — coerce a raw LLM response mapping into an :class:`AgentResponse`."""
+"""``OutputParser`` — coerce a raw LLM response mapping into an :class:`AgentResponse`.
+
+Algorithm:
+    1. Receive the resolved raw response mapping.
+    2. Validate it is a Mapping at process time.
+    3. Extract text content and tool calls from the response shape.
+    4. Extract finish reason (``stop_reason`` / ``finish_reason`` / choices).
+    5. Extract usage tokens if present.
+    6. Return a typed :class:`AgentResponse`.
+
+
+References:
+    - Anthropic Messages API response format
+    - OpenAI Chat Completions API response format
+"""
 
 from __future__ import annotations
 

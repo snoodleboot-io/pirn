@@ -6,9 +6,9 @@ from collections.abc import AsyncIterator, Mapping
 from typing import Any
 import unittest
 
+import hashlib
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.domains.agents.memory_store import MemoryStore
 from pirn.domains.agents.specializations.memory_patterns.semantic_memory_upsert import (
     SemanticMemoryUpsert,
@@ -42,79 +42,52 @@ class RecordingMemoryStore(MemoryStore):
         return None
 
 
-class TestSemanticMemoryUpsertConstruction(unittest.IsolatedAsyncioTestCase):
-    async def test_rejects_non_llm_provider(self) -> None:
-        store = RecordingMemoryStore()
-        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
-            with Tapestry():
-                SemanticMemoryUpsert(
-                    response=AgentResponse(content="x"),
-                    llm="bad",  # type: ignore[arg-type]
-                    store=store,
-                    _config=KnotConfig(id="upsert"),
-                )
-
-    async def test_rejects_non_memory_store(self) -> None:
-        llm = StubLLMProvider(["fact1"])
-        with self.assertRaisesRegex(TypeError, "store must be a MemoryStore"):
-            with Tapestry():
-                SemanticMemoryUpsert(
-                    response=AgentResponse(content="x"),
-                    llm=llm,
-                    store="bad",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="upsert"),
-                )
+def _make_knot() -> SemanticMemoryUpsert:
+    with Tapestry():
+        return SemanticMemoryUpsert(
+            response=AgentResponse(content="x"),
+            llm=StubLLMProvider(["fact1"]),
+            store=RecordingMemoryStore(),
+            _config=KnotConfig(id="upsert"),
+        )
 
 
-class TestSemanticMemoryUpsertHappyPath(unittest.IsolatedAsyncioTestCase):
+class TestSemanticMemoryUpsertProcess(unittest.IsolatedAsyncioTestCase):
     async def test_extracts_and_stores_facts(self) -> None:
+        k = _make_knot()
         store = RecordingMemoryStore()
         llm = StubLLMProvider(["- Paris is the capital of France\n- The Eiffel Tower is in Paris"])
         response = AgentResponse(content="Paris is the capital of France.")
-        with Tapestry() as t:
-            SemanticMemoryUpsert(
-                response=response,
-                llm=llm,
-                store=store,
-                _config=KnotConfig(id="upsert"),
-            )
-        result = await t.run(RunRequest())
-        assert result.succeeded
-        count = result.outputs["upsert"]
+        count = await k.process(response=response, llm=llm, store=store)
         assert count == 2
         assert len(store.data) == 2
 
     async def test_deduplicates_existing_facts(self) -> None:
+        k = _make_knot()
         store = RecordingMemoryStore()
         llm = StubLLMProvider(["existing fact"])
         response = AgentResponse(content="existing fact")
-        import hashlib
         key = "fact:" + hashlib.sha256("existing fact".encode()).hexdigest()[:16]
         await store.store(key, {"fact": "existing fact"})
-
-        with Tapestry() as t:
-            SemanticMemoryUpsert(
-                response=response,
-                llm=llm,
-                store=store,
-                _config=KnotConfig(id="upsert"),
-            )
-        result = await t.run(RunRequest())
-        assert result.succeeded
-        count = result.outputs["upsert"]
+        count = await k.process(response=response, llm=llm, store=store)
         assert count == 0
 
     async def test_returns_zero_for_empty_response(self) -> None:
+        k = _make_knot()
         store = RecordingMemoryStore()
         llm = StubLLMProvider([""])
         response = AgentResponse(content="")
-        with Tapestry() as t:
-            SemanticMemoryUpsert(
-                response=response,
-                llm=llm,
-                store=store,
-                _config=KnotConfig(id="upsert"),
-            )
-        result = await t.run(RunRequest())
-        assert result.succeeded
-        assert result.outputs["upsert"] == 0
+        count = await k.process(response=response, llm=llm, store=store)
+        assert count == 0
+
+    async def test_rejects_non_llm_provider(self) -> None:
+        k = _make_knot()
+        store = RecordingMemoryStore()
+        with self.assertRaises(TypeError):
+            await k.process(response=AgentResponse(content="x"), llm="bad", store=store)  # type: ignore[arg-type]
+
+    async def test_rejects_non_memory_store(self) -> None:
+        k = _make_knot()
+        llm = StubLLMProvider(["fact1"])
+        with self.assertRaises(TypeError):
+            await k.process(response=AgentResponse(content="x"), llm=llm, store="bad")  # type: ignore[arg-type]

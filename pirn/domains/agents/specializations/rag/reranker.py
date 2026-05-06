@@ -2,6 +2,29 @@
 
 Takes a list of retrieved documents and a query, calls the LLM to score
 the relevance of each document, and returns the top-K reranked documents.
+
+Algorithm:
+    1. Receive ``query`` string, ``documents`` list of Mappings, ``llm``
+       provider, and ``top_k`` integer.
+    2. Validate inputs: ``query`` must be a string, ``llm`` an
+       :class:`LLMProvider`, ``top_k`` a positive integer.
+    3. If ``documents`` is empty, return ``[]`` immediately.
+    4. For each document, extract its text representation and ask the LLM
+       to score its relevance to ``query`` on a 0.0–1.0 scale.
+    5. Parse the LLM response as a float; default to 0.0 on parse error.
+    6. Sort documents descending by score and return the top ``top_k``.
+
+Math:
+    LLM-assigned relevance score :math:`s_i \\in [0.0, 1.0]` for document
+    :math:`d_i`. Final ranking selects:
+
+    .. math::
+
+        \\text{top-}k = \\underset{i}{\\text{argtop-}k}\\; s_i
+
+References:
+    - Nogueira & Cho, "Passage Re-ranking with BERT" (2019):
+      https://arxiv.org/abs/1901.04085
 """
 
 from __future__ import annotations
@@ -22,11 +45,48 @@ class Reranker(Knot):
         *,
         query: Knot | str,
         documents: Knot | list[Mapping[str, Any]],
-        llm: LLMProvider,
+        llm: Knot | LLMProvider,
         _config: KnotConfig,
-        top_k: int = 5,
+        top_k: Knot | int = 5,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            query=query,
+            documents=documents,
+            llm=llm,
+            top_k=top_k,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        query: str,
+        documents: list[Mapping[str, Any]],
+        llm: LLMProvider,
+        top_k: int = 5,
+        **_: Any,
+    ) -> list[Mapping[str, Any]]:
+        """Score each document for relevance to the query and return the top-K documents.
+
+        Args:
+            query: The query string used as the relevance reference.
+            documents: The list of retrieved document Mappings to score.
+            llm: The LLMProvider used to score each document.
+            top_k: The maximum number of documents to return.
+
+        Returns:
+            A list of up to top_k documents reranked by LLM-assessed relevance.
+
+        Raises:
+            TypeError: If query is not a string or llm is not an LLMProvider.
+            ValueError: If top_k is not a positive integer.
+        """
+        if not isinstance(query, str):
+            raise TypeError(
+                "Reranker: query must be a string, "
+                f"got {type(query).__name__}"
+            )
         if not isinstance(llm, LLMProvider):
             raise TypeError(
                 "Reranker: llm must be an LLMProvider, "
@@ -36,38 +96,6 @@ class Reranker(Knot):
             raise ValueError(
                 "Reranker: top_k must be a positive int, "
                 f"got {top_k!r}"
-            )
-        self._llm = llm
-        self._top_k = top_k
-        super().__init__(
-            query=query,
-            documents=documents,
-            _config=_config,
-            **kwargs,
-        )
-
-    async def process(
-        self,
-        query: str,
-        documents: list[Mapping[str, Any]],
-        **_: Any,
-    ) -> list[Mapping[str, Any]]:
-        """Score each document for relevance to the query and return the top-K documents.
-
-        Args:
-            query: The query string used as the relevance reference.
-            documents: The list of retrieved document Mappings to score.
-
-        Returns:
-            A list of up to top_k documents reranked by LLM-assessed relevance.
-
-        Raises:
-            TypeError: If query is not a string.
-        """
-        if not isinstance(query, str):
-            raise TypeError(
-                "Reranker: query must be a string, "
-                f"got {type(query).__name__}"
             )
         if not documents:
             return []
@@ -81,7 +109,7 @@ class Reranker(Knot):
                 "Reply with only the numeric score.\n\n"
                 f"Query: {query}\n\nDocument: {text}"
             )
-            raw = await self._llm.chat([{"role": "user", "content": score_prompt}])
+            raw = await llm.chat([{"role": "user", "content": score_prompt}])
             score_text = self._extract_text(raw).strip()
             try:
                 score = float(score_text)
@@ -90,7 +118,7 @@ class Reranker(Knot):
             scored.append((score, doc))
 
         scored.sort(key=lambda pair: pair[0], reverse=True)
-        return [doc for _, doc in scored[: self._top_k]]
+        return [doc for _, doc in scored[:top_k]]
 
     @staticmethod
     def _doc_text(doc: Mapping[str, Any]) -> str:

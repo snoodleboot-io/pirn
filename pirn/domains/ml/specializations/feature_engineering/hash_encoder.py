@@ -3,6 +3,17 @@
 Implements the feature-hashing trick: each category is hashed into one
 of ``n_components`` buckets. No vocabulary is required, making this
 encoder safe for high-cardinality and out-of-vocabulary categories.
+
+Algorithm:
+    1. Receive ``split`` (DataSplit), ``categorical_column`` (str), and
+       ``n_components`` (int) via process().
+    2. Validate categorical_column and n_components.
+    3. Remove the original column and append n_components hash feature names.
+    4. Return updated DataSplit.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -23,11 +34,40 @@ class HashEncoder(Knot):
         self,
         *,
         split: Knot,
-        categorical_column: str,
-        n_components: int = 8,
+        categorical_column: Knot | str,
+        n_components: Knot | int = 8,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            split=split,
+            categorical_column=categorical_column,
+            n_components=n_components,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        split: DataSplit,
+        categorical_column: str = "",
+        n_components: int = 8,
+        **_: Any,
+    ) -> DataSplit:
+        """Apply hash encoding and append n_components hash feature names to every partition.
+
+        Args:
+            split: DataSplit whose partitions receive the new hash feature names.
+            categorical_column: Non-empty name of the categorical column to encode.
+            n_components: Number of hash buckets; must be an int >= 1.
+
+        Returns:
+            DataSplit with ``<column>_hash_<i>`` feature names added to every
+            partition, and the original column removed from the feature list.
+
+        Raises:
+            ValueError: If categorical_column is empty or n_components < 1.
+        """
         if not isinstance(categorical_column, str) or not categorical_column:
             raise ValueError(
                 "HashEncoder: categorical_column must be a non-empty string"
@@ -36,44 +76,27 @@ class HashEncoder(Knot):
             raise TypeError("HashEncoder: n_components must be an int")
         if n_components < 1:
             raise ValueError("HashEncoder: n_components must be >= 1")
-        self._categorical_column = categorical_column
-        self._n_components = n_components
-        super().__init__(split=split, _config=_config, **kwargs)
-
-    @property
-    def n_components(self) -> int:
-        return self._n_components
-
-    async def process(self, split: DataSplit, **_: Any) -> DataSplit:
-        """Apply hash encoding and append n_components hash feature names to every partition.
-
-        Args:
-            split: DataSplit whose partitions receive the new hash feature names.
-
-        Returns:
-            DataSplit with ``<column>_hash_<i>`` feature names added to every
-            partition, and the original column removed from the feature list.
-        """
         now = datetime.now(timezone.utc)
         return DataSplit(
-            train=self._add_hash_features(split.train, now),
-            test=self._add_hash_features(split.test, now),
+            train=self._add_hash_features(split.train, categorical_column, n_components, now),
+            test=self._add_hash_features(split.test, categorical_column, n_components, now),
             validation=(
-                self._add_hash_features(split.validation, now)
+                self._add_hash_features(split.validation, categorical_column, n_components, now)
                 if split.validation is not None
                 else None
             ),
         )
 
     def _add_hash_features(
-        self, dataset: MLDataset, fetched_at: datetime
+        self,
+        dataset: MLDataset,
+        categorical_column: str,
+        n_components: int,
+        fetched_at: datetime,
     ) -> MLDataset:
-        existing = [
-            f for f in dataset.feature_names if f != self._categorical_column
-        ]
+        existing = [f for f in dataset.feature_names if f != categorical_column]
         hash_features = [
-            f"{self._categorical_column}_hash_{i}"
-            for i in range(self._n_components)
+            f"{categorical_column}_hash_{i}" for i in range(n_components)
         ]
         return MLDataset(
             name=f"{dataset.name}:hash_encoded",

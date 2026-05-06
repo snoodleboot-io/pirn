@@ -3,11 +3,23 @@ as features for a meta-learner.
 
 Returns the stacked ensemble :class:`TrainedModel` and its evaluation
 report.
+
+Algorithm:
+    1. Receive ``split``, ``base_algorithms``, ``meta_algorithm``, and
+       ``metrics`` via process().
+    2. Validate all inputs.
+    3. Wire N base Trainers + EnsembleBuilder (stacking) + Evaluator in an
+       inner Tapestry.
+    4. Run via _run_inner() and return ensemble model and eval report.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
 
-from typing import Any, Mapping, Sequence
+from typing import Any, Sequence
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -34,70 +46,71 @@ class StackingEnsembleBuilder(SubTapestry):
         self,
         *,
         split: Knot,
-        base_algorithms: Sequence[str],
-        meta_algorithm: str,
-        metrics: Sequence[str],
+        base_algorithms: Knot | Sequence[str],
+        meta_algorithm: Knot | str,
+        metrics: Knot | Sequence[str],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(split, Knot):
-            raise TypeError(
-                "StackingEnsembleBuilder: split must be a Knot"
-            )
-        base_tuple = tuple(base_algorithms)
-        if len(base_tuple) < 2:
-            raise ValueError(
-                "StackingEnsembleBuilder: at least two base_algorithms are "
-                "required"
-            )
-        for alg in base_tuple:
-            if not isinstance(alg, str) or not alg:
-                raise ValueError(
-                    "StackingEnsembleBuilder: every base algorithm must be a "
-                    "non-empty string"
-                )
-        if not isinstance(meta_algorithm, str) or not meta_algorithm:
-            raise ValueError(
-                "StackingEnsembleBuilder: meta_algorithm must be a non-empty "
-                "string"
-            )
-        metric_tuple = tuple(metrics)
-        if not metric_tuple:
-            raise ValueError(
-                "StackingEnsembleBuilder: metrics must be non-empty"
-            )
-        for metric in metric_tuple:
-            if not isinstance(metric, str) or not metric:
-                raise ValueError(
-                    "StackingEnsembleBuilder: every metric name must be a "
-                    "non-empty string"
-                )
-        self._base_algorithms = base_tuple
-        self._meta_algorithm = meta_algorithm
-        self._metrics = metric_tuple
-        super().__init__(split=split, _config=_config, **kwargs)
+        super().__init__(
+            split=split,
+            base_algorithms=base_algorithms,
+            meta_algorithm=meta_algorithm,
+            metrics=metrics,
+            _config=_config,
+            **kwargs,
+        )
 
     async def process(
-        self, split: DataSplit, **_: Any
+        self,
+        split: DataSplit,
+        base_algorithms: Sequence[str] = (),
+        meta_algorithm: str = "",
+        metrics: Sequence[str] = (),
+        **_: Any,
     ) -> dict[str, Any]:
         """Train base models and a stacking meta-learner, return the ensemble and its evaluation.
 
         Args:
             split: DataSplit used for base model training and meta-learner evaluation.
+            base_algorithms: At least two non-empty algorithm identifiers.
+            meta_algorithm: Non-empty algorithm identifier for the meta-learner.
+            metrics: Non-empty sequence of metric names.
 
         Returns:
             Dict with ``ensemble_model`` (TrainedModel), ``eval_report`` (EvalReport),
             and ``n_base_models`` (int).
 
         Raises:
+            ValueError: If fewer than two base algorithms, meta_algorithm is empty, or metrics is empty.
             TypeError: If base models or the ensemble do not return the expected types.
         """
-        with Tapestry() as inner:
-            split_node = _emit_value(
-                value=split, _config=KnotConfig(id="split")
+        base_tuple = tuple(base_algorithms)
+        if len(base_tuple) < 2:
+            raise ValueError(
+                "StackingEnsembleBuilder: at least two base_algorithms are required"
             )
+        for alg in base_tuple:
+            if not isinstance(alg, str) or not alg:
+                raise ValueError(
+                    "StackingEnsembleBuilder: every base algorithm must be a non-empty string"
+                )
+        if not isinstance(meta_algorithm, str) or not meta_algorithm:
+            raise ValueError(
+                "StackingEnsembleBuilder: meta_algorithm must be a non-empty string"
+            )
+        metric_tuple = tuple(metrics)
+        if not metric_tuple:
+            raise ValueError("StackingEnsembleBuilder: metrics must be non-empty")
+        for metric in metric_tuple:
+            if not isinstance(metric, str) or not metric:
+                raise ValueError(
+                    "StackingEnsembleBuilder: every metric name must be a non-empty string"
+                )
+        with Tapestry() as inner:
+            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
             base_models = []
-            for i, alg in enumerate(self._base_algorithms):
+            for i, alg in enumerate(base_tuple):
                 model = Trainer(
                     split=split_node,
                     algorithm=alg,
@@ -112,7 +125,7 @@ class StackingEnsembleBuilder(SubTapestry):
             Evaluator(
                 model=ensemble,
                 split=split_node,
-                metrics=self._metrics,
+                metrics=metric_tuple,
                 _config=KnotConfig(id="evaluate"),
             )
         result = await self._run_inner(inner)
@@ -129,5 +142,5 @@ class StackingEnsembleBuilder(SubTapestry):
         return {
             "ensemble_model": ensemble_model,
             "eval_report": report,
-            "n_base_models": len(self._base_algorithms),
+            "n_base_models": len(base_tuple),
         }

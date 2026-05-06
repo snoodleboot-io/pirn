@@ -10,7 +10,6 @@ import tempfile
 
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.domains.agents.memory_store import MemoryStore
 from pirn.domains.agents.specializations.document_processing.document_ingestion_pipeline import (  # noqa: E501
     DocumentIngestionPipeline,
@@ -33,7 +32,7 @@ class _RecordingMemoryStore(MemoryStore):
     async def retrieve(self, key: str) -> Mapping[str, Any] | None:
         return self.entries.get(key)
 
-    async def search(self, query: str, *, top_k: int = 10,) -> AsyncIterator[Mapping[str, Any]]:
+    async def search(self, query: str, *, top_k: int = 10) -> AsyncIterator[Mapping[str, Any]]:
         async def _aiter() -> AsyncIterator[Mapping[str, Any]]:
             for entry in list(self.entries.values())[:top_k]:
                 yield entry
@@ -47,55 +46,47 @@ class _RecordingMemoryStore(MemoryStore):
         return None
 
 
-class TestDocumentIngestionPipelineConstruction(unittest.IsolatedAsyncioTestCase):
-    async def test_rejects_non_embedder(self) -> None:
-        store = _RecordingMemoryStore()
-        with self.assertRaisesRegex(TypeError, "embedder must be an EmbeddingProvider"):
-            with Tapestry():
-                DocumentIngestionPipeline(
-                    source="/tmp/x.txt",
-                    embedder="not-an-embedder",  # type: ignore[arg-type]
-                    store=store,
-                    _config=KnotConfig(id="ingest"),
-                )
+def _make_knot(embedder: StubEmbeddingProvider, store: _RecordingMemoryStore) -> DocumentIngestionPipeline:
+    with Tapestry():
+        return DocumentIngestionPipeline(
+            source="/tmp/placeholder.txt",
+            embedder=embedder,
+            store=store,
+            _config=KnotConfig(id="ingest"),
+        )
 
-    async def test_rejects_overlap_ge_chunk_size(self) -> None:
+
+class TestDocumentIngestionPipelineProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_invalid_chunk_overlap(self) -> None:
         embedder = StubEmbeddingProvider()
         store = _RecordingMemoryStore()
+        k = _make_knot(embedder, store)
         with self.assertRaisesRegex(ValueError, "chunk_overlap"):
-            with Tapestry():
-                DocumentIngestionPipeline(
-                    source="/tmp/x.txt",
-                    embedder=embedder,
-                    store=store,
-                    chunk_size=10,
-                    chunk_overlap=10,
-                    _config=KnotConfig(id="ingest"),
-                )
+            await k.process(
+                source="/tmp/x.txt",
+                embedder=embedder,
+                store=store,
+                chunk_size=10,
+                chunk_overlap=10,
+            )
 
-
-class TestDocumentIngestionPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_chunks_embeds_and_stores(self) -> None:
-        _td_test_chunks_embeds_and_stores = tempfile.TemporaryDirectory()
-        self.addCleanup(_td_test_chunks_embeds_and_stores.cleanup)
-        tmp_path = Path(_td_test_chunks_embeds_and_stores.name)
+        _td = tempfile.TemporaryDirectory()
+        self.addCleanup(_td.cleanup)
+        tmp_path = Path(_td.name)
         document = tmp_path / "doc.txt"
         document.write_text("a" * 25, encoding="utf-8")
         embedder = StubEmbeddingProvider(dimension=3)
         store = _RecordingMemoryStore()
-        with Tapestry() as t:
-            DocumentIngestionPipeline(
-                source=str(document),
-                embedder=embedder,
-                store=store,
-                chunk_size=10,
-                chunk_overlap=2,
-                allowed_root=str(tmp_path),
-                _config=KnotConfig(id="ingest"),
-            )
-        result = await t.run(RunRequest())
-        assert result.succeeded
-        chunks_written = result.outputs["ingest"]
+        k = _make_knot(embedder, store)
+        chunks_written = await k.process(
+            source=str(document),
+            embedder=embedder,
+            store=store,
+            chunk_size=10,
+            chunk_overlap=2,
+            allowed_root=str(tmp_path),
+        )
         assert chunks_written == len(store.entries)
         assert chunks_written >= 3
         first_key = sorted(store.entries.keys())[0]

@@ -11,6 +11,28 @@ Stages:
 3. Conditionally :class:`MemorySearchRetriever` + :class:`RAGPromptBuilder`
    + final :class:`LLMChatCall` when retrieval is needed.
 4. :class:`RAGResponseBuilder` — wrap as :class:`AgentResponse`.
+
+Algorithm:
+    1. Receive ``query``, ``memory``, ``llm``, and ``top_k``.
+    2. Validate inputs: ``query`` string, ``memory`` MemoryStore, ``llm``
+       LLMProvider, ``top_k`` positive integer.
+    3. Run a first inner tapestry to generate a draft answer.
+    4. Run a second inner tapestry to assess (YES/NO) whether retrieval
+       would improve the answer.
+    5. If YES: run a third inner tapestry that retrieves from ``memory``,
+       builds a context-augmented prompt, calls the LLM, and packages
+       the result as an :class:`AgentResponse`.
+    6. If NO: return the draft answer wrapped in an
+       :class:`AgentResponse` directly.
+
+Math:
+    No quantitative computation — self-assessment is a binary LLM
+    classification step with no numeric scoring.
+
+References:
+    - Asai et al., "Self-RAG: Learning to Retrieve, Generate, and
+      Critique through Self-Reflection" (NeurIPS 2023):
+      https://arxiv.org/abs/2310.11511
 """
 
 from __future__ import annotations
@@ -43,12 +65,49 @@ class SelfRAGPipeline(SubTapestry):
         self,
         *,
         query: Knot | str,
-        memory: MemoryStore,
-        llm: LLMProvider,
+        memory: Knot | MemoryStore,
+        llm: Knot | LLMProvider,
         _config: KnotConfig,
-        top_k: int = 5,
+        top_k: Knot | int = 5,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            query=query,
+            memory=memory,
+            llm=llm,
+            top_k=top_k,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        query: str,
+        memory: MemoryStore,
+        llm: LLMProvider,
+        top_k: int = 5,
+        **_: Any,
+    ) -> AgentResponse:
+        """Generate a draft answer, assess retrieval need, optionally retrieve and regenerate.
+
+        Args:
+            query: The user query string to process.
+            memory: The MemoryStore to search if retrieval is needed.
+            llm: The LLMProvider used for draft generation, assessment, and final answer.
+            top_k: The number of top memories to retrieve if retrieval is triggered.
+
+        Returns:
+            An AgentResponse containing the final LLM-generated answer.
+
+        Raises:
+            TypeError: If query is not a string or memory/llm are wrong types.
+            ValueError: If top_k is not a positive integer.
+        """
+        if not isinstance(query, str):
+            raise TypeError(
+                "SelfRAGPipeline: query must be a string, "
+                f"got {type(query).__name__}"
+            )
         if not isinstance(memory, MemoryStore):
             raise TypeError(
                 "SelfRAGPipeline: memory must be a MemoryStore, "
@@ -64,32 +123,10 @@ class SelfRAGPipeline(SubTapestry):
                 "SelfRAGPipeline: top_k must be a positive int, "
                 f"got {top_k!r}"
             )
-        self._memory = memory
-        self._llm = llm
-        self._top_k = top_k
-        super().__init__(query=query, _config=_config, **kwargs)
-
-    async def process(self, query: str, **_: Any) -> AgentResponse:
-        """Generate a draft answer, assess retrieval need, optionally retrieve and regenerate.
-
-        Args:
-            query: The user query string to process.
-
-        Returns:
-            An AgentResponse containing the final LLM-generated answer.
-
-        Raises:
-            TypeError: If query is not a string.
-        """
-        if not isinstance(query, str):
-            raise TypeError(
-                "SelfRAGPipeline: query must be a string, "
-                f"got {type(query).__name__}"
-            )
         with Tapestry() as inner_draft:
             LLMChatCall(
                 prompt=query,
-                llm=self._llm,
+                llm=llm,
                 _config=KnotConfig(id="draft"),
             )
         draft_result = await self._run_inner(inner_draft)
@@ -104,7 +141,7 @@ class SelfRAGPipeline(SubTapestry):
         with Tapestry() as inner_assess:
             LLMChatCall(
                 prompt=assess_prompt,
-                llm=self._llm,
+                llm=llm,
                 _config=KnotConfig(id="assess"),
             )
         assess_result = await self._run_inner(inner_assess)
@@ -113,9 +150,9 @@ class SelfRAGPipeline(SubTapestry):
         if "YES" in assessment:
             with Tapestry() as inner_rag:
                 retrieved = MemorySearchRetriever(
-                    store=self._memory,
+                    store=memory,
                     query=query,
-                    top_k=self._top_k,
+                    top_k=top_k,
                     _config=KnotConfig(id="retrieve"),
                 )
                 prompt = RAGPromptBuilder(
@@ -125,7 +162,7 @@ class SelfRAGPipeline(SubTapestry):
                 )
                 answer = LLMChatCall(
                     prompt=prompt,
-                    llm=self._llm,
+                    llm=llm,
                     _config=KnotConfig(id="generate"),
                 )
                 RAGResponseBuilder(

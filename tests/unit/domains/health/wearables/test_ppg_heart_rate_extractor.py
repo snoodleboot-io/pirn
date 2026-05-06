@@ -28,37 +28,36 @@ async def emit_ppg_data() -> dict[str, Any]:
     }
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_knot_ppg_data(self) -> None:
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_non_dict_ppg_data(self) -> None:
+        inst = object.__new__(PPGHeartRateExtractor)
         with self.assertRaisesRegex(TypeError, "ppg_data"):
-            PPGHeartRateExtractor(
-                ppg_data="not-a-knot",  # type: ignore[arg-type]
+            await PPGHeartRateExtractor.process(
+                inst,
+                ppg_data="not-a-dict",  # type: ignore[arg-type]
                 sample_rate_hz=25.0,
                 window_sec=10.0,
-                _config=KnotConfig(id="ppg"),
             )
 
-    def test_rejects_non_positive_sample_rate(self) -> None:
-        with Tapestry():
-            p = emit_ppg_data(_config=KnotConfig(id="p"))
-            with self.assertRaisesRegex(ValueError, "sample_rate_hz"):
-                PPGHeartRateExtractor(
-                    ppg_data=p,
-                    sample_rate_hz=0.0,
-                    window_sec=10.0,
-                    _config=KnotConfig(id="ppg"),
-                )
+    async def test_rejects_non_positive_sample_rate(self) -> None:
+        inst = object.__new__(PPGHeartRateExtractor)
+        with self.assertRaisesRegex(ValueError, "sample_rate_hz"):
+            await PPGHeartRateExtractor.process(
+                inst,
+                ppg_data={},
+                sample_rate_hz=0.0,
+                window_sec=10.0,
+            )
 
-    def test_rejects_non_positive_window_sec(self) -> None:
-        with Tapestry():
-            p = emit_ppg_data(_config=KnotConfig(id="p"))
-            with self.assertRaisesRegex(ValueError, "window_sec"):
-                PPGHeartRateExtractor(
-                    ppg_data=p,
-                    sample_rate_hz=25.0,
-                    window_sec=-1.0,
-                    _config=KnotConfig(id="ppg"),
-                )
+    async def test_rejects_non_positive_window_sec(self) -> None:
+        inst = object.__new__(PPGHeartRateExtractor)
+        with self.assertRaisesRegex(ValueError, "window_sec"):
+            await PPGHeartRateExtractor.process(
+                inst,
+                ppg_data={},
+                sample_rate_hz=25.0,
+                window_sec=-1.0,
+            )
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

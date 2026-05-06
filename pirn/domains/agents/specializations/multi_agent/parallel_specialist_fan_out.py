@@ -4,6 +4,18 @@ A :class:`SubTapestry` that fans out a single task string to every
 registered specialist in parallel via :func:`asyncio.gather`. Each
 specialist must expose a ``process(task: str, **_: Any) -> AgentResponse``
 shape. The pipeline returns a mapping ``{specialist_name: AgentResponse}``.
+
+Algorithm:
+    1. Validate ``specialists`` (non-empty mapping) and ``task`` (str).
+    2. Gather all ``specialist.process(task=task)`` coroutines concurrently.
+    3. Normalise each result to an :class:`AgentResponse`.
+    4. Build an inner :class:`Tapestry` with :class:`SpecialistFanOutCollector`
+       over the materialised responses.
+    5. Execute via ``self._run_inner(inner)`` and return the collected mapping.
+
+
+References:
+    pirn-native — no external references.
 """
 
 from __future__ import annotations
@@ -29,32 +41,16 @@ class ParallelSpecialistFanOut(SubTapestry):
         self,
         *,
         task: Knot | str,
-        specialists: Mapping[str, SubTapestry],
+        specialists: Knot | Any,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(specialists, Mapping) or not specialists:
-            raise ValueError(
-                "ParallelSpecialistFanOut: specialists must be a non-empty "
-                "mapping"
-            )
-        for name, candidate in specialists.items():
-            if not isinstance(name, str) or not name:
-                raise ValueError(
-                    "ParallelSpecialistFanOut: specialist names must be "
-                    f"non-empty strings, got {name!r}"
-                )
-            if not isinstance(candidate, SubTapestry):
-                raise TypeError(
-                    f"ParallelSpecialistFanOut: specialists[{name!r}] must be "
-                    f"a SubTapestry, got {type(candidate).__name__}"
-                )
-        self._specialists: dict[str, SubTapestry] = dict(specialists)
-        super().__init__(task=task, _config=_config, **kwargs)
+        super().__init__(task=task, specialists=specialists, _config=_config, **kwargs)
 
     async def process(
         self,
         task: str,
+        specialists: Any,
         **_: Any,
     ) -> Mapping[str, AgentResponse]:
         """Fan out the task to all specialists concurrently and return a name-to-response mapping.
@@ -68,18 +64,24 @@ class ParallelSpecialistFanOut(SubTapestry):
         Raises:
             TypeError: If task is not a string.
         """
+        if not isinstance(specialists, Mapping) or not specialists:
+            raise ValueError(
+                "ParallelSpecialistFanOut: specialists must be a non-empty "
+                "mapping"
+            )
         if not isinstance(task, str):
             raise TypeError(
                 "ParallelSpecialistFanOut: task must be a string, "
                 f"got {type(task).__name__}"
             )
-        names = list(self._specialists.keys())
+        specialists_dict: dict[str, SubTapestry] = dict(specialists)  # type: ignore[arg-type]
+        names = list(specialists_dict.keys())
         coros = [
-            self._specialists[name].process(task=task) for name in names
+            specialists_dict[name].process(task=task) for name in names
         ]
         raw_results = await asyncio.gather(*coros)
         materialised: dict[str, AgentResponse] = {}
-        for name, raw in zip(names, raw_results, strict=True):
+        for name, raw in zip(names, raw_results):
             if isinstance(raw, AgentResponse):
                 materialised[name] = raw
             else:

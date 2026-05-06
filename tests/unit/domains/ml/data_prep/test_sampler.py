@@ -22,6 +22,15 @@ async def emit_dataset() -> MLDataset:
     )
 
 
+def _make_dataset(row_count: int = 1000) -> MLDataset:
+    return MLDataset(
+        name="customers",
+        feature_names=("a",),
+        row_count=row_count,
+        source_uri="db://x",
+    )
+
+
 class TestSamplerHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_caps_to_n(self) -> None:
         with Tapestry() as t:
@@ -50,23 +59,19 @@ class TestSamplerHappyPath(unittest.IsolatedAsyncioTestCase):
         assert out.row_count == 250
 
 
-class TestSamplerConstruction(unittest.TestCase):
-    def test_rejects_both_n_and_fraction(self) -> None:
+class TestSamplerProcess(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self) -> Sampler:
         with Tapestry():
-            dataset = emit_dataset(_config=KnotConfig(id="dataset"))
-            with self.assertRaisesRegex(ValueError, "exactly one of"):
-                Sampler(
-                    dataset=dataset,
-                    n=10,
-                    fraction=0.1,
-                    _config=KnotConfig(id="bad"),
-                )
+            s = Sampler.__new__(Sampler)
+            object.__setattr__(s, "_config", KnotConfig(id="x"))
+        return s
 
-    def test_rejects_neither_n_nor_fraction(self) -> None:
-        with Tapestry():
-            dataset = emit_dataset(_config=KnotConfig(id="dataset"))
-            with self.assertRaisesRegex(ValueError, "exactly one of"):
-                Sampler(
-                    dataset=dataset,
-                    _config=KnotConfig(id="bad"),
-                )
+    async def test_rejects_both_n_and_fraction(self) -> None:
+        s = self._make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await s.process(dataset=_make_dataset(), n=10, fraction=0.1)
+
+    async def test_rejects_neither_n_nor_fraction(self) -> None:
+        s = self._make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await s.process(dataset=_make_dataset())

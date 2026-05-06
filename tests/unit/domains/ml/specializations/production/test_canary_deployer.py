@@ -33,20 +33,42 @@ async def emit_candidate() -> TrainedModel:
     return TrainedModel(model_id="candidate-v2", algorithm="random_forest")
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_fraction_out_of_range(self) -> None:
+def _make_split() -> DataSplit:
+    train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
+    test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
+    return DataSplit(train=train, test=test)
+
+
+def _make_model(model_id: str) -> TrainedModel:
+    return TrainedModel(model_id=model_id, algorithm="logistic")
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_fraction_out_of_range(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            current = emit_current(_config=KnotConfig(id="cur"))
-            candidate = emit_candidate(_config=KnotConfig(id="cand"))
-            with self.assertRaisesRegex(ValueError, "canary_fraction"):
-                CanaryDeployer(
-                    current=current,
-                    candidate=candidate,
-                    split=split,
-                    canary_fraction=1.1,
-                    _config=KnotConfig(id="bad"),
-                )
+            k = CanaryDeployer.__new__(CanaryDeployer)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                current=_make_model("current-v1"),
+                candidate=_make_model("candidate-v2"),
+                split=_make_split(),
+                canary_fraction=1.1,
+                primary_metric="accuracy",
+            )
+
+    async def test_rejects_empty_primary_metric(self) -> None:
+        with Tapestry():
+            k = CanaryDeployer.__new__(CanaryDeployer)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                current=_make_model("current-v1"),
+                candidate=_make_model("candidate-v2"),
+                split=_make_split(),
+                canary_fraction=0.1,
+                primary_metric="",
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

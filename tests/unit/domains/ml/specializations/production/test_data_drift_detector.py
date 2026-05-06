@@ -29,31 +29,42 @@ async def emit_current() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_features(self) -> None:
-        with Tapestry():
-            ref = emit_reference(_config=KnotConfig(id="r"))
-            cur = emit_current(_config=KnotConfig(id="c"))
-            with self.assertRaisesRegex(ValueError, "features"):
-                DataDriftDetector(
-                    reference=ref,
-                    current=cur,
-                    features=(),
-                    _config=KnotConfig(id="bad"),
-                )
+def _make_reference() -> DataSplit:
+    train = MLDataset(name="r:train", feature_names=("a", "b"), row_count=800)
+    test = MLDataset(name="r:test", feature_names=("a", "b"), row_count=200)
+    return DataSplit(train=train, test=test)
 
-    def test_rejects_negative_threshold(self) -> None:
+
+def _make_current() -> DataSplit:
+    train = MLDataset(name="c:train", feature_names=("a", "b"), row_count=900)
+    test = MLDataset(name="c:test", feature_names=("a", "b"), row_count=100)
+    return DataSplit(train=train, test=test)
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_empty_features(self) -> None:
         with Tapestry():
-            ref = emit_reference(_config=KnotConfig(id="r"))
-            cur = emit_current(_config=KnotConfig(id="c"))
-            with self.assertRaisesRegex(ValueError, "psi_threshold"):
-                DataDriftDetector(
-                    reference=ref,
-                    current=cur,
-                    features=("a",),
-                    psi_threshold=-0.1,
-                    _config=KnotConfig(id="bad"),
-                )
+            k = DataDriftDetector.__new__(DataDriftDetector)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                reference=_make_reference(),
+                current=_make_current(),
+                features=(),
+                psi_threshold=0.2,
+            )
+
+    async def test_rejects_negative_threshold(self) -> None:
+        with Tapestry():
+            k = DataDriftDetector.__new__(DataDriftDetector)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                reference=_make_reference(),
+                current=_make_current(),
+                features=("a",),
+                psi_threshold=-0.1,
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

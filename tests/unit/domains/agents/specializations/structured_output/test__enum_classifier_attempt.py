@@ -53,11 +53,20 @@ class TestEnumClassifierAttemptProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_string_prompt(self) -> None:
         llm = StubLLMProvider(["positive"])
+        knot = _EnumClassifierAttempt.__new__(_EnumClassifierAttempt)
+        with self.assertRaises(TypeError):
+            await knot.process(
+                prompt=42,  # type: ignore[arg-type]
+                llm=llm,
+                labels=["positive"],
+            )
+
+
+class TestProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_process_rejects_non_string_prompt(self) -> None:
+        llm = StubLLMProvider(["positive"])
         with Tapestry():
-            with self.assertRaises(TypeError):
-                _EnumClassifierAttempt(
-                    prompt=42,  # type: ignore[arg-type]
-                    llm=llm,
-                    labels=["positive"],
-                    _config=KnotConfig(id="eca"),
-                )
+            k = _EnumClassifierAttempt.__new__(_EnumClassifierAttempt)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises(TypeError):
+            await k.process(prompt=42, llm=llm, labels=["positive", "negative"])  # type: ignore[arg-type]

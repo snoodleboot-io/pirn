@@ -1,4 +1,16 @@
-"""``LLMCall`` — non-streaming chat-completion against an :class:`LLMProvider`."""
+"""``LLMCall`` — non-streaming chat-completion against an :class:`LLMProvider`.
+
+Algorithm:
+    1. Receive the resolved ``AgentContext`` and ``LLMProvider``.
+    2. Validate input types at process time.
+    3. Convert context messages to wire-format role/content mappings.
+    4. Call ``llm.chat`` with the wire messages and optional model override.
+    5. Return the raw response mapping from the provider.
+
+
+References:
+    - :class:`pirn.domains.agents.llm_provider.LLMProvider`
+"""
 
 from __future__ import annotations
 
@@ -22,21 +34,11 @@ class LLMCall(Knot):
         self,
         *,
         context: Knot,
-        llm: LLMProvider,
+        llm: Knot | LLMProvider,
         _config: KnotConfig,
-        model: str | None = None,
+        model: Knot | str | None = None,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "LLMCall: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
-        if model is not None and (not isinstance(model, str) or not model):
-            raise ValueError(
-                "LLMCall: model must be a non-empty string or None, "
-                f"got {model!r}"
-            )
         super().__init__(
             context=context,
             llm=llm,
@@ -63,12 +65,23 @@ class LLMCall(Knot):
             The raw response mapping returned by the LLM provider.
 
         Raises:
-            TypeError: If context is not an AgentContext instance.
+            TypeError: If context is not an AgentContext or llm is not an LLMProvider.
+            ValueError: If model is an empty string.
         """
         if not isinstance(context, AgentContext):
             raise TypeError(
                 "LLMCall: context must be an AgentContext, "
                 f"got {type(context).__name__}"
+            )
+        if not isinstance(llm, LLMProvider):
+            raise TypeError(
+                "LLMCall: llm must be an LLMProvider, "
+                f"got {type(llm).__name__}"
+            )
+        if model is not None and (not isinstance(model, str) or not model):
+            raise ValueError(
+                "LLMCall: model must be a non-empty string or None, "
+                f"got {model!r}"
             )
         wire_messages = tuple(
             {"role": message.role, "content": message.content}

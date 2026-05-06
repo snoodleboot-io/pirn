@@ -1,4 +1,15 @@
-"""``_LLMCallKnot`` — internal single-prompt LLM call knot for RetryOnParseFailure."""
+"""``_LLMCallKnot`` — internal single-prompt LLM call knot for RetryOnParseFailure.
+
+Algorithm:
+    1. Receive ``prompt`` (string) and ``llm`` provider.
+    2. Frame the prompt as a single user chat message.
+    3. Call the LLM provider and extract the text content from the response.
+    4. Return the extracted text string.
+
+
+References:
+    - :class:`pirn.domains.agents.llm_provider.LLMProvider`
+"""
 
 from __future__ import annotations
 
@@ -15,23 +26,25 @@ class _LLMCallKnot(Knot):
     def __init__(
         self,
         *,
-        prompt: str,
-        llm: LLMProvider,
+        prompt: Knot | str,
+        llm: Knot | LLMProvider,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        self._prompt = prompt
-        self._llm = llm
-        super().__init__(_config=_config, **kwargs)
+        super().__init__(prompt=prompt, llm=llm, _config=_config, **kwargs)
 
-    async def process(self, **_: Any) -> str:
+    async def process(self, prompt: str, llm: LLMProvider, **_: Any) -> str:
         """Call the LLM and return the text content of the response.
+
+        Args:
+            prompt: The prompt string sent to the LLM as a user message.
+            llm: The LLM provider to call.
 
         Returns:
             The text content returned by the LLM.
         """
-        raw = await self._llm.chat(
-            [{"role": "user", "content": self._prompt}]
+        raw = await llm.chat(
+            [{"role": "user", "content": prompt}]
         )
         return self._extract_text(raw)
 

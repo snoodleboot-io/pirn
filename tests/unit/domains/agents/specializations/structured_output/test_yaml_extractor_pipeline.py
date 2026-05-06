@@ -3,9 +3,7 @@
 from __future__ import annotations
 import unittest
 
-
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.domains.agents.specializations.structured_output.yaml_extractor_pipeline import (  # noqa: E501
     YamlExtractorPipeline,
 )
@@ -15,42 +13,48 @@ from tests.unit.domains.agents.specializations.conftest import (
 )
 
 
-class TestYamlExtractorPipelineConstruction(unittest.IsolatedAsyncioTestCase):
+def _make_knot(llm: StubLLMProvider, max_retries: int = 3) -> YamlExtractorPipeline:
+    with Tapestry():
+        return YamlExtractorPipeline(
+            prompt="extract a user",
+            llm=llm,
+            schema={"name": "string", "age": "integer"},
+            max_retries=max_retries,
+            _config=KnotConfig(id="yaml"),
+        )
+
+
+class TestYamlExtractorPipelineProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
+        llm = StubLLMProvider(["name: Ada\nage: 36\n"])
+        knot = _make_knot(llm)
         with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
-            with Tapestry():
-                YamlExtractorPipeline(
-                    prompt="give me yaml",
-                    llm="not-a-provider",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="yaml"),
-                )
+            await knot.process(
+                prompt="give me yaml",
+                llm="not-a-provider",  # type: ignore[arg-type]
+                max_retries=3,
+            )
 
     async def test_rejects_zero_max_retries(self) -> None:
         llm = StubLLMProvider(["name: Ada\nage: 36\n"])
+        knot = _make_knot(llm)
         with self.assertRaisesRegex(ValueError, "max_retries"):
-            with Tapestry():
-                YamlExtractorPipeline(
-                    prompt="give me yaml",
-                    llm=llm,
-                    max_retries=0,
-                    _config=KnotConfig(id="yaml"),
-                )
+            await knot.process(
+                prompt="give me yaml",
+                llm=llm,
+                max_retries=0,
+            )
 
-
-class TestYamlExtractorPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_returns_parsed_mapping(self) -> None:
         llm = StubLLMProvider(["name: Ada\nage: 36\n"])
-        with Tapestry() as t:
-            YamlExtractorPipeline(
-                prompt="extract a user",
-                llm=llm,
-                schema={"name": "string", "age": "integer"},
-                _config=KnotConfig(id="yaml"),
-            )
-        result = await t.run(RunRequest())
-        assert result.succeeded
-        parsed = result.outputs["yaml"]
-        assert parsed == {"name": "Ada", "age": 36}
+        knot = _make_knot(llm)
+        result = await knot.process(
+            prompt="extract a user",
+            llm=llm,
+            schema={"name": "string", "age": "integer"},
+            max_retries=3,
+        )
+        assert result == {"name": "Ada", "age": 36}
 
     async def test_retries_on_invalid_yaml(self) -> None:
         # First reply is a YAML scalar, not a mapping — pipeline should retry.
@@ -60,16 +64,22 @@ class TestYamlExtractorPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
                 "name: Ada\nage: 36\n",
             ]
         )
-        with Tapestry() as t:
-            YamlExtractorPipeline(
+        knot = _make_knot(llm, max_retries=3)
+        result = await knot.process(
+            prompt="extract a user",
+            llm=llm,
+            schema={"name": "string"},
+            max_retries=3,
+        )
+        assert result == {"name": "Ada", "age": 36}
+        assert len(llm.calls) == 2
+
+    async def test_raises_after_exhausting_retries(self) -> None:
+        llm = StubLLMProvider(["just a scalar"] * 5)
+        knot = _make_knot(llm, max_retries=2)
+        with self.assertRaisesRegex(ValueError, "exhausted"):
+            await knot.process(
                 prompt="extract a user",
                 llm=llm,
-                schema={"name": "string"},
-                max_retries=3,
-                _config=KnotConfig(id="yaml"),
+                max_retries=2,
             )
-        result = await t.run(RunRequest())
-        assert result.succeeded
-        parsed = result.outputs["yaml"]
-        assert parsed == {"name": "Ada", "age": 36}
-        assert len(llm.calls) == 2

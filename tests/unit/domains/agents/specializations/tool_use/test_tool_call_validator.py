@@ -45,18 +45,6 @@ class StrictSchemaTool(Tool):
         return arguments
 
 
-class TestToolCallValidatorConstruction(unittest.IsolatedAsyncioTestCase):
-    async def test_rejects_non_tool_in_list(self) -> None:
-        call = ToolCall(tool_name="t", arguments={}, call_id="c1")
-        with self.assertRaisesRegex(TypeError, r"tools\[0\] must be a Tool"):
-            with Tapestry():
-                ToolCallValidator(
-                    tool_call=call,
-                    tools=["bad"],  # type: ignore[list-item]
-                    _config=KnotConfig(id="val"),
-                )
-
-
 class TestToolCallValidatorHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_passes_valid_tool_call_through(self) -> None:
         call = ToolCall(
@@ -136,3 +124,30 @@ class TestToolCallValidatorRejections(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert not result.succeeded
+
+    async def test_rejects_non_tool_in_list(self) -> None:
+        call = ToolCall(tool_name="t", arguments={}, call_id="c1")
+        with self.assertRaises(TypeError):
+            with Tapestry():
+                ToolCallValidator(
+                    tool_call=call,
+                    tools=["bad"],  # type: ignore[list-item]
+                    _config=KnotConfig(id="val"),
+                )
+
+
+class TestProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_process_rejects_non_tool_in_tools_list(self) -> None:
+        call = ToolCall(tool_name="t", arguments={}, call_id="c1")
+        with Tapestry():
+            k = ToolCallValidator.__new__(ToolCallValidator)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises(TypeError):
+            await k.process(tool_call=call, tools=["not-a-tool"])  # type: ignore[list-item]
+
+    async def test_process_rejects_non_tool_call(self) -> None:
+        with Tapestry():
+            k = ToolCallValidator.__new__(ToolCallValidator)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises(TypeError):
+            await k.process(tool_call="not-a-call", tools=[StubTool(name="t")])  # type: ignore[arg-type]

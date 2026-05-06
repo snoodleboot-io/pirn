@@ -5,6 +5,18 @@ The actual texts are not embedded here. The knot calls the configured
 :class:`EmbeddingProvider` once with the column name as a probe (so
 provider configuration can fail loudly at run time) and emits a split
 whose feature lists carry an extra entry named ``<column>_embedding``.
+
+Algorithm:
+    1. Receive ``split`` (DataSplit), ``text_column`` (str), and
+       ``embedding_provider`` (EmbeddingProvider) via process().
+    2. Validate text_column is non-empty and embedding_provider is the right type.
+    3. Probe the provider with the column name to catch misconfiguration early.
+    4. Append ``<text_column>_embedding`` to the feature list of each partition.
+    5. Return the updated DataSplit.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -26,11 +38,40 @@ class EmbeddingExtractor(Knot):
         self,
         *,
         split: Knot,
-        text_column: str,
-        embedding_provider: EmbeddingProvider,
+        text_column: Knot | str,
+        embedding_provider: Knot | EmbeddingProvider,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            split=split,
+            text_column=text_column,
+            embedding_provider=embedding_provider,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        split: DataSplit,
+        text_column: str,
+        embedding_provider: EmbeddingProvider,
+        **_: Any,
+    ) -> DataSplit:
+        """Probe the embedding provider, append the text-column embedding feature to each split partition, and return the updated DataSplit.
+
+        Args:
+            split: DataSplit whose partitions receive the new embedding feature.
+            text_column: Non-empty name of the text column to embed.
+            embedding_provider: EmbeddingProvider used to probe and embed the column.
+
+        Returns:
+            DataSplit with ``<text_column>_embedding`` appended to every partition's feature list.
+
+        Raises:
+            ValueError: If text_column is empty.
+            TypeError: If embedding_provider is not an EmbeddingProvider.
+        """
         if not isinstance(text_column, str) or not text_column:
             raise ValueError(
                 "EmbeddingExtractor: text_column must be a non-empty string"
@@ -40,24 +81,11 @@ class EmbeddingExtractor(Knot):
                 "EmbeddingExtractor: embedding_provider must be an "
                 "EmbeddingProvider"
             )
-        self._text_column = text_column
-        self._embedding_provider = embedding_provider
-        super().__init__(split=split, _config=_config, **kwargs)
-
-    async def process(self, split: DataSplit, **_: Any) -> DataSplit:
-        """Probe the embedding provider, append the text-column embedding feature to each split partition, and return the updated DataSplit.
-
-        Args:
-            split: DataSplit whose partitions receive the new embedding feature.
-
-        Returns:
-            DataSplit with ``<text_column>_embedding`` appended to every partition's feature list.
-        """
         # Touch the provider so misconfigured providers fail loudly at
         # planning time. We embed the column name as a single probe text
         # rather than the full column (we don't have rows here).
-        await self._embedding_provider.embed([self._text_column])
-        feature = f"{self._text_column}_embedding"
+        await embedding_provider.embed([text_column])
+        feature = f"{text_column}_embedding"
         now = datetime.now(timezone.utc)
         return DataSplit(
             train=self._add_feature(split.train, feature, now),

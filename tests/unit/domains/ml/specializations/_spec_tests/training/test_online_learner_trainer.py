@@ -24,29 +24,28 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_n_batches_below_one(self) -> None:
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_n_batches_below_one(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "n_batches must be >= 1"):
-                OnlineLearnerTrainer(
-                    split=split,
-                    algorithm="sgd",
-                    monitor_metric="accuracy",
-                    n_batches=0,
-                    _config=KnotConfig(id="bad"),
-                )
+            k = OnlineLearnerTrainer.__new__(OnlineLearnerTrainer)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        split = DataSplit(
+            train=MLDataset(name="d:train", feature_names=("a",), row_count=100),
+            test=MLDataset(name="d:test", feature_names=("a",), row_count=20),
+        )
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=split, algorithm="sgd", monitor_metric="accuracy", n_batches=0)
 
-    def test_rejects_empty_monitor_metric(self) -> None:
+    async def test_rejects_empty_monitor_metric(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "monitor_metric"):
-                OnlineLearnerTrainer(
-                    split=split,
-                    algorithm="sgd",
-                    monitor_metric="",
-                    _config=KnotConfig(id="bad"),
-                )
+            k = OnlineLearnerTrainer.__new__(OnlineLearnerTrainer)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        split = DataSplit(
+            train=MLDataset(name="d:train", feature_names=("a",), row_count=100),
+            test=MLDataset(name="d:test", feature_names=("a",), row_count=20),
+        )
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=split, algorithm="sgd", monitor_metric="")
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

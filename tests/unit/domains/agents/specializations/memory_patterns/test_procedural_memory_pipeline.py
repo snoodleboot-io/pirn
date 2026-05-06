@@ -6,7 +6,6 @@ from collections.abc import AsyncIterator, Mapping
 from typing import Any
 import unittest
 
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.domains.agents.memory_store import MemoryStore
@@ -27,7 +26,7 @@ class RecordingMemoryStore(MemoryStore):
     async def retrieve(self, key: str) -> Mapping[str, Any] | None:
         return self.writes.get(key)
 
-    async def search(self, query: str, *, top_k: int = 10,) -> AsyncIterator[Mapping[str, Any]]:
+    async def search(self, query: str, *, top_k: int = 10) -> AsyncIterator[Mapping[str, Any]]:
         async def _aiter() -> AsyncIterator[Mapping[str, Any]]:
             if False:
                 yield {}
@@ -41,26 +40,20 @@ class RecordingMemoryStore(MemoryStore):
         return None
 
 
-class TestProceduralMemoryPipelineConstruction(unittest.IsolatedAsyncioTestCase):
-    async def test_rejects_non_memory_store(self) -> None:
-        response = AgentResponse(content="done", finish_reason="stop")
-        with self.assertRaisesRegex(TypeError, "store must be a MemoryStore"):
-            with Tapestry():
-                ProceduralMemoryPipeline(
-                    agent_response=response,
-                    task_description="how to greet",
-                    store="not-a-store",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="proc"),
-                )
+def _make_knot(store: RecordingMemoryStore) -> ProceduralMemoryPipeline:
+    with Tapestry():
+        return ProceduralMemoryPipeline(
+            agent_response=AgentResponse(content="done", finish_reason="stop"),
+            task_description="task",
+            store=store,
+            _config=KnotConfig(id="proc"),
+        )
 
 
-class TestProceduralMemoryPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
+class TestProceduralMemoryPipelineProcess(unittest.IsolatedAsyncioTestCase):
     async def test_writes_procedure_under_procedure_prefix(self) -> None:
         store = RecordingMemoryStore()
-        response = AgentResponse(
-            content="say 'hello'",
-            finish_reason="stop",
-        )
+        response = AgentResponse(content="say 'hello'", finish_reason="stop")
         with Tapestry() as t:
             ProceduralMemoryPipeline(
                 agent_response=response,
@@ -77,3 +70,13 @@ class TestProceduralMemoryPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
         assert payload["task"] == "how to greet a user"
         assert payload["response"] == "say 'hello'"
         assert payload["finish_reason"] == "stop"
+
+    async def test_rejects_non_memory_store(self) -> None:
+        store = RecordingMemoryStore()
+        k = _make_knot(store)
+        with self.assertRaises(TypeError):
+            await k.process(
+                agent_response=AgentResponse(content="done", finish_reason="stop"),
+                task_description="task",
+                store="bad",  # type: ignore[arg-type]
+            )

@@ -1,4 +1,15 @@
-"""``MemoryWriter`` — persist a (key, value) entry into a :class:`MemoryStore`."""
+"""``MemoryWriter`` — persist a (key, value) entry into a :class:`MemoryStore`.
+
+Algorithm:
+    1. Receive the resolved ``key``, ``value``, and ``MemoryStore``.
+    2. Validate input types at process time.
+    3. Call ``store.store(key, value)`` to persist.
+    4. Return the key so downstream knots can address the just-written entry.
+
+
+References:
+    - :class:`pirn.domains.agents.memory_store.MemoryStore`
+"""
 
 from __future__ import annotations
 
@@ -24,15 +35,10 @@ class MemoryWriter(Knot):
         *,
         key: Knot | str,
         value: Knot | Mapping[str, Any],
-        store: MemoryStore,
+        store: Knot | MemoryStore,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(store, MemoryStore):
-            raise TypeError(
-                "MemoryWriter: store must be a MemoryStore, "
-                f"got {type(store).__name__}"
-            )
         super().__init__(
             key=key,
             value=value,
@@ -59,9 +65,14 @@ class MemoryWriter(Knot):
             The key the value was stored under.
 
         Raises:
+            TypeError: If store is not a MemoryStore or value is not a Mapping.
             ValueError: If key is not a non-empty string.
-            TypeError: If value is not a Mapping.
         """
+        if not isinstance(store, MemoryStore):
+            raise TypeError(
+                "MemoryWriter: store must be a MemoryStore, "
+                f"got {type(store).__name__}"
+            )
         if not isinstance(key, str) or not key:
             raise ValueError(
                 "MemoryWriter: key must be a non-empty string, "

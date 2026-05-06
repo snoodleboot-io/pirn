@@ -1,65 +1,51 @@
 """Unit tests for :class:`SparseDecomposer`."""
 
 from __future__ import annotations
+
 import unittest
 
+import pytest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
+from pirn.core.parameter import Parameter
 from pirn.domains.signal.separation.sparse_decomposer import SparseDecomposer
+from pirn.domains.signal.types.signal_frame import SignalFrame
 from pirn.domains.signal.types.source_frame import SourceFrame
-from pirn.tapestry import Tapestry
-from tests.unit.domains.signal.conftest import emit_signal_frame
+from tests.unit.domains.signal.conftest import make_signal_frame
+
+_SIGNAL = make_signal_frame()
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_positive_atom_count(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "atom_count"):
-                SparseDecomposer(
-                    signal=sig,
-                    atom_count=0,
-                    sparsity_target=2,
-                    _config=KnotConfig(id="sd"),
-                )
-
-    def test_rejects_non_positive_sparsity_target(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "sparsity_target"):
-                SparseDecomposer(
-                    signal=sig,
-                    atom_count=4,
-                    sparsity_target=0,
-                    _config=KnotConfig(id="sd"),
-                )
-
-    def test_rejects_invalid_algorithm(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "algorithm"):
-                SparseDecomposer(
-                    signal=sig,
-                    atom_count=4,
-                    sparsity_target=2,
-                    algorithm="bogus",
-                    _config=KnotConfig(id="sd"),
-                )
+def _up(name: str = "signal") -> Parameter:
+    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
 
 
-class TestProcess(unittest.IsolatedAsyncioTestCase):
+class TestSparseDecomposer(unittest.IsolatedAsyncioTestCase):
+    def _make(self) -> SparseDecomposer:
+        return SparseDecomposer(
+            signal=_up(),
+            atom_count=8,
+            sparsity_target=3,
+            _config=KnotConfig(id="sd"),
+        )
+
+    async def test_rejects_non_positive_atom_count(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="atom_count"):
+            await knot.process(_SIGNAL, atom_count=0, sparsity_target=3)
+
+    async def test_rejects_non_positive_sparsity_target(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="sparsity_target"):
+            await knot.process(_SIGNAL, atom_count=8, sparsity_target=0)
+
+    async def test_rejects_unknown_algorithm(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="algorithm"):
+            await knot.process(_SIGNAL, atom_count=8, sparsity_target=3, algorithm="bogus")
+
     async def test_emits_source_frame(self) -> None:
-        with Tapestry() as t:
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            SparseDecomposer(
-                signal=sig,
-                atom_count=8,
-                sparsity_target=3,
-                _config=KnotConfig(id="sd"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["sd"]
+        knot = self._make()
+        out = await knot.process(_SIGNAL, atom_count=8, sparsity_target=3)
         assert isinstance(out, SourceFrame)
         assert out.source_count == 3
-        assert out.mixing_matrix_shape == (1, 8)

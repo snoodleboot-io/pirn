@@ -1,74 +1,52 @@
 """Unit tests for :class:`RLSAdaptiveFilter`."""
 
 from __future__ import annotations
+
 import unittest
 
+import pytest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
+from pirn.core.parameter import Parameter
 from pirn.domains.signal.adaptive.rls_adaptive_filter import RLSAdaptiveFilter
 from pirn.domains.signal.types.signal_frame import SignalFrame
-from pirn.tapestry import Tapestry
-from tests.unit.domains.signal.conftest import (
-    emit_reference_frame,
-    emit_signal_frame,
-)
+from tests.unit.domains.signal.conftest import make_signal_frame
+
+_SIGNAL = make_signal_frame()
+_REF = make_signal_frame(signal_id="reference")
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_positive_filter_length(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            ref = emit_reference_frame(_config=KnotConfig(id="ref"))
-            with self.assertRaisesRegex(ValueError, "filter_length"):
-                RLSAdaptiveFilter(
-                    signal=sig,
-                    reference=ref,
-                    filter_length=0,
-                    forgetting_factor=0.99,
-                    _config=KnotConfig(id="rls"),
-                )
-
-    def test_rejects_forgetting_factor_le_zero(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            ref = emit_reference_frame(_config=KnotConfig(id="ref"))
-            with self.assertRaisesRegex(ValueError, "forgetting_factor"):
-                RLSAdaptiveFilter(
-                    signal=sig,
-                    reference=ref,
-                    filter_length=8,
-                    forgetting_factor=0.0,
-                    _config=KnotConfig(id="rls"),
-                )
-
-    def test_rejects_forgetting_factor_gt_one(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            ref = emit_reference_frame(_config=KnotConfig(id="ref"))
-            with self.assertRaisesRegex(ValueError, "forgetting_factor"):
-                RLSAdaptiveFilter(
-                    signal=sig,
-                    reference=ref,
-                    filter_length=8,
-                    forgetting_factor=1.5,
-                    _config=KnotConfig(id="rls"),
-                )
+def _up(name: str) -> Parameter:
+    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
 
 
-class TestProcess(unittest.IsolatedAsyncioTestCase):
+class TestRLSAdaptiveFilter(unittest.IsolatedAsyncioTestCase):
+    def _make(self) -> RLSAdaptiveFilter:
+        return RLSAdaptiveFilter(
+            signal=_up("signal"),
+            reference=_up("reference"),
+            filter_length=8,
+            forgetting_factor=0.99,
+            _config=KnotConfig(id="rls"),
+        )
+
+    async def test_rejects_non_positive_filter_length(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="filter_length"):
+            await knot.process(_SIGNAL, _REF, filter_length=0, forgetting_factor=0.99)
+
+    async def test_rejects_forgetting_factor_le_zero(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="forgetting_factor"):
+            await knot.process(_SIGNAL, _REF, filter_length=8, forgetting_factor=0.0)
+
+    async def test_rejects_forgetting_factor_gt_one(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="forgetting_factor"):
+            await knot.process(_SIGNAL, _REF, filter_length=8, forgetting_factor=1.5)
+
     async def test_emits_signal_frame(self) -> None:
-        with Tapestry() as t:
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            ref = emit_reference_frame(_config=KnotConfig(id="ref"))
-            RLSAdaptiveFilter(
-                signal=sig,
-                reference=ref,
-                filter_length=8,
-                forgetting_factor=0.99,
-                _config=KnotConfig(id="rls"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["rls"]
+        knot = self._make()
+        out = await knot.process(_SIGNAL, _REF, filter_length=8, forgetting_factor=0.99)
         assert isinstance(out, SignalFrame)
         assert out.signal_id == "test:rls"

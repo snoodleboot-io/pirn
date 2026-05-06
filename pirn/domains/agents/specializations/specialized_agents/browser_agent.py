@@ -9,6 +9,28 @@ until it has enough information to write a final answer.
 
 The browser tool itself is supplied by the caller; this knot does not
 ship a concrete browser backend.
+
+Algorithm:
+    1. Receive the ``goal`` string, ``llm`` provider, ``browser_tool``,
+       and ``max_steps`` limit.
+    2. Validate types and constraints in :meth:`process` (not
+       ``__init__``).
+    3. Build a two-message seed prompt: a system message describing the
+       browser-action format and a user message containing the goal.
+    4. Construct an inner :class:`Tapestry` containing a single
+       :class:`ReActLoop` wired to the LLM and browser tool.
+    5. Execute the inner tapestry via :meth:`SubTapestry._run_inner` and
+       extract the ``react_loop`` output.
+    6. Return the :class:`AgentResponse`; fall back to an empty response
+       with ``finish_reason="length"`` if the output is absent.
+
+Math:
+    No numeric computation. ``max_steps`` bounds the ReAct iteration
+    count via :class:`ReActLoop`.
+
+References:
+    - ReAct: Yao et al., 2022 (arXiv 2210.03629).
+    - Playwright browser automation: https://playwright.dev
 """
 
 from __future__ import annotations
@@ -33,12 +55,46 @@ class BrowserAgent(SubTapestry):
         self,
         *,
         goal: Knot | str,
-        llm: LLMProvider,
-        browser_tool: Tool,
+        llm: Knot | LLMProvider,
+        browser_tool: Knot | Tool,
+        max_steps: Knot | int,
         _config: KnotConfig,
-        max_steps: int = 10,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            goal=goal,
+            llm=llm,
+            browser_tool=browser_tool,
+            max_steps=max_steps,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        goal: str,
+        llm: LLMProvider,
+        browser_tool: Tool,
+        max_steps: int,
+        **_: Any,
+    ) -> AgentResponse:
+        """Run the ReAct loop with the browser tool to accomplish the goal and return the result.
+
+        Args:
+            goal: The non-empty goal description instructing the agent what to accomplish.
+            llm: The LLM provider used to drive the ReAct loop.
+            browser_tool: The browser automation tool the ReAct loop may invoke.
+            max_steps: Maximum number of ReAct iterations before stopping.
+
+        Returns:
+            An AgentResponse containing the final answer from the ReAct loop.
+
+        Raises:
+            TypeError: If goal is not a non-empty string.
+            TypeError: If llm is not an LLMProvider instance.
+            TypeError: If browser_tool is not a Tool instance.
+            ValueError: If max_steps is not a positive integer.
+        """
         if not isinstance(llm, LLMProvider):
             raise TypeError(
                 "BrowserAgent: llm must be an LLMProvider, "
@@ -54,23 +110,6 @@ class BrowserAgent(SubTapestry):
                 "BrowserAgent: max_steps must be a positive int, "
                 f"got {max_steps!r}"
             )
-        self._llm = llm
-        self._browser_tool = browser_tool
-        self._max_steps = max_steps
-        super().__init__(goal=goal, _config=_config, **kwargs)
-
-    async def process(self, goal: str, **_: Any) -> AgentResponse:
-        """Run the ReAct loop with the browser tool to accomplish the goal and return the result.
-
-        Args:
-            goal: The non-empty goal description instructing the agent what to accomplish.
-
-        Returns:
-            An AgentResponse containing the final answer from the ReAct loop.
-
-        Raises:
-            TypeError: If goal is not a non-empty string.
-        """
         if not isinstance(goal, str) or not goal:
             raise TypeError(
                 "BrowserAgent: goal must be a non-empty string, "
@@ -81,7 +120,7 @@ class BrowserAgent(SubTapestry):
                 role="system",
                 content=(
                     "You are a browser-automation agent. Drive the browser "
-                    f"by emitting Action: {self._browser_tool.name} calls "
+                    f"by emitting Action: {browser_tool.name} calls "
                     "with Action Input describing the action and arguments "
                     "(e.g. 'navigate https://example.com'). When the goal "
                     "is achieved, emit Final Answer: <result>."
@@ -92,9 +131,9 @@ class BrowserAgent(SubTapestry):
         with Tapestry() as inner:
             ReActLoop(
                 messages=seed_messages,
-                llm=self._llm,
-                tools=(self._browser_tool,),
-                max_iterations=self._max_steps,
+                llm=llm,
+                tools=(browser_tool,),
+                max_iterations=max_steps,
                 _config=KnotConfig(id="react_loop"),
             )
         inner_result = await self._run_inner(inner)

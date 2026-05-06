@@ -9,6 +9,19 @@ sensitive (it requires a hermetic build environment, a language-specific
 runner, and resource limits) and lives outside the scope of this knot.
 The pipeline emits a stubbed ``"tests: skipped (stub)"`` line in the
 response usage block to make the punt explicit downstream.
+
+Algorithm:
+    1. Receive ``task`` (str) and ``language`` (str) as plain values.
+    2. Validate that ``task`` is a non-empty string.
+    3. Build an inner :class:`Tapestry` containing :class:`_CodeGenerator`,
+       :class:`_CodeLinter`, and :class:`_CodeResponseFormatter`.
+    4. Run the inner tapestry and extract the ``AgentResponse`` output.
+
+Math:
+    None.
+
+References:
+    None.
 """
 
 from __future__ import annotations
@@ -39,11 +52,33 @@ class CodeAgent(SubTapestry):
         self,
         *,
         task: Knot | str,
-        llm: LLMProvider,
+        llm: Knot | LLMProvider,
         _config: KnotConfig,
-        language: str = "python",
+        language: Knot | str = "python",
         **kwargs: Any,
     ) -> None:
+        super().__init__(task=task, llm=llm, language=language, _config=_config, **kwargs)
+
+    async def process(self, task: str, llm: LLMProvider, language: str = "python", **_: Any) -> AgentResponse:
+        """Generate code for the task, run a lint pass, and return the formatted AgentResponse.
+
+        Args:
+            task: The non-empty task description used to prompt the LLM for code.
+            llm: The LLM provider to use for code generation.
+            language: The target programming language (default: "python").
+
+        Returns:
+            An AgentResponse whose content is the generated code with lint metadata in usage.
+
+        Raises:
+            TypeError: If task is not a non-empty string, llm is not an LLMProvider,
+                or language is not a non-empty string.
+        """
+        if not isinstance(task, str) or not task:
+            raise TypeError(
+                "CodeAgent: task must be a non-empty string, "
+                f"got {task!r}"
+            )
         if not isinstance(llm, LLMProvider):
             raise TypeError(
                 "CodeAgent: llm must be an LLMProvider, "
@@ -54,37 +89,16 @@ class CodeAgent(SubTapestry):
                 "CodeAgent: language must be a non-empty string, "
                 f"got {language!r}"
             )
-        self._llm = llm
-        self._language = language
-        super().__init__(task=task, _config=_config, **kwargs)
-
-    async def process(self, task: str, **_: Any) -> AgentResponse:
-        """Generate code for the task, run a lint pass, and return the formatted AgentResponse.
-
-        Args:
-            task: The non-empty task description used to prompt the LLM for code.
-
-        Returns:
-            An AgentResponse whose content is the generated code with lint metadata in usage.
-
-        Raises:
-            TypeError: If task is not a non-empty string.
-        """
-        if not isinstance(task, str) or not task:
-            raise TypeError(
-                "CodeAgent: task must be a non-empty string, "
-                f"got {task!r}"
-            )
         with Tapestry() as inner:
             code = _CodeGenerator(
                 task=task,
-                llm=self._llm,
-                language=self._language,
+                llm=llm,
+                language=language,
                 _config=KnotConfig(id="generate_code"),
             )
             warnings = _CodeLinter(
                 code=code,
-                language=self._language,
+                language=language,
                 _config=KnotConfig(id="lint_code"),
             )
             _CodeResponseFormatter(

@@ -1,4 +1,15 @@
-"""``ResponseFormatter`` — render an :class:`AgentResponse` for end-user display."""
+"""``ResponseFormatter`` — render an :class:`AgentResponse` for end-user display.
+
+Algorithm:
+    1. Receive the resolved ``AgentResponse`` and ``format`` string.
+    2. Validate input types at process time.
+    3. Dispatch to the appropriate renderer based on ``format``.
+    4. Return the formatted string.
+
+
+References:
+    - :class:`pirn.domains.agents.types.agent_response.AgentResponse`
+"""
 
 from __future__ import annotations
 
@@ -26,14 +37,9 @@ class ResponseFormatter(Knot):
         *,
         response: Knot,
         _config: KnotConfig,
-        format: str = "plain",
+        format: Knot | str = "plain",
         **kwargs: Any,
     ) -> None:
-        if format not in type(self).supported_formats:
-            raise ValueError(
-                "ResponseFormatter: format must be one of "
-                f"{type(self).supported_formats!r}, got {format!r}"
-            )
         super().__init__(
             response=response,
             format=format,
@@ -58,11 +64,17 @@ class ResponseFormatter(Knot):
 
         Raises:
             TypeError: If response is not an AgentResponse instance.
+            ValueError: If format is not a supported format string.
         """
         if not isinstance(response, AgentResponse):
             raise TypeError(
                 "ResponseFormatter: response must be an AgentResponse, "
                 f"got {type(response).__name__}"
+            )
+        if format not in type(self).supported_formats:
+            raise ValueError(
+                "ResponseFormatter: format must be one of "
+                f"{type(self).supported_formats!r}, got {format!r}"
             )
         if format == "plain":
             return response.content

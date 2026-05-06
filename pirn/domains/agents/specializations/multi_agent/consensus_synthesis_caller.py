@@ -4,6 +4,16 @@ Inner stage knot used by :class:`ConsensusAggregator` when the
 ``llm_synthesis`` strategy is selected. Renders every specialist
 response into a single prompt and asks the LLM to produce a
 consensus reply. Returns the synthesised :class:`AgentResponse`.
+
+Algorithm:
+    1. Render each ``(name, response.content)`` pair into a numbered list.
+    2. Build a synthesis prompt instructing the LLM to reconcile replies.
+    3. Call ``llm.chat`` with the prompt and extract the text from the reply.
+    4. Wrap the extracted text in a new :class:`AgentResponse`.
+
+
+References:
+    pirn-native — no external references.
 """
 
 from __future__ import annotations
@@ -24,21 +34,16 @@ class ConsensusSynthesisCaller(Knot):
         self,
         *,
         responses: Knot | Mapping[str, AgentResponse],
-        llm: LLMProvider,
+        llm: Knot | LLMProvider,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "ConsensusSynthesisCaller: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
-        self._llm = llm
-        super().__init__(responses=responses, _config=_config, **kwargs)
+        super().__init__(responses=responses, llm=llm, _config=_config, **kwargs)
 
     async def process(
         self,
         responses: Mapping[str, AgentResponse],
+        llm: LLMProvider,
         **_: Any,
     ) -> AgentResponse:
         """Feed all specialist responses to the LLM and return its synthesised consensus answer.
@@ -52,6 +57,11 @@ class ConsensusSynthesisCaller(Knot):
         Raises:
             ValueError: If responses is empty or not a Mapping.
         """
+        if not isinstance(llm, LLMProvider):
+            raise TypeError(
+                "ConsensusSynthesisCaller: llm must be an LLMProvider, "
+                f"got {type(llm).__name__}"
+            )
         if not isinstance(responses, Mapping) or not responses:
             raise ValueError(
                 "ConsensusSynthesisCaller: responses must be a non-empty "
@@ -67,7 +77,7 @@ class ConsensusSynthesisCaller(Knot):
             f"Replies:\n{rendered}\n\nConsensus:"
         )
         chat_messages = [{"role": "user", "content": prompt}]
-        raw = await self._llm.chat(chat_messages)
+        raw = await llm.chat(chat_messages)
         text = self._extract_text(raw)
         return AgentResponse(content=text, finish_reason="stop")
 

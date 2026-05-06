@@ -20,6 +20,24 @@ If a matching tool is registered, we invoke it; otherwise the
 observation is a structured error string. A "Final Answer:" prefix
 short-circuits tool selection: no tool call is performed and the
 trailing assistant message stands as the final answer for the loop.
+
+Algorithm:
+    1. Receive ``context``, ``llm``, and ``tools`` at process time.
+    2. Validate ``llm`` and each entry in ``tools``; raise on bad types.
+    3. Build a tool registry keyed by ``tool.name``.
+    4. Render the prompt from ``context``.
+    5. Call ``llm.chat`` with the rendered prompt.
+    6. Extract the thought text from the raw LLM response.
+    7. If the thought contains ``"Final Answer:"``, return ``(thought,)``.
+    8. Parse ``Action:`` / ``Action Input:`` lines from the thought.
+    9. If no action name is found, return ``(thought,)``.
+    10. Invoke the named tool (or produce an error observation).
+    11. Return ``(thought, tool_call_message, observation)``.
+
+
+References:
+    - Yao et al. (2023) "ReAct: Synergizing Reasoning and Acting in Language Models"
+      https://arxiv.org/abs/2210.03629
 """
 
 from __future__ import annotations
@@ -45,11 +63,34 @@ class ReActStepExecutor(Knot):
         self,
         *,
         context: Knot,
-        llm: LLMProvider,
-        tools: Sequence[Tool],
+        llm: Knot | LLMProvider,
+        tools: Knot | Sequence[Tool],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(context=context, llm=llm, tools=tools, _config=_config, **kwargs)
+
+    async def process(
+        self,
+        context: Any,
+        llm: LLMProvider,
+        tools: Sequence[Tool],
+        **_: Any,
+    ) -> tuple[AgentMessage, ...]:
+        """Emit a thought, optionally invoke a tool, and return the new tail of messages.
+
+        Args:
+            context: The current agent context used to render the prompt for the LLM.
+            llm: The LLM provider used to generate the thought.
+            tools: The sequence of available tools for this step.
+
+        Returns:
+            A tuple of new AgentMessage instances: the thought, optional tool-call surrogate,
+            and observation; or just the thought when a Final Answer is emitted.
+
+        Raises:
+            TypeError: If llm is not an LLMProvider or any tool is not a Tool.
+        """
         if not isinstance(llm, LLMProvider):
             raise TypeError(
                 "ReActStepExecutor: llm must be an LLMProvider, "
@@ -62,28 +103,10 @@ class ReActStepExecutor(Knot):
                     f"ReActStepExecutor: tools[{index}] must be a Tool, "
                     f"got {type(candidate).__name__}"
                 )
-        self._llm = llm
-        self._tools = tool_tuple
-        self._tools_by_name = {tool.name: tool for tool in tool_tuple}
-        super().__init__(context=context, _config=_config, **kwargs)
-
-    async def process(
-        self,
-        context: Any,
-        **_: Any,
-    ) -> tuple[AgentMessage, ...]:
-        """Emit a thought, optionally invoke a tool, and return the new tail of messages.
-
-        Args:
-            context: The current agent context used to render the prompt for the LLM.
-
-        Returns:
-            A tuple of new AgentMessage instances: the thought, optional tool-call surrogate,
-            and observation; or just the thought when a Final Answer is emitted.
-        """
-        prompt = self._render_prompt(context)
+        tools_by_name = {tool.name: tool for tool in tool_tuple}
+        prompt = self._render_prompt(context, tool_tuple)
         chat_messages = [{"role": "user", "content": prompt}]
-        raw = await self._llm.chat(chat_messages)
+        raw = await llm.chat(chat_messages)
         thought_text = self._extract_text(raw)
         thought = AgentMessage(role="assistant", content=thought_text)
         if self._final_answer_marker in thought_text:
@@ -98,7 +121,7 @@ class ReActStepExecutor(Knot):
             tool_call_id=call_id,
             name=action_name,
         )
-        observation_text = await self._invoke_tool(action_name, action_input)
+        observation_text = await self._invoke_tool(tools_by_name, action_name, action_input)
         observation = AgentMessage(
             role="tool",
             content=observation_text,
@@ -107,7 +130,7 @@ class ReActStepExecutor(Knot):
         )
         return (thought, tool_call_message, observation)
 
-    def _render_prompt(self, context: Any) -> str:
+    def _render_prompt(self, context: Any, tools: tuple[Tool, ...]) -> str:
         messages: tuple[AgentMessage, ...]
         if hasattr(context, "messages"):
             messages = tuple(context.messages)
@@ -115,7 +138,7 @@ class ReActStepExecutor(Knot):
             messages = tuple(context) if context else ()
         rendered = "\n".join(f"{m.role}: {m.content}" for m in messages)
         tool_lines = "\n".join(
-            f"- {tool.name}: {tool.description}" for tool in self._tools
+            f"- {tool.name}: {tool.description}" for tool in tools
         )
         return (
             "You are a ReAct agent. Available tools:\n"
@@ -140,8 +163,11 @@ class ReActStepExecutor(Knot):
                 action_input = line[len(self._action_input_marker):].strip()
         return action_name, action_input
 
-    async def _invoke_tool(self, name: str, raw_input: str) -> str:
-        tool = self._tools_by_name.get(name)
+    @staticmethod
+    async def _invoke_tool(
+        tools_by_name: dict[str, Tool], name: str, raw_input: str
+    ) -> str:
+        tool = tools_by_name.get(name)
         if tool is None:
             return f"Tool {name!r} is not registered."
         try:

@@ -1,4 +1,18 @@
-"""``TaskPlanner`` — decomposes a goal into an ordered list of steps."""
+"""``TaskPlanner`` — decomposes a goal into an ordered list of steps.
+
+Algorithm:
+    1. Receive the resolved ``goal`` (str) and ``llm`` (LLMProvider).
+    2. Validate types at process time.
+    3. Build a two-message request: system planning instruction + user goal.
+    4. Call ``llm.chat`` with the messages and extract the raw text response.
+    5. Parse lines that begin with a digit followed by ``.`` or ``)`` as steps.
+    6. Return a Plan containing the ordered steps and the raw response as rationale.
+
+
+References:
+    - Wang et al. (2023) "Plan-and-Solve Prompting: Improving Zero-Shot Chain-of-Thought Reasoning"
+    - Yao et al. (2023) "Tree of Thoughts: Deliberate Problem Solving with Large Language Models"
+"""
 
 from __future__ import annotations
 
@@ -29,19 +43,13 @@ class TaskPlanner(Knot):
         self,
         *,
         goal: Knot | str,
-        llm: LLMProvider,
+        llm: Knot | LLMProvider,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "TaskPlanner: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
-        self._llm = llm
-        super().__init__(goal=goal, _config=_config, **kwargs)
+        super().__init__(goal=goal, llm=llm, _config=_config, **kwargs)
 
-    async def process(self, goal: str, **_: Any) -> Plan:
+    async def process(self, goal: str, llm: LLMProvider, **_: Any) -> Plan:
         """Decompose the goal into an ordered plan via LLM and return a Plan.
 
         Args:
@@ -53,6 +61,11 @@ class TaskPlanner(Knot):
         Raises:
             TypeError: If goal is not a string.
         """
+        if not isinstance(llm, LLMProvider):
+            raise TypeError(
+                "TaskPlanner: llm must be an LLMProvider, "
+                f"got {type(llm).__name__}"
+            )
         if not isinstance(goal, str):
             raise TypeError(
                 "TaskPlanner: goal must be a string, "
@@ -62,7 +75,7 @@ class TaskPlanner(Knot):
             {"role": "system", "content": type(self)._planning_system},
             {"role": "user", "content": goal},
         ]
-        raw = await self._llm.chat(messages=messages)
+        raw = await llm.chat(messages=messages)
         rationale = self._extract_text(raw)
         steps = self._parse_steps(rationale)
         return Plan(steps=tuple(steps), rationale=rationale)

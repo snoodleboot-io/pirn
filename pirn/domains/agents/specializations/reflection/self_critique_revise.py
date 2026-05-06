@@ -1,4 +1,20 @@
-"""``SelfCritiqueRevise`` — generate, critique, then revise a response."""
+"""``SelfCritiqueRevise`` — generate, critique, then revise a response.
+
+Algorithm:
+    1. **Generate** — send the prompt to the LLM and capture the initial answer.
+    2. **Critique** — send the initial answer to the LLM asking for weaknesses,
+       errors, or gaps.
+    3. **Revise** — send the original prompt, initial answer, and critique to the
+       LLM, requesting a final improved answer.
+    4. Return the revised answer as an :class:`AgentResponse`.
+
+
+References:
+    - Shinn et al., "Reflexion: Language Agents with Verbal Reinforcement Learning",
+      NeurIPS 2023. https://arxiv.org/abs/2303.11366
+    - Madaan et al., "Self-Refine: Iterative Refinement with Self-Feedback",
+      NeurIPS 2023. https://arxiv.org/abs/2303.17651
+"""
 
 from __future__ import annotations
 
@@ -40,48 +56,48 @@ class SelfCritiqueRevise(Knot):
         self,
         *,
         prompt: Knot | str,
-        llm: LLMProvider,
+        llm: Knot | LLMProvider,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "SelfCritiqueRevise: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
-        self._llm = llm
-        super().__init__(prompt=prompt, _config=_config, **kwargs)
+        super().__init__(prompt=prompt, llm=llm, _config=_config, **kwargs)
 
-    async def process(self, prompt: str, **_: Any) -> AgentResponse:
+    async def process(self, prompt: str, llm: LLMProvider, **_: Any) -> AgentResponse:
         """Generate an initial answer, critique it, revise it, and return the final AgentResponse.
 
         Args:
             prompt: The user question or task to answer.
+            llm: The LLMProvider to use for all three generation steps.
 
         Returns:
             An AgentResponse containing the final revised answer.
 
         Raises:
-            TypeError: If prompt is not a string.
+            TypeError: If prompt is not a string or llm is not an LLMProvider.
         """
+        if not isinstance(llm, LLMProvider):
+            raise TypeError(
+                "SelfCritiqueRevise: llm must be an LLMProvider, "
+                f"got {type(llm).__name__}"
+            )
         if not isinstance(prompt, str):
             raise TypeError(
                 "SelfCritiqueRevise: prompt must be a string, "
                 f"got {type(prompt).__name__}"
             )
-        initial_raw = await self._llm.chat(messages=[
+        initial_raw = await llm.chat(messages=[
             {"role": "system", "content": type(self)._generation_system},
             {"role": "user", "content": prompt},
         ])
         initial = self._extract_text(initial_raw)
 
-        critique_raw = await self._llm.chat(messages=[
+        critique_raw = await llm.chat(messages=[
             {"role": "system", "content": type(self)._critique_system},
             {"role": "user", "content": initial},
         ])
         critique = self._extract_text(critique_raw)
 
-        revision_raw = await self._llm.chat(messages=[
+        revision_raw = await llm.chat(messages=[
             {"role": "system", "content": type(self)._revision_system},
             {
                 "role": "user",

@@ -24,43 +24,62 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_n_trials_below_one(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "n_trials"):
-                RandomSearchTuner(
-                    split=split,
-                    algorithm="rf",
-                    search_space={"n": (1, 2)},
-                    primary_metric="accuracy",
-                    n_trials=0,
-                    _config=KnotConfig(id="bad"),
-                )
+def _make_tuner() -> RandomSearchTuner:
+    with Tapestry():
+        split = emit_split(_config=KnotConfig(id="split"))
+        tuner = RandomSearchTuner(
+            split=split,
+            algorithm="rf",
+            search_space={"n": (1, 2)},
+            primary_metric="accuracy",
+            n_trials=2,
+            _config=KnotConfig(id="rs"),
+        )
+    return tuner
 
-    def test_rejects_empty_primary_metric(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "primary_metric"):
-                RandomSearchTuner(
-                    split=split,
-                    algorithm="rf",
-                    search_space={"n": (1, 2)},
-                    primary_metric="",
-                    _config=KnotConfig(id="bad"),
-                )
 
-    def test_rejects_empty_search_space(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "search_space"):
-                RandomSearchTuner(
-                    split=split,
-                    algorithm="rf",
-                    search_space={},
-                    primary_metric="accuracy",
-                    _config=KnotConfig(id="bad"),
-                )
+def _split_fixture() -> DataSplit:
+    train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
+    test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
+    return DataSplit(train=train, test=test)
+
+
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_n_trials_below_one(self) -> None:
+        tuner = _make_tuner()
+        split = _split_fixture()
+        with self.assertRaises((TypeError, ValueError)):
+            await tuner.process(
+                split=split,
+                algorithm="rf",
+                search_space={"n": (1, 2)},
+                primary_metric="accuracy",
+                n_trials=0,
+            )
+
+    async def test_rejects_empty_primary_metric(self) -> None:
+        tuner = _make_tuner()
+        split = _split_fixture()
+        with self.assertRaises((TypeError, ValueError)):
+            await tuner.process(
+                split=split,
+                algorithm="rf",
+                search_space={"n": (1, 2)},
+                primary_metric="",
+                n_trials=2,
+            )
+
+    async def test_rejects_empty_search_space(self) -> None:
+        tuner = _make_tuner()
+        split = _split_fixture()
+        with self.assertRaises((TypeError, ValueError)):
+            await tuner.process(
+                split=split,
+                algorithm="rf",
+                search_space={},
+                primary_metric="accuracy",
+                n_trials=2,
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

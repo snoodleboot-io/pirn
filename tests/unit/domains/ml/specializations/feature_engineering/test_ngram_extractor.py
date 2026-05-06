@@ -25,46 +25,45 @@ class _SplitSource(Knot):
         return DataSplit(train=ds, test=ds)
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_invalid_analyzer(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                NGramExtractor(
-                    split=_SplitSource(_config=KnotConfig(id="s")),
-                    text_column="text",
-                    analyzer="sentence",
-                    _config=KnotConfig(id="ng"),
-                )
+class TestProcess(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self) -> NGramExtractor:
+        k = NGramExtractor.__new__(NGramExtractor)
+        object.__setattr__(k, "_config", KnotConfig(id="ng"))
+        return k
 
-    def test_rejects_n_less_than_1(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                NGramExtractor(
-                    split=_SplitSource(_config=KnotConfig(id="s")),
-                    text_column="text",
-                    n=0,
-                    _config=KnotConfig(id="ng"),
-                )
+    def _make_split(self) -> DataSplit:
+        ds = MLDataset(name="ds", feature_names=("text",), row_count=10)
+        return DataSplit(train=ds, test=ds)
 
-    def test_rejects_max_features_less_than_1(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                NGramExtractor(
-                    split=_SplitSource(_config=KnotConfig(id="s")),
-                    text_column="text",
-                    max_features=0,
-                    _config=KnotConfig(id="ng"),
-                )
-
-    def test_attributes_stored(self) -> None:
-        with Tapestry():
-            ng = NGramExtractor(
-                split=_SplitSource(_config=KnotConfig(id="s")),
+    async def test_rejects_invalid_analyzer(self) -> None:
+        k = self._make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=self._make_split(),
                 text_column="text",
-                n=3,
-                analyzer="char",
-                max_features=20,
-                _config=KnotConfig(id="ng"),
+                n=2,
+                analyzer="sentence",
+                max_features=50,
             )
-        self.assertEqual(ng.n, 3)
-        self.assertEqual(ng.analyzer, "char")
+
+    async def test_rejects_n_less_than_1(self) -> None:
+        k = self._make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=self._make_split(),
+                text_column="text",
+                n=0,
+                analyzer="word",
+                max_features=50,
+            )
+
+    async def test_rejects_max_features_less_than_1(self) -> None:
+        k = self._make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=self._make_split(),
+                text_column="text",
+                n=2,
+                analyzer="word",
+                max_features=0,
+            )

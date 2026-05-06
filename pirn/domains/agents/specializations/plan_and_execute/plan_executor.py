@@ -1,4 +1,18 @@
-"""``PlanExecutor`` — executes each step of a Plan sequentially via LLM calls."""
+"""``PlanExecutor`` — executes each step of a Plan sequentially via LLM calls.
+
+Algorithm:
+    1. Receive the resolved ``plan`` (Plan) and ``llm`` (LLMProvider).
+    2. Validate types at process time.
+    3. Iterate over ``plan.steps`` in order.
+    4. For each step, build a messages list that includes prior step results as context.
+    5. Call ``llm.chat`` with the messages and extract the text result.
+    6. Accumulate all step results and concatenate into a single AgentResponse.
+
+
+References:
+    - Yao et al. (2023) "Tree of Thoughts: Deliberate Problem Solving with Large Language Models"
+    - Wang et al. (2023) "Plan-and-Solve Prompting: Improving Zero-Shot Chain-of-Thought Reasoning"
+"""
 
 from __future__ import annotations
 
@@ -28,19 +42,13 @@ class PlanExecutor(Knot):
         self,
         *,
         plan: Knot,
-        llm: LLMProvider,
+        llm: Knot | LLMProvider,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "PlanExecutor: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
-        self._llm = llm
-        super().__init__(plan=plan, _config=_config, **kwargs)
+        super().__init__(plan=plan, llm=llm, _config=_config, **kwargs)
 
-    async def process(self, plan: Plan, **_: Any) -> AgentResponse:
+    async def process(self, plan: Plan, llm: LLMProvider, **_: Any) -> AgentResponse:
         """Execute each plan step sequentially and return an AgentResponse with all outputs.
 
         Args:
@@ -52,6 +60,11 @@ class PlanExecutor(Knot):
         Raises:
             TypeError: If plan is not a Plan instance.
         """
+        if not isinstance(llm, LLMProvider):
+            raise TypeError(
+                "PlanExecutor: llm must be an LLMProvider, "
+                f"got {type(llm).__name__}"
+            )
         if not isinstance(plan, Plan):
             raise TypeError(
                 "PlanExecutor: plan must be a Plan, "
@@ -71,7 +84,7 @@ class PlanExecutor(Knot):
                 {"role": "system", "content": type(self)._step_system},
                 {"role": "user", "content": user_content},
             ]
-            raw = await self._llm.chat(messages=messages)
+            raw = await llm.chat(messages=messages)
             result = self._extract_text(raw)
             step_results.append(result)
         combined = "\n".join(

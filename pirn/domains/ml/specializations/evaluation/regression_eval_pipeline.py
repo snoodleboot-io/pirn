@@ -1,5 +1,14 @@
 """``RegressionEvalPipeline`` — SubTapestry for canonical regression
 evaluation: RMSE, MAE, R-squared, MAPE.
+
+Algorithm:
+    1. Receive ``model`` (TrainedModel) and ``split`` (DataSplit) via process().
+    2. Wire an inner Tapestry with Evaluator using the canonical regression metrics.
+    3. Run the inner Tapestry via _run_inner() and return the EvalReport.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -40,10 +49,6 @@ class RegressionEvalPipeline(SubTapestry):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(model, Knot):
-            raise TypeError("RegressionEvalPipeline: model must be a Knot")
-        if not isinstance(split, Knot):
-            raise TypeError("RegressionEvalPipeline: split must be a Knot")
         super().__init__(model=model, split=split, _config=_config, **kwargs)
 
     async def process(

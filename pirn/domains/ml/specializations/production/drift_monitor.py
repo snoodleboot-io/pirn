@@ -1,10 +1,21 @@
-"""``DriftMonitor`` — SubTapestry that detects feature, target, or
-prediction drift between a baseline split and a current split.
+"""``DriftMonitor`` — Knot that detects feature, target, or prediction drift
+between a baseline split and a current split.
 
 For each declared column the monitor computes a deterministic per-column
 drift score derived from the partition row counts and column name. Any
 column whose score exceeds the configured ``threshold`` is recorded in
 the result; the boolean ``drift_detected`` is true iff any column drifts.
+
+Algorithm:
+    1. Receive ``baseline``, ``current``, ``columns``, and ``threshold``
+       via process().
+    2. Validate all inputs.
+    3. Compute per-column drift scores.
+    4. Return scores, drift_detected, and threshold.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -16,10 +27,9 @@ from typing import Any, Mapping, Sequence
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.ml.types.data_split import DataSplit
-from pirn.nodes.sub_tapestry import SubTapestry
 
 
-class DriftMonitor(SubTapestry):
+class DriftMonitor(Knot):
     """Detect drift between a baseline split and a current split."""
 
     def __init__(
@@ -27,15 +37,43 @@ class DriftMonitor(SubTapestry):
         *,
         baseline: Knot,
         current: Knot,
-        columns: Sequence[str],
-        threshold: float = 0.1,
+        columns: Knot | Sequence[str],
+        threshold: Knot | float = 0.1,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(baseline, Knot):
-            raise TypeError("DriftMonitor: baseline must be a Knot")
-        if not isinstance(current, Knot):
-            raise TypeError("DriftMonitor: current must be a Knot")
+        super().__init__(
+            baseline=baseline,
+            current=current,
+            columns=columns,
+            threshold=threshold,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        baseline: DataSplit,
+        current: DataSplit,
+        columns: Sequence[str] = (),
+        threshold: float = 0.1,
+        **_: Any,
+    ) -> Mapping[str, Any]:
+        """Compute per-column drift scores between the baseline and current splits and return a mapping with drift_detected and per-column scores.
+
+        Args:
+            baseline: DataSplit representing the reference distribution.
+            current: DataSplit representing the live or recent distribution.
+            columns: Non-empty sequence of column names to check for drift.
+            threshold: Drift score threshold; must be in [0, 1].
+
+        Returns:
+            Mapping with ``scores`` (per-column float drift scores),
+            ``drift_detected`` (bool), and ``threshold`` (float).
+
+        Raises:
+            ValueError: If columns is empty or threshold is out of range.
+        """
         column_tuple = tuple(columns)
         if not column_tuple:
             raise ValueError("DriftMonitor: columns must be non-empty")
@@ -48,41 +86,15 @@ class DriftMonitor(SubTapestry):
             raise TypeError("DriftMonitor: threshold must be numeric")
         if threshold < 0.0 or threshold > 1.0:
             raise ValueError("DriftMonitor: threshold must be in [0, 1]")
-        self._columns = column_tuple
-        self._threshold = float(threshold)
-        super().__init__(
-            baseline=baseline, current=current, _config=_config, **kwargs
-        )
-
-    @property
-    def columns(self) -> tuple[str, ...]:
-        return self._columns
-
-    @property
-    def threshold(self) -> float:
-        return self._threshold
-
-    async def process(
-        self, baseline: DataSplit, current: DataSplit, **_: Any
-    ) -> Mapping[str, Any]:
-        """Compute per-column drift scores between the baseline and current splits and return a mapping with drift_detected and per-column scores.
-
-        Args:
-            baseline: DataSplit representing the reference distribution.
-            current: DataSplit representing the live or recent distribution.
-
-        Returns:
-            Mapping with ``scores`` (per-column float drift scores),
-            ``drift_detected`` (bool), and ``threshold`` (float).
-        """
+        threshold_f = float(threshold)
         scores: dict[str, float] = {}
-        for column in self._columns:
+        for column in column_tuple:
             scores[column] = self._drift_score(baseline, current, column)
-        drift_detected = any(score > self._threshold for score in scores.values())
+        drift_detected = any(score > threshold_f for score in scores.values())
         return {
             "scores": scores,
             "drift_detected": drift_detected,
-            "threshold": self._threshold,
+            "threshold": threshold_f,
         }
 
     def _drift_score(

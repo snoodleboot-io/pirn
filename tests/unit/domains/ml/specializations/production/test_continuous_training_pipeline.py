@@ -34,51 +34,54 @@ class _StubLineage(LineageStore):
         pass
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_pool(self) -> None:
-        with self.assertRaises(TypeError):
-            with Tapestry():
-                ContinuousTrainingPipeline(
-                    pool="bad",  # type: ignore[arg-type]
-                    query="SELECT 1",
-                    name="m",
-                    feature_names=["a"],
-                    target_name="y",
-                    algorithm="rf",
-                    lineage=_StubLineage(),
-                    store=_StubStore(),
-                    metrics=["accuracy"],
-                    _config=KnotConfig(id="ctp"),
-                )
-
-    def test_rejects_empty_query(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                ContinuousTrainingPipeline(
-                    pool=_StubPool(),
-                    query="",
-                    name="m",
-                    feature_names=["a"],
-                    target_name="y",
-                    algorithm="rf",
-                    lineage=_StubLineage(),
-                    store=_StubStore(),
-                    metrics=["accuracy"],
-                    _config=KnotConfig(id="ctp"),
-                )
-
-    def test_valid_construction(self) -> None:
-        with Tapestry() as t:
-            ContinuousTrainingPipeline(
-                pool=_StubPool(),
-                query="SELECT * FROM data",
-                name="model",
-                feature_names=["a", "b"],
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_non_pool(self) -> None:
+        with Tapestry():
+            k = ContinuousTrainingPipeline.__new__(ContinuousTrainingPipeline)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                pool="bad",  # type: ignore[arg-type]
+                query="SELECT 1",
+                name="m",
+                feature_names=["a"],
                 target_name="y",
                 algorithm="rf",
                 lineage=_StubLineage(),
                 store=_StubStore(),
                 metrics=["accuracy"],
-                _config=KnotConfig(id="ctp"),
             )
-        self.assertIsNotNone(t._store.get("ctp"))
+
+    async def test_rejects_empty_query(self) -> None:
+        with Tapestry():
+            k = ContinuousTrainingPipeline.__new__(ContinuousTrainingPipeline)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                pool=_StubPool(),
+                query="",
+                name="m",
+                feature_names=["a"],
+                target_name="y",
+                algorithm="rf",
+                lineage=_StubLineage(),
+                store=_StubStore(),
+                metrics=["accuracy"],
+            )
+
+    async def test_rejects_empty_name(self) -> None:
+        with Tapestry():
+            k = ContinuousTrainingPipeline.__new__(ContinuousTrainingPipeline)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                pool=_StubPool(),
+                query="SELECT 1",
+                name="",
+                feature_names=["a"],
+                target_name="y",
+                algorithm="rf",
+                lineage=_StubLineage(),
+                store=_StubStore(),
+                metrics=["accuracy"],
+            )

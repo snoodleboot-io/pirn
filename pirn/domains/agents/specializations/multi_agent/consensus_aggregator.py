@@ -8,6 +8,18 @@ strategies are supported:
   return the most common one. Ties are broken by first-seen order.
 * ``"llm_synthesis"`` — feed every response into an LLM and return its
   synthesised reply.
+
+Algorithm:
+    1. Validate ``strategy`` against the supported set.
+    2. Build an inner :class:`Tapestry` containing either
+       :class:`ConsensusMajorityVotePicker` or
+       :class:`ConsensusSynthesisCaller` depending on ``strategy``.
+    3. Execute the inner tapestry via ``self._run_inner(inner)``.
+    4. Return the knot output, falling back to majority vote on type mismatch.
+
+
+References:
+    pirn-native — no external references.
 """
 
 from __future__ import annotations
@@ -42,28 +54,18 @@ class ConsensusAggregator(SubTapestry):
         self,
         *,
         responses: Knot | Mapping[str, AgentResponse],
-        llm: LLMProvider,
+        llm: Knot | LLMProvider,
+        strategy: Knot | str = "llm_synthesis",
         _config: KnotConfig,
-        strategy: str = "llm_synthesis",
         **kwargs: Any,
     ) -> None:
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "ConsensusAggregator: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
-        if strategy not in self._supported_strategies:
-            raise ValueError(
-                "ConsensusAggregator: strategy must be one of "
-                f"{self._supported_strategies!r}, got {strategy!r}"
-            )
-        self._llm = llm
-        self._strategy = strategy
-        super().__init__(responses=responses, _config=_config, **kwargs)
+        super().__init__(responses=responses, llm=llm, strategy=strategy, _config=_config, **kwargs)
 
     async def process(
         self,
         responses: Mapping[str, AgentResponse],
+        llm: LLMProvider,
+        strategy: str = "llm_synthesis",
         **_: Any,
     ) -> AgentResponse:
         """Apply the configured consensus strategy to the specialist responses and return the winner.
@@ -77,12 +79,22 @@ class ConsensusAggregator(SubTapestry):
         Raises:
             ValueError: If responses is empty or not a Mapping.
         """
+        if not isinstance(llm, LLMProvider):
+            raise TypeError(
+                "ConsensusAggregator: llm must be an LLMProvider, "
+                f"got {type(llm).__name__}"
+            )
+        if strategy not in self._supported_strategies:
+            raise ValueError(
+                "ConsensusAggregator: strategy must be one of "
+                f"{self._supported_strategies!r}, got {strategy!r}"
+            )
         if not isinstance(responses, Mapping) or not responses:
             raise ValueError(
                 "ConsensusAggregator: responses must be a non-empty mapping"
             )
         with Tapestry() as inner:
-            if self._strategy == "majority_vote":
+            if strategy == "majority_vote":
                 ConsensusMajorityVotePicker(
                     responses=dict(responses),
                     _config=KnotConfig(id="consensus"),
@@ -90,7 +102,7 @@ class ConsensusAggregator(SubTapestry):
             else:
                 ConsensusSynthesisCaller(
                     responses=dict(responses),
-                    llm=self._llm,
+                    llm=llm,
                     _config=KnotConfig(id="consensus"),
                 )
         inner_result = await self._run_inner(inner)

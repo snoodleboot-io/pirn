@@ -4,6 +4,25 @@ A :class:`Knot` that takes a list of text chunk strings, calls an
 :class:`EmbeddingProvider` to produce embedding vectors, stores each
 chunk together with its vector in a :class:`MemoryStore`, and returns
 the total count of indexed chunks.
+
+Algorithm:
+    1. Iterate over the input ``chunks`` sequence in order.
+    2. For each chunk at index ``i``, call ``EmbeddingProvider.embed(chunk)`` to
+       obtain a dense float vector.
+    3. Write the ``(vector, text)`` pair to the ``MemoryStore`` under the key
+       supplied by the caller (typically ``{doc_id}:{i}``).
+    4. Return the total number of chunks written as an integer.
+
+Math:
+    No mathematical computation performed here — the embedding arithmetic is
+    delegated entirely to the ``EmbeddingProvider`` implementation. The count
+    returned equals ``len(chunks)``.
+
+References:
+    - Reimers & Gurevych, 2019 — Sentence-BERT: Sentence Embeddings using
+      Siamese BERT-Networks (arXiv 1908.10084).
+    - Lewis et al., 2020 — RAG: Retrieval-Augmented Generation for
+      Knowledge-Intensive NLP Tasks (arXiv 2005.11401).
 """
 
 from __future__ import annotations
@@ -24,34 +43,26 @@ class EmbeddingIndexer(Knot):
         self,
         *,
         chunks: Knot | Sequence[str],
-        embedding_provider: EmbeddingProvider,
-        store: MemoryStore,
+        embedding_provider: Knot | EmbeddingProvider,
+        store: Knot | MemoryStore,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(embedding_provider, EmbeddingProvider):
-            raise TypeError(
-                "EmbeddingIndexer: embedding_provider must be an "
-                f"EmbeddingProvider, got {type(embedding_provider).__name__}"
-            )
-        if not isinstance(store, MemoryStore):
-            raise TypeError(
-                "EmbeddingIndexer: store must be a MemoryStore, "
-                f"got {type(store).__name__}"
-            )
-        self._embedding_provider = embedding_provider
-        self._store = store
-        super().__init__(chunks=chunks, _config=_config, **kwargs)
+        super().__init__(chunks=chunks, embedding_provider=embedding_provider, store=store, _config=_config, **kwargs)
 
     async def process(
         self,
         chunks: Sequence[str],
+        embedding_provider: EmbeddingProvider,
+        store: MemoryStore,
         **_: Any,
     ) -> int:
         """Embed each chunk and store it; return the count of indexed chunks.
 
         Args:
             chunks: A sequence of text chunk strings to embed and index.
+            embedding_provider: The embedding provider to produce chunk vectors.
+            store: The memory store to persist chunk embeddings.
 
         Returns:
             The number of chunks successfully indexed.
@@ -68,11 +79,11 @@ class EmbeddingIndexer(Knot):
         if not chunks:
             return 0
         chunk_list = list(chunks)
-        vectors = await self._embedding_provider.embed(chunk_list)
+        vectors = await embedding_provider.embed(chunk_list)
         for index, (chunk, vector) in enumerate(
             zip(chunk_list, vectors, strict=True)
         ):
-            await self._store.store(
+            await store.store(
                 f"chunk_{index}",
                 {"text": chunk, "embedding": vector},
             )

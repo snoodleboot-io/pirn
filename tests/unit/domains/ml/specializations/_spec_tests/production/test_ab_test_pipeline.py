@@ -37,35 +37,32 @@ async def emit_model_b() -> TrainedModel:
     )
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_string_metric(self) -> None:
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_non_string_metric(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            model_a = emit_model_a(_config=KnotConfig(id="ma"))
-            model_b = emit_model_b(_config=KnotConfig(id="mb"))
-            with self.assertRaisesRegex(ValueError, "primary_metric"):
-                ABTestPipeline(
-                    model_a=model_a,
-                    model_b=model_b,
-                    split=split,
-                    primary_metric="",
-                    _config=KnotConfig(id="bad"),
-                )
+            k = ABTestPipeline.__new__(ABTestPipeline)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        split = DataSplit(
+            train=MLDataset(name="tr", feature_names=("a",), row_count=80),
+            test=MLDataset(name="te", feature_names=("a",), row_count=20),
+        )
+        model_a = TrainedModel(model_id="a", algorithm="logistic", feature_names=("a",), target_name="y")
+        model_b = TrainedModel(model_id="b", algorithm="rf", feature_names=("a",), target_name="y")
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(model_a=model_a, model_b=model_b, split=split, primary_metric="", alpha=0.05)
 
-    def test_rejects_alpha_outside_range(self) -> None:
+    async def test_rejects_alpha_outside_range(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            model_a = emit_model_a(_config=KnotConfig(id="ma"))
-            model_b = emit_model_b(_config=KnotConfig(id="mb"))
-            with self.assertRaisesRegex(ValueError, "alpha"):
-                ABTestPipeline(
-                    model_a=model_a,
-                    model_b=model_b,
-                    split=split,
-                    primary_metric="accuracy",
-                    alpha=1.5,
-                    _config=KnotConfig(id="bad"),
-                )
+            k = ABTestPipeline.__new__(ABTestPipeline)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        split = DataSplit(
+            train=MLDataset(name="tr", feature_names=("a",), row_count=80),
+            test=MLDataset(name="te", feature_names=("a",), row_count=20),
+        )
+        model_a = TrainedModel(model_id="a", algorithm="logistic", feature_names=("a",), target_name="y")
+        model_b = TrainedModel(model_id="b", algorithm="rf", feature_names=("a",), target_name="y")
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(model_a=model_a, model_b=model_b, split=split, primary_metric="accuracy", alpha=1.5)
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

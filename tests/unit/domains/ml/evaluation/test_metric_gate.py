@@ -1,4 +1,4 @@
-"""Tests for :class:`MetricGate`."""
+"""Tests for :class:`MetricCheck`."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.ml.evaluation.metric_gate import MetricGate
+from pirn.domains.ml.evaluation.metric_gate import MetricCheck
 from pirn.domains.ml.types.eval_report import EvalReport
 from pirn.tapestry import Tapestry
 
@@ -33,11 +33,11 @@ async def emit_failing_report() -> EvalReport:
     return _report(0.10)
 
 
-class TestMetricGateHappyPath(unittest.IsolatedAsyncioTestCase):
+class TestMetricCheckHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_passes_when_metric_meets_threshold(self) -> None:
         with Tapestry() as t:
             report = emit_passing_report(_config=KnotConfig(id="report"))
-            MetricGate(
+            MetricCheck(
                 report=report,
                 metric="accuracy",
                 min_value=0.9,
@@ -49,7 +49,7 @@ class TestMetricGateHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_returns_false_when_below_threshold(self) -> None:
         with Tapestry() as t:
             report = emit_failing_report(_config=KnotConfig(id="report"))
-            MetricGate(
+            MetricCheck(
                 report=report,
                 metric="accuracy",
                 min_value=0.9,
@@ -59,14 +59,26 @@ class TestMetricGateHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.outputs["gate"] is False
 
 
-class TestMetricGateConstruction(unittest.TestCase):
-    def test_rejects_empty_metric(self) -> None:
-        with Tapestry():
-            report = emit_passing_report(_config=KnotConfig(id="report"))
-            with self.assertRaisesRegex(ValueError, "metric must be"):
-                MetricGate(
-                    report=report,
-                    metric="",
-                    min_value=0.0,
-                    _config=KnotConfig(id="bad"),
-                )
+class TestMetricCheckProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_empty_metric(self) -> None:
+        checker = MetricCheck.__new__(MetricCheck)
+        object.__setattr__(checker, "_config", KnotConfig(id="x"))
+        report = _report(0.95)
+        with self.assertRaisesRegex(ValueError, "metric must be"):
+            await checker.process(report=report, metric="", min_value=0.0)
+
+    async def test_raises_key_error_for_missing_metric(self) -> None:
+        checker = MetricCheck.__new__(MetricCheck)
+        object.__setattr__(checker, "_config", KnotConfig(id="x"))
+        report = _report(0.95)
+        with self.assertRaises(KeyError):
+            await checker.process(report=report, metric="missing_key", min_value=0.5)
+
+    async def test_raises_value_error_when_raise_on_fail_set(self) -> None:
+        checker = MetricCheck.__new__(MetricCheck)
+        object.__setattr__(checker, "_config", KnotConfig(id="x"))
+        report = _report(0.10)
+        with self.assertRaisesRegex(ValueError, "below threshold"):
+            await checker.process(
+                report=report, metric="accuracy", min_value=0.9, raise_on_fail=True
+            )

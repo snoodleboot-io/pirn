@@ -15,18 +15,7 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.specializations.conftest import StubTool
 
 
-class TestParallelToolCallerConstruction(unittest.IsolatedAsyncioTestCase):
-    async def test_rejects_non_tool_in_list(self) -> None:
-        with self.assertRaisesRegex(TypeError, r"tools\[0\] must be a Tool"):
-            with Tapestry():
-                ParallelToolCaller(
-                    tool_calls=[],
-                    tools=["bad"],  # type: ignore[list-item]
-                    _config=KnotConfig(id="par"),
-                )
-
-
-class TestParallelToolCallerHappyPath(unittest.IsolatedAsyncioTestCase):
+class TestParallelToolCallerProcess(unittest.IsolatedAsyncioTestCase):
     async def test_invokes_all_tools_in_parallel(self) -> None:
         search = StubTool(name="search", handler="search-result")
         calc = StubTool(name="calc", handler="42")
@@ -83,3 +72,34 @@ class TestParallelToolCallerHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         results: list[ToolResult] = result.outputs["par"]
         assert results[0].error == "tool failed"
+
+    async def test_rejects_non_tool_in_list(self) -> None:
+        calls: list[ToolCall] = []
+        with self.assertRaises(TypeError):
+            with Tapestry():
+                ParallelToolCaller(
+                    tool_calls=calls,
+                    tools=["bad"],  # type: ignore[list-item]
+                    _config=KnotConfig(id="par"),
+                )
+
+
+class TestProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_process_rejects_non_tool_in_tools_list(self) -> None:
+        with Tapestry():
+            k = ParallelToolCaller.__new__(ParallelToolCaller)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises(TypeError):
+            await k.process(tool_calls=[], tools=["not-a-tool"])  # type: ignore[list-item]
+
+    async def test_process_returns_results_for_valid_calls(self) -> None:
+        tool = StubTool(name="adder", handler="result-value")
+        call = ToolCall(tool_name="adder", arguments={}, call_id="c1")
+        with Tapestry():
+            k = ParallelToolCaller.__new__(ParallelToolCaller)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        results = await k.process(tool_calls=[call], tools=[tool])
+        assert len(results) == 1
+        assert isinstance(results[0], ToolResult)
+        assert results[0].call_id == "c1"
+        assert results[0].result == "result-value"

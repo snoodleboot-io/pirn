@@ -11,29 +11,32 @@ from pirn.domains.health.wearables.sleep_stager import SleepStager
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_signal(self) -> None:
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_non_signal(self) -> None:
+        inst = object.__new__(SleepStager)
         with self.assertRaisesRegex(TypeError, "SignalFrame"):
-            SleepStager(
+            await SleepStager.process(
+                inst,
                 signal="x",  # type: ignore[arg-type]
                 epoch_length_sec=30.0,
-                _config=KnotConfig(id="s"),
             )
 
-    def test_rejects_non_numeric(self) -> None:
+    async def test_rejects_non_numeric(self) -> None:
+        inst = object.__new__(SleepStager)
         with self.assertRaisesRegex(TypeError, "epoch_length_sec"):
-            SleepStager(
+            await SleepStager.process(
+                inst,
                 signal=SignalFrame(),
                 epoch_length_sec="x",  # type: ignore[arg-type]
-                _config=KnotConfig(id="s"),
             )
 
-    def test_rejects_non_positive(self) -> None:
+    async def test_rejects_non_positive(self) -> None:
+        inst = object.__new__(SleepStager)
         with self.assertRaisesRegex(ValueError, "positive"):
-            SleepStager(
+            await SleepStager.process(
+                inst,
                 signal=SignalFrame(),
                 epoch_length_sec=0.0,
-                _config=KnotConfig(id="s"),
             )
 
 

@@ -5,66 +5,48 @@ from __future__ import annotations
 from typing import Any
 import unittest
 
-
-from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.domains.oilgas.seismic.rms_amplitude_window_extractor import (
     RMSAmplitudeWindowExtractor,
 )
-from pirn.tapestry import Tapestry
 
-
-class _VolumeSource(Knot):
-    def __init__(self, *, _config: KnotConfig, **kwargs: Any) -> None:
-        super().__init__(_config=_config, **kwargs)
-
-    async def process(self, **_: Any) -> dict[str, Any]:
-        return {"traces": []}
-
-
-class _HorizonSource(Knot):
-    def __init__(self, *, _config: KnotConfig, **kwargs: Any) -> None:
-        super().__init__(_config=_config, **kwargs)
-
-    async def process(self, **_: Any) -> dict[str, Any]:
-        return {
-            "picks": [
-                {"inline": 100, "crossline": 200, "time_ms": 1500.0},
-                {"inline": 101, "crossline": 200, "time_ms": 1502.0},
-            ]
-        }
-
-
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_positive_window(self) -> None:
-        with self.assertRaisesRegex(ValueError, "window_ms_above"):
-            with Tapestry():
-                vol = _VolumeSource(_config=KnotConfig(id="vol"))
-                hor = _HorizonSource(_config=KnotConfig(id="hor"))
-                RMSAmplitudeWindowExtractor(
-                    volume=vol,
-                    horizon=hor,
-                    window_ms_above=0.0,
-                    window_ms_below=20.0,
-                    _config=KnotConfig(id="rms"),
-                )
+_VOLUME: dict[str, Any] = {"traces": []}
+_HORIZON: dict[str, Any] = {
+    "picks": [
+        {"inline": 100, "crossline": 200, "time_ms": 1500.0},
+        {"inline": 101, "crossline": 200, "time_ms": 1502.0},
+    ]
+}
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
-    async def test_returns_rms_map(self) -> None:
-        with Tapestry() as t:
-            vol = _VolumeSource(_config=KnotConfig(id="vol"))
-            hor = _HorizonSource(_config=KnotConfig(id="hor"))
-            RMSAmplitudeWindowExtractor(
-                volume=vol,
-                horizon=hor,
-                window_ms_above=20.0,
+    def _make_knot(self) -> RMSAmplitudeWindowExtractor:
+        return RMSAmplitudeWindowExtractor(
+            volume=None,  # type: ignore[arg-type]
+            horizon=None,  # type: ignore[arg-type]
+            window_ms_above=20.0,
+            window_ms_below=20.0,
+            _config=KnotConfig(id="rms", validate_io=False),
+        )
+
+    async def test_rejects_non_positive_window(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "window_ms_above"):
+            await knot.process(
+                volume=_VOLUME,
+                horizon=_HORIZON,
+                window_ms_above=0.0,
                 window_ms_below=20.0,
-                _config=KnotConfig(id="rms"),
             )
-        result = await t.run(RunRequest())
-        out = result.outputs["rms"]
+
+    async def test_returns_rms_map(self) -> None:
+        knot = self._make_knot()
+        out = await knot.process(
+            volume=_VOLUME,
+            horizon=_HORIZON,
+            window_ms_above=20.0,
+            window_ms_below=20.0,
+        )
         assert "rms_map" in out
         assert len(out["rms_map"]) == 2
         assert out["window_ms"] == 40.0

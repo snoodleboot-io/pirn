@@ -8,6 +8,19 @@ the response extractor can surface it). The upstream
 steps should be skipped — when ``already_terminated`` is true, the
 accumulator returns the prior messages unchanged so downstream steps
 become no-ops.
+
+Algorithm:
+    1. Receive ``prior``, ``step_output``, and ``already_terminated`` at
+       process time.
+    2. Convert ``prior`` to a tuple.
+    3. If ``already_terminated`` is ``True``, return the prior tuple
+       unchanged (short-circuit).
+    4. Otherwise return ``prior + tuple(step_output)``.
+
+
+References:
+    - Yao et al. (2023) "ReAct: Synergizing Reasoning and Acting in Language Models"
+      https://arxiv.org/abs/2210.03629
 """
 
 from __future__ import annotations

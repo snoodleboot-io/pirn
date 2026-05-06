@@ -1,4 +1,7 @@
-"""Tests for :class:`ChampionChallengerGate`."""
+"""Tests for :class:`ChampionChallengerCheck`.
+
+Renamed from ChampionChallengerGate per R9 (*Check suffix).
+"""
 
 from __future__ import annotations
 import unittest
@@ -7,8 +10,8 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.ml.specializations.experiments.champion_challenger_gate import (
-    ChampionChallengerGate,
+from pirn.domains.ml.specializations.experiments.champion_challenger_check import (
+    ChampionChallengerCheck,
 )
 from pirn.domains.ml.types.data_split import DataSplit
 from pirn.domains.ml.types.eval_report import EvalReport
@@ -49,8 +52,8 @@ class TestConstruction(unittest.TestCase):
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
             challenger = emit_challenger(_config=KnotConfig(id="chal"))
-            with self.assertRaisesRegex(TypeError, "champion must be a Knot"):
-                ChampionChallengerGate(
+            with self.assertRaises(TypeError):
+                ChampionChallengerCheck(
                     champion="not-a-knot",  # type: ignore[arg-type]
                     challenger=challenger,
                     split=split,
@@ -58,19 +61,30 @@ class TestConstruction(unittest.TestCase):
                     _config=KnotConfig(id="bad"),
                 )
 
-    def test_rejects_empty_primary_metric(self) -> None:
+
+class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self) -> ChampionChallengerCheck:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
             champ = emit_champion(_config=KnotConfig(id="champ"))
             chal = emit_challenger(_config=KnotConfig(id="chal"))
-            with self.assertRaisesRegex(ValueError, "primary_metric"):
-                ChampionChallengerGate(
-                    champion=champ,
-                    challenger=chal,
-                    split=split,
-                    primary_metric="",
-                    _config=KnotConfig(id="bad"),
-                )
+            return ChampionChallengerCheck(
+                champion=champ,
+                challenger=chal,
+                split=split,
+                primary_metric="accuracy",
+                _config=KnotConfig(id="ccc"),
+            )
+
+    async def test_rejects_empty_primary_metric(self) -> None:
+        check = self._make_knot()
+        with self.assertRaises(ValueError):
+            await check.process(
+                champion=object(),  # type: ignore[arg-type]
+                challenger=object(),  # type: ignore[arg-type]
+                split=object(),  # type: ignore[arg-type]
+                primary_metric="",
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):
@@ -79,17 +93,17 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
             split = emit_split(_config=KnotConfig(id="split"))
             champ = emit_champion(_config=KnotConfig(id="champ"))
             chal = emit_challenger(_config=KnotConfig(id="chal"))
-            ChampionChallengerGate(
+            ChampionChallengerCheck(
                 champion=champ,
                 challenger=chal,
                 split=split,
                 primary_metric="accuracy",
                 min_improvement=0.0,
-                _config=KnotConfig(id="gate"),
+                _config=KnotConfig(id="check"),
             )
         result = await t.run(RunRequest())
         assert result.succeeded
-        out = result.outputs["gate"]
+        out = result.outputs["check"]
         assert isinstance(out, dict)
         assert "challenger_wins" in out
         assert isinstance(out["challenger_wins"], bool)

@@ -1,52 +1,45 @@
 """Unit tests for :class:`KalmanFilter`."""
 
 from __future__ import annotations
+
 import unittest
 
+import pytest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
+from pirn.core.parameter import Parameter
 from pirn.domains.signal.adaptive.kalman_filter import KalmanFilter
 from pirn.domains.signal.types.signal_frame import SignalFrame
-from pirn.tapestry import Tapestry
-from tests.unit.domains.signal.conftest import emit_signal_frame
+from tests.unit.domains.signal.conftest import make_signal_frame
+
+_SIGNAL = make_signal_frame()
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_positive_state_dim(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "state_dim"):
-                KalmanFilter(
-                    signal=sig,
-                    state_dim=0,
-                    observation_dim=1,
-                    _config=KnotConfig(id="k"),
-                )
-
-    def test_rejects_non_positive_observation_dim(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "observation_dim"):
-                KalmanFilter(
-                    signal=sig,
-                    state_dim=2,
-                    observation_dim=0,
-                    _config=KnotConfig(id="k"),
-                )
+def _up(name: str = "signal") -> Parameter:
+    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
 
 
-class TestProcess(unittest.IsolatedAsyncioTestCase):
+class TestKalmanFilter(unittest.IsolatedAsyncioTestCase):
+    def _make(self) -> KalmanFilter:
+        return KalmanFilter(
+            signal=_up(),
+            state_dim=2,
+            observation_dim=1,
+            _config=KnotConfig(id="k"),
+        )
+
+    async def test_rejects_non_positive_state_dim(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="state_dim"):
+            await knot.process(_SIGNAL, state_dim=0, observation_dim=1)
+
+    async def test_rejects_non_positive_observation_dim(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="observation_dim"):
+            await knot.process(_SIGNAL, state_dim=2, observation_dim=0)
+
     async def test_emits_signal_frame(self) -> None:
-        with Tapestry() as t:
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            KalmanFilter(
-                signal=sig,
-                state_dim=2,
-                observation_dim=1,
-                _config=KnotConfig(id="k"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["k"]
+        knot = self._make()
+        out = await knot.process(_SIGNAL, state_dim=2, observation_dim=1)
         assert isinstance(out, SignalFrame)
         assert out.signal_id == "test:kalman"

@@ -3,6 +3,23 @@
 Extracts factual claims from an :class:`AgentResponse` via an LLM, checks
 each candidate fact against existing semantic memory, and upserts only
 new or changed facts into the :class:`MemoryStore`.
+
+Algorithm
+---------
+1. Validate inputs.
+2. Build a prompt from ``fact_extraction_prompt`` and ``response.content``.
+3. Call the LLM and parse one fact per line.
+4. For each fact compute a SHA-256 prefix key; retrieve the existing entry.
+5. If absent or changed, call ``store.store``; increment the counter.
+6. Return the total count of upserted facts.
+
+Math
+----
+Key: ``"fact:" + sha256(fact)[:16]``.
+
+References
+----------
+None.
 """
 
 from __future__ import annotations
@@ -24,14 +41,47 @@ class SemanticMemoryUpsert(Knot):
         self,
         *,
         response: Knot | AgentResponse,
-        llm: LLMProvider,
-        store: MemoryStore,
-        _config: KnotConfig,
-        fact_extraction_prompt: str = (
+        llm: Knot | LLMProvider,
+        store: Knot | MemoryStore,
+        fact_extraction_prompt: Knot | str = (
             "Extract key facts from the following text."
         ),
+        _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            response=response,
+            llm=llm,
+            store=store,
+            fact_extraction_prompt=fact_extraction_prompt,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        response: AgentResponse,
+        llm: LLMProvider,
+        store: MemoryStore,
+        fact_extraction_prompt: str = "Extract key facts from the following text.",
+        **_: Any,
+    ) -> int:
+        """Extract facts from the response, deduplicate against memory, and upsert new facts.
+
+        Args:
+            response: The AgentResponse whose content is mined for factual claims.
+            llm: The LLMProvider used to extract facts.
+            store: The MemoryStore for deduplication lookups and writes.
+            fact_extraction_prompt: Non-empty prompt string prefixed to the extraction request.
+
+        Returns:
+            The number of new or changed facts upserted into the memory store.
+
+        Raises:
+            TypeError: If response is not an AgentResponse, llm is not an LLMProvider,
+                or store is not a MemoryStore.
+            ValueError: If fact_extraction_prompt is not a non-empty string.
+        """
         if not isinstance(llm, LLMProvider):
             raise TypeError(
                 "SemanticMemoryUpsert: llm must be an LLMProvider, "
@@ -47,38 +97,17 @@ class SemanticMemoryUpsert(Knot):
                 "SemanticMemoryUpsert: fact_extraction_prompt must be a "
                 "non-empty string"
             )
-        self._llm = llm
-        self._store = store
-        self._fact_prompt = fact_extraction_prompt
-        super().__init__(response=response, _config=_config, **kwargs)
-
-    async def process(
-        self,
-        response: AgentResponse,
-        **_: Any,
-    ) -> int:
-        """Extract facts from the response, deduplicate against memory, and upsert new facts.
-
-        Args:
-            response: The AgentResponse whose content is mined for factual claims.
-
-        Returns:
-            The number of new or changed facts upserted into the memory store.
-
-        Raises:
-            TypeError: If response is not an AgentResponse.
-        """
         if not isinstance(response, AgentResponse):
             raise TypeError(
                 "SemanticMemoryUpsert: response must be an AgentResponse, "
                 f"got {type(response).__name__}"
             )
         prompt = (
-            f"{self._fact_prompt}\n\n"
+            f"{fact_extraction_prompt}\n\n"
             f"Text: {response.content}\n\n"
             "Return one fact per line."
         )
-        raw = await self._llm.chat([{"role": "user", "content": prompt}])
+        raw = await llm.chat([{"role": "user", "content": prompt}])
         text = self._extract_text(raw)
         facts: list[str] = []
         for raw_line in text.splitlines():
@@ -95,9 +124,9 @@ class SemanticMemoryUpsert(Knot):
         upserted = 0
         for fact in facts:
             key = "fact:" + hashlib.sha256(fact.encode()).hexdigest()[:16]
-            existing = await self._store.retrieve(key)
+            existing = await store.retrieve(key)
             if existing is None or existing.get("fact") != fact:
-                await self._store.store(key, {"fact": fact})
+                await store.store(key, {"fact": fact})
                 upserted += 1
         return upserted
 

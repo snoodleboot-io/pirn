@@ -3,6 +3,21 @@
 Production deployments parse via ``lasio``; this knot returns a typed
 stub so the orchestration graph can be exercised without the heavy SDK
 at unit-test time.
+
+Algorithm:
+    1. Receive a non-empty ``file_path``, a non-empty ``well_id``, a
+       non-empty ``curves`` sequence, and an optional ``depth_unit``
+       (``'m'`` or ``'ft'``).
+    2. Validate all inputs.
+    3. Open the LAS file and read well-information and curve-data sections.
+    4. Return a LASFile reference with the configured metadata.
+
+
+References:
+    - LAS 2.0 File Format Standard (1992), Canadian Well Logging Society
+      (file structure and section definitions).
+    - LAS 3.0 File Format Standard (2001), Canadian Well Logging Society
+      (extended parameter sections).
 """
 
 from __future__ import annotations
@@ -20,13 +35,41 @@ class LasFileIngester(Knot):
     def __init__(
         self,
         *,
+        file_path: Knot | str,
+        well_id: Knot | str,
+        curves: Knot | Sequence[str],
+        depth_unit: Knot | str = "m",
+        _config: KnotConfig,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            file_path=file_path,
+            well_id=well_id,
+            curves=curves,
+            depth_unit=depth_unit,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
         file_path: str,
         well_id: str,
         curves: Sequence[str],
         depth_unit: str = "m",
-        _config: KnotConfig,
-        **kwargs: Any,
-    ) -> None:
+        **_: Any,
+    ) -> LASFile:
+        """Resolve the configured file path and well metadata into a LASFile reference.
+
+        Args:
+            file_path: Non-empty path to the LAS file on disk.
+            well_id: Non-empty well identifier string.
+            curves: Non-empty sequence of curve mnemonic strings.
+            depth_unit: Depth unit; must be ``'m'`` or ``'ft'`` (default ``'m'``).
+
+        Returns:
+            LASFile reference built from the configured well ID, curve list, and depth unit.
+        """
         if not isinstance(file_path, str) or not file_path:
             raise ValueError(
                 "LasFileIngester: file_path must be a non-empty string"
@@ -47,20 +90,8 @@ class LasFileIngester(Knot):
             raise ValueError(
                 "LasFileIngester: depth_unit must be 'm' or 'ft'"
             )
-        self._file_path = file_path
-        self._well_id = well_id
-        self._curves = curve_tuple
-        self._depth_unit = depth_unit
-        super().__init__(_config=_config, **kwargs)
-
-    async def process(self, **_: Any) -> LASFile:
-        """Resolve the configured file path and well metadata into a LASFile reference.
-
-        Returns:
-            LASFile reference built from the configured well ID, curve list, and depth unit.
-        """
         return LASFile(
-            well_id=self._well_id,
-            curves=self._curves,
-            depth_unit=self._depth_unit,
+            well_id=well_id,
+            curves=curve_tuple,
+            depth_unit=depth_unit,
         )

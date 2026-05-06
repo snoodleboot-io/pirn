@@ -1,4 +1,17 @@
-"""``ToolRouter`` — pick a :class:`Tool` for a single plan step."""
+"""``ToolRouter`` — pick a :class:`Tool` for a single plan step.
+
+Algorithm:
+    1. Receive the resolved ``step`` string and ``tools`` sequence.
+    2. Validate input types at process time.
+    3. Lower-case the step text.
+    4. Iterate tools; return a ``ToolCall`` for the first whose name appears as a substring.
+    5. Raise ``ValueError`` if no tool name matches the step.
+
+
+References:
+    - :class:`pirn.domains.agents.tool.Tool`
+    - :class:`pirn.domains.agents.types.tool_call.ToolCall`
+"""
 
 from __future__ import annotations
 
@@ -25,25 +38,13 @@ class ToolRouter(Knot):
         self,
         *,
         step: Knot | str,
-        tools: Sequence[Tool],
+        tools: Knot | Sequence[Tool],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(tools, Sequence) or isinstance(tools, (str, bytes)):
-            raise TypeError(
-                "ToolRouter: tools must be a sequence of Tool instances"
-            )
-        if not tools:
-            raise ValueError("ToolRouter: tools must be non-empty")
-        for index, tool in enumerate(tools):
-            if not isinstance(tool, Tool):
-                raise TypeError(
-                    f"ToolRouter: tools[{index}] must be a Tool, "
-                    f"got {type(tool).__name__}"
-                )
         super().__init__(
             step=step,
-            tools=tuple(tools),
+            tools=tools,
             _config=_config,
             **kwargs,
         )
@@ -51,7 +52,7 @@ class ToolRouter(Knot):
     async def process(
         self,
         step: str,
-        tools: tuple[Tool, ...],
+        tools: Sequence[Tool],
         **_: Any,
     ) -> ToolCall:
         """Match the plan step to a registered tool and return the corresponding ToolCall.
@@ -64,8 +65,21 @@ class ToolRouter(Knot):
             A ToolCall targeting the first tool whose name appears in the step.
 
         Raises:
-            ValueError: If step is empty or no registered tool name appears in the step.
+            TypeError: If tools contains non-Tool elements.
+            ValueError: If step is empty, tools is empty, or no tool name appears in the step.
         """
+        if not isinstance(tools, Sequence) or isinstance(tools, (str, bytes)):
+            raise TypeError(
+                "ToolRouter: tools must be a sequence of Tool instances"
+            )
+        if not tools:
+            raise ValueError("ToolRouter: tools must be non-empty")
+        for index, tool in enumerate(tools):
+            if not isinstance(tool, Tool):
+                raise TypeError(
+                    f"ToolRouter: tools[{index}] must be a Tool, "
+                    f"got {type(tool).__name__}"
+                )
         if not isinstance(step, str) or not step:
             raise ValueError(
                 "ToolRouter: step must be a non-empty string, "

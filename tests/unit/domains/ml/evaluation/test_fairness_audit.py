@@ -50,15 +50,18 @@ class TestFairnessAuditHappyPath(unittest.IsolatedAsyncioTestCase):
         assert "parity_race" in out.metrics
 
 
-class TestFairnessAuditConstruction(unittest.TestCase):
-    def test_rejects_empty_sensitive_columns(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            model = emit_model(_config=KnotConfig(id="model"))
-            with self.assertRaisesRegex(ValueError, "sensitive_columns"):
-                FairnessAudit(
-                    model=model,
-                    split=split,
-                    sensitive_columns=(),
-                    _config=KnotConfig(id="bad"),
-                )
+class TestFairnessAuditProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_empty_sensitive_columns(self) -> None:
+        auditor = FairnessAudit.__new__(FairnessAudit)
+        object.__setattr__(auditor, "_config", KnotConfig(id="x"))
+        train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
+        test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
+        split = DataSplit(train=train, test=test)
+        model = TrainedModel(
+            model_id="m1",
+            algorithm="rf",
+            feature_names=("a",),
+            target_name="y",
+        )
+        with self.assertRaisesRegex(ValueError, "sensitive_columns"):
+            await auditor.process(model=model, split=split, sensitive_columns=())

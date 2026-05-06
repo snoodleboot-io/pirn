@@ -5,6 +5,16 @@ available specialist names into a routing prompt, asks the LLM which
 specialist should handle the task, parses the reply, and returns the
 chosen specialist name. If the LLM names an unknown specialist, the
 first registered specialist is selected as a deterministic fallback.
+
+Algorithm:
+    1. Render available specialist names as a bullet list in the prompt.
+    2. Call ``llm.chat`` with the routing prompt and extract the reply text.
+    3. Scan the reply for the first occurrence of a registered specialist name.
+    4. Return that name, or ``specialist_names[0]`` if none match.
+
+
+References:
+    pirn-native — no external references.
 """
 
 from __future__ import annotations
@@ -24,32 +34,20 @@ class OrchestratorRouter(Knot):
         self,
         *,
         task: Knot | str,
-        llm: LLMProvider,
-        specialist_names: Sequence[str],
+        llm: Knot | LLMProvider,
+        specialist_names: Knot | Sequence[str],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "OrchestratorRouter: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
-        names = tuple(specialist_names)
-        if not names:
-            raise ValueError(
-                "OrchestratorRouter: specialist_names must be non-empty"
-            )
-        for index, name in enumerate(names):
-            if not isinstance(name, str) or not name:
-                raise ValueError(
-                    f"OrchestratorRouter: specialist_names[{index}] must be a "
-                    f"non-empty string, got {name!r}"
-                )
-        self._llm = llm
-        self._names = names
-        super().__init__(task=task, _config=_config, **kwargs)
+        super().__init__(task=task, llm=llm, specialist_names=specialist_names, _config=_config, **kwargs)
 
-    async def process(self, task: str, **_: Any) -> str:
+    async def process(
+        self,
+        task: str,
+        llm: LLMProvider,
+        specialist_names: Sequence[str],
+        **_: Any,
+    ) -> str:
         """Ask the LLM to choose a specialist name for the task and return the chosen name.
 
         Args:
@@ -61,6 +59,16 @@ class OrchestratorRouter(Knot):
         Raises:
             TypeError: If task is not a string.
         """
+        if not isinstance(llm, LLMProvider):
+            raise TypeError(
+                "OrchestratorRouter: llm must be an LLMProvider, "
+                f"got {type(llm).__name__}"
+            )
+        names = tuple(specialist_names)
+        if not names:
+            raise ValueError(
+                "OrchestratorRouter: specialist_names must be non-empty"
+            )
         if not isinstance(task, str):
             raise TypeError(
                 "OrchestratorRouter: task must be a string, "
@@ -70,16 +78,16 @@ class OrchestratorRouter(Knot):
             "You are an orchestrator. Choose exactly one specialist to "
             "handle the task. Reply with the specialist name only.\n\n"
             "Available specialists:\n"
-            + "\n".join(f"- {name}" for name in self._names)
+            + "\n".join(f"- {name}" for name in names)
             + f"\n\nTask: {task}\n\nSpecialist:"
         )
         chat_messages = [{"role": "user", "content": prompt}]
-        raw = await self._llm.chat(chat_messages)
+        raw = await llm.chat(chat_messages)
         text = self._extract_text(raw).strip()
-        for name in self._names:
+        for name in names:
             if name in text:
                 return name
-        return self._names[0]
+        return names[0]
 
     @staticmethod
     def _extract_text(raw: Any) -> str:

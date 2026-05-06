@@ -52,3 +52,22 @@ class TestTranslationLoadAndChunkProcess(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert not result.succeeded
+
+
+class TestProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_process_rejects_empty_source(self) -> None:
+        with Tapestry():
+            k = _TranslationLoadAndChunk.__new__(_TranslationLoadAndChunk)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises(TypeError):
+            await k.process(source="", chunk_size=10)
+
+    async def test_process_reads_file_and_chunks_directly(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fpath = os.path.join(tmpdir, "test.txt")
+            Path(fpath).write_text("hellworld", encoding="utf-8")
+            with Tapestry():
+                k = _TranslationLoadAndChunk.__new__(_TranslationLoadAndChunk)
+                object.__setattr__(k, "_config", KnotConfig(id="x"))
+            chunks = await k.process(source=fpath, chunk_size=5)
+        assert chunks == ["hellw", "orld"]

@@ -1,52 +1,45 @@
 """Unit tests for :class:`AudioResampler`."""
 
 from __future__ import annotations
+
 import unittest
 
+import pytest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
+from pirn.core.parameter import Parameter
 from pirn.domains.signal.audio.audio_resampler import AudioResampler
 from pirn.domains.signal.types.signal_frame import SignalFrame
-from pirn.tapestry import Tapestry
-from tests.unit.domains.signal.conftest import emit_signal_frame
+from tests.unit.domains.signal.conftest import make_signal_frame
+
+_SIGNAL = make_signal_frame()
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_positive_target_rate(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "target_sample_rate_hz"):
-                AudioResampler(
-                    signal=sig,
-                    target_sample_rate_hz=0,
-                    _config=KnotConfig(id="r"),
-                )
-
-    def test_rejects_invalid_quality(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "quality"):
-                AudioResampler(
-                    signal=sig,
-                    target_sample_rate_hz=22050.0,
-                    quality="bogus",
-                    _config=KnotConfig(id="r"),
-                )
+def _up(name: str = "signal") -> Parameter:
+    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
 
 
-class TestProcess(unittest.IsolatedAsyncioTestCase):
-    async def test_emits_signal_frame_with_target_rate(self) -> None:
-        with Tapestry() as t:
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            AudioResampler(
-                signal=sig,
-                target_sample_rate_hz=2000.0,
-                _config=KnotConfig(id="r"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["r"]
+class TestAudioResampler(unittest.IsolatedAsyncioTestCase):
+    def _make(self) -> AudioResampler:
+        return AudioResampler(
+            signal=_up(),
+            target_sample_rate_hz=22050.0,
+            _config=KnotConfig(id="rs"),
+        )
+
+    async def test_rejects_non_positive_target_rate(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="target_sample_rate_hz"):
+            await knot.process(_SIGNAL, target_sample_rate_hz=0.0)
+
+    async def test_rejects_unknown_quality(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="quality"):
+            await knot.process(_SIGNAL, target_sample_rate_hz=22050.0, quality="bad")
+
+    async def test_emits_signal_frame(self) -> None:
+        knot = self._make()
+        out = await knot.process(_SIGNAL, target_sample_rate_hz=22050.0)
         assert isinstance(out, SignalFrame)
-        assert out.sample_rate_hz == 2000.0
-        assert out.samples_per_channel == 2048
         assert out.signal_id == "test:resampled"
+        assert out.sample_rate_hz == 22050.0

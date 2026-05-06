@@ -16,28 +16,30 @@ from tests.unit.domains.ml._stubs.recording_database_pool import (
 )
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_invalid_algorithm(self) -> None:
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_invalid_algorithm(self) -> None:
         with Tapestry():
-            with self.assertRaisesRegex(ValueError, "algorithm"):
-                AnomalyDetectionPipeline(
-                    pool=RecordingDatabasePool(rows=[(1.0, 2.0)]),
-                    query="SELECT 1",
-                    feature_names=("a",),
-                    algorithm="svm",
-                    _config=KnotConfig(id="bad"),
-                )
+            k = AnomalyDetectionPipeline.__new__(AnomalyDetectionPipeline)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                pool=RecordingDatabasePool(rows=[(1.0, 2.0)]),
+                query="SELECT 1",
+                feature_names=("a",),
+                algorithm="svm",
+            )
 
-    def test_rejects_contamination_out_of_range(self) -> None:
+    async def test_rejects_contamination_out_of_range(self) -> None:
         with Tapestry():
-            with self.assertRaisesRegex(ValueError, "contamination"):
-                AnomalyDetectionPipeline(
-                    pool=RecordingDatabasePool(rows=[(1.0,)]),
-                    query="SELECT 1",
-                    feature_names=("a",),
-                    contamination=0.6,
-                    _config=KnotConfig(id="bad"),
-                )
+            k = AnomalyDetectionPipeline.__new__(AnomalyDetectionPipeline)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                pool=RecordingDatabasePool(rows=[(1.0,)]),
+                query="SELECT 1",
+                feature_names=("a",),
+                contamination=0.6,
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

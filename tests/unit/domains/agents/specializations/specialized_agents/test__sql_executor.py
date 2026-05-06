@@ -51,3 +51,13 @@ class TestSQLExecutorProcess(unittest.IsolatedAsyncioTestCase):
             _SQLExecutor(sql=src, pool=pool, _config=KnotConfig(id="ex"))
         result = await t.run(RunRequest())
         assert not result.succeeded
+
+
+class TestProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_process_rejects_empty_sql(self) -> None:
+        pool = StubDatabaseConnectionPool()
+        with Tapestry():
+            k = _SQLExecutor.__new__(_SQLExecutor)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises(ValueError):
+            await k.process(sql="", pool=pool)

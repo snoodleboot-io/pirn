@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import Any
 import unittest
 
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.domains.agents.specializations.multi_agent.debate_framework import (
@@ -17,57 +16,66 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 
+_DEBATER_REGISTRY: dict[str, str] = {}
+
+
 class StubDebater(SubTapestry):
-    def __init__(self, *, task: Any = "", _config: KnotConfig, argument: str = "argument", **kwargs: Any,) -> None:
-        self._argument = argument
+    def __init__(self, *, task: Any = "", _config: KnotConfig, **kwargs: Any) -> None:
         super().__init__(task=task, _config=_config, **kwargs)
 
-    async def process(self, task: str, **_: Any) -> AgentResponse:
-        return AgentResponse(content=self._argument, finish_reason="stop")
+    async def process(self, task: str = "", **_: Any) -> AgentResponse:
+        argument = _DEBATER_REGISTRY.get(self.config.id, "argument")
+        return AgentResponse(content=argument, finish_reason="stop")
 
 
-class TestDebateFrameworkConstruction(unittest.IsolatedAsyncioTestCase):
+def _make_knot(debaters: tuple, judge: StubLLMProvider) -> DebateFramework:
+    with Tapestry():
+        return DebateFramework(
+            topic="t",
+            debaters=debaters,
+            judge_llm=judge,
+            rounds=1,
+            _config=KnotConfig(id="debate"),
+        )
+
+
+class TestDebateFrameworkProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_judge_picks_winning_debater(self) -> None:
+        judge = StubLLMProvider(["1"])
+        _DEBATER_REGISTRY["pro"] = "for the motion"
+        _DEBATER_REGISTRY["con"] = "against the motion"
+        with Tapestry():
+            pro = StubDebater(_config=KnotConfig(id="pro"))
+            con = StubDebater(_config=KnotConfig(id="con"))
+        k = _make_knot((pro, con), judge)
+        winner = await k.process(topic="should we ship", debaters=(pro, con), judge_llm=judge, rounds=2)
+        assert isinstance(winner, AgentResponse)
+        assert winner.content == "against the motion"
+
     async def test_rejects_too_few_debaters(self) -> None:
         judge = StubLLMProvider(["0"])
         with Tapestry():
             only = StubDebater(_config=KnotConfig(id="solo"))
-        with self.assertRaisesRegex(ValueError, "at least two debaters"):
-            with Tapestry():
-                DebateFramework(
-                    topic="t",
-                    debaters=(only,),
-                    judge_llm=judge,
-                    _config=KnotConfig(id="debate"),
-                )
+        k = _make_knot((only, only), judge)
+        with self.assertRaises(ValueError):
+            await k.process(topic="t", debaters=(only,), judge_llm=judge, rounds=1)
 
     async def test_rejects_non_positive_rounds(self) -> None:
         judge = StubLLMProvider(["0"])
         with Tapestry():
             a = StubDebater(_config=KnotConfig(id="a"))
             b = StubDebater(_config=KnotConfig(id="b"))
-        with self.assertRaisesRegex(ValueError, "rounds"):
-            with Tapestry():
-                DebateFramework(
-                    topic="t",
-                    debaters=(a, b),
-                    judge_llm=judge,
-                    rounds=0,
-                    _config=KnotConfig(id="debate"),
-                )
+        k = _make_knot((a, b), judge)
+        with self.assertRaises(ValueError):
+            await k.process(topic="t", debaters=(a, b), judge_llm=judge, rounds=0)
 
-
-class TestDebateFrameworkHappyPath(unittest.IsolatedAsyncioTestCase):
-    async def test_judge_picks_winning_debater(self) -> None:
+    async def test_tapestry_run_integration(self) -> None:
         judge = StubLLMProvider(["1"])
+        _DEBATER_REGISTRY["pro"] = "for the motion"
+        _DEBATER_REGISTRY["con"] = "against the motion"
         with Tapestry():
-            pro = StubDebater(
-                _config=KnotConfig(id="pro"),
-                argument="for the motion",
-            )
-            con = StubDebater(
-                _config=KnotConfig(id="con"),
-                argument="against the motion",
-            )
+            pro = StubDebater(_config=KnotConfig(id="pro"))
+            con = StubDebater(_config=KnotConfig(id="con"))
         with Tapestry() as t:
             DebateFramework(
                 topic="should we ship",

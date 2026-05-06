@@ -1,69 +1,52 @@
 """Unit tests for :class:`MelSpectrogramExtractor`."""
 
 from __future__ import annotations
+
 import unittest
 
+import pytest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
-from pirn.domains.signal.audio.mel_spectrogram_extractor import (
-    MelSpectrogramExtractor,
-)
+from pirn.core.parameter import Parameter
+from pirn.domains.signal.audio.mel_spectrogram_extractor import MelSpectrogramExtractor
+from pirn.domains.signal.types.signal_frame import SignalFrame
 from pirn.domains.signal.types.spectrum_frame import SpectrumFrame
-from pirn.tapestry import Tapestry
-from tests.unit.domains.signal.conftest import emit_signal_frame
+from tests.unit.domains.signal.conftest import make_signal_frame
+
+_SIGNAL = make_signal_frame()
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_positive_n_mels(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "n_mels"):
-                MelSpectrogramExtractor(
-                    signal=sig,
-                    n_mels=0,
-                    n_fft=512,
-                    hop_length=128,
-                    _config=KnotConfig(id="m"),
-                )
-
-    def test_rejects_non_positive_n_fft(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "n_fft"):
-                MelSpectrogramExtractor(
-                    signal=sig,
-                    n_mels=80,
-                    n_fft=0,
-                    hop_length=128,
-                    _config=KnotConfig(id="m"),
-                )
-
-    def test_rejects_hop_above_n_fft(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "not exceed"):
-                MelSpectrogramExtractor(
-                    signal=sig,
-                    n_mels=80,
-                    n_fft=128,
-                    hop_length=512,
-                    _config=KnotConfig(id="m"),
-                )
+def _up(name: str = "signal") -> Parameter:
+    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
 
 
-class TestProcess(unittest.IsolatedAsyncioTestCase):
+class TestMelSpectrogramExtractor(unittest.IsolatedAsyncioTestCase):
+    def _make(self) -> MelSpectrogramExtractor:
+        return MelSpectrogramExtractor(
+            signal=_up(),
+            n_mels=128,
+            n_fft=512,
+            hop_length=256,
+            _config=KnotConfig(id="mel"),
+        )
+
+    async def test_rejects_non_positive_n_mels(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="n_mels"):
+            await knot.process(_SIGNAL, n_mels=0, n_fft=512, hop_length=256)
+
+    async def test_rejects_non_positive_n_fft(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="n_fft"):
+            await knot.process(_SIGNAL, n_mels=128, n_fft=0, hop_length=256)
+
+    async def test_rejects_hop_exceeding_n_fft(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="hop_length"):
+            await knot.process(_SIGNAL, n_mels=128, n_fft=256, hop_length=512)
+
     async def test_emits_spectrum_frame(self) -> None:
-        with Tapestry() as t:
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            MelSpectrogramExtractor(
-                signal=sig,
-                n_mels=80,
-                n_fft=512,
-                hop_length=128,
-                _config=KnotConfig(id="m"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["m"]
+        knot = self._make()
+        out = await knot.process(_SIGNAL, n_mels=128, n_fft=512, hop_length=256)
         assert isinstance(out, SpectrumFrame)
-        assert out.frequency_bins == 80
+        assert out.frequency_bins == 128

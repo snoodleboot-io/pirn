@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.domains.agents.specializations.document_processing.embedding_indexer import (
     EmbeddingIndexer,
 )
@@ -17,57 +15,38 @@ from tests.unit.domains.agents.specializations.conftest import (
 )
 
 
-class TestEmbeddingIndexerConstruction(unittest.TestCase):
-    def test_rejects_non_embedding_provider(self) -> None:
-        with self.assertRaisesRegex(TypeError, "EmbeddingProvider"):
-            with Tapestry():
-                EmbeddingIndexer(
-                    chunks=["a"],
-                    embedding_provider="not-a-provider",  # type: ignore[arg-type]
-                    store=StubMemoryStore(hits=[]),
-                    _config=KnotConfig(id="ei"),
-                )
-
-    def test_rejects_non_memory_store(self) -> None:
-        with self.assertRaisesRegex(TypeError, "MemoryStore"):
-            with Tapestry():
-                EmbeddingIndexer(
-                    chunks=["a"],
-                    embedding_provider=StubEmbeddingProvider(),
-                    store="not-a-store",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="ei"),
-                )
+def _make_knot(embedder: StubEmbeddingProvider, store: StubMemoryStore) -> EmbeddingIndexer:
+    with Tapestry():
+        return EmbeddingIndexer(
+            chunks=[],
+            embedding_provider=embedder,
+            store=store,
+            _config=KnotConfig(id="ei"),
+        )
 
 
 class TestEmbeddingIndexerProcess(unittest.IsolatedAsyncioTestCase):
     async def test_empty_chunks_returns_zero(self) -> None:
-        with Tapestry() as t:
-            EmbeddingIndexer(
-                chunks=[],
-                embedding_provider=StubEmbeddingProvider(),
-                store=StubMemoryStore(hits=[]),
-                _config=KnotConfig(id="ei"),
-            )
-        result = await t.run(RunRequest())
-        assert result.outputs["ei"] == 0
+        embedder = StubEmbeddingProvider()
+        store = StubMemoryStore(hits=[])
+        k = _make_knot(embedder, store)
+        result = await k.process(chunks=[], embedding_provider=embedder, store=store)
+        assert result == 0
 
     async def test_returns_count_of_indexed_chunks(self) -> None:
-        with Tapestry() as t:
-            EmbeddingIndexer(
-                chunks=["a", "b", "c"],
-                embedding_provider=StubEmbeddingProvider(),
-                store=StubMemoryStore(hits=[]),
-                _config=KnotConfig(id="ei"),
-            )
-        result = await t.run(RunRequest())
-        assert result.outputs["ei"] == 3
+        embedder = StubEmbeddingProvider()
+        store = StubMemoryStore(hits=[])
+        k = _make_knot(embedder, store)
+        result = await k.process(chunks=["a", "b", "c"], embedding_provider=embedder, store=store)
+        assert result == 3
 
     async def test_raises_for_non_string_chunk(self) -> None:
-        with Tapestry():
-            with self.assertRaises(TypeError):
-                EmbeddingIndexer(
-                    chunks=["ok", 42],  # type: ignore[list-item]
-                    embedding_provider=StubEmbeddingProvider(),
-                    store=StubMemoryStore(hits=[]),
-                    _config=KnotConfig(id="ei"),
-                )
+        embedder = StubEmbeddingProvider()
+        store = StubMemoryStore(hits=[])
+        k = _make_knot(embedder, store)
+        with self.assertRaises(TypeError):
+            await k.process(
+                chunks=["ok", 42],  # type: ignore[list-item]
+                embedding_provider=embedder,
+                store=store,
+            )

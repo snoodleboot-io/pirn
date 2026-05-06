@@ -34,18 +34,35 @@ async def emit_model() -> TrainedModel:
     )
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_zero_k(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            model = emit_model(_config=KnotConfig(id="model"))
-            with self.assertRaisesRegex(ValueError, "k must be >= 1"):
-                RankingEvalPipeline(
-                    model=model,
-                    split=split,
-                    k=0,
-                    _config=KnotConfig(id="bad"),
-                )
+def _make_pipeline() -> RankingEvalPipeline:
+    with Tapestry():
+        split = emit_split(_config=KnotConfig(id="split"))
+        model = emit_model(_config=KnotConfig(id="model"))
+        pipeline = RankingEvalPipeline(
+            model=model,
+            split=split,
+            k=5,
+            _config=KnotConfig(id="rank"),
+        )
+    return pipeline
+
+
+def _fixtures():  # type: ignore[return]
+    train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
+    test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
+    split = DataSplit(train=train, test=test)
+    model = TrainedModel(
+        model_id="rank1", algorithm="lambdamart", feature_names=("a",), target_name="rel"
+    )
+    return model, split
+
+
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_zero_k(self) -> None:
+        pipeline = _make_pipeline()
+        model, split = _fixtures()
+        with self.assertRaises((TypeError, ValueError)):
+            await pipeline.process(model=model, split=split, k=0)
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

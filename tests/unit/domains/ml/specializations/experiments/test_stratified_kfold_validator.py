@@ -21,30 +21,20 @@ class _KnotStub(Knot):
         return None
 
 
+def _make_validator() -> StratifiedKFoldValidator:
+    with Tapestry():
+        stub = _KnotStub(_config=KnotConfig(id="d"))
+        return StratifiedKFoldValidator(
+            dataset=stub,
+            stratify_column="label",
+            algorithm="rf",
+            metrics=["accuracy"],
+            k=5,
+            _config=KnotConfig(id="skf"),
+        )
+
+
 class TestConstruction(unittest.TestCase):
-    def test_rejects_k_less_than_2(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                StratifiedKFoldValidator(
-                    dataset=_KnotStub(_config=KnotConfig(id="d")),
-                    stratify_column="label",
-                    algorithm="rf",
-                    metrics=["accuracy"],
-                    k=1,
-                    _config=KnotConfig(id="skf"),
-                )
-
-    def test_rejects_empty_stratify_column(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                StratifiedKFoldValidator(
-                    dataset=_KnotStub(_config=KnotConfig(id="d")),
-                    stratify_column="",
-                    algorithm="rf",
-                    metrics=["accuracy"],
-                    _config=KnotConfig(id="skf"),
-                )
-
     def test_valid_construction(self) -> None:
         with Tapestry() as t:
             StratifiedKFoldValidator(
@@ -56,3 +46,85 @@ class TestConstruction(unittest.TestCase):
                 _config=KnotConfig(id="skf"),
             )
         self.assertIsNotNone(t._store.get("skf"))
+
+
+class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_k_less_than_2(self) -> None:
+        validator = _make_validator()
+        from pirn.domains.ml.types.ml_dataset import MLDataset
+
+        ds = MLDataset(
+            name="ds",
+            feature_names=("x",),
+            target_name="y",
+            row_count=10,
+            source_uri="memory://ds",
+        )
+        with self.assertRaises(ValueError):
+            await validator.process(
+                dataset=ds,
+                stratify_column="label",
+                algorithm="rf",
+                metrics=["accuracy"],
+                k=1,
+            )
+
+    async def test_rejects_empty_stratify_column(self) -> None:
+        validator = _make_validator()
+        from pirn.domains.ml.types.ml_dataset import MLDataset
+
+        ds = MLDataset(
+            name="ds",
+            feature_names=("x",),
+            target_name="y",
+            row_count=10,
+            source_uri="memory://ds",
+        )
+        with self.assertRaises(ValueError):
+            await validator.process(
+                dataset=ds,
+                stratify_column="",
+                algorithm="rf",
+                metrics=["accuracy"],
+                k=5,
+            )
+
+    async def test_rejects_empty_algorithm(self) -> None:
+        validator = _make_validator()
+        from pirn.domains.ml.types.ml_dataset import MLDataset
+
+        ds = MLDataset(
+            name="ds",
+            feature_names=("x",),
+            target_name="y",
+            row_count=10,
+            source_uri="memory://ds",
+        )
+        with self.assertRaises(ValueError):
+            await validator.process(
+                dataset=ds,
+                stratify_column="label",
+                algorithm="",
+                metrics=["accuracy"],
+                k=5,
+            )
+
+    async def test_rejects_empty_metrics(self) -> None:
+        validator = _make_validator()
+        from pirn.domains.ml.types.ml_dataset import MLDataset
+
+        ds = MLDataset(
+            name="ds",
+            feature_names=("x",),
+            target_name="y",
+            row_count=10,
+            source_uri="memory://ds",
+        )
+        with self.assertRaises(ValueError):
+            await validator.process(
+                dataset=ds,
+                stratify_column="label",
+                algorithm="rf",
+                metrics=[],
+                k=5,
+            )

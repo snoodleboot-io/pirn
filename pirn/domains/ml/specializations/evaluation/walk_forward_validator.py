@@ -8,6 +8,20 @@ out-of-sample partition of ``test_window`` rows from the upstream
 evaluates on the out-of-sample partition.
 
 The output is the per-step list of :class:`EvalReport`s, one per fold.
+
+Algorithm:
+    1. Receive ``dataset`` (MLDataset), ``time_column``, ``train_window``,
+       ``test_window``, ``algorithm``, and ``n_steps`` via process().
+    2. Validate all window parameters; verify dataset has enough rows.
+    3. For each step, create train/test partitions as MLDataset slices.
+    4. Wire an inner Tapestry with Trainer + Evaluator for each step.
+    5. Run each inner Tapestry via _run_inner() and collect EvalReports.
+
+Math:
+    required_rows = train_window + test_window * n_steps
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -39,36 +53,64 @@ class WalkForwardValidator(SubTapestry):
         self,
         *,
         dataset: Knot,
-        time_column: str,
-        train_window: int,
-        test_window: int,
-        algorithm: str,
-        n_steps: int = 5,
+        time_column: Knot | str,
+        train_window: Knot | int,
+        test_window: Knot | int,
+        algorithm: Knot | str,
+        n_steps: Knot | int = 5,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(dataset, Knot):
-            raise TypeError("WalkForwardValidator: dataset must be a Knot")
+        super().__init__(
+            dataset=dataset,
+            time_column=time_column,
+            train_window=train_window,
+            test_window=test_window,
+            algorithm=algorithm,
+            n_steps=n_steps,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        dataset: MLDataset,
+        time_column: str = "",
+        train_window: int = 1,
+        test_window: int = 1,
+        algorithm: str = "",
+        n_steps: int = 5,
+        **_: Any,
+    ) -> tuple[EvalReport, ...]:
+        """Slide a training window across the dataset for each step and return a tuple of per-fold EvalReports.
+
+        Args:
+            dataset: MLDataset reference providing row_count for window partitioning.
+            time_column: Non-empty time column name string.
+            train_window: Number of rows in each training window; must be >= 1.
+            test_window: Number of rows in each test window; must be >= 1.
+            algorithm: Non-empty algorithm name string.
+            n_steps: Number of walk-forward steps; must be >= 1.
+
+        Returns:
+            Tuple of EvalReport objects, one per walk-forward step.
+
+        Raises:
+            ValueError: If any window parameter is invalid or dataset has insufficient rows.
+            TypeError: If train_window, test_window, or n_steps are not ints.
+        """
         if not isinstance(time_column, str) or not time_column:
             raise ValueError(
                 "WalkForwardValidator: time_column must be a non-empty string"
             )
         if not isinstance(train_window, int):
-            raise TypeError(
-                "WalkForwardValidator: train_window must be an int"
-            )
+            raise TypeError("WalkForwardValidator: train_window must be an int")
         if train_window < 1:
-            raise ValueError(
-                "WalkForwardValidator: train_window must be >= 1"
-            )
+            raise ValueError("WalkForwardValidator: train_window must be >= 1")
         if not isinstance(test_window, int):
-            raise TypeError(
-                "WalkForwardValidator: test_window must be an int"
-            )
+            raise TypeError("WalkForwardValidator: test_window must be an int")
         if test_window < 1:
-            raise ValueError(
-                "WalkForwardValidator: test_window must be >= 1"
-            )
+            raise ValueError("WalkForwardValidator: test_window must be >= 1")
         if not isinstance(n_steps, int):
             raise TypeError("WalkForwardValidator: n_steps must be an int")
         if n_steps < 1:
@@ -77,47 +119,18 @@ class WalkForwardValidator(SubTapestry):
             raise ValueError(
                 "WalkForwardValidator: algorithm must be a non-empty string"
             )
-        self._time_column = time_column
-        self._train_window = train_window
-        self._test_window = test_window
-        self._n_steps = n_steps
-        self._algorithm = algorithm
-        super().__init__(dataset=dataset, _config=_config, **kwargs)
-
-    @property
-    def n_steps(self) -> int:
-        return self._n_steps
-
-    async def process(
-        self, dataset: MLDataset, **_: Any
-    ) -> tuple[EvalReport, ...]:
-        """Slide a training window across the dataset for each step and return a tuple of per-fold EvalReports.
-
-        Args:
-            dataset: MLDataset reference providing row_count for window partitioning.
-
-        Returns:
-            Tuple of EvalReport objects, one per walk-forward step.
-
-        Raises:
-            ValueError: If dataset.row_count is too small for the configured steps and windows.
-        """
-        required = self._train_window + self._test_window * self._n_steps
+        required = train_window + test_window * n_steps
         if int(dataset.row_count) < required:
             raise ValueError(
                 "WalkForwardValidator: dataset.row_count is too small for "
-                f"{self._n_steps} steps with train_window={self._train_window}, "
-                f"test_window={self._test_window}; need at least {required} rows"
+                f"{n_steps} steps with train_window={train_window}, "
+                f"test_window={test_window}; need at least {required} rows"
             )
         reports: list[EvalReport] = []
         now = datetime.now(timezone.utc)
-        for step in range(self._n_steps):
-            train_partition = self._mk(
-                dataset, step, "train", self._train_window, now
-            )
-            test_partition = self._mk(
-                dataset, step, "test", self._test_window, now
-            )
+        for step in range(n_steps):
+            train_partition = self._mk(dataset, step, "train", train_window, now)
+            test_partition = self._mk(dataset, step, "test", test_window, now)
             split_value = DataSplit(
                 train=train_partition,
                 test=test_partition,
@@ -130,7 +143,7 @@ class WalkForwardValidator(SubTapestry):
                 )
                 trainer = Trainer(
                     split=split_node,
-                    algorithm=self._algorithm,
+                    algorithm=algorithm,
                     _config=KnotConfig(id=f"train-step-{step}"),
                 )
                 Evaluator(

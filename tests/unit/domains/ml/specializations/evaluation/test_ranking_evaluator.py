@@ -28,18 +28,33 @@ async def emit_model() -> TrainedModel:
     return TrainedModel(model_id="m1", algorithm="als", feature_names=("a",))
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_k_zero(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            model = emit_model(_config=KnotConfig(id="model"))
-            with self.assertRaisesRegex(ValueError, "k"):
-                RankingEvaluator(
-                    model=model,
-                    split=split,
-                    k=0,
-                    _config=KnotConfig(id="bad"),
-                )
+def _make_knot() -> RankingEvaluator:
+    with Tapestry():
+        split = emit_split(_config=KnotConfig(id="split"))
+        model = emit_model(_config=KnotConfig(id="model"))
+        k = RankingEvaluator(
+            model=model,
+            split=split,
+            k=5,
+            _config=KnotConfig(id="rank"),
+        )
+    return k
+
+
+def _fixtures() -> tuple[TrainedModel, DataSplit]:
+    train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
+    test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
+    split = DataSplit(train=train, test=test)
+    model = TrainedModel(model_id="m1", algorithm="als", feature_names=("a",))
+    return model, split
+
+
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_k_zero(self) -> None:
+        knot = _make_knot()
+        model, split = _fixtures()
+        with self.assertRaisesRegex(ValueError, "k"):
+            await knot.process(model=model, split=split, k=0)
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

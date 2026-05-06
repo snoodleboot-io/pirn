@@ -5,6 +5,17 @@ of evaluated trials is capped by ``n_trials``; the orchestration layer's
 search returns a deterministic best candidate so the pipeline is
 well-defined offline. Concrete subclasses of :class:`HyperparamSearch`
 override scoring to drive a real BO loop.
+
+Algorithm:
+    1. Receive ``split`` (DataSplit), ``algorithm``, ``search_space``,
+       ``primary_metric``, and ``n_trials`` via process().
+    2. Validate all inputs.
+    3. Wire HyperparamSearch (bayesian) + Evaluator in an inner Tapestry.
+    4. Run via _run_inner() and return best_model and eval_report.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -35,73 +46,82 @@ class BayesianSearchTuner(SubTapestry):
         self,
         *,
         split: Knot,
-        algorithm: str,
-        search_space: Mapping[str, Sequence[Any]],
-        primary_metric: str,
-        n_trials: int = 50,
+        algorithm: Knot | str,
+        search_space: Knot | Mapping[str, Sequence[Any]],
+        primary_metric: Knot | str,
+        n_trials: Knot | int = 50,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(split, Knot):
-            raise TypeError("BayesianSearchTuner: split must be a Knot")
-        if not isinstance(algorithm, str) or not algorithm:
-            raise ValueError(
-                "BayesianSearchTuner: algorithm must be a non-empty string"
-            )
-        if not isinstance(search_space, Mapping) or not search_space:
-            raise ValueError(
-                "BayesianSearchTuner: search_space must be a non-empty "
-                "Mapping"
-            )
-        if not isinstance(primary_metric, str) or not primary_metric:
-            raise ValueError(
-                "BayesianSearchTuner: primary_metric must be a non-empty "
-                "string"
-            )
-        if not isinstance(n_trials, int):
-            raise TypeError("BayesianSearchTuner: n_trials must be an int")
-        if n_trials < 1:
-            raise ValueError("BayesianSearchTuner: n_trials must be >= 1")
-        self._algorithm = algorithm
-        self._search_space = {k: tuple(v) for k, v in search_space.items()}
-        self._primary_metric = primary_metric
-        self._n_trials = n_trials
-        super().__init__(split=split, _config=_config, **kwargs)
-
-    @property
-    def n_trials(self) -> int:
-        return self._n_trials
+        super().__init__(
+            split=split,
+            algorithm=algorithm,
+            search_space=search_space,
+            primary_metric=primary_metric,
+            n_trials=n_trials,
+            _config=_config,
+            **kwargs,
+        )
 
     async def process(
-        self, split: DataSplit, **_: Any
+        self,
+        split: DataSplit,
+        algorithm: str = "",
+        search_space: Mapping[str, Sequence[Any]] | None = None,
+        primary_metric: str = "",
+        n_trials: int = 50,
+        **_: Any,
     ) -> dict[str, Any]:
         """Run a Bayesian hyperparameter search for up to n_trials and return the best model and its evaluation report.
 
         Args:
             split: DataSplit used for candidate training and evaluation.
+            algorithm: Non-empty algorithm name string.
+            search_space: Non-empty mapping of hyperparameter name to candidate values.
+            primary_metric: Non-empty metric name to report.
+            n_trials: Maximum number of trials; must be an int >= 1.
 
         Returns:
             Dict with ``best_model`` (TrainedModel) and ``eval_report`` (EvalReport).
 
         Raises:
+            ValueError: If any input fails validation.
             TypeError: If the inner search or evaluator returns an unexpected type.
         """
+        if not isinstance(algorithm, str) or not algorithm:
+            raise ValueError(
+                "BayesianSearchTuner: algorithm must be a non-empty string"
+            )
+        ss = search_space or {}
+        if not isinstance(ss, Mapping) or not ss:
+            raise ValueError(
+                "BayesianSearchTuner: search_space must be a non-empty Mapping"
+            )
+        if not isinstance(primary_metric, str) or not primary_metric:
+            raise ValueError(
+                "BayesianSearchTuner: primary_metric must be a non-empty string"
+            )
+        if not isinstance(n_trials, int):
+            raise TypeError("BayesianSearchTuner: n_trials must be an int")
+        if n_trials < 1:
+            raise ValueError("BayesianSearchTuner: n_trials must be >= 1")
+        frozen_space = {k: tuple(v) for k, v in ss.items()}
         with Tapestry() as inner:
             split_node = _emit_value(
                 value=split, _config=KnotConfig(id="split")
             )
             best = HyperparamSearch(
                 split=split_node,
-                algorithm=self._algorithm,
-                search_space=self._search_space,
+                algorithm=algorithm,
+                search_space=frozen_space,
                 strategy="bayesian",
-                n_trials=self._n_trials,
+                n_trials=n_trials,
                 _config=KnotConfig(id="search"),
             )
             Evaluator(
                 model=best,
                 split=split_node,
-                metrics=(self._primary_metric,),
+                metrics=(primary_metric,),
                 _config=KnotConfig(id="evaluate"),
             )
         result = await self._run_inner(inner)

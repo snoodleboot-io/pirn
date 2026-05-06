@@ -11,6 +11,17 @@ with the smaller feature subset (the upstream split is shared so the
 baseline :class:`Trainer` records the same train metadata across arms;
 real ablation behaviour is realised by subclassing :class:`Trainer`
 to consult a per-arm feature mask).
+
+Algorithm:
+    1. Receive ``split`` (DataSplit), ``algorithm`` (str), ``feature_groups``
+       (Mapping[str, Sequence[str]]), and ``metrics`` (Sequence[str]) via process().
+    2. Validate all inputs.
+    3. Wire one Trainer + Evaluator per ablation arm (full + per-group leave-out).
+    4. Run the inner Tapestry and collect per-arm EvalReports.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -42,28 +53,58 @@ class AblationStudyPipeline(SubTapestry):
         self,
         *,
         split: Knot,
-        algorithm: str,
-        feature_groups: Mapping[str, Sequence[str]],
-        metrics: Sequence[str],
+        algorithm: Knot | str,
+        feature_groups: Knot | Mapping[str, Sequence[str]],
+        metrics: Knot | Sequence[str],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(split, Knot):
-            raise TypeError("AblationStudyPipeline: split must be a Knot")
+        super().__init__(
+            split=split,
+            algorithm=algorithm,
+            feature_groups=feature_groups,
+            metrics=metrics,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        split: DataSplit,
+        algorithm: str = "",
+        feature_groups: Mapping[str, Sequence[str]] | None = None,
+        metrics: Sequence[str] = (),
+        **_: Any,
+    ) -> Mapping[str, EvalReport]:
+        """Train and evaluate the full model plus each leave-one-group-out arm and return a report mapping keyed by arm name.
+
+        Args:
+            split: DataSplit used for all ablation-arm training and evaluation.
+            algorithm: Non-empty algorithm name string.
+            feature_groups: Non-empty mapping of group name to column list.
+            metrics: Non-empty sequence of metric name strings.
+
+        Returns:
+            Mapping of arm name (including ``"full"``) to EvalReport for that arm.
+
+        Raises:
+            ValueError: If algorithm, feature_groups, or metrics are invalid.
+            TypeError: If any inner evaluator output is not an EvalReport.
+        """
         if not isinstance(algorithm, str) or not algorithm:
             raise ValueError(
                 "AblationStudyPipeline: algorithm must be a non-empty string"
             )
-        if not isinstance(feature_groups, Mapping) or not feature_groups:
+        fg = feature_groups or {}
+        if not isinstance(fg, Mapping) or not fg:
             raise ValueError(
                 "AblationStudyPipeline: feature_groups must be a non-empty "
                 "Mapping[str, Sequence[str]]"
             )
-        for group_name, columns in feature_groups.items():
+        for group_name, columns in fg.items():
             if not isinstance(group_name, str) or not group_name:
                 raise ValueError(
-                    "AblationStudyPipeline: feature_groups keys must be "
-                    "non-empty strings"
+                    "AblationStudyPipeline: feature_groups keys must be non-empty strings"
                 )
             if group_name == self._full_arm_name:
                 raise ValueError(
@@ -73,14 +114,12 @@ class AblationStudyPipeline(SubTapestry):
             column_tuple = tuple(columns)
             if not column_tuple:
                 raise ValueError(
-                    f"AblationStudyPipeline: feature_groups[{group_name!r}] "
-                    "must be non-empty"
+                    f"AblationStudyPipeline: feature_groups[{group_name!r}] must be non-empty"
                 )
             for column in column_tuple:
                 if not isinstance(column, str) or not column:
                     raise ValueError(
-                        "AblationStudyPipeline: every column name must be a "
-                        "non-empty string"
+                        "AblationStudyPipeline: every column name must be a non-empty string"
                     )
         metric_tuple = tuple(metrics)
         if not metric_tuple:
@@ -88,31 +127,10 @@ class AblationStudyPipeline(SubTapestry):
         for metric in metric_tuple:
             if not isinstance(metric, str) or not metric:
                 raise ValueError(
-                    "AblationStudyPipeline: every metric name must be a "
-                    "non-empty string"
+                    "AblationStudyPipeline: every metric name must be a non-empty string"
                 )
-        self._algorithm = algorithm
-        self._feature_groups = {
-            name: tuple(columns) for name, columns in feature_groups.items()
-        }
-        self._metrics = metric_tuple
-        super().__init__(split=split, _config=_config, **kwargs)
-
-    async def process(
-        self, split: DataSplit, **_: Any
-    ) -> Mapping[str, EvalReport]:
-        """Train and evaluate the full model plus each leave-one-group-out arm and return a report mapping keyed by arm name.
-
-        Args:
-            split: DataSplit used for all ablation-arm training and evaluation.
-
-        Returns:
-            Mapping of arm name (including ``"full"``) to EvalReport for that arm.
-
-        Raises:
-            TypeError: If any inner evaluator output is not an EvalReport.
-        """
-        arm_names = [self._full_arm_name] + sorted(self._feature_groups.keys())
+        frozen_groups = {name: tuple(cols) for name, cols in fg.items()}
+        arm_names = [self._full_arm_name] + sorted(frozen_groups.keys())
         with Tapestry() as inner:
             split_node = _emit_value(
                 value=split, _config=KnotConfig(id="split")
@@ -120,14 +138,14 @@ class AblationStudyPipeline(SubTapestry):
             for arm in arm_names:
                 model = Trainer(
                     split=split_node,
-                    algorithm=self._algorithm,
+                    algorithm=algorithm,
                     hyperparameters={"ablation_arm": arm},
                     _config=KnotConfig(id=f"train_{arm}"),
                 )
                 Evaluator(
                     model=model,
                     split=split_node,
-                    metrics=self._metrics,
+                    metrics=metric_tuple,
                     _config=KnotConfig(id=f"evaluate_{arm}"),
                 )
         inner_result = await self._run_inner(inner)

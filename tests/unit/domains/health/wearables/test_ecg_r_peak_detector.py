@@ -13,21 +13,23 @@ from pirn.domains.health.wearables.ecg_r_peak_detector import (
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_signal(self) -> None:
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_non_signal(self) -> None:
+        inst = object.__new__(ECGRPeakDetector)
         with self.assertRaisesRegex(TypeError, "SignalFrame"):
-            ECGRPeakDetector(
+            await ECGRPeakDetector.process(
+                inst,
                 signal="x",  # type: ignore[arg-type]
                 method="pan_tompkins",
-                _config=KnotConfig(id="d"),
             )
 
-    def test_rejects_invalid_method(self) -> None:
+    async def test_rejects_invalid_method(self) -> None:
+        inst = object.__new__(ECGRPeakDetector)
         with self.assertRaisesRegex(ValueError, "method"):
-            ECGRPeakDetector(
+            await ECGRPeakDetector.process(
+                inst,
                 signal=SignalFrame(),
                 method="bogus",
-                _config=KnotConfig(id="d"),
             )
 
 

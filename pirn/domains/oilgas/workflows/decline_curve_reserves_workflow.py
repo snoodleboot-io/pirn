@@ -3,6 +3,24 @@
 Composition:
     SCADA ingest -> decline-curve analyse -> type-curve fit ->
     Monte-Carlo reserves estimate.
+
+Algorithm:
+    1. Receive a live ``HistorianConnection``, SCADA tag and time parameters,
+       volumetric parameters, and trial count.
+    2. Validate all string, numeric, and count inputs in ``process()``.
+    3. Build and wire an inner ``Tapestry`` with:
+       - ``ScadaHistorianIngester`` for rate history,
+       - ``DeclineCurveAnalyzer`` and ``TypeCurveFitter`` for DCA,
+       - ``VolumetricEstimator`` for OOIP,
+       - ``MonteCarloSimulator`` for P10/P50/P90 reserves.
+    4. Execute the inner tapestry and return the ``RunResult``.
+
+
+References:
+    - Arps, J.J. (1945). Analysis of decline curves. *Trans. AIME*, 160,
+      228–247. SPE-945228-G.
+    - SPE-PRMS-2018 — Petroleum Resources Management System, Section 4.3
+      (probabilistic reserves estimation).
 """
 
 from __future__ import annotations
@@ -10,6 +28,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_result import RunResult
 from pirn.domains.oilgas.production.scada_historian_ingester import (
@@ -31,6 +50,36 @@ class DeclineCurveReservesWorkflow(SubTapestry):
         self,
         *,
         connection: HistorianConnection,
+        oil_tag: Knot | str,
+        since: Knot | datetime,
+        sample_interval_sec: Knot | float,
+        area_acres: Knot | float,
+        net_thickness_ft: Knot | float,
+        porosity_fraction: Knot | float,
+        water_saturation_fraction: Knot | float,
+        formation_volume_factor: Knot | float,
+        trial_count: Knot | int,
+        _config: KnotConfig,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            connection=connection,
+            oil_tag=oil_tag,
+            since=since,
+            sample_interval_sec=sample_interval_sec,
+            area_acres=area_acres,
+            net_thickness_ft=net_thickness_ft,
+            porosity_fraction=porosity_fraction,
+            water_saturation_fraction=water_saturation_fraction,
+            formation_volume_factor=formation_volume_factor,
+            trial_count=trial_count,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        connection: HistorianConnection,
         oil_tag: str,
         since: datetime,
         sample_interval_sec: float,
@@ -40,41 +89,38 @@ class DeclineCurveReservesWorkflow(SubTapestry):
         water_saturation_fraction: float,
         formation_volume_factor: float,
         trial_count: int,
-        _config: KnotConfig,
-        **kwargs: Any,
-    ) -> None:
-        if not isinstance(connection, HistorianConnection):
-            raise TypeError(
-                "DeclineCurveReservesWorkflow: connection must be a HistorianConnection"
-            )
-        if not isinstance(oil_tag, str) or not oil_tag:
-            raise ValueError(
-                "DeclineCurveReservesWorkflow: oil_tag must be a non-empty string"
-            )
-        self._connection = connection
-        self._oil_tag = oil_tag
-        self._since = since
-        self._sample_interval_sec = float(sample_interval_sec)
-        self._area_acres = float(area_acres)
-        self._net_thickness_ft = float(net_thickness_ft)
-        self._porosity_fraction = float(porosity_fraction)
-        self._water_saturation_fraction = float(water_saturation_fraction)
-        self._formation_volume_factor = float(formation_volume_factor)
-        self._trial_count = int(trial_count)
-        super().__init__(_config=_config, **kwargs)
-
-    async def process(self, **_: Any) -> RunResult:
+        **_: Any,
+    ) -> RunResult:
         """Build and execute the SCADA-to-reserves inner tapestry and return its RunResult.
+
+        Args:
+            oil_tag: Non-empty SCADA tag name for oil rate.
+            since: Start datetime for SCADA history pull.
+            sample_interval_sec: Positive sample interval in seconds.
+            area_acres: Positive drainage area in acres.
+            net_thickness_ft: Positive net pay thickness in feet.
+            porosity_fraction: Porosity fraction in [0, 1].
+            water_saturation_fraction: Water saturation fraction in [0, 1].
+            formation_volume_factor: Positive initial oil FVF in RB/STB.
+            trial_count: Positive integer number of Monte-Carlo trials.
 
         Returns:
             RunResult from the inner pipeline spanning SCADA ingest through Monte-Carlo reserves estimation.
         """
+        if not isinstance(oil_tag, str) or not oil_tag:
+            raise ValueError(
+                "DeclineCurveReservesWorkflow: oil_tag must be a non-empty string"
+            )
+        if not isinstance(trial_count, int) or trial_count <= 0:
+            raise ValueError(
+                "DeclineCurveReservesWorkflow: trial_count must be a positive integer"
+            )
         with Tapestry() as inner:
             rate = ScadaHistorianIngester(
-                connection=self._connection,
-                tag=self._oil_tag,
-                since=self._since,
-                sample_interval_sec=self._sample_interval_sec,
+                connection=connection,
+                tag=oil_tag,
+                since=since,
+                sample_interval_sec=sample_interval_sec,
                 _config=KnotConfig(id="ingest"),
             )
             DeclineCurveAnalyzer(
@@ -87,16 +133,16 @@ class DeclineCurveReservesWorkflow(SubTapestry):
                 _config=KnotConfig(id="type_curve"),
             )
             volumetric = VolumetricEstimator(
-                area_acres=self._area_acres,
-                net_thickness_ft=self._net_thickness_ft,
-                porosity_fraction=self._porosity_fraction,
-                water_saturation_fraction=self._water_saturation_fraction,
-                formation_volume_factor=self._formation_volume_factor,
+                area_acres=area_acres,
+                net_thickness_ft=net_thickness_ft,
+                porosity_fraction=porosity_fraction,
+                water_saturation_fraction=water_saturation_fraction,
+                formation_volume_factor=formation_volume_factor,
                 _config=KnotConfig(id="volumetric"),
             )
             MonteCarloSimulator(
                 deterministic_estimate=volumetric,
-                trial_count=self._trial_count,
+                trial_count=trial_count,
                 _config=KnotConfig(id="monte_carlo"),
             )
         return await self._run_inner(inner)

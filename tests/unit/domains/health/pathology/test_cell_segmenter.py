@@ -5,73 +5,56 @@ from __future__ import annotations
 from typing import Any
 import unittest
 
-
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
-from pirn.core.run_request import RunRequest
+from pirn.core.parameter import Parameter
 from pirn.domains.health.pathology.cell_segmenter import CellSegmenter
 from pirn.tapestry import Tapestry
 
-
-@knot
-async def emit_image_tile() -> dict[str, Any]:
-    return {
-        "pixel_data": [255, 128, 0],
-        "width_px": 512,
-        "height_px": 512,
-        "resolution_um_per_px": 0.25,
-    }
+_CFG = KnotConfig(id="cs")
+_TILE_DATA: dict[str, Any] = {
+    "pixel_data": [255, 128, 0],
+    "width_px": 512,
+    "height_px": 512,
+    "resolution_um_per_px": 0.25,
+}
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_knot_image_tile(self) -> None:
-        with self.assertRaisesRegex(TypeError, "image_tile"):
-            CellSegmenter(
-                image_tile="not-a-knot",  # type: ignore[arg-type]
-                min_cell_diameter_um=5.0,
-                max_cell_diameter_um=30.0,
-                stain_type="hematoxylin",
-                _config=KnotConfig(id="cs"),
-            )
-
-    def test_rejects_non_positive_min_diameter(self) -> None:
-        with Tapestry():
-            t = emit_image_tile(_config=KnotConfig(id="t"))
-            with self.assertRaisesRegex(ValueError, "min_cell_diameter_um"):
-                CellSegmenter(
-                    image_tile=t,
-                    min_cell_diameter_um=0.0,
-                    max_cell_diameter_um=30.0,
-                    stain_type="hematoxylin",
-                    _config=KnotConfig(id="cs"),
-                )
-
-    def test_rejects_invalid_stain_type(self) -> None:
-        with Tapestry():
-            t = emit_image_tile(_config=KnotConfig(id="t"))
-            with self.assertRaisesRegex(ValueError, "stain_type"):
-                CellSegmenter(
-                    image_tile=t,
-                    min_cell_diameter_um=5.0,
-                    max_cell_diameter_um=30.0,
-                    stain_type="unknown",
-                    _config=KnotConfig(id="cs"),
-                )
+def _make_knot() -> CellSegmenter:
+    with Tapestry():
+        src = Parameter("tile", dict, default=_TILE_DATA, _config=KnotConfig(id="tile"))
+        return CellSegmenter(
+            image_tile=src,
+            min_cell_diameter_um=5.0,
+            max_cell_diameter_um=30.0,
+            stain_type="hematoxylin",
+            _config=_CFG,
+        )
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_non_dict_image_tile(self) -> None:
+        knot = _make_knot()
+        with self.assertRaisesRegex(TypeError, "dict"):
+            await knot.process(image_tile="not-a-dict", min_cell_diameter_um=5.0, max_cell_diameter_um=30.0, stain_type="hematoxylin")  # type: ignore[arg-type]
+
+    async def test_rejects_non_positive_min_diameter(self) -> None:
+        knot = _make_knot()
+        with self.assertRaisesRegex(ValueError, "min_cell_diameter_um"):
+            await knot.process(image_tile=_TILE_DATA, min_cell_diameter_um=0.0, max_cell_diameter_um=30.0, stain_type="hematoxylin")
+
+    async def test_rejects_max_le_min(self) -> None:
+        knot = _make_knot()
+        with self.assertRaisesRegex(ValueError, "max_cell_diameter_um"):
+            await knot.process(image_tile=_TILE_DATA, min_cell_diameter_um=20.0, max_cell_diameter_um=10.0, stain_type="hematoxylin")
+
+    async def test_rejects_invalid_stain_type(self) -> None:
+        knot = _make_knot()
+        with self.assertRaisesRegex(ValueError, "stain_type"):
+            await knot.process(image_tile=_TILE_DATA, min_cell_diameter_um=5.0, max_cell_diameter_um=30.0, stain_type="unknown")
+
     async def test_returns_dict_with_required_keys(self) -> None:
-        with Tapestry() as t:
-            tile = emit_image_tile(_config=KnotConfig(id="tile"))
-            CellSegmenter(
-                image_tile=tile,
-                min_cell_diameter_um=5.0,
-                max_cell_diameter_um=30.0,
-                stain_type="hematoxylin",
-                _config=KnotConfig(id="cs"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["cs"]
+        knot = _make_knot()
+        out = await knot.process(image_tile=_TILE_DATA, min_cell_diameter_um=5.0, max_cell_diameter_um=30.0, stain_type="hematoxylin")
         assert isinstance(out, dict)
         assert "cell_count" in out
         assert "cell_masks" in out

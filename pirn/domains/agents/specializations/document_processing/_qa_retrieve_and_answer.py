@@ -3,6 +3,30 @@
 Embeds the chunks plus the question, ranks chunks by cosine similarity,
 and asks the LLM to answer using the top-k chunks as context. Internal
 API.
+
+Algorithm:
+    1. Validate that ``question`` is a non-empty string.
+    2. Return an empty-content response immediately when ``chunks`` is empty.
+    3. Call ``embedder.embed([question, *chunks])`` to obtain all vectors
+       in a single round-trip.
+    4. Separate the question vector from the chunk vectors.
+    5. Compute cosine similarity between the question vector and each
+       chunk vector.
+    6. Sort (descending) and take the top-``top_k`` chunks.
+    7. Format the selected chunks as a numbered context block.
+    8. Call ``llm.chat`` with a system instruction and the context + question.
+    9. Extract and return the text as an :class:`AgentResponse`.
+
+Math:
+    Cosine similarity between vectors **a** and **b**::
+
+        sim(a, b) = (a · b) / (||a|| * ||b||)
+
+    where ``·`` is the dot product and ``||·||`` is the L2 norm.
+    Returns 0.0 when either vector is the zero vector.
+
+References:
+    - Cosine similarity: https://en.wikipedia.org/wiki/Cosine_similarity
 """
 
 from __future__ import annotations
@@ -25,18 +49,18 @@ class _QARetrieveAndAnswer(Knot):
         *,
         chunks: Knot,
         question: Knot | str,
-        llm: LLMProvider,
-        embedder: EmbeddingProvider,
-        top_k: int,
+        llm: Knot | LLMProvider,
+        embedder: Knot | EmbeddingProvider,
+        top_k: Knot | int,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        self._llm = llm
-        self._embedder = embedder
-        self._top_k = top_k
         super().__init__(
             chunks=chunks,
             question=question,
+            llm=llm,
+            embedder=embedder,
+            top_k=top_k,
             _config=_config,
             **kwargs,
         )
@@ -45,6 +69,9 @@ class _QARetrieveAndAnswer(Knot):
         self,
         chunks: list[str],
         question: str,
+        llm: LLMProvider,
+        embedder: EmbeddingProvider,
+        top_k: int,
         **_: Any,
     ) -> AgentResponse:
         """Embed chunks and question, select top-k by cosine similarity, and answer via the LLM.
@@ -52,6 +79,9 @@ class _QARetrieveAndAnswer(Knot):
         Args:
             chunks: The list of text chunks to embed and rank.
             question: The user question to answer using the top-k retrieved chunks.
+            llm: The LLM provider to use for answering.
+            embedder: The embedding provider for semantic retrieval.
+            top_k: Number of top chunks to include as context.
 
         Returns:
             An AgentResponse containing the LLM's answer grounded in the retrieved context.
@@ -70,7 +100,7 @@ class _QARetrieveAndAnswer(Knot):
                 content="No content was available in the document.",
                 finish_reason="stop",
             )
-        embeddings = await self._embedder.embed([question, *chunks])
+        embeddings = await embedder.embed([question, *chunks])
         if len(embeddings) != len(chunks) + 1:
             raise RuntimeError(
                 "DocumentQAPipeline: embedder returned wrong vector count"
@@ -82,7 +112,7 @@ class _QARetrieveAndAnswer(Knot):
             for chunk_vec, chunk in zip(chunk_vecs, chunks)
         ]
         scored.sort(key=lambda pair: pair[0], reverse=True)
-        top = [chunk for _, chunk in scored[: self._top_k]]
+        top = [chunk for _, chunk in scored[:top_k]]
         context = "\n\n".join(
             f"[chunk {i + 1}] {chunk}" for i, chunk in enumerate(top)
         )
@@ -101,7 +131,7 @@ class _QARetrieveAndAnswer(Knot):
                 ),
             },
         ]
-        raw = await self._llm.chat(chat_messages)
+        raw = await llm.chat(chat_messages)
         return AgentResponse(
             content=_QARetrieveAndAnswer._extract_text(raw),
             finish_reason="stop",

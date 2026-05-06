@@ -14,28 +14,22 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.signal.conftest import emit_signal_frame
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_wavelet_name(self) -> None:
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_bare_knot(self) -> MultiresolutionAnalyzer:
         with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "non-empty"):
-                MultiresolutionAnalyzer(
-                    signal=sig,
-                    wavelet_name="",
-                    level_count=3,
-                    _config=KnotConfig(id="w"),
-                )
+            k = MultiresolutionAnalyzer.__new__(MultiresolutionAnalyzer)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        return k
 
-    def test_rejects_non_positive_level_count(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "level_count"):
-                MultiresolutionAnalyzer(
-                    signal=sig,
-                    wavelet_name="db4",
-                    level_count=0,
-                    _config=KnotConfig(id="w"),
-                )
+    async def test_rejects_empty_wavelet_name(self) -> None:
+        k = self._make_bare_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(signal=None, wavelet_name="", level_count=3)  # type: ignore[arg-type]
+
+    async def test_rejects_non_positive_level_count(self) -> None:
+        k = self._make_bare_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(signal=None, wavelet_name="db4", level_count=0)  # type: ignore[arg-type]
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

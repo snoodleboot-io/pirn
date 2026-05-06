@@ -2,6 +2,20 @@
 
 Wraps the SQL text plus row results into an :class:`AgentResponse`.
 Internal API.
+
+Algorithm:
+    1. Receive the ``sql`` query string and ``rows`` list of result rows.
+    2. Render each row with ``repr`` and join them with newlines.
+    3. Build a content string with an ``SQL:`` block and a ``Rows (N):``
+       block.
+    4. Return an :class:`AgentResponse` with the content and
+       ``finish_reason="stop"``.
+
+Math:
+    No numeric computation beyond ``len(rows)`` for the header.
+
+References:
+    - AgentResponse dataclass: ``pirn.domains.agents.types.agent_response``.
 """
 
 from __future__ import annotations

@@ -16,28 +16,30 @@ from tests.unit.domains.ml._stubs.recording_database_pool import (
 )
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_n_clusters_less_than_two(self) -> None:
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_n_clusters_less_than_two(self) -> None:
         with Tapestry():
-            with self.assertRaisesRegex(ValueError, "n_clusters"):
-                ClusteringPipeline(
-                    pool=RecordingDatabasePool(rows=[(1.0, 2.0)]),
-                    query="SELECT 1",
-                    feature_names=("a",),
-                    n_clusters=1,
-                    _config=KnotConfig(id="bad"),
-                )
+            k = ClusteringPipeline.__new__(ClusteringPipeline)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                pool=RecordingDatabasePool(rows=[(1.0, 2.0)]),
+                query="SELECT 1",
+                feature_names=("a",),
+                n_clusters=1,
+            )
 
-    def test_rejects_invalid_algorithm(self) -> None:
+    async def test_rejects_invalid_algorithm(self) -> None:
         with Tapestry():
-            with self.assertRaisesRegex(ValueError, "algorithm"):
-                ClusteringPipeline(
-                    pool=RecordingDatabasePool(rows=[(1.0,)]),
-                    query="SELECT 1",
-                    feature_names=("a",),
-                    algorithm="spectral",
-                    _config=KnotConfig(id="bad"),
-                )
+            k = ClusteringPipeline.__new__(ClusteringPipeline)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                pool=RecordingDatabasePool(rows=[(1.0,)]),
+                query="SELECT 1",
+                feature_names=("a",),
+                algorithm="spectral",
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

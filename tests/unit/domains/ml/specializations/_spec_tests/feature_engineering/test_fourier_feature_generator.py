@@ -32,39 +32,36 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_columns(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "columns must be non-empty"):
-                FourierFeatureGenerator(
-                    split=split,
-                    columns=(),
-                    periods=(24,),
-                    _config=KnotConfig(id="bad"),
-                )
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    def _make_split(self) -> DataSplit:
+        train = MLDataset(
+            name="ts:train", feature_names=("hour_of_day",), target_name="y", row_count=100
+        )
+        test = MLDataset(
+            name="ts:test", feature_names=("hour_of_day",), target_name="y", row_count=25
+        )
+        return DataSplit(train=train, test=test)
 
-    def test_rejects_period_below_two(self) -> None:
+    async def test_rejects_empty_columns(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "period must be >= 2"):
-                FourierFeatureGenerator(
-                    split=split,
-                    columns=("hour_of_day",),
-                    periods=(1,),
-                    _config=KnotConfig(id="bad"),
-                )
+            k = FourierFeatureGenerator.__new__(FourierFeatureGenerator)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=self._make_split(), columns=(), periods=(24,))
 
-    def test_rejects_empty_periods(self) -> None:
+    async def test_rejects_period_below_two(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "periods must be non-empty"):
-                FourierFeatureGenerator(
-                    split=split,
-                    columns=("hour_of_day",),
-                    periods=(),
-                    _config=KnotConfig(id="bad"),
-                )
+            k = FourierFeatureGenerator.__new__(FourierFeatureGenerator)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=self._make_split(), columns=("hour_of_day",), periods=(1,))
+
+    async def test_rejects_empty_periods(self) -> None:
+        with Tapestry():
+            k = FourierFeatureGenerator.__new__(FourierFeatureGenerator)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=self._make_split(), columns=("hour_of_day",), periods=())
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

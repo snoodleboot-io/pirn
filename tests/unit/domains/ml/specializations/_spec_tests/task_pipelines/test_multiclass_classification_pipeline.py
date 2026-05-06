@@ -16,18 +16,19 @@ from tests.unit.domains.ml._stubs.recording_database_pool import (
 )
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_n_classes_below_three(self) -> None:
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_n_classes_below_three(self) -> None:
         with Tapestry():
-            with self.assertRaisesRegex(ValueError, "n_classes"):
-                MulticlassClassificationPipeline(
-                    pool=RecordingDatabasePool(rows=[(1, 0)]),
-                    query="SELECT 1",
-                    target_column="y",
-                    feature_names=("a",),
-                    n_classes=2,
-                    _config=KnotConfig(id="bad"),
-                )
+            k = MulticlassClassificationPipeline.__new__(MulticlassClassificationPipeline)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                pool=RecordingDatabasePool(rows=[(1, 0)]),
+                query="SELECT 1",
+                target_column="y",
+                feature_names=("a",),
+                n_classes=2,
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

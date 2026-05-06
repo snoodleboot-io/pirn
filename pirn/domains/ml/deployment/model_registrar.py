@@ -1,5 +1,18 @@
 """``ModelRegistrar`` — write the serialised model + metadata to a
 :class:`LineageStore` and an :class:`ObjectStore`.
+
+Algorithm:
+    1. Receive ``serialized`` (bytes), ``model`` (TrainedModel), ``lineage``
+       (LineageStore), and ``store`` (ObjectStore) via process().
+    2. Validate types for serialized and model.
+    3. Derive the object store key as ``models/<model_id>.bin``.
+    4. Write the serialised bytes to the object store under that key.
+    5. Log a ``model_registered`` lineage event with model metadata.
+    6. Return the model_id string.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -21,33 +34,35 @@ class ModelRegistrar(Knot):
         *,
         serialized: Knot,
         model: Knot,
-        lineage: LineageStore,
-        store: ObjectStore,
+        lineage: Knot | LineageStore,
+        store: Knot | ObjectStore,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(lineage, LineageStore):
-            raise TypeError(
-                "ModelRegistrar: lineage must be a LineageStore"
-            )
-        if not isinstance(store, ObjectStore):
-            raise TypeError(
-                "ModelRegistrar: store must be an ObjectStore"
-            )
-        self._lineage = lineage
-        self._store = store
         super().__init__(
-            serialized=serialized, model=model, _config=_config, **kwargs
+            serialized=serialized,
+            model=model,
+            lineage=lineage,
+            store=store,
+            _config=_config,
+            **kwargs,
         )
 
     async def process(
-        self, serialized: bytes, model: TrainedModel, **_: Any
+        self,
+        serialized: bytes,
+        model: TrainedModel,
+        lineage: LineageStore,
+        store: ObjectStore = None,
+        **_: Any,
     ) -> str:
         """Write model bytes to the object store, log a lineage event, and return the model_id.
 
         Args:
             serialized: Serialised model bytes to store.
             model: TrainedModel reference providing the model_id and metadata.
+            lineage: LineageStore used to log the registration event.
+            store: ObjectStore where the serialised bytes are persisted.
 
         Returns:
             The model_id string from the TrainedModel.
@@ -64,8 +79,8 @@ class ModelRegistrar(Knot):
                 "ModelRegistrar: model must resolve to a TrainedModel"
             )
         key = f"models/{model.model_id}.bin"
-        await self._store.put(key, bytes(serialized))
-        await self._lineage.log_event(
+        await store.put(key, bytes(serialized))
+        await lineage.log_event(
             "model_registered",
             {
                 "model_id": model.model_id,

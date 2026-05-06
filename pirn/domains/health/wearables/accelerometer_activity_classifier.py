@@ -1,4 +1,23 @@
-"""``AccelerometerActivityClassifier`` — classify physical activity from tri-axial accelerometer data."""
+"""``AccelerometerActivityClassifier`` — classify physical activity from tri-axial accelerometer data.
+
+Algorithm:
+    1. Receive accel_data dict, sample_rate_hz, window_sec, and activity_classes.
+    2. Validate accel_data is a dict, sample_rate_hz and window_sec are positive.
+    3. Validate activity_classes is a non-empty tuple of strings.
+    4. Segment the signal into windows of window_sec length at sample_rate_hz.
+    5. Compute vector magnitude per window and assign the lowest activity class.
+
+Math:
+    Vector magnitude (VM) per window:
+
+    $$\\text{VM} = \\sqrt{\\bar{x}^2 + \\bar{y}^2 + \\bar{z}^2}$$
+
+    where $\\bar{x}$, $\\bar{y}$, $\\bar{z}$ are the per-window means of each axis.
+
+References:
+    - Troiano, R.P., et al. (2008). Physical activity in the United States measured by accelerometer.
+    - Freedson, P.S., et al. (1998). Calibration of the Computer Science and Applications accelerometer.
+"""
 
 from __future__ import annotations
 
@@ -15,37 +34,28 @@ class AccelerometerActivityClassifier(Knot):
     def __init__(
         self,
         *,
-        accel_data: Knot,
-        sample_rate_hz: float,
-        window_sec: float,
-        activity_classes: tuple[str, ...] = ("sedentary", "light", "moderate", "vigorous"),
+        accel_data: Knot | dict[str, Any],
+        sample_rate_hz: Knot | float,
+        window_sec: Knot | float,
+        activity_classes: Knot | tuple[str, ...] = ("sedentary", "light", "moderate", "vigorous"),
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(accel_data, Knot):
-            raise TypeError(
-                "AccelerometerActivityClassifier: accel_data must be a Knot"
-            )
-        if not isinstance(sample_rate_hz, (int, float)) or sample_rate_hz <= 0:
-            raise ValueError(
-                "AccelerometerActivityClassifier: sample_rate_hz must be > 0"
-            )
-        if not isinstance(window_sec, (int, float)) or window_sec <= 0:
-            raise ValueError(
-                "AccelerometerActivityClassifier: window_sec must be > 0"
-            )
-        if not isinstance(activity_classes, tuple) or len(activity_classes) == 0:
-            raise ValueError(
-                "AccelerometerActivityClassifier: activity_classes must be a non-empty tuple"
-            )
-        self._sample_rate_hz = float(sample_rate_hz)
-        self._window_sec = float(window_sec)
-        self._activity_classes = activity_classes
-        super().__init__(accel_data=accel_data, _config=_config, **kwargs)
+        super().__init__(
+            accel_data=accel_data,
+            sample_rate_hz=sample_rate_hz,
+            window_sec=window_sec,
+            activity_classes=activity_classes,
+            _config=_config,
+            **kwargs,
+        )
 
     async def process(
         self,
         accel_data: dict[str, Any],
+        sample_rate_hz: float,
+        window_sec: float,
+        activity_classes: tuple[str, ...] = ("sedentary", "light", "moderate", "vigorous"),
         **_: Any,
     ) -> list[dict[str, Any]]:
         """Classify activity windows from tri-axial accelerometer readings.
@@ -53,20 +63,34 @@ class AccelerometerActivityClassifier(Knot):
         Args:
             accel_data: Dict with x (list of float), y (list of float),
                 z (list of float), and timestamps_iso (list of str).
+            sample_rate_hz: Sample rate in Hz (must be > 0).
+            window_sec: Window length in seconds (must be > 0).
+            activity_classes: Non-empty tuple of activity class label strings.
 
         Returns:
             List of dicts, each with start_iso, end_iso, activity_class,
             and vector_magnitude (float).
+
+        Raises:
+            TypeError: If accel_data is not a dict or activity_classes is not a tuple.
+            ValueError: If sample_rate_hz or window_sec are not positive,
+                or activity_classes is empty.
         """
         if not isinstance(accel_data, dict):
-            raise TypeError(
-                "AccelerometerActivityClassifier: accel_data must be a dict"
+            raise TypeError("AccelerometerActivityClassifier: accel_data must be a dict")
+        if not isinstance(sample_rate_hz, (int, float)) or sample_rate_hz <= 0:
+            raise ValueError("AccelerometerActivityClassifier: sample_rate_hz must be > 0")
+        if not isinstance(window_sec, (int, float)) or window_sec <= 0:
+            raise ValueError("AccelerometerActivityClassifier: window_sec must be > 0")
+        if not isinstance(activity_classes, tuple) or len(activity_classes) == 0:
+            raise ValueError(
+                "AccelerometerActivityClassifier: activity_classes must be a non-empty tuple"
             )
         x = accel_data.get("x", [])
         y = accel_data.get("y", [])
         z = accel_data.get("z", [])
         timestamps = accel_data.get("timestamps_iso", [])
-        window_samples = max(1, int(self._sample_rate_hz * self._window_sec))
+        window_samples = max(1, int(sample_rate_hz * window_sec))
         results: list[dict[str, Any]] = []
         n = len(timestamps)
         for start_idx in range(0, n, window_samples):
@@ -86,7 +110,7 @@ class AccelerometerActivityClassifier(Knot):
                 {
                     "start_iso": start_iso,
                     "end_iso": end_iso,
-                    "activity_class": self._activity_classes[0],
+                    "activity_class": activity_classes[0],
                     "vector_magnitude": vm,
                 }
             )

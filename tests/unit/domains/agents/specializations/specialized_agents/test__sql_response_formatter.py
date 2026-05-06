@@ -52,3 +52,14 @@ class TestSQLResponseFormatterProcess(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert "Rows (0)" in result.outputs["srf"].content
+
+
+class TestProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_process_returns_agent_response_with_sql_and_rows(self) -> None:
+        with Tapestry():
+            k = _SQLResponseFormatter.__new__(_SQLResponseFormatter)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        result = await k.process(sql="SELECT 1", rows=[(42,)])
+        assert isinstance(result, AgentResponse)
+        assert "SELECT 1" in result.content
+        assert "Rows (1)" in result.content

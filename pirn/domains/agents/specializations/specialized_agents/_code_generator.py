@@ -2,6 +2,20 @@
 
 Asks the LLM to emit code for the supplied task. Internal API; the
 leading-underscore filename signals "implementation detail of CodeAgent".
+
+Algorithm:
+    1. Receive the ``task`` description and ``language`` target language.
+    2. Build a two-message chat prompt: a system message instructing the
+       LLM to act as a senior engineer and reply with code only, and a
+       user message containing the task description.
+    3. Send the prompt to the LLM via :meth:`LLMProvider.chat`.
+    4. Extract and return the raw text from the LLM response.
+
+Math:
+    No numeric computation.
+
+References:
+    - OpenAI chat completion API format: https://platform.openai.com/docs/guides/chat
 """
 
 from __future__ import annotations
@@ -20,20 +34,20 @@ class _CodeGenerator(Knot):
         self,
         *,
         task: Knot | str,
-        llm: LLMProvider,
-        language: str,
+        llm: Knot | LLMProvider,
+        language: Knot | str,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        self._llm = llm
-        self._language = language
-        super().__init__(task=task, _config=_config, **kwargs)
+        super().__init__(task=task, llm=llm, language=language, _config=_config, **kwargs)
 
-    async def process(self, task: str, **_: Any) -> str:
+    async def process(self, task: str, llm: LLMProvider, language: str, **_: Any) -> str:
         """Ask the LLM to generate code for the task in the configured language and return it.
 
         Args:
             task: The non-empty task description used to prompt the LLM for code generation.
+            llm: The LLM provider used to generate the code.
+            language: The target programming language for the generated code.
 
         Returns:
             The raw code string emitted by the LLM.
@@ -50,14 +64,14 @@ class _CodeGenerator(Knot):
             {
                 "role": "system",
                 "content": (
-                    f"You are a senior {self._language} engineer. Reply with "
-                    f"working {self._language} code only — no prose, no "
+                    f"You are a senior {language} engineer. Reply with "
+                    f"working {language} code only — no prose, no "
                     "markdown fences, no explanation."
                 ),
             },
             {"role": "user", "content": task},
         ]
-        raw = await self._llm.chat(chat_messages)
+        raw = await llm.chat(chat_messages)
         return _CodeGenerator._extract_text(raw)
 
     @staticmethod

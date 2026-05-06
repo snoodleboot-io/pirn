@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
 
 from pirn.core.knot_config import KnotConfig
@@ -18,18 +17,33 @@ def _resp(content: str) -> AgentResponse:
     return AgentResponse(content=content, finish_reason="stop")
 
 
-class TestSpecialistFanOutCollectorConstruction(unittest.TestCase):
-    def test_rejects_non_mapping(self) -> None:
-        with self.assertRaisesRegex(TypeError, "Mapping"):
-            with Tapestry():
-                SpecialistFanOutCollector(
-                    responses="not-a-mapping",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="sfoc"),
-                )
+def _make_knot() -> SpecialistFanOutCollector:
+    with Tapestry():
+        return SpecialistFanOutCollector(
+            responses={"a": _resp("x")},
+            _config=KnotConfig(id="sfoc"),
+        )
 
 
 class TestSpecialistFanOutCollectorProcess(unittest.IsolatedAsyncioTestCase):
     async def test_passes_through_valid_mapping(self) -> None:
+        k = _make_knot()
+        responses = {"spec_a": _resp("A"), "spec_b": _resp("B")}
+        out = await k.process(responses=responses)
+        assert out["spec_a"].content == "A"
+        assert out["spec_b"].content == "B"
+
+    async def test_rejects_non_agent_response_value(self) -> None:
+        k = _make_knot()
+        with self.assertRaises(TypeError):
+            await k.process(responses={"a": "not-a-response"})  # type: ignore[dict-item]
+
+    async def test_rejects_non_mapping(self) -> None:
+        k = _make_knot()
+        with self.assertRaises(TypeError):
+            await k.process(responses="not-a-mapping")  # type: ignore[arg-type]
+
+    async def test_tapestry_run_integration(self) -> None:
         responses = {"spec_a": _resp("A"), "spec_b": _resp("B")}
         with Tapestry() as t:
             SpecialistFanOutCollector(
@@ -40,11 +54,3 @@ class TestSpecialistFanOutCollectorProcess(unittest.IsolatedAsyncioTestCase):
         out = result.outputs["sfoc"]
         assert out["spec_a"].content == "A"
         assert out["spec_b"].content == "B"
-
-    async def test_rejects_non_agent_response_value(self) -> None:
-        with Tapestry():
-            with self.assertRaises(TypeError):
-                SpecialistFanOutCollector(
-                    responses={"a": "not-a-response"},  # type: ignore[dict-item]
-                    _config=KnotConfig(id="sfoc"),
-                )

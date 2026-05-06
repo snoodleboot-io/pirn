@@ -3,6 +3,18 @@
 The actual scoring is deferred to a later runtime phase. At this layer
 the knot reduces the logical feature list and emits a renamed split so
 downstream knots see a smaller feature schema.
+
+Algorithm:
+    1. Receive ``split`` (DataSplit), ``k`` (int >= 1), and ``method`` (str) via process().
+    2. Validate k >= 1 and method is in valid_methods.
+    3. Truncate each partition's feature_names list to the first k entries.
+    4. Return the renamed DataSplit with the reduced feature schema.
+
+Math:
+    kept_features = feature_names[:k]
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -27,11 +39,34 @@ class FeatureSelector(Knot):
         self,
         *,
         split: Knot,
-        k: int,
-        method: str = "mutual_information",
+        k: Knot | int,
+        method: Knot | str = "mutual_information",
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(split=split, k=k, method=method, _config=_config, **kwargs)
+
+    async def process(
+        self,
+        split: DataSplit,
+        k: int,
+        method: str = "mutual_information",
+        **_: Any,
+    ) -> DataSplit:
+        """Truncate the feature list to the top k entries using the configured method and return the reduced DataSplit.
+
+        Args:
+            split: DataSplit whose feature lists are truncated to k entries.
+            k: Number of features to keep; must be an int >= 1.
+            method: Feature scoring method; must be one of ``valid_methods``.
+
+        Returns:
+            DataSplit with each partition's feature list capped at k features.
+
+        Raises:
+            TypeError: If k is not an int.
+            ValueError: If k < 1 or method is invalid.
+        """
         if not isinstance(k, int):
             raise TypeError("FeatureSelector: k must be an int")
         if k < 1:
@@ -41,44 +76,23 @@ class FeatureSelector(Knot):
                 f"FeatureSelector: method must be one of "
                 f"{sorted(self.valid_methods)}"
             )
-        self._k = k
-        self._method = method
-        super().__init__(split=split, _config=_config, **kwargs)
-
-    @property
-    def method(self) -> str:
-        return self._method
-
-    @property
-    def k(self) -> int:
-        return self._k
-
-    async def process(self, split: DataSplit, **_: Any) -> DataSplit:
-        """Truncate the feature list to the top k entries using the configured method and return the reduced DataSplit.
-
-        Args:
-            split: DataSplit whose feature lists are truncated to k entries.
-
-        Returns:
-            DataSplit with each partition's feature list capped at k features.
-        """
         now = datetime.now(timezone.utc)
         return DataSplit(
-            train=self._reduce(split.train, now),
-            test=self._reduce(split.test, now),
+            train=self._reduce(split.train, k, method, now),
+            test=self._reduce(split.test, k, method, now),
             validation=(
-                self._reduce(split.validation, now)
+                self._reduce(split.validation, k, method, now)
                 if split.validation is not None
                 else None
             ),
         )
 
     def _reduce(
-        self, dataset: MLDataset, fetched_at: datetime
+        self, dataset: MLDataset, k: int, method: str, fetched_at: datetime
     ) -> MLDataset:
-        kept = dataset.feature_names[: self._k]
+        kept = dataset.feature_names[:k]
         return MLDataset(
-            name=f"{dataset.name}:selected_{self._method}",
+            name=f"{dataset.name}:selected_{method}",
             feature_names=kept,
             target_name=dataset.target_name,
             row_count=dataset.row_count,

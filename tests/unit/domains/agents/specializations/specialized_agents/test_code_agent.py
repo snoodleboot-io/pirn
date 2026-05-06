@@ -16,26 +16,26 @@ from tests.unit.domains.agents.specializations.conftest import (
 )
 
 
-class TestCodeAgentConstruction(unittest.IsolatedAsyncioTestCase):
+class TestCodeAgentProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
+        llm = StubLLMProvider(["def f(): pass"])
+        agent = CodeAgent(
+            task="write a function",
+            llm=llm,
+            _config=KnotConfig(id="code"),
+        )
         with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
-            with Tapestry():
-                CodeAgent(
-                    task="write a function",
-                    llm="not-a-provider",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="code"),
-                )
+            await agent.process(task="write a function", llm="not-a-provider")  # type: ignore[arg-type]
 
     async def test_rejects_empty_language(self) -> None:
         llm = StubLLMProvider(["def f(): pass"])
+        agent = CodeAgent(
+            task="write a function",
+            llm=llm,
+            _config=KnotConfig(id="code"),
+        )
         with self.assertRaisesRegex(TypeError, "language"):
-            with Tapestry():
-                CodeAgent(
-                    task="write a function",
-                    llm=llm,
-                    language="",
-                    _config=KnotConfig(id="code"),
-                )
+            await agent.process(task="write a function", llm=llm, language="")
 
 
 class TestCodeAgentHappyPath(unittest.IsolatedAsyncioTestCase):

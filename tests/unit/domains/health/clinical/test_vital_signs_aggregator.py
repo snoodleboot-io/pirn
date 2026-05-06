@@ -7,42 +7,30 @@ import unittest
 
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.domains.health.clinical.vital_signs_aggregator import (
     VitalSignsAggregator,
 )
-from pirn.tapestry import Tapestry
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_sequence(self) -> None:
-        with self.assertRaisesRegex(TypeError, "rows"):
-            VitalSignsAggregator(
-                rows=42,  # type: ignore[arg-type]
-                _config=KnotConfig(id="a"),
-            )
-
-    def test_rejects_non_mapping_row(self) -> None:
-        with self.assertRaisesRegex(TypeError, "row"):
-            VitalSignsAggregator(
-                rows=["x"],  # type: ignore[list-item]
-                _config=KnotConfig(id="a"),
-            )
+_CFG = KnotConfig(id="a")
+_KNOT = VitalSignsAggregator(rows=[], _config=_CFG)
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_non_sequence(self) -> None:
+        with self.assertRaisesRegex(TypeError, "rows"):
+            await _KNOT.process(rows=42)  # type: ignore[arg-type]
+
+    async def test_rejects_non_mapping_row(self) -> None:
+        with self.assertRaisesRegex(TypeError, "row"):
+            await _KNOT.process(rows=["x"])  # type: ignore[list-item]
+
     async def test_aggregates_per_patient(self) -> None:
         rows = (
             {"patient_id": "P1", "vital_name": "hr", "value": 70.0},
             {"patient_id": "P1", "vital_name": "hr", "value": 80.0},
         )
-        with Tapestry() as t:
-            VitalSignsAggregator(
-                rows=rows,
-                _config=KnotConfig(id="a"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["a"]
+        out = await _KNOT.process(rows=rows)
         assert isinstance(out, Mapping)
         assert "P1" in out
         assert "hr" in out["P1"]

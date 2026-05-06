@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.domains.agents.specializations.react.messages_passthrough import (
     MessagesPassthrough,
 )
@@ -15,38 +13,31 @@ from pirn.tapestry import Tapestry
 
 
 class TestMessagesPassthroughProcess(unittest.IsolatedAsyncioTestCase):
+    def _make(self) -> MessagesPassthrough:
+        with Tapestry():
+            return MessagesPassthrough(
+                messages=[],
+                _config=KnotConfig(id="mp"),
+            )
+
     async def test_returns_tuple_from_list(self) -> None:
+        knot = self._make()
         msgs = [
             AgentMessage(role="user", content="hello"),
             AgentMessage(role="assistant", content="hi"),
         ]
-        with Tapestry() as t:
-            MessagesPassthrough(
-                messages=msgs,
-                _config=KnotConfig(id="mp"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["mp"]
-        assert isinstance(out, tuple)
-        assert len(out) == 2
+        result = await knot.process(messages=msgs)
+        assert isinstance(result, tuple)
+        assert len(result) == 2
 
     async def test_returns_tuple_from_tuple(self) -> None:
+        knot = self._make()
         msgs = (AgentMessage(role="user", content="hey"),)
-        with Tapestry() as t:
-            MessagesPassthrough(
-                messages=msgs,
-                _config=KnotConfig(id="mp"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["mp"]
-        assert isinstance(out, tuple)
-        assert out[0].content == "hey"
+        result = await knot.process(messages=msgs)
+        assert isinstance(result, tuple)
+        assert result[0].content == "hey"
 
     async def test_empty_returns_empty_tuple(self) -> None:
-        with Tapestry() as t:
-            MessagesPassthrough(
-                messages=[],
-                _config=KnotConfig(id="mp"),
-            )
-        result = await t.run(RunRequest())
-        assert result.outputs["mp"] == ()
+        knot = self._make()
+        result = await knot.process(messages=[])
+        assert result == ()

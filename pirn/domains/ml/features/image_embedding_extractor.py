@@ -6,6 +6,18 @@ configured :class:`ImageEncoderProvider` once with the column name as a
 single byte probe (so provider configuration can fail loudly at run
 time) and emits a split whose feature lists carry an extra entry named
 ``<column>_embedding``.
+
+Algorithm:
+    1. Receive ``split`` (DataSplit), ``image_column`` (str), and
+       ``image_encoder`` (ImageEncoderProvider) via process().
+    2. Validate image_column is non-empty and image_encoder has the right type.
+    3. Probe the encoder with the column name as bytes to catch misconfiguration early.
+    4. Append ``<image_column>_embedding`` to the feature list of each partition.
+    5. Return the updated DataSplit.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -27,11 +39,40 @@ class ImageEmbeddingExtractor(Knot):
         self,
         *,
         split: Knot,
-        image_column: str,
-        image_encoder: ImageEncoderProvider,
+        image_column: Knot | str,
+        image_encoder: Knot | ImageEncoderProvider,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            split=split,
+            image_column=image_column,
+            image_encoder=image_encoder,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        split: DataSplit,
+        image_column: str,
+        image_encoder: ImageEncoderProvider,
+        **_: Any,
+    ) -> DataSplit:
+        """Probe the image encoder, append the image-column embedding feature to each split partition, and return the updated DataSplit.
+
+        Args:
+            split: DataSplit whose partitions receive the new image embedding feature.
+            image_column: Non-empty name of the image column to embed.
+            image_encoder: ImageEncoderProvider used to probe and encode the column.
+
+        Returns:
+            DataSplit with ``<image_column>_embedding`` appended to every partition's feature list.
+
+        Raises:
+            ValueError: If image_column is empty.
+            TypeError: If image_encoder is not an ImageEncoderProvider.
+        """
         if not isinstance(image_column, str) or not image_column:
             raise ValueError(
                 "ImageEmbeddingExtractor: image_column must be a non-empty string"
@@ -41,24 +82,11 @@ class ImageEmbeddingExtractor(Knot):
                 "ImageEmbeddingExtractor: image_encoder must be an "
                 "ImageEncoderProvider"
             )
-        self._image_column = image_column
-        self._image_encoder = image_encoder
-        super().__init__(split=split, _config=_config, **kwargs)
-
-    async def process(self, split: DataSplit, **_: Any) -> DataSplit:
-        """Probe the image encoder, append the image-column embedding feature to each split partition, and return the updated DataSplit.
-
-        Args:
-            split: DataSplit whose partitions receive the new image embedding feature.
-
-        Returns:
-            DataSplit with ``<image_column>_embedding`` appended to every partition's feature list.
-        """
         # Touch the encoder so misconfigured providers fail loudly at
         # planning time. We feed the column name encoded as bytes as a
         # single probe rather than the full image column.
-        await self._image_encoder.encode([self._image_column.encode("utf-8")])
-        feature = f"{self._image_column}_embedding"
+        await image_encoder.encode([image_column.encode("utf-8")])
+        feature = f"{image_column}_embedding"
         now = datetime.now(timezone.utc)
         return DataSplit(
             train=self._add_feature(split.train, feature, now),

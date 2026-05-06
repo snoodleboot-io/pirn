@@ -20,27 +20,30 @@ from tests.unit.domains.agents.specializations.conftest import (
 class TestBrowserAgentConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_tool(self) -> None:
         llm = StubLLMProvider(["Final Answer: done"])
-        with self.assertRaisesRegex(TypeError, "browser_tool must be a Tool"):
-            with Tapestry():
-                BrowserAgent(
-                    goal="open page",
-                    llm=llm,
-                    browser_tool="not-a-tool",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="browser"),
-                )
+        with Tapestry():
+            k = BrowserAgent.__new__(BrowserAgent)
+            object.__setattr__(k, "_config", KnotConfig(id="browser"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                goal="open page",
+                llm=llm,
+                browser_tool="not-a-tool",  # type: ignore[arg-type]
+                max_steps=10,
+            )
 
     async def test_rejects_zero_max_steps(self) -> None:
         llm = StubLLMProvider(["Final Answer: done"])
         tool = StubTool(name="browser")
-        with self.assertRaisesRegex(ValueError, "max_steps"):
-            with Tapestry():
-                BrowserAgent(
-                    goal="open page",
-                    llm=llm,
-                    browser_tool=tool,
-                    max_steps=0,
-                    _config=KnotConfig(id="browser"),
-                )
+        with Tapestry():
+            k = BrowserAgent.__new__(BrowserAgent)
+            object.__setattr__(k, "_config", KnotConfig(id="browser"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                goal="open page",
+                llm=llm,
+                browser_tool=tool,
+                max_steps=0,
+            )
 
 
 class TestBrowserAgentHappyPath(unittest.IsolatedAsyncioTestCase):

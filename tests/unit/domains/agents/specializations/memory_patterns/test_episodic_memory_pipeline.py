@@ -6,7 +6,6 @@ from collections.abc import AsyncIterator, Mapping
 from typing import Any
 import unittest
 
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.domains.agents.memory_store import MemoryStore
@@ -29,7 +28,7 @@ class RecordingMemoryStore(MemoryStore):
     async def retrieve(self, key: str) -> Mapping[str, Any] | None:
         return self.writes.get(key)
 
-    async def search(self, query: str, *, top_k: int = 10,) -> AsyncIterator[Mapping[str, Any]]:
+    async def search(self, query: str, *, top_k: int = 10) -> AsyncIterator[Mapping[str, Any]]:
         async def _aiter() -> AsyncIterator[Mapping[str, Any]]:
             if False:
                 yield {}
@@ -43,39 +42,25 @@ class RecordingMemoryStore(MemoryStore):
         return None
 
 
-class TestEpisodicMemoryPipelineConstruction(unittest.IsolatedAsyncioTestCase):
-    async def test_rejects_non_memory_store(self) -> None:
-        with self.assertRaisesRegex(TypeError, "store must be a MemoryStore"):
-            with Tapestry():
-                EpisodicMemoryPipeline(
-                    messages=(AgentMessage(role="user", content="hi"),),
-                    session_id="s1",
-                    store="not-a-store",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="ep"),
-                )
-
-    async def test_rejects_empty_session_id(self) -> None:
-        store = RecordingMemoryStore()
-        with self.assertRaisesRegex(ValueError, "session_id"):
-            with Tapestry():
-                EpisodicMemoryPipeline(
-                    messages=(AgentMessage(role="user", content="hi"),),
-                    session_id="",
-                    store=store,
-                    _config=KnotConfig(id="ep"),
-                )
+def _make_knot(store: RecordingMemoryStore) -> EpisodicMemoryPipeline:
+    with Tapestry():
+        return EpisodicMemoryPipeline(
+            messages=(),
+            session_id="s0",
+            store=store,
+            _config=KnotConfig(id="ep"),
+        )
 
 
-class TestEpisodicMemoryPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
+class TestEpisodicMemoryPipelineProcess(unittest.IsolatedAsyncioTestCase):
     async def test_writes_episode_under_session_keyed_path(self) -> None:
         store = RecordingMemoryStore()
-        messages = (
-            AgentMessage(role="user", content="hello"),
-            AgentMessage(role="assistant", content="hi back"),
-        )
         with Tapestry() as t:
             EpisodicMemoryPipeline(
-                messages=messages,
+                messages=(
+                    AgentMessage(role="user", content="hello"),
+                    AgentMessage(role="assistant", content="hi back"),
+                ),
                 session_id="conv-42",
                 store=store,
                 _config=KnotConfig(id="ep"),
@@ -89,3 +74,15 @@ class TestEpisodicMemoryPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
         payload = store.writes[key]
         assert payload["session_id"] == "conv-42"
         assert len(payload["messages"]) == 2
+
+    async def test_rejects_non_memory_store(self) -> None:
+        store = RecordingMemoryStore()
+        k = _make_knot(store)
+        with self.assertRaises(TypeError):
+            await k.process(messages=(), session_id="s1", store="bad")  # type: ignore[arg-type]
+
+    async def test_rejects_empty_session_id(self) -> None:
+        store = RecordingMemoryStore()
+        k = _make_knot(store)
+        with self.assertRaises(ValueError):
+            await k.process(messages=(), session_id="", store=store)

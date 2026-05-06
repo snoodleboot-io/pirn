@@ -5,12 +5,25 @@ The base-class implementation produces a deterministic
 :class:`TrainedModel` whose ``model_id`` hashes the children's
 ``model_id``s plus the strategy. Concrete subclasses override
 :meth:`process` to perform a real stacking / blending fit.
+
+Algorithm:
+    1. Validate that at least two model_<n> kwargs are present and resolve to TrainedModel.
+    2. Validate the strategy is one of the known ensemble strategies.
+    3. Derive a deterministic model_id from SHA-256(strategy + child model_ids).
+    4. Return a TrainedModel with algorithm ``"ensemble:<strategy>"``.
+
+Math:
+    model_id = "ensemble:<strategy>:" + sha256(strategy || child_ids)[0:16]
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+import re
 from datetime import datetime, timezone
 from types import MappingProxyType
 from typing import Any, ClassVar, Sequence
@@ -18,6 +31,8 @@ from typing import Any, ClassVar, Sequence
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.ml.types.trained_model import TrainedModel
+
+_MODEL_KEY_RE = re.compile(r"^model_(\d+)$")
 
 
 class EnsembleBuilder(Knot):
@@ -31,65 +46,59 @@ class EnsembleBuilder(Knot):
         self,
         *,
         models: Sequence[Knot],
-        strategy: str = "stacking",
+        strategy: Knot | str = "stacking",
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        model_tuple = tuple(models)
-        if len(model_tuple) < 2:
-            raise ValueError(
-                "EnsembleBuilder: at least two models are required"
-            )
-        for index, child in enumerate(model_tuple):
-            if not isinstance(child, Knot):
-                raise TypeError(
-                    f"EnsembleBuilder: models[{index}] must be a Knot"
-                )
-        if strategy not in self.valid_strategies:
-            raise ValueError(
-                f"EnsembleBuilder: strategy must be one of "
-                f"{sorted(self.valid_strategies)}"
-            )
-        # Wire each child as a numbered parent so the knot framework
-        # honours the dependency edge.
-        parent_kwargs = {
-            f"model_{index}": child for index, child in enumerate(model_tuple)
-        }
-        self._strategy = strategy
-        self._model_count = len(model_tuple)
-        super().__init__(_config=_config, **parent_kwargs, **kwargs)
+        super().__init__(
+            _config=_config,
+            strategy=strategy,
+            **{f"model_{i}": m for i, m in enumerate(models)},
+            **kwargs,
+        )
 
-    @property
-    def strategy(self) -> str:
-        return self._strategy
-
-    async def process(self, **kwargs: Any) -> TrainedModel:
+    async def process(self, strategy: str = "stacking", **kwargs: Any) -> TrainedModel:
         """Combine resolved child TrainedModel inputs into a meta-learner TrainedModel.
+
+        Args:
+            strategy: Ensemble strategy; must be one of ``valid_strategies``.
 
         Returns:
             TrainedModel whose ``model_id`` is a deterministic digest of the
             child model ids and ensemble strategy.
 
         Raises:
-            TypeError: If any ``model_<n>`` kwarg does not resolve to a
-                TrainedModel.
+            ValueError: If strategy is not valid or fewer than two models provided.
+            TypeError: If any ``model_<n>`` kwarg does not resolve to a TrainedModel.
         """
-        children: list[TrainedModel] = []
-        for index in range(self._model_count):
-            value = kwargs.get(f"model_{index}")
+        if strategy not in self.valid_strategies:
+            raise ValueError(
+                f"EnsembleBuilder: strategy must be one of "
+                f"{sorted(self.valid_strategies)}"
+            )
+        # Collect children in index order from numbered kwargs.
+        indexed: list[tuple[int, TrainedModel]] = []
+        for key, value in kwargs.items():
+            match = _MODEL_KEY_RE.match(key)
+            if match is None:
+                continue
             if not isinstance(value, TrainedModel):
                 raise TypeError(
-                    f"EnsembleBuilder: model_{index} must resolve to a "
-                    "TrainedModel"
+                    f"EnsembleBuilder: {key} must resolve to a TrainedModel"
                 )
-            children.append(value)
-        algorithm = f"ensemble:{self._strategy}"
+            indexed.append((int(match.group(1)), value))
+        if len(indexed) < 2:
+            raise ValueError(
+                "EnsembleBuilder: at least two models are required"
+            )
+        children: list[TrainedModel] = [m for _, m in sorted(indexed)]
+        algorithm = f"ensemble:{strategy}"
         feature_names = children[0].feature_names
         target_name = children[0].target_name
-        model_id = self._derive_model_id(children)
+        model_id = self._derive_model_id(children, strategy)
         merged_hyperparameters = MappingProxyType(
             {
-                "strategy": self._strategy,
+                "strategy": strategy,
                 "child_model_ids": [child.model_id for child in children],
             }
         )
@@ -102,14 +111,14 @@ class EnsembleBuilder(Knot):
             created_at=datetime.now(timezone.utc),
         )
 
-    def _derive_model_id(self, children: Sequence[TrainedModel]) -> str:
+    def _derive_model_id(self, children: Sequence[TrainedModel], strategy: str) -> str:
         payload = json.dumps(
             {
-                "strategy": self._strategy,
+                "strategy": strategy,
                 "child_model_ids": [child.model_id for child in children],
             },
             sort_keys=True,
             default=str,
         )
         digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
-        return f"ensemble:{self._strategy}:{digest[:16]}"
+        return f"ensemble:{strategy}:{digest[:16]}"

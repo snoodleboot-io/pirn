@@ -4,6 +4,21 @@ A treatment-emergent adverse event (TEAE) is any AE that begins at or
 after a subject's first treatment exposure. Production deployments
 respect end-of-treatment + safety-follow-up windows; this stub uses
 the ``observed_at >= first_exposure`` rule.
+
+Algorithm:
+    1. For each adverse-event record, look up the subject's first exposure date.
+    2. Mark the event as treatment-emergent if observed_at >= first_exposure.
+    3. Return the annotated event sequence.
+
+Math:
+    Treatment-emergent indicator:
+
+    $$\\text{TE}(r) = \\mathbf{1}[t_{\\text{obs}} \\geq t_{\\text{exp}}]$$
+
+    where $t_{\\text{obs}}$ is the event date and $t_{\\text{exp}}$ is the first exposure date.
+
+References:
+    - ICH E3. (1995). Structure and Content of Clinical Study Reports. Section 12.3.
 """
 
 from __future__ import annotations
@@ -23,22 +38,12 @@ class TreatmentEmergentClassifier(Knot):
     def __init__(
         self,
         *,
-        events: Knot,
-        exposures: Knot,
+        events: Knot | Sequence[ClinicalTrialRecord],
+        exposures: Knot | Mapping[str, datetime],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(events, Knot):
-            raise TypeError(
-                "TreatmentEmergentClassifier: events must be a Knot"
-            )
-        if not isinstance(exposures, Knot):
-            raise TypeError(
-                "TreatmentEmergentClassifier: exposures must be a Knot"
-            )
-        super().__init__(
-            events=events, exposures=exposures, _config=_config, **kwargs
-        )
+        super().__init__(events=events, exposures=exposures, _config=_config, **kwargs)
 
     async def process(
         self,

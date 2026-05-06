@@ -32,17 +32,17 @@ class _SplitSource(Knot):
         return DataSplit(train=ds, test=ds)
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_sensitive_columns(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                BiasDetector(
-                    model=_ModelSource(_config=KnotConfig(id="m")),
-                    split=_SplitSource(_config=KnotConfig(id="s")),
-                    sensitive_columns=[],
-                    _config=KnotConfig(id="bd"),
-                )
+def _make_knot() -> BiasDetector:
+    with Tapestry():
+        return BiasDetector(
+            model=_ModelSource(_config=KnotConfig(id="m")),
+            split=_SplitSource(_config=KnotConfig(id="s")),
+            sensitive_columns=["gender"],
+            _config=KnotConfig(id="bd"),
+        )
 
+
+class TestConstruction(unittest.TestCase):
     def test_rejects_non_knot_model(self) -> None:
         with self.assertRaises(TypeError):
             with Tapestry():
@@ -53,12 +53,26 @@ class TestConstruction(unittest.TestCase):
                     _config=KnotConfig(id="bd"),
                 )
 
-    def test_sensitive_columns_stored(self) -> None:
-        with Tapestry():
-            bd = BiasDetector(
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_empty_sensitive_columns(self) -> None:
+        k = _make_knot()
+        train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
+        test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
+        model = TrainedModel(model_id="m1", algorithm="logistic", feature_names=("a",), target_name="y")
+        split = DataSplit(train=train, test=test)
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(model=model, split=split, sensitive_columns=[])
+
+
+class TestHappyPath(unittest.IsolatedAsyncioTestCase):
+    async def test_emits_eval_report(self) -> None:
+        with Tapestry() as t:
+            BiasDetector(
                 model=_ModelSource(_config=KnotConfig(id="m")),
                 split=_SplitSource(_config=KnotConfig(id="s")),
                 sensitive_columns=["gender"],
                 _config=KnotConfig(id="bd"),
             )
-        self.assertEqual(bd.sensitive_columns, ("gender",))
+        result = await t.run(RunRequest())
+        assert result.succeeded

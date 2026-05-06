@@ -1,9 +1,25 @@
-"""``ToolExecutor`` — invoke a single :class:`ToolCall` against the matching tool."""
+"""``ToolExecutor`` — invoke a single :class:`ToolCall` against the matching tool.
+
+Algorithm:
+    1. Receive the resolved ``ToolCall`` and ``tools`` sequence.
+    2. Validate input types at process time.
+    3. Build a registry mapping tool names to tool instances.
+    4. Look up the tool by ``call.tool_name``; if not found, return an error ``ToolResult``.
+    5. Invoke ``tool.invoke(call.arguments)``; catch any exception and surface as an error result.
+    6. Return a successful ``ToolResult`` with the invocation result.
+
+
+References:
+    - :class:`pirn.domains.agents.tool.Tool`
+    - :class:`pirn.domains.agents.types.tool_call.ToolCall`
+    - :class:`pirn.domains.agents.types.tool_result.ToolResult`
+    - :class:`pirn.domains.connectors.dsn_scrubber.DsnScrubber`
+"""
 
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -11,8 +27,6 @@ from pirn.domains.agents.tool import Tool
 from pirn.domains.agents.types.tool_call import ToolCall
 from pirn.domains.agents.types.tool_result import ToolResult
 from pirn.domains.connectors.dsn_scrubber import DsnScrubber
-
-_scrubber = DsnScrubber()
 
 
 class ToolExecutor(Knot):
@@ -23,29 +37,19 @@ class ToolExecutor(Knot):
     exception, leaving the caller free to decide how to react.
     """
 
+    _scrubber: ClassVar[DsnScrubber] = DsnScrubber()
+
     def __init__(
         self,
         *,
         call: Knot,
-        tools: Sequence[Tool],
+        tools: Knot | Sequence[Tool],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(tools, Sequence) or isinstance(tools, (str, bytes)):
-            raise TypeError(
-                "ToolExecutor: tools must be a sequence of Tool instances"
-            )
-        if not tools:
-            raise ValueError("ToolExecutor: tools must be non-empty")
-        for index, tool in enumerate(tools):
-            if not isinstance(tool, Tool):
-                raise TypeError(
-                    f"ToolExecutor: tools[{index}] must be a Tool, "
-                    f"got {type(tool).__name__}"
-                )
         super().__init__(
             call=call,
-            tools=tuple(tools),
+            tools=tools,
             _config=_config,
             **kwargs,
         )
@@ -53,7 +57,7 @@ class ToolExecutor(Knot):
     async def process(
         self,
         call: ToolCall,
-        tools: tuple[Tool, ...],
+        tools: Sequence[Tool],
         **_: Any,
     ) -> ToolResult:
         """Dispatch a ToolCall to the matching tool and return the result or a captured error.
@@ -66,13 +70,26 @@ class ToolExecutor(Knot):
             A ToolResult with the invocation result or a stringified error if invocation failed.
 
         Raises:
-            TypeError: If call is not a ToolCall instance.
+            TypeError: If call is not a ToolCall or tools contains non-Tool elements.
+            ValueError: If tools is empty.
         """
         if not isinstance(call, ToolCall):
             raise TypeError(
                 "ToolExecutor: call must be a ToolCall, "
                 f"got {type(call).__name__}"
             )
+        if not isinstance(tools, Sequence) or isinstance(tools, (str, bytes)):
+            raise TypeError(
+                "ToolExecutor: tools must be a sequence of Tool instances"
+            )
+        if not tools:
+            raise ValueError("ToolExecutor: tools must be non-empty")
+        for index, tool in enumerate(tools):
+            if not isinstance(tool, Tool):
+                raise TypeError(
+                    f"ToolExecutor: tools[{index}] must be a Tool, "
+                    f"got {type(tool).__name__}"
+                )
         registry = {tool.name: tool for tool in tools}
         tool = registry.get(call.tool_name)
         if tool is None:
@@ -87,6 +104,6 @@ class ToolExecutor(Knot):
             return ToolResult(
                 call_id=call.call_id,
                 result=None,
-                error=f"{type(exc).__name__}: {_scrubber.scrub(str(exc))}",
+                error=f"{type(exc).__name__}: {type(self)._scrubber.scrub(str(exc))}",
             )
         return ToolResult(call_id=call.call_id, result=value, error=None)

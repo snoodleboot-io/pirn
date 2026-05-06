@@ -1,4 +1,4 @@
-"""Unit tests for :class:`RelevanceGate`."""
+"""Unit tests for :class:`RelevanceCheck`."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import unittest
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.agents.specializations.rag.relevance_gate import RelevanceGate
+from pirn.domains.agents.specializations.rag.relevance_gate import RelevanceCheck
 from pirn.tapestry import Tapestry
 
 
@@ -21,25 +21,30 @@ class _DocsSource(Knot):
         return self._docs
 
 
-class TestRelevanceGateConstruction(unittest.TestCase):
-    def test_rejects_out_of_range_threshold(self) -> None:
+class TestRelevanceCheckProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_out_of_range_threshold(self) -> None:
+        knot = RelevanceCheck(
+            query="q",
+            retrieved=_DocsSource([], _config=KnotConfig(id="src")),
+            _config=KnotConfig(id="rg"),
+        )
         with self.assertRaisesRegex(ValueError, "threshold"):
-            with Tapestry():
-                src = _DocsSource([], _config=KnotConfig(id="src"))
-                RelevanceGate(
-                    query="q",
-                    retrieved=src,
-                    threshold=1.5,
-                    _config=KnotConfig(id="rg"),
-                )
+            await knot.process(query="q", retrieved=[], threshold=1.5)
 
+    async def test_rejects_non_string_query(self) -> None:
+        knot = RelevanceCheck(
+            query="q",
+            retrieved=_DocsSource([], _config=KnotConfig(id="src")),
+            _config=KnotConfig(id="rg"),
+        )
+        with self.assertRaises(TypeError):
+            await knot.process(query=42, retrieved=[], threshold=0.5)  # type: ignore[arg-type]
 
-class TestRelevanceGateProcess(unittest.IsolatedAsyncioTestCase):
     async def test_keeps_relevant_docs(self) -> None:
         docs = [{"text": "python programming language"}]
         with Tapestry() as t:
             src = _DocsSource(docs, _config=KnotConfig(id="src"))
-            RelevanceGate(
+            RelevanceCheck(
                 query="python",
                 retrieved=src,
                 threshold=0.1,
@@ -52,7 +57,7 @@ class TestRelevanceGateProcess(unittest.IsolatedAsyncioTestCase):
         docs = [{"text": "completely unrelated topic"}]
         with Tapestry() as t:
             src = _DocsSource(docs, _config=KnotConfig(id="src"))
-            RelevanceGate(
+            RelevanceCheck(
                 query="python programming",
                 retrieved=src,
                 threshold=0.9,  # very high bar
@@ -72,7 +77,7 @@ class TestRelevanceGateProcess(unittest.IsolatedAsyncioTestCase):
 
         with Tapestry() as t:
             src = _DocsSource(docs, _config=KnotConfig(id="src"))
-            RelevanceGate(
+            RelevanceCheck(
                 query="q",
                 retrieved=src,
                 threshold=0.5,
@@ -83,14 +88,3 @@ class TestRelevanceGateProcess(unittest.IsolatedAsyncioTestCase):
         out = result.outputs["rg"]
         assert len(out) == 1
         assert out[0]["text"] == "x"
-
-    async def test_rejects_non_string_query(self) -> None:
-        with Tapestry():
-            src = _DocsSource([], _config=KnotConfig(id="src"))
-            with self.assertRaises(TypeError):
-                RelevanceGate(
-                    query=42,  # type: ignore[arg-type]
-                    retrieved=src,
-                    threshold=0.5,
-                    _config=KnotConfig(id="rg"),
-                )

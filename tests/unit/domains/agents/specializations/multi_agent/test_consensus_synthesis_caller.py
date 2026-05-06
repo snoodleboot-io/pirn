@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
 
 from pirn.core.knot_config import KnotConfig
@@ -15,51 +14,55 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 
-class TestConsensusSynthesisCallerConstruction(unittest.TestCase):
-    def test_rejects_non_llm_provider(self) -> None:
-        with self.assertRaisesRegex(TypeError, "LLMProvider"):
-            with Tapestry():
-                ConsensusSynthesisCaller(
-                    responses={},
-                    llm="bad",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="csc"),
-                )
+def _make_knot() -> ConsensusSynthesisCaller:
+    with Tapestry():
+        return ConsensusSynthesisCaller(
+            responses={},
+            llm=StubLLMProvider(["x"]),
+            _config=KnotConfig(id="csc"),
+        )
 
 
 class TestConsensusSynthesisCallerProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_synthesised_agent_response(self) -> None:
+        k = _make_knot()
         llm = StubLLMProvider(["consensus answer"])
         responses = {
             "expert_a": AgentResponse(content="answer A", finish_reason="stop"),
             "expert_b": AgentResponse(content="answer B", finish_reason="stop"),
         }
-        with Tapestry() as t:
-            ConsensusSynthesisCaller(
-                responses=responses,
-                llm=llm,
-                _config=KnotConfig(id="csc"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["csc"]
+        out = await k.process(responses=responses, llm=llm)
         assert isinstance(out, AgentResponse)
         assert out.content == "consensus answer"
 
     async def test_rejects_empty_responses(self) -> None:
+        k = _make_knot()
         llm = StubLLMProvider(["x"])
-        with Tapestry() as t:
-            ConsensusSynthesisCaller(
-                responses={},
-                llm=llm,
-                _config=KnotConfig(id="csc"),
-            )
-        result = await t.run(RunRequest())
-        assert not result.succeeded
+        with self.assertRaises(ValueError):
+            await k.process(responses={}, llm=llm)
 
     async def test_all_responses_included_in_prompt(self) -> None:
+        k = _make_knot()
         llm = StubLLMProvider(["synthesised"])
         responses = {
             "a": AgentResponse(content="resp-a", finish_reason="stop"),
             "b": AgentResponse(content="resp-b", finish_reason="stop"),
+        }
+        await k.process(responses=responses, llm=llm)
+        prompt_text = llm.calls[0][-1]["content"]
+        assert "resp-a" in prompt_text
+        assert "resp-b" in prompt_text
+
+    async def test_rejects_non_llm_provider(self) -> None:
+        k = _make_knot()
+        with self.assertRaises(TypeError):
+            await k.process(responses={"a": AgentResponse(content="x", finish_reason="stop")}, llm="bad")  # type: ignore[arg-type]
+
+    async def test_tapestry_run_integration(self) -> None:
+        llm = StubLLMProvider(["the synthesis"])
+        responses = {
+            "a": AgentResponse(content="answer A", finish_reason="stop"),
+            "b": AgentResponse(content="answer B", finish_reason="stop"),
         }
         with Tapestry() as t:
             ConsensusSynthesisCaller(
@@ -67,7 +70,6 @@ class TestConsensusSynthesisCallerProcess(unittest.IsolatedAsyncioTestCase):
                 llm=llm,
                 _config=KnotConfig(id="csc"),
             )
-        await t.run(RunRequest())
-        prompt_text = llm.calls[0][-1]["content"]
-        assert "resp-a" in prompt_text
-        assert "resp-b" in prompt_text
+        result = await t.run(RunRequest())
+        assert result.succeeded
+        assert result.outputs["csc"].content == "the synthesis"

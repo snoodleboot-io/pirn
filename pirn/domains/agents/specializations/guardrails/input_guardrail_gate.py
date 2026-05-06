@@ -11,6 +11,24 @@ spins up so a :class:`ValueError` propagates straight out of the
 SubTapestry's ``process`` without being wrapped in
 :class:`SubTapestryError` — the inner pipeline only handles the PII
 redaction stage.
+
+Algorithm:
+    1. Compile each deny pattern string using :func:`compile_safe_pattern`;
+       raise :class:`ValueError` on invalid regex.
+    2. Iterate over ``messages`` in order:
+       a. Raise :class:`TypeError` if an element is not an :class:`AgentMessage`.
+       b. Raise :class:`ValueError` immediately if any compiled deny pattern
+          matches the message content.
+    3. Run an inner :class:`Tapestry` containing a single
+       :class:`InputMessageScrubber` with ``deny_patterns=()`` and
+       ``pii_patterns`` forwarded from the caller.
+    4. Return the cleaned tuple of :class:`AgentMessage` instances produced
+       by the inner scrubber.
+
+
+References:
+    - pirn-native: :class:`pirn.domains.agents.specializations.guardrails.input_message_scrubber.InputMessageScrubber`
+    - pirn-native: :class:`pirn.domains.agents.types.agent_message.AgentMessage`
 """
 
 from __future__ import annotations
@@ -37,39 +55,18 @@ class InputGuardrailGate(SubTapestry):
         self,
         *,
         messages: Knot | Sequence[AgentMessage],
-        deny_patterns: Sequence[str],
-        pii_patterns: Sequence[str] = (),
+        deny_patterns: Knot | Sequence[str],
+        pii_patterns: Knot | Sequence[str] = (),
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        deny_compiled: list[re.Pattern[str]] = []
-        for index, raw in enumerate(deny_patterns):
-            if not isinstance(raw, str):
-                raise TypeError(
-                    f"InputGuardrailGate: deny_patterns[{index}] must be a "
-                    f"string, got {type(raw).__name__}"
-                )
-            deny_compiled.append(
-                compile_safe_pattern(raw, index=index, owner="InputGuardrailGate", field="deny_patterns")
-            )
-        pii_compiled: list[re.Pattern[str]] = []
-        for index, raw in enumerate(pii_patterns):
-            if not isinstance(raw, str):
-                raise TypeError(
-                    f"InputGuardrailGate: pii_patterns[{index}] must be a "
-                    f"string, got {type(raw).__name__}"
-                )
-            pii_compiled.append(
-                compile_safe_pattern(raw, index=index, owner="InputGuardrailGate", field="pii_patterns")
-            )
-        self._deny_patterns = tuple(deny_patterns)
-        self._pii_patterns = tuple(pii_patterns)
-        self._deny_compiled = tuple(deny_compiled)
-        super().__init__(messages=messages, _config=_config, **kwargs)
+        super().__init__(messages=messages, deny_patterns=deny_patterns, pii_patterns=pii_patterns, _config=_config, **kwargs)
 
     async def process(
         self,
         messages: Sequence[AgentMessage],
+        deny_patterns: Sequence[str] = (),
+        pii_patterns: Sequence[str] = (),
         **_: Any,
     ) -> tuple[AgentMessage, ...]:
         """Reject messages matching deny patterns and redact PII, returning the cleaned message tuple.
@@ -84,6 +81,10 @@ class InputGuardrailGate(SubTapestry):
             TypeError: If any element of messages is not an AgentMessage.
             ValueError: If any message content matches a deny pattern.
         """
+        deny_compiled = [
+            compile_safe_pattern(raw, index=i, owner="InputGuardrailGate", field="deny_patterns")
+            for i, raw in enumerate(deny_patterns)
+        ]
         message_tuple = tuple(messages)
         for index, message in enumerate(message_tuple):
             if not isinstance(message, AgentMessage):
@@ -91,7 +92,7 @@ class InputGuardrailGate(SubTapestry):
                     f"InputGuardrailGate: messages[{index}] must be an "
                     f"AgentMessage, got {type(message).__name__}"
                 )
-            for pattern in self._deny_compiled:
+            for pattern in deny_compiled:
                 if pattern.search(message.content):
                     raise ValueError(
                         f"InputGuardrailGate: messages[{index}] matched deny "
@@ -101,7 +102,7 @@ class InputGuardrailGate(SubTapestry):
             InputMessageScrubber(
                 messages=message_tuple,
                 deny_patterns=(),
-                pii_patterns=self._pii_patterns,
+                pii_patterns=tuple(pii_patterns),
                 _config=KnotConfig(id="scrub"),
             )
         inner_result = await self._run_inner(inner)

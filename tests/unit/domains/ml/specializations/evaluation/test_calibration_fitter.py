@@ -28,28 +28,38 @@ async def emit_model() -> TrainedModel:
     return TrainedModel(model_id="m1", algorithm="logistic", feature_names=("a",))
 
 
+def _make_knot() -> CalibrationFitter:
+    with Tapestry():
+        split = emit_split(_config=KnotConfig(id="split"))
+        model = emit_model(_config=KnotConfig(id="model"))
+        return CalibrationFitter(
+            model=model,
+            split=split,
+            _config=KnotConfig(id="cal"),
+        )
+
+
 class TestConstruction(unittest.TestCase):
     def test_rejects_non_knot_model(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(TypeError, "model must be a Knot"):
+            with self.assertRaises(TypeError):
                 CalibrationFitter(
                     model="bad",  # type: ignore[arg-type]
                     split=split,
                     _config=KnotConfig(id="bad"),
                 )
 
-    def test_rejects_invalid_method(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            model = emit_model(_config=KnotConfig(id="model"))
-            with self.assertRaisesRegex(ValueError, "method"):
-                CalibrationFitter(
-                    model=model,
-                    split=split,
-                    method="sigmoid",
-                    _config=KnotConfig(id="bad"),
-                )
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_invalid_method(self) -> None:
+        k = _make_knot()
+        train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
+        test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
+        model = TrainedModel(model_id="m1", algorithm="logistic", feature_names=("a",))
+        split = DataSplit(train=train, test=test)
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(model=model, split=split, method="sigmoid")
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

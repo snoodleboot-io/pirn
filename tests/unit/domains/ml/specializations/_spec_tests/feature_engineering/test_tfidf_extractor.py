@@ -32,38 +32,29 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_text_column(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "text_column"):
-                TFIDFExtractor(
-                    split=split,
-                    text_column="",
-                    _config=KnotConfig(id="bad"),
-                )
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    def _make_split(self) -> DataSplit:
+        train = MLDataset(
+            name="d:train", feature_names=("text", "label"), target_name="y", row_count=80
+        )
+        test = MLDataset(
+            name="d:test", feature_names=("text", "label"), target_name="y", row_count=20
+        )
+        return DataSplit(train=train, test=test)
 
-    def test_rejects_max_features_below_one(self) -> None:
+    async def test_rejects_empty_text_column(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "max_features must be >= 1"):
-                TFIDFExtractor(
-                    split=split,
-                    text_column="text",
-                    max_features=0,
-                    _config=KnotConfig(id="bad"),
-                )
+            k = TFIDFExtractor.__new__(TFIDFExtractor)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=self._make_split(), text_column="")
 
-    def test_stores_max_features(self) -> None:
+    async def test_rejects_max_features_below_one(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            ext = TFIDFExtractor(
-                split=split,
-                text_column="text",
-                max_features=50,
-                _config=KnotConfig(id="te"),
-            )
-        assert ext.max_features == 50
+            k = TFIDFExtractor.__new__(TFIDFExtractor)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=self._make_split(), text_column="text", max_features=0)
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

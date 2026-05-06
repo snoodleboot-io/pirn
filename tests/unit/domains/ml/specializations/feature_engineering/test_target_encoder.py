@@ -10,6 +10,8 @@ from pirn.core.knot_config import KnotConfig
 from pirn.domains.ml.specializations.feature_engineering.target_encoder import (
     TargetEncoder,
 )
+from pirn.domains.ml.types.data_split import DataSplit
+from pirn.domains.ml.types.ml_dataset import MLDataset
 from pirn.tapestry import Tapestry
 
 
@@ -22,44 +24,53 @@ class _KnotStub(Knot):
 
 
 class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_categorical_column(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                TargetEncoder(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    categorical_column="",
-                    target_column="y",
-                    _config=KnotConfig(id="te"),
-                )
-
-    def test_rejects_negative_smoothing(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                TargetEncoder(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    categorical_column="cat",
-                    target_column="y",
-                    smoothing=-1.0,
-                    _config=KnotConfig(id="te"),
-                )
-
-    def test_rejects_empty_target_column(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                TargetEncoder(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    categorical_column="cat",
-                    target_column="",
-                    _config=KnotConfig(id="te"),
-                )
-
-    def test_smoothing_attribute(self) -> None:
-        with Tapestry():
-            te = TargetEncoder(
+    def test_valid_construction(self) -> None:
+        with Tapestry() as t:
+            TargetEncoder(
                 split=_KnotStub(_config=KnotConfig(id="s")),
                 categorical_column="cat",
                 target_column="y",
-                smoothing=2.0,
                 _config=KnotConfig(id="te"),
             )
-        self.assertAlmostEqual(te.smoothing, 2.0)
+        self.assertIsNotNone(t._store.get("te"))
+
+
+class TestProcess(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self) -> TargetEncoder:
+        k = TargetEncoder.__new__(TargetEncoder)
+        object.__setattr__(k, "_config", KnotConfig(id="te"))
+        return k
+
+    def _make_split(self) -> DataSplit:
+        ds = MLDataset(name="ds", feature_names=("cat", "y"), row_count=10)
+        return DataSplit(train=ds, test=ds)
+
+    async def test_rejects_empty_categorical_column(self) -> None:
+        k = self._make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=self._make_split(),
+                categorical_column="",
+                target_column="y",
+                smoothing=1.0,
+            )
+
+    async def test_rejects_negative_smoothing(self) -> None:
+        k = self._make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=self._make_split(),
+                categorical_column="cat",
+                target_column="y",
+                smoothing=-1.0,
+            )
+
+    async def test_rejects_empty_target_column(self) -> None:
+        k = self._make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=self._make_split(),
+                categorical_column="cat",
+                target_column="",
+                smoothing=1.0,
+            )

@@ -3,6 +3,23 @@
 Sends a SQL result block plus the original question to the LLM for a
 narrative analysis and combines the analysis with the SQL block into a
 final :class:`AgentResponse`. Internal API.
+
+Algorithm:
+    1. Receive the original natural-language ``question`` and the
+       ``sql_response`` :class:`AgentResponse` produced by the SQL agent.
+    2. Build a two-message chat prompt: a system message that instructs
+       the LLM to act as a data analyst, and a user message containing
+       the question and the SQL result block.
+    3. Send the prompt to the LLM via :meth:`LLMProvider.chat` and
+       extract the text from the raw response.
+    4. Concatenate the original SQL result block with the LLM analysis
+       under an ``Analysis:`` header and return a new :class:`AgentResponse`.
+
+Math:
+    No numeric computation. The final string is a simple concatenation.
+
+References:
+    - ReAct-style two-pass agents: Yao et al., 2022 (arXiv 2210.03629).
 """
 
 from __future__ import annotations
@@ -22,15 +39,15 @@ class _AnalysisStep(Knot):
         self,
         *,
         question: Knot | str,
-        sql_response: Knot,
-        llm: LLMProvider,
+        sql_response: Knot | AgentResponse,
+        llm: Knot | LLMProvider,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        self._llm = llm
         super().__init__(
             question=question,
             sql_response=sql_response,
+            llm=llm,
             _config=_config,
             **kwargs,
         )
@@ -39,6 +56,7 @@ class _AnalysisStep(Knot):
         self,
         question: str,
         sql_response: AgentResponse,
+        llm: LLMProvider,
         **_: Any,
     ) -> AgentResponse:
         """Ask the LLM to analyse the SQL result and return a response combining both.
@@ -46,6 +64,7 @@ class _AnalysisStep(Knot):
         Args:
             question: The original natural-language question answered by the SQL agent.
             sql_response: The AgentResponse containing the SQL query and result rows.
+            llm: The LLM provider used to generate the narrative analysis.
 
         Returns:
             An AgentResponse whose content combines the SQL result block with the LLM analysis.
@@ -75,7 +94,7 @@ class _AnalysisStep(Knot):
                 ),
             },
         ]
-        raw = await self._llm.chat(chat_messages)
+        raw = await llm.chat(chat_messages)
         analysis = _AnalysisStep._extract_text(raw)
         combined = (
             f"{sql_response.content}\n\nAnalysis:\n{analysis}"

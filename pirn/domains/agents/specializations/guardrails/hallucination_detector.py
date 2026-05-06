@@ -5,6 +5,25 @@ source document strings to an LLM and asks it to identify any claims in
 the response that are not supported by the sources. Returns a detection
 result mapping containing ``"flagged_claims"`` (list of strings) and
 ``"has_hallucinations"`` (bool).
+
+Algorithm:
+    1. Validate that ``response`` is an :class:`AgentResponse`; raise
+       :class:`TypeError` otherwise.
+    2. Enumerate ``sources`` as numbered passages ``[Source N]: ...``.
+    3. Build a hallucination-detection prompt instructing the LLM to list
+       any claim in ``response.content`` not supported by the sources, one
+       per line, or reply ``"NONE"`` if all claims are supported.
+    4. Send the prompt to the :class:`LLMProvider` and extract the text from
+       the reply.
+    5. If the text (upper-cased) equals ``"NONE"`` or is empty, return
+       ``{"flagged_claims": [], "has_hallucinations": False}``.
+    6. Otherwise split on newlines, strip whitespace and list markers, discard
+       empty lines, and return ``{"flagged_claims": [...], "has_hallucinations": True}``.
+
+
+References:
+    - pirn-native: :class:`pirn.domains.agents.llm_provider.LLMProvider`
+    - pirn-native: :class:`pirn.domains.agents.types.agent_response.AgentResponse`
 """
 
 from __future__ import annotations
@@ -26,24 +45,19 @@ class HallucinationDetector(Knot):
         *,
         response: Knot | AgentResponse,
         sources: Knot | Sequence[str],
-        llm: LLMProvider,
+        llm: Knot | LLMProvider,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "HallucinationDetector: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
-        self._llm = llm
         super().__init__(
-            response=response, sources=sources, _config=_config, **kwargs
+            response=response, sources=sources, llm=llm, _config=_config, **kwargs
         )
 
     async def process(
         self,
         response: AgentResponse,
         sources: Sequence[str],
+        llm: LLMProvider,
         **_: Any,
     ) -> dict[str, Any]:
         """Check the response against sources and return a detection result.
@@ -74,7 +88,7 @@ class HallucinationDetector(Knot):
             f"Sources:\n{sources_text}\n\n"
             f"Response:\n{response.content}"
         )
-        raw = await self._llm.chat([{"role": "user", "content": prompt}])
+        raw = await llm.chat([{"role": "user", "content": prompt}])
         text = self._extract_text(raw).strip()
         if text.upper() == "NONE" or not text:
             return {"flagged_claims": [], "has_hallucinations": False}

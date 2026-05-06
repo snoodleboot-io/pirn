@@ -21,29 +21,28 @@ class _UserRecord(BaseModel):
     age: int
 
 
-class TestPydanticValidatorPipelineConstruction(unittest.IsolatedAsyncioTestCase):
+class TestPydanticValidatorPipelineValidation(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_basemodel_class(self) -> None:
         llm = StubLLMProvider(['{"name": "x", "age": 1}'])
+        knot = PydanticValidatorPipeline.__new__(PydanticValidatorPipeline)
         with self.assertRaisesRegex(TypeError, "model_class must be a BaseModel"):
-            with Tapestry():
-                PydanticValidatorPipeline(
-                    prompt="extract",
-                    llm=llm,
-                    model_class=int,  # type: ignore[arg-type]
-                    _config=KnotConfig(id="validate"),
-                )
+            await knot.process(
+                prompt="extract",
+                llm=llm,
+                model_class=int,  # type: ignore[arg-type]
+                max_retries=3,
+            )
 
     async def test_rejects_zero_max_retries(self) -> None:
         llm = StubLLMProvider(['{"name": "x", "age": 1}'])
+        knot = PydanticValidatorPipeline.__new__(PydanticValidatorPipeline)
         with self.assertRaisesRegex(ValueError, "max_retries"):
-            with Tapestry():
-                PydanticValidatorPipeline(
-                    prompt="extract",
-                    llm=llm,
-                    model_class=_UserRecord,
-                    max_retries=0,
-                    _config=KnotConfig(id="validate"),
-                )
+            await knot.process(
+                prompt="extract",
+                llm=llm,
+                model_class=_UserRecord,
+                max_retries=0,
+            )
 
 
 class TestPydanticValidatorPipelineHappyPath(unittest.IsolatedAsyncioTestCase):

@@ -1,13 +1,22 @@
 """``PerformanceTriggeredRetrainer`` — SubTapestry that monitors a live
 metric and triggers a retraining run when it drops below a threshold,
 returning the new model reference.
+
+Algorithm:
+    1. Receive ``model``, ``split``, ``metric``, ``threshold``, and
+       ``algorithm`` via process().
+    2. Validate all inputs.
+    3. Evaluate live metric using inner Tapestry.
+    4. If metric < threshold, retrain via a second inner Tapestry.
+    5. Return triggered status and new_model_id.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
 
-import hashlib
-import json
-from types import MappingProxyType
 from typing import Any, Mapping
 
 from pirn.core.knot import Knot
@@ -35,79 +44,83 @@ class PerformanceTriggeredRetrainer(SubTapestry):
         *,
         model: Knot,
         split: Knot,
-        metric: str,
-        threshold: float,
-        algorithm: str = "random_forest",
+        metric: Knot | str,
+        threshold: Knot | float,
+        algorithm: Knot | str = "random_forest",
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(model, Knot):
-            raise TypeError("PerformanceTriggeredRetrainer: model must be a Knot")
-        if not isinstance(split, Knot):
-            raise TypeError("PerformanceTriggeredRetrainer: split must be a Knot")
-        if not isinstance(metric, str) or not metric:
-            raise ValueError(
-                "PerformanceTriggeredRetrainer: metric must be a non-empty string"
-            )
-        if not isinstance(threshold, (int, float)):
-            raise TypeError("PerformanceTriggeredRetrainer: threshold must be numeric")
-        if not isinstance(algorithm, str) or not algorithm:
-            raise ValueError(
-                "PerformanceTriggeredRetrainer: algorithm must be a non-empty string"
-            )
-        self._metric = metric
-        self._threshold = float(threshold)
-        self._algorithm = algorithm
-        super().__init__(model=model, split=split, _config=_config, **kwargs)
-
-    @property
-    def metric(self) -> str:
-        return self._metric
-
-    @property
-    def threshold(self) -> float:
-        return self._threshold
+        super().__init__(
+            model=model,
+            split=split,
+            metric=metric,
+            threshold=threshold,
+            algorithm=algorithm,
+            _config=_config,
+            **kwargs,
+        )
 
     async def process(
-        self, model: TrainedModel, split: DataSplit, **_: Any
+        self,
+        model: TrainedModel,
+        split: DataSplit,
+        metric: str = "",
+        threshold: float = 0.0,
+        algorithm: str = "random_forest",
+        **_: Any,
     ) -> Mapping[str, Any]:
         """Evaluate the live metric and retrain if it falls below the threshold.
 
         Args:
             model: Current TrainedModel to evaluate.
             split: DataSplit used for evaluation and retraining.
+            metric: Non-empty metric name to monitor.
+            threshold: Score threshold below which retraining is triggered.
+            algorithm: Non-empty algorithm identifier for retraining.
 
         Returns:
             Mapping with ``triggered`` (bool), ``current_score`` (float),
             ``threshold`` (float), ``metric`` (str), and
             ``new_model_id`` (str or None if retraining was not triggered).
+
+        Raises:
+            ValueError: If metric or algorithm is empty.
         """
+        if not isinstance(metric, str) or not metric:
+            raise ValueError("PerformanceTriggeredRetrainer: metric must be a non-empty string")
+        if not isinstance(threshold, (int, float)):
+            raise TypeError("PerformanceTriggeredRetrainer: threshold must be numeric")
+        if not isinstance(algorithm, str) or not algorithm:
+            raise ValueError(
+                "PerformanceTriggeredRetrainer: algorithm must be a non-empty string"
+            )
+        threshold_f = float(threshold)
         with Tapestry() as inner:
             model_node = _emit_value(value=model, _config=KnotConfig(id="model"))
             split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
             Evaluator(
                 model=model_node,
                 split=split_node,
-                metrics=(self._metric,),
+                metrics=(metric,),
                 _config=KnotConfig(id="evaluate"),
             )
         inner_result = await self._run_inner(inner)
         report: EvalReport = inner_result.outputs["evaluate"]
-        current_score = float(report.metrics[self._metric])
-        triggered = current_score < self._threshold
+        current_score = float(report.metrics[metric])
+        triggered = current_score < threshold_f
         if not triggered:
             return {
                 "triggered": False,
                 "current_score": current_score,
-                "threshold": self._threshold,
-                "metric": self._metric,
+                "threshold": threshold_f,
+                "metric": metric,
                 "new_model_id": None,
             }
         with Tapestry() as retrain_inner:
             split_node2 = _emit_value(value=split, _config=KnotConfig(id="split"))
             Trainer(
                 split=split_node2,
-                algorithm=self._algorithm,
+                algorithm=algorithm,
                 _config=KnotConfig(id="retrain"),
             )
         retrain_result = await self._run_inner(retrain_inner)
@@ -115,7 +128,7 @@ class PerformanceTriggeredRetrainer(SubTapestry):
         return {
             "triggered": True,
             "current_score": current_score,
-            "threshold": self._threshold,
-            "metric": self._metric,
+            "threshold": threshold_f,
+            "metric": metric,
             "new_model_id": new_model.model_id,
         }

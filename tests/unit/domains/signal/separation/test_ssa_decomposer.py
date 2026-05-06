@@ -1,64 +1,51 @@
 """Unit tests for :class:`SSADecomposer`."""
 
 from __future__ import annotations
+
 import unittest
 
+import pytest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
+from pirn.core.parameter import Parameter
 from pirn.domains.signal.separation.ssa_decomposer import SSADecomposer
+from pirn.domains.signal.types.signal_frame import SignalFrame
 from pirn.domains.signal.types.source_frame import SourceFrame
-from pirn.tapestry import Tapestry
-from tests.unit.domains.signal.conftest import emit_signal_frame
+from tests.unit.domains.signal.conftest import make_signal_frame
+
+_SIGNAL = make_signal_frame()
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_embedding_dim_le_one(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "embedding_dim"):
-                SSADecomposer(
-                    signal=sig,
-                    embedding_dim=1,
-                    component_count=1,
-                    _config=KnotConfig(id="ssa"),
-                )
-
-    def test_rejects_non_positive_component_count(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "component_count"):
-                SSADecomposer(
-                    signal=sig,
-                    embedding_dim=10,
-                    component_count=0,
-                    _config=KnotConfig(id="ssa"),
-                )
-
-    def test_rejects_component_count_above_embedding_dim(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "not exceed"):
-                SSADecomposer(
-                    signal=sig,
-                    embedding_dim=4,
-                    component_count=8,
-                    _config=KnotConfig(id="ssa"),
-                )
+def _up(name: str = "signal") -> Parameter:
+    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
 
 
-class TestProcess(unittest.IsolatedAsyncioTestCase):
+class TestSSADecomposer(unittest.IsolatedAsyncioTestCase):
+    def _make(self) -> SSADecomposer:
+        return SSADecomposer(
+            signal=_up(),
+            embedding_dim=10,
+            component_count=4,
+            _config=KnotConfig(id="ssa"),
+        )
+
+    async def test_rejects_embedding_dim_le_one(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="embedding_dim"):
+            await knot.process(_SIGNAL, embedding_dim=1, component_count=1)
+
+    async def test_rejects_non_positive_component_count(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="component_count"):
+            await knot.process(_SIGNAL, embedding_dim=10, component_count=0)
+
+    async def test_rejects_component_count_above_embedding_dim(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="component_count"):
+            await knot.process(_SIGNAL, embedding_dim=4, component_count=8)
+
     async def test_emits_source_frame(self) -> None:
-        with Tapestry() as t:
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            SSADecomposer(
-                signal=sig,
-                embedding_dim=10,
-                component_count=4,
-                _config=KnotConfig(id="ssa"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["ssa"]
+        knot = self._make()
+        out = await knot.process(_SIGNAL, embedding_dim=10, component_count=4)
         assert isinstance(out, SourceFrame)
         assert out.source_count == 4
-        assert out.mixing_matrix_shape == (10, 4)

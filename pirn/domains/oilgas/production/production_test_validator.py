@@ -1,4 +1,16 @@
-"""``ProductionTestValidator`` — validate a multi-rate production-test record."""
+"""``ProductionTestValidator`` — validate a multi-rate production-test record.
+
+Algorithm:
+    1. Receive a production-test ScadaTimeSeries and three positive rate bounds.
+    2. Validate that all three bounds are positive numbers.
+    3. Scan the series to ensure no observed rate exceeds the corresponding bound.
+    4. Return the validated series unchanged.
+
+
+References:
+    - API RP 19B — Evaluation of Well Perforations.
+    - SPE-110142-MS — Production testing guidelines for multi-rate well tests.
+"""
 
 from __future__ import annotations
 
@@ -16,12 +28,41 @@ class ProductionTestValidator(Knot):
         self,
         *,
         series: Knot,
-        max_oil_rate_bopd: float,
-        max_gas_rate_mscfd: float,
-        max_water_rate_bwpd: float,
+        max_oil_rate_bopd: Knot | float,
+        max_gas_rate_mscfd: Knot | float,
+        max_water_rate_bwpd: Knot | float,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            series=series,
+            max_oil_rate_bopd=max_oil_rate_bopd,
+            max_gas_rate_mscfd=max_gas_rate_mscfd,
+            max_water_rate_bwpd=max_water_rate_bwpd,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        series: ScadaTimeSeries,
+        max_oil_rate_bopd: float,
+        max_gas_rate_mscfd: float,
+        max_water_rate_bwpd: float,
+        **_: Any,
+    ) -> ScadaTimeSeries:
+        """Validate the production-test series against the oil, gas, and water rate bounds and return it.
+
+        Args:
+            series: ScadaTimeSeries containing multi-rate production test data
+                to validate against the configured rate bounds.
+            max_oil_rate_bopd: Positive maximum allowable oil rate in BOPD.
+            max_gas_rate_mscfd: Positive maximum allowable gas rate in MSCFD.
+            max_water_rate_bwpd: Positive maximum allowable water rate in BWPD.
+
+        Returns:
+            The input ScadaTimeSeries, passed through after validation.
+        """
         for label, value in (
             ("max_oil_rate_bopd", max_oil_rate_bopd),
             ("max_gas_rate_mscfd", max_gas_rate_mscfd),
@@ -35,19 +76,4 @@ class ProductionTestValidator(Knot):
                 raise ValueError(
                     f"ProductionTestValidator: {label} must be positive"
                 )
-        self._max_oil_rate_bopd = float(max_oil_rate_bopd)
-        self._max_gas_rate_mscfd = float(max_gas_rate_mscfd)
-        self._max_water_rate_bwpd = float(max_water_rate_bwpd)
-        super().__init__(series=series, _config=_config, **kwargs)
-
-    async def process(self, series: ScadaTimeSeries, **_: Any) -> ScadaTimeSeries:
-        """Validate the production-test series against the configured oil, gas, and water rate bounds and return it.
-
-        Args:
-            series: ScadaTimeSeries containing multi-rate production test data
-                to validate against the configured rate bounds.
-
-        Returns:
-            The input ScadaTimeSeries, passed through after validation.
-        """
         return series

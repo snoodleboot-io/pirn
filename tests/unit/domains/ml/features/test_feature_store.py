@@ -40,13 +40,15 @@ class TestFeatureStoreHappyPath(unittest.IsolatedAsyncioTestCase):
         assert partitions == ["train", "test"]
 
 
-class TestFeatureStoreConstruction(unittest.TestCase):
-    def test_rejects_non_provider(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(TypeError, "FeatureStoreProvider"):
-                FeatureStore(
-                    split=split,
-                    provider="not a provider",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="bad"),
-                )
+class TestFeatureStoreProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_non_provider(self) -> None:
+        store = FeatureStore.__new__(FeatureStore)
+        object.__setattr__(store, "_config", KnotConfig(id="x"))
+        train = MLDataset(name="d:train", feature_names=("a",), row_count=10)
+        test = MLDataset(name="d:test", feature_names=("a",), row_count=5)
+        split = DataSplit(train=train, test=test)
+        with self.assertRaisesRegex(TypeError, "FeatureStoreProvider"):
+            await store.process(
+                split=split,
+                provider="not a provider",  # type: ignore[arg-type]
+            )

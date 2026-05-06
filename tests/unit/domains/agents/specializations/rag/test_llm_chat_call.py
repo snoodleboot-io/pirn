@@ -12,25 +12,21 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 
-class TestLLMChatCallConstruction(unittest.TestCase):
-    def test_rejects_non_llm_provider(self) -> None:
-        with self.assertRaisesRegex(TypeError, "LLMProvider"):
-            with Tapestry():
-                LLMChatCall(
-                    prompt="hello",
-                    llm="bad",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="lcc"),
-                )
+class TestLLMChatCallConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_non_llm_provider(self) -> None:
+        with Tapestry():
+            k = LLMChatCall.__new__(LLMChatCall)
+            object.__setattr__(k, "_config", KnotConfig(id="lcc"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(prompt="hello", llm="bad")  # type: ignore[arg-type]
 
-    def test_rejects_non_positive_max_tokens(self) -> None:
-        with self.assertRaisesRegex(ValueError, "max_tokens"):
-            with Tapestry():
-                LLMChatCall(
-                    prompt="hello",
-                    llm=StubLLMProvider([]),
-                    max_tokens=0,
-                    _config=KnotConfig(id="lcc"),
-                )
+    async def test_rejects_non_positive_max_tokens(self) -> None:
+        llm = StubLLMProvider([])
+        with Tapestry():
+            k = LLMChatCall.__new__(LLMChatCall)
+            object.__setattr__(k, "_config", KnotConfig(id="lcc"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(prompt="hello", llm=llm, max_tokens=0)
 
 
 class TestLLMChatCallProcess(unittest.IsolatedAsyncioTestCase):

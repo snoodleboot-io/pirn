@@ -8,6 +8,21 @@ The research transcript is seeded with a system message instructing the
 LLM to issue ``Action: <search-tool-name>`` calls until it has enough
 material to write a final summary. The :class:`ReActLoop` is bounded by
 ``max_searches`` to put a hard ceiling on tool invocations.
+
+Algorithm:
+    1. Receive ``topic`` (str), ``llm``, ``search_tool``, and
+       ``max_searches`` as plain values.
+    2. Validate that ``topic`` is a non-empty string and ``max_searches``
+       is a positive integer.
+    3. Build seed messages and construct an inner :class:`Tapestry`
+       containing :class:`ReActLoop`.
+    4. Run the inner tapestry and extract the ``AgentResponse`` output.
+
+Math:
+    None.
+
+References:
+    None.
 """
 
 from __future__ import annotations
@@ -32,12 +47,49 @@ class ResearchAgent(SubTapestry):
         self,
         *,
         topic: Knot | str,
-        llm: LLMProvider,
-        search_tool: Tool,
+        llm: Knot | LLMProvider,
+        search_tool: Knot | Tool,
         _config: KnotConfig,
-        max_searches: int = 5,
+        max_searches: Knot | int = 5,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            topic=topic,
+            llm=llm,
+            search_tool=search_tool,
+            max_searches=max_searches,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        topic: str,
+        llm: LLMProvider,
+        search_tool: Tool,
+        max_searches: int = 5,
+        **_: Any,
+    ) -> AgentResponse:
+        """Run the search-backed ReAct loop on the topic and return a summary AgentResponse.
+
+        Args:
+            topic: The non-empty research topic string to investigate.
+            llm: The LLM provider used by the ReAct loop.
+            search_tool: The Tool used for web/document search.
+            max_searches: Maximum number of search iterations (must be positive).
+
+        Returns:
+            An AgentResponse containing a summary of the research findings.
+
+        Raises:
+            TypeError: If topic is not a non-empty string or search_tool is not a Tool.
+            ValueError: If max_searches is not a positive integer.
+        """
+        if not isinstance(topic, str) or not topic:
+            raise TypeError(
+                "ResearchAgent: topic must be a non-empty string, "
+                f"got {topic!r}"
+            )
         if not isinstance(llm, LLMProvider):
             raise TypeError(
                 "ResearchAgent: llm must be an LLMProvider, "
@@ -53,34 +105,12 @@ class ResearchAgent(SubTapestry):
                 "ResearchAgent: max_searches must be a positive int, "
                 f"got {max_searches!r}"
             )
-        self._llm = llm
-        self._search_tool = search_tool
-        self._max_searches = max_searches
-        super().__init__(topic=topic, _config=_config, **kwargs)
-
-    async def process(self, topic: str, **_: Any) -> AgentResponse:
-        """Run the search-backed ReAct loop on the topic and return a summary AgentResponse.
-
-        Args:
-            topic: The non-empty research topic string to investigate.
-
-        Returns:
-            An AgentResponse containing a summary of the research findings.
-
-        Raises:
-            TypeError: If topic is not a non-empty string.
-        """
-        if not isinstance(topic, str) or not topic:
-            raise TypeError(
-                "ResearchAgent: topic must be a non-empty string, "
-                f"got {topic!r}"
-            )
         seed_messages = (
             AgentMessage(
                 role="system",
                 content=(
                     "You are a research assistant. Investigate the user's "
-                    f"topic by emitting Action: {self._search_tool.name} "
+                    f"topic by emitting Action: {search_tool.name} "
                     "calls. After gathering enough material, emit a "
                     "Final Answer: line summarising your findings."
                 ),
@@ -90,9 +120,9 @@ class ResearchAgent(SubTapestry):
         with Tapestry() as inner:
             ReActLoop(
                 messages=seed_messages,
-                llm=self._llm,
-                tools=(self._search_tool,),
-                max_iterations=self._max_searches,
+                llm=llm,
+                tools=(search_tool,),
+                max_iterations=max_searches,
                 _config=KnotConfig(id="react_loop"),
             )
         inner_result = await self._run_inner(inner)

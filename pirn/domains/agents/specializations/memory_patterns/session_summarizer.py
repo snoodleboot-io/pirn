@@ -4,6 +4,22 @@ Counts approximate tokens in the conversation history. When the total
 exceeds ``token_threshold``, calls the LLM to produce a condensed summary
 and returns a replacement message list. Otherwise returns the messages
 unchanged.
+
+Algorithm
+---------
+1. Validate inputs.
+2. Count approximate tokens as the sum of word-count per message.
+3. If total <= token_threshold, return messages unchanged.
+4. Otherwise call LLM with a summarization prompt.
+5. Return ``[summary_message, last_original_message]``.
+
+Math
+----
+``total_tokens = sum(len(msg.content.split()) for msg in messages)``
+
+References
+----------
+None.
 """
 
 from __future__ import annotations
@@ -24,11 +40,41 @@ class SessionSummarizer(Knot):
         self,
         *,
         messages: Knot | Sequence[AgentMessage],
-        llm: LLMProvider,
+        llm: Knot | LLMProvider,
+        token_threshold: Knot | int = 2000,
         _config: KnotConfig,
-        token_threshold: int = 2000,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            messages=messages,
+            llm=llm,
+            token_threshold=token_threshold,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        messages: Sequence[AgentMessage],
+        llm: LLMProvider,
+        token_threshold: int = 2000,
+        **_: Any,
+    ) -> list[AgentMessage]:
+        """Compress conversation history if it exceeds the token threshold.
+
+        Args:
+            messages: The full conversation history to evaluate and possibly compress.
+            llm: The LLMProvider used to produce the summary.
+            token_threshold: Positive int; only compress when token count exceeds this value.
+
+        Returns:
+            The original message list if under threshold, or a compressed list with
+            a summary message prepended and only the most recent message appended.
+
+        Raises:
+            TypeError: If llm is not an LLMProvider or any message is not an AgentMessage.
+            ValueError: If token_threshold is not a positive int.
+        """
         if not isinstance(llm, LLMProvider):
             raise TypeError(
                 "SessionSummarizer: llm must be an LLMProvider, "
@@ -39,27 +85,6 @@ class SessionSummarizer(Knot):
                 "SessionSummarizer: token_threshold must be a positive int, "
                 f"got {token_threshold!r}"
             )
-        self._llm = llm
-        self._token_threshold = token_threshold
-        super().__init__(messages=messages, _config=_config, **kwargs)
-
-    async def process(
-        self,
-        messages: Sequence[AgentMessage],
-        **_: Any,
-    ) -> list[AgentMessage]:
-        """Compress conversation history if it exceeds the token threshold.
-
-        Args:
-            messages: The full conversation history to evaluate and possibly compress.
-
-        Returns:
-            The original message list if under threshold, or a compressed list with
-            a summary message prepended and only the most recent message appended.
-
-        Raises:
-            TypeError: If any element of messages is not an AgentMessage.
-        """
         message_list = list(messages)
         for index, msg in enumerate(message_list):
             if not isinstance(msg, AgentMessage):
@@ -70,7 +95,7 @@ class SessionSummarizer(Knot):
         total_tokens = sum(
             len(msg.content.split()) for msg in message_list
         )
-        if total_tokens <= self._token_threshold:
+        if total_tokens <= token_threshold:
             return message_list
 
         rendered = "\n".join(
@@ -82,7 +107,7 @@ class SessionSummarizer(Knot):
             "to continue.\n\n"
             f"{rendered}"
         )
-        raw = await self._llm.chat([{"role": "user", "content": summary_prompt}])
+        raw = await llm.chat([{"role": "user", "content": summary_prompt}])
         summary_text = self._extract_text(raw)
         summary_msg = AgentMessage(role="system", content=f"[Summary] {summary_text}")
         if message_list:

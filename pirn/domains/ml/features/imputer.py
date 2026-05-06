@@ -1,4 +1,17 @@
-"""``Imputer`` — missing-value imputation over a :class:`DataSplit`."""
+"""``Imputer`` — missing-value imputation over a :class:`DataSplit`.
+
+Algorithm:
+    1. Receive ``split`` (DataSplit), ``columns`` (sequence of str), ``method`` (str),
+       and ``constant_value`` (Any) via process().
+    2. Validate columns is non-empty, method is valid, and constant_value is set when
+       method is ``"constant"``.
+    3. Append the ``imputed_<method>`` suffix to each partition's MLDataset name.
+    4. Return the renamed DataSplit.
+
+
+References:
+    N/A — pirn-native implementation.
+"""
 
 from __future__ import annotations
 
@@ -22,12 +35,43 @@ class Imputer(Knot):
         self,
         *,
         split: Knot,
-        columns: Sequence[str],
-        method: str = "median",
-        constant_value: Any = None,
+        columns: Knot | Sequence[str],
+        method: Knot | str = "median",
+        constant_value: Knot | Any = None,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            split=split,
+            columns=columns,
+            method=method,
+            constant_value=constant_value,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        split: DataSplit,
+        columns: Sequence[str] = (),
+        method: str = "median",
+        constant_value: Any = None,
+        **_: Any,
+    ) -> DataSplit:
+        """Apply the configured imputation method to the split's feature columns and return an updated DataSplit.
+
+        Args:
+            split: DataSplit whose partitions are logically tagged with the imputation suffix.
+            columns: Non-empty sequence of column names to impute.
+            method: Imputation method; must be one of ``valid_methods``.
+            constant_value: Required when method is ``"constant"``; the fill value.
+
+        Returns:
+            DataSplit with each partition renamed to include the ``imputed_<method>`` suffix.
+
+        Raises:
+            ValueError: If columns is empty, method is invalid, or constant method has no value.
+        """
         column_tuple = tuple(columns)
         if not column_tuple:
             raise ValueError("Imputer: columns must be non-empty")
@@ -44,25 +88,7 @@ class Imputer(Knot):
             raise ValueError(
                 "Imputer: constant method requires constant_value"
             )
-        self._columns = column_tuple
-        self._method = method
-        self._constant_value = constant_value
-        super().__init__(split=split, _config=_config, **kwargs)
-
-    @property
-    def method(self) -> str:
-        return self._method
-
-    async def process(self, split: DataSplit, **_: Any) -> DataSplit:
-        """Apply the configured imputation method to the split's feature columns and return an updated DataSplit.
-
-        Args:
-            split: DataSplit whose partitions are logically tagged with the imputation suffix.
-
-        Returns:
-            DataSplit with each partition renamed to include the ``imputed_<method>`` suffix.
-        """
-        suffix = f"imputed_{self._method}"
+        suffix = f"imputed_{method}"
         now = datetime.now(timezone.utc)
         return DataSplit(
             train=self._mark(split.train, suffix, now),

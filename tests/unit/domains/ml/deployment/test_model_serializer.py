@@ -25,6 +25,16 @@ async def emit_model() -> TrainedModel:
     )
 
 
+def _make_model() -> TrainedModel:
+    return TrainedModel(
+        model_id="m1",
+        algorithm="rf",
+        hyperparameters={"n_estimators": 50},
+        feature_names=("a",),
+        target_name="y",
+    )
+
+
 class TestModelSerializerHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_json_bytes(self) -> None:
         with Tapestry() as t:
@@ -42,13 +52,14 @@ class TestModelSerializerHappyPath(unittest.IsolatedAsyncioTestCase):
         assert decoded["format"] == "json"
 
 
-class TestModelSerializerConstruction(unittest.TestCase):
-    def test_rejects_unknown_format(self) -> None:
+class TestModelSerializerProcess(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self) -> ModelSerializer:
         with Tapestry():
-            model = emit_model(_config=KnotConfig(id="model"))
-            with self.assertRaisesRegex(ValueError, "format must be"):
-                ModelSerializer(
-                    model=model,
-                    format="bogus",
-                    _config=KnotConfig(id="bad"),
-                )
+            ser = ModelSerializer.__new__(ModelSerializer)
+            object.__setattr__(ser, "_config", KnotConfig(id="x"))
+        return ser
+
+    async def test_rejects_unknown_format(self) -> None:
+        ser = self._make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await ser.process(model=_make_model(), format="bogus")

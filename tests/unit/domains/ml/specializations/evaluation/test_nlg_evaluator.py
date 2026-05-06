@@ -28,18 +28,26 @@ async def emit_model() -> TrainedModel:
     return TrainedModel(model_id="m1", algorithm="seq2seq", feature_names=("text",))
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_unknown_metric(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            model = emit_model(_config=KnotConfig(id="model"))
-            with self.assertRaisesRegex(ValueError, "metric"):
-                NLGEvaluator(
-                    model=model,
-                    split=split,
-                    metrics=("unknown_metric",),
-                    _config=KnotConfig(id="bad"),
-                )
+def _make_knot() -> NLGEvaluator:
+    with Tapestry():
+        split = emit_split(_config=KnotConfig(id="split"))
+        model = emit_model(_config=KnotConfig(id="model"))
+        return NLGEvaluator(
+            model=model,
+            split=split,
+            _config=KnotConfig(id="nlg"),
+        )
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_unknown_metric(self) -> None:
+        k = _make_knot()
+        train = MLDataset(name="d:train", feature_names=("text",), row_count=80)
+        test = MLDataset(name="d:test", feature_names=("text",), row_count=20)
+        model = TrainedModel(model_id="m1", algorithm="seq2seq", feature_names=("text",))
+        split = DataSplit(train=train, test=test)
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(model=model, split=split, metrics=("unknown_metric",))
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

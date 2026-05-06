@@ -10,6 +10,15 @@ Composition:
    (accuracy, precision, recall, F1, ROC-AUC, confusion matrix).
 
 The output is the :class:`EvalReport` produced by the inner evaluator.
+
+Algorithm:
+    1. Receive ``model`` (TrainedModel) and ``split`` (DataSplit) via process().
+    2. Wire an inner Tapestry with Evaluator using the canonical classification metrics.
+    3. Run the inner Tapestry via _run_inner() and return the EvalReport.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -52,14 +61,6 @@ class ClassificationEvalPipeline(SubTapestry):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(model, Knot):
-            raise TypeError(
-                "ClassificationEvalPipeline: model must be a Knot"
-            )
-        if not isinstance(split, Knot):
-            raise TypeError(
-                "ClassificationEvalPipeline: split must be a Knot"
-            )
         super().__init__(model=model, split=split, _config=_config, **kwargs)
 
     async def process(

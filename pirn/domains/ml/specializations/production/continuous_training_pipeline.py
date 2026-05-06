@@ -5,6 +5,17 @@ re-run on a cadence. Before retraining the pipeline performs a freshness
 check against the configured :class:`LineageStore`: if the last training
 event is younger than ``freshness_window_days`` the pipeline short-circuits
 and returns the cached model id without retraining.
+
+Algorithm:
+    1. Receive all pipeline params via process().
+    2. Validate all inputs.
+    3. Check freshness via lineage store; return cached model_id if fresh.
+    4. Wire full training pipeline in an inner Tapestry.
+    5. Run via _run_inner() and return model_id and eval_report.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -12,6 +23,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Any, Mapping, Sequence
 
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.domains.connectors.database_connection_pool import (
@@ -49,89 +61,42 @@ class ContinuousTrainingPipeline(SubTapestry):
     def __init__(
         self,
         *,
-        pool: DatabaseConnectionPool,
-        query: str,
-        name: str,
-        feature_names: Sequence[str],
-        target_name: str,
-        algorithm: str,
-        lineage: LineageStore,
-        store: ObjectStore,
-        metrics: Sequence[str],
-        freshness_window_days: int = 1,
+        pool: Knot | DatabaseConnectionPool,
+        query: Knot | str,
+        name: Knot | str,
+        feature_names: Knot | Sequence[str],
+        target_name: Knot | str,
+        algorithm: Knot | str,
+        lineage: Knot | LineageStore,
+        store: Knot | ObjectStore,
+        metrics: Knot | Sequence[str],
+        freshness_window_days: Knot | int = 1,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError(
-                "ContinuousTrainingPipeline: pool must be a DatabaseConnectionPool"
-            )
-        if not isinstance(query, str) or not query:
-            raise ValueError(
-                "ContinuousTrainingPipeline: query must be a non-empty string"
-            )
-        if not isinstance(name, str) or not name:
-            raise ValueError(
-                "ContinuousTrainingPipeline: name must be a non-empty string"
-            )
-        feature_tuple = tuple(feature_names)
-        if not feature_tuple:
-            raise ValueError(
-                "ContinuousTrainingPipeline: feature_names must be non-empty"
-            )
-        if not isinstance(target_name, str) or not target_name:
-            raise ValueError(
-                "ContinuousTrainingPipeline: target_name must be a non-empty string"
-            )
-        if not isinstance(algorithm, str) or not algorithm:
-            raise ValueError(
-                "ContinuousTrainingPipeline: algorithm must be a non-empty string"
-            )
-        if not isinstance(lineage, LineageStore):
-            raise TypeError(
-                "ContinuousTrainingPipeline: lineage must be a LineageStore"
-            )
-        if not isinstance(store, ObjectStore):
-            raise TypeError(
-                "ContinuousTrainingPipeline: store must be an ObjectStore"
-            )
-        metric_tuple = tuple(metrics)
-        if not metric_tuple:
-            raise ValueError(
-                "ContinuousTrainingPipeline: metrics must be non-empty"
-            )
-        if not isinstance(freshness_window_days, int):
-            raise TypeError(
-                "ContinuousTrainingPipeline: freshness_window_days must be an int"
-            )
-        if freshness_window_days < 0:
-            raise ValueError(
-                "ContinuousTrainingPipeline: freshness_window_days must be >= 0"
-            )
-        self._pool = pool
-        self._query = query
-        self._name = name
-        self._feature_names = feature_tuple
-        self._target_name = target_name
-        self._algorithm = algorithm
-        self._lineage = lineage
-        self._store = store
-        self._metrics = metric_tuple
-        self._freshness_window_days = freshness_window_days
-        super().__init__(_config=_config, **kwargs)
+        super().__init__(
+            pool=pool,
+            query=query,
+            name=name,
+            feature_names=feature_names,
+            target_name=target_name,
+            algorithm=algorithm,
+            lineage=lineage,
+            store=store,
+            metrics=metrics,
+            freshness_window_days=freshness_window_days,
+            _config=_config,
+            **kwargs,
+        )
 
-    @property
-    def freshness_window_days(self) -> int:
-        return self._freshness_window_days
-
-    async def _is_fresh(self) -> tuple[bool, str | None]:
+    async def _is_fresh(
+        self, lineage: LineageStore, name: str, freshness_window_days: int
+    ) -> tuple[bool, str | None]:
         try:
-            lineage_record = await self._lineage.fetch_lineage(self._name)
+            lineage_record = await lineage.fetch_lineage(name)
         except Exception:
             return False, None
-        events = lineage_record.get("events") if isinstance(
-            lineage_record, Mapping
-        ) else None
+        events = lineage_record.get("events") if isinstance(lineage_record, Mapping) else None
         if not events:
             return False, None
         last_event = events[-1]
@@ -148,19 +113,72 @@ class ContinuousTrainingPipeline(SubTapestry):
         now = datetime.now(timezone.utc)
         if recorded.tzinfo is None:
             recorded = recorded.replace(tzinfo=timezone.utc)
-        if now - recorded < timedelta(days=self._freshness_window_days):
+        if now - recorded < timedelta(days=freshness_window_days):
             return True, last_model_id
         return False, None
 
-    async def process(self, **_: Any) -> Mapping[str, Any]:
+    async def process(
+        self,
+        pool: DatabaseConnectionPool = None,
+        query: str = "",
+        name: str = "",
+        feature_names: Sequence[str] = (),
+        target_name: str = "",
+        algorithm: str = "",
+        lineage: LineageStore | None = None,
+        store: ObjectStore = None,
+        metrics: Sequence[str] = (),
+        freshness_window_days: int = 1,
+        **_: Any,
+    ) -> Mapping[str, Any]:
         """Check freshness against the lineage store and, if stale, retrain and deploy the model; return a summary with the model_id and eval report.
+
+        Args:
+            pool: DatabaseConnectionPool for loading the dataset.
+            query: Non-empty SQL query string.
+            name: Non-empty dataset/pipeline name.
+            feature_names: Non-empty sequence of feature column names.
+            target_name: Non-empty target column name.
+            algorithm: Non-empty algorithm identifier.
+            lineage: LineageStore for freshness checks and registration.
+            store: ObjectStore for model artifact storage.
+            metrics: Non-empty sequence of metric names.
+            freshness_window_days: Retraining skip window in days; must be int >= 0.
 
         Returns:
             Mapping with ``model_id`` (str), ``eval_report``
             (:class:`EvalReport` or ``None`` if skipped), and ``skipped``
             (bool indicating whether retraining was bypassed due to freshness).
+
+        Raises:
+            ValueError: If any string param is empty or sequences are empty.
+            TypeError: If pool, lineage, or store are the wrong types.
         """
-        is_fresh, cached_model_id = await self._is_fresh()
+        if not isinstance(pool, DatabaseConnectionPool):
+            raise TypeError("ContinuousTrainingPipeline: pool must be a DatabaseConnectionPool")
+        if not isinstance(query, str) or not query:
+            raise ValueError("ContinuousTrainingPipeline: query must be a non-empty string")
+        if not isinstance(name, str) or not name:
+            raise ValueError("ContinuousTrainingPipeline: name must be a non-empty string")
+        feature_tuple = tuple(feature_names)
+        if not feature_tuple:
+            raise ValueError("ContinuousTrainingPipeline: feature_names must be non-empty")
+        if not isinstance(target_name, str) or not target_name:
+            raise ValueError("ContinuousTrainingPipeline: target_name must be a non-empty string")
+        if not isinstance(algorithm, str) or not algorithm:
+            raise ValueError("ContinuousTrainingPipeline: algorithm must be a non-empty string")
+        if not isinstance(lineage, LineageStore):
+            raise TypeError("ContinuousTrainingPipeline: lineage must be a LineageStore")
+        if not isinstance(store, ObjectStore):
+            raise TypeError("ContinuousTrainingPipeline: store must be an ObjectStore")
+        metric_tuple = tuple(metrics)
+        if not metric_tuple:
+            raise ValueError("ContinuousTrainingPipeline: metrics must be non-empty")
+        if not isinstance(freshness_window_days, int):
+            raise TypeError("ContinuousTrainingPipeline: freshness_window_days must be an int")
+        if freshness_window_days < 0:
+            raise ValueError("ContinuousTrainingPipeline: freshness_window_days must be >= 0")
+        is_fresh, cached_model_id = await self._is_fresh(lineage, name, freshness_window_days)
         if is_fresh and cached_model_id is not None:
             return {
                 "model_id": cached_model_id,
@@ -169,11 +187,11 @@ class ContinuousTrainingPipeline(SubTapestry):
             }
         with Tapestry() as inner:
             dataset = DatasetLoader(
-                name=self._name,
-                feature_names=self._feature_names,
-                target_name=self._target_name,
-                pool=self._pool,
-                query=self._query,
+                name=name,
+                feature_names=feature_tuple,
+                target_name=target_name,
+                pool=pool,
+                query=query,
                 _config=KnotConfig(id="load"),
             )
             split = TrainTestSplit(
@@ -182,13 +200,13 @@ class ContinuousTrainingPipeline(SubTapestry):
             )
             trained = Trainer(
                 split=split,
-                algorithm=self._algorithm,
+                algorithm=algorithm,
                 _config=KnotConfig(id="train"),
             )
             Evaluator(
                 model=trained,
                 split=split,
-                metrics=self._metrics,
+                metrics=metric_tuple,
                 _config=KnotConfig(id="evaluate"),
             )
             serialized = ModelSerializer(
@@ -198,8 +216,8 @@ class ContinuousTrainingPipeline(SubTapestry):
             registered = ModelRegistrar(
                 serialized=serialized,
                 model=trained,
-                lineage=self._lineage,
-                store=self._store,
+                lineage=lineage,
+                store=store,
                 _config=KnotConfig(id="register"),
             )
             features = _holdout_features(
@@ -209,8 +227,8 @@ class ContinuousTrainingPipeline(SubTapestry):
             Predictor(
                 model_id=registered,
                 features=features,
-                lineage=self._lineage,
-                store=self._store,
+                lineage=lineage,
+                store=store,
                 _config=KnotConfig(id="predict"),
             )
         inner_result = await self._run_inner(inner)

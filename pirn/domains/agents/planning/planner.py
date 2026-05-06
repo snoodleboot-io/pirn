@@ -1,4 +1,20 @@
-"""``Planner`` — produce an ordered :class:`Plan` from an :class:`AgentContext`."""
+"""``Planner`` — produce an ordered :class:`Plan` from an :class:`AgentContext`.
+
+Algorithm:
+    1. Receive the resolved ``AgentContext`` and ``LLMProvider``.
+    2. Validate input types at process time.
+    3. Build a wire-format message list with the planning instruction + context messages.
+    4. Call ``llm.chat`` with the messages.
+    5. Extract text from the raw response.
+    6. Parse lines: lines starting with ``#`` become rationale; numbered/bullet lines become steps.
+    7. Raise ``ValueError`` if no steps were produced.
+    8. Return a ``Plan`` with the ordered steps and rationale.
+
+
+References:
+    - :class:`pirn.domains.agents.llm_provider.LLMProvider`
+    - :class:`pirn.domains.agents.types.plan.Plan`
+"""
 
 from __future__ import annotations
 
@@ -30,15 +46,10 @@ class Planner(Knot):
         self,
         *,
         context: Knot,
-        llm: LLMProvider,
+        llm: Knot | LLMProvider,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "Planner: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
         super().__init__(
             context=context,
             llm=llm,
@@ -62,13 +73,18 @@ class Planner(Knot):
             A Plan containing the ordered steps and optional rationale.
 
         Raises:
-            TypeError: If context is not an AgentContext instance.
+            TypeError: If context is not an AgentContext or llm is not an LLMProvider.
             ValueError: If the LLM response produces no plan steps.
         """
         if not isinstance(context, AgentContext):
             raise TypeError(
                 "Planner: context must be an AgentContext, "
                 f"got {type(context).__name__}"
+            )
+        if not isinstance(llm, LLMProvider):
+            raise TypeError(
+                "Planner: llm must be an LLMProvider, "
+                f"got {type(llm).__name__}"
             )
         wire_messages: list[dict[str, str]] = [
             {"role": "system", "content": type(self).planning_instruction}

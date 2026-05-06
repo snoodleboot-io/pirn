@@ -4,6 +4,22 @@ Inner stage knot used by :class:`FactCheckGate`. Renders the supplied
 :class:`AgentResponse.content` into a claim-extraction prompt, calls
 the configured :class:`LLMProvider`, and parses out one claim per
 line. Empty lines and common list markers are stripped.
+
+Algorithm:
+    1. Validate that ``response`` is an :class:`AgentResponse`; raise
+       :class:`TypeError` otherwise.
+    2. Build a claim-extraction prompt embedding ``response.content`` and
+       request one factual claim per line with no editorialising.
+    3. Send the prompt to the :class:`LLMProvider` and extract the text from
+       the returned value.
+    4. Split the text on newlines; strip each line of whitespace and common
+       list markers (``"- "``, ``"* "``, ``"• "``).
+    5. Discard empty lines and return the cleaned list of claim strings.
+
+
+References:
+    - pirn-native: :class:`pirn.domains.agents.llm_provider.LLMProvider`
+    - pirn-native: :class:`pirn.domains.agents.types.agent_response.AgentResponse`
 """
 
 from __future__ import annotations
@@ -23,21 +39,16 @@ class FactClaimExtractor(Knot):
         self,
         *,
         response: Knot | AgentResponse,
-        llm: LLMProvider,
+        llm: Knot | LLMProvider,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "FactClaimExtractor: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
-        self._llm = llm
-        super().__init__(response=response, _config=_config, **kwargs)
+        super().__init__(response=response, llm=llm, _config=_config, **kwargs)
 
     async def process(
         self,
         response: AgentResponse,
+        llm: LLMProvider,
         **_: Any,
     ) -> list[str]:
         """Ask the LLM to enumerate factual claims in the response and return them as a list.
@@ -61,7 +72,7 @@ class FactClaimExtractor(Knot):
             "claim per line; do not editorialise.\n\n"
             f"Answer:\n{response.content}"
         )
-        raw = await self._llm.chat(
+        raw = await llm.chat(
             [{"role": "user", "content": prompt}]
         )
         text = self._extract_text(raw)

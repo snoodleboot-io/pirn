@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import unittest
-from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
@@ -34,38 +33,40 @@ class _StubLineage(LineageStore):
         pass
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_pool(self) -> None:
-        with self.assertRaises(TypeError):
-            with Tapestry():
-                FullTrainDeployPipeline(
-                    pool="bad",  # type: ignore[arg-type]
-                    query="SELECT 1",
-                    name="m",
-                    feature_names=["a"],
-                    target_name="y",
-                    algorithm="rf",
-                    lineage=_StubLineage(),
-                    store=_StubStore(),
-                    metrics=["accuracy"],
-                    _config=KnotConfig(id="ftdp"),
-                )
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_non_pool(self) -> None:
+        with Tapestry():
+            k = FullTrainDeployPipeline.__new__(FullTrainDeployPipeline)
+            object.__setattr__(k, "_config", KnotConfig(id="ftdp"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                pool="bad",  # type: ignore[arg-type]
+                query="SELECT 1",
+                name="m",
+                feature_names=["a"],
+                target_name="y",
+                algorithm="rf",
+                lineage=_StubLineage(),
+                store=_StubStore(),
+                metrics=["accuracy"],
+            )
 
-    def test_rejects_empty_feature_names(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                FullTrainDeployPipeline(
-                    pool=_StubPool(),
-                    query="SELECT * FROM t",
-                    name="m",
-                    feature_names=[],
-                    target_name="y",
-                    algorithm="rf",
-                    lineage=_StubLineage(),
-                    store=_StubStore(),
-                    metrics=["accuracy"],
-                    _config=KnotConfig(id="ftdp"),
-                )
+    async def test_rejects_empty_feature_names(self) -> None:
+        with Tapestry():
+            k = FullTrainDeployPipeline.__new__(FullTrainDeployPipeline)
+            object.__setattr__(k, "_config", KnotConfig(id="ftdp"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                pool=_StubPool(),
+                query="SELECT * FROM t",
+                name="m",
+                feature_names=[],
+                target_name="y",
+                algorithm="rf",
+                lineage=_StubLineage(),
+                store=_StubStore(),
+                metrics=["accuracy"],
+            )
 
     def test_valid_construction(self) -> None:
         with Tapestry() as t:

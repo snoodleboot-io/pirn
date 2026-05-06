@@ -1,6 +1,16 @@
 """``LIMEExplainer`` — Knot that generates LIME explanations for
 individual predictions and returns per-feature importance for each
 explained instance.
+
+Algorithm:
+    1. Receive ``model``, ``split``, and ``n_samples`` via process().
+    2. Validate all inputs.
+    3. Compute deterministic per-feature LIME importance scores.
+    4. Return feature_importance, n_explained, and n_samples.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -23,50 +33,54 @@ class LIMEExplainer(Knot):
         *,
         model: Knot,
         split: Knot,
-        n_samples: int = 100,
+        n_samples: Knot | int = 100,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(model, Knot):
-            raise TypeError("LIMEExplainer: model must be a Knot")
-        if not isinstance(split, Knot):
-            raise TypeError("LIMEExplainer: split must be a Knot")
-        if not isinstance(n_samples, int) or n_samples < 1:
-            raise ValueError("LIMEExplainer: n_samples must be an int >= 1")
-        self._n_samples = n_samples
-        super().__init__(model=model, split=split, _config=_config, **kwargs)
-
-    @property
-    def n_samples(self) -> int:
-        return self._n_samples
+        super().__init__(
+            model=model,
+            split=split,
+            n_samples=n_samples,
+            _config=_config,
+            **kwargs,
+        )
 
     async def process(
-        self, model: TrainedModel, split: DataSplit, **_: Any
+        self,
+        model: TrainedModel,
+        split: DataSplit,
+        n_samples: int = 100,
+        **_: Any,
     ) -> Mapping[str, Any]:
         """Generate LIME explanations for the test partition instances and return feature importance.
 
         Args:
             model: TrainedModel reference to explain.
             split: DataSplit whose test partition contains instances to explain.
+            n_samples: Number of perturbation samples; must be an int >= 1.
 
         Returns:
             Mapping with ``feature_importance`` (dict[str, float] averaged across instances),
             ``n_explained`` (int), and ``n_samples`` (int).
+
+        Raises:
+            ValueError: If n_samples < 1.
         """
+        if not isinstance(n_samples, int) or n_samples < 1:
+            raise ValueError("LIMEExplainer: n_samples must be an int >= 1")
         try:
             import lime  # noqa: F401
-            _lime_available = True
         except ImportError:
-            _lime_available = False
+            pass
 
         features = model.feature_names if model.feature_names else split.test.feature_names
         feature_importance: dict[str, float] = {}
         for feat in features:
-            feature_importance[feat] = self._lime_value(model, split, feat)
+            feature_importance[feat] = self._lime_value(model, split, feat, n_samples)
         return {
             "feature_importance": feature_importance,
             "n_explained": split.test.row_count,
-            "n_samples": self._n_samples,
+            "n_samples": n_samples,
         }
 
     def _lime_value(
@@ -74,6 +88,7 @@ class LIMEExplainer(Knot):
         model: TrainedModel,
         split: DataSplit,
         feature: str,
+        n_samples: int,
     ) -> float:
         payload = json.dumps(
             {
@@ -81,7 +96,7 @@ class LIMEExplainer(Knot):
                 "test_name": split.test.name,
                 "test_row_count": split.test.row_count,
                 "feature": feature,
-                "n_samples": self._n_samples,
+                "n_samples": n_samples,
             },
             sort_keys=True,
             default=str,

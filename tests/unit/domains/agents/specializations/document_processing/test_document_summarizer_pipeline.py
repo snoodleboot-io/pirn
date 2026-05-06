@@ -18,33 +18,26 @@ from tests.unit.domains.agents.specializations.conftest import (
 )
 
 
-class TestDocumentSummarizerPipelineConstruction(unittest.IsolatedAsyncioTestCase):
-    async def test_rejects_non_llm_provider(self) -> None:
-        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
-            with Tapestry():
-                DocumentSummarizerPipeline(
-                    source="/tmp/x.txt",
-                    llm="not-a-provider",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="summ"),
-                )
+def _make_knot(llm: StubLLMProvider) -> DocumentSummarizerPipeline:
+    with Tapestry():
+        return DocumentSummarizerPipeline(
+            source="/tmp/placeholder.txt",
+            llm=llm,
+            _config=KnotConfig(id="summ"),
+        )
 
+
+class TestDocumentSummarizerPipelineProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_zero_chunk_size(self) -> None:
         llm = StubLLMProvider(["summary"])
+        k = _make_knot(llm)
         with self.assertRaisesRegex(ValueError, "chunk_size"):
-            with Tapestry():
-                DocumentSummarizerPipeline(
-                    source="/tmp/x.txt",
-                    llm=llm,
-                    chunk_size=0,
-                    _config=KnotConfig(id="summ"),
-                )
+            await k.process(source="/tmp/x.txt", llm=llm, chunk_size=0)
 
-
-class TestDocumentSummarizerPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_returns_reduced_summary(self) -> None:
-        _td_test_returns_reduced_summary = tempfile.TemporaryDirectory()
-        self.addCleanup(_td_test_returns_reduced_summary.cleanup)
-        tmp_path = Path(_td_test_returns_reduced_summary.name)
+        _td = tempfile.TemporaryDirectory()
+        self.addCleanup(_td.cleanup)
+        tmp_path = Path(_td.name)
         document = tmp_path / "doc.txt"
         document.write_text("alpha beta gamma delta epsilon", encoding="utf-8")
         llm = StubLLMProvider(

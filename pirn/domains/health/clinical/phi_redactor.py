@@ -4,6 +4,20 @@ Patient ids and encounter ids are replaced with stable opaque tokens so
 downstream linkage (cohort, OMOP) still works, while the source-system
 tag is preserved unchanged. A real implementation would also walk free-
 text fields with a Safe-Harbor rule set.
+
+Algorithm:
+    1. Receive a ClinicalRecord and a salt string.
+    2. Validate that record is a ClinicalRecord and salt is a non-empty string.
+    3. Hash patient_id and encounter_id with SHA-256 keyed by salt.
+    4. Truncate each digest to 16 hex characters for a compact stable token.
+    5. Return a new ClinicalRecord with the hashed identifiers.
+
+Math:
+    $$\\text{token}(v) = \\text{SHA-256}(\\text{salt} \\| v)[:16]$$
+
+References:
+    - HIPAA Safe Harbor: https://www.hhs.gov/hipaa/for-professionals/privacy/special-topics/de-identification/
+    - SHA-256: https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf
 """
 
 from __future__ import annotations
@@ -22,37 +36,48 @@ class PHIRedactor(Knot):
     def __init__(
         self,
         *,
-        record: ClinicalRecord,
-        salt: str,
+        record: Knot | ClinicalRecord,
+        salt: Knot | str,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(record=record, salt=salt, _config=_config, **kwargs)
+
+    async def process(
+        self,
+        record: ClinicalRecord,
+        salt: str,
+        **_: Any,
+    ) -> ClinicalRecord:
+        """Hash patient_id and encounter_id with the configured salt and return a redacted ClinicalRecord.
+
+        Args:
+            record: The ClinicalRecord whose PHI fields should be redacted.
+            salt: Non-empty string used as a HMAC-style prefix for stable hashing.
+
+        Returns:
+            A ClinicalRecord with patient_id and encounter_id replaced by stable opaque hash tokens.
+
+        Raises:
+            TypeError: If record is not a ClinicalRecord or salt is not a string.
+            ValueError: If salt is empty.
+        """
         if not isinstance(record, ClinicalRecord):
             raise TypeError("PHIRedactor: record must be a ClinicalRecord")
         if not isinstance(salt, str):
             raise TypeError("PHIRedactor: salt must be a string")
         if not salt:
             raise ValueError("PHIRedactor: salt must be non-empty")
-        self._record = record
-        self._salt = salt
-        super().__init__(_config=_config, **kwargs)
 
-    def _hash_id(self, value: str) -> str:
-        digest = hashlib.sha256(
-            f"{self._salt}|{value}".encode("utf-8")
-        ).hexdigest()
-        return digest[:16]
+        def _hash_id(value: str) -> str:
+            digest = hashlib.sha256(
+                f"{salt}|{value}".encode("utf-8")
+            ).hexdigest()
+            return digest[:16]
 
-    async def process(self, **_: Any) -> ClinicalRecord:
-        """Hash patient_id and encounter_id with the configured salt and return a redacted ClinicalRecord.
-
-        Returns:
-            A ClinicalRecord with patient_id and encounter_id replaced by stable opaque hash tokens.
-        """
-        record = self._record
         return ClinicalRecord(
-            patient_id=self._hash_id(record.patient_id),
-            encounter_id=self._hash_id(record.encounter_id),
+            patient_id=_hash_id(record.patient_id),
+            encounter_id=_hash_id(record.encounter_id),
             observation_codes=record.observation_codes,
             observed_at=record.observed_at,
             source_system=record.source_system,

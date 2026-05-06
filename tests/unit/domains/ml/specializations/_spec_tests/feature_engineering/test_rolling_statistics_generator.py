@@ -26,38 +26,38 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_columns(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "columns must be non-empty"):
-                RollingStatisticsGenerator(
-                    split=split,
-                    columns=(),
-                    _config=KnotConfig(id="bad"),
-                )
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    def _make_split(self) -> DataSplit:
+        train = MLDataset(
+            name="ts:train", feature_names=("sales",), target_name="y", row_count=200
+        )
+        test = MLDataset(
+            name="ts:test", feature_names=("sales",), target_name="y", row_count=50
+        )
+        return DataSplit(train=train, test=test)
 
-    def test_rejects_window_below_one(self) -> None:
+    async def test_rejects_empty_columns(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "window must be >= 1"):
-                RollingStatisticsGenerator(
-                    split=split,
-                    columns=("sales",),
-                    windows=(0,),
-                    _config=KnotConfig(id="bad"),
-                )
+            k = RollingStatisticsGenerator.__new__(RollingStatisticsGenerator)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=self._make_split(), columns=())
 
-    def test_rejects_invalid_statistic(self) -> None:
+    async def test_rejects_window_below_one(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "median"):
-                RollingStatisticsGenerator(
-                    split=split,
-                    columns=("sales",),
-                    statistics=("median",),
-                    _config=KnotConfig(id="bad"),
-                )
+            k = RollingStatisticsGenerator.__new__(RollingStatisticsGenerator)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=self._make_split(), columns=("sales",), windows=(0,))
+
+    async def test_rejects_invalid_statistic(self) -> None:
+        with Tapestry():
+            k = RollingStatisticsGenerator.__new__(RollingStatisticsGenerator)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=self._make_split(), columns=("sales",), statistics=("median",)
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

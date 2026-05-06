@@ -3,42 +3,32 @@
 from __future__ import annotations
 import unittest
 
-
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.domains.health.genomics.snpeff_annotator import SnpEffAnnotator
-from pirn.tapestry import Tapestry
 
-
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_string(self) -> None:
-        with self.assertRaisesRegex(TypeError, "vcf_path"):
-            SnpEffAnnotator(
-                vcf_path=42,  # type: ignore[arg-type]
-                genome_db="GRCh38",
-                output_vcf_path="out",
-                _config=KnotConfig(id="a"),
-            )
-
-    def test_rejects_empty(self) -> None:
-        with self.assertRaisesRegex(ValueError, "non-empty"):
-            SnpEffAnnotator(
-                vcf_path="",
-                genome_db="GRCh38",
-                output_vcf_path="out",
-                _config=KnotConfig(id="a"),
-            )
+_CFG = KnotConfig(id="a")
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self) -> SnpEffAnnotator:
+        return SnpEffAnnotator(
+            vcf_path="in.vcf",
+            genome_db="GRCh38",
+            output_vcf_path="out.vcf",
+            _config=_CFG,
+        )
+
+    async def test_rejects_non_string(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(TypeError, "vcf_path"):
+            await knot.process(vcf_path=42, genome_db="GRCh38", output_vcf_path="out")  # type: ignore[arg-type]
+
+    async def test_rejects_empty(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "non-empty"):
+            await knot.process(vcf_path="", genome_db="GRCh38", output_vcf_path="out")
+
     async def test_returns_annotated_path(self) -> None:
-        with Tapestry() as t:
-            SnpEffAnnotator(
-                vcf_path="in.vcf",
-                genome_db="GRCh38",
-                output_vcf_path="out.vcf",
-                _config=KnotConfig(id="a"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["a"]
+        knot = self._make_knot()
+        out = await knot.process(vcf_path="in.vcf", genome_db="GRCh38", output_vcf_path="out.vcf")
         assert out == "out.vcf"

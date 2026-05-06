@@ -33,19 +33,42 @@ async def emit_model_b() -> TrainedModel:
     return TrainedModel(model_id="model-b", algorithm="svm", feature_names=("a",))
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_knot_model_a(self) -> None:
+def _make_split() -> DataSplit:
+    train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
+    test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
+    return DataSplit(train=train, test=test)
+
+
+def _make_model(model_id: str) -> TrainedModel:
+    return TrainedModel(model_id=model_id, algorithm="logistic", feature_names=("a",))
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_empty_primary_metric(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            model_b = emit_model_b(_config=KnotConfig(id="mb"))
-            with self.assertRaisesRegex(TypeError, "model_a must be a Knot"):
-                ABTestDeployer(
-                    model_a="bad",  # type: ignore[arg-type]
-                    model_b=model_b,
-                    split=split,
-                    primary_metric="accuracy",
-                    _config=KnotConfig(id="bad"),
-                )
+            k = ABTestDeployer.__new__(ABTestDeployer)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                model_a=_make_model("ma"),
+                model_b=_make_model("mb"),
+                split=_make_split(),
+                primary_metric="",
+                alpha=0.05,
+            )
+
+    async def test_rejects_alpha_out_of_range(self) -> None:
+        with Tapestry():
+            k = ABTestDeployer.__new__(ABTestDeployer)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                model_a=_make_model("ma"),
+                model_b=_make_model("mb"),
+                split=_make_split(),
+                primary_metric="accuracy",
+                alpha=1.5,
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

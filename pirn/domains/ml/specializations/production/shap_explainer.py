@@ -1,12 +1,21 @@
 """``SHAPExplainer`` — Knot that computes SHAP values for a batch of
 predictions and returns per-feature importance.
+
+Algorithm:
+    1. Receive ``model`` and ``split`` via process().
+    2. Compute deterministic per-feature SHAP importance and mean_abs_shap.
+    3. Return feature_importance, mean_abs_shap, and model_id.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
-from typing import Any, Mapping, Sequence
+from typing import Any, Mapping
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -25,10 +34,6 @@ class SHAPExplainer(Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(model, Knot):
-            raise TypeError("SHAPExplainer: model must be a Knot")
-        if not isinstance(split, Knot):
-            raise TypeError("SHAPExplainer: split must be a Knot")
         super().__init__(model=model, split=split, _config=_config, **kwargs)
 
     async def process(
@@ -46,9 +51,8 @@ class SHAPExplainer(Knot):
         """
         try:
             import shap  # noqa: F401
-            _shap_available = True
         except ImportError:
-            _shap_available = False
+            pass
 
         features = model.feature_names if model.feature_names else split.test.feature_names
         feature_importance: dict[str, float] = {}

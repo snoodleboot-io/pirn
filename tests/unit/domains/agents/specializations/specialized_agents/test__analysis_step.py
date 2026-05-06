@@ -38,10 +38,25 @@ class TestAnalysisStepProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_agent_response(self) -> None:
         llm = StubLLMProvider(["x"])
         with Tapestry():
-            with self.assertRaises(TypeError):
-                _AnalysisStep(
-                    question="q",
-                    sql_response="not-a-response",  # type: ignore[arg-type]
-                    llm=llm,
-                    _config=KnotConfig(id="as"),
-                )
+            k = _AnalysisStep.__new__(_AnalysisStep)
+            object.__setattr__(k, "_config", KnotConfig(id="as"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                question="q",
+                sql_response="not-a-response",  # type: ignore[arg-type]
+                llm=llm,
+            )
+
+
+class TestProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_process_rejects_non_agent_response(self) -> None:
+        llm = StubLLMProvider(["x"])
+        with Tapestry():
+            k = _AnalysisStep.__new__(_AnalysisStep)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises(TypeError):
+            await k.process(
+                question="q",
+                sql_response="not-an-agent-response",  # type: ignore[arg-type]
+                llm=llm,
+            )

@@ -3,30 +3,22 @@
 from __future__ import annotations
 import unittest
 
-
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.domains.health.mri.brain_mask_extractor import BrainMaskExtractor
-from pirn.tapestry import Tapestry
 
-
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty(self) -> None:
-        with self.assertRaisesRegex(ValueError, "non-empty"):
-            BrainMaskExtractor(
-                nifti_path="",
-                output_mask_path="out",
-                _config=KnotConfig(id="b"),
-            )
+_CFG = KnotConfig(id="b")
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self) -> BrainMaskExtractor:
+        return BrainMaskExtractor(nifti_path="in.nii.gz", output_mask_path="mask.nii.gz", _config=_CFG)
+
+    async def test_rejects_empty(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "non-empty"):
+            await knot.process(nifti_path="", output_mask_path="mask.nii.gz")
+
     async def test_returns_mask_path(self) -> None:
-        with Tapestry() as t:
-            BrainMaskExtractor(
-                nifti_path="in.nii.gz",
-                output_mask_path="mask.nii.gz",
-                _config=KnotConfig(id="b"),
-            )
-        result = await t.run(RunRequest())
-        assert result.outputs["b"] == "mask.nii.gz"
+        knot = self._make_knot()
+        out = await knot.process(nifti_path="in.nii.gz", output_mask_path="mask.nii.gz")
+        assert out == "mask.nii.gz"

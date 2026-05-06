@@ -25,38 +25,34 @@ class _SplitSource(Knot):
         return DataSplit(train=ds, test=ds)
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_categorical_column(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                HashEncoder(
-                    split=_SplitSource(_config=KnotConfig(id="s")),
-                    categorical_column="",
-                    _config=KnotConfig(id="he"),
-                )
-
-    def test_rejects_n_components_less_than_1(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                HashEncoder(
-                    split=_SplitSource(_config=KnotConfig(id="s")),
-                    categorical_column="cat_col",
-                    n_components=0,
-                    _config=KnotConfig(id="he"),
-                )
-
-    def test_n_components_attribute(self) -> None:
-        with Tapestry():
-            he = HashEncoder(
-                split=_SplitSource(_config=KnotConfig(id="s")),
-                categorical_column="cat_col",
-                n_components=16,
-                _config=KnotConfig(id="he"),
-            )
-        self.assertEqual(he.n_components, 16)
-
-
 class TestProcess(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self) -> HashEncoder:
+        k = HashEncoder.__new__(HashEncoder)
+        object.__setattr__(k, "_config", KnotConfig(id="he"))
+        return k
+
+    def _make_split(self) -> DataSplit:
+        ds = MLDataset(name="ds", feature_names=("cat_col",), row_count=10)
+        return DataSplit(train=ds, test=ds)
+
+    async def test_rejects_empty_categorical_column(self) -> None:
+        k = self._make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=self._make_split(),
+                categorical_column="",
+                n_components=8,
+            )
+
+    async def test_rejects_n_components_less_than_1(self) -> None:
+        k = self._make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=self._make_split(),
+                categorical_column="cat_col",
+                n_components=0,
+            )
+
     async def test_appends_hash_features(self) -> None:
         with Tapestry() as t:
             src = _SplitSource(_config=KnotConfig(id="src"))

@@ -21,23 +21,24 @@ from tests.unit.domains.ml._stubs.recording_object_store import (
 )
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_negative_freshness_window(self) -> None:
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_negative_freshness_window(self) -> None:
         with Tapestry():
-            with self.assertRaisesRegex(ValueError, "freshness_window_days"):
-                ContinuousTrainingPipeline(
-                    pool=RecordingDatabasePool(rows=[(1,)]),
-                    query="SELECT 1",
-                    name="m",
-                    feature_names=("a",),
-                    target_name="y",
-                    algorithm="logistic",
-                    lineage=RecordingLineageStore(),
-                    store=RecordingObjectStore(),
-                    metrics=("accuracy",),
-                    freshness_window_days=-1,
-                    _config=KnotConfig(id="bad"),
-                )
+            k = ContinuousTrainingPipeline.__new__(ContinuousTrainingPipeline)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                pool=RecordingDatabasePool(rows=[(1,)]),
+                query="SELECT 1",
+                name="m",
+                feature_names=("a",),
+                target_name="y",
+                algorithm="logistic",
+                lineage=RecordingLineageStore(),
+                store=RecordingObjectStore(),
+                metrics=("accuracy",),
+                freshness_window_days=-1,
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

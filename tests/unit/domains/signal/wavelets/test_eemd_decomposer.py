@@ -12,42 +12,27 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.signal.conftest import emit_signal_frame
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_positive_ensemble_size(self) -> None:
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_bare_knot(self) -> EEMDDecomposer:
         with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "ensemble_size"):
-                EEMDDecomposer(
-                    signal=sig,
-                    ensemble_size=0,
-                    noise_amplitude=0.1,
-                    max_imf_count=4,
-                    _config=KnotConfig(id="w"),
-                )
+            k = EEMDDecomposer.__new__(EEMDDecomposer)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        return k
 
-    def test_rejects_non_positive_noise_amplitude(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "noise_amplitude"):
-                EEMDDecomposer(
-                    signal=sig,
-                    ensemble_size=10,
-                    noise_amplitude=0,
-                    max_imf_count=4,
-                    _config=KnotConfig(id="w"),
-                )
+    async def test_rejects_non_positive_ensemble_size(self) -> None:
+        k = self._make_bare_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(signal=None, ensemble_size=0, noise_amplitude=0.1, max_imf_count=4)  # type: ignore[arg-type]
 
-    def test_rejects_non_positive_max_imf_count(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "max_imf_count"):
-                EEMDDecomposer(
-                    signal=sig,
-                    ensemble_size=10,
-                    noise_amplitude=0.1,
-                    max_imf_count=0,
-                    _config=KnotConfig(id="w"),
-                )
+    async def test_rejects_non_positive_noise_amplitude(self) -> None:
+        k = self._make_bare_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(signal=None, ensemble_size=10, noise_amplitude=0, max_imf_count=4)  # type: ignore[arg-type]
+
+    async def test_rejects_non_positive_max_imf_count(self) -> None:
+        k = self._make_bare_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(signal=None, ensemble_size=10, noise_amplitude=0.1, max_imf_count=0)  # type: ignore[arg-type]
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

@@ -10,6 +10,23 @@ Stages:
 3. :class:`RAGPromptBuilder` — fold all collected hits + original query.
 4. :class:`LLMChatCall` (synthesize) — produce the final answer.
 5. :class:`RAGResponseBuilder` — wrap as :class:`AgentResponse`.
+
+Algorithm:
+    1. Prompt the LLM to decompose the query into exactly ``num_hops``
+       sub-questions (one per line) via :class:`LLMChatCall`.
+    2. Parse the response into at most ``num_hops`` non-empty lines;
+       fall back to ``[query]`` if parsing yields nothing.
+    3. For each sub-question, retrieve ``top_k`` hits from ``memory``
+       via :class:`MemorySearchRetriever` in separate inner tapestries;
+       accumulate all hits into a single list.
+    4. Build a unified prompt from the original query and all accumulated
+       hits via :class:`RAGPromptBuilder`.
+    5. Generate the final synthesized answer with :class:`LLMChatCall`.
+    6. Wrap the answer as an :class:`AgentResponse` via
+       :class:`RAGResponseBuilder` and return it.
+
+References:
+    - Multi-hop RAG: https://arxiv.org/abs/2402.03367
 """
 
 from __future__ import annotations
@@ -42,40 +59,16 @@ class MultiHopRAGPipeline(SubTapestry):
         self,
         *,
         query: Knot | str,
-        memory: MemoryStore,
-        llm: LLMProvider,
+        memory: Knot | MemoryStore,
+        llm: Knot | LLMProvider,
         _config: KnotConfig,
-        top_k: int = 5,
-        num_hops: int = 3,
+        top_k: Knot | int = 5,
+        num_hops: Knot | int = 3,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(memory, MemoryStore):
-            raise TypeError(
-                "MultiHopRAGPipeline: memory must be a MemoryStore, "
-                f"got {type(memory).__name__}"
-            )
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "MultiHopRAGPipeline: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
-        if not isinstance(top_k, int) or top_k <= 0:
-            raise ValueError(
-                "MultiHopRAGPipeline: top_k must be a positive int, "
-                f"got {top_k!r}"
-            )
-        if not isinstance(num_hops, int) or num_hops <= 0:
-            raise ValueError(
-                "MultiHopRAGPipeline: num_hops must be a positive int, "
-                f"got {num_hops!r}"
-            )
-        self._memory = memory
-        self._llm = llm
-        self._top_k = top_k
-        self._num_hops = num_hops
-        super().__init__(query=query, _config=_config, **kwargs)
+        super().__init__(query=query, memory=memory, llm=llm, top_k=top_k, num_hops=num_hops, _config=_config, **kwargs)
 
-    async def process(self, query: str, **_: Any) -> AgentResponse:
+    async def process(self, query: str, memory: MemoryStore, llm: LLMProvider, top_k: int, num_hops: int, **_: Any) -> AgentResponse:
         """Decompose the query, retrieve context per sub-question, and synthesize a final answer.
 
         Args:
@@ -87,20 +80,15 @@ class MultiHopRAGPipeline(SubTapestry):
         Raises:
             TypeError: If query is not a string.
         """
-        if not isinstance(query, str):
-            raise TypeError(
-                "MultiHopRAGPipeline: query must be a string, "
-                f"got {type(query).__name__}"
-            )
         decompose_prompt = (
-            f"Decompose the following question into exactly {self._num_hops} "
+            f"Decompose the following question into exactly {num_hops} "
             "concise sub-questions, one per line, with no numbering or bullets.\n\n"
             f"Question: {query}"
         )
         with Tapestry() as inner_decompose:
             LLMChatCall(
                 prompt=decompose_prompt,
-                llm=self._llm,
+                llm=llm,
                 _config=KnotConfig(id="decompose"),
             )
         decompose_result = await self._run_inner(inner_decompose)
@@ -109,7 +97,7 @@ class MultiHopRAGPipeline(SubTapestry):
             line.strip()
             for line in sub_questions_raw.splitlines()
             if line.strip()
-        ][: self._num_hops]
+        ][: num_hops]
         if not sub_questions:
             sub_questions = [query]
 
@@ -117,9 +105,9 @@ class MultiHopRAGPipeline(SubTapestry):
         for sub_q in sub_questions:
             with Tapestry() as inner_retrieve:
                 MemorySearchRetriever(
-                    store=self._memory,
+                    store=memory,
                     query=sub_q,
-                    top_k=self._top_k,
+                    top_k=top_k,
                     _config=KnotConfig(id="sub_retrieve"),
                 )
             sub_result = await self._run_inner(inner_retrieve)
@@ -135,7 +123,7 @@ class MultiHopRAGPipeline(SubTapestry):
             )
             answer_knot = LLMChatCall(
                 prompt=prompt_knot,
-                llm=self._llm,
+                llm=llm,
                 _config=KnotConfig(id="generate"),
             )
             RAGResponseBuilder(

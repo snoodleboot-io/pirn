@@ -16,31 +16,44 @@ from tests.unit.domains.ml._stubs.recording_database_pool import (
 )
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_zero_horizon(self) -> None:
-        with Tapestry():
-            with self.assertRaisesRegex(ValueError, "horizon"):
-                TimeSeriesForecastingPipeline(
-                    pool=RecordingDatabasePool(rows=[(1.0, 1.0)]),
-                    query="SELECT 1",
-                    time_column="ts",
-                    target_column="y",
-                    feature_names=("a",),
-                    horizon=0,
-                    _config=KnotConfig(id="bad"),
-                )
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_zero_horizon(self) -> None:
+        knot = TimeSeriesForecastingPipeline(
+            pool=RecordingDatabasePool(rows=[(1.0, 1.0)]),
+            query="SELECT 1",
+            time_column="ts",
+            target_column="y",
+            feature_names=("a",),
+            horizon=0,
+            _config=KnotConfig(id="bad"),
+        )
+        with self.assertRaisesRegex(ValueError, "horizon"):
+            await knot.process(
+                pool=RecordingDatabasePool(rows=[(1.0, 1.0)]),
+                query="SELECT 1",
+                time_column="ts",
+                target_column="y",
+                feature_names=("a",),
+                horizon=0,
+            )
 
-    def test_rejects_empty_feature_names(self) -> None:
-        with Tapestry():
-            with self.assertRaisesRegex(ValueError, "feature_names"):
-                TimeSeriesForecastingPipeline(
-                    pool=RecordingDatabasePool(rows=[(1.0,)]),
-                    query="SELECT 1",
-                    time_column="ts",
-                    target_column="y",
-                    feature_names=(),
-                    _config=KnotConfig(id="bad"),
-                )
+    async def test_rejects_empty_feature_names(self) -> None:
+        knot = TimeSeriesForecastingPipeline(
+            pool=RecordingDatabasePool(rows=[(1.0,)]),
+            query="SELECT 1",
+            time_column="ts",
+            target_column="y",
+            feature_names=(),
+            _config=KnotConfig(id="bad"),
+        )
+        with self.assertRaisesRegex(ValueError, "feature_names"):
+            await knot.process(
+                pool=RecordingDatabasePool(rows=[(1.0,)]),
+                query="SELECT 1",
+                time_column="ts",
+                target_column="y",
+                feature_names=(),
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

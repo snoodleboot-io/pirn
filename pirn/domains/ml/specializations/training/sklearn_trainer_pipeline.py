@@ -13,6 +13,18 @@ Composition (Block 5: ``training`` → ``evaluation`` → ``deployment``):
 
 The output is a primitive ``Mapping`` with ``model_id``, ``eval_report``
 and ``serialized_size``.
+
+Algorithm:
+    1. Receive ``split``, ``algorithm``, ``lineage``, ``store``,
+       ``metrics``, and ``hyperparameters`` via process().
+    2. Validate all inputs.
+    3. Wire Trainer → Evaluator → ModelSerializer → ModelRegistrar in an
+       inner Tapestry.
+    4. Run via _run_inner() and return model_id, eval_report, serialized_size.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -46,100 +58,94 @@ class SklearnTrainerPipeline(SubTapestry):
         self,
         *,
         split: Knot,
-        algorithm: str,
-        lineage: LineageStore,
-        store: ObjectStore,
-        metrics: Sequence[str],
-        hyperparameters: Mapping[str, Any] | None = None,
+        algorithm: Knot | str,
+        lineage: Knot | LineageStore,
+        store: Knot | ObjectStore,
+        metrics: Knot | Sequence[str],
+        hyperparameters: Knot | Mapping[str, Any] | None = None,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(split, Knot):
-            raise TypeError("SklearnTrainerPipeline: split must be a Knot")
-        if not isinstance(algorithm, str) or not algorithm:
-            raise ValueError(
-                "SklearnTrainerPipeline: algorithm must be a non-empty string"
-            )
-        if not isinstance(lineage, LineageStore):
-            raise TypeError(
-                "SklearnTrainerPipeline: lineage must be a LineageStore"
-            )
-        if not isinstance(store, ObjectStore):
-            raise TypeError(
-                "SklearnTrainerPipeline: store must be an ObjectStore"
-            )
-        metric_tuple = tuple(metrics)
-        if not metric_tuple:
-            raise ValueError(
-                "SklearnTrainerPipeline: metrics must be non-empty"
-            )
-        for metric in metric_tuple:
-            if not isinstance(metric, str) or not metric:
-                raise ValueError(
-                    "SklearnTrainerPipeline: every metric name must be a "
-                    "non-empty string"
-                )
-        if hyperparameters is not None and not isinstance(
-            hyperparameters, Mapping
-        ):
-            raise TypeError(
-                "SklearnTrainerPipeline: hyperparameters must be a Mapping"
-            )
-        self._algorithm = algorithm
-        self._lineage = lineage
-        self._store = store
-        self._metrics = metric_tuple
-        self._hyperparameters = (
-            dict(hyperparameters) if hyperparameters is not None else {}
+        super().__init__(
+            split=split,
+            algorithm=algorithm,
+            lineage=lineage,
+            store=store,
+            metrics=metrics,
+            hyperparameters=hyperparameters,
+            _config=_config,
+            **kwargs,
         )
-        super().__init__(split=split, _config=_config, **kwargs)
-
-    @property
-    def serializer_format(self) -> str:
-        return "joblib"
 
     async def process(
-        self, split: DataSplit, **_: Any
+        self,
+        split: DataSplit,
+        algorithm: str = "",
+        lineage: LineageStore | None = None,
+        store: ObjectStore | None = None,
+        metrics: Sequence[str] = (),
+        hyperparameters: Mapping[str, Any] | None = None,
+        **_: Any,
     ) -> dict[str, Any]:
         """Train the sklearn model, evaluate it, serialise with joblib, register it, and return a summary dict.
 
         Args:
             split: DataSplit used for training and evaluation.
+            algorithm: Non-empty algorithm identifier.
+            lineage: LineageStore for model registration.
+            store: ObjectStore for artifact storage.
+            metrics: Non-empty sequence of metric names.
+            hyperparameters: Optional mapping of additional hyperparameters.
 
         Returns:
             Dict with ``model_id`` (str), ``eval_report`` (:class:`EvalReport`),
             and ``serialized_size`` (int byte count of the joblib artifact).
 
         Raises:
-            TypeError: If the evaluator, serializer, or registrar output has an
-                unexpected type.
+            ValueError: If any input fails validation.
+            TypeError: If the evaluator, serializer, or registrar output has an unexpected type.
         """
+        if not isinstance(algorithm, str) or not algorithm:
+            raise ValueError("SklearnTrainerPipeline: algorithm must be a non-empty string")
+        if not isinstance(lineage, LineageStore):
+            raise TypeError("SklearnTrainerPipeline: lineage must be a LineageStore")
+        if not isinstance(store, ObjectStore):
+            raise TypeError("SklearnTrainerPipeline: store must be an ObjectStore")
+        metric_tuple = tuple(metrics)
+        if not metric_tuple:
+            raise ValueError("SklearnTrainerPipeline: metrics must be non-empty")
+        for metric in metric_tuple:
+            if not isinstance(metric, str) or not metric:
+                raise ValueError(
+                    "SklearnTrainerPipeline: every metric name must be a non-empty string"
+                )
+        if hyperparameters is not None and not isinstance(hyperparameters, Mapping):
+            raise TypeError("SklearnTrainerPipeline: hyperparameters must be a Mapping")
+        hp = dict(hyperparameters) if hyperparameters is not None else {}
         with Tapestry() as inner:
-            split_node = _emit_value(
-                value=split, _config=KnotConfig(id="split")
-            )
+            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
             model = Trainer(
                 split=split_node,
-                algorithm=self._algorithm,
-                hyperparameters=self._hyperparameters,
+                algorithm=algorithm,
+                hyperparameters=hp,
                 _config=KnotConfig(id="train"),
             )
             Evaluator(
                 model=model,
                 split=split_node,
-                metrics=self._metrics,
+                metrics=metric_tuple,
                 _config=KnotConfig(id="evaluate"),
             )
             serialized = ModelSerializer(
                 model=model,
-                format=self.serializer_format,
+                format="joblib",
                 _config=KnotConfig(id="serialize"),
             )
             ModelRegistrar(
                 serialized=serialized,
                 model=model,
-                lineage=self._lineage,
-                store=self._store,
+                lineage=lineage,
+                store=store,
                 _config=KnotConfig(id="register"),
             )
         result = await self._run_inner(inner)

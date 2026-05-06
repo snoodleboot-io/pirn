@@ -3,6 +3,18 @@
 Wraps :meth:`MemoryStore.search` (which yields an
 ``AsyncIterator[Mapping[str, Any]]``) into a single eager ``list`` of
 hits suitable for downstream context-injection knots in RAG pipelines.
+
+Algorithm:
+    1. Validate ``store``, ``top_k``, and ``query`` types.
+    2. Call ``store.search(query, top_k=top_k)``; the return type may
+       be an awaitable, an async iterable, or a plain list.
+    3. Await the result if it is an awaitable.
+    4. Drain up to ``top_k`` items if the result is an async iterable.
+    5. Slice to ``top_k`` if the result is a plain list.
+    6. Return the collected items as a ``list[Mapping[str, Any]]``.
+
+References:
+    - pirn-native implementation; no external algorithm reference.
 """
 
 from __future__ import annotations
@@ -21,22 +33,12 @@ class MemorySearchRetriever(Knot):
     def __init__(
         self,
         *,
-        store: MemoryStore,
+        store: Knot | MemoryStore,
         query: Knot | str,
         _config: KnotConfig,
-        top_k: int = 5,
+        top_k: Knot | int = 5,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(store, MemoryStore):
-            raise TypeError(
-                "MemorySearchRetriever: store must be a MemoryStore, "
-                f"got {type(store).__name__}"
-            )
-        if not isinstance(top_k, int) or top_k <= 0:
-            raise ValueError(
-                "MemorySearchRetriever: top_k must be a positive int, "
-                f"got {top_k!r}"
-            )
         super().__init__(
             store=store,
             query=query,
@@ -63,8 +65,19 @@ class MemorySearchRetriever(Knot):
             A list of up to top_k matching memory entries as Mapping objects.
 
         Raises:
-            TypeError: If query is not a string.
+            TypeError: If store is not a MemoryStore or query is not a string.
+            ValueError: If top_k is not a positive int.
         """
+        if not isinstance(store, MemoryStore):
+            raise TypeError(
+                "MemorySearchRetriever: store must be a MemoryStore, "
+                f"got {type(store).__name__}"
+            )
+        if not isinstance(top_k, int) or top_k <= 0:
+            raise ValueError(
+                "MemorySearchRetriever: top_k must be a positive int, "
+                f"got {top_k!r}"
+            )
         if not isinstance(query, str):
             raise TypeError(
                 "MemorySearchRetriever: query must be a string, "

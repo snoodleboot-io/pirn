@@ -52,3 +52,21 @@ class TestCodeResponseFormatterProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         out = result.outputs["crf"]
         assert out.usage["lint_warnings"] == 2
+
+
+class TestProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_process_returns_agent_response_with_code(self) -> None:
+        with Tapestry():
+            k = _CodeResponseFormatter.__new__(_CodeResponseFormatter)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        result = await k.process(code="def f(): pass", warnings=[])
+        assert isinstance(result, AgentResponse)
+        assert result.content == "def f(): pass"
+        assert result.usage["lint_warnings"] == 0
+
+    async def test_process_records_warning_count(self) -> None:
+        with Tapestry():
+            k = _CodeResponseFormatter.__new__(_CodeResponseFormatter)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        result = await k.process(code="code", warnings=["w1", "w2", "w3"])
+        assert result.usage["lint_warnings"] == 3

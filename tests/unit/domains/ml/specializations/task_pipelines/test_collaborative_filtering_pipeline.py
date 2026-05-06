@@ -16,32 +16,34 @@ from tests.unit.domains.ml._stubs.recording_database_pool import (
 )
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_invalid_algorithm(self) -> None:
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_invalid_algorithm(self) -> None:
         with Tapestry():
-            with self.assertRaisesRegex(ValueError, "algorithm"):
-                CollaborativeFilteringPipeline(
-                    pool=RecordingDatabasePool(rows=[(1, 2, 3.0)]),
-                    query="SELECT 1",
-                    user_column="user",
-                    item_column="item",
-                    rating_column="rating",
-                    algorithm="nmf",
-                    _config=KnotConfig(id="bad"),
-                )
+            k = CollaborativeFilteringPipeline.__new__(CollaborativeFilteringPipeline)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                pool=RecordingDatabasePool(rows=[(1, 2, 3.0)]),
+                query="SELECT 1",
+                user_column="user",
+                item_column="item",
+                rating_column="rating",
+                algorithm="nmf",
+            )
 
-    def test_rejects_zero_top_k(self) -> None:
+    async def test_rejects_zero_top_k(self) -> None:
         with Tapestry():
-            with self.assertRaisesRegex(ValueError, "top_k"):
-                CollaborativeFilteringPipeline(
-                    pool=RecordingDatabasePool(rows=[(1, 2, 3.0)]),
-                    query="SELECT 1",
-                    user_column="user",
-                    item_column="item",
-                    rating_column="rating",
-                    top_k=0,
-                    _config=KnotConfig(id="bad"),
-                )
+            k = CollaborativeFilteringPipeline.__new__(CollaborativeFilteringPipeline)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                pool=RecordingDatabasePool(rows=[(1, 2, 3.0)]),
+                query="SELECT 1",
+                user_column="user",
+                item_column="item",
+                rating_column="rating",
+                top_k=0,
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

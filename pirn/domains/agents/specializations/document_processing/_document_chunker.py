@@ -1,6 +1,20 @@
 """``_DocumentChunker`` — internal helper Knot for :class:`DocumentIngestionPipeline`.
 
-Splits text into overlapping fixed-size chunks. Internal API.
+Algorithm:
+    1. Receive resolved ``text``, ``chunk_size``, and ``chunk_overlap``.
+    2. Validate chunk_size > 0 and 0 <= chunk_overlap < chunk_size.
+    3. Stride = chunk_size - chunk_overlap.
+    4. Slide a window of size chunk_size over text by stride until exhausted.
+    5. Return the list of chunk strings.
+
+Math:
+    stride = chunk_size - chunk_overlap
+    N_chunks ≈ ceil(len(text) / stride)
+
+References:
+    - Standard overlapping sliding-window text chunking.
+
+Internal API.
 """
 
 from __future__ import annotations
@@ -18,8 +32,8 @@ class _DocumentChunker(Knot):
         self,
         *,
         text: Knot | str,
-        chunk_size: int,
-        chunk_overlap: int,
+        chunk_size: Knot | int,
+        chunk_overlap: Knot | int,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:

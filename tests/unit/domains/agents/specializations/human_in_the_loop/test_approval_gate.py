@@ -1,60 +1,38 @@
-"""Tests for :class:`ApprovalGate`."""
+"""Tests for :class:`ApprovalCheck`."""
 
 from __future__ import annotations
 import unittest
 
-
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
-from pirn.domains.agents.specializations.human_in_the_loop.approval_gate import (
-    ApprovalGate,
+from pirn.domains.agents.specializations.human_in_the_loop.approval_check import (
+    ApprovalCheck,
 )
 from pirn.domains.agents.types.agent_response import AgentResponse
 from pirn.tapestry import Tapestry
 
 
-class TestApprovalGateConstruction(unittest.IsolatedAsyncioTestCase):
-    async def test_rejects_non_bool_auto_approve(self) -> None:
-        response = AgentResponse(content="ok", finish_reason="stop")
-        with self.assertRaisesRegex(TypeError, "auto_approve must be a bool"):
-            with Tapestry():
-                ApprovalGate(
-                    response=response,
-                    auto_approve="yes",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="ag"),
-                )
+def _make_knot() -> ApprovalCheck:
+    with Tapestry():
+        return ApprovalCheck(
+            response=AgentResponse(content="ok", finish_reason="stop"),
+            _config=KnotConfig(id="ag"),
+        )
 
 
-class TestApprovalGateAutoApprove(unittest.IsolatedAsyncioTestCase):
+class TestApprovalCheckProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_true_when_auto_approve(self) -> None:
+        k = _make_knot()
         response = AgentResponse(content="draft", finish_reason="stop")
-        with Tapestry() as t:
-            ApprovalGate(
-                response=response,
-                auto_approve=True,
-                _config=KnotConfig(id="ag"),
-            )
-        result = await t.run(RunRequest())
-        assert result.succeeded
-        assert result.outputs["ag"] is True
+        result = await k.process(response=response, auto_approve=True)
+        assert result is True
 
     async def test_returns_false_without_auto_approve(self) -> None:
+        k = _make_knot()
         response = AgentResponse(content="draft", finish_reason="stop")
-        with Tapestry() as t:
-            ApprovalGate(
-                response=response,
-                auto_approve=False,
-                _config=KnotConfig(id="ag"),
-            )
-        result = await t.run(RunRequest())
-        assert result.succeeded
-        assert result.outputs["ag"] is False
+        result = await k.process(response=response, auto_approve=False)
+        assert result is False
 
     async def test_rejects_non_agent_response(self) -> None:
+        k = _make_knot()
         with self.assertRaises(TypeError):
-            with Tapestry():
-                ApprovalGate(
-                    response="not-a-response",  # type: ignore[arg-type]
-                    auto_approve=True,
-                    _config=KnotConfig(id="ag"),
-                )
+            await k.process(response="not-a-response", auto_approve=False)  # type: ignore[arg-type]

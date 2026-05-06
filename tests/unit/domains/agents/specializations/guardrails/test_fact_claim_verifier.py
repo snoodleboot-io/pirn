@@ -7,7 +7,6 @@ from typing import Any
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.domains.agents.memory_store import MemoryStore
 from pirn.domains.agents.specializations.guardrails.fact_claim_verifier import (
     FactClaimVerifier,
@@ -44,55 +43,34 @@ class _HitStore(MemoryStore):
         pass
 
 
-class TestFactClaimVerifierConstruction(unittest.TestCase):
-    def test_rejects_non_memory_store(self) -> None:
-        with self.assertRaisesRegex(TypeError, "MemoryStore"):
-            with Tapestry():
-                FactClaimVerifier(
-                    response=AgentResponse(content="ok", finish_reason="stop"),
-                    claims=["claim"],
-                    store="bad",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="fcv"),
-                )
+def _make_knot(store: MemoryStore) -> FactClaimVerifier:
+    with Tapestry():
+        return FactClaimVerifier(
+            response=AgentResponse(content="ok", finish_reason="stop"),
+            claims=[],
+            store=store,
+            _config=KnotConfig(id="fcv"),
+        )
 
 
 class TestFactClaimVerifierProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_original_response_when_all_verified(self) -> None:
         store = _HitStore(supported=("water is wet",))
         response = AgentResponse(content="ok", finish_reason="stop")
-        with Tapestry() as t:
-            FactClaimVerifier(
-                response=response,
-                claims=["water is wet"],
-                store=store,
-                _config=KnotConfig(id="fcv"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["fcv"]
+        k = _make_knot(store)
+        out = await k.process(response=response, claims=["water is wet"], store=store)
         assert out.content == "ok"
 
     async def test_appends_warning_for_unverified_claim(self) -> None:
         store = _HitStore(supported=())  # no hits
         response = AgentResponse(content="The moon is cheese.", finish_reason="stop")
-        with Tapestry() as t:
-            FactClaimVerifier(
-                response=response,
-                claims=["moon is cheese"],
-                store=store,
-                _config=KnotConfig(id="fcv"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["fcv"]
+        k = _make_knot(store)
+        out = await k.process(response=response, claims=["moon is cheese"], store=store)
         assert "Unverified" in out.content
         assert "moon is cheese" in out.content
 
     async def test_rejects_non_agent_response(self) -> None:
         store = _HitStore(supported=())
-        with Tapestry():
-            with self.assertRaises(TypeError):
-                FactClaimVerifier(
-                    response="not-a-response",  # type: ignore[arg-type]
-                    claims=[],
-                    store=store,
-                    _config=KnotConfig(id="fcv"),
-                )
+        k = _make_knot(store)
+        with self.assertRaises(TypeError):
+            await k.process(response="not-a-response", claims=[], store=store)  # type: ignore[arg-type]

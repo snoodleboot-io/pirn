@@ -14,28 +14,26 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.signal.conftest import emit_signal_frame
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_positive_state_dim(self) -> None:
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_non_positive_state_dim(self) -> None:
         with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "state_dim"):
-                ExtendedKalmanFilter(
-                    signal=sig,
-                    state_dim=0,
-                    observation_dim=1,
-                    _config=KnotConfig(id="ekf"),
-                )
+            k = ExtendedKalmanFilter.__new__(ExtendedKalmanFilter)
+            object.__setattr__(k, "_config", KnotConfig(id="ekf"))
+        signal = SignalFrame(
+            signal_id="test", channel_count=1, sample_rate_hz=1000.0, samples_per_channel=1024
+        )
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(signal=signal, state_dim=0, observation_dim=1)
 
-    def test_rejects_non_positive_observation_dim(self) -> None:
+    async def test_rejects_non_positive_observation_dim(self) -> None:
         with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "observation_dim"):
-                ExtendedKalmanFilter(
-                    signal=sig,
-                    state_dim=2,
-                    observation_dim=0,
-                    _config=KnotConfig(id="ekf"),
-                )
+            k = ExtendedKalmanFilter.__new__(ExtendedKalmanFilter)
+            object.__setattr__(k, "_config", KnotConfig(id="ekf"))
+        signal = SignalFrame(
+            signal_id="test", channel_count=1, sample_rate_hz=1000.0, samples_per_channel=1024
+        )
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(signal=signal, state_dim=2, observation_dim=0)
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

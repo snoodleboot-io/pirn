@@ -5,6 +5,26 @@ incoming :class:`AgentMessage`, rejects any whose ``content`` matches
 one of the deny patterns (raising :class:`ValueError`), and replaces
 PII matches with ``"<redacted>"`` literal substitutes. Returns the
 cleaned tuple of messages.
+
+Algorithm:
+    1. Compile all ``deny_patterns`` and ``pii_patterns`` strings via
+       :func:`compile_safe_pattern`.
+    2. Iterate over ``messages`` in order:
+       a. Raise :class:`TypeError` if an element is not an :class:`AgentMessage`.
+       b. Run deny-pattern matching in a thread (``asyncio.to_thread``) and
+          raise :class:`ValueError` if any pattern matches the message content.
+       c. Apply PII substitution in a thread, replacing each match with the
+          literal string ``"<redacted>"``.
+    3. Construct a new :class:`AgentMessage` for each input with the redacted
+       content and all other fields (``role``, ``name``, ``tool_call_id``,
+       ``created_at``) preserved.
+    4. Return the collected messages as an immutable ``tuple``.
+
+
+References:
+    - pirn-native: :class:`pirn.domains.agents.types.agent_message.AgentMessage`
+    - Python stdlib: :mod:`asyncio` (``to_thread``)
+    - Python stdlib: :mod:`re`
 """
 
 from __future__ import annotations
@@ -27,38 +47,18 @@ class InputMessageScrubber(Knot):
         self,
         *,
         messages: Knot | Sequence[AgentMessage],
-        deny_patterns: Sequence[str],
-        pii_patterns: Sequence[str],
+        deny_patterns: Knot | Sequence[str],
+        pii_patterns: Knot | Sequence[str],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        deny_compiled: list[re.Pattern[str]] = []
-        for index, raw in enumerate(deny_patterns):
-            if not isinstance(raw, str):
-                raise TypeError(
-                    f"InputMessageScrubber: deny_patterns[{index}] must be a "
-                    f"string, got {type(raw).__name__}"
-                )
-            deny_compiled.append(
-                compile_safe_pattern(raw, index=index, owner="InputMessageScrubber", field="deny_patterns")
-            )
-        pii_compiled: list[re.Pattern[str]] = []
-        for index, raw in enumerate(pii_patterns):
-            if not isinstance(raw, str):
-                raise TypeError(
-                    f"InputMessageScrubber: pii_patterns[{index}] must be a "
-                    f"string, got {type(raw).__name__}"
-                )
-            pii_compiled.append(
-                compile_safe_pattern(raw, index=index, owner="InputMessageScrubber", field="pii_patterns")
-            )
-        self._deny_compiled = tuple(deny_compiled)
-        self._pii_compiled = tuple(pii_compiled)
-        super().__init__(messages=messages, _config=_config, **kwargs)
+        super().__init__(messages=messages, deny_patterns=deny_patterns, pii_patterns=pii_patterns, _config=_config, **kwargs)
 
     async def process(
         self,
         messages: Sequence[AgentMessage],
+        deny_patterns: Sequence[str] = (),
+        pii_patterns: Sequence[str] = (),
         **_: Any,
     ) -> tuple[AgentMessage, ...]:
         """Validate each message against deny patterns and redact PII matches, returning cleaned messages.
@@ -73,6 +73,14 @@ class InputMessageScrubber(Knot):
             TypeError: If any element of messages is not an AgentMessage.
             ValueError: If any message content matches a deny pattern.
         """
+        deny_compiled = tuple(
+            compile_safe_pattern(raw, index=i, owner="InputMessageScrubber", field="deny_patterns")
+            for i, raw in enumerate(deny_patterns)
+        )
+        pii_compiled = tuple(
+            compile_safe_pattern(raw, index=i, owner="InputMessageScrubber", field="pii_patterns")
+            for i, raw in enumerate(pii_patterns)
+        )
         cleaned: list[AgentMessage] = []
         for index, message in enumerate(messages):
             if not isinstance(message, AgentMessage):
@@ -83,7 +91,7 @@ class InputMessageScrubber(Knot):
             content = message.content
 
             def _check_deny(c: str = content) -> re.Pattern[str] | None:
-                for p in self._deny_compiled:
+                for p in deny_compiled:
                     if p.search(c):
                         return p
                 return None
@@ -96,7 +104,7 @@ class InputMessageScrubber(Knot):
                 )
 
             def _apply_pii(c: str = content) -> str:
-                for p in self._pii_compiled:
+                for p in pii_compiled:
                     c = p.sub("<redacted>", c)
                 return c
 

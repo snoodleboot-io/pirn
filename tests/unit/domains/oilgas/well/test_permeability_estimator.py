@@ -12,21 +12,15 @@ from pirn.domains.oilgas.well.permeability_estimator import PermeabilityEstimato
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_invalid_method(self) -> None:
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_invalid_method(self) -> None:
+        k = PermeabilityEstimator.__new__(PermeabilityEstimator)
+        object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaisesRegex(ValueError, "method"):
-            with Tapestry():
-                las = LasFileIngester(
-                    file_path="/x",
-                    well_id="W",
-                    curves=("GR",),
-                    _config=KnotConfig(id="i"),
-                )
-                PermeabilityEstimator(
-                    las_file=las,
-                    method="bogus",
-                    _config=KnotConfig(id="p"),
-                )
+            await k.process(
+                las_file=LASFile(well_id="W", curves=("GR",)),
+                method="bogus",
+            )
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

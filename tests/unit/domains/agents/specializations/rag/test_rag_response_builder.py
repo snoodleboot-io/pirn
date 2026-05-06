@@ -47,3 +47,21 @@ class TestRAGResponseBuilderProcess(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert not result.succeeded
+
+
+class TestProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_process_rejects_non_string_answer(self) -> None:
+        with Tapestry():
+            k = RAGResponseBuilder.__new__(RAGResponseBuilder)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises(TypeError):
+            await k.process(answer=42)  # type: ignore[arg-type]
+
+    async def test_process_returns_agent_response(self) -> None:
+        with Tapestry():
+            k = RAGResponseBuilder.__new__(RAGResponseBuilder)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        result = await k.process(answer="hello world")
+        assert isinstance(result, AgentResponse)
+        assert result.content == "hello world"
+        assert result.finish_reason == "stop"

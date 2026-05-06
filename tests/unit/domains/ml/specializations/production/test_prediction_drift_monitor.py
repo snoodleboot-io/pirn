@@ -35,20 +35,24 @@ async def emit_model() -> TrainedModel:
     return TrainedModel(model_id="m1", algorithm="logistic")
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_nonpositive_sigma(self) -> None:
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_nonpositive_sigma(self) -> None:
         with Tapestry():
-            baseline = emit_baseline(_config=KnotConfig(id="b"))
-            current = emit_current(_config=KnotConfig(id="c"))
-            model = emit_model(_config=KnotConfig(id="model"))
-            with self.assertRaisesRegex(ValueError, "sigma_threshold"):
-                PredictionDriftMonitor(
-                    model=model,
-                    baseline=baseline,
-                    current=current,
-                    sigma_threshold=-1.0,
-                    _config=KnotConfig(id="bad"),
-                )
+            k = PredictionDriftMonitor.__new__(PredictionDriftMonitor)
+            object.__setattr__(k, "_config", KnotConfig(id="pdm"))
+        baseline = DataSplit(
+            train=MLDataset(name="b:train", feature_names=("a",), row_count=800),
+            test=MLDataset(name="b:test", feature_names=("a",), row_count=200),
+        )
+        current = DataSplit(
+            train=MLDataset(name="c:train", feature_names=("a",), row_count=100),
+            test=MLDataset(name="c:test", feature_names=("a",), row_count=25),
+        )
+        model = TrainedModel(model_id="m1", algorithm="logistic")
+        with self.assertRaisesRegex((TypeError, ValueError), "sigma_threshold"):
+            await k.process(
+                model=model, baseline=baseline, current=current, sigma_threshold=-1.0
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

@@ -3,6 +3,20 @@
 Takes a list of :class:`ToolCall` instances and a registry of :class:`Tool`
 objects, calls each tool in parallel via ``asyncio.gather``, and returns
 the collected :class:`ToolResult` list.
+
+Algorithm:
+    1. Validate that each element of ``tool_calls`` is a :class:`ToolCall`.
+    2. Build a name-keyed registry from the supplied ``tools`` sequence.
+    3. For each call, look up the tool by name; emit a not-found error result
+       if the name is absent from the registry.
+    4. Invoke all tools concurrently via ``asyncio.gather``; catch exceptions
+       per-call and convert them to error results.
+    5. Return the results list in the same order as the input calls.
+
+
+References:
+    - Python ``asyncio.gather`` documentation:
+      https://docs.python.org/3/library/asyncio-task.html#asyncio.gather
 """
 
 from __future__ import annotations
@@ -25,10 +39,31 @@ class ParallelToolCaller(Knot):
         self,
         *,
         tool_calls: Knot | Sequence[ToolCall],
-        tools: Sequence[Tool],
+        tools: Knot | Sequence[Tool],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(tool_calls=tool_calls, tools=tools, _config=_config, **kwargs)
+
+    async def process(
+        self,
+        tool_calls: Sequence[ToolCall],
+        tools: Sequence[Tool],
+        **_: Any,
+    ) -> list[ToolResult]:
+        """Invoke all tool calls in parallel and return the collected results.
+
+        Args:
+            tool_calls: The sequence of ToolCall instances to execute concurrently.
+            tools: The sequence of Tool instances available for invocation.
+
+        Returns:
+            A list of ToolResult instances in the same order as the input calls.
+
+        Raises:
+            TypeError: If any element of tools is not a Tool or tool_calls element
+                is not a ToolCall.
+        """
         tool_list = list(tools)
         for index, tool in enumerate(tool_list):
             if not isinstance(tool, Tool):
@@ -36,27 +71,8 @@ class ParallelToolCaller(Knot):
                     f"ParallelToolCaller: tools[{index}] must be a Tool, "
                     f"got {type(tool).__name__}"
                 )
-        self._tool_registry: dict[str, Tool] = {
-            tool.name: tool for tool in tool_list
-        }
-        super().__init__(tool_calls=tool_calls, _config=_config, **kwargs)
+        tool_registry: dict[str, Tool] = {tool.name: tool for tool in tool_list}
 
-    async def process(
-        self,
-        tool_calls: Sequence[ToolCall],
-        **_: Any,
-    ) -> list[ToolResult]:
-        """Invoke all tool calls in parallel and return the collected results.
-
-        Args:
-            tool_calls: The sequence of ToolCall instances to execute concurrently.
-
-        Returns:
-            A list of ToolResult instances in the same order as the input calls.
-
-        Raises:
-            TypeError: If any element of tool_calls is not a ToolCall.
-        """
         call_list = list(tool_calls)
         for index, call in enumerate(call_list):
             if not isinstance(call, ToolCall):
@@ -66,7 +82,7 @@ class ParallelToolCaller(Knot):
                 )
 
         async def _invoke(call: ToolCall) -> ToolResult:
-            tool = self._tool_registry.get(call.tool_name)
+            tool = tool_registry.get(call.tool_name)
             if tool is None:
                 return ToolResult(
                     call_id=call.call_id,

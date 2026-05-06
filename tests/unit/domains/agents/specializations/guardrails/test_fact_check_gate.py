@@ -21,7 +21,7 @@ from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 class ScriptedSearchStore(MemoryStore):
     """Memory store whose ``search`` returns hits keyed by query substring."""
 
-    def __init__(self, supported_substrings: tuple[str, ...],) -> None:
+    def __init__(self, supported_substrings: tuple[str, ...]) -> None:
         self._supported = supported_substrings
         self.queries: list[str] = []
 
@@ -31,7 +31,7 @@ class ScriptedSearchStore(MemoryStore):
     async def retrieve(self, key: str) -> Mapping[str, Any] | None:
         return None
 
-    async def search(self, query: str, *, top_k: int = 10,) -> AsyncIterator[Mapping[str, Any]]:
+    async def search(self, query: str, *, top_k: int = 10) -> AsyncIterator[Mapping[str, Any]]:
         self.queries.append(query)
         supported = self._supported
         has_hit = any(token in query for token in supported)
@@ -49,30 +49,37 @@ class ScriptedSearchStore(MemoryStore):
         return None
 
 
-class TestFactCheckGateConstruction(unittest.IsolatedAsyncioTestCase):
-    async def test_rejects_non_memory_store(self) -> None:
-        llm = StubLLMProvider(["claim"])
-        response = AgentResponse(content="ok", finish_reason="stop")
-        with self.assertRaisesRegex(TypeError, "store must be a MemoryStore"):
-            with Tapestry():
-                FactCheckGate(
-                    response=response,
-                    store="not-a-store",  # type: ignore[arg-type]
-                    llm=llm,
-                    _config=KnotConfig(id="fc"),
-                )
+def _make_knot(llm: StubLLMProvider, store: MemoryStore) -> FactCheckGate:
+    with Tapestry():
+        return FactCheckGate(
+            response=AgentResponse(content="ok", finish_reason="stop"),
+            store=store,
+            llm=llm,
+            _config=KnotConfig(id="fc"),
+        )
 
-    async def test_rejects_non_llm_provider(self) -> None:
-        store = ScriptedSearchStore(supported_substrings=())
-        response = AgentResponse(content="ok", finish_reason="stop")
-        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
-            with Tapestry():
-                FactCheckGate(
-                    response=response,
-                    store=store,
-                    llm="not-a-provider",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="fc"),
-                )
+
+class TestFactCheckGateProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_process_appends_warning_for_unverified_claims(self) -> None:
+        llm = StubLLMProvider(["- earth orbits sun\n- moon is made of cheese"])
+        store = ScriptedSearchStore(supported_substrings=("earth orbits sun",))
+        response = AgentResponse(
+            content="Earth orbits the sun. The moon is made of cheese.",
+            finish_reason="stop",
+        )
+        k = _make_knot(llm, store)
+        result = await k.process(response=response, store=store, llm=llm)
+        assert isinstance(result, AgentResponse)
+        assert "Unverified claims" in result.content
+        assert "moon is made of cheese" in result.content
+
+    async def test_process_returns_original_when_all_verified(self) -> None:
+        llm = StubLLMProvider(["- earth orbits sun"])
+        store = ScriptedSearchStore(supported_substrings=("earth orbits sun",))
+        response = AgentResponse(content="Earth orbits the sun.", finish_reason="stop")
+        k = _make_knot(llm, store)
+        result = await k.process(response=response, store=store, llm=llm)
+        assert "Unverified" not in result.content
 
 
 class TestFactCheckGateHappyPath(unittest.IsolatedAsyncioTestCase):

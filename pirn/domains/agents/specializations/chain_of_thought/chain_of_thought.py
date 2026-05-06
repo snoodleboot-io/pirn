@@ -1,4 +1,17 @@
-"""``ChainOfThought`` — step-by-step reasoning via a single LLM call."""
+"""``ChainOfThought`` — step-by-step reasoning via a single LLM call.
+
+Algorithm:
+    1. Receive the resolved ``prompt`` string and ``LLMProvider``.
+    2. Validate input types at process time.
+    3. Build a two-message request: system step-by-step instruction + user prompt.
+    4. Call ``llm.chat`` with the messages.
+    5. Extract text from the raw response.
+    6. Return the full reasoning chain as an ``AgentResponse``.
+
+
+References:
+    - Wei et al. (2022) "Chain-of-Thought Prompting Elicits Reasoning in Large Language Models"
+"""
 
 from __future__ import annotations
 
@@ -26,40 +39,40 @@ class ChainOfThought(Knot):
         self,
         *,
         prompt: Knot | str,
-        llm: LLMProvider,
+        llm: Knot | LLMProvider,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "ChainOfThought: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
-        self._llm = llm
-        super().__init__(prompt=prompt, _config=_config, **kwargs)
+        super().__init__(prompt=prompt, llm=llm, _config=_config, **kwargs)
 
-    async def process(self, prompt: str, **_: Any) -> AgentResponse:
+    async def process(self, prompt: str, llm: LLMProvider, **_: Any) -> AgentResponse:
         """Send the prompt to the LLM with a step-by-step system instruction and return the AgentResponse.
 
         Args:
             prompt: The user question or task to reason through step-by-step.
+            llm: LLM provider used to perform the chat completion.
 
         Returns:
             An AgentResponse whose content contains the full reasoning chain.
 
         Raises:
-            TypeError: If prompt is not a string.
+            TypeError: If prompt is not a string or llm is not an LLMProvider.
         """
         if not isinstance(prompt, str):
             raise TypeError(
                 "ChainOfThought: prompt must be a string, "
                 f"got {type(prompt).__name__}"
             )
+        if not isinstance(llm, LLMProvider):
+            raise TypeError(
+                "ChainOfThought: llm must be an LLMProvider, "
+                f"got {type(llm).__name__}"
+            )
         messages = [
             {"role": "system", "content": type(self)._system_prompt},
             {"role": "user", "content": prompt},
         ]
-        raw = await self._llm.chat(messages=messages)
+        raw = await llm.chat(messages=messages)
         content = self._extract_text(raw)
         return AgentResponse(content=content)
 

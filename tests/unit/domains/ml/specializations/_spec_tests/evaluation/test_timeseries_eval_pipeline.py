@@ -34,18 +34,35 @@ async def emit_model() -> TrainedModel:
     )
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_time_column(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            model = emit_model(_config=KnotConfig(id="model"))
-            with self.assertRaisesRegex(ValueError, "time_column"):
-                TimeSeriesEvalPipeline(
-                    model=model,
-                    split=split,
-                    time_column="",
-                    _config=KnotConfig(id="bad"),
-                )
+def _make_pipeline() -> TimeSeriesEvalPipeline:
+    with Tapestry():
+        split = emit_split(_config=KnotConfig(id="split"))
+        model = emit_model(_config=KnotConfig(id="model"))
+        pipeline = TimeSeriesEvalPipeline(
+            model=model,
+            split=split,
+            time_column="ts",
+            _config=KnotConfig(id="ts-eval"),
+        )
+    return pipeline
+
+
+def _fixtures():  # type: ignore[return]
+    train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
+    test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
+    split = DataSplit(train=train, test=test)
+    model = TrainedModel(
+        model_id="ts1", algorithm="arima", feature_names=("a",), target_name="y"
+    )
+    return model, split
+
+
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_empty_time_column(self) -> None:
+        pipeline = _make_pipeline()
+        model, split = _fixtures()
+        with self.assertRaises((TypeError, ValueError)):
+            await pipeline.process(model=model, split=split, time_column="")
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

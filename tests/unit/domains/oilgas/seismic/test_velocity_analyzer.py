@@ -3,50 +3,32 @@
 from __future__ import annotations
 import unittest
 
-
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
-from pirn.domains.oilgas.seismic.segy_file_ingester import SegyFileIngester
 from pirn.domains.oilgas.seismic.velocity_analyzer import VelocityAnalyzer
-from pirn.tapestry import Tapestry
+from pirn.domains.oilgas.types.segy_volume import SegyVolume
 
-
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_numeric_velocity(self) -> None:
-        with self.assertRaisesRegex(TypeError, "initial_velocity_m_s"):
-            with Tapestry():
-                gather = SegyFileIngester(
-                    file_path="/x", volume_id="v", _config=KnotConfig(id="i")
-                )
-                VelocityAnalyzer(
-                    gather=gather,
-                    initial_velocity_m_s="fast",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="va"),
-                )
-
-    def test_rejects_non_positive_velocity(self) -> None:
-        with self.assertRaisesRegex(ValueError, "positive"):
-            with Tapestry():
-                gather = SegyFileIngester(
-                    file_path="/x", volume_id="v", _config=KnotConfig(id="i")
-                )
-                VelocityAnalyzer(
-                    gather=gather,
-                    initial_velocity_m_s=-1.0,
-                    _config=KnotConfig(id="va"),
-                )
+_GATHER = SegyVolume(volume_id="vol")
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self) -> VelocityAnalyzer:
+        return VelocityAnalyzer(
+            gather=None,  # type: ignore[arg-type]
+            initial_velocity_m_s=2200.0,
+            _config=KnotConfig(id="va", validate_io=False),
+        )
+
+    async def test_rejects_non_numeric_velocity(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(TypeError, "initial_velocity_m_s"):
+            await knot.process(gather=_GATHER, initial_velocity_m_s="fast")  # type: ignore[arg-type]
+
+    async def test_rejects_non_positive_velocity(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "positive"):
+            await knot.process(gather=_GATHER, initial_velocity_m_s=-1.0)
+
     async def test_returns_initial_velocity(self) -> None:
-        with Tapestry() as t:
-            gather = SegyFileIngester(
-                file_path="/x", volume_id="vol", _config=KnotConfig(id="i")
-            )
-            VelocityAnalyzer(
-                gather=gather,
-                initial_velocity_m_s=2200.0,
-                _config=KnotConfig(id="va"),
-            )
-        result = await t.run(RunRequest())
-        assert result.outputs["va"] == 2200.0
+        knot = self._make_knot()
+        out = await knot.process(gather=_GATHER, initial_velocity_m_s=2200.0)
+        assert out == 2200.0

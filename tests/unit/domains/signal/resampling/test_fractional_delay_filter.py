@@ -1,64 +1,45 @@
 """Unit tests for :class:`FractionalDelayFilter`."""
 
 from __future__ import annotations
+
 import unittest
 
+import pytest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
+from pirn.core.parameter import Parameter
 from pirn.domains.signal.resampling.fractional_delay_filter import FractionalDelayFilter
 from pirn.domains.signal.types.signal_frame import SignalFrame
-from pirn.tapestry import Tapestry
-from tests.unit.domains.signal.conftest import emit_signal_frame
+from tests.unit.domains.signal.conftest import make_signal_frame
+
+_SIGNAL = make_signal_frame()
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_negative_delay_samples(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "delay_samples"):
-                FractionalDelayFilter(
-                    signal=sig,
-                    delay_samples=-0.5,
-                    filter_order=4,
-                    _config=KnotConfig(id="fd"),
-                )
-
-    def test_rejects_non_positive_filter_order(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "filter_order"):
-                FractionalDelayFilter(
-                    signal=sig,
-                    delay_samples=0.5,
-                    filter_order=0,
-                    _config=KnotConfig(id="fd"),
-                )
-
-    def test_valid_construction(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            fd = FractionalDelayFilter(
-                signal=sig,
-                delay_samples=0.5,
-                filter_order=4,
-                _config=KnotConfig(id="fd"),
-            )
-        assert fd.delay_samples == 0.5
-        assert fd.filter_order == 4
+def _up(name: str = "signal") -> Parameter:
+    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
 
 
-class TestProcess(unittest.IsolatedAsyncioTestCase):
+class TestFractionalDelayFilter(unittest.IsolatedAsyncioTestCase):
+    def _make(self) -> FractionalDelayFilter:
+        return FractionalDelayFilter(
+            signal=_up(),
+            delay_samples=0.5,
+            filter_order=4,
+            _config=KnotConfig(id="fdf"),
+        )
+
+    async def test_rejects_negative_delay_samples(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="delay_samples"):
+            await knot.process(_SIGNAL, delay_samples=-0.5, filter_order=4)
+
+    async def test_rejects_non_positive_filter_order(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="filter_order"):
+            await knot.process(_SIGNAL, delay_samples=0.5, filter_order=0)
+
     async def test_emits_signal_frame(self) -> None:
-        with Tapestry() as t:
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            FractionalDelayFilter(
-                signal=sig,
-                delay_samples=0.25,
-                filter_order=3,
-                _config=KnotConfig(id="fd"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["fd"]
+        knot = self._make()
+        out = await knot.process(_SIGNAL, delay_samples=0.5, filter_order=4)
         assert isinstance(out, SignalFrame)
-        assert out.sample_rate_hz == 1000.0
+        assert out.signal_id == "test:frac_delayed"

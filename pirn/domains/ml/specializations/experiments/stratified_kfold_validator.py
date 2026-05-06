@@ -14,6 +14,20 @@ The stratification column is recorded in the aggregate report's
 ``details`` for audit; the orchestration layer's :class:`CrossValidator`
 emits logical fold metadata only — concrete subclasses are responsible
 for the actual stratified row partitioning.
+
+Algorithm:
+    1. Receive ``dataset`` (MLDataset), ``stratify_column``, ``algorithm``,
+       ``metrics``, and ``k`` via process().
+    2. Validate all inputs.
+    3. Wire CrossValidator in an inner Tapestry to produce k folds.
+    4. Wire Trainer + Evaluator per fold in a second inner Tapestry.
+    5. Aggregate per-fold metrics (mean) and return an EvalReport.
+
+Math:
+    mean_metric = sum(fold_metric) / k
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -47,69 +61,75 @@ class StratifiedKFoldValidator(SubTapestry):
         self,
         *,
         dataset: Knot,
-        stratify_column: str,
-        algorithm: str,
-        metrics: Sequence[str],
-        k: int = 5,
+        stratify_column: Knot | str,
+        algorithm: Knot | str,
+        metrics: Knot | Sequence[str],
+        k: Knot | int = 5,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(dataset, Knot):
-            raise TypeError(
-                "StratifiedKFoldValidator: dataset must be a Knot"
-            )
+        super().__init__(
+            dataset=dataset,
+            stratify_column=stratify_column,
+            algorithm=algorithm,
+            metrics=metrics,
+            k=k,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        dataset: MLDataset,
+        stratify_column: str = "",
+        algorithm: str = "",
+        metrics: Sequence[str] = (),
+        k: int = 5,
+        **_: Any,
+    ) -> EvalReport:
+        """Run stratified K-fold cross-validation and return an aggregate EvalReport with per-fold mean metrics.
+
+        Args:
+            dataset: MLDataset reference to partition into k folds.
+            stratify_column: Non-empty column name used for stratification.
+            algorithm: Non-empty algorithm name string.
+            metrics: Non-empty sequence of metric name strings.
+            k: Number of folds; must be an int >= 2.
+
+        Returns:
+            EvalReport with averaged per-fold metrics and per-fold details in the details dict.
+
+        Raises:
+            ValueError: If any input fails validation.
+            TypeError: If any inner fold evaluator does not return an EvalReport.
+        """
         if not isinstance(k, int):
             raise TypeError("StratifiedKFoldValidator: k must be an int")
         if k < 2:
             raise ValueError("StratifiedKFoldValidator: k must be >= 2")
         if not isinstance(stratify_column, str) or not stratify_column:
             raise ValueError(
-                "StratifiedKFoldValidator: stratify_column must be a "
-                "non-empty string"
+                "StratifiedKFoldValidator: stratify_column must be a non-empty string"
             )
         if not isinstance(algorithm, str) or not algorithm:
             raise ValueError(
-                "StratifiedKFoldValidator: algorithm must be a non-empty "
-                "string"
+                "StratifiedKFoldValidator: algorithm must be a non-empty string"
             )
         metric_tuple = tuple(metrics)
         if not metric_tuple:
-            raise ValueError(
-                "StratifiedKFoldValidator: metrics must be non-empty"
-            )
+            raise ValueError("StratifiedKFoldValidator: metrics must be non-empty")
         for metric in metric_tuple:
             if not isinstance(metric, str) or not metric:
                 raise ValueError(
-                    "StratifiedKFoldValidator: every metric name must be "
-                    "a non-empty string"
+                    "StratifiedKFoldValidator: every metric name must be a non-empty string"
                 )
-        self._k = k
-        self._stratify_column = stratify_column
-        self._algorithm = algorithm
-        self._metrics = metric_tuple
-        super().__init__(dataset=dataset, _config=_config, **kwargs)
-
-    async def process(
-        self, dataset: MLDataset, **_: Any
-    ) -> EvalReport:
-        """Run stratified K-fold cross-validation and return an aggregate EvalReport with per-fold mean metrics.
-
-        Args:
-            dataset: MLDataset reference to partition into k folds.
-
-        Returns:
-            EvalReport with averaged per-fold metrics and per-fold details in the details dict.
-
-        Raises:
-            TypeError: If any inner fold evaluator does not return an EvalReport.
-        """
         with Tapestry() as inner:
             dataset_node = _emit_value(
                 value=dataset, _config=KnotConfig(id="dataset")
             )
             CrossValidator(
                 dataset=dataset_node,
-                k=self._k,
+                k=k,
                 _config=KnotConfig(id="folds"),
             )
         folds_result = await self._run_inner(inner)
@@ -123,14 +143,14 @@ class StratifiedKFoldValidator(SubTapestry):
                 )
                 model = Trainer(
                     split=split_node,
-                    algorithm=self._algorithm,
+                    algorithm=algorithm,
                     hyperparameters={"fold_index": fold_index},
                     _config=KnotConfig(id=f"train_{fold_index}"),
                 )
                 Evaluator(
                     model=model,
                     split=split_node,
-                    metrics=self._metrics,
+                    metrics=metric_tuple,
                     _config=KnotConfig(id=f"evaluate_{fold_index}"),
                 )
         eval_result = await self._run_inner(inner_eval)
@@ -138,22 +158,21 @@ class StratifiedKFoldValidator(SubTapestry):
             report = eval_result.outputs[f"evaluate_{fold_index}"]
             if not isinstance(report, EvalReport):
                 raise TypeError(
-                    f"StratifiedKFoldValidator: fold {fold_index} did not "
-                    "produce an EvalReport"
+                    f"StratifiedKFoldValidator: fold {fold_index} did not produce an EvalReport"
                 )
             per_fold_metrics.append(
                 {name: float(value) for name, value in report.metrics.items()}
             )
         aggregated = self._aggregate(per_fold_metrics)
         return EvalReport(
-            model_id=f"{self._algorithm}:kfold-{self._k}",
+            model_id=f"{algorithm}:kfold-{k}",
             dataset_name=dataset.name,
             metrics=MappingProxyType(aggregated),
             details=MappingProxyType(
                 {
-                    "k": self._k,
-                    "stratify_column": self._stratify_column,
-                    "algorithm": self._algorithm,
+                    "k": k,
+                    "stratify_column": stratify_column,
+                    "algorithm": algorithm,
                     "per_fold_metrics": per_fold_metrics,
                 }
             ),

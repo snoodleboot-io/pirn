@@ -73,3 +73,13 @@ class TestJsonExtractorAttemptProcess(unittest.IsolatedAsyncioTestCase):
         await t.run(RunRequest())
         system_msg = llm.calls[0][0]["content"]
         assert "previous attempt failed" in system_msg
+
+
+class TestProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_process_rejects_non_string_prompt(self) -> None:
+        llm = StubLLMProvider(['{"x": 1}'])
+        with Tapestry():
+            k = _JsonExtractorAttempt.__new__(_JsonExtractorAttempt)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises(TypeError):
+            await k.process(prompt=42, llm=llm, schema={"x": "int"}, prior_error="")  # type: ignore[arg-type]

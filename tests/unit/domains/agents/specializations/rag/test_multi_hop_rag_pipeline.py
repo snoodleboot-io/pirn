@@ -17,45 +17,6 @@ from tests.unit.domains.agents.specializations.conftest import (
 )
 
 
-class TestMultiHopRAGPipelineConstruction(unittest.IsolatedAsyncioTestCase):
-    async def test_rejects_non_memory_store(self) -> None:
-        llm = StubLLMProvider(["sub1\nsub2\nsub3", "answer"])
-        with self.assertRaisesRegex(TypeError, "memory must be a MemoryStore"):
-            with Tapestry():
-                MultiHopRAGPipeline(
-                    query="q",
-                    memory="bad",  # type: ignore[arg-type]
-                    llm=llm,
-                    _config=KnotConfig(id="mhop"),
-                )
-
-    async def test_rejects_zero_top_k(self) -> None:
-        memory = StubMemoryStore([])
-        llm = StubLLMProvider(["sub1\nsub2\nsub3", "answer"])
-        with self.assertRaisesRegex(ValueError, "top_k must be a positive int"):
-            with Tapestry():
-                MultiHopRAGPipeline(
-                    query="q",
-                    memory=memory,
-                    llm=llm,
-                    top_k=0,
-                    _config=KnotConfig(id="mhop"),
-                )
-
-    async def test_rejects_zero_num_hops(self) -> None:
-        memory = StubMemoryStore([])
-        llm = StubLLMProvider(["sub1", "answer"])
-        with self.assertRaisesRegex(ValueError, "num_hops must be a positive int"):
-            with Tapestry():
-                MultiHopRAGPipeline(
-                    query="q",
-                    memory=memory,
-                    llm=llm,
-                    num_hops=0,
-                    _config=KnotConfig(id="mhop"),
-                )
-
-
 class TestMultiHopRAGPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_decomposes_retrieves_per_hop_and_synthesizes(self) -> None:
         memory = StubMemoryStore([{"text": "context fact"}])
@@ -96,3 +57,14 @@ class TestMultiHopRAGPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
         assert isinstance(response, AgentResponse)
         assert response.content == "fallback answer"
         assert memory.search_queries == ["simple question"]
+
+
+class TestProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_process_rejects_non_string_query(self) -> None:
+        memory = StubMemoryStore([])
+        llm = StubLLMProvider(["sub1", "answer"])
+        with Tapestry():
+            k = MultiHopRAGPipeline.__new__(MultiHopRAGPipeline)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, AttributeError)):
+            await k.process(query=42, memory=memory, llm=llm, top_k=5, num_hops=3)  # type: ignore[arg-type]

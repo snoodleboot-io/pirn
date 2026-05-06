@@ -1,4 +1,15 @@
-"""``ToolResultAggregator`` — merge a sequence of :class:`ToolResult`s into a mapping."""
+"""``ToolResultAggregator`` — merge a sequence of :class:`ToolResult`s into a mapping.
+
+Algorithm:
+    1. Receive the resolved sequence of ``ToolResult`` instances.
+    2. Validate input types at process time.
+    3. For each result, map ``call_id → result`` if successful, or ``call_id → {"error": msg}`` if not.
+    4. Return the aggregated dict.
+
+
+References:
+    - :class:`pirn.domains.agents.types.tool_result.ToolResult`
+"""
 
 from __future__ import annotations
 

@@ -5,6 +5,19 @@ a caller-supplied sequence and returns the chosen label as a string.
 The model output is matched case-insensitively against the labels; if
 no label matches, a :class:`ValueError` is raised so the caller surfaces
 the failure rather than silently returning a wrong value.
+
+Algorithm:
+    1. Receive ``prompt``, ``llm``, and ``labels`` in :meth:`process`.
+    2. Validate that ``llm`` is an :class:`LLMProvider` and ``labels`` is non-empty.
+    3. Build an inner :class:`Tapestry` containing a single
+       :class:`_EnumClassifierAttempt` knot.
+    4. Run the inner tapestry and retrieve the classifier output.
+    5. Return the chosen label string.
+
+
+References:
+    - :class:`pirn.domains.agents.llm_provider.LLMProvider`
+    - :class:`pirn.domains.agents.specializations.structured_output._enum_classifier_attempt._EnumClassifierAttempt`
 """
 
 from __future__ import annotations
@@ -29,11 +42,34 @@ class EnumClassifierPipeline(SubTapestry):
         self,
         *,
         prompt: Knot | str,
-        llm: LLMProvider,
-        labels: Sequence[str],
+        llm: Knot | LLMProvider,
+        labels: Knot | Sequence[str],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(prompt=prompt, llm=llm, labels=labels, _config=_config, **kwargs)
+
+    async def process(
+        self,
+        prompt: str,
+        llm: LLMProvider,
+        labels: Sequence[str],
+        **_: Any,
+    ) -> str:
+        """Classify the prompt into one of the allowed labels and return the matching label string.
+
+        Args:
+            prompt: The text to classify against the configured label set.
+            llm: The LLM provider to use for classification.
+            labels: The sequence of allowed label strings.
+
+        Returns:
+            The label string selected by the LLM from the allowed set.
+
+        Raises:
+            TypeError: If llm is not an LLMProvider or prompt is not a string.
+            ValueError: If labels is empty or the classifier produces a non-string result.
+        """
         if not isinstance(llm, LLMProvider):
             raise TypeError(
                 "EnumClassifierPipeline: llm must be an LLMProvider, "
@@ -50,23 +86,6 @@ class EnumClassifierPipeline(SubTapestry):
                     f"EnumClassifierPipeline: labels[{index}] must be a "
                     f"non-empty string, got {label!r}"
                 )
-        self._llm = llm
-        self._labels = labels_tuple
-        super().__init__(prompt=prompt, _config=_config, **kwargs)
-
-    async def process(self, prompt: str, **_: Any) -> str:
-        """Classify the prompt into one of the allowed labels and return the matching label string.
-
-        Args:
-            prompt: The text to classify against the configured label set.
-
-        Returns:
-            The label string selected by the LLM from the allowed set.
-
-        Raises:
-            TypeError: If prompt is not a string.
-            ValueError: If the classifier produces a non-string result.
-        """
         if not isinstance(prompt, str):
             raise TypeError(
                 "EnumClassifierPipeline: prompt must be a string, "
@@ -75,8 +94,8 @@ class EnumClassifierPipeline(SubTapestry):
         with Tapestry() as inner:
             _EnumClassifierAttempt(
                 prompt=prompt,
-                llm=self._llm,
-                labels=self._labels,
+                llm=llm,
+                labels=labels_tuple,
                 _config=KnotConfig(id="classify"),
             )
         inner_result = await self._run_inner(inner)

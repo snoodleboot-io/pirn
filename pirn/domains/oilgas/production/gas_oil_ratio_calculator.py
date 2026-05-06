@@ -1,4 +1,22 @@
-"""``GasOilRatioCalculator`` — compute GOR from oil- and gas-rate series."""
+"""``GasOilRatioCalculator`` — compute GOR from oil- and gas-rate series.
+
+Algorithm:
+    1. Receive aligned oil-rate and gas-rate ScadaTimeSeries.
+    2. For each aligned sample, divide the gas rate by the oil rate.
+    3. Return a ScadaTimeSeries of GOR values.
+
+Math:
+    Gas-oil ratio at time :math:`t`:
+
+    $$\\text{GOR}(t) = \\frac{q_g(t)}{q_o(t)} \\quad [\\text{scf/bbl}]$$
+
+    where :math:`q_g(t)` is gas rate (scf/day) and :math:`q_o(t)` is oil
+    rate (bbl/day).
+
+References:
+    - Ahmed, T. (2010). *Reservoir Engineering Handbook*, 4th ed. Gulf
+      Professional Publishing, Chapter 1 (GOR definition and field units).
+"""
 
 from __future__ import annotations
 

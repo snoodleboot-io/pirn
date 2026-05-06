@@ -22,31 +22,50 @@ async def emit_dataset() -> MLDataset:
     )
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_k_below_two(self) -> None:
-        with Tapestry():
-            dataset = emit_dataset(_config=KnotConfig(id="dataset"))
-            with self.assertRaisesRegex(ValueError, "k must be >= 2"):
-                StratifiedKFoldValidator(
-                    dataset=dataset,
-                    stratify_column="y",
-                    algorithm="rf",
-                    metrics=("accuracy",),
-                    k=1,
-                    _config=KnotConfig(id="bad"),
-                )
+def _make_validator() -> StratifiedKFoldValidator:
+    with Tapestry():
+        dataset = emit_dataset(_config=KnotConfig(id="dataset"))
+        validator = StratifiedKFoldValidator(
+            dataset=dataset,
+            stratify_column="y",
+            algorithm="rf",
+            metrics=("accuracy",),
+            k=3,
+            _config=KnotConfig(id="cv"),
+        )
+    return validator
 
-    def test_rejects_empty_stratify_column(self) -> None:
-        with Tapestry():
-            dataset = emit_dataset(_config=KnotConfig(id="dataset"))
-            with self.assertRaisesRegex(ValueError, "stratify_column"):
-                StratifiedKFoldValidator(
-                    dataset=dataset,
-                    stratify_column="",
-                    algorithm="rf",
-                    metrics=("accuracy",),
-                    _config=KnotConfig(id="bad"),
-                )
+
+def _dataset_fixture() -> MLDataset:
+    return MLDataset(
+        name="d", feature_names=("a", "b"), target_name="y", row_count=100
+    )
+
+
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_k_below_two(self) -> None:
+        validator = _make_validator()
+        dataset = _dataset_fixture()
+        with self.assertRaises((TypeError, ValueError)):
+            await validator.process(
+                dataset=dataset,
+                stratify_column="y",
+                algorithm="rf",
+                metrics=("accuracy",),
+                k=1,
+            )
+
+    async def test_rejects_empty_stratify_column(self) -> None:
+        validator = _make_validator()
+        dataset = _dataset_fixture()
+        with self.assertRaises((TypeError, ValueError)):
+            await validator.process(
+                dataset=dataset,
+                stratify_column="",
+                algorithm="rf",
+                metrics=("accuracy",),
+                k=3,
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

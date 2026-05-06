@@ -1,9 +1,15 @@
-"""``ApprovalGate`` — pause pipeline execution and await human approval.
+"""``ApprovalCheck`` — pause pipeline execution and await human approval.
 
-A :class:`Knot` that emits an approval-request record for the upstream
-system and returns a boolean indicating whether execution was approved.
-When ``auto_approve=True`` the gate always returns ``True`` without
-emitting a request; this mode is intended for automated testing only.
+Algorithm:
+    1. Receive the resolved ``response`` AgentResponse and ``auto_approve`` flag.
+    2. Validate that ``response`` is an AgentResponse instance.
+    3. If ``auto_approve`` is True, return True immediately without emitting a request.
+    4. Emit an approval-request record for the upstream system.
+    5. Return False (pending approval from a human operator).
+
+
+References:
+    - Human-in-the-loop design patterns for agentic AI systems.
 """
 
 from __future__ import annotations
@@ -15,34 +21,30 @@ from pirn.core.knot_config import KnotConfig
 from pirn.domains.agents.types.agent_response import AgentResponse
 
 
-class ApprovalGate(Knot):
+class ApprovalCheck(Knot):
     """Pause execution and emit an approval request; return approval bool."""
 
     def __init__(
         self,
         *,
         response: Knot | AgentResponse,
-        auto_approve: bool = False,
+        auto_approve: Knot | bool = False,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(auto_approve, bool):
-            raise TypeError(
-                "ApprovalGate: auto_approve must be a bool, "
-                f"got {type(auto_approve).__name__}"
-            )
-        self._auto_approve = auto_approve
-        super().__init__(response=response, _config=_config, **kwargs)
+        super().__init__(response=response, auto_approve=auto_approve, _config=_config, **kwargs)
 
     async def process(
         self,
         response: AgentResponse,
+        auto_approve: bool = False,
         **_: Any,
     ) -> bool:
         """Emit an approval request record and return whether execution is approved.
 
         Args:
             response: The agent response pending approval.
+            auto_approve: When True, skip the approval request and return True immediately.
 
         Returns:
             True if approved (always True when auto_approve=True), False otherwise.
@@ -52,9 +54,9 @@ class ApprovalGate(Knot):
         """
         if not isinstance(response, AgentResponse):
             raise TypeError(
-                "ApprovalGate: response must be an AgentResponse, "
+                "ApprovalCheck: response must be an AgentResponse, "
                 f"got {type(response).__name__}"
             )
-        if self._auto_approve:
+        if auto_approve:
             return True
         return False

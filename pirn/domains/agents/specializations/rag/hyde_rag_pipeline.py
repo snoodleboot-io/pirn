@@ -13,6 +13,21 @@ Stages composed inside the inner :class:`Tapestry`:
    query.
 4. :class:`LLMChatCall` (final) — produce the actual answer.
 5. :class:`RAGResponseBuilder` — wrap as :class:`AgentResponse`.
+
+Algorithm:
+    1. Prompt the LLM to sketch a concise hypothetical answer to the
+       query via :class:`LLMChatCall` (hypothesis step).
+    2. Use the hypothesis text as the search query in
+       :class:`MemorySearchRetriever` to retrieve ``top_k`` hits whose
+       embeddings cluster near the expected answer space.
+    3. Build a final prompt from the retrieved hits and the *original*
+       query via :class:`RAGPromptBuilder`.
+    4. Generate the actual answer with a second :class:`LLMChatCall`.
+    5. Wrap the answer as an :class:`AgentResponse` via
+       :class:`RAGResponseBuilder` and return it.
+
+References:
+    - HyDE (Hypothetical Document Embeddings): https://arxiv.org/abs/2212.10496
 """
 
 from __future__ import annotations
@@ -45,33 +60,15 @@ class HyDERAGPipeline(SubTapestry):
         self,
         *,
         query: Knot | str,
-        memory: MemoryStore,
-        llm: LLMProvider,
+        memory: Knot | MemoryStore,
+        llm: Knot | LLMProvider,
         _config: KnotConfig,
-        top_k: int = 5,
+        top_k: Knot | int = 5,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(memory, MemoryStore):
-            raise TypeError(
-                "HyDERAGPipeline: memory must be a MemoryStore, "
-                f"got {type(memory).__name__}"
-            )
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "HyDERAGPipeline: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
-        if not isinstance(top_k, int) or top_k <= 0:
-            raise ValueError(
-                "HyDERAGPipeline: top_k must be a positive int, "
-                f"got {top_k!r}"
-            )
-        self._memory = memory
-        self._llm = llm
-        self._top_k = top_k
-        super().__init__(query=query, _config=_config, **kwargs)
+        super().__init__(query=query, memory=memory, llm=llm, top_k=top_k, _config=_config, **kwargs)
 
-    async def process(self, query: str, **_: Any) -> AgentResponse:
+    async def process(self, query: str, memory: MemoryStore, llm: LLMProvider, top_k: int, **_: Any) -> AgentResponse:
         """Generate a hypothetical answer, retrieve on it, then produce the final answer via the LLM.
 
         Args:
@@ -83,11 +80,6 @@ class HyDERAGPipeline(SubTapestry):
         Raises:
             TypeError: If query is not a string.
         """
-        if not isinstance(query, str):
-            raise TypeError(
-                "HyDERAGPipeline: query must be a string, "
-                f"got {type(query).__name__}"
-            )
         hypothesis_prompt = (
             "Sketch a concise hypothetical answer to the following question. "
             "Use plausible terminology even if uncertain.\n\n"
@@ -96,13 +88,13 @@ class HyDERAGPipeline(SubTapestry):
         with Tapestry() as inner:
             hypothesis = LLMChatCall(
                 prompt=hypothesis_prompt,
-                llm=self._llm,
+                llm=llm,
                 _config=KnotConfig(id="hypothesis"),
             )
             retrieved = MemorySearchRetriever(
-                store=self._memory,
+                store=memory,
                 query=hypothesis,
-                top_k=self._top_k,
+                top_k=top_k,
                 _config=KnotConfig(id="retrieve"),
             )
             prompt = RAGPromptBuilder(
@@ -112,7 +104,7 @@ class HyDERAGPipeline(SubTapestry):
             )
             answer = LLMChatCall(
                 prompt=prompt,
-                llm=self._llm,
+                llm=llm,
                 _config=KnotConfig(id="generate"),
             )
             RAGResponseBuilder(

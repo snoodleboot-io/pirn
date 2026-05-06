@@ -1,39 +1,39 @@
 """Unit tests for :class:`HighPassFilter`."""
 
 from __future__ import annotations
+
 import unittest
 
+import pytest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
+from pirn.core.parameter import Parameter
 from pirn.domains.signal.filters.high_pass_filter import HighPassFilter
 from pirn.domains.signal.types.signal_frame import SignalFrame
-from pirn.tapestry import Tapestry
-from tests.unit.domains.signal.conftest import emit_signal_frame
+from tests.unit.domains.signal.conftest import make_signal_frame
+
+_SIGNAL = make_signal_frame()
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_positive_cutoff(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "cutoff_hz"):
-                HighPassFilter(
-                    signal=sig,
-                    cutoff_hz=0,
-                    _config=KnotConfig(id="hp"),
-                )
+def _up(name: str = "signal") -> Parameter:
+    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
 
 
-class TestProcess(unittest.IsolatedAsyncioTestCase):
+class TestHighPassFilter(unittest.IsolatedAsyncioTestCase):
+    def _make(self) -> HighPassFilter:
+        return HighPassFilter(
+            signal=_up(),
+            cutoff_hz=500.0,
+            _config=KnotConfig(id="hp"),
+        )
+
+    async def test_rejects_non_positive_cutoff(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="cutoff_hz"):
+            await knot.process(_SIGNAL, cutoff_hz=0.0)
+
     async def test_emits_signal_frame(self) -> None:
-        with Tapestry() as t:
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            HighPassFilter(
-                signal=sig,
-                cutoff_hz=10.0,
-                _config=KnotConfig(id="hp"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["hp"]
+        knot = self._make()
+        out = await knot.process(_SIGNAL, cutoff_hz=500.0)
         assert isinstance(out, SignalFrame)
         assert out.signal_id == "test:highpass"

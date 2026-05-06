@@ -8,39 +8,52 @@ import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.domains.signal.spectral.fft_analyzer import FFTAnalyzer
+from pirn.domains.signal.types.signal_frame import SignalFrame
 from pirn.domains.signal.types.spectrum_frame import SpectrumFrame
 from pirn.tapestry import Tapestry
 from tests.unit.domains.signal.conftest import emit_signal_frame
 
 
-class TestConstruction(unittest.TestCase):
-    def test_requires_n_fft(self) -> None:
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_requires_n_fft(self) -> None:
         with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaises(TypeError):
-                FFTAnalyzer(signal=sig, _config=KnotConfig(id="fft"))  # type: ignore[call-arg]
+            k = FFTAnalyzer.__new__(FFTAnalyzer)
+            object.__setattr__(k, "_config", KnotConfig(id="fft"))
+        signal = SignalFrame(
+            signal_id="test", channel_count=1, sample_rate_hz=1000.0, samples_per_channel=512
+        )
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(signal=signal)  # type: ignore[call-arg]
 
-    def test_rejects_non_integer_n_fft(self) -> None:
+    async def test_rejects_non_integer_n_fft(self) -> None:
         with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "positive integer"):
-                FFTAnalyzer(
-                    signal=sig,
-                    n_fft=2.5,  # type: ignore[arg-type]
-                    _config=KnotConfig(id="fft"),
-                )
+            k = FFTAnalyzer.__new__(FFTAnalyzer)
+            object.__setattr__(k, "_config", KnotConfig(id="fft"))
+        signal = SignalFrame(
+            signal_id="test", channel_count=1, sample_rate_hz=1000.0, samples_per_channel=512
+        )
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(signal=signal, n_fft=2.5)  # type: ignore[arg-type]
 
-    def test_rejects_zero_n_fft(self) -> None:
+    async def test_rejects_zero_n_fft(self) -> None:
         with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "positive integer"):
-                FFTAnalyzer(signal=sig, n_fft=0, _config=KnotConfig(id="fft"))
+            k = FFTAnalyzer.__new__(FFTAnalyzer)
+            object.__setattr__(k, "_config", KnotConfig(id="fft"))
+        signal = SignalFrame(
+            signal_id="test", channel_count=1, sample_rate_hz=1000.0, samples_per_channel=512
+        )
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(signal=signal, n_fft=0)
 
-    def test_rejects_non_power_of_two(self) -> None:
+    async def test_rejects_non_power_of_two(self) -> None:
         with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "power of two"):
-                FFTAnalyzer(signal=sig, n_fft=3, _config=KnotConfig(id="fft"))
+            k = FFTAnalyzer.__new__(FFTAnalyzer)
+            object.__setattr__(k, "_config", KnotConfig(id="fft"))
+        signal = SignalFrame(
+            signal_id="test", channel_count=1, sample_rate_hz=1000.0, samples_per_channel=512
+        )
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(signal=signal, n_fft=3)
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

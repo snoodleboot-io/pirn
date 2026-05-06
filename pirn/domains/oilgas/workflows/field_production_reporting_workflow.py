@@ -3,6 +3,24 @@
 Composition:
     SCADA ingest -> production-test validation -> GOR / water-cut /
     decline-rate -> production forecast.
+
+Algorithm:
+    1. Receive a live ``HistorianConnection``, SCADA tags and time
+       parameters, and KPI / forecast configuration.
+    2. Validate all string and numeric inputs in ``process()``.
+    3. Build and wire an inner ``Tapestry`` with:
+       - ``ScadaHistorianIngester`` (×3) for oil, gas, and water rates,
+       - ``ProductionTestValidator`` for rate QC,
+       - ``GasOilRatioCalculator``, ``WaterCutTracker``, ``DeclineRateEstimator``,
+       - ``DeclineCurveAnalyzer`` and ``ProductionForecaster``.
+    4. Execute the inner tapestry and return the ``RunResult``.
+
+
+References:
+    - API RP 44 (2nd ed., 2015) — Recommended Practice for Sampling
+      Petroleum Reservoir Fluids (production rate QC context).
+    - Arps, J.J. (1945). Analysis of decline curves. *Trans. AIME*, 160,
+      228–247. SPE-945228-G.
 """
 
 from __future__ import annotations
@@ -10,6 +28,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_result import RunResult
 from pirn.domains.oilgas.production.decline_rate_estimator import DeclineRateEstimator
@@ -37,6 +56,38 @@ class FieldProductionReportingWorkflow(SubTapestry):
         self,
         *,
         connection: HistorianConnection,
+        oil_tag: Knot | str,
+        gas_tag: Knot | str,
+        water_tag: Knot | str,
+        since: Knot | datetime,
+        sample_interval_sec: Knot | float,
+        forecast_months: Knot | int,
+        max_oil_rate_bopd: Knot | float,
+        max_gas_rate_mscfd: Knot | float,
+        max_water_rate_bwpd: Knot | float,
+        decline_window_days: Knot | int,
+        _config: KnotConfig,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            connection=connection,
+            oil_tag=oil_tag,
+            gas_tag=gas_tag,
+            water_tag=water_tag,
+            since=since,
+            sample_interval_sec=sample_interval_sec,
+            forecast_months=forecast_months,
+            max_oil_rate_bopd=max_oil_rate_bopd,
+            max_gas_rate_mscfd=max_gas_rate_mscfd,
+            max_water_rate_bwpd=max_water_rate_bwpd,
+            decline_window_days=decline_window_days,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        connection: HistorianConnection,
         oil_tag: str,
         gas_tag: str,
         water_tag: str,
@@ -47,13 +98,25 @@ class FieldProductionReportingWorkflow(SubTapestry):
         max_gas_rate_mscfd: float,
         max_water_rate_bwpd: float,
         decline_window_days: int,
-        _config: KnotConfig,
-        **kwargs: Any,
-    ) -> None:
-        if not isinstance(connection, HistorianConnection):
-            raise TypeError(
-                "FieldProductionReportingWorkflow: connection must be a HistorianConnection"
-            )
+        **_: Any,
+    ) -> RunResult:
+        """Build and execute the SCADA ingest-to-forecast inner tapestry and return its RunResult.
+
+        Args:
+            oil_tag: Non-empty SCADA tag name for oil rate.
+            gas_tag: Non-empty SCADA tag name for gas rate.
+            water_tag: Non-empty SCADA tag name for water rate.
+            since: Start datetime for SCADA history pull.
+            sample_interval_sec: Positive sample interval in seconds.
+            forecast_months: Positive number of months to forecast.
+            max_oil_rate_bopd: Positive maximum allowable oil rate in BOPD.
+            max_gas_rate_mscfd: Positive maximum allowable gas rate in MSCFD.
+            max_water_rate_bwpd: Positive maximum allowable water rate in BWPD.
+            decline_window_days: Positive rolling window for decline estimation in days.
+
+        Returns:
+            RunResult from the inner pipeline spanning SCADA ingest through production forecast.
+        """
         for label, tag in (
             ("oil_tag", oil_tag),
             ("gas_tag", gas_tag),
@@ -63,52 +126,33 @@ class FieldProductionReportingWorkflow(SubTapestry):
                 raise ValueError(
                     f"FieldProductionReportingWorkflow: {label} must be a non-empty string"
                 )
-        self._connection = connection
-        self._oil_tag = oil_tag
-        self._gas_tag = gas_tag
-        self._water_tag = water_tag
-        self._since = since
-        self._sample_interval_sec = float(sample_interval_sec)
-        self._forecast_months = int(forecast_months)
-        self._max_oil_rate_bopd = float(max_oil_rate_bopd)
-        self._max_gas_rate_mscfd = float(max_gas_rate_mscfd)
-        self._max_water_rate_bwpd = float(max_water_rate_bwpd)
-        self._decline_window_days = int(decline_window_days)
-        super().__init__(_config=_config, **kwargs)
-
-    async def process(self, **_: Any) -> RunResult:
-        """Build and execute the SCADA ingest-to-forecast inner tapestry and return its RunResult.
-
-        Returns:
-            RunResult from the inner pipeline spanning SCADA ingest through production forecast.
-        """
         with Tapestry() as inner:
             oil = ScadaHistorianIngester(
-                connection=self._connection,
-                tag=self._oil_tag,
-                since=self._since,
-                sample_interval_sec=self._sample_interval_sec,
+                connection=connection,
+                tag=oil_tag,
+                since=since,
+                sample_interval_sec=sample_interval_sec,
                 _config=KnotConfig(id="oil_ingest"),
             )
             gas = ScadaHistorianIngester(
-                connection=self._connection,
-                tag=self._gas_tag,
-                since=self._since,
-                sample_interval_sec=self._sample_interval_sec,
+                connection=connection,
+                tag=gas_tag,
+                since=since,
+                sample_interval_sec=sample_interval_sec,
                 _config=KnotConfig(id="gas_ingest"),
             )
             water = ScadaHistorianIngester(
-                connection=self._connection,
-                tag=self._water_tag,
-                since=self._since,
-                sample_interval_sec=self._sample_interval_sec,
+                connection=connection,
+                tag=water_tag,
+                since=since,
+                sample_interval_sec=sample_interval_sec,
                 _config=KnotConfig(id="water_ingest"),
             )
             ProductionTestValidator(
                 series=oil,
-                max_oil_rate_bopd=self._max_oil_rate_bopd,
-                max_gas_rate_mscfd=self._max_gas_rate_mscfd,
-                max_water_rate_bwpd=self._max_water_rate_bwpd,
+                max_oil_rate_bopd=max_oil_rate_bopd,
+                max_gas_rate_mscfd=max_gas_rate_mscfd,
+                max_water_rate_bwpd=max_water_rate_bwpd,
                 _config=KnotConfig(id="validate"),
             )
             GasOilRatioCalculator(
@@ -123,7 +167,7 @@ class FieldProductionReportingWorkflow(SubTapestry):
             )
             DeclineRateEstimator(
                 rate_series=oil,
-                window_days=self._decline_window_days,
+                window_days=decline_window_days,
                 _config=KnotConfig(id="decline_rate"),
             )
             decline = DeclineCurveAnalyzer(
@@ -133,7 +177,7 @@ class FieldProductionReportingWorkflow(SubTapestry):
             )
             ProductionForecaster(
                 decline_parameters=decline,
-                forecast_months=self._forecast_months,
+                forecast_months=forecast_months,
                 _config=KnotConfig(id="forecast"),
             )
         return await self._run_inner(inner)

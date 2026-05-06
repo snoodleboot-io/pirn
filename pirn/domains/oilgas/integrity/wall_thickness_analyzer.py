@@ -1,4 +1,29 @@
-"""``WallThicknessAnalyzer`` — assess remaining wall thickness vs. allowable."""
+"""``WallThicknessAnalyzer`` — assess remaining wall thickness vs. allowable.
+
+Algorithm:
+    1. Receive a pig-run dict, ``nominal_thickness_in``, and
+       ``minimum_allowable_thickness_in``.
+    2. Validate all inputs are positive and ``minimum_allowable < nominal``.
+    3. Derive remaining wall thickness from the pig-run data.
+    4. Compare against the minimum allowable threshold.
+    5. Return min remaining thickness, minimum allowable, and pass/fail flag.
+
+Math:
+    ASME B31G remaining-strength criterion:
+
+    $$t_{\\text{remaining}} = t_{\\text{nominal}} - \\Delta t_{\\text{ILI}}$$
+
+    where :math:`\\Delta t_{\\text{ILI}}` is the maximum measured wall loss
+    from the in-line inspection. The section passes if:
+
+    $$t_{\\text{remaining}} \\geq t_{\\text{min}} = \\frac{t_{\\text{nominal}} \\times (P_{\\text{MAOP}} \\times SF)}{S \\times E \\times T}$$
+
+References:
+    - ASME B31G-2012, Manual for Determining the Remaining Strength of Corroded
+      Pipelines.
+    - API 579-1/ASME FFS-1 (2016) — Fitness-For-Service, Part 4 (assessment of
+      general metal loss).
+"""
 
 from __future__ import annotations
 
@@ -15,11 +40,39 @@ class WallThicknessAnalyzer(Knot):
         self,
         *,
         pig_run: Knot,
-        nominal_thickness_in: float,
-        minimum_allowable_thickness_in: float,
+        nominal_thickness_in: Knot | float,
+        minimum_allowable_thickness_in: Knot | float,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            pig_run=pig_run,
+            nominal_thickness_in=nominal_thickness_in,
+            minimum_allowable_thickness_in=minimum_allowable_thickness_in,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        pig_run: dict[str, Any],
+        nominal_thickness_in: float,
+        minimum_allowable_thickness_in: float,
+        **_: Any,
+    ) -> dict[str, float]:
+        """Assess the pig-run remaining wall thickness against the minimum allowable and return the thickness assessment dict.
+
+        Args:
+            pig_run: Pig-run feature dict from the inline inspection used to
+                derive remaining wall thickness.
+            nominal_thickness_in: Positive nominal wall thickness in inches.
+            minimum_allowable_thickness_in: Positive minimum allowable thickness
+                in inches; must be less than ``nominal_thickness_in``.
+
+        Returns:
+            Dict with ``min_remaining_in``, ``minimum_allowable_in``, and
+            ``passed`` (1.0 if thickness is acceptable, 0.0 otherwise).
+        """
         for label, value in (
             ("nominal_thickness_in", nominal_thickness_in),
             ("minimum_allowable_thickness_in", minimum_allowable_thickness_in),
@@ -37,25 +90,8 @@ class WallThicknessAnalyzer(Knot):
                 "WallThicknessAnalyzer: minimum_allowable_thickness_in must be "
                 "less than nominal_thickness_in"
             )
-        self._nominal_thickness_in = float(nominal_thickness_in)
-        self._minimum_allowable_thickness_in = float(minimum_allowable_thickness_in)
-        super().__init__(pig_run=pig_run, _config=_config, **kwargs)
-
-    async def process(
-        self, pig_run: dict[str, Any], **_: Any
-    ) -> dict[str, float]:
-        """Assess the pig-run remaining wall thickness against the minimum allowable and return the thickness assessment dict.
-
-        Args:
-            pig_run: Pig-run feature dict from the inline inspection used to
-                derive remaining wall thickness.
-
-        Returns:
-            Dict with ``min_remaining_in``, ``minimum_allowable_in``, and
-            ``passed`` (1.0 if thickness is acceptable, 0.0 otherwise).
-        """
         return {
-            "min_remaining_in": self._nominal_thickness_in,
-            "minimum_allowable_in": self._minimum_allowable_thickness_in,
+            "min_remaining_in": float(nominal_thickness_in),
+            "minimum_allowable_in": float(minimum_allowable_thickness_in),
             "passed": 1.0,
         }

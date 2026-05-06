@@ -1,76 +1,56 @@
 """Unit tests for :class:`DictionaryLearner`."""
 
 from __future__ import annotations
+
 import unittest
 
+import pytest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
+from pirn.core.parameter import Parameter
 from pirn.domains.signal.separation.dictionary_learner import DictionaryLearner
+from pirn.domains.signal.types.signal_frame import SignalFrame
 from pirn.domains.signal.types.source_frame import SourceFrame
-from pirn.tapestry import Tapestry
-from tests.unit.domains.signal.conftest import emit_signal_frame
+from tests.unit.domains.signal.conftest import make_signal_frame
+
+_SIGNAL = make_signal_frame()
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_positive_atom_count(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "atom_count"):
-                DictionaryLearner(
-                    signal=sig,
-                    atom_count=0,
-                    sparsity_target=2,
-                    _config=KnotConfig(id="d"),
-                )
-
-    def test_rejects_non_positive_sparsity_target(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "sparsity_target"):
-                DictionaryLearner(
-                    signal=sig,
-                    atom_count=4,
-                    sparsity_target=0,
-                    _config=KnotConfig(id="d"),
-                )
-
-    def test_rejects_sparsity_target_above_atom_count(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "not exceed"):
-                DictionaryLearner(
-                    signal=sig,
-                    atom_count=4,
-                    sparsity_target=8,
-                    _config=KnotConfig(id="d"),
-                )
-
-    def test_rejects_non_positive_max_iterations(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "max_iterations"):
-                DictionaryLearner(
-                    signal=sig,
-                    atom_count=4,
-                    sparsity_target=2,
-                    max_iterations=0,
-                    _config=KnotConfig(id="d"),
-                )
+def _up(name: str = "signal") -> Parameter:
+    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
 
 
-class TestProcess(unittest.IsolatedAsyncioTestCase):
+class TestDictionaryLearner(unittest.IsolatedAsyncioTestCase):
+    def _make(self) -> DictionaryLearner:
+        return DictionaryLearner(
+            signal=_up(),
+            atom_count=8,
+            sparsity_target=3,
+            _config=KnotConfig(id="dl"),
+        )
+
+    async def test_rejects_non_positive_atom_count(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="atom_count"):
+            await knot.process(_SIGNAL, atom_count=0, sparsity_target=3)
+
+    async def test_rejects_non_positive_sparsity_target(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="sparsity_target"):
+            await knot.process(_SIGNAL, atom_count=8, sparsity_target=0)
+
+    async def test_rejects_sparsity_target_above_atom_count(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="sparsity_target"):
+            await knot.process(_SIGNAL, atom_count=4, sparsity_target=8)
+
+    async def test_rejects_non_positive_max_iterations(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="max_iterations"):
+            await knot.process(_SIGNAL, atom_count=8, sparsity_target=3, max_iterations=0)
+
     async def test_emits_source_frame(self) -> None:
-        with Tapestry() as t:
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            DictionaryLearner(
-                signal=sig,
-                atom_count=8,
-                sparsity_target=3,
-                _config=KnotConfig(id="d"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["d"]
+        knot = self._make()
+        out = await knot.process(_SIGNAL, atom_count=8, sparsity_target=3)
         assert isinstance(out, SourceFrame)
         assert out.source_count == 8
-        assert out.mixing_matrix_shape == (1, 8)

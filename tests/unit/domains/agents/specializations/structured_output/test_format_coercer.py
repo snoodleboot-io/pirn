@@ -15,26 +15,33 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 
-class TestFormatCoercerConstruction(unittest.TestCase):
-    def test_rejects_non_llm_provider(self) -> None:
+class TestFormatCoercerValidation(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_non_llm_provider(self) -> None:
+        knot = FormatCoercer.__new__(FormatCoercer)
         with self.assertRaisesRegex(TypeError, "LLMProvider"):
-            with Tapestry():
-                FormatCoercer(
-                    response=AgentResponse(content="x", finish_reason="stop"),
-                    llm="bad",  # type: ignore[arg-type]
-                    target_format="json",
-                    _config=KnotConfig(id="fc"),
-                )
+            await knot.process(
+                response=AgentResponse(content="x", finish_reason="stop"),
+                llm="bad",  # type: ignore[arg-type]
+                target_format="json",
+            )
 
-    def test_rejects_unsupported_format(self) -> None:
+    async def test_rejects_unsupported_format(self) -> None:
+        knot = FormatCoercer.__new__(FormatCoercer)
         with self.assertRaisesRegex(ValueError, "target_format"):
-            with Tapestry():
-                FormatCoercer(
-                    response=AgentResponse(content="x", finish_reason="stop"),
-                    llm=StubLLMProvider([]),
-                    target_format="xml",
-                    _config=KnotConfig(id="fc"),
-                )
+            await knot.process(
+                response=AgentResponse(content="x", finish_reason="stop"),
+                llm=StubLLMProvider([]),
+                target_format="xml",
+            )
+
+    async def test_rejects_non_agent_response(self) -> None:
+        knot = FormatCoercer.__new__(FormatCoercer)
+        with self.assertRaises(TypeError):
+            await knot.process(
+                response="not-a-response",  # type: ignore[arg-type]
+                llm=StubLLMProvider(["x"]),
+                target_format="json",
+            )
 
 
 class TestFormatCoercerProcess(unittest.IsolatedAsyncioTestCase):
@@ -66,14 +73,3 @@ class TestFormatCoercerProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         out = result.outputs["fc"]
         assert out.content == '{"x": 1}'
-
-    async def test_rejects_non_agent_response(self) -> None:
-        llm = StubLLMProvider(["x"])
-        with Tapestry():
-            with self.assertRaises(TypeError):
-                FormatCoercer(
-                    response="not-a-response",  # type: ignore[arg-type]
-                    llm=llm,
-                    target_format="json",
-                    _config=KnotConfig(id="fc"),
-                )

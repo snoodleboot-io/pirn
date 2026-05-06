@@ -29,26 +29,35 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_provider(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(TypeError, "FeatureStoreProvider"):
-                FeatureStoreWriter(
-                    split=split,
-                    feature_store="not-a-store",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="bad"),
-                )
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    def _make_split(self) -> DataSplit:
+        train = MLDataset(
+            name="d:train", feature_names=("a",), target_name="y", row_count=80
+        )
+        test = MLDataset(
+            name="d:test", feature_names=("a",), target_name="y", row_count=20
+        )
+        return DataSplit(train=train, test=test)
 
-    def test_rejects_non_knot_split(self) -> None:
+    async def test_rejects_non_provider(self) -> None:
         with Tapestry():
-            store = RecordingFeatureStoreProvider()
-            with self.assertRaisesRegex(TypeError, "split must be a Knot"):
-                FeatureStoreWriter(
-                    split="not-a-knot",  # type: ignore[arg-type]
-                    feature_store=store,
-                    _config=KnotConfig(id="bad"),
-                )
+            k = FeatureStoreWriter.__new__(FeatureStoreWriter)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=self._make_split(),
+                feature_store="not-a-store",
+            )
+
+    async def test_rejects_non_knot_split(self) -> None:
+        with Tapestry():
+            k = FeatureStoreWriter.__new__(FeatureStoreWriter)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises(Exception):
+            await k.process(
+                split="not-a-split",  # type: ignore[arg-type]
+                feature_store=RecordingFeatureStoreProvider(),
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

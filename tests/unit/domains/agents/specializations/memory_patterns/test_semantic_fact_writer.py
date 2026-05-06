@@ -7,7 +7,6 @@ from typing import Any
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.domains.agents.specializations.memory_patterns.semantic_fact_writer import (
     SemanticFactWriter,
 )
@@ -24,58 +23,42 @@ class _TrackingStore(StubMemoryStore):
         self.stored[key] = dict(value)
 
 
-class TestSemanticFactWriterConstruction(unittest.TestCase):
-    def test_rejects_non_memory_store(self) -> None:
-        with self.assertRaisesRegex(TypeError, "MemoryStore"):
-            with Tapestry():
-                SemanticFactWriter(
-                    facts=["fact"],
-                    store="bad",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="sfw"),
-                )
+def _make_knot() -> SemanticFactWriter:
+    with Tapestry():
+        return SemanticFactWriter(
+            facts=[],
+            store=_TrackingStore(),
+            _config=KnotConfig(id="sfw"),
+        )
 
 
 class TestSemanticFactWriterProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_count_of_stored_facts(self) -> None:
+        k = _make_knot()
         store = _TrackingStore()
-        with Tapestry() as t:
-            SemanticFactWriter(
-                facts=["fact one", "fact two", "fact three"],
-                store=store,
-                _config=KnotConfig(id="sfw"),
-            )
-        result = await t.run(RunRequest())
-        assert result.outputs["sfw"] == 3
+        count = await k.process(facts=["fact one", "fact two", "fact three"], store=store)
+        assert count == 3
 
     async def test_stores_under_semantic_key(self) -> None:
+        k = _make_knot()
         store = _TrackingStore()
-        with Tapestry() as t:
-            SemanticFactWriter(
-                facts=["water is wet"],
-                store=store,
-                _config=KnotConfig(id="sfw"),
-            )
-        await t.run(RunRequest())
+        await k.process(facts=["water is wet"], store=store)
         keys = list(store.stored.keys())
-        assert all(k.startswith("semantic:") for k in keys)
+        assert all(key.startswith("semantic:") for key in keys)
 
     async def test_empty_facts_returns_zero(self) -> None:
+        k = _make_knot()
         store = _TrackingStore()
-        with Tapestry() as t:
-            SemanticFactWriter(
-                facts=[],
-                store=store,
-                _config=KnotConfig(id="sfw"),
-            )
-        result = await t.run(RunRequest())
-        assert result.outputs["sfw"] == 0
+        count = await k.process(facts=[], store=store)
+        assert count == 0
 
     async def test_rejects_non_string_fact(self) -> None:
+        k = _make_knot()
         store = _TrackingStore()
-        with Tapestry():
-            with self.assertRaises(TypeError):
-                SemanticFactWriter(
-                    facts=[42],  # type: ignore[list-item]
-                    store=store,
-                    _config=KnotConfig(id="sfw"),
-                )
+        with self.assertRaises(TypeError):
+            await k.process(facts=[42], store=store)  # type: ignore[list-item]
+
+    async def test_rejects_non_memory_store(self) -> None:
+        k = _make_knot()
+        with self.assertRaises(TypeError):
+            await k.process(facts=[], store="bad")  # type: ignore[arg-type]

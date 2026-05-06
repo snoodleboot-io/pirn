@@ -1,5 +1,16 @@
 """``DataDriftDetector`` — Knot that compares input feature distributions
 (PSI, KS test) between reference and current windows and flags drifted features.
+
+Algorithm:
+    1. Receive ``reference``, ``current``, ``features``, and
+       ``psi_threshold`` via process().
+    2. Validate all inputs.
+    3. Compute PSI and KS statistics for each feature.
+    4. Return drifted features and drift_detected flag.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -21,15 +32,43 @@ class DataDriftDetector(Knot):
         *,
         reference: Knot,
         current: Knot,
-        features: Sequence[str],
-        psi_threshold: float = 0.2,
+        features: Knot | Sequence[str],
+        psi_threshold: Knot | float = 0.2,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(reference, Knot):
-            raise TypeError("DataDriftDetector: reference must be a Knot")
-        if not isinstance(current, Knot):
-            raise TypeError("DataDriftDetector: current must be a Knot")
+        super().__init__(
+            reference=reference,
+            current=current,
+            features=features,
+            psi_threshold=psi_threshold,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        reference: DataSplit,
+        current: DataSplit,
+        features: Sequence[str] = (),
+        psi_threshold: float = 0.2,
+        **_: Any,
+    ) -> Mapping[str, Any]:
+        """Compute PSI and KS statistics for each feature and flag drifted features.
+
+        Args:
+            reference: DataSplit representing the baseline feature distribution.
+            current: DataSplit representing the live or recent feature distribution.
+            features: Non-empty sequence of feature names to check.
+            psi_threshold: PSI threshold for drift detection; must be >= 0.
+
+        Returns:
+            Mapping with ``psi`` (dict per feature), ``ks_statistic`` (dict per feature),
+            ``drifted_features`` (list[str]), and ``drift_detected`` (bool).
+
+        Raises:
+            ValueError: If features is empty or psi_threshold < 0.
+        """
         feature_tuple = tuple(features)
         if not feature_tuple:
             raise ValueError("DataDriftDetector: features must be non-empty")
@@ -39,40 +78,14 @@ class DataDriftDetector(Knot):
                     "DataDriftDetector: every feature name must be a non-empty string"
                 )
         if not isinstance(psi_threshold, (int, float)) or psi_threshold < 0.0:
-            raise ValueError(
-                "DataDriftDetector: psi_threshold must be a non-negative number"
-            )
-        self._features = feature_tuple
-        self._psi_threshold = float(psi_threshold)
-        super().__init__(reference=reference, current=current, _config=_config, **kwargs)
-
-    @property
-    def features(self) -> tuple[str, ...]:
-        return self._features
-
-    @property
-    def psi_threshold(self) -> float:
-        return self._psi_threshold
-
-    async def process(
-        self, reference: DataSplit, current: DataSplit, **_: Any
-    ) -> Mapping[str, Any]:
-        """Compute PSI and KS statistics for each feature and flag drifted features.
-
-        Args:
-            reference: DataSplit representing the baseline feature distribution.
-            current: DataSplit representing the live or recent feature distribution.
-
-        Returns:
-            Mapping with ``psi`` (dict per feature), ``ks_statistic`` (dict per feature),
-            ``drifted_features`` (list[str]), and ``drift_detected`` (bool).
-        """
+            raise ValueError("DataDriftDetector: psi_threshold must be a non-negative number")
+        threshold_f = float(psi_threshold)
         psi: dict[str, float] = {}
         ks_statistic: dict[str, float] = {}
-        for feat in self._features:
+        for feat in feature_tuple:
             psi[feat] = self._stat_value(reference, current, feat, "psi")
             ks_statistic[feat] = self._stat_value(reference, current, feat, "ks")
-        drifted = [f for f in self._features if psi[f] > self._psi_threshold]
+        drifted = [f for f in feature_tuple if psi[f] > threshold_f]
         return {
             "psi": psi,
             "ks_statistic": ks_statistic,

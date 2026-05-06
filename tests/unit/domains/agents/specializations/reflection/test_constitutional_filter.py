@@ -9,6 +9,8 @@ from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.domains.agents.specializations.reflection.constitutional_filter import (
     ConstitutionalFilter,
+)
+from pirn.domains.agents.specializations.reflection.constitutional_violation_error import (
     ConstitutionalViolationError,
 )
 from pirn.domains.agents.types.agent_response import AgentResponse
@@ -73,10 +75,22 @@ class TestConstitutionalFilterProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         assert not result.succeeded
 
+    async def test_rejects_zero_max_revisions(self) -> None:
+        llm = StubLLMProvider(["x"])
+        with Tapestry() as t:
+            r = good_response(_config=KnotConfig(id="r"))
+            ConstitutionalFilter(
+                response=r,
+                principles=("safe",),
+                llm=llm,
+                max_revisions=0,
+                _config=KnotConfig(id="cf"),
+            )
+        result = await t.run(RunRequest())
+        assert not result.succeeded
 
-class TestConstitutionalFilterConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
-        with self.assertRaisesRegex(TypeError, "LLMProvider"):
+        with self.assertRaises(TypeError):
             with Tapestry():
                 r = good_response(_config=KnotConfig(id="r"))
                 ConstitutionalFilter(
@@ -86,15 +100,30 @@ class TestConstitutionalFilterConstruction(unittest.IsolatedAsyncioTestCase):
                     _config=KnotConfig(id="cf"),
                 )
 
-    async def test_rejects_zero_max_revisions(self) -> None:
+
+class TestProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_process_rejects_non_llm_provider(self) -> None:
+        response = AgentResponse(content="hello")
+        with Tapestry():
+            k = ConstitutionalFilter.__new__(ConstitutionalFilter)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises(TypeError):
+            await k.process(
+                response=response,
+                principles=("be safe",),
+                llm="not-an-llm",  # type: ignore[arg-type]
+            )
+
+    async def test_process_rejects_zero_max_revisions(self) -> None:
+        response = AgentResponse(content="hello")
         llm = StubLLMProvider(["x"])
-        with self.assertRaisesRegex(ValueError, "max_revisions must be a positive int"):
-            with Tapestry():
-                r = good_response(_config=KnotConfig(id="r"))
-                ConstitutionalFilter(
-                    response=r,
-                    principles=("safe",),
-                    llm=llm,
-                    max_revisions=0,
-                    _config=KnotConfig(id="cf"),
-                )
+        with Tapestry():
+            k = ConstitutionalFilter.__new__(ConstitutionalFilter)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises(ValueError):
+            await k.process(
+                response=response,
+                principles=("be safe",),
+                llm=llm,
+                max_revisions=0,
+            )

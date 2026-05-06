@@ -1,4 +1,28 @@
-"""``TypeCurveFitter`` — fit a type curve to a population of well-rate series."""
+"""``TypeCurveFitter`` — fit a type curve to a population of well-rate series.
+
+Algorithm:
+    1. Receive a ``rate_series`` SCADA time series of production rates.
+    2. Normalise the series to a common time origin.
+    3. Fit Arps decline parameters (``qi``, ``Di``, ``b``) to the normalised
+       series using non-linear least squares.
+    4. Integrate the fitted decline to economic limit to obtain EUR.
+    5. Return the fitted parameters and EUR as a dict.
+
+Math:
+    Hyperbolic decline rate (Arps):
+
+    $$q(t) = \\frac{q_i}{(1 + b \\, D_i \\, t)^{1/b}}$$
+
+    EUR by integrating to economic limit :math:`q_{el}`:
+
+    $$\\text{EUR} = \\frac{q_i^b}{D_i (1-b)}
+      \\left(q_{el}^{1-b} - q_i^{1-b}\\right)$$
+
+References:
+    - Arps, J.J. (1945). Analysis of decline curves. *Trans. AIME*, 160,
+      228–247. SPE-945228-G.
+    - Robertson, S. (1988). Generalized hyperbolic equation. SPE-18731-MS.
+"""
 
 from __future__ import annotations
 

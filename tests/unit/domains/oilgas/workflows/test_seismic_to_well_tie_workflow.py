@@ -13,10 +13,25 @@ from pirn.domains.oilgas.workflows.seismic_to_well_tie_workflow import (
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_segy_path(self) -> None:
+class TestProcess(unittest.IsolatedAsyncioTestCase):
+
+    def _make_knot(self) -> SeismicToWellTieWorkflow:
+        return SeismicToWellTieWorkflow(
+            segy_path="/x.sgy",
+            volume_id="vol",
+            las_path="/x.las",
+            well_id="W",
+            las_curves=("GR",),
+            cmp_inline=10,
+            cmp_xline=20,
+            initial_velocity_m_s=2200.0,
+            _config=KnotConfig(id="wf"),
+        )
+
+    async def test_rejects_empty_segy_path(self) -> None:
+        knot = self._make_knot()
         with self.assertRaisesRegex(ValueError, "segy_path"):
-            SeismicToWellTieWorkflow(
+            await knot.process(
                 segy_path="",
                 volume_id="vol",
                 las_path="/x.las",
@@ -25,12 +40,12 @@ class TestConstruction(unittest.TestCase):
                 cmp_inline=10,
                 cmp_xline=20,
                 initial_velocity_m_s=2200.0,
-                _config=KnotConfig(id="wf"),
             )
 
-    def test_rejects_empty_las_curves(self) -> None:
+    async def test_rejects_empty_las_curves(self) -> None:
+        knot = self._make_knot()
         with self.assertRaisesRegex(ValueError, "las_curves"):
-            SeismicToWellTieWorkflow(
+            await knot.process(
                 segy_path="/x.sgy",
                 volume_id="vol",
                 las_path="/x.las",
@@ -39,24 +54,11 @@ class TestConstruction(unittest.TestCase):
                 cmp_inline=10,
                 cmp_xline=20,
                 initial_velocity_m_s=2200.0,
-                _config=KnotConfig(id="wf"),
             )
 
-
-class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_inner_pipeline_runs(self) -> None:
         with Tapestry() as t:
-            SeismicToWellTieWorkflow(
-                segy_path="/x.sgy",
-                volume_id="vol",
-                las_path="/x.las",
-                well_id="W",
-                las_curves=("GR",),
-                cmp_inline=10,
-                cmp_xline=20,
-                initial_velocity_m_s=2200.0,
-                _config=KnotConfig(id="wf"),
-            )
+            self._make_knot()
         result = await t.run(RunRequest())
         inner = result.outputs["wf"]
         assert isinstance(inner, RunResult)

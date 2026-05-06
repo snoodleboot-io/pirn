@@ -12,6 +12,17 @@ without needing to introspect a richer record. The gate is lightweight
 on purpose: ReAct termination is a policy decision and the surrounding
 :class:`ReActLoop` already drives the iteration topology by unrolling
 a fixed number of step knots.
+
+Algorithm:
+    1. Extract the trailing assistant message from ``latest_response``.
+    2. If the message content contains ``Final Answer:``, return ``True``.
+    3. If ``current_iteration >= max_iterations``, return ``True``.
+    4. Otherwise return ``False``.
+
+
+References:
+    - Yao et al., "ReAct: Synergizing Reasoning and Acting in Language Models",
+      ICLR 2023. https://arxiv.org/abs/2210.03629
 """
 
 from __future__ import annotations
@@ -32,26 +43,11 @@ class ReActTerminationCheck(Knot):
         self,
         *,
         latest_response: Knot,
-        max_iterations: int,
+        max_iterations: Knot | int,
         current_iteration: Knot | int,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(max_iterations, int) or max_iterations <= 0:
-            raise ValueError(
-                "ReActTerminationCheck: max_iterations must be a positive int, "
-                f"got {max_iterations!r}"
-            )
-        if not isinstance(current_iteration, (Knot, int)):
-            raise TypeError(
-                "ReActTerminationCheck: current_iteration must be a Knot or int, "
-                f"got {type(current_iteration).__name__}"
-            )
-        if isinstance(current_iteration, int) and current_iteration < 0:
-            raise ValueError(
-                "ReActTerminationCheck: current_iteration must be non-negative, "
-                f"got {current_iteration!r}"
-            )
         super().__init__(
             latest_response=latest_response,
             max_iterations=max_iterations,
@@ -76,7 +72,20 @@ class ReActTerminationCheck(Knot):
 
         Returns:
             True if the final-answer marker is present or current_iteration has reached max_iterations.
+
+        Raises:
+            ValueError: If max_iterations is not a positive int or current_iteration is negative.
         """
+        if not isinstance(max_iterations, int) or max_iterations <= 0:
+            raise ValueError(
+                "ReActTerminationCheck: max_iterations must be a positive int, "
+                f"got {max_iterations!r}"
+            )
+        if not isinstance(current_iteration, int) or current_iteration < 0:
+            raise ValueError(
+                "ReActTerminationCheck: current_iteration must be a non-negative int, "
+                f"got {current_iteration!r}"
+            )
         messages = self._coerce_messages(latest_response)
         for message in reversed(messages):
             if message.role == "assistant":

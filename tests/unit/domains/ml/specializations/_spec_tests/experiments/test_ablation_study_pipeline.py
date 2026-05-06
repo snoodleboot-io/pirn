@@ -33,41 +33,51 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_knot_split(self) -> None:
-        with Tapestry():
-            with self.assertRaisesRegex(TypeError, "split must be a Knot"):
-                AblationStudyPipeline(
-                    split="not-a-knot",  # type: ignore[arg-type]
-                    algorithm="rf",
-                    feature_groups={"g1": ("a",)},
-                    metrics=("accuracy",),
-                    _config=KnotConfig(id="bad"),
-                )
+def _make_pipeline() -> AblationStudyPipeline:
+    with Tapestry():
+        split = emit_split(_config=KnotConfig(id="split"))
+        pipeline = AblationStudyPipeline(
+            split=split,
+            algorithm="rf",
+            feature_groups={"g1": ("a",)},
+            metrics=("accuracy",),
+            _config=KnotConfig(id="ablation"),
+        )
+    return pipeline
 
-    def test_rejects_empty_feature_groups(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "feature_groups"):
-                AblationStudyPipeline(
-                    split=split,
-                    algorithm="rf",
-                    feature_groups={},
-                    metrics=("accuracy",),
-                    _config=KnotConfig(id="bad"),
-                )
 
-    def test_rejects_full_arm_name(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "reserved"):
-                AblationStudyPipeline(
-                    split=split,
-                    algorithm="rf",
-                    feature_groups={"full": ("a",)},
-                    metrics=("accuracy",),
-                    _config=KnotConfig(id="bad"),
-                )
+def _split_fixture() -> DataSplit:
+    train = MLDataset(
+        name="d:train", feature_names=("a", "b", "c"), target_name="y", row_count=80
+    )
+    test = MLDataset(
+        name="d:test", feature_names=("a", "b", "c"), target_name="y", row_count=20
+    )
+    return DataSplit(train=train, test=test)
+
+
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_empty_feature_groups(self) -> None:
+        pipeline = _make_pipeline()
+        split = _split_fixture()
+        with self.assertRaises((TypeError, ValueError)):
+            await pipeline.process(
+                split=split,
+                algorithm="rf",
+                feature_groups={},
+                metrics=("accuracy",),
+            )
+
+    async def test_rejects_full_arm_name(self) -> None:
+        pipeline = _make_pipeline()
+        split = _split_fixture()
+        with self.assertRaises((TypeError, ValueError)):
+            await pipeline.process(
+                split=split,
+                algorithm="rf",
+                feature_groups={"full": ("a",)},
+                metrics=("accuracy",),
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

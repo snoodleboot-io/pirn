@@ -5,6 +5,17 @@ plus every debater's final response into a judging prompt and asks
 ``judge_llm`` to pick a winner by index. Returns the chosen
 :class:`AgentResponse`. Falls back to the first response if the
 judge's reply does not name a valid index.
+
+Algorithm:
+    1. Render each debater's final response as ``[index] content``.
+    2. Build a judging prompt instructing the LLM to reply with an index.
+    3. Call ``judge_llm.chat`` and extract the text reply.
+    4. Parse the first digit token from the reply; select that response.
+    5. Fall back to ``final_round[0]`` if no valid index is found.
+
+
+References:
+    pirn-native — no external references.
 """
 
 from __future__ import annotations
@@ -26,19 +37,14 @@ class DebateJudge(Knot):
         *,
         topic: Knot | str,
         final_round: Knot | Sequence[AgentResponse],
-        judge_llm: LLMProvider,
+        judge_llm: Knot | LLMProvider,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(judge_llm, LLMProvider):
-            raise TypeError(
-                "DebateJudge: judge_llm must be an LLMProvider, "
-                f"got {type(judge_llm).__name__}"
-            )
-        self._judge_llm = judge_llm
         super().__init__(
             topic=topic,
             final_round=final_round,
+            judge_llm=judge_llm,
             _config=_config,
             **kwargs,
         )
@@ -47,6 +53,7 @@ class DebateJudge(Knot):
         self,
         topic: str,
         final_round: Sequence[AgentResponse],
+        judge_llm: LLMProvider,
         **_: Any,
     ) -> AgentResponse:
         """Ask the judge LLM to pick the strongest argument by index and return that AgentResponse.
@@ -61,6 +68,11 @@ class DebateJudge(Knot):
         Raises:
             ValueError: If final_round is empty.
         """
+        if not isinstance(judge_llm, LLMProvider):
+            raise TypeError(
+                "DebateJudge: judge_llm must be an LLMProvider, "
+                f"got {type(judge_llm).__name__}"
+            )
         responses = tuple(final_round)
         if not responses:
             raise ValueError(
@@ -76,7 +88,7 @@ class DebateJudge(Knot):
             f"Arguments:\n{rendered}\n\n"
             "Reply with the winning index only."
         )
-        raw = await self._judge_llm.chat(
+        raw = await judge_llm.chat(
             [{"role": "user", "content": prompt}]
         )
         text = self._extract_text(raw).strip()

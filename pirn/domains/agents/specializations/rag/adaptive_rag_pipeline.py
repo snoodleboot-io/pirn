@@ -7,6 +7,24 @@ routes to:
 - **moderate** — naive single-hop :class:`MemorySearchRetriever` + answer.
 - **complex** — multi-hop decomposition (three sub-questions), retrieval per
   sub-question, merged context, then final answer.
+
+Algorithm:
+    1. Call the LLM with a classification prompt; expect one of SIMPLE,
+       MODERATE, or COMPLEX in the response.
+    2. **SIMPLE branch** — run a single :class:`LLMChatCall` directly on the
+       query and wrap the result via :class:`RAGResponseBuilder`.
+    3. **COMPLEX branch** — ask the LLM to decompose the query into three
+       sub-questions; retrieve ``top_k`` hits per sub-question via
+       :class:`MemorySearchRetriever`; merge all hits; build a prompt with
+       :class:`RAGPromptBuilder`; call the LLM; wrap via
+       :class:`RAGResponseBuilder`.
+    4. **MODERATE branch** (default) — retrieve ``top_k`` hits for the
+       original query; build prompt; call LLM; wrap via
+       :class:`RAGResponseBuilder`.
+    5. Return the :class:`AgentResponse` from the selected branch.
+
+References:
+    - Adaptive RAG: https://arxiv.org/abs/2403.14403
 """
 
 from __future__ import annotations
@@ -39,33 +57,15 @@ class AdaptiveRAGPipeline(SubTapestry):
         self,
         *,
         query: Knot | str,
-        memory: MemoryStore,
-        llm: LLMProvider,
+        memory: Knot | MemoryStore,
+        llm: Knot | LLMProvider,
         _config: KnotConfig,
-        top_k: int = 5,
+        top_k: Knot | int = 5,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(memory, MemoryStore):
-            raise TypeError(
-                "AdaptiveRAGPipeline: memory must be a MemoryStore, "
-                f"got {type(memory).__name__}"
-            )
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "AdaptiveRAGPipeline: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
-        if not isinstance(top_k, int) or top_k <= 0:
-            raise ValueError(
-                "AdaptiveRAGPipeline: top_k must be a positive int, "
-                f"got {top_k!r}"
-            )
-        self._memory = memory
-        self._llm = llm
-        self._top_k = top_k
-        super().__init__(query=query, _config=_config, **kwargs)
+        super().__init__(query=query, memory=memory, llm=llm, top_k=top_k, _config=_config, **kwargs)
 
-    async def process(self, query: str, **_: Any) -> AgentResponse:
+    async def process(self, query: str, memory: MemoryStore, llm: LLMProvider, top_k: int, **_: Any) -> AgentResponse:
         """Classify query complexity and route to the appropriate RAG strategy.
 
         Args:
@@ -77,11 +77,6 @@ class AdaptiveRAGPipeline(SubTapestry):
         Raises:
             TypeError: If query is not a string.
         """
-        if not isinstance(query, str):
-            raise TypeError(
-                "AdaptiveRAGPipeline: query must be a string, "
-                f"got {type(query).__name__}"
-            )
         classify_prompt = (
             "Classify the complexity of the following question as one of: "
             "SIMPLE, MODERATE, or COMPLEX. "
@@ -94,7 +89,7 @@ class AdaptiveRAGPipeline(SubTapestry):
         with Tapestry() as inner_classify:
             LLMChatCall(
                 prompt=classify_prompt,
-                llm=self._llm,
+                llm=llm,
                 _config=KnotConfig(id="classify"),
             )
         classify_result = await self._run_inner(inner_classify)
@@ -104,7 +99,7 @@ class AdaptiveRAGPipeline(SubTapestry):
             with Tapestry() as inner_direct:
                 answer = LLMChatCall(
                     prompt=query,
-                    llm=self._llm,
+                    llm=llm,
                     _config=KnotConfig(id="generate"),
                 )
                 RAGResponseBuilder(
@@ -126,7 +121,7 @@ class AdaptiveRAGPipeline(SubTapestry):
             with Tapestry() as inner_decompose:
                 LLMChatCall(
                     prompt=decompose_prompt,
-                    llm=self._llm,
+                    llm=llm,
                     _config=KnotConfig(id="decompose"),
                 )
             decompose_result = await self._run_inner(inner_decompose)
@@ -145,9 +140,9 @@ class AdaptiveRAGPipeline(SubTapestry):
             for sub_q in sub_questions:
                 with Tapestry() as inner_retrieve:
                     MemorySearchRetriever(
-                        store=self._memory,
+                        store=memory,
                         query=sub_q,
-                        top_k=self._top_k,
+                        top_k=top_k,
                         _config=KnotConfig(id="sub_retrieve"),
                     )
                 sub_result = await self._run_inner(inner_retrieve)
@@ -163,7 +158,7 @@ class AdaptiveRAGPipeline(SubTapestry):
                 )
                 answer_knot = LLMChatCall(
                     prompt=prompt_knot,
-                    llm=self._llm,
+                    llm=llm,
                     _config=KnotConfig(id="generate"),
                 )
                 RAGResponseBuilder(
@@ -178,9 +173,9 @@ class AdaptiveRAGPipeline(SubTapestry):
 
         with Tapestry() as inner_naive:
             retrieved = MemorySearchRetriever(
-                store=self._memory,
+                store=memory,
                 query=query,
-                top_k=self._top_k,
+                top_k=top_k,
                 _config=KnotConfig(id="retrieve"),
             )
             prompt = RAGPromptBuilder(
@@ -190,7 +185,7 @@ class AdaptiveRAGPipeline(SubTapestry):
             )
             answer = LLMChatCall(
                 prompt=prompt,
-                llm=self._llm,
+                llm=llm,
                 _config=KnotConfig(id="generate"),
             )
             RAGResponseBuilder(

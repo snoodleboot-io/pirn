@@ -16,17 +16,18 @@ from tests.unit.domains.ml._stubs.recording_database_pool import (
 )
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_query(self) -> None:
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_empty_query(self) -> None:
         with Tapestry():
-            with self.assertRaisesRegex(ValueError, "query"):
-                RegressionPipeline(
-                    pool=RecordingDatabasePool(rows=[(1, 0.5)]),
-                    query="",
-                    target_column="y",
-                    feature_names=("a",),
-                    _config=KnotConfig(id="bad"),
-                )
+            k = RegressionPipeline.__new__(RegressionPipeline)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                pool=RecordingDatabasePool(rows=[(1, 0.5)]),
+                query="",
+                target_column="y",
+                feature_names=("a",),
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

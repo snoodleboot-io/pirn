@@ -35,13 +35,12 @@ class TestEncoderHappyPath(unittest.IsolatedAsyncioTestCase):
         assert out.train.name.endswith(":encoded_onehot")
 
 
-class TestEncoderConstruction(unittest.TestCase):
-    def test_rejects_empty_columns(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "columns must be non-empty"):
-                Encoder(
-                    split=split,
-                    columns=(),
-                    _config=KnotConfig(id="bad"),
-                )
+class TestEncoderProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_empty_columns(self) -> None:
+        encoder = Encoder.__new__(Encoder)
+        object.__setattr__(encoder, "_config", KnotConfig(id="x"))
+        train = MLDataset(name="d:train", feature_names=("region",), row_count=10)
+        test = MLDataset(name="d:test", feature_names=("region",), row_count=5)
+        split = DataSplit(train=train, test=test)
+        with self.assertRaisesRegex(ValueError, "columns must be non-empty"):
+            await encoder.process(split=split, columns=(), method="onehot")

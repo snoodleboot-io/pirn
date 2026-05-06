@@ -45,17 +45,21 @@ class TestPredictorHappyPath(unittest.IsolatedAsyncioTestCase):
         assert lineage.fetches == ["m1"]
 
 
-class TestPredictorConstruction(unittest.TestCase):
-    def test_rejects_empty_string_model_id(self) -> None:
+class TestPredictorProcess(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self) -> Predictor:
+        with Tapestry():
+            p = Predictor.__new__(Predictor)
+            object.__setattr__(p, "_config", KnotConfig(id="x"))
+        return p
+
+    async def test_rejects_empty_string_model_id(self) -> None:
+        p = self._make_knot()
         lineage = RecordingLineageStore()
         store = RecordingObjectStore()
-        with Tapestry():
-            features = emit_features(_config=KnotConfig(id="feat"))
-            with self.assertRaisesRegex(ValueError, "model_id string"):
-                Predictor(
-                    model_id="",
-                    features=features,
-                    lineage=lineage,
-                    store=store,
-                    _config=KnotConfig(id="bad"),
-                )
+        with self.assertRaises((TypeError, ValueError)):
+            await p.process(
+                model_id="",
+                features=[{"a": 1.0}],
+                lineage=lineage,
+                store=store,
+            )

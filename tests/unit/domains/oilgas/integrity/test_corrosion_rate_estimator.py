@@ -5,62 +5,35 @@ from __future__ import annotations
 from typing import Any
 import unittest
 
-
-from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.domains.oilgas.integrity.corrosion_rate_estimator import (
     CorrosionRateEstimator,
 )
-from pirn.tapestry import Tapestry
 
-
-class _PigRunSource(Knot):
-    def __init__(self, *, _config: KnotConfig, **kwargs: Any) -> None:
-        super().__init__(_config=_config, **kwargs)
-
-    async def process(self, **_: Any) -> dict[str, Any]:
-        return {"feature_count": 10}
-
-
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_numeric_years(self) -> None:
-        with self.assertRaisesRegex(TypeError, "years_between"):
-            with Tapestry():
-                prev = _PigRunSource(_config=KnotConfig(id="prev"))
-                cur = _PigRunSource(_config=KnotConfig(id="cur"))
-                CorrosionRateEstimator(
-                    previous_run=prev,
-                    current_run=cur,
-                    years_between="x",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="cre"),
-                )
-
-    def test_rejects_non_positive_years(self) -> None:
-        with self.assertRaisesRegex(ValueError, "positive"):
-            with Tapestry():
-                prev = _PigRunSource(_config=KnotConfig(id="prev"))
-                cur = _PigRunSource(_config=KnotConfig(id="cur"))
-                CorrosionRateEstimator(
-                    previous_run=prev,
-                    current_run=cur,
-                    years_between=0.0,
-                    _config=KnotConfig(id="cre"),
-                )
+_RUN: dict[str, Any] = {"feature_count": 10}
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self, years: float = 5.0) -> CorrosionRateEstimator:
+        return CorrosionRateEstimator(
+            previous_run=None,  # type: ignore[arg-type]
+            current_run=None,  # type: ignore[arg-type]
+            years_between=years,
+            _config=KnotConfig(id="cre", validate_io=False),
+        )
+
+    async def test_rejects_non_numeric_years(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(TypeError, "years_between"):
+            await knot.process(previous_run=_RUN, current_run=_RUN, years_between="x")  # type: ignore[arg-type]
+
+    async def test_rejects_non_positive_years(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "positive"):
+            await knot.process(previous_run=_RUN, current_run=_RUN, years_between=0.0)
+
     async def test_returns_corrosion_rate(self) -> None:
-        with Tapestry() as t:
-            prev = _PigRunSource(_config=KnotConfig(id="prev"))
-            cur = _PigRunSource(_config=KnotConfig(id="cur"))
-            CorrosionRateEstimator(
-                previous_run=prev,
-                current_run=cur,
-                years_between=5.0,
-                _config=KnotConfig(id="cre"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["cre"]
+        knot = self._make_knot(years=5.0)
+        out = await knot.process(previous_run=_RUN, current_run=_RUN, years_between=5.0)
         assert out["max_rate_mpy"] == 5.0
         assert out["feature_count"] == 10.0

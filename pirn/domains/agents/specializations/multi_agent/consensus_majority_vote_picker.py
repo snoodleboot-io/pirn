@@ -4,6 +4,16 @@ Inner stage knot used by :class:`ConsensusAggregator` when the
 ``majority_vote`` strategy is selected. Groups responses by their
 ``content`` field and returns the response whose content appears most
 frequently. Ties are broken by first-seen order.
+
+Algorithm:
+    1. Preserve insertion order of responses via :class:`OrderedDict`.
+    2. Count occurrences of each unique ``content`` string.
+    3. Select the content with the highest count (first-seen wins ties).
+    4. Return the first :class:`AgentResponse` whose content matches.
+
+
+References:
+    pirn-native — no external references.
 """
 
 from __future__ import annotations

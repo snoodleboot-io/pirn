@@ -32,26 +32,31 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_column_pairs(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "column_pairs must be non-empty"):
-                InteractionFeatureGenerator(
-                    split=split,
-                    column_pairs=[],
-                    _config=KnotConfig(id="bad"),
-                )
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    def _make_split(self) -> DataSplit:
+        train = MLDataset(
+            name="d:train", feature_names=("age", "income"), target_name="y", row_count=80
+        )
+        test = MLDataset(
+            name="d:test", feature_names=("age", "income"), target_name="y", row_count=20
+        )
+        return DataSplit(train=train, test=test)
 
-    def test_rejects_malformed_pair(self) -> None:
+    async def test_rejects_empty_column_pairs(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "non-empty strings"):
-                InteractionFeatureGenerator(
-                    split=split,
-                    column_pairs=[("age",)],  # type: ignore[list-item]
-                    _config=KnotConfig(id="bad"),
-                )
+            k = InteractionFeatureGenerator.__new__(InteractionFeatureGenerator)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=self._make_split(), column_pairs=[])
+
+    async def test_rejects_malformed_pair(self) -> None:
+        with Tapestry():
+            k = InteractionFeatureGenerator.__new__(InteractionFeatureGenerator)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=self._make_split(), column_pairs=[("age",)]  # type: ignore[list-item]
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

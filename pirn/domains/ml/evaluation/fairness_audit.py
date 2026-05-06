@@ -6,6 +6,19 @@ The base implementation produces a deterministic
 sensitive column (the ``parity_<column>`` value) and whose ``details``
 map records per-group placeholder counts. Concrete subclasses override
 :meth:`process` to plug in a real per-group fit/predict/score loop.
+
+Algorithm:
+    1. Receive ``model`` (TrainedModel), ``split`` (DataSplit), and
+       ``sensitive_columns`` (sequence of str) via process().
+    2. Validate that sensitive_columns is non-empty and all elements are non-empty strings.
+    3. For each sensitive column, compute a deterministic parity score.
+    4. Return an EvalReport with ``parity_<column>`` metrics.
+
+Math:
+    parity[col] = sha256(model_id || col || test_name || test_row_count)[0:8] as uint64 / 2^64
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -31,10 +44,34 @@ class FairnessAudit(Knot):
         *,
         model: Knot,
         split: Knot,
-        sensitive_columns: Sequence[str],
+        sensitive_columns: Knot | Sequence[str],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            model=model,
+            split=split,
+            sensitive_columns=sensitive_columns,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self, model: TrainedModel, split: DataSplit, sensitive_columns: Sequence[str] = (), **_: Any
+    ) -> EvalReport:
+        """Compute per-group parity scores for each sensitive column and return an EvalReport.
+
+        Args:
+            model: TrainedModel reference to audit.
+            split: DataSplit whose test partition is used for per-group scoring.
+            sensitive_columns: Non-empty sequence of sensitive column name strings.
+
+        Returns:
+            EvalReport with parity_<column> metrics for every sensitive column.
+
+        Raises:
+            ValueError: If sensitive_columns is empty or any element is not a non-empty string.
+        """
         column_tuple = tuple(sensitive_columns)
         if not column_tuple:
             raise ValueError(
@@ -46,32 +83,13 @@ class FairnessAudit(Knot):
                     "FairnessAudit: every sensitive column name must be a "
                     "non-empty string"
                 )
-        self._sensitive_columns = column_tuple
-        super().__init__(model=model, split=split, _config=_config, **kwargs)
-
-    @property
-    def sensitive_columns(self) -> tuple[str, ...]:
-        return self._sensitive_columns
-
-    async def process(
-        self, model: TrainedModel, split: DataSplit, **_: Any
-    ) -> EvalReport:
-        """Compute per-group parity scores for each sensitive column and return an EvalReport.
-
-        Args:
-            model: TrainedModel reference to audit.
-            split: DataSplit whose test partition is used for per-group scoring.
-
-        Returns:
-            EvalReport with parity_<column> metrics for every sensitive column.
-        """
         metrics: dict[str, float] = {}
         details: dict[str, Any] = {
             "model_id": model.model_id,
             "test_row_count": split.test.row_count,
-            "sensitive_columns": list(self._sensitive_columns),
+            "sensitive_columns": list(column_tuple),
         }
-        for column in self._sensitive_columns:
+        for column in column_tuple:
             metrics[f"parity_{column}"] = self._parity_score(model, split, column)
         return EvalReport(
             model_id=model.model_id,

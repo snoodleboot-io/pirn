@@ -1,6 +1,16 @@
 """``RankingEvalPipeline`` — SubTapestry for ranking model evaluation.
 
 Computes NDCG@k, MRR, and MAP@k for a ranking model on a held-out split.
+
+Algorithm:
+    1. Receive ``model`` (TrainedModel), ``split`` (DataSplit), and ``k`` (int) via process().
+    2. Validate k is an int >= 1.
+    3. Wire an inner Tapestry with Evaluator using NDCG@k, MRR, MAP@k metrics.
+    4. Run the inner Tapestry via _run_inner() and return the EvalReport.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -31,41 +41,40 @@ class RankingEvalPipeline(SubTapestry):
         *,
         model: Knot,
         split: Knot,
-        k: int = 10,
+        k: Knot | int = 10,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(model, Knot):
-            raise TypeError("RankingEvalPipeline: model must be a Knot")
-        if not isinstance(split, Knot):
-            raise TypeError("RankingEvalPipeline: split must be a Knot")
-        if not isinstance(k, int):
-            raise TypeError("RankingEvalPipeline: k must be an int")
-        if k < 1:
-            raise ValueError("RankingEvalPipeline: k must be >= 1")
-        self._k = k
-        super().__init__(model=model, split=split, _config=_config, **kwargs)
-
-    @property
-    def k(self) -> int:
-        return self._k
+        super().__init__(model=model, split=split, k=k, _config=_config, **kwargs)
 
     async def process(
-        self, model: TrainedModel, split: DataSplit, **_: Any
+        self,
+        model: TrainedModel,
+        split: DataSplit,
+        k: int = 10,
+        **_: Any,
     ) -> EvalReport:
         """Evaluate the ranking model with NDCG@k, MRR, and MAP@k and return the resulting EvalReport.
 
         Args:
             model: TrainedModel reference to evaluate.
             split: DataSplit whose test partition is used for ranking metrics.
+            k: Cut-off rank; must be an int >= 1.
 
         Returns:
             EvalReport containing ndcg_at_k, mrr, and map_at_k metrics.
+
+        Raises:
+            ValueError: If k is not a valid int >= 1.
         """
+        if not isinstance(k, int):
+            raise TypeError("RankingEvalPipeline: k must be an int")
+        if k < 1:
+            raise ValueError("RankingEvalPipeline: k must be >= 1")
         metrics = (
-            f"ndcg_at_{self._k}",
+            f"ndcg_at_{k}",
             "mrr",
-            f"map_at_{self._k}",
+            f"map_at_{k}",
         )
         with Tapestry() as inner:
             model_node = _emit_value(

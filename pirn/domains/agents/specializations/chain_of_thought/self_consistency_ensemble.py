@@ -1,4 +1,17 @@
-"""``SelfConsistencyEnsemble`` — majority-vote aggregation over N parallel LLM samples."""
+"""``SelfConsistencyEnsemble`` — majority-vote aggregation over N parallel LLM samples.
+
+Algorithm:
+    1. Receive the resolved ``prompt`` string, ``LLMProvider``, and ``samples`` count.
+    2. Validate input types at process time.
+    3. Fire ``samples`` concurrent ``llm.chat`` calls with the same user message.
+    4. Extract text from each raw response.
+    5. Compute case-insensitive majority vote over the stripped answer strings.
+    6. Return the most common answer (original casing) as an ``AgentResponse``.
+
+
+References:
+    - Wang et al. (2022) "Self-Consistency Improves Chain of Thought Reasoning in Language Models"
+"""
 
 from __future__ import annotations
 
@@ -25,11 +38,33 @@ class SelfConsistencyEnsemble(Knot):
         self,
         *,
         prompt: Knot | str,
-        llm: LLMProvider,
+        llm: Knot | LLMProvider,
         _config: KnotConfig,
-        samples: int = 5,
+        samples: Knot | int = 5,
         **kwargs: Any,
     ) -> None:
+        super().__init__(prompt=prompt, llm=llm, samples=samples, _config=_config, **kwargs)
+
+    async def process(self, prompt: str, llm: LLMProvider, samples: int, **_: Any) -> AgentResponse:
+        """Run the prompt N times in parallel and return the majority-vote AgentResponse.
+
+        Args:
+            prompt: The user question to sample multiple times.
+            llm: LLM provider used to perform the chat completions.
+            samples: Number of parallel LLM samples to take.
+
+        Returns:
+            An AgentResponse whose content is the majority-vote answer across all samples.
+
+        Raises:
+            TypeError: If prompt is not a string or llm is not an LLMProvider.
+            ValueError: If samples is not a positive int.
+        """
+        if not isinstance(prompt, str):
+            raise TypeError(
+                "SelfConsistencyEnsemble: prompt must be a string, "
+                f"got {type(prompt).__name__}"
+            )
         if not isinstance(llm, LLMProvider):
             raise TypeError(
                 "SelfConsistencyEnsemble: llm must be an LLMProvider, "
@@ -40,29 +75,8 @@ class SelfConsistencyEnsemble(Knot):
                 "SelfConsistencyEnsemble: samples must be a positive int, "
                 f"got {samples!r}"
             )
-        self._llm = llm
-        self._samples = samples
-        super().__init__(prompt=prompt, _config=_config, **kwargs)
-
-    async def process(self, prompt: str, **_: Any) -> AgentResponse:
-        """Run the prompt N times in parallel and return the majority-vote AgentResponse.
-
-        Args:
-            prompt: The user question to sample multiple times.
-
-        Returns:
-            An AgentResponse whose content is the majority-vote answer across all samples.
-
-        Raises:
-            TypeError: If prompt is not a string.
-        """
-        if not isinstance(prompt, str):
-            raise TypeError(
-                "SelfConsistencyEnsemble: prompt must be a string, "
-                f"got {type(prompt).__name__}"
-            )
         messages = [{"role": "user", "content": prompt}]
-        tasks = [self._llm.chat(messages=messages) for _ in range(self._samples)]
+        tasks = [llm.chat(messages=messages) for _ in range(samples)]
         raws = await asyncio.gather(*tasks)
         answers = [self._extract_text(raw) for raw in raws]
         winner = self._majority_vote(answers)

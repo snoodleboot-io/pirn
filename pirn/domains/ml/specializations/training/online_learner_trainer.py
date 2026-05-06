@@ -3,6 +3,17 @@
 
 Tracks a running metric across all mini-batches and returns the
 final :class:`TrainedModel` with the last evaluation report.
+
+Algorithm:
+    1. Receive ``split``, ``algorithm``, ``monitor_metric``,
+       ``n_batches``, and ``hyperparameters`` via process().
+    2. Validate all inputs.
+    3. Wire N (Trainer + Evaluator) pairs in an inner Tapestry.
+    4. Run via _run_inner() and return final model and eval report.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -34,64 +45,67 @@ class OnlineLearnerTrainer(SubTapestry):
         self,
         *,
         split: Knot,
-        algorithm: str,
-        monitor_metric: str,
-        n_batches: int = 10,
-        hyperparameters: Mapping[str, Any] | None = None,
+        algorithm: Knot | str,
+        monitor_metric: Knot | str,
+        n_batches: Knot | int = 10,
+        hyperparameters: Knot | Mapping[str, Any] | None = None,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(split, Knot):
-            raise TypeError("OnlineLearnerTrainer: split must be a Knot")
-        if not isinstance(algorithm, str) or not algorithm:
-            raise ValueError(
-                "OnlineLearnerTrainer: algorithm must be a non-empty string"
-            )
-        if not isinstance(monitor_metric, str) or not monitor_metric:
-            raise ValueError(
-                "OnlineLearnerTrainer: monitor_metric must be a non-empty "
-                "string"
-            )
-        if not isinstance(n_batches, int):
-            raise TypeError("OnlineLearnerTrainer: n_batches must be an int")
-        if n_batches < 1:
-            raise ValueError(
-                "OnlineLearnerTrainer: n_batches must be >= 1"
-            )
-        if hyperparameters is not None and not isinstance(
-            hyperparameters, Mapping
-        ):
-            raise TypeError(
-                "OnlineLearnerTrainer: hyperparameters must be a Mapping"
-            )
-        self._algorithm = algorithm
-        self._monitor_metric = monitor_metric
-        self._n_batches = n_batches
-        self._hyperparameters = (
-            dict(hyperparameters) if hyperparameters is not None else {}
+        super().__init__(
+            split=split,
+            algorithm=algorithm,
+            monitor_metric=monitor_metric,
+            n_batches=n_batches,
+            hyperparameters=hyperparameters,
+            _config=_config,
+            **kwargs,
         )
-        super().__init__(split=split, _config=_config, **kwargs)
 
     async def process(
-        self, split: DataSplit, **_: Any
+        self,
+        split: DataSplit,
+        algorithm: str = "",
+        monitor_metric: str = "",
+        n_batches: int = 10,
+        hyperparameters: Mapping[str, Any] | None = None,
+        **_: Any,
     ) -> dict[str, Any]:
         """Incrementally train on mini-batches and return the final model and running metric history.
 
         Args:
             split: DataSplit whose training partition is divided into n_batches
                 mini-batches for incremental partial_fit updates.
+            algorithm: Non-empty algorithm identifier.
+            monitor_metric: Non-empty metric name to track across batches.
+            n_batches: Number of mini-batches; must be an int >= 1.
+            hyperparameters: Optional mapping of additional hyperparameters.
 
         Returns:
             Dict with ``model`` (TrainedModel), ``eval_report`` (EvalReport),
             and ``n_batches`` (int number of mini-batches processed).
 
         Raises:
+            ValueError: If any input fails validation.
             TypeError: If the inner trainer or evaluator returns an unexpected type.
         """
-        rows_per_batch = max(1, split.train.row_count // self._n_batches)
+        if not isinstance(algorithm, str) or not algorithm:
+            raise ValueError("OnlineLearnerTrainer: algorithm must be a non-empty string")
+        if not isinstance(monitor_metric, str) or not monitor_metric:
+            raise ValueError(
+                "OnlineLearnerTrainer: monitor_metric must be a non-empty string"
+            )
+        if not isinstance(n_batches, int):
+            raise TypeError("OnlineLearnerTrainer: n_batches must be an int")
+        if n_batches < 1:
+            raise ValueError("OnlineLearnerTrainer: n_batches must be >= 1")
+        if hyperparameters is not None and not isinstance(hyperparameters, Mapping):
+            raise TypeError("OnlineLearnerTrainer: hyperparameters must be a Mapping")
+        hp = dict(hyperparameters) if hyperparameters is not None else {}
+        rows_per_batch = max(1, split.train.row_count // n_batches)
 
         with Tapestry() as inner:
-            for batch_idx in range(self._n_batches):
+            for batch_idx in range(n_batches):
                 batch_ds = MLDataset(
                     name=f"{split.train.name}:batch_{batch_idx}",
                     feature_names=split.train.feature_names,
@@ -99,18 +113,16 @@ class OnlineLearnerTrainer(SubTapestry):
                     row_count=rows_per_batch,
                     source_uri=split.train.source_uri,
                 )
-                batch_split = DataSplit(
-                    train=batch_ds, test=split.test
-                )
+                batch_split = DataSplit(train=batch_ds, test=split.test)
                 batch_node = _emit_value(
                     value=batch_split,
                     _config=KnotConfig(id=f"batch_{batch_idx}"),
                 )
                 model = Trainer(
                     split=batch_node,
-                    algorithm=self._algorithm,
+                    algorithm=algorithm,
                     hyperparameters={
-                        **self._hyperparameters,
+                        **hp,
                         "partial_fit": True,
                         "batch_idx": batch_idx,
                     },
@@ -119,12 +131,12 @@ class OnlineLearnerTrainer(SubTapestry):
                 Evaluator(
                     model=model,
                     split=batch_node,
-                    metrics=(self._monitor_metric,),
+                    metrics=(monitor_metric,),
                     _config=KnotConfig(id=f"evaluate_{batch_idx}"),
                 )
         result = await self._run_inner(inner)
 
-        last_idx = self._n_batches - 1
+        last_idx = n_batches - 1
         trained_model = result.outputs[f"train_{last_idx}"]
         report = result.outputs[f"evaluate_{last_idx}"]
         if not isinstance(trained_model, TrainedModel):
@@ -138,5 +150,5 @@ class OnlineLearnerTrainer(SubTapestry):
         return {
             "model": trained_model,
             "eval_report": report,
-            "n_batches": self._n_batches,
+            "n_batches": n_batches,
         }

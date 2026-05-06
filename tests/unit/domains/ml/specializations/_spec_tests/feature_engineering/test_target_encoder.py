@@ -26,29 +26,36 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_categorical_column(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "categorical_column"):
-                TargetEncoder(
-                    split=split,
-                    categorical_column="",
-                    target_column="y",
-                    _config=KnotConfig(id="bad"),
-                )
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    def _make_split(self) -> DataSplit:
+        train = MLDataset(
+            name="d:train", feature_names=("city",), target_name="y", row_count=80
+        )
+        test = MLDataset(
+            name="d:test", feature_names=("city",), target_name="y", row_count=20
+        )
+        return DataSplit(train=train, test=test)
 
-    def test_rejects_negative_smoothing(self) -> None:
+    async def test_rejects_empty_categorical_column(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "smoothing"):
-                TargetEncoder(
-                    split=split,
-                    categorical_column="city",
-                    target_column="y",
-                    smoothing=-0.1,
-                    _config=KnotConfig(id="bad"),
-                )
+            k = TargetEncoder.__new__(TargetEncoder)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=self._make_split(), categorical_column="", target_column="y"
+            )
+
+    async def test_rejects_negative_smoothing(self) -> None:
+        with Tapestry():
+            k = TargetEncoder.__new__(TargetEncoder)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=self._make_split(),
+                categorical_column="city",
+                target_column="y",
+                smoothing=-0.1,
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

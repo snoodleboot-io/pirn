@@ -5,6 +5,21 @@ The base implementation deterministically derives one prediction per
 input row from the model id + features payload. Concrete subclasses
 override :meth:`process` to deserialise the artifact and run real
 inference.
+
+Algorithm:
+    1. Receive ``model_id`` (str), ``features`` (iterable of row dicts),
+       ``lineage`` (LineageStore), and ``store`` (ObjectStore) via process().
+    2. Validate that model_id is a non-empty string.
+    3. Touch the lineage store to fail loudly on misconfiguration.
+    4. For each feature row, derive a deterministic float score from
+       SHA-256(model_id + row).
+    5. Return the list of predictions.
+
+Math:
+    prediction[i] = sha256_bytes(model_id || row_i)[0:8] as uint64 / 2^64
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -27,39 +42,26 @@ class Predictor(Knot):
         *,
         model_id: Knot | str,
         features: Knot,
-        lineage: LineageStore,
-        store: ObjectStore,
+        lineage: Knot | LineageStore,
+        store: Knot | ObjectStore,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(model_id, (Knot, str)):
-            raise TypeError(
-                "Predictor: model_id must be a Knot or a string"
-            )
-        if isinstance(model_id, str) and not model_id:
-            raise ValueError(
-                "Predictor: model_id string must be non-empty"
-            )
-        if not isinstance(lineage, LineageStore):
-            raise TypeError(
-                "Predictor: lineage must be a LineageStore"
-            )
-        if not isinstance(store, ObjectStore):
-            raise TypeError(
-                "Predictor: store must be an ObjectStore"
-            )
-        self._lineage = lineage
-        self._store = store
-        # Pass model_id either as a parent (Knot) or a config (str) — Knot's
-        # constructor introspects the value type to decide.
         super().__init__(
-            model_id=model_id, features=features, _config=_config, **kwargs
+            model_id=model_id,
+            features=features,
+            lineage=lineage,
+            store=store,
+            _config=_config,
+            **kwargs,
         )
 
     async def process(
         self,
         model_id: str,
         features: Iterable[Mapping[str, Any]],
+        lineage: LineageStore,
+        store: ObjectStore = None,
         **_: Any,
     ) -> list[Any]:
         """Load the model from the registry and score each feature row, returning a list of predictions.
@@ -67,6 +69,8 @@ class Predictor(Knot):
         Args:
             model_id: Non-empty string identifying the registered model.
             features: Iterable of feature row dicts to score.
+            lineage: LineageStore used to fetch lineage for the model.
+            store: ObjectStore (reserved for concrete subclasses that load artifacts).
 
         Returns:
             List of float predictions, one per input feature row.
@@ -78,10 +82,9 @@ class Predictor(Knot):
             raise ValueError(
                 "Predictor: model_id must resolve to a non-empty string"
             )
-        # Touch the lineage and object stores so misconfigured connectors
-        # fail loudly at run time. The fetch results aren't required for
-        # the deterministic baseline scoring.
-        await self._lineage.fetch_lineage(model_id)
+        # Touch the lineage store so misconfigured connectors fail loudly at
+        # run time. The fetch results aren't required for deterministic scoring.
+        await lineage.fetch_lineage(model_id)
         feature_rows = list(features)
         return [
             self._predict(model_id, row)

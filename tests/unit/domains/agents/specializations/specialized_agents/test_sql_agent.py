@@ -17,28 +17,30 @@ from tests.unit.domains.agents.specializations.conftest import (
 )
 
 
-class TestSQLAgentConstruction(unittest.IsolatedAsyncioTestCase):
+class TestSQLAgentProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
         pool = StubDatabaseConnectionPool()
+        llm = StubLLMProvider(["SELECT 1"])
+        agent = SQLAgent(
+            question="who?",
+            llm=llm,
+            pool=pool,
+            _config=KnotConfig(id="sql"),
+        )
         with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
-            with Tapestry():
-                SQLAgent(
-                    question="who?",
-                    llm="not-a-provider",  # type: ignore[arg-type]
-                    pool=pool,
-                    _config=KnotConfig(id="sql"),
-                )
+            await agent.process(question="who?", llm="not-a-provider", pool=pool)  # type: ignore[arg-type]
 
     async def test_rejects_non_pool(self) -> None:
         llm = StubLLMProvider(["SELECT 1"])
+        pool = StubDatabaseConnectionPool()
+        agent = SQLAgent(
+            question="who?",
+            llm=llm,
+            pool=pool,
+            _config=KnotConfig(id="sql"),
+        )
         with self.assertRaisesRegex(TypeError, "pool must be a DatabaseConnectionPool"):
-            with Tapestry():
-                SQLAgent(
-                    question="who?",
-                    llm=llm,
-                    pool="not-a-pool",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="sql"),
-                )
+            await agent.process(question="who?", llm=llm, pool="not-a-pool")  # type: ignore[arg-type]
 
 
 class TestSQLAgentHappyPath(unittest.IsolatedAsyncioTestCase):

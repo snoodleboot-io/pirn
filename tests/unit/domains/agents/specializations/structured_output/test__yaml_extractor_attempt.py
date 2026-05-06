@@ -61,12 +61,21 @@ class TestYamlExtractorAttemptProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_string_prompt(self) -> None:
         llm = StubLLMProvider(["x: 1"])
+        knot = _YamlExtractorAttempt.__new__(_YamlExtractorAttempt)
+        with self.assertRaises(TypeError):
+            await knot.process(
+                prompt=42,  # type: ignore[arg-type]
+                llm=llm,
+                schema=None,
+                prior_error="",
+            )
+
+
+class TestProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_process_rejects_non_string_prompt(self) -> None:
+        llm = StubLLMProvider(["x: 1"])
         with Tapestry():
-            with self.assertRaises(TypeError):
-                _YamlExtractorAttempt(
-                    prompt=42,  # type: ignore[arg-type]
-                    llm=llm,
-                    schema=None,
-                    prior_error="",
-                    _config=KnotConfig(id="yea"),
-                )
+            k = _YamlExtractorAttempt.__new__(_YamlExtractorAttempt)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises(TypeError):
+            await k.process(prompt=99, llm=llm, schema=None, prior_error="")  # type: ignore[arg-type]

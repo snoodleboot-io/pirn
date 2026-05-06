@@ -26,30 +26,28 @@ class _GRSource(Knot):
         ]
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_gr_shale_lte_gr_clean(self) -> None:
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_gr_shale_lte_gr_clean(self) -> None:
+        k = VshaleCalculator.__new__(VshaleCalculator)
+        object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaisesRegex(ValueError, "gr_shale"):
-            with Tapestry():
-                src = _GRSource(_config=KnotConfig(id="src"))
-                VshaleCalculator(
-                    gr_log=src,
-                    gr_clean=100.0,
-                    gr_shale=50.0,
-                    method="linear",
-                    _config=KnotConfig(id="vsh"),
-                )
+            await k.process(
+                gr_log=[],
+                gr_clean=100.0,
+                gr_shale=50.0,
+                method="linear",
+            )
 
-    def test_rejects_invalid_method(self) -> None:
+    async def test_rejects_invalid_method(self) -> None:
+        k = VshaleCalculator.__new__(VshaleCalculator)
+        object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaisesRegex(ValueError, "method"):
-            with Tapestry():
-                src = _GRSource(_config=KnotConfig(id="src"))
-                VshaleCalculator(
-                    gr_log=src,
-                    gr_clean=20.0,
-                    gr_shale=120.0,
-                    method="steiber",
-                    _config=KnotConfig(id="vsh"),
-                )
+            await k.process(
+                gr_log=[],
+                gr_clean=20.0,
+                gr_shale=120.0,
+                method="steiber",
+            )
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

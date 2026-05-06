@@ -25,39 +25,35 @@ class _SplitSource(Knot):
         return DataSplit(train=ds, test=ds)
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_columns(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                FourierFeatureGenerator(
-                    split=_SplitSource(_config=KnotConfig(id="s")),
-                    columns=[],
-                    periods=[24],
-                    _config=KnotConfig(id="ffg"),
-                )
-
-    def test_rejects_period_less_than_2(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                FourierFeatureGenerator(
-                    split=_SplitSource(_config=KnotConfig(id="s")),
-                    columns=["hour"],
-                    periods=[1],
-                    _config=KnotConfig(id="ffg"),
-                )
-
-    def test_rejects_non_int_period(self) -> None:
-        with self.assertRaises(TypeError):
-            with Tapestry():
-                FourierFeatureGenerator(
-                    split=_SplitSource(_config=KnotConfig(id="s")),
-                    columns=["hour"],
-                    periods=[24.0],  # type: ignore[list-item]
-                    _config=KnotConfig(id="ffg"),
-                )
-
-
 class TestProcess(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self) -> FourierFeatureGenerator:
+        k = FourierFeatureGenerator.__new__(FourierFeatureGenerator)
+        object.__setattr__(k, "_config", KnotConfig(id="ffg"))
+        return k
+
+    def _make_split(self) -> DataSplit:
+        ds = MLDataset(name="ds", feature_names=("hour",), row_count=100)
+        return DataSplit(train=ds, test=ds)
+
+    async def test_rejects_empty_columns(self) -> None:
+        k = self._make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=self._make_split(), columns=[], periods=[24])
+
+    async def test_rejects_period_less_than_2(self) -> None:
+        k = self._make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=self._make_split(), columns=["hour"], periods=[1])
+
+    async def test_rejects_non_int_period(self) -> None:
+        k = self._make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=self._make_split(),
+                columns=["hour"],
+                periods=[24.0],  # type: ignore[list-item]
+            )
+
     async def test_appends_sin_cos_features(self) -> None:
         with Tapestry() as t:
             src = _SplitSource(_config=KnotConfig(id="src"))

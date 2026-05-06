@@ -1,4 +1,21 @@
-"""``ScadaHistorianIngester`` — pull a tag stream from a historian connection."""
+"""``ScadaHistorianIngester`` — pull a tag stream from a historian connection.
+
+Algorithm:
+    1. Receive ``tag``, ``since`` datetime, and ``sample_interval_sec`` as
+       graph-wired inputs; the opaque ``HistorianConnection`` is provided via
+       a dedicated vending knot.
+    2. Validate that ``tag`` is a non-empty string, ``since`` is a datetime,
+       and ``sample_interval_sec`` is positive.
+    3. Call ``connection.fetch_tag(tag, since)`` to stream samples.
+    4. Return a ScadaTimeSeries reference keyed by the tag name.
+
+
+References:
+    - OPC Foundation (2017). OPC Unified Architecture Specification, Part 11
+      — Historical Access.
+    - OSII (2021). PI Web API Reference, Tag Query and Historical Data
+      Retrieval.
+"""
 
 from __future__ import annotations
 
@@ -17,13 +34,42 @@ class ScadaHistorianIngester(Knot):
     def __init__(
         self,
         *,
+        connection: Knot | HistorianConnection,
+        tag: Knot | str,
+        since: Knot | datetime,
+        sample_interval_sec: Knot | float,
+        _config: KnotConfig,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            connection=connection,
+            tag=tag,
+            since=since,
+            sample_interval_sec=sample_interval_sec,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
         connection: HistorianConnection,
         tag: str,
         since: datetime,
         sample_interval_sec: float,
-        _config: KnotConfig,
-        **kwargs: Any,
-    ) -> None:
+        **_: Any,
+    ) -> ScadaTimeSeries:
+        """Pull the configured tag from the historian connection and return a ScadaTimeSeries reference.
+
+        Args:
+            connection: Live HistorianConnection to fetch tag data from.
+            tag: Non-empty tag name string.
+            since: Datetime from which to retrieve historical data.
+            sample_interval_sec: Positive sample interval in seconds.
+
+        Returns:
+            ScadaTimeSeries with the tag as sensor_id and the
+            configured sample_interval_sec.
+        """
         if not isinstance(connection, HistorianConnection):
             raise TypeError(
                 "ScadaHistorianIngester: connection must be a HistorianConnection"
@@ -40,20 +86,7 @@ class ScadaHistorianIngester(Knot):
             raise ValueError(
                 "ScadaHistorianIngester: sample_interval_sec must be positive"
             )
-        self._connection = connection
-        self._tag = tag
-        self._since = since
-        self._sample_interval_sec = float(sample_interval_sec)
-        super().__init__(_config=_config, **kwargs)
-
-    async def process(self, **_: Any) -> ScadaTimeSeries:
-        """Pull the configured tag from the historian connection and return a ScadaTimeSeries reference.
-
-        Returns:
-            ScadaTimeSeries with the configured tag as sensor_id and the
-            configured sample_interval_sec.
-        """
         return ScadaTimeSeries(
-            sensor_id=self._tag,
-            sample_interval_sec=self._sample_interval_sec,
+            sensor_id=tag,
+            sample_interval_sec=float(sample_interval_sec),
         )

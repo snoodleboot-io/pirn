@@ -17,30 +17,30 @@ from tests.unit.domains.agents.specializations.conftest import (
 )
 
 
-class TestDataAnalystAgentConstruction(unittest.IsolatedAsyncioTestCase):
+class TestDataAnalystAgentProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_pool(self) -> None:
         llm = StubLLMProvider(["SELECT 1", "Looks fine."])
+        pool = StubDatabaseConnectionPool()
+        agent = DataAnalystAgent(
+            question="how many users?",
+            llm=llm,
+            pool=pool,
+            _config=KnotConfig(id="analyst"),
+        )
         with self.assertRaisesRegex(TypeError, "pool must be a DatabaseConnectionPool"):
-            with Tapestry():
-                DataAnalystAgent(
-                    question="how many users?",
-                    llm=llm,
-                    pool="not-a-pool",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="analyst"),
-                )
+            await agent.process(question="how many users?", llm=llm, pool="not-a-pool")  # type: ignore[arg-type]
 
     async def test_rejects_non_string_schema(self) -> None:
         llm = StubLLMProvider(["SELECT 1", "ok"])
         pool = StubDatabaseConnectionPool()
+        agent = DataAnalystAgent(
+            question="?",
+            llm=llm,
+            pool=pool,
+            _config=KnotConfig(id="analyst"),
+        )
         with self.assertRaisesRegex(TypeError, "schema_description"):
-            with Tapestry():
-                DataAnalystAgent(
-                    question="?",
-                    llm=llm,
-                    pool=pool,
-                    schema_description=123,  # type: ignore[arg-type]
-                    _config=KnotConfig(id="analyst"),
-                )
+            await agent.process(question="?", llm=llm, pool=pool, schema_description=123)  # type: ignore[arg-type]
 
 
 class TestDataAnalystAgentHappyPath(unittest.IsolatedAsyncioTestCase):

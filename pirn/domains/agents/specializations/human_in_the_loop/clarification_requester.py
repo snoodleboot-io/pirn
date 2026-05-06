@@ -1,9 +1,16 @@
 """``ClarificationRequester`` — detect ambiguity and generate a clarifying question.
 
-A :class:`Knot` that asks an LLM whether the user's message is
-ambiguous. If the LLM judges it ambiguous, it generates and returns a
-clarifying question. If the message is clear, the original message is
-returned unchanged.
+Algorithm:
+    1. Receive the resolved ``message`` string and ``LLMProvider``.
+    2. Validate that ``message`` is a string.
+    3. Build a single-message prompt asking the LLM whether the message is ambiguous.
+    4. Call ``llm.chat`` with the prompt.
+    5. If the response is exactly "CLEAR" (case-insensitive), return the original message.
+    6. Otherwise return the LLM response as a clarifying question string.
+
+
+References:
+    - Grice (1975) "Logic and Conversation" — cooperative principle and maxim of clarity.
 """
 
 from __future__ import annotations
@@ -22,21 +29,16 @@ class ClarificationRequester(Knot):
         self,
         *,
         message: Knot | str,
-        llm: LLMProvider,
+        llm: Knot | LLMProvider,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "ClarificationRequester: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
-        self._llm = llm
-        super().__init__(message=message, _config=_config, **kwargs)
+        super().__init__(message=message, llm=llm, _config=_config, **kwargs)
 
     async def process(
         self,
         message: str,
+        llm: LLMProvider,
         **_: Any,
     ) -> str:
         """Detect whether the message is ambiguous and return a clarifying question or the original.
@@ -61,7 +63,7 @@ class ClarificationRequester(Knot):
             "If the message is ambiguous, reply with a single clarifying question.\n\n"
             f"Message: {message}"
         )
-        raw = await self._llm.chat([{"role": "user", "content": prompt}])
+        raw = await llm.chat([{"role": "user", "content": prompt}])
         response_text = self._extract_text(raw).strip()
         if response_text.upper() == "CLEAR":
             return message

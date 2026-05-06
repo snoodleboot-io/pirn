@@ -25,38 +25,46 @@ class _SplitSource(Knot):
         return DataSplit(train=ds, test=ds)
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_invalid_statistic(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                RollingStatisticsGenerator(
-                    split=_SplitSource(_config=KnotConfig(id="s")),
-                    columns=["price"],
-                    statistics=["median"],
-                    _config=KnotConfig(id="rsg"),
-                )
-
-    def test_rejects_window_less_than_1(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                RollingStatisticsGenerator(
-                    split=_SplitSource(_config=KnotConfig(id="s")),
-                    columns=["price"],
-                    windows=[0],
-                    _config=KnotConfig(id="rsg"),
-                )
-
-    def test_rejects_empty_columns(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                RollingStatisticsGenerator(
-                    split=_SplitSource(_config=KnotConfig(id="s")),
-                    columns=[],
-                    _config=KnotConfig(id="rsg"),
-                )
-
-
 class TestProcess(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self) -> RollingStatisticsGenerator:
+        k = RollingStatisticsGenerator.__new__(RollingStatisticsGenerator)
+        object.__setattr__(k, "_config", KnotConfig(id="rsg"))
+        return k
+
+    def _make_split(self) -> DataSplit:
+        ds = MLDataset(name="ds", feature_names=("price",), row_count=30)
+        return DataSplit(train=ds, test=ds)
+
+    async def test_rejects_invalid_statistic(self) -> None:
+        k = self._make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=self._make_split(),
+                columns=["price"],
+                windows=[7],
+                statistics=["median"],
+            )
+
+    async def test_rejects_window_less_than_1(self) -> None:
+        k = self._make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=self._make_split(),
+                columns=["price"],
+                windows=[0],
+                statistics=["mean"],
+            )
+
+    async def test_rejects_empty_columns(self) -> None:
+        k = self._make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=self._make_split(),
+                columns=[],
+                windows=[7],
+                statistics=["mean"],
+            )
+
     async def test_appends_rolling_stat_features(self) -> None:
         with Tapestry() as t:
             src = _SplitSource(_config=KnotConfig(id="src"))

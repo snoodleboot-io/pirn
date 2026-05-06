@@ -6,6 +6,17 @@ feature name to each partition of the upstream :class:`DataSplit`. The
 orchestration layer only updates the feature-name catalogue; concrete
 subclasses are responsible for the row-level shifting that materialises
 the lag values, ordered by the configured ``time_column``.
+
+Algorithm:
+    1. Receive ``split`` (DataSplit), ``time_column``, ``columns``, and
+       ``lags`` via process().
+    2. Validate all inputs.
+    3. Wire _LagAppendKnot in an inner Tapestry.
+    4. Run via _run_inner() and return the extended DataSplit.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -35,67 +46,73 @@ class LagFeatureGenerator(SubTapestry):
         self,
         *,
         split: Knot,
-        time_column: str,
-        columns: Sequence[str],
-        lags: Sequence[int] = (1, 7),
+        time_column: Knot | str,
+        columns: Knot | Sequence[str],
+        lags: Knot | Sequence[int] = (1, 7),
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(split, Knot):
-            raise TypeError("LagFeatureGenerator: split must be a Knot")
+        super().__init__(
+            split=split,
+            time_column=time_column,
+            columns=columns,
+            lags=lags,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        split: DataSplit,
+        time_column: str = "",
+        columns: Sequence[str] = (),
+        lags: Sequence[int] = (1, 7),
+        **_: Any,
+    ) -> DataSplit:
+        """Append lag feature names for each (column, lag) pair to every partition and return the extended DataSplit.
+
+        Args:
+            split: DataSplit whose partitions receive the new lag feature names.
+            time_column: Non-empty time ordering column name.
+            columns: Non-empty sequence of column names to lag.
+            lags: Non-empty sequence of lag integers; each must be >= 1.
+
+        Returns:
+            DataSplit with ``<column>_lag_<N>`` feature names appended to every partition.
+
+        Raises:
+            ValueError: If any input is invalid.
+            TypeError: If any lag is not an int or inner knot fails.
+        """
         if not isinstance(time_column, str) or not time_column:
             raise ValueError(
                 "LagFeatureGenerator: time_column must be a non-empty string"
             )
         column_tuple = tuple(columns)
         if not column_tuple:
-            raise ValueError(
-                "LagFeatureGenerator: columns must be non-empty"
-            )
+            raise ValueError("LagFeatureGenerator: columns must be non-empty")
         for column in column_tuple:
             if not isinstance(column, str) or not column:
                 raise ValueError(
-                    "LagFeatureGenerator: every column name must be a "
-                    "non-empty string"
+                    "LagFeatureGenerator: every column name must be a non-empty string"
                 )
         lag_tuple = tuple(lags)
         if not lag_tuple:
             raise ValueError("LagFeatureGenerator: lags must be non-empty")
         for lag in lag_tuple:
             if not isinstance(lag, int):
-                raise TypeError(
-                    "LagFeatureGenerator: every lag must be an int"
-                )
+                raise TypeError("LagFeatureGenerator: every lag must be an int")
             if lag < 1:
-                raise ValueError(
-                    "LagFeatureGenerator: every lag must be >= 1"
-                )
-        self._time_column = time_column
-        self._columns = column_tuple
-        self._lags = lag_tuple
-        super().__init__(split=split, _config=_config, **kwargs)
-
-    async def process(self, split: DataSplit, **_: Any) -> DataSplit:
-        """Append lag feature names for each (column, lag) pair to every partition and return the extended DataSplit.
-
-        Args:
-            split: DataSplit whose partitions receive the new lag feature names.
-
-        Returns:
-            DataSplit with ``<column>_lag_<N>`` feature names appended to every partition.
-
-        Raises:
-            TypeError: If the inner knot does not return a DataSplit.
-        """
+                raise ValueError("LagFeatureGenerator: every lag must be >= 1")
         with Tapestry() as inner:
             split_node = _emit_value(
                 value=split, _config=KnotConfig(id="split")
             )
             _LagAppendKnot(
                 split=split_node,
-                time_column=self._time_column,
-                columns=self._columns,
-                lags=self._lags,
+                time_column=time_column,
+                columns=column_tuple,
+                lags=lag_tuple,
                 _config=KnotConfig(id="append_lags"),
             )
         result = await self._run_inner(inner)

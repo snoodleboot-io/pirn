@@ -14,29 +14,32 @@ from pirn.domains.health.wearables.spirometry_analyzer import (
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_sequence(self) -> None:
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_non_sequence(self) -> None:
+        inst = object.__new__(SpirometryAnalyzer)
         with self.assertRaisesRegex(TypeError, "flow_l_per_sec"):
-            SpirometryAnalyzer(
+            await SpirometryAnalyzer.process(
+                inst,
                 flow_l_per_sec=42,  # type: ignore[arg-type]
                 sample_rate_hz=100.0,
-                _config=KnotConfig(id="s"),
             )
 
-    def test_rejects_non_numeric_flow(self) -> None:
+    async def test_rejects_non_numeric_flow(self) -> None:
+        inst = object.__new__(SpirometryAnalyzer)
         with self.assertRaisesRegex(TypeError, "numeric"):
-            SpirometryAnalyzer(
+            await SpirometryAnalyzer.process(
+                inst,
                 flow_l_per_sec=["x"],  # type: ignore[list-item]
                 sample_rate_hz=100.0,
-                _config=KnotConfig(id="s"),
             )
 
-    def test_rejects_non_positive_rate(self) -> None:
+    async def test_rejects_non_positive_rate(self) -> None:
+        inst = object.__new__(SpirometryAnalyzer)
         with self.assertRaisesRegex(ValueError, "positive"):
-            SpirometryAnalyzer(
+            await SpirometryAnalyzer.process(
+                inst,
                 flow_l_per_sec=[],
                 sample_rate_hz=0.0,
-                _config=KnotConfig(id="s"),
             )
 
 

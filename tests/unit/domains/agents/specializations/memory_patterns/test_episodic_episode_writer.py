@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from datetime import datetime, timezone
 from typing import Any
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.domains.agents.specializations.memory_patterns.episodic_episode_writer import (
     EpisodicEpisodeWriter,
 )
@@ -30,65 +28,45 @@ def _msg(content: str, role: str = "user") -> AgentMessage:
     return AgentMessage(role=role, content=content)
 
 
-class TestEpisodicEpisodeWriterConstruction(unittest.TestCase):
-    def test_rejects_non_memory_store(self) -> None:
-        with self.assertRaisesRegex(TypeError, "MemoryStore"):
-            with Tapestry():
-                EpisodicEpisodeWriter(
-                    messages=[],
-                    session_id="s1",
-                    store="bad",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="eew"),
-                )
-
-    def test_rejects_empty_session_id(self) -> None:
-        with self.assertRaisesRegex(ValueError, "session_id"):
-            with Tapestry():
-                EpisodicEpisodeWriter(
-                    messages=[],
-                    session_id="",
-                    store=StubMemoryStore(hits=[]),
-                    _config=KnotConfig(id="eew"),
-                )
+def _make_knot() -> EpisodicEpisodeWriter:
+    with Tapestry():
+        return EpisodicEpisodeWriter(
+            messages=[],
+            session_id="s0",
+            store=_TrackingStore(),
+            _config=KnotConfig(id="eew"),
+        )
 
 
 class TestEpisodicEpisodeWriterProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_key_with_session_id(self) -> None:
+        k = _make_knot()
         store = _TrackingStore()
-        with Tapestry() as t:
-            EpisodicEpisodeWriter(
-                messages=[_msg("hello")],
-                session_id="sess-1",
-                store=store,
-                _config=KnotConfig(id="eew"),
-            )
-        result = await t.run(RunRequest())
-        key = result.outputs["eew"]
+        key = await k.process(messages=[_msg("hello")], session_id="sess-1", store=store)
         assert "sess-1" in key
         assert key.startswith("episode:")
 
     async def test_stores_payload_with_messages(self) -> None:
+        k = _make_knot()
         store = _TrackingStore()
         msgs = [_msg("a"), _msg("b", role="assistant")]
-        with Tapestry() as t:
-            EpisodicEpisodeWriter(
-                messages=msgs,
-                session_id="sess-2",
-                store=store,
-                _config=KnotConfig(id="eew"),
-            )
-        result = await t.run(RunRequest())
-        key = result.outputs["eew"]
+        key = await k.process(messages=msgs, session_id="sess-2", store=store)
         assert key in store.stored
         assert len(store.stored[key]["messages"]) == 2
 
     async def test_rejects_non_agent_message(self) -> None:
+        k = _make_knot()
         store = _TrackingStore()
-        with Tapestry():
-            with self.assertRaises(TypeError):
-                EpisodicEpisodeWriter(
-                    messages=["not-a-message"],  # type: ignore[list-item]
-                    session_id="sess-3",
-                    store=store,
-                    _config=KnotConfig(id="eew"),
-                )
+        with self.assertRaises(TypeError):
+            await k.process(messages=["not-a-message"], session_id="s", store=store)  # type: ignore[list-item]
+
+    async def test_rejects_non_memory_store(self) -> None:
+        k = _make_knot()
+        with self.assertRaises(TypeError):
+            await k.process(messages=[], session_id="s", store="bad")  # type: ignore[arg-type]
+
+    async def test_rejects_empty_session_id(self) -> None:
+        k = _make_knot()
+        store = _TrackingStore()
+        with self.assertRaises(ValueError):
+            await k.process(messages=[], session_id="", store=store)

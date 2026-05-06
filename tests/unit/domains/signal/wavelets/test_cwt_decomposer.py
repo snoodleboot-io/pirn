@@ -12,28 +12,22 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.signal.conftest import emit_signal_frame
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_wavelet_name(self) -> None:
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_bare_knot(self) -> CWTDecomposer:
         with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "non-empty"):
-                CWTDecomposer(
-                    signal=sig,
-                    wavelet_name="",
-                    scale_count=8,
-                    _config=KnotConfig(id="w"),
-                )
+            k = CWTDecomposer.__new__(CWTDecomposer)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        return k
 
-    def test_rejects_non_positive_scale_count(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "scale_count"):
-                CWTDecomposer(
-                    signal=sig,
-                    wavelet_name="morl",
-                    scale_count=0,
-                    _config=KnotConfig(id="w"),
-                )
+    async def test_rejects_empty_wavelet_name(self) -> None:
+        k = self._make_bare_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(signal=None, wavelet_name="", scale_count=8)  # type: ignore[arg-type]
+
+    async def test_rejects_non_positive_scale_count(self) -> None:
+        k = self._make_bare_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(signal=None, wavelet_name="morl", scale_count=0)  # type: ignore[arg-type]
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

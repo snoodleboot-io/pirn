@@ -3,7 +3,7 @@
 Stages composed inside the inner :class:`Tapestry`:
 
 1. :class:`MemorySearchRetriever` — fetch top-k memories.
-2. :class:`RelevanceGate` — keep only entries above ``relevance_threshold``.
+2. :class:`RelevanceCheck` — keep only entries above ``relevance_threshold``.
 3. :class:`CorrectiveRouter` — when nothing survives the gate, invoke
    ``fallback_tool`` (a caller-injected :class:`Tool`, typically a web
    search) and return its output as a single synthetic document.
@@ -11,6 +11,22 @@ Stages composed inside the inner :class:`Tapestry`:
    into a prompt.
 5. :class:`LLMChatCall` — generate the answer.
 6. :class:`RAGResponseBuilder` — wrap as :class:`AgentResponse`.
+
+Algorithm:
+    1. Retrieve ``top_k`` hits from memory via :class:`MemorySearchRetriever`.
+    2. Filter hits to those above ``relevance_threshold`` via
+       :class:`RelevanceCheck`.
+    3. If the filtered set is empty, invoke ``fallback_tool`` with the query
+       via :class:`CorrectiveRouter`; otherwise pass the filtered docs
+       through unchanged.
+    4. Build a prompt from the resulting docs and the original query via
+       :class:`RAGPromptBuilder`.
+    5. Generate an answer with :class:`LLMChatCall`.
+    6. Wrap the answer as an :class:`AgentResponse` via
+       :class:`RAGResponseBuilder` and return it.
+
+References:
+    - Corrective RAG: https://arxiv.org/abs/2401.15884
 """
 
 from __future__ import annotations
@@ -35,7 +51,7 @@ from pirn.domains.agents.specializations.rag.rag_response_builder import (
     RAGResponseBuilder,
 )
 from pirn.domains.agents.specializations.rag.relevance_gate import (
-    RelevanceGate,
+    RelevanceCheck,
 )
 from pirn.domains.agents.tool import Tool
 from pirn.domains.agents.types.agent_response import AgentResponse
@@ -50,52 +66,35 @@ class CorrectiveRAGPipeline(SubTapestry):
         self,
         *,
         query: Knot | str,
+        memory: Knot | MemoryStore,
+        llm: Knot | LLMProvider,
+        fallback_tool: Knot | Tool,
+        _config: KnotConfig,
+        top_k: Knot | int = 5,
+        relevance_threshold: Knot | float = 0.5,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            query=query,
+            memory=memory,
+            llm=llm,
+            fallback_tool=fallback_tool,
+            top_k=top_k,
+            relevance_threshold=relevance_threshold,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        query: str,
         memory: MemoryStore,
         llm: LLMProvider,
         fallback_tool: Tool,
-        _config: KnotConfig,
-        top_k: int = 5,
-        relevance_threshold: float = 0.5,
-        **kwargs: Any,
-    ) -> None:
-        if not isinstance(memory, MemoryStore):
-            raise TypeError(
-                "CorrectiveRAGPipeline: memory must be a MemoryStore, "
-                f"got {type(memory).__name__}"
-            )
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "CorrectiveRAGPipeline: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
-        if not isinstance(fallback_tool, Tool):
-            raise TypeError(
-                "CorrectiveRAGPipeline: fallback_tool must be a Tool, "
-                f"got {type(fallback_tool).__name__}"
-            )
-        if not isinstance(top_k, int) or top_k <= 0:
-            raise ValueError(
-                "CorrectiveRAGPipeline: top_k must be a positive int, "
-                f"got {top_k!r}"
-            )
-        if not isinstance(relevance_threshold, (int, float)):
-            raise TypeError(
-                "CorrectiveRAGPipeline: relevance_threshold must be a number, "
-                f"got {type(relevance_threshold).__name__}"
-            )
-        if not 0.0 <= float(relevance_threshold) <= 1.0:
-            raise ValueError(
-                "CorrectiveRAGPipeline: relevance_threshold must be in "
-                f"[0.0, 1.0], got {relevance_threshold!r}"
-            )
-        self._memory = memory
-        self._llm = llm
-        self._fallback_tool = fallback_tool
-        self._top_k = top_k
-        self._relevance_threshold = float(relevance_threshold)
-        super().__init__(query=query, _config=_config, **kwargs)
-
-    async def process(self, query: str, **_: Any) -> AgentResponse:
+        top_k: int,
+        relevance_threshold: float,
+        **_: Any,
+    ) -> AgentResponse:
         """Retrieve, score, correct via fallback if needed, and answer the query using the LLM.
 
         Args:
@@ -107,28 +106,23 @@ class CorrectiveRAGPipeline(SubTapestry):
         Raises:
             TypeError: If query is not a string.
         """
-        if not isinstance(query, str):
-            raise TypeError(
-                "CorrectiveRAGPipeline: query must be a string, "
-                f"got {type(query).__name__}"
-            )
         with Tapestry() as inner:
             retrieved = MemorySearchRetriever(
-                store=self._memory,
+                store=memory,
                 query=query,
-                top_k=self._top_k,
+                top_k=top_k,
                 _config=KnotConfig(id="retrieve"),
             )
-            relevant = RelevanceGate(
+            relevant = RelevanceCheck(
                 query=query,
                 retrieved=retrieved,
-                threshold=self._relevance_threshold,
+                threshold=relevance_threshold,
                 _config=KnotConfig(id="score"),
             )
             routed = CorrectiveRouter(
                 query=query,
                 relevant_docs=relevant,
-                fallback_tool=self._fallback_tool,
+                fallback_tool=fallback_tool,
                 _config=KnotConfig(id="route"),
             )
             prompt = RAGPromptBuilder(
@@ -138,7 +132,7 @@ class CorrectiveRAGPipeline(SubTapestry):
             )
             answer = LLMChatCall(
                 prompt=prompt,
-                llm=self._llm,
+                llm=llm,
                 _config=KnotConfig(id="generate"),
             )
             RAGResponseBuilder(

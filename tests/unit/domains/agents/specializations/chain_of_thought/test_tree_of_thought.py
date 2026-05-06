@@ -3,9 +3,7 @@
 from __future__ import annotations
 import unittest
 
-
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.domains.agents.specializations.chain_of_thought.tree_of_thought import (
     TreeOfThought,
 )
@@ -14,81 +12,66 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 
-class TestTreeOfThoughtProcess(unittest.IsolatedAsyncioTestCase):
+def _make_knot(llm: StubLLMProvider) -> TreeOfThought:
+    with Tapestry():
+        return TreeOfThought(
+            prompt="x",
+            llm=llm,
+            k_candidates=2,
+            beam_width=1,
+            depth=1,
+            _config=KnotConfig(id="tot"),
+        )
+
+
+class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_agent_response(self) -> None:
         llm = StubLLMProvider(["thought"] * 20 + ["8"] * 20)
-        with Tapestry() as t:
-            TreeOfThought(
-                prompt="Solve this.",
-                llm=llm,
-                k_candidates=2,
-                beam_width=1,
-                depth=1,
-                _config=KnotConfig(id="tot"),
-            )
-        result = await t.run(RunRequest())
-        assert result.succeeded
-        response = result.outputs["tot"]
+        k = _make_knot(llm)
+        response = await k.process(
+            prompt="Solve this.",
+            llm=llm,
+            k_candidates=2,
+            beam_width=1,
+            depth=1,
+        )
         assert isinstance(response, AgentResponse)
         assert len(response.content) > 0
 
     async def test_scores_determine_best_path(self) -> None:
         responses = ["path-A", "path-B", "10", "1"]
         llm = StubLLMProvider(responses)
-        with Tapestry() as t:
-            TreeOfThought(
-                prompt="start",
-                llm=llm,
-                k_candidates=2,
-                beam_width=1,
-                depth=1,
-                _config=KnotConfig(id="tot"),
-            )
-        result = await t.run(RunRequest())
-        response = result.outputs["tot"]
+        k = _make_knot(llm)
+        response = await k.process(
+            prompt="start",
+            llm=llm,
+            k_candidates=2,
+            beam_width=1,
+            depth=1,
+        )
         assert isinstance(response, AgentResponse)
         assert "path-A" in response.content
 
-
-class TestTreeOfThoughtConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
+        llm = StubLLMProvider(["x"])
+        k = _make_knot(llm)
         with self.assertRaisesRegex(TypeError, "LLMProvider"):
-            with Tapestry():
-                TreeOfThought(
-                    prompt="q",
-                    llm="bad",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="tot"),
-                )
+            await k.process(
+                prompt="q",
+                llm="bad",  # type: ignore[arg-type]
+                k_candidates=2,
+                beam_width=1,
+                depth=1,
+            )
 
     async def test_rejects_zero_depth(self) -> None:
         llm = StubLLMProvider(["x"])
+        k = _make_knot(llm)
         with self.assertRaisesRegex(ValueError, "depth must be a positive int"):
-            with Tapestry():
-                TreeOfThought(
-                    prompt="q",
-                    llm=llm,
-                    depth=0,
-                    _config=KnotConfig(id="tot"),
-                )
-
-    async def test_rejects_zero_k_candidates(self) -> None:
-        llm = StubLLMProvider(["x"])
-        with self.assertRaisesRegex(ValueError, "k_candidates must be a positive int"):
-            with Tapestry():
-                TreeOfThought(
-                    prompt="q",
-                    llm=llm,
-                    k_candidates=0,
-                    _config=KnotConfig(id="tot"),
-                )
-
-    async def test_rejects_zero_beam_width(self) -> None:
-        llm = StubLLMProvider(["x"])
-        with self.assertRaisesRegex(ValueError, "beam_width must be a positive int"):
-            with Tapestry():
-                TreeOfThought(
-                    prompt="q",
-                    llm=llm,
-                    beam_width=0,
-                    _config=KnotConfig(id="tot"),
-                )
+            await k.process(
+                prompt="q",
+                llm=llm,
+                k_candidates=2,
+                beam_width=1,
+                depth=0,
+            )

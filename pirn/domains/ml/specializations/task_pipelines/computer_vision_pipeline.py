@@ -6,12 +6,25 @@ evaluate. The :class:`ImageEmbeddingExtractor` knot fans the configured
 :class:`ImageEncoderProvider` over the named image column so the
 downstream trainer sees an :class:`MLDataset` whose ``feature_names``
 carry the augmented embedding feature.
+
+Algorithm:
+    1. Receive ``pool``, ``query``, ``image_column``, ``target_column``,
+       ``image_encoder``, and ``algorithm`` via process().
+    2. Validate all inputs.
+    3. Wire DatasetLoader → TrainTestSplit → ImageEmbeddingExtractor →
+       Trainer → Evaluator in an inner Tapestry.
+    4. Run via _run_inner() and return the EvalReport.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.connectors.database_connection_pool import (
     DatabaseConnectionPool,
@@ -42,62 +55,75 @@ class ComputerVisionPipeline(SubTapestry):
     def __init__(
         self,
         *,
-        pool: DatabaseConnectionPool,
-        query: str,
-        image_column: str,
-        target_column: str,
-        image_encoder: ImageEncoderProvider,
-        algorithm: str = "logistic",
+        pool: Knot | DatabaseConnectionPool,
+        query: Knot | str,
+        image_column: Knot | str,
+        target_column: Knot | str,
+        image_encoder: Knot | ImageEncoderProvider,
+        algorithm: Knot | str = "logistic",
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError(
-                "ComputerVisionPipeline: pool must be a DatabaseConnectionPool"
-            )
-        if not isinstance(query, str) or not query:
-            raise ValueError(
-                "ComputerVisionPipeline: query must be a non-empty string"
-            )
-        if not isinstance(image_column, str) or not image_column:
-            raise ValueError(
-                "ComputerVisionPipeline: image_column must be a non-empty string"
-            )
-        if not isinstance(target_column, str) or not target_column:
-            raise ValueError(
-                "ComputerVisionPipeline: target_column must be a non-empty string"
-            )
-        if not isinstance(image_encoder, ImageEncoderProvider):
-            raise TypeError(
-                "ComputerVisionPipeline: image_encoder must be an "
-                "ImageEncoderProvider"
-            )
-        if not isinstance(algorithm, str) or not algorithm:
-            raise ValueError(
-                "ComputerVisionPipeline: algorithm must be a non-empty string"
-            )
-        self._pool = pool
-        self._query = query
-        self._image_column = image_column
-        self._target_column = target_column
-        self._image_encoder = image_encoder
-        self._algorithm = algorithm
-        super().__init__(_config=_config, **kwargs)
+        super().__init__(
+            pool=pool,
+            query=query,
+            image_column=image_column,
+            target_column=target_column,
+            image_encoder=image_encoder,
+            algorithm=algorithm,
+            _config=_config,
+            **kwargs,
+        )
 
-    async def process(self, **_: Any) -> EvalReport:
+    async def process(
+        self,
+        pool: DatabaseConnectionPool = None,
+        query: str = "",
+        image_column: str = "",
+        target_column: str = "",
+        image_encoder: ImageEncoderProvider | None = None,
+        algorithm: str = "logistic",
+        **_: Any,
+    ) -> EvalReport:
         """Load data, split, extract image embeddings, train a classifier, and return the resulting EvalReport.
+
+        Args:
+            pool: DatabaseConnectionPool for loading the dataset.
+            query: Non-empty SQL query string.
+            image_column: Non-empty name of the image column.
+            target_column: Non-empty name of the target column.
+            image_encoder: ImageEncoderProvider for embedding extraction.
+            algorithm: Non-empty algorithm identifier.
 
         Returns:
             EvalReport containing accuracy, precision, recall, and f1 metrics
             from the image-classification evaluation stage.
+
+        Raises:
+            ValueError: If any input fails validation.
+            TypeError: If pool or image_encoder have wrong types.
         """
+        if not isinstance(pool, DatabaseConnectionPool):
+            raise TypeError("ComputerVisionPipeline: pool must be a DatabaseConnectionPool")
+        if not isinstance(query, str) or not query:
+            raise ValueError("ComputerVisionPipeline: query must be a non-empty string")
+        if not isinstance(image_column, str) or not image_column:
+            raise ValueError("ComputerVisionPipeline: image_column must be a non-empty string")
+        if not isinstance(target_column, str) or not target_column:
+            raise ValueError("ComputerVisionPipeline: target_column must be a non-empty string")
+        if not isinstance(image_encoder, ImageEncoderProvider):
+            raise TypeError(
+                "ComputerVisionPipeline: image_encoder must be an ImageEncoderProvider"
+            )
+        if not isinstance(algorithm, str) or not algorithm:
+            raise ValueError("ComputerVisionPipeline: algorithm must be a non-empty string")
         with Tapestry() as inner:
             dataset = DatasetLoader(
                 name="computer-vision",
-                feature_names=(self._image_column,),
-                target_name=self._target_column,
-                pool=self._pool,
-                query=self._query,
+                feature_names=(image_column,),
+                target_name=target_column,
+                pool=pool,
+                query=query,
                 _config=KnotConfig(id="load"),
             )
             split = TrainTestSplit(
@@ -106,13 +132,13 @@ class ComputerVisionPipeline(SubTapestry):
             )
             embedded = ImageEmbeddingExtractor(
                 split=split,
-                image_column=self._image_column,
-                image_encoder=self._image_encoder,
+                image_column=image_column,
+                image_encoder=image_encoder,
                 _config=KnotConfig(id="embed"),
             )
             trained = Trainer(
                 split=embedded,
-                algorithm=self._algorithm,
+                algorithm=algorithm,
                 _config=KnotConfig(id="train"),
             )
             Evaluator(

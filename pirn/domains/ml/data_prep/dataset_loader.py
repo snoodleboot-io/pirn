@@ -5,6 +5,17 @@ The knot does not embed dataset rows in its output. It produces a
 metadata reference (an :class:`MLDataset`) that downstream knots resolve
 when they need to materialise the data. ``row_count`` is computed from
 the source so the reference carries enough provenance for lineage.
+
+Algorithm:
+    1. Receive ``name``, ``feature_names``, ``target_name``, ``pool``,
+       ``query``, and ``parquet_path`` via process().
+    2. Validate that exactly one of (pool + query) or parquet_path is provided.
+    3. Count rows from the selected source.
+    4. Return an MLDataset reference with provenance metadata.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -26,15 +37,53 @@ class DatasetLoader(Knot):
     def __init__(
         self,
         *,
-        name: str,
-        feature_names: Sequence[str],
+        name: Knot | str,
+        feature_names: Knot | Sequence[str],
+        target_name: Knot | str | None = None,
+        pool: Knot | DatabaseConnectionPool | None = None,
+        query: Knot | str | None = None,
+        parquet_path: Knot | str | None = None,
+        _config: KnotConfig,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            name=name,
+            feature_names=feature_names,
+            target_name=target_name,
+            pool=pool,
+            query=query,
+            parquet_path=parquet_path,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        name: str = "",
+        feature_names: Sequence[str] = (),
         target_name: str | None = None,
         pool: DatabaseConnectionPool | None = None,
         query: str | None = None,
         parquet_path: str | None = None,
-        _config: KnotConfig,
-        **kwargs: Any,
-    ) -> None:
+        **_: Any,
+    ) -> MLDataset:
+        """Count rows from the SQL query or parquet path and return an MLDataset reference.
+
+        Args:
+            name: Non-empty dataset name.
+            feature_names: Non-empty sequence of feature column names.
+            target_name: Optional target column name.
+            pool: DatabaseConnectionPool for SQL loading (mutually exclusive with parquet_path).
+            query: Non-empty SQL query string (required when pool is provided).
+            parquet_path: Non-empty path to a parquet file (mutually exclusive with pool/query).
+
+        Returns:
+            MLDataset reference with row_count derived from the SQL query or parquet file.
+
+        Raises:
+            ValueError: If inputs fail validation or source exclusivity is violated.
+            TypeError: If pool is not a DatabaseConnectionPool.
+        """
         if not isinstance(name, str) or not name:
             raise ValueError("DatasetLoader: name must be a non-empty string")
         feature_tuple = tuple(feature_names)
@@ -66,45 +115,31 @@ class DatasetLoader(Knot):
             raise ValueError(
                 "DatasetLoader: parquet_path must be a non-empty string"
             )
-        self._name = name
-        self._feature_names = feature_tuple
-        self._target_name = target_name
-        self._pool = pool
-        self._query = query
-        self._parquet_path = parquet_path
-        super().__init__(_config=_config, **kwargs)
-
-    async def process(self, **_: Any) -> MLDataset:
-        """Count rows from the SQL query or parquet path and return an MLDataset reference.
-
-        Returns:
-            MLDataset reference with row_count derived from the SQL query or parquet file.
-        """
-        if self._pool is not None and self._query is not None:
-            row_count = await self._count_pool_rows()
-            source_uri = f"db://{type(self._pool).__name__}"
+        if has_pool_query:
+            row_count = await self._count_pool_rows(pool, query)
+            source_uri = f"db://{type(pool).__name__}"
         else:
-            row_count = await self._count_parquet_rows()
-            source_uri = f"file://{self._parquet_path}"
+            row_count = await self._count_parquet_rows(parquet_path)
+            source_uri = f"file://{parquet_path}"
         return MLDataset(
-            name=self._name,
-            feature_names=self._feature_names,
-            target_name=self._target_name,
+            name=name,
+            feature_names=feature_tuple,
+            target_name=target_name,
             row_count=row_count,
             source_uri=source_uri,
             fetched_at=datetime.now(timezone.utc),
         )
 
-    async def _count_pool_rows(self) -> int:
-        fetch_all = getattr(self._pool, "fetch_all", None)
+    async def _count_pool_rows(self, pool: DatabaseConnectionPool, query: str) -> int:
+        fetch_all = getattr(pool, "fetch_all", None)
         if fetch_all is None:
             raise TypeError(
                 "DatasetLoader: pool does not support fetch_all()"
             )
-        rows = await fetch_all(self._query)
+        rows = await fetch_all(query)
         return len(rows)
 
-    async def _count_parquet_rows(self) -> int:
+    async def _count_parquet_rows(self, parquet_path: str) -> int:
         # Defer the import; the parquet path is optional for callers
         # that only ever use the SQL route.
         try:
@@ -114,5 +149,5 @@ class DatasetLoader(Knot):
                 "DatasetLoader: parquet_path requires pyarrow; install "
                 "the data extra"
             ) from exc
-        table = pq.read_table(self._parquet_path)
+        table = pq.read_table(parquet_path)
         return int(table.num_rows)

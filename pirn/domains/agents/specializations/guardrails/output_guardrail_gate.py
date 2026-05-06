@@ -6,6 +6,21 @@ every ``tool_calls`` entry refers to a tool in
 ``allowed_tool_names``. Returns the validated response unchanged on
 success and raises :class:`ValueError` (surfaced as a failed run) on
 any rule violation.
+
+Algorithm:
+    1. Run an inner :class:`Tapestry` containing a single
+       :class:`OutputResponseValidator` with ``deny_patterns`` and
+       ``allowed_tool_names`` forwarded from the caller.
+    2. The validator checks each compiled deny pattern against
+       ``response.content`` and each ``tool_calls`` entry against
+       ``allowed_tool_names``, raising :class:`ValueError` on any violation.
+    3. Extract the validated :class:`AgentResponse` from the inner result and
+       return it unchanged.
+
+
+References:
+    - pirn-native: :class:`pirn.domains.agents.specializations.guardrails.output_response_validator.OutputResponseValidator`
+    - pirn-native: :class:`pirn.domains.agents.types.agent_response.AgentResponse`
 """
 
 from __future__ import annotations
@@ -32,31 +47,24 @@ class OutputGuardrailGate(SubTapestry):
         self,
         *,
         response: Knot | AgentResponse,
-        deny_patterns: Sequence[str],
-        allowed_tool_names: Sequence[str],
+        deny_patterns: Knot | Sequence[str],
+        allowed_tool_names: Knot | Sequence[str],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        for index, raw in enumerate(deny_patterns):
-            if not isinstance(raw, str):
-                raise TypeError(
-                    f"OutputGuardrailGate: deny_patterns[{index}] must be a "
-                    f"string, got {type(raw).__name__}"
-                )
-            compile_safe_pattern(raw, index=index, owner="OutputGuardrailGate", field="deny_patterns")
-        for index, name in enumerate(allowed_tool_names):
-            if not isinstance(name, str):
-                raise TypeError(
-                    f"OutputGuardrailGate: allowed_tool_names[{index}] must "
-                    f"be a string, got {type(name).__name__}"
-                )
-        self._deny_patterns = tuple(deny_patterns)
-        self._allowed_tool_names = tuple(allowed_tool_names)
-        super().__init__(response=response, _config=_config, **kwargs)
+        super().__init__(
+            response=response,
+            deny_patterns=deny_patterns,
+            allowed_tool_names=allowed_tool_names,
+            _config=_config,
+            **kwargs,
+        )
 
     async def process(
         self,
         response: AgentResponse,
+        deny_patterns: Sequence[str] = (),
+        allowed_tool_names: Sequence[str] = (),
         **_: Any,
     ) -> AgentResponse:
         """Validate the response against deny patterns and allowed tool names, returning it unchanged on success.
@@ -73,8 +81,8 @@ class OutputGuardrailGate(SubTapestry):
         with Tapestry() as inner:
             OutputResponseValidator(
                 response=response,
-                deny_patterns=self._deny_patterns,
-                allowed_tool_names=self._allowed_tool_names,
+                deny_patterns=tuple(deny_patterns),
+                allowed_tool_names=tuple(allowed_tool_names),
                 _config=KnotConfig(id="validate"),
             )
         inner_result = await self._run_inner(inner)

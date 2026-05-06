@@ -8,6 +8,8 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.ml.specializations.production.drift_monitor import DriftMonitor
+from pirn.domains.ml.types.data_split import DataSplit
+from pirn.domains.ml.types.ml_dataset import MLDataset
 from pirn.tapestry import Tapestry
 
 
@@ -19,46 +21,33 @@ class _KnotStub(Knot):
         return None
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_columns(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                DriftMonitor(
-                    baseline=_KnotStub(_config=KnotConfig(id="b")),
-                    current=_KnotStub(_config=KnotConfig(id="c")),
-                    columns=[],
-                    _config=KnotConfig(id="dm"),
-                )
+def _make_split() -> DataSplit:
+    train = MLDataset(name="d:train", feature_names=("f1", "f2"), row_count=80)
+    test = MLDataset(name="d:test", feature_names=("f1", "f2"), row_count=20)
+    return DataSplit(train=train, test=test)
 
-    def test_rejects_threshold_out_of_range(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                DriftMonitor(
-                    baseline=_KnotStub(_config=KnotConfig(id="b")),
-                    current=_KnotStub(_config=KnotConfig(id="c")),
-                    columns=["feature"],
-                    threshold=1.5,
-                    _config=KnotConfig(id="dm"),
-                )
 
-    def test_rejects_non_knot_baseline(self) -> None:
-        with self.assertRaises(TypeError):
-            with Tapestry():
-                DriftMonitor(
-                    baseline="bad",  # type: ignore[arg-type]
-                    current=_KnotStub(_config=KnotConfig(id="c")),
-                    columns=["feature"],
-                    _config=KnotConfig(id="dm"),
-                )
-
-    def test_attributes_stored(self) -> None:
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_empty_columns(self) -> None:
         with Tapestry():
-            dm = DriftMonitor(
-                baseline=_KnotStub(_config=KnotConfig(id="b")),
-                current=_KnotStub(_config=KnotConfig(id="c")),
-                columns=["f1", "f2"],
-                threshold=0.2,
-                _config=KnotConfig(id="dm"),
+            k = DriftMonitor.__new__(DriftMonitor)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                baseline=_make_split(),
+                current=_make_split(),
+                columns=(),
+                threshold=0.1,
             )
-        self.assertEqual(dm.columns, ("f1", "f2"))
-        self.assertAlmostEqual(dm.threshold, 0.2)
+
+    async def test_rejects_threshold_out_of_range(self) -> None:
+        with Tapestry():
+            k = DriftMonitor.__new__(DriftMonitor)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                baseline=_make_split(),
+                current=_make_split(),
+                columns=("feature",),
+                threshold=1.5,
+            )

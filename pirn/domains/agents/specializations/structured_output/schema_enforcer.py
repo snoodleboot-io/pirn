@@ -4,6 +4,20 @@ A :class:`Knot` that parses the JSON content of an :class:`AgentResponse`
 and validates it against a caller-supplied :class:`pydantic.BaseModel`
 subclass. Returns the parsed model instance on success or raises
 :class:`pydantic.ValidationError` on failure.
+
+Algorithm:
+    1. Receive ``response`` (AgentResponse) and ``model_class`` (type[BaseModel]).
+    2. Validate that ``response`` is an AgentResponse and ``model_class`` is a
+       BaseModel subclass; raise ``TypeError`` on failure.
+    3. Attempt to parse ``response.content`` as JSON; raise ``ValueError`` on
+       ``JSONDecodeError``.
+    4. Call ``model_class.model_validate(data)`` and return the model instance.
+
+
+References:
+    - Pydantic ``BaseModel.model_validate``:
+      https://docs.pydantic.dev/latest/concepts/models/
+    - :class:`pirn.domains.agents.types.agent_response.AgentResponse`
 """
 
 from __future__ import annotations
@@ -25,35 +39,29 @@ class SchemaEnforcer(Knot):
         self,
         *,
         response: Knot | AgentResponse,
-        model_class: type[BaseModel],
+        model_class: Knot | type[BaseModel],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(model_class, type) or not issubclass(
-            model_class, BaseModel
-        ):
-            raise TypeError(
-                "SchemaEnforcer: model_class must be a BaseModel subclass, "
-                f"got {model_class!r}"
-            )
-        self._model_class = model_class
-        super().__init__(response=response, _config=_config, **kwargs)
+        super().__init__(response=response, model_class=model_class, _config=_config, **kwargs)
 
     async def process(
         self,
         response: AgentResponse,
+        model_class: type[BaseModel],
         **_: Any,
     ) -> BaseModel:
         """Parse the response content as JSON and validate against the model class.
 
         Args:
             response: The agent response whose content is validated.
+            model_class: A BaseModel subclass to validate the parsed JSON against.
 
         Returns:
             A validated model instance produced by model_class.model_validate.
 
         Raises:
-            TypeError: If response is not an AgentResponse instance.
+            TypeError: If response is not an AgentResponse or model_class is not a BaseModel subclass.
             ValueError: If response content is not valid JSON.
             ValidationError: If the parsed data does not satisfy the model schema.
         """
@@ -62,10 +70,15 @@ class SchemaEnforcer(Knot):
                 "SchemaEnforcer: response must be an AgentResponse, "
                 f"got {type(response).__name__}"
             )
+        if not isinstance(model_class, type) or not issubclass(model_class, BaseModel):
+            raise TypeError(
+                "SchemaEnforcer: model_class must be a BaseModel subclass, "
+                f"got {model_class!r}"
+            )
         try:
             data = json.loads(response.content)
         except json.JSONDecodeError as exc:
             raise ValueError(
                 f"SchemaEnforcer: response content is not valid JSON: {exc}"
             ) from exc
-        return self._model_class.model_validate(data)
+        return model_class.model_validate(data)

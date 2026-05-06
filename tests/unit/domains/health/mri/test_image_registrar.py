@@ -3,44 +3,27 @@
 from __future__ import annotations
 import unittest
 
-
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.domains.health.mri.image_registrar import ImageRegistrar
-from pirn.tapestry import Tapestry
 
-
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty(self) -> None:
-        with self.assertRaisesRegex(ValueError, "non-empty"):
-            ImageRegistrar(
-                moving_path="",
-                fixed_path="f",
-                transform="rigid",
-                output_registered_path="out",
-                _config=KnotConfig(id="r"),
-            )
-
-    def test_rejects_invalid_transform(self) -> None:
-        with self.assertRaisesRegex(ValueError, "transform"):
-            ImageRegistrar(
-                moving_path="m",
-                fixed_path="f",
-                transform="bogus",
-                output_registered_path="out",
-                _config=KnotConfig(id="r"),
-            )
+_CFG = KnotConfig(id="r")
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self) -> ImageRegistrar:
+        return ImageRegistrar(moving_path="m.nii.gz", fixed_path="f.nii.gz", transform="affine", output_registered_path="reg.nii.gz", _config=_CFG)
+
+    async def test_rejects_empty(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "non-empty"):
+            await knot.process(moving_path="", fixed_path="f", transform="rigid", output_registered_path="out")
+
+    async def test_rejects_invalid_transform(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "transform"):
+            await knot.process(moving_path="m", fixed_path="f", transform="bogus", output_registered_path="out")
+
     async def test_returns_registered_path(self) -> None:
-        with Tapestry() as t:
-            ImageRegistrar(
-                moving_path="m.nii.gz",
-                fixed_path="f.nii.gz",
-                transform="affine",
-                output_registered_path="reg.nii.gz",
-                _config=KnotConfig(id="r"),
-            )
-        result = await t.run(RunRequest())
-        assert result.outputs["r"] == "reg.nii.gz"
+        knot = self._make_knot()
+        out = await knot.process(moving_path="m.nii.gz", fixed_path="f.nii.gz", transform="affine", output_registered_path="reg.nii.gz")
+        assert out == "reg.nii.gz"

@@ -27,34 +27,40 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_knot_split(self) -> None:
-        with Tapestry():
-            with self.assertRaisesRegex(TypeError, "split must be a Knot"):
-                BaselineEstablisher(
-                    split="not-a-knot",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="bad"),
-                )
+def _make_establisher() -> BaselineEstablisher:
+    with Tapestry():
+        split = emit_split(_config=KnotConfig(id="split"))
+        establisher = BaselineEstablisher(
+            split=split,
+            algorithm="linear",
+            metrics=("accuracy",),
+            _config=KnotConfig(id="baseline"),
+        )
+    return establisher
 
-    def test_rejects_empty_algorithm(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "algorithm"):
-                BaselineEstablisher(
-                    split=split,
-                    algorithm="",
-                    _config=KnotConfig(id="bad"),
-                )
 
-    def test_rejects_empty_metrics(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "metrics"):
-                BaselineEstablisher(
-                    split=split,
-                    metrics=(),
-                    _config=KnotConfig(id="bad"),
-                )
+def _split_fixture() -> DataSplit:
+    train = MLDataset(
+        name="d:train", feature_names=("a", "b"), target_name="y", row_count=80
+    )
+    test = MLDataset(
+        name="d:test", feature_names=("a", "b"), target_name="y", row_count=20
+    )
+    return DataSplit(train=train, test=test)
+
+
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_empty_algorithm(self) -> None:
+        establisher = _make_establisher()
+        split = _split_fixture()
+        with self.assertRaises((TypeError, ValueError)):
+            await establisher.process(split=split, algorithm="", metrics=("accuracy",))
+
+    async def test_rejects_empty_metrics(self) -> None:
+        establisher = _make_establisher()
+        split = _split_fixture()
+        with self.assertRaises((TypeError, ValueError)):
+            await establisher.process(split=split, algorithm="linear", metrics=())
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

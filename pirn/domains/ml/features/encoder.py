@@ -1,4 +1,16 @@
-"""``Encoder`` — categorical encoder over a :class:`DataSplit`."""
+"""``Encoder`` — categorical encoder over a :class:`DataSplit`.
+
+Algorithm:
+    1. Receive ``split`` (DataSplit), ``columns`` (sequence of str), and ``method`` (str) via process().
+    2. Validate columns is non-empty and all elements are non-empty strings.
+    3. Validate method is one of the valid encoding methods.
+    4. Append the ``encoded_<method>`` suffix to the name of each partition's MLDataset.
+    5. Return the renamed DataSplit.
+
+
+References:
+    N/A — pirn-native implementation.
+"""
 
 from __future__ import annotations
 
@@ -22,11 +34,33 @@ class Encoder(Knot):
         self,
         *,
         split: Knot,
-        columns: Sequence[str],
-        method: str = "onehot",
+        columns: Knot | Sequence[str],
+        method: Knot | str = "onehot",
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(split=split, columns=columns, method=method, _config=_config, **kwargs)
+
+    async def process(
+        self,
+        split: DataSplit,
+        columns: Sequence[str] = (),
+        method: str = "onehot",
+        **_: Any,
+    ) -> DataSplit:
+        """Apply the configured categorical encoding method to the split and return a renamed DataSplit.
+
+        Args:
+            split: DataSplit whose partitions are logically tagged with the encoding suffix.
+            columns: Non-empty sequence of column names to encode.
+            method: Encoding method; must be one of ``valid_methods``.
+
+        Returns:
+            DataSplit with each partition renamed to include the ``encoded_<method>`` suffix.
+
+        Raises:
+            ValueError: If columns is empty, any element is empty, or method is invalid.
+        """
         column_tuple = tuple(columns)
         if not column_tuple:
             raise ValueError("Encoder: columns must be non-empty")
@@ -39,24 +73,7 @@ class Encoder(Knot):
             raise ValueError(
                 f"Encoder: method must be one of {sorted(self.valid_methods)}"
             )
-        self._columns = column_tuple
-        self._method = method
-        super().__init__(split=split, _config=_config, **kwargs)
-
-    @property
-    def method(self) -> str:
-        return self._method
-
-    async def process(self, split: DataSplit, **_: Any) -> DataSplit:
-        """Apply the configured categorical encoding method to the split and return a renamed DataSplit.
-
-        Args:
-            split: DataSplit whose partitions are logically tagged with the encoding suffix.
-
-        Returns:
-            DataSplit with each partition renamed to include the ``encoded_<method>`` suffix.
-        """
-        suffix = f"encoded_{self._method}"
+        suffix = f"encoded_{method}"
         now = datetime.now(timezone.utc)
         return DataSplit(
             train=self._mark(split.train, suffix, now),

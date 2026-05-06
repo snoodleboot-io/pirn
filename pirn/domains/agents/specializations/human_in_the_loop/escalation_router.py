@@ -5,6 +5,17 @@ A :class:`Knot` that inspects the confidence score attached to an
 Responses with a score below ``threshold`` are routed to the human
 escalation queue by returning ``None``; responses at or above the
 threshold are passed through unchanged.
+
+Algorithm:
+    1. Receive the resolved ``response`` (AgentResponse) and ``threshold`` (float).
+    2. Validate that ``response`` is an AgentResponse instance.
+    3. Read ``response.usage["confidence"]``; if absent, return None (escalate).
+    4. Cast confidence to float and compare against threshold.
+    5. Return the response unchanged if confidence >= threshold, else return None.
+
+
+References:
+    - Madaan et al. (2023) "Self-Refine: Iterative Refinement with Self-Feedback"
 """
 
 from __future__ import annotations
@@ -23,21 +34,16 @@ class EscalationRouter(Knot):
         self,
         *,
         response: Knot | AgentResponse,
-        threshold: float,
+        threshold: Knot | float,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(threshold, (int, float)):
-            raise TypeError(
-                "EscalationRouter: threshold must be a float, "
-                f"got {type(threshold).__name__}"
-            )
-        self._threshold = float(threshold)
-        super().__init__(response=response, _config=_config, **kwargs)
+        super().__init__(response=response, threshold=threshold, _config=_config, **kwargs)
 
     async def process(
         self,
         response: AgentResponse,
+        threshold: float = 0.8,
         **_: Any,
     ) -> AgentResponse | None:
         """Pass through high-confidence responses; return None for escalation candidates.
@@ -59,6 +65,6 @@ class EscalationRouter(Knot):
         confidence = response.usage.get("confidence")
         if confidence is None:
             return None
-        if float(confidence) >= self._threshold:
+        if float(confidence) >= float(threshold):
             return response
         return None

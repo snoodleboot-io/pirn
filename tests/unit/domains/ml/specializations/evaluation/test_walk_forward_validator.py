@@ -3,82 +3,104 @@
 from __future__ import annotations
 
 import unittest
-from typing import Any
 
-from pirn.core.knot import Knot
-from pirn.core.knot_config import KnotConfig
 from pirn.domains.ml.specializations.evaluation.walk_forward_validator import (
     WalkForwardValidator,
 )
-from pirn.tapestry import Tapestry
+from pirn.domains.ml.types.ml_dataset import MLDataset
 
 
-class _KnotStub(Knot):
-    def __init__(self, *, _config: KnotConfig, **kwargs: Any) -> None:
-        super().__init__(_config=_config, **kwargs)
+def _dataset(row_count: int = 50) -> MLDataset:
+    return MLDataset(
+        name="test-dataset",
+        feature_names=("a", "b"),
+        target_name="y",
+        row_count=row_count,
+    )
 
-    async def process(self, **_: Any) -> None:
-        return None
 
-
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_knot_dataset(self) -> None:
-        with self.assertRaises(TypeError):
-            with Tapestry():
-                WalkForwardValidator(
-                    dataset="bad",  # type: ignore[arg-type]
-                    time_column="ts",
-                    train_window=10,
-                    test_window=5,
-                    algorithm="arima",
-                    _config=KnotConfig(id="wfv"),
-                )
-
-    def test_rejects_train_window_less_than_1(self) -> None:
+class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_empty_time_column(self) -> None:
+        validator = WalkForwardValidator.__new__(WalkForwardValidator)
         with self.assertRaises(ValueError):
-            with Tapestry():
-                WalkForwardValidator(
-                    dataset=_KnotStub(_config=KnotConfig(id="d")),
-                    time_column="ts",
-                    train_window=0,
-                    test_window=5,
-                    algorithm="arima",
-                    _config=KnotConfig(id="wfv"),
-                )
+            await validator.process(
+                dataset=_dataset(),
+                time_column="",
+                train_window=10,
+                test_window=5,
+                algorithm="arima",
+                n_steps=5,
+            )
 
-    def test_rejects_empty_time_column(self) -> None:
+    async def test_rejects_train_window_less_than_1(self) -> None:
+        validator = WalkForwardValidator.__new__(WalkForwardValidator)
         with self.assertRaises(ValueError):
-            with Tapestry():
-                WalkForwardValidator(
-                    dataset=_KnotStub(_config=KnotConfig(id="d")),
-                    time_column="",
-                    train_window=10,
-                    test_window=5,
-                    algorithm="arima",
-                    _config=KnotConfig(id="wfv"),
-                )
+            await validator.process(
+                dataset=_dataset(),
+                time_column="ts",
+                train_window=0,
+                test_window=5,
+                algorithm="arima",
+                n_steps=5,
+            )
 
-    def test_rejects_empty_algorithm(self) -> None:
+    async def test_rejects_test_window_less_than_1(self) -> None:
+        validator = WalkForwardValidator.__new__(WalkForwardValidator)
         with self.assertRaises(ValueError):
-            with Tapestry():
-                WalkForwardValidator(
-                    dataset=_KnotStub(_config=KnotConfig(id="d")),
-                    time_column="ts",
-                    train_window=10,
-                    test_window=5,
-                    algorithm="",
-                    _config=KnotConfig(id="wfv"),
-                )
+            await validator.process(
+                dataset=_dataset(),
+                time_column="ts",
+                train_window=10,
+                test_window=0,
+                algorithm="arima",
+                n_steps=5,
+            )
 
-    def test_n_steps_attribute_stored(self) -> None:
-        with Tapestry():
-            wfv = WalkForwardValidator(
-                dataset=_KnotStub(_config=KnotConfig(id="d")),
+    async def test_rejects_empty_algorithm(self) -> None:
+        validator = WalkForwardValidator.__new__(WalkForwardValidator)
+        with self.assertRaises(ValueError):
+            await validator.process(
+                dataset=_dataset(),
+                time_column="ts",
+                train_window=10,
+                test_window=5,
+                algorithm="",
+                n_steps=5,
+            )
+
+    async def test_rejects_n_steps_less_than_1(self) -> None:
+        validator = WalkForwardValidator.__new__(WalkForwardValidator)
+        with self.assertRaises(ValueError):
+            await validator.process(
+                dataset=_dataset(),
                 time_column="ts",
                 train_window=10,
                 test_window=5,
                 algorithm="arima",
-                n_steps=3,
-                _config=KnotConfig(id="wfv"),
+                n_steps=0,
             )
-        self.assertEqual(wfv.n_steps, 3)
+
+    async def test_rejects_dataset_too_small(self) -> None:
+        validator = WalkForwardValidator.__new__(WalkForwardValidator)
+        # required = 10 + 5 * 5 = 35; dataset has 20 rows
+        with self.assertRaises(ValueError):
+            await validator.process(
+                dataset=_dataset(row_count=20),
+                time_column="ts",
+                train_window=10,
+                test_window=5,
+                algorithm="arima",
+                n_steps=5,
+            )
+
+    async def test_rejects_train_window_non_int(self) -> None:
+        validator = WalkForwardValidator.__new__(WalkForwardValidator)
+        with self.assertRaises(TypeError):
+            await validator.process(
+                dataset=_dataset(),
+                time_column="ts",
+                train_window="ten",  # type: ignore[arg-type]
+                test_window=5,
+                algorithm="arima",
+                n_steps=5,
+            )

@@ -38,14 +38,13 @@ class TestPolynomialFeaturesHappyPath(unittest.IsolatedAsyncioTestCase):
         assert "b*b" in out.train.feature_names
 
 
-class TestPolynomialFeaturesConstruction(unittest.TestCase):
-    def test_rejects_degree_below_two(self) -> None:
+class TestPolynomialFeaturesConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_degree_below_two(self) -> None:
+        train = MLDataset(name="d:train", feature_names=("a", "b"), row_count=10)
+        test = MLDataset(name="d:test", feature_names=("a", "b"), row_count=5)
+        split = DataSplit(train=train, test=test)
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "degree must be >= 2"):
-                PolynomialFeatures(
-                    split=split,
-                    columns=("a",),
-                    degree=1,
-                    _config=KnotConfig(id="bad"),
-                )
+            k = PolynomialFeatures.__new__(PolynomialFeatures)
+            object.__setattr__(k, "_config", KnotConfig(id="bad"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=split, columns=("a",), degree=1)

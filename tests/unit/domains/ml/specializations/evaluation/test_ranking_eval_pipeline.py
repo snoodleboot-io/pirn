@@ -10,6 +10,9 @@ from pirn.core.knot_config import KnotConfig
 from pirn.domains.ml.specializations.evaluation.ranking_eval_pipeline import (
     RankingEvalPipeline,
 )
+from pirn.domains.ml.types.data_split import DataSplit
+from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.trained_model import TrainedModel
 from pirn.tapestry import Tapestry
 
 
@@ -21,33 +24,34 @@ class _KnotStub(Knot):
         return None
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_k_less_than_1(self) -> None:
+def _make_knot() -> RankingEvalPipeline:
+    with Tapestry():
+        rp = RankingEvalPipeline(
+            model=_KnotStub(_config=KnotConfig(id="m")),
+            split=_KnotStub(_config=KnotConfig(id="s")),
+            k=10,
+            _config=KnotConfig(id="rp"),
+        )
+    return rp
+
+
+def _fixtures() -> tuple[TrainedModel, DataSplit]:
+    train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
+    test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
+    split = DataSplit(train=train, test=test)
+    model = TrainedModel(model_id="m1", algorithm="als", feature_names=("a",))
+    return model, split
+
+
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_k_less_than_1(self) -> None:
+        knot = _make_knot()
+        model, split = _fixtures()
         with self.assertRaises(ValueError):
-            with Tapestry():
-                RankingEvalPipeline(
-                    model=_KnotStub(_config=KnotConfig(id="m")),
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    k=0,
-                    _config=KnotConfig(id="rp"),
-                )
+            await knot.process(model=model, split=split, k=0)
 
-    def test_rejects_non_int_k(self) -> None:
+    async def test_rejects_non_int_k(self) -> None:
+        knot = _make_knot()
+        model, split = _fixtures()
         with self.assertRaises(TypeError):
-            with Tapestry():
-                RankingEvalPipeline(
-                    model=_KnotStub(_config=KnotConfig(id="m")),
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    k=5.0,  # type: ignore[arg-type]
-                    _config=KnotConfig(id="rp"),
-                )
-
-    def test_k_attribute_stored(self) -> None:
-        with Tapestry():
-            rp = RankingEvalPipeline(
-                model=_KnotStub(_config=KnotConfig(id="m")),
-                split=_KnotStub(_config=KnotConfig(id="s")),
-                k=20,
-                _config=KnotConfig(id="rp"),
-            )
-        self.assertEqual(rp.k, 20)
+            await knot.process(model=model, split=split, k=5.0)  # type: ignore[arg-type]

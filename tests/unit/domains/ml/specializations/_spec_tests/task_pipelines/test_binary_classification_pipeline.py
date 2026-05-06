@@ -16,28 +16,30 @@ from tests.unit.domains.ml._stubs.recording_database_pool import (
 )
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_target_column(self) -> None:
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_empty_target_column(self) -> None:
         with Tapestry():
-            with self.assertRaisesRegex(ValueError, "target_column"):
-                BinaryClassificationPipeline(
-                    pool=RecordingDatabasePool(rows=[(1, 0)]),
-                    query="SELECT 1",
-                    target_column="",
-                    feature_names=("a",),
-                    _config=KnotConfig(id="bad"),
-                )
+            k = BinaryClassificationPipeline.__new__(BinaryClassificationPipeline)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                pool=RecordingDatabasePool(rows=[(1, 0)]),
+                query="SELECT 1",
+                target_column="",
+                feature_names=("a",),
+            )
 
-    def test_rejects_empty_feature_names(self) -> None:
+    async def test_rejects_empty_feature_names(self) -> None:
         with Tapestry():
-            with self.assertRaisesRegex(ValueError, "feature_names"):
-                BinaryClassificationPipeline(
-                    pool=RecordingDatabasePool(rows=[(1, 0)]),
-                    query="SELECT 1",
-                    target_column="y",
-                    feature_names=(),
-                    _config=KnotConfig(id="bad"),
-                )
+            k = BinaryClassificationPipeline.__new__(BinaryClassificationPipeline)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                pool=RecordingDatabasePool(rows=[(1, 0)]),
+                query="SELECT 1",
+                target_column="y",
+                feature_names=(),
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

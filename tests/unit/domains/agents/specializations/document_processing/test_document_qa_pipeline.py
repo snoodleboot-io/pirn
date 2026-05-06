@@ -8,51 +8,48 @@ import tempfile
 
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.domains.agents.specializations.document_processing.document_qa_pipeline import (  # noqa: E501
     DocumentQAPipeline,
 )
 from pirn.domains.agents.types.agent_response import AgentResponse
 from pirn.tapestry import Tapestry
+from pirn.core.run_request import RunRequest
 from tests.unit.domains.agents.specializations.conftest import (
     StubEmbeddingProvider,
     StubLLMProvider,
 )
 
 
-class TestDocumentQAPipelineConstruction(unittest.IsolatedAsyncioTestCase):
-    async def test_rejects_non_llm_provider(self) -> None:
-        embedder = StubEmbeddingProvider()
-        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
-            with Tapestry():
-                DocumentQAPipeline(
-                    source="/tmp/x.txt",
-                    question="?",
-                    llm="not-a-provider",  # type: ignore[arg-type]
-                    embedder=embedder,
-                    _config=KnotConfig(id="qa"),
-                )
+def _make_knot(llm: StubLLMProvider, embedder: StubEmbeddingProvider) -> DocumentQAPipeline:
+    with Tapestry():
+        return DocumentQAPipeline(
+            source="/tmp/placeholder.txt",
+            question="?",
+            llm=llm,
+            embedder=embedder,
+            top_k=3,
+            _config=KnotConfig(id="qa"),
+        )
 
+
+class TestDocumentQAPipelineProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_zero_top_k(self) -> None:
         llm = StubLLMProvider(["answer"])
         embedder = StubEmbeddingProvider()
+        k = _make_knot(llm, embedder)
         with self.assertRaisesRegex(ValueError, "top_k"):
-            with Tapestry():
-                DocumentQAPipeline(
-                    source="/tmp/x.txt",
-                    question="?",
-                    llm=llm,
-                    embedder=embedder,
-                    top_k=0,
-                    _config=KnotConfig(id="qa"),
-                )
+            await k.process(
+                source="/tmp/x.txt",
+                question="?",
+                llm=llm,
+                embedder=embedder,
+                top_k=0,
+            )
 
-
-class TestDocumentQAPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_returns_agent_response(self) -> None:
-        _td_test_returns_agent_response = tempfile.TemporaryDirectory()
-        self.addCleanup(_td_test_returns_agent_response.cleanup)
-        tmp_path = Path(_td_test_returns_agent_response.name)
+        _td = tempfile.TemporaryDirectory()
+        self.addCleanup(_td.cleanup)
+        tmp_path = Path(_td.name)
         document = tmp_path / "doc.txt"
         document.write_text(
             "Alpha facts. Beta facts. Gamma facts.",

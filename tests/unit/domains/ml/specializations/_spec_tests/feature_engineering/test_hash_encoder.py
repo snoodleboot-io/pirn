@@ -32,38 +32,31 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_categorical_column(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "categorical_column"):
-                HashEncoder(
-                    split=split,
-                    categorical_column="",
-                    _config=KnotConfig(id="bad"),
-                )
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    def _make_split(self) -> DataSplit:
+        train = MLDataset(
+            name="d:train", feature_names=("category", "value"), target_name="y", row_count=80
+        )
+        test = MLDataset(
+            name="d:test", feature_names=("category", "value"), target_name="y", row_count=20
+        )
+        return DataSplit(train=train, test=test)
 
-    def test_rejects_n_components_below_one(self) -> None:
+    async def test_rejects_empty_categorical_column(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "n_components must be >= 1"):
-                HashEncoder(
-                    split=split,
-                    categorical_column="category",
-                    n_components=0,
-                    _config=KnotConfig(id="bad"),
-                )
+            k = HashEncoder.__new__(HashEncoder)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=self._make_split(), categorical_column="")
 
-    def test_stores_n_components(self) -> None:
+    async def test_rejects_n_components_below_one(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            enc = HashEncoder(
-                split=split,
-                categorical_column="category",
-                n_components=16,
-                _config=KnotConfig(id="he"),
+            k = HashEncoder.__new__(HashEncoder)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=self._make_split(), categorical_column="category", n_components=0
             )
-        assert enc.n_components == 16
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

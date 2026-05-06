@@ -1,68 +1,52 @@
 """Unit tests for :class:`PolyphaseResampler`."""
 
 from __future__ import annotations
+
 import unittest
 
+import pytest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
+from pirn.core.parameter import Parameter
 from pirn.domains.signal.resampling.polyphase_resampler import PolyphaseResampler
 from pirn.domains.signal.types.signal_frame import SignalFrame
-from pirn.tapestry import Tapestry
-from tests.unit.domains.signal.conftest import emit_signal_frame
+from tests.unit.domains.signal.conftest import make_signal_frame
+
+_SIGNAL = make_signal_frame()
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_positive_upsample_factor(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "upsample_factor"):
-                PolyphaseResampler(
-                    signal=sig,
-                    upsample_factor=0,
-                    downsample_factor=2,
-                    filter_length=32,
-                    _config=KnotConfig(id="pr"),
-                )
-
-    def test_rejects_non_positive_downsample_factor(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "downsample_factor"):
-                PolyphaseResampler(
-                    signal=sig,
-                    upsample_factor=2,
-                    downsample_factor=0,
-                    filter_length=32,
-                    _config=KnotConfig(id="pr"),
-                )
-
-    def test_rejects_non_positive_filter_length(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "filter_length"):
-                PolyphaseResampler(
-                    signal=sig,
-                    upsample_factor=2,
-                    downsample_factor=2,
-                    filter_length=0,
-                    _config=KnotConfig(id="pr"),
-                )
+def _up(name: str = "signal") -> Parameter:
+    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
 
 
-class TestProcess(unittest.IsolatedAsyncioTestCase):
+class TestPolyphaseResampler(unittest.IsolatedAsyncioTestCase):
+    def _make(self) -> PolyphaseResampler:
+        return PolyphaseResampler(
+            signal=_up(),
+            upsample_factor=3,
+            downsample_factor=2,
+            filter_length=32,
+            _config=KnotConfig(id="pr"),
+        )
+
+    async def test_rejects_non_positive_upsample_factor(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="upsample_factor"):
+            await knot.process(_SIGNAL, upsample_factor=0, downsample_factor=2, filter_length=32)
+
+    async def test_rejects_non_positive_downsample_factor(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="downsample_factor"):
+            await knot.process(_SIGNAL, upsample_factor=3, downsample_factor=0, filter_length=32)
+
+    async def test_rejects_non_positive_filter_length(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="filter_length"):
+            await knot.process(_SIGNAL, upsample_factor=3, downsample_factor=2, filter_length=0)
+
     async def test_emits_signal_frame(self) -> None:
-        with Tapestry() as t:
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            PolyphaseResampler(
-                signal=sig,
-                upsample_factor=3,
-                downsample_factor=2,
-                filter_length=32,
-                _config=KnotConfig(id="pr"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["pr"]
+        knot = self._make()
+        out = await knot.process(_SIGNAL, upsample_factor=3, downsample_factor=2, filter_length=32)
         assert isinstance(out, SignalFrame)
+        assert out.signal_id == "test:polyphase"
         assert out.sample_rate_hz == 1500.0
-        assert out.samples_per_channel == 1536

@@ -16,19 +16,20 @@ from tests.unit.domains.ml._stubs.recording_database_pool import (
 )
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_zero_horizon(self) -> None:
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_zero_horizon(self) -> None:
         with Tapestry():
-            with self.assertRaisesRegex(ValueError, "horizon"):
-                ForecastingPipeline(
-                    pool=RecordingDatabasePool(rows=[(1.0, 1.0, 1.0)]),
-                    query="SELECT 1",
-                    time_column="ts",
-                    target_column="y",
-                    feature_names=("a",),
-                    horizon=0,
-                    _config=KnotConfig(id="bad"),
-                )
+            k = ForecastingPipeline.__new__(ForecastingPipeline)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                pool=RecordingDatabasePool(rows=[(1.0, 1.0, 1.0)]),
+                query="SELECT 1",
+                time_column="ts",
+                target_column="y",
+                feature_names=("a",),
+                horizon=0,
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

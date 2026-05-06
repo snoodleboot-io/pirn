@@ -35,14 +35,13 @@ class TestImputerHappyPath(unittest.IsolatedAsyncioTestCase):
         assert out.train.name.endswith(":imputed_median")
 
 
-class TestImputerConstruction(unittest.TestCase):
-    def test_rejects_constant_method_without_value(self) -> None:
+class TestImputerConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_constant_method_without_value(self) -> None:
+        train = MLDataset(name="d:train", feature_names=("age",), row_count=10)
+        test = MLDataset(name="d:test", feature_names=("age",), row_count=5)
+        split = DataSplit(train=train, test=test)
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "constant_value"):
-                Imputer(
-                    split=split,
-                    columns=("age",),
-                    method="constant",
-                    _config=KnotConfig(id="bad"),
-                )
+            k = Imputer.__new__(Imputer)
+            object.__setattr__(k, "_config", KnotConfig(id="bad"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=split, columns=("age",), method="constant")

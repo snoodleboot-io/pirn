@@ -11,6 +11,21 @@ The gate evaluates both models with the same metric set on the same
 * ``comparison``: a synthetic :class:`EvalReport` whose ``metrics`` map
   reports ``champion_<metric>``, ``challenger_<metric>``, and
   ``delta_<metric>`` for every metric scored.
+
+Algorithm:
+    1. Receive ``champion`` (TrainedModel), ``challenger`` (TrainedModel),
+       ``split`` (DataSplit), ``primary_metric`` (str), and
+       ``min_improvement`` (float) via process().
+    2. Validate primary_metric and min_improvement.
+    3. Wire two Evaluator knots (one per model) in an inner Tapestry.
+    4. Run via _run_inner(), compute delta, and return comparison report.
+
+Math:
+    delta = challenger.metrics[primary_metric] - champion.metrics[primary_metric]
+    challenger_wins = (delta >= min_improvement)
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -44,55 +59,28 @@ class ChampionChallengerGate(SubTapestry):
         champion: Knot,
         challenger: Knot,
         split: Knot,
-        primary_metric: str,
-        min_improvement: float = 0.0,
+        primary_metric: Knot | str,
+        min_improvement: Knot | float = 0.0,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(champion, Knot):
-            raise TypeError(
-                "ChampionChallengerGate: champion must be a Knot"
-            )
-        if not isinstance(challenger, Knot):
-            raise TypeError(
-                "ChampionChallengerGate: challenger must be a Knot"
-            )
-        if not isinstance(split, Knot):
-            raise TypeError(
-                "ChampionChallengerGate: split must be a Knot"
-            )
-        if not isinstance(primary_metric, str) or not primary_metric:
-            raise ValueError(
-                "ChampionChallengerGate: primary_metric must be a non-empty "
-                "string"
-            )
-        if not isinstance(min_improvement, (int, float)):
-            raise TypeError(
-                "ChampionChallengerGate: min_improvement must be a number"
-            )
-        self._primary_metric = primary_metric
-        self._min_improvement = float(min_improvement)
         super().__init__(
             champion=champion,
             challenger=challenger,
             split=split,
+            primary_metric=primary_metric,
+            min_improvement=min_improvement,
             _config=_config,
             **kwargs,
         )
-
-    @property
-    def primary_metric(self) -> str:
-        return self._primary_metric
-
-    @property
-    def min_improvement(self) -> float:
-        return self._min_improvement
 
     async def process(
         self,
         champion: TrainedModel,
         challenger: TrainedModel,
         split: DataSplit,
+        primary_metric: str = "",
+        min_improvement: float = 0.0,
         **_: Any,
     ) -> dict[str, Any]:
         """Evaluate both models on the split and return a comparison dict indicating whether the challenger wins.
@@ -101,13 +89,25 @@ class ChampionChallengerGate(SubTapestry):
             champion: TrainedModel reference for the current champion.
             challenger: TrainedModel reference for the new challenger.
             split: DataSplit whose test partition is used for both evaluations.
+            primary_metric: Non-empty metric name to compare.
+            min_improvement: Minimum delta for challenger to win; must be numeric.
 
         Returns:
             Dict with ``challenger_wins`` (bool) and ``comparison`` (EvalReport with delta metrics).
 
         Raises:
-            TypeError: If either evaluator does not return an EvalReport.
+            ValueError: If primary_metric is empty.
+            TypeError: If min_improvement is not numeric or evaluators return unexpected types.
         """
+        if not isinstance(primary_metric, str) or not primary_metric:
+            raise ValueError(
+                "ChampionChallengerGate: primary_metric must be a non-empty string"
+            )
+        if not isinstance(min_improvement, (int, float)):
+            raise TypeError(
+                "ChampionChallengerGate: min_improvement must be a number"
+            )
+        min_imp = float(min_improvement)
         with Tapestry() as inner:
             champion_node = _emit_value(
                 value=champion, _config=KnotConfig(id="champion")
@@ -121,13 +121,13 @@ class ChampionChallengerGate(SubTapestry):
             Evaluator(
                 model=champion_node,
                 split=split_node,
-                metrics=(self._primary_metric,),
+                metrics=(primary_metric,),
                 _config=KnotConfig(id="evaluate_champion"),
             )
             Evaluator(
                 model=challenger_node,
                 split=split_node,
-                metrics=(self._primary_metric,),
+                metrics=(primary_metric,),
                 _config=KnotConfig(id="evaluate_challenger"),
             )
         inner_result = await self._run_inner(inner)
@@ -135,26 +135,20 @@ class ChampionChallengerGate(SubTapestry):
         challenger_report = inner_result.outputs["evaluate_challenger"]
         if not isinstance(champion_report, EvalReport):
             raise TypeError(
-                "ChampionChallengerGate: champion evaluator did not return "
-                "an EvalReport"
+                "ChampionChallengerGate: champion evaluator did not return an EvalReport"
             )
         if not isinstance(challenger_report, EvalReport):
             raise TypeError(
-                "ChampionChallengerGate: challenger evaluator did not return "
-                "an EvalReport"
+                "ChampionChallengerGate: challenger evaluator did not return an EvalReport"
             )
-        champion_score = float(
-            champion_report.metrics[self._primary_metric]
-        )
-        challenger_score = float(
-            challenger_report.metrics[self._primary_metric]
-        )
+        champion_score = float(champion_report.metrics[primary_metric])
+        challenger_score = float(challenger_report.metrics[primary_metric])
         delta = challenger_score - champion_score
-        challenger_wins = delta >= self._min_improvement
+        challenger_wins = delta >= min_imp
         comparison_metrics: dict[str, float] = {
-            f"champion_{self._primary_metric}": champion_score,
-            f"challenger_{self._primary_metric}": challenger_score,
-            f"delta_{self._primary_metric}": delta,
+            f"champion_{primary_metric}": champion_score,
+            f"challenger_{primary_metric}": challenger_score,
+            f"delta_{primary_metric}": delta,
         }
         comparison = EvalReport(
             model_id=challenger.model_id,
@@ -162,8 +156,8 @@ class ChampionChallengerGate(SubTapestry):
             metrics=MappingProxyType(comparison_metrics),
             details=MappingProxyType(
                 {
-                    "primary_metric": self._primary_metric,
-                    "min_improvement": self._min_improvement,
+                    "primary_metric": primary_metric,
+                    "min_improvement": min_imp,
                     "champion_model_id": champion.model_id,
                     "challenger_model_id": challenger.model_id,
                     "challenger_wins": challenger_wins,

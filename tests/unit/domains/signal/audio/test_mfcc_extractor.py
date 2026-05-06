@@ -1,67 +1,52 @@
 """Unit tests for :class:`MFCCExtractor`."""
 
 from __future__ import annotations
+
 import unittest
 
+import pytest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
+from pirn.core.parameter import Parameter
 from pirn.domains.signal.audio.mfcc_extractor import MFCCExtractor
+from pirn.domains.signal.types.signal_frame import SignalFrame
 from pirn.domains.signal.types.spectrum_frame import SpectrumFrame
-from pirn.tapestry import Tapestry
-from tests.unit.domains.signal.conftest import emit_signal_frame
+from tests.unit.domains.signal.conftest import make_signal_frame
+
+_SIGNAL = make_signal_frame()
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_positive_n_mfcc(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "n_mfcc"):
-                MFCCExtractor(
-                    signal=sig,
-                    n_mfcc=0,
-                    n_fft=512,
-                    hop_length=128,
-                    _config=KnotConfig(id="m"),
-                )
-
-    def test_rejects_non_positive_n_fft(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "n_fft"):
-                MFCCExtractor(
-                    signal=sig,
-                    n_mfcc=13,
-                    n_fft=0,
-                    hop_length=128,
-                    _config=KnotConfig(id="m"),
-                )
-
-    def test_rejects_hop_above_n_fft(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "not exceed"):
-                MFCCExtractor(
-                    signal=sig,
-                    n_mfcc=13,
-                    n_fft=128,
-                    hop_length=512,
-                    _config=KnotConfig(id="m"),
-                )
+def _up(name: str = "signal") -> Parameter:
+    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
 
 
-class TestProcess(unittest.IsolatedAsyncioTestCase):
+class TestMFCCExtractor(unittest.IsolatedAsyncioTestCase):
+    def _make(self) -> MFCCExtractor:
+        return MFCCExtractor(
+            signal=_up(),
+            n_mfcc=13,
+            n_fft=512,
+            hop_length=256,
+            _config=KnotConfig(id="mfcc"),
+        )
+
+    async def test_rejects_non_positive_n_mfcc(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="n_mfcc"):
+            await knot.process(_SIGNAL, n_mfcc=0, n_fft=512, hop_length=256)
+
+    async def test_rejects_non_positive_n_fft(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="n_fft"):
+            await knot.process(_SIGNAL, n_mfcc=13, n_fft=0, hop_length=256)
+
+    async def test_rejects_hop_exceeding_n_fft(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="hop_length"):
+            await knot.process(_SIGNAL, n_mfcc=13, n_fft=256, hop_length=512)
+
     async def test_emits_spectrum_frame(self) -> None:
-        with Tapestry() as t:
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            MFCCExtractor(
-                signal=sig,
-                n_mfcc=13,
-                n_fft=512,
-                hop_length=128,
-                _config=KnotConfig(id="m"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["m"]
+        knot = self._make()
+        out = await knot.process(_SIGNAL, n_mfcc=13, n_fft=512, hop_length=256)
         assert isinstance(out, SpectrumFrame)
         assert out.frequency_bins == 13

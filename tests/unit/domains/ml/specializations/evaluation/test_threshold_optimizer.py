@@ -28,18 +28,33 @@ async def emit_model() -> TrainedModel:
     return TrainedModel(model_id="m1", algorithm="logistic", feature_names=("a",))
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_invalid_metric(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            model = emit_model(_config=KnotConfig(id="model"))
-            with self.assertRaisesRegex(ValueError, "metric"):
-                ThresholdOptimizer(
-                    model=model,
-                    split=split,
-                    metric="invalid",
-                    _config=KnotConfig(id="bad"),
-                )
+def _make_knot() -> ThresholdOptimizer:
+    with Tapestry():
+        split = emit_split(_config=KnotConfig(id="split"))
+        model = emit_model(_config=KnotConfig(id="model"))
+        k = ThresholdOptimizer(
+            model=model,
+            split=split,
+            metric="f1",
+            _config=KnotConfig(id="opt"),
+        )
+    return k
+
+
+def _fixtures() -> tuple[TrainedModel, DataSplit]:
+    train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
+    test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
+    split = DataSplit(train=train, test=test)
+    model = TrainedModel(model_id="m1", algorithm="logistic", feature_names=("a",))
+    return model, split
+
+
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_invalid_metric(self) -> None:
+        knot = _make_knot()
+        model, split = _fixtures()
+        with self.assertRaisesRegex(ValueError, "metric"):
+            await knot.process(model=model, split=split, metric="invalid")
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

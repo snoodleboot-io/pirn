@@ -5,59 +5,41 @@ from __future__ import annotations
 from typing import Any
 import unittest
 
-
-from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.domains.oilgas.integrity.wall_thickness_analyzer import (
     WallThicknessAnalyzer,
 )
-from pirn.tapestry import Tapestry
 
-
-class _PigRunSource(Knot):
-    def __init__(self, *, _config: KnotConfig, **kwargs: Any) -> None:
-        super().__init__(_config=_config, **kwargs)
-
-    async def process(self, **_: Any) -> dict[str, Any]:
-        return {"feature_count": 5, "longest_anomaly_in": 1.0}
-
-
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_positive_nominal(self) -> None:
-        with self.assertRaisesRegex(ValueError, "nominal_thickness_in"):
-            with Tapestry():
-                src = _PigRunSource(_config=KnotConfig(id="src"))
-                WallThicknessAnalyzer(
-                    pig_run=src,
-                    nominal_thickness_in=0.0,
-                    minimum_allowable_thickness_in=0.2,
-                    _config=KnotConfig(id="wta"),
-                )
-
-    def test_rejects_min_ge_nominal(self) -> None:
-        with self.assertRaisesRegex(ValueError, "minimum_allowable_thickness_in"):
-            with Tapestry():
-                src = _PigRunSource(_config=KnotConfig(id="src"))
-                WallThicknessAnalyzer(
-                    pig_run=src,
-                    nominal_thickness_in=0.5,
-                    minimum_allowable_thickness_in=0.5,
-                    _config=KnotConfig(id="wta"),
-                )
+_PIG_RUN: dict[str, Any] = {"feature_count": 5, "longest_anomaly_in": 1.0}
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
-    async def test_returns_assessment(self) -> None:
-        with Tapestry() as t:
-            src = _PigRunSource(_config=KnotConfig(id="src"))
-            WallThicknessAnalyzer(
-                pig_run=src,
-                nominal_thickness_in=0.5,
-                minimum_allowable_thickness_in=0.25,
-                _config=KnotConfig(id="wta"),
+    def _make_knot(self, nominal: float = 0.5, minimum: float = 0.25) -> WallThicknessAnalyzer:
+        return WallThicknessAnalyzer(
+            pig_run=None,  # type: ignore[arg-type]
+            nominal_thickness_in=nominal,
+            minimum_allowable_thickness_in=minimum,
+            _config=KnotConfig(id="wta", validate_io=False),
+        )
+
+    async def test_rejects_non_positive_nominal(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "nominal_thickness_in"):
+            await knot.process(
+                pig_run=_PIG_RUN, nominal_thickness_in=0.0, minimum_allowable_thickness_in=0.2
             )
-        result = await t.run(RunRequest())
-        out = result.outputs["wta"]
+
+    async def test_rejects_min_ge_nominal(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "minimum_allowable_thickness_in"):
+            await knot.process(
+                pig_run=_PIG_RUN, nominal_thickness_in=0.5, minimum_allowable_thickness_in=0.5
+            )
+
+    async def test_returns_assessment(self) -> None:
+        knot = self._make_knot()
+        out = await knot.process(
+            pig_run=_PIG_RUN, nominal_thickness_in=0.5, minimum_allowable_thickness_in=0.25
+        )
         assert out["min_remaining_in"] == 0.5
         assert out["minimum_allowable_in"] == 0.25

@@ -4,6 +4,20 @@ Like the other data-prep knots, this one operates on the
 :class:`MLDataset` reference rather than the underlying rows; the
 output ``row_count`` is reduced according to ``n`` or ``fraction`` and
 the source uri / feature schema are preserved.
+
+Algorithm:
+    1. Receive ``dataset``, ``n``, ``fraction``, ``stratify_column``, and
+       ``random_seed`` via process().
+    2. Validate that exactly one of ``n`` or ``fraction`` is provided.
+    3. Compute new row_count: min(n, total) when n is set; else max(1, int(total * fraction)).
+    4. Return a renamed MLDataset reference with the reduced row_count.
+
+Math:
+    row_count = min(n, total)              [when n is provided]
+    row_count = max(1, int(total * frac))  [when fraction is provided]
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -23,13 +37,48 @@ class Sampler(Knot):
         self,
         *,
         dataset: Knot,
+        n: Knot | int | None = None,
+        fraction: Knot | float | None = None,
+        stratify_column: Knot | str | None = None,
+        random_seed: Knot | int = 42,
+        _config: KnotConfig,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            dataset=dataset,
+            n=n,
+            fraction=fraction,
+            stratify_column=stratify_column,
+            random_seed=random_seed,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        dataset: MLDataset,
         n: int | None = None,
         fraction: float | None = None,
         stratify_column: str | None = None,
         random_seed: int = 42,
-        _config: KnotConfig,
-        **kwargs: Any,
-    ) -> None:
+        **_: Any,
+    ) -> MLDataset:
+        """Reduce the dataset reference row count to the configured n or fraction and return the sampled reference.
+
+        Args:
+            dataset: MLDataset reference to downsample.
+            n: Absolute row count ceiling; mutually exclusive with fraction.
+            fraction: Fraction of rows to keep in (0, 1]; mutually exclusive with n.
+            stratify_column: Optional column name for stratified sampling metadata.
+            random_seed: Random seed (reserved for future shuffle logic).
+
+        Returns:
+            MLDataset reference with row_count reduced according to n or fraction.
+
+        Raises:
+            ValueError: If both or neither of n/fraction are provided, or values are out of range.
+            TypeError: If n, fraction, or random_seed have wrong types.
+        """
         if (n is None) == (fraction is None):
             raise ValueError(
                 "Sampler: provide exactly one of n or fraction"
@@ -52,26 +101,11 @@ class Sampler(Knot):
             )
         if not isinstance(random_seed, int):
             raise TypeError("Sampler: random_seed must be an int")
-        self._n = n
-        self._fraction = float(fraction) if fraction is not None else None
-        self._stratify_column = stratify_column
-        self._random_seed = random_seed
-        super().__init__(dataset=dataset, _config=_config, **kwargs)
-
-    async def process(self, dataset: MLDataset, **_: Any) -> MLDataset:
-        """Reduce the dataset reference row count to the configured n or fraction and return the sampled reference.
-
-        Args:
-            dataset: MLDataset reference to downsample.
-
-        Returns:
-            MLDataset reference with row_count reduced according to n or fraction.
-        """
         total = int(dataset.row_count)
-        if self._n is not None:
-            row_count = min(self._n, total)
+        if n is not None:
+            row_count = min(n, total)
         else:
-            row_count = max(1, int(total * (self._fraction or 0.0)))
+            row_count = max(1, int(total * (fraction or 0.0)))
         return MLDataset(
             name=f"{dataset.name}:sampled",
             feature_names=dataset.feature_names,

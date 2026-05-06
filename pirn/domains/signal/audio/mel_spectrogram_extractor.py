@@ -1,4 +1,31 @@
-"""``MelSpectrogramExtractor`` — mel-scaled spectrogram feature."""
+"""``MelSpectrogramExtractor`` — mel-scaled spectrogram feature.
+
+Algorithm:
+    1. Receive the input audio signal frame.
+    2. Validate n_mels, n_fft, and hop_length (hop_length must not exceed n_fft).
+    3. Compute the STFT with window size n_fft and hop size hop_length.
+    4. Square the magnitude spectrum to obtain the power spectrum.
+    5. Apply a mel filterbank matrix M ∈ R^{n_mels × (n_fft/2+1)} to obtain
+       mel-band energies.
+    6. Optionally convert to dB: S_mel_db = 10 log10(S_mel).
+    7. Return a SpectrumFrame with frequency_bins = n_mels.
+
+Math:
+    Mel filterbank output:
+
+    $$\\mathbf{S}_{\\text{mel}} = \\mathbf{M} \\cdot |\\text{STFT}(x)|^2$$
+
+    Mel frequency scale conversion:
+
+    $$m = 2595 \\log_{10}\\!\\left(1 + \\frac{f}{700}\\right)$$
+
+    Frequency resolution: $\\Delta f = f_s / n_{\\text{fft}}$ Hz/bin.
+
+References:
+    - O'Shaughnessy, D. (1987). "Speech Communication: Human and Machine." Addison-Wesley.
+    - McFee, B. et al. (2015). "librosa: Audio and music signal analysis in Python."
+      Proc. SciPy 2015.
+"""
 
 from __future__ import annotations
 
@@ -20,12 +47,43 @@ class MelSpectrogramExtractor(Knot):
         self,
         *,
         signal: Knot,
-        n_mels: int,
-        n_fft: int,
-        hop_length: int,
+        n_mels: Knot | int,
+        n_fft: Knot | int,
+        hop_length: Knot | int,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            signal=signal,
+            n_mels=n_mels,
+            n_fft=n_fft,
+            hop_length=hop_length,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        signal: SignalFrame,
+        n_mels: int,
+        n_fft: int,
+        hop_length: int,
+        **_: Any,
+    ) -> SpectrumFrame:
+        """Compute a mel-spectrogram from the audio signal.
+
+        Args:
+            signal: Audio signal to compute the mel-spectrogram from.
+            n_mels: Number of mel frequency bands (positive integer).
+            n_fft: FFT window size (positive integer).
+            hop_length: Hop size in samples (positive integer, must not exceed n_fft).
+
+        Returns:
+            SpectrumFrame with ``frequency_bins`` equal to ``n_mels`` and Hz-per-bin resolution.
+
+        Raises:
+            ValueError: If n_mels, n_fft, or hop_length are invalid.
+        """
         if not isinstance(n_mels, int) or n_mels <= 0:
             raise ValueError(
                 "MelSpectrogramExtractor: n_mels must be a positive integer"
@@ -42,41 +100,13 @@ class MelSpectrogramExtractor(Knot):
             raise ValueError(
                 "MelSpectrogramExtractor: hop_length must not exceed n_fft"
             )
-        self._n_mels = n_mels
-        self._n_fft = n_fft
-        self._hop_length = hop_length
-        super().__init__(signal=signal, _config=_config, **kwargs)
-
-    @property
-    def n_mels(self) -> int:
-        return self._n_mels
-
-    @property
-    def n_fft(self) -> int:
-        return self._n_fft
-
-    @property
-    def hop_length(self) -> int:
-        return self._hop_length
-
-    async def process(
-        self, signal: SignalFrame, **_: Any
-    ) -> SpectrumFrame:
-        """Compute a mel-spectrogram from the audio signal and return a SpectrumFrame with mel-bin resolution.
-
-        Args:
-            signal: Audio signal to compute the mel-spectrogram from.
-
-        Returns:
-            SpectrumFrame with ``frequency_bins`` equal to ``n_mels`` and Hz-per-bin resolution.
-        """
         resolution = (
-            signal.sample_rate_hz / self._n_fft
+            signal.sample_rate_hz / n_fft
             if signal.sample_rate_hz > 0
             else 0.0
         )
         return SpectrumFrame(
             signal_id=signal.signal_id,
-            frequency_bins=self._n_mels,
+            frequency_bins=n_mels,
             frequency_resolution_hz=resolution,
         )

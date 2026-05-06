@@ -1,0 +1,1160 @@
+[
+  {
+    "name": "agents/control+generation",
+    "files": [
+      "pirn/domains/agents/control/handoff_check.py",
+      "pirn/domains/agents/control/reflection_check.py",
+      "pirn/domains/agents/control/safety_check.py",
+      "pirn/domains/agents/control/termination_check.py",
+      "pirn/domains/agents/generation/llm_call.py",
+      "pirn/domains/agents/generation/output_parser.py",
+      "pirn/domains/agents/generation/response_formatter.py",
+      "pirn/domains/agents/generation/streaming_llm_call.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "agents/input+memory+planning_part1",
+    "files": [
+      "pirn/domains/agents/input/context_builder.py",
+      "pirn/domains/agents/input/intent_classifier.py",
+      "pirn/domains/agents/input/message_parser.py",
+      "pirn/domains/agents/memory/conversation_buffer.py",
+      "pirn/domains/agents/memory/memory_retriever.py",
+      "pirn/domains/agents/memory/memory_writer.py",
+      "pirn/domains/agents/planning/planner.py",
+      "pirn/domains/agents/planning/tool_executor.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "agents/input+memory+planning_part2",
+    "files": [
+      "pirn/domains/agents/planning/tool_result_aggregator.py",
+      "pirn/domains/agents/planning/tool_router.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "agents/spec/cot+conv+hitl+pe_part1",
+    "files": [
+      "pirn/domains/agents/specializations/chain_of_thought/chain_of_thought.py",
+      "pirn/domains/agents/specializations/chain_of_thought/self_consistency_ensemble.py",
+      "pirn/domains/agents/specializations/chain_of_thought/step_back_prompting.py",
+      "pirn/domains/agents/specializations/chain_of_thought/tree_of_thought.py",
+      "pirn/domains/agents/specializations/conversation/conversation_memory_pruner.py",
+      "pirn/domains/agents/specializations/conversation/multi_turn_context_assembler.py",
+      "pirn/domains/agents/specializations/human_in_the_loop/approval_gate.py",
+      "pirn/domains/agents/specializations/human_in_the_loop/clarification_requester.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "agents/spec/cot+conv+hitl+pe_part2",
+    "files": [
+      "pirn/domains/agents/specializations/human_in_the_loop/escalation_router.py",
+      "pirn/domains/agents/specializations/plan_and_execute/plan_executor.py",
+      "pirn/domains/agents/specializations/plan_and_execute/plan_revisor.py",
+      "pirn/domains/agents/specializations/plan_and_execute/task_planner.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "agents/spec/routing+react+reflect+tool_part1",
+    "files": [
+      "pirn/domains/agents/specializations/routing/capability_router.py",
+      "pirn/domains/agents/specializations/routing/confidence_router.py",
+      "pirn/domains/agents/specializations/routing/intent_router.py",
+      "pirn/domains/agents/specializations/react/messages_passthrough.py",
+      "pirn/domains/agents/specializations/react/react_loop.py",
+      "pirn/domains/agents/specializations/react/react_response_extractor.py",
+      "pirn/domains/agents/specializations/react/react_step_accumulator.py",
+      "pirn/domains/agents/specializations/react/react_step_executor.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "agents/spec/routing+react+reflect+tool_part2",
+    "files": [
+      "pirn/domains/agents/specializations/react/react_termination_check.py",
+      "pirn/domains/agents/specializations/reflection/constitutional_filter.py",
+      "pirn/domains/agents/specializations/reflection/constitutional_violation_error.py",
+      "pirn/domains/agents/specializations/reflection/outcome_simulator.py",
+      "pirn/domains/agents/specializations/reflection/self_critique_revise.py",
+      "pirn/domains/agents/specializations/reflection/simulation_result.py",
+      "pirn/domains/agents/specializations/tool_use/parallel_tool_caller.py",
+      "pirn/domains/agents/specializations/tool_use/tool_call_validator.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "agents/spec/routing+react+reflect+tool_part3",
+    "files": [
+      "pirn/domains/agents/specializations/tool_use/tool_chain.py",
+      "pirn/domains/agents/specializations/tool_use/tool_result_formatter.py",
+      "pirn/domains/agents/specializations/tool_use/tool_selector.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "agents/spec/multi_agent_part1",
+    "files": [
+      "pirn/domains/agents/specializations/multi_agent/consensus_aggregator.py",
+      "pirn/domains/agents/specializations/multi_agent/consensus_majority_vote_picker.py",
+      "pirn/domains/agents/specializations/multi_agent/consensus_synthesis_caller.py",
+      "pirn/domains/agents/specializations/multi_agent/debate_framework.py",
+      "pirn/domains/agents/specializations/multi_agent/debate_judge.py",
+      "pirn/domains/agents/specializations/multi_agent/orchestrator_agent.py",
+      "pirn/domains/agents/specializations/multi_agent/orchestrator_router.py",
+      "pirn/domains/agents/specializations/multi_agent/parallel_specialist_fan_out.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "agents/spec/multi_agent_part2",
+    "files": [
+      "pirn/domains/agents/specializations/multi_agent/round_robin_review.py",
+      "pirn/domains/agents/specializations/multi_agent/specialist_fan_out_collector.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "agents/spec/guardrails_part1",
+    "files": [
+      "pirn/domains/agents/specializations/guardrails/citation_grounder.py",
+      "pirn/domains/agents/specializations/guardrails/fact_check_gate.py",
+      "pirn/domains/agents/specializations/guardrails/fact_claim_extractor.py",
+      "pirn/domains/agents/specializations/guardrails/fact_claim_verifier.py",
+      "pirn/domains/agents/specializations/guardrails/hallucination_detector.py",
+      "pirn/domains/agents/specializations/guardrails/input_guardrail_gate.py",
+      "pirn/domains/agents/specializations/guardrails/input_message_scrubber.py",
+      "pirn/domains/agents/specializations/guardrails/output_guardrail_gate.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "agents/spec/guardrails_part2",
+    "files": [
+      "pirn/domains/agents/specializations/guardrails/output_response_validator.py",
+      "pirn/domains/agents/specializations/guardrails/pii_redactor_gate.py",
+      "pirn/domains/agents/specializations/guardrails/pii_response_redactor.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "agents/spec/memory_patterns_part1",
+    "files": [
+      "pirn/domains/agents/specializations/memory_patterns/episodic_episode_writer.py",
+      "pirn/domains/agents/specializations/memory_patterns/episodic_memory_pipeline.py",
+      "pirn/domains/agents/specializations/memory_patterns/episodic_memory_retriever.py",
+      "pirn/domains/agents/specializations/memory_patterns/procedural_memory_pipeline.py",
+      "pirn/domains/agents/specializations/memory_patterns/procedural_memory_writer.py",
+      "pirn/domains/agents/specializations/memory_patterns/semantic_fact_extractor.py",
+      "pirn/domains/agents/specializations/memory_patterns/semantic_fact_writer.py",
+      "pirn/domains/agents/specializations/memory_patterns/semantic_memory_pipeline.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "agents/spec/memory_patterns_part2",
+    "files": [
+      "pirn/domains/agents/specializations/memory_patterns/semantic_memory_upsert.py",
+      "pirn/domains/agents/specializations/memory_patterns/session_summarizer.py",
+      "pirn/domains/agents/specializations/memory_patterns/working_memory_pipeline.py",
+      "pirn/domains/agents/specializations/memory_patterns/working_memory_window_writer.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "agents/spec/structured_output_part1",
+    "files": [
+      "pirn/domains/agents/specializations/structured_output/_enum_classifier_attempt.py",
+      "pirn/domains/agents/specializations/structured_output/_json_extractor_attempt.py",
+      "pirn/domains/agents/specializations/structured_output/_llm_call_knot.py",
+      "pirn/domains/agents/specializations/structured_output/_yaml_extractor_attempt.py",
+      "pirn/domains/agents/specializations/structured_output/enum_classifier_pipeline.py",
+      "pirn/domains/agents/specializations/structured_output/format_coercer.py",
+      "pirn/domains/agents/specializations/structured_output/json_extractor_pipeline.py",
+      "pirn/domains/agents/specializations/structured_output/pydantic_validator_pipeline.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "agents/spec/structured_output_part2",
+    "files": [
+      "pirn/domains/agents/specializations/structured_output/retry_on_parse_failure.py",
+      "pirn/domains/agents/specializations/structured_output/schema_enforcer.py",
+      "pirn/domains/agents/specializations/structured_output/yaml_extractor_pipeline.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "agents/spec/specialized_agents_part1",
+    "files": [
+      "pirn/domains/agents/specializations/specialized_agents/_analysis_step.py",
+      "pirn/domains/agents/specializations/specialized_agents/_code_generator.py",
+      "pirn/domains/agents/specializations/specialized_agents/_code_linter.py",
+      "pirn/domains/agents/specializations/specialized_agents/_code_response_formatter.py",
+      "pirn/domains/agents/specializations/specialized_agents/_sql_executor.py",
+      "pirn/domains/agents/specializations/specialized_agents/_sql_generator.py",
+      "pirn/domains/agents/specializations/specialized_agents/_sql_response_formatter.py",
+      "pirn/domains/agents/specializations/specialized_agents/browser_agent.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "agents/spec/specialized_agents_part2",
+    "files": [
+      "pirn/domains/agents/specializations/specialized_agents/code_agent.py",
+      "pirn/domains/agents/specializations/specialized_agents/data_analyst_agent.py",
+      "pirn/domains/agents/specializations/specialized_agents/research_agent.py",
+      "pirn/domains/agents/specializations/specialized_agents/sql_agent.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "agents/spec/rag_part1",
+    "files": [
+      "pirn/domains/agents/specializations/rag/adaptive_rag_pipeline.py",
+      "pirn/domains/agents/specializations/rag/corrective_rag_pipeline.py",
+      "pirn/domains/agents/specializations/rag/corrective_router.py",
+      "pirn/domains/agents/specializations/rag/graph_rag_pipeline.py",
+      "pirn/domains/agents/specializations/rag/hyde_rag_pipeline.py",
+      "pirn/domains/agents/specializations/rag/llm_chat_call.py",
+      "pirn/domains/agents/specializations/rag/memory_search_retriever.py",
+      "pirn/domains/agents/specializations/rag/multi_hop_rag_pipeline.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "agents/spec/rag_part2",
+    "files": [
+      "pirn/domains/agents/specializations/rag/naive_rag_pipeline.py",
+      "pirn/domains/agents/specializations/rag/rag_prompt_builder.py",
+      "pirn/domains/agents/specializations/rag/rag_response_builder.py",
+      "pirn/domains/agents/specializations/rag/rag_synthesizer.py",
+      "pirn/domains/agents/specializations/rag/relevance_gate.py",
+      "pirn/domains/agents/specializations/rag/reranker.py",
+      "pirn/domains/agents/specializations/rag/self_rag_pipeline.py",
+      "pirn/domains/agents/specializations/rag/sub_graph_context_builder.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "agents/spec/document_processing_part1",
+    "files": [
+      "pirn/domains/agents/specializations/document_processing/_chunk_embedder_store.py",
+      "pirn/domains/agents/specializations/document_processing/_chunk_translator.py",
+      "pirn/domains/agents/specializations/document_processing/_document_chunker.py",
+      "pirn/domains/agents/specializations/document_processing/_document_loader.py",
+      "pirn/domains/agents/specializations/document_processing/_load_and_chunk.py",
+      "pirn/domains/agents/specializations/document_processing/_map_reduce_summariser.py",
+      "pirn/domains/agents/specializations/document_processing/_qa_load_and_chunk.py",
+      "pirn/domains/agents/specializations/document_processing/_qa_retrieve_and_answer.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "agents/spec/document_processing_part2",
+    "files": [
+      "pirn/domains/agents/specializations/document_processing/_translation_load_and_chunk.py",
+      "pirn/domains/agents/specializations/document_processing/document_ingestion_pipeline.py",
+      "pirn/domains/agents/specializations/document_processing/document_qa_pipeline.py",
+      "pirn/domains/agents/specializations/document_processing/document_summarizer_pipeline.py",
+      "pirn/domains/agents/specializations/document_processing/document_translation_pipeline.py",
+      "pirn/domains/agents/specializations/document_processing/embedding_indexer.py",
+      "pirn/domains/agents/specializations/document_processing/metadata_extractor.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "ml/data_prep+deployment+training_part1",
+    "files": [
+      "pirn/domains/ml/data_prep/cross_validator.py",
+      "pirn/domains/ml/data_prep/dataset_loader.py",
+      "pirn/domains/ml/data_prep/sampler.py",
+      "pirn/domains/ml/data_prep/train_test_split.py",
+      "pirn/domains/ml/deployment/model_registrar.py",
+      "pirn/domains/ml/deployment/model_serializer.py",
+      "pirn/domains/ml/deployment/predictor.py",
+      "pirn/domains/ml/deployment/shadow_deployer.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "ml/data_prep+deployment+training_part2",
+    "files": [
+      "pirn/domains/ml/training/ensemble_builder.py",
+      "pirn/domains/ml/training/hyperparam_search.py",
+      "pirn/domains/ml/training/trainer.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "ml/evaluation+features_part1",
+    "files": [
+      "pirn/domains/ml/evaluation/evaluator.py",
+      "pirn/domains/ml/evaluation/explainer.py",
+      "pirn/domains/ml/evaluation/fairness_audit.py",
+      "pirn/domains/ml/evaluation/metric_gate.py",
+      "pirn/domains/ml/features/embedding_extractor.py",
+      "pirn/domains/ml/features/encoder.py",
+      "pirn/domains/ml/features/feature_selector.py",
+      "pirn/domains/ml/features/feature_store.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "ml/evaluation+features_part2",
+    "files": [
+      "pirn/domains/ml/features/image_embedding_extractor.py",
+      "pirn/domains/ml/features/imputer.py",
+      "pirn/domains/ml/features/polynomial_features.py",
+      "pirn/domains/ml/features/scaler.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "ml/spec/evaluation_part1",
+    "files": [
+      "pirn/domains/ml/specializations/evaluation/adversarial_robustness_evaluator.py",
+      "pirn/domains/ml/specializations/evaluation/backtesting_evaluator.py",
+      "pirn/domains/ml/specializations/evaluation/bias_detector.py",
+      "pirn/domains/ml/specializations/evaluation/calibration_fitter.py",
+      "pirn/domains/ml/specializations/evaluation/classification_eval_pipeline.py",
+      "pirn/domains/ml/specializations/evaluation/confusion_matrix_analyzer.py",
+      "pirn/domains/ml/specializations/evaluation/fairness_auditor.py",
+      "pirn/domains/ml/specializations/evaluation/nlg_evaluator.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "ml/spec/evaluation_part2",
+    "files": [
+      "pirn/domains/ml/specializations/evaluation/prediction_interval_estimator.py",
+      "pirn/domains/ml/specializations/evaluation/ranking_eval_pipeline.py",
+      "pirn/domains/ml/specializations/evaluation/ranking_evaluator.py",
+      "pirn/domains/ml/specializations/evaluation/regression_eval_pipeline.py",
+      "pirn/domains/ml/specializations/evaluation/residual_analyzer.py",
+      "pirn/domains/ml/specializations/evaluation/roc_auc_analyzer.py",
+      "pirn/domains/ml/specializations/evaluation/threshold_optimizer.py",
+      "pirn/domains/ml/specializations/evaluation/timeseries_eval_pipeline.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "ml/spec/evaluation_part3",
+    "files": [
+      "pirn/domains/ml/specializations/evaluation/walk_forward_validator.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "ml/spec/experiments_part1",
+    "files": [
+      "pirn/domains/ml/specializations/experiments/ablation_study_pipeline.py",
+      "pirn/domains/ml/specializations/experiments/baseline_establisher.py",
+      "pirn/domains/ml/specializations/experiments/bayesian_search_tuner.py",
+      "pirn/domains/ml/specializations/experiments/champion_challenger_gate.py",
+      "pirn/domains/ml/specializations/experiments/grid_search_tuner.py",
+      "pirn/domains/ml/specializations/experiments/group_kfold_cross_validator.py",
+      "pirn/domains/ml/specializations/experiments/hyperband_tuner.py",
+      "pirn/domains/ml/specializations/experiments/kfold_cross_validator.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "ml/spec/experiments_part2",
+    "files": [
+      "pirn/domains/ml/specializations/experiments/random_search_tuner.py",
+      "pirn/domains/ml/specializations/experiments/stratified_kfold_validator.py",
+      "pirn/domains/ml/specializations/experiments/time_series_cross_validator.py",
+      "pirn/domains/ml/specializations/experiments/time_series_splitter_validator.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "ml/spec/feature_engineering_part1",
+    "files": [
+      "pirn/domains/ml/specializations/feature_engineering/_feature_store_reader_knot.py",
+      "pirn/domains/ml/specializations/feature_engineering/_image_encoder_extractor.py",
+      "pirn/domains/ml/specializations/feature_engineering/_lag_append_knot.py",
+      "pirn/domains/ml/specializations/feature_engineering/feature_store_reader.py",
+      "pirn/domains/ml/specializations/feature_engineering/feature_store_writer.py",
+      "pirn/domains/ml/specializations/feature_engineering/fourier_feature_generator.py",
+      "pirn/domains/ml/specializations/feature_engineering/frequency_encoder.py",
+      "pirn/domains/ml/specializations/feature_engineering/hash_encoder.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "ml/spec/feature_engineering_part2",
+    "files": [
+      "pirn/domains/ml/specializations/feature_engineering/image_embedding_extractor.py",
+      "pirn/domains/ml/specializations/feature_engineering/interaction_feature_generator.py",
+      "pirn/domains/ml/specializations/feature_engineering/lag_feature_generator.py",
+      "pirn/domains/ml/specializations/feature_engineering/ngram_extractor.py",
+      "pirn/domains/ml/specializations/feature_engineering/rolling_statistics_generator.py",
+      "pirn/domains/ml/specializations/feature_engineering/target_encoder.py",
+      "pirn/domains/ml/specializations/feature_engineering/text_embedding_extractor.py",
+      "pirn/domains/ml/specializations/feature_engineering/tfidf_extractor.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "ml/spec/production_part1",
+    "files": [
+      "pirn/domains/ml/specializations/production/ab_test_deployer.py",
+      "pirn/domains/ml/specializations/production/ab_test_pipeline.py",
+      "pirn/domains/ml/specializations/production/batch_inference_pipeline.py",
+      "pirn/domains/ml/specializations/production/canary_deployer.py",
+      "pirn/domains/ml/specializations/production/concept_drift_detector.py",
+      "pirn/domains/ml/specializations/production/continuous_training_pipeline.py",
+      "pirn/domains/ml/specializations/production/data_drift_detector.py",
+      "pirn/domains/ml/specializations/production/drift_monitor.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "ml/spec/production_part2",
+    "files": [
+      "pirn/domains/ml/specializations/production/full_train_deploy_pipeline.py",
+      "pirn/domains/ml/specializations/production/lime_explainer.py",
+      "pirn/domains/ml/specializations/production/model_lineage_tracker.py",
+      "pirn/domains/ml/specializations/production/performance_triggered_retrainer.py",
+      "pirn/domains/ml/specializations/production/prediction_drift_monitor.py",
+      "pirn/domains/ml/specializations/production/shadow_deployment_pipeline.py",
+      "pirn/domains/ml/specializations/production/shap_explainer.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "ml/spec/task_pipelines_part1",
+    "files": [
+      "pirn/domains/ml/specializations/task_pipelines/active_learning_loop.py",
+      "pirn/domains/ml/specializations/task_pipelines/anomaly_detection_pipeline.py",
+      "pirn/domains/ml/specializations/task_pipelines/binary_classification_pipeline.py",
+      "pirn/domains/ml/specializations/task_pipelines/clustering_pipeline.py",
+      "pirn/domains/ml/specializations/task_pipelines/collaborative_filtering_pipeline.py",
+      "pirn/domains/ml/specializations/task_pipelines/computer_vision_pipeline.py",
+      "pirn/domains/ml/specializations/task_pipelines/dimensionality_reduction_pipeline.py",
+      "pirn/domains/ml/specializations/task_pipelines/forecasting_pipeline.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "ml/spec/task_pipelines_part2",
+    "files": [
+      "pirn/domains/ml/specializations/task_pipelines/image_classification_pipeline.py",
+      "pirn/domains/ml/specializations/task_pipelines/multiclass_classification_pipeline.py",
+      "pirn/domains/ml/specializations/task_pipelines/named_entity_recognition_pipeline.py",
+      "pirn/domains/ml/specializations/task_pipelines/nlp_pipeline.py",
+      "pirn/domains/ml/specializations/task_pipelines/regression_pipeline.py",
+      "pirn/domains/ml/specializations/task_pipelines/text_classification_pipeline.py",
+      "pirn/domains/ml/specializations/task_pipelines/time_series_forecasting_pipeline.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "ml/spec/training_part1",
+    "files": [
+      "pirn/domains/ml/specializations/training/bagging_ensemble_builder.py",
+      "pirn/domains/ml/specializations/training/blending_ensemble_builder.py",
+      "pirn/domains/ml/specializations/training/early_stopping_trainer.py",
+      "pirn/domains/ml/specializations/training/fine_tuning_trainer.py",
+      "pirn/domains/ml/specializations/training/lr_scheduler_trainer.py",
+      "pirn/domains/ml/specializations/training/neural_net_trainer_pipeline.py",
+      "pirn/domains/ml/specializations/training/online_learner_trainer.py",
+      "pirn/domains/ml/specializations/training/self_supervised_pretrainer.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "ml/spec/training_part2",
+    "files": [
+      "pirn/domains/ml/specializations/training/semi_supervised_trainer.py",
+      "pirn/domains/ml/specializations/training/sklearn_trainer_pipeline.py",
+      "pirn/domains/ml/specializations/training/stacking_ensemble_builder.py",
+      "pirn/domains/ml/specializations/training/xgboost_trainer_pipeline.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "signal/adaptive",
+    "files": [
+      "pirn/domains/signal/adaptive/affine_projection_filter.py",
+      "pirn/domains/signal/adaptive/anc_pipeline.py",
+      "pirn/domains/signal/adaptive/echo_canceller.py",
+      "pirn/domains/signal/adaptive/kalman_filter.py",
+      "pirn/domains/signal/adaptive/lms_adaptive_filter.py",
+      "pirn/domains/signal/adaptive/nlms_adaptive_filter.py",
+      "pirn/domains/signal/adaptive/rls_adaptive_filter.py",
+      "pirn/domains/signal/adaptive/subband_adaptive_filter.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "signal/audio_part1",
+    "files": [
+      "pirn/domains/signal/audio/audio_augmentation_pipeline.py",
+      "pirn/domains/signal/audio/audio_denoiser.py",
+      "pirn/domains/signal/audio/audio_feature_extractor.py",
+      "pirn/domains/signal/audio/audio_file_ingestor.py",
+      "pirn/domains/signal/audio/audio_resampler.py",
+      "pirn/domains/signal/audio/beat_tracker.py",
+      "pirn/domains/signal/audio/mel_spectrogram_extractor.py",
+      "pirn/domains/signal/audio/mfcc_extractor.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "signal/audio_part2",
+    "files": [
+      "pirn/domains/signal/audio/music_information_retriever.py",
+      "pirn/domains/signal/audio/onset_detector.py",
+      "pirn/domains/signal/audio/pitch_estimator.py",
+      "pirn/domains/signal/audio/speaker_diarization_pipeline.py",
+      "pirn/domains/signal/audio/vad_detector.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "signal/beamforming",
+    "files": [
+      "pirn/domains/signal/beamforming/beamformer_music.py",
+      "pirn/domains/signal/beamforming/beamformer_mvdr.py",
+      "pirn/domains/signal/beamforming/delay_and_sum_beamformer.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "signal/nonlinear",
+    "files": [
+      "pirn/domains/signal/nonlinear/correlation_dimension_estimator.py",
+      "pirn/domains/signal/nonlinear/entropy_estimator.py",
+      "pirn/domains/signal/nonlinear/hurst_exponent_estimator.py",
+      "pirn/domains/signal/nonlinear/lyapunov_exponent_estimator.py",
+      "pirn/domains/signal/nonlinear/permutation_entropy_calculator.py",
+      "pirn/domains/signal/nonlinear/recurrence_analyzer.py",
+      "pirn/domains/signal/nonlinear/sample_entropy_calculator.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "signal/separation",
+    "files": [
+      "pirn/domains/signal/separation/dictionary_learner.py",
+      "pirn/domains/signal/separation/ica_decomposer.py",
+      "pirn/domains/signal/separation/ica_robust_decomposer.py",
+      "pirn/domains/signal/separation/nmf_decomposer.py",
+      "pirn/domains/signal/separation/pca_decomposer.py",
+      "pirn/domains/signal/separation/sparse_decomposer.py",
+      "pirn/domains/signal/separation/ssa_decomposer.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "signal/filters_part1",
+    "files": [
+      "pirn/domains/signal/filters/allpass_filter.py",
+      "pirn/domains/signal/filters/band_pass_filter.py",
+      "pirn/domains/signal/filters/band_stop_filter.py",
+      "pirn/domains/signal/filters/bandpass_filter_bank.py",
+      "pirn/domains/signal/filters/bessel_filter.py",
+      "pirn/domains/signal/filters/butterworth_filter.py",
+      "pirn/domains/signal/filters/causal_realtime_filter.py",
+      "pirn/domains/signal/filters/chebyshev_type1_filter.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "signal/filters_part2",
+    "files": [
+      "pirn/domains/signal/filters/chebyshev_type2_filter.py",
+      "pirn/domains/signal/filters/comb_filter.py",
+      "pirn/domains/signal/filters/elliptic_filter.py",
+      "pirn/domains/signal/filters/fir_filter.py",
+      "pirn/domains/signal/filters/fir_parks_mcclellan_filter.py",
+      "pirn/domains/signal/filters/fir_window_filter.py",
+      "pirn/domains/signal/filters/high_pass_filter.py",
+      "pirn/domains/signal/filters/iir_filter.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "signal/filters_part3",
+    "files": [
+      "pirn/domains/signal/filters/kalman_smoother.py",
+      "pirn/domains/signal/filters/low_pass_filter.py",
+      "pirn/domains/signal/filters/matched_filter.py",
+      "pirn/domains/signal/filters/median_filter.py",
+      "pirn/domains/signal/filters/notch_filter.py",
+      "pirn/domains/signal/filters/polyphase_decimator.py",
+      "pirn/domains/signal/filters/savitzky_golay_filter.py",
+      "pirn/domains/signal/filters/wiener_filter.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "signal/filters_part4",
+    "files": [
+      "pirn/domains/signal/filters/zero_phase_filter.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "signal/resampling_part1",
+    "files": [
+      "pirn/domains/signal/resampling/arbitrary_resampler_pipeline.py",
+      "pirn/domains/signal/resampling/clock_drift_corrector.py",
+      "pirn/domains/signal/resampling/decimator.py",
+      "pirn/domains/signal/resampling/downsampler.py",
+      "pirn/domains/signal/resampling/fractional_delay_filter.py",
+      "pirn/domains/signal/resampling/interpolator.py",
+      "pirn/domains/signal/resampling/multi_rate_fusion_pipeline.py",
+      "pirn/domains/signal/resampling/polyphase_resampler.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "signal/resampling_part2",
+    "files": [
+      "pirn/domains/signal/resampling/rational_resampler_pipeline.py",
+      "pirn/domains/signal/resampling/streaming_buffer_manager.py",
+      "pirn/domains/signal/resampling/time_synchronizer.py",
+      "pirn/domains/signal/resampling/upsampler.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "signal/spectral_part1",
+    "files": [
+      "pirn/domains/signal/spectral/bartlett_psd_estimator.py",
+      "pirn/domains/signal/spectral/bispectrum_analyzer.py",
+      "pirn/domains/signal/spectral/cepstrum_analyzer.py",
+      "pirn/domains/signal/spectral/chirplet_decomposer.py",
+      "pirn/domains/signal/spectral/cross_spectrum_estimator.py",
+      "pirn/domains/signal/spectral/fft_analyzer.py",
+      "pirn/domains/signal/spectral/hilbert_transformer.py",
+      "pirn/domains/signal/spectral/ifft_reconstructor.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "signal/spectral_part2",
+    "files": [
+      "pirn/domains/signal/spectral/istft_reconstructor.py",
+      "pirn/domains/signal/spectral/multitaper_estimator.py",
+      "pirn/domains/signal/spectral/periodogram_estimator.py",
+      "pirn/domains/signal/spectral/spectrogram_renderer.py",
+      "pirn/domains/signal/spectral/stft_decomposer.py",
+      "pirn/domains/signal/spectral/welch_estimator.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "signal/statistical",
+    "files": [
+      "pirn/domains/signal/statistical/ar_model_estimator.py",
+      "pirn/domains/signal/statistical/esprit_estimator.py",
+      "pirn/domains/signal/statistical/extended_kalman_filter.py",
+      "pirn/domains/signal/statistical/music_estimator.py",
+      "pirn/domains/signal/statistical/particle_filter.py",
+      "pirn/domains/signal/statistical/pisarenko_estimator.py",
+      "pirn/domains/signal/statistical/prony_estimator.py",
+      "pirn/domains/signal/statistical/unscented_kalman_filter.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "signal/wavelets_part1",
+    "files": [
+      "pirn/domains/signal/wavelets/cwt_decomposer.py",
+      "pirn/domains/signal/wavelets/dwpt_decomposer.py",
+      "pirn/domains/signal/wavelets/dwt_decomposer.py",
+      "pirn/domains/signal/wavelets/eemd_decomposer.py",
+      "pirn/domains/signal/wavelets/emd_decomposer.py",
+      "pirn/domains/signal/wavelets/idwt_reconstructor.py",
+      "pirn/domains/signal/wavelets/multiresolution_analyzer.py",
+      "pirn/domains/signal/wavelets/swt_decomposer.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "signal/wavelets_part2",
+    "files": [
+      "pirn/domains/signal/wavelets/vmd_decomposer.py",
+      "pirn/domains/signal/wavelets/wavelet_denoiser.py",
+      "pirn/domains/signal/wavelets/wavelet_packet_decomposer.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "oilgas/geospatial",
+    "files": [
+      "pirn/domains/oilgas/geospatial/boundary_proximity_checker.py",
+      "pirn/domains/oilgas/geospatial/coordinate_system_transformer.py",
+      "pirn/domains/oilgas/geospatial/fault_proximity_analyzer.py",
+      "pirn/domains/oilgas/geospatial/field_boundary_definer.py",
+      "pirn/domains/oilgas/geospatial/infrastructure_asset_mapper.py",
+      "pirn/domains/oilgas/geospatial/lease_block_grouper.py",
+      "pirn/domains/oilgas/geospatial/well_location_projector.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "oilgas/integrity_part1",
+    "files": [
+      "pirn/domains/oilgas/integrity/cathodic_protection_analyzer.py",
+      "pirn/domains/oilgas/integrity/corrosion_rate_estimator.py",
+      "pirn/domains/oilgas/integrity/energy_efficiency_kpi_calculator.py",
+      "pirn/domains/oilgas/integrity/gas_chromatography_analyzer.py",
+      "pirn/domains/oilgas/integrity/pig_run_data_processor.py",
+      "pirn/domains/oilgas/integrity/psv_test_record_parser.py",
+      "pirn/domains/oilgas/integrity/risk_based_inspection_scorer.py",
+      "pirn/domains/oilgas/integrity/scope1_emissions_reporter.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "oilgas/integrity_part2",
+    "files": [
+      "pirn/domains/oilgas/integrity/wall_thickness_analyzer.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "oilgas/workflows",
+    "files": [
+      "pirn/domains/oilgas/workflows/decline_curve_reserves_workflow.py",
+      "pirn/domains/oilgas/workflows/field_production_reporting_workflow.py",
+      "pirn/domains/oilgas/workflows/seismic_to_well_tie_workflow.py",
+      "pirn/domains/oilgas/workflows/wellbore_petrophysics_workflow.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "oilgas/reservoir_part1",
+    "files": [
+      "pirn/domains/oilgas/reservoir/cmg_ssfile_parser.py",
+      "pirn/domains/oilgas/reservoir/decline_curve_analyzer.py",
+      "pirn/domains/oilgas/reservoir/eclipse_smspec_parser.py",
+      "pirn/domains/oilgas/reservoir/material_balance_calculator.py",
+      "pirn/domains/oilgas/reservoir/monte_carlo_simulator.py",
+      "pirn/domains/oilgas/reservoir/pressure_transient_analyzer.py",
+      "pirn/domains/oilgas/reservoir/production_allocation_engine.py",
+      "pirn/domains/oilgas/reservoir/pvt_table_processor.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "oilgas/reservoir_part2",
+    "files": [
+      "pirn/domains/oilgas/reservoir/relative_permeability_modeler.py",
+      "pirn/domains/oilgas/reservoir/reserves_estimation_pipeline.py",
+      "pirn/domains/oilgas/reservoir/type_curve_fitter.py",
+      "pirn/domains/oilgas/reservoir/volumetric_estimator.py"
+    ],
+    "done": false,
+    "status": "done"
+  },
+  {
+    "name": "oilgas/production_part1",
+    "files": [
+      "pirn/domains/oilgas/production/artificial_lift_optimizer.py",
+      "pirn/domains/oilgas/production/decline_rate_estimator.py",
+      "pirn/domains/oilgas/production/downtime_event_classifier.py",
+      "pirn/domains/oilgas/production/esp_health_monitor.py",
+      "pirn/domains/oilgas/production/flaring_measurement_processor.py",
+      "pirn/domains/oilgas/production/flowline_pressure_modeler.py",
+      "pirn/domains/oilgas/production/gas_lift_optimizer.py",
+      "pirn/domains/oilgas/production/gas_oil_ratio_calculator.py"
+    ],
+    "done": false,
+    "status": "in_progress"
+  },
+  {
+    "name": "oilgas/production_part2",
+    "files": [
+      "pirn/domains/oilgas/production/production_forecaster.py",
+      "pirn/domains/oilgas/production/production_rate_normalizer.py",
+      "pirn/domains/oilgas/production/production_test_validator.py",
+      "pirn/domains/oilgas/production/rod_pump_optimizer.py",
+      "pirn/domains/oilgas/production/scada_historian_ingester.py",
+      "pirn/domains/oilgas/production/separator_test_processor.py",
+      "pirn/domains/oilgas/production/tank_gauging_processor.py",
+      "pirn/domains/oilgas/production/water_cut_tracker.py"
+    ],
+    "done": false,
+    "status": "in_progress"
+  },
+  {
+    "name": "oilgas/production_part3",
+    "files": [
+      "pirn/domains/oilgas/production/water_injection_tracker.py",
+      "pirn/domains/oilgas/production/well_test_analyzer.py"
+    ],
+    "done": false,
+    "status": "in_progress"
+  },
+  {
+    "name": "oilgas/seismic_part1",
+    "files": [
+      "pirn/domains/oilgas/seismic/acoustic_impedance_inverter.py",
+      "pirn/domains/oilgas/seismic/cmp_gather_extractor.py",
+      "pirn/domains/oilgas/seismic/fault_detector.py",
+      "pirn/domains/oilgas/seismic/fk_denoising_knot.py",
+      "pirn/domains/oilgas/seismic/frequency_decomposer.py",
+      "pirn/domains/oilgas/seismic/horizon_picker.py",
+      "pirn/domains/oilgas/seismic/instantaneous_attribute_extractor.py",
+      "pirn/domains/oilgas/seismic/migration_processor.py"
+    ],
+    "done": false,
+    "status": "in_progress"
+  },
+  {
+    "name": "oilgas/seismic_part2",
+    "files": [
+      "pirn/domains/oilgas/seismic/nmo_correction.py",
+      "pirn/domains/oilgas/seismic/rms_amplitude_window_extractor.py",
+      "pirn/domains/oilgas/seismic/segy_file_ingester.py",
+      "pirn/domains/oilgas/seismic/segy_header_parser.py",
+      "pirn/domains/oilgas/seismic/seismic_attribute_calculator.py",
+      "pirn/domains/oilgas/seismic/seismic_bandpass_filter.py",
+      "pirn/domains/oilgas/seismic/seismic_qc_gate.py",
+      "pirn/domains/oilgas/seismic/spherical_divergence_gain.py"
+    ],
+    "done": false,
+    "status": "in_progress"
+  },
+  {
+    "name": "oilgas/seismic_part3",
+    "files": [
+      "pirn/domains/oilgas/seismic/stack_processor.py",
+      "pirn/domains/oilgas/seismic/static_correction.py",
+      "pirn/domains/oilgas/seismic/subvolume_extractor.py",
+      "pirn/domains/oilgas/seismic/velocity_analyzer.py",
+      "pirn/domains/oilgas/seismic/velocity_model_builder.py"
+    ],
+    "done": false,
+    "status": "in_progress"
+  },
+  {
+    "name": "oilgas/well_part1",
+    "files": [
+      "pirn/domains/oilgas/well/casing_design_evaluator.py",
+      "pirn/domains/oilgas/well/core_to_log_depth_matcher.py",
+      "pirn/domains/oilgas/well/depth_shift_corrector.py",
+      "pirn/domains/oilgas/well/deviation_survey_processor.py",
+      "pirn/domains/oilgas/well/directional_drilling_planner.py",
+      "pirn/domains/oilgas/well/environmental_correction_applicator.py",
+      "pirn/domains/oilgas/well/formation_top_picker.py",
+      "pirn/domains/oilgas/well/las_curve_validator.py"
+    ],
+    "done": false,
+    "status": "in_progress"
+  },
+  {
+    "name": "oilgas/well_part2",
+    "files": [
+      "pirn/domains/oilgas/well/las_file_ingester.py",
+      "pirn/domains/oilgas/well/lithology_classifier.py",
+      "pirn/domains/oilgas/well/log_normalizer.py",
+      "pirn/domains/oilgas/well/log_spike_remover.py",
+      "pirn/domains/oilgas/well/mud_logging_ingester.py",
+      "pirn/domains/oilgas/well/mud_weight_calculator.py",
+      "pirn/domains/oilgas/well/permeability_estimator.py",
+      "pirn/domains/oilgas/well/petrophysical_evaluator.py"
+    ],
+    "done": false,
+    "status": "in_progress"
+  },
+  {
+    "name": "oilgas/well_part3",
+    "files": [
+      "pirn/domains/oilgas/well/porosity_calculator.py",
+      "pirn/domains/oilgas/well/vshale_calculator.py",
+      "pirn/domains/oilgas/well/water_saturation_calculator.py",
+      "pirn/domains/oilgas/well/well_completion_ingester.py",
+      "pirn/domains/oilgas/well/well_path_calculator.py",
+      "pirn/domains/oilgas/well/witsml_drilling_monitor.py"
+    ],
+    "done": false
+  },
+  {
+    "name": "health/clinical_part1",
+    "files": [
+      "pirn/domains/health/clinical/_dedup_rx_cuis.py",
+      "pirn/domains/health/clinical/_pass_through.py",
+      "pirn/domains/health/clinical/clinical_data_quality_error.py",
+      "pirn/domains/health/clinical/clinical_data_quality_gate.py",
+      "pirn/domains/health/clinical/clinical_nlp_extractor.py",
+      "pirn/domains/health/clinical/clinical_trial_eligibility_filter.py",
+      "pirn/domains/health/clinical/diagnosis_code_rollup.py",
+      "pirn/domains/health/clinical/encounter_timeline_assembler.py"
+    ],
+    "done": false
+  },
+  {
+    "name": "health/clinical_part2",
+    "files": [
+      "pirn/domains/health/clinical/fhir_patient_ingestor.py",
+      "pirn/domains/health/clinical/hl7v2_message_parser.py",
+      "pirn/domains/health/clinical/icd10_code_validator.py",
+      "pirn/domains/health/clinical/lab_result_normalizer.py",
+      "pirn/domains/health/clinical/loinc_mapper.py",
+      "pirn/domains/health/clinical/medication_reconciliation_pipeline.py",
+      "pirn/domains/health/clinical/omop_cdm_mapper.py",
+      "pirn/domains/health/clinical/patient_cohort_builder.py"
+    ],
+    "done": false
+  },
+  {
+    "name": "health/clinical_part3",
+    "files": [
+      "pirn/domains/health/clinical/phi_redactor.py",
+      "pirn/domains/health/clinical/readmission_risk_scorer.py",
+      "pirn/domains/health/clinical/rxnorm_normalizer.py",
+      "pirn/domains/health/clinical/snomed_ct_normalizer.py",
+      "pirn/domains/health/clinical/vital_signs_aggregator.py"
+    ],
+    "done": false
+  },
+  {
+    "name": "health/eeg_meg_part1",
+    "files": [
+      "pirn/domains/health/eeg_meg/artifact_remover.py",
+      "pirn/domains/health/eeg_meg/bandpass_filter.py",
+      "pirn/domains/health/eeg_meg/coherence_analyzer.py",
+      "pirn/domains/health/eeg_meg/connectivity_analyzer.py",
+      "pirn/domains/health/eeg_meg/eeg_ica_decomposer.py",
+      "pirn/domains/health/eeg_meg/eeg_montage_applier.py",
+      "pirn/domains/health/eeg_meg/eeg_raw_ingestor.py",
+      "pirn/domains/health/eeg_meg/epoch_extractor.py"
+    ],
+    "done": false
+  },
+  {
+    "name": "health/eeg_meg_part2",
+    "files": [
+      "pirn/domains/health/eeg_meg/evoked_response_averager.py",
+      "pirn/domains/health/eeg_meg/meg_beamformer.py",
+      "pirn/domains/health/eeg_meg/meg_raw_ingestor.py",
+      "pirn/domains/health/eeg_meg/notch_filter.py",
+      "pirn/domains/health/eeg_meg/power_spectrum_estimator.py",
+      "pirn/domains/health/eeg_meg/seizure_detector.py",
+      "pirn/domains/health/eeg_meg/sleep_stage_classifier.py",
+      "pirn/domains/health/eeg_meg/source_localizer.py"
+    ],
+    "done": false
+  },
+  {
+    "name": "health/eeg_meg_part3",
+    "files": [
+      "pirn/domains/health/eeg_meg/time_frequency_decomposer.py"
+    ],
+    "done": false
+  },
+  {
+    "name": "health/genomics_part1",
+    "files": [
+      "pirn/domains/health/genomics/adapter_trimmer.py",
+      "pirn/domains/health/genomics/bam_sort_indexer.py",
+      "pirn/domains/health/genomics/bcftools_caller.py",
+      "pirn/domains/health/genomics/bowtie2_aligner.py",
+      "pirn/domains/health/genomics/bulk_atac_seq_processor.py",
+      "pirn/domains/health/genomics/bwa_aligner.py",
+      "pirn/domains/health/genomics/cnv_detector.py",
+      "pirn/domains/health/genomics/differential_expression_analyzer.py"
+    ],
+    "done": false
+  },
+  {
+    "name": "health/genomics_part2",
+    "files": [
+      "pirn/domains/health/genomics/expression_quantifier.py",
+      "pirn/domains/health/genomics/fastq_quality_controller.py",
+      "pirn/domains/health/genomics/gatk_caller.py",
+      "pirn/domains/health/genomics/gene_set_enrichment_runner.py",
+      "pirn/domains/health/genomics/genomics_qc_error.py",
+      "pirn/domains/health/genomics/genomics_qc_gate.py",
+      "pirn/domains/health/genomics/gvcf_combiner.py",
+      "pirn/domains/health/genomics/methylation_array_processor.py"
+    ],
+    "done": false
+  },
+  {
+    "name": "health/genomics_part3",
+    "files": [
+      "pirn/domains/health/genomics/multi_omics_integrator.py",
+      "pirn/domains/health/genomics/pathway_enricher.py",
+      "pirn/domains/health/genomics/pharmacogenomic_scorer.py",
+      "pirn/domains/health/genomics/single_cell_clusterer.py",
+      "pirn/domains/health/genomics/snpeff_annotator.py",
+      "pirn/domains/health/genomics/star_aligner.py",
+      "pirn/domains/health/genomics/structural_variant_detector.py",
+      "pirn/domains/health/genomics/vcf_filter.py"
+    ],
+    "done": false
+  },
+  {
+    "name": "health/genomics_part4",
+    "files": [
+      "pirn/domains/health/genomics/vcf_merger.py",
+      "pirn/domains/health/genomics/vep_annotator.py"
+    ],
+    "done": false
+  },
+  {
+    "name": "health/mri_part1",
+    "files": [
+      "pirn/domains/health/mri/atlas_aligner.py",
+      "pirn/domains/health/mri/bias_field_corrector.py",
+      "pirn/domains/health/mri/bids_converter.py",
+      "pirn/domains/health/mri/brain_age_estimator.py",
+      "pirn/domains/health/mri/brain_mask_extractor.py",
+      "pirn/domains/health/mri/cortical_thickness_estimator.py",
+      "pirn/domains/health/mri/dicom_ingestor.py",
+      "pirn/domains/health/mri/dti_preprocessor.py"
+    ],
+    "done": false
+  },
+  {
+    "name": "health/mri_part2",
+    "files": [
+      "pirn/domains/health/mri/functional_connectivity_extractor.py",
+      "pirn/domains/health/mri/image_registrar.py",
+      "pirn/domains/health/mri/intensity_normalizer.py",
+      "pirn/domains/health/mri/lesion_segmenter.py",
+      "pirn/domains/health/mri/motion_corrector.py",
+      "pirn/domains/health/mri/mri_quality_controller.py",
+      "pirn/domains/health/mri/nifti_converter.py",
+      "pirn/domains/health/mri/radiomics_extractor.py"
+    ],
+    "done": false
+  },
+  {
+    "name": "health/mri_part3",
+    "files": [
+      "pirn/domains/health/mri/region_of_interest_extractor.py",
+      "pirn/domains/health/mri/spatial_normalizer.py",
+      "pirn/domains/health/mri/task_fmri_modeler.py",
+      "pirn/domains/health/mri/vbm_morphometry_analyzer.py",
+      "pirn/domains/health/mri/volumetric_analyzer.py",
+      "pirn/domains/health/mri/white_matter_analyzer.py"
+    ],
+    "done": false
+  },
+  {
+    "name": "health/pathology",
+    "files": [
+      "pirn/domains/health/pathology/cell_detector.py",
+      "pirn/domains/health/pathology/cell_segmenter.py",
+      "pirn/domains/health/pathology/mitosis_counter.py",
+      "pirn/domains/health/pathology/pathology_feature_extractor.py",
+      "pirn/domains/health/pathology/pathology_stain_normalizer.py",
+      "pirn/domains/health/pathology/tissue_segmenter.py",
+      "pirn/domains/health/pathology/tumor_microbiota_classifier.py",
+      "pirn/domains/health/pathology/wsi_tile_extractor.py"
+    ],
+    "done": false
+  },
+  {
+    "name": "health/wearables",
+    "files": [
+      "pirn/domains/health/wearables/accelerometer_activity_classifier.py",
+      "pirn/domains/health/wearables/ecg_r_peak_detector.py",
+      "pirn/domains/health/wearables/glucose_monitor_processor.py",
+      "pirn/domains/health/wearables/heart_rate_variability_analyzer.py",
+      "pirn/domains/health/wearables/ppg_heart_rate_extractor.py",
+      "pirn/domains/health/wearables/sleep_stager.py",
+      "pirn/domains/health/wearables/spirometry_analyzer.py",
+      "pirn/domains/health/wearables/step_counter.py"
+    ],
+    "done": false
+  },
+  {
+    "name": "health/trials_part1",
+    "files": [
+      "pirn/domains/health/trials/adam_dataset_builder.py",
+      "pirn/domains/health/trials/clinical_event_aggregator.py",
+      "pirn/domains/health/trials/define_xml_generator.py",
+      "pirn/domains/health/trials/estimand_aligned_analyzer.py",
+      "pirn/domains/health/trials/meddra_normalizer.py",
+      "pirn/domains/health/trials/propensity_score_matcher_pipeline.py",
+      "pirn/domains/health/trials/randomized_trial_analyzer.py",
+      "pirn/domains/health/trials/rwe_cohort_extractor.py"
+    ],
+    "done": false
+  },
+  {
+    "name": "health/trials_part2",
+    "files": [
+      "pirn/domains/health/trials/sdtm_domain_validator.py",
+      "pirn/domains/health/trials/survival_analysis_pipeline.py",
+      "pirn/domains/health/trials/treatment_emergent_classifier.py"
+    ],
+    "done": false
+  }
+]

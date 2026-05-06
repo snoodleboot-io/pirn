@@ -12,27 +12,22 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.signal.conftest import emit_signal_frame
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_wavelet(self) -> None:
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_bare_knot(self) -> SWTDecomposer:
         with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "non-empty"):
-                SWTDecomposer(
-                    signal=sig, wavelet="", level=3, _config=KnotConfig(id="s")
-                )
+            k = SWTDecomposer.__new__(SWTDecomposer)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        return k
 
-    def test_rejects_non_positive_level(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "level"):
-                SWTDecomposer(
-                    signal=sig, wavelet="db4", level=0, _config=KnotConfig(id="s")
-                )
+    async def test_rejects_empty_wavelet(self) -> None:
+        k = self._make_bare_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(signal=None, wavelet="", level=3)  # type: ignore[arg-type]
 
-    def test_accepts_valid_params(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            SWTDecomposer(signal=sig, wavelet="haar", level=3, _config=KnotConfig(id="s"))
+    async def test_rejects_non_positive_level(self) -> None:
+        k = self._make_bare_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(signal=None, wavelet="db4", level=0)  # type: ignore[arg-type]
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

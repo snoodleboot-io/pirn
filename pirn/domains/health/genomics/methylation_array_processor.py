@@ -1,4 +1,23 @@
-"""``MethylationArrayProcessor`` — process Illumina methylation array data."""
+"""``MethylationArrayProcessor`` — process Illumina methylation array data.
+
+Algorithm:
+    1. Receive idat_data dict, array_type string, and normalization string.
+    2. Validate array_type is one of epic/450k/27k.
+    3. Validate normalization is one of ssnoob/quantile/noob/raw.
+    4. Normalize probe intensities using the selected normalization method.
+    5. Compute beta values and M values per CpG probe.
+
+Math:
+    Beta value per probe:
+
+    $$\\beta_i = \\frac{M_i}{M_i + U_i + \\alpha}$$
+
+    where $M_i$ is methylated intensity, $U_i$ unmethylated, $\\alpha$ a pseudo-count offset.
+
+References:
+    - Aryee et al. (2014) Minfi: a flexible and comprehensive Bioconductor package for the analysis of Infinium DNA methylation microarrays.
+    - ENCODE methylation pipeline: https://www.encodeproject.org/
+"""
 from __future__ import annotations
 
 from typing import Any
@@ -16,12 +35,45 @@ class MethylationArrayProcessor(Knot):
     def __init__(
         self,
         *,
-        idat_data: Knot,
-        array_type: str,
-        normalization: str,
+        idat_data: Knot | dict[str, Any],
+        array_type: Knot | str,
+        normalization: Knot | str,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            idat_data=idat_data,
+            array_type=array_type,
+            normalization=normalization,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        idat_data: dict[str, Any],
+        array_type: str,
+        normalization: str,
+        **_: Any,
+    ) -> dict[str, Any]:
+        """Normalize and QC methylation array data and return beta/M values.
+
+        Args:
+            idat_data: Dict with ``red_channel`` (list), ``green_channel`` (list),
+                and ``sample_id`` (str).
+            array_type: One of epic, 450k, 27k.
+            normalization: One of ssnoob, quantile, noob, raw.
+
+        Returns:
+            Dict with ``sample_id``, ``n_probes``, ``beta_values``,
+            ``m_values``, and ``detection_p_values``.
+
+        Raises:
+            TypeError: If idat_data is not a dict.
+            ValueError: If array_type or normalization is invalid.
+        """
+        if not isinstance(idat_data, dict):
+            raise TypeError("MethylationArrayProcessor: idat_data must be a dict")
         if not isinstance(array_type, str) or array_type not in self._VALID_ARRAY_TYPES:
             raise ValueError(
                 f"MethylationArrayProcessor: array_type must be one of "
@@ -32,23 +84,6 @@ class MethylationArrayProcessor(Knot):
                 f"MethylationArrayProcessor: normalization must be one of "
                 f"{sorted(self._VALID_NORMALIZATIONS)}"
             )
-        self._array_type = array_type
-        self._normalization = normalization
-        super().__init__(idat_data=idat_data, _config=_config, **kwargs)
-
-    async def process(self, idat_data: dict[str, Any], **_: Any) -> dict[str, Any]:
-        """Normalize and QC methylation array data and return beta/M values.
-
-        Args:
-            idat_data: Dict with ``red_channel`` (list), ``green_channel`` (list),
-                and ``sample_id`` (str).
-
-        Returns:
-            Dict with ``sample_id``, ``n_probes``, ``beta_values``,
-            ``m_values``, and ``detection_p_values``.
-        """
-        if not isinstance(idat_data, dict):
-            raise TypeError("MethylationArrayProcessor: idat_data must be a dict")
         return {
             "sample_id": idat_data.get("sample_id", ""),
             "n_probes": 0,

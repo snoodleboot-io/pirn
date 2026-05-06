@@ -2,12 +2,25 @@
 → split → preprocess → train → evaluate. The default algorithm is
 ``random_forest`` because tree ensembles are the most robust default for
 mixed-feature tabular regression tasks.
+
+Algorithm:
+    1. Receive ``pool``, ``query``, ``target_column``, ``feature_names``,
+       and ``algorithm`` via process().
+    2. Validate all inputs.
+    3. Wire DatasetLoader → TrainTestSplit → Scaler → Trainer → Evaluator
+       in an inner Tapestry.
+    4. Run via _run_inner() and return the EvalReport.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
 
 from typing import Any, Sequence
 
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.connectors.database_connection_pool import (
     DatabaseConnectionPool,
@@ -30,56 +43,68 @@ class RegressionPipeline(SubTapestry):
     def __init__(
         self,
         *,
-        pool: DatabaseConnectionPool,
-        query: str,
-        target_column: str,
-        feature_names: Sequence[str],
-        algorithm: str = "random_forest",
+        pool: Knot | DatabaseConnectionPool,
+        query: Knot | str,
+        target_column: Knot | str,
+        feature_names: Knot | Sequence[str],
+        algorithm: Knot | str = "random_forest",
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError(
-                "RegressionPipeline: pool must be a DatabaseConnectionPool"
-            )
-        if not isinstance(query, str) or not query:
-            raise ValueError(
-                "RegressionPipeline: query must be a non-empty string"
-            )
-        if not isinstance(target_column, str) or not target_column:
-            raise ValueError(
-                "RegressionPipeline: target_column must be a non-empty string"
-            )
-        feature_tuple = tuple(feature_names)
-        if not feature_tuple:
-            raise ValueError(
-                "RegressionPipeline: feature_names must be non-empty"
-            )
-        if not isinstance(algorithm, str) or not algorithm:
-            raise ValueError(
-                "RegressionPipeline: algorithm must be a non-empty string"
-            )
-        self._pool = pool
-        self._query = query
-        self._target_column = target_column
-        self._feature_names = feature_tuple
-        self._algorithm = algorithm
-        super().__init__(_config=_config, **kwargs)
+        super().__init__(
+            pool=pool,
+            query=query,
+            target_column=target_column,
+            feature_names=feature_names,
+            algorithm=algorithm,
+            _config=_config,
+            **kwargs,
+        )
 
-    async def process(self, **_: Any) -> EvalReport:
+    async def process(
+        self,
+        pool: DatabaseConnectionPool = None,
+        query: str = "",
+        target_column: str = "",
+        feature_names: Sequence[str] = (),
+        algorithm: str = "random_forest",
+        **_: Any,
+    ) -> EvalReport:
         """Load data, split, scale, train a regressor, and return the RMSE/MAE/R2/MAPE EvalReport.
+
+        Args:
+            pool: DatabaseConnectionPool for loading the dataset.
+            query: Non-empty SQL query string.
+            target_column: Non-empty name of the target column.
+            feature_names: Non-empty sequence of feature column names.
+            algorithm: Non-empty algorithm identifier.
 
         Returns:
             EvalReport containing rmse, mae, r2, and mape metrics from the
             regression evaluation stage.
+
+        Raises:
+            ValueError: If any input fails validation.
+            TypeError: If pool is not a DatabaseConnectionPool.
         """
+        if not isinstance(pool, DatabaseConnectionPool):
+            raise TypeError("RegressionPipeline: pool must be a DatabaseConnectionPool")
+        if not isinstance(query, str) or not query:
+            raise ValueError("RegressionPipeline: query must be a non-empty string")
+        if not isinstance(target_column, str) or not target_column:
+            raise ValueError("RegressionPipeline: target_column must be a non-empty string")
+        feature_tuple = tuple(feature_names)
+        if not feature_tuple:
+            raise ValueError("RegressionPipeline: feature_names must be non-empty")
+        if not isinstance(algorithm, str) or not algorithm:
+            raise ValueError("RegressionPipeline: algorithm must be a non-empty string")
         with Tapestry() as inner:
             dataset = DatasetLoader(
                 name="regression",
-                feature_names=self._feature_names,
-                target_name=self._target_column,
-                pool=self._pool,
-                query=self._query,
+                feature_names=feature_tuple,
+                target_name=target_column,
+                pool=pool,
+                query=query,
                 _config=KnotConfig(id="load"),
             )
             split = TrainTestSplit(
@@ -88,13 +113,13 @@ class RegressionPipeline(SubTapestry):
             )
             preprocessed = Scaler(
                 split=split,
-                columns=self._feature_names,
+                columns=feature_tuple,
                 method="standardise",
                 _config=KnotConfig(id="preprocess"),
             )
             trained = Trainer(
                 split=preprocessed,
-                algorithm=self._algorithm,
+                algorithm=algorithm,
                 _config=KnotConfig(id="train"),
             )
             Evaluator(

@@ -8,6 +8,25 @@ chunks, embeds each chunk via a caller-supplied
 
 Returns the number of chunks stored. The deterministic key shape lets
 downstream pipelines fetch chunks by index without scanning the store.
+
+Algorithm:
+    1. ``_DocumentLoader`` resolves the source (file path or HTTP/HTTPS URL) and
+       returns the raw text string.
+    2. ``_DocumentChunker`` partitions the text into overlapping windows of
+       ``chunk_size`` characters with ``overlap`` stride.
+    3. ``_ChunkEmbedderStore`` calls the ``EmbeddingProvider`` once per chunk, then
+       writes each ``(embedding, text)`` pair to the ``MemoryStore`` under the key
+       ``{doc_id}:{chunk_idx}``.
+    4. The pipeline returns the total number of chunks written.
+
+Math:
+    Chunk count: ``ceil((len(text) - overlap) / (chunk_size - overlap))`` when
+    ``chunk_size > overlap``; degenerate to ``ceil(len(text) / chunk_size)`` when
+    ``overlap == 0``.
+
+References:
+    - Lewis et al., 2020 — RAG: Retrieval-Augmented Generation for
+      Knowledge-Intensive NLP Tasks (arXiv 2005.11401).
 """
 
 from __future__ import annotations
@@ -38,25 +57,64 @@ class DocumentIngestionPipeline(SubTapestry):
         self,
         *,
         source: Knot | str,
+        embedder: Knot | EmbeddingProvider,
+        store: Knot | MemoryStore,
+        _config: KnotConfig,
+        chunk_size: Knot | int = 1000,
+        chunk_overlap: Knot | int = 100,
+        allowed_root: Knot | str | None = None,
+        allowed_hosts: Knot | tuple[str, ...] | None = None,
+        max_bytes: Knot | int = 100 * 1024 * 1024,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            source=source,
+            embedder=embedder,
+            store=store,
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+            allowed_root=allowed_root,
+            allowed_hosts=allowed_hosts,
+            max_bytes=max_bytes,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        source: str,
         embedder: EmbeddingProvider,
         store: MemoryStore,
-        _config: KnotConfig,
         chunk_size: int = 1000,
         chunk_overlap: int = 100,
         allowed_root: str | None = None,
         allowed_hosts: tuple[str, ...] | None = None,
         max_bytes: int = 100 * 1024 * 1024,
-        **kwargs: Any,
-    ) -> None:
-        if not isinstance(embedder, EmbeddingProvider):
+        **_: Any,
+    ) -> int:
+        """Load, chunk, embed, and store a document; return the number of chunks stored.
+
+        Args:
+            source: A local file path or http(s):// URL identifying the document to ingest.
+            embedder: The embedding provider for producing chunk vectors.
+            store: The memory store for persisting chunk embeddings.
+            chunk_size: Maximum character length of each chunk.
+            chunk_overlap: Number of overlapping characters between adjacent chunks.
+            allowed_root: Directory root that local file reads must stay within.
+            allowed_hosts: Optional allow-list of hostnames for URL fetches.
+            max_bytes: Maximum file size in bytes.
+
+        Returns:
+            The number of chunks embedded and stored.
+
+        Raises:
+            TypeError: If source is not a non-empty string.
+            ValueError: If chunk_size or chunk_overlap are invalid.
+        """
+        if not isinstance(source, str) or not source:
             raise TypeError(
-                "DocumentIngestionPipeline: embedder must be an "
-                f"EmbeddingProvider, got {type(embedder).__name__}"
-            )
-        if not isinstance(store, MemoryStore):
-            raise TypeError(
-                "DocumentIngestionPipeline: store must be a MemoryStore, "
-                f"got {type(store).__name__}"
+                "DocumentIngestionPipeline: source must be a non-empty "
+                f"string, got {source!r}"
             )
         if not isinstance(chunk_size, int) or chunk_size <= 0:
             raise ValueError(
@@ -73,51 +131,25 @@ class DocumentIngestionPipeline(SubTapestry):
                 "negative int strictly less than chunk_size, "
                 f"got {chunk_overlap!r}"
             )
-        self._embedder = embedder
-        self._store = store
-        self._chunk_size = chunk_size
-        self._chunk_overlap = chunk_overlap
-        self._allowed_root = allowed_root
-        self._allowed_hosts = allowed_hosts
-        self._max_bytes = max_bytes
-        super().__init__(source=source, _config=_config, **kwargs)
-
-    async def process(self, source: str, **_: Any) -> int:
-        """Load, chunk, embed, and store a document; return the number of chunks stored.
-
-        Args:
-            source: A local file path or http(s):// URL identifying the document to ingest.
-
-        Returns:
-            The number of chunks embedded and stored.
-
-        Raises:
-            TypeError: If source is not a non-empty string.
-        """
-        if not isinstance(source, str) or not source:
-            raise TypeError(
-                "DocumentIngestionPipeline: source must be a non-empty "
-                f"string, got {source!r}"
-            )
         with Tapestry() as inner:
             loaded = _DocumentLoader(
                 source=source,
-                allowed_root=self._allowed_root,
-                allowed_hosts=self._allowed_hosts,
-                max_bytes=self._max_bytes,
+                allowed_root=allowed_root,
+                allowed_hosts=allowed_hosts,
+                max_bytes=max_bytes,
                 _config=KnotConfig(id="load"),
             )
             chunks = _DocumentChunker(
                 text=loaded,
-                chunk_size=self._chunk_size,
-                chunk_overlap=self._chunk_overlap,
+                chunk_size=chunk_size,
+                chunk_overlap=chunk_overlap,
                 _config=KnotConfig(id="chunk"),
             )
             _ChunkEmbedderStore(
                 chunks=chunks,
                 source=source,
-                embedder=self._embedder,
-                store=self._store,
+                embedder=embedder,
+                store=store,
                 _config=KnotConfig(id="store"),
             )
         inner_result = await self._run_inner(inner)

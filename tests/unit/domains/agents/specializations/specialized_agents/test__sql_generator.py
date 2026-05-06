@@ -52,3 +52,13 @@ class TestSQLGeneratorProcess(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert not result.succeeded
+
+
+class TestProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_process_rejects_empty_question(self) -> None:
+        llm = StubLLMProvider(["SELECT 1"])
+        with Tapestry():
+            k = _SQLGenerator.__new__(_SQLGenerator)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises(TypeError):
+            await k.process(question="", llm=llm, schema_description="")

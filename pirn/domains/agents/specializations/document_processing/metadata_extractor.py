@@ -4,6 +4,25 @@ A :class:`Knot` that sends a document string to an LLM with a
 structured extraction prompt and returns a dict containing the fields
 ``title``, ``author``, ``date``, and ``summary``. Missing fields are
 returned as ``None``.
+
+Algorithm:
+    1. Build a structured extraction prompt instructing the LLM to return a JSON
+       object with keys ``title``, ``author``, ``date``, and ``summary``.
+    2. Send the prompt together with the full document text to the ``LLMProvider``.
+    3. Parse the LLM response: extract the first JSON object found via regex, then
+       call ``json.loads``.
+    4. Return a dict with the four keys; any key absent from the parsed JSON is
+       set to ``None``.
+
+Math:
+    No numeric computation — field extraction is purely a JSON parse of the LLM
+    response with a regex-based JSON-block locator.
+
+References:
+    - Wei et al., 2022 — Chain-of-Thought Prompting Elicits Reasoning in Large
+      Language Models (arXiv 2201.11903).
+    - Kojima et al., 2022 — Large Language Models are Zero-Shot Reasoners
+      (arXiv 2205.11916).
 """
 
 from __future__ import annotations
@@ -24,27 +43,23 @@ class MetadataExtractor(Knot):
         self,
         *,
         document: Knot | str,
-        llm: LLMProvider,
+        llm: Knot | LLMProvider,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "MetadataExtractor: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
-        self._llm = llm
-        super().__init__(document=document, _config=_config, **kwargs)
+        super().__init__(document=document, llm=llm, _config=_config, **kwargs)
 
     async def process(
         self,
         document: str,
+        llm: LLMProvider,
         **_: Any,
     ) -> dict[str, Any]:
         """Extract metadata fields from the document and return them as a dict.
 
         Args:
             document: The document text to extract metadata from.
+            llm: The LLM provider to use for extraction.
 
         Returns:
             A dict with keys 'title', 'author', 'date', 'summary', each a string
@@ -65,7 +80,7 @@ class MetadataExtractor(Knot):
             "Use null for any field that cannot be determined.\n\n"
             f"Document:\n{document}"
         )
-        raw = await self._llm.chat([{"role": "user", "content": prompt}])
+        raw = await llm.chat([{"role": "user", "content": prompt}])
         text = self._extract_text(raw).strip()
         parsed = self._parse_json(text)
         return {

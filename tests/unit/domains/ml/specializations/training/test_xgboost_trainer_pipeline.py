@@ -12,6 +12,8 @@ from pirn.domains.ml.lineage_store import LineageStore
 from pirn.domains.ml.specializations.training.xgboost_trainer_pipeline import (
     XGBoostTrainerPipeline,
 )
+from pirn.domains.ml.types.data_split import DataSplit
+from pirn.domains.ml.types.ml_dataset import MLDataset
 from pirn.tapestry import Tapestry
 
 
@@ -38,40 +40,51 @@ class _KnotStub(Knot):
         return None
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_wrong_store_type(self) -> None:
-        with self.assertRaises(TypeError):
-            with Tapestry():
-                XGBoostTrainerPipeline(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    lineage=_StubLineage(),
-                    store="bad",  # type: ignore[arg-type]
-                    metrics=["accuracy"],
-                    _config=KnotConfig(id="xtp"),
-                )
+def _make_knot() -> XGBoostTrainerPipeline:
+    with Tapestry():
+        k = XGBoostTrainerPipeline.__new__(XGBoostTrainerPipeline)
+        object.__setattr__(k, "_config", KnotConfig(id="xtp"))
+    return k
 
-    def test_rejects_wrong_lineage_type(self) -> None:
-        with self.assertRaises(TypeError):
-            with Tapestry():
-                XGBoostTrainerPipeline(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    lineage="bad",  # type: ignore[arg-type]
-                    store=_StubStore(),
-                    metrics=["accuracy"],
-                    _config=KnotConfig(id="xtp"),
-                )
 
-    def test_rejects_empty_metrics(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                XGBoostTrainerPipeline(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    lineage=_StubLineage(),
-                    store=_StubStore(),
-                    metrics=[],
-                    _config=KnotConfig(id="xtp"),
-                )
+def _split() -> DataSplit:
+    ds = MLDataset(name="ds", feature_names=("x",), target_name="y", row_count=10, source_uri="mem://")
+    return DataSplit(train=ds, test=ds)
 
+
+class TestXGBoostTrainerPipelineValidation(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_wrong_store_type(self) -> None:
+        k = _make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=_split(),
+                lineage=_StubLineage(),
+                store="bad",  # type: ignore[arg-type]
+                metrics=["accuracy"],
+            )
+
+    async def test_rejects_wrong_lineage_type(self) -> None:
+        k = _make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=_split(),
+                lineage="bad",  # type: ignore[arg-type]
+                store=_StubStore(),
+                metrics=["accuracy"],
+            )
+
+    async def test_rejects_empty_metrics(self) -> None:
+        k = _make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=_split(),
+                lineage=_StubLineage(),
+                store=_StubStore(),
+                metrics=[],
+            )
+
+
+class TestXGBoostTrainerPipelineConstruction(unittest.TestCase):
     def test_valid_construction(self) -> None:
         with Tapestry() as t:
             XGBoostTrainerPipeline(

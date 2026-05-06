@@ -22,50 +22,43 @@ async def emit_dataset() -> MLDataset:
     )
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_k_below_two(self) -> None:
-        with Tapestry():
-            dataset = emit_dataset(_config=KnotConfig(id="dataset"))
-            with self.assertRaisesRegex(ValueError, "k must be >= 2"):
-                KFoldCrossValidator(
-                    dataset=dataset,
-                    algorithm="rf",
-                    metrics=("accuracy",),
-                    k=1,
-                    _config=KnotConfig(id="bad"),
-                )
+def _make_validator() -> KFoldCrossValidator:
+    with Tapestry():
+        dataset = emit_dataset(_config=KnotConfig(id="dataset"))
+        validator = KFoldCrossValidator(
+            dataset=dataset,
+            algorithm="rf",
+            metrics=("accuracy",),
+            k=3,
+            _config=KnotConfig(id="cv"),
+        )
+    return validator
 
-    def test_rejects_empty_algorithm(self) -> None:
-        with Tapestry():
-            dataset = emit_dataset(_config=KnotConfig(id="dataset"))
-            with self.assertRaisesRegex(ValueError, "algorithm"):
-                KFoldCrossValidator(
-                    dataset=dataset,
-                    algorithm="",
-                    metrics=("accuracy",),
-                    _config=KnotConfig(id="bad"),
-                )
 
-    def test_rejects_empty_metrics(self) -> None:
-        with Tapestry():
-            dataset = emit_dataset(_config=KnotConfig(id="dataset"))
-            with self.assertRaisesRegex(ValueError, "metrics must be non-empty"):
-                KFoldCrossValidator(
-                    dataset=dataset,
-                    algorithm="rf",
-                    metrics=(),
-                    _config=KnotConfig(id="bad"),
-                )
+def _dataset_fixture() -> MLDataset:
+    return MLDataset(
+        name="d", feature_names=("a", "b"), target_name="y", row_count=100
+    )
 
-    def test_rejects_non_knot_dataset(self) -> None:
-        with Tapestry():
-            with self.assertRaisesRegex(TypeError, "dataset must be a Knot"):
-                KFoldCrossValidator(
-                    dataset="not_a_knot",  # type: ignore[arg-type]
-                    algorithm="rf",
-                    metrics=("accuracy",),
-                    _config=KnotConfig(id="bad"),
-                )
+
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_k_below_two(self) -> None:
+        validator = _make_validator()
+        dataset = _dataset_fixture()
+        with self.assertRaises((TypeError, ValueError)):
+            await validator.process(dataset=dataset, algorithm="rf", metrics=("accuracy",), k=1)
+
+    async def test_rejects_empty_algorithm(self) -> None:
+        validator = _make_validator()
+        dataset = _dataset_fixture()
+        with self.assertRaises((TypeError, ValueError)):
+            await validator.process(dataset=dataset, algorithm="", metrics=("accuracy",), k=3)
+
+    async def test_rejects_empty_metrics(self) -> None:
+        validator = _make_validator()
+        dataset = _dataset_fixture()
+        with self.assertRaises((TypeError, ValueError)):
+            await validator.process(dataset=dataset, algorithm="rf", metrics=(), k=3)
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

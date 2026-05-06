@@ -16,17 +16,22 @@ from tests.unit.domains.ml._stubs.recording_database_pool import (
 )
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_text_column(self) -> None:
-        with Tapestry():
-            with self.assertRaisesRegex(ValueError, "text_column"):
-                NamedEntityRecognitionPipeline(
-                    pool=RecordingDatabasePool(rows=[("text", "O")]),
-                    query="SELECT 1",
-                    text_column="",
-                    label_column="label",
-                    _config=KnotConfig(id="bad"),
-                )
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_empty_text_column(self) -> None:
+        knot = NamedEntityRecognitionPipeline(
+            pool=RecordingDatabasePool(rows=[("text", "O")]),
+            query="SELECT 1",
+            text_column="",
+            label_column="label",
+            _config=KnotConfig(id="bad"),
+        )
+        with self.assertRaisesRegex(ValueError, "text_column"):
+            await knot.process(
+                pool=RecordingDatabasePool(rows=[("text", "O")]),
+                query="SELECT 1",
+                text_column="",
+                label_column="label",
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

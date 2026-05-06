@@ -22,38 +22,6 @@ class _KnotStub(Knot):
 
 
 class TestConstruction(unittest.TestCase):
-    def test_rejects_k_less_than_2(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                KFoldCrossValidator(
-                    dataset=_KnotStub(_config=KnotConfig(id="d")),
-                    algorithm="rf",
-                    metrics=["accuracy"],
-                    k=1,
-                    _config=KnotConfig(id="kf"),
-                )
-
-    def test_rejects_empty_metrics(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                KFoldCrossValidator(
-                    dataset=_KnotStub(_config=KnotConfig(id="d")),
-                    algorithm="rf",
-                    metrics=[],
-                    _config=KnotConfig(id="kf"),
-                )
-
-    def test_rejects_non_int_k(self) -> None:
-        with self.assertRaises(TypeError):
-            with Tapestry():
-                KFoldCrossValidator(
-                    dataset=_KnotStub(_config=KnotConfig(id="d")),
-                    algorithm="rf",
-                    metrics=["accuracy"],
-                    k=5.0,  # type: ignore[arg-type]
-                    _config=KnotConfig(id="kf"),
-                )
-
     def test_valid_construction(self) -> None:
         with Tapestry() as t:
             KFoldCrossValidator(
@@ -64,3 +32,45 @@ class TestConstruction(unittest.TestCase):
                 _config=KnotConfig(id="kf"),
             )
         self.assertIsNotNone(t._store.get("kf"))
+
+
+class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self) -> KFoldCrossValidator:
+        with Tapestry():
+            return KFoldCrossValidator(
+                dataset=_KnotStub(_config=KnotConfig(id="d")),
+                algorithm="rf",
+                metrics=["accuracy"],
+                k=5,
+                _config=KnotConfig(id="kf"),
+            )
+
+    async def test_rejects_k_less_than_2(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaises(ValueError):
+            await knot.process(
+                dataset=object(),  # type: ignore[arg-type]
+                algorithm="rf",
+                metrics=["accuracy"],
+                k=1,
+            )
+
+    async def test_rejects_empty_metrics(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaises(ValueError):
+            await knot.process(
+                dataset=object(),  # type: ignore[arg-type]
+                algorithm="rf",
+                metrics=[],
+                k=5,
+            )
+
+    async def test_rejects_non_int_k(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaises(TypeError):
+            await knot.process(
+                dataset=object(),  # type: ignore[arg-type]
+                algorithm="rf",
+                metrics=["accuracy"],
+                k=5.0,  # type: ignore[arg-type]
+            )

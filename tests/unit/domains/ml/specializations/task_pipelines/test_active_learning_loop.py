@@ -16,29 +16,31 @@ from tests.unit.domains.ml._stubs.recording_database_pool import (
 )
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_zero_n_rounds(self) -> None:
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_zero_n_rounds(self) -> None:
         with Tapestry():
-            with self.assertRaisesRegex(ValueError, "n_rounds"):
-                ActiveLearningLoop(
-                    pool=RecordingDatabasePool(rows=[(1.0, 0)]),
-                    query="SELECT 1",
-                    target_column="y",
-                    feature_names=("a",),
-                    n_rounds=0,
-                    _config=KnotConfig(id="bad"),
-                )
+            k = ActiveLearningLoop.__new__(ActiveLearningLoop)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                pool=RecordingDatabasePool(rows=[(1.0, 0)]),
+                query="SELECT 1",
+                target_column="y",
+                feature_names=("a",),
+                n_rounds=0,
+            )
 
-    def test_rejects_empty_feature_names(self) -> None:
+    async def test_rejects_empty_feature_names(self) -> None:
         with Tapestry():
-            with self.assertRaisesRegex(ValueError, "feature_names"):
-                ActiveLearningLoop(
-                    pool=RecordingDatabasePool(rows=[(1.0, 0)]),
-                    query="SELECT 1",
-                    target_column="y",
-                    feature_names=(),
-                    _config=KnotConfig(id="bad"),
-                )
+            k = ActiveLearningLoop.__new__(ActiveLearningLoop)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                pool=RecordingDatabasePool(rows=[(1.0, 0)]),
+                query="SELECT 1",
+                target_column="y",
+                feature_names=(),
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

@@ -11,22 +11,18 @@ from pirn.domains.oilgas.well.well_completion_ingester import WellCompletionInge
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_well_id(self) -> None:
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_empty_well_id(self) -> None:
+        k = WellCompletionIngester.__new__(WellCompletionIngester)
+        object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaisesRegex(ValueError, "well_id"):
-            WellCompletionIngester(
-                well_id="",
-                record_path="/x",
-                _config=KnotConfig(id="wc"),
-            )
+            await k.process(well_id="", record_path="/x")
 
-    def test_rejects_empty_record_path(self) -> None:
+    async def test_rejects_empty_record_path(self) -> None:
+        k = WellCompletionIngester.__new__(WellCompletionIngester)
+        object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaisesRegex(ValueError, "record_path"):
-            WellCompletionIngester(
-                well_id="W",
-                record_path="",
-                _config=KnotConfig(id="wc"),
-            )
+            await k.process(well_id="W", record_path="")
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

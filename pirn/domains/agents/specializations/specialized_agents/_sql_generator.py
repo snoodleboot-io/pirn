@@ -2,6 +2,23 @@
 
 Asks the LLM to emit a single SQL statement for a natural-language
 question, optionally informed by a schema description. Internal API.
+
+Algorithm:
+    1. Receive the ``question``, ``llm`` provider, and optional
+       ``schema_description`` string.
+    2. Build a system prompt that instructs the LLM to reply with a
+       single SQL statement only, appending the schema reference when
+       ``schema_description`` is non-empty.
+    3. Send the two-message chat prompt to the LLM via
+       :meth:`LLMProvider.chat`.
+    4. Extract and return the raw text, stripped of surrounding whitespace.
+
+Math:
+    No numeric computation.
+
+References:
+    - Text-to-SQL survey: Katsogiannis-Meimarakis & Koutrika, 2023
+      (ACM SIGMOD Record, doi 10.1145/3613068.3613069).
 """
 
 from __future__ import annotations
@@ -20,20 +37,32 @@ class _SQLGenerator(Knot):
         self,
         *,
         question: Knot | str,
-        llm: LLMProvider,
-        schema_description: str,
+        llm: Knot | LLMProvider,
+        schema_description: Knot | str,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        self._llm = llm
-        self._schema_description = schema_description
-        super().__init__(question=question, _config=_config, **kwargs)
+        super().__init__(
+            question=question,
+            llm=llm,
+            schema_description=schema_description,
+            _config=_config,
+            **kwargs,
+        )
 
-    async def process(self, question: str, **_: Any) -> str:
+    async def process(
+        self,
+        question: str,
+        llm: LLMProvider,
+        schema_description: str,
+        **_: Any,
+    ) -> str:
         """Ask the LLM to emit a single SQL statement for the question and return it.
 
         Args:
             question: The non-empty natural-language question to translate into SQL.
+            llm: The LLM provider used to generate the SQL statement.
+            schema_description: Optional schema reference appended to the system prompt.
 
         Returns:
             The SQL statement string emitted by the LLM, stripped of leading and trailing whitespace.
@@ -54,15 +83,15 @@ class _SQLGenerator(Knot):
             "parameters); never inline values via Python string "
             "formatting like {value} or %s.",
         ]
-        if self._schema_description:
+        if schema_description:
             system_lines.append(
-                f"Schema reference:\n{self._schema_description}"
+                f"Schema reference:\n{schema_description}"
             )
         chat_messages = [
             {"role": "system", "content": "\n".join(system_lines)},
             {"role": "user", "content": question},
         ]
-        raw = await self._llm.chat(chat_messages)
+        raw = await llm.chat(chat_messages)
         return _SQLGenerator._extract_text(raw).strip()
 
     @staticmethod

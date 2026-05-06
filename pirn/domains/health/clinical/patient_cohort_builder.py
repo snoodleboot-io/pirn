@@ -4,6 +4,18 @@ Pipeline: feed an initial record set through several
 :class:`ClinicalTrialEligibilityFilter` stages (e.g. inclusion then
 exclusion). Implemented as a :class:`SubTapestry` so each stage is a
 visible knot in the run graph.
+
+Algorithm:
+    1. Receive a sequence of ClinicalRecords and a stages mapping of named criteria.
+    2. Validate that records is a list/tuple of ClinicalRecords and stages is a Mapping.
+    3. For each stage, apply the eligibility predicates to filter the current record set.
+    4. Chain stages in order so each stage sees the output of the previous.
+    5. Return the inner RunResult.
+
+
+References:
+    - CDISC CDASH: https://www.cdisc.org/standards/foundational/cdash
+    - HL7 FHIR R4 ResearchSubject: https://hl7.org/fhir/R4/researchsubject.html
 """
 
 from __future__ import annotations
@@ -29,11 +41,36 @@ class PatientCohortBuilder(SubTapestry):
     def __init__(
         self,
         *,
-        records: Sequence[ClinicalRecord],
-        stages: Mapping[str, Mapping[str, Callable[[ClinicalRecord], bool]]],
+        records: Knot | Sequence[ClinicalRecord],
+        stages: Knot | Mapping[str, Mapping[str, Callable[[ClinicalRecord], bool]]],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            records=records,
+            stages=stages,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        records: Sequence[ClinicalRecord],
+        stages: Mapping[str, Mapping[str, Callable[[ClinicalRecord], bool]]],
+        **_: Any,
+    ) -> RunResult:
+        """Apply each named eligibility filter stage in order and return the inner RunResult.
+
+        Args:
+            records: Sequence of ClinicalRecords to filter through each stage.
+            stages: Mapping of stage name to criteria mapping of predicate callables.
+
+        Returns:
+            A RunResult summarising the outcome of the inner tapestry execution.
+
+        Raises:
+            TypeError: If records is not a list/tuple of ClinicalRecords or stages is not a Mapping.
+        """
         if not isinstance(records, (list, tuple)):
             raise TypeError(
                 "PatientCohortBuilder: records must be a list or tuple"
@@ -50,26 +87,14 @@ class PatientCohortBuilder(SubTapestry):
                 raise TypeError(
                     f"PatientCohortBuilder: stage {stage_name!r} criteria must be a Mapping"
                 )
-        self._records = tuple(records)
-        self._stages = {
-            name: dict(criteria) for name, criteria in stages.items()
-        }
-        super().__init__(_config=_config, **kwargs)
-
-    async def process(self, **_: Any) -> RunResult:
-        """Apply each named eligibility filter stage in order and return the inner RunResult.
-
-        Returns:
-            A RunResult summarising the outcome of the inner tapestry execution.
-        """
         with Tapestry() as inner:
-            current = tuple(self._records)
+            current = tuple(records)
             seed = _PassThrough(
                 records=current,
                 _config=KnotConfig(id="cohort-seed"),
             )
             previous: Knot = seed
-            for stage_name, criteria in self._stages.items():
+            for stage_name, criteria in stages.items():
                 # The filter consumes a sequence directly; tie ordering by
                 # naming the stage with a stable id derived from the user
                 # mapping keys.

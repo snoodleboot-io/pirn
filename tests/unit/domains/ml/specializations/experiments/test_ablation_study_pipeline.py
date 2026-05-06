@@ -22,50 +22,6 @@ class _KnotStub(Knot):
 
 
 class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_algorithm(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                AblationStudyPipeline(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    algorithm="",
-                    feature_groups={"g1": ["a"]},
-                    metrics=["accuracy"],
-                    _config=KnotConfig(id="asp"),
-                )
-
-    def test_rejects_empty_feature_groups(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                AblationStudyPipeline(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    algorithm="logistic",
-                    feature_groups={},
-                    metrics=["accuracy"],
-                    _config=KnotConfig(id="asp"),
-                )
-
-    def test_rejects_reserved_full_key(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                AblationStudyPipeline(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    algorithm="logistic",
-                    feature_groups={"full": ["a"]},
-                    metrics=["accuracy"],
-                    _config=KnotConfig(id="asp"),
-                )
-
-    def test_rejects_empty_metrics(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                AblationStudyPipeline(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    algorithm="logistic",
-                    feature_groups={"g1": ["a"]},
-                    metrics=[],
-                    _config=KnotConfig(id="asp"),
-                )
-
     def test_valid_construction(self) -> None:
         with Tapestry() as t:
             AblationStudyPipeline(
@@ -76,3 +32,55 @@ class TestConstruction(unittest.TestCase):
                 _config=KnotConfig(id="asp"),
             )
         self.assertIsNotNone(t._store.get("asp"))
+
+
+class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self) -> AblationStudyPipeline:
+        with Tapestry():
+            return AblationStudyPipeline(
+                split=_KnotStub(_config=KnotConfig(id="s")),
+                algorithm="logistic",
+                feature_groups={"g1": ["a"]},
+                metrics=["accuracy"],
+                _config=KnotConfig(id="asp"),
+            )
+
+    async def test_rejects_empty_algorithm(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaises(ValueError):
+            await knot.process(
+                split=object(),  # type: ignore[arg-type]
+                algorithm="",
+                feature_groups={"g1": ["a"]},
+                metrics=["accuracy"],
+            )
+
+    async def test_rejects_empty_feature_groups(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaises(ValueError):
+            await knot.process(
+                split=object(),  # type: ignore[arg-type]
+                algorithm="logistic",
+                feature_groups={},
+                metrics=["accuracy"],
+            )
+
+    async def test_rejects_reserved_full_key(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaises(ValueError):
+            await knot.process(
+                split=object(),  # type: ignore[arg-type]
+                algorithm="logistic",
+                feature_groups={"full": ["a"]},
+                metrics=["accuracy"],
+            )
+
+    async def test_rejects_empty_metrics(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaises(ValueError):
+            await knot.process(
+                split=object(),  # type: ignore[arg-type]
+                algorithm="logistic",
+                feature_groups={"g1": ["a"]},
+                metrics=[],
+            )

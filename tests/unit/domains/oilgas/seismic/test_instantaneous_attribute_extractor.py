@@ -5,47 +5,30 @@ from __future__ import annotations
 from typing import Any
 import unittest
 
-
-from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.domains.oilgas.seismic.instantaneous_attribute_extractor import (
     InstantaneousAttributeExtractor,
 )
-from pirn.tapestry import Tapestry
 
-
-class _TraceSource(Knot):
-    def __init__(self, *, _config: KnotConfig, **kwargs: Any) -> None:
-        super().__init__(_config=_config, **kwargs)
-
-    async def process(self, **_: Any) -> dict[str, Any]:
-        return {"samples": [0.0, 1.0, -1.0, 0.5], "sample_interval_ms": 4.0}
-
-
-class TestConstruction(unittest.TestCase):
-    def test_rejects_unknown_attribute(self) -> None:
-        with self.assertRaisesRegex(ValueError, "unknown attributes"):
-            with Tapestry():
-                src = _TraceSource(_config=KnotConfig(id="src"))
-                InstantaneousAttributeExtractor(
-                    trace=src,
-                    attributes=("amplitude", "bogus"),
-                    _config=KnotConfig(id="iae"),
-                )
+_TRACE: dict[str, Any] = {"samples": [0.0, 1.0, -1.0, 0.5], "sample_interval_ms": 4.0}
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self) -> InstantaneousAttributeExtractor:
+        return InstantaneousAttributeExtractor(
+            trace=None,  # type: ignore[arg-type]
+            attributes=("amplitude", "phase"),
+            _config=KnotConfig(id="iae", validate_io=False),
+        )
+
+    async def test_rejects_unknown_attribute(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "unknown attributes"):
+            await knot.process(trace=_TRACE, attributes=("amplitude", "bogus"))
+
     async def test_returns_requested_attributes(self) -> None:
-        with Tapestry() as t:
-            src = _TraceSource(_config=KnotConfig(id="src"))
-            InstantaneousAttributeExtractor(
-                trace=src,
-                attributes=("amplitude", "phase"),
-                _config=KnotConfig(id="iae"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["iae"]
+        knot = self._make_knot()
+        out = await knot.process(trace=_TRACE, attributes=("amplitude", "phase"))
         assert "amplitude" in out
         assert "phase" in out
         assert "frequency" not in out

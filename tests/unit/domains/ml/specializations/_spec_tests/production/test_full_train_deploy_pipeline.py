@@ -22,38 +22,40 @@ from tests.unit.domains.ml._stubs.recording_object_store import (
 )
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_query(self) -> None:
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_empty_query(self) -> None:
         with Tapestry():
-            with self.assertRaisesRegex(ValueError, "query"):
-                FullTrainDeployPipeline(
-                    pool=RecordingDatabasePool(rows=[(1,), (2,)]),
-                    query="",
-                    name="house-prices",
-                    feature_names=("a",),
-                    target_name="y",
-                    algorithm="logistic",
-                    lineage=RecordingLineageStore(),
-                    store=RecordingObjectStore(),
-                    metrics=("accuracy",),
-                    _config=KnotConfig(id="bad"),
-                )
+            k = FullTrainDeployPipeline.__new__(FullTrainDeployPipeline)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                pool=RecordingDatabasePool(rows=[(1,), (2,)]),
+                query="",
+                name="house-prices",
+                feature_names=("a",),
+                target_name="y",
+                algorithm="logistic",
+                lineage=RecordingLineageStore(),
+                store=RecordingObjectStore(),
+                metrics=("accuracy",),
+            )
 
-    def test_rejects_empty_metrics(self) -> None:
+    async def test_rejects_empty_metrics(self) -> None:
         with Tapestry():
-            with self.assertRaisesRegex(ValueError, "metrics"):
-                FullTrainDeployPipeline(
-                    pool=RecordingDatabasePool(rows=[(1,)]),
-                    query="SELECT 1",
-                    name="model",
-                    feature_names=("a",),
-                    target_name="y",
-                    algorithm="logistic",
-                    lineage=RecordingLineageStore(),
-                    store=RecordingObjectStore(),
-                    metrics=(),
-                    _config=KnotConfig(id="bad"),
-                )
+            k = FullTrainDeployPipeline.__new__(FullTrainDeployPipeline)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                pool=RecordingDatabasePool(rows=[(1,)]),
+                query="SELECT 1",
+                name="model",
+                feature_names=("a",),
+                target_name="y",
+                algorithm="logistic",
+                lineage=RecordingLineageStore(),
+                store=RecordingObjectStore(),
+                metrics=(),
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

@@ -10,6 +10,8 @@ from pirn.core.knot_config import KnotConfig
 from pirn.domains.ml.specializations.training.semi_supervised_trainer import (
     SemiSupervisedTrainer,
 )
+from pirn.domains.ml.types.data_split import DataSplit
+from pirn.domains.ml.types.ml_dataset import MLDataset
 from pirn.tapestry import Tapestry
 
 
@@ -21,40 +23,36 @@ class _KnotStub(Knot):
         return None
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_negative_unlabeled_row_count(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                SemiSupervisedTrainer(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    algorithm="rf",
-                    unlabeled_row_count=-1,
-                    metrics=["accuracy"],
-                    _config=KnotConfig(id="sst"),
-                )
+def _make_knot() -> SemiSupervisedTrainer:
+    with Tapestry():
+        k = SemiSupervisedTrainer.__new__(SemiSupervisedTrainer)
+        object.__setattr__(k, "_config", KnotConfig(id="sst"))
+    return k
 
-    def test_rejects_non_int_unlabeled_row_count(self) -> None:
-        with self.assertRaises(TypeError):
-            with Tapestry():
-                SemiSupervisedTrainer(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    algorithm="rf",
-                    unlabeled_row_count=100.5,  # type: ignore[arg-type]
-                    metrics=["accuracy"],
-                    _config=KnotConfig(id="sst"),
-                )
 
-    def test_rejects_empty_metrics(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                SemiSupervisedTrainer(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    algorithm="rf",
-                    unlabeled_row_count=100,
-                    metrics=[],
-                    _config=KnotConfig(id="sst"),
-                )
+def _split() -> DataSplit:
+    ds = MLDataset(name="ds", feature_names=("x",), target_name="y", row_count=10, source_uri="mem://")
+    return DataSplit(train=ds, test=ds)
 
+
+class TestSemiSupervisedTrainerValidation(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_negative_unlabeled_row_count(self) -> None:
+        k = _make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=_split(), algorithm="rf", unlabeled_row_count=-1, metrics=["accuracy"])
+
+    async def test_rejects_non_int_unlabeled_row_count(self) -> None:
+        k = _make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=_split(), algorithm="rf", unlabeled_row_count=100.5, metrics=["accuracy"])  # type: ignore[arg-type]
+
+    async def test_rejects_empty_metrics(self) -> None:
+        k = _make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=_split(), algorithm="rf", unlabeled_row_count=100, metrics=[])
+
+
+class TestSemiSupervisedTrainerConstruction(unittest.TestCase):
     def test_valid_construction(self) -> None:
         with Tapestry() as t:
             SemiSupervisedTrainer(

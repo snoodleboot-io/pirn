@@ -16,18 +16,24 @@ from tests.unit.domains.ml._stubs.recording_database_pool import (
 )
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_invalid_vectorizer(self) -> None:
-        with Tapestry():
-            with self.assertRaisesRegex(ValueError, "vectorizer"):
-                TextClassificationPipeline(
-                    pool=RecordingDatabasePool(rows=[("text", 1)]),
-                    query="SELECT 1",
-                    text_column="text",
-                    target_column="label",
-                    vectorizer="word2vec",
-                    _config=KnotConfig(id="bad"),
-                )
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_invalid_vectorizer(self) -> None:
+        knot = TextClassificationPipeline(
+            pool=RecordingDatabasePool(rows=[("text", 1)]),
+            query="SELECT 1",
+            text_column="text",
+            target_column="label",
+            vectorizer="word2vec",
+            _config=KnotConfig(id="bad"),
+        )
+        with self.assertRaisesRegex(ValueError, "vectorizer"):
+            await knot.process(
+                pool=RecordingDatabasePool(rows=[("text", 1)]),
+                query="SELECT 1",
+                text_column="text",
+                target_column="label",
+                vectorizer="word2vec",
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

@@ -25,27 +25,29 @@ class _SplitSource(Knot):
         return DataSplit(train=ds, test=ds)
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_column_pairs(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                InteractionFeatureGenerator(
-                    split=_SplitSource(_config=KnotConfig(id="s")),
-                    column_pairs=[],
-                    _config=KnotConfig(id="ifg"),
-                )
-
-    def test_rejects_invalid_pair_format(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                InteractionFeatureGenerator(
-                    split=_SplitSource(_config=KnotConfig(id="s")),
-                    column_pairs=[("a",)],  # type: ignore[list-item]
-                    _config=KnotConfig(id="ifg"),
-                )
-
-
 class TestProcess(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self) -> InteractionFeatureGenerator:
+        k = InteractionFeatureGenerator.__new__(InteractionFeatureGenerator)
+        object.__setattr__(k, "_config", KnotConfig(id="ifg"))
+        return k
+
+    def _make_split(self) -> DataSplit:
+        ds = MLDataset(name="ds", feature_names=("a", "b"), row_count=10)
+        return DataSplit(train=ds, test=ds)
+
+    async def test_rejects_empty_column_pairs(self) -> None:
+        k = self._make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=self._make_split(), column_pairs=[])
+
+    async def test_rejects_invalid_pair_format(self) -> None:
+        k = self._make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=self._make_split(),
+                column_pairs=[("a",)],  # type: ignore[list-item]
+            )
+
     async def test_appends_interaction_features(self) -> None:
         with Tapestry() as t:
             src = _SplitSource(_config=KnotConfig(id="src"))

@@ -11,6 +11,23 @@ A :class:`SubTapestry` that:
 
 The pipeline returns either the original :class:`AgentResponse` (all
 claims supported) or a copy with the warning footer appended.
+
+Algorithm:
+    1. Run an inner :class:`Tapestry` containing :class:`FactClaimExtractor`
+       followed by :class:`FactClaimVerifier`.
+    2. :class:`FactClaimExtractor` prompts the LLM to enumerate one claim per
+       line from the response content and returns a ``list[str]``.
+    3. :class:`FactClaimVerifier` queries the :class:`MemoryStore` (``top_k=1``)
+       for each claim; claims with zero hits are collected as unverified.
+    4. If all claims are verified, return the original :class:`AgentResponse`
+       unchanged; otherwise return a copy with a warning footer listing the
+       unverified claims appended to the content.
+
+
+References:
+    - pirn-native: :class:`pirn.domains.agents.specializations.guardrails.fact_claim_extractor.FactClaimExtractor`
+    - pirn-native: :class:`pirn.domains.agents.specializations.guardrails.fact_claim_verifier.FactClaimVerifier`
+    - pirn-native: :class:`pirn.domains.agents.memory_store.MemoryStore`
 """
 
 from __future__ import annotations
@@ -39,28 +56,18 @@ class FactCheckGate(SubTapestry):
         self,
         *,
         response: Knot | AgentResponse,
-        store: MemoryStore,
-        llm: LLMProvider,
+        store: Knot | MemoryStore,
+        llm: Knot | LLMProvider,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(store, MemoryStore):
-            raise TypeError(
-                "FactCheckGate: store must be a MemoryStore, "
-                f"got {type(store).__name__}"
-            )
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "FactCheckGate: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
-        self._store = store
-        self._llm = llm
-        super().__init__(response=response, _config=_config, **kwargs)
+        super().__init__(response=response, store=store, llm=llm, _config=_config, **kwargs)
 
     async def process(
         self,
         response: AgentResponse,
+        store: MemoryStore,
+        llm: LLMProvider,
         **_: Any,
     ) -> AgentResponse:
         """Extract factual claims from the response and return it annotated with any unverified claims.
@@ -77,13 +84,13 @@ class FactCheckGate(SubTapestry):
         with Tapestry() as inner:
             claims = FactClaimExtractor(
                 response=response,
-                llm=self._llm,
+                llm=llm,
                 _config=KnotConfig(id="claims"),
             )
             FactClaimVerifier(
                 response=response,
                 claims=claims,
-                store=self._store,
+                store=store,
                 _config=KnotConfig(id="verify"),
             )
         inner_result = await self._run_inner(inner)

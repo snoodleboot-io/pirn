@@ -34,26 +34,27 @@ async def emit_model() -> TrainedModel:
     )
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_knot_model(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(TypeError, "model must be a Knot"):
-                ClassificationEvalPipeline(
-                    model="not-a-knot",  # type: ignore[arg-type]
-                    split=split,
-                    _config=KnotConfig(id="bad"),
-                )
+def _make_pipeline() -> ClassificationEvalPipeline:
+    with Tapestry():
+        split = emit_split(_config=KnotConfig(id="split"))
+        model = emit_model(_config=KnotConfig(id="model"))
+        pipeline = ClassificationEvalPipeline(
+            model=model,
+            split=split,
+            _config=KnotConfig(id="eval"),
+        )
+    return pipeline
 
-    def test_rejects_non_knot_split(self) -> None:
-        with Tapestry():
-            model = emit_model(_config=KnotConfig(id="model"))
-            with self.assertRaisesRegex(TypeError, "split must be a Knot"):
-                ClassificationEvalPipeline(
-                    model=model,
-                    split="not-a-knot",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="bad"),
-                )
+
+def _fixtures():  # type: ignore[return]
+    train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
+    test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
+    split = DataSplit(train=train, test=test)
+    model = TrainedModel(
+        model_id="m1", algorithm="logistic", feature_names=("a",), target_name="y"
+    )
+    return model, split
+
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

@@ -14,32 +14,35 @@ from pirn.domains.health.wearables.glucose_monitor_processor import (
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_sequence(self) -> None:
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_non_sequence(self) -> None:
+        inst = object.__new__(GlucoseMonitorProcessor)
         with self.assertRaisesRegex(TypeError, "readings"):
-            GlucoseMonitorProcessor(
+            await GlucoseMonitorProcessor.process(
+                inst,
                 readings=42,  # type: ignore[arg-type]
                 target_low_mg_dl=70.0,
                 target_high_mg_dl=180.0,
-                _config=KnotConfig(id="g"),
             )
 
-    def test_rejects_non_mapping_reading(self) -> None:
+    async def test_rejects_non_mapping_reading(self) -> None:
+        inst = object.__new__(GlucoseMonitorProcessor)
         with self.assertRaisesRegex(TypeError, "reading"):
-            GlucoseMonitorProcessor(
+            await GlucoseMonitorProcessor.process(
+                inst,
                 readings=["x"],  # type: ignore[list-item]
                 target_low_mg_dl=70.0,
                 target_high_mg_dl=180.0,
-                _config=KnotConfig(id="g"),
             )
 
-    def test_rejects_low_ge_high(self) -> None:
+    async def test_rejects_low_ge_high(self) -> None:
+        inst = object.__new__(GlucoseMonitorProcessor)
         with self.assertRaisesRegex(ValueError, "<"):
-            GlucoseMonitorProcessor(
+            await GlucoseMonitorProcessor.process(
+                inst,
                 readings=[],
                 target_low_mg_dl=180.0,
                 target_high_mg_dl=70.0,
-                _config=KnotConfig(id="g"),
             )
 
 

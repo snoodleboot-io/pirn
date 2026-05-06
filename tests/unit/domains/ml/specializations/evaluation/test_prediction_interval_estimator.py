@@ -28,18 +28,28 @@ async def emit_model() -> TrainedModel:
     return TrainedModel(model_id="m1", algorithm="linear", feature_names=("a",))
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_coverage_out_of_range(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            model = emit_model(_config=KnotConfig(id="model"))
-            with self.assertRaisesRegex(ValueError, "coverage"):
-                PredictionIntervalEstimator(
-                    model=model,
-                    split=split,
-                    coverage=1.5,
-                    _config=KnotConfig(id="bad"),
-                )
+def _make_knot() -> PredictionIntervalEstimator:
+    with Tapestry():
+        split = emit_split(_config=KnotConfig(id="split"))
+        model = emit_model(_config=KnotConfig(id="model"))
+        k = PredictionIntervalEstimator(
+            model=model,
+            split=split,
+            coverage=0.9,
+            _config=KnotConfig(id="pie"),
+        )
+    return k
+
+
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_coverage_out_of_range(self) -> None:
+        knot = _make_knot()
+        train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
+        test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
+        split = DataSplit(train=train, test=test)
+        model = TrainedModel(model_id="m1", algorithm="linear", feature_names=("a",))
+        with self.assertRaisesRegex(ValueError, "coverage"):
+            await knot.process(model=model, split=split, coverage=1.5)
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

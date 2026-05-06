@@ -1,11 +1,24 @@
 """``ImageClassificationPipeline`` — image loading → augmentation →
 CNN/ViT training → evaluation.
+
+Algorithm:
+    1. Receive ``pool``, ``query``, ``image_column``, ``label_column``,
+       ``architecture``, and ``augment`` via process().
+    2. Validate all inputs.
+    3. Wire DatasetLoader → TrainTestSplit → Trainer → Evaluator in an
+       inner Tapestry.
+    4. Run via _run_inner() and return the EvalReport.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from typing import Any, ClassVar
 
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.connectors.database_connection_pool import (
     DatabaseConnectionPool,
@@ -22,33 +35,65 @@ from pirn.tapestry import Tapestry
 class ImageClassificationPipeline(SubTapestry):
     """Image loading, augmentation, CNN/ViT training, and evaluation."""
 
-    _image_metrics: tuple[str, ...] = (
-        "accuracy",
-        "precision",
-        "recall",
-        "f1",
-    )
+    _image_metrics: tuple[str, ...] = ("accuracy", "precision", "recall", "f1")
+    valid_architectures: ClassVar[frozenset[str]] = frozenset({"cnn", "vit"})
 
     def __init__(
         self,
         *,
-        pool: DatabaseConnectionPool,
-        query: str,
-        image_column: str,
-        label_column: str,
-        architecture: str = "cnn",
-        augment: bool = True,
+        pool: Knot | DatabaseConnectionPool,
+        query: Knot | str,
+        image_column: Knot | str,
+        label_column: Knot | str,
+        architecture: Knot | str = "cnn",
+        augment: Knot | bool = True,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            pool=pool,
+            query=query,
+            image_column=image_column,
+            label_column=label_column,
+            architecture=architecture,
+            augment=augment,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        pool: DatabaseConnectionPool = None,
+        query: str = "",
+        image_column: str = "",
+        label_column: str = "",
+        architecture: str = "cnn",
+        augment: bool = True,
+        **_: Any,
+    ) -> EvalReport:
+        """Load images, optionally augment, train the configured architecture, and return the EvalReport.
+
+        Args:
+            pool: DatabaseConnectionPool for loading the dataset.
+            query: Non-empty SQL query string.
+            image_column: Non-empty name of the image column.
+            label_column: Non-empty name of the label column.
+            architecture: Model architecture; must be one of {"cnn", "vit"}.
+            augment: Whether to apply data augmentation.
+
+        Returns:
+            EvalReport containing accuracy, precision, recall, and f1 metrics.
+
+        Raises:
+            ValueError: If any input fails validation.
+            TypeError: If pool is not a DatabaseConnectionPool.
+        """
         if not isinstance(pool, DatabaseConnectionPool):
             raise TypeError(
                 "ImageClassificationPipeline: pool must be a DatabaseConnectionPool"
             )
         if not isinstance(query, str) or not query:
-            raise ValueError(
-                "ImageClassificationPipeline: query must be a non-empty string"
-            )
+            raise ValueError("ImageClassificationPipeline: query must be a non-empty string")
         if not isinstance(image_column, str) or not image_column:
             raise ValueError(
                 "ImageClassificationPipeline: image_column must be a non-empty string"
@@ -57,36 +102,17 @@ class ImageClassificationPipeline(SubTapestry):
             raise ValueError(
                 "ImageClassificationPipeline: label_column must be a non-empty string"
             )
-        allowed = {"cnn", "vit"}
-        if architecture not in allowed:
+        if architecture not in self.valid_architectures:
             raise ValueError(
-                f"ImageClassificationPipeline: architecture must be one of {allowed}"
+                f"ImageClassificationPipeline: architecture must be one of {sorted(self.valid_architectures)}"
             )
-        self._pool = pool
-        self._query = query
-        self._image_column = image_column
-        self._label_column = label_column
-        self._architecture = architecture
-        self._augment = augment
-        super().__init__(_config=_config, **kwargs)
-
-    @property
-    def architecture(self) -> str:
-        return self._architecture
-
-    async def process(self, **_: Any) -> EvalReport:
-        """Load images, optionally augment, train the configured architecture, and return the EvalReport.
-
-        Returns:
-            EvalReport containing accuracy, precision, recall, and f1 metrics.
-        """
         with Tapestry() as inner:
             dataset = DatasetLoader(
                 name="image-classification",
-                feature_names=(self._image_column,),
-                target_name=self._label_column,
-                pool=self._pool,
-                query=self._query,
+                feature_names=(image_column,),
+                target_name=label_column,
+                pool=pool,
+                query=query,
                 _config=KnotConfig(id="load"),
             )
             split = TrainTestSplit(
@@ -95,8 +121,8 @@ class ImageClassificationPipeline(SubTapestry):
             )
             trained = Trainer(
                 split=split,
-                algorithm=self._architecture,
-                hyperparameters={"augment": self._augment},
+                algorithm=architecture,
+                hyperparameters={"augment": augment},
                 _config=KnotConfig(id="train"),
             )
             Evaluator(

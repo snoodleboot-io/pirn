@@ -14,25 +14,21 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.specializations.conftest import StubMemoryStore
 
 
-class TestMemorySearchRetrieverConstruction(unittest.TestCase):
-    def test_rejects_non_memory_store(self) -> None:
-        with self.assertRaisesRegex(TypeError, "MemoryStore"):
-            with Tapestry():
-                MemorySearchRetriever(
-                    store="bad",  # type: ignore[arg-type]
-                    query="q",
-                    _config=KnotConfig(id="msr"),
-                )
+class TestMemorySearchRetrieverConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_non_memory_store(self) -> None:
+        with Tapestry():
+            k = MemorySearchRetriever.__new__(MemorySearchRetriever)
+            object.__setattr__(k, "_config", KnotConfig(id="msr"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(store="bad", query="q")  # type: ignore[arg-type]
 
-    def test_rejects_non_positive_top_k(self) -> None:
-        with self.assertRaisesRegex(ValueError, "top_k"):
-            with Tapestry():
-                MemorySearchRetriever(
-                    store=StubMemoryStore(hits=[]),
-                    query="q",
-                    top_k=0,
-                    _config=KnotConfig(id="msr"),
-                )
+    async def test_rejects_non_positive_top_k(self) -> None:
+        store = StubMemoryStore(hits=[])
+        with Tapestry():
+            k = MemorySearchRetriever.__new__(MemorySearchRetriever)
+            object.__setattr__(k, "_config", KnotConfig(id="msr"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(store=store, query="q", top_k=0)
 
 
 class TestMemorySearchRetrieverProcess(unittest.IsolatedAsyncioTestCase):

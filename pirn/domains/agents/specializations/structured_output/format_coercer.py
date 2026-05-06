@@ -4,6 +4,18 @@ A :class:`Knot` that checks whether an :class:`AgentResponse` content
 already satisfies the requested format (``"json"``, ``"yaml"``, or
 ``"markdown"``). If not, it asks an LLM to rewrite the content in the
 target format and returns an updated :class:`AgentResponse`.
+
+Algorithm:
+    1. Receive ``response`` (:class:`AgentResponse`), ``llm``, and ``target_format``.
+    2. Validate ``llm`` is an :class:`LLMProvider` and ``target_format`` is supported.
+    3. If the response content already matches the target format, return it unchanged.
+    4. Otherwise, build a rewrite prompt and call the LLM.
+    5. Wrap the rewritten content in a new :class:`AgentResponse` preserving metadata.
+
+
+References:
+    - :class:`pirn.domains.agents.llm_provider.LLMProvider`
+    - :class:`pirn.domains.agents.types.agent_response.AgentResponse`
 """
 
 from __future__ import annotations
@@ -16,6 +28,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.domains.agents.llm_provider import LLMProvider
 from pirn.domains.agents.types.agent_response import AgentResponse
 
+
 class FormatCoercer(Knot):
     """Rewrite AgentResponse content to a target format via LLM if needed."""
 
@@ -25,11 +38,35 @@ class FormatCoercer(Knot):
         self,
         *,
         response: Knot | AgentResponse,
-        llm: LLMProvider,
-        target_format: str,
+        llm: Knot | LLMProvider,
+        target_format: Knot | str,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(response=response, llm=llm, target_format=target_format, _config=_config, **kwargs)
+
+    async def process(
+        self,
+        response: AgentResponse,
+        llm: LLMProvider,
+        target_format: str,
+        **_: Any,
+    ) -> AgentResponse:
+        """Return the response as-is if already in target format, else rewrite via LLM.
+
+        Args:
+            response: The agent response whose content may need format coercion.
+            llm: The LLM provider to use for rewriting.
+            target_format: The target format string (``"json"``, ``"yaml"``, or ``"markdown"``).
+
+        Returns:
+            The original AgentResponse if already in target format, else a new
+            AgentResponse with the rewritten content.
+
+        Raises:
+            TypeError: If llm is not an LLMProvider or response is not an AgentResponse.
+            ValueError: If target_format is not a supported format.
+        """
         if not isinstance(llm, LLMProvider):
             raise TypeError(
                 "FormatCoercer: llm must be an LLMProvider, "
@@ -40,40 +77,19 @@ class FormatCoercer(Knot):
                 f"FormatCoercer: target_format must be one of "
                 f"{sorted(type(self)._supported_formats)}, got {target_format!r}"
             )
-        self._llm = llm
-        self._target_format = target_format
-        super().__init__(response=response, _config=_config, **kwargs)
-
-    async def process(
-        self,
-        response: AgentResponse,
-        **_: Any,
-    ) -> AgentResponse:
-        """Return the response as-is if already in target format, else rewrite via LLM.
-
-        Args:
-            response: The agent response whose content may need format coercion.
-
-        Returns:
-            The original AgentResponse if already in target format, else a new
-            AgentResponse with the rewritten content.
-
-        Raises:
-            TypeError: If response is not an AgentResponse instance.
-        """
         if not isinstance(response, AgentResponse):
             raise TypeError(
                 "FormatCoercer: response must be an AgentResponse, "
                 f"got {type(response).__name__}"
             )
-        if self._already_matches(response.content):
+        if self._already_matches(response.content, target_format):
             return response
         prompt = (
-            f"Rewrite the following content in {self._target_format} format. "
+            f"Rewrite the following content in {target_format} format. "
             "Return only the reformatted content with no additional commentary.\n\n"
             f"Content:\n{response.content}"
         )
-        raw = await self._llm.chat([{"role": "user", "content": prompt}])
+        raw = await llm.chat([{"role": "user", "content": prompt}])
         new_content = self._extract_text(raw).strip()
         return AgentResponse(
             content=new_content,
@@ -82,17 +98,18 @@ class FormatCoercer(Knot):
             usage=response.usage,
         )
 
-    def _already_matches(self, content: str) -> bool:
-        if self._target_format == "json":
+    @staticmethod
+    def _already_matches(content: str, target_format: str) -> bool:
+        if target_format == "json":
             try:
                 json.loads(content)
                 return True
             except (json.JSONDecodeError, ValueError):
                 return False
-        if self._target_format == "yaml":
+        if target_format == "yaml":
             stripped = content.strip()
             return stripped.startswith("---") or ":" in stripped
-        if self._target_format == "markdown":
+        if target_format == "markdown":
             stripped = content.strip()
             return (
                 stripped.startswith("#")

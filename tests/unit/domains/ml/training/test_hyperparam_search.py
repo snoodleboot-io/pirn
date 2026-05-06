@@ -41,25 +41,23 @@ class TestHyperparamSearchHappyPath(unittest.IsolatedAsyncioTestCase):
         assert "C" in out.hyperparameters
 
 
-class TestHyperparamSearchConstruction(unittest.TestCase):
-    def test_rejects_empty_search_space(self) -> None:
+class TestHyperparamSearchConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_empty_search_space(self) -> None:
+        train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
+        test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
+        split = DataSplit(train=train, test=test)
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "search_space"):
-                HyperparamSearch(
-                    split=split,
-                    algorithm="logreg",
-                    search_space={},
-                    _config=KnotConfig(id="bad"),
-                )
+            k = HyperparamSearch.__new__(HyperparamSearch)
+            object.__setattr__(k, "_config", KnotConfig(id="bad"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=split, algorithm="logreg", search_space={})
 
-    def test_rejects_empty_value_list(self) -> None:
+    async def test_rejects_empty_value_list(self) -> None:
+        train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
+        test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
+        split = DataSplit(train=train, test=test)
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "non-empty"):
-                HyperparamSearch(
-                    split=split,
-                    algorithm="logreg",
-                    search_space={"C": ()},
-                    _config=KnotConfig(id="bad"),
-                )
+            k = HyperparamSearch.__new__(HyperparamSearch)
+            object.__setattr__(k, "_config", KnotConfig(id="bad"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=split, algorithm="logreg", search_space={"C": ()})

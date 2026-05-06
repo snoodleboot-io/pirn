@@ -5,56 +5,46 @@ from __future__ import annotations
 from typing import Any
 import unittest
 
-
-from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.domains.oilgas.production.gas_lift_optimizer import GasLiftOptimizer
-from pirn.tapestry import Tapestry
 
-
-class _WellDataSource(Knot):
-    def __init__(self, *, _config: KnotConfig, **kwargs: Any) -> None:
-        super().__init__(_config=_config, **kwargs)
-
-    async def process(self, **_: Any) -> dict[str, Any]:
-        return {
-            "current_injection_mmscfd": 0.5,
-            "performance_curve": [
-                {"injection_mmscfd": 0.0, "oil_bopd": 200.0},
-                {"injection_mmscfd": 0.5, "oil_bopd": 400.0},
-                {"injection_mmscfd": 1.0, "oil_bopd": 550.0},
-                {"injection_mmscfd": 1.5, "oil_bopd": 580.0},
-                {"injection_mmscfd": 2.0, "oil_bopd": 560.0},
-            ],
-        }
-
-
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_positive_cost(self) -> None:
-        with self.assertRaisesRegex(ValueError, "injection_gas_cost_per_mscf"):
-            with Tapestry():
-                src = _WellDataSource(_config=KnotConfig(id="src"))
-                GasLiftOptimizer(
-                    well_data=src,
-                    injection_gas_cost_per_mscf=0.0,
-                    max_injection_rate_mmscfd=2.0,
-                    _config=KnotConfig(id="gl"),
-                )
+_WELL_DATA: dict[str, Any] = {
+    "current_injection_mmscfd": 0.5,
+    "performance_curve": [
+        {"injection_mmscfd": 0.0, "oil_bopd": 200.0},
+        {"injection_mmscfd": 0.5, "oil_bopd": 400.0},
+        {"injection_mmscfd": 1.0, "oil_bopd": 550.0},
+        {"injection_mmscfd": 1.5, "oil_bopd": 580.0},
+        {"injection_mmscfd": 2.0, "oil_bopd": 560.0},
+    ],
+}
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
-    async def test_returns_optimal_injection(self) -> None:
-        with Tapestry() as t:
-            src = _WellDataSource(_config=KnotConfig(id="src"))
-            GasLiftOptimizer(
-                well_data=src,
-                injection_gas_cost_per_mscf=2.5,
+    def _make_knot(self) -> GasLiftOptimizer:
+        return GasLiftOptimizer(
+            well_data=None,  # type: ignore[arg-type]
+            injection_gas_cost_per_mscf=2.5,
+            max_injection_rate_mmscfd=2.0,
+            _config=KnotConfig(id="gl", validate_io=False),
+        )
+
+    async def test_rejects_non_positive_cost(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "injection_gas_cost_per_mscf"):
+            await knot.process(
+                well_data=_WELL_DATA,
+                injection_gas_cost_per_mscf=0.0,
                 max_injection_rate_mmscfd=2.0,
-                _config=KnotConfig(id="gl"),
             )
-        result = await t.run(RunRequest())
-        out = result.outputs["gl"]
+
+    async def test_returns_optimal_injection(self) -> None:
+        knot = self._make_knot()
+        out = await knot.process(
+            well_data=_WELL_DATA,
+            injection_gas_cost_per_mscf=2.5,
+            max_injection_rate_mmscfd=2.0,
+        )
         assert "optimal_injection_mmscfd" in out
         assert "projected_oil_bopd" in out
         assert "incremental_bopd" in out

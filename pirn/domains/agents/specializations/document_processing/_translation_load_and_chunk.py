@@ -1,6 +1,20 @@
 """``_TranslationLoadAndChunk`` — internal helper Knot for :class:`DocumentTranslationPipeline`.
 
 Reads source text and splits it into fixed-size chunks. Internal API.
+
+Algorithm:
+    1. Resolve the source: if a URL (``http``/``https``), fetch via HTTP; otherwise read
+       from the local filesystem path.
+    2. Partition the raw text into non-overlapping windows of exactly ``chunk_size``
+       characters, collecting any remainder as the final (shorter) chunk.
+
+Math:
+    No numeric computation — chunk boundaries are fixed-size character offsets:
+    ``chunk_i = text[i * chunk_size : (i + 1) * chunk_size]``.
+
+References:
+    - No external references — chunking strategy is a fixed-size partition with no
+      overlap, in contrast to the sliding-window approach used in QA/ingestion pipelines.
 """
 
 from __future__ import annotations
@@ -20,7 +34,7 @@ class _TranslationLoadAndChunk(Knot):
         self,
         *,
         source: Knot | str,
-        chunk_size: int,
+        chunk_size: Knot | int,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:

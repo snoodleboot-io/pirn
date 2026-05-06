@@ -14,6 +14,25 @@ A :class:`SubTapestry` that wires:
 This is the baseline shape; richer variants (HyDE, corrective, graph)
 override individual stages but follow the same retrieve-→-prompt-→-
 generate-→-package skeleton.
+
+Algorithm:
+    1. Receive a ``query`` string.
+    2. Wire a :class:`MemorySearchRetriever` to fetch the ``top_k`` nearest
+       memories from the :class:`MemoryStore`.
+    3. Wire a :class:`RAGPromptBuilder` to merge the query and retrieved
+       hits into a single context-augmented prompt string.
+    4. Wire a :class:`LLMChatCall` to generate an answer from the prompt.
+    5. Wire a :class:`RAGResponseBuilder` to package the raw answer as an
+       :class:`AgentResponse`.
+    6. Run the inner :class:`Tapestry` and return the ``AgentResponse``.
+
+Math:
+    No quantitative computation — top-k retrieval and prompt assembly are
+    string operations delegated entirely to the wired child knots.
+
+References:
+    - Lewis et al., "Retrieval-Augmented Generation for Knowledge-Intensive
+      NLP Tasks" (NeurIPS 2020): https://arxiv.org/abs/2005.11401
 """
 
 from __future__ import annotations
@@ -46,12 +65,49 @@ class NaiveRAGPipeline(SubTapestry):
         self,
         *,
         query: Knot | str,
-        memory: MemoryStore,
-        llm: LLMProvider,
+        memory: Knot | MemoryStore,
+        llm: Knot | LLMProvider,
         _config: KnotConfig,
-        top_k: int = 5,
+        top_k: Knot | int = 5,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            query=query,
+            memory=memory,
+            llm=llm,
+            top_k=top_k,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        query: str,
+        memory: MemoryStore,
+        llm: LLMProvider,
+        top_k: int = 5,
+        **_: Any,
+    ) -> AgentResponse:
+        """Retrieve top-k memories, build a prompt, generate an answer, and return it as an AgentResponse.
+
+        Args:
+            query: The user query string to retrieve context for and answer.
+            memory: The MemoryStore to search for relevant entries.
+            llm: The LLMProvider used to generate the answer.
+            top_k: The number of top memories to retrieve.
+
+        Returns:
+            An AgentResponse containing the LLM-generated answer.
+
+        Raises:
+            TypeError: If query is not a string or memory/llm are wrong types.
+            ValueError: If top_k is not a positive integer.
+        """
+        if not isinstance(query, str):
+            raise TypeError(
+                "NaiveRAGPipeline: query must be a string, "
+                f"got {type(query).__name__}"
+            )
         if not isinstance(memory, MemoryStore):
             raise TypeError(
                 "NaiveRAGPipeline: memory must be a MemoryStore, "
@@ -67,33 +123,11 @@ class NaiveRAGPipeline(SubTapestry):
                 "NaiveRAGPipeline: top_k must be a positive int, "
                 f"got {top_k!r}"
             )
-        self._memory = memory
-        self._llm = llm
-        self._top_k = top_k
-        super().__init__(query=query, _config=_config, **kwargs)
-
-    async def process(self, query: str, **_: Any) -> AgentResponse:
-        """Retrieve top-k memories, build a prompt, generate an answer, and return it as an AgentResponse.
-
-        Args:
-            query: The user query string to retrieve context for and answer.
-
-        Returns:
-            An AgentResponse containing the LLM-generated answer.
-
-        Raises:
-            TypeError: If query is not a string.
-        """
-        if not isinstance(query, str):
-            raise TypeError(
-                "NaiveRAGPipeline: query must be a string, "
-                f"got {type(query).__name__}"
-            )
         with Tapestry() as inner:
             retrieved = MemorySearchRetriever(
-                store=self._memory,
+                store=memory,
                 query=query,
-                top_k=self._top_k,
+                top_k=top_k,
                 _config=KnotConfig(id="retrieve"),
             )
             prompt = RAGPromptBuilder(
@@ -103,7 +137,7 @@ class NaiveRAGPipeline(SubTapestry):
             )
             answer = LLMChatCall(
                 prompt=prompt,
-                llm=self._llm,
+                llm=llm,
                 _config=KnotConfig(id="generate"),
             )
             RAGResponseBuilder(

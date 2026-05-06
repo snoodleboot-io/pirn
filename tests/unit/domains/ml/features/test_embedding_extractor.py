@@ -46,14 +46,16 @@ class TestEmbeddingExtractorHappyPath(unittest.IsolatedAsyncioTestCase):
         assert provider.calls and provider.calls[0][0] == ["review"]
 
 
-class TestEmbeddingExtractorConstruction(unittest.TestCase):
-    def test_rejects_non_provider(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(TypeError, "EmbeddingProvider"):
-                EmbeddingExtractor(
-                    split=split,
-                    text_column="review",
-                    embedding_provider="not a provider",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="bad"),
-                )
+class TestEmbeddingExtractorProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_non_provider(self) -> None:
+        extractor = EmbeddingExtractor.__new__(EmbeddingExtractor)
+        object.__setattr__(extractor, "_config", KnotConfig(id="x"))
+        train = MLDataset(name="d:train", feature_names=("a",), row_count=10)
+        test = MLDataset(name="d:test", feature_names=("a",), row_count=5)
+        split = DataSplit(train=train, test=test)
+        with self.assertRaisesRegex(TypeError, "EmbeddingProvider"):
+            await extractor.process(
+                split=split,
+                text_column="review",
+                embedding_provider="not a provider",  # type: ignore[arg-type]
+            )

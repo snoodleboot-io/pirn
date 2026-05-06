@@ -28,18 +28,27 @@ async def emit_model() -> TrainedModel:
     return TrainedModel(model_id="m1", algorithm="logistic", feature_names=("a",))
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_attributes(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            model = emit_model(_config=KnotConfig(id="model"))
-            with self.assertRaisesRegex(ValueError, "protected_attributes"):
-                FairnessAuditor(
-                    model=model,
-                    split=split,
-                    protected_attributes=(),
-                    _config=KnotConfig(id="bad"),
-                )
+def _make_knot() -> FairnessAuditor:
+    with Tapestry():
+        split = emit_split(_config=KnotConfig(id="split"))
+        model = emit_model(_config=KnotConfig(id="model"))
+        return FairnessAuditor(
+            model=model,
+            split=split,
+            protected_attributes=("gender",),
+            _config=KnotConfig(id="fair"),
+        )
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_empty_attributes(self) -> None:
+        k = _make_knot()
+        train = MLDataset(name="d:train", feature_names=("a", "gender"), row_count=80)
+        test = MLDataset(name="d:test", feature_names=("a", "gender"), row_count=20)
+        model = TrainedModel(model_id="m1", algorithm="logistic", feature_names=("a",))
+        split = DataSplit(train=train, test=test)
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(model=model, split=split, protected_attributes=())
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

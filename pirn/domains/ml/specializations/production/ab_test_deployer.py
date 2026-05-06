@@ -1,6 +1,19 @@
 """``ABTestDeployer`` — SubTapestry that splits traffic 50/50 between two
 model versions, collects metrics, runs a statistical significance test,
 and returns the comparison result.
+
+Algorithm:
+    1. Receive ``model_a``, ``model_b``, ``split``, ``primary_metric``,
+       and ``alpha`` via process().
+    2. Validate all inputs.
+    3. Wire two Evaluator knots (one per model) in an inner Tapestry.
+    4. Run via _run_inner() and return winner, scores, p_value, significant.
+
+Math:
+    Pooled t-test approximation using erfc for p-value.
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -33,40 +46,28 @@ class ABTestDeployer(SubTapestry):
         model_a: Knot,
         model_b: Knot,
         split: Knot,
-        primary_metric: str,
-        alpha: float = 0.05,
+        primary_metric: Knot | str,
+        alpha: Knot | float = 0.05,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(model_a, Knot):
-            raise TypeError("ABTestDeployer: model_a must be a Knot")
-        if not isinstance(model_b, Knot):
-            raise TypeError("ABTestDeployer: model_b must be a Knot")
-        if not isinstance(split, Knot):
-            raise TypeError("ABTestDeployer: split must be a Knot")
-        if not isinstance(primary_metric, str) or not primary_metric:
-            raise ValueError(
-                "ABTestDeployer: primary_metric must be a non-empty string"
-            )
-        if not isinstance(alpha, (int, float)) or alpha <= 0.0 or alpha >= 1.0:
-            raise ValueError("ABTestDeployer: alpha must be in (0, 1)")
-        self._primary_metric = primary_metric
-        self._alpha = float(alpha)
-        super().__init__(model_a=model_a, model_b=model_b, split=split, _config=_config, **kwargs)
-
-    @property
-    def primary_metric(self) -> str:
-        return self._primary_metric
-
-    @property
-    def alpha(self) -> float:
-        return self._alpha
+        super().__init__(
+            model_a=model_a,
+            model_b=model_b,
+            split=split,
+            primary_metric=primary_metric,
+            alpha=alpha,
+            _config=_config,
+            **kwargs,
+        )
 
     async def process(
         self,
         model_a: TrainedModel,
         model_b: TrainedModel,
         split: DataSplit,
+        primary_metric: str = "",
+        alpha: float = 0.05,
         **_: Any,
     ) -> Mapping[str, Any]:
         """Evaluate both models on equal 50/50 traffic, run a significance test, and return the winner.
@@ -75,12 +76,22 @@ class ABTestDeployer(SubTapestry):
             model_a: First TrainedModel in the A/B experiment.
             model_b: Second TrainedModel in the A/B experiment.
             split: DataSplit used to simulate traffic and evaluate both variants.
+            primary_metric: Non-empty metric name to compare.
+            alpha: Significance level; must be in (0, 1).
 
         Returns:
             Mapping with ``winner`` (``"a"``, ``"b"``, or ``"tie"``),
             ``score_a``, ``score_b``, ``p_value``, ``significant`` (bool),
             and ``primary_metric``.
+
+        Raises:
+            ValueError: If primary_metric is empty or alpha is out of range.
         """
+        if not isinstance(primary_metric, str) or not primary_metric:
+            raise ValueError("ABTestDeployer: primary_metric must be a non-empty string")
+        if not isinstance(alpha, (int, float)) or alpha <= 0.0 or alpha >= 1.0:
+            raise ValueError("ABTestDeployer: alpha must be in (0, 1)")
+        alpha_f = float(alpha)
         with Tapestry() as inner:
             split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
             model_a_node = _emit_value(value=model_a, _config=KnotConfig(id="model-a"))
@@ -88,26 +99,26 @@ class ABTestDeployer(SubTapestry):
             Evaluator(
                 model=model_a_node,
                 split=split_node,
-                metrics=(self._primary_metric,),
+                metrics=(primary_metric,),
                 _config=KnotConfig(id="eval-a"),
             )
             Evaluator(
                 model=model_b_node,
                 split=split_node,
-                metrics=(self._primary_metric,),
+                metrics=(primary_metric,),
                 _config=KnotConfig(id="eval-b"),
             )
         inner_result = await self._run_inner(inner)
         report_a: EvalReport = inner_result.outputs["eval-a"]
         report_b: EvalReport = inner_result.outputs["eval-b"]
-        score_a = float(report_a.metrics[self._primary_metric])
-        score_b = float(report_b.metrics[self._primary_metric])
+        score_a = float(report_a.metrics[primary_metric])
+        score_b = float(report_b.metrics[primary_metric])
         effect = score_a - score_b
         n = max(2, int(split.test.row_count))
         pooled_var = max(1e-9, (abs(score_a) + abs(score_b)) / float(n))
         t_stat = effect / math.sqrt(pooled_var * 2.0 / float(n))
         p_value = math.erfc(abs(t_stat) / math.sqrt(2.0))
-        significant = p_value < self._alpha
+        significant = p_value < alpha_f
         if not significant:
             winner = "tie"
         elif effect > 0.0:
@@ -120,5 +131,5 @@ class ABTestDeployer(SubTapestry):
             "score_b": score_b,
             "p_value": p_value,
             "significant": significant,
-            "primary_metric": self._primary_metric,
+            "primary_metric": primary_metric,
         }

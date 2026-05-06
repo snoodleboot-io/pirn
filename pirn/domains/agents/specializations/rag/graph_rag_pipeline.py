@@ -12,6 +12,20 @@ and relation mappings. Stages composed inside the inner
    into a prompt string.
 4. :class:`LLMChatCall` — generate the answer over the sub-graph.
 5. :class:`RAGResponseBuilder` — wrap as :class:`AgentResponse`.
+
+Algorithm:
+    1. Retrieve up to ``_retrieval_top_k`` entity/relation hits from
+       ``graph_memory`` via :class:`MemorySearchRetriever`.
+    2. Flatten the hits into a typed sub-graph context block with a
+       ``hop_count`` breadcrumb via :class:`SubGraphContextBuilder`.
+    3. Build a prompt that instructs the LLM to cite entities by id
+       via :class:`RAGPromptBuilder`.
+    4. Generate an answer with :class:`LLMChatCall`.
+    5. Wrap the answer as an :class:`AgentResponse` via
+       :class:`RAGResponseBuilder` and return it.
+
+References:
+    - Graph RAG (Microsoft): https://arxiv.org/abs/2404.16130
 """
 
 from __future__ import annotations
@@ -49,33 +63,15 @@ class GraphRAGPipeline(SubTapestry):
         self,
         *,
         query: Knot | str,
-        graph_memory: MemoryStore,
-        llm: LLMProvider,
+        graph_memory: Knot | MemoryStore,
+        llm: Knot | LLMProvider,
         _config: KnotConfig,
-        hop_count: int = 2,
+        hop_count: Knot | int = 2,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(graph_memory, MemoryStore):
-            raise TypeError(
-                "GraphRAGPipeline: graph_memory must be a MemoryStore, "
-                f"got {type(graph_memory).__name__}"
-            )
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "GraphRAGPipeline: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
-        if not isinstance(hop_count, int) or hop_count <= 0:
-            raise ValueError(
-                "GraphRAGPipeline: hop_count must be a positive int, "
-                f"got {hop_count!r}"
-            )
-        self._graph_memory = graph_memory
-        self._llm = llm
-        self._hop_count = hop_count
-        super().__init__(query=query, _config=_config, **kwargs)
+        super().__init__(query=query, graph_memory=graph_memory, llm=llm, hop_count=hop_count, _config=_config, **kwargs)
 
-    async def process(self, query: str, **_: Any) -> AgentResponse:
+    async def process(self, query: str, graph_memory: MemoryStore, llm: LLMProvider, hop_count: int, **_: Any) -> AgentResponse:
         """Retrieve graph entities, build a sub-graph context, and answer the query via the LLM.
 
         Args:
@@ -87,21 +83,16 @@ class GraphRAGPipeline(SubTapestry):
         Raises:
             TypeError: If query is not a string.
         """
-        if not isinstance(query, str):
-            raise TypeError(
-                "GraphRAGPipeline: query must be a string, "
-                f"got {type(query).__name__}"
-            )
         with Tapestry() as inner:
             retrieved = MemorySearchRetriever(
-                store=self._graph_memory,
+                store=graph_memory,
                 query=query,
                 top_k=self._retrieval_top_k,
                 _config=KnotConfig(id="retrieve"),
             )
             sub_graph = SubGraphContextBuilder(
                 retrieved=retrieved,
-                hop_count=self._hop_count,
+                hop_count=hop_count,
                 _config=KnotConfig(id="sub_graph"),
             )
             prompt = RAGPromptBuilder(
@@ -115,7 +106,7 @@ class GraphRAGPipeline(SubTapestry):
             )
             answer = LLMChatCall(
                 prompt=prompt,
-                llm=self._llm,
+                llm=llm,
                 _config=KnotConfig(id="generate"),
             )
             RAGResponseBuilder(

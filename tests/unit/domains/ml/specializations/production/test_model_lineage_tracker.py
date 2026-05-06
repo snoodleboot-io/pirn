@@ -58,7 +58,7 @@ class TestConstruction(unittest.TestCase):
                     _config=KnotConfig(id="mlt"),
                 )
 
-    def test_valid_construction(self) -> None:
+    def test_valid_construction_registers_knot(self) -> None:
         with Tapestry() as t:
             ModelLineageTracker(
                 dataset=_KnotStub(_config=KnotConfig(id="d")),

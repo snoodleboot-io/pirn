@@ -2,6 +2,23 @@
 
 Validates a SQL statement through the connector pool's
 ``_reject_inline_interpolation`` guard and executes it. Internal API.
+
+Algorithm:
+    1. Receive the ``sql`` query string and ``pool`` connection pool.
+    2. Raise :class:`ValueError` if ``sql`` is empty.
+    3. Call ``pool._reject_inline_interpolation(sql)`` to guard against
+       prompt-injected dynamic SQL and accidental ``str.format`` patterns.
+    4. If the pool exposes ``fetch_all``, call it directly; otherwise
+       acquire a connection, execute the query, fetch all rows, and
+       release the connection.
+    5. Return the rows as a plain list.
+
+Math:
+    No numeric computation.
+
+References:
+    - OWASP SQL injection prevention:
+      https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html
 """
 
 from __future__ import annotations
@@ -21,19 +38,19 @@ class _SQLExecutor(Knot):
     def __init__(
         self,
         *,
-        sql: Knot,
-        pool: DatabaseConnectionPool,
+        sql: Knot | str,
+        pool: Knot | DatabaseConnectionPool,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        self._pool = pool
-        super().__init__(sql=sql, _config=_config, **kwargs)
+        super().__init__(sql=sql, pool=pool, _config=_config, **kwargs)
 
-    async def process(self, sql: str, **_: Any) -> list[Any]:
+    async def process(self, sql: str, pool: DatabaseConnectionPool, **_: Any) -> list[Any]:
         """Validate the SQL against the inline-interpolation guard and execute it, returning the rows.
 
         Args:
             sql: The non-empty SQL query string to validate and execute.
+            pool: The database connection pool used to execute the query.
 
         Returns:
             A list of row values returned by the database.
@@ -47,14 +64,14 @@ class _SQLExecutor(Knot):
             )
         # Defends against prompt-injected dynamic SQL and accidental
         # ``str.format`` interpolation in the generated query.
-        self._pool._reject_inline_interpolation(sql)
-        if hasattr(self._pool, "fetch_all"):
-            rows = await self._pool.fetch_all(sql)
+        pool._reject_inline_interpolation(sql)
+        if hasattr(pool, "fetch_all"):
+            rows = await pool.fetch_all(sql)
         else:
-            connection = await self._pool.acquire()
+            connection = await pool.acquire()
             try:
                 cursor = await connection.execute(sql)
                 rows = await cursor.fetchall()
             finally:
-                await self._pool.release(connection)
+                await pool.release(connection)
         return list(rows)

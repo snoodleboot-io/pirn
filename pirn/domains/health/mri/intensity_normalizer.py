@@ -2,6 +2,22 @@
 
 Production version uses ``intensity-normalization`` (zscore, fcm,
 whitestripe). This stub validates inputs and returns the output path.
+
+Algorithm:
+    1. Receive nifti_path, method, and output_nifti_path strings.
+    2. Validate all are non-empty strings and method is one of zscore/whitestripe/fcm.
+    3. Compute whole-brain intensity statistics (mean, std, or white-matter mode).
+    4. Rescale voxel intensities and write to output_nifti_path.
+    5. Return the output NIfTI path.
+
+Math:
+    Z-score normalisation:
+
+    $$\\tilde{v}_i = \\frac{v_i - \\mu_{\\text{brain}}}{\\sigma_{\\text{brain}}}$$
+
+References:
+    - Shinohara et al. (2014) Statistical normalization techniques for MRI.
+    - intensity-normalization: https://github.com/jcreinhold/intensity-normalization
 """
 
 from __future__ import annotations
@@ -18,34 +34,47 @@ class IntensityNormalizer(Knot):
     def __init__(
         self,
         *,
-        nifti_path: str,
-        method: str,
-        output_nifti_path: str,
+        nifti_path: Knot | str,
+        method: Knot | str,
+        output_nifti_path: Knot | str,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            nifti_path=nifti_path,
+            method=method,
+            output_nifti_path=output_nifti_path,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        nifti_path: str,
+        method: str,
+        output_nifti_path: str,
+        **_: Any,
+    ) -> str:
+        """Normalise MRI intensities using the configured method and return the output NIfTI path.
+
+        Args:
+            nifti_path: Non-empty path to the input NIfTI file.
+            method: One of zscore, whitestripe, fcm.
+            output_nifti_path: Non-empty path for the normalised NIfTI output.
+
+        Returns:
+            Path string for the intensity-normalised NIfTI output file.
+
+        Raises:
+            ValueError: If any argument is empty or method is invalid.
+        """
         for label, value in (
             ("nifti_path", nifti_path),
             ("method", method),
             ("output_nifti_path", output_nifti_path),
         ):
             if not isinstance(value, str) or not value:
-                raise ValueError(
-                    f"IntensityNormalizer: {label} must be a non-empty string"
-                )
+                raise ValueError(f"IntensityNormalizer: {label} must be a non-empty string")
         if method not in ("zscore", "whitestripe", "fcm"):
-            raise ValueError(
-                "IntensityNormalizer: method must be one of zscore/whitestripe/fcm"
-            )
-        self._nifti_path = nifti_path
-        self._method = method
-        self._output_nifti_path = output_nifti_path
-        super().__init__(_config=_config, **kwargs)
-
-    async def process(self, **_: Any) -> str:
-        """Normalise MRI intensities using the configured method and return the output NIfTI path.
-
-        Returns:
-            Path string for the intensity-normalised NIfTI output file.
-        """
-        return self._output_nifti_path
+            raise ValueError("IntensityNormalizer: method must be one of zscore/whitestripe/fcm")
+        return output_nifti_path

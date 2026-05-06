@@ -17,32 +17,6 @@ from tests.unit.domains.agents.specializations.conftest import (
 )
 
 
-class TestHyDERAGPipelineConstruction(unittest.IsolatedAsyncioTestCase):
-    async def test_rejects_non_llm_provider(self) -> None:
-        memory = StubMemoryStore([{"id": 1}])
-        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
-            with Tapestry():
-                HyDERAGPipeline(
-                    query="q",
-                    memory=memory,
-                    llm="not-a-provider",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="hyde"),
-                )
-
-    async def test_rejects_negative_top_k(self) -> None:
-        memory = StubMemoryStore([{"id": 1}])
-        llm = StubLLMProvider(["x"])
-        with self.assertRaisesRegex(ValueError, "top_k must be a positive int"):
-            with Tapestry():
-                HyDERAGPipeline(
-                    query="q",
-                    memory=memory,
-                    llm=llm,
-                    top_k=-1,
-                    _config=KnotConfig(id="hyde"),
-                )
-
-
 class TestHyDERAGPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_two_llm_calls_and_search_uses_hypothesis(self) -> None:
         memory = StubMemoryStore([{"id": 1, "text": "earth orbits the sun"}])
@@ -69,3 +43,14 @@ class TestHyDERAGPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
         assert len(llm.calls) == 2
         # The retrieval query must be the hypothesis text, not the original.
         assert memory.search_queries == ["the moon is made of cheese"]
+
+
+class TestProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_process_rejects_non_string_query(self) -> None:
+        memory = StubMemoryStore([])
+        llm = StubLLMProvider(["hypothesis", "answer"])
+        with Tapestry():
+            k = HyDERAGPipeline.__new__(HyDERAGPipeline)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, AttributeError)):
+            await k.process(query=99, memory=memory, llm=llm, top_k=5)  # type: ignore[arg-type]

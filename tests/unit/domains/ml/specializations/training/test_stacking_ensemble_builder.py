@@ -10,6 +10,8 @@ from pirn.core.knot_config import KnotConfig
 from pirn.domains.ml.specializations.training.stacking_ensemble_builder import (
     StackingEnsembleBuilder,
 )
+from pirn.domains.ml.types.data_split import DataSplit
+from pirn.domains.ml.types.ml_dataset import MLDataset
 from pirn.tapestry import Tapestry
 
 
@@ -21,40 +23,51 @@ class _KnotStub(Knot):
         return None
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_fewer_than_two_base_algorithms(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                StackingEnsembleBuilder(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    base_algorithms=["rf"],
-                    meta_algorithm="logistic",
-                    metrics=["accuracy"],
-                    _config=KnotConfig(id="seb"),
-                )
+def _make_knot() -> StackingEnsembleBuilder:
+    with Tapestry():
+        k = StackingEnsembleBuilder.__new__(StackingEnsembleBuilder)
+        object.__setattr__(k, "_config", KnotConfig(id="seb"))
+    return k
 
-    def test_rejects_empty_meta_algorithm(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                StackingEnsembleBuilder(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    base_algorithms=["rf", "xgb"],
-                    meta_algorithm="",
-                    metrics=["accuracy"],
-                    _config=KnotConfig(id="seb"),
-                )
 
-    def test_rejects_empty_metrics(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                StackingEnsembleBuilder(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    base_algorithms=["rf", "xgb"],
-                    meta_algorithm="logistic",
-                    metrics=[],
-                    _config=KnotConfig(id="seb"),
-                )
+def _split() -> DataSplit:
+    ds = MLDataset(name="ds", feature_names=("x",), target_name="y", row_count=10, source_uri="mem://")
+    return DataSplit(train=ds, test=ds)
 
+
+class TestStackingEnsembleBuilderValidation(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_fewer_than_two_base_algorithms(self) -> None:
+        k = _make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=_split(),
+                base_algorithms=["rf"],
+                meta_algorithm="logistic",
+                metrics=["accuracy"],
+            )
+
+    async def test_rejects_empty_meta_algorithm(self) -> None:
+        k = _make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=_split(),
+                base_algorithms=["rf", "xgb"],
+                meta_algorithm="",
+                metrics=["accuracy"],
+            )
+
+    async def test_rejects_empty_metrics(self) -> None:
+        k = _make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=_split(),
+                base_algorithms=["rf", "xgb"],
+                meta_algorithm="logistic",
+                metrics=[],
+            )
+
+
+class TestStackingEnsembleBuilderConstruction(unittest.TestCase):
     def test_valid_construction(self) -> None:
         with Tapestry() as t:
             StackingEnsembleBuilder(

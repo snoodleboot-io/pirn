@@ -15,28 +15,27 @@ from tests.unit.domains.agents.specializations.conftest import (
 )
 
 
-class TestJsonExtractorPipelineConstruction(unittest.IsolatedAsyncioTestCase):
+class TestJsonExtractorPipelineValidation(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
+        knot = JsonExtractorPipeline.__new__(JsonExtractorPipeline)
         with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
-            with Tapestry():
-                JsonExtractorPipeline(
-                    prompt="give me json",
-                    llm="not-a-provider",  # type: ignore[arg-type]
-                    schema={"name": "string"},
-                    _config=KnotConfig(id="json"),
-                )
+            await knot.process(
+                prompt="give me json",
+                llm="not-a-provider",  # type: ignore[arg-type]
+                schema={"name": "string"},
+                max_retries=3,
+            )
 
     async def test_rejects_zero_max_retries(self) -> None:
         llm = StubLLMProvider(['{"name": "x"}'])
+        knot = JsonExtractorPipeline.__new__(JsonExtractorPipeline)
         with self.assertRaisesRegex(ValueError, "max_retries"):
-            with Tapestry():
-                JsonExtractorPipeline(
-                    prompt="give me json",
-                    llm=llm,
-                    schema={"name": "string"},
-                    max_retries=0,
-                    _config=KnotConfig(id="json"),
-                )
+            await knot.process(
+                prompt="give me json",
+                llm=llm,
+                schema={"name": "string"},
+                max_retries=0,
+            )
 
 
 class TestJsonExtractorPipelineHappyPath(unittest.IsolatedAsyncioTestCase):

@@ -1,4 +1,19 @@
-"""``TreeOfThought`` — beam-search-style reasoning with LLM-scored candidates."""
+"""``TreeOfThought`` — beam-search-style reasoning with LLM-scored candidates.
+
+Algorithm:
+    1. Receive the resolved ``prompt``, ``LLMProvider``, ``k_candidates``, ``beam_width``, and ``depth``.
+    2. Validate input types at process time.
+    3. Initialise beam with the prompt as the sole path (score 0.0).
+    4. For each depth level:
+       a. For each live path, generate k_candidates next-thoughts in parallel.
+       b. Score each candidate path using the LLM (numeric 1-10; non-numeric = 0).
+       c. Keep the top beam_width scoring candidates as the new beam.
+    5. Return the best-scoring path as an ``AgentResponse``.
+
+
+References:
+    - Yao et al. (2023) "Tree of Thoughts: Deliberate Problem Solving with Large Language Models"
+"""
 
 from __future__ import annotations
 
@@ -38,13 +53,53 @@ class TreeOfThought(Knot):
         self,
         *,
         prompt: Knot | str,
-        llm: LLMProvider,
+        llm: Knot | LLMProvider,
         _config: KnotConfig,
-        k_candidates: int = 3,
-        beam_width: int = 2,
-        depth: int = 3,
+        k_candidates: Knot | int = 3,
+        beam_width: Knot | int = 2,
+        depth: Knot | int = 3,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            prompt=prompt,
+            llm=llm,
+            k_candidates=k_candidates,
+            beam_width=beam_width,
+            depth=depth,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        prompt: str,
+        llm: LLMProvider,
+        k_candidates: int,
+        beam_width: int,
+        depth: int,
+        **_: Any,
+    ) -> AgentResponse:
+        """Expand and score reasoning candidates for D depth levels, return the best-path AgentResponse.
+
+        Args:
+            prompt: The initial question or problem to reason about.
+            llm: LLM provider used for expansion and scoring.
+            k_candidates: Number of candidates to generate at each expansion step.
+            beam_width: Number of top candidates to retain at each depth level.
+            depth: Number of depth levels to explore.
+
+        Returns:
+            An AgentResponse whose content is the best-scoring reasoning path.
+
+        Raises:
+            TypeError: If prompt is not a string or llm is not an LLMProvider.
+            ValueError: If k_candidates, beam_width, or depth are not positive ints.
+        """
+        if not isinstance(prompt, str):
+            raise TypeError(
+                "TreeOfThought: prompt must be a string, "
+                f"got {type(prompt).__name__}"
+            )
         if not isinstance(llm, LLMProvider):
             raise TypeError(
                 "TreeOfThought: llm must be an LLMProvider, "
@@ -65,34 +120,11 @@ class TreeOfThought(Knot):
                 "TreeOfThought: depth must be a positive int, "
                 f"got {depth!r}"
             )
-        self._llm = llm
-        self._k = k_candidates
-        self._m = beam_width
-        self._depth = depth
-        super().__init__(prompt=prompt, _config=_config, **kwargs)
-
-    async def process(self, prompt: str, **_: Any) -> AgentResponse:
-        """Expand and score reasoning candidates for D depth levels, return the best-path AgentResponse.
-
-        Args:
-            prompt: The initial question or problem to reason about.
-
-        Returns:
-            An AgentResponse whose content is the best-scoring reasoning path.
-
-        Raises:
-            TypeError: If prompt is not a string.
-        """
-        if not isinstance(prompt, str):
-            raise TypeError(
-                "TreeOfThought: prompt must be a string, "
-                f"got {type(prompt).__name__}"
-            )
         beam: list[tuple[str, float]] = [(prompt, 0.0)]
-        for _ in range(self._depth):
+        for _ in range(depth):
             candidates: list[tuple[str, float]] = []
             expansion_tasks = [
-                self._expand(path, self._k) for path, _ in beam
+                self._expand(path, llm, k_candidates) for path, _ in beam
             ]
             expanded_batches = await asyncio.gather(*expansion_tasks)
             for (parent_path, _), new_thoughts in zip(beam, expanded_batches):
@@ -100,31 +132,31 @@ class TreeOfThought(Knot):
                     combined = f"{parent_path}\n{thought}"
                     candidates.append((combined, 0.0))
             scored = await asyncio.gather(
-                *[self._score(path) for path, _ in candidates]
+                *[self._score(path, llm) for path, _ in candidates]
             )
             beam = sorted(
                 zip([p for p, _ in candidates], scored),
                 key=lambda pair: pair[1],
                 reverse=True,
-            )[: self._m]
+            )[:beam_width]
         best_path = beam[0][0] if beam else prompt
         return AgentResponse(content=best_path)
 
-    async def _expand(self, path: str, k: int) -> list[str]:
+    async def _expand(self, path: str, llm: LLMProvider, k: int) -> list[str]:
         messages = [
             {"role": "system", "content": type(self)._expansion_system},
             {"role": "user", "content": path},
         ]
-        tasks = [self._llm.chat(messages=messages) for _ in range(k)]
+        tasks = [llm.chat(messages=messages) for _ in range(k)]
         raws = await asyncio.gather(*tasks)
         return [self._extract_text(raw) for raw in raws]
 
-    async def _score(self, path: str) -> float:
+    async def _score(self, path: str, llm: LLMProvider) -> float:
         messages = [
             {"role": "system", "content": type(self)._scoring_system},
             {"role": "user", "content": path},
         ]
-        raw = await self._llm.chat(messages=messages)
+        raw = await llm.chat(messages=messages)
         text = self._extract_text(raw).strip()
         try:
             return float(text)

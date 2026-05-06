@@ -1,4 +1,25 @@
-"""``EnergyEfficiencyKpiCalculator`` — compute energy / production efficiency KPIs."""
+"""``EnergyEfficiencyKpiCalculator`` — compute energy / production efficiency KPIs.
+
+Algorithm:
+    1. Receive aligned ScadaTimeSeries for energy consumption (kWh) and
+       hydrocarbon production (boe).
+    2. Sum energy and production over the common period.
+    3. Compute kWh/boe and normalise to an energy intensity index.
+    4. Return a dict with ``kwh_per_boe`` and ``energy_intensity_index``.
+
+Math:
+    $$\\text{kWh/boe} = \\frac{\\sum_t E(t)}{\\sum_t P(t)}$$
+
+    $$\\text{EII} = \\frac{\\text{kWh/boe}}{\\text{kWh/boe}_{\\text{baseline}}}$$
+
+    where :math:`E(t)` is energy consumed at time :math:`t` (kWh) and
+    :math:`P(t)` is production at time :math:`t` (boe).
+
+References:
+    - IOGP Report 2019e — Energy Efficiency in Oil and Gas Operations.
+    - API RP 100-2 — Hydraulic Fracturing — Well Integrity and Fracture
+      Containment, Appendix D (energy monitoring KPIs).
+"""
 
 from __future__ import annotations
 

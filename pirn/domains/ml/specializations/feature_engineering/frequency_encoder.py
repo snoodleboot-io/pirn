@@ -4,6 +4,17 @@ training set.
 The encoding is fit on the train partition and applied identically to
 all partitions of the :class:`DataSplit`. Unseen categories in
 the test/validation partitions receive ``default_frequency``.
+
+Algorithm:
+    1. Receive ``split`` (DataSplit), ``categorical_column`` (str), and
+       ``default_frequency`` (float) via process().
+    2. Validate categorical_column and default_frequency.
+    3. Apply frequency encoding suffix tag to each partition.
+    4. Return updated DataSplit.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -24,41 +35,48 @@ class FrequencyEncoder(Knot):
         self,
         *,
         split: Knot,
-        categorical_column: str,
-        default_frequency: float = 0.0,
+        categorical_column: Knot | str,
+        default_frequency: Knot | float = 0.0,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(categorical_column, str) or not categorical_column:
-            raise ValueError(
-                "FrequencyEncoder: categorical_column must be a non-empty "
-                "string"
-            )
-        if not isinstance(default_frequency, (int, float)):
-            raise TypeError(
-                "FrequencyEncoder: default_frequency must be a number"
-            )
-        if float(default_frequency) < 0.0:
-            raise ValueError(
-                "FrequencyEncoder: default_frequency must be >= 0.0"
-            )
-        self._categorical_column = categorical_column
-        self._default_frequency = float(default_frequency)
-        super().__init__(split=split, _config=_config, **kwargs)
+        super().__init__(
+            split=split,
+            categorical_column=categorical_column,
+            default_frequency=default_frequency,
+            _config=_config,
+            **kwargs,
+        )
 
-    @property
-    def default_frequency(self) -> float:
-        return self._default_frequency
-
-    async def process(self, split: DataSplit, **_: Any) -> DataSplit:
+    async def process(
+        self,
+        split: DataSplit,
+        categorical_column: str = "",
+        default_frequency: float = 0.0,
+        **_: Any,
+    ) -> DataSplit:
         """Apply frequency encoding to the categorical column and return a renamed DataSplit.
 
         Args:
             split: DataSplit whose partitions receive the frequency-encoded suffix.
+            categorical_column: Non-empty name of the categorical column.
+            default_frequency: Frequency value for unseen categories; must be >= 0.
 
         Returns:
             DataSplit with each partition renamed to include the ``freq_encoded`` suffix.
+
+        Raises:
+            ValueError: If categorical_column is empty or default_frequency is negative.
         """
+        if not isinstance(categorical_column, str) or not categorical_column:
+            raise ValueError(
+                "FrequencyEncoder: categorical_column must be a non-empty string"
+            )
+        if not isinstance(default_frequency, (int, float)):
+            raise TypeError("FrequencyEncoder: default_frequency must be a number")
+        df = float(default_frequency)
+        if df < 0.0:
+            raise ValueError("FrequencyEncoder: default_frequency must be >= 0.0")
         now = datetime.now(timezone.utc)
         suffix = "freq_encoded"
         return DataSplit(

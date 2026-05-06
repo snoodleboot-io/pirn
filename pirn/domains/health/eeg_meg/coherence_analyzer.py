@@ -3,6 +3,20 @@
 Production version uses ``scipy.signal.coherence`` or
 ``mne_connectivity.spectral_connectivity_epochs``. This stub returns a
 mapping ``(channel_a, channel_b) -> coherence`` with all-zero values.
+
+Algorithm:
+    1. Receive a SignalFrame, channel_pairs, band_low_hz, and band_high_hz.
+    2. Validate types and that band limits are positive with low < high.
+    3. Segment the signal into windows and compute Fourier transforms.
+    4. Compute magnitude-squared coherence for each channel pair in the band.
+    5. Return a mapping of channel pair to mean coherence value.
+
+Math:
+    $$C_{xy}(f) = \\frac{|P_{xy}(f)|^2}{P_{xx}(f)\\, P_{yy}(f)}$$
+
+References:
+    - Welch coherence: https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.coherence.html
+    - mne-connectivity: https://mne.tools/mne-connectivity/stable/
 """
 
 from __future__ import annotations
@@ -21,13 +35,45 @@ class CoherenceAnalyzer(Knot):
     def __init__(
         self,
         *,
+        signal: Knot | SignalFrame,
+        channel_pairs: Knot | Sequence[tuple[str, str]],
+        band_low_hz: Knot | float,
+        band_high_hz: Knot | float,
+        _config: KnotConfig,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            signal=signal,
+            channel_pairs=channel_pairs,
+            band_low_hz=band_low_hz,
+            band_high_hz=band_high_hz,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
         signal: SignalFrame,
         channel_pairs: Sequence[tuple[str, str]],
         band_low_hz: float,
         band_high_hz: float,
-        _config: KnotConfig,
-        **kwargs: Any,
-    ) -> None:
+        **_: Any,
+    ) -> Mapping[tuple[str, str], float]:
+        """Compute magnitude-squared coherence for each channel pair in the configured frequency band.
+
+        Args:
+            signal: The SignalFrame to analyze.
+            channel_pairs: Sequence of (channel_a, channel_b) string tuples.
+            band_low_hz: Lower frequency bound in Hz (positive).
+            band_high_hz: Upper frequency bound in Hz (positive, must exceed band_low_hz).
+
+        Returns:
+            A mapping from (channel_a, channel_b) tuples to their magnitude-squared coherence values.
+
+        Raises:
+            TypeError: If signal is not SignalFrame, channel_pairs is not list/tuple, or pairs are invalid.
+            ValueError: If band limits are non-positive or band_low_hz >= band_high_hz.
+        """
         if not isinstance(signal, SignalFrame):
             raise TypeError("CoherenceAnalyzer: signal must be a SignalFrame")
         if not isinstance(channel_pairs, (list, tuple)):
@@ -55,16 +101,4 @@ class CoherenceAnalyzer(Knot):
             raise ValueError(
                 "CoherenceAnalyzer: band_low_hz must be < band_high_hz"
             )
-        self._signal = signal
-        self._channel_pairs = tuple(channel_pairs)
-        self._band_low = float(band_low_hz)
-        self._band_high = float(band_high_hz)
-        super().__init__(_config=_config, **kwargs)
-
-    async def process(self, **_: Any) -> Mapping[tuple[str, str], float]:
-        """Compute magnitude-squared coherence for each channel pair in the configured frequency band.
-
-        Returns:
-            A mapping from (channel_a, channel_b) tuples to their magnitude-squared coherence values.
-        """
-        return {pair: 0.0 for pair in self._channel_pairs}
+        return {pair: 0.0 for pair in channel_pairs}

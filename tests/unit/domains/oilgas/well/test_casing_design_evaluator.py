@@ -2,52 +2,42 @@
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
 
-
-from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.domains.oilgas.types.well_path_3d import WellPath3D
 from pirn.domains.oilgas.well.casing_design_evaluator import CasingDesignEvaluator
-from pirn.tapestry import Tapestry
 
-
-class _PathSource(Knot):
-    def __init__(self, *, _config: KnotConfig, **kwargs: Any) -> None:
-        super().__init__(_config=_config, **kwargs)
-
-    async def process(self, **_: Any) -> WellPath3D:
-        return WellPath3D(well_id="W", point_count=20)
-
-
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_positive_burst(self) -> None:
-        with self.assertRaisesRegex(ValueError, "burst_limit_psi"):
-            with Tapestry():
-                src = _PathSource(_config=KnotConfig(id="src"))
-                CasingDesignEvaluator(
-                    well_path=src,
-                    burst_limit_psi=0.0,
-                    collapse_limit_psi=10000.0,
-                    tension_limit_lbf=200000.0,
-                    _config=KnotConfig(id="cd"),
-                )
+_PATH = WellPath3D(well_id="W", point_count=20)
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
-    async def test_returns_evaluation(self) -> None:
-        with Tapestry() as t:
-            src = _PathSource(_config=KnotConfig(id="src"))
-            CasingDesignEvaluator(
-                well_path=src,
-                burst_limit_psi=10000.0,
-                collapse_limit_psi=8000.0,
-                tension_limit_lbf=300000.0,
-                _config=KnotConfig(id="cd"),
+    def _make_knot(self) -> CasingDesignEvaluator:
+        return CasingDesignEvaluator(
+            well_path=None,  # type: ignore[arg-type]
+            burst_limit_psi=10000.0,
+            collapse_limit_psi=8000.0,
+            tension_limit_lbf=300000.0,
+            _config=KnotConfig(id="cd", validate_io=False),
+        )
+
+    async def test_rejects_non_positive_burst(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "burst_limit_psi"):
+            await knot.process(
+                well_path=_PATH,
+                burst_limit_psi=0.0,
+                collapse_limit_psi=10000.0,
+                tension_limit_lbf=200000.0,
             )
-        result = await t.run(RunRequest())
-        out = result.outputs["cd"]
+
+    async def test_returns_evaluation(self) -> None:
+        knot = self._make_knot()
+        out = await knot.process(
+            well_path=_PATH,
+            burst_limit_psi=10000.0,
+            collapse_limit_psi=8000.0,
+            tension_limit_lbf=300000.0,
+        )
         assert out["well_id"] == "W"
         assert out["passed"] is True

@@ -2,6 +2,18 @@
 
 Production version uses ``mne.Epochs``. This stub validates inputs and
 returns a tuple of one :class:`SignalFrame` per supplied event.
+
+Algorithm:
+    1. Receive a SignalFrame, event_times_sec sequence, tmin_sec, and tmax_sec.
+    2. Validate types and that tmin_sec < tmax_sec.
+    3. For each event time, slice the signal from tmin_sec to tmax_sec relative to the event.
+    4. Return each slice as a SignalFrame in a tuple.
+
+Math:
+    $$n_{\\text{samples}} = \\text{round}((t_{\\max} - t_{\\min}) \\times f_s)$$
+
+References:
+    - MNE Epochs: https://mne.tools/stable/generated/mne.Epochs.html
 """
 
 from __future__ import annotations
@@ -20,13 +32,45 @@ class EpochExtractor(Knot):
     def __init__(
         self,
         *,
+        signal: Knot | SignalFrame,
+        event_times_sec: Knot | Sequence[float],
+        tmin_sec: Knot | float,
+        tmax_sec: Knot | float,
+        _config: KnotConfig,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            signal=signal,
+            event_times_sec=event_times_sec,
+            tmin_sec=tmin_sec,
+            tmax_sec=tmax_sec,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
         signal: SignalFrame,
         event_times_sec: Sequence[float],
         tmin_sec: float,
         tmax_sec: float,
-        _config: KnotConfig,
-        **kwargs: Any,
-    ) -> None:
+        **_: Any,
+    ) -> tuple[SignalFrame, ...]:
+        """Slice the signal around each event time and return one SignalFrame per epoch.
+
+        Args:
+            signal: The continuous SignalFrame to slice.
+            event_times_sec: Sequence of event onset times in seconds.
+            tmin_sec: Start time relative to event in seconds.
+            tmax_sec: End time relative to event in seconds (must exceed tmin_sec).
+
+        Returns:
+            A tuple of SignalFrames, one per event time, each spanning tmin_sec to tmax_sec.
+
+        Raises:
+            TypeError: If signal is not SignalFrame or event_times_sec is not list/tuple of numbers.
+            ValueError: If tmin_sec >= tmax_sec.
+        """
         if not isinstance(signal, SignalFrame):
             raise TypeError("EpochExtractor: signal must be a SignalFrame")
         if not isinstance(event_times_sec, (list, tuple)):
@@ -46,30 +90,18 @@ class EpochExtractor(Knot):
             raise ValueError(
                 "EpochExtractor: tmin_sec must be < tmax_sec"
             )
-        self._signal = signal
-        self._event_times = tuple(float(t) for t in event_times_sec)
-        self._tmin = float(tmin_sec)
-        self._tmax = float(tmax_sec)
-        super().__init__(_config=_config, **kwargs)
-
-    async def process(self, **_: Any) -> tuple[SignalFrame, ...]:
-        """Slice the signal around each event time and return one SignalFrame per epoch.
-
-        Returns:
-            A tuple of SignalFrames, one per event time, each spanning tmin_sec to tmax_sec.
-        """
         # Production: slice the underlying ndarray around each event time.
         epoch_samples = max(
             1,
-            int(round((self._tmax - self._tmin) * self._signal.sample_rate_hz)),
+            int(round((float(tmax_sec) - float(tmin_sec)) * signal.sample_rate_hz)),
         )
         return tuple(
             SignalFrame(
-                signal_id=f"{self._signal.signal_id}-epoch-{idx}",
-                channel_count=self._signal.channel_count,
-                sample_rate_hz=self._signal.sample_rate_hz,
+                signal_id=f"{signal.signal_id}-epoch-{idx}",
+                channel_count=signal.channel_count,
+                sample_rate_hz=signal.sample_rate_hz,
                 samples_per_channel=epoch_samples,
-                fetched_at=self._signal.fetched_at,
+                fetched_at=signal.fetched_at,
             )
-            for idx in range(len(self._event_times))
+            for idx in range(len(event_times_sec))
         )

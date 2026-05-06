@@ -10,6 +10,26 @@ of:
 
 Mappings without a ``"type"`` key are treated as entities so that
 test-time stub stores can stay terse.
+
+Algorithm:
+    1. Receive ``retrieved`` list of Mappings and ``hop_count`` integer.
+    2. Validate that each item is a Mapping; raise ``TypeError`` otherwise.
+    3. Partition items into entities (``type != "relation"``) and relations
+       (``type == "relation"``).
+    4. Normalise each entity to
+       ``{"kind": "entity", "id": ..., "label": ..., "attrs": {...}}``
+       and each relation to
+       ``{"kind": "relation", "src": ..., "dst": ..., "rel": ...}``.
+    5. Return ``[{"hops": hop_count}] + block_entities + block_relations``.
+
+Math:
+    No quantitative computation — partitioning and normalisation are
+    pure structural transformations.
+
+References:
+    - Edge & Hamilton, "From Local to Global: A Graph RAG Approach to
+      Query-Focused Summarization" (2024):
+      https://arxiv.org/abs/2404.16130
 """
 
 from __future__ import annotations
@@ -29,14 +49,9 @@ class SubGraphContextBuilder(Knot):
         *,
         retrieved: Knot,
         _config: KnotConfig,
-        hop_count: int = 2,
+        hop_count: Knot | int = 2,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(hop_count, int) or hop_count <= 0:
-            raise ValueError(
-                "SubGraphContextBuilder: hop_count must be a positive int, "
-                f"got {hop_count!r}"
-            )
         super().__init__(
             retrieved=retrieved,
             hop_count=hop_count,
@@ -61,7 +76,13 @@ class SubGraphContextBuilder(Knot):
 
         Raises:
             TypeError: If any element of retrieved is not a Mapping.
+            ValueError: If hop_count is not a positive integer.
         """
+        if not isinstance(hop_count, int) or hop_count <= 0:
+            raise ValueError(
+                "SubGraphContextBuilder: hop_count must be a positive int, "
+                f"got {hop_count!r}"
+            )
         entities: list[Mapping[str, Any]] = []
         relations: list[Mapping[str, Any]] = []
         for index, item in enumerate(retrieved):

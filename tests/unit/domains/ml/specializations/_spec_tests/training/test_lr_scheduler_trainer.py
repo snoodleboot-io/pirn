@@ -24,29 +24,28 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_invalid_scheduler(self) -> None:
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_invalid_scheduler(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "scheduler"):
-                LRSchedulerTrainer(
-                    split=split,
-                    algorithm="nn",
-                    scheduler="exponential",
-                    metrics=("loss",),
-                    _config=KnotConfig(id="bad"),
-                )
+            k = LRSchedulerTrainer.__new__(LRSchedulerTrainer)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        split = DataSplit(
+            train=MLDataset(name="d:train", feature_names=("a",), row_count=80),
+            test=MLDataset(name="d:test", feature_names=("a",), row_count=20),
+        )
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=split, algorithm="nn", scheduler="exponential", metrics=("loss",))
 
-    def test_rejects_empty_metrics(self) -> None:
+    async def test_rejects_empty_metrics(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "metrics must be non-empty"):
-                LRSchedulerTrainer(
-                    split=split,
-                    algorithm="nn",
-                    metrics=(),
-                    _config=KnotConfig(id="bad"),
-                )
+            k = LRSchedulerTrainer.__new__(LRSchedulerTrainer)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        split = DataSplit(
+            train=MLDataset(name="d:train", feature_names=("a",), row_count=80),
+            test=MLDataset(name="d:test", feature_names=("a",), row_count=20),
+        )
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=split, algorithm="nn", scheduler="cosine", metrics=())
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

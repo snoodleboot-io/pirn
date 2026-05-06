@@ -3,6 +3,17 @@ aggregate predictions.
 
 Classification uses majority voting; regression uses averaging. Returns
 the ensemble :class:`TrainedModel` reference and its evaluation report.
+
+Algorithm:
+    1. Receive ``split``, ``algorithm``, ``n_estimators``, ``task``,
+       ``metrics``, and ``hyperparameters`` via process().
+    2. Validate all inputs.
+    3. Wire N Trainer knots + EnsembleBuilder + Evaluator in an inner Tapestry.
+    4. Run via _run_inner() and return ensemble model and eval report.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -38,88 +49,83 @@ class BaggingEnsembleBuilder(SubTapestry):
         self,
         *,
         split: Knot,
-        algorithm: str,
-        n_estimators: int = 10,
-        task: str = "classification",
-        metrics: Sequence[str],
-        hyperparameters: Mapping[str, Any] | None = None,
+        algorithm: Knot | str,
+        n_estimators: Knot | int = 10,
+        task: Knot | str = "classification",
+        metrics: Knot | Sequence[str],
+        hyperparameters: Knot | Mapping[str, Any] | None = None,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(split, Knot):
-            raise TypeError(
-                "BaggingEnsembleBuilder: split must be a Knot"
-            )
-        if not isinstance(algorithm, str) or not algorithm:
-            raise ValueError(
-                "BaggingEnsembleBuilder: algorithm must be a non-empty string"
-            )
-        if not isinstance(n_estimators, int):
-            raise TypeError(
-                "BaggingEnsembleBuilder: n_estimators must be an int"
-            )
-        if n_estimators < 2:
-            raise ValueError(
-                "BaggingEnsembleBuilder: n_estimators must be >= 2"
-            )
-        if task not in self.valid_tasks:
-            raise ValueError(
-                f"BaggingEnsembleBuilder: task must be one of "
-                f"{sorted(self.valid_tasks)}"
-            )
-        metric_tuple = tuple(metrics)
-        if not metric_tuple:
-            raise ValueError(
-                "BaggingEnsembleBuilder: metrics must be non-empty"
-            )
-        for metric in metric_tuple:
-            if not isinstance(metric, str) or not metric:
-                raise ValueError(
-                    "BaggingEnsembleBuilder: every metric name must be a "
-                    "non-empty string"
-                )
-        if hyperparameters is not None and not isinstance(
-            hyperparameters, Mapping
-        ):
-            raise TypeError(
-                "BaggingEnsembleBuilder: hyperparameters must be a Mapping"
-            )
-        self._algorithm = algorithm
-        self._n_estimators = n_estimators
-        self._task = task
-        self._metrics = metric_tuple
-        self._hyperparameters = (
-            dict(hyperparameters) if hyperparameters is not None else {}
+        super().__init__(
+            split=split,
+            algorithm=algorithm,
+            n_estimators=n_estimators,
+            task=task,
+            metrics=metrics,
+            hyperparameters=hyperparameters,
+            _config=_config,
+            **kwargs,
         )
-        super().__init__(split=split, _config=_config, **kwargs)
 
     async def process(
-        self, split: DataSplit, **_: Any
+        self,
+        split: DataSplit,
+        algorithm: str = "",
+        n_estimators: int = 10,
+        task: str = "classification",
+        metrics: Sequence[str] = (),
+        hyperparameters: Mapping[str, Any] | None = None,
+        **_: Any,
     ) -> dict[str, Any]:
         """Train N base models, build a bagging ensemble, and return the ensemble model and its evaluation.
 
         Args:
             split: DataSplit used for base model training and ensemble evaluation.
+            algorithm: Non-empty algorithm identifier for base models.
+            n_estimators: Number of base models; must be an int >= 2.
+            task: Task type; must be one of {"classification", "regression"}.
+            metrics: Non-empty sequence of metric names.
+            hyperparameters: Optional mapping of hyperparameters.
 
         Returns:
             Dict with ``ensemble_model`` (TrainedModel), ``eval_report`` (EvalReport),
             and ``n_estimators`` (int).
 
         Raises:
+            ValueError: If any input fails validation.
             TypeError: If base models or the ensemble do not return the expected types.
         """
-        strategy = "voting" if self._task == "classification" else "blending"
-        with Tapestry() as inner:
-            split_node = _emit_value(
-                value=split, _config=KnotConfig(id="split")
+        if not isinstance(algorithm, str) or not algorithm:
+            raise ValueError("BaggingEnsembleBuilder: algorithm must be a non-empty string")
+        if not isinstance(n_estimators, int):
+            raise TypeError("BaggingEnsembleBuilder: n_estimators must be an int")
+        if n_estimators < 2:
+            raise ValueError("BaggingEnsembleBuilder: n_estimators must be >= 2")
+        if task not in self.valid_tasks:
+            raise ValueError(
+                f"BaggingEnsembleBuilder: task must be one of {sorted(self.valid_tasks)}"
             )
+        metric_tuple = tuple(metrics)
+        if not metric_tuple:
+            raise ValueError("BaggingEnsembleBuilder: metrics must be non-empty")
+        for metric in metric_tuple:
+            if not isinstance(metric, str) or not metric:
+                raise ValueError(
+                    "BaggingEnsembleBuilder: every metric name must be a non-empty string"
+                )
+        if hyperparameters is not None and not isinstance(hyperparameters, Mapping):
+            raise TypeError("BaggingEnsembleBuilder: hyperparameters must be a Mapping")
+        hp = dict(hyperparameters) if hyperparameters is not None else {}
+        strategy = "voting" if task == "classification" else "blending"
+        with Tapestry() as inner:
+            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
             base_models = []
-            for i in range(self._n_estimators):
-                hp = {**self._hyperparameters, "bootstrap_sample": i}
+            for i in range(n_estimators):
                 model = Trainer(
                     split=split_node,
-                    algorithm=self._algorithm,
-                    hyperparameters=hp,
+                    algorithm=algorithm,
+                    hyperparameters={**hp, "bootstrap_sample": i},
                     _config=KnotConfig(id=f"train_{i}"),
                 )
                 base_models.append(model)
@@ -131,7 +137,7 @@ class BaggingEnsembleBuilder(SubTapestry):
             Evaluator(
                 model=ensemble,
                 split=split_node,
-                metrics=self._metrics,
+                metrics=metric_tuple,
                 _config=KnotConfig(id="evaluate"),
             )
         result = await self._run_inner(inner)
@@ -148,5 +154,5 @@ class BaggingEnsembleBuilder(SubTapestry):
         return {
             "ensemble_model": ensemble_model,
             "eval_report": report,
-            "n_estimators": self._n_estimators,
+            "n_estimators": n_estimators,
         }

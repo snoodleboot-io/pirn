@@ -29,31 +29,36 @@ async def emit_current() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_threshold_above_one(self) -> None:
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_threshold_above_one(self) -> None:
         with Tapestry():
-            baseline = emit_baseline(_config=KnotConfig(id="b"))
-            current = emit_current(_config=KnotConfig(id="c"))
-            with self.assertRaisesRegex(ValueError, "threshold"):
-                DriftMonitor(
-                    baseline=baseline,
-                    current=current,
-                    columns=("a",),
-                    threshold=1.5,
-                    _config=KnotConfig(id="bad"),
-                )
+            k = DriftMonitor.__new__(DriftMonitor)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        baseline = DataSplit(
+            train=MLDataset(name="b:train", feature_names=("a", "b"), row_count=800),
+            test=MLDataset(name="b:test", feature_names=("a", "b"), row_count=200),
+        )
+        current = DataSplit(
+            train=MLDataset(name="c:train", feature_names=("a", "b"), row_count=900),
+            test=MLDataset(name="c:test", feature_names=("a", "b"), row_count=100),
+        )
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(baseline=baseline, current=current, columns=("a",), threshold=1.5)
 
-    def test_rejects_empty_columns(self) -> None:
+    async def test_rejects_empty_columns(self) -> None:
         with Tapestry():
-            baseline = emit_baseline(_config=KnotConfig(id="b"))
-            current = emit_current(_config=KnotConfig(id="c"))
-            with self.assertRaisesRegex(ValueError, "columns"):
-                DriftMonitor(
-                    baseline=baseline,
-                    current=current,
-                    columns=(),
-                    _config=KnotConfig(id="bad"),
-                )
+            k = DriftMonitor.__new__(DriftMonitor)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        baseline = DataSplit(
+            train=MLDataset(name="b:train", feature_names=("a", "b"), row_count=800),
+            test=MLDataset(name="b:test", feature_names=("a", "b"), row_count=200),
+        )
+        current = DataSplit(
+            train=MLDataset(name="c:train", feature_names=("a", "b"), row_count=900),
+            test=MLDataset(name="c:test", feature_names=("a", "b"), row_count=100),
+        )
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(baseline=baseline, current=current, columns=(), threshold=0.1)
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

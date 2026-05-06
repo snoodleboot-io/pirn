@@ -23,19 +23,15 @@ class _GraphSource(Knot):
         return self._nodes
 
 
-class TestSubGraphContextBuilderConstruction(unittest.TestCase):
-    def test_rejects_non_positive_hop_count(self) -> None:
-        with self.assertRaisesRegex(ValueError, "hop_count"):
-            with Tapestry():
-                src = _GraphSource([], _config=KnotConfig(id="src"))
-                SubGraphContextBuilder(
-                    retrieved=src,
-                    hop_count=0,
-                    _config=KnotConfig(id="sgcb"),
-                )
-
-
 class TestSubGraphContextBuilderProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_non_positive_hop_count(self) -> None:
+        knot = SubGraphContextBuilder(
+            retrieved=_GraphSource([], _config=KnotConfig(id="src")),
+            _config=KnotConfig(id="sgcb"),
+        )
+        with self.assertRaisesRegex(ValueError, "hop_count"):
+            await knot.process(retrieved=[], hop_count=0)
+
     async def test_partitions_entities_and_relations(self) -> None:
         nodes = [
             {"type": "entity", "id": "e1", "label": "Person"},

@@ -5,6 +5,23 @@ the extracted JSON into a caller-supplied :class:`pydantic.BaseModel`
 subclass, and returns the validated model instance. Validation errors
 trigger another extraction attempt (the pydantic error string is fed
 back into the next system prompt for self-correction).
+
+Algorithm:
+    1. Receive ``prompt``, ``llm``, ``model_class``, and ``max_retries`` in :meth:`process`.
+    2. Validate inputs: llm must be LLMProvider, model_class a BaseModel subclass, max_retries positive.
+    3. Derive a schema dict from the model class's JSON schema.
+    4. Loop up to ``max_retries`` times:
+       a. Build an inner :class:`Tapestry` with a :class:`_JsonExtractorAttempt` knot.
+       b. If outcome is a dict, validate it with the model class.
+       c. On success, return the validated model instance.
+       d. On validation failure, record the error string as ``prior_error``.
+    5. Raise :class:`ValueError` if all attempts are exhausted.
+
+
+References:
+    - pydantic :class:`BaseModel`:
+      https://docs.pydantic.dev/latest/api/base_model/
+    - :class:`pirn.domains.agents.specializations.structured_output._json_extractor_attempt._JsonExtractorAttempt`
 """
 
 from __future__ import annotations
@@ -32,20 +49,51 @@ class PydanticValidatorPipeline(SubTapestry):
         self,
         *,
         prompt: Knot | str,
-        llm: LLMProvider,
-        model_class: type[BaseModel],
+        llm: Knot | LLMProvider,
+        model_class: Knot | type[BaseModel],
         _config: KnotConfig,
-        max_retries: int = 3,
+        max_retries: Knot | int = 3,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            prompt=prompt,
+            llm=llm,
+            model_class=model_class,
+            max_retries=max_retries,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        prompt: str,
+        llm: LLMProvider,
+        model_class: type[BaseModel],
+        max_retries: int,
+        **_: Any,
+    ) -> BaseModel:
+        """Extract JSON from the LLM, validate against the model class, and return the validated instance.
+
+        Args:
+            prompt: The extraction prompt string sent to the LLM.
+            llm: The LLM provider to call.
+            model_class: The pydantic BaseModel subclass to validate against.
+            max_retries: Maximum number of extraction + validation attempts.
+
+        Returns:
+            A validated model instance produced by model_class.model_validate.
+
+        Raises:
+            TypeError: If llm is not an LLMProvider, model_class not a BaseModel subclass,
+                or prompt is not a string.
+            ValueError: If max_retries is not positive or all attempts are exhausted.
+        """
         if not isinstance(llm, LLMProvider):
             raise TypeError(
                 "PydanticValidatorPipeline: llm must be an LLMProvider, "
                 f"got {type(llm).__name__}"
             )
-        if not isinstance(model_class, type) or not issubclass(
-            model_class, BaseModel
-        ):
+        if not isinstance(model_class, type) or not issubclass(model_class, BaseModel):
             raise TypeError(
                 "PydanticValidatorPipeline: model_class must be a BaseModel "
                 f"subclass, got {model_class!r}"
@@ -55,38 +103,20 @@ class PydanticValidatorPipeline(SubTapestry):
                 "PydanticValidatorPipeline: max_retries must be a positive int, "
                 f"got {max_retries!r}"
             )
-        self._llm = llm
-        self._model_class = model_class
-        self._max_retries = max_retries
-        self._schema = self._derive_schema(model_class)
-        super().__init__(prompt=prompt, _config=_config, **kwargs)
-
-    async def process(self, prompt: str, **_: Any) -> BaseModel:
-        """Extract JSON from the LLM, validate against the model class, and return the validated instance.
-
-        Args:
-            prompt: The extraction prompt string sent to the LLM.
-
-        Returns:
-            A validated model instance produced by model_class.model_validate.
-
-        Raises:
-            TypeError: If prompt is not a string.
-            ValueError: If all retry attempts are exhausted without a valid model instance.
-        """
         if not isinstance(prompt, str):
             raise TypeError(
                 "PydanticValidatorPipeline: prompt must be a string, "
                 f"got {type(prompt).__name__}"
             )
+        schema = self._derive_schema(model_class)
         prior_error = ""
         last_error = "no attempts were made"
-        for attempt_index in range(self._max_retries):
+        for attempt_index in range(max_retries):
             with Tapestry() as inner:
                 _JsonExtractorAttempt(
                     prompt=prompt,
-                    llm=self._llm,
-                    schema=self._schema,
+                    llm=llm,
+                    schema=schema,
                     prior_error=prior_error,
                     _config=KnotConfig(id=f"extract_{attempt_index}"),
                 )
@@ -99,13 +129,13 @@ class PydanticValidatorPipeline(SubTapestry):
                 last_error = prior_error
                 continue
             try:
-                return self._model_class.model_validate(outcome)
+                return model_class.model_validate(outcome)
             except ValidationError as exc:
                 prior_error = self._summarise_validation_error(exc)
                 last_error = prior_error
         raise ValueError(
             "PydanticValidatorPipeline: exhausted "
-            f"{self._max_retries} attempt(s); last error: {last_error}"
+            f"{max_retries} attempt(s); last error: {last_error}"
         )
 
     @staticmethod

@@ -3,59 +3,40 @@
 from __future__ import annotations
 import unittest
 
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.core.run_request import RunRequest
 from pirn.domains.health.mri.spatial_normalizer import SpatialNormalizer
 from pirn.tapestry import Tapestry
 
+_CFG = KnotConfig(id="s")
+_IMAGE = {"nifti_path": "t1.nii.gz", "voxel_size_mm": [1.0, 1.0, 1.0]}
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_invalid_template(self) -> None:
-        with self.assertRaisesRegex(ValueError, "template"):
-            SpatialNormalizer(
-                image=Parameter("img", dict, default={}, _config=KnotConfig(id="img")),
-                template="MNI305",
-                registration_type="linear",
-                degrees_of_freedom=12,
-                _config=KnotConfig(id="s"),
-            )
 
-    def test_rejects_invalid_registration_type(self) -> None:
-        with self.assertRaisesRegex(ValueError, "registration_type"):
-            SpatialNormalizer(
-                image=Parameter("img", dict, default={}, _config=KnotConfig(id="img")),
-                template="MNI152",
-                registration_type="affine",
-                degrees_of_freedom=12,
-                _config=KnotConfig(id="s"),
-            )
-
-    def test_rejects_invalid_dof(self) -> None:
-        with self.assertRaisesRegex(ValueError, "degrees_of_freedom"):
-            SpatialNormalizer(
-                image=Parameter("img", dict, default={}, _config=KnotConfig(id="img")),
-                template="MNI152",
-                registration_type="linear",
-                degrees_of_freedom=3,
-                _config=KnotConfig(id="s"),
-            )
+def _make_knot() -> SpatialNormalizer:
+    with Tapestry():
+        src = Parameter("img", dict, default=_IMAGE, _config=KnotConfig(id="img"))
+        return SpatialNormalizer(image=src, template="MNI152", registration_type="linear", degrees_of_freedom=12, _config=_CFG)
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_invalid_template(self) -> None:
+        knot = _make_knot()
+        with self.assertRaisesRegex(ValueError, "template"):
+            await knot.process(image=_IMAGE, template="MNI305", registration_type="linear", degrees_of_freedom=12)
+
+    async def test_rejects_invalid_registration_type(self) -> None:
+        knot = _make_knot()
+        with self.assertRaisesRegex(ValueError, "registration_type"):
+            await knot.process(image=_IMAGE, template="MNI152", registration_type="affine", degrees_of_freedom=12)
+
+    async def test_rejects_invalid_dof(self) -> None:
+        knot = _make_knot()
+        with self.assertRaisesRegex(ValueError, "degrees_of_freedom"):
+            await knot.process(image=_IMAGE, template="MNI152", registration_type="linear", degrees_of_freedom=3)
+
     async def test_returns_dict(self) -> None:
-        image_data = {"nifti_path": "t1.nii.gz", "voxel_size_mm": [1.0, 1.0, 1.0]}
-        with Tapestry() as t:
-            SpatialNormalizer(
-                image=Parameter("img", dict, default=image_data, _config=KnotConfig(id="img")),
-                template="MNI152",
-                registration_type="linear",
-                degrees_of_freedom=12,
-                _config=KnotConfig(id="s"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["s"]
+        knot = _make_knot()
+        out = await knot.process(image=_IMAGE, template="MNI152", registration_type="linear", degrees_of_freedom=12)
         assert isinstance(out, dict)
         assert out["template"] == "MNI152"
         assert "warped_image_path" in out

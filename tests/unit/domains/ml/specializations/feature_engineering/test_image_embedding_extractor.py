@@ -11,6 +11,8 @@ from pirn.domains.ml.image_encoder_provider import ImageEncoderProvider
 from pirn.domains.ml.specializations.feature_engineering.image_embedding_extractor import (
     ImageEmbeddingExtractor,
 )
+from pirn.domains.ml.types.data_split import DataSplit
+from pirn.domains.ml.types.ml_dataset import MLDataset
 from pirn.tapestry import Tapestry
 
 
@@ -31,36 +33,6 @@ class _KnotStub(Knot):
 
 
 class TestConstruction(unittest.TestCase):
-    def test_rejects_non_knot_split(self) -> None:
-        with self.assertRaises(TypeError):
-            with Tapestry():
-                ImageEmbeddingExtractor(
-                    split="bad",  # type: ignore[arg-type]
-                    image_column="img",
-                    image_encoder=_StubEncoder(),
-                    _config=KnotConfig(id="iee"),
-                )
-
-    def test_rejects_empty_image_column(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                ImageEmbeddingExtractor(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    image_column="",
-                    image_encoder=_StubEncoder(),
-                    _config=KnotConfig(id="iee"),
-                )
-
-    def test_rejects_wrong_encoder_type(self) -> None:
-        with self.assertRaises(TypeError):
-            with Tapestry():
-                ImageEmbeddingExtractor(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    image_column="img",
-                    image_encoder="bad",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="iee"),
-                )
-
     def test_valid_construction(self) -> None:
         with Tapestry() as t:
             ImageEmbeddingExtractor(
@@ -70,3 +42,32 @@ class TestConstruction(unittest.TestCase):
                 _config=KnotConfig(id="iee"),
             )
         self.assertIsNotNone(t._store.get("iee"))
+
+
+class TestProcess(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self) -> ImageEmbeddingExtractor:
+        k = ImageEmbeddingExtractor.__new__(ImageEmbeddingExtractor)
+        object.__setattr__(k, "_config", KnotConfig(id="iee"))
+        return k
+
+    def _make_split(self) -> DataSplit:
+        ds = MLDataset(name="ds", feature_names=("img",), row_count=5)
+        return DataSplit(train=ds, test=ds)
+
+    async def test_rejects_empty_image_column(self) -> None:
+        k = self._make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=self._make_split(),
+                image_column="",
+                image_encoder=_StubEncoder(),
+            )
+
+    async def test_rejects_wrong_encoder_type(self) -> None:
+        k = self._make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=self._make_split(),
+                image_column="img",
+                image_encoder="bad",  # type: ignore[arg-type]
+            )

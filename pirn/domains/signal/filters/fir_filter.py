@@ -1,4 +1,24 @@
-"""``FIRFilter`` — finite impulse response filter."""
+"""``FIRFilter`` — finite impulse response filter.
+
+Algorithm:
+    1. Receive the input signal frame and coefficients sequence.
+    2. Validate that coefficients is non-empty and all values are real numbers.
+    3. Convolve the input signal with the FIR coefficient sequence using linear convolution.
+    4. Optionally truncate to the original length.
+    5. Return a filtered SignalFrame.
+
+Math:
+    FIR convolution:
+
+    $$y(n) = \\sum_{k=0}^{L-1} h(k) \\, x(n - k)$$
+
+    where $h(k)$ are the FIR tap coefficients and $L$ is the filter length.
+    The FIR filter has a linear phase response if and only if $h$ is symmetric.
+
+References:
+    - Parks, T.W. & Burrus, C.S. (1987). "Digital Filter Design." Wiley.
+    - scipy.signal.lfilter: https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.lfilter.html
+"""
 
 from __future__ import annotations
 
@@ -19,10 +39,36 @@ class FIRFilter(Knot):
         self,
         *,
         signal: Knot,
-        coefficients: Sequence[float],
+        coefficients: Knot | tuple,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            signal=signal,
+            coefficients=coefficients,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        signal: SignalFrame,
+        coefficients: Sequence[float],
+        **_: Any,
+    ) -> SignalFrame:
+        """Convolve the configured FIR coefficients with the input signal.
+
+        Args:
+            signal: Signal to convolve with the FIR tap coefficients.
+            coefficients: Non-empty sequence of real-valued FIR tap weights.
+
+        Returns:
+            SignalFrame of the FIR-filtered output.
+
+        Raises:
+            ValueError: If coefficients is empty.
+            TypeError: If any coefficient is not a real number.
+        """
         coeffs = tuple(coefficients)
         if not coeffs:
             raise ValueError("FIRFilter: coefficients must be non-empty")
@@ -31,24 +77,6 @@ class FIRFilter(Knot):
                 raise TypeError(
                     "FIRFilter: every coefficient must be a real number"
                 )
-        self._coefficients = tuple(float(c) for c in coeffs)
-        super().__init__(signal=signal, _config=_config, **kwargs)
-
-    @property
-    def coefficients(self) -> tuple[float, ...]:
-        return self._coefficients
-
-    async def process(
-        self, signal: SignalFrame, **_: Any
-    ) -> SignalFrame:
-        """Convolve the configured FIR coefficients with the input signal and return the filtered SignalFrame.
-
-        Args:
-            signal: Signal to convolve with the FIR tap coefficients.
-
-        Returns:
-            SignalFrame of the FIR-filtered output.
-        """
         return SignalFrame(
             signal_id=f"{signal.signal_id}:fir",
             channel_count=signal.channel_count,

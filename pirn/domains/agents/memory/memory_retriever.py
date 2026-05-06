@@ -1,4 +1,16 @@
-"""``MemoryRetriever`` — fetch a value by key from a :class:`MemoryStore`."""
+"""``MemoryRetriever`` — fetch a value by key from a :class:`MemoryStore`.
+
+Algorithm:
+    1. Receive the resolved ``key`` string and ``MemoryStore``.
+    2. Validate input types at process time.
+    3. Call ``store.retrieve(key)``.
+    4. Raise ``KeyError`` if the value is ``None`` (key not found).
+    5. Return the mapping.
+
+
+References:
+    - :class:`pirn.domains.agents.memory_store.MemoryStore`
+"""
 
 from __future__ import annotations
 
@@ -21,15 +33,10 @@ class MemoryRetriever(Knot):
         self,
         *,
         key: Knot | str,
-        store: MemoryStore,
+        store: Knot | MemoryStore,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(store, MemoryStore):
-            raise TypeError(
-                "MemoryRetriever: store must be a MemoryStore, "
-                f"got {type(store).__name__}"
-            )
         super().__init__(
             key=key,
             store=store,
@@ -53,9 +60,15 @@ class MemoryRetriever(Knot):
             The mapping stored under the given key.
 
         Raises:
+            TypeError: If store is not a MemoryStore.
             ValueError: If key is not a non-empty string.
             KeyError: If no entry exists for the given key.
         """
+        if not isinstance(store, MemoryStore):
+            raise TypeError(
+                "MemoryRetriever: store must be a MemoryStore, "
+                f"got {type(store).__name__}"
+            )
         if not isinstance(key, str) or not key:
             raise ValueError(
                 "MemoryRetriever: key must be a non-empty string, "

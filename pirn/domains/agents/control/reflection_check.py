@@ -1,4 +1,17 @@
-"""``ReflectionCheck`` — LLM-driven decision on whether to iterate again."""
+"""``ReflectionCheck`` — LLM-driven decision on whether to iterate again.
+
+Algorithm:
+    1. Receive the resolved ``AgentResponse`` and ``LLMProvider``.
+    2. Validate input types at process time.
+    3. Build a two-message prompt: system reflection instruction + user response content.
+    4. Call ``llm.chat`` with the prompt messages.
+    5. Extract plain text from the raw response mapping.
+    6. Normalise to lower case; return ``True`` if it starts with ``"yes"`` or ``"y "``.
+
+
+References:
+    - :class:`pirn.domains.agents.llm_provider.LLMProvider`
+"""
 
 from __future__ import annotations
 
@@ -32,15 +45,10 @@ class ReflectionCheck(Knot):
         self,
         *,
         response: Knot,
-        llm: LLMProvider,
+        llm: Knot | LLMProvider,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "ReflectionCheck: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
         super().__init__(
             response=response,
             llm=llm,
@@ -64,12 +72,17 @@ class ReflectionCheck(Knot):
             True if the LLM indicates the agent should iterate again, False otherwise.
 
         Raises:
-            TypeError: If response is not an AgentResponse instance.
+            TypeError: If response is not an AgentResponse or llm is not an LLMProvider.
         """
         if not isinstance(response, AgentResponse):
             raise TypeError(
                 "ReflectionCheck: response must be an AgentResponse, "
                 f"got {type(response).__name__}"
+            )
+        if not isinstance(llm, LLMProvider):
+            raise TypeError(
+                "ReflectionCheck: llm must be an LLMProvider, "
+                f"got {type(llm).__name__}"
             )
         wire_messages = (
             {"role": "system", "content": type(self).reflection_prompt},

@@ -1,6 +1,19 @@
 """``_LoadAndChunk`` — internal helper Knot for :class:`DocumentSummarizerPipeline`.
 
-Reads source text and splits it into fixed-size chunks. Internal API.
+Algorithm:
+    1. Receive resolved ``source`` and ``chunk_size``.
+    2. Validate source is a non-empty string and chunk_size is positive.
+    3. Load text from a local file path or http(s):// URL.
+    4. Slide a non-overlapping window of ``chunk_size`` over the text.
+    5. Return the resulting list of chunk strings.
+
+    ``chunks[i] = text[i*chunk_size : (i+1)*chunk_size]``.
+
+References:
+    - Python pathlib documentation for file reading.
+    - httpx documentation for async HTTP requests.
+
+Internal API.
 """
 
 from __future__ import annotations
@@ -20,7 +33,7 @@ class _LoadAndChunk(Knot):
         self,
         *,
         source: Knot | str,
-        chunk_size: int,
+        chunk_size: Knot | int,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:

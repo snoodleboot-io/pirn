@@ -6,6 +6,16 @@ two models in the configured :class:`LineageStore`. The output is a
 mapping carrying the champion deployment id, the challenger deployment
 id, and the recorded divergence id so downstream knots can correlate
 the two registrations.
+
+Algorithm:
+    1. Receive ``champion``, ``challenger``, and ``lineage`` via process().
+    2. Validate all inputs.
+    3. Wire two ShadowDeployer knots in an inner Tapestry.
+    4. Run via _run_inner(), record divergence event, and return ids.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -38,24 +48,14 @@ class ShadowDeploymentPipeline(SubTapestry):
         *,
         champion: Knot,
         challenger: Knot,
-        lineage: LineageStore,
+        lineage: Knot | LineageStore,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(champion, Knot):
-            raise TypeError("ShadowDeploymentPipeline: champion must be a Knot")
-        if not isinstance(challenger, Knot):
-            raise TypeError(
-                "ShadowDeploymentPipeline: challenger must be a Knot"
-            )
-        if not isinstance(lineage, LineageStore):
-            raise TypeError(
-                "ShadowDeploymentPipeline: lineage must be a LineageStore"
-            )
-        self._lineage = lineage
         super().__init__(
             champion=champion,
             challenger=challenger,
+            lineage=lineage,
             _config=_config,
             **kwargs,
         )
@@ -64,6 +64,7 @@ class ShadowDeploymentPipeline(SubTapestry):
         self,
         champion: TrainedModel,
         challenger: TrainedModel,
+        lineage: LineageStore | None = None,
         **_: Any,
     ) -> Mapping[str, Any]:
         """Shadow-deploy both the champion and challenger, record a divergence event, and return their deployment ids and the divergence id.
@@ -71,11 +72,17 @@ class ShadowDeploymentPipeline(SubTapestry):
         Args:
             champion: Current production TrainedModel to shadow-deploy.
             challenger: Candidate TrainedModel to shadow-deploy alongside the champion.
+            lineage: LineageStore for recording the divergence event.
 
         Returns:
             Mapping with ``champion_deployment_id``, ``challenger_deployment_id``,
             and ``divergence_id`` (a deterministic digest of the two model ids).
+
+        Raises:
+            TypeError: If lineage is not a LineageStore.
         """
+        if not isinstance(lineage, LineageStore):
+            raise TypeError("ShadowDeploymentPipeline: lineage must be a LineageStore")
         with Tapestry() as inner:
             champion_node = _emit_value(
                 value=champion, _config=KnotConfig(id="champion")
@@ -85,24 +92,20 @@ class ShadowDeploymentPipeline(SubTapestry):
             )
             ShadowDeployer(
                 model=champion_node,
-                registry=self._lineage,
+                registry=lineage,
                 _config=KnotConfig(id="deploy-champion"),
             )
             ShadowDeployer(
                 model=challenger_node,
-                registry=self._lineage,
+                registry=lineage,
                 _config=KnotConfig(id="deploy-challenger"),
             )
         inner_result = await self._run_inner(inner)
         champion_deployment_id: str = inner_result.outputs["deploy-champion"]
-        challenger_deployment_id: str = inner_result.outputs[
-            "deploy-challenger"
-        ]
+        challenger_deployment_id: str = inner_result.outputs["deploy-challenger"]
         recorded_at = datetime.now(timezone.utc).isoformat()
-        divergence_id = self._derive_divergence_id(
-            champion, challenger, recorded_at
-        )
-        await self._lineage.log_event(
+        divergence_id = self._derive_divergence_id(champion, challenger, recorded_at)
+        await lineage.log_event(
             "shadow_divergence",
             {
                 "divergence_id": divergence_id,

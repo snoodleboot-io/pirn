@@ -33,28 +33,24 @@ class _SplitSource(Knot):
         return DataSplit(train=ds, test=ds)
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_image_column(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                src = _SplitSource(_config=KnotConfig(id="src"))
-                ImageEmbeddingExtractor(
-                    split=src,
-                    image_column="",
-                    image_encoder=_StubEncoder(),
-                    _config=KnotConfig(id="ext"),
-                )
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    def _make_split(self) -> DataSplit:
+        ds = MLDataset(name="ds", feature_names=("img_col", "x"), row_count=10)
+        return DataSplit(train=ds, test=ds)
 
-    def test_rejects_wrong_encoder_type(self) -> None:
-        with self.assertRaises(TypeError):
-            with Tapestry():
-                src = _SplitSource(_config=KnotConfig(id="src"))
-                ImageEmbeddingExtractor(
-                    split=src,
-                    image_column="img",
-                    image_encoder="not-an-encoder",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="ext"),
-                )
+    async def test_rejects_empty_image_column(self) -> None:
+        with Tapestry():
+            k = ImageEmbeddingExtractor.__new__(ImageEmbeddingExtractor)
+            object.__setattr__(k, "_config", KnotConfig(id="ext"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=self._make_split(), image_column="", image_encoder=_StubEncoder())
+
+    async def test_rejects_wrong_encoder_type(self) -> None:
+        with Tapestry():
+            k = ImageEmbeddingExtractor.__new__(ImageEmbeddingExtractor)
+            object.__setattr__(k, "_config", KnotConfig(id="ext"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=self._make_split(), image_column="img", image_encoder="not-an-encoder")  # type: ignore[arg-type]
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

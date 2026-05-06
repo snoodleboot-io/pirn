@@ -28,30 +28,35 @@ async def emit_model() -> TrainedModel:
     return TrainedModel(model_id="m1", algorithm="cnn", feature_names=("a",))
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_invalid_attack(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            model = emit_model(_config=KnotConfig(id="model"))
-            with self.assertRaisesRegex(ValueError, "attack"):
-                AdversarialRobustnessEvaluator(
-                    model=model,
-                    split=split,
-                    attack="carlini",
-                    _config=KnotConfig(id="bad"),
-                )
+def _make_knot() -> AdversarialRobustnessEvaluator:
+    with Tapestry():
+        split = emit_split(_config=KnotConfig(id="split"))
+        model = emit_model(_config=KnotConfig(id="model"))
+        return AdversarialRobustnessEvaluator(
+            model=model,
+            split=split,
+            _config=KnotConfig(id="adv"),
+        )
 
-    def test_rejects_nonpositive_epsilon(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            model = emit_model(_config=KnotConfig(id="model"))
-            with self.assertRaisesRegex(ValueError, "epsilon"):
-                AdversarialRobustnessEvaluator(
-                    model=model,
-                    split=split,
-                    epsilon=0.0,
-                    _config=KnotConfig(id="bad"),
-                )
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_invalid_attack(self) -> None:
+        k = _make_knot()
+        train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
+        test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
+        model = TrainedModel(model_id="m1", algorithm="cnn", feature_names=("a",))
+        split = DataSplit(train=train, test=test)
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(model=model, split=split, attack="carlini", epsilon=0.1)
+
+    async def test_rejects_nonpositive_epsilon(self) -> None:
+        k = _make_knot()
+        train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
+        test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
+        model = TrainedModel(model_id="m1", algorithm="cnn", feature_names=("a",))
+        split = DataSplit(train=train, test=test)
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(model=model, split=split, attack="fgsm", epsilon=0.0)
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

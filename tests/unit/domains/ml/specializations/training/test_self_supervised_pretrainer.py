@@ -21,40 +21,41 @@ class _KnotStub(Knot):
         return None
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_pretrain_algorithm(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                SelfSupervisedPretrainer(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    pretrain_algorithm="",
-                    finetune_algorithm="logistic",
-                    metrics=["accuracy"],
-                    _config=KnotConfig(id="ssp"),
-                )
+def _make_knot() -> SelfSupervisedPretrainer:
+    with Tapestry():
+        k = SelfSupervisedPretrainer.__new__(SelfSupervisedPretrainer)
+        object.__setattr__(k, "_config", KnotConfig(id="ssp"))
+    return k
 
-    def test_rejects_empty_finetune_algorithm(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                SelfSupervisedPretrainer(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    pretrain_algorithm="masked",
-                    finetune_algorithm="",
-                    metrics=["accuracy"],
-                    _config=KnotConfig(id="ssp"),
-                )
 
-    def test_rejects_empty_metrics(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                SelfSupervisedPretrainer(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    pretrain_algorithm="masked",
-                    finetune_algorithm="logistic",
-                    metrics=[],
-                    _config=KnotConfig(id="ssp"),
-                )
+def _split():
+    from pirn.domains.ml.types.data_split import DataSplit
+    from pirn.domains.ml.types.ml_dataset import MLDataset
 
+    return DataSplit(
+        train=MLDataset(name="tr", feature_names=["x"], target_name="y", row_count=10, source_uri="mem://"),
+        test=MLDataset(name="te", feature_names=["x"], target_name="y", row_count=5, source_uri="mem://"),
+    )
+
+
+class TestSelfSupervisedPretrainerValidation(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_empty_pretrain_algorithm(self) -> None:
+        k = _make_knot()
+        with self.assertRaises((ValueError, TypeError)):
+            await k.process(split=_split(), pretrain_algorithm="", finetune_algorithm="logistic", metrics=["accuracy"])
+
+    async def test_rejects_empty_finetune_algorithm(self) -> None:
+        k = _make_knot()
+        with self.assertRaises((ValueError, TypeError)):
+            await k.process(split=_split(), pretrain_algorithm="masked", finetune_algorithm="", metrics=["accuracy"])
+
+    async def test_rejects_empty_metrics(self) -> None:
+        k = _make_knot()
+        with self.assertRaises((ValueError, TypeError)):
+            await k.process(split=_split(), pretrain_algorithm="masked", finetune_algorithm="logistic", metrics=[])
+
+
+class TestSelfSupervisedPretrainerConstruction(unittest.TestCase):
     def test_valid_construction(self) -> None:
         with Tapestry() as t:
             SelfSupervisedPretrainer(

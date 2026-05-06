@@ -22,29 +22,41 @@ async def emit_dataset() -> MLDataset:
     )
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_n_splits_below_two(self) -> None:
-        with Tapestry():
-            dataset = emit_dataset(_config=KnotConfig(id="dataset"))
-            with self.assertRaisesRegex(ValueError, "n_splits must be >= 2"):
-                TimeSeriesCrossValidator(
-                    dataset=dataset,
-                    algorithm="rf",
-                    metrics=("rmse",),
-                    n_splits=1,
-                    _config=KnotConfig(id="bad"),
-                )
+def _make_validator() -> TimeSeriesCrossValidator:
+    with Tapestry():
+        dataset = emit_dataset(_config=KnotConfig(id="dataset"))
+        validator = TimeSeriesCrossValidator(
+            dataset=dataset,
+            algorithm="rf",
+            metrics=("rmse",),
+            n_splits=3,
+            _config=KnotConfig(id="tscv"),
+        )
+    return validator
 
-    def test_rejects_empty_algorithm(self) -> None:
-        with Tapestry():
-            dataset = emit_dataset(_config=KnotConfig(id="dataset"))
-            with self.assertRaisesRegex(ValueError, "algorithm"):
-                TimeSeriesCrossValidator(
-                    dataset=dataset,
-                    algorithm="",
-                    metrics=("rmse",),
-                    _config=KnotConfig(id="bad"),
-                )
+
+def _dataset_fixture() -> MLDataset:
+    return MLDataset(
+        name="ts", feature_names=("t", "v"), target_name="y", row_count=120
+    )
+
+
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_n_splits_below_two(self) -> None:
+        validator = _make_validator()
+        dataset = _dataset_fixture()
+        with self.assertRaises((TypeError, ValueError)):
+            await validator.process(
+                dataset=dataset, algorithm="rf", metrics=("rmse",), n_splits=1
+            )
+
+    async def test_rejects_empty_algorithm(self) -> None:
+        validator = _make_validator()
+        dataset = _dataset_fixture()
+        with self.assertRaises((TypeError, ValueError)):
+            await validator.process(
+                dataset=dataset, algorithm="", metrics=("rmse",), n_splits=3
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

@@ -3,46 +3,45 @@
 from __future__ import annotations
 import unittest
 
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.core.run_request import RunRequest
 from pirn.domains.health.genomics.methylation_array_processor import MethylationArrayProcessor
 from pirn.tapestry import Tapestry
 
+_CFG = KnotConfig(id="m")
+_IDAT = {"red_channel": [0.5], "green_channel": [0.4], "sample_id": "S1"}
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_invalid_array_type(self) -> None:
-        with self.assertRaisesRegex(ValueError, "array_type"):
-            MethylationArrayProcessor(
-                idat_data=Parameter("id", dict, default={}, _config=KnotConfig(id="id")),
-                array_type="850k",
-                normalization="ssnoob",
-                _config=KnotConfig(id="m"),
-            )
 
-    def test_rejects_invalid_normalization(self) -> None:
-        with self.assertRaisesRegex(ValueError, "normalization"):
-            MethylationArrayProcessor(
-                idat_data=Parameter("id", dict, default={}, _config=KnotConfig(id="id")),
-                array_type="epic",
-                normalization="combat",
-                _config=KnotConfig(id="m"),
-            )
+def _make_knot() -> MethylationArrayProcessor:
+    with Tapestry():
+        src = Parameter("id", dict, default=_IDAT, _config=KnotConfig(id="id"))
+        return MethylationArrayProcessor(
+            idat_data=src,
+            array_type="epic",
+            normalization="ssnoob",
+            _config=_CFG,
+        )
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_invalid_array_type(self) -> None:
+        knot = _make_knot()
+        with self.assertRaisesRegex(ValueError, "array_type"):
+            await knot.process(idat_data=_IDAT, array_type="850k", normalization="ssnoob")
+
+    async def test_rejects_invalid_normalization(self) -> None:
+        knot = _make_knot()
+        with self.assertRaisesRegex(ValueError, "normalization"):
+            await knot.process(idat_data=_IDAT, array_type="epic", normalization="combat")
+
+    async def test_rejects_non_dict_idat(self) -> None:
+        knot = _make_knot()
+        with self.assertRaisesRegex(TypeError, "idat_data"):
+            await knot.process(idat_data="not_a_dict", array_type="epic", normalization="ssnoob")  # type: ignore[arg-type]
+
     async def test_returns_dict(self) -> None:
-        idat = {"red_channel": [0.5], "green_channel": [0.4], "sample_id": "S1"}
-        with Tapestry() as t:
-            MethylationArrayProcessor(
-                idat_data=Parameter("id", dict, default=idat, _config=KnotConfig(id="id")),
-                array_type="epic",
-                normalization="ssnoob",
-                _config=KnotConfig(id="m"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["m"]
+        knot = _make_knot()
+        out = await knot.process(idat_data=_IDAT, array_type="epic", normalization="ssnoob")
         assert isinstance(out, dict)
         assert "sample_id" in out
         assert "beta_values" in out

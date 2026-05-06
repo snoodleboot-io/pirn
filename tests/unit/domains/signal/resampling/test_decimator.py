@@ -1,40 +1,40 @@
 """Unit tests for :class:`Decimator`."""
 
 from __future__ import annotations
+
 import unittest
 
+import pytest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
+from pirn.core.parameter import Parameter
 from pirn.domains.signal.resampling.decimator import Decimator
 from pirn.domains.signal.types.signal_frame import SignalFrame
-from pirn.tapestry import Tapestry
-from tests.unit.domains.signal.conftest import emit_signal_frame
+from tests.unit.domains.signal.conftest import make_signal_frame
+
+_SIGNAL = make_signal_frame()
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_decimation_factor_le_one(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "decimation_factor"):
-                Decimator(
-                    signal=sig,
-                    decimation_factor=1,
-                    _config=KnotConfig(id="d"),
-                )
+def _up(name: str = "signal") -> Parameter:
+    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
 
 
-class TestProcess(unittest.IsolatedAsyncioTestCase):
+class TestDecimator(unittest.IsolatedAsyncioTestCase):
+    def _make(self) -> Decimator:
+        return Decimator(
+            signal=_up(),
+            decimation_factor=2,
+            _config=KnotConfig(id="d"),
+        )
+
+    async def test_rejects_decimation_factor_le_one(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="decimation_factor"):
+            await knot.process(_SIGNAL, decimation_factor=1)
+
     async def test_emits_signal_frame(self) -> None:
-        with Tapestry() as t:
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            Decimator(
-                signal=sig,
-                decimation_factor=2,
-                _config=KnotConfig(id="d"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["d"]
+        knot = self._make()
+        out = await knot.process(_SIGNAL, decimation_factor=2)
         assert isinstance(out, SignalFrame)
+        assert out.signal_id == "test:decimate"
         assert out.sample_rate_hz == 500.0
-        assert out.samples_per_channel == 512

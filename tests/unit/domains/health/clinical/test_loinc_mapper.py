@@ -5,46 +5,27 @@ import unittest
 
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.domains.health.clinical.loinc_mapper import LOINCMapper
-from pirn.tapestry import Tapestry
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_sequence_names(self) -> None:
-        with self.assertRaisesRegex(TypeError, "lab_test_names"):
-            LOINCMapper(
-                lab_test_names=42,  # type: ignore[arg-type]
-                mapping={},
-                _config=KnotConfig(id="m"),
-            )
-
-    def test_rejects_non_mapping(self) -> None:
-        with self.assertRaisesRegex(TypeError, "mapping"):
-            LOINCMapper(
-                lab_test_names=[],
-                mapping=42,  # type: ignore[arg-type]
-                _config=KnotConfig(id="m"),
-            )
-
-    def test_rejects_non_string_name(self) -> None:
-        with self.assertRaisesRegex(TypeError, "string"):
-            LOINCMapper(
-                lab_test_names=[1],  # type: ignore[list-item]
-                mapping={},
-                _config=KnotConfig(id="m"),
-            )
+_CFG = KnotConfig(id="m")
+_KNOT = LOINCMapper(lab_test_names=[], mapping={}, _config=_CFG)
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_non_sequence_names(self) -> None:
+        with self.assertRaisesRegex(TypeError, "lab_test_names"):
+            await _KNOT.process(lab_test_names=42, mapping={})  # type: ignore[arg-type]
+
+    async def test_rejects_non_mapping(self) -> None:
+        with self.assertRaisesRegex(TypeError, "mapping"):
+            await _KNOT.process(lab_test_names=[], mapping=42)  # type: ignore[arg-type]
+
+    async def test_rejects_non_string_name(self) -> None:
+        with self.assertRaisesRegex(TypeError, "string"):
+            await _KNOT.process(lab_test_names=[1], mapping={})  # type: ignore[list-item]
+
     async def test_returns_mapped_codes(self) -> None:
-        with Tapestry() as t:
-            LOINCMapper(
-                lab_test_names=["glucose"],
-                mapping={"glucose": "2345-7"},
-                _config=KnotConfig(id="m"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["m"]
+        out = await _KNOT.process(lab_test_names=["glucose"], mapping={"glucose": "2345-7"})
         assert isinstance(out, tuple)
         assert out == ("2345-7",)

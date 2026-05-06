@@ -3,6 +3,15 @@
 Used by composed agent loops as a seed knot so a ``Knot`` reference
 exists for downstream wiring even when the upstream value is a plain
 constant.
+
+Algorithm:
+    1. Receive the resolved ``messages`` collection at process time.
+    2. Convert the collection to an immutable tuple.
+    3. Return the tuple unchanged.
+
+
+References:
+    - pirn-native identity pattern; no external algorithm reference.
 """
 
 from __future__ import annotations

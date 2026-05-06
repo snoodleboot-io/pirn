@@ -4,6 +4,20 @@ Inner stage knot used by :class:`ProceduralMemoryPipeline`. The
 incoming :class:`AgentResponse` content is paired with a task
 description string and stored under a key prefixed with
 ``"procedure:"`` so callers can later replay the recipe.
+
+Algorithm
+---------
+1. Validate inputs.
+2. Compute ``sha1(task_description)`` for a deterministic key.
+3. Persist the payload and return the key.
+
+Math
+----
+``key = "procedure:" + sha1(task_description.encode()).hexdigest()``
+
+References
+----------
+None.
 """
 
 from __future__ import annotations
@@ -26,19 +40,14 @@ class ProceduralMemoryWriter(Knot):
         *,
         agent_response: Knot | AgentResponse,
         task_description: Knot | str,
-        store: MemoryStore,
+        store: Knot | MemoryStore,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(store, MemoryStore):
-            raise TypeError(
-                "ProceduralMemoryWriter: store must be a MemoryStore, "
-                f"got {type(store).__name__}"
-            )
-        self._store = store
         super().__init__(
             agent_response=agent_response,
             task_description=task_description,
+            store=store,
             _config=_config,
             **kwargs,
         )
@@ -47,6 +56,7 @@ class ProceduralMemoryWriter(Knot):
         self,
         agent_response: AgentResponse,
         task_description: str,
+        store: MemoryStore,
         **_: Any,
     ) -> str:
         """Store a task-to-response recipe under a hash-keyed procedure entry and return the key.
@@ -54,14 +64,20 @@ class ProceduralMemoryWriter(Knot):
         Args:
             agent_response: The agent response paired with the task as a how-to recipe.
             task_description: The non-empty task description used to derive the storage key.
+            store: The MemoryStore to write the procedure into.
 
         Returns:
             The storage key under which the procedure was persisted.
 
         Raises:
-            TypeError: If agent_response is not an AgentResponse instance.
+            TypeError: If agent_response is not an AgentResponse or store is not a MemoryStore.
             ValueError: If task_description is not a non-empty string.
         """
+        if not isinstance(store, MemoryStore):
+            raise TypeError(
+                "ProceduralMemoryWriter: store must be a MemoryStore, "
+                f"got {type(store).__name__}"
+            )
         if not isinstance(agent_response, AgentResponse):
             raise TypeError(
                 "ProceduralMemoryWriter: agent_response must be an "
@@ -82,5 +98,5 @@ class ProceduralMemoryWriter(Knot):
             "finish_reason": agent_response.finish_reason,
             "stored_at": datetime.now(timezone.utc).isoformat(),
         }
-        await self._store.store(key, payload)
+        await store.store(key, payload)
         return key

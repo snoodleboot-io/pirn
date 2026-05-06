@@ -3,6 +3,18 @@
 Production version invokes the BWA executable (``subprocess.run`` with
 sanitised argv, no ``shell=True``) or wraps the BWA C library. This
 stub validates inputs and returns a placeholder BAM-path string.
+
+Algorithm:
+    1. Receive fastq_path, reference_path, and output_bam_path strings.
+    2. Validate that all paths are non-empty strings.
+    3. Run bwa mem to align FASTQ reads to the reference genome.
+    4. Convert SAM to BAM via samtools view and write to output_bam_path.
+    5. Return the output BAM path.
+
+
+References:
+    - BWA: https://bio-bwa.sourceforge.net/
+    - Li & Durbin (2010) Fast and accurate long-read alignment with Burrows-Wheeler Aligner.
 """
 
 from __future__ import annotations
@@ -19,12 +31,41 @@ class BWAAligner(Knot):
     def __init__(
         self,
         *,
-        fastq_path: str,
-        reference_path: str,
-        output_bam_path: str,
+        fastq_path: Knot | str,
+        reference_path: Knot | str,
+        output_bam_path: Knot | str,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            fastq_path=fastq_path,
+            reference_path=reference_path,
+            output_bam_path=output_bam_path,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        fastq_path: str,
+        reference_path: str,
+        output_bam_path: str,
+        **_: Any,
+    ) -> str:
+        """Align the FASTQ reads to the reference genome using BWA-MEM and return the output BAM path.
+
+        Args:
+            fastq_path: Non-empty path to the input FASTQ file.
+            reference_path: Non-empty path to the reference FASTA file.
+            output_bam_path: Non-empty path for the output BAM file.
+
+        Returns:
+            The output BAM path.
+
+        Raises:
+            TypeError: If any path is not a string.
+            ValueError: If any path is empty.
+        """
         for label, value in (
             ("fastq_path", fastq_path),
             ("reference_path", reference_path),
@@ -34,15 +75,4 @@ class BWAAligner(Knot):
                 raise TypeError(f"BWAAligner: {label} must be a string")
             if not value:
                 raise ValueError(f"BWAAligner: {label} must be non-empty")
-        self._fastq_path = fastq_path
-        self._reference_path = reference_path
-        self._output_bam_path = output_bam_path
-        super().__init__(_config=_config, **kwargs)
-
-    async def process(self, **_: Any) -> str:
-        """Align the FASTQ reads to the reference genome using BWA-MEM and return the output BAM path.
-
-        Returns:
-            The output BAM path.
-        """
-        return self._output_bam_path
+        return output_bam_path

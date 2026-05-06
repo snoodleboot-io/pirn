@@ -25,6 +25,15 @@ async def emit_model() -> TrainedModel:
     )
 
 
+def _make_model() -> TrainedModel:
+    return TrainedModel(
+        model_id="m1",
+        algorithm="rf",
+        feature_names=("a",),
+        target_name="y",
+    )
+
+
 class TestShadowDeployerHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_records_shadow_deployment(self) -> None:
         lineage = RecordingLineageStore()
@@ -44,13 +53,18 @@ class TestShadowDeployerHappyPath(unittest.IsolatedAsyncioTestCase):
         assert payload["model_id"] == "m1"
 
 
-class TestShadowDeployerConstruction(unittest.TestCase):
-    def test_rejects_non_registry(self) -> None:
+class TestShadowDeployerProcess(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self) -> ShadowDeployer:
         with Tapestry():
-            model = emit_model(_config=KnotConfig(id="model"))
-            with self.assertRaisesRegex(TypeError, "LineageStore"):
-                ShadowDeployer(
-                    model=model,
-                    registry="not a lineage",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="bad"),
-                )
+            sd = ShadowDeployer.__new__(ShadowDeployer)
+            object.__setattr__(sd, "_config", KnotConfig(id="x"))
+        return sd
+
+    async def test_rejects_non_trained_model(self) -> None:
+        sd = self._make_knot()
+        lineage = RecordingLineageStore()
+        with self.assertRaises((TypeError, ValueError)):
+            await sd.process(
+                model="not a model",  # type: ignore[arg-type]
+                registry=lineage,
+            )

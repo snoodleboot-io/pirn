@@ -1,4 +1,31 @@
-"""``ParticleFilter`` — sequential Monte Carlo state estimator."""
+"""``ParticleFilter`` — sequential Monte Carlo state estimator.
+
+Algorithm:
+    1. Receive the input signal frame, state_dim, particle_count, and resampling_strategy.
+    2. Validate state_dim and particle_count (positive integers) and
+       resampling_strategy (one of ``multinomial``, ``stratified``, ``systematic``, ``residual``).
+    3. Initialise particle_count particles by sampling from the prior.
+    4. For each observation y(k):
+       a. Propagate particles through the state transition model.
+       b. Compute importance weights from the likelihood p(y_k | x_k^i).
+       c. Normalise weights.
+       d. Apply the selected resampling strategy when the effective sample size drops.
+    5. Return a SignalFrame of particle mean state estimates.
+
+Math:
+    Particle weight update:
+
+    $$w_k^i \\propto w_{k-1}^i \\cdot p(y_k | x_k^i)$$
+
+    MMSE state estimate:
+
+    $$\\hat{x}_k = \\sum_{i=1}^{N} w_k^i x_k^i$$
+
+References:
+    - Gordon, N.J., Salmond, D.J. & Smith, A.F.M. (1993). "Novel approach to nonlinear/non-Gaussian
+      Bayesian state estimation." IEE Proc. Radar Signal Process., 140(2), 107-113.
+    - filterpy: https://filterpy.readthedocs.io/
+"""
 
 from __future__ import annotations
 
@@ -16,16 +43,52 @@ class ParticleFilter(Knot):
     implementation.
     """
 
+    _valid_resampling_strategies = frozenset({
+        "multinomial", "stratified", "systematic", "residual"
+    })
+
     def __init__(
         self,
         *,
         signal: Knot,
-        state_dim: int,
-        particle_count: int,
-        resampling_strategy: str = "systematic",
+        state_dim: Knot | int,
+        particle_count: Knot | int,
+        resampling_strategy: Knot | str = "systematic",
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            signal=signal,
+            state_dim=state_dim,
+            particle_count=particle_count,
+            resampling_strategy=resampling_strategy,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        signal: SignalFrame,
+        state_dim: int,
+        particle_count: int,
+        resampling_strategy: str = "systematic",
+        **_: Any,
+    ) -> SignalFrame:
+        """Filter the signal through the sequential Monte Carlo particle filter.
+
+        Args:
+            signal: Observed signal to filter through the nonlinear non-Gaussian state estimator.
+            state_dim: Dimension of the hidden state vector (positive integer).
+            particle_count: Number of Monte Carlo particles (positive integer).
+            resampling_strategy: Resampling algorithm — ``multinomial``, ``stratified``,
+                ``systematic``, or ``residual``.
+
+        Returns:
+            SignalFrame of particle-filter state estimates.
+
+        Raises:
+            ValueError: If state_dim, particle_count, or resampling_strategy are invalid.
+        """
         if not isinstance(state_dim, int) or state_dim <= 0:
             raise ValueError(
                 "ParticleFilter: state_dim must be a positive integer"
@@ -34,44 +97,11 @@ class ParticleFilter(Knot):
             raise ValueError(
                 "ParticleFilter: particle_count must be a positive integer"
             )
-        if resampling_strategy not in {
-            "multinomial",
-            "stratified",
-            "systematic",
-            "residual",
-        }:
+        if resampling_strategy not in self._valid_resampling_strategies:
             raise ValueError(
                 "ParticleFilter: resampling_strategy must be 'multinomial', "
                 "'stratified', 'systematic', or 'residual'"
             )
-        self._state_dim = state_dim
-        self._particle_count = particle_count
-        self._resampling_strategy = resampling_strategy
-        super().__init__(signal=signal, _config=_config, **kwargs)
-
-    @property
-    def state_dim(self) -> int:
-        return self._state_dim
-
-    @property
-    def particle_count(self) -> int:
-        return self._particle_count
-
-    @property
-    def resampling_strategy(self) -> str:
-        return self._resampling_strategy
-
-    async def process(
-        self, signal: SignalFrame, **_: Any
-    ) -> SignalFrame:
-        """Filter the signal through the sequential Monte Carlo particle filter and return the filtered SignalFrame.
-
-        Args:
-            signal: Observed signal to filter through the nonlinear non-Gaussian state estimator.
-
-        Returns:
-            SignalFrame of particle-filter state estimates.
-        """
         return SignalFrame(
             signal_id=f"{signal.signal_id}:particle",
             channel_count=signal.channel_count,

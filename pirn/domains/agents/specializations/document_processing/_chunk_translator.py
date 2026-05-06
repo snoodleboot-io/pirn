@@ -1,6 +1,16 @@
 """``_ChunkTranslator`` — internal helper Knot for :class:`DocumentTranslationPipeline`.
 
-Translates each chunk via the LLM and concatenates the results. Internal API.
+Algorithm:
+    1. Receive resolved ``chunks``, ``target_language``, and ``llm``.
+    2. For each chunk, issue one LLM chat call with a translation system prompt.
+    3. Extract text from the raw LLM response.
+    4. Concatenate all translated parts and return the result.
+
+
+References:
+    - Standard LLM translation prompting patterns.
+
+Internal API.
 """
 
 from __future__ import annotations
@@ -19,20 +29,20 @@ class _ChunkTranslator(Knot):
         self,
         *,
         chunks: Knot,
-        target_language: str,
-        llm: LLMProvider,
+        target_language: Knot | str,
+        llm: Knot | LLMProvider,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        self._target_language = target_language
-        self._llm = llm
-        super().__init__(chunks=chunks, _config=_config, **kwargs)
+        super().__init__(chunks=chunks, target_language=target_language, llm=llm, _config=_config, **kwargs)
 
-    async def process(self, chunks: list[str], **_: Any) -> str:
+    async def process(self, chunks: list[str], target_language: str, llm: LLMProvider, **_: Any) -> str:
         """Translate each chunk via the LLM and return the concatenated translation.
 
         Args:
             chunks: The list of text chunks to translate.
+            target_language: The language to translate each chunk into.
+            llm: The LLM provider to call for translation.
 
         Returns:
             The concatenated translation of all chunks.
@@ -45,14 +55,14 @@ class _ChunkTranslator(Knot):
                 {
                     "role": "system",
                     "content": (
-                        f"Translate the supplied text into {self._target_language}. "
+                        f"Translate the supplied text into {target_language}. "
                         "Preserve formatting and named entities. Reply with the "
                         "translation only — no commentary."
                     ),
                 },
                 {"role": "user", "content": chunk},
             ]
-            raw = await self._llm.chat(chat_messages)
+            raw = await llm.chat(chat_messages)
             translated_parts.append(_ChunkTranslator._extract_text(raw))
         return "".join(translated_parts)
 

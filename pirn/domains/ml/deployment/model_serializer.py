@@ -3,6 +3,16 @@
 The default implementation emits a JSON payload of the model's metadata
 fields. Real subclasses (joblib / pickle / ONNX) override
 :meth:`process` to serialise the actual fitted artifact.
+
+Algorithm:
+    1. Receive ``model`` (TrainedModel) and ``format`` (str) via process().
+    2. Validate format against the known set of valid formats.
+    3. Build a JSON-serialisable payload from model metadata fields.
+    4. Encode the payload to UTF-8 bytes and return.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -26,33 +36,32 @@ class ModelSerializer(Knot):
         self,
         *,
         model: Knot,
-        format: str = "joblib",
+        format: Knot | str = "joblib",
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(model=model, format=format, _config=_config, **kwargs)
+
+    async def process(self, model: TrainedModel, format: str = "joblib", **_: Any) -> bytes:
+        """Serialise the TrainedModel metadata to bytes in the configured format and return them.
+
+        Args:
+            model: TrainedModel reference whose metadata is serialised.
+            format: Serialisation format; must be one of ``valid_formats``.
+
+        Returns:
+            UTF-8 encoded JSON bytes containing the model metadata payload.
+
+        Raises:
+            ValueError: If format is not a known serialisation format.
+        """
         if format not in self.valid_formats:
             raise ValueError(
                 f"ModelSerializer: format must be one of "
                 f"{sorted(self.valid_formats)}"
             )
-        self._format = format
-        super().__init__(model=model, _config=_config, **kwargs)
-
-    @property
-    def format(self) -> str:
-        return self._format
-
-    async def process(self, model: TrainedModel, **_: Any) -> bytes:
-        """Serialise the TrainedModel metadata to bytes in the configured format and return them.
-
-        Args:
-            model: TrainedModel reference whose metadata is serialised.
-
-        Returns:
-            UTF-8 encoded JSON bytes containing the model metadata payload.
-        """
         payload = {
-            "format": self._format,
+            "format": format,
             "model_id": model.model_id,
             "algorithm": model.algorithm,
             "hyperparameters": dict(model.hyperparameters),

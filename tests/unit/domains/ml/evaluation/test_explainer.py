@@ -47,15 +47,18 @@ class TestExplainerHappyPath(unittest.IsolatedAsyncioTestCase):
         assert set(out.keys()) == {"a", "b"}
 
 
-class TestExplainerConstruction(unittest.TestCase):
-    def test_rejects_unknown_method(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            model = emit_model(_config=KnotConfig(id="model"))
-            with self.assertRaisesRegex(ValueError, "method must be"):
-                Explainer(
-                    model=model,
-                    split=split,
-                    method="bogus",
-                    _config=KnotConfig(id="bad"),
-                )
+class TestExplainerProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_unknown_method(self) -> None:
+        explainer = Explainer.__new__(Explainer)
+        object.__setattr__(explainer, "_config", KnotConfig(id="x"))
+        train = MLDataset(name="d:train", feature_names=("a", "b"), row_count=80)
+        test = MLDataset(name="d:test", feature_names=("a", "b"), row_count=20)
+        split = DataSplit(train=train, test=test)
+        model = TrainedModel(
+            model_id="m1",
+            algorithm="rf",
+            feature_names=("a", "b"),
+            target_name="y",
+        )
+        with self.assertRaisesRegex(ValueError, "method must be"):
+            await explainer.process(model=model, split=split, method="bogus")

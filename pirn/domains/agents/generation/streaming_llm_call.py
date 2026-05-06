@@ -1,8 +1,19 @@
-"""``StreamingLLMCall`` — return an async iterator of streamed chat chunks."""
+"""``StreamingLLMCall`` — return an async iterator of streamed chat chunks.
+
+Algorithm:
+    1. Receive the resolved ``AgentContext`` and ``LLMProvider``.
+    2. Validate input types at process time.
+    3. Convert context messages to wire-format role/content mappings.
+    4. Call ``llm.stream_chat`` with the wire messages and optional model override.
+    5. Return the async iterator of chunk mappings directly to the caller.
+
+
+References:
+    - :class:`pirn.domains.agents.llm_provider.LLMProvider`
+"""
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Mapping
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -23,21 +34,11 @@ class StreamingLLMCall(Knot):
         self,
         *,
         context: Knot,
-        llm: LLMProvider,
+        llm: Knot | LLMProvider,
         _config: KnotConfig,
-        model: str | None = None,
+        model: Knot | str | None = None,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "StreamingLLMCall: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
-        if model is not None and (not isinstance(model, str) or not model):
-            raise ValueError(
-                "StreamingLLMCall: model must be a non-empty string or None, "
-                f"got {model!r}"
-            )
         super().__init__(
             context=context,
             llm=llm,
@@ -64,7 +65,8 @@ class StreamingLLMCall(Knot):
             An async iterator of response chunk mappings from the LLM provider.
 
         Raises:
-            TypeError: If context is not an AgentContext instance.
+            TypeError: If context is not an AgentContext or llm is not an LLMProvider.
+            ValueError: If model is an empty string.
         """
         # Return type elided to ``Any`` because pydantic's ``TypeAdapter``
         # cannot produce a schema for :class:`AsyncIterator`; downstream
@@ -74,6 +76,16 @@ class StreamingLLMCall(Knot):
             raise TypeError(
                 "StreamingLLMCall: context must be an AgentContext, "
                 f"got {type(context).__name__}"
+            )
+        if not isinstance(llm, LLMProvider):
+            raise TypeError(
+                "StreamingLLMCall: llm must be an LLMProvider, "
+                f"got {type(llm).__name__}"
+            )
+        if model is not None and (not isinstance(model, str) or not model):
+            raise ValueError(
+                "StreamingLLMCall: model must be a non-empty string or None, "
+                f"got {model!r}"
             )
         wire_messages = tuple(
             {"role": message.role, "content": message.content}

@@ -5,6 +5,21 @@ descriptors from cell-detection, mitosis-detection, and segmentation
 upstream knots. This stub composes the upstream cell-count and
 mitosis-count outputs into per-tile feature vectors carrying
 ``cell_count``, ``mitosis_count``, and a derived ``mitosis_density``.
+
+Algorithm:
+    1. Validate cell_counts is a Mapping.
+    2. Coerce mitosis_counts to a per-tile mapping.
+    3. For each tile compute cell_count, mitosis_count, and mitosis_density.
+
+Math:
+    Mitosis density per tile:
+
+    $$\\rho_t = \\frac{M_t}{\\max(N_t, 1)}$$
+
+    where M_t is the mitosis count and N_t is the cell count.
+
+References:
+    - Tellez, D., et al. (2018). Whole-Slide Mitosis Detection. IEEE TMI.
 """
 
 from __future__ import annotations
@@ -22,19 +37,11 @@ class PathologyFeatureExtractor(Knot):
     def __init__(
         self,
         *,
-        cell_counts: Knot,
-        mitosis_counts: Knot,
+        cell_counts: Knot | Mapping[tuple[int, int], int],
+        mitosis_counts: Knot | Any,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(cell_counts, Knot):
-            raise TypeError(
-                "PathologyFeatureExtractor: cell_counts must be a Knot"
-            )
-        if not isinstance(mitosis_counts, Knot):
-            raise TypeError(
-                "PathologyFeatureExtractor: mitosis_counts must be a Knot"
-            )
         super().__init__(
             cell_counts=cell_counts,
             mitosis_counts=mitosis_counts,
@@ -48,7 +55,7 @@ class PathologyFeatureExtractor(Knot):
         mitosis_counts: Any,
         **_: Any,
     ) -> Mapping[tuple[int, int], Mapping[str, float | int]]:
-        """Combine per-tile cell counts and mitosis counts into feature vectors with mitosis_density.
+        """Combine per-tile cell counts and mitosis counts into feature vectors.
 
         Args:
             cell_counts: Mapping of (tile_x, tile_y) coordinate to cell count.
@@ -61,9 +68,7 @@ class PathologyFeatureExtractor(Knot):
         Raises:
             TypeError: If mitosis_counts is neither a Mapping nor an int.
         """
-        per_tile_mitosis = self._coerce_per_tile_mitosis(
-            mitosis_counts, cell_counts
-        )
+        per_tile_mitosis = self._coerce_per_tile_mitosis(mitosis_counts, cell_counts)
         features: dict[tuple[int, int], Mapping[str, float | int]] = {}
         for position, count in cell_counts.items():
             cell_count = int(count)

@@ -5,6 +5,19 @@ emits a deterministic :class:`TrainedModel` reference whose ``model_id``
 hashes the algorithm + hyperparameters + train-split metadata. Concrete
 subclasses (e.g. ``SklearnTrainer``) override :meth:`process` to perform
 the actual fit using the upstream data and return a real artifact id.
+
+Algorithm:
+    1. Receive ``split`` (DataSplit), ``algorithm`` (str), and
+       ``hyperparameters`` (Mapping | None) via process().
+    2. Validate algorithm is non-empty and hyperparameters, if given, is a Mapping.
+    3. Derive a deterministic model_id from SHA-256(algorithm + hyperparameters + split metadata).
+    4. Return a TrainedModel reference.
+
+Math:
+    model_id = "<algorithm>:" + sha256(algorithm || hyperparameters || train_split_metadata)[0:16]
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -28,62 +41,70 @@ class Trainer(Knot):
         self,
         *,
         split: Knot,
-        algorithm: str,
-        hyperparameters: Mapping[str, Any] | None = None,
+        algorithm: Knot | str,
+        hyperparameters: Knot | Mapping[str, Any] | None = None,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            split=split,
+            algorithm=algorithm,
+            hyperparameters=hyperparameters,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        split: DataSplit,
+        algorithm: str,
+        hyperparameters: Mapping[str, Any] | None = None,
+        **_: Any,
+    ) -> TrainedModel:
+        """Derive a deterministic model_id from the split metadata and return a TrainedModel reference for the configured algorithm.
+
+        Args:
+            split: DataSplit whose train partition metadata seeds the model_id
+                hash and populates feature_names and target_name.
+            algorithm: Non-empty algorithm name string.
+            hyperparameters: Optional mapping of hyperparameter name to value.
+
+        Returns:
+            TrainedModel reference with a deterministic model_id derived from
+            the algorithm, hyperparameters, and train-split metadata.
+
+        Raises:
+            ValueError: If algorithm is empty.
+            TypeError: If hyperparameters is not a Mapping when provided.
+        """
         if not isinstance(algorithm, str) or not algorithm:
             raise ValueError(
                 "Trainer: algorithm must be a non-empty string"
             )
-        if hyperparameters is not None and not isinstance(
-            hyperparameters, Mapping
-        ):
+        if hyperparameters is not None and not isinstance(hyperparameters, Mapping):
             raise TypeError(
                 "Trainer: hyperparameters must be a Mapping[str, Any]"
             )
         frozen_hp = MappingProxyType(
             dict(hyperparameters) if hyperparameters is not None else {}
         )
-        self._algorithm = algorithm
-        self._hyperparameters = frozen_hp
-        super().__init__(split=split, _config=_config, **kwargs)
-
-    @property
-    def algorithm(self) -> str:
-        return self._algorithm
-
-    @property
-    def hyperparameters(self) -> Mapping[str, Any]:
-        return self._hyperparameters
-
-    async def process(self, split: DataSplit, **_: Any) -> TrainedModel:
-        """Derive a deterministic model_id from the split metadata and return a TrainedModel reference for the configured algorithm.
-
-        Args:
-            split: DataSplit whose train partition metadata seeds the model_id
-                hash and populates feature_names and target_name.
-
-        Returns:
-            TrainedModel reference with a deterministic model_id derived from
-            the algorithm, hyperparameters, and train-split metadata.
-        """
-        model_id = self._derive_model_id(split)
+        model_id = self._derive_model_id(split, algorithm, frozen_hp)
         return TrainedModel(
             model_id=model_id,
-            algorithm=self._algorithm,
-            hyperparameters=self._hyperparameters,
+            algorithm=algorithm,
+            hyperparameters=frozen_hp,
             feature_names=split.train.feature_names,
             target_name=split.train.target_name,
             created_at=datetime.now(timezone.utc),
         )
 
-    def _derive_model_id(self, split: DataSplit) -> str:
+    def _derive_model_id(
+        self, split: DataSplit, algorithm: str, hyperparameters: Mapping[str, Any]
+    ) -> str:
         payload = json.dumps(
             {
-                "algorithm": self._algorithm,
-                "hyperparameters": dict(self._hyperparameters),
+                "algorithm": algorithm,
+                "hyperparameters": dict(hyperparameters),
                 "train_name": split.train.name,
                 "train_row_count": split.train.row_count,
                 "feature_names": list(split.train.feature_names),
@@ -93,4 +114,4 @@ class Trainer(Knot):
             default=str,
         )
         digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
-        return f"{self._algorithm}:{digest[:16]}"
+        return f"{algorithm}:{digest[:16]}"

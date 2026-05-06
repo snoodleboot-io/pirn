@@ -31,49 +31,47 @@ async def emit_accel_data() -> dict[str, Any]:
     }
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_knot_accel_data(self) -> None:
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_non_dict_accel_data(self) -> None:
+        inst = object.__new__(AccelerometerActivityClassifier)
         with self.assertRaisesRegex(TypeError, "accel_data"):
-            AccelerometerActivityClassifier(
-                accel_data="not-a-knot",  # type: ignore[arg-type]
+            await AccelerometerActivityClassifier.process(
+                inst,
+                accel_data="not-a-dict",  # type: ignore[arg-type]
                 sample_rate_hz=50.0,
                 window_sec=5.0,
-                _config=KnotConfig(id="ac"),
             )
 
-    def test_rejects_non_positive_sample_rate(self) -> None:
-        with Tapestry():
-            a = emit_accel_data(_config=KnotConfig(id="a"))
-            with self.assertRaisesRegex(ValueError, "sample_rate_hz"):
-                AccelerometerActivityClassifier(
-                    accel_data=a,
-                    sample_rate_hz=0.0,
-                    window_sec=5.0,
-                    _config=KnotConfig(id="ac"),
-                )
+    async def test_rejects_non_positive_sample_rate(self) -> None:
+        inst = object.__new__(AccelerometerActivityClassifier)
+        with self.assertRaisesRegex(ValueError, "sample_rate_hz"):
+            await AccelerometerActivityClassifier.process(
+                inst,
+                accel_data={},
+                sample_rate_hz=0.0,
+                window_sec=5.0,
+            )
 
-    def test_rejects_non_positive_window_sec(self) -> None:
-        with Tapestry():
-            a = emit_accel_data(_config=KnotConfig(id="a"))
-            with self.assertRaisesRegex(ValueError, "window_sec"):
-                AccelerometerActivityClassifier(
-                    accel_data=a,
-                    sample_rate_hz=50.0,
-                    window_sec=0.0,
-                    _config=KnotConfig(id="ac"),
-                )
+    async def test_rejects_non_positive_window_sec(self) -> None:
+        inst = object.__new__(AccelerometerActivityClassifier)
+        with self.assertRaisesRegex(ValueError, "window_sec"):
+            await AccelerometerActivityClassifier.process(
+                inst,
+                accel_data={},
+                sample_rate_hz=50.0,
+                window_sec=0.0,
+            )
 
-    def test_rejects_empty_activity_classes(self) -> None:
-        with Tapestry():
-            a = emit_accel_data(_config=KnotConfig(id="a"))
-            with self.assertRaisesRegex(ValueError, "activity_classes"):
-                AccelerometerActivityClassifier(
-                    accel_data=a,
-                    sample_rate_hz=50.0,
-                    window_sec=5.0,
-                    activity_classes=(),
-                    _config=KnotConfig(id="ac"),
-                )
+    async def test_rejects_empty_activity_classes(self) -> None:
+        inst = object.__new__(AccelerometerActivityClassifier)
+        with self.assertRaisesRegex(ValueError, "activity_classes"):
+            await AccelerometerActivityClassifier.process(
+                inst,
+                accel_data={},
+                sample_rate_hz=50.0,
+                window_sec=5.0,
+                activity_classes=(),
+            )
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

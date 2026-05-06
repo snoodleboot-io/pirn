@@ -10,6 +10,9 @@ from pirn.core.knot_config import KnotConfig
 from pirn.domains.ml.specializations.evaluation.timeseries_eval_pipeline import (
     TimeSeriesEvalPipeline,
 )
+from pirn.domains.ml.types.data_split import DataSplit
+from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.trained_model import TrainedModel
 from pirn.tapestry import Tapestry
 
 
@@ -21,33 +24,34 @@ class _KnotStub(Knot):
         return None
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_time_column(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                TimeSeriesEvalPipeline(
-                    model=_KnotStub(_config=KnotConfig(id="m")),
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    time_column="",
-                    _config=KnotConfig(id="ts"),
-                )
+def _make_knot() -> TimeSeriesEvalPipeline:
+    with Tapestry():
+        ts = TimeSeriesEvalPipeline(
+            model=_KnotStub(_config=KnotConfig(id="m")),
+            split=_KnotStub(_config=KnotConfig(id="s")),
+            time_column="timestamp",
+            _config=KnotConfig(id="ts"),
+        )
+    return ts
 
-    def test_rejects_non_string_time_column(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                TimeSeriesEvalPipeline(
-                    model=_KnotStub(_config=KnotConfig(id="m")),
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    time_column=42,  # type: ignore[arg-type]
-                    _config=KnotConfig(id="ts"),
-                )
 
-    def test_time_column_attribute_stored(self) -> None:
-        with Tapestry():
-            ts = TimeSeriesEvalPipeline(
-                model=_KnotStub(_config=KnotConfig(id="m")),
-                split=_KnotStub(_config=KnotConfig(id="s")),
-                time_column="timestamp",
-                _config=KnotConfig(id="ts"),
-            )
-        self.assertEqual(ts.time_column, "timestamp")
+def _fixtures() -> tuple[TrainedModel, DataSplit]:
+    train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
+    test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
+    split = DataSplit(train=train, test=test)
+    model = TrainedModel(model_id="m1", algorithm="arima", feature_names=("a",))
+    return model, split
+
+
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_empty_time_column(self) -> None:
+        knot = _make_knot()
+        model, split = _fixtures()
+        with self.assertRaises(ValueError):
+            await knot.process(model=model, split=split, time_column="")
+
+    async def test_rejects_non_string_time_column(self) -> None:
+        knot = _make_knot()
+        model, split = _fixtures()
+        with self.assertRaises(ValueError):
+            await knot.process(model=model, split=split, time_column=42)  # type: ignore[arg-type]

@@ -17,30 +17,30 @@ from tests.unit.domains.agents.specializations.conftest import (
 )
 
 
-class TestResearchAgentConstruction(unittest.IsolatedAsyncioTestCase):
+class TestResearchAgentProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_tool(self) -> None:
         llm = StubLLMProvider(["Final Answer: ok"])
+        tool = StubTool(name="search")
+        agent = ResearchAgent(
+            topic="quantum",
+            llm=llm,
+            search_tool=tool,
+            _config=KnotConfig(id="research"),
+        )
         with self.assertRaisesRegex(TypeError, "search_tool must be a Tool"):
-            with Tapestry():
-                ResearchAgent(
-                    topic="quantum",
-                    llm=llm,
-                    search_tool="not-a-tool",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="research"),
-                )
+            await agent.process(topic="quantum", llm=llm, search_tool="not-a-tool")  # type: ignore[arg-type]
 
     async def test_rejects_zero_max_searches(self) -> None:
         llm = StubLLMProvider(["Final Answer: ok"])
         tool = StubTool(name="search")
+        agent = ResearchAgent(
+            topic="quantum",
+            llm=llm,
+            search_tool=tool,
+            _config=KnotConfig(id="research"),
+        )
         with self.assertRaisesRegex(ValueError, "max_searches"):
-            with Tapestry():
-                ResearchAgent(
-                    topic="quantum",
-                    llm=llm,
-                    search_tool=tool,
-                    max_searches=0,
-                    _config=KnotConfig(id="research"),
-                )
+            await agent.process(topic="quantum", llm=llm, search_tool=tool, max_searches=0)
 
 
 class TestResearchAgentHappyPath(unittest.IsolatedAsyncioTestCase):

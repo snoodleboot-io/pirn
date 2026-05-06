@@ -3,6 +3,16 @@ features for specified column pairs.
 
 Appends ``<col_a>_x_<col_b>`` feature names for every pair in
 ``column_pairs``.
+
+Algorithm:
+    1. Receive ``split`` (DataSplit) and ``column_pairs`` (Sequence[tuple[str,str]]) via process().
+    2. Validate column_pairs is non-empty with valid two-element string tuples.
+    3. Append interaction feature names to each partition.
+    4. Return updated DataSplit.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -23,14 +33,36 @@ class InteractionFeatureGenerator(Knot):
         self,
         *,
         split: Knot,
-        column_pairs: Sequence[tuple[str, str]],
+        column_pairs: Knot | Sequence[tuple[str, str]],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(split, Knot):
-            raise TypeError(
-                "InteractionFeatureGenerator: split must be a Knot"
-            )
+        super().__init__(
+            split=split,
+            column_pairs=column_pairs,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        split: DataSplit,
+        column_pairs: Sequence[tuple[str, str]] = (),
+        **_: Any,
+    ) -> DataSplit:
+        """Append interaction feature names for each column pair to every partition.
+
+        Args:
+            split: DataSplit whose partitions receive the interaction feature names.
+            column_pairs: Non-empty sequence of (col_a, col_b) string pairs.
+
+        Returns:
+            DataSplit with ``<col_a>_x_<col_b>`` feature names appended to every
+            partition.
+
+        Raises:
+            ValueError: If column_pairs is empty or contains invalid entries.
+        """
         pairs_tuple = tuple(column_pairs)
         if not pairs_tuple:
             raise ValueError(
@@ -49,37 +81,26 @@ class InteractionFeatureGenerator(Knot):
                     "InteractionFeatureGenerator: each column pair must be a "
                     "tuple of two non-empty strings"
                 )
-        self._column_pairs = tuple(
-            (str(a), str(b)) for a, b in pairs_tuple
-        )
-        super().__init__(split=split, _config=_config, **kwargs)
-
-    async def process(self, split: DataSplit, **_: Any) -> DataSplit:
-        """Append interaction feature names for each column pair to every partition.
-
-        Args:
-            split: DataSplit whose partitions receive the interaction feature names.
-
-        Returns:
-            DataSplit with ``<col_a>_x_<col_b>`` feature names appended to every
-            partition.
-        """
+        cleaned_pairs = tuple((str(a), str(b)) for a, b in pairs_tuple)
         now = datetime.now(timezone.utc)
         return DataSplit(
-            train=self._add_interaction_features(split.train, now),
-            test=self._add_interaction_features(split.test, now),
+            train=self._add_interaction_features(split.train, cleaned_pairs, now),
+            test=self._add_interaction_features(split.test, cleaned_pairs, now),
             validation=(
-                self._add_interaction_features(split.validation, now)
+                self._add_interaction_features(split.validation, cleaned_pairs, now)
                 if split.validation is not None
                 else None
             ),
         )
 
     def _add_interaction_features(
-        self, dataset: MLDataset, fetched_at: datetime
+        self,
+        dataset: MLDataset,
+        column_pairs: tuple[tuple[str, str], ...],
+        fetched_at: datetime,
     ) -> MLDataset:
         features = list(dataset.feature_names)
-        for col_a, col_b in self._column_pairs:
+        for col_a, col_b in column_pairs:
             name = f"{col_a}_x_{col_b}"
             if name not in features:
                 features.append(name)

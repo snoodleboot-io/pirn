@@ -11,21 +11,23 @@ from pirn.domains.health.wearables.step_counter import StepCounter
 from pirn.tapestry import Tapestry
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_signal(self) -> None:
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_non_signal(self) -> None:
+        inst = object.__new__(StepCounter)
         with self.assertRaisesRegex(TypeError, "SignalFrame"):
-            StepCounter(
+            await StepCounter.process(
+                inst,
                 signal="x",  # type: ignore[arg-type]
                 threshold=0.5,
-                _config=KnotConfig(id="s"),
             )
 
-    def test_rejects_negative_threshold(self) -> None:
+    async def test_rejects_negative_threshold(self) -> None:
+        inst = object.__new__(StepCounter)
         with self.assertRaisesRegex(ValueError, "non-negative"):
-            StepCounter(
+            await StepCounter.process(
+                inst,
                 signal=SignalFrame(),
                 threshold=-0.1,
-                _config=KnotConfig(id="s"),
             )
 
 

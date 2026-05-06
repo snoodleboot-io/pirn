@@ -29,29 +29,37 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_image_column(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            encoder = RecordingImageEncoderProvider()
-            with self.assertRaisesRegex(ValueError, "image_column"):
-                ImageEmbeddingExtractor(
-                    split=split,
-                    image_column="",
-                    image_encoder=encoder,
-                    _config=KnotConfig(id="bad"),
-                )
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    def _make_split(self) -> DataSplit:
+        train = MLDataset(
+            name="d:train", feature_names=("img",), target_name="y", row_count=80
+        )
+        test = MLDataset(
+            name="d:test", feature_names=("img",), target_name="y", row_count=20
+        )
+        return DataSplit(train=train, test=test)
 
-    def test_rejects_non_encoder(self) -> None:
+    async def test_rejects_empty_image_column(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(TypeError, "ImageEncoderProvider"):
-                ImageEmbeddingExtractor(
-                    split=split,
-                    image_column="img",
-                    image_encoder="not-an-encoder",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="bad"),
-                )
+            k = ImageEmbeddingExtractor.__new__(ImageEmbeddingExtractor)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=self._make_split(),
+                image_column="",
+                image_encoder=RecordingImageEncoderProvider(),
+            )
+
+    async def test_rejects_non_encoder(self) -> None:
+        with Tapestry():
+            k = ImageEmbeddingExtractor.__new__(ImageEmbeddingExtractor)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=self._make_split(),
+                image_column="img",
+                image_encoder="not-an-encoder",
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

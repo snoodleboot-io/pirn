@@ -1,52 +1,45 @@
 """Unit tests for :class:`NotchFilter`."""
 
 from __future__ import annotations
+
 import unittest
 
+import pytest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
+from pirn.core.parameter import Parameter
 from pirn.domains.signal.filters.notch_filter import NotchFilter
 from pirn.domains.signal.types.signal_frame import SignalFrame
-from pirn.tapestry import Tapestry
-from tests.unit.domains.signal.conftest import emit_signal_frame
+from tests.unit.domains.signal.conftest import make_signal_frame
+
+_SIGNAL = make_signal_frame()
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_positive_notch_hz(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "notch_hz"):
-                NotchFilter(
-                    signal=sig,
-                    notch_hz=0,
-                    quality_factor=30.0,
-                    _config=KnotConfig(id="n"),
-                )
-
-    def test_rejects_non_positive_quality_factor(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "quality_factor"):
-                NotchFilter(
-                    signal=sig,
-                    notch_hz=60.0,
-                    quality_factor=0,
-                    _config=KnotConfig(id="n"),
-                )
+def _up(name: str = "signal") -> Parameter:
+    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
 
 
-class TestProcess(unittest.IsolatedAsyncioTestCase):
+class TestNotchFilter(unittest.IsolatedAsyncioTestCase):
+    def _make(self) -> NotchFilter:
+        return NotchFilter(
+            signal=_up(),
+            notch_hz=50.0,
+            quality_factor=30.0,
+            _config=KnotConfig(id="notch"),
+        )
+
+    async def test_rejects_non_positive_notch_hz(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="notch_hz"):
+            await knot.process(_SIGNAL, notch_hz=0.0, quality_factor=30.0)
+
+    async def test_rejects_non_positive_quality_factor(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="quality_factor"):
+            await knot.process(_SIGNAL, notch_hz=50.0, quality_factor=0.0)
+
     async def test_emits_signal_frame(self) -> None:
-        with Tapestry() as t:
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            NotchFilter(
-                signal=sig,
-                notch_hz=60.0,
-                quality_factor=30.0,
-                _config=KnotConfig(id="n"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["n"]
+        knot = self._make()
+        out = await knot.process(_SIGNAL, notch_hz=50.0, quality_factor=30.0)
         assert isinstance(out, SignalFrame)
         assert out.signal_id == "test:notch"

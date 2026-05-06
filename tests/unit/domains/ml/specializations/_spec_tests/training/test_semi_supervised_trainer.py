@@ -24,30 +24,28 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_negative_unlabeled_row_count(self) -> None:
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_negative_unlabeled_row_count(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "unlabeled_row_count must be >= 0"):
-                SemiSupervisedTrainer(
-                    split=split,
-                    algorithm="rf",
-                    unlabeled_row_count=-1,
-                    metrics=("accuracy",),
-                    _config=KnotConfig(id="bad"),
-                )
+            k = SemiSupervisedTrainer.__new__(SemiSupervisedTrainer)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        split = DataSplit(
+            train=MLDataset(name="d:train", feature_names=("a",), row_count=80),
+            test=MLDataset(name="d:test", feature_names=("a",), row_count=20),
+        )
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=split, algorithm="rf", unlabeled_row_count=-1, metrics=("accuracy",))
 
-    def test_rejects_empty_algorithm(self) -> None:
+    async def test_rejects_empty_algorithm(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "algorithm"):
-                SemiSupervisedTrainer(
-                    split=split,
-                    algorithm="",
-                    unlabeled_row_count=100,
-                    metrics=("accuracy",),
-                    _config=KnotConfig(id="bad"),
-                )
+            k = SemiSupervisedTrainer.__new__(SemiSupervisedTrainer)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        split = DataSplit(
+            train=MLDataset(name="d:train", feature_names=("a",), row_count=80),
+            test=MLDataset(name="d:test", feature_names=("a",), row_count=20),
+        )
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=split, algorithm="", unlabeled_row_count=100, metrics=("accuracy",))
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

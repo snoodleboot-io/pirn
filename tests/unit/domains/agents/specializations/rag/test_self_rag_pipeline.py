@@ -17,41 +17,66 @@ from tests.unit.domains.agents.specializations.conftest import (
 )
 
 
-class TestSelfRAGPipelineConstruction(unittest.IsolatedAsyncioTestCase):
+class TestSelfRAGPipelineProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_memory_store(self) -> None:
         llm = StubLLMProvider(["draft", "NO"])
+        memory = StubMemoryStore([])
+        knot = SelfRAGPipeline(
+            query="q",
+            memory=memory,
+            llm=llm,
+            _config=KnotConfig(id="self_rag"),
+        )
         with self.assertRaisesRegex(TypeError, "memory must be a MemoryStore"):
-            with Tapestry():
-                SelfRAGPipeline(
-                    query="q",
-                    memory="not-a-store",  # type: ignore[arg-type]
-                    llm=llm,
-                    _config=KnotConfig(id="self_rag"),
-                )
+            await knot.process(
+                query="q",
+                memory="not-a-store",  # type: ignore[arg-type]
+                llm=llm,
+            )
 
     async def test_rejects_non_llm_provider(self) -> None:
         memory = StubMemoryStore([])
+        llm = StubLLMProvider([])
+        knot = SelfRAGPipeline(
+            query="q",
+            memory=memory,
+            llm=llm,
+            _config=KnotConfig(id="self_rag"),
+        )
         with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
-            with Tapestry():
-                SelfRAGPipeline(
-                    query="q",
-                    memory=memory,
-                    llm="not-llm",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="self_rag"),
-                )
+            await knot.process(
+                query="q",
+                memory=memory,
+                llm="not-llm",  # type: ignore[arg-type]
+            )
 
     async def test_rejects_zero_top_k(self) -> None:
         memory = StubMemoryStore([])
         llm = StubLLMProvider(["draft", "NO"])
+        knot = SelfRAGPipeline(
+            query="q",
+            memory=memory,
+            llm=llm,
+            _config=KnotConfig(id="self_rag"),
+        )
         with self.assertRaisesRegex(ValueError, "top_k must be a positive int"):
-            with Tapestry():
-                SelfRAGPipeline(
-                    query="q",
-                    memory=memory,
-                    llm=llm,
-                    top_k=0,
-                    _config=KnotConfig(id="self_rag"),
-                )
+            await knot.process(query="q", memory=memory, llm=llm, top_k=0)
+
+    async def test_rejects_non_string_query(self) -> None:
+        memory = StubMemoryStore([])
+        llm = StubLLMProvider(["draft", "NO"])
+        knot = SelfRAGPipeline(
+            query="q",
+            memory=memory,
+            llm=llm,
+            _config=KnotConfig(id="self_rag"),
+        )
+        with self.assertRaisesRegex(TypeError, "query"):
+            await knot.process(
+                query=123,  # type: ignore[arg-type]
+                memory=memory,
+                llm=llm,
+            )
 
 
 class TestSelfRAGPipelineNoRetrieval(unittest.IsolatedAsyncioTestCase):
@@ -92,15 +117,3 @@ class TestSelfRAGPipelineWithRetrieval(unittest.IsolatedAsyncioTestCase):
         assert isinstance(response, AgentResponse)
         assert response.content == "final answer with context"
         assert memory.search_queries == ["complex question"]
-
-    async def test_rejects_non_string_query_at_construction(self) -> None:
-        memory = StubMemoryStore([])
-        llm = StubLLMProvider(["draft", "NO"])
-        with self.assertRaisesRegex(TypeError, "query"):
-            with Tapestry():
-                SelfRAGPipeline(
-                    query=123,  # type: ignore[arg-type]
-                    memory=memory,
-                    llm=llm,
-                    _config=KnotConfig(id="self_rag"),
-                )

@@ -30,24 +30,6 @@ class TestConstruction(unittest.TestCase):
                     _config=KnotConfig(id="be"),
                 )
 
-    def test_rejects_empty_algorithm(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                BaselineEstablisher(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    algorithm="",
-                    _config=KnotConfig(id="be"),
-                )
-
-    def test_rejects_empty_metrics(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                BaselineEstablisher(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    metrics=[],
-                    _config=KnotConfig(id="be"),
-                )
-
     def test_valid_construction_defaults(self) -> None:
         with Tapestry() as t:
             BaselineEstablisher(
@@ -55,3 +37,30 @@ class TestConstruction(unittest.TestCase):
                 _config=KnotConfig(id="be"),
             )
         self.assertIsNotNone(t._store.get("be"))
+
+
+class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self) -> BaselineEstablisher:
+        with Tapestry():
+            return BaselineEstablisher(
+                split=_KnotStub(_config=KnotConfig(id="s")),
+                _config=KnotConfig(id="be"),
+            )
+
+    async def test_rejects_empty_algorithm(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaises(ValueError):
+            await knot.process(
+                split=object(),  # type: ignore[arg-type]
+                algorithm="",
+                metrics=("accuracy",),
+            )
+
+    async def test_rejects_empty_metrics(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaises(ValueError):
+            await knot.process(
+                split=object(),  # type: ignore[arg-type]
+                algorithm="linear",
+                metrics=[],
+            )

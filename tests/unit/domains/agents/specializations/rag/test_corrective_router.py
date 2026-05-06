@@ -67,3 +67,20 @@ class TestCorrectiveRouterProcess(unittest.IsolatedAsyncioTestCase):
                     fallback_tool=tool,
                     _config=KnotConfig(id="cr"),
                 )
+
+
+class TestProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_process_rejects_non_tool_fallback(self) -> None:
+        with Tapestry():
+            k = CorrectiveRouter.__new__(CorrectiveRouter)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises(TypeError):
+            await k.process(query="q", relevant_docs=[], fallback_tool="not-a-tool")  # type: ignore[arg-type]
+
+    async def test_process_rejects_non_string_query(self) -> None:
+        tool = StubTool(name="web_search")
+        with Tapestry():
+            k = CorrectiveRouter.__new__(CorrectiveRouter)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises(TypeError):
+            await k.process(query=99, relevant_docs=[], fallback_tool=tool)  # type: ignore[arg-type]

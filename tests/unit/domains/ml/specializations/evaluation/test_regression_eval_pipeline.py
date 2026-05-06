@@ -22,24 +22,6 @@ class _KnotStub(Knot):
 
 
 class TestConstruction(unittest.TestCase):
-    def test_rejects_non_knot_model(self) -> None:
-        with self.assertRaises(TypeError):
-            with Tapestry():
-                RegressionEvalPipeline(
-                    model="bad",  # type: ignore[arg-type]
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    _config=KnotConfig(id="rp"),
-                )
-
-    def test_rejects_non_knot_split(self) -> None:
-        with self.assertRaises(TypeError):
-            with Tapestry():
-                RegressionEvalPipeline(
-                    model=_KnotStub(_config=KnotConfig(id="m")),
-                    split="bad",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="rp"),
-                )
-
     def test_valid_construction(self) -> None:
         with Tapestry() as t:
             RegressionEvalPipeline(

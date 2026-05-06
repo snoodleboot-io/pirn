@@ -1,6 +1,18 @@
 """``_QALoadAndChunk`` — internal helper Knot for :class:`DocumentQAPipeline`.
 
-Reads source text and splits it into fixed-size chunks. Internal API.
+Algorithm:
+    1. Receive resolved ``source`` and ``chunk_size``.
+    2. Load text from a local file path or http(s):// URL.
+    3. Slide a non-overlapping window of ``chunk_size`` over the text.
+    4. Return the resulting list of chunk strings for downstream QA retrieval.
+
+    ``chunks[i] = text[i*chunk_size : (i+1)*chunk_size]``.
+
+References:
+    - Python pathlib documentation for file reading.
+    - httpx documentation for async HTTP requests.
+
+Internal API.
 """
 
 from __future__ import annotations
@@ -20,7 +32,7 @@ class _QALoadAndChunk(Knot):
         self,
         *,
         source: Knot | str,
-        chunk_size: int,
+        chunk_size: Knot | int,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:

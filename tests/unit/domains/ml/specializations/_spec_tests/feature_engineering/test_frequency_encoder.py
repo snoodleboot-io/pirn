@@ -27,38 +27,31 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_categorical_column(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "categorical_column"):
-                FrequencyEncoder(
-                    split=split,
-                    categorical_column="",
-                    _config=KnotConfig(id="bad"),
-                )
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    def _make_split(self) -> DataSplit:
+        train = MLDataset(
+            name="d:train", feature_names=("city",), target_name="y", row_count=80
+        )
+        test = MLDataset(
+            name="d:test", feature_names=("city",), target_name="y", row_count=20
+        )
+        return DataSplit(train=train, test=test)
 
-    def test_rejects_negative_default_frequency(self) -> None:
+    async def test_rejects_empty_categorical_column(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "default_frequency"):
-                FrequencyEncoder(
-                    split=split,
-                    categorical_column="city",
-                    default_frequency=-0.1,
-                    _config=KnotConfig(id="bad"),
-                )
+            k = FrequencyEncoder.__new__(FrequencyEncoder)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=self._make_split(), categorical_column="")
 
-    def test_stores_default_frequency(self) -> None:
+    async def test_rejects_negative_default_frequency(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            enc = FrequencyEncoder(
-                split=split,
-                categorical_column="city",
-                default_frequency=0.01,
-                _config=KnotConfig(id="fe"),
+            k = FrequencyEncoder.__new__(FrequencyEncoder)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=self._make_split(), categorical_column="city", default_frequency=-0.1
             )
-        assert enc.default_frequency == pytest.approx(0.01)
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

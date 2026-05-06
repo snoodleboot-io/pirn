@@ -1,4 +1,15 @@
-"""Inner deduper used by the medication reconciliation pipeline."""
+"""Inner deduper used by the medication reconciliation pipeline.
+
+Algorithm:
+    1. Receive a tuple of RxCUI code strings from an upstream Knot.
+    2. Iterate the codes in order; track codes already seen in a list.
+    3. Skip any code that is empty or already present in the seen list.
+    4. Return the deduplicated codes as a tuple preserving original order.
+
+
+References:
+    - RxNorm: https://www.nlm.nih.gov/research/umls/rxnorm/
+"""
 
 from __future__ import annotations
 
@@ -14,7 +25,7 @@ class _DedupRxCUIs(Knot):
     def __init__(
         self,
         *,
-        rxcuis: tuple[str, ...],
+        rxcuis: Knot | tuple[str, ...],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:

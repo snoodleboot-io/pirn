@@ -52,15 +52,18 @@ class TestEvaluatorHappyPath(unittest.IsolatedAsyncioTestCase):
         assert out.dataset_name == "d:test"
 
 
-class TestEvaluatorConstruction(unittest.TestCase):
-    def test_rejects_empty_metrics(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            model = emit_model(_config=KnotConfig(id="model"))
-            with self.assertRaisesRegex(ValueError, "metrics must be non-empty"):
-                Evaluator(
-                    model=model,
-                    split=split,
-                    metrics=(),
-                    _config=KnotConfig(id="bad"),
-                )
+class TestEvaluatorProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_empty_metrics(self) -> None:
+        evaluator = Evaluator.__new__(Evaluator)
+        object.__setattr__(evaluator, "_config", KnotConfig(id="x"))
+        train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
+        test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
+        split = DataSplit(train=train, test=test)
+        model = TrainedModel(
+            model_id="m1",
+            algorithm="rf",
+            feature_names=("a",),
+            target_name="y",
+        )
+        with self.assertRaisesRegex(ValueError, "metrics must be non-empty"):
+            await evaluator.process(model=model, split=split, metrics=())

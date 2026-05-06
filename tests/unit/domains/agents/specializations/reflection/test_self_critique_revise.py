@@ -55,13 +55,28 @@ class TestSelfCritiqueReviseProcess(unittest.IsolatedAsyncioTestCase):
         assert "initial" in user_content
         assert "what is x?" in user_content
 
-
-class TestSelfCritiqueReviseConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
-        with self.assertRaisesRegex(TypeError, "LLMProvider"):
+        with self.assertRaises(TypeError):
             with Tapestry():
                 SelfCritiqueRevise(
                     prompt="q",
                     llm="not-llm",  # type: ignore[arg-type]
                     _config=KnotConfig(id="scr"),
                 )
+
+
+class TestProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_process_rejects_non_llm_provider(self) -> None:
+        with Tapestry():
+            k = SelfCritiqueRevise.__new__(SelfCritiqueRevise)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises(TypeError):
+            await k.process(prompt="explain ml", llm="not-llm")  # type: ignore[arg-type]
+
+    async def test_process_rejects_non_string_prompt(self) -> None:
+        llm = StubLLMProvider(["gen", "crit", "rev"])
+        with Tapestry():
+            k = SelfCritiqueRevise.__new__(SelfCritiqueRevise)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises(TypeError):
+            await k.process(prompt=42, llm=llm)  # type: ignore[arg-type]

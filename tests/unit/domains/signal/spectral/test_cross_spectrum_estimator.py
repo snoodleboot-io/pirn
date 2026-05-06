@@ -29,18 +29,19 @@ async def emit_signal_a_alt_rate() -> SignalFrame:
     )
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_positive_segment_length(self) -> None:
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_non_positive_segment_length(self) -> None:
         with Tapestry():
-            a = emit_signal_frame(_config=KnotConfig(id="a"))
-            b = emit_signal_b_frame(_config=KnotConfig(id="b"))
-            with self.assertRaisesRegex(ValueError, "positive integer"):
-                CrossSpectrumEstimator(
-                    signal_a=a,
-                    signal_b=b,
-                    segment_length=0,
-                    _config=KnotConfig(id="x"),
-                )
+            k = CrossSpectrumEstimator.__new__(CrossSpectrumEstimator)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        signal_a = SignalFrame(
+            signal_id="test", channel_count=1, sample_rate_hz=1000.0, samples_per_channel=1024
+        )
+        signal_b = SignalFrame(
+            signal_id="other", channel_count=1, sample_rate_hz=1000.0, samples_per_channel=1024
+        )
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(signal_a=signal_a, signal_b=signal_b, segment_length=0)
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

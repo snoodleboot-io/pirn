@@ -21,20 +21,29 @@ class _RetrievedSource(Knot):
         return self._hits
 
 
-class TestRAGPromptBuilderConstruction(unittest.TestCase):
-    def test_rejects_empty_instruction(self) -> None:
-        with self.assertRaisesRegex(ValueError, "instruction"):
-            with Tapestry():
-                src = _RetrievedSource([], _config=KnotConfig(id="src"))
-                RAGPromptBuilder(
-                    query="q",
-                    retrieved=src,
-                    instruction="",
-                    _config=KnotConfig(id="rpb"),
-                )
-
-
 class TestRAGPromptBuilderProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_empty_instruction(self) -> None:
+        knot = RAGPromptBuilder(
+            query="q",
+            retrieved=_RetrievedSource([], _config=KnotConfig(id="src")),
+            _config=KnotConfig(id="rpb"),
+        )
+        with self.assertRaisesRegex(ValueError, "instruction"):
+            await knot.process(query="q", retrieved=[], instruction="")
+
+    async def test_rejects_non_string_query(self) -> None:
+        knot = RAGPromptBuilder(
+            query="q",
+            retrieved=_RetrievedSource([], _config=KnotConfig(id="src")),
+            _config=KnotConfig(id="rpb"),
+        )
+        with self.assertRaises(TypeError):
+            await knot.process(
+                query=42,  # type: ignore[arg-type]
+                retrieved=[],
+                instruction="Answer the question using the retrieved context.",
+            )
+
     async def test_builds_prompt_with_context(self) -> None:
         hits = [{"text": "relevant doc"}]
         with Tapestry() as t:
@@ -60,13 +69,3 @@ class TestRAGPromptBuilderProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         prompt = result.outputs["rpb"]
         assert "no context retrieved" in prompt
-
-    async def test_rejects_non_string_query(self) -> None:
-        with Tapestry():
-            src = _RetrievedSource([], _config=KnotConfig(id="src"))
-            with self.assertRaises(TypeError):
-                RAGPromptBuilder(
-                    query=42,  # type: ignore[arg-type]
-                    retrieved=src,
-                    _config=KnotConfig(id="rpb"),
-                )

@@ -1,4 +1,19 @@
-"""``PlanRevisor`` — revises a failed plan given partial results and failure reason."""
+"""``PlanRevisor`` — revises a failed plan given partial results and failure reason.
+
+Algorithm:
+    1. Receive the resolved ``original_plan`` (Plan), ``completed_results`` (str),
+       ``failure_reason`` (str), and ``llm`` (LLMProvider).
+    2. Validate types at process time.
+    3. Format the original steps and completed results into a structured user message.
+    4. Call ``llm.chat`` with a revision system prompt and the user message.
+    5. Parse the numbered-list response into a revised list of remaining steps.
+    6. Return a new Plan with the revised steps and the raw LLM response as rationale.
+
+
+References:
+    - Wang et al. (2023) "Plan-and-Solve Prompting: Improving Zero-Shot Chain-of-Thought Reasoning"
+    - Shinn et al. (2023) "Reflexion: Language Agents with Verbal Reinforcement Learning"
+"""
 
 from __future__ import annotations
 
@@ -33,20 +48,15 @@ class PlanRevisor(Knot):
         original_plan: Knot,
         completed_results: Knot | str,
         failure_reason: Knot | str,
-        llm: LLMProvider,
+        llm: Knot | LLMProvider,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "PlanRevisor: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
-        self._llm = llm
         super().__init__(
             original_plan=original_plan,
             completed_results=completed_results,
             failure_reason=failure_reason,
+            llm=llm,
             _config=_config,
             **kwargs,
         )
@@ -56,6 +66,7 @@ class PlanRevisor(Knot):
         original_plan: Plan,
         completed_results: str,
         failure_reason: str,
+        llm: LLMProvider,
         **_: Any,
     ) -> Plan:
         """Revise the remaining plan based on completed results and failure reason.
@@ -71,6 +82,11 @@ class PlanRevisor(Knot):
         Raises:
             TypeError: If original_plan is not a Plan instance.
         """
+        if not isinstance(llm, LLMProvider):
+            raise TypeError(
+                "PlanRevisor: llm must be an LLMProvider, "
+                f"got {type(llm).__name__}"
+            )
         if not isinstance(original_plan, Plan):
             raise TypeError(
                 "PlanRevisor: original_plan must be a Plan, "
@@ -88,7 +104,7 @@ class PlanRevisor(Knot):
             {"role": "system", "content": type(self)._revision_system},
             {"role": "user", "content": user_content},
         ]
-        raw = await self._llm.chat(messages=messages)
+        raw = await llm.chat(messages=messages)
         rationale = self._extract_text(raw)
         steps = self._parse_steps(rationale)
         return Plan(steps=tuple(steps), rationale=rationale)

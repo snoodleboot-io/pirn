@@ -42,13 +42,13 @@ class TestTrainerHappyPath(unittest.IsolatedAsyncioTestCase):
         assert dict(out.hyperparameters) == {"n_estimators": 100}
 
 
-class TestTrainerConstruction(unittest.TestCase):
-    def test_rejects_empty_algorithm(self) -> None:
+class TestTrainerConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_empty_algorithm(self) -> None:
+        train = MLDataset(name="d:train", feature_names=("a", "b"), target_name="y", row_count=80)
+        test = MLDataset(name="d:test", feature_names=("a", "b"), target_name="y", row_count=20)
+        split = DataSplit(train=train, test=test)
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "algorithm"):
-                Trainer(
-                    split=split,
-                    algorithm="",
-                    _config=KnotConfig(id="bad"),
-                )
+            k = Trainer.__new__(Trainer)
+            object.__setattr__(k, "_config", KnotConfig(id="bad"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=split, algorithm="")

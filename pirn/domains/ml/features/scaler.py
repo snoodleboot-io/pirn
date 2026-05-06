@@ -5,6 +5,16 @@ The actual numeric transformation (standardise / minmax / robust) is
 not applied to data here — pirn manipulates references at this layer.
 The output is a :class:`DataSplit` whose ``MLDataset`` references are
 renamed to record that they have been logically scaled.
+
+Algorithm:
+    1. Receive ``split`` (DataSplit), ``columns`` (sequence of str), and ``method`` (str) via process().
+    2. Validate columns is non-empty and method is valid.
+    3. Append the ``scaled_<method>`` suffix to each partition's MLDataset name.
+    4. Return the renamed DataSplit.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -30,11 +40,33 @@ class Scaler(Knot):
         self,
         *,
         split: Knot,
-        columns: Sequence[str],
-        method: str = "standardise",
+        columns: Knot | Sequence[str],
+        method: Knot | str = "standardise",
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(split=split, columns=columns, method=method, _config=_config, **kwargs)
+
+    async def process(
+        self,
+        split: DataSplit,
+        columns: Sequence[str] = (),
+        method: str = "standardise",
+        **_: Any,
+    ) -> DataSplit:
+        """Logically scale each partition's MLDataset using the configured method and return the renamed DataSplit.
+
+        Args:
+            split: DataSplit whose partitions are logically tagged with the scaling suffix.
+            columns: Non-empty sequence of column names to scale.
+            method: Scaling method; must be one of ``valid_methods``.
+
+        Returns:
+            DataSplit with each partition renamed to include the ``scaled_<method>`` suffix.
+
+        Raises:
+            ValueError: If columns is empty or method is invalid.
+        """
         column_tuple = tuple(columns)
         if not column_tuple:
             raise ValueError("Scaler: columns must be non-empty")
@@ -47,28 +79,7 @@ class Scaler(Knot):
             raise ValueError(
                 f"Scaler: method must be one of {sorted(self.valid_methods)}"
             )
-        self._columns = column_tuple
-        self._method = method
-        super().__init__(split=split, _config=_config, **kwargs)
-
-    @property
-    def method(self) -> str:
-        return self._method
-
-    @property
-    def columns(self) -> tuple[str, ...]:
-        return self._columns
-
-    async def process(self, split: DataSplit, **_: Any) -> DataSplit:
-        """Logically scale each partition's MLDataset using the configured method and return the renamed DataSplit.
-
-        Args:
-            split: DataSplit whose partitions are logically tagged with the scaling suffix.
-
-        Returns:
-            DataSplit with each partition renamed to include the ``scaled_<method>`` suffix.
-        """
-        suffix = f"scaled_{self._method}"
+        suffix = f"scaled_{method}"
         now = datetime.now(timezone.utc)
         return DataSplit(
             train=self._mark(split.train, suffix, now),

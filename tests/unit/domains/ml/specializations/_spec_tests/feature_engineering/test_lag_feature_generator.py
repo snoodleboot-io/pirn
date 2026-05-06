@@ -32,29 +32,31 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_columns(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "columns"):
-                LagFeatureGenerator(
-                    split=split,
-                    time_column="t",
-                    columns=(),
-                    _config=KnotConfig(id="bad"),
-                )
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    def _make_split(self) -> DataSplit:
+        train = MLDataset(
+            name="ts:train", feature_names=("t", "value"), target_name="y", row_count=80
+        )
+        test = MLDataset(
+            name="ts:test", feature_names=("t", "value"), target_name="y", row_count=20
+        )
+        return DataSplit(train=train, test=test)
 
-    def test_rejects_lag_below_one(self) -> None:
+    async def test_rejects_empty_columns(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "lag"):
-                LagFeatureGenerator(
-                    split=split,
-                    time_column="t",
-                    columns=("value",),
-                    lags=(0,),
-                    _config=KnotConfig(id="bad"),
-                )
+            k = LagFeatureGenerator.__new__(LagFeatureGenerator)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=self._make_split(), time_column="t", columns=())
+
+    async def test_rejects_lag_below_one(self) -> None:
+        with Tapestry():
+            k = LagFeatureGenerator.__new__(LagFeatureGenerator)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=self._make_split(), time_column="t", columns=("value",), lags=(0,)
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

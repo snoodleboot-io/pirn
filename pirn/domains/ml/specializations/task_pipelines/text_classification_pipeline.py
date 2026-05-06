@@ -1,11 +1,24 @@
 """``TextClassificationPipeline`` — TF-IDF/embedding → classifier train
 → evaluation, supporting binary and multiclass text classification.
+
+Algorithm:
+    1. Receive ``pool``, ``query``, ``text_column``, ``target_column``,
+       ``vectorizer``, and ``algorithm`` via process().
+    2. Validate all inputs.
+    3. Wire DatasetLoader → TrainTestSplit → Trainer → Evaluator in an
+       inner Tapestry.
+    4. Run via _run_inner() and return the EvalReport.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from typing import Any, ClassVar
 
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.connectors.database_connection_pool import (
     DatabaseConnectionPool,
@@ -28,27 +41,64 @@ class TextClassificationPipeline(SubTapestry):
         "recall",
         "f1",
     )
+    valid_vectorizers: ClassVar[frozenset[str]] = frozenset({"tfidf", "embedding"})
 
     def __init__(
         self,
         *,
-        pool: DatabaseConnectionPool,
-        query: str,
-        text_column: str,
-        target_column: str,
-        vectorizer: str = "tfidf",
-        algorithm: str = "logistic",
+        pool: Knot | DatabaseConnectionPool,
+        query: Knot | str,
+        text_column: Knot | str,
+        target_column: Knot | str,
+        vectorizer: Knot | str = "tfidf",
+        algorithm: Knot | str = "logistic",
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            pool=pool,
+            query=query,
+            text_column=text_column,
+            target_column=target_column,
+            vectorizer=vectorizer,
+            algorithm=algorithm,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        pool: DatabaseConnectionPool = None,
+        query: str = "",
+        text_column: str = "",
+        target_column: str = "",
+        vectorizer: str = "tfidf",
+        algorithm: str = "logistic",
+        **_: Any,
+    ) -> EvalReport:
+        """Load text data, vectorize, train a classifier, and return the classification EvalReport.
+
+        Args:
+            pool: DatabaseConnectionPool for loading the dataset.
+            query: Non-empty SQL query string.
+            text_column: Non-empty name of the text column.
+            target_column: Non-empty name of the target column.
+            vectorizer: Text vectorization method; must be one of {"tfidf", "embedding"}.
+            algorithm: Non-empty algorithm identifier.
+
+        Returns:
+            EvalReport containing accuracy, precision, recall, and f1 metrics.
+
+        Raises:
+            ValueError: If any input fails validation.
+            TypeError: If pool is not a DatabaseConnectionPool.
+        """
         if not isinstance(pool, DatabaseConnectionPool):
             raise TypeError(
                 "TextClassificationPipeline: pool must be a DatabaseConnectionPool"
             )
         if not isinstance(query, str) or not query:
-            raise ValueError(
-                "TextClassificationPipeline: query must be a non-empty string"
-            )
+            raise ValueError("TextClassificationPipeline: query must be a non-empty string")
         if not isinstance(text_column, str) or not text_column:
             raise ValueError(
                 "TextClassificationPipeline: text_column must be a non-empty string"
@@ -57,40 +107,19 @@ class TextClassificationPipeline(SubTapestry):
             raise ValueError(
                 "TextClassificationPipeline: target_column must be a non-empty string"
             )
-        allowed_vec = {"tfidf", "embedding"}
-        if vectorizer not in allowed_vec:
+        if vectorizer not in self.valid_vectorizers:
             raise ValueError(
-                f"TextClassificationPipeline: vectorizer must be one of {allowed_vec}"
+                f"TextClassificationPipeline: vectorizer must be one of {sorted(self.valid_vectorizers)}"
             )
         if not isinstance(algorithm, str) or not algorithm:
-            raise ValueError(
-                "TextClassificationPipeline: algorithm must be a non-empty string"
-            )
-        self._pool = pool
-        self._query = query
-        self._text_column = text_column
-        self._target_column = target_column
-        self._vectorizer = vectorizer
-        self._algorithm = algorithm
-        super().__init__(_config=_config, **kwargs)
-
-    @property
-    def vectorizer(self) -> str:
-        return self._vectorizer
-
-    async def process(self, **_: Any) -> EvalReport:
-        """Load text data, vectorize, train a classifier, and return the classification EvalReport.
-
-        Returns:
-            EvalReport containing accuracy, precision, recall, and f1 metrics.
-        """
+            raise ValueError("TextClassificationPipeline: algorithm must be a non-empty string")
         with Tapestry() as inner:
             dataset = DatasetLoader(
                 name="text-classification",
-                feature_names=(self._text_column,),
-                target_name=self._target_column,
-                pool=self._pool,
-                query=self._query,
+                feature_names=(text_column,),
+                target_name=target_column,
+                pool=pool,
+                query=query,
                 _config=KnotConfig(id="load"),
             )
             split = TrainTestSplit(
@@ -99,8 +128,8 @@ class TextClassificationPipeline(SubTapestry):
             )
             trained = Trainer(
                 split=split,
-                algorithm=self._algorithm,
-                hyperparameters={"vectorizer": self._vectorizer},
+                algorithm=algorithm,
+                hyperparameters={"vectorizer": vectorizer},
                 _config=KnotConfig(id="train"),
             )
             Evaluator(

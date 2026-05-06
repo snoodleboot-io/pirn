@@ -38,39 +38,40 @@ class TestDatasetLoaderHappyPath(unittest.IsolatedAsyncioTestCase):
         assert pool.queries == [("SELECT id FROM customers", None)]
 
 
-class TestDatasetLoaderConstruction(unittest.TestCase):
-    def test_rejects_missing_inputs(self) -> None:
+class TestDatasetLoaderProcess(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self) -> DatasetLoader:
         with Tapestry():
-            with pytest.raises(
-                ValueError, match="exactly one of"
-            ):
-                DatasetLoader(
-                    name="customers",
-                    feature_names=("a",),
-                    _config=KnotConfig(id="bad"),
-                )
+            loader = DatasetLoader.__new__(DatasetLoader)
+            object.__setattr__(loader, "_config", KnotConfig(id="x"))
+        return loader
 
-    def test_rejects_pool_query_and_parquet_together(self) -> None:
-        pool = RecordingDatabasePool()
-        with Tapestry():
-            with self.assertRaisesRegex(ValueError, "exactly one of"):
-                DatasetLoader(
-                    name="customers",
-                    feature_names=("a",),
-                    pool=pool,
-                    query="SELECT 1",
-                    parquet_path="/tmp/out.parquet",
-                    _config=KnotConfig(id="bad"),
-                )
+    async def test_rejects_missing_inputs(self) -> None:
+        loader = self._make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await loader.process(
+                name="customers",
+                feature_names=("a",),
+            )
 
-    def test_rejects_empty_feature_names(self) -> None:
+    async def test_rejects_pool_query_and_parquet_together(self) -> None:
+        loader = self._make_knot()
         pool = RecordingDatabasePool()
-        with Tapestry():
-            with self.assertRaisesRegex(ValueError, "feature_names"):
-                DatasetLoader(
-                    name="customers",
-                    feature_names=(),
-                    pool=pool,
-                    query="SELECT 1",
-                    _config=KnotConfig(id="bad"),
-                )
+        with self.assertRaises((TypeError, ValueError)):
+            await loader.process(
+                name="customers",
+                feature_names=("a",),
+                pool=pool,
+                query="SELECT 1",
+                parquet_path="/tmp/out.parquet",
+            )
+
+    async def test_rejects_empty_feature_names(self) -> None:
+        loader = self._make_knot()
+        pool = RecordingDatabasePool()
+        with pytest.raises(ValueError, match="feature_names"):
+            await loader.process(
+                name="customers",
+                feature_names=(),
+                pool=pool,
+                query="SELECT 1",
+            )

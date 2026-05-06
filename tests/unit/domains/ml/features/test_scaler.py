@@ -43,14 +43,11 @@ class TestScalerHappyPath(unittest.IsolatedAsyncioTestCase):
         assert out.test.row_count == 20
 
 
-class TestScalerConstruction(unittest.TestCase):
-    def test_rejects_unknown_method(self) -> None:
+class TestScalerConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_unknown_method(self) -> None:
+        split = _split()
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "method must be"):
-                Scaler(
-                    split=split,
-                    columns=("a",),
-                    method="bogus",
-                    _config=KnotConfig(id="bad"),
-                )
+            k = Scaler.__new__(Scaler)
+            object.__setattr__(k, "_config", KnotConfig(id="bad"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=split, columns=("a",), method="bogus")

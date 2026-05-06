@@ -1,74 +1,50 @@
 """Unit tests for :class:`IIRFilter`."""
 
 from __future__ import annotations
+
 import unittest
 
+import pytest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
+from pirn.core.parameter import Parameter
 from pirn.domains.signal.filters.iir_filter import IIRFilter
 from pirn.domains.signal.types.signal_frame import SignalFrame
-from pirn.tapestry import Tapestry
-from tests.unit.domains.signal.conftest import emit_signal_frame
+from tests.unit.domains.signal.conftest import make_signal_frame
+
+_SIGNAL = make_signal_frame()
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_numerator(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "numerator"):
-                IIRFilter(
-                    signal=sig,
-                    numerator=[],
-                    denominator=[1.0],
-                    _config=KnotConfig(id="iir"),
-                )
-
-    def test_rejects_empty_denominator(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "denominator"):
-                IIRFilter(
-                    signal=sig,
-                    numerator=[1.0],
-                    denominator=[],
-                    _config=KnotConfig(id="iir"),
-                )
-
-    def test_rejects_zero_leading_denominator(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "non-zero"):
-                IIRFilter(
-                    signal=sig,
-                    numerator=[1.0],
-                    denominator=[0.0, 1.0],
-                    _config=KnotConfig(id="iir"),
-                )
-
-    def test_rejects_non_numeric_coefficient(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(TypeError, "real number"):
-                IIRFilter(
-                    signal=sig,
-                    numerator=[1.0, "x"],  # type: ignore[list-item]
-                    denominator=[1.0],
-                    _config=KnotConfig(id="iir"),
-                )
+def _up(name: str = "signal") -> Parameter:
+    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
 
 
-class TestProcess(unittest.IsolatedAsyncioTestCase):
+class TestIIRFilter(unittest.IsolatedAsyncioTestCase):
+    def _make(self) -> IIRFilter:
+        return IIRFilter(
+            signal=_up(),
+            numerator=(1.0, 0.5),
+            denominator=(1.0, -0.5),
+            _config=KnotConfig(id="iir"),
+        )
+
+    async def test_rejects_empty_numerator(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="numerator"):
+            await knot.process(_SIGNAL, numerator=(), denominator=(1.0,))
+
+    async def test_rejects_empty_denominator(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="denominator"):
+            await knot.process(_SIGNAL, numerator=(1.0,), denominator=())
+
+    async def test_rejects_zero_denominator_first(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="denominator"):
+            await knot.process(_SIGNAL, numerator=(1.0,), denominator=(0.0, 1.0))
+
     async def test_emits_signal_frame(self) -> None:
-        with Tapestry() as t:
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            IIRFilter(
-                signal=sig,
-                numerator=[1.0, 0.5],
-                denominator=[1.0, -0.2],
-                _config=KnotConfig(id="iir"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["iir"]
+        knot = self._make()
+        out = await knot.process(_SIGNAL, numerator=(1.0, 0.5), denominator=(1.0, -0.5))
         assert isinstance(out, SignalFrame)
         assert out.signal_id == "test:iir"

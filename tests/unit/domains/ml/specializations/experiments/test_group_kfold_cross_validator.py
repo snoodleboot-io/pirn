@@ -22,29 +22,6 @@ class _KnotStub(Knot):
 
 
 class TestConstruction(unittest.TestCase):
-    def test_rejects_k_less_than_2(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                GroupKFoldCrossValidator(
-                    dataset=_KnotStub(_config=KnotConfig(id="d")),
-                    algorithm="rf",
-                    metrics=["accuracy"],
-                    group_column="patient_id",
-                    k=1,
-                    _config=KnotConfig(id="gkf"),
-                )
-
-    def test_rejects_empty_group_column(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                GroupKFoldCrossValidator(
-                    dataset=_KnotStub(_config=KnotConfig(id="d")),
-                    algorithm="rf",
-                    metrics=["accuracy"],
-                    group_column="",
-                    _config=KnotConfig(id="gkf"),
-                )
-
     def test_valid_construction(self) -> None:
         with Tapestry() as t:
             GroupKFoldCrossValidator(
@@ -56,3 +33,38 @@ class TestConstruction(unittest.TestCase):
                 _config=KnotConfig(id="gkf"),
             )
         self.assertIsNotNone(t._store.get("gkf"))
+
+
+class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self) -> GroupKFoldCrossValidator:
+        with Tapestry():
+            return GroupKFoldCrossValidator(
+                dataset=_KnotStub(_config=KnotConfig(id="d")),
+                algorithm="rf",
+                metrics=["accuracy"],
+                group_column="patient_id",
+                k=5,
+                _config=KnotConfig(id="gkf"),
+            )
+
+    async def test_rejects_k_less_than_2(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaises(ValueError):
+            await knot.process(
+                dataset=object(),  # type: ignore[arg-type]
+                algorithm="rf",
+                metrics=["accuracy"],
+                group_column="patient_id",
+                k=1,
+            )
+
+    async def test_rejects_empty_group_column(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaises(ValueError):
+            await knot.process(
+                dataset=object(),  # type: ignore[arg-type]
+                algorithm="rf",
+                metrics=["accuracy"],
+                group_column="",
+                k=5,
+            )

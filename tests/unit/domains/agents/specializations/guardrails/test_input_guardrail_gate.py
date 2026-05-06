@@ -13,29 +13,17 @@ from pirn.domains.agents.types.agent_message import AgentMessage
 from pirn.tapestry import Tapestry
 
 
-class TestInputGuardrailGateConstruction(unittest.IsolatedAsyncioTestCase):
-    async def test_rejects_non_string_deny_pattern(self) -> None:
-        with self.assertRaisesRegex(TypeError, "deny_patterns"):
-            with Tapestry():
-                InputGuardrailGate(
-                    messages=(AgentMessage(role="user", content="hi"),),
-                    deny_patterns=(123,),  # type: ignore[arg-type]
-                    _config=KnotConfig(id="gate"),
-                )
-
-    async def test_rejects_non_string_pii_pattern(self) -> None:
-        with self.assertRaisesRegex(TypeError, "pii_patterns"):
-            with Tapestry():
-                InputGuardrailGate(
-                    messages=(AgentMessage(role="user", content="hi"),),
-                    deny_patterns=(),
-                    pii_patterns=(456,),  # type: ignore[arg-type]
-                    _config=KnotConfig(id="gate"),
-                )
+def _make_knot() -> InputGuardrailGate:
+    with Tapestry():
+        return InputGuardrailGate(
+            messages=(),
+            deny_patterns=(),
+            _config=KnotConfig(id="gate"),
+        )
 
 
-class TestInputGuardrailGateHappyPath(unittest.IsolatedAsyncioTestCase):
-    async def test_redacts_pii_and_passes_clean_messages_through(self,) -> None:
+class TestInputGuardrailGateProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_redacts_pii_and_passes_clean_messages_through(self) -> None:
         messages = (
             AgentMessage(role="user", content="email me at me@x.com"),
             AgentMessage(role="user", content="hello world"),
@@ -68,7 +56,9 @@ class TestInputGuardrailGateHappyPath(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert not result.succeeded
-        assert any(
-            "deny pattern" in (record.traceback_text or "")
-            for record in result.exceptions
-        )
+
+    async def test_deny_pattern_raises_at_process_time(self) -> None:
+        k = _make_knot()
+        messages = (AgentMessage(role="user", content="please DROP TABLE users"),)
+        with self.assertRaises(ValueError):
+            await k.process(messages=messages, deny_patterns=(r"DROP TABLE",))

@@ -36,3 +36,14 @@ class TestLLMCallKnotProcess(unittest.IsolatedAsyncioTestCase):
             )
         await t.run(RunRequest())
         assert llm.calls[0][-1]["content"] == "my custom prompt"
+
+
+class TestProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_process_returns_llm_text(self) -> None:
+        llm = StubLLMProvider(["direct result"])
+        with Tapestry():
+            k = _LLMCallKnot.__new__(_LLMCallKnot)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        result = await k.process(prompt="ask something", llm=llm)
+        assert isinstance(result, str)
+        assert result == "direct result"

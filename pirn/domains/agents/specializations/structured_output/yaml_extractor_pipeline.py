@@ -3,6 +3,24 @@
 Same shape as :class:`JsonExtractorPipeline` but YAML output. Uses
 ``pyyaml`` (a baseline pirn dependency). The schema is optional — when
 omitted, any well-formed YAML mapping is accepted.
+
+Algorithm:
+    1. Receive ``prompt`` (str), ``llm`` (LLMProvider), optional ``schema``
+       (Mapping), and ``max_retries`` (int).
+    2. Validate each argument; raise ``TypeError`` or ``ValueError`` on
+       invalid inputs.
+    3. For each attempt index in ``range(max_retries)``:
+       a. Build an inner Tapestry with a ``_YamlExtractorAttempt`` knot,
+          passing the accumulated ``prior_error`` for self-correction.
+       b. Await ``_run_inner`` to obtain the attempt outcome.
+       c. If the outcome is a dict, return it immediately.
+       d. Otherwise, record the error string and loop.
+    4. Raise ``ValueError`` after exhausting all attempts.
+
+
+References:
+    - :class:`pirn.domains.agents.specializations.structured_output._yaml_extractor_attempt._YamlExtractorAttempt`
+    - PyYAML: https://pyyaml.org/wiki/PyYAMLDocumentation
 """
 
 from __future__ import annotations
@@ -27,12 +45,44 @@ class YamlExtractorPipeline(SubTapestry):
         self,
         *,
         prompt: Knot | str,
-        llm: LLMProvider,
+        llm: Knot | LLMProvider,
         _config: KnotConfig,
-        schema: Mapping[str, Any] | None = None,
-        max_retries: int = 3,
+        schema: Knot | Mapping[str, Any] | None = None,
+        max_retries: Knot | int = 3,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            prompt=prompt,
+            llm=llm,
+            schema=schema,
+            max_retries=max_retries,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        prompt: str,
+        llm: LLMProvider,
+        schema: Mapping[str, Any] | None = None,
+        max_retries: int = 3,
+        **_: Any,
+    ) -> Mapping[str, Any]:
+        """Extract a YAML mapping from the LLM response, retrying with error feedback on failure.
+
+        Args:
+            prompt: The extraction prompt string sent to the LLM.
+            llm: The LLM provider used to generate responses.
+            schema: Optional mapping describing expected keys and types.
+            max_retries: Maximum number of attempts before raising.
+
+        Returns:
+            A parsed YAML mapping; conforms to the optional schema when one is provided.
+
+        Raises:
+            TypeError: If any argument is the wrong type.
+            ValueError: If max_retries is not a positive int, or all attempts are exhausted.
+        """
         if not isinstance(llm, LLMProvider):
             raise TypeError(
                 "YamlExtractorPipeline: llm must be an LLMProvider, "
@@ -48,39 +98,22 @@ class YamlExtractorPipeline(SubTapestry):
                 "YamlExtractorPipeline: max_retries must be a positive int, "
                 f"got {max_retries!r}"
             )
-        self._llm = llm
-        self._schema: dict[str, Any] | None = (
-            dict(schema) if schema is not None else None
-        )
-        self._max_retries = max_retries
-        super().__init__(prompt=prompt, _config=_config, **kwargs)
-
-    async def process(self, prompt: str, **_: Any) -> Mapping[str, Any]:
-        """Extract a YAML mapping from the LLM response, retrying with error feedback on failure.
-
-        Args:
-            prompt: The extraction prompt string sent to the LLM.
-
-        Returns:
-            A parsed YAML mapping; conforms to the optional schema when one is provided.
-
-        Raises:
-            TypeError: If prompt is not a string.
-            ValueError: If all retry attempts are exhausted without a valid YAML mapping.
-        """
         if not isinstance(prompt, str):
             raise TypeError(
                 "YamlExtractorPipeline: prompt must be a string, "
                 f"got {type(prompt).__name__}"
             )
+        resolved_schema: dict[str, Any] | None = (
+            dict(schema) if schema is not None else None
+        )
         prior_error = ""
         last_error = "no attempts were made"
-        for attempt_index in range(self._max_retries):
+        for attempt_index in range(max_retries):
             with Tapestry() as inner:
                 _YamlExtractorAttempt(
                     prompt=prompt,
-                    llm=self._llm,
-                    schema=self._schema,
+                    llm=llm,
+                    schema=resolved_schema,
                     prior_error=prior_error,
                     _config=KnotConfig(id=f"attempt_{attempt_index}"),
                 )
@@ -92,5 +125,5 @@ class YamlExtractorPipeline(SubTapestry):
             last_error = prior_error
         raise ValueError(
             "YamlExtractorPipeline: exhausted "
-            f"{self._max_retries} attempt(s); last error: {last_error}"
+            f"{max_retries} attempt(s); last error: {last_error}"
         )

@@ -1,4 +1,19 @@
-"""``IntentClassifier`` — pick the closest declared intent for a context."""
+"""``IntentClassifier`` — pick the closest declared intent for a context.
+
+Algorithm:
+    1. Receive the resolved ``AgentContext``, ``LLMProvider``, and ``intent_categories``.
+    2. Validate input types at process time.
+    3. Extract the last user message from the context.
+    4. Build a classification prompt with the intent category labels.
+    5. Call ``llm.chat`` with the prompt.
+    6. Extract text from the raw response.
+    7. Try exact lower-case match, then substring match against intent labels.
+    8. Raise ``ValueError`` if no match found.
+
+
+References:
+    - :class:`pirn.domains.agents.llm_provider.LLMProvider`
+"""
 
 from __future__ import annotations
 
@@ -25,11 +40,45 @@ class IntentClassifier(Knot):
         self,
         *,
         context: Knot,
-        llm: LLMProvider,
-        intent_categories: Sequence[str],
+        llm: Knot | LLMProvider,
+        intent_categories: Knot | Sequence[str],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            context=context,
+            llm=llm,
+            intent_categories=intent_categories,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        context: AgentContext,
+        llm: LLMProvider,
+        intent_categories: Sequence[str],
+        **_: Any,
+    ) -> str:
+        """Ask the LLM to classify the context into one of the declared intent categories.
+
+        Args:
+            context: The agent context whose last user message is classified.
+            llm: LLM provider used to perform the classification.
+            intent_categories: The set of allowed intent label strings.
+
+        Returns:
+            The matched intent label string from the declared categories.
+
+        Raises:
+            TypeError: If inputs have wrong types.
+            ValueError: If intent_categories is empty or the LLM response matches no intent.
+        """
+        if not isinstance(context, AgentContext):
+            raise TypeError(
+                "IntentClassifier: context must be an AgentContext, "
+                f"got {type(context).__name__}"
+            )
         if not isinstance(llm, LLMProvider):
             raise TypeError(
                 "IntentClassifier: llm must be an LLMProvider, "
@@ -51,40 +100,6 @@ class IntentClassifier(Knot):
                     f"IntentClassifier: intent_categories[{index}] must be a "
                     f"non-empty string, got {intent!r}"
                 )
-        super().__init__(
-            context=context,
-            llm=llm,
-            intent_categories=tuple(intent_categories),
-            _config=_config,
-            **kwargs,
-        )
-
-    async def process(
-        self,
-        context: AgentContext,
-        llm: LLMProvider,
-        intent_categories: tuple[str, ...],
-        **_: Any,
-    ) -> str:
-        """Ask the LLM to classify the context into one of the declared intent categories and return the label.
-
-        Args:
-            context: The agent context whose last user message is classified.
-            llm: LLM provider used to perform the classification.
-            intent_categories: The set of allowed intent label strings.
-
-        Returns:
-            The matched intent label string from the declared categories.
-
-        Raises:
-            TypeError: If context is not an AgentContext instance.
-            ValueError: If the LLM response does not match any declared intent.
-        """
-        if not isinstance(context, AgentContext):
-            raise TypeError(
-                "IntentClassifier: context must be an AgentContext, "
-                f"got {type(context).__name__}"
-            )
         last = self._last_user_content(context)
         prompt = (
             "Classify the following message into exactly one of these "

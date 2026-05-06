@@ -5,6 +5,22 @@ trailing conversation as a single user prompt prefixed with the
 caller-supplied ``fact_extraction_prompt``, parses the LLM's reply into
 a list of facts (one per non-empty line, with leading list markers
 stripped), and returns the extracted facts.
+
+Algorithm
+---------
+1. Validate inputs.
+2. Render messages as ``role: content`` lines.
+3. Prepend ``fact_extraction_prompt`` and call the LLM.
+4. Parse the reply line-by-line, stripping list markers.
+5. Return the list of non-empty fact strings.
+
+Math
+----
+No mathematical operations.
+
+References
+----------
+None.
 """
 
 from __future__ import annotations
@@ -25,53 +41,62 @@ class SemanticFactExtractor(Knot):
         self,
         *,
         messages: Knot | Sequence[AgentMessage],
-        llm: LLMProvider,
-        fact_extraction_prompt: str,
+        llm: Knot | LLMProvider,
+        fact_extraction_prompt: Knot | str,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "SemanticFactExtractor: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
-        if (
-            not isinstance(fact_extraction_prompt, str)
-            or not fact_extraction_prompt
-        ):
-            raise ValueError(
-                "SemanticFactExtractor: fact_extraction_prompt must be a "
-                "non-empty string"
-            )
-        self._llm = llm
-        self._fact_prompt = fact_extraction_prompt
-        super().__init__(messages=messages, _config=_config, **kwargs)
+        super().__init__(
+            messages=messages,
+            llm=llm,
+            fact_extraction_prompt=fact_extraction_prompt,
+            _config=_config,
+            **kwargs,
+        )
 
     async def process(
         self,
         messages: Sequence[AgentMessage],
+        llm: LLMProvider,
+        fact_extraction_prompt: str,
         **_: Any,
     ) -> list[str]:
         """Ask the LLM to extract factual claims from the conversation and return them as a list.
 
         Args:
             messages: The sequence of agent messages forming the conversation to analyse.
+            llm: The LLMProvider to query for fact extraction.
+            fact_extraction_prompt: Non-empty prompt string prefixed to the conversation.
 
         Returns:
             A list of factual claim strings extracted from the conversation.
+
+        Raises:
+            TypeError: If llm is not an LLMProvider.
+            ValueError: If fact_extraction_prompt is not a non-empty string.
         """
+        if not isinstance(llm, LLMProvider):
+            raise TypeError(
+                "SemanticFactExtractor: llm must be an LLMProvider, "
+                f"got {type(llm).__name__}"
+            )
+        if not isinstance(fact_extraction_prompt, str) or not fact_extraction_prompt:
+            raise ValueError(
+                "SemanticFactExtractor: fact_extraction_prompt must be a "
+                "non-empty string"
+            )
         message_tuple = tuple(messages)
         rendered = "\n".join(
             f"{m.role}: {m.content}" for m in message_tuple
         )
         prompt = (
-            f"{self._fact_prompt}\n\n"
+            f"{fact_extraction_prompt}\n\n"
             "Conversation:\n"
             f"{rendered}\n\n"
             "Return one fact per line."
         )
         chat_messages = [{"role": "user", "content": prompt}]
-        raw = await self._llm.chat(chat_messages)
+        raw = await llm.chat(chat_messages)
         text = self._extract_text(raw)
         facts: list[str] = []
         for raw_line in text.splitlines():

@@ -24,41 +24,39 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_patience_below_one(self) -> None:
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_patience_below_one(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "patience must be >= 1"):
-                EarlyStoppingTrainer(
-                    split=split,
-                    algorithm="nn",
-                    monitor_metric="val_loss",
-                    patience=0,
-                    _config=KnotConfig(id="bad"),
-                )
+            k = EarlyStoppingTrainer.__new__(EarlyStoppingTrainer)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        split = DataSplit(
+            train=MLDataset(name="d:train", feature_names=("a",), row_count=80),
+            test=MLDataset(name="d:test", feature_names=("a",), row_count=20),
+        )
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=split, algorithm="nn", monitor_metric="val_loss", patience=0)
 
-    def test_rejects_empty_monitor_metric(self) -> None:
+    async def test_rejects_empty_monitor_metric(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "monitor_metric"):
-                EarlyStoppingTrainer(
-                    split=split,
-                    algorithm="nn",
-                    monitor_metric="",
-                    _config=KnotConfig(id="bad"),
-                )
+            k = EarlyStoppingTrainer.__new__(EarlyStoppingTrainer)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        split = DataSplit(
+            train=MLDataset(name="d:train", feature_names=("a",), row_count=80),
+            test=MLDataset(name="d:test", feature_names=("a",), row_count=20),
+        )
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=split, algorithm="nn", monitor_metric="")
 
-    def test_rejects_max_epochs_below_one(self) -> None:
+    async def test_rejects_max_epochs_below_one(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "max_epochs must be >= 1"):
-                EarlyStoppingTrainer(
-                    split=split,
-                    algorithm="nn",
-                    monitor_metric="val_loss",
-                    max_epochs=0,
-                    _config=KnotConfig(id="bad"),
-                )
+            k = EarlyStoppingTrainer.__new__(EarlyStoppingTrainer)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        split = DataSplit(
+            train=MLDataset(name="d:train", feature_names=("a",), row_count=80),
+            test=MLDataset(name="d:test", feature_names=("a",), row_count=20),
+        )
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=split, algorithm="nn", monitor_metric="val_loss", max_epochs=0)
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

@@ -2,6 +2,20 @@
 
 Wraps the generated code plus linter warnings into an
 :class:`AgentResponse`. Internal API.
+
+Algorithm:
+    1. Receive the generated ``code`` string and ``warnings`` list from
+       the linter knot.
+    2. Build a ``usage`` dict recording the count of lint warnings and a
+       ``tests_skipped`` sentinel.
+    3. Return an :class:`AgentResponse` with ``content=code``,
+       ``finish_reason="stop"``, and the usage dict.
+
+Math:
+    No numeric computation beyond ``len(warnings)``.
+
+References:
+    - AgentResponse dataclass: ``pirn.domains.agents.types.agent_response``.
 """
 
 from __future__ import annotations

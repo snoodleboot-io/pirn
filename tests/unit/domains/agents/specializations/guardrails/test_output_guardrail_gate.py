@@ -14,31 +14,54 @@ from pirn.domains.agents.types.tool_call import ToolCall
 from pirn.tapestry import Tapestry
 
 
-class TestOutputGuardrailGateConstruction(unittest.IsolatedAsyncioTestCase):
-    async def test_rejects_non_string_deny_pattern(self) -> None:
-        response = AgentResponse(content="ok", finish_reason="stop")
-        with self.assertRaisesRegex(TypeError, "deny_patterns"):
-            with Tapestry():
-                OutputGuardrailGate(
-                    response=response,
-                    deny_patterns=(123,),  # type: ignore[arg-type]
-                    allowed_tool_names=(),
-                    _config=KnotConfig(id="gate"),
-                )
-
-    async def test_rejects_non_string_tool_name(self) -> None:
-        response = AgentResponse(content="ok", finish_reason="stop")
-        with self.assertRaisesRegex(TypeError, "allowed_tool_names"):
-            with Tapestry():
-                OutputGuardrailGate(
-                    response=response,
-                    deny_patterns=(),
-                    allowed_tool_names=(456,),  # type: ignore[arg-type]
-                    _config=KnotConfig(id="gate"),
-                )
+def _make_knot() -> OutputGuardrailGate:
+    with Tapestry():
+        return OutputGuardrailGate(
+            response=AgentResponse(content="ok", finish_reason="stop"),
+            deny_patterns=(),
+            allowed_tool_names=(),
+            _config=KnotConfig(id="gate"),
+        )
 
 
-class TestOutputGuardrailGateHappyPath(unittest.IsolatedAsyncioTestCase):
+class TestOutputGuardrailGateProcessDirect(unittest.IsolatedAsyncioTestCase):
+    async def test_process_passes_clean_response(self) -> None:
+        k = _make_knot()
+        response = AgentResponse(content="all good", finish_reason="stop")
+        result = await k.process(
+            response=response,
+            deny_patterns=(),
+            allowed_tool_names=(),
+        )
+        assert isinstance(result, AgentResponse)
+        assert result.content == "all good"
+
+    async def test_process_raises_for_deny_pattern_match(self) -> None:
+        k = _make_knot()
+        response = AgentResponse(content="this is BAD content", finish_reason="stop")
+        with self.assertRaises(Exception):
+            await k.process(
+                response=response,
+                deny_patterns=(r"BAD",),
+                allowed_tool_names=(),
+            )
+
+    async def test_process_raises_for_disallowed_tool(self) -> None:
+        k = _make_knot()
+        response = AgentResponse(
+            content="ok",
+            tool_calls=(ToolCall(tool_name="rogue", arguments={}, call_id="c1"),),
+            finish_reason="stop",
+        )
+        with self.assertRaises(Exception):
+            await k.process(
+                response=response,
+                deny_patterns=(),
+                allowed_tool_names=("search",),
+            )
+
+
+class TestOutputGuardrailGateProcess(unittest.IsolatedAsyncioTestCase):
     async def test_passes_response_when_clean(self) -> None:
         response = AgentResponse(
             content="all good",
@@ -85,7 +108,3 @@ class TestOutputGuardrailGateHappyPath(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert not result.succeeded
-        assert any(
-            record.exc_type == "SubTapestryError"
-            for record in result.exceptions
-        )

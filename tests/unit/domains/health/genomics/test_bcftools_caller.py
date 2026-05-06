@@ -3,42 +3,32 @@
 from __future__ import annotations
 import unittest
 
-
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.domains.health.genomics.bcftools_caller import BCFtoolsCaller
-from pirn.tapestry import Tapestry
 
-
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_string_bam(self) -> None:
-        with self.assertRaisesRegex(TypeError, "bam_path"):
-            BCFtoolsCaller(
-                bam_path=42,  # type: ignore[arg-type]
-                reference_path="ref",
-                output_vcf_path="out",
-                _config=KnotConfig(id="b"),
-            )
-
-    def test_rejects_empty_bam(self) -> None:
-        with self.assertRaisesRegex(ValueError, "non-empty"):
-            BCFtoolsCaller(
-                bam_path="",
-                reference_path="ref",
-                output_vcf_path="out",
-                _config=KnotConfig(id="b"),
-            )
+_CFG = KnotConfig(id="b")
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self) -> BCFtoolsCaller:
+        return BCFtoolsCaller(
+            bam_path="in.bam",
+            reference_path="ref.fa",
+            output_vcf_path="out.vcf",
+            _config=_CFG,
+        )
+
+    async def test_rejects_non_string_bam(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(TypeError, "bam_path"):
+            await knot.process(bam_path=42, reference_path="ref", output_vcf_path="out")  # type: ignore[arg-type]
+
+    async def test_rejects_empty_bam(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "non-empty"):
+            await knot.process(bam_path="", reference_path="ref", output_vcf_path="out")
+
     async def test_returns_vcf_path(self) -> None:
-        with Tapestry() as t:
-            BCFtoolsCaller(
-                bam_path="in.bam",
-                reference_path="ref.fa",
-                output_vcf_path="out.vcf",
-                _config=KnotConfig(id="b"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["b"]
+        knot = self._make_knot()
+        out = await knot.process(bam_path="in.bam", reference_path="ref.fa", output_vcf_path="out.vcf")
         assert out == "out.vcf"

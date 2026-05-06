@@ -5,6 +5,21 @@ provided debaters. Each round, every debater is invoked via its
 ``process(task=task, **_)`` shape with the topic plus a textual
 recap of every prior round's responses. After ``rounds`` rounds, a
 judge LLM picks the best response and the pipeline returns it.
+
+Algorithm:
+    1. Validate debaters (≥ 2, all :class:`SubTapestry`) and ``rounds`` (> 0).
+    2. For each round ``r`` in ``[0, rounds)``:
+       a. Render a ``recap`` string of all prior rounds' responses.
+       b. Build a framed task embedding the topic, round number, and recap.
+       c. Gather all debater coroutines concurrently via :func:`asyncio.gather`.
+       d. Normalise each result to an :class:`AgentResponse`.
+    3. Build an inner :class:`Tapestry` with :class:`DebateJudge` over the
+       final round's responses.
+    4. Execute via ``self._run_inner(inner)`` and return the winning response.
+
+
+References:
+    pirn-native — no external references.
 """
 
 from __future__ import annotations
@@ -31,12 +46,38 @@ class DebateFramework(SubTapestry):
         self,
         *,
         topic: Knot | str,
-        debaters: Sequence[SubTapestry],
-        judge_llm: LLMProvider,
+        debaters: Knot | Any,
+        judge_llm: Knot | LLMProvider,
+        rounds: Knot | int = 3,
         _config: KnotConfig,
-        rounds: int = 3,
         **kwargs: Any,
     ) -> None:
+        super().__init__(topic=topic, debaters=debaters, judge_llm=judge_llm, rounds=rounds, _config=_config, **kwargs)
+
+    async def process(
+        self,
+        topic: str,
+        debaters: Any,
+        judge_llm: LLMProvider,
+        rounds: int = 3,
+        **_: Any,
+    ) -> AgentResponse:
+        """Run the configured number of debate rounds and return the judge-selected winning response.
+
+        Args:
+            topic: The debate topic string provided to all debaters each round.
+
+        Returns:
+            The AgentResponse selected by the judge as the strongest argument.
+
+        Raises:
+            TypeError: If topic is not a string.
+        """
+        if not isinstance(judge_llm, LLMProvider):
+            raise TypeError(
+                "DebateFramework: judge_llm must be an LLMProvider, "
+                f"got {type(judge_llm).__name__}"
+            )
         debater_tuple = tuple(debaters)
         if len(debater_tuple) < 2:
             raise ValueError(
@@ -49,33 +90,11 @@ class DebateFramework(SubTapestry):
                     f"DebateFramework: debaters[{index}] must be a "
                     f"SubTapestry, got {type(debater).__name__}"
                 )
-        if not isinstance(judge_llm, LLMProvider):
-            raise TypeError(
-                "DebateFramework: judge_llm must be an LLMProvider, "
-                f"got {type(judge_llm).__name__}"
-            )
         if not isinstance(rounds, int) or rounds <= 0:
             raise ValueError(
                 "DebateFramework: rounds must be a positive int, "
                 f"got {rounds!r}"
             )
-        self._debaters = debater_tuple
-        self._judge_llm = judge_llm
-        self._rounds = rounds
-        super().__init__(topic=topic, _config=_config, **kwargs)
-
-    async def process(self, topic: str, **_: Any) -> AgentResponse:
-        """Run the configured number of debate rounds and return the judge-selected winning response.
-
-        Args:
-            topic: The debate topic string provided to all debaters each round.
-
-        Returns:
-            The AgentResponse selected by the judge as the strongest argument.
-
-        Raises:
-            TypeError: If topic is not a string.
-        """
         if not isinstance(topic, str):
             raise TypeError(
                 "DebateFramework: topic must be a string, "
@@ -83,15 +102,15 @@ class DebateFramework(SubTapestry):
             )
         history: list[list[AgentResponse]] = []
         latest_round: list[AgentResponse] = []
-        for round_index in range(self._rounds):
+        for round_index in range(rounds):
             recap = self._render_recap(history)
             framed = (
                 f"Topic: {topic}\n\n"
-                f"Round {round_index + 1} of {self._rounds}.\n"
+                f"Round {round_index + 1} of {rounds}.\n"
                 f"{recap}\n"
                 "Make your strongest argument."
             )
-            coros = [debater.process(task=framed) for debater in self._debaters]
+            coros = [debater.process(task=framed) for debater in debater_tuple]
             raw_results = await asyncio.gather(*coros)
             latest_round = []
             for raw in raw_results:
@@ -109,7 +128,7 @@ class DebateFramework(SubTapestry):
             DebateJudge(
                 topic=topic,
                 final_round=tuple(latest_round),
-                judge_llm=self._judge_llm,
+                judge_llm=judge_llm,
                 _config=KnotConfig(id="judge"),
             )
         inner_result = await self._run_inner(inner)

@@ -11,6 +11,17 @@ The orchestration layer composes :class:`Encoder` (with
 responsible for materialising the actual fit/transform; this knot's
 output is a :class:`DataSplit` whose feature lists are tagged
 ``encoded_target``.
+
+Algorithm:
+    1. Receive ``split`` (DataSplit), ``categorical_column``, ``target_column``,
+       and ``smoothing`` via process().
+    2. Validate all inputs.
+    3. Wire Encoder (method="target") in an inner Tapestry.
+    4. Run via _run_inner() and return the encoded DataSplit.
+
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -38,14 +49,44 @@ class TargetEncoder(SubTapestry):
         self,
         *,
         split: Knot,
-        categorical_column: str,
-        target_column: str,
-        smoothing: float = 1.0,
+        categorical_column: Knot | str,
+        target_column: Knot | str,
+        smoothing: Knot | float = 1.0,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(split, Knot):
-            raise TypeError("TargetEncoder: split must be a Knot")
+        super().__init__(
+            split=split,
+            categorical_column=categorical_column,
+            target_column=target_column,
+            smoothing=smoothing,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        split: DataSplit,
+        categorical_column: str = "",
+        target_column: str = "",
+        smoothing: float = 1.0,
+        **_: Any,
+    ) -> DataSplit:
+        """Apply target encoding to the categorical column across all split partitions and return the renamed DataSplit.
+
+        Args:
+            split: DataSplit whose partitions receive the target-encoded column.
+            categorical_column: Non-empty name of the categorical column to encode.
+            target_column: Non-empty name of the target column.
+            smoothing: Smoothing factor; must be a number >= 0.
+
+        Returns:
+            DataSplit with each partition renamed to include the ``encoded_target`` suffix.
+
+        Raises:
+            ValueError: If categorical_column or target_column are empty, or smoothing < 0.
+            TypeError: If the inner encoder does not return a DataSplit.
+        """
         if not isinstance(categorical_column, str) or not categorical_column:
             raise ValueError(
                 "TargetEncoder: categorical_column must be a non-empty string"
@@ -58,34 +99,13 @@ class TargetEncoder(SubTapestry):
             raise TypeError("TargetEncoder: smoothing must be a number")
         if float(smoothing) < 0.0:
             raise ValueError("TargetEncoder: smoothing must be >= 0.0")
-        self._categorical_column = categorical_column
-        self._target_column = target_column
-        self._smoothing = float(smoothing)
-        super().__init__(split=split, _config=_config, **kwargs)
-
-    @property
-    def smoothing(self) -> float:
-        return self._smoothing
-
-    async def process(self, split: DataSplit, **_: Any) -> DataSplit:
-        """Apply target encoding to the categorical column across all split partitions and return the renamed DataSplit.
-
-        Args:
-            split: DataSplit whose partitions receive the target-encoded column.
-
-        Returns:
-            DataSplit with each partition renamed to include the ``encoded_target`` suffix.
-
-        Raises:
-            TypeError: If the inner encoder does not return a DataSplit.
-        """
         with Tapestry() as inner:
             split_node = _emit_value(
                 value=split, _config=KnotConfig(id="split")
             )
             Encoder(
                 split=split_node,
-                columns=(self._categorical_column,),
+                columns=(categorical_column,),
                 method="target",
                 _config=KnotConfig(id="encode"),
             )

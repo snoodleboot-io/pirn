@@ -1,4 +1,19 @@
-"""``SegyHeaderParser`` — parse trace headers out of a :class:`SegyVolume`."""
+"""``SegyHeaderParser`` — parse trace headers out of a :class:`SegyVolume`.
+
+Algorithm:
+    1. Receive a SegyVolume reference.
+    2. Read the binary file header and the first trace header.
+    3. Extract CRS units, inline / xline numbering, and sample metadata.
+    4. Return a ParsedTraceHeader with the extracted fields.
+
+
+References:
+    - SEG Technical Standards Committee (2017). *SEG-Y_r2.0 Data Exchange
+      Format*. Society of Exploration Geophysicists (trace header byte
+      positions).
+    - Barry, K.M., Cavers, D.A. & Kneale, C.W. (1975). Recommended standards
+      for digital tape formats. *Geophysics*, 40(2), 344–352.
+"""
 
 from __future__ import annotations
 

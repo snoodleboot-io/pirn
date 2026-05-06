@@ -1,4 +1,27 @@
-"""``IIRFilter`` — generic infinite impulse response filter."""
+"""``IIRFilter`` — generic infinite impulse response filter.
+
+Algorithm:
+    1. Receive the input signal frame, numerator, and denominator.
+    2. Validate that both are non-empty, denominator[0] is non-zero, and all
+       values are real numbers.
+    3. Apply the IIR difference equation using the (b, a) transfer function
+       representation via ``scipy.signal.lfilter`` or ``sosfiltfilt``.
+    4. Return a filtered SignalFrame.
+
+Math:
+    IIR difference equation:
+
+    $$y(n) = \\frac{1}{a_0} \\left( \\sum_{k=0}^{M} b_k x(n-k) - \\sum_{k=1}^{N} a_k y(n-k) \\right)$$
+
+    Transfer function:
+
+    $$H(z) = \\frac{B(z)}{A(z)} = \\frac{\\sum_{k=0}^{M} b_k z^{-k}}{\\sum_{k=0}^{N} a_k z^{-k}}$$
+
+References:
+    - scipy.signal.lfilter: https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.lfilter.html
+    - Oppenheim, A.V. & Schafer, R.W. (2009). "Discrete-Time Signal Processing" (3rd ed.).
+      Prentice Hall. Chapter 6.
+"""
 
 from __future__ import annotations
 
@@ -19,11 +42,41 @@ class IIRFilter(Knot):
         self,
         *,
         signal: Knot,
-        numerator: Sequence[float],
-        denominator: Sequence[float],
+        numerator: Knot | tuple,
+        denominator: Knot | tuple,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            signal=signal,
+            numerator=numerator,
+            denominator=denominator,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        signal: SignalFrame,
+        numerator: Sequence[float],
+        denominator: Sequence[float],
+        **_: Any,
+    ) -> SignalFrame:
+        """Apply the configured IIR (b, a) coefficients to the input signal.
+
+        Args:
+            signal: Signal to filter with the configured (b, a) transfer function.
+            numerator: Non-empty sequence of numerator (b) coefficients.
+            denominator: Non-empty sequence of denominator (a) coefficients;
+                first element must be non-zero.
+
+        Returns:
+            SignalFrame of the IIR-filtered output.
+
+        Raises:
+            ValueError: If numerator or denominator are invalid.
+            TypeError: If any coefficient is not a real number.
+        """
         b = tuple(numerator)
         a = tuple(denominator)
         if not b:
@@ -37,29 +90,6 @@ class IIRFilter(Knot):
                 raise TypeError(
                     "IIRFilter: every coefficient must be a real number"
                 )
-        self._numerator = tuple(float(c) for c in b)
-        self._denominator = tuple(float(c) for c in a)
-        super().__init__(signal=signal, _config=_config, **kwargs)
-
-    @property
-    def numerator(self) -> tuple[float, ...]:
-        return self._numerator
-
-    @property
-    def denominator(self) -> tuple[float, ...]:
-        return self._denominator
-
-    async def process(
-        self, signal: SignalFrame, **_: Any
-    ) -> SignalFrame:
-        """Apply the configured IIR (b, a) coefficients to the input signal and return the filtered SignalFrame.
-
-        Args:
-            signal: Signal to filter with the configured (b, a) transfer function.
-
-        Returns:
-            SignalFrame of the IIR-filtered output.
-        """
         return SignalFrame(
             signal_id=f"{signal.signal_id}:iir",
             channel_count=signal.channel_count,

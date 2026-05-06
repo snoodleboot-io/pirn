@@ -51,3 +51,13 @@ class TestCodeGeneratorProcess(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert not result.succeeded
+
+
+class TestProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_process_rejects_empty_task(self) -> None:
+        llm = StubLLMProvider(["x"])
+        with Tapestry():
+            k = _CodeGenerator.__new__(_CodeGenerator)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises(TypeError):
+            await k.process(task="", llm=llm, language="python")

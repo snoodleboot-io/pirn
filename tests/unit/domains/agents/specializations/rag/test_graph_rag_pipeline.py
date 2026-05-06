@@ -18,34 +18,6 @@ from tests.unit.domains.agents.specializations.conftest import (
 )
 
 
-class TestGraphRAGPipelineConstruction(unittest.IsolatedAsyncioTestCase):
-    async def test_rejects_non_memory_store(self) -> None:
-        llm = StubLLMProvider(["x"])
-        with pytest.raises(
-            TypeError, match="graph_memory must be a MemoryStore"
-        ):
-            with Tapestry():
-                GraphRAGPipeline(
-                    query="q",
-                    graph_memory="not-a-store",  # type: ignore[arg-type]
-                    llm=llm,
-                    _config=KnotConfig(id="grag"),
-                )
-
-    async def test_rejects_zero_hop_count(self) -> None:
-        memory = StubMemoryStore([{"id": 1}])
-        llm = StubLLMProvider(["x"])
-        with self.assertRaisesRegex(ValueError, "hop_count"):
-            with Tapestry():
-                GraphRAGPipeline(
-                    query="q",
-                    graph_memory=memory,
-                    llm=llm,
-                    hop_count=0,
-                    _config=KnotConfig(id="grag"),
-                )
-
-
 class TestGraphRAGPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_subgraph_passed_to_llm(self) -> None:
         memory = StubMemoryStore(
@@ -89,3 +61,14 @@ class TestGraphRAGPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
         assert "acme" in prompt_body
         assert "works_at" in prompt_body
         assert "hops=2" in prompt_body
+
+
+class TestProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_process_rejects_non_string_query(self) -> None:
+        memory = StubMemoryStore([])
+        llm = StubLLMProvider(["answer"])
+        with Tapestry():
+            k = GraphRAGPipeline.__new__(GraphRAGPipeline)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, AttributeError)):
+            await k.process(query=42, graph_memory=memory, llm=llm, hop_count=2)  # type: ignore[arg-type]

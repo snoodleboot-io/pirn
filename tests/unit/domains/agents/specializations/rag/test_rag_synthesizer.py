@@ -12,19 +12,22 @@ from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 
-class TestRAGSynthesizerConstruction(unittest.IsolatedAsyncioTestCase):
+class TestRAGSynthesizerProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
+        llm = StubLLMProvider(["answer"])
+        knot = RAGSynthesizer(
+            query="q",
+            documents=[],
+            llm=llm,
+            _config=KnotConfig(id="synth"),
+        )
         with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
-            with Tapestry():
-                RAGSynthesizer(
-                    query="q",
-                    documents=[],
-                    llm="bad",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="synth"),
-                )
+            await knot.process(
+                query="q",
+                documents=[],
+                llm="bad",  # type: ignore[arg-type]
+            )
 
-
-class TestRAGSynthesizerHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_synthesizes_answer_from_documents(self) -> None:
         docs = [
             {"text": "The capital of France is Paris."},

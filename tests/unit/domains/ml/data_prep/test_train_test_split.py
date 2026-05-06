@@ -24,6 +24,16 @@ async def emit_dataset() -> MLDataset:
     )
 
 
+def _make_dataset(row_count: int = 1000) -> MLDataset:
+    return MLDataset(
+        name="customers",
+        feature_names=("a", "b"),
+        target_name="y",
+        row_count=row_count,
+        source_uri="db://x",
+    )
+
+
 class TestTrainTestSplitHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_three_partitions(self) -> None:
         with Tapestry() as t:
@@ -46,24 +56,23 @@ class TestTrainTestSplitHappyPath(unittest.IsolatedAsyncioTestCase):
         assert out.test.target_name == "y"
 
 
-class TestTrainTestSplitConstruction(unittest.TestCase):
-    def test_rejects_test_fraction_at_one(self) -> None:
+class TestTrainTestSplitProcess(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self) -> TrainTestSplit:
         with Tapestry():
-            dataset = emit_dataset(_config=KnotConfig(id="dataset"))
-            with self.assertRaisesRegex(ValueError, "test_fraction"):
-                TrainTestSplit(
-                    dataset=dataset,
-                    test_fraction=1.0,
-                    _config=KnotConfig(id="bad"),
-                )
+            tts = TrainTestSplit.__new__(TrainTestSplit)
+            object.__setattr__(tts, "_config", KnotConfig(id="x"))
+        return tts
 
-    def test_rejects_combined_fractions_at_one(self) -> None:
-        with Tapestry():
-            dataset = emit_dataset(_config=KnotConfig(id="dataset"))
-            with self.assertRaisesRegex(ValueError, "must be < 1"):
-                TrainTestSplit(
-                    dataset=dataset,
-                    test_fraction=0.6,
-                    validation_fraction=0.5,
-                    _config=KnotConfig(id="bad"),
-                )
+    async def test_rejects_test_fraction_at_one(self) -> None:
+        tts = self._make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await tts.process(dataset=_make_dataset(), test_fraction=1.0)
+
+    async def test_rejects_combined_fractions_at_one(self) -> None:
+        tts = self._make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await tts.process(
+                dataset=_make_dataset(),
+                test_fraction=0.6,
+                validation_fraction=0.5,
+            )

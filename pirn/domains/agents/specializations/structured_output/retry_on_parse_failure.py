@@ -8,6 +8,23 @@ self-correct. Returns the first successfully parsed response or raises
 
 The ``parser`` callable receives the raw LLM text and must either
 return the parsed value or raise an exception.
+
+Algorithm:
+    1. Receive ``prompt`` (str), ``llm`` (LLMProvider), ``parser`` (Callable),
+       and ``max_retries`` (int).
+    2. Validate each argument type; raise ``TypeError`` or ``ValueError``
+       on invalid inputs.
+    3. For each attempt index in ``range(max_retries)``:
+       a. Build an inner Tapestry containing an ``_LLMCallKnot``.
+       b. Await ``_run_inner`` to obtain the raw text output.
+       c. Pass the text to ``parser``; if successful return the result.
+       d. On parse failure, append the error to the prompt and retry.
+    4. If all attempts fail, raise ``ValueError`` with the last error.
+
+
+References:
+    - :class:`pirn.domains.agents.specializations.structured_output._llm_call_knot._LLMCallKnot`
+    - :class:`pirn.nodes.sub_tapestry.SubTapestry`
 """
 
 from __future__ import annotations
@@ -15,6 +32,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.agents.llm_provider import LLMProvider
 from pirn.domains.agents.specializations.structured_output._llm_call_knot import _LLMCallKnot
@@ -29,12 +47,44 @@ class RetryOnParseFailure(SubTapestry):
         self,
         *,
         prompt: Knot | str,
-        llm: LLMProvider,
-        parser: Callable[[str], Any],
+        llm: Knot | LLMProvider,
+        parser: Knot | Callable[[str], Any],
         _config: KnotConfig,
-        max_retries: int = 3,
+        max_retries: Knot | int = 3,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            prompt=prompt,
+            llm=llm,
+            parser=parser,
+            max_retries=max_retries,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        prompt: str,
+        llm: LLMProvider,
+        parser: Callable[[str], Any],
+        max_retries: int = 3,
+        **_: Any,
+    ) -> Any:
+        """Attempt to get a valid parsed response, retrying with error feedback on failure.
+
+        Args:
+            prompt: The initial prompt sent to the LLM.
+            llm: The LLM provider used to generate responses.
+            parser: Callable that parses the raw LLM text; raises on failure.
+            max_retries: Maximum number of attempts before raising.
+
+        Returns:
+            The first successfully parsed value from the parser callable.
+
+        Raises:
+            TypeError: If any argument is the wrong type.
+            ValueError: If max_retries is not a positive int, or all attempts are exhausted.
+        """
         if not isinstance(llm, LLMProvider):
             raise TypeError(
                 "RetryOnParseFailure: llm must be an LLMProvider, "
@@ -50,28 +100,6 @@ class RetryOnParseFailure(SubTapestry):
                 "RetryOnParseFailure: max_retries must be a positive int, "
                 f"got {max_retries!r}"
             )
-        self._llm = llm
-        self._parser = parser
-        self._max_retries = max_retries
-        super().__init__(prompt=prompt, _config=_config, **kwargs)
-
-    async def process(
-        self,
-        prompt: str,
-        **_: Any,
-    ) -> Any:
-        """Attempt to get a valid parsed response, retrying with error feedback on failure.
-
-        Args:
-            prompt: The initial prompt sent to the LLM.
-
-        Returns:
-            The first successfully parsed value from the parser callable.
-
-        Raises:
-            TypeError: If prompt is not a string.
-            ValueError: If all retry attempts are exhausted without a successful parse.
-        """
         if not isinstance(prompt, str):
             raise TypeError(
                 "RetryOnParseFailure: prompt must be a string, "
@@ -79,11 +107,11 @@ class RetryOnParseFailure(SubTapestry):
             )
         current_prompt = prompt
         last_error: str = "no attempts were made"
-        for attempt_index in range(self._max_retries):
+        for attempt_index in range(max_retries):
             with Tapestry() as inner:
                 _LLMCallKnot(
                     prompt=current_prompt,
-                    llm=self._llm,
+                    llm=llm,
                     _config=KnotConfig(id=f"call_{attempt_index}"),
                 )
             inner_result = await self._run_inner(inner)
@@ -91,7 +119,7 @@ class RetryOnParseFailure(SubTapestry):
             if not isinstance(text, str):
                 text = str(text) if text is not None else ""
             try:
-                return self._parser(text)
+                return parser(text)
             except Exception as exc:
                 last_error = str(exc)
                 current_prompt = (
@@ -99,6 +127,6 @@ class RetryOnParseFailure(SubTapestry):
                     "Please fix the issue and try again."
                 )
         raise ValueError(
-            f"RetryOnParseFailure: exhausted {self._max_retries} "
+            f"RetryOnParseFailure: exhausted {max_retries} "
             f"attempt(s); last error: {last_error}"
         )

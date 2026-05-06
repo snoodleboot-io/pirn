@@ -12,6 +12,8 @@ from pirn.domains.ml.lineage_store import LineageStore
 from pirn.domains.ml.specializations.training.sklearn_trainer_pipeline import (
     SklearnTrainerPipeline,
 )
+from pirn.domains.ml.types.data_split import DataSplit
+from pirn.domains.ml.types.ml_dataset import MLDataset
 from pirn.tapestry import Tapestry
 
 
@@ -38,43 +40,54 @@ class _KnotStub(Knot):
         return None
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_algorithm(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                SklearnTrainerPipeline(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    algorithm="",
-                    lineage=_StubLineage(),
-                    store=_StubStore(),
-                    metrics=["accuracy"],
-                    _config=KnotConfig(id="stp"),
-                )
+def _make_knot() -> SklearnTrainerPipeline:
+    with Tapestry():
+        k = SklearnTrainerPipeline.__new__(SklearnTrainerPipeline)
+        object.__setattr__(k, "_config", KnotConfig(id="stp"))
+    return k
 
-    def test_rejects_wrong_lineage_type(self) -> None:
-        with self.assertRaises(TypeError):
-            with Tapestry():
-                SklearnTrainerPipeline(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    algorithm="rf",
-                    lineage="bad",  # type: ignore[arg-type]
-                    store=_StubStore(),
-                    metrics=["accuracy"],
-                    _config=KnotConfig(id="stp"),
-                )
 
-    def test_rejects_empty_metrics(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                SklearnTrainerPipeline(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    algorithm="rf",
-                    lineage=_StubLineage(),
-                    store=_StubStore(),
-                    metrics=[],
-                    _config=KnotConfig(id="stp"),
-                )
+def _split() -> DataSplit:
+    ds = MLDataset(name="ds", feature_names=("x",), target_name="y", row_count=10, source_uri="mem://")
+    return DataSplit(train=ds, test=ds)
 
+
+class TestSklearnTrainerPipelineValidation(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_empty_algorithm(self) -> None:
+        k = _make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=_split(),
+                algorithm="",
+                lineage=_StubLineage(),
+                store=_StubStore(),
+                metrics=["accuracy"],
+            )
+
+    async def test_rejects_wrong_lineage_type(self) -> None:
+        k = _make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=_split(),
+                algorithm="rf",
+                lineage="bad",  # type: ignore[arg-type]
+                store=_StubStore(),
+                metrics=["accuracy"],
+            )
+
+    async def test_rejects_empty_metrics(self) -> None:
+        k = _make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=_split(),
+                algorithm="rf",
+                lineage=_StubLineage(),
+                store=_StubStore(),
+                metrics=[],
+            )
+
+
+class TestSklearnTrainerPipelineConstruction(unittest.TestCase):
     def test_valid_construction(self) -> None:
         with Tapestry() as t:
             SklearnTrainerPipeline(

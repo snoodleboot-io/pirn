@@ -54,7 +54,7 @@ class TestConstruction(unittest.TestCase):
                     _config=KnotConfig(id="sdp"),
                 )
 
-    def test_valid_construction(self) -> None:
+    def test_valid_construction_registers_knot(self) -> None:
         with Tapestry() as t:
             ShadowDeploymentPipeline(
                 champion=_KnotStub(_config=KnotConfig(id="ch")),

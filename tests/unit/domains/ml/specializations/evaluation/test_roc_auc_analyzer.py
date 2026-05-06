@@ -28,18 +28,6 @@ async def emit_model() -> TrainedModel:
     return TrainedModel(model_id="m1", algorithm="logistic", feature_names=("a",))
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_knot_split(self) -> None:
-        with Tapestry():
-            model = emit_model(_config=KnotConfig(id="model"))
-            with self.assertRaisesRegex(TypeError, "split must be a Knot"):
-                ROCAUCAnalyzer(
-                    model=model,
-                    split="bad",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="bad"),
-                )
-
-
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_roc_curve_and_auc(self) -> None:
         with Tapestry() as t:

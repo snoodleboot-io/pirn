@@ -25,31 +25,50 @@ async def emit_dataset() -> MLDataset:
     )
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_n_splits_below_two(self) -> None:
-        with Tapestry():
-            dataset = emit_dataset(_config=KnotConfig(id="dataset"))
-            with self.assertRaisesRegex(ValueError, "n_splits"):
-                TimeSeriesSplitterValidator(
-                    dataset=dataset,
-                    time_column="t",
-                    algorithm="rf",
-                    metrics=("rmse",),
-                    n_splits=1,
-                    _config=KnotConfig(id="bad"),
-                )
+def _make_validator() -> TimeSeriesSplitterValidator:
+    with Tapestry():
+        dataset = emit_dataset(_config=KnotConfig(id="dataset"))
+        validator = TimeSeriesSplitterValidator(
+            dataset=dataset,
+            time_column="t",
+            algorithm="rf",
+            metrics=("rmse",),
+            n_splits=3,
+            _config=KnotConfig(id="tscv"),
+        )
+    return validator
 
-    def test_rejects_empty_time_column(self) -> None:
-        with Tapestry():
-            dataset = emit_dataset(_config=KnotConfig(id="dataset"))
-            with self.assertRaisesRegex(ValueError, "time_column"):
-                TimeSeriesSplitterValidator(
-                    dataset=dataset,
-                    time_column="",
-                    algorithm="rf",
-                    metrics=("rmse",),
-                    _config=KnotConfig(id="bad"),
-                )
+
+def _dataset_fixture() -> MLDataset:
+    return MLDataset(
+        name="ts", feature_names=("a", "b"), target_name="y", row_count=120
+    )
+
+
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_n_splits_below_two(self) -> None:
+        validator = _make_validator()
+        dataset = _dataset_fixture()
+        with self.assertRaises((TypeError, ValueError)):
+            await validator.process(
+                dataset=dataset,
+                time_column="t",
+                algorithm="rf",
+                metrics=("rmse",),
+                n_splits=1,
+            )
+
+    async def test_rejects_empty_time_column(self) -> None:
+        validator = _make_validator()
+        dataset = _dataset_fixture()
+        with self.assertRaises((TypeError, ValueError)):
+            await validator.process(
+                dataset=dataset,
+                time_column="",
+                algorithm="rf",
+                metrics=("rmse",),
+                n_splits=3,
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

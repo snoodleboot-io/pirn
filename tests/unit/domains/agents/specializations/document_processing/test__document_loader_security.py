@@ -17,29 +17,19 @@ from pirn.domains.agents.specializations.document_processing._document_loader im
 from pirn.tapestry import Tapestry
 
 
-def _build_loader(
-    *,
-    source: str = "placeholder",
-    allowed_root: str | None = None,
-    allowed_hosts: tuple[str, ...] | None = None,
-    max_bytes: int = 100 * 1024 * 1024,
-) -> _DocumentLoader:
+def _build_loader() -> _DocumentLoader:
     with Tapestry():
-        loader = _DocumentLoader(
-            source=source,
-            allowed_root=allowed_root,
-            allowed_hosts=allowed_hosts,
-            max_bytes=max_bytes,
+        return _DocumentLoader(
+            source="placeholder",
             _config=KnotConfig(id="load"),
         )
-    return loader
 
 
 class TestPathTraversalGuards(unittest.IsolatedAsyncioTestCase):
     async def test_local_read_without_allowed_root_raises(self) -> None:
-        _td_test_local_read_without_allowed_root_raises = tempfile.TemporaryDirectory()
-        self.addCleanup(_td_test_local_read_without_allowed_root_raises.cleanup)
-        tmp_path = Path(_td_test_local_read_without_allowed_root_raises.name)
+        _td = tempfile.TemporaryDirectory()
+        self.addCleanup(_td.cleanup)
+        tmp_path = Path(_td.name)
         document = tmp_path / "doc.txt"
         document.write_text("hello", encoding="utf-8")
         loader = _build_loader()
@@ -47,63 +37,60 @@ class TestPathTraversalGuards(unittest.IsolatedAsyncioTestCase):
             await loader.process(str(document))
 
     async def test_local_read_outside_allowed_root_raises(self) -> None:
-        _td_test_local_read_outside_allowed_root_raises = tempfile.TemporaryDirectory()
-        self.addCleanup(_td_test_local_read_outside_allowed_root_raises.cleanup)
-        tmp_path = Path(_td_test_local_read_outside_allowed_root_raises.name)
+        _td = tempfile.TemporaryDirectory()
+        self.addCleanup(_td.cleanup)
+        tmp_path = Path(_td.name)
         sandbox = tmp_path / "sandbox"
         sandbox.mkdir()
         outside = tmp_path / "outside.txt"
         outside.write_text("oops", encoding="utf-8")
-        loader = _build_loader(allowed_root=str(sandbox))
-        # Try to escape via ``..``.
+        loader = _build_loader()
         traversal = sandbox / ".." / "outside.txt"
         with self.assertRaisesRegex(ValueError, "outside allowed_root"):
-            await loader.process(str(traversal))
+            await loader.process(str(traversal), allowed_root=str(sandbox))
 
     async def test_symlink_escape_raises(self) -> None:
-        _td_test_symlink_escape_raises = tempfile.TemporaryDirectory()
-        self.addCleanup(_td_test_symlink_escape_raises.cleanup)
-        tmp_path = Path(_td_test_symlink_escape_raises.name)
+        _td = tempfile.TemporaryDirectory()
+        self.addCleanup(_td.cleanup)
+        tmp_path = Path(_td.name)
         sandbox = tmp_path / "sandbox"
         sandbox.mkdir()
         outside = tmp_path / "secret.txt"
         outside.write_text("classified", encoding="utf-8")
         link = sandbox / "link.txt"
         os.symlink(outside, link)
-        loader = _build_loader(allowed_root=str(sandbox))
+        loader = _build_loader()
         # Resolved target escapes; rejected by allowed_root check.
         with self.assertRaisesRegex(ValueError, "outside allowed_root"):
-            await loader.process(str(link))
+            await loader.process(str(link), allowed_root=str(sandbox))
 
     async def test_oversize_file_raises(self) -> None:
-        _td_test_oversize_file_raises = tempfile.TemporaryDirectory()
-        self.addCleanup(_td_test_oversize_file_raises.cleanup)
-        tmp_path = Path(_td_test_oversize_file_raises.name)
+        _td = tempfile.TemporaryDirectory()
+        self.addCleanup(_td.cleanup)
+        tmp_path = Path(_td.name)
         document = tmp_path / "big.txt"
         document.write_text("x" * 500, encoding="utf-8")
-        loader = _build_loader(allowed_root=str(tmp_path), max_bytes=100)
+        loader = _build_loader()
         with self.assertRaisesRegex(ValueError, "exceeds max_bytes"):
-            await loader.process(str(document))
+            await loader.process(str(document), allowed_root=str(tmp_path), max_bytes=100)
 
     async def test_unsupported_scheme_raises(self) -> None:
-        _td_test_unsupported_scheme_raises = tempfile.TemporaryDirectory()
-        self.addCleanup(_td_test_unsupported_scheme_raises.cleanup)
-        tmp_path = Path(_td_test_unsupported_scheme_raises.name)
-        loader = _build_loader(allowed_root=str(tmp_path))
+        _td = tempfile.TemporaryDirectory()
+        self.addCleanup(_td.cleanup)
+        tmp_path = Path(_td.name)
+        loader = _build_loader()
         for source in (
             "javascript:alert(1)",
             "data:text/plain;base64,SGVsbG8=",
             "ftp://example.com/x",
         ):
             with self.assertRaisesRegex(ValueError, "unsupported source scheme"):
-                await loader.process(source)
+                await loader.process(source, allowed_root=str(tmp_path))
 
     async def test_file_scheme_uses_path_validation(self) -> None:
-        _td_test_file_scheme_uses_path_validation = tempfile.TemporaryDirectory()
-        self.addCleanup(_td_test_file_scheme_uses_path_validation.cleanup)
-        tmp_path = Path(_td_test_file_scheme_uses_path_validation.name)
-        # ``file://`` URLs route into the local-file path; without
-        # allowed_root they must still be rejected.
+        _td = tempfile.TemporaryDirectory()
+        self.addCleanup(_td.cleanup)
+        tmp_path = Path(_td.name)
         document = tmp_path / "doc.txt"
         document.write_text("hi", encoding="utf-8")
         loader = _build_loader()
@@ -113,10 +100,7 @@ class TestPathTraversalGuards(unittest.IsolatedAsyncioTestCase):
 
 class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
     async def test_loopback_url_raises(self) -> None:
-        _td_test_loopback_url_raises = tempfile.TemporaryDirectory()
-        self.addCleanup(_td_test_loopback_url_raises.cleanup)
-        tmp_path = Path(_td_test_loopback_url_raises.name)
-        loader = _build_loader(allowed_root=str(tmp_path))
+        loader = _build_loader()
         with unittest.mock.patch(
             "pirn.domains.agents.specializations.document_processing"
             "._document_loader.socket.gethostbyname",
@@ -126,10 +110,7 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
                 await loader.process("http://localhost/")
 
     async def test_private_ip_raises(self) -> None:
-        _td_test_private_ip_raises = tempfile.TemporaryDirectory()
-        self.addCleanup(_td_test_private_ip_raises.cleanup)
-        tmp_path = Path(_td_test_private_ip_raises.name)
-        loader = _build_loader(allowed_root=str(tmp_path))
+        loader = _build_loader()
         with unittest.mock.patch(
             "pirn.domains.agents.specializations.document_processing"
             "._document_loader.socket.gethostbyname",
@@ -139,10 +120,7 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
                 await loader.process("http://internal.example/")
 
     async def test_imds_metadata_raises(self) -> None:
-        _td_test_imds_metadata_raises = tempfile.TemporaryDirectory()
-        self.addCleanup(_td_test_imds_metadata_raises.cleanup)
-        tmp_path = Path(_td_test_imds_metadata_raises.name)
-        loader = _build_loader(allowed_root=str(tmp_path))
+        loader = _build_loader()
         with unittest.mock.patch(
             "pirn.domains.agents.specializations.document_processing"
             "._document_loader.socket.gethostbyname",
@@ -152,12 +130,8 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
                 await loader.process("http://169.254.169.254/latest/meta-data/")
 
     async def test_unresolvable_host_raises(self) -> None:
-        _td_test_unresolvable_host_raises = tempfile.TemporaryDirectory()
-        self.addCleanup(_td_test_unresolvable_host_raises.cleanup)
-        tmp_path = Path(_td_test_unresolvable_host_raises.name)
         import socket as _socket
-
-        loader = _build_loader(allowed_root=str(tmp_path))
+        loader = _build_loader()
 
         def _boom(host: str) -> str:
             raise _socket.gaierror("dns failure")
@@ -171,31 +145,18 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
                 await loader.process("http://nope.invalid/")
 
     async def test_host_not_in_allowlist_raises(self) -> None:
-        _td_test_host_not_in_allowlist_raises = tempfile.TemporaryDirectory()
-        self.addCleanup(_td_test_host_not_in_allowlist_raises.cleanup)
-        tmp_path = Path(_td_test_host_not_in_allowlist_raises.name)
-        loader = _build_loader(
-            allowed_root=str(tmp_path),
-            allowed_hosts=("example.com",),
-        )
+        loader = _build_loader()
         with unittest.mock.patch(
             "pirn.domains.agents.specializations.document_processing"
             "._document_loader.socket.gethostbyname",
             lambda host: "93.184.216.34",
         ):
             with self.assertRaisesRegex(ValueError, "not in allowed_hosts"):
-                await loader.process("http://other.example/")
+                await loader.process("http://other.example/", allowed_hosts=("example.com",))
 
     async def test_allowed_host_passes(self) -> None:
-        _td_test_allowed_host_passes = tempfile.TemporaryDirectory()
-        self.addCleanup(_td_test_allowed_host_passes.cleanup)
-        tmp_path = Path(_td_test_allowed_host_passes.name)
-        loader = _build_loader(
-            allowed_root=str(tmp_path),
-            allowed_hosts=("example.com",),
-        )
+        loader = _build_loader()
 
-        # Stub httpx.AsyncClient so we don't touch the network.
         class _StubResponse:
             text = "ok"
 
@@ -223,5 +184,8 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
             lambda host: "93.184.216.34",
         ):
             with unittest.mock.patch.object(httpx, "AsyncClient", _StubAsyncClient):
-                result = await loader.process("http://example.com/")
+                result = await loader.process(
+                    "http://example.com/",
+                    allowed_hosts=("example.com",),
+                )
         assert result == "ok"

@@ -34,29 +34,34 @@ class _SplitSource(Knot):
         return DataSplit(train=ds, test=ds)
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_image_column(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                _ImageEncoderExtractor(
-                    split=_SplitSource(_config=KnotConfig(id="s")),
-                    image_column="",
-                    image_encoder=_StubEncoder(),
-                    _config=KnotConfig(id="iee"),
-                )
-
-    def test_rejects_wrong_encoder_type(self) -> None:
-        with self.assertRaises(TypeError):
-            with Tapestry():
-                _ImageEncoderExtractor(
-                    split=_SplitSource(_config=KnotConfig(id="s")),
-                    image_column="img",
-                    image_encoder="bad",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="iee"),
-                )
-
-
 class TestProcess(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self) -> _ImageEncoderExtractor:
+        k = _ImageEncoderExtractor.__new__(_ImageEncoderExtractor)
+        object.__setattr__(k, "_config", KnotConfig(id="iee"))
+        return k
+
+    def _make_split(self) -> DataSplit:
+        ds = MLDataset(name="ds", feature_names=("img",), row_count=5)
+        return DataSplit(train=ds, test=ds)
+
+    async def test_rejects_empty_image_column(self) -> None:
+        k = self._make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=self._make_split(),
+                image_column="",
+                image_encoder=_StubEncoder(),
+            )
+
+    async def test_rejects_wrong_encoder_type(self) -> None:
+        k = self._make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=self._make_split(),
+                image_column="img",
+                image_encoder="bad",  # type: ignore[arg-type]
+            )
+
     async def test_appends_embedding_feature(self) -> None:
         with Tapestry() as t:
             src = _SplitSource(_config=KnotConfig(id="src"))

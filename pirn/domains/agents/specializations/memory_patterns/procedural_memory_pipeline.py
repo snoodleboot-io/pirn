@@ -3,6 +3,21 @@
 A :class:`SubTapestry` wrapping :class:`ProceduralMemoryWriter`. Used
 to capture how-to recipes derived from successful agent runs so
 future agents can short-circuit similar tasks.
+
+Algorithm
+---------
+1. Validate inputs.
+2. Construct an inner Tapestry with :class:`ProceduralMemoryWriter`.
+3. Run the inner tapestry via ``self._run_inner(inner)``.
+4. Extract and return the procedure key.
+
+Math
+----
+No mathematical operations.
+
+References
+----------
+None.
 """
 
 from __future__ import annotations
@@ -28,19 +43,14 @@ class ProceduralMemoryPipeline(SubTapestry):
         *,
         agent_response: Knot | AgentResponse,
         task_description: Knot | str,
-        store: MemoryStore,
+        store: Knot | MemoryStore,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(store, MemoryStore):
-            raise TypeError(
-                "ProceduralMemoryPipeline: store must be a MemoryStore, "
-                f"got {type(store).__name__}"
-            )
-        self._store = store
         super().__init__(
             agent_response=agent_response,
             task_description=task_description,
+            store=store,
             _config=_config,
             **kwargs,
         )
@@ -49,6 +59,7 @@ class ProceduralMemoryPipeline(SubTapestry):
         self,
         agent_response: AgentResponse,
         task_description: str,
+        store: MemoryStore,
         **_: Any,
     ) -> str:
         """Persist the task-response recipe in the store and return the procedure key.
@@ -56,18 +67,25 @@ class ProceduralMemoryPipeline(SubTapestry):
         Args:
             agent_response: The agent response whose content forms the recipe.
             task_description: The natural-language task description paired with the response.
+            store: The MemoryStore to write the procedure into.
 
         Returns:
             The storage key under which the procedure was persisted.
 
         Raises:
+            TypeError: If store is not a MemoryStore.
             RuntimeError: If the inner writer does not return a key.
         """
+        if not isinstance(store, MemoryStore):
+            raise TypeError(
+                "ProceduralMemoryPipeline: store must be a MemoryStore, "
+                f"got {type(store).__name__}"
+            )
         with Tapestry() as inner:
             ProceduralMemoryWriter(
                 agent_response=agent_response,
                 task_description=task_description,
-                store=self._store,
+                store=store,
                 _config=KnotConfig(id="write_procedure"),
             )
         inner_result = await self._run_inner(inner)

@@ -11,6 +11,8 @@ from pirn.domains.ml.embedding_provider import EmbeddingProvider
 from pirn.domains.ml.specializations.feature_engineering.text_embedding_extractor import (
     TextEmbeddingExtractor,
 )
+from pirn.domains.ml.types.data_split import DataSplit
+from pirn.domains.ml.types.ml_dataset import MLDataset
 from pirn.tapestry import Tapestry
 
 
@@ -31,36 +33,6 @@ class _KnotStub(Knot):
 
 
 class TestConstruction(unittest.TestCase):
-    def test_rejects_non_knot_split(self) -> None:
-        with self.assertRaises(TypeError):
-            with Tapestry():
-                TextEmbeddingExtractor(
-                    split="bad",  # type: ignore[arg-type]
-                    text_column="text",
-                    embedding_provider=_StubProvider(),
-                    _config=KnotConfig(id="tee"),
-                )
-
-    def test_rejects_empty_text_column(self) -> None:
-        with self.assertRaises(ValueError):
-            with Tapestry():
-                TextEmbeddingExtractor(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    text_column="",
-                    embedding_provider=_StubProvider(),
-                    _config=KnotConfig(id="tee"),
-                )
-
-    def test_rejects_wrong_provider_type(self) -> None:
-        with self.assertRaises(TypeError):
-            with Tapestry():
-                TextEmbeddingExtractor(
-                    split=_KnotStub(_config=KnotConfig(id="s")),
-                    text_column="text",
-                    embedding_provider="bad",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="tee"),
-                )
-
     def test_valid_construction(self) -> None:
         with Tapestry() as t:
             TextEmbeddingExtractor(
@@ -70,3 +42,32 @@ class TestConstruction(unittest.TestCase):
                 _config=KnotConfig(id="tee"),
             )
         self.assertIsNotNone(t._store.get("tee"))
+
+
+class TestProcess(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self) -> TextEmbeddingExtractor:
+        k = TextEmbeddingExtractor.__new__(TextEmbeddingExtractor)
+        object.__setattr__(k, "_config", KnotConfig(id="tee"))
+        return k
+
+    def _make_split(self) -> DataSplit:
+        ds = MLDataset(name="ds", feature_names=("text",), row_count=5)
+        return DataSplit(train=ds, test=ds)
+
+    async def test_rejects_empty_text_column(self) -> None:
+        k = self._make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=self._make_split(),
+                text_column="",
+                embedding_provider=_StubProvider(),
+            )
+
+    async def test_rejects_wrong_provider_type(self) -> None:
+        k = self._make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=self._make_split(),
+                text_column="text",
+                embedding_provider="bad",  # type: ignore[arg-type]
+            )

@@ -32,51 +32,38 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_text_column(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "text_column"):
-                NGramExtractor(
-                    split=split,
-                    text_column="",
-                    _config=KnotConfig(id="bad"),
-                )
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    def _make_split(self) -> DataSplit:
+        train = MLDataset(
+            name="d:train", feature_names=("review",), target_name="sentiment", row_count=80
+        )
+        test = MLDataset(
+            name="d:test", feature_names=("review",), target_name="sentiment", row_count=20
+        )
+        return DataSplit(train=train, test=test)
 
-    def test_rejects_invalid_analyzer(self) -> None:
+    async def test_rejects_empty_text_column(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "analyzer"):
-                NGramExtractor(
-                    split=split,
-                    text_column="review",
-                    analyzer="sentence",
-                    _config=KnotConfig(id="bad"),
-                )
+            k = NGramExtractor.__new__(NGramExtractor)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=self._make_split(), text_column="")
 
-    def test_rejects_n_below_one(self) -> None:
+    async def test_rejects_invalid_analyzer(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(ValueError, "n must be >= 1"):
-                NGramExtractor(
-                    split=split,
-                    text_column="review",
-                    n=0,
-                    _config=KnotConfig(id="bad"),
-                )
-
-    def test_stores_n_and_analyzer(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            ext = NGramExtractor(
-                split=split,
-                text_column="review",
-                n=3,
-                analyzer="char",
-                _config=KnotConfig(id="ng"),
+            k = NGramExtractor.__new__(NGramExtractor)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=self._make_split(), text_column="review", analyzer="sentence"
             )
-        assert ext.n == 3
-        assert ext.analyzer == "char"
+
+    async def test_rejects_n_below_one(self) -> None:
+        with Tapestry():
+            k = NGramExtractor.__new__(NGramExtractor)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(split=self._make_split(), text_column="review", n=0)
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

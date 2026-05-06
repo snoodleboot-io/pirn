@@ -1,10 +1,28 @@
 """``PIIResponseRedactor`` — regex-driven PII redaction over a response.
 
-Inner stage knot used by :class:`PIIRedactorGate`. Walks each compiled
+Inner stage knot used by :class:`PiiRedactorCheck`. Walks each compiled
 PII pattern against the supplied :class:`AgentResponse.content` and
 replaces matches with the literal ``"<redacted>"``. Returns a new
 :class:`AgentResponse` with the redacted content; ``tool_calls``,
 ``finish_reason`` and ``usage`` are forwarded unchanged.
+
+Algorithm:
+    1. Validate that ``response`` is an :class:`AgentResponse`; raise
+       :class:`TypeError` otherwise.
+    2. Compile each raw string in ``patterns`` into a regex via
+       :func:`compile_safe_pattern`.
+    3. Apply each compiled pattern sequentially to ``response.content``
+       using :meth:`re.Pattern.sub`, replacing matches with
+       ``"<redacted>"``.
+    4. If the resulting string equals the original content, return the
+       original :class:`AgentResponse` unchanged.
+    5. Otherwise construct and return a new :class:`AgentResponse` with
+       the redacted content and all other fields forwarded unchanged.
+
+
+References:
+    - pirn-native: :class:`pirn.domains.agents.types.agent_response.AgentResponse`
+    - pirn-native: :func:`pirn.domains.agents._regex_utils.compile_safe_pattern`
 """
 
 from __future__ import annotations
@@ -27,26 +45,16 @@ class PIIResponseRedactor(Knot):
         self,
         *,
         response: Knot | AgentResponse,
-        patterns: Sequence[str],
+        patterns: Knot | Sequence[str],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        compiled: list[re.Pattern[str]] = []
-        for index, raw in enumerate(patterns):
-            if not isinstance(raw, str):
-                raise TypeError(
-                    f"PIIResponseRedactor: patterns[{index}] must be a "
-                    f"string, got {type(raw).__name__}"
-                )
-            compiled.append(
-                compile_safe_pattern(raw, index=index, owner="PIIResponseRedactor", field="patterns")
-            )
-        self._compiled = tuple(compiled)
-        super().__init__(response=response, _config=_config, **kwargs)
+        super().__init__(response=response, patterns=patterns, _config=_config, **kwargs)
 
     async def process(
         self,
         response: AgentResponse,
+        patterns: Sequence[str] = (),
         **_: Any,
     ) -> AgentResponse:
         """Replace PII matches in the response content with '<redacted>' and return the cleaned response.
@@ -65,10 +73,14 @@ class PIIResponseRedactor(Knot):
                 "PIIResponseRedactor: response must be an AgentResponse, "
                 f"got {type(response).__name__}"
             )
+        compiled = tuple(
+            compile_safe_pattern(raw, index=i, owner="PIIResponseRedactor", field="patterns")
+            for i, raw in enumerate(patterns)
+        )
         content = response.content
 
         def _apply_pii(c: str = content) -> str:
-            for p in self._compiled:
+            for p in compiled:
                 c = p.sub("<redacted>", c)
             return c
 

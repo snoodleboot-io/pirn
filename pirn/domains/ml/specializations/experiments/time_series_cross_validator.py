@@ -2,6 +2,22 @@
 
 Each fold adds one period of training data and evaluates on the next
 period. Returns a single :class:`EvalReport` with mean metrics across folds.
+
+Algorithm:
+    1. Receive ``dataset`` (MLDataset), ``algorithm``, ``metrics``, and
+       ``n_splits`` via process().
+    2. Validate all inputs.
+    3. For each fold, compute expanding train/test row counts and emit split partitions.
+    4. Wire Trainer + Evaluator per fold in an inner Tapestry.
+    5. Aggregate per-fold metrics and return an EvalReport.
+
+Math:
+    train_rows[i] = (i + 1) * (row_count // (n_splits + 1))
+    test_rows = row_count // (n_splits + 1)
+    mean_metric = sum(fold_metric) / n_splits
+
+References:
+    N/A — pirn-native implementation.
 """
 
 from __future__ import annotations
@@ -34,69 +50,68 @@ class TimeSeriesCrossValidator(SubTapestry):
         self,
         *,
         dataset: Knot,
-        algorithm: str,
-        metrics: Sequence[str],
-        n_splits: int = 5,
+        algorithm: Knot | str,
+        metrics: Knot | Sequence[str],
+        n_splits: Knot | int = 5,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(dataset, Knot):
-            raise TypeError(
-                "TimeSeriesCrossValidator: dataset must be a Knot"
-            )
-        if not isinstance(n_splits, int):
-            raise TypeError(
-                "TimeSeriesCrossValidator: n_splits must be an int"
-            )
-        if n_splits < 2:
-            raise ValueError(
-                "TimeSeriesCrossValidator: n_splits must be >= 2"
-            )
-        if not isinstance(algorithm, str) or not algorithm:
-            raise ValueError(
-                "TimeSeriesCrossValidator: algorithm must be a non-empty "
-                "string"
-            )
-        metric_tuple = tuple(metrics)
-        if not metric_tuple:
-            raise ValueError(
-                "TimeSeriesCrossValidator: metrics must be non-empty"
-            )
-        for metric in metric_tuple:
-            if not isinstance(metric, str) or not metric:
-                raise ValueError(
-                    "TimeSeriesCrossValidator: every metric name must be a "
-                    "non-empty string"
-                )
-        self._n_splits = n_splits
-        self._algorithm = algorithm
-        self._metrics = metric_tuple
-        super().__init__(dataset=dataset, _config=_config, **kwargs)
+        super().__init__(
+            dataset=dataset,
+            algorithm=algorithm,
+            metrics=metrics,
+            n_splits=n_splits,
+            _config=_config,
+            **kwargs,
+        )
 
     async def process(
-        self, dataset: MLDataset, **_: Any
+        self,
+        dataset: MLDataset,
+        algorithm: str = "",
+        metrics: Sequence[str] = (),
+        n_splits: int = 5,
+        **_: Any,
     ) -> EvalReport:
         """Run expanding-window time series CV and return an EvalReport with mean metrics.
 
         Args:
             dataset: MLDataset representing the full time series dataset.
+            algorithm: Non-empty algorithm name string.
+            metrics: Non-empty sequence of metric name strings.
+            n_splits: Number of expanding-window folds; must be an int >= 2.
 
         Returns:
             EvalReport with averaged metrics and per-fold details.
 
         Raises:
+            ValueError: If any input fails validation.
             TypeError: If any fold evaluator does not return an EvalReport.
         """
+        if not isinstance(n_splits, int):
+            raise TypeError("TimeSeriesCrossValidator: n_splits must be an int")
+        if n_splits < 2:
+            raise ValueError("TimeSeriesCrossValidator: n_splits must be >= 2")
+        if not isinstance(algorithm, str) or not algorithm:
+            raise ValueError(
+                "TimeSeriesCrossValidator: algorithm must be a non-empty string"
+            )
+        metric_tuple = tuple(metrics)
+        if not metric_tuple:
+            raise ValueError("TimeSeriesCrossValidator: metrics must be non-empty")
+        for metric in metric_tuple:
+            if not isinstance(metric, str) or not metric:
+                raise ValueError(
+                    "TimeSeriesCrossValidator: every metric name must be a non-empty string"
+                )
         per_fold: list[dict[str, float]] = []
 
         with Tapestry() as inner_eval:
-            for fold_index in range(self._n_splits):
+            for fold_index in range(n_splits):
                 train_rows = (fold_index + 1) * max(
-                    1, dataset.row_count // (self._n_splits + 1)
+                    1, dataset.row_count // (n_splits + 1)
                 )
-                test_rows = max(
-                    1, dataset.row_count // (self._n_splits + 1)
-                )
+                test_rows = max(1, dataset.row_count // (n_splits + 1))
                 train_ds = MLDataset(
                     name=f"{dataset.name}:ts_train_{fold_index}",
                     feature_names=dataset.feature_names,
@@ -118,23 +133,22 @@ class TimeSeriesCrossValidator(SubTapestry):
                 )
                 model = Trainer(
                     split=split_node,
-                    algorithm=self._algorithm,
+                    algorithm=algorithm,
                     _config=KnotConfig(id=f"train_{fold_index}"),
                 )
                 Evaluator(
                     model=model,
                     split=split_node,
-                    metrics=self._metrics,
+                    metrics=metric_tuple,
                     _config=KnotConfig(id=f"evaluate_{fold_index}"),
                 )
         eval_result = await self._run_inner(inner_eval)
 
-        for fold_index in range(self._n_splits):
+        for fold_index in range(n_splits):
             report = eval_result.outputs[f"evaluate_{fold_index}"]
             if not isinstance(report, EvalReport):
                 raise TypeError(
-                    f"TimeSeriesCrossValidator: fold {fold_index} did not "
-                    "produce an EvalReport"
+                    f"TimeSeriesCrossValidator: fold {fold_index} did not produce an EvalReport"
                 )
             per_fold.append(
                 {name: float(value) for name, value in report.metrics.items()}
@@ -142,13 +156,13 @@ class TimeSeriesCrossValidator(SubTapestry):
 
         aggregated = self._aggregate(per_fold)
         return EvalReport(
-            model_id=f"{self._algorithm}:ts_cv-{self._n_splits}",
+            model_id=f"{algorithm}:ts_cv-{n_splits}",
             dataset_name=dataset.name,
             metrics=MappingProxyType(aggregated),
             details=MappingProxyType(
                 {
-                    "n_splits": self._n_splits,
-                    "algorithm": self._algorithm,
+                    "n_splits": n_splits,
+                    "algorithm": algorithm,
                     "per_fold_metrics": per_fold,
                 }
             ),

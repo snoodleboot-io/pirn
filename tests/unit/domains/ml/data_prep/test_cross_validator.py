@@ -23,6 +23,15 @@ async def emit_dataset() -> MLDataset:
     )
 
 
+def _make_dataset(row_count: int = 100) -> MLDataset:
+    return MLDataset(
+        name="customers",
+        feature_names=("a",),
+        row_count=row_count,
+        source_uri="db://x",
+    )
+
+
 class TestCrossValidatorHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_k_folds(self) -> None:
         with Tapestry() as t:
@@ -44,13 +53,24 @@ class TestCrossValidatorHappyPath(unittest.IsolatedAsyncioTestCase):
             assert split.train.row_count + split.test.row_count == 100
 
 
-class TestCrossValidatorConstruction(unittest.TestCase):
-    def test_rejects_k_below_two(self) -> None:
+class TestCrossValidatorProcess(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self) -> CrossValidator:
         with Tapestry():
-            dataset = emit_dataset(_config=KnotConfig(id="dataset"))
-            with self.assertRaisesRegex(ValueError, "k must be >= 2"):
-                CrossValidator(
-                    dataset=dataset,
-                    k=1,
-                    _config=KnotConfig(id="bad"),
-                )
+            k = CrossValidator.__new__(CrossValidator)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        return k
+
+    async def test_rejects_k_below_two(self) -> None:
+        k_knot = self._make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k_knot.process(dataset=_make_dataset(), k=1)
+
+    async def test_rejects_k_not_int(self) -> None:
+        k_knot = self._make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k_knot.process(dataset=_make_dataset(), k="five")  # type: ignore[arg-type]
+
+    async def test_rejects_row_count_less_than_k(self) -> None:
+        k_knot = self._make_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k_knot.process(dataset=_make_dataset(row_count=1), k=5)

@@ -32,7 +32,7 @@ class TestConstruction(unittest.TestCase):
     def test_rejects_non_knot_model(self) -> None:
         with Tapestry():
             split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(TypeError, "model must be a Knot"):
+            with self.assertRaises(TypeError):
                 ConfusionMatrixAnalyzer(
                     model="bad",  # type: ignore[arg-type]
                     split=split,

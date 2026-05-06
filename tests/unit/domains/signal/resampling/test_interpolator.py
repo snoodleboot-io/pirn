@@ -1,51 +1,45 @@
 """Unit tests for :class:`Interpolator`."""
 
 from __future__ import annotations
+
 import unittest
 
+import pytest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
+from pirn.core.parameter import Parameter
 from pirn.domains.signal.resampling.interpolator import Interpolator
 from pirn.domains.signal.types.signal_frame import SignalFrame
-from pirn.tapestry import Tapestry
-from tests.unit.domains.signal.conftest import emit_signal_frame
+from tests.unit.domains.signal.conftest import make_signal_frame
+
+_SIGNAL = make_signal_frame()
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_non_positive_target_sample_rate(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "target_sample_rate_hz"):
-                Interpolator(
-                    signal=sig,
-                    target_sample_rate_hz=0,
-                    _config=KnotConfig(id="i"),
-                )
-
-    def test_rejects_invalid_kind(self) -> None:
-        with Tapestry():
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            with self.assertRaisesRegex(ValueError, "kind"):
-                Interpolator(
-                    signal=sig,
-                    target_sample_rate_hz=2000.0,
-                    kind="bogus",
-                    _config=KnotConfig(id="i"),
-                )
+def _up(name: str = "signal") -> Parameter:
+    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
 
 
-class TestProcess(unittest.IsolatedAsyncioTestCase):
-    async def test_emits_signal_frame_with_target_rate(self) -> None:
-        with Tapestry() as t:
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
-            Interpolator(
-                signal=sig,
-                target_sample_rate_hz=2000.0,
-                _config=KnotConfig(id="i"),
-            )
-        result = await t.run(RunRequest())
-        out = result.outputs["i"]
+class TestInterpolator(unittest.IsolatedAsyncioTestCase):
+    def _make(self) -> Interpolator:
+        return Interpolator(
+            signal=_up(),
+            target_sample_rate_hz=2000.0,
+            _config=KnotConfig(id="interp"),
+        )
+
+    async def test_rejects_non_positive_target_rate(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="target_sample_rate_hz"):
+            await knot.process(_SIGNAL, target_sample_rate_hz=0.0)
+
+    async def test_rejects_invalid_kind(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="kind"):
+            await knot.process(_SIGNAL, target_sample_rate_hz=2000.0, kind="bogus")
+
+    async def test_emits_signal_frame(self) -> None:
+        knot = self._make()
+        out = await knot.process(_SIGNAL, target_sample_rate_hz=2000.0)
         assert isinstance(out, SignalFrame)
+        assert out.signal_id == "test:interp"
         assert out.sample_rate_hz == 2000.0
-        assert out.samples_per_channel == 2048

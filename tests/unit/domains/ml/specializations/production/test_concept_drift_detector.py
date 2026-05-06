@@ -28,30 +28,40 @@ async def emit_model() -> TrainedModel:
     return TrainedModel(model_id="m1", algorithm="logistic")
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_invalid_method(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            model = emit_model(_config=KnotConfig(id="model"))
-            with self.assertRaisesRegex(ValueError, "method"):
-                ConceptDriftDetector(
-                    model=model,
-                    split=split,
-                    method="eddm",
-                    _config=KnotConfig(id="bad"),
-                )
+def _make_split() -> DataSplit:
+    train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
+    test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
+    return DataSplit(train=train, test=test)
 
-    def test_rejects_nonpositive_delta(self) -> None:
+
+def _make_model() -> TrainedModel:
+    return TrainedModel(model_id="m1", algorithm="logistic")
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_invalid_method(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            model = emit_model(_config=KnotConfig(id="model"))
-            with self.assertRaisesRegex(ValueError, "delta"):
-                ConceptDriftDetector(
-                    model=model,
-                    split=split,
-                    delta=0.0,
-                    _config=KnotConfig(id="bad"),
-                )
+            k = ConceptDriftDetector.__new__(ConceptDriftDetector)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                model=_make_model(),
+                split=_make_split(),
+                method="eddm",
+                delta=0.002,
+            )
+
+    async def test_rejects_nonpositive_delta(self) -> None:
+        with Tapestry():
+            k = ConceptDriftDetector.__new__(ConceptDriftDetector)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                model=_make_model(),
+                split=_make_split(),
+                method="adwin",
+                delta=0.0,
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

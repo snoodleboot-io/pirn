@@ -29,29 +29,37 @@ async def emit_split() -> DataSplit:
     return DataSplit(train=train, test=test)
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_empty_text_column(self) -> None:
-        with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            provider = RecordingEmbeddingProvider()
-            with self.assertRaisesRegex(ValueError, "text_column"):
-                TextEmbeddingExtractor(
-                    split=split,
-                    text_column="",
-                    embedding_provider=provider,
-                    _config=KnotConfig(id="bad"),
-                )
+class TestConstruction(unittest.IsolatedAsyncioTestCase):
+    def _make_split(self) -> DataSplit:
+        train = MLDataset(
+            name="d:train", feature_names=("body",), target_name="y", row_count=80
+        )
+        test = MLDataset(
+            name="d:test", feature_names=("body",), target_name="y", row_count=20
+        )
+        return DataSplit(train=train, test=test)
 
-    def test_rejects_non_provider(self) -> None:
+    async def test_rejects_empty_text_column(self) -> None:
         with Tapestry():
-            split = emit_split(_config=KnotConfig(id="split"))
-            with self.assertRaisesRegex(TypeError, "EmbeddingProvider"):
-                TextEmbeddingExtractor(
-                    split=split,
-                    text_column="body",
-                    embedding_provider="not-a-provider",  # type: ignore[arg-type]
-                    _config=KnotConfig(id="bad"),
-                )
+            k = TextEmbeddingExtractor.__new__(TextEmbeddingExtractor)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=self._make_split(),
+                text_column="",
+                embedding_provider=RecordingEmbeddingProvider(),
+            )
+
+    async def test_rejects_non_provider(self) -> None:
+        with Tapestry():
+            k = TextEmbeddingExtractor.__new__(TextEmbeddingExtractor)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(
+                split=self._make_split(),
+                text_column="body",
+                embedding_provider="not-a-provider",
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

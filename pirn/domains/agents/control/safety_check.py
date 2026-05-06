@@ -1,4 +1,16 @@
-"""``SafetyCheck`` — regex deny-list check on a message or response."""
+"""``SafetyCheck`` — regex deny-list check on a message or response.
+
+Algorithm:
+    1. Receive the resolved message and ``deny_patterns`` sequence.
+    2. Validate input types at process time.
+    3. Compile each pattern string with ``re.IGNORECASE`` via ``compile_safe_pattern``.
+    4. Search the message content against all compiled patterns.
+    5. Return ``True`` (safe) if no pattern matches, ``False`` otherwise.
+
+
+References:
+    - :mod:`pirn.domains.agents._regex_utils` — ``compile_safe_pattern``, ``search_any``
+"""
 
 from __future__ import annotations
 
@@ -18,7 +30,7 @@ class SafetyCheck(Knot):
 
     ``deny_patterns`` is a sequence of regex strings; a match against
     any of them flips the gate to ``False`` (not safe). Patterns are
-    compiled at construction with ``re.IGNORECASE``. Both
+    compiled at process time with ``re.IGNORECASE``. Both
     :class:`AgentMessage` and :class:`AgentResponse` are accepted on
     the input — anything else fails fast.
     """
@@ -27,10 +39,41 @@ class SafetyCheck(Knot):
         self,
         *,
         message: Knot,
-        deny_patterns: Sequence[str],
+        deny_patterns: Knot | Sequence[str],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            message=message,
+            deny_patterns=deny_patterns,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        message: AgentMessage | AgentResponse,
+        deny_patterns: Sequence[str],
+        **_: Any,
+    ) -> bool:
+        """Check the message body against deny-list patterns and return True if safe.
+
+        Args:
+            message: The agent message or response whose content is checked.
+            deny_patterns: Regex strings that, when matched, indicate unsafe content.
+
+        Returns:
+            True if no deny pattern matches the content, False otherwise.
+
+        Raises:
+            TypeError: If message or patterns have wrong types.
+            ValueError: If deny_patterns is empty or contains invalid patterns.
+        """
+        if not isinstance(message, (AgentMessage, AgentResponse)):
+            raise TypeError(
+                "SafetyCheck: message must be an AgentMessage or AgentResponse, "
+                f"got {type(message).__name__}"
+            )
         if not isinstance(deny_patterns, Sequence) or isinstance(
             deny_patterns, (str, bytes)
         ):
@@ -55,38 +98,6 @@ class SafetyCheck(Knot):
                     flags=re.IGNORECASE,
                 )
             )
-        super().__init__(
-            message=message,
-            deny_patterns=tuple(deny_patterns),
-            _config=_config,
-            **kwargs,
-        )
-        self._mutable_compiled = tuple(compiled)
-
-    async def process(
-        self,
-        message: AgentMessage | AgentResponse,
-        deny_patterns: tuple[str, ...],
-        **_: Any,
-    ) -> bool:
-        """Check the message body against deny-list patterns and return True if safe.
-
-        Args:
-            message: The agent message or response whose content is checked.
-            deny_patterns: Compiled regex patterns that, when matched, indicate unsafe content.
-
-        Returns:
-            True if no deny pattern matches the content, False otherwise.
-
-        Raises:
-            TypeError: If message is not an AgentMessage or AgentResponse instance.
-        """
-        if not isinstance(message, (AgentMessage, AgentResponse)):
-            raise TypeError(
-                "SafetyCheck: message must be an AgentMessage or AgentResponse, "
-                f"got {type(message).__name__}"
-            )
-        del deny_patterns  # consumed at construction; compiled patterns used here
         content = message.content
-        match = await search_any(self._mutable_compiled, content)
+        match = await search_any(tuple(compiled), content)
         return match is None

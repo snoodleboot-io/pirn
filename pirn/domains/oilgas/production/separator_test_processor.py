@@ -1,4 +1,32 @@
-"""``SeparatorTestProcessor`` — process separator test data to compute GOR, WOR, and shrinkage factors."""
+"""``SeparatorTestProcessor`` — process separator test data to compute GOR, WOR, and shrinkage factors.
+
+Algorithm:
+    1. Receive a separator test data dict and ``separator_stages`` integer (1, 2, or 3).
+    2. Validate that ``separator_stages`` is one of {1, 2, 3}.
+    3. Extract oil rate, gas rate, and water rate from the test data.
+    4. Compute GOR = gas_scfd / oil_bopd, WOR = water / oil.
+    5. Compute oil shrinkage factor as a function of separator stage count.
+    6. Return GOR, WOR, and oil shrinkage factor.
+
+Math:
+    Gas-oil ratio:
+
+    $$\\text{GOR} = \\frac{q_g \\times 10^6}{q_o} \\quad [\\text{scf/bbl}]$$
+
+    Water-oil ratio:
+
+    $$\\text{WOR} = \\frac{q_w}{q_o}$$
+
+    Oil shrinkage factor (empirical multi-stage separator approximation):
+
+    $$B_o^{-1} \\approx \\frac{1}{1 + 0.05 \\cdot N_{\\text{stages}}}$$
+
+References:
+    - Standing, M.B. (1977). *Volumetric and Phase Behavior of Oil Field
+      Hydrocarbon Systems*, 9th printing. SPE, Dallas.
+    - API MPMS Chapter 12.2 — Calculation of Petroleum Quantities, Lease
+      Automatic Custody Transfer (LACT) and Tank Gauging.
+"""
 
 from __future__ import annotations
 
@@ -11,35 +39,33 @@ from pirn.core.knot_config import KnotConfig
 class SeparatorTestProcessor(Knot):
     """Compute GOR, WOR, and oil shrinkage factor from separator test measurements."""
 
-    def __init__(
-        self,
-        *,
-        test_data: Knot,
-        separator_stages: int,
-        _config: KnotConfig,
-        **kwargs: Any,
-    ) -> None:
-        if not isinstance(separator_stages, int):
-            raise TypeError("SeparatorTestProcessor: separator_stages must be an int")
-        if separator_stages not in {1, 2, 3}:
-            raise ValueError(
-                "SeparatorTestProcessor: separator_stages must be 1, 2, or 3"
-            )
-        self._separator_stages = separator_stages
-        super().__init__(test_data=test_data, _config=_config, **kwargs)
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
 
-    async def process(self, test_data: dict[str, Any], **_: Any) -> dict[str, Any]:
+    async def process(
+        self,
+        test_data: dict[str, Any],
+        separator_stages: int,
+        **_: Any,
+    ) -> dict[str, Any]:
         """Compute GOR, WOR, and oil shrinkage from separator test data.
 
         Args:
             test_data: Dict with ``oil_rate_bopd``, ``gas_rate_mmscfd``,
                 ``water_rate_bwpd``, ``separator_pressure_psig``,
                 and ``separator_temp_f``.
+            separator_stages: Number of separator stages; must be 1, 2, or 3.
 
         Returns:
             Dict with ``gor_scf_bbl`` (float), ``wor_bbl_bbl`` (float),
             and ``oil_shrinkage_factor`` (float).
         """
+        if not isinstance(separator_stages, int):
+            raise TypeError("SeparatorTestProcessor: separator_stages must be an int")
+        if separator_stages not in {1, 2, 3}:
+            raise ValueError(
+                "SeparatorTestProcessor: separator_stages must be 1, 2, or 3"
+            )
         if not isinstance(test_data, dict):
             raise TypeError("SeparatorTestProcessor: test_data must be a dict")
         oil = float(test_data.get("oil_rate_bopd", 1.0) or 1.0)
@@ -48,7 +74,7 @@ class SeparatorTestProcessor(Knot):
         gas_scfd = gas_mmscfd * 1_000_000.0
         gor = gas_scfd / oil if oil else 0.0
         wor = water / oil if oil else 0.0
-        shrinkage = 1.0 / (1.0 + 0.05 * self._separator_stages)
+        shrinkage = 1.0 / (1.0 + 0.05 * separator_stages)
         return {
             "gor_scf_bbl": gor,
             "wor_bbl_bbl": wor,

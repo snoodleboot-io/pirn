@@ -2,6 +2,18 @@
 
 Production version invokes the STAR executable; this stub validates
 inputs and returns the requested BAM path.
+
+Algorithm:
+    1. Receive fastq_path, genome_dir, and output_bam_path strings.
+    2. Validate that all are non-empty strings.
+    3. Run STAR --runMode alignReads with the configured genome directory.
+    4. Convert SAM output to sorted BAM at output_bam_path.
+    5. Return the output BAM path.
+
+
+References:
+    - Dobin et al. (2013) STAR: ultrafast universal RNA-seq aligner.
+    - STAR: https://github.com/alexdobin/STAR
 """
 
 from __future__ import annotations
@@ -18,12 +30,41 @@ class STARAligner(Knot):
     def __init__(
         self,
         *,
-        fastq_path: str,
-        genome_dir: str,
-        output_bam_path: str,
+        fastq_path: Knot | str,
+        genome_dir: Knot | str,
+        output_bam_path: Knot | str,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        super().__init__(
+            fastq_path=fastq_path,
+            genome_dir=genome_dir,
+            output_bam_path=output_bam_path,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        fastq_path: str,
+        genome_dir: str,
+        output_bam_path: str,
+        **_: Any,
+    ) -> str:
+        """Align RNA-seq reads with STAR using the configured genome directory and return the output BAM path.
+
+        Args:
+            fastq_path: Non-empty path to the input FASTQ file.
+            genome_dir: Non-empty path to the STAR genome directory.
+            output_bam_path: Non-empty path for the output BAM file.
+
+        Returns:
+            Path string for the aligned BAM output file.
+
+        Raises:
+            TypeError: If any argument is not a string.
+            ValueError: If any argument is empty.
+        """
         for label, value in (
             ("fastq_path", fastq_path),
             ("genome_dir", genome_dir),
@@ -33,15 +74,4 @@ class STARAligner(Knot):
                 raise TypeError(f"STARAligner: {label} must be a string")
             if not value:
                 raise ValueError(f"STARAligner: {label} must be non-empty")
-        self._fastq_path = fastq_path
-        self._genome_dir = genome_dir
-        self._output_bam_path = output_bam_path
-        super().__init__(_config=_config, **kwargs)
-
-    async def process(self, **_: Any) -> str:
-        """Align RNA-seq reads with STAR using the configured genome directory and return the output BAM path.
-
-        Returns:
-            Path string for the aligned BAM output file.
-        """
-        return self._output_bam_path
+        return output_bam_path

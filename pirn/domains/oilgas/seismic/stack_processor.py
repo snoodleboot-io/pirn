@@ -1,4 +1,23 @@
-"""``StackProcessor`` — sum traces in a CMP gather to produce a stacked trace."""
+"""``StackProcessor`` — sum traces in a CMP gather to produce a stacked trace.
+
+Algorithm:
+    1. Receive an NMO-corrected CMP gather SegyVolume.
+    2. Sum all offset traces to produce a single zero-offset trace.
+    3. Return the stacked trace as a SegyVolume reference.
+
+Math:
+    Stacked trace sample at time :math:`t`:
+
+    $$s_{stack}(t) = \\frac{1}{N} \\sum_{j=1}^{N} s_j(t)$$
+
+    where :math:`N` is the number of offset traces (fold).
+
+References:
+    - Mayne, W.H. (1962). Common reflection point horizontal data stacking
+      techniques. *Geophysics*, 27(6), 927–938.
+    - Yilmaz, Ö. (2001). *Seismic Data Analysis*, 2nd ed. SEG, Chapter 3
+      (CMP stacking).
+"""
 
 from __future__ import annotations
 

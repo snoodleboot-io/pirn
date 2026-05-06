@@ -33,6 +33,15 @@ async def emit_serialized() -> bytes:
     return b"serialized-bytes"
 
 
+def _make_model() -> TrainedModel:
+    return TrainedModel(
+        model_id="m1",
+        algorithm="rf",
+        feature_names=("a",),
+        target_name="y",
+    )
+
+
 class TestModelRegistrarHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_writes_to_lineage_and_object_store(self) -> None:
         lineage = RecordingLineageStore()
@@ -58,17 +67,33 @@ class TestModelRegistrarHappyPath(unittest.IsolatedAsyncioTestCase):
         assert payload["model_id"] == "m1"
 
 
-class TestModelRegistrarConstruction(unittest.TestCase):
-    def test_rejects_non_lineage(self) -> None:
-        store = RecordingObjectStore()
+class TestModelRegistrarProcess(unittest.IsolatedAsyncioTestCase):
+    def _make_knot(self) -> ModelRegistrar:
         with Tapestry():
-            serialized = emit_serialized(_config=KnotConfig(id="ser"))
-            model = emit_model(_config=KnotConfig(id="model"))
-            with self.assertRaisesRegex(TypeError, "LineageStore"):
-                ModelRegistrar(
-                    serialized=serialized,
-                    model=model,
-                    lineage="not a lineage",  # type: ignore[arg-type]
-                    store=store,
-                    _config=KnotConfig(id="bad"),
-                )
+            reg = ModelRegistrar.__new__(ModelRegistrar)
+            object.__setattr__(reg, "_config", KnotConfig(id="x"))
+        return reg
+
+    async def test_rejects_non_bytes_serialized(self) -> None:
+        reg = self._make_knot()
+        store = RecordingObjectStore()
+        lineage = RecordingLineageStore()
+        with self.assertRaises((TypeError, ValueError)):
+            await reg.process(
+                serialized="not bytes",  # type: ignore[arg-type]
+                model=_make_model(),
+                lineage=lineage,
+                store=store,
+            )
+
+    async def test_rejects_non_trained_model(self) -> None:
+        reg = self._make_knot()
+        store = RecordingObjectStore()
+        lineage = RecordingLineageStore()
+        with self.assertRaises((TypeError, ValueError)):
+            await reg.process(
+                serialized=b"bytes",
+                model="not a model",  # type: ignore[arg-type]
+                lineage=lineage,
+                store=store,
+            )

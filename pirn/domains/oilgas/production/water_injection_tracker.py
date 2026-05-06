@@ -1,4 +1,23 @@
-"""``WaterInjectionTracker`` — track injected water volumes by injector."""
+"""``WaterInjectionTracker`` — track injected water volumes by injector.
+
+Algorithm:
+    1. Receive an injection-rate ScadaTimeSeries.
+    2. Integrate the rate over time using the trapezoidal rule.
+    3. Return a cumulative injected-volume ScadaTimeSeries.
+
+Math:
+    Cumulative injected volume up to time :math:`T`:
+
+    $$V_{\\text{cum}}(T) = \\int_0^T q_{\\text{inj}}(t)\\, dt \\approx \\sum_{i} q_{\\text{inj},i} \\cdot \\Delta t$$
+
+    where :math:`q_{\\text{inj},i}` is the injection rate at step :math:`i`
+    (bbl/day) and :math:`\\Delta t` is the sample interval (days).
+
+References:
+    - Ahmed, T. (2010). *Reservoir Engineering Handbook*, 4th ed. Gulf
+      Professional Publishing, Chapter 14 (water injection and pressure
+      maintenance).
+"""
 
 from __future__ import annotations
 

@@ -16,18 +16,24 @@ from tests.unit.domains.ml._stubs.recording_database_pool import (
 )
 
 
-class TestConstruction(unittest.TestCase):
-    def test_rejects_invalid_architecture(self) -> None:
-        with Tapestry():
-            with self.assertRaisesRegex(ValueError, "architecture"):
-                ImageClassificationPipeline(
-                    pool=RecordingDatabasePool(rows=[(b"img", 0)]),
-                    query="SELECT 1",
-                    image_column="img",
-                    label_column="label",
-                    architecture="resnet",
-                    _config=KnotConfig(id="bad"),
-                )
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    async def test_rejects_invalid_architecture(self) -> None:
+        knot = ImageClassificationPipeline(
+            pool=RecordingDatabasePool(rows=[(b"img", 0)]),
+            query="SELECT 1",
+            image_column="img",
+            label_column="label",
+            architecture="resnet",
+            _config=KnotConfig(id="bad"),
+        )
+        with self.assertRaisesRegex(ValueError, "architecture"):
+            await knot.process(
+                pool=RecordingDatabasePool(rows=[(b"img", 0)]),
+                query="SELECT 1",
+                image_column="img",
+                label_column="label",
+                architecture="resnet",
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):
