@@ -26,29 +26,19 @@ class ObjectStore(PirnOpaqueValue):
 
     async def get(self, key: str) -> AsyncIterator[bytes]:
         """Stream the bytes of the object at ``key``."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement get()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement get()")
 
-    async def put(
-        self, key: str, body: AsyncIterator[bytes] | bytes
-    ) -> None:
+    async def put(self, key: str, body: AsyncIterator[bytes] | bytes) -> None:
         """Write ``body`` to ``key`` — bytes or an async iterator of bytes."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement put()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement put()")
 
     async def delete(self, key: str) -> None:
         """Remove the object at ``key``. Idempotent."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement delete()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement delete()")
 
     async def list(self, prefix: str = "") -> AsyncIterator[str]:
         """Yield all keys under ``prefix`` in lexicographic order."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement list()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement list()")
 
     def _validate_key(self, key: str) -> None:
         """Reject keys that would cause path-traversal or invalid byte issues.
@@ -72,4 +62,3 @@ class ObjectStore(PirnOpaqueValue):
         parts = key.split("/")
         if any(p == ".." for p in parts):
             raise ValueError("key must not contain '..' segments")
-

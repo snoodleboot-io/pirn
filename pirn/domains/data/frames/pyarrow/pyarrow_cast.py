@@ -68,19 +68,17 @@ class PyarrowCast(Knot):
             target PyArrow types.
         """
         if not isinstance(casts, Mapping) or not casts:
-            raise TypeError(
-                "PyarrowCast: casts must be a non-empty Mapping[column, dtype]"
-            )
+            raise TypeError("PyarrowCast: casts must be a non-empty Mapping[column, dtype]")
         for column in casts:
             if not isinstance(column, str) or not column:
                 raise TypeError("PyarrowCast: casts keys must be non-empty strings")
 
         resolved: dict[str, pa.DataType] = {
-            column: self._normalise_dtype(column, dtype)
-            for column, dtype in casts.items()
+            column: self._normalise_dtype(column, dtype) for column, dtype in casts.items()
         }
         applicable = {
-            column: dtype for column, dtype in resolved.items()
+            column: dtype
+            for column, dtype in resolved.items()
             if column in batch.table.column_names
         }
         if not applicable:
@@ -93,9 +91,7 @@ class PyarrowCast(Knot):
         for column, dtype in applicable.items():
             field_index = table.schema.get_field_index(column)
             casted = pc.cast(table.column(column), dtype)
-            table = table.set_column(
-                field_index, pa.field(column, dtype), casted
-            )
+            table = table.set_column(field_index, pa.field(column, dtype), casted)
         return batch.with_table(table)
 
     @staticmethod

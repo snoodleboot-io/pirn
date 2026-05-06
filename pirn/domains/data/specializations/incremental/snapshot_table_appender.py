@@ -80,13 +80,9 @@ class SnapshotTableAppender(Knot):
         **_: Any,
     ) -> dict[str, Any]:
         if not isinstance(source_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "SnapshotTableAppender: source_pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("SnapshotTableAppender: source_pool must be a DatabaseConnectionPool")
         if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "SnapshotTableAppender: target_pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("SnapshotTableAppender: target_pool must be a DatabaseConnectionPool")
         if not isinstance(source_query, str) or not source_query:
             raise ValueError("SnapshotTableAppender: source_query must be a non-empty string")
         if not isinstance(target_table, str) or not target_table:

@@ -34,17 +34,13 @@ class KmlFormat(BatchFileFormat):
     """Whole-document KML encoder/decoder."""
 
     _kml_namespace: ClassVar[str] = "http://www.opengis.net/kml/2.2"
-    _supported_geometries: ClassVar[frozenset[str]] = frozenset(
-        {"Point", "LineString", "Polygon"}
-    )
+    _supported_geometries: ClassVar[frozenset[str]] = frozenset({"Point", "LineString", "Polygon"})
 
     @property
     def name(self) -> str:
         return "kml"
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         etree = self._load_lxml()
         if not payload.strip():
             return []
@@ -55,9 +51,7 @@ class KmlFormat(BatchFileFormat):
             records.append(self._parse_placemark(placemark))
         return records
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         simplekml = self._load_simplekml()
         document = simplekml.Kml()
         for record in records:
@@ -72,18 +66,14 @@ class KmlFormat(BatchFileFormat):
         extended_data = cls._parse_extended_data(placemark)
         return {
             "name": name_el.text if name_el is not None else "",
-            "description": (
-                description_el.text if description_el is not None else ""
-            ),
+            "description": (description_el.text if description_el is not None else ""),
             "geometry_type": geometry_type,
             "coordinates": coordinates,
             "extended_data": extended_data,
         }
 
     @classmethod
-    def _parse_geometry(
-        cls, placemark: Any
-    ) -> tuple[str, list[tuple[float, ...]]]:
+    def _parse_geometry(cls, placemark: Any) -> tuple[str, list[tuple[float, ...]]]:
         for geometry_type in cls._supported_geometries:
             element = cls._find_child(placemark, geometry_type)
             if element is None:
@@ -107,10 +97,7 @@ class KmlFormat(BatchFileFormat):
             try:
                 values = tuple(float(part) for part in parts if part)
             except ValueError as exc:
-                raise ValueError(
-                    "KmlFormat: invalid coordinate token "
-                    f"{token!r}"
-                ) from exc
+                raise ValueError(f"KmlFormat: invalid coordinate token {token!r}") from exc
             coordinates.append(values)
         return coordinates
 
@@ -127,10 +114,7 @@ class KmlFormat(BatchFileFormat):
             if key is None:
                 continue
             value_el = data_el.find(value_tag)
-            result[str(key)] = (
-                value_el.text if value_el is not None and value_el.text
-                else ""
-            )
+            result[str(key)] = value_el.text if value_el is not None and value_el.text else ""
         return result
 
     @classmethod
@@ -142,19 +126,13 @@ class KmlFormat(BatchFileFormat):
         description = record.get("description", "")
         extended_data = record.get("extended_data") or {}
         if geometry_type == "Point":
-            placemark = document.newpoint(
-                name=name, description=description
-            )
+            placemark = document.newpoint(name=name, description=description)
             placemark.coords = list(coordinates)
         elif geometry_type == "LineString":
-            placemark = document.newlinestring(
-                name=name, description=description
-            )
+            placemark = document.newlinestring(name=name, description=description)
             placemark.coords = list(coordinates)
         elif geometry_type == "Polygon":
-            placemark = document.newpolygon(
-                name=name, description=description
-            )
+            placemark = document.newpolygon(name=name, description=description)
             placemark.outerboundaryis = list(coordinates)
         else:
             raise ValueError(
@@ -168,24 +146,18 @@ class KmlFormat(BatchFileFormat):
     @classmethod
     def _validate_record(cls, record: Mapping[str, Any]) -> None:
         if "geometry_type" not in record:
-            raise ValueError(
-                "KmlFormat: record missing required 'geometry_type'"
-            )
+            raise ValueError("KmlFormat: record missing required 'geometry_type'")
         if "coordinates" not in record:
-            raise ValueError(
-                "KmlFormat: record missing required 'coordinates'"
-            )
+            raise ValueError("KmlFormat: record missing required 'coordinates'")
         geometry_type = record["geometry_type"]
         if not isinstance(geometry_type, str):
             raise TypeError(
-                "KmlFormat: geometry_type must be a string, got "
-                f"{type(geometry_type).__name__}"
+                f"KmlFormat: geometry_type must be a string, got {type(geometry_type).__name__}"
             )
         coordinates = record["coordinates"]
         if not isinstance(coordinates, (list, tuple)):
             raise TypeError(
-                "KmlFormat: coordinates must be a list/tuple, got "
-                f"{type(coordinates).__name__}"
+                f"KmlFormat: coordinates must be a list/tuple, got {type(coordinates).__name__}"
             )
 
     @classmethod
@@ -194,9 +166,7 @@ class KmlFormat(BatchFileFormat):
 
     @classmethod
     def _find_descendant(cls, element: Any, local_name: str) -> Any:
-        return element.find(
-            f".//{{{cls._kml_namespace}}}{local_name}"
-        )
+        return element.find(f".//{{{cls._kml_namespace}}}{local_name}")
 
     @staticmethod
     def _load_lxml() -> Any:
@@ -204,8 +174,7 @@ class KmlFormat(BatchFileFormat):
             from lxml import etree
         except ImportError as exc:
             raise ImportError(
-                "KmlFormat requires lxml. Install with "
-                "`pip install pirn[kml]`."
+                "KmlFormat requires lxml. Install with `pip install pirn[kml]`."
             ) from exc
         return etree
 
@@ -215,7 +184,6 @@ class KmlFormat(BatchFileFormat):
             import simplekml
         except ImportError as exc:
             raise ImportError(
-                "KmlFormat requires simplekml. Install with "
-                "`pip install pirn[kml]`."
+                "KmlFormat requires simplekml. Install with `pip install pirn[kml]`."
             ) from exc
         return simplekml

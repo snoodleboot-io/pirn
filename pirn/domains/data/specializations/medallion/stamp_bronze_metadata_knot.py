@@ -60,8 +60,6 @@ class StampBronzeMetadataKnot(Knot):
             ValueError: If ``source_uri`` is empty or not a string.
         """
         if not isinstance(source_uri, str) or not source_uri:
-            raise ValueError(
-                "StampBronzeMetadataKnot: source_uri must be a non-empty string"
-            )
+            raise ValueError("StampBronzeMetadataKnot: source_uri must be a non-empty string")
         ingested_at = datetime.now(UTC).isoformat()
         return [(*tuple(row), ingested_at, source_uri) for row in rows]

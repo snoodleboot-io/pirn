@@ -82,21 +82,13 @@ class DictionaryLearner(Knot):
             ValueError: If atom_count, sparsity_target, or max_iterations are invalid.
         """
         if not isinstance(atom_count, int) or atom_count <= 0:
-            raise ValueError(
-                "DictionaryLearner: atom_count must be a positive integer"
-            )
+            raise ValueError("DictionaryLearner: atom_count must be a positive integer")
         if not isinstance(sparsity_target, int) or sparsity_target <= 0:
-            raise ValueError(
-                "DictionaryLearner: sparsity_target must be a positive integer"
-            )
+            raise ValueError("DictionaryLearner: sparsity_target must be a positive integer")
         if sparsity_target > atom_count:
-            raise ValueError(
-                "DictionaryLearner: sparsity_target must not exceed atom_count"
-            )
+            raise ValueError("DictionaryLearner: sparsity_target must not exceed atom_count")
         if not isinstance(max_iterations, int) or max_iterations <= 0:
-            raise ValueError(
-                "DictionaryLearner: max_iterations must be a positive integer"
-            )
+            raise ValueError("DictionaryLearner: max_iterations must be a positive integer")
         return SourceFrame(
             signal_id=signal.signal_id,
             source_count=atom_count,

@@ -75,13 +75,9 @@ class CWTDecomposer(Knot):
             ValueError: If wavelet_name or scale_count are invalid.
         """
         if not isinstance(wavelet_name, str) or not wavelet_name:
-            raise ValueError(
-                "CWTDecomposer: wavelet_name must be a non-empty string"
-            )
+            raise ValueError("CWTDecomposer: wavelet_name must be a non-empty string")
         if not isinstance(scale_count, int) or scale_count <= 0:
-            raise ValueError(
-                "CWTDecomposer: scale_count must be a positive integer"
-            )
+            raise ValueError("CWTDecomposer: scale_count must be a positive integer")
         return WaveletFrame(
             signal_id=signal.signal_id,
             wavelet_name=wavelet_name,

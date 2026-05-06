@@ -56,11 +56,7 @@ class CmgSsfileParser(Knot):
             ScadaTimeSeries keyed by ``cmg:{vector_name}``.
         """
         if not isinstance(ssfile_path, str) or not ssfile_path:
-            raise ValueError(
-                "CmgSsfileParser: ssfile_path must be a non-empty string"
-            )
+            raise ValueError("CmgSsfileParser: ssfile_path must be a non-empty string")
         if not isinstance(vector_name, str) or not vector_name:
-            raise ValueError(
-                "CmgSsfileParser: vector_name must be a non-empty string"
-            )
+            raise ValueError("CmgSsfileParser: vector_name must be a non-empty string")
         return ScadaTimeSeries(sensor_id=f"cmg:{vector_name}")

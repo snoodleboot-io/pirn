@@ -55,13 +55,9 @@ class ArchiveFileFormat(FileFormat):
         "tar.zst": "w:",
     }
 
-    def __init__(
-        self, inner: FileFormat, *, archive_type: str
-    ) -> None:
+    def __init__(self, inner: FileFormat, *, archive_type: str) -> None:
         if not isinstance(inner, FileFormat):
-            raise TypeError(
-                "ArchiveFileFormat: inner must be a FileFormat"
-            )
+            raise TypeError("ArchiveFileFormat: inner must be a FileFormat")
         if archive_type not in self._supported_archives:
             raise ValueError(
                 f"ArchiveFileFormat: archive_type must be one of "
@@ -86,30 +82,22 @@ class ArchiveFileFormat(FileFormat):
     def archive_type(self) -> str:
         return self._archive_type
 
-    async def read(
-        self, body: AsyncIterator[bytes]
-    ) -> AsyncIterator[Mapping[str, Any]]:
+    async def read(self, body: AsyncIterator[bytes]) -> AsyncIterator[Mapping[str, Any]]:
         payload = await self._drain_bytes(body)
         archive_type = self._archive_type
         inner = self._inner
 
         async def _iter() -> AsyncIterator[Mapping[str, Any]]:
             if archive_type == "zip":
-                async for record in ArchiveFileFormat._read_zip(
-                    inner, payload
-                ):
+                async for record in ArchiveFileFormat._read_zip(inner, payload):
                     yield record
             else:
-                async for record in ArchiveFileFormat._read_tar(
-                    inner, payload, archive_type
-                ):
+                async for record in ArchiveFileFormat._read_tar(inner, payload, archive_type):
                     yield record
 
         return _iter()
 
-    async def write(
-        self, records: AsyncIterator[Mapping[str, Any]]
-    ) -> AsyncIterator[bytes]:
+    async def write(self, records: AsyncIterator[Mapping[str, Any]]) -> AsyncIterator[bytes]:
         materialised = await self._drain_records(records)
         archive_type = self._archive_type
         inner = self._inner
@@ -119,9 +107,7 @@ class ArchiveFileFormat(FileFormat):
         if archive_type == "zip":
             payload = await ArchiveFileFormat._write_zip(inner, grouped)
         else:
-            payload = await ArchiveFileFormat._write_tar(
-                inner, grouped, archive_type
-            )
+            payload = await ArchiveFileFormat._write_tar(inner, grouped, archive_type)
 
         async def _iter() -> AsyncIterator[bytes]:
             yield payload
@@ -132,14 +118,11 @@ class ArchiveFileFormat(FileFormat):
     def _validate_member_path(name: str) -> None:
         """Raise ValueError if *name* is unsafe to use as an archive member path."""
         if not name:
-            raise ValueError(
-                "ArchiveFileFormat: archive member path must be non-empty"
-            )
+            raise ValueError("ArchiveFileFormat: archive member path must be non-empty")
         if "\x00" in name:
-            raise ValueError(
-                f"ArchiveFileFormat: archive member path contains NUL byte: {name!r}"
-            )
+            raise ValueError(f"ArchiveFileFormat: archive member path contains NUL byte: {name!r}")
         import os.path as _osp
+
         if _osp.isabs(name):
             raise ValueError(
                 f"ArchiveFileFormat: archive member path must be relative, got {name!r}"
@@ -163,16 +146,12 @@ class ArchiveFileFormat(FileFormat):
                     "'_archive_member' string field"
                 )
             ArchiveFileFormat._validate_member_path(member)
-            inner_record = {
-                k: v for k, v in record.items() if k != "_archive_member"
-            }
+            inner_record = {k: v for k, v in record.items() if k != "_archive_member"}
             grouped.setdefault(member, []).append(inner_record)
         return grouped
 
     @staticmethod
-    async def _read_zip(
-        inner: FileFormat, payload: bytes
-    ) -> AsyncIterator[Mapping[str, Any]]:
+    async def _read_zip(inner: FileFormat, payload: bytes) -> AsyncIterator[Mapping[str, Any]]:
         with zipfile.ZipFile(io.BytesIO(payload), "r") as zf:
             for info in zf.infolist():
                 if info.is_dir():

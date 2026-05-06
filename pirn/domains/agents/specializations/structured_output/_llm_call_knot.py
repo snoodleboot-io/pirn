@@ -43,9 +43,7 @@ class _LLMCallKnot(Knot):
         Returns:
             The text content returned by the LLM.
         """
-        raw = await llm.chat(
-            [{"role": "user", "content": prompt}]
-        )
+        raw = await llm.chat([{"role": "user", "content": prompt}])
         return self._extract_text(raw)
 
     @staticmethod

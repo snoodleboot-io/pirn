@@ -31,17 +31,11 @@ class DeltaTable(LakehouseTable):
         dt: Any = None,
     ) -> None:
         if config is None and dt is None:
-            raise TypeError(
-                "DeltaTable requires either config= or dt= (injected vendor table)"
-            )
+            raise TypeError("DeltaTable requires either config= or dt= (injected vendor table)")
         if config is not None and not isinstance(config, DeltaTableConfig):
-            raise TypeError(
-                "DeltaTable: config must be a DeltaTableConfig instance"
-            )
+            raise TypeError("DeltaTable: config must be a DeltaTableConfig instance")
         if config is not None and not config.table_uri:
-            raise ValueError(
-                "DeltaTable: config.table_uri must be a non-empty string"
-            )
+            raise ValueError("DeltaTable: config.table_uri must be a non-empty string")
         self._config = config
         self._dt = dt
         self._closed = False
@@ -172,9 +166,7 @@ class DeltaTable(LakehouseTable):
             return self._dt
         sdk = self._import_deltalake()
         if self._config is None or not self._config.table_uri:
-            raise RuntimeError(
-                "DeltaTable: missing config.table_uri and no injected dt"
-            )
+            raise RuntimeError("DeltaTable: missing config.table_uri and no injected dt")
         self._dt = sdk.DeltaTable(
             self._config.table_uri,
             storage_options=self._storage_options(),
@@ -199,9 +191,7 @@ class DeltaTable(LakehouseTable):
         if self._dt is not None:
             return self._dt
         if self._config is None or not self._config.table_uri:
-            raise RuntimeError(
-                "DeltaTable: missing config.table_uri and no injected dt"
-            )
+            raise RuntimeError("DeltaTable: missing config.table_uri and no injected dt")
         return self._config.table_uri
 
     def _storage_options(self) -> dict[str, str]:
@@ -223,9 +213,7 @@ class DeltaTable(LakehouseTable):
     ) -> str | None:
         if not partition_filter:
             return None
-        return " AND ".join(
-            f"{key} = '{value}'" for key, value in partition_filter.items()
-        )
+        return " AND ".join(f"{key} = '{value}'" for key, value in partition_filter.items())
 
     @staticmethod
     async def _drain(

@@ -89,13 +89,15 @@ class ScdType7(Knot):
     ) -> dict[str, int]:
         if not source_rows:
             return {"inserted": 0, "expired": 0}
-        select_q = ScdType7MergeKnot._select_query(
-            target_table, column_tuple, current_flag_column
-        )
+        select_q = ScdType7MergeKnot._select_query(target_table, column_tuple, current_flag_column)
         max_q = ScdType7MergeKnot._max_surrogate_query(target_table, surrogate_key_column)
         insert_q = ScdType7MergeKnot._insert_query(
-            target_table, surrogate_key_column, column_tuple,
-            effective_date_column, expiry_date_column, current_flag_column,
+            target_table,
+            surrogate_key_column,
+            column_tuple,
+            effective_date_column,
+            expiry_date_column,
+            current_flag_column,
         )
         expire_q = ScdType7MergeKnot._expire_query(
             target_table, primary_key_tuple, expiry_date_column, current_flag_column
@@ -168,8 +170,10 @@ class ScdType7(Knot):
         if missing:
             raise ValueError(f"ScdType7: primary_keys not in column_names: {missing}")
         bookkeeping = (
-            surrogate_key_column, effective_date_column,
-            expiry_date_column, current_flag_column,
+            surrogate_key_column,
+            effective_date_column,
+            expiry_date_column,
+            current_flag_column,
         )
         overlap = [c for c in bookkeeping if c in column_tuple]
         if overlap:

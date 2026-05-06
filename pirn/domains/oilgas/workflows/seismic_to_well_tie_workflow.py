@@ -106,14 +106,10 @@ class SeismicToWellTieWorkflow(SubTapestry):
             ("well_id", well_id),
         ):
             if not isinstance(value, str) or not value:
-                raise ValueError(
-                    f"SeismicToWellTieWorkflow: {label} must be a non-empty string"
-                )
+                raise ValueError(f"SeismicToWellTieWorkflow: {label} must be a non-empty string")
         las_curve_tuple = tuple(las_curves)
         if not las_curve_tuple:
-            raise ValueError(
-                "SeismicToWellTieWorkflow: las_curves must be non-empty"
-            )
+            raise ValueError("SeismicToWellTieWorkflow: las_curves must be non-empty")
         with Tapestry() as inner:
             volume = SegyFileIngester(
                 file_path=segy_path,

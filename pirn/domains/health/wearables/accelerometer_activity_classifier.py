@@ -103,7 +103,7 @@ class AccelerometerActivityClassifier(Knot):
                 mean_x = sum(window_x) / len(window_x)
                 mean_y = sum(window_y) / len(window_y)
                 mean_z = sum(window_z) / len(window_z)
-                vm = math.sqrt(mean_x ** 2 + mean_y ** 2 + mean_z ** 2)
+                vm = math.sqrt(mean_x**2 + mean_y**2 + mean_z**2)
             start_iso = timestamps[start_idx] if start_idx < len(timestamps) else ""
             end_iso = timestamps[end_idx - 1] if end_idx - 1 < len(timestamps) else ""
             results.append(

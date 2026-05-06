@@ -73,17 +73,11 @@ class BandStopFilter(Knot):
             ValueError: If cutoff frequencies are invalid.
         """
         if not isinstance(low_cutoff_hz, (int, float)) or low_cutoff_hz <= 0:
-            raise ValueError(
-                "BandStopFilter: low_cutoff_hz must be positive"
-            )
+            raise ValueError("BandStopFilter: low_cutoff_hz must be positive")
         if not isinstance(high_cutoff_hz, (int, float)) or high_cutoff_hz <= 0:
-            raise ValueError(
-                "BandStopFilter: high_cutoff_hz must be positive"
-            )
+            raise ValueError("BandStopFilter: high_cutoff_hz must be positive")
         if low_cutoff_hz >= high_cutoff_hz:
-            raise ValueError(
-                "BandStopFilter: low_cutoff_hz must be < high_cutoff_hz"
-            )
+            raise ValueError("BandStopFilter: low_cutoff_hz must be < high_cutoff_hz")
         return SignalFrame(
             signal_id=f"{signal.signal_id}:bandstop",
             channel_count=signal.channel_count,

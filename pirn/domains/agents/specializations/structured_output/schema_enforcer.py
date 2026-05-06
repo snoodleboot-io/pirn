@@ -67,18 +67,14 @@ class SchemaEnforcer(Knot):
         """
         if not isinstance(response, AgentResponse):
             raise TypeError(
-                "SchemaEnforcer: response must be an AgentResponse, "
-                f"got {type(response).__name__}"
+                f"SchemaEnforcer: response must be an AgentResponse, got {type(response).__name__}"
             )
         if not isinstance(model_class, type) or not issubclass(model_class, BaseModel):
             raise TypeError(
-                "SchemaEnforcer: model_class must be a BaseModel subclass, "
-                f"got {model_class!r}"
+                f"SchemaEnforcer: model_class must be a BaseModel subclass, got {model_class!r}"
             )
         try:
             data = json.loads(response.content)
         except json.JSONDecodeError as exc:
-            raise ValueError(
-                f"SchemaEnforcer: response content is not valid JSON: {exc}"
-            ) from exc
+            raise ValueError(f"SchemaEnforcer: response content is not valid JSON: {exc}") from exc
         return model_class.model_validate(data)

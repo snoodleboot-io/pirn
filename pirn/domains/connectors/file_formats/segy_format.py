@@ -40,8 +40,7 @@ class SegyFormat(BatchFileFormat):
     def __init__(self, sample_rate: int = 2000) -> None:
         if not isinstance(sample_rate, int) or sample_rate <= 0:
             raise ValueError(
-                "SegyFormat: sample_rate must be a positive integer, got "
-                f"{sample_rate!r}"
+                f"SegyFormat: sample_rate must be a positive integer, got {sample_rate!r}"
             )
         self._sample_rate = sample_rate
 
@@ -53,9 +52,7 @@ class SegyFormat(BatchFileFormat):
     def sample_rate(self) -> int:
         return self._sample_rate
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         segyio = self._load_segyio()
         records: list[dict[str, Any]] = []
         with tempfile.NamedTemporaryFile(suffix=".segy", delete=False) as tmp:
@@ -67,9 +64,7 @@ class SegyFormat(BatchFileFormat):
                     header = {}
                     for key in f.header[idx].keys():
                         header[str(key)] = int(f.header[idx][key])
-                    data = struct.pack(
-                        f">{len(trace)}f", *trace.tolist()
-                    )
+                    data = struct.pack(f">{len(trace)}f", *trace.tolist())
                     records.append(
                         {
                             "trace_index": idx,
@@ -81,22 +76,17 @@ class SegyFormat(BatchFileFormat):
             Path(tmp_path).unlink(missing_ok=True)
         return records
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         segyio = self._load_segyio()
         materialised = [dict(r) for r in records]
         if not materialised:
-            raise ValueError(
-                "SegyFormat: cannot encode an empty record stream"
-            )
+            raise ValueError("SegyFormat: cannot encode an empty record stream")
         import numpy as np
 
         first_data = materialised[0].get("data", b"")
         if not isinstance(first_data, (bytes, bytearray)):
             raise TypeError(
-                "SegyFormat: record 'data' must be bytes, got "
-                f"{type(first_data).__name__}"
+                f"SegyFormat: record 'data' must be bytes, got {type(first_data).__name__}"
             )
         n_samples = len(first_data) // 4 or 1
 
@@ -106,9 +96,7 @@ class SegyFormat(BatchFileFormat):
         spec.samples = np.arange(n_samples, dtype=np.float32)
         spec.tracecount = len(materialised)
 
-        with tempfile.NamedTemporaryFile(
-            suffix=".segy", delete=False
-        ) as tmp:
+        with tempfile.NamedTemporaryFile(suffix=".segy", delete=False) as tmp:
             tmp_path = tmp.name
         try:
             with segyio.create(tmp_path, spec) as f:
@@ -120,7 +108,7 @@ class SegyFormat(BatchFileFormat):
                     if n == 0:
                         samples = np.zeros(n_samples, dtype=np.float32)
                     else:
-                        values = struct.unpack(f">{n}f", raw[:n * 4])
+                        values = struct.unpack(f">{n}f", raw[: n * 4])
                         samples = np.array(values, dtype=np.float32)
                         if len(samples) < n_samples:
                             samples = np.pad(
@@ -148,7 +136,6 @@ class SegyFormat(BatchFileFormat):
             import segyio
         except ImportError as exc:
             raise ImportError(
-                "SegyFormat requires segyio. Install with "
-                "`pip install pirn[oilgas]`."
+                "SegyFormat requires segyio. Install with `pip install pirn[oilgas]`."
             ) from exc
         return segyio

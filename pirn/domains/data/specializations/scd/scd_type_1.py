@@ -82,9 +82,7 @@ class ScdType1(Knot):
             return {"inserted": 0, "updated": 0}
         select_q = ScdType1MergeKnot._select_query(target_table, column_tuple)
         insert_q = ScdType1MergeKnot._insert_query(target_table, column_tuple)
-        update_q = ScdType1MergeKnot._update_query(
-            target_table, primary_key_tuple, non_key_columns
-        )
+        update_q = ScdType1MergeKnot._update_query(target_table, primary_key_tuple, non_key_columns)
         existing_rows = await target_pool.fetch_all(select_q)
         key_indices = tuple(column_tuple.index(k) for k in primary_key_tuple)
         non_key_indices = tuple(column_tuple.index(c) for c in non_key_columns)

@@ -43,24 +43,13 @@ from pirn.domains.connectors.file_formats.batch_file_format import (
 class WebpFormat(BatchFileFormat):
     """Whole-file WebP encoder/decoder."""
 
-    def __init__(
-        self, quality: int = 85, lossless: bool = False
-    ) -> None:
+    def __init__(self, quality: int = 85, lossless: bool = False) -> None:
         if not isinstance(quality, int) or isinstance(quality, bool):
-            raise TypeError(
-                "WebpFormat: quality must be an int, got "
-                f"{type(quality).__name__}"
-            )
+            raise TypeError(f"WebpFormat: quality must be an int, got {type(quality).__name__}")
         if quality < 1 or quality > 100:
-            raise ValueError(
-                "WebpFormat: quality must be in [1, 100], got "
-                f"{quality}"
-            )
+            raise ValueError(f"WebpFormat: quality must be in [1, 100], got {quality}")
         if not isinstance(lossless, bool):
-            raise TypeError(
-                "WebpFormat: lossless must be a bool, got "
-                f"{type(lossless).__name__}"
-            )
+            raise TypeError(f"WebpFormat: lossless must be a bool, got {type(lossless).__name__}")
         self._quality = quality
         self._lossless = lossless
 
@@ -76,14 +65,9 @@ class WebpFormat(BatchFileFormat):
     def lossless(self) -> bool:
         return self._lossless
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         if not isinstance(payload, (bytes, bytearray)):
-            raise TypeError(
-                "WebpFormat: payload must be bytes, got "
-                f"{type(payload).__name__}"
-            )
+            raise TypeError(f"WebpFormat: payload must be bytes, got {type(payload).__name__}")
         pil_image = self._load_pil_image()
         with pil_image.open(io.BytesIO(payload)) as image:
             image.load()
@@ -96,9 +80,7 @@ class WebpFormat(BatchFileFormat):
                 }
             ]
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         materialised: list[Mapping[str, Any]] = list(records)
         if not materialised:
             raise ValueError(
@@ -133,25 +115,13 @@ class WebpFormat(BatchFileFormat):
         mode = record["mode"]
         data = record["data"]
         if not isinstance(width, int) or width <= 0:
-            raise ValueError(
-                "WebpFormat: 'width' must be a positive int, got "
-                f"{width!r}"
-            )
+            raise ValueError(f"WebpFormat: 'width' must be a positive int, got {width!r}")
         if not isinstance(height, int) or height <= 0:
-            raise ValueError(
-                "WebpFormat: 'height' must be a positive int, got "
-                f"{height!r}"
-            )
+            raise ValueError(f"WebpFormat: 'height' must be a positive int, got {height!r}")
         if not isinstance(mode, str) or not mode:
-            raise ValueError(
-                "WebpFormat: 'mode' must be a non-empty string, got "
-                f"{mode!r}"
-            )
+            raise ValueError(f"WebpFormat: 'mode' must be a non-empty string, got {mode!r}")
         if not isinstance(data, (bytes, bytearray)):
-            raise TypeError(
-                "WebpFormat: 'data' must be bytes, got "
-                f"{type(data).__name__}"
-            )
+            raise TypeError(f"WebpFormat: 'data' must be bytes, got {type(data).__name__}")
         return width, height, mode, bytes(data)
 
     @staticmethod
@@ -160,7 +130,6 @@ class WebpFormat(BatchFileFormat):
             from PIL import Image
         except ImportError as exc:
             raise ImportError(
-                "WebpFormat requires Pillow. Install with "
-                "`pip install pirn[image]`."
+                "WebpFormat requires Pillow. Install with `pip install pirn[image]`."
             ) from exc
         return Image

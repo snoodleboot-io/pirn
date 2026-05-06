@@ -75,15 +75,9 @@ class RAGSynthesizer(Knot):
             TypeError: If query is not a string or llm is not an LLMProvider.
         """
         if not isinstance(query, str):
-            raise TypeError(
-                "RAGSynthesizer: query must be a string, "
-                f"got {type(query).__name__}"
-            )
+            raise TypeError(f"RAGSynthesizer: query must be a string, got {type(query).__name__}")
         if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "RAGSynthesizer: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
+            raise TypeError(f"RAGSynthesizer: llm must be an LLMProvider, got {type(llm).__name__}")
         doc_blocks: list[str] = []
         for index, doc in enumerate(documents):
             text = self._doc_text(doc)

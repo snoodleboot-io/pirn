@@ -91,9 +91,7 @@ class EntropyEstimator(Knot):
                 "'permutation', or 'spectral'"
             )
         if not isinstance(embedding_dim, int) or embedding_dim <= 0:
-            raise ValueError(
-                "EntropyEstimator: embedding_dim must be a positive integer"
-            )
+            raise ValueError("EntropyEstimator: embedding_dim must be a positive integer")
         return {
             "signal_id": signal.signal_id,
             "entropy_kind": entropy_kind,

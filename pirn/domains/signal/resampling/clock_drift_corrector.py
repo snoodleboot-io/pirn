@@ -75,13 +75,9 @@ class ClockDriftCorrector(Knot):
             ValueError: If reference_rate_hz or measured_rate_hz are not positive.
         """
         if not isinstance(reference_rate_hz, (int, float)) or reference_rate_hz <= 0:
-            raise ValueError(
-                "ClockDriftCorrector: reference_rate_hz must be positive"
-            )
+            raise ValueError("ClockDriftCorrector: reference_rate_hz must be positive")
         if not isinstance(measured_rate_hz, (int, float)) or measured_rate_hz <= 0:
-            raise ValueError(
-                "ClockDriftCorrector: measured_rate_hz must be positive"
-            )
+            raise ValueError("ClockDriftCorrector: measured_rate_hz must be positive")
         ratio = reference_rate_hz / measured_rate_hz
         new_samples = int(signal.samples_per_channel * ratio)
         return SignalFrame(

@@ -41,9 +41,7 @@ class FitsFormat(BatchFileFormat):
     def name(self) -> str:
         return "fits"
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         fits = self._load_fits()
         records: list[Mapping[str, Any]] = []
         with fits.open(io.BytesIO(payload)) as hdul:
@@ -69,9 +67,7 @@ class FitsFormat(BatchFileFormat):
                 )
         return records
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         fits = self._load_fits()
         materialised = [dict(record) for record in records]
         hdul = fits.HDUList()
@@ -116,7 +112,6 @@ class FitsFormat(BatchFileFormat):
             from astropy.io import fits
         except ImportError as exc:
             raise ImportError(
-                "FitsFormat requires astropy. Install with "
-                "`pip install pirn[astronomy]`."
+                "FitsFormat requires astropy. Install with `pip install pirn[astronomy]`."
             ) from exc
         return fits

@@ -82,17 +82,11 @@ class ANCPipeline(Knot):
             ValueError: If step_size or filter_length are invalid, or sample rates differ.
         """
         if not isinstance(step_size, (int, float)) or step_size <= 0 or step_size > 1:
-            raise ValueError(
-                "ANCPipeline: step_size must be in range (0, 1]"
-            )
+            raise ValueError("ANCPipeline: step_size must be in range (0, 1]")
         if not isinstance(filter_length, int) or filter_length <= 0:
-            raise ValueError(
-                "ANCPipeline: filter_length must be a positive integer"
-            )
+            raise ValueError("ANCPipeline: filter_length must be a positive integer")
         if reference.sample_rate_hz != error.sample_rate_hz:
-            raise ValueError(
-                "ANCPipeline: reference and error sample_rate_hz must match"
-            )
+            raise ValueError("ANCPipeline: reference and error sample_rate_hz must match")
         return SignalFrame(
             signal_id=f"{reference.signal_id}:anc",
             channel_count=reference.channel_count,

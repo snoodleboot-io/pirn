@@ -78,13 +78,9 @@ class PolyphaseDecimator(Knot):
             ValueError: If decimation_factor or filter_taps are invalid.
         """
         if not isinstance(decimation_factor, int) or decimation_factor <= 1:
-            raise ValueError(
-                "PolyphaseDecimator: decimation_factor must be an integer > 1"
-            )
+            raise ValueError("PolyphaseDecimator: decimation_factor must be an integer > 1")
         if not isinstance(filter_taps, int) or filter_taps <= 0:
-            raise ValueError(
-                "PolyphaseDecimator: filter_taps must be a positive integer"
-            )
+            raise ValueError("PolyphaseDecimator: filter_taps must be a positive integer")
         new_rate = signal.sample_rate_hz / decimation_factor
         new_samples = signal.samples_per_channel // decimation_factor
         return SignalFrame(

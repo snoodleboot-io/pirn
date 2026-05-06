@@ -73,15 +73,9 @@ class PeriodogramEstimator(Knot):
             ValueError: If window is not a non-empty string.
         """
         if not isinstance(window, str) or not window:
-            raise ValueError(
-                "PeriodogramEstimator: window must be a non-empty string"
-            )
+            raise ValueError("PeriodogramEstimator: window must be a non-empty string")
         n = max(signal.samples_per_channel, 1)
-        resolution = (
-            signal.sample_rate_hz / n
-            if signal.sample_rate_hz > 0
-            else 0.0
-        )
+        resolution = signal.sample_rate_hz / n if signal.sample_rate_hz > 0 else 0.0
         return SpectrumFrame(
             signal_id=signal.signal_id,
             frequency_bins=n // 2 + 1,

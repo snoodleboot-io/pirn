@@ -87,13 +87,9 @@ class PressureTransientAnalyzer(Knot):
             ("fluid_viscosity_cp", fluid_viscosity_cp),
         ):
             if not isinstance(value, (int, float)):
-                raise TypeError(
-                    f"PressureTransientAnalyzer: {label} must be numeric"
-                )
+                raise TypeError(f"PressureTransientAnalyzer: {label} must be numeric")
             if value <= 0:
-                raise ValueError(
-                    f"PressureTransientAnalyzer: {label} must be positive"
-                )
+                raise ValueError(f"PressureTransientAnalyzer: {label} must be positive")
         if not isinstance(test_data, dict):
             raise TypeError("PressureTransientAnalyzer: test_data must be a dict")
         time_hours: list[float] = test_data.get("time_hours", [])

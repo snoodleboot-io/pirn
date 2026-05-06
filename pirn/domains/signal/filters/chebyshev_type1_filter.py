@@ -77,17 +77,11 @@ class ChebyshevType1Filter(Knot):
             ValueError: If order, passband_ripple_db, or cutoff_hz are invalid.
         """
         if not isinstance(order, int) or order <= 0:
-            raise ValueError(
-                "ChebyshevType1Filter: order must be a positive integer"
-            )
+            raise ValueError("ChebyshevType1Filter: order must be a positive integer")
         if not isinstance(passband_ripple_db, (int, float)) or passband_ripple_db <= 0:
-            raise ValueError(
-                "ChebyshevType1Filter: passband_ripple_db must be positive"
-            )
+            raise ValueError("ChebyshevType1Filter: passband_ripple_db must be positive")
         if not isinstance(cutoff_hz, (int, float)) or cutoff_hz <= 0:
-            raise ValueError(
-                "ChebyshevType1Filter: cutoff_hz must be positive"
-            )
+            raise ValueError("ChebyshevType1Filter: cutoff_hz must be positive")
         return SignalFrame(
             signal_id=f"{signal.signal_id}:cheby1",
             channel_count=signal.channel_count,

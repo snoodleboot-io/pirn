@@ -40,8 +40,7 @@ class OraclePool(DatabaseConnectionPool):
             raise TypeError("OraclePool requires either config= or client=")
         if config is not None and not isinstance(config, OracleConfig):
             raise TypeError(
-                "OraclePool: config must be an OracleConfig instance, got "
-                f"{type(config).__name__}"
+                f"OraclePool: config must be an OracleConfig instance, got {type(config).__name__}"
             )
         self._config = config
         self._client = client
@@ -141,13 +140,10 @@ class OraclePool(DatabaseConnectionPool):
             import oracledb  # type: ignore[import-not-found]
         except ImportError as exc:
             raise ImportError(
-                "OraclePool requires oracledb; install via "
-                "`pip install pirn[oracle]`"
+                "OraclePool requires oracledb; install via `pip install pirn[oracle]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError(
-                "OraclePool: missing config and no injected client"
-            )
+            raise RuntimeError("OraclePool: missing config and no injected client")
 
         kwargs: dict[str, Any] = {
             "min": self._config.min_size,

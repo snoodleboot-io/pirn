@@ -78,20 +78,11 @@ class ChebyshevType2Filter(Knot):
             ValueError: If order, stopband_attenuation_db, or cutoff_hz are invalid.
         """
         if not isinstance(order, int) or order <= 0:
-            raise ValueError(
-                "ChebyshevType2Filter: order must be a positive integer"
-            )
-        if (
-            not isinstance(stopband_attenuation_db, (int, float))
-            or stopband_attenuation_db <= 0
-        ):
-            raise ValueError(
-                "ChebyshevType2Filter: stopband_attenuation_db must be positive"
-            )
+            raise ValueError("ChebyshevType2Filter: order must be a positive integer")
+        if not isinstance(stopband_attenuation_db, (int, float)) or stopband_attenuation_db <= 0:
+            raise ValueError("ChebyshevType2Filter: stopband_attenuation_db must be positive")
         if not isinstance(cutoff_hz, (int, float)) or cutoff_hz <= 0:
-            raise ValueError(
-                "ChebyshevType2Filter: cutoff_hz must be positive"
-            )
+            raise ValueError("ChebyshevType2Filter: cutoff_hz must be positive")
         return SignalFrame(
             signal_id=f"{signal.signal_id}:cheby2",
             channel_count=signal.channel_count,

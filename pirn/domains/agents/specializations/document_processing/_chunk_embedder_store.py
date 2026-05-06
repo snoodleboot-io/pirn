@@ -43,8 +43,12 @@ class _ChunkEmbedderStore(Knot):
         **kwargs: Any,
     ) -> None:
         super().__init__(
-            chunks=chunks, source=source, embedder=embedder, store=store,
-            _config=_config, **kwargs,
+            chunks=chunks,
+            source=source,
+            embedder=embedder,
+            store=store,
+            _config=_config,
+            **kwargs,
         )
 
     async def process(

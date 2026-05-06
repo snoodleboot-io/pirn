@@ -33,8 +33,7 @@ class PdfFormat(BatchFileFormat):
     def __init__(self, extract_layout: bool = False) -> None:
         if not isinstance(extract_layout, bool):
             raise TypeError(
-                "PdfFormat: extract_layout must be a bool, "
-                f"got {type(extract_layout).__name__}"
+                f"PdfFormat: extract_layout must be a bool, got {type(extract_layout).__name__}"
             )
         self._extract_layout = extract_layout
 
@@ -46,9 +45,7 @@ class PdfFormat(BatchFileFormat):
     def extract_layout(self) -> bool:
         return self._extract_layout
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         pypdf = self._load_pypdf()
         reader = pypdf.PdfReader(io.BytesIO(payload))
         records: list[Mapping[str, Any]] = []
@@ -63,9 +60,7 @@ class PdfFormat(BatchFileFormat):
             records.append(record)
         return records
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         reportlab_canvas = self._load_reportlab_canvas()
         reportlab_pagesizes = self._load_reportlab_pagesizes()
         materialised: list[Mapping[str, Any]] = list(records)
@@ -86,8 +81,7 @@ class PdfFormat(BatchFileFormat):
                 text = record["text"]
                 if not isinstance(text, str):
                     raise TypeError(
-                        "PdfFormat: 'text' must be a string, got "
-                        f"{type(text).__name__}"
+                        f"PdfFormat: 'text' must be a string, got {type(text).__name__}"
                     )
                 self._draw_text(canvas, text, page_size)
                 canvas.showPage()
@@ -120,8 +114,7 @@ class PdfFormat(BatchFileFormat):
             import pypdf
         except ImportError as exc:
             raise ImportError(
-                "PdfFormat requires pypdf. Install with "
-                "`pip install pirn[pdf]`."
+                "PdfFormat requires pypdf. Install with `pip install pirn[pdf]`."
             ) from exc
         return pypdf
 
@@ -131,8 +124,7 @@ class PdfFormat(BatchFileFormat):
             from reportlab.pdfgen import canvas
         except ImportError as exc:
             raise ImportError(
-                "PdfFormat requires reportlab. Install with "
-                "`pip install pirn[pdf]`."
+                "PdfFormat requires reportlab. Install with `pip install pirn[pdf]`."
             ) from exc
         return canvas
 
@@ -142,7 +134,6 @@ class PdfFormat(BatchFileFormat):
             from reportlab.lib import pagesizes
         except ImportError as exc:
             raise ImportError(
-                "PdfFormat requires reportlab. Install with "
-                "`pip install pirn[pdf]`."
+                "PdfFormat requires reportlab. Install with `pip install pirn[pdf]`."
             ) from exc
         return pagesizes

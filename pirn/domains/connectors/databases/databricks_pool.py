@@ -132,9 +132,7 @@ class DatabricksPool(DatabaseConnectionPool):
                 "`pip install pirn[databricks]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError(
-                "DatabricksPool: missing config and no injected client"
-            )
+            raise RuntimeError("DatabricksPool: missing config and no injected client")
 
         kwargs: dict[str, Any] = {}
         if self._config.server_hostname is not None:

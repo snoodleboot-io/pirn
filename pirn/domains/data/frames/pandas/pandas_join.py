@@ -97,17 +97,13 @@ class PandasJoin(Knot):
                 f"{how!r} joins; use a filter/anti-pattern with isin() instead"
             )
         if how not in allowed_how:
-            raise ValueError(
-                f"PandasJoin: how must be one of {list(allowed_how)}, got {how!r}"
-            )
+            raise ValueError(f"PandasJoin: how must be one of {list(allowed_how)}, got {how!r}")
         on_coerced = self._coerce_keys(on)
         left_on_coerced = self._coerce_keys(left_on)
         right_on_coerced = self._coerce_keys(right_on)
         if how == "cross":
             if on is not None or left_on is not None or right_on is not None:
-                raise TypeError(
-                    "PandasJoin: cross join takes no on/left_on/right_on"
-                )
+                raise TypeError("PandasJoin: cross join takes no on/left_on/right_on")
         else:
             self._validate_keys(on, left_on, right_on)
         suffixes = ("", suffix)
@@ -138,9 +134,7 @@ class PandasJoin(Knot):
         right_on: Any,
     ) -> None:
         if on is not None and (left_on is not None or right_on is not None):
-            raise TypeError(
-                "PandasJoin: pass either on= or left_on/right_on, not both"
-            )
+            raise TypeError("PandasJoin: pass either on= or left_on/right_on, not both")
         if on is None and (left_on is None or right_on is None):
             raise TypeError(
                 "PandasJoin: provide on= for matching columns, or both "

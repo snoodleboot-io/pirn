@@ -93,14 +93,10 @@ class CausalRealtimeFilter(Knot):
                 )
             low, high = cutoff_hz
             if low <= 0 or high <= 0 or low >= high:
-                raise ValueError(
-                    "CausalRealtimeFilter: cutoff bounds must satisfy 0 < low < high"
-                )
+                raise ValueError("CausalRealtimeFilter: cutoff bounds must satisfy 0 < low < high")
         else:
             if not isinstance(cutoff_hz, (int, float)) or cutoff_hz <= 0:
-                raise ValueError(
-                    "CausalRealtimeFilter: cutoff_hz must be a positive scalar"
-                )
+                raise ValueError("CausalRealtimeFilter: cutoff_hz must be a positive scalar")
         return SignalFrame(
             signal_id=f"{signal.signal_id}:causal-{filter_type}",
             channel_count=signal.channel_count,

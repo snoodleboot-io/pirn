@@ -80,9 +80,7 @@ class Neo4jPool(DatabaseConnectionPool):
         finally:
             await session.close()
 
-    async def execute_many(
-        self, query: str, args_seq: Iterable[dict[str, Any]]
-    ) -> None:
+    async def execute_many(self, query: str, args_seq: Iterable[dict[str, Any]]) -> None:
         for params in args_seq:
             await self.execute(query, params)
 

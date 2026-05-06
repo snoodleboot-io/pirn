@@ -48,7 +48,9 @@ class EpisodicEpisodeWriter(Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        super().__init__(messages=messages, session_id=session_id, store=store, _config=_config, **kwargs)
+        super().__init__(
+            messages=messages, session_id=session_id, store=store, _config=_config, **kwargs
+        )
 
     async def process(
         self,
@@ -73,13 +75,11 @@ class EpisodicEpisodeWriter(Knot):
         """
         if not isinstance(store, MemoryStore):
             raise TypeError(
-                "EpisodicEpisodeWriter: store must be a MemoryStore, "
-                f"got {type(store).__name__}"
+                f"EpisodicEpisodeWriter: store must be a MemoryStore, got {type(store).__name__}"
             )
         if not isinstance(session_id, str) or not session_id:
             raise ValueError(
-                "EpisodicEpisodeWriter: session_id must be a non-empty string, "
-                f"got {session_id!r}"
+                f"EpisodicEpisodeWriter: session_id must be a non-empty string, got {session_id!r}"
             )
         message_tuple = tuple(messages)
         for index, candidate in enumerate(message_tuple):

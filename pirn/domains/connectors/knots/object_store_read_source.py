@@ -63,8 +63,7 @@ class ObjectStoreReadSource(Source):
         """
         if not isinstance(store, ObjectStore):
             raise TypeError(
-                f"ObjectStoreReadSource: store must be an ObjectStore, "
-                f"got {type(store).__name__}"
+                f"ObjectStoreReadSource: store must be an ObjectStore, got {type(store).__name__}"
             )
         if not isinstance(key, str) or not key:
             raise ValueError("ObjectStoreReadSource: key must be a non-empty string")

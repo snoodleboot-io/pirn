@@ -113,9 +113,7 @@ class RayCompute(Sink):
         if writer is not None and not callable(writer):
             raise TypeError("RayCompute: writer must be callable")
         if return_pandas and target_path is not None:
-            raise TypeError(
-                "RayCompute: return_pandas and target_path are mutually exclusive"
-            )
+            raise TypeError("RayCompute: return_pandas and target_path are mutually exclusive")
         resolved_kwargs: dict[str, Any] = dict(writer_kwargs or {})
 
         if target_path is not None:

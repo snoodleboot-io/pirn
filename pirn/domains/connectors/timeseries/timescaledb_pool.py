@@ -63,9 +63,7 @@ class TimescaleDBPool(DatabaseConnectionPool):
         rows = await pool.fetch(query, *args)
         return list(rows)
 
-    async def execute_many(
-        self, query: str, args_seq: Iterable[Iterable[Any]]
-    ) -> None:
+    async def execute_many(self, query: str, args_seq: Iterable[Iterable[Any]]) -> None:
         self._reject_inline_interpolation(query)
         pool = await self._ensure_pool()
         await pool.executemany(query, [tuple(a) for a in args_seq])
@@ -82,13 +80,10 @@ class TimescaleDBPool(DatabaseConnectionPool):
             import asyncpg
         except ImportError as exc:
             raise ImportError(
-                "TimescaleDBPool requires asyncpg; install via "
-                "`pip install pirn[timescaledb]`"
+                "TimescaleDBPool requires asyncpg; install via `pip install pirn[timescaledb]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError(
-                "TimescaleDBPool: missing config and no injected pool"
-            )
+            raise RuntimeError("TimescaleDBPool: missing config and no injected pool")
 
         kwargs: dict[str, Any] = {
             "min_size": self._config.min_size,

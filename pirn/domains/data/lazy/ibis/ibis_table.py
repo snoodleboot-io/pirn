@@ -47,9 +47,7 @@ class IbisTable:
     expression: ibis.Table
     backend_name: str = ""
     source_uri: str = ""
-    fetched_at: datetime = field(
-        default_factory=lambda: datetime.now(UTC)
-    )
+    fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     @property
     def schema(self) -> Any:

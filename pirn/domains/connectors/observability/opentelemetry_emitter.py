@@ -35,9 +35,7 @@ class OpenTelemetryEmitter:
         tracer: Any = None,
     ) -> None:
         if config is None and tracer is None:
-            raise TypeError(
-                "OpenTelemetryEmitter requires either config= or tracer="
-            )
+            raise TypeError("OpenTelemetryEmitter requires either config= or tracer=")
         self._config = config
         self._tracer = tracer
         self._closed = False
@@ -59,9 +57,7 @@ class OpenTelemetryEmitter:
         through the configured exporter pipeline.
         """
         if not isinstance(name, str) or not name:
-            raise ValueError(
-                "OpenTelemetryEmitter.emit_span: name must be non-empty"
-            )
+            raise ValueError("OpenTelemetryEmitter.emit_span: name must be non-empty")
         tracer = await self._ensure_tracer()
         span_attributes = dict(attributes) if attributes is not None else None
         with tracer.start_as_current_span(name, attributes=span_attributes):
@@ -108,9 +104,7 @@ class OpenTelemetryEmitter:
             ) from exc
 
         if self._config is None:
-            raise RuntimeError(
-                "OpenTelemetryEmitter: missing config and no injected tracer"
-            )
+            raise RuntimeError("OpenTelemetryEmitter: missing config and no injected tracer")
 
         resource_attrs: dict[str, Any] = {}
         if self._config.service_name is not None:
@@ -122,9 +116,7 @@ class OpenTelemetryEmitter:
             exporter_kwargs["endpoint"] = self._config.endpoint
         if self._config.headers is not None:
             exporter_kwargs["headers"] = dict(self._config.headers)
-        provider.add_span_processor(
-            BatchSpanProcessor(OTLPSpanExporter(**exporter_kwargs))
-        )
+        provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(**exporter_kwargs)))
         trace.set_tracer_provider(provider)
         self._logger.debug("opentelemetry.connect")
         return trace.get_tracer(self._config.service_name or __name__)

@@ -83,13 +83,9 @@ class DowntimeEventClassifier(Knot):
             ``duration_hours``, and ``category``.
         """
         if not isinstance(gap_threshold_hours, (int, float)):
-            raise TypeError(
-                "DowntimeEventClassifier: gap_threshold_hours must be numeric"
-            )
+            raise TypeError("DowntimeEventClassifier: gap_threshold_hours must be numeric")
         if gap_threshold_hours <= 0:
-            raise ValueError(
-                "DowntimeEventClassifier: gap_threshold_hours must be positive"
-            )
+            raise ValueError("DowntimeEventClassifier: gap_threshold_hours must be positive")
         default_category = categories[0] if categories else "unknown"
         events: list[dict[str, Any]] = []
         zero_start: str | None = None

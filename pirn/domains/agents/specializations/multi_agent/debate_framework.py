@@ -51,7 +51,14 @@ class DebateFramework(SubTapestry):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        super().__init__(topic=topic, debaters=debaters, judge_llm=judge_llm, rounds=rounds, _config=_config, **kwargs)
+        super().__init__(
+            topic=topic,
+            debaters=debaters,
+            judge_llm=judge_llm,
+            rounds=rounds,
+            _config=_config,
+            **kwargs,
+        )
 
     async def process(
         self,
@@ -74,14 +81,12 @@ class DebateFramework(SubTapestry):
         """
         if not isinstance(judge_llm, LLMProvider):
             raise TypeError(
-                "DebateFramework: judge_llm must be an LLMProvider, "
-                f"got {type(judge_llm).__name__}"
+                f"DebateFramework: judge_llm must be an LLMProvider, got {type(judge_llm).__name__}"
             )
         debater_tuple = tuple(debaters)
         if len(debater_tuple) < 2:
             raise ValueError(
-                "DebateFramework: at least two debaters are required, "
-                f"got {len(debater_tuple)}"
+                f"DebateFramework: at least two debaters are required, got {len(debater_tuple)}"
             )
         for index, debater in enumerate(debater_tuple):
             if not isinstance(debater, SubTapestry):
@@ -90,15 +95,9 @@ class DebateFramework(SubTapestry):
                     f"SubTapestry, got {type(debater).__name__}"
                 )
         if not isinstance(rounds, int) or rounds <= 0:
-            raise ValueError(
-                "DebateFramework: rounds must be a positive int, "
-                f"got {rounds!r}"
-            )
+            raise ValueError(f"DebateFramework: rounds must be a positive int, got {rounds!r}")
         if not isinstance(topic, str):
-            raise TypeError(
-                "DebateFramework: topic must be a string, "
-                f"got {type(topic).__name__}"
-            )
+            raise TypeError(f"DebateFramework: topic must be a string, got {type(topic).__name__}")
         history: list[list[AgentResponse]] = []
         latest_round: list[AgentResponse] = []
         for round_index in range(rounds):
@@ -133,8 +132,8 @@ class DebateFramework(SubTapestry):
         inner_result = await self._run_inner(inner)
         winner = inner_result.outputs.get("judge")
         if not isinstance(winner, AgentResponse):
-            return latest_round[0] if latest_round else AgentResponse(
-                content="", finish_reason="stop"
+            return (
+                latest_round[0] if latest_round else AgentResponse(content="", finish_reason="stop")
             )
         return winner
 
@@ -146,7 +145,5 @@ class DebateFramework(SubTapestry):
         for round_index, round_responses in enumerate(history):
             lines.append(f"Round {round_index + 1}:")
             for debater_index, response in enumerate(round_responses):
-                lines.append(
-                    f"  debater_{debater_index}: {response.content}"
-                )
+                lines.append(f"  debater_{debater_index}: {response.content}")
         return "\n".join(lines)

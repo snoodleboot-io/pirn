@@ -81,29 +81,19 @@ class EEGRawIngestor(Knot):
             ("subject_id", subject_id),
         ):
             if not isinstance(value, str) or not value:
-                raise ValueError(
-                    f"EEGRawIngestor: {label} must be a non-empty string"
-                )
+                raise ValueError(f"EEGRawIngestor: {label} must be a non-empty string")
         if not isinstance(channel_count, int):
             raise TypeError("EEGRawIngestor: channel_count must be int")
         if channel_count <= 0:
-            raise ValueError(
-                "EEGRawIngestor: channel_count must be positive"
-            )
+            raise ValueError("EEGRawIngestor: channel_count must be positive")
         if not isinstance(sample_rate_hz, (int, float)):
-            raise TypeError(
-                "EEGRawIngestor: sample_rate_hz must be numeric"
-            )
+            raise TypeError("EEGRawIngestor: sample_rate_hz must be numeric")
         if float(sample_rate_hz) <= 0.0:
-            raise ValueError(
-                "EEGRawIngestor: sample_rate_hz must be positive"
-            )
+            raise ValueError("EEGRawIngestor: sample_rate_hz must be positive")
         if not isinstance(duration_sec, (int, float)):
             raise TypeError("EEGRawIngestor: duration_sec must be numeric")
         if float(duration_sec) <= 0.0:
-            raise ValueError(
-                "EEGRawIngestor: duration_sec must be positive"
-            )
+            raise ValueError("EEGRawIngestor: duration_sec must be positive")
         return RawEEG(
             subject_id=subject_id,
             channel_count=channel_count,

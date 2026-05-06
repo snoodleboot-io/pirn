@@ -92,13 +92,9 @@ class IntermediateModelKnot(Knot):
         **_: Any,
     ) -> dict[str, Any]:
         if not isinstance(source_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "IntermediateModelKnot: source_pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("IntermediateModelKnot: source_pool must be a DatabaseConnectionPool")
         if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "IntermediateModelKnot: target_pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("IntermediateModelKnot: target_pool must be a DatabaseConnectionPool")
         for label, value in (
             ("left_table", left_table),
             ("right_table", right_table),
@@ -107,9 +103,7 @@ class IntermediateModelKnot(Knot):
             ("target_table", target_table),
         ):
             if not isinstance(value, str) or not value:
-                raise ValueError(
-                    f"IntermediateModelKnot: {label} must be a non-empty string"
-                )
+                raise ValueError(f"IntermediateModelKnot: {label} must be a non-empty string")
         if not isinstance(join_type, str):
             raise ValueError("IntermediateModelKnot: join_type must be a non-empty string")
         join_upper = join_type.upper()

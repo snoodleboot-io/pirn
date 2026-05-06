@@ -155,11 +155,7 @@ class PanderaPandasValidator(Knot):
                     passed=False,
                     threshold=str(row.get("check", "")),
                     actual=str(row.get("failure_case", "")),
-                    column=(
-                        str(row["column"])
-                        if row.get("column") is not None
-                        else None
-                    ),
+                    column=(str(row["column"]) if row.get("column") is not None else None),
                 )
             )
         return tuple(results)

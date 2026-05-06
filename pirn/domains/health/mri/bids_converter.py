@@ -12,6 +12,7 @@ References:
     - BIDS specification: https://bids-specification.readthedocs.io/
     - dcm2niix: https://github.com/rordenlab/dcm2niix
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -71,9 +72,7 @@ class BIDSConverter(Knot):
             raise ValueError("BIDSConverter: output_dir must be non-empty")
         valid_modalities = frozenset({"T1w", "T2w", "BOLD", "DWI", "FLAIR"})
         if not isinstance(modality, str) or modality not in valid_modalities:
-            raise ValueError(
-                f"BIDSConverter: modality must be one of {sorted(valid_modalities)}"
-            )
+            raise ValueError(f"BIDSConverter: modality must be one of {sorted(valid_modalities)}")
         if not isinstance(subject_id, str) or not subject_id:
             raise ValueError("BIDSConverter: subject_id must be non-empty")
         bids_path = f"{output_dir}/sub-{subject_id}/{modality}.nii.gz"

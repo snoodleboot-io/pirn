@@ -72,9 +72,7 @@ class Upsampler(Knot):
             ValueError: If upsample_factor is not an integer > 1.
         """
         if not isinstance(upsample_factor, int) or upsample_factor <= 1:
-            raise ValueError(
-                "Upsampler: upsample_factor must be an integer > 1"
-            )
+            raise ValueError("Upsampler: upsample_factor must be an integer > 1")
         return SignalFrame(
             signal_id=f"{signal.signal_id}:upsample",
             channel_count=signal.channel_count,

@@ -80,9 +80,7 @@ class DuckdbCast(Knot):
             A new DuckdbDataBatch with the configured columns cast to their target types.
         """
         if not isinstance(casts, Mapping) or not casts:
-            raise TypeError(
-                "DuckdbCast: casts must be a non-empty Mapping[column, type_name]"
-            )
+            raise TypeError("DuckdbCast: casts must be a non-empty Mapping[column, type_name]")
         type_re = re.compile(r"^[A-Z][A-Z0-9_]*(\([0-9, ]+\))?$")
         for column, type_name in casts.items():
             if not isinstance(column, str) or not column:
@@ -103,20 +101,17 @@ class DuckdbCast(Knot):
             column: type_name.strip().upper() for column, type_name in casts.items()
         }
         applicable = {
-            column: type_name for column, type_name in coerced.items()
+            column: type_name
+            for column, type_name in coerced.items()
             if column in batch.relation.columns
         }
         if not applicable:
             return batch
         fragments: list[str] = []
         for column in batch.relation.columns:
-            IdentifierValidator.validate_column(
-                "DuckdbCast: upstream column", column
-            )
+            IdentifierValidator.validate_column("DuckdbCast: upstream column", column)
             if column in applicable:
-                fragments.append(
-                    f'CAST("{column}" AS {applicable[column]}) AS "{column}"'
-                )
+                fragments.append(f'CAST("{column}" AS {applicable[column]}) AS "{column}"')
             else:
                 fragments.append(f'"{column}"')
         projected = batch.relation.project(", ".join(fragments))
@@ -128,6 +123,5 @@ class DuckdbCast(Knot):
         for token in forbidden:
             if token in value:
                 raise ValueError(
-                    f"DuckdbCast: {label} {value!r} contains forbidden "
-                    f"token {token!r}"
+                    f"DuckdbCast: {label} {value!r} contains forbidden token {token!r}"
                 )

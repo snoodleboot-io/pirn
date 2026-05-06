@@ -44,15 +44,9 @@ class HeicFormat(BatchFileFormat):
 
     def __init__(self, quality: int = 85) -> None:
         if not isinstance(quality, int) or isinstance(quality, bool):
-            raise TypeError(
-                "HeicFormat: quality must be an int, got "
-                f"{type(quality).__name__}"
-            )
+            raise TypeError(f"HeicFormat: quality must be an int, got {type(quality).__name__}")
         if quality < 1 or quality > 100:
-            raise ValueError(
-                "HeicFormat: quality must be in [1, 100], got "
-                f"{quality}"
-            )
+            raise ValueError(f"HeicFormat: quality must be in [1, 100], got {quality}")
         self._quality = quality
 
     @property
@@ -63,14 +57,9 @@ class HeicFormat(BatchFileFormat):
     def quality(self) -> int:
         return self._quality
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         if not isinstance(payload, (bytes, bytearray)):
-            raise TypeError(
-                "HeicFormat: payload must be bytes, got "
-                f"{type(payload).__name__}"
-            )
+            raise TypeError(f"HeicFormat: payload must be bytes, got {type(payload).__name__}")
         pil_image = self._load_pil_image_with_heif()
         with pil_image.open(io.BytesIO(payload)) as image:
             image.load()
@@ -83,9 +72,7 @@ class HeicFormat(BatchFileFormat):
                 }
             ]
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         materialised: list[Mapping[str, Any]] = list(records)
         if not materialised:
             raise ValueError(
@@ -115,25 +102,13 @@ class HeicFormat(BatchFileFormat):
         mode = record["mode"]
         data = record["data"]
         if not isinstance(width, int) or width <= 0:
-            raise ValueError(
-                "HeicFormat: 'width' must be a positive int, got "
-                f"{width!r}"
-            )
+            raise ValueError(f"HeicFormat: 'width' must be a positive int, got {width!r}")
         if not isinstance(height, int) or height <= 0:
-            raise ValueError(
-                "HeicFormat: 'height' must be a positive int, got "
-                f"{height!r}"
-            )
+            raise ValueError(f"HeicFormat: 'height' must be a positive int, got {height!r}")
         if not isinstance(mode, str) or not mode:
-            raise ValueError(
-                "HeicFormat: 'mode' must be a non-empty string, got "
-                f"{mode!r}"
-            )
+            raise ValueError(f"HeicFormat: 'mode' must be a non-empty string, got {mode!r}")
         if not isinstance(data, (bytes, bytearray)):
-            raise TypeError(
-                "HeicFormat: 'data' must be bytes, got "
-                f"{type(data).__name__}"
-            )
+            raise TypeError(f"HeicFormat: 'data' must be bytes, got {type(data).__name__}")
         return width, height, mode, bytes(data)
 
     @staticmethod
@@ -142,15 +117,13 @@ class HeicFormat(BatchFileFormat):
             from PIL import Image
         except ImportError as exc:
             raise ImportError(
-                "HeicFormat requires Pillow. Install with "
-                "`pip install pirn[heic]`."
+                "HeicFormat requires Pillow. Install with `pip install pirn[heic]`."
             ) from exc
         try:
             import pillow_heif
         except ImportError as exc:
             raise ImportError(
-                "HeicFormat requires pillow-heif. Install with "
-                "`pip install pirn[heic]`."
+                "HeicFormat requires pillow-heif. Install with `pip install pirn[heic]`."
             ) from exc
         # Idempotent — pillow-heif guards against double registration.
         pillow_heif.register_heif_opener()

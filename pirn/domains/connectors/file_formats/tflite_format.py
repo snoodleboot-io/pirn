@@ -43,31 +43,18 @@ class TfliteFormat(BatchFileFormat):
     def name(self) -> str:
         return "tflite"
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         if not isinstance(payload, (bytes, bytearray)):
-            raise TypeError(
-                "TfliteFormat: payload must be bytes, "
-                f"got {type(payload).__name__}"
-            )
+            raise TypeError(f"TfliteFormat: payload must be bytes, got {type(payload).__name__}")
         raw = bytes(payload)
         interpreter_cls = self._load_interpreter()
         try:
             interpreter = interpreter_cls(model_content=raw)
             interpreter.allocate_tensors()
         except Exception as exc:
-            raise ValueError(
-                f"TfliteFormat: failed to load TFLite payload — {exc}"
-            ) from exc
-        input_details = [
-            self._normalise_details(d)
-            for d in interpreter.get_input_details()
-        ]
-        output_details = [
-            self._normalise_details(d)
-            for d in interpreter.get_output_details()
-        ]
+            raise ValueError(f"TfliteFormat: failed to load TFLite payload — {exc}") from exc
+        input_details = [self._normalise_details(d) for d in interpreter.get_input_details()]
+        output_details = [self._normalise_details(d) for d in interpreter.get_output_details()]
         version = self._extract_version(raw)
         record: dict[str, Any] = {
             "model_bytes": raw,
@@ -77,9 +64,7 @@ class TfliteFormat(BatchFileFormat):
         }
         return [record]
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         materialised: list[Mapping[str, Any]] = list(records)
         if len(materialised) != 1:
             raise ValueError(
@@ -88,14 +73,11 @@ class TfliteFormat(BatchFileFormat):
             )
         record = materialised[0]
         if "model_bytes" not in record:
-            raise ValueError(
-                "TfliteFormat: record missing required 'model_bytes' key"
-            )
+            raise ValueError("TfliteFormat: record missing required 'model_bytes' key")
         model_bytes = record["model_bytes"]
         if not isinstance(model_bytes, (bytes, bytearray)):
             raise TypeError(
-                "TfliteFormat: 'model_bytes' must be bytes, "
-                f"got {type(model_bytes).__name__}"
+                f"TfliteFormat: 'model_bytes' must be bytes, got {type(model_bytes).__name__}"
             )
         return bytes(model_bytes)
 
@@ -129,16 +111,19 @@ class TfliteFormat(BatchFileFormat):
     def _load_interpreter() -> Any:
         try:
             from ai_edge_litert.interpreter import Interpreter
+
             return Interpreter
         except ImportError:
             pass
         try:
             from tflite_runtime.interpreter import Interpreter
+
             return Interpreter
         except ImportError:
             pass
         try:
             from tensorflow.lite import Interpreter as TfInterpreter
+
             return TfInterpreter
         except ImportError as exc:
             raise ImportError(

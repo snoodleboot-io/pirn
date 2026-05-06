@@ -66,17 +66,11 @@ class MemoryRetriever(Knot):
         """
         if not isinstance(store, MemoryStore):
             raise TypeError(
-                "MemoryRetriever: store must be a MemoryStore, "
-                f"got {type(store).__name__}"
+                f"MemoryRetriever: store must be a MemoryStore, got {type(store).__name__}"
             )
         if not isinstance(key, str) or not key:
-            raise ValueError(
-                "MemoryRetriever: key must be a non-empty string, "
-                f"got {key!r}"
-            )
+            raise ValueError(f"MemoryRetriever: key must be a non-empty string, got {key!r}")
         value = await store.retrieve(key)
         if value is None:
-            raise KeyError(
-                f"MemoryRetriever: no entry found for key {key!r}"
-            )
+            raise KeyError(f"MemoryRetriever: no entry found for key {key!r}")
         return value

@@ -74,9 +74,7 @@ class RelevanceCheck(Knot):
                 doc_text_parts.append(value)
             else:
                 doc_text_parts.append(str(value))
-        doc_tokens = {
-            tok for part in doc_text_parts for tok in part.lower().split() if tok
-        }
+        doc_tokens = {tok for part in doc_text_parts for tok in part.lower().split() if tok}
         if not doc_tokens:
             return 0.0
         overlap = query_tokens & doc_tokens
@@ -107,24 +105,16 @@ class RelevanceCheck(Knot):
             ValueError: If threshold is outside [0.0, 1.0].
         """
         if not isinstance(query, str):
-            raise TypeError(
-                "RelevanceCheck: query must be a string, "
-                f"got {type(query).__name__}"
-            )
+            raise TypeError(f"RelevanceCheck: query must be a string, got {type(query).__name__}")
         if not isinstance(threshold, (int, float)):
             raise TypeError(
-                "RelevanceCheck: threshold must be a number, "
-                f"got {type(threshold).__name__}"
+                f"RelevanceCheck: threshold must be a number, got {type(threshold).__name__}"
             )
         if not 0.0 <= float(threshold) <= 1.0:
-            raise ValueError(
-                "RelevanceCheck: threshold must be in [0.0, 1.0], "
-                f"got {threshold!r}"
-            )
+            raise ValueError(f"RelevanceCheck: threshold must be in [0.0, 1.0], got {threshold!r}")
         if scorer is not None and not callable(scorer):
             raise TypeError(
-                "RelevanceCheck: scorer must be callable or None, "
-                f"got {type(scorer).__name__}"
+                f"RelevanceCheck: scorer must be callable or None, got {type(scorer).__name__}"
             )
         active_scorer = scorer if scorer is not None else RelevanceCheck._default_scorer
         kept: list[Mapping[str, Any]] = []

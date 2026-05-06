@@ -111,11 +111,7 @@ class FaultProximityAnalyzer(Knot):
                     "well_id": well["well_id"],
                     "nearest_fault_id": best_fault_id,
                     "distance_m": best_dist if best_fault_id is not None else 0.0,
-                    "within_buffer": (
-                        best_dist <= buf
-                        if best_fault_id is not None
-                        else False
-                    ),
+                    "within_buffer": (best_dist <= buf if best_fault_id is not None else False),
                 }
             )
         return results

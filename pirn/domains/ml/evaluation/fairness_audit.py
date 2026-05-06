@@ -75,14 +75,11 @@ class FairnessAudit(Knot):
         """
         column_tuple = tuple(sensitive_columns)
         if not column_tuple:
-            raise ValueError(
-                "FairnessAudit: sensitive_columns must be non-empty"
-            )
+            raise ValueError("FairnessAudit: sensitive_columns must be non-empty")
         for column in column_tuple:
             if not isinstance(column, str) or not column:
                 raise ValueError(
-                    "FairnessAudit: every sensitive column name must be a "
-                    "non-empty string"
+                    "FairnessAudit: every sensitive column name must be a non-empty string"
                 )
         metrics: dict[str, float] = {}
         details: dict[str, Any] = {
@@ -100,9 +97,7 @@ class FairnessAudit(Knot):
             details=MappingProxyType(details),
         )
 
-    def _parity_score(
-        self, model: TrainedModel, split: DataSplit, column: str
-    ) -> float:
+    def _parity_score(self, model: TrainedModel, split: DataSplit, column: str) -> float:
         payload = json.dumps(
             {
                 "model_id": model.model_id,

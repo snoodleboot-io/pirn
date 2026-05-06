@@ -41,13 +41,9 @@ class StripeClient(ApiClient, TableSource):
         object_type: str = "charges",
     ) -> None:
         if config is None and client is None:
-            raise TypeError(
-                "StripeClient requires either config= or client="
-            )
+            raise TypeError("StripeClient requires either config= or client=")
         if not isinstance(object_type, str) or not object_type:
-            raise ValueError(
-                "StripeClient: object_type must be a non-empty string"
-            )
+            raise ValueError("StripeClient: object_type must be a non-empty string")
         self._config = config
         self._client = client
         self._closed = False
@@ -75,9 +71,7 @@ class StripeClient(ApiClient, TableSource):
         id of the last charge if Stripe says more pages remain, else
         ``None``. ``starting_after`` is Stripe's cursor parameter.
         """
-        return await self._list_object(
-            "charges", starting_after=starting_after, limit=limit
-        )
+        return await self._list_object("charges", starting_after=starting_after, limit=limit)
 
     async def list_customers(
         self,
@@ -86,9 +80,7 @@ class StripeClient(ApiClient, TableSource):
         limit: int | None = None,
     ) -> tuple[list[Mapping[str, Any]], str | None]:
         """Vendor-typed read of Stripe customers (same shape as :meth:`list_charges`)."""
-        return await self._list_object(
-            "customers", starting_after=starting_after, limit=limit
-        )
+        return await self._list_object("customers", starting_after=starting_after, limit=limit)
 
     async def fetch_page(
         self,
@@ -115,14 +107,10 @@ class StripeClient(ApiClient, TableSource):
             params["starting_after"] = starting_after
         if limit is not None:
             params["limit"] = limit
-        response = await self.request(
-            "GET", f"/v1/{object_type}", params=params or None
-        )
+        response = await self.request("GET", f"/v1/{object_type}", params=params or None)
         rows = list(response.get("data") or ())
         has_more = bool(response.get("has_more"))
-        next_cursor = (
-            rows[-1].get("id") if has_more and rows else None
-        )
+        next_cursor = rows[-1].get("id") if has_more and rows else None
         return rows, next_cursor
 
     async def request(
@@ -177,13 +165,10 @@ class StripeClient(ApiClient, TableSource):
             import stripe  # type: ignore[import-not-found]
         except ImportError as exc:
             raise ImportError(
-                "StripeClient requires stripe; install via "
-                "`pip install pirn[stripe]`"
+                "StripeClient requires stripe; install via `pip install pirn[stripe]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError(
-                "StripeClient: missing config and no injected client"
-            )
+            raise RuntimeError("StripeClient: missing config and no injected client")
         if self._config.api_key is None:
             raise ValueError("StripeClient: config.api_key is required")
 

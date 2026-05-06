@@ -54,9 +54,7 @@ class DatafusionDataBatch:
     frame: df.DataFrame
     context: df.SessionContext
     source_uri: str = ""
-    fetched_at: datetime = field(
-        default_factory=lambda: datetime.now(UTC)
-    )
+    fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     @property
     def column_names(self) -> tuple[str, ...]:

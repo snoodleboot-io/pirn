@@ -148,9 +148,7 @@ class DataVaultSatelliteLoader(Knot):
             ("record_source", record_source),
         ):
             if not isinstance(value, str) or not value:
-                raise ValueError(
-                    f"DataVaultSatelliteLoader: {label} must be a non-empty string"
-                )
+                raise ValueError(f"DataVaultSatelliteLoader: {label} must be a non-empty string")
         for label, value in (
             ("hub_hash_key_column", hub_hash_key_column),
             ("hash_diff_column", hash_diff_column),
@@ -159,9 +157,7 @@ class DataVaultSatelliteLoader(Knot):
             ("record_source_column", record_source_column),
         ):
             if not isinstance(value, str) or not value:
-                raise ValueError(
-                    f"DataVaultSatelliteLoader: {label} must be a non-empty string"
-                )
+                raise ValueError(f"DataVaultSatelliteLoader: {label} must be a non-empty string")
         IdentifierValidator.validate_column("target_table", target_table)
         IdentifierValidator.validate_column("hub_hash_key_column", hub_hash_key_column)
         IdentifierValidator.validate_column("hash_diff_column", hash_diff_column)

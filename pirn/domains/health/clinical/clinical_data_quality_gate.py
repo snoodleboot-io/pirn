@@ -75,22 +75,14 @@ class ClinicalDataQualityCheck(Knot):
                 observation_codes is below min_completeness.
         """
         if not isinstance(records, (list, tuple)):
-            raise TypeError(
-                "ClinicalDataQualityGate: records must be list/tuple"
-            )
+            raise TypeError("ClinicalDataQualityGate: records must be list/tuple")
         for record in records:
             if not isinstance(record, ClinicalRecord):
-                raise TypeError(
-                    "ClinicalDataQualityGate: every record must be a ClinicalRecord"
-                )
+                raise TypeError("ClinicalDataQualityGate: every record must be a ClinicalRecord")
         if not isinstance(min_completeness, (int, float)):
-            raise TypeError(
-                "ClinicalDataQualityGate: min_completeness must be numeric"
-            )
+            raise TypeError("ClinicalDataQualityGate: min_completeness must be numeric")
         if not 0.0 <= float(min_completeness) <= 1.0:
-            raise ValueError(
-                "ClinicalDataQualityGate: min_completeness must be in [0, 1]"
-            )
+            raise ValueError("ClinicalDataQualityGate: min_completeness must be in [0, 1]")
         records_tuple = tuple(records)
         if not records_tuple:
             completeness = 1.0
@@ -99,8 +91,7 @@ class ClinicalDataQualityCheck(Knot):
             completeness = non_empty / len(records_tuple)
         if completeness < float(min_completeness):
             raise ClinicalDataQualityError(
-                f"completeness {completeness:.3f} below threshold "
-                f"{float(min_completeness):.3f}"
+                f"completeness {completeness:.3f} below threshold {float(min_completeness):.3f}"
             )
         return records_tuple
 

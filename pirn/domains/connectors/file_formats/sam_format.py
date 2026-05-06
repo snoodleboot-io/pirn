@@ -40,9 +40,7 @@ class SamFormat(BatchFileFormat):
         header_lines: Sequence[str] | None = None,
     ) -> None:
         if header_lines is not None:
-            if isinstance(header_lines, (str, bytes)) or not isinstance(
-                header_lines, Sequence
-            ):
+            if isinstance(header_lines, (str, bytes)) or not isinstance(header_lines, Sequence):
                 raise TypeError(
                     "SamFormat: header_lines must be a sequence of "
                     f"strings, got {type(header_lines).__name__}"
@@ -50,13 +48,11 @@ class SamFormat(BatchFileFormat):
             for line in header_lines:
                 if not isinstance(line, str) or not line:
                     raise ValueError(
-                        "SamFormat: every header line must be a "
-                        f"non-empty string, got {line!r}"
+                        f"SamFormat: every header line must be a non-empty string, got {line!r}"
                     )
                 if not line.startswith("@"):
                     raise ValueError(
-                        "SamFormat: every header line must start with "
-                        f"'@', got {line!r}"
+                        f"SamFormat: every header line must start with '@', got {line!r}"
                     )
         self._header_lines: tuple[str, ...] | None = (
             tuple(header_lines) if header_lines is not None else None
@@ -70,9 +66,7 @@ class SamFormat(BatchFileFormat):
     def header_lines(self) -> tuple[str, ...] | None:
         return self._header_lines
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         pysam = self._load_pysam()
         path = _SamUtils.write_tempfile(payload, suffix=".sam")
         try:
@@ -87,9 +81,7 @@ class SamFormat(BatchFileFormat):
         finally:
             _SamUtils.safe_unlink(path)
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         pysam = self._load_pysam()
         materialised: list[Mapping[str, Any]] = list(records)
         header = _SamUtils.build_header(pysam, self._header_lines, materialised)
@@ -113,7 +105,6 @@ class SamFormat(BatchFileFormat):
             import pysam
         except ImportError as exc:
             raise ImportError(
-                "SamFormat requires pysam. Install with "
-                "`pip install pirn[genomics]`."
+                "SamFormat requires pysam. Install with `pip install pirn[genomics]`."
             ) from exc
         return pysam

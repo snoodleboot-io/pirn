@@ -86,16 +86,9 @@ class EllipticFilter(Knot):
         if not isinstance(order, int) or order <= 0:
             raise ValueError("EllipticFilter: order must be a positive integer")
         if not isinstance(passband_ripple_db, (int, float)) or passband_ripple_db <= 0:
-            raise ValueError(
-                "EllipticFilter: passband_ripple_db must be positive"
-            )
-        if (
-            not isinstance(stopband_attenuation_db, (int, float))
-            or stopband_attenuation_db <= 0
-        ):
-            raise ValueError(
-                "EllipticFilter: stopband_attenuation_db must be positive"
-            )
+            raise ValueError("EllipticFilter: passband_ripple_db must be positive")
+        if not isinstance(stopband_attenuation_db, (int, float)) or stopband_attenuation_db <= 0:
+            raise ValueError("EllipticFilter: stopband_attenuation_db must be positive")
         if not isinstance(cutoff_hz, (int, float)) or cutoff_hz <= 0:
             raise ValueError("EllipticFilter: cutoff_hz must be positive")
         return SignalFrame(

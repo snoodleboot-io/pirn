@@ -89,28 +89,19 @@ class RowCountAnomalyDetector(Knot):
             ValueError: When window or threshold are invalid.
         """
         if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError(
-                "RowCountAnomalyDetector: pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("RowCountAnomalyDetector: pool must be a DatabaseConnectionPool")
         IdentifierValidator.validate_column("monitored_table", monitored_table)
         IdentifierValidator.validate_column("audit_table", audit_table)
         if not isinstance(window, int) or window < 1:
-            raise ValueError(
-                "RowCountAnomalyDetector: window must be a positive integer"
-            )
+            raise ValueError("RowCountAnomalyDetector: window must be a positive integer")
         if not isinstance(threshold, (int, float)) or threshold <= 0:
-            raise ValueError(
-                "RowCountAnomalyDetector: threshold must be a positive number"
-            )
+            raise ValueError("RowCountAnomalyDetector: threshold must be a positive number")
         threshold_f = float(threshold)
-        count_rows = await pool.fetch_all(
-            f"SELECT COUNT(*) FROM {monitored_table}"
-        )
+        count_rows = await pool.fetch_all(f"SELECT COUNT(*) FROM {monitored_table}")
         current_count = count_rows[0][0]
         now_iso = datetime.now(UTC).isoformat()
         await pool.execute(
-            f"INSERT INTO {audit_table} (table_name, row_count, recorded_at) "
-            f"VALUES (?, ?, ?)",
+            f"INSERT INTO {audit_table} (table_name, row_count, recorded_at) VALUES (?, ?, ?)",
             (monitored_table, current_count, now_iso),
         )
         history_rows = await pool.fetch_all(

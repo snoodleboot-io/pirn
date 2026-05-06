@@ -74,21 +74,17 @@ class StreamingLLMCall(Knot):
         # by iterating the result.
         if not isinstance(context, AgentContext):
             raise TypeError(
-                "StreamingLLMCall: context must be an AgentContext, "
-                f"got {type(context).__name__}"
+                f"StreamingLLMCall: context must be an AgentContext, got {type(context).__name__}"
             )
         if not isinstance(llm, LLMProvider):
             raise TypeError(
-                "StreamingLLMCall: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
+                f"StreamingLLMCall: llm must be an LLMProvider, got {type(llm).__name__}"
             )
         if model is not None and (not isinstance(model, str) or not model):
             raise ValueError(
-                "StreamingLLMCall: model must be a non-empty string or None, "
-                f"got {model!r}"
+                f"StreamingLLMCall: model must be a non-empty string or None, got {model!r}"
             )
         wire_messages = tuple(
-            {"role": message.role, "content": message.content}
-            for message in context.messages
+            {"role": message.role, "content": message.content} for message in context.messages
         )
         return await llm.stream_chat(messages=wire_messages, model=model)

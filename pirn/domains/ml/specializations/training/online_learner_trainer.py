@@ -93,9 +93,7 @@ class OnlineLearnerTrainer(SubTapestry):
         if not isinstance(algorithm, str) or not algorithm:
             raise ValueError("OnlineLearnerTrainer: algorithm must be a non-empty string")
         if not isinstance(monitor_metric, str) or not monitor_metric:
-            raise ValueError(
-                "OnlineLearnerTrainer: monitor_metric must be a non-empty string"
-            )
+            raise ValueError("OnlineLearnerTrainer: monitor_metric must be a non-empty string")
         if not isinstance(n_batches, int):
             raise TypeError("OnlineLearnerTrainer: n_batches must be an int")
         if n_batches < 1:
@@ -141,13 +139,9 @@ class OnlineLearnerTrainer(SubTapestry):
         trained_model = result.outputs[f"train_{last_idx}"]
         report = result.outputs[f"evaluate_{last_idx}"]
         if not isinstance(trained_model, TrainedModel):
-            raise TypeError(
-                "OnlineLearnerTrainer: trainer did not return a TrainedModel"
-            )
+            raise TypeError("OnlineLearnerTrainer: trainer did not return a TrainedModel")
         if not isinstance(report, EvalReport):
-            raise TypeError(
-                "OnlineLearnerTrainer: evaluator did not return an EvalReport"
-            )
+            raise TypeError("OnlineLearnerTrainer: evaluator did not return an EvalReport")
         return {
             "model": trained_model,
             "eval_report": report,

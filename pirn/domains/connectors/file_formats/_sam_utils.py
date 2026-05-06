@@ -67,8 +67,7 @@ class _SamUtils:
             "cigar": cigar,
             "rnext": rnext if rnext is not None else "*",
             "pnext": int(alignment.next_reference_start) + 1
-            if alignment.next_reference_start is not None
-            and alignment.next_reference_start >= 0
+            if alignment.next_reference_start is not None and alignment.next_reference_start >= 0
             else 0,
             "tlen": int(alignment.template_length),
             "seq": seq,
@@ -101,9 +100,7 @@ class _SamUtils:
             _SamUtils.safe_unlink(path)
 
     @staticmethod
-    def infer_header(
-        pysam: Any, records: Sequence[Mapping[str, Any]]
-    ) -> Any:
+    def infer_header(pysam: Any, records: Sequence[Mapping[str, Any]]) -> Any:
         contigs: dict[str, int] = {}
         order: list[str] = []
         for record in records:
@@ -124,15 +121,11 @@ class _SamUtils:
         if not order:
             order = ["chr1"]
             contigs = {"chr1": 1}
-        sq_entries = [
-            {"SN": name, "LN": max(contigs[name], 1)} for name in order
-        ]
+        sq_entries = [{"SN": name, "LN": max(contigs[name], 1)} for name in order]
         return {"HD": {"VN": "1.6"}, "SQ": sq_entries}
 
     @staticmethod
-    def record_to_alignment(
-        pysam: Any, record: Mapping[str, Any], handle: Any
-    ) -> Any:
+    def record_to_alignment(pysam: Any, record: Mapping[str, Any], handle: Any) -> Any:
         _SamUtils.validate_record(record)
         alignment = pysam.AlignedSegment(handle.header)
         alignment.query_name = str(record["qname"])
@@ -170,8 +163,17 @@ class _SamUtils:
     @staticmethod
     def validate_record(record: Mapping[str, Any]) -> None:
         required = (
-            "qname", "flag", "rname", "pos", "mapq",
-            "cigar", "rnext", "pnext", "tlen", "seq", "qual",
+            "qname",
+            "flag",
+            "rname",
+            "pos",
+            "mapq",
+            "cigar",
+            "rnext",
+            "pnext",
+            "tlen",
+            "seq",
+            "qual",
         )
         missing = [field for field in required if field not in record]
         if missing:

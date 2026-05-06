@@ -107,7 +107,5 @@ class ReActTerminationCheck(Knot):
                     collected.append(item)
             return tuple(collected)
         if hasattr(latest_response, "messages"):
-            return tuple(
-                m for m in latest_response.messages if isinstance(m, AgentMessage)
-            )
+            return tuple(m for m in latest_response.messages if isinstance(m, AgentMessage))
         return ()

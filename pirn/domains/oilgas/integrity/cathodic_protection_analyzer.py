@@ -69,9 +69,7 @@ class CathodicProtectionAnalyzer(Knot):
             ``threshold_mv`` (the configured protection threshold in mV).
         """
         if not isinstance(protection_threshold_mv, (int, float)):
-            raise TypeError(
-                "CathodicProtectionAnalyzer: protection_threshold_mv must be numeric"
-            )
+            raise TypeError("CathodicProtectionAnalyzer: protection_threshold_mv must be numeric")
         return {
             "coverage_fraction": 1.0,
             "threshold_mv": float(protection_threshold_mv),

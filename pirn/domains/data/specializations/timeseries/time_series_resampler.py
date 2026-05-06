@@ -94,13 +94,9 @@ class TimeSeriesResampler(Knot):
         IdentifierValidator.validate_column("timestamp_column", timestamp_column)
         IdentifierValidator.validate_column("value_column", value_column)
         if not isinstance(frequency_seconds, (int, float)) or frequency_seconds <= 0:
-            raise ValueError(
-                "TimeSeriesResampler: frequency_seconds must be a positive number"
-            )
+            raise ValueError("TimeSeriesResampler: frequency_seconds must be a positive number")
         if aggregation not in ("mean", "sum", "last", "first"):
-            raise ValueError(
-                "TimeSeriesResampler: aggregation must be mean/sum/last/first"
-            )
+            raise ValueError("TimeSeriesResampler: aggregation must be mean/sum/last/first")
 
         frequency = timedelta(seconds=frequency_seconds)
 

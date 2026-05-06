@@ -96,25 +96,15 @@ class BrowserAgent(SubTapestry):
             ValueError: If max_steps is not a positive integer.
         """
         if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "BrowserAgent: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
+            raise TypeError(f"BrowserAgent: llm must be an LLMProvider, got {type(llm).__name__}")
         if not isinstance(browser_tool, Tool):
             raise TypeError(
-                "BrowserAgent: browser_tool must be a Tool, "
-                f"got {type(browser_tool).__name__}"
+                f"BrowserAgent: browser_tool must be a Tool, got {type(browser_tool).__name__}"
             )
         if not isinstance(max_steps, int) or max_steps <= 0:
-            raise ValueError(
-                "BrowserAgent: max_steps must be a positive int, "
-                f"got {max_steps!r}"
-            )
+            raise ValueError(f"BrowserAgent: max_steps must be a positive int, got {max_steps!r}")
         if not isinstance(goal, str) or not goal:
-            raise TypeError(
-                "BrowserAgent: goal must be a non-empty string, "
-                f"got {goal!r}"
-            )
+            raise TypeError(f"BrowserAgent: goal must be a non-empty string, got {goal!r}")
         seed_messages = (
             AgentMessage(
                 role="system",

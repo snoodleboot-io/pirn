@@ -45,9 +45,7 @@ class TypeCurveFitter(Knot):
     ) -> None:
         super().__init__(rate_series=rate_series, _config=_config, **kwargs)
 
-    async def process(
-        self, rate_series: ScadaTimeSeries, **_: Any
-    ) -> dict[str, float]:
+    async def process(self, rate_series: ScadaTimeSeries, **_: Any) -> dict[str, float]:
         """Fit a type curve to the rate series and return the qi, di, b, and EUR parameters.
 
         Args:

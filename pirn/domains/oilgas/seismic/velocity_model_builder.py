@@ -72,13 +72,10 @@ class VelocityModelBuilder(Knot):
             Dict with ``velocity_model`` (dict with ``nodes`` (int),
             ``min_vel_m_s`` (float), ``max_vel_m_s`` (float)) and ``method`` (str).
         """
-        valid_methods: frozenset[str] = frozenset(
-            {"kriging", "idw", "natural_neighbor"}
-        )
+        valid_methods: frozenset[str] = frozenset({"kriging", "idw", "natural_neighbor"})
         if interpolation_method not in valid_methods:
             raise ValueError(
-                f"VelocityModelBuilder: interpolation_method must be one of "
-                f"{sorted(valid_methods)}"
+                f"VelocityModelBuilder: interpolation_method must be one of {sorted(valid_methods)}"
             )
         all_vels: list[float] = [
             float(p.get("velocity_m_s", 2000.0))

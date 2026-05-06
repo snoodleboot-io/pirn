@@ -32,9 +32,7 @@ from pirn.domains.connectors.file_formats.batch_file_format import (
 class MarkdownFormat(BatchFileFormat):
     """Whole-file Markdown encoder/decoder."""
 
-    _supported_split_modes: ClassVar[frozenset[str]] = frozenset(
-        {"heading", "paragraph", "file"}
-    )
+    _supported_split_modes: ClassVar[frozenset[str]] = frozenset({"heading", "paragraph", "file"})
 
     def __init__(
         self,
@@ -42,9 +40,7 @@ class MarkdownFormat(BatchFileFormat):
         encoding: str = "utf-8",
     ) -> None:
         if not isinstance(split_on, str):
-            raise TypeError(
-                "MarkdownFormat: split_on must be str"
-            )
+            raise TypeError("MarkdownFormat: split_on must be str")
         if split_on not in self._supported_split_modes:
             raise ValueError(
                 "MarkdownFormat: split_on must be one of "
@@ -52,13 +48,9 @@ class MarkdownFormat(BatchFileFormat):
                 f"{split_on!r}"
             )
         if not isinstance(encoding, str):
-            raise TypeError(
-                "MarkdownFormat: encoding must be str"
-            )
+            raise TypeError("MarkdownFormat: encoding must be str")
         if not encoding:
-            raise ValueError(
-                "MarkdownFormat: encoding must be non-empty"
-            )
+            raise ValueError("MarkdownFormat: encoding must be non-empty")
         self._split_on = split_on
         self._encoding = encoding
 
@@ -74,9 +66,7 @@ class MarkdownFormat(BatchFileFormat):
     def encoding(self) -> str:
         return self._encoding
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         if not payload:
             return []
         text = payload.decode(self._encoding)
@@ -92,18 +82,12 @@ class MarkdownFormat(BatchFileFormat):
             return self._records_by_heading(tokens)
         return self._records_by_paragraph(tokens)
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         materialised = list(records)
         if self._split_on == "heading":
-            return self._encode_heading(materialised).encode(
-                self._encoding
-            )
+            return self._encode_heading(materialised).encode(self._encoding)
         if self._split_on == "paragraph":
-            return self._encode_paragraph(materialised).encode(
-                self._encoding
-            )
+            return self._encode_paragraph(materialised).encode(self._encoding)
         return self._encode_file(materialised).encode(self._encoding)
 
     @staticmethod
@@ -187,9 +171,7 @@ class MarkdownFormat(BatchFileFormat):
         return records
 
     @classmethod
-    def _encode_heading(
-        cls, records: list[Mapping[str, Any]]
-    ) -> str:
+    def _encode_heading(cls, records: list[Mapping[str, Any]]) -> str:
         parts: list[str] = []
         for record in records:
             text = cls._extract_text(record)
@@ -199,8 +181,7 @@ class MarkdownFormat(BatchFileFormat):
                 level = int(level_value) if level_value else 1
             except (TypeError, ValueError) as exc:
                 raise ValueError(
-                    "MarkdownFormat: record 'level' must be an "
-                    f"integer, got {level_value!r}"
+                    f"MarkdownFormat: record 'level' must be an integer, got {level_value!r}"
                 ) from exc
             if level < 1:
                 level = 1
@@ -209,19 +190,14 @@ class MarkdownFormat(BatchFileFormat):
             heading_marker = "#" * level
             if title is not None:
                 if not isinstance(title, str):
-                    raise TypeError(
-                        "MarkdownFormat: record 'title' must be str "
-                        "or None"
-                    )
+                    raise TypeError("MarkdownFormat: record 'title' must be str or None")
                 parts.append(f"{heading_marker} {title}\n\n")
             if text:
                 parts.append(f"{text}\n\n")
         return "".join(parts)
 
     @classmethod
-    def _encode_paragraph(
-        cls, records: list[Mapping[str, Any]]
-    ) -> str:
+    def _encode_paragraph(cls, records: list[Mapping[str, Any]]) -> str:
         parts: list[str] = []
         for record in records:
             text = cls._extract_text(record)
@@ -229,22 +205,17 @@ class MarkdownFormat(BatchFileFormat):
         return "".join(parts)
 
     @classmethod
-    def _encode_file(
-        cls, records: list[Mapping[str, Any]]
-    ) -> str:
+    def _encode_file(cls, records: list[Mapping[str, Any]]) -> str:
         return "".join(cls._extract_text(record) for record in records)
 
     @staticmethod
     def _extract_text(record: Mapping[str, Any]) -> str:
         if "text" not in record:
-            raise ValueError(
-                "MarkdownFormat: record missing required 'text' key"
-            )
+            raise ValueError("MarkdownFormat: record missing required 'text' key")
         text = record["text"]
         if not isinstance(text, str):
             raise TypeError(
-                "MarkdownFormat: record 'text' value must be str, "
-                f"got {type(text).__name__}"
+                f"MarkdownFormat: record 'text' value must be str, got {type(text).__name__}"
             )
         return text
 
@@ -254,8 +225,7 @@ class MarkdownFormat(BatchFileFormat):
             import markdown_it
         except ImportError as exc:
             raise ImportError(
-                "MarkdownFormat requires markdown-it-py. Install with "
-                "`pip install pirn[markdown]`."
+                "MarkdownFormat requires markdown-it-py. Install with `pip install pirn[markdown]`."
             ) from exc
         return markdown_it
 
@@ -265,7 +235,6 @@ class MarkdownFormat(BatchFileFormat):
             import markdown
         except ImportError as exc:
             raise ImportError(
-                "MarkdownFormat requires markdown. Install with "
-                "`pip install pirn[markdown]`."
+                "MarkdownFormat requires markdown. Install with `pip install pirn[markdown]`."
             ) from exc
         return markdown

@@ -104,25 +104,17 @@ class NaiveRAGPipeline(SubTapestry):
             ValueError: If top_k is not a positive integer.
         """
         if not isinstance(query, str):
-            raise TypeError(
-                "NaiveRAGPipeline: query must be a string, "
-                f"got {type(query).__name__}"
-            )
+            raise TypeError(f"NaiveRAGPipeline: query must be a string, got {type(query).__name__}")
         if not isinstance(memory, MemoryStore):
             raise TypeError(
-                "NaiveRAGPipeline: memory must be a MemoryStore, "
-                f"got {type(memory).__name__}"
+                f"NaiveRAGPipeline: memory must be a MemoryStore, got {type(memory).__name__}"
             )
         if not isinstance(llm, LLMProvider):
             raise TypeError(
-                "NaiveRAGPipeline: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
+                f"NaiveRAGPipeline: llm must be an LLMProvider, got {type(llm).__name__}"
             )
         if not isinstance(top_k, int) or top_k <= 0:
-            raise ValueError(
-                "NaiveRAGPipeline: top_k must be a positive int, "
-                f"got {top_k!r}"
-            )
+            raise ValueError(f"NaiveRAGPipeline: top_k must be a positive int, got {top_k!r}")
         with Tapestry() as inner:
             retrieved = MemorySearchRetriever(
                 store=memory,

@@ -73,24 +73,13 @@ class AudioFileIngestor(Knot):
             ValueError: If any parameter is invalid.
         """
         if not isinstance(path, str) or not path:
-            raise ValueError(
-                "AudioFileIngestor: path must be a non-empty string"
-            )
+            raise ValueError("AudioFileIngestor: path must be a non-empty string")
         if not isinstance(sample_rate_hz, (int, float)) or sample_rate_hz <= 0:
-            raise ValueError(
-                "AudioFileIngestor: sample_rate_hz must be positive"
-            )
+            raise ValueError("AudioFileIngestor: sample_rate_hz must be positive")
         if not isinstance(channel_count, int) or channel_count <= 0:
-            raise ValueError(
-                "AudioFileIngestor: channel_count must be a positive integer"
-            )
-        if (
-            not isinstance(samples_per_channel, int)
-            or samples_per_channel < 0
-        ):
-            raise ValueError(
-                "AudioFileIngestor: samples_per_channel must be non-negative"
-            )
+            raise ValueError("AudioFileIngestor: channel_count must be a positive integer")
+        if not isinstance(samples_per_channel, int) or samples_per_channel < 0:
+            raise ValueError("AudioFileIngestor: samples_per_channel must be non-negative")
         return SignalFrame(
             signal_id=path,
             channel_count=channel_count,

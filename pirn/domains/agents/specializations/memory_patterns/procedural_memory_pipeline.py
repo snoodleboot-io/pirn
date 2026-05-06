@@ -78,8 +78,7 @@ class ProceduralMemoryPipeline(SubTapestry):
         """
         if not isinstance(store, MemoryStore):
             raise TypeError(
-                "ProceduralMemoryPipeline: store must be a MemoryStore, "
-                f"got {type(store).__name__}"
+                f"ProceduralMemoryPipeline: store must be a MemoryStore, got {type(store).__name__}"
             )
         with Tapestry() as inner:
             ProceduralMemoryWriter(
@@ -91,7 +90,5 @@ class ProceduralMemoryPipeline(SubTapestry):
         inner_result = await self._run_inner(inner)
         key = inner_result.outputs.get("write_procedure")
         if not isinstance(key, str):
-            raise RuntimeError(
-                "ProceduralMemoryPipeline: inner write did not return a key"
-            )
+            raise RuntimeError("ProceduralMemoryPipeline: inner write did not return a key")
         return key

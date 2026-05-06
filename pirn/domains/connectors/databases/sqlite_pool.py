@@ -66,9 +66,7 @@ class SqlitePool(DatabaseConnectionPool):
         """Run a parameterised statement against a sequence of parameter tuples."""
         self._reject_inline_interpolation(query)
         connection = await self.acquire()
-        cursor = await connection.executemany(
-            query, [tuple(p) for p in parameter_seq]
-        )
+        cursor = await connection.executemany(query, [tuple(p) for p in parameter_seq])
         await connection.commit()
         return cursor
 
@@ -92,17 +90,14 @@ class SqlitePool(DatabaseConnectionPool):
             import aiosqlite
         except ImportError as exc:
             raise ImportError(
-                "SqlitePool requires aiosqlite; install via "
-                "`pip install pirn[sqlite]`"
+                "SqlitePool requires aiosqlite; install via `pip install pirn[sqlite]`"
             ) from exc
 
         connection = await aiosqlite.connect(
             str(self._config.database), timeout=self._config.timeout
         )
         if str(self._config.database) != ":memory:":
-            await connection.execute(
-                f"PRAGMA journal_mode={self._config.journal_mode}"
-            )
+            await connection.execute(f"PRAGMA journal_mode={self._config.journal_mode}")
         for name, value in self._config.pragmas:
             await connection.execute(f"PRAGMA {name}={value}")
         await connection.commit()

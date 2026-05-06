@@ -88,18 +88,14 @@ class StackingEnsembleBuilder(SubTapestry):
         """
         base_tuple = tuple(base_algorithms)
         if len(base_tuple) < 2:
-            raise ValueError(
-                "StackingEnsembleBuilder: at least two base_algorithms are required"
-            )
+            raise ValueError("StackingEnsembleBuilder: at least two base_algorithms are required")
         for alg in base_tuple:
             if not isinstance(alg, str) or not alg:
                 raise ValueError(
                     "StackingEnsembleBuilder: every base algorithm must be a non-empty string"
                 )
         if not isinstance(meta_algorithm, str) or not meta_algorithm:
-            raise ValueError(
-                "StackingEnsembleBuilder: meta_algorithm must be a non-empty string"
-            )
+            raise ValueError("StackingEnsembleBuilder: meta_algorithm must be a non-empty string")
         metric_tuple = tuple(metrics)
         if not metric_tuple:
             raise ValueError("StackingEnsembleBuilder: metrics must be non-empty")
@@ -133,13 +129,9 @@ class StackingEnsembleBuilder(SubTapestry):
         ensemble_model = result.outputs["ensemble"]
         report = result.outputs["evaluate"]
         if not isinstance(ensemble_model, TrainedModel):
-            raise TypeError(
-                "StackingEnsembleBuilder: ensemble did not return a TrainedModel"
-            )
+            raise TypeError("StackingEnsembleBuilder: ensemble did not return a TrainedModel")
         if not isinstance(report, EvalReport):
-            raise TypeError(
-                "StackingEnsembleBuilder: evaluator did not return an EvalReport"
-            )
+            raise TypeError("StackingEnsembleBuilder: evaluator did not return an EvalReport")
         return {
             "ensemble_model": ensemble_model,
             "eval_report": report,

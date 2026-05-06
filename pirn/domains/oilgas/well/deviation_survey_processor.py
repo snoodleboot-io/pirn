@@ -63,13 +63,9 @@ class DeviationSurveyProcessor(Knot):
             DeviationSurvey resampled to the configured measured-depth step.
         """
         if not isinstance(target_md_step, (int, float)):
-            raise TypeError(
-                "DeviationSurveyProcessor: target_md_step must be numeric"
-            )
+            raise TypeError("DeviationSurveyProcessor: target_md_step must be numeric")
         if target_md_step <= 0.0:
-            raise ValueError(
-                "DeviationSurveyProcessor: target_md_step must be positive"
-            )
+            raise ValueError("DeviationSurveyProcessor: target_md_step must be positive")
         return DeviationSurvey(
             well_id=survey.well_id,
             station_count=survey.station_count,

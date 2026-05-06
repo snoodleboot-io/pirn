@@ -66,9 +66,19 @@ class MultiHopRAGPipeline(SubTapestry):
         num_hops: Knot | int = 3,
         **kwargs: Any,
     ) -> None:
-        super().__init__(query=query, memory=memory, llm=llm, top_k=top_k, num_hops=num_hops, _config=_config, **kwargs)
+        super().__init__(
+            query=query,
+            memory=memory,
+            llm=llm,
+            top_k=top_k,
+            num_hops=num_hops,
+            _config=_config,
+            **kwargs,
+        )
 
-    async def process(self, query: str, memory: MemoryStore, llm: LLMProvider, top_k: int, num_hops: int, **_: Any) -> AgentResponse:
+    async def process(
+        self, query: str, memory: MemoryStore, llm: LLMProvider, top_k: int, num_hops: int, **_: Any
+    ) -> AgentResponse:
         """Decompose the query, retrieve context per sub-question, and synthesize a final answer.
 
         Args:
@@ -93,11 +103,9 @@ class MultiHopRAGPipeline(SubTapestry):
             )
         decompose_result = await self._run_inner(inner_decompose)
         sub_questions_raw = str(decompose_result.outputs.get("decompose", query))
-        sub_questions = [
-            line.strip()
-            for line in sub_questions_raw.splitlines()
-            if line.strip()
-        ][: num_hops]
+        sub_questions = [line.strip() for line in sub_questions_raw.splitlines() if line.strip()][
+            :num_hops
+        ]
         if not sub_questions:
             sub_questions = [query]
 

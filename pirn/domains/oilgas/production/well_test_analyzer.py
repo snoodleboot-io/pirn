@@ -57,10 +57,7 @@ class WellTestAnalyzer(Knot):
         """
         _valid_methods = frozenset({"horner", "mdh", "deconvolution"})
         if method not in _valid_methods:
-            raise ValueError(
-                f"WellTestAnalyzer: method must be one of "
-                f"{sorted(_valid_methods)}"
-            )
+            raise ValueError(f"WellTestAnalyzer: method must be one of {sorted(_valid_methods)}")
         return {
             "permeability_md": 50.0,
             "skin": 1.5,

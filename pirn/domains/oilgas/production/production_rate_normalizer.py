@@ -69,17 +69,11 @@ class ProductionRateNormalizer(Knot):
             List of dicts with the same keys plus ``normalized_rate_bopd``.
         """
         if not isinstance(reference_pressure_psia, (int, float)):
-            raise TypeError(
-                "ProductionRateNormalizer: reference_pressure_psia must be numeric"
-            )
+            raise TypeError("ProductionRateNormalizer: reference_pressure_psia must be numeric")
         if reference_pressure_psia <= 0:
-            raise ValueError(
-                "ProductionRateNormalizer: reference_pressure_psia must be positive"
-            )
+            raise ValueError("ProductionRateNormalizer: reference_pressure_psia must be positive")
         if not isinstance(reference_temp_f, (int, float)):
-            raise TypeError(
-                "ProductionRateNormalizer: reference_temp_f must be numeric"
-            )
+            raise TypeError("ProductionRateNormalizer: reference_temp_f must be numeric")
         ref_t_rankine = float(reference_temp_f) + 459.67
         ref_p = float(reference_pressure_psia)
         results: list[dict[str, Any]] = []

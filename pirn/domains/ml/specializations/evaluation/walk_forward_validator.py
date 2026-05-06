@@ -100,9 +100,7 @@ class WalkForwardValidator(SubTapestry):
             TypeError: If train_window, test_window, or n_steps are not ints.
         """
         if not isinstance(time_column, str) or not time_column:
-            raise ValueError(
-                "WalkForwardValidator: time_column must be a non-empty string"
-            )
+            raise ValueError("WalkForwardValidator: time_column must be a non-empty string")
         if not isinstance(train_window, int):
             raise TypeError("WalkForwardValidator: train_window must be an int")
         if train_window < 1:
@@ -116,9 +114,7 @@ class WalkForwardValidator(SubTapestry):
         if n_steps < 1:
             raise ValueError("WalkForwardValidator: n_steps must be >= 1")
         if not isinstance(algorithm, str) or not algorithm:
-            raise ValueError(
-                "WalkForwardValidator: algorithm must be a non-empty string"
-            )
+            raise ValueError("WalkForwardValidator: algorithm must be a non-empty string")
         required = train_window + test_window * n_steps
         if int(dataset.row_count) < required:
             raise ValueError(

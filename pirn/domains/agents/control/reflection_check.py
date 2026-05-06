@@ -76,13 +76,11 @@ class ReflectionCheck(Knot):
         """
         if not isinstance(response, AgentResponse):
             raise TypeError(
-                "ReflectionCheck: response must be an AgentResponse, "
-                f"got {type(response).__name__}"
+                f"ReflectionCheck: response must be an AgentResponse, got {type(response).__name__}"
             )
         if not isinstance(llm, LLMProvider):
             raise TypeError(
-                "ReflectionCheck: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
+                f"ReflectionCheck: llm must be an LLMProvider, got {type(llm).__name__}"
             )
         wire_messages = (
             {"role": "system", "content": type(self).reflection_prompt},
@@ -105,6 +103,5 @@ class ReflectionCheck(Knot):
                 if isinstance(first, dict) and isinstance(first.get("text"), str):
                     return first["text"]
         raise TypeError(
-            "ReflectionCheck: cannot extract text from response of type "
-            f"{type(raw).__name__}"
+            f"ReflectionCheck: cannot extract text from response of type {type(raw).__name__}"
         )

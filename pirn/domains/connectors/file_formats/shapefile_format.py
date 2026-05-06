@@ -40,14 +40,10 @@ class ShapefileFormat(BatchFileFormat):
     def name(self) -> str:
         return "shapefile"
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         shapefile = self._load_pyshp()
         if not zipfile.is_zipfile(io.BytesIO(payload)):
-            raise ValueError(
-                "ShapefileFormat: payload is not a valid ZIP archive"
-            )
+            raise ValueError("ShapefileFormat: payload is not a valid ZIP archive")
         with zipfile.ZipFile(io.BytesIO(payload), "r") as archive:
             shp_bytes = self._read_member(archive, ".shp")
             dbf_bytes = self._read_member(archive, ".dbf")
@@ -65,9 +61,7 @@ class ShapefileFormat(BatchFileFormat):
                 shape = shape_record.shape
                 attributes = shape_record.record.as_dict()
                 record: dict[str, Any] = {
-                    "geometry": [
-                        (float(x), float(y)) for x, y in shape.points
-                    ],
+                    "geometry": [(float(x), float(y)) for x, y in shape.points],
                     "shape_type": shape.shapeTypeName,
                 }
                 for key, value in attributes.items():
@@ -77,17 +71,13 @@ class ShapefileFormat(BatchFileFormat):
             reader.close()
         return records
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         shapefile = self._load_pyshp()
         materialised: list[Mapping[str, Any]] = list(records)
         shp_buf = io.BytesIO()
         shx_buf = io.BytesIO()
         dbf_buf = io.BytesIO()
-        writer = shapefile.Writer(
-            shp=shp_buf, shx=shx_buf, dbf=dbf_buf
-        )
+        writer = shapefile.Writer(shp=shp_buf, shx=shx_buf, dbf=dbf_buf)
         try:
             attribute_keys = self._attribute_keys(materialised)
             for key in attribute_keys:
@@ -97,16 +87,12 @@ class ShapefileFormat(BatchFileFormat):
                 geometry = record["geometry"]
                 if not geometry:
                     raise ValueError(
-                        "ShapefileFormat: record geometry must contain "
-                        "at least one coordinate pair"
+                        "ShapefileFormat: record geometry must contain at least one coordinate pair"
                     )
                 first_point = geometry[0]
                 writer.point(float(first_point[0]), float(first_point[1]))
                 writer.record(
-                    *[
-                        self._serialise_attribute(record.get(key))
-                        for key in attribute_keys
-                    ]
+                    *[self._serialise_attribute(record.get(key)) for key in attribute_keys]
                 )
         finally:
             writer.close()
@@ -136,10 +122,7 @@ class ShapefileFormat(BatchFileFormat):
     @staticmethod
     def _validate_record(record: Mapping[str, Any]) -> None:
         if "geometry" not in record:
-            raise ValueError(
-                "ShapefileFormat: record missing required 'geometry' "
-                "field"
-            )
+            raise ValueError("ShapefileFormat: record missing required 'geometry' field")
         geometry = record["geometry"]
         if not isinstance(geometry, (list, tuple)):
             raise TypeError(
@@ -164,10 +147,7 @@ class ShapefileFormat(BatchFileFormat):
                 return archive.read(member)
         if optional:
             return None
-        raise ValueError(
-            "ShapefileFormat: archive is missing required "
-            f"{suffix!r} member"
-        )
+        raise ValueError(f"ShapefileFormat: archive is missing required {suffix!r} member")
 
     @staticmethod
     def _load_pyshp() -> Any:
@@ -175,7 +155,6 @@ class ShapefileFormat(BatchFileFormat):
             import shapefile
         except ImportError as exc:
             raise ImportError(
-                "ShapefileFormat requires pyshp. Install with "
-                "`pip install pirn[shapefile]`."
+                "ShapefileFormat requires pyshp. Install with `pip install pirn[shapefile]`."
             ) from exc
         return shapefile

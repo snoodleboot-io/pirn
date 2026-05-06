@@ -54,9 +54,7 @@ class LeaseBlockGrouper(Knot):
             Copy of the input location dict with ``lease_block_id`` added.
         """
         if not isinstance(lease_block_id, str) or not lease_block_id:
-            raise ValueError(
-                "LeaseBlockGrouper: lease_block_id must be a non-empty string"
-            )
+            raise ValueError("LeaseBlockGrouper: lease_block_id must be a non-empty string")
         return {
             **dict(location),
             "lease_block_id": lease_block_id,

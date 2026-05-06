@@ -16,6 +16,7 @@ References:
     - Biswal et al. (1995) Functional connectivity in the motor cortex of resting human brain.
     - Nilearn: https://nilearn.github.io/
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -81,7 +82,10 @@ class FunctionalConnectivityExtractor(Knot):
                 f"FunctionalConnectivityExtractor: connectivity_measure must be one of "
                 f"{sorted(valid_measures)}"
             )
-        if not isinstance(confound_strategy, str) or confound_strategy not in valid_confound_strategies:
+        if (
+            not isinstance(confound_strategy, str)
+            or confound_strategy not in valid_confound_strategies
+        ):
             raise ValueError(
                 f"FunctionalConnectivityExtractor: confound_strategy must be one of "
                 f"{sorted(valid_confound_strategies)}"

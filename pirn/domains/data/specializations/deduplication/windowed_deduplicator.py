@@ -65,14 +65,10 @@ class WindowedDeduplicator(Knot):
         key_tuple = tuple(key_columns)
         IdentifierValidator.validate_columns("key_columns", key_tuple)
         if not isinstance(timestamp_column, str) or not timestamp_column:
-            raise ValueError(
-                "WindowedDeduplicator: timestamp_column must be a non-empty string"
-            )
+            raise ValueError("WindowedDeduplicator: timestamp_column must be a non-empty string")
         IdentifierValidator.validate_column("timestamp_column", timestamp_column)
         if not isinstance(window_minutes, (int, float)) or window_minutes <= 0:
-            raise ValueError(
-                "WindowedDeduplicator: window_minutes must be a positive number"
-            )
+            raise ValueError("WindowedDeduplicator: window_minutes must be a positive number")
         window = timedelta(minutes=window_minutes)
 
         def _as_dt(val: Any) -> datetime:

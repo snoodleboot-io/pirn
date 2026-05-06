@@ -90,16 +90,12 @@ class DatafusionFilter(Knot):
                 "or expression=<callable(frame) -> datafusion.Expr>"
             )
         if predicate is not None and expression is not None:
-            raise TypeError(
-                "DatafusionFilter: pass either predicate= or expression=, not both"
-            )
+            raise TypeError("DatafusionFilter: pass either predicate= or expression=, not both")
         if predicate is not None:
             if not isinstance(predicate, str):
                 raise TypeError("DatafusionFilter: predicate must be a SQL string")
             if not predicate.strip():
-                raise ValueError(
-                    "DatafusionFilter: predicate must not be empty or whitespace"
-                )
+                raise ValueError("DatafusionFilter: predicate must not be empty or whitespace")
             self._reject_obvious_injection(predicate)
             filtered = batch.frame.filter(predicate)
         else:

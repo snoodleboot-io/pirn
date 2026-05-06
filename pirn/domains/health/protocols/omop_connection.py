@@ -28,15 +28,11 @@ class OMOPConnection(PirnOpaqueValue):
 
     async def query_concept(self, concept_id: int) -> Mapping[str, Any]:
         """Return the OMOP concept row for ``concept_id``."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement query_concept()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement query_concept()")
 
     async def close(self) -> None:
         """Release the underlying pool."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement close()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement close()")
 
     def _clear_credentials(self) -> None:
         """Drop the in-memory credential reference held by the connection.

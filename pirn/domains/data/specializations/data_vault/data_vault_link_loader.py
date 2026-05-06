@@ -108,31 +108,23 @@ class DataVaultLinkLoader(Knot):
         **_: Any,
     ) -> dict[str, Any]:
         if not isinstance(source_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "DataVaultLinkLoader: source_pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("DataVaultLinkLoader: source_pool must be a DatabaseConnectionPool")
         if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "DataVaultLinkLoader: target_pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("DataVaultLinkLoader: target_pool must be a DatabaseConnectionPool")
         for label, value in (
             ("source_query", source_query),
             ("target_table", target_table),
             ("record_source", record_source),
         ):
             if not isinstance(value, str) or not value:
-                raise ValueError(
-                    f"DataVaultLinkLoader: {label} must be a non-empty string"
-                )
+                raise ValueError(f"DataVaultLinkLoader: {label} must be a non-empty string")
         for label, value in (
             ("link_hash_key_column", link_hash_key_column),
             ("load_date_column", load_date_column),
             ("record_source_column", record_source_column),
         ):
             if not isinstance(value, str) or not value:
-                raise ValueError(
-                    f"DataVaultLinkLoader: {label} must be a non-empty string"
-                )
+                raise ValueError(f"DataVaultLinkLoader: {label} must be a non-empty string")
         IdentifierValidator.validate_column("target_table", target_table)
         IdentifierValidator.validate_column("link_hash_key_column", link_hash_key_column)
         IdentifierValidator.validate_column("load_date_column", load_date_column)

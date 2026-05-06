@@ -84,20 +84,11 @@ class RecurrenceAnalyzer(Knot):
             ValueError: If embedding_dim, time_delay, or recurrence_threshold are invalid.
         """
         if not isinstance(embedding_dim, int) or embedding_dim <= 0:
-            raise ValueError(
-                "RecurrenceAnalyzer: embedding_dim must be a positive integer"
-            )
+            raise ValueError("RecurrenceAnalyzer: embedding_dim must be a positive integer")
         if not isinstance(time_delay, int) or time_delay <= 0:
-            raise ValueError(
-                "RecurrenceAnalyzer: time_delay must be a positive integer"
-            )
-        if (
-            not isinstance(recurrence_threshold, (int, float))
-            or recurrence_threshold <= 0
-        ):
-            raise ValueError(
-                "RecurrenceAnalyzer: recurrence_threshold must be positive"
-            )
+            raise ValueError("RecurrenceAnalyzer: time_delay must be a positive integer")
+        if not isinstance(recurrence_threshold, (int, float)) or recurrence_threshold <= 0:
+            raise ValueError("RecurrenceAnalyzer: recurrence_threshold must be positive")
         return {
             "signal_id": signal.signal_id,
             "embedding_dim": embedding_dim,

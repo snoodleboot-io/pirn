@@ -103,18 +103,14 @@ class MulticlassClassificationPipeline(SubTapestry):
                 "MulticlassClassificationPipeline: pool must be a DatabaseConnectionPool"
             )
         if not isinstance(query, str) or not query:
-            raise ValueError(
-                "MulticlassClassificationPipeline: query must be a non-empty string"
-            )
+            raise ValueError("MulticlassClassificationPipeline: query must be a non-empty string")
         if not isinstance(target_column, str) or not target_column:
             raise ValueError(
                 "MulticlassClassificationPipeline: target_column must be a non-empty string"
             )
         feature_tuple = tuple(feature_names)
         if not feature_tuple:
-            raise ValueError(
-                "MulticlassClassificationPipeline: feature_names must be non-empty"
-            )
+            raise ValueError("MulticlassClassificationPipeline: feature_names must be non-empty")
         if not isinstance(n_classes, int):
             raise TypeError("MulticlassClassificationPipeline: n_classes must be an int")
         if n_classes < 3:

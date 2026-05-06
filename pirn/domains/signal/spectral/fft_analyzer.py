@@ -77,14 +77,8 @@ class FFTAnalyzer(Knot):
         if not isinstance(n_fft, int) or n_fft <= 0:
             raise ValueError("FFTAnalyzer: n_fft must be a positive integer")
         if n_fft & (n_fft - 1) != 0:
-            raise ValueError(
-                "FFTAnalyzer: n_fft must be a power of two for radix-2 FFT"
-            )
-        resolution = (
-            signal.sample_rate_hz / n_fft
-            if signal.sample_rate_hz > 0
-            else 0.0
-        )
+            raise ValueError("FFTAnalyzer: n_fft must be a power of two for radix-2 FFT")
+        resolution = signal.sample_rate_hz / n_fft if signal.sample_rate_hz > 0 else 0.0
         return SpectrumFrame(
             signal_id=signal.signal_id,
             frequency_bins=n_fft // 2 + 1,

@@ -90,9 +90,7 @@ class DaskSource(Source):
         if factory is not None and path is not None:
             raise TypeError("DaskSource: factory and path are mutually exclusive")
         if factory is not None and not callable(factory):
-            raise TypeError(
-                "DaskSource: factory must be a callable () -> dask.dataframe.DataFrame"
-            )
+            raise TypeError("DaskSource: factory must be a callable () -> dask.dataframe.DataFrame")
         if path is not None:
             if not isinstance(path, str) or not path:
                 raise ValueError("DaskSource: path must be a non-empty string")

@@ -24,23 +24,15 @@ class FeatureStoreProvider(PirnOpaqueValue):
         feature_names: Sequence[str],
     ) -> list[Mapping[str, Any]]:
         """Return one feature row per entity key in ``entity_keys`` order."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement get_features()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement get_features()")
 
-    async def write_features(
-        self, features: Iterable[Mapping[str, Any]]
-    ) -> int:
+    async def write_features(self, features: Iterable[Mapping[str, Any]]) -> int:
         """Persist computed feature rows. Returns the number written."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement write_features()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement write_features()")
 
     async def close(self) -> None:
         """Close the provider and release any underlying resources."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement close()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement close()")
 
     def _clear_credentials(self) -> None:
         """Drop the in-memory credential reference held by the provider."""

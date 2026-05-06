@@ -16,6 +16,7 @@ References:
     - Esteban et al. (2017) MRIQC: Advancing the automatic prediction of image quality in MRI from unseen sites.
     - MRIQC: https://mriqc.readthedocs.io/
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -84,7 +85,9 @@ class MRIQualityController(Knot):
         motion_params: list[float] | None = mri_data.get("motion_params")
         mean_fd: float | None = None
         if motion_params is not None:
-            mean_fd = sum(abs(v) for v in motion_params) / len(motion_params) if motion_params else 0.0
+            mean_fd = (
+                sum(abs(v) for v in motion_params) / len(motion_params) if motion_params else 0.0
+            )
         snr = 50.0
         cnr = 20.0
         qc_flags: list[str] = []

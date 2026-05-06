@@ -82,26 +82,16 @@ class FreshnessCheck(Knot):
             RuntimeError: When max_timestamp is NULL (table is empty).
         """
         if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError(
-                "FreshnessCheck: pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("FreshnessCheck: pool must be a DatabaseConnectionPool")
         if not isinstance(monitored_table, str) or not monitored_table:
-            raise ValueError(
-                "FreshnessCheck: monitored_table must be a non-empty string"
-            )
+            raise ValueError("FreshnessCheck: monitored_table must be a non-empty string")
         if not isinstance(timestamp_column, str) or not timestamp_column:
-            raise ValueError(
-                "FreshnessCheck: timestamp_column must be a non-empty string"
-            )
+            raise ValueError("FreshnessCheck: timestamp_column must be a non-empty string")
         IdentifierValidator.validate_column("monitored_table", monitored_table)
         IdentifierValidator.validate_column("timestamp_column", timestamp_column)
         if not isinstance(max_age_seconds, int) or max_age_seconds < 1:
-            raise ValueError(
-                "FreshnessCheck: max_age_seconds must be a positive integer"
-            )
-        rows = await pool.fetch_all(
-            f"SELECT MAX({timestamp_column}) FROM {monitored_table}"
-        )
+            raise ValueError("FreshnessCheck: max_age_seconds must be a positive integer")
+        rows = await pool.fetch_all(f"SELECT MAX({timestamp_column}) FROM {monitored_table}")
         max_ts_raw = rows[0][0]
         if max_ts_raw is None:
             raise RuntimeError(
@@ -117,9 +107,7 @@ class FreshnessCheck(Knot):
             if max_ts.tzinfo is None:
                 max_ts = max_ts.replace(tzinfo=UTC)
         else:
-            raise TypeError(
-                f"FreshnessCheck: unexpected timestamp type {type(max_ts_raw)}"
-            )
+            raise TypeError(f"FreshnessCheck: unexpected timestamp type {type(max_ts_raw)}")
         now = datetime.now(UTC)
         age_seconds = (now - max_ts).total_seconds()
         sla_breached = age_seconds > max_age_seconds

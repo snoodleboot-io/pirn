@@ -75,9 +75,7 @@ class CrossValidator(Knot):
             raise TypeError("CrossValidator: random_seed must be an int")
         total = int(dataset.row_count)
         if total < k:
-            raise ValueError(
-                "CrossValidator: dataset.row_count must be at least k"
-            )
+            raise ValueError("CrossValidator: dataset.row_count must be at least k")
         base = total // k
         remainder = total - base * k
         now = datetime.now(UTC)

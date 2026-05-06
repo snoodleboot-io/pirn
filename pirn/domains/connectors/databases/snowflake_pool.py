@@ -133,9 +133,7 @@ class SnowflakePool(DatabaseConnectionPool):
                 "`pip install pirn[snowflake]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError(
-                "SnowflakePool: missing config and no injected client"
-            )
+            raise RuntimeError("SnowflakePool: missing config and no injected client")
 
         kwargs: dict[str, Any] = {}
         for name in (
@@ -151,9 +149,7 @@ class SnowflakePool(DatabaseConnectionPool):
             if value is not None:
                 kwargs[name] = value
         try:
-            client = await asyncio.to_thread(
-                snowflake.connector.connect, **kwargs
-            )
+            client = await asyncio.to_thread(snowflake.connector.connect, **kwargs)
         except Exception as exc:
             self._reraise_scrubbed(exc)
         self._logger.debug("snowflake.connect")

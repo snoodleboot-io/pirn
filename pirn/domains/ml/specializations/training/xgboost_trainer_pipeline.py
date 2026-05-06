@@ -147,17 +147,11 @@ class XGBoostTrainerPipeline(SubTapestry):
         serialized_bytes = result.outputs["serialize"]
         model_id = result.outputs["register"]
         if not isinstance(report, EvalReport):
-            raise TypeError(
-                "XGBoostTrainerPipeline: evaluator did not return an EvalReport"
-            )
+            raise TypeError("XGBoostTrainerPipeline: evaluator did not return an EvalReport")
         if not isinstance(serialized_bytes, (bytes, bytearray)):
-            raise TypeError(
-                "XGBoostTrainerPipeline: serializer did not return bytes"
-            )
+            raise TypeError("XGBoostTrainerPipeline: serializer did not return bytes")
         if not isinstance(model_id, str):
-            raise TypeError(
-                "XGBoostTrainerPipeline: registrar did not return a string id"
-            )
+            raise TypeError("XGBoostTrainerPipeline: registrar did not return a string id")
         return {
             "model_id": model_id,
             "eval_report": report,

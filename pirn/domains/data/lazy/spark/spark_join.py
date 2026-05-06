@@ -81,18 +81,14 @@ class SparkJoin(Knot):
         )
 
     @staticmethod
-    def _validate_columns(
-        label: str, columns: str | Sequence[str] | None
-    ) -> None:
+    def _validate_columns(label: str, columns: str | Sequence[str] | None) -> None:
         if columns is None:
             return
         if isinstance(columns, str):
             IdentifierValidator.validate_column(f"SparkJoin: {label}", columns)
             return
         if not isinstance(columns, Sequence):
-            raise TypeError(
-                f"SparkJoin: {label} must be a string or sequence of strings"
-            )
+            raise TypeError(f"SparkJoin: {label} must be a string or sequence of strings")
         IdentifierValidator.validate_columns(f"SparkJoin: {label}", columns)
 
     @staticmethod
@@ -126,23 +122,16 @@ class SparkJoin(Knot):
         """
         if how not in self._allowed_how:
             raise ValueError(
-                f"SparkJoin: how must be one of {list(self._allowed_how)}, "
-                f"got {how!r}"
+                f"SparkJoin: how must be one of {list(self._allowed_how)}, got {how!r}"
             )
         if how == "cross":
             if on is not None or left_on is not None or right_on is not None:
-                raise TypeError(
-                    "SparkJoin: cross join takes no on / left_on / right_on"
-                )
+                raise TypeError("SparkJoin: cross join takes no on / left_on / right_on")
         else:
             if on is None and (left_on is None or right_on is None):
-                raise TypeError(
-                    "SparkJoin: must supply on=... OR both left_on= and right_on="
-                )
+                raise TypeError("SparkJoin: must supply on=... OR both left_on= and right_on=")
             if on is not None and (left_on is not None or right_on is not None):
-                raise TypeError(
-                    "SparkJoin: on is mutually exclusive with left_on/right_on"
-                )
+                raise TypeError("SparkJoin: on is mutually exclusive with left_on/right_on")
         self._validate_columns("on", on)
         self._validate_columns("left_on", left_on)
         self._validate_columns("right_on", right_on)
@@ -151,9 +140,7 @@ class SparkJoin(Knot):
             and right_on is not None
             and self._sequence_length(left_on) != self._sequence_length(right_on)
         ):
-            raise ValueError(
-                "SparkJoin: left_on and right_on must have the same length"
-            )
+            raise ValueError("SparkJoin: left_on and right_on must have the same length")
         left_frame = left.frame
         right_frame = right.frame
         if how == "cross":
@@ -163,12 +150,8 @@ class SparkJoin(Knot):
             joined = left_frame.join(right_frame, on=resolved_on, how=how)
         else:
             assert left_on is not None and right_on is not None
-            left_cols = (
-                [left_on] if isinstance(left_on, str) else list(left_on)
-            )
-            right_cols = (
-                [right_on] if isinstance(right_on, str) else list(right_on)
-            )
+            left_cols = [left_on] if isinstance(left_on, str) else list(left_on)
+            right_cols = [right_on] if isinstance(right_on, str) else list(right_on)
             condition = left_frame[left_cols[0]] == right_frame[right_cols[0]]
             for lc, rc in zip(left_cols[1:], right_cols[1:], strict=True):
                 condition = condition & (left_frame[lc] == right_frame[rc])

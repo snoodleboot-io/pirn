@@ -34,13 +34,9 @@ class AacFormat(BatchFileFormat):
     def name(self) -> str:
         return "aac"
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         if not payload:
-            raise ValueError(
-                "AacFormat: payload is empty — cannot decode AAC"
-            )
+            raise ValueError("AacFormat: payload is empty — cannot decode AAC")
         AudioSegment = self._load_pydub()
         segment = AudioSegment.from_file(io.BytesIO(payload), format="aac")
         record: dict[str, Any] = {
@@ -52,14 +48,10 @@ class AacFormat(BatchFileFormat):
         }
         return [record]
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         materialised = [dict(r) for r in records]
         if not materialised:
-            raise ValueError(
-                "AacFormat: cannot encode an empty record stream"
-            )
+            raise ValueError("AacFormat: cannot encode an empty record stream")
         AudioSegment = self._load_pydub()
         record = materialised[0]
         segment = AudioSegment(

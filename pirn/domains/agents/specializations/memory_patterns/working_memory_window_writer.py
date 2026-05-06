@@ -88,8 +88,7 @@ class WorkingMemoryWindowWriter(Knot):
             )
         if not isinstance(max_size, int) or max_size <= 0:
             raise ValueError(
-                "WorkingMemoryWindowWriter: max_size must be a positive int, "
-                f"got {max_size!r}"
+                f"WorkingMemoryWindowWriter: max_size must be a positive int, got {max_size!r}"
             )
         if not isinstance(new_message, AgentMessage):
             raise TypeError(

@@ -38,9 +38,7 @@ class RayDataset:
     dataset: ray.data.Dataset
     backend_name: str = "ray"
     source_uri: str = ""
-    fetched_at: datetime = field(
-        default_factory=lambda: datetime.now(UTC)
-    )
+    fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def with_dataset(self, dataset: ray.data.Dataset) -> RayDataset:
         """Return a copy with ``dataset`` replaced; metadata preserved."""

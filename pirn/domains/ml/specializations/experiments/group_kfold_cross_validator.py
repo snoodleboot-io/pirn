@@ -99,13 +99,9 @@ class GroupKFoldCrossValidator(SubTapestry):
         if k < 2:
             raise ValueError("GroupKFoldCrossValidator: k must be >= 2")
         if not isinstance(group_column, str) or not group_column:
-            raise ValueError(
-                "GroupKFoldCrossValidator: group_column must be a non-empty string"
-            )
+            raise ValueError("GroupKFoldCrossValidator: group_column must be a non-empty string")
         if not isinstance(algorithm, str) or not algorithm:
-            raise ValueError(
-                "GroupKFoldCrossValidator: algorithm must be a non-empty string"
-            )
+            raise ValueError("GroupKFoldCrossValidator: algorithm must be a non-empty string")
         metric_tuple = tuple(metrics)
         if not metric_tuple:
             raise ValueError("GroupKFoldCrossValidator: metrics must be non-empty")
@@ -115,9 +111,7 @@ class GroupKFoldCrossValidator(SubTapestry):
                     "GroupKFoldCrossValidator: every metric name must be a non-empty string"
                 )
         with Tapestry() as inner:
-            dataset_node = _emit_value(
-                value=dataset, _config=KnotConfig(id="dataset")
-            )
+            dataset_node = _emit_value(value=dataset, _config=KnotConfig(id="dataset"))
             CrossValidator(
                 dataset=dataset_node,
                 k=k,
@@ -152,9 +146,7 @@ class GroupKFoldCrossValidator(SubTapestry):
                 raise TypeError(
                     f"GroupKFoldCrossValidator: fold {fold_index} did not produce an EvalReport"
                 )
-            per_fold.append(
-                {name: float(value) for name, value in report.metrics.items()}
-            )
+            per_fold.append({name: float(value) for name, value in report.metrics.items()})
 
         aggregated = self._aggregate(per_fold)
         return EvalReport(
@@ -172,13 +164,8 @@ class GroupKFoldCrossValidator(SubTapestry):
             evaluated_at=datetime.now(UTC),
         )
 
-    def _aggregate(
-        self, per_fold: list[dict[str, float]]
-    ) -> dict[str, float]:
+    def _aggregate(self, per_fold: list[dict[str, float]]) -> dict[str, float]:
         if not per_fold:
             return {}
         names = per_fold[0].keys()
-        return {
-            name: sum(fold[name] for fold in per_fold) / float(len(per_fold))
-            for name in names
-        }
+        return {name: sum(fold[name] for fold in per_fold) / float(len(per_fold)) for name in names}

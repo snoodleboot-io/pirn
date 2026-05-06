@@ -138,17 +138,13 @@ class ScdType5MiniDimWithCurrent(Knot):
                     f"ScdType5MiniDimWithCurrent: {label} must be a DatabaseConnectionPool"
                 )
         if not isinstance(source_query, str) or not source_query:
-            raise ValueError(
-                "ScdType5MiniDimWithCurrent: source_query must be a non-empty string"
-            )
+            raise ValueError("ScdType5MiniDimWithCurrent: source_query must be a non-empty string")
         for label, value in (
             ("main_table", main_table),
             ("mini_table", mini_table),
         ):
             if not isinstance(value, str) or not value:
-                raise ValueError(
-                    f"ScdType5MiniDimWithCurrent: {label} must be a non-empty string"
-                )
+                raise ValueError(f"ScdType5MiniDimWithCurrent: {label} must be a non-empty string")
         IdentifierValidator.validate_column("main_table", main_table)
         IdentifierValidator.validate_column("mini_table", mini_table)
         IdentifierValidator.validate_column("fact_fk_column", fact_fk_column)
@@ -191,8 +187,7 @@ class ScdType5MiniDimWithCurrent(Knot):
                 mini_sk = rowid_rows[0][0]
                 mini_dim_inserted += 1
             main_key_values = tuple(
-                row_dict.get(k, key_values[i])
-                for i, k in enumerate(main_key_tuple)
+                row_dict.get(k, key_values[i]) for i, k in enumerate(main_key_tuple)
             )
             await main_pool.execute(update_main_q, (mini_sk, mini_sk, *main_key_values))
         return {

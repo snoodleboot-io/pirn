@@ -44,9 +44,7 @@ class GribFormat(BatchFileFormat):
     def name(self) -> str:
         return "grib"
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         _cfgrib, eccodes = self._load_cfgrib_eccodes()
         tmp_path = self._write_temp(payload, ".grib2")
         records: list[Mapping[str, Any]] = []
@@ -72,12 +70,9 @@ class GribFormat(BatchFileFormat):
                 os.remove(tmp_path)
         return records
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         raise NotImplementedError(
-            "GribFormat: write is not supported — GRIB encoding requires "
-            "eccodes"
+            "GribFormat: write is not supported — GRIB encoding requires eccodes"
         )
 
     @staticmethod
@@ -126,7 +121,6 @@ class GribFormat(BatchFileFormat):
             import eccodes
         except ImportError as exc:
             raise ImportError(
-                "GribFormat requires cfgrib and eccodes. Install with "
-                "`pip install pirn[weather]`."
+                "GribFormat requires cfgrib and eccodes. Install with `pip install pirn[weather]`."
             ) from exc
         return cfgrib, eccodes

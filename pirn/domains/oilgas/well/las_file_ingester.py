@@ -72,25 +72,17 @@ class LasFileIngester(Knot):
             LASFile reference built from the configured well ID, curve list, and depth unit.
         """
         if not isinstance(file_path, str) or not file_path:
-            raise ValueError(
-                "LasFileIngester: file_path must be a non-empty string"
-            )
+            raise ValueError("LasFileIngester: file_path must be a non-empty string")
         if not isinstance(well_id, str) or not well_id:
-            raise ValueError(
-                "LasFileIngester: well_id must be a non-empty string"
-            )
+            raise ValueError("LasFileIngester: well_id must be a non-empty string")
         curve_tuple = tuple(curves)
         if not curve_tuple:
             raise ValueError("LasFileIngester: curves must be non-empty")
         for curve in curve_tuple:
             if not isinstance(curve, str) or not curve:
-                raise ValueError(
-                    "LasFileIngester: every curve name must be a non-empty string"
-                )
+                raise ValueError("LasFileIngester: every curve name must be a non-empty string")
         if depth_unit not in ("m", "ft"):
-            raise ValueError(
-                "LasFileIngester: depth_unit must be 'm' or 'ft'"
-            )
+            raise ValueError("LasFileIngester: depth_unit must be 'm' or 'ft'")
         return LASFile(
             well_id=well_id,
             curves=curve_tuple,

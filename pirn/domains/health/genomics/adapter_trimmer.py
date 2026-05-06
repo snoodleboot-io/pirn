@@ -12,6 +12,7 @@ References:
     - Trimmomatic: http://www.usadellab.org/cms/?page=trimmomatic
     - Cutadapt: https://cutadapt.readthedocs.io/
 """
+
 from __future__ import annotations
 
 from typing import Any

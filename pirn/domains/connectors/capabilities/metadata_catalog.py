@@ -26,15 +26,11 @@ class MetadataCatalog:
         ``"dashboard"``, ``"glossaryTerm"``. Concrete implementations
         document the supported types.
         """
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement list_entities()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement list_entities()")
 
     async def describe_entity(
         self,
         entity_id: str,
     ) -> Mapping[str, Any]:
         """Return full metadata for one entity by id."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement describe_entity()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement describe_entity()")

@@ -38,14 +38,9 @@ class SegdFormat(BatchFileFormat):
     def name(self) -> str:
         return "segd"
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         if not isinstance(payload, (bytes, bytearray)):
-            raise TypeError(
-                "SegdFormat: payload must be bytes, got "
-                f"{type(payload).__name__}"
-            )
+            raise TypeError(f"SegdFormat: payload must be bytes, got {type(payload).__name__}")
         if len(payload) < SegdFormat._gh1_size:
             raise ValueError(
                 f"SegdFormat: payload too short — need at least "
@@ -55,11 +50,9 @@ class SegdFormat(BatchFileFormat):
         return self._decode_minimal(payload)
 
     @classmethod
-    def _decode_minimal(
-        cls, payload: bytes
-    ) -> list[dict[str, Any]]:
+    def _decode_minimal(cls, payload: bytes) -> list[dict[str, Any]]:
         """Pure-Python General Header Block 1 parser (SEG-D rev 3)."""
-        header = payload[:SegdFormat._gh1_size]
+        header = payload[: SegdFormat._gh1_size]
         # Bytes 0-1: File Number (BCD, 4 digits)
         # Bytes 2-3: Format Code (BCD)
         # Bytes 4-9: General Constants
@@ -92,7 +85,5 @@ class SegdFormat(BatchFileFormat):
             result = result * 100 + high * 10 + low
         return result
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         raise NotImplementedError("SegdFormat: write is not supported")

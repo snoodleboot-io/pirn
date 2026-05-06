@@ -64,9 +64,7 @@ class CouchbasePool(DatabaseConnectionPool):
         result = await asyncio.to_thread(self._cluster.query, query, *args)
         return list(result.rows())
 
-    async def execute_many(
-        self, query: str, args_seq: Iterable[Iterable[Any]]
-    ) -> None:
+    async def execute_many(self, query: str, args_seq: Iterable[Iterable[Any]]) -> None:
         """Execute a N1QL/SQL++ query for each args tuple in args_seq."""
         for args in args_seq:
             await self.execute(query, *args)
@@ -98,9 +96,7 @@ class CouchbasePool(DatabaseConnectionPool):
                 self._config.connection_string,
                 ClusterOptions(auth),
             )
-            cluster.wait_until_ready(
-                timeout=self._config.kv_timeout_ms / 1000
-            )
+            cluster.wait_until_ready(timeout=self._config.kv_timeout_ms / 1000)
         except Exception as exc:
             self._reraise_scrubbed(exc)
         self._logger.debug("couchbase.connect")

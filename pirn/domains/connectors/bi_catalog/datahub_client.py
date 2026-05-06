@@ -44,13 +44,9 @@ class DataHubClient(ApiClient, TableSource, MetadataCatalog):
         entity_type: str = "dataset",
     ) -> None:
         if config is None and client is None:
-            raise TypeError(
-                "DataHubClient requires either config= or client="
-            )
+            raise TypeError("DataHubClient requires either config= or client=")
         if not isinstance(entity_type, str) or not entity_type:
-            raise ValueError(
-                "DataHubClient: entity_type must be a non-empty string"
-            )
+            raise ValueError("DataHubClient: entity_type must be a non-empty string")
         self._config = config
         self._client = client
         self._closed = False
@@ -85,9 +81,7 @@ class DataHubClient(ApiClient, TableSource, MetadataCatalog):
             "start": start,
             "count": count,
         }
-        response = await self.request(
-            "GET", "/entities", params=params
-        )
+        response = await self.request("GET", "/entities", params=params)
         entities = list(response.get("entities") or ())
         total = int(response.get("total") or 0)
         next_offset = start + count
@@ -103,9 +97,7 @@ class DataHubClient(ApiClient, TableSource, MetadataCatalog):
         """:class:`TableSource` adapter — pages the configured entity_type."""
         start = int(cursor) if cursor else 0
         count = page_size if page_size is not None else 100
-        return await self.search_entities(
-            self._entity_type, "*", start=start, count=count
-        )
+        return await self.search_entities(self._entity_type, "*", start=start, count=count)
 
     async def list_entities(
         self,
@@ -137,9 +129,7 @@ class DataHubClient(ApiClient, TableSource, MetadataCatalog):
         return await self.request("GET", f"/entity/{entity_id}")
 
     @staticmethod
-    def _matches_filter(
-        entity: Mapping[str, Any], filter: Mapping[str, Any]
-    ) -> bool:
+    def _matches_filter(entity: Mapping[str, Any], filter: Mapping[str, Any]) -> bool:
         for key, value in filter.items():
             if entity.get(key) != value:
                 return False
@@ -204,20 +194,15 @@ class DataHubClient(ApiClient, TableSource, MetadataCatalog):
             import httpx  # type: ignore[import-not-found]
         except ImportError as exc:
             raise ImportError(
-                "DataHubClient requires httpx; install via "
-                "`pip install pirn[datahub]`"
+                "DataHubClient requires httpx; install via `pip install pirn[datahub]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError(
-                "DataHubClient: missing config and no injected client"
-            )
+            raise RuntimeError("DataHubClient: missing config and no injected client")
         if self._config.gms_url is None:
             raise RuntimeError("DataHubClient: config.gms_url is required")
         kwargs: dict[str, Any] = {}
         if self._config.token is not None:
-            kwargs["headers"] = {
-                "Authorization": f"Bearer {self._config.token}"
-            }
+            kwargs["headers"] = {"Authorization": f"Bearer {self._config.token}"}
         try:
             client = httpx.AsyncClient(**kwargs)
         except Exception as exc:

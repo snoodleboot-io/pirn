@@ -33,13 +33,9 @@ class FlacFormat(BatchFileFormat):
     def name(self) -> str:
         return "flac"
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         if not payload:
-            raise ValueError(
-                "FlacFormat: payload is empty — cannot decode FLAC"
-            )
+            raise ValueError("FlacFormat: payload is empty — cannot decode FLAC")
         sf, _np = self._load_deps()
         with tempfile.NamedTemporaryFile(suffix=".flac") as tmp:
             tmp.write(payload)
@@ -54,29 +50,24 @@ class FlacFormat(BatchFileFormat):
         }
         return [record]
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         materialised = [dict(r) for r in records]
         if not materialised:
-            raise ValueError(
-                "FlacFormat: cannot encode an empty record stream"
-            )
+            raise ValueError("FlacFormat: cannot encode an empty record stream")
         sf, np = self._load_deps()
         record = materialised[0]
         n_frames = int(record["n_frames"])
         n_channels = int(record["n_channels"])
         sample_rate = int(record["sample_rate"])
         frames_bytes = bytes(record["frames"])
-        data = np.frombuffer(frames_bytes, dtype=np.float32).reshape(
-            n_frames, n_channels
-        )
+        data = np.frombuffer(frames_bytes, dtype=np.float32).reshape(n_frames, n_channels)
         with tempfile.NamedTemporaryFile(suffix=".flac", delete=False) as tmp:
             tmp_path = tmp.name
         sf.write(tmp_path, data, sample_rate, format="FLAC", subtype="PCM_16")
         with open(tmp_path, "rb") as fh:
             payload = fh.read()
         import os
+
         os.unlink(tmp_path)
         return payload
 
@@ -87,7 +78,6 @@ class FlacFormat(BatchFileFormat):
             import soundfile as sf
         except ImportError as exc:
             raise ImportError(
-                "FlacFormat requires soundfile and numpy. Install with "
-                "`pip install pirn[audio]`."
+                "FlacFormat requires soundfile and numpy. Install with `pip install pirn[audio]`."
             ) from exc
         return sf, np

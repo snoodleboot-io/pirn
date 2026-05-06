@@ -75,9 +75,7 @@ class FIRFilter(Knot):
             raise ValueError("FIRFilter: coefficients must be non-empty")
         for c in coeffs:
             if not isinstance(c, (int, float)):
-                raise TypeError(
-                    "FIRFilter: every coefficient must be a real number"
-                )
+                raise TypeError("FIRFilter: every coefficient must be a real number")
         return SignalFrame(
             signal_id=f"{signal.signal_id}:fir",
             channel_count=signal.channel_count,

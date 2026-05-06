@@ -80,9 +80,7 @@ class MatchedFilter(Knot):
             raise ValueError("MatchedFilter: template must be non-empty")
         for value in templ:
             if not isinstance(value, (int, float)):
-                raise TypeError(
-                    "MatchedFilter: template values must be real numbers"
-                )
+                raise TypeError("MatchedFilter: template values must be real numbers")
         return SignalFrame(
             signal_id=f"{signal.signal_id}:matched",
             channel_count=signal.channel_count,

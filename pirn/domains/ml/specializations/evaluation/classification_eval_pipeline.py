@@ -63,9 +63,7 @@ class ClassificationEvalPipeline(SubTapestry):
     ) -> None:
         super().__init__(model=model, split=split, _config=_config, **kwargs)
 
-    async def process(
-        self, model: TrainedModel, split: DataSplit, **_: Any
-    ) -> EvalReport:
+    async def process(self, model: TrainedModel, split: DataSplit, **_: Any) -> EvalReport:
         """Evaluate the model using the canonical classification metric set and return the resulting EvalReport.
 
         Args:
@@ -76,12 +74,8 @@ class ClassificationEvalPipeline(SubTapestry):
             EvalReport containing accuracy, precision, recall, f1, roc_auc, and confusion_matrix.
         """
         with Tapestry() as inner:
-            model_node = _emit_value(
-                value=model, _config=KnotConfig(id="model")
-            )
-            split_node = _emit_value(
-                value=split, _config=KnotConfig(id="split")
-            )
+            model_node = _emit_value(value=model, _config=KnotConfig(id="model"))
+            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
             Evaluator(
                 model=model_node,
                 split=split_node,

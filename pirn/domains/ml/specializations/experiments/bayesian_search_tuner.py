@@ -90,27 +90,19 @@ class BayesianSearchTuner(SubTapestry):
             TypeError: If the inner search or evaluator returns an unexpected type.
         """
         if not isinstance(algorithm, str) or not algorithm:
-            raise ValueError(
-                "BayesianSearchTuner: algorithm must be a non-empty string"
-            )
+            raise ValueError("BayesianSearchTuner: algorithm must be a non-empty string")
         ss = search_space or {}
         if not isinstance(ss, Mapping) or not ss:
-            raise ValueError(
-                "BayesianSearchTuner: search_space must be a non-empty Mapping"
-            )
+            raise ValueError("BayesianSearchTuner: search_space must be a non-empty Mapping")
         if not isinstance(primary_metric, str) or not primary_metric:
-            raise ValueError(
-                "BayesianSearchTuner: primary_metric must be a non-empty string"
-            )
+            raise ValueError("BayesianSearchTuner: primary_metric must be a non-empty string")
         if not isinstance(n_trials, int):
             raise TypeError("BayesianSearchTuner: n_trials must be an int")
         if n_trials < 1:
             raise ValueError("BayesianSearchTuner: n_trials must be >= 1")
         frozen_space = {k: tuple(v) for k, v in ss.items()}
         with Tapestry() as inner:
-            split_node = _emit_value(
-                value=split, _config=KnotConfig(id="split")
-            )
+            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
             best = HyperparamSearch(
                 split=split_node,
                 algorithm=algorithm,
@@ -129,11 +121,7 @@ class BayesianSearchTuner(SubTapestry):
         model = result.outputs["search"]
         report = result.outputs["evaluate"]
         if not isinstance(model, TrainedModel):
-            raise TypeError(
-                "BayesianSearchTuner: search did not return a TrainedModel"
-            )
+            raise TypeError("BayesianSearchTuner: search did not return a TrainedModel")
         if not isinstance(report, EvalReport):
-            raise TypeError(
-                "BayesianSearchTuner: evaluator did not return an EvalReport"
-            )
+            raise TypeError("BayesianSearchTuner: evaluator did not return an EvalReport")
         return {"best_model": model, "eval_report": report}

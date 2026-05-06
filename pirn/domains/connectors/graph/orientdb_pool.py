@@ -28,9 +28,7 @@ class OrientDBPool(DatabaseConnectionPool):
         if config is None and client is None:
             raise TypeError("OrientDBPool requires either config= or client=")
         if config is not None and not client and not config.database:
-            raise ValueError(
-                "OrientDBPool: config.database must be non-empty when connecting"
-            )
+            raise ValueError("OrientDBPool: config.database must be non-empty when connecting")
         self._config = config
         self._client = client
         self._closed = False
@@ -66,9 +64,7 @@ class OrientDBPool(DatabaseConnectionPool):
         results = await asyncio.to_thread(client.query, query, -1)
         return [r.oRecordData for r in results]
 
-    async def execute_many(
-        self, query: str, args_seq: Iterable[Any]
-    ) -> None:
+    async def execute_many(self, query: str, args_seq: Iterable[Any]) -> None:
         for _ in args_seq:
             await self.execute(query)
 
@@ -84,20 +80,15 @@ class OrientDBPool(DatabaseConnectionPool):
             import pyorient  # type: ignore[import]
         except ImportError as exc:
             raise ImportError(
-                "OrientDBPool requires pyorient; install via "
-                "pip install pirn[orientdb]"
+                "OrientDBPool requires pyorient; install via pip install pirn[orientdb]"
             ) from exc
         if self._config is None:
-            raise RuntimeError(
-                "OrientDBPool: missing config and no injected client"
-            )
+            raise RuntimeError("OrientDBPool: missing config and no injected client")
         try:
             client = await asyncio.to_thread(
                 pyorient.OrientDB, self._config.host, self._config.port
             )
-            await asyncio.to_thread(
-                client.connect, self._config.user, self._config.password
-            )
+            await asyncio.to_thread(client.connect, self._config.user, self._config.password)
             await asyncio.to_thread(
                 client.db_open,
                 self._config.database,

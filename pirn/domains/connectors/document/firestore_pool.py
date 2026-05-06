@@ -74,9 +74,7 @@ class FirestorePool(DatabaseConnectionPool):
         docs = col_ref.stream()
         return [doc.to_dict() async for doc in docs]
 
-    async def execute_many(
-        self, query: str, args_seq: Iterable[Iterable[Any]]
-    ) -> None:
+    async def execute_many(self, query: str, args_seq: Iterable[Iterable[Any]]) -> None:
         """Batch-write documents to ``query`` collection."""
         await self._ensure_client()
         batch = self._client.batch()
@@ -117,9 +115,7 @@ class FirestorePool(DatabaseConnectionPool):
                     cred_info = None
 
                 if cred_info:
-                    credentials = (
-                        service_account.Credentials.from_service_account_info(cred_info)
-                    )
+                    credentials = service_account.Credentials.from_service_account_info(cred_info)
 
             firestore_client = AsyncClient(
                 project=self._config.project_id,

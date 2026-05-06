@@ -99,16 +99,13 @@ class IbisGroupByAggregate(Knot):
             A new IbisTable with the group-by aggregation appended to the deferred expression.
         """
         if not isinstance(by, Sequence) or isinstance(by, (str, bytes)):
-            raise TypeError(
-                "IbisGroupByAggregate: by must be a sequence of column names"
-            )
+            raise TypeError("IbisGroupByAggregate: by must be a sequence of column names")
         if not by:
             raise ValueError("IbisGroupByAggregate: by must be non-empty")
         for column in by:
             if not isinstance(column, str) or not column:
                 raise TypeError(
-                    "IbisGroupByAggregate: every entry in by must be "
-                    "a non-empty string"
+                    "IbisGroupByAggregate: every entry in by must be a non-empty string"
                 )
         if not callable(aggregations):
             raise TypeError(
@@ -117,11 +114,7 @@ class IbisGroupByAggregate(Knot):
             )
         result = aggregations(batch.expression)
         if isinstance(result, (list, tuple)):
-            aggregated = (
-                batch.expression.group_by(list(by)).aggregate(*result)
-            )
+            aggregated = batch.expression.group_by(list(by)).aggregate(*result)
         else:
-            aggregated = (
-                batch.expression.group_by(list(by)).aggregate(result)
-            )
+            aggregated = batch.expression.group_by(list(by)).aggregate(result)
         return batch.with_expression(aggregated)

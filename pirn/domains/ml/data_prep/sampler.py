@@ -80,9 +80,7 @@ class Sampler(Knot):
             TypeError: If n, fraction, or random_seed have wrong types.
         """
         if (n is None) == (fraction is None):
-            raise ValueError(
-                "Sampler: provide exactly one of n or fraction"
-            )
+            raise ValueError("Sampler: provide exactly one of n or fraction")
         if n is not None:
             if not isinstance(n, int):
                 raise TypeError("Sampler: n must be an int")
@@ -96,9 +94,7 @@ class Sampler(Knot):
         if stratify_column is not None and (
             not isinstance(stratify_column, str) or not stratify_column
         ):
-            raise ValueError(
-                "Sampler: stratify_column must be a non-empty string"
-            )
+            raise ValueError("Sampler: stratify_column must be a non-empty string")
         if not isinstance(random_seed, int):
             raise TypeError("Sampler: random_seed must be an int")
         total = int(dataset.row_count)

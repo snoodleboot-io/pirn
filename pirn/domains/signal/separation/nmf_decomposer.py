@@ -78,13 +78,9 @@ class NMFDecomposer(Knot):
             ValueError: If component_count or max_iterations are invalid.
         """
         if not isinstance(component_count, int) or component_count <= 0:
-            raise ValueError(
-                "NMFDecomposer: component_count must be a positive integer"
-            )
+            raise ValueError("NMFDecomposer: component_count must be a positive integer")
         if not isinstance(max_iterations, int) or max_iterations <= 0:
-            raise ValueError(
-                "NMFDecomposer: max_iterations must be a positive integer"
-            )
+            raise ValueError("NMFDecomposer: max_iterations must be a positive integer")
         return SourceFrame(
             signal_id=signal.signal_id,
             source_count=component_count,

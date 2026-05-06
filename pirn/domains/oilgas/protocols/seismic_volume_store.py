@@ -15,12 +15,8 @@ class SeismicVolumeStore(PirnOpaqueValue):
 
     async def fetch_volume(self, volume_id: str) -> SegyVolume:
         """Resolve ``volume_id`` to a :class:`SegyVolume` reference."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement fetch_volume()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement fetch_volume()")
 
     async def close(self) -> None:
         """Close the underlying transport and release resources."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement close()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement close()")

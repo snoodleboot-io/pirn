@@ -89,17 +89,11 @@ class AudioFeatureExtractor(Knot):
             ValueError: If n_mfcc, n_fft, or hop_length are invalid.
         """
         if not isinstance(n_mfcc, int) or n_mfcc <= 0:
-            raise ValueError(
-                "AudioFeatureExtractor: n_mfcc must be a positive integer"
-            )
+            raise ValueError("AudioFeatureExtractor: n_mfcc must be a positive integer")
         if not isinstance(n_fft, int) or n_fft <= 0:
-            raise ValueError(
-                "AudioFeatureExtractor: n_fft must be a positive integer"
-            )
+            raise ValueError("AudioFeatureExtractor: n_fft must be a positive integer")
         if not isinstance(hop_length, int) or hop_length <= 0:
-            raise ValueError(
-                "AudioFeatureExtractor: hop_length must be a positive integer"
-            )
+            raise ValueError("AudioFeatureExtractor: hop_length must be a positive integer")
         return {
             "rms_energy": 0.0,
             "zero_crossing_rate": 0.0,

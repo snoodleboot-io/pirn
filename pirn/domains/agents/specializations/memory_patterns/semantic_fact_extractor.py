@@ -77,23 +77,16 @@ class SemanticFactExtractor(Knot):
         """
         if not isinstance(llm, LLMProvider):
             raise TypeError(
-                "SemanticFactExtractor: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
+                f"SemanticFactExtractor: llm must be an LLMProvider, got {type(llm).__name__}"
             )
         if not isinstance(fact_extraction_prompt, str) or not fact_extraction_prompt:
             raise ValueError(
-                "SemanticFactExtractor: fact_extraction_prompt must be a "
-                "non-empty string"
+                "SemanticFactExtractor: fact_extraction_prompt must be a non-empty string"
             )
         message_tuple = tuple(messages)
-        rendered = "\n".join(
-            f"{m.role}: {m.content}" for m in message_tuple
-        )
+        rendered = "\n".join(f"{m.role}: {m.content}" for m in message_tuple)
         prompt = (
-            f"{fact_extraction_prompt}\n\n"
-            "Conversation:\n"
-            f"{rendered}\n\n"
-            "Return one fact per line."
+            f"{fact_extraction_prompt}\n\nConversation:\n{rendered}\n\nReturn one fact per line."
         )
         chat_messages = [{"role": "user", "content": prompt}]
         raw = await llm.chat(chat_messages)
@@ -105,7 +98,7 @@ class SemanticFactExtractor(Knot):
                 continue
             for marker in ("- ", "* ", "• "):
                 if cleaned.startswith(marker):
-                    cleaned = cleaned[len(marker):].strip()
+                    cleaned = cleaned[len(marker) :].strip()
                     break
             if cleaned[:2].isdigit() and cleaned[:3].endswith("."):
                 cleaned = cleaned[3:].strip()

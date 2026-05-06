@@ -78,21 +78,15 @@ class Planner(Knot):
         """
         if not isinstance(context, AgentContext):
             raise TypeError(
-                "Planner: context must be an AgentContext, "
-                f"got {type(context).__name__}"
+                f"Planner: context must be an AgentContext, got {type(context).__name__}"
             )
         if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "Planner: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
+            raise TypeError(f"Planner: llm must be an LLMProvider, got {type(llm).__name__}")
         wire_messages: list[dict[str, str]] = [
             {"role": "system", "content": type(self).planning_instruction}
         ]
         for message in context.messages:
-            wire_messages.append(
-                {"role": message.role, "content": message.content}
-            )
+            wire_messages.append({"role": message.role, "content": message.content})
         response = await llm.chat(messages=tuple(wire_messages))
         text = self._extract_text(response)
         return self._parse_plan(text)
@@ -109,8 +103,7 @@ class Planner(Knot):
                 if isinstance(first, dict) and isinstance(first.get("text"), str):
                     return first["text"]
         raise TypeError(
-            "Planner: cannot extract text from LLM response of type "
-            f"{type(response).__name__}"
+            f"Planner: cannot extract text from LLM response of type {type(response).__name__}"
         )
 
     def _parse_plan(self, text: str) -> Plan:
@@ -127,9 +120,7 @@ class Planner(Knot):
             if cleaned:
                 step_lines.append(cleaned)
         if not step_lines:
-            raise ValueError(
-                "Planner: LLM response produced no plan steps"
-            )
+            raise ValueError("Planner: LLM response produced no plan steps")
         return Plan(
             steps=tuple(step_lines),
             rationale="\n".join(rationale_lines),

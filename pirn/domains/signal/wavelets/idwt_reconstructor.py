@@ -80,5 +80,5 @@ class IDWTReconstructor(Knot):
             signal_id=f"{wavelet_frame.signal_id}:idwt",
             channel_count=1,
             sample_rate_hz=0.0,
-            samples_per_channel=wavelet_frame.scale_count * (2 ** level),
+            samples_per_channel=wavelet_frame.scale_count * (2**level),
         )

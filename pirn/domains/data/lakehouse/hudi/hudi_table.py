@@ -46,30 +46,20 @@ class HudiTable(LakehouseTable):
         table: Any = None,
     ) -> None:
         if config is None and table is None:
-            raise TypeError(
-                "HudiTable requires either config= or table= (injected stub)"
-            )
+            raise TypeError("HudiTable requires either config= or table= (injected stub)")
         if config is not None and not isinstance(config, HudiTableConfig):
-            raise TypeError(
-                "HudiTable: config must be a HudiTableConfig instance"
-            )
+            raise TypeError("HudiTable: config must be a HudiTableConfig instance")
         if config is not None and not config.table_path:
-            raise ValueError(
-                "HudiTable: config.table_path must be a non-empty string"
-            )
+            raise ValueError("HudiTable: config.table_path must be a non-empty string")
         if config is not None and config.table_type not in self._allowed_table_types:
             raise ValueError(
                 "HudiTable: table_type must be one of "
                 f"{list(self._allowed_table_types)}, got {config.table_type!r}"
             )
         if config is not None and not config.record_key_field:
-            raise ValueError(
-                "HudiTable: record_key_field must be a non-empty string"
-            )
+            raise ValueError("HudiTable: record_key_field must be a non-empty string")
         if config is not None and not config.precombine_field:
-            raise ValueError(
-                "HudiTable: precombine_field must be a non-empty string"
-            )
+            raise ValueError("HudiTable: precombine_field must be a non-empty string")
         self._config = config
         self._table = table
         self._closed = False
@@ -173,9 +163,7 @@ class HudiTable(LakehouseTable):
         # row dicts.
         scan_fn = getattr(table, "scan_pylist", None)
         if not callable(scan_fn):
-            raise TypeError(
-                "HudiTable: injected table must define scan_pylist() -> list[dict]"
-            )
+            raise TypeError("HudiTable: injected table must define scan_pylist() -> list[dict]")
         rows = list(scan_fn())
         if columns is None:
             return [dict(row) for row in rows]
@@ -199,9 +187,7 @@ class HudiTable(LakehouseTable):
                 "`pip install pirn[data]` or `pip install pirn[hudi]`."
             ) from exc
         if self._config is None or not self._config.table_path:
-            raise RuntimeError(
-                "HudiTable: missing config.table_path and no injected table"
-            )
+            raise RuntimeError("HudiTable: missing config.table_path and no injected table")
         dataset = ds.dataset(self._config.table_path, format="parquet")
         kwargs: dict[str, Any] = {}
         if columns is not None:
@@ -220,9 +206,7 @@ class HudiTable(LakehouseTable):
         )
 
     @staticmethod
-    def _row_matches(
-        row: Mapping[str, Any], filter: Mapping[str, Any]
-    ) -> bool:
+    def _row_matches(row: Mapping[str, Any], filter: Mapping[str, Any]) -> bool:
         for key, value in filter.items():
             if row.get(key) != value:
                 return False

@@ -96,9 +96,7 @@ class KFoldCrossValidator(SubTapestry):
         if k < 2:
             raise ValueError("KFoldCrossValidator: k must be >= 2")
         if not isinstance(algorithm, str) or not algorithm:
-            raise ValueError(
-                "KFoldCrossValidator: algorithm must be a non-empty string"
-            )
+            raise ValueError("KFoldCrossValidator: algorithm must be a non-empty string")
         metric_tuple = tuple(metrics)
         if not metric_tuple:
             raise ValueError("KFoldCrossValidator: metrics must be non-empty")
@@ -108,9 +106,7 @@ class KFoldCrossValidator(SubTapestry):
                     "KFoldCrossValidator: every metric name must be a non-empty string"
                 )
         with Tapestry() as inner:
-            dataset_node = _emit_value(
-                value=dataset, _config=KnotConfig(id="dataset")
-            )
+            dataset_node = _emit_value(value=dataset, _config=KnotConfig(id="dataset"))
             CrossValidator(
                 dataset=dataset_node,
                 k=k,
@@ -145,9 +141,7 @@ class KFoldCrossValidator(SubTapestry):
                 raise TypeError(
                     f"KFoldCrossValidator: fold {fold_index} did not produce an EvalReport"
                 )
-            per_fold.append(
-                {name: float(value) for name, value in report.metrics.items()}
-            )
+            per_fold.append({name: float(value) for name, value in report.metrics.items()})
 
         aggregated = self._aggregate(per_fold)
         return EvalReport(
@@ -164,9 +158,7 @@ class KFoldCrossValidator(SubTapestry):
             evaluated_at=datetime.now(UTC),
         )
 
-    def _aggregate(
-        self, per_fold: list[dict[str, float]]
-    ) -> dict[str, float]:
+    def _aggregate(self, per_fold: list[dict[str, float]]) -> dict[str, float]:
         if not per_fold:
             return {}
         names = per_fold[0].keys()

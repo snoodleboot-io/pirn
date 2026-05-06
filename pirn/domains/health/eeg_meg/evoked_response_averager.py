@@ -66,22 +66,14 @@ class EvokedResponseAverager(Knot):
             ValueError: If epochs is empty or condition is empty.
         """
         if not isinstance(epochs, (list, tuple)):
-            raise TypeError(
-                "EvokedResponseAverager: epochs must be list/tuple"
-            )
+            raise TypeError("EvokedResponseAverager: epochs must be list/tuple")
         if not epochs:
-            raise ValueError(
-                "EvokedResponseAverager: epochs must be non-empty"
-            )
+            raise ValueError("EvokedResponseAverager: epochs must be non-empty")
         for ep in epochs:
             if not isinstance(ep, SignalFrame):
-                raise TypeError(
-                    "EvokedResponseAverager: every epoch must be SignalFrame"
-                )
+                raise TypeError("EvokedResponseAverager: every epoch must be SignalFrame")
         if not isinstance(condition, str) or not condition:
-            raise ValueError(
-                "EvokedResponseAverager: condition must be non-empty string"
-            )
+            raise ValueError("EvokedResponseAverager: condition must be non-empty string")
         first = epochs[0]
         return SignalFrame(
             signal_id=f"evoked-{condition}",

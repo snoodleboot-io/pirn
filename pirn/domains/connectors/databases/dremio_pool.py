@@ -64,9 +64,7 @@ class DremioPool(DatabaseConnectionPool):
         self._logger.debug("dremio.fetch_all")
         return await asyncio.to_thread(self._run_query, connection, query)
 
-    async def execute_many(
-        self, query: str, args_seq: Iterable[Iterable[Any]]
-    ) -> None:
+    async def execute_many(self, query: str, args_seq: Iterable[Iterable[Any]]) -> None:
         self._reject_inline_interpolation(query)
         for _ in args_seq:
             await self.execute(query)
@@ -81,9 +79,7 @@ class DremioPool(DatabaseConnectionPool):
 
     def _run_query(self, connection: Any, query: str) -> list[dict]:
         """Execute a SELECT and return rows as a list of dicts."""
-        descriptor = type(
-            "FlightDescriptor", (), {"type": 1, "command": query.encode()}
-        )()
+        descriptor = type("FlightDescriptor", (), {"type": 1, "command": query.encode()})()
         flight_info = connection.get_flight_info(descriptor)
         rows: list[dict] = []
         for endpoint in flight_info.endpoints:
@@ -92,9 +88,7 @@ class DremioPool(DatabaseConnectionPool):
                 table = batch.data
                 columns = table.schema.names
                 for i in range(table.num_rows):
-                    rows.append(
-                        {col: table.column(col)[i].as_py() for col in columns}
-                    )
+                    rows.append({col: table.column(col)[i].as_py() for col in columns})
         return rows
 
     async def _ensure_connection(self) -> Any:
@@ -119,6 +113,7 @@ class DremioPool(DatabaseConnectionPool):
 
         def _connect() -> Any:
             import base64
+
             raw = f"{self._config.username}:{self._config.password}"
             encoded = base64.b64encode(raw.encode()).decode()
             options = flight.FlightCallOptions(
@@ -132,5 +127,7 @@ class DremioPool(DatabaseConnectionPool):
             conn = await asyncio.to_thread(_connect)
         except Exception as exc:
             self._reraise_scrubbed(exc)
-        self._logger.debug("dremio.connect", extra={"host": self._config.host, "port": self._config.port})
+        self._logger.debug(
+            "dremio.connect", extra={"host": self._config.host, "port": self._config.port}
+        )
         return conn

@@ -75,7 +75,11 @@ class PathologyStainNormalizer(Knot):
             raise ValueError(
                 "PathologyStainNormalizer: method must be one of 'macenko', 'vahadane', 'reinhard'"
             )
-        stain_matrix = reference_stain_matrix if reference_stain_matrix is not None else [[1.0, 0.0], [0.0, 1.0]]
+        stain_matrix = (
+            reference_stain_matrix
+            if reference_stain_matrix is not None
+            else [[1.0, 0.0], [0.0, 1.0]]
+        )
         return {
             "normalized_pixel_data": image_tile.get("pixel_data", []),
             "stain_matrix": stain_matrix,

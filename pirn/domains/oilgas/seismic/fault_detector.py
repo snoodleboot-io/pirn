@@ -69,11 +69,7 @@ class FaultDetector(Knot):
             SegyVolume representing the binary fault mask.
         """
         if not isinstance(coherence_threshold, (int, float)):
-            raise TypeError(
-                "FaultDetector: coherence_threshold must be numeric"
-            )
+            raise TypeError("FaultDetector: coherence_threshold must be numeric")
         if not 0.0 <= coherence_threshold <= 1.0:
-            raise ValueError(
-                "FaultDetector: coherence_threshold must lie in [0, 1]"
-            )
+            raise ValueError("FaultDetector: coherence_threshold must lie in [0, 1]")
         return SegyVolume(volume_id=f"{attribute_volume.volume_id}:faults")

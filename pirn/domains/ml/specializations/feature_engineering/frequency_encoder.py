@@ -69,9 +69,7 @@ class FrequencyEncoder(Knot):
             ValueError: If categorical_column is empty or default_frequency is negative.
         """
         if not isinstance(categorical_column, str) or not categorical_column:
-            raise ValueError(
-                "FrequencyEncoder: categorical_column must be a non-empty string"
-            )
+            raise ValueError("FrequencyEncoder: categorical_column must be a non-empty string")
         if not isinstance(default_frequency, (int, float)):
             raise TypeError("FrequencyEncoder: default_frequency must be a number")
         df = float(default_frequency)
@@ -83,15 +81,11 @@ class FrequencyEncoder(Knot):
             train=self._mark(split.train, suffix, now),
             test=self._mark(split.test, suffix, now),
             validation=(
-                self._mark(split.validation, suffix, now)
-                if split.validation is not None
-                else None
+                self._mark(split.validation, suffix, now) if split.validation is not None else None
             ),
         )
 
-    def _mark(
-        self, dataset: MLDataset, suffix: str, fetched_at: datetime
-    ) -> MLDataset:
+    def _mark(self, dataset: MLDataset, suffix: str, fetched_at: datetime) -> MLDataset:
         return MLDataset(
             name=f"{dataset.name}:{suffix}",
             feature_names=dataset.feature_names,

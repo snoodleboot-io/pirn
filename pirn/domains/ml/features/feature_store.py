@@ -40,9 +40,7 @@ class FeatureStore(Knot):
     ) -> None:
         super().__init__(split=split, provider=provider, _config=_config, **kwargs)
 
-    async def process(
-        self, split: DataSplit, provider: FeatureStoreProvider, **_: Any
-    ) -> int:
+    async def process(self, split: DataSplit, provider: FeatureStoreProvider, **_: Any) -> int:
         """Write partition metadata rows from the DataSplit to the feature store provider and return the write count.
 
         Args:
@@ -53,9 +51,7 @@ class FeatureStore(Knot):
             Number of rows written to the feature store provider.
         """
         if not isinstance(provider, FeatureStoreProvider):
-            raise TypeError(
-                "FeatureStore: provider must be a FeatureStoreProvider"
-            )
+            raise TypeError("FeatureStore: provider must be a FeatureStoreProvider")
         rows: list[dict[str, Any]] = []
         rows.append(self._row(split.train, "train"))
         if split.validation is not None:

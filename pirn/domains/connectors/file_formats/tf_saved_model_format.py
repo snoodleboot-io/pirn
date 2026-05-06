@@ -48,13 +48,10 @@ class TfSavedModelFormat(BatchFileFormat):
     def name(self) -> str:
         return "tf_saved_model"
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         if not isinstance(payload, (bytes, bytearray)):
             raise TypeError(
-                "TfSavedModelFormat: payload must be bytes, "
-                f"got {type(payload).__name__}"
+                f"TfSavedModelFormat: payload must be bytes, got {type(payload).__name__}"
             )
         tf = self._load_tensorflow()
         tmpdir = tempfile.TemporaryDirectory(prefix="pirn-tf-savedmodel-")
@@ -64,10 +61,7 @@ class TfSavedModelFormat(BatchFileFormat):
             try:
                 model = tf.saved_model.load(tmpdir.name)
             except Exception as exc:
-                raise ValueError(
-                    "TfSavedModelFormat: tf.saved_model.load failed "
-                    f"— {exc}"
-                ) from exc
+                raise ValueError(f"TfSavedModelFormat: tf.saved_model.load failed — {exc}") from exc
         except Exception:
             tmpdir.cleanup()
             raise
@@ -88,9 +82,7 @@ class TfSavedModelFormat(BatchFileFormat):
         }
         return [record]
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         materialised: list[Mapping[str, Any]] = list(records)
         if len(materialised) != 1:
             raise ValueError(
@@ -100,29 +92,20 @@ class TfSavedModelFormat(BatchFileFormat):
             )
         record = materialised[0]
         if "saved_model_path" not in record:
-            raise ValueError(
-                "TfSavedModelFormat: record missing required "
-                "'saved_model_path' key"
-            )
+            raise ValueError("TfSavedModelFormat: record missing required 'saved_model_path' key")
         path = record["saved_model_path"]
         if not isinstance(path, str) or not path:
             raise ValueError(
-                "TfSavedModelFormat: 'saved_model_path' must be a "
-                f"non-empty string, got {path!r}"
+                f"TfSavedModelFormat: 'saved_model_path' must be a non-empty string, got {path!r}"
             )
         if not os.path.isdir(path):
-            raise ValueError(
-                "TfSavedModelFormat: 'saved_model_path' is not a "
-                f"directory: {path}"
-            )
+            raise ValueError(f"TfSavedModelFormat: 'saved_model_path' is not a directory: {path}")
         return self._zip_directory(path)
 
     @staticmethod
     def _zip_directory(directory: str) -> bytes:
         buffer = io.BytesIO()
-        with zipfile.ZipFile(
-            buffer, "w", compression=zipfile.ZIP_DEFLATED
-        ) as archive:
+        with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as archive:
             for dirpath, _dirnames, filenames in os.walk(directory):
                 for filename in filenames:
                     full = os.path.join(dirpath, filename)
@@ -134,16 +117,10 @@ class TfSavedModelFormat(BatchFileFormat):
     def _safe_extract(archive: zipfile.ZipFile, target: str) -> None:
         target_root = os.path.realpath(target)
         for member in archive.infolist():
-            member_path = os.path.realpath(
-                os.path.join(target, member.filename)
-            )
-            if not (
-                member_path == target_root
-                or member_path.startswith(target_root + os.sep)
-            ):
+            member_path = os.path.realpath(os.path.join(target, member.filename))
+            if not (member_path == target_root or member_path.startswith(target_root + os.sep)):
                 raise ValueError(
-                    "TfSavedModelFormat: zip member escapes target "
-                    f"directory — {member.filename!r}"
+                    f"TfSavedModelFormat: zip member escapes target directory — {member.filename!r}"
                 )
         archive.extractall(target)
 

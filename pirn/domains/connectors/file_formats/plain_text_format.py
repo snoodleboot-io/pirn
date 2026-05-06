@@ -33,9 +33,7 @@ class PlainTextFormat(StreamingFileFormat):
             ``"utf-8"``.
     """
 
-    _supported_split_modes: ClassVar[frozenset[str]] = frozenset(
-        {"line", "paragraph", "file"}
-    )
+    _supported_split_modes: ClassVar[frozenset[str]] = frozenset({"line", "paragraph", "file"})
 
     def __init__(
         self,
@@ -43,9 +41,7 @@ class PlainTextFormat(StreamingFileFormat):
         encoding: str = "utf-8",
     ) -> None:
         if not isinstance(split_on, str):
-            raise TypeError(
-                "PlainTextFormat: split_on must be str"
-            )
+            raise TypeError("PlainTextFormat: split_on must be str")
         if split_on not in self._supported_split_modes:
             raise ValueError(
                 "PlainTextFormat: split_on must be one of "
@@ -53,13 +49,9 @@ class PlainTextFormat(StreamingFileFormat):
                 f"{split_on!r}"
             )
         if not isinstance(encoding, str):
-            raise TypeError(
-                "PlainTextFormat: encoding must be str"
-            )
+            raise TypeError("PlainTextFormat: encoding must be str")
         if not encoding:
-            raise ValueError(
-                "PlainTextFormat: encoding must be non-empty"
-            )
+            raise ValueError("PlainTextFormat: encoding must be non-empty")
         self._split_on = split_on
         self._encoding = encoding
 
@@ -75,9 +67,7 @@ class PlainTextFormat(StreamingFileFormat):
     def encoding(self) -> str:
         return self._encoding
 
-    async def read(
-        self, body: AsyncIterator[bytes]
-    ) -> AsyncIterator[Mapping[str, Any]]:
+    async def read(self, body: AsyncIterator[bytes]) -> AsyncIterator[Mapping[str, Any]]:
         encoding = self._encoding
         split_on = self._split_on
 
@@ -87,9 +77,7 @@ class PlainTextFormat(StreamingFileFormat):
             return self._read_paragraphs(body, encoding)
         return self._read_file(body, encoding)
 
-    async def write(
-        self, records: AsyncIterator[Mapping[str, Any]]
-    ) -> AsyncIterator[bytes]:
+    async def write(self, records: AsyncIterator[Mapping[str, Any]]) -> AsyncIterator[bytes]:
         encoding = self._encoding
         split_on = self._split_on
 
@@ -102,14 +90,11 @@ class PlainTextFormat(StreamingFileFormat):
     @staticmethod
     def _extract_text(record: Mapping[str, Any]) -> str:
         if "text" not in record:
-            raise ValueError(
-                "PlainTextFormat: record missing required 'text' key"
-            )
+            raise ValueError("PlainTextFormat: record missing required 'text' key")
         text = record["text"]
         if not isinstance(text, str):
             raise TypeError(
-                "PlainTextFormat: record 'text' value must be str, got "
-                f"{type(text).__name__}"
+                f"PlainTextFormat: record 'text' value must be str, got {type(text).__name__}"
             )
         return text
 

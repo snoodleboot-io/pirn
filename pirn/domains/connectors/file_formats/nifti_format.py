@@ -37,9 +37,7 @@ class NiftiFormat(BatchFileFormat):
     def name(self) -> str:
         return "nifti"
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         nib = self._load_nibabel()
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "image.nii"
@@ -55,27 +53,20 @@ class NiftiFormat(BatchFileFormat):
             }
         return [record]
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         nib = self._load_nibabel()
         import numpy as np
 
         materialised = list(records)
         if not materialised:
-            raise ValueError(
-                "NiftiFormat: cannot encode an empty record stream."
-            )
+            raise ValueError("NiftiFormat: cannot encode an empty record stream.")
         record = materialised[0]
         shape = tuple(record["shape"])
         dtype = np.dtype(record["dtype"])
         affine = np.array(record["affine"], dtype=np.float64)
         raw = record["data"]
         if not isinstance(raw, (bytes, bytearray)):
-            raise TypeError(
-                "NiftiFormat: 'data' must be bytes, got "
-                f"{type(raw).__name__}"
-            )
+            raise TypeError(f"NiftiFormat: 'data' must be bytes, got {type(raw).__name__}")
         array = np.frombuffer(raw, dtype=dtype).reshape(shape)
         img = nib.Nifti1Image(array, affine)
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -103,7 +94,6 @@ class NiftiFormat(BatchFileFormat):
             import nibabel as nib
         except ImportError as exc:
             raise ImportError(
-                "NiftiFormat requires nibabel. Install with "
-                "`pip install pirn[health]`."
+                "NiftiFormat requires nibabel. Install with `pip install pirn[health]`."
             ) from exc
         return nib

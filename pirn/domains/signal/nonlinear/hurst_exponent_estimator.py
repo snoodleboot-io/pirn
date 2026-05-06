@@ -75,9 +75,7 @@ class HurstExponentEstimator(Knot):
             ValueError: If method is not one of the valid options.
         """
         if method not in self._valid_methods:
-            raise ValueError(
-                "HurstExponentEstimator: method must be 'rs', 'dfa', or 'wavelet'"
-            )
+            raise ValueError("HurstExponentEstimator: method must be 'rs', 'dfa', or 'wavelet'")
         return {
             "signal_id": signal.signal_id,
             "method": method,

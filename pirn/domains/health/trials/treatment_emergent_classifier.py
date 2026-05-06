@@ -64,10 +64,7 @@ class TreatmentEmergentClassifier(Knot):
         annotated: list[Mapping[str, Any]] = []
         for event in events:
             first_exposure = exposures.get(event.subject_id)
-            is_emergent = (
-                first_exposure is not None
-                and event.observed_at >= first_exposure
-            )
+            is_emergent = first_exposure is not None and event.observed_at >= first_exposure
             annotated.append(
                 {
                     "trial_id": event.trial_id,

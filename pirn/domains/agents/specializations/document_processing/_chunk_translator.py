@@ -35,8 +35,11 @@ class _ChunkTranslator(Knot):
         **kwargs: Any,
     ) -> None:
         super().__init__(
-            chunks=chunks, target_language=target_language, llm=llm,
-            _config=_config, **kwargs,
+            chunks=chunks,
+            target_language=target_language,
+            llm=llm,
+            _config=_config,
+            **kwargs,
         )
 
     async def process(

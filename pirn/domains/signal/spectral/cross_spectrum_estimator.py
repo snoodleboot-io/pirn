@@ -79,17 +79,13 @@ class CrossSpectrumEstimator(Knot):
             ValueError: If segment_length is invalid or signals have different sample rates.
         """
         if not isinstance(segment_length, int) or segment_length <= 0:
-            raise ValueError(
-                "CrossSpectrumEstimator: segment_length must be a positive integer"
-            )
+            raise ValueError("CrossSpectrumEstimator: segment_length must be a positive integer")
         if signal_a.sample_rate_hz != signal_b.sample_rate_hz:
             raise ValueError(
                 "CrossSpectrumEstimator: signal_a and signal_b must share a sample rate"
             )
         resolution = (
-            signal_a.sample_rate_hz / segment_length
-            if signal_a.sample_rate_hz > 0
-            else 0.0
+            signal_a.sample_rate_hz / segment_length if signal_a.sample_rate_hz > 0 else 0.0
         )
         return SpectrumFrame(
             signal_id=f"{signal_a.signal_id}|{signal_b.signal_id}",

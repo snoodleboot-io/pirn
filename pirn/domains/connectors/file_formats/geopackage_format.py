@@ -36,13 +36,10 @@ class GeopackageFormat(BatchFileFormat):
     def __init__(self, layer_name: str = "default") -> None:
         if not isinstance(layer_name, str):
             raise TypeError(
-                "GeopackageFormat: layer_name must be a string, got "
-                f"{type(layer_name).__name__}"
+                f"GeopackageFormat: layer_name must be a string, got {type(layer_name).__name__}"
             )
         if not layer_name:
-            raise ValueError(
-                "GeopackageFormat: layer_name must be non-empty"
-            )
+            raise ValueError("GeopackageFormat: layer_name must be non-empty")
         self._layer_name = layer_name
 
     @property
@@ -53,9 +50,7 @@ class GeopackageFormat(BatchFileFormat):
     def layer_name(self) -> str:
         return self._layer_name
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         fiona = self._load_fiona()
         path = self._materialise_payload(payload)
         try:
@@ -77,9 +72,7 @@ class GeopackageFormat(BatchFileFormat):
             except OSError:
                 pass
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         fiona = self._load_fiona()
         materialised: list[Mapping[str, Any]] = list(records)
         if not materialised:
@@ -104,9 +97,7 @@ class GeopackageFormat(BatchFileFormat):
                     sink.write(
                         {
                             "geometry": dict(record["geometry"]),
-                            "properties": dict(
-                                record.get("properties") or {}
-                            ),
+                            "properties": dict(record.get("properties") or {}),
                         }
                     )
             with open(path, "rb") as handle:
@@ -167,25 +158,17 @@ class GeopackageFormat(BatchFileFormat):
     @classmethod
     def _validate_record(cls, record: Mapping[str, Any]) -> None:
         if "geometry" not in record:
-            raise ValueError(
-                "GeopackageFormat: record missing required 'geometry' "
-                "field"
-            )
+            raise ValueError("GeopackageFormat: record missing required 'geometry' field")
         geometry = record["geometry"]
         if not isinstance(geometry, Mapping):
             raise TypeError(
-                "GeopackageFormat: geometry must be a Mapping, got "
-                f"{type(geometry).__name__}"
+                f"GeopackageFormat: geometry must be a Mapping, got {type(geometry).__name__}"
             )
         if "type" not in geometry:
-            raise ValueError(
-                "GeopackageFormat: geometry must contain a 'type' field"
-            )
+            raise ValueError("GeopackageFormat: geometry must contain a 'type' field")
 
     @classmethod
-    def _infer_schema(
-        cls, sample: Mapping[str, Any]
-    ) -> Mapping[str, Any]:
+    def _infer_schema(cls, sample: Mapping[str, Any]) -> Mapping[str, Any]:
         geometry_type = str(sample["geometry"]["type"])
         properties = sample.get("properties") or {}
         property_schema: dict[str, str] = {}
@@ -213,7 +196,6 @@ class GeopackageFormat(BatchFileFormat):
             import fiona
         except ImportError as exc:
             raise ImportError(
-                "GeopackageFormat requires fiona. Install with "
-                "`pip install pirn[geopackage]`."
+                "GeopackageFormat requires fiona. Install with `pip install pirn[geopackage]`."
             ) from exc
         return fiona

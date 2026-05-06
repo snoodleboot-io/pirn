@@ -34,8 +34,7 @@ class AzureBlobStore(ObjectStore):
             and not (config.account_name and config.account_key)
         ):
             raise ValueError(
-                "AzureBlobConfig requires either connection_string or "
-                "account_name and account_key"
+                "AzureBlobConfig requires either connection_string or account_name and account_key"
             )
         self._config = config
         self._client = client
@@ -86,9 +85,7 @@ class AzureBlobStore(ObjectStore):
                     )
                 chunks.append(bytes(c))
             payload = b"".join(chunks)
-        blob_client = client.get_blob_client(
-            container=self._config.container, blob=key
-        )
+        blob_client = client.get_blob_client(container=self._config.container, blob=key)
         await blob_client.upload_blob(payload, overwrite=True)
         self._logger.debug(
             "azure.put",
@@ -102,9 +99,7 @@ class AzureBlobStore(ObjectStore):
     async def delete(self, key: str) -> None:
         self._validate_key(key)
         client = await self._ensure_client()
-        blob_client = client.get_blob_client(
-            container=self._config.container, blob=key
-        )
+        blob_client = client.get_blob_client(container=self._config.container, blob=key)
         await blob_client.delete_blob()
         self._logger.debug(
             "azure.delete",
@@ -113,25 +108,18 @@ class AzureBlobStore(ObjectStore):
 
     async def list(self, prefix: str = "") -> AsyncIterator[str]:
         client = await self._ensure_client()
-        container_client = client.get_container_client(
-            container=self._config.container
-        )
+        container_client = client.get_container_client(container=self._config.container)
 
         async def _iter() -> AsyncIterator[str]:
             kwargs: dict[str, Any] = {}
             if prefix:
                 kwargs["name_starts_with"] = prefix
             async for blob in container_client.list_blobs(**kwargs):
-                name = (
-                    blob.get("name")
-                    if isinstance(blob, dict)
-                    else getattr(blob, "name", None)
-                )
+                name = blob.get("name") if isinstance(blob, dict) else getattr(blob, "name", None)
                 if name is not None:
                     yield name
 
         return _iter()
-
 
     async def _ensure_client(self) -> Any:
         if self._client is not None:
@@ -142,17 +130,14 @@ class AzureBlobStore(ObjectStore):
             )
         except ImportError as exc:
             raise ImportError(
-                "AzureBlobStore requires azure-storage-blob; "
-                "install via `pip install pirn[azure]`"
+                "AzureBlobStore requires azure-storage-blob; install via `pip install pirn[azure]`"
             ) from exc
         if self._config.connection_string:
             self._owned_client = BlobServiceClient.from_connection_string(
                 self._config.connection_string
             )
         else:
-            account_url = (
-                f"https://{self._config.account_name}.blob.core.windows.net"
-            )
+            account_url = f"https://{self._config.account_name}.blob.core.windows.net"
             self._owned_client = BlobServiceClient(
                 account_url=account_url,
                 credential=self._config.account_key,

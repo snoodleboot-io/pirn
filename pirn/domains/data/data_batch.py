@@ -37,9 +37,7 @@ class DataBatch(PirnOpaqueValue):
     rows: tuple[Mapping[str, Any], ...] = ()
     schema: DataSchema = field(default_factory=DataSchema)
     source_uri: str = ""
-    fetched_at: datetime = field(
-        default_factory=lambda: datetime.now(UTC)
-    )
+    fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     @property
     def row_count(self) -> int:
@@ -95,7 +93,6 @@ class DataBatch(PirnOpaqueValue):
             "fetched_at": self.fetched_at.isoformat(),
             "rows": [dict(r) for r in self.rows],
             "schema_columns": {
-                name: column_type.__name__
-                for name, column_type in self.schema.columns.items()
+                name: column_type.__name__ for name, column_type in self.schema.columns.items()
             },
         }

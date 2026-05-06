@@ -37,9 +37,7 @@ class EdfPlusFormat(EdfFormat):
         return "edf+"
 
     @classmethod
-    def _read_signals(
-        cls, pyedflib: Any, path: str
-    ) -> list[Mapping[str, Any]]:
+    def _read_signals(cls, pyedflib: Any, path: str) -> list[Mapping[str, Any]]:
         records = super()._read_signals(pyedflib, path)
         annotations = cls._read_annotations(pyedflib, path)
         if annotations is not None:
@@ -47,9 +45,7 @@ class EdfPlusFormat(EdfFormat):
         return records
 
     @staticmethod
-    def _read_annotations(
-        pyedflib: Any, path: str
-    ) -> list[dict[str, Any]] | None:
+    def _read_annotations(pyedflib: Any, path: str) -> list[dict[str, Any]] | None:
         annotations: list[dict[str, Any]] = []
         try:
             with pyedflib.EdfReader(path) as reader:
@@ -67,15 +63,11 @@ class EdfPlusFormat(EdfFormat):
                         }
                     )
         except Exception as exc:
-            raise ValueError(
-                f"EdfPlusFormat: failed to read annotations: {exc}"
-            ) from exc
+            raise ValueError(f"EdfPlusFormat: failed to read annotations: {exc}") from exc
         return annotations
 
     @staticmethod
-    def _write_annotations(
-        writer: Any, annotation_record: dict[str, Any] | None
-    ) -> None:
+    def _write_annotations(writer: Any, annotation_record: dict[str, Any] | None) -> None:
         if annotation_record is None:
             return
         annotations = annotation_record.get("_edfplus_annotations", [])

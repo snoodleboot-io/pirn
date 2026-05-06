@@ -77,15 +77,11 @@ class WienerFilter(Knot):
             ValueError: If window_size or noise_power are invalid.
         """
         if not isinstance(window_size, int) or window_size <= 0:
-            raise ValueError(
-                "WienerFilter: window_size must be a positive integer"
-            )
+            raise ValueError("WienerFilter: window_size must be a positive integer")
         if noise_power is not None and (
             not isinstance(noise_power, (int, float)) or noise_power <= 0
         ):
-            raise ValueError(
-                "WienerFilter: noise_power must be positive when supplied"
-            )
+            raise ValueError("WienerFilter: noise_power must be positive when supplied")
         return SignalFrame(
             signal_id=f"{signal.signal_id}:wiener",
             channel_count=signal.channel_count,

@@ -94,13 +94,9 @@ class CollaborativeFilteringPipeline(SubTapestry):
             TypeError: If pool is not a DatabaseConnectionPool.
         """
         if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError(
-                "CollaborativeFilteringPipeline: pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("CollaborativeFilteringPipeline: pool must be a DatabaseConnectionPool")
         if not isinstance(query, str) or not query:
-            raise ValueError(
-                "CollaborativeFilteringPipeline: query must be a non-empty string"
-            )
+            raise ValueError("CollaborativeFilteringPipeline: query must be a non-empty string")
         if not isinstance(user_column, str) or not user_column:
             raise ValueError(
                 "CollaborativeFilteringPipeline: user_column must be a non-empty string"

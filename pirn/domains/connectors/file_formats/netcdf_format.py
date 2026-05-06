@@ -49,27 +49,13 @@ class NetcdfFormat(BatchFileFormat):
         field_names: Sequence[str] | None = None,
     ) -> None:
         if not isinstance(variable_name, str) or not variable_name:
-            raise ValueError(
-                "NetcdfFormat: variable_name must be a non-empty "
-                "string"
-            )
+            raise ValueError("NetcdfFormat: variable_name must be a non-empty string")
         if not isinstance(dimension_name, str) or not dimension_name:
-            raise ValueError(
-                "NetcdfFormat: dimension_name must be a non-empty "
-                "string"
-            )
-        if (
-            not isinstance(compound_type_name, str)
-            or not compound_type_name
-        ):
-            raise ValueError(
-                "NetcdfFormat: compound_type_name must be a non-empty "
-                "string"
-            )
+            raise ValueError("NetcdfFormat: dimension_name must be a non-empty string")
+        if not isinstance(compound_type_name, str) or not compound_type_name:
+            raise ValueError("NetcdfFormat: compound_type_name must be a non-empty string")
         if field_names is not None:
-            if not isinstance(field_names, Sequence) or isinstance(
-                field_names, (str, bytes)
-            ):
+            if not isinstance(field_names, Sequence) or isinstance(field_names, (str, bytes)):
                 raise TypeError(
                     "NetcdfFormat: field_names must be a sequence of "
                     f"strings, got {type(field_names).__name__}"
@@ -77,8 +63,7 @@ class NetcdfFormat(BatchFileFormat):
             for name in field_names:
                 if not isinstance(name, str) or not name:
                     raise ValueError(
-                        "NetcdfFormat: every field name must be a "
-                        f"non-empty string, got {name!r}"
+                        f"NetcdfFormat: every field name must be a non-empty string, got {name!r}"
                     )
         self._variable_name = variable_name
         self._dimension_name = dimension_name
@@ -107,9 +92,7 @@ class NetcdfFormat(BatchFileFormat):
     def field_names(self) -> tuple[str, ...] | None:
         return self._field_names
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         netCDF4, np = self._load_netcdf_numpy()
         # netCDF4 demands a filesystem path; round-trip via a tempfile
         # (cleaned up in finally so payloads never linger on disk).
@@ -136,9 +119,7 @@ class NetcdfFormat(BatchFileFormat):
                 for row in data:
                     record: dict[str, Any] = {}
                     for field in data.dtype.names:
-                        record[field] = self._unwrap_scalar(
-                            row[field], np
-                        )
+                        record[field] = self._unwrap_scalar(row[field], np)
                     records.append(record)
                 return records
             finally:
@@ -147,9 +128,7 @@ class NetcdfFormat(BatchFileFormat):
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         netCDF4, np = self._load_netcdf_numpy()
         materialised = [dict(record) for record in records]
         if not materialised:
@@ -162,12 +141,8 @@ class NetcdfFormat(BatchFileFormat):
         try:
             dataset = netCDF4.Dataset(tmp_path, "w", format="NETCDF4")
             try:
-                dataset.createDimension(
-                    self._dimension_name, len(materialised)
-                )
-                compound = dataset.createCompoundType(
-                    structured.dtype, self._compound_type_name
-                )
+                dataset.createDimension(self._dimension_name, len(materialised))
+                compound = dataset.createCompoundType(structured.dtype, self._compound_type_name)
                 variable = dataset.createVariable(
                     self._variable_name,
                     compound,
@@ -182,18 +157,12 @@ class NetcdfFormat(BatchFileFormat):
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
 
-    def _records_to_structured_array(
-        self, records: list[dict[str, Any]], np: Any
-    ) -> Any:
+    def _records_to_structured_array(self, records: list[dict[str, Any]], np: Any) -> Any:
         field_order = self._derive_field_order(records)
         dtype_fields: list[tuple[str, Any]] = []
         for field in field_order:
-            sample_value = next(
-                (rec[field] for rec in records if field in rec), None
-            )
-            dtype_fields.append(
-                (field, self._infer_numpy_dtype(sample_value, records, field, np))
-            )
+            sample_value = next((rec[field] for rec in records if field in rec), None)
+            dtype_fields.append((field, self._infer_numpy_dtype(sample_value, records, field, np)))
         structured = np.zeros(len(records), dtype=dtype_fields)
         for index, record in enumerate(records):
             for field in field_order:
@@ -201,8 +170,7 @@ class NetcdfFormat(BatchFileFormat):
                     value = record[field]
                     structured[index][field] = (
                         value.encode("utf-8")
-                        if isinstance(value, str)
-                        and structured.dtype.fields[field][0].kind == "S"
+                        if isinstance(value, str) and structured.dtype.fields[field][0].kind == "S"
                         else value
                     )
                 else:
@@ -211,9 +179,7 @@ class NetcdfFormat(BatchFileFormat):
                     )
         return structured
 
-    def _derive_field_order(
-        self, records: list[dict[str, Any]]
-    ) -> list[str]:
+    def _derive_field_order(self, records: list[dict[str, Any]]) -> list[str]:
         if self._field_names is not None:
             return list(self._field_names)
         order: list[str] = []
@@ -291,7 +257,6 @@ class NetcdfFormat(BatchFileFormat):
             import numpy as np
         except ImportError as exc:
             raise ImportError(
-                "NetcdfFormat requires netCDF4 and numpy. Install "
-                "with `pip install pirn[netcdf]`."
+                "NetcdfFormat requires netCDF4 and numpy. Install with `pip install pirn[netcdf]`."
             ) from exc
         return netCDF4, np

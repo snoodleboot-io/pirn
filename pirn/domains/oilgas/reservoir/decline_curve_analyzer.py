@@ -41,9 +41,7 @@ from pirn.domains.oilgas.types.scada_time_series import ScadaTimeSeries
 class DeclineCurveAnalyzer(Knot):
     """Fit an Arps decline (exponential, hyperbolic, harmonic) to a series."""
 
-    valid_methods: ClassVar[frozenset[str]] = frozenset(
-        {"exponential", "hyperbolic", "harmonic"}
-    )
+    valid_methods: ClassVar[frozenset[str]] = frozenset({"exponential", "hyperbolic", "harmonic"})
 
     def __init__(
         self,
@@ -78,8 +76,7 @@ class DeclineCurveAnalyzer(Knot):
         """
         if method not in self.valid_methods:
             raise ValueError(
-                f"DeclineCurveAnalyzer: method must be one of "
-                f"{sorted(self.valid_methods)}"
+                f"DeclineCurveAnalyzer: method must be one of {sorted(self.valid_methods)}"
             )
         return {
             "qi": 1000.0,

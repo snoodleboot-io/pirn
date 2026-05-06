@@ -89,21 +89,13 @@ class SubvolumeExtractor(Knot):
             ("sample_end", sample_end),
         ):
             if not isinstance(value, int) or value < 0:
-                raise ValueError(
-                    f"SubvolumeExtractor: {label} must be a non-negative integer"
-                )
+                raise ValueError(f"SubvolumeExtractor: {label} must be a non-negative integer")
         if inline_end <= inline_start:
-            raise ValueError(
-                "SubvolumeExtractor: inline_end must exceed inline_start"
-            )
+            raise ValueError("SubvolumeExtractor: inline_end must exceed inline_start")
         if xline_end <= xline_start:
-            raise ValueError(
-                "SubvolumeExtractor: xline_end must exceed xline_start"
-            )
+            raise ValueError("SubvolumeExtractor: xline_end must exceed xline_start")
         if sample_end <= sample_start:
-            raise ValueError(
-                "SubvolumeExtractor: sample_end must exceed sample_start"
-            )
+            raise ValueError("SubvolumeExtractor: sample_end must exceed sample_start")
         return SegyVolume(
             volume_id=f"{volume.volume_id}:sub",
             inline_count=inline_end - inline_start,

@@ -20,12 +20,8 @@ class LabInstrumentConnection(PirnOpaqueValue):
         self, instrument_id: str, since: datetime
     ) -> AsyncIterator[Mapping[str, Any]]:
         """Yield result rows produced by ``instrument_id`` since ``since``."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement fetch_results()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement fetch_results()")
 
     async def close(self) -> None:
         """Release any underlying transport resources."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement close()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement close()")

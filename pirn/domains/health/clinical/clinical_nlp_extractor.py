@@ -68,17 +68,11 @@ class ClinicalNLPExtractor(Knot):
             ValueError: If note_text is empty.
         """
         if not isinstance(provider, LLMProvider):
-            raise TypeError(
-                "ClinicalNLPExtractor: provider must be an LLMProvider"
-            )
+            raise TypeError("ClinicalNLPExtractor: provider must be an LLMProvider")
         if not isinstance(note_text, str):
-            raise TypeError(
-                "ClinicalNLPExtractor: note_text must be a string"
-            )
+            raise TypeError("ClinicalNLPExtractor: note_text must be a string")
         if not note_text:
-            raise ValueError(
-                "ClinicalNLPExtractor: note_text must be non-empty"
-            )
+            raise ValueError("ClinicalNLPExtractor: note_text must be non-empty")
         # Production: send a structured-output prompt to the LLM and parse
         # the JSON response into diagnoses / medications / vitals.
         return {

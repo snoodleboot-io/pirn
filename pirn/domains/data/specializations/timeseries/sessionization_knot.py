@@ -80,9 +80,7 @@ class SessionizationKnot(Knot):
         IdentifierValidator.validate_columns("entity_columns", entity_tuple)
         IdentifierValidator.validate_column("timestamp_column", timestamp_column)
         if not isinstance(inactivity_minutes, (int, float)) or inactivity_minutes <= 0:
-            raise ValueError(
-                "SessionizationKnot: inactivity_minutes must be a positive number"
-            )
+            raise ValueError("SessionizationKnot: inactivity_minutes must be a positive number")
 
         gap = timedelta(minutes=inactivity_minutes)
 

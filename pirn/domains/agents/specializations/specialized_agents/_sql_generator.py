@@ -71,10 +71,7 @@ class _SQLGenerator(Knot):
             TypeError: If question is not a non-empty string.
         """
         if not isinstance(question, str) or not question:
-            raise TypeError(
-                "SQLAgent: question must be a non-empty string, "
-                f"got {question!r}"
-            )
+            raise TypeError(f"SQLAgent: question must be a non-empty string, got {question!r}")
         system_lines = [
             "You are a SQL writing assistant.",
             "Reply with a single SQL statement only — no commentary, no "
@@ -84,9 +81,7 @@ class _SQLGenerator(Knot):
             "formatting like {value} or %s.",
         ]
         if schema_description:
-            system_lines.append(
-                f"Schema reference:\n{schema_description}"
-            )
+            system_lines.append(f"Schema reference:\n{schema_description}")
         chat_messages = [
             {"role": "system", "content": "\n".join(system_lines)},
             {"role": "user", "content": question},

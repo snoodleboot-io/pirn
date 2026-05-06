@@ -64,8 +64,7 @@ class OpenSlideFormat(BatchFileFormat):
     ) -> None:
         if not isinstance(tile_size, int) or tile_size <= 0:
             raise ValueError(
-                "OpenSlideFormat: tile_size must be a positive int, got "
-                f"{tile_size!r}"
+                f"OpenSlideFormat: tile_size must be a positive int, got {tile_size!r}"
             )
         if max_decode_pixels is not None and (
             not isinstance(max_decode_pixels, int) or max_decode_pixels <= 0
@@ -89,9 +88,7 @@ class OpenSlideFormat(BatchFileFormat):
     def max_decode_pixels(self) -> int | None:
         return self._max_decode_pixels
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         openslide = self._load_openslide()
         records: list[Mapping[str, Any]] = []
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -108,9 +105,7 @@ class OpenSlideFormat(BatchFileFormat):
                     if self._max_decode_pixels is not None:
                         total_pixels = dimensions[0] * dimensions[1]
                         if total_pixels <= self._max_decode_pixels:
-                            data = self._read_level_bytes(
-                                slide, level, dimensions
-                            )
+                            data = self._read_level_bytes(slide, level, dimensions)
                     records.append(
                         {
                             "level": level,
@@ -124,31 +119,19 @@ class OpenSlideFormat(BatchFileFormat):
                 slide.close()
         return records
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
-        raise NotImplementedError(
-            "OpenSlideFormat: write is not supported"
-        )
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
+        raise NotImplementedError("OpenSlideFormat: write is not supported")
 
     @staticmethod
-    def _read_level_bytes(
-        slide: Any, level: int, dimensions: tuple[int, int]
-    ) -> bytes:
+    def _read_level_bytes(slide: Any, level: int, dimensions: tuple[int, int]) -> bytes:
 
         region = slide.read_region((0, 0), level, dimensions)
         rgb = region.convert("RGB")
         return rgb.tobytes()
 
     @classmethod
-    def _strip_phi_metadata(
-        cls, properties: Mapping[str, str]
-    ) -> dict[str, str]:
-        return {
-            k: v
-            for k, v in properties.items()
-            if k not in cls._phi_metadata_keys
-        }
+    def _strip_phi_metadata(cls, properties: Mapping[str, str]) -> dict[str, str]:
+        return {k: v for k, v in properties.items() if k not in cls._phi_metadata_keys}
 
     @staticmethod
     def _load_openslide() -> Any:

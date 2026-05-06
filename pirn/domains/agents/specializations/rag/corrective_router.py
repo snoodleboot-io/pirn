@@ -76,10 +76,7 @@ class CorrectiveRouter(Knot):
                 f"got {type(fallback_tool).__name__}"
             )
         if not isinstance(query, str):
-            raise TypeError(
-                "CorrectiveRouter: query must be a string, "
-                f"got {type(query).__name__}"
-            )
+            raise TypeError(f"CorrectiveRouter: query must be a string, got {type(query).__name__}")
         if relevant_docs:
             return list(relevant_docs)
         fallback_result = await fallback_tool.invoke({"input": query})

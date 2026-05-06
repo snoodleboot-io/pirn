@@ -43,9 +43,7 @@ class SemanticMemoryUpsert(Knot):
         response: Knot | AgentResponse,
         llm: Knot | LLMProvider,
         store: Knot | MemoryStore,
-        fact_extraction_prompt: Knot | str = (
-            "Extract key facts from the following text."
-        ),
+        fact_extraction_prompt: Knot | str = ("Extract key facts from the following text."),
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
@@ -84,18 +82,15 @@ class SemanticMemoryUpsert(Knot):
         """
         if not isinstance(llm, LLMProvider):
             raise TypeError(
-                "SemanticMemoryUpsert: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
+                f"SemanticMemoryUpsert: llm must be an LLMProvider, got {type(llm).__name__}"
             )
         if not isinstance(store, MemoryStore):
             raise TypeError(
-                "SemanticMemoryUpsert: store must be a MemoryStore, "
-                f"got {type(store).__name__}"
+                f"SemanticMemoryUpsert: store must be a MemoryStore, got {type(store).__name__}"
             )
         if not isinstance(fact_extraction_prompt, str) or not fact_extraction_prompt:
             raise ValueError(
-                "SemanticMemoryUpsert: fact_extraction_prompt must be a "
-                "non-empty string"
+                "SemanticMemoryUpsert: fact_extraction_prompt must be a non-empty string"
             )
         if not isinstance(response, AgentResponse):
             raise TypeError(
@@ -103,9 +98,7 @@ class SemanticMemoryUpsert(Knot):
                 f"got {type(response).__name__}"
             )
         prompt = (
-            f"{fact_extraction_prompt}\n\n"
-            f"Text: {response.content}\n\n"
-            "Return one fact per line."
+            f"{fact_extraction_prompt}\n\nText: {response.content}\n\nReturn one fact per line."
         )
         raw = await llm.chat([{"role": "user", "content": prompt}])
         text = self._extract_text(raw)
@@ -116,7 +109,7 @@ class SemanticMemoryUpsert(Knot):
                 continue
             for marker in ("- ", "* ", "• "):
                 if cleaned.startswith(marker):
-                    cleaned = cleaned[len(marker):].strip()
+                    cleaned = cleaned[len(marker) :].strip()
                     break
             if cleaned:
                 facts.append(cleaned)

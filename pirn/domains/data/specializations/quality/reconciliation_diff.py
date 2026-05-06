@@ -106,21 +106,15 @@ class ReconciliationDiff(Knot):
             ValueError: When queries are empty or columns overlap.
         """
         if not isinstance(source_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "ReconciliationDiff: source_pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("ReconciliationDiff: source_pool must be a DatabaseConnectionPool")
         if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "ReconciliationDiff: target_pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("ReconciliationDiff: target_pool must be a DatabaseConnectionPool")
         for label, value in (
             ("source_query", source_query),
             ("target_query", target_query),
         ):
             if not isinstance(value, str) or not value:
-                raise ValueError(
-                    f"ReconciliationDiff: {label} must be a non-empty string"
-                )
+                raise ValueError(f"ReconciliationDiff: {label} must be a non-empty string")
         key_tuple = tuple(key_columns)
         value_tuple = tuple(value_columns)
         IdentifierValidator.validate_columns("key_columns", key_tuple)
@@ -128,8 +122,7 @@ class ReconciliationDiff(Knot):
         overlap = set(key_tuple) & set(value_tuple)
         if overlap:
             raise ValueError(
-                f"ReconciliationDiff: key_columns and value_columns overlap "
-                f"on {sorted(overlap)!r}"
+                f"ReconciliationDiff: key_columns and value_columns overlap on {sorted(overlap)!r}"
             )
         all_columns = key_tuple + value_tuple
         source_rows = await source_pool.fetch_all(source_query)
@@ -148,9 +141,7 @@ class ReconciliationDiff(Knot):
             if k in target_index and source_index[k] != target_index[k]
         ]
         matched_count = sum(
-            1
-            for k in source_index
-            if k in target_index and source_index[k] == target_index[k]
+            1 for k in source_index if k in target_index and source_index[k] == target_index[k]
         )
         total_differences = len(added) + len(removed) + len(changed)
         return {

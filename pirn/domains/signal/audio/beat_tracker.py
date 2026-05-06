@@ -85,17 +85,11 @@ class BeatTracker(Knot):
             ValueError: If hop_length, tempo_min_bpm, or tempo_max_bpm are invalid.
         """
         if not isinstance(hop_length, int) or hop_length <= 0:
-            raise ValueError(
-                "BeatTracker: hop_length must be a positive integer"
-            )
+            raise ValueError("BeatTracker: hop_length must be a positive integer")
         if not isinstance(tempo_min_bpm, (int, float)) or tempo_min_bpm <= 0:
-            raise ValueError(
-                "BeatTracker: tempo_min_bpm must be positive"
-            )
+            raise ValueError("BeatTracker: tempo_min_bpm must be positive")
         if not isinstance(tempo_max_bpm, (int, float)) or tempo_max_bpm <= tempo_min_bpm:
-            raise ValueError(
-                "BeatTracker: tempo_max_bpm must exceed tempo_min_bpm"
-            )
+            raise ValueError("BeatTracker: tempo_max_bpm must exceed tempo_min_bpm")
         return {
             "signal_id": signal.signal_id,
             "hop_length": hop_length,

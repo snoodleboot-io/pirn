@@ -34,9 +34,7 @@ from pirn.domains.ml.types.trained_model import TrainedModel
 class Explainer(Knot):
     """Per-feature importance estimator over a (model, split) pair."""
 
-    valid_methods: ClassVar[frozenset[str]] = frozenset(
-        {"permutation", "shap", "linear"}
-    )
+    valid_methods: ClassVar[frozenset[str]] = frozenset({"permutation", "shap", "linear"})
 
     def __init__(
         self,
@@ -66,9 +64,7 @@ class Explainer(Knot):
             ValueError: If method is not in valid_methods.
         """
         if method not in self.valid_methods:
-            raise ValueError(
-                f"Explainer: method must be one of {sorted(self.valid_methods)}"
-            )
+            raise ValueError(f"Explainer: method must be one of {sorted(self.valid_methods)}")
         return {
             feature: self._importance(model, split, feature, method)
             for feature in model.feature_names

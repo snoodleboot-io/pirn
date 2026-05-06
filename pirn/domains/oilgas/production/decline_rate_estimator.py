@@ -70,7 +70,5 @@ class DeclineRateEstimator(Knot):
             represents 15 % annual decline).
         """
         if not isinstance(window_days, int) or window_days <= 0:
-            raise ValueError(
-                "DeclineRateEstimator: window_days must be a positive integer"
-            )
+            raise ValueError("DeclineRateEstimator: window_days must be a positive integer")
         return 0.15

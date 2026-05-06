@@ -36,13 +36,9 @@ class AirbyteClient(ApiClient, TableSource):
         resource: str = "connections",
     ) -> None:
         if config is None and client is None:
-            raise TypeError(
-                "AirbyteClient requires either config= or client="
-            )
+            raise TypeError("AirbyteClient requires either config= or client=")
         if not isinstance(resource, str) or not resource:
-            raise ValueError(
-                "AirbyteClient: resource must be a non-empty string"
-            )
+            raise ValueError("AirbyteClient: resource must be a non-empty string")
         self._config = config
         self._client = client
         self._closed = False
@@ -65,9 +61,7 @@ class AirbyteClient(ApiClient, TableSource):
         limit: int | None = None,
     ) -> tuple[list[Mapping[str, Any]], str | None]:
         """Vendor-typed read of Airbyte connections."""
-        return await self._list_resource(
-            "connections", cursor=cursor, limit=limit
-        )
+        return await self._list_resource("connections", cursor=cursor, limit=limit)
 
     async def list_workspaces(
         self,
@@ -76,9 +70,7 @@ class AirbyteClient(ApiClient, TableSource):
         limit: int | None = None,
     ) -> tuple[list[Mapping[str, Any]], str | None]:
         """Vendor-typed read of Airbyte workspaces."""
-        return await self._list_resource(
-            "workspaces", cursor=cursor, limit=limit
-        )
+        return await self._list_resource("workspaces", cursor=cursor, limit=limit)
 
     async def fetch_page(
         self,
@@ -87,9 +79,7 @@ class AirbyteClient(ApiClient, TableSource):
         page_size: int | None = None,
     ) -> tuple[list[Mapping[str, Any]], str | None]:
         """:class:`TableSource` adapter — pages the configured resource."""
-        return await self._list_resource(
-            self._resource, cursor=cursor, limit=page_size
-        )
+        return await self._list_resource(self._resource, cursor=cursor, limit=page_size)
 
     async def _list_resource(
         self,
@@ -169,13 +159,10 @@ class AirbyteClient(ApiClient, TableSource):
             import httpx  # type: ignore[import-not-found]
         except ImportError as exc:
             raise ImportError(
-                "AirbyteClient requires httpx; install via "
-                "`pip install pirn[airbyte]`"
+                "AirbyteClient requires httpx; install via `pip install pirn[airbyte]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError(
-                "AirbyteClient: missing config and no injected client"
-            )
+            raise RuntimeError("AirbyteClient: missing config and no injected client")
         if self._config.access_token is None:
             raise RuntimeError(
                 "AirbyteClient: config.access_token is required (OAuth2 "
@@ -183,9 +170,7 @@ class AirbyteClient(ApiClient, TableSource):
             )
         token = self._config.access_token
         try:
-            client = httpx.AsyncClient(
-                headers={"Authorization": f"Bearer {token}"}
-            )
+            client = httpx.AsyncClient(headers={"Authorization": f"Bearer {token}"})
         except Exception as exc:
             safe_message = self._scrubber.scrub(str(exc))
             raise type(exc)(safe_message) from None

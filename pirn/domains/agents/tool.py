@@ -25,29 +25,21 @@ class Tool(PirnOpaqueValue):
     @property
     def name(self) -> str:
         """Stable identifier the agent uses to address the tool."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement name"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement name")
 
     @property
     def description(self) -> str:
         """Human-readable description shown to the LLM during planning."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement description"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement description")
 
     @property
     def parameters_schema(self) -> Mapping[str, Any]:
         """JSON Schema describing the tool's expected arguments."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement parameters_schema"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement parameters_schema")
 
     async def invoke(self, arguments: Mapping[str, Any]) -> Any:
         """Execute the tool with ``arguments`` and return the raw result."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement invoke()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement invoke()")
 
     def _clear_credentials(self) -> None:
         """Drop any in-memory credential reference held by the tool.

@@ -140,8 +140,7 @@ class DeleteSafeSync(Knot):
         overlap = set(key_tuple) & set(non_key_tuple)
         if overlap:
             raise ValueError(
-                f"DeleteSafeSync: key_columns and non_key_columns overlap "
-                f"on {sorted(overlap)!r}"
+                f"DeleteSafeSync: key_columns and non_key_columns overlap on {sorted(overlap)!r}"
             )
         all_columns = key_tuple + non_key_tuple
         now_iso = datetime.now(UTC).isoformat()

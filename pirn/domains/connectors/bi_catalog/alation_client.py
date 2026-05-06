@@ -44,13 +44,9 @@ class AlationClient(ApiClient, TableSource, MetadataCatalog):
         entity_type: str = "data",
     ) -> None:
         if config is None and client is None:
-            raise TypeError(
-                "AlationClient requires either config= or client="
-            )
+            raise TypeError("AlationClient requires either config= or client=")
         if not isinstance(entity_type, str) or not entity_type:
-            raise ValueError(
-                "AlationClient: entity_type must be a non-empty string"
-            )
+            raise ValueError("AlationClient: entity_type must be a non-empty string")
         self._config = config
         self._client = client
         self._closed = False
@@ -73,9 +69,7 @@ class AlationClient(ApiClient, TableSource, MetadataCatalog):
         page_size: int | None = None,
     ) -> tuple[list[Mapping[str, Any]], str | None]:
         """:class:`TableSource` adapter — pages the configured entity_type."""
-        return await self._list_resource(
-            self._entity_type, cursor=cursor, limit=page_size
-        )
+        return await self._list_resource(self._entity_type, cursor=cursor, limit=page_size)
 
     async def list_entities(
         self,
@@ -86,9 +80,7 @@ class AlationClient(ApiClient, TableSource, MetadataCatalog):
         """:class:`MetadataCatalog` adapter — paginates internally."""
         cursor: str | None = None
         while True:
-            rows, next_cursor = await self._list_resource(
-                entity_type, cursor=cursor, limit=None
-            )
+            rows, next_cursor = await self._list_resource(entity_type, cursor=cursor, limit=None)
             for entity in rows:
                 if filter is None or self._matches_filter(entity, filter):
                     yield entity
@@ -126,9 +118,7 @@ class AlationClient(ApiClient, TableSource, MetadataCatalog):
         )
         rows = self._extract_rows(response)
         next_offset = skip + page_limit
-        next_cursor = (
-            str(next_offset) if len(rows) == page_limit else None
-        )
+        next_cursor = str(next_offset) if len(rows) == page_limit else None
         return rows, next_cursor
 
     @staticmethod
@@ -143,9 +133,7 @@ class AlationClient(ApiClient, TableSource, MetadataCatalog):
         return []
 
     @staticmethod
-    def _matches_filter(
-        entity: Mapping[str, Any], filter: Mapping[str, Any]
-    ) -> bool:
+    def _matches_filter(entity: Mapping[str, Any], filter: Mapping[str, Any]) -> bool:
         for key, value in filter.items():
             if entity.get(key) != value:
                 return False
@@ -210,25 +198,16 @@ class AlationClient(ApiClient, TableSource, MetadataCatalog):
             import httpx  # type: ignore[import-not-found]
         except ImportError as exc:
             raise ImportError(
-                "AlationClient requires httpx; install via "
-                "`pip install pirn[alation]`"
+                "AlationClient requires httpx; install via `pip install pirn[alation]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError(
-                "AlationClient: missing config and no injected client"
-            )
+            raise RuntimeError("AlationClient: missing config and no injected client")
         if self._config.base_url is None:
-            raise RuntimeError(
-                "AlationClient: config.base_url is required"
-            )
+            raise RuntimeError("AlationClient: config.base_url is required")
         if self._config.refresh_token is None:
-            raise RuntimeError(
-                "AlationClient: config.refresh_token is required"
-            )
+            raise RuntimeError("AlationClient: config.refresh_token is required")
         try:
-            client = httpx.AsyncClient(
-                headers={"Token": self._config.refresh_token}
-            )
+            client = httpx.AsyncClient(headers={"Token": self._config.refresh_token})
         except Exception as exc:
             safe_message = self._scrubber.scrub(str(exc))
             raise type(exc)(safe_message) from None

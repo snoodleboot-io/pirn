@@ -80,9 +80,7 @@ class ARModelEstimator(Knot):
         if not isinstance(order, int) or order <= 0:
             raise ValueError("ARModelEstimator: order must be a positive integer")
         if method not in self._valid_methods:
-            raise ValueError(
-                "ARModelEstimator: method must be one of 'burg', 'yule_walker', 'ols'"
-            )
+            raise ValueError("ARModelEstimator: method must be one of 'burg', 'yule_walker', 'ols'")
         return {
             "coefficients": [0.0] * order,
             "order": order,

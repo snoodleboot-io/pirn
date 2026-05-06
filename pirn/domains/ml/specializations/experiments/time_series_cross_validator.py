@@ -94,9 +94,7 @@ class TimeSeriesCrossValidator(SubTapestry):
         if n_splits < 2:
             raise ValueError("TimeSeriesCrossValidator: n_splits must be >= 2")
         if not isinstance(algorithm, str) or not algorithm:
-            raise ValueError(
-                "TimeSeriesCrossValidator: algorithm must be a non-empty string"
-            )
+            raise ValueError("TimeSeriesCrossValidator: algorithm must be a non-empty string")
         metric_tuple = tuple(metrics)
         if not metric_tuple:
             raise ValueError("TimeSeriesCrossValidator: metrics must be non-empty")
@@ -109,9 +107,7 @@ class TimeSeriesCrossValidator(SubTapestry):
 
         with Tapestry() as inner_eval:
             for fold_index in range(n_splits):
-                train_rows = (fold_index + 1) * max(
-                    1, dataset.row_count // (n_splits + 1)
-                )
+                train_rows = (fold_index + 1) * max(1, dataset.row_count // (n_splits + 1))
                 test_rows = max(1, dataset.row_count // (n_splits + 1))
                 train_ds = MLDataset(
                     name=f"{dataset.name}:ts_train_{fold_index}",
@@ -151,9 +147,7 @@ class TimeSeriesCrossValidator(SubTapestry):
                 raise TypeError(
                     f"TimeSeriesCrossValidator: fold {fold_index} did not produce an EvalReport"
                 )
-            per_fold.append(
-                {name: float(value) for name, value in report.metrics.items()}
-            )
+            per_fold.append({name: float(value) for name, value in report.metrics.items()})
 
         aggregated = self._aggregate(per_fold)
         return EvalReport(
@@ -170,13 +164,8 @@ class TimeSeriesCrossValidator(SubTapestry):
             evaluated_at=datetime.now(UTC),
         )
 
-    def _aggregate(
-        self, per_fold: list[dict[str, float]]
-    ) -> dict[str, float]:
+    def _aggregate(self, per_fold: list[dict[str, float]]) -> dict[str, float]:
         if not per_fold:
             return {}
         names = per_fold[0].keys()
-        return {
-            name: sum(fold[name] for fold in per_fold) / float(len(per_fold))
-            for name in names
-        }
+        return {name: sum(fold[name] for fold in per_fold) / float(len(per_fold)) for name in names}

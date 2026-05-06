@@ -29,9 +29,7 @@ class RtfFormat(BatchFileFormat):
         if not isinstance(encoding, str):
             raise TypeError("RtfFormat: encoding must be str")
         if not encoding:
-            raise ValueError(
-                "RtfFormat: encoding must be non-empty"
-            )
+            raise ValueError("RtfFormat: encoding must be non-empty")
         self._encoding = encoding
 
     @property
@@ -42,9 +40,7 @@ class RtfFormat(BatchFileFormat):
     def encoding(self) -> str:
         return self._encoding
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         if not payload:
             return []
         rtf_to_text = self._load_striprtf()
@@ -53,9 +49,7 @@ class RtfFormat(BatchFileFormat):
         plain = rtf_to_text(rtf_source)
         return [{"text": plain}]
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         materialised = list(records)
         if not materialised:
             return b""
@@ -102,14 +96,11 @@ class RtfFormat(BatchFileFormat):
     @staticmethod
     def _extract_text(record: Mapping[str, Any]) -> str:
         if "text" not in record:
-            raise ValueError(
-                "RtfFormat: record missing required 'text' key"
-            )
+            raise ValueError("RtfFormat: record missing required 'text' key")
         text = record["text"]
         if not isinstance(text, str):
             raise TypeError(
-                "RtfFormat: record 'text' value must be str, got "
-                f"{type(text).__name__}"
+                f"RtfFormat: record 'text' value must be str, got {type(text).__name__}"
             )
         return text
 
@@ -119,7 +110,6 @@ class RtfFormat(BatchFileFormat):
             from striprtf.striprtf import rtf_to_text
         except ImportError as exc:
             raise ImportError(
-                "RtfFormat requires striprtf. Install with "
-                "`pip install pirn[rtf]`."
+                "RtfFormat requires striprtf. Install with `pip install pirn[rtf]`."
             ) from exc
         return rtf_to_text

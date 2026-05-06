@@ -119,9 +119,7 @@ class FuzzyDeduplicator(Knot):
         a_match = [a[i] for i in range(la) if a_flags[i]]
         b_match = [b[j] for j in range(lb) if b_flags[j]]
         transpositions = sum(1 for x, y in zip(a_match, b_match, strict=False) if x != y)
-        jaro = (
-            matches / la + matches / lb + (matches - transpositions / 2) / matches
-        ) / 3.0
+        jaro = (matches / la + matches / lb + (matches - transpositions / 2) / matches) / 3.0
         prefix = 0
         for i in range(min(4, la, lb)):
             if a[i] == b[i]:
@@ -147,25 +145,17 @@ class FuzzyDeduplicator(Knot):
         **_: Any,
     ) -> list[dict[str, Any]]:
         if not isinstance(match_column, str) or not match_column:
-            raise ValueError(
-                "FuzzyDeduplicator: match_column must be a non-empty string"
-            )
+            raise ValueError("FuzzyDeduplicator: match_column must be a non-empty string")
         IdentifierValidator.validate_column("match_column", match_column)
         if not isinstance(blocking_key_length, int) or blocking_key_length < 1:
-            raise ValueError(
-                "FuzzyDeduplicator: blocking_key_length must be a positive integer"
-            )
+            raise ValueError("FuzzyDeduplicator: blocking_key_length must be a positive integer")
         if similarity_metric not in ("levenshtein", "jaro_winkler"):
             raise ValueError(
                 "FuzzyDeduplicator: similarity_metric must be 'levenshtein' or 'jaro_winkler'"
             )
         if not (0.0 < threshold <= 1.0):
-            raise ValueError(
-                "FuzzyDeduplicator: threshold must be in (0, 1]"
-            )
-        tokens: list[str] = [
-            str(r.get(match_column, "")).lower() for r in rows
-        ]
+            raise ValueError("FuzzyDeduplicator: threshold must be in (0, 1]")
+        tokens: list[str] = [str(r.get(match_column, "")).lower() for r in rows]
         blocks: dict[str, list[int]] = {}
         for idx, token in enumerate(tokens):
             key = token[:blocking_key_length]

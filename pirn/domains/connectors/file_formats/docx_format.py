@@ -44,9 +44,7 @@ class DocxFormat(BatchFileFormat):
     def paragraph_separator(self) -> str:
         return self._paragraph_separator
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         docx = self._load_docx()
         document = docx.Document(io.BytesIO(payload))
         records: list[Mapping[str, Any]] = []
@@ -63,9 +61,7 @@ class DocxFormat(BatchFileFormat):
             )
         return records
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         docx = self._load_docx()
         document = docx.Document()
         for record in records:
@@ -76,10 +72,7 @@ class DocxFormat(BatchFileFormat):
                 )
             text = record["text"]
             if not isinstance(text, str):
-                raise TypeError(
-                    "DocxFormat: 'text' must be a string, got "
-                    f"{type(text).__name__}"
-                )
+                raise TypeError(f"DocxFormat: 'text' must be a string, got {type(text).__name__}")
             style = record.get("style")
             if style is not None and not isinstance(style, str):
                 raise TypeError(
@@ -100,7 +93,6 @@ class DocxFormat(BatchFileFormat):
             import docx
         except ImportError as exc:
             raise ImportError(
-                "DocxFormat requires python-docx. Install with "
-                "`pip install pirn[docx]`."
+                "DocxFormat requires python-docx. Install with `pip install pirn[docx]`."
             ) from exc
         return docx

@@ -78,23 +78,15 @@ class NullRateMonitor(Knot):
             ValueError: When column_thresholds is empty.
         """
         if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError(
-                "NullRateMonitor: pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("NullRateMonitor: pool must be a DatabaseConnectionPool")
         if not isinstance(monitored_table, str) or not monitored_table:
-            raise ValueError(
-                "NullRateMonitor: monitored_table must be a non-empty string"
-            )
+            raise ValueError("NullRateMonitor: monitored_table must be a non-empty string")
         IdentifierValidator.validate_column("monitored_table", monitored_table)
         if not column_thresholds:
-            raise ValueError(
-                "NullRateMonitor: column_thresholds must be non-empty"
-            )
+            raise ValueError("NullRateMonitor: column_thresholds must be non-empty")
         for col in column_thresholds:
             IdentifierValidator.validate_column("column_thresholds key", col)
-        total_rows_result = await pool.fetch_all(
-            f"SELECT COUNT(*) FROM {monitored_table}"
-        )
+        total_rows_result = await pool.fetch_all(f"SELECT COUNT(*) FROM {monitored_table}")
         total_rows = total_rows_result[0][0]
         null_rates: dict[str, float] = {}
         violations: list[dict[str, Any]] = []
@@ -103,8 +95,7 @@ class NullRateMonitor(Knot):
                 null_rate = 0.0
             else:
                 null_count_result = await pool.fetch_all(
-                    f"SELECT COUNT(*) FROM {monitored_table} "
-                    f"WHERE {column} IS NULL"
+                    f"SELECT COUNT(*) FROM {monitored_table} WHERE {column} IS NULL"
                 )
                 null_count = null_count_result[0][0]
                 null_rate = null_count / total_rows

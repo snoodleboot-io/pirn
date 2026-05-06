@@ -20,9 +20,7 @@ from typing import ClassVar
 class IdentifierValidator:
     """Validate column / identifier names against a strict regex."""
 
-    _pattern: ClassVar[re.Pattern[str]] = re.compile(
-        r"^[A-Za-z_][A-Za-z0-9_]*$"
-    )
+    _pattern: ClassVar[re.Pattern[str]] = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
     @classmethod
     def validate_column(cls, label: str, name: str) -> None:
@@ -36,8 +34,7 @@ class IdentifierValidator:
             raise TypeError(f"{label}: must be a non-empty string")
         if not cls._pattern.match(name):
             raise ValueError(
-                f"{label}: {name!r} is not a plain identifier "
-                "([A-Za-z_][A-Za-z0-9_]*)"
+                f"{label}: {name!r} is not a plain identifier ([A-Za-z_][A-Za-z0-9_]*)"
             )
 
     @classmethod

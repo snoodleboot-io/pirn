@@ -51,9 +51,7 @@ class KafkaBroker(MessageBroker):
         headers: dict[str, bytes] | None = None,
     ) -> None:
         if not isinstance(value, (bytes, bytearray)):
-            raise TypeError(
-                f"KafkaBroker.publish: value must be bytes, got {type(value).__name__}"
-            )
+            raise TypeError(f"KafkaBroker.publish: value must be bytes, got {type(value).__name__}")
         if key is not None and not isinstance(key, (bytes, bytearray)):
             raise TypeError(
                 f"KafkaBroker.publish: key must be bytes or None, got {type(key).__name__}"
@@ -123,9 +121,7 @@ class KafkaBroker(MessageBroker):
         self._logger.debug("kafka.producer.start")
         return producer
 
-    async def _build_consumer(
-        self, topic: str, effective_group: str | None
-    ) -> Any:
+    async def _build_consumer(self, topic: str, effective_group: str | None) -> Any:
         try:
             from aiokafka import AIOKafkaConsumer
         except ImportError as exc:

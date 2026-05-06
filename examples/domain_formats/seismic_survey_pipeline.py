@@ -117,8 +117,7 @@ class SurveyResult:
         snr = f"{self.frequency.signal_to_noise:.1f} dB"
         rms = f"{self.amplitude.rms_amplitude:.3f}"
         hrz = "  ".join(
-            f"{h.name}@{h.two_way_time_ms:.0f}ms({h.confidence:.0%})"
-            for h in self.horizons
+            f"{h.name}@{h.two_way_time_ms:.0f}ms({h.confidence:.0%})" for h in self.horizons
         )
         return (
             f"[{self.survey_name}] {self.n_traces} traces\n"
@@ -153,8 +152,10 @@ def _synthetic_traces(
         values: list[float] = []
         for t in range(n_samples):
             dt = t - peak_t
-            ricker = amplitude * (1 - 2 * (math.pi * 30 * dt * 0.002) ** 2) * math.exp(
-                -(math.pi * 30 * dt * 0.002) ** 2
+            ricker = (
+                amplitude
+                * (1 - 2 * (math.pi * 30 * dt * 0.002) ** 2)
+                * math.exp(-((math.pi * 30 * dt * 0.002) ** 2))
             )
             noise = rng.gauss(0, 0.05 * amplitude)
             values.append(ricker + noise)
@@ -197,9 +198,7 @@ class TraceNormaliser(Knot):
     and offsets from the trace header dictionary.
     """
 
-    async def process(
-        self, traces: list[TraceRecord], **_: Any
-    ) -> NormalisedSurvey:
+    async def process(self, traces: list[TraceRecord], **_: Any) -> NormalisedSurvey:
         all_traces: list[list[float]] = []
         cdp_x: list[float] = []
         cdp_y: list[float] = []
@@ -276,9 +275,7 @@ class FrequencyAnalyser(Knot):
         bandwidth_hz = bw_bins * nyquist / (n // 2)
 
         noise_idx = len(power_spectrum) * 3 // 4
-        noise_floor = sum(power_spectrum[noise_idx:]) / max(
-            len(power_spectrum) - noise_idx, 1
-        )
+        noise_floor = sum(power_spectrum[noise_idx:]) / max(len(power_spectrum) - noise_idx, 1)
         snr_db = 20 * math.log10(max_power / noise_floor) if noise_floor > 0 else 0.0
         peak_db = 20 * math.log10(max_power) if max_power > 0 else 0.0
         floor_db = 20 * math.log10(noise_floor) if noise_floor > 0 else 0.0
@@ -335,8 +332,7 @@ class VelocityEstimator(Knot):
         v_deep = 3000.0
 
         intervals = [
-            (total_time_ms * 0.1, v_surface)
-            for total_time_ms in [total_time_s * 1000]
+            (total_time_ms * 0.1, v_surface) for total_time_ms in [total_time_s * 1000]
         ] + [
             (total_time_s * 1000 * 0.4, v_target),
             (total_time_s * 1000 * 0.5, v_deep),
@@ -366,7 +362,10 @@ class HorizonPicker(Knot):
     """
 
     _HORIZON_NAMES: ClassVar[list[str]] = [
-        "seafloor", "top-reservoir", "base-reservoir", "basement"
+        "seafloor",
+        "top-reservoir",
+        "base-reservoir",
+        "basement",
     ]
 
     async def process(self, survey: NormalisedSurvey, **_: Any) -> list[HorizonPick]:
@@ -375,8 +374,7 @@ class HorizonPicker(Knot):
 
         dt_ms = survey.sample_rate_us / 1000.0
         stack = [
-            sum(t[i] for t in survey.traces) / survey.n_traces
-            for i in range(survey.n_samples)
+            sum(t[i] for t in survey.traces) / survey.n_traces for i in range(survey.n_samples)
         ]
         abs_stack = [abs(v) for v in stack]
         threshold = max(abs_stack) * 0.3
@@ -388,15 +386,15 @@ class HorizonPicker(Knot):
                     peaks.append((i, abs_stack[i]))
 
         peaks.sort(key=lambda x: x[1], reverse=True)
-        peaks = peaks[:len(self._HORIZON_NAMES)]
+        peaks = peaks[: len(self._HORIZON_NAMES)]
         peaks.sort(key=lambda x: x[0])
 
         horizons: list[HorizonPick] = []
         for (idx, amp), name in zip(peaks, self._HORIZON_NAMES, strict=False):
             twt_ms = idx * dt_ms
-            consistency = sum(
-                1 for t in survey.traces if abs(t[idx]) > threshold * 0.5
-            ) / survey.n_traces
+            consistency = (
+                sum(1 for t in survey.traces if abs(t[idx]) > threshold * 0.5) / survey.n_traces
+            )
             horizons.append(
                 HorizonPick(
                     name=name,
@@ -438,9 +436,7 @@ class SurveyReport(Knot):
 def build_tapestry(history=None) -> Tapestry:
     with Tapestry(history=history) as t:
         survey_name = Parameter("survey_name", str, _config=KnotConfig(id="survey_name"))
-        raw_traces = Parameter(
-            "traces", list, _config=KnotConfig(id="raw_traces")
-        )
+        raw_traces = Parameter("traces", list, _config=KnotConfig(id="raw_traces"))
 
         loaded = TraceLoader(
             traces=raw_traces,

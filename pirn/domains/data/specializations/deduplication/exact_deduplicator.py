@@ -61,14 +61,10 @@ class ExactDeduplicator(Knot):
         key_tuple = tuple(key_columns)
         IdentifierValidator.validate_columns("key_columns", key_tuple)
         if not isinstance(tiebreaker_column, str) or not tiebreaker_column:
-            raise ValueError(
-                "ExactDeduplicator: tiebreaker_column must be a non-empty string"
-            )
+            raise ValueError("ExactDeduplicator: tiebreaker_column must be a non-empty string")
         IdentifierValidator.validate_column("tiebreaker_column", tiebreaker_column)
         if tiebreaker_direction not in ("asc", "desc"):
-            raise ValueError(
-                "ExactDeduplicator: tiebreaker_direction must be 'asc' or 'desc'"
-            )
+            raise ValueError("ExactDeduplicator: tiebreaker_direction must be 'asc' or 'desc'")
         reverse = tiebreaker_direction == "desc"
         sorted_rows = sorted(
             rows,

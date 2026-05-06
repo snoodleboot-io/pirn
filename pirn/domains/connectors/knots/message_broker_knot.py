@@ -13,6 +13,7 @@ Algorithm:
 References:
     - :class:`pirn.domains.connectors.message_broker.MessageBroker`
 """
+
 from __future__ import annotations
 
 from typing import Any

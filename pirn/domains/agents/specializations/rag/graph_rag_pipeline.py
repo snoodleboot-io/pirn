@@ -69,9 +69,18 @@ class GraphRAGPipeline(SubTapestry):
         hop_count: Knot | int = 2,
         **kwargs: Any,
     ) -> None:
-        super().__init__(query=query, graph_memory=graph_memory, llm=llm, hop_count=hop_count, _config=_config, **kwargs)
+        super().__init__(
+            query=query,
+            graph_memory=graph_memory,
+            llm=llm,
+            hop_count=hop_count,
+            _config=_config,
+            **kwargs,
+        )
 
-    async def process(self, query: str, graph_memory: MemoryStore, llm: LLMProvider, hop_count: int, **_: Any) -> AgentResponse:
+    async def process(
+        self, query: str, graph_memory: MemoryStore, llm: LLMProvider, hop_count: int, **_: Any
+    ) -> AgentResponse:
         """Retrieve graph entities, build a sub-graph context, and answer the query via the LLM.
 
         Args:

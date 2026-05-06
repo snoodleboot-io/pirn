@@ -42,53 +42,38 @@ class CsvFormat(StreamingFileFormat):
         encoding: str = "utf-8",
     ) -> None:
         if not isinstance(delimiter, str):
-            raise TypeError(
-                f"{type(self).__name__}: delimiter must be str"
-            )
+            raise TypeError(f"{type(self).__name__}: delimiter must be str")
         if len(delimiter) != 1:
             raise ValueError(
-                f"{type(self).__name__}: delimiter must be a single "
-                f"character, got {delimiter!r}"
+                f"{type(self).__name__}: delimiter must be a single character, got {delimiter!r}"
             )
         if not isinstance(quotechar, str):
-            raise TypeError(
-                f"{type(self).__name__}: quotechar must be str"
-            )
+            raise TypeError(f"{type(self).__name__}: quotechar must be str")
         if len(quotechar) != 1:
             raise ValueError(
-                f"{type(self).__name__}: quotechar must be a single "
-                f"character, got {quotechar!r}"
+                f"{type(self).__name__}: quotechar must be a single character, got {quotechar!r}"
             )
         if not isinstance(has_header, bool):
-            raise TypeError(
-                f"{type(self).__name__}: has_header must be bool"
-            )
+            raise TypeError(f"{type(self).__name__}: has_header must be bool")
         if column_names is not None:
             if isinstance(column_names, (str, bytes)):
                 raise TypeError(
-                    f"{type(self).__name__}: column_names must be a "
-                    "sequence of strings"
+                    f"{type(self).__name__}: column_names must be a sequence of strings"
                 )
             column_names = tuple(column_names)
             for name in column_names:
                 if not isinstance(name, str):
                     raise TypeError(
-                        f"{type(self).__name__}: every entry in "
-                        "column_names must be str"
+                        f"{type(self).__name__}: every entry in column_names must be str"
                     )
         if not has_header and column_names is None:
             raise ValueError(
-                f"{type(self).__name__}: column_names is required when "
-                "has_header=False"
+                f"{type(self).__name__}: column_names is required when has_header=False"
             )
         if not isinstance(encoding, str):
-            raise TypeError(
-                f"{type(self).__name__}: encoding must be str"
-            )
+            raise TypeError(f"{type(self).__name__}: encoding must be str")
         if not encoding:
-            raise ValueError(
-                f"{type(self).__name__}: encoding must be non-empty"
-            )
+            raise ValueError(f"{type(self).__name__}: encoding must be non-empty")
 
         self._delimiter = delimiter
         self._quotechar = quotechar
@@ -120,9 +105,7 @@ class CsvFormat(StreamingFileFormat):
     def encoding(self) -> str:
         return self._encoding
 
-    async def read(
-        self, body: AsyncIterator[bytes]
-    ) -> AsyncIterator[Mapping[str, Any]]:
+    async def read(self, body: AsyncIterator[bytes]) -> AsyncIterator[Mapping[str, Any]]:
         payload = await self._drain_bytes(body)
         text = payload.decode(self._encoding)
         delimiter = self._delimiter
@@ -143,9 +126,7 @@ class CsvFormat(StreamingFileFormat):
                 return
 
             if configured_columns is None:
-                raise RuntimeError(
-                    "CsvFormat: column_names missing in headerless mode"
-                )
+                raise RuntimeError("CsvFormat: column_names missing in headerless mode")
             row_reader = csv.reader(
                 text_buffer,
                 delimiter=delimiter,
@@ -156,9 +137,7 @@ class CsvFormat(StreamingFileFormat):
 
         return _iter()
 
-    async def write(
-        self, records: AsyncIterator[Mapping[str, Any]]
-    ) -> AsyncIterator[bytes]:
+    async def write(self, records: AsyncIterator[Mapping[str, Any]]) -> AsyncIterator[bytes]:
         materialised = await self._drain_records(records)
         if self._column_names is not None:
             fieldnames: list[str] = list(self._column_names)
@@ -178,9 +157,7 @@ class CsvFormat(StreamingFileFormat):
         if self._has_header and fieldnames:
             writer.writeheader()
         for record in materialised:
-            writer.writerow(
-                {field: record.get(field) for field in fieldnames}
-            )
+            writer.writerow({field: record.get(field) for field in fieldnames})
 
         payload = text_buffer.getvalue().encode(self._encoding)
 

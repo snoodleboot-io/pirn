@@ -542,8 +542,10 @@ async def main() -> None:
         )
 
     print(separator)
-    print(f"\nSummary: {report.n_models} evaluated · "
-          f"{len(report.promoted)} promoted · {len(report.rejected)} rejected\n")
+    print(
+        f"\nSummary: {report.n_models} evaluated · "
+        f"{len(report.promoted)} promoted · {len(report.rejected)} rejected\n"
+    )
 
     if report.promoted:
         print(f"Promoted to production : {', '.join(report.promoted)}")

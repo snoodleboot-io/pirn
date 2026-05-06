@@ -49,8 +49,11 @@ class EmbeddingIndexer(Knot):
         **kwargs: Any,
     ) -> None:
         super().__init__(
-            chunks=chunks, embedding_provider=embedding_provider, store=store,
-            _config=_config, **kwargs,
+            chunks=chunks,
+            embedding_provider=embedding_provider,
+            store=store,
+            _config=_config,
+            **kwargs,
         )
 
     async def process(
@@ -83,9 +86,7 @@ class EmbeddingIndexer(Knot):
             return 0
         chunk_list = list(chunks)
         vectors = await embedding_provider.embed(chunk_list)
-        for index, (chunk, vector) in enumerate(
-            zip(chunk_list, vectors, strict=True)
-        ):
+        for index, (chunk, vector) in enumerate(zip(chunk_list, vectors, strict=True)):
             await store.store(
                 f"chunk_{index}",
                 {"text": chunk, "embedding": vector},

@@ -70,9 +70,7 @@ class PHIRedactor(Knot):
             raise ValueError("PHIRedactor: salt must be non-empty")
 
         def _hash_id(value: str) -> str:
-            digest = hashlib.sha256(
-                f"{salt}|{value}".encode()
-            ).hexdigest()
+            digest = hashlib.sha256(f"{salt}|{value}".encode()).hexdigest()
             return digest[:16]
 
         return ClinicalRecord(

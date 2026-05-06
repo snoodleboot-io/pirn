@@ -58,10 +58,7 @@ class ToolResultFormatter(Knot):
                 f"got {type(tool_result).__name__}"
             )
         if tool_result.error is not None:
-            return (
-                f"Tool call '{tool_result.call_id}' failed with error: "
-                f"{tool_result.error}"
-            )
+            return f"Tool call '{tool_result.call_id}' failed with error: {tool_result.error}"
         result_repr = self._format_result(tool_result.result)
         return f"Tool call '{tool_result.call_id}' returned: {result_repr}"
 
@@ -71,6 +68,7 @@ class ToolResultFormatter(Knot):
             return result
         if isinstance(result, (dict, list)):
             import json
+
             try:
                 return json.dumps(result, indent=2)
             except (TypeError, ValueError):

@@ -75,18 +75,13 @@ class LakehouseTableSink(Sink):
         **_: Any,
     ) -> str:
         if not isinstance(table, LakehouseTable):
-            raise TypeError(
-                "LakehouseTableSink: table must be a LakehouseTable instance"
-            )
+            raise TypeError("LakehouseTableSink: table must be a LakehouseTable instance")
         if mode not in _ALLOWED_MODES:
             raise ValueError(
-                f"LakehouseTableSink: mode must be one of {list(_ALLOWED_MODES)}, "
-                f"got {mode!r}"
+                f"LakehouseTableSink: mode must be one of {list(_ALLOWED_MODES)}, got {mode!r}"
             )
         if mode == "merge" and not (merge_on and list(merge_on)):
-            raise ValueError(
-                "LakehouseTableSink: mode='merge' requires non-empty merge_on"
-            )
+            raise ValueError("LakehouseTableSink: mode='merge' requires non-empty merge_on")
 
         async def _records() -> AsyncIterator[Mapping[str, Any]]:
             for row in batch.rows:

@@ -55,17 +55,13 @@ class DuckdbDataBatch:
     relation: duckdb.DuckDBPyRelation
     connection: duckdb.DuckDBPyConnection
     source_uri: str = ""
-    fetched_at: datetime = field(
-        default_factory=lambda: datetime.now(UTC)
-    )
+    fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     @property
     def column_names(self) -> tuple[str, ...]:
         return tuple(self.relation.columns)
 
-    def with_relation(
-        self, relation: duckdb.DuckDBPyRelation
-    ) -> DuckdbDataBatch:
+    def with_relation(self, relation: duckdb.DuckDBPyRelation) -> DuckdbDataBatch:
         """Return a copy with ``relation`` replaced; everything else preserved."""
         return DuckdbDataBatch(
             relation=relation,

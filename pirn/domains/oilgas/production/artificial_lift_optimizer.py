@@ -72,8 +72,7 @@ class ArtificialLiftOptimizer(Knot):
         )
         if lift_type not in _valid_lift_types:
             raise ValueError(
-                f"ArtificialLiftOptimizer: lift_type must be one of "
-                f"{sorted(_valid_lift_types)}"
+                f"ArtificialLiftOptimizer: lift_type must be one of {sorted(_valid_lift_types)}"
             )
         return {
             "lift_type": lift_type,

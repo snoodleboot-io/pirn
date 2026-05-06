@@ -79,21 +79,13 @@ class SavitzkyGolayFilter(Knot):
             ValueError: If window_length or polynomial_order are invalid.
         """
         if not isinstance(window_length, int) or window_length <= 0:
-            raise ValueError(
-                "SavitzkyGolayFilter: window_length must be a positive integer"
-            )
+            raise ValueError("SavitzkyGolayFilter: window_length must be a positive integer")
         if window_length % 2 == 0:
-            raise ValueError(
-                "SavitzkyGolayFilter: window_length must be odd"
-            )
+            raise ValueError("SavitzkyGolayFilter: window_length must be odd")
         if not isinstance(polynomial_order, int) or polynomial_order < 0:
-            raise ValueError(
-                "SavitzkyGolayFilter: polynomial_order must be non-negative"
-            )
+            raise ValueError("SavitzkyGolayFilter: polynomial_order must be non-negative")
         if polynomial_order >= window_length:
-            raise ValueError(
-                "SavitzkyGolayFilter: polynomial_order must be < window_length"
-            )
+            raise ValueError("SavitzkyGolayFilter: polynomial_order must be < window_length")
         return SignalFrame(
             signal_id=f"{signal.signal_id}:savgol",
             channel_count=signal.channel_count,

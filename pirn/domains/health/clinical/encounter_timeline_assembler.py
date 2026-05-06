@@ -54,14 +54,10 @@ class EncounterTimelineAssembler(Knot):
             TypeError: If records is not a list/tuple or contains non-ClinicalRecord items.
         """
         if not isinstance(records, (list, tuple)):
-            raise TypeError(
-                "EncounterTimelineAssembler: records must be list/tuple"
-            )
+            raise TypeError("EncounterTimelineAssembler: records must be list/tuple")
         for record in records:
             if not isinstance(record, ClinicalRecord):
-                raise TypeError(
-                    "EncounterTimelineAssembler: every record must be a ClinicalRecord"
-                )
+                raise TypeError("EncounterTimelineAssembler: every record must be a ClinicalRecord")
         grouped: dict[str, list[ClinicalRecord]] = {}
         for record in records:
             grouped.setdefault(record.patient_id, []).append(record)

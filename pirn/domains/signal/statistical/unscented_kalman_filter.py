@@ -91,13 +91,9 @@ class UnscentedKalmanFilter(Knot):
             TypeError: If beta or kappa are not real numbers.
         """
         if not isinstance(state_dim, int) or state_dim <= 0:
-            raise ValueError(
-                "UnscentedKalmanFilter: state_dim must be a positive integer"
-            )
+            raise ValueError("UnscentedKalmanFilter: state_dim must be a positive integer")
         if not isinstance(observation_dim, int) or observation_dim <= 0:
-            raise ValueError(
-                "UnscentedKalmanFilter: observation_dim must be a positive integer"
-            )
+            raise ValueError("UnscentedKalmanFilter: observation_dim must be a positive integer")
         if not isinstance(alpha, (int, float)) or alpha <= 0:
             raise ValueError("UnscentedKalmanFilter: alpha must be positive")
         if not isinstance(beta, (int, float)):

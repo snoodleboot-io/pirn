@@ -94,19 +94,13 @@ class TextClassificationPipeline(SubTapestry):
             TypeError: If pool is not a DatabaseConnectionPool.
         """
         if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError(
-                "TextClassificationPipeline: pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("TextClassificationPipeline: pool must be a DatabaseConnectionPool")
         if not isinstance(query, str) or not query:
             raise ValueError("TextClassificationPipeline: query must be a non-empty string")
         if not isinstance(text_column, str) or not text_column:
-            raise ValueError(
-                "TextClassificationPipeline: text_column must be a non-empty string"
-            )
+            raise ValueError("TextClassificationPipeline: text_column must be a non-empty string")
         if not isinstance(target_column, str) or not target_column:
-            raise ValueError(
-                "TextClassificationPipeline: target_column must be a non-empty string"
-            )
+            raise ValueError("TextClassificationPipeline: target_column must be a non-empty string")
         if vectorizer not in self.valid_vectorizers:
             raise ValueError(
                 f"TextClassificationPipeline: vectorizer must be one of {sorted(self.valid_vectorizers)}"

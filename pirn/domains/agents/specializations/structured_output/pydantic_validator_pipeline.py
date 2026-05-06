@@ -90,8 +90,7 @@ class PydanticValidatorPipeline(SubTapestry):
         """
         if not isinstance(llm, LLMProvider):
             raise TypeError(
-                "PydanticValidatorPipeline: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
+                f"PydanticValidatorPipeline: llm must be an LLMProvider, got {type(llm).__name__}"
             )
         if not isinstance(model_class, type) or not issubclass(model_class, BaseModel):
             raise TypeError(
@@ -105,8 +104,7 @@ class PydanticValidatorPipeline(SubTapestry):
             )
         if not isinstance(prompt, str):
             raise TypeError(
-                "PydanticValidatorPipeline: prompt must be a string, "
-                f"got {type(prompt).__name__}"
+                f"PydanticValidatorPipeline: prompt must be a string, got {type(prompt).__name__}"
             )
         schema = self._derive_schema(model_class)
         prior_error = ""
@@ -123,9 +121,7 @@ class PydanticValidatorPipeline(SubTapestry):
             inner_result = await self._run_inner(inner)
             outcome = inner_result.outputs.get(f"extract_{attempt_index}")
             if not isinstance(outcome, dict):
-                prior_error = (
-                    str(outcome) if outcome is not None else "no output"
-                )
+                prior_error = str(outcome) if outcome is not None else "no output"
                 last_error = prior_error
                 continue
             try:

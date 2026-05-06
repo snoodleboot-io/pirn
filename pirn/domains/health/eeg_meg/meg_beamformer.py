@@ -75,9 +75,7 @@ class MEGBeamformer(Knot):
         if not isinstance(forward_model, dict):
             raise TypeError("MEGBeamformer: forward_model must be a dict")
         if not isinstance(regularization, (int, float)) or regularization < 0.0:
-            raise ValueError(
-                "MEGBeamformer: regularization must be >= 0.0"
-            )
+            raise ValueError("MEGBeamformer: regularization must be >= 0.0")
         if pick_ori not in frozenset({"max_power", "normal", "vector"}):
             raise ValueError(
                 "MEGBeamformer: pick_ori must be one of 'max_power', 'normal', 'vector'"

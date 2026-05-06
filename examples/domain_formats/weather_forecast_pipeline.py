@@ -237,9 +237,7 @@ class GribDecoder(Knot):
     and routes them into named groups.
     """
 
-    async def process(
-        self, records: list[GribRecord], **_: Any
-    ) -> dict[str, list[GribRecord]]:
+    async def process(self, records: list[GribRecord], **_: Any) -> dict[str, list[GribRecord]]:
         grouped: dict[str, list[GribRecord]] = {
             "temperature": [],
             "pressure": [],
@@ -263,16 +261,12 @@ class GribDecoder(Knot):
 class TemperatureProcessor(Knot):
     """Derives temperature statistics and lapse rate from multi-level fields."""
 
-    async def process(
-        self, grouped: dict[str, list[GribRecord]], **_: Any
-    ) -> TemperatureAnalysis:
+    async def process(self, grouped: dict[str, list[GribRecord]], **_: Any) -> TemperatureAnalysis:
         recs = grouped.get("temperature", [])
         if not recs:
             raise ValueError("TemperatureProcessor: no temperature records")
 
-        surface_rec = next(
-            (r for r in recs if r.short_name == "2t" or r.level <= 10), recs[0]
-        )
+        surface_rec = next((r for r in recs if r.short_name == "2t" or r.level <= 10), recs[0])
         surface_vals = _unpack_values(surface_rec.values)
         surface_k = sum(surface_vals) / len(surface_vals) if surface_vals else 273.15
         surface_c = surface_k - 273.15
@@ -303,9 +297,7 @@ class TemperatureProcessor(Knot):
 class PressureProcessor(Knot):
     """Classifies pressure systems and estimates tendency."""
 
-    async def process(
-        self, grouped: dict[str, list[GribRecord]], **_: Any
-    ) -> PressureAnalysis:
+    async def process(self, grouped: dict[str, list[GribRecord]], **_: Any) -> PressureAnalysis:
         recs = grouped.get("pressure", [])
         if not recs:
             raise ValueError("PressureProcessor: no pressure records")
@@ -337,16 +329,22 @@ class WindProcessor(Knot):
     """Derives mean speed, gust estimate, direction, and Beaufort scale."""
 
     _BEAUFORT: ClassVar[list[tuple[float, str]]] = [
-        (0.3, "Calm"), (1.6, "Light air"), (3.4, "Light breeze"),
-        (5.5, "Gentle breeze"), (8.0, "Moderate breeze"), (10.8, "Fresh breeze"),
-        (13.9, "Strong breeze"), (17.2, "Near gale"), (20.8, "Gale"),
-        (24.5, "Severe gale"), (28.5, "Storm"), (32.7, "Violent storm"),
+        (0.3, "Calm"),
+        (1.6, "Light air"),
+        (3.4, "Light breeze"),
+        (5.5, "Gentle breeze"),
+        (8.0, "Moderate breeze"),
+        (10.8, "Fresh breeze"),
+        (13.9, "Strong breeze"),
+        (17.2, "Near gale"),
+        (20.8, "Gale"),
+        (24.5, "Severe gale"),
+        (28.5, "Storm"),
+        (32.7, "Violent storm"),
         (float("inf"), "Hurricane"),
     ]
 
-    async def process(
-        self, grouped: dict[str, list[GribRecord]], **_: Any
-    ) -> WindAnalysis:
+    async def process(self, grouped: dict[str, list[GribRecord]], **_: Any) -> WindAnalysis:
         recs = grouped.get("wind", [])
         if not recs:
             raise ValueError("WindProcessor: no wind records")
@@ -358,7 +356,7 @@ class WindProcessor(Knot):
         v_vals = _unpack_values(v_rec.values) if v_rec else [0.0]
 
         n = min(len(u_vals), len(v_vals))
-        speeds = [math.sqrt(u_vals[i]**2 + v_vals[i]**2) for i in range(n)]
+        speeds = [math.sqrt(u_vals[i] ** 2 + v_vals[i] ** 2) for i in range(n)]
         mean_speed = sum(speeds) / len(speeds) if speeds else 0.0
         max_gust = max(speeds) * 1.5 if speeds else 0.0
 
@@ -482,9 +480,7 @@ class AlertChecker(Knot):
 def build_tapestry(history=None) -> Tapestry:
     with Tapestry(history=history) as t:
         region = Parameter("region", str, _config=KnotConfig(id="region"))
-        raw_records = Parameter(
-            "records", list, _config=KnotConfig(id="raw_records")
-        )
+        raw_records = Parameter("records", list, _config=KnotConfig(id="raw_records"))
 
         decoded = GribDecoder(
             records=raw_records,

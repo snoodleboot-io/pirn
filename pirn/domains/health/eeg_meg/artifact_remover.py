@@ -71,11 +71,7 @@ class ArtifactRemover(Knot):
         if not isinstance(n_components, int):
             raise TypeError("ArtifactRemover: n_components must be int")
         if n_components <= 0:
-            raise ValueError(
-                "ArtifactRemover: n_components must be positive"
-            )
+            raise ValueError("ArtifactRemover: n_components must be positive")
         if method not in ("infomax", "fastica", "picard"):
-            raise ValueError(
-                "ArtifactRemover: method must be one of infomax/fastica/picard"
-            )
+            raise ValueError("ArtifactRemover: method must be one of infomax/fastica/picard")
         return signal

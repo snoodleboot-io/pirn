@@ -92,8 +92,7 @@ class _QARetrieveAndAnswer(Knot):
         """
         if not isinstance(question, str) or not question:
             raise TypeError(
-                "DocumentQAPipeline: question must be a non-empty string, "
-                f"got {question!r}"
+                f"DocumentQAPipeline: question must be a non-empty string, got {question!r}"
             )
         if not chunks:
             return AgentResponse(
@@ -102,9 +101,7 @@ class _QARetrieveAndAnswer(Knot):
             )
         embeddings = await embedder.embed([question, *chunks])
         if len(embeddings) != len(chunks) + 1:
-            raise RuntimeError(
-                "DocumentQAPipeline: embedder returned wrong vector count"
-            )
+            raise RuntimeError("DocumentQAPipeline: embedder returned wrong vector count")
         question_vec = embeddings[0]
         chunk_vecs = embeddings[1:]
         scored = [
@@ -113,9 +110,7 @@ class _QARetrieveAndAnswer(Knot):
         ]
         scored.sort(key=lambda pair: pair[0], reverse=True)
         top = [chunk for _, chunk in scored[:top_k]]
-        context = "\n\n".join(
-            f"[chunk {i + 1}] {chunk}" for i, chunk in enumerate(top)
-        )
+        context = "\n\n".join(f"[chunk {i + 1}] {chunk}" for i, chunk in enumerate(top))
         chat_messages = [
             {
                 "role": "system",
@@ -126,9 +121,7 @@ class _QARetrieveAndAnswer(Knot):
             },
             {
                 "role": "user",
-                "content": (
-                    f"Document excerpts:\n{context}\n\nQuestion: {question}"
-                ),
+                "content": (f"Document excerpts:\n{context}\n\nQuestion: {question}"),
             },
         ]
         raw = await llm.chat(chat_messages)

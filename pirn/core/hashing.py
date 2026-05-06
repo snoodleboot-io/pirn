@@ -114,9 +114,8 @@ def _canonicalise(value: Any) -> Any:
     # custom core schema. Excludes containers so the dedicated branches
     # below remain authoritative. ``TypeAdapter`` instances are cached
     # per concrete type to amortise schema-construction cost.
-    if (
-        not isinstance(value, (list, tuple, dict, set, frozenset))
-        and hasattr(type(value), "__get_pydantic_core_schema__")
+    if not isinstance(value, (list, tuple, dict, set, frozenset)) and hasattr(
+        type(value), "__get_pydantic_core_schema__"
     ):
         value_type = type(value)
         try:

@@ -44,9 +44,7 @@ class RAGPromptBuilder(Knot):
         query: Knot | str,
         retrieved: Knot,
         _config: KnotConfig,
-        instruction: Knot | str = (
-            "Answer the question using the retrieved context."
-        ),
+        instruction: Knot | str = ("Answer the question using the retrieved context."),
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -79,14 +77,9 @@ class RAGPromptBuilder(Knot):
             ValueError: If instruction is empty.
         """
         if not isinstance(instruction, str) or not instruction:
-            raise ValueError(
-                "RAGPromptBuilder: instruction must be a non-empty string"
-            )
+            raise ValueError("RAGPromptBuilder: instruction must be a non-empty string")
         if not isinstance(query, str):
-            raise TypeError(
-                "RAGPromptBuilder: query must be a string, "
-                f"got {type(query).__name__}"
-            )
+            raise TypeError(f"RAGPromptBuilder: query must be a string, got {type(query).__name__}")
         rendered_hits: list[str] = []
         for index, hit in enumerate(retrieved):
             if not isinstance(hit, Mapping):
@@ -100,10 +93,4 @@ class RAGPromptBuilder(Knot):
             context_block = "\n".join(rendered_hits)
         else:
             context_block = "(no context retrieved)"
-        return (
-            f"{instruction}\n\n"
-            "Context:\n"
-            f"{context_block}\n\n"
-            f"Question: {query}\n"
-            "Answer:"
-        )
+        return f"{instruction}\n\nContext:\n{context_block}\n\nQuestion: {query}\nAnswer:"

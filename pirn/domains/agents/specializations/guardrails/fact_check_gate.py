@@ -96,8 +96,5 @@ class FactCheckGate(SubTapestry):
         inner_result = await self._run_inner(inner)
         verified = inner_result.outputs.get("verify")
         if not isinstance(verified, AgentResponse):
-            raise RuntimeError(
-                "FactCheckGate: inner verifier did not return an "
-                "AgentResponse"
-            )
+            raise RuntimeError("FactCheckGate: inner verifier did not return an AgentResponse")
         return verified

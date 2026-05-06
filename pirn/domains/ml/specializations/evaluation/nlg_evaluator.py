@@ -81,9 +81,7 @@ class NLGEvaluator(Knot):
             result[metric] = self._metric_value(model, split, metric)
         return result
 
-    def _metric_value(
-        self, model: TrainedModel, split: DataSplit, metric: str
-    ) -> float:
+    def _metric_value(self, model: TrainedModel, split: DataSplit, metric: str) -> float:
         payload = json.dumps(
             {
                 "model_id": model.model_id,

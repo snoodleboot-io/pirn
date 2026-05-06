@@ -38,9 +38,7 @@ class GasOilRatioCalculator(Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        super().__init__(
-            oil_rate=oil_rate, gas_rate=gas_rate, _config=_config, **kwargs
-        )
+        super().__init__(oil_rate=oil_rate, gas_rate=gas_rate, _config=_config, **kwargs)
 
     async def process(
         self,

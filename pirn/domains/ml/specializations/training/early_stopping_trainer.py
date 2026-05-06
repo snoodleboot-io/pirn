@@ -99,9 +99,7 @@ class EarlyStoppingTrainer(SubTapestry):
         if not isinstance(algorithm, str) or not algorithm:
             raise ValueError("EarlyStoppingTrainer: algorithm must be a non-empty string")
         if not isinstance(monitor_metric, str) or not monitor_metric:
-            raise ValueError(
-                "EarlyStoppingTrainer: monitor_metric must be a non-empty string"
-            )
+            raise ValueError("EarlyStoppingTrainer: monitor_metric must be a non-empty string")
         if not isinstance(patience, int):
             raise TypeError("EarlyStoppingTrainer: patience must be an int")
         if patience < 1:
@@ -133,13 +131,9 @@ class EarlyStoppingTrainer(SubTapestry):
         trained_model = result.outputs["train"]
         report = result.outputs["evaluate"]
         if not isinstance(trained_model, TrainedModel):
-            raise TypeError(
-                "EarlyStoppingTrainer: trainer did not return a TrainedModel"
-            )
+            raise TypeError("EarlyStoppingTrainer: trainer did not return a TrainedModel")
         if not isinstance(report, EvalReport):
-            raise TypeError(
-                "EarlyStoppingTrainer: evaluator did not return an EvalReport"
-            )
+            raise TypeError("EarlyStoppingTrainer: evaluator did not return an EvalReport")
         return {
             "model": trained_model,
             "eval_report": report,

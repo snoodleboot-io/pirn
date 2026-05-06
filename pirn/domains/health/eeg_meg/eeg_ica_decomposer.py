@@ -74,17 +74,13 @@ class EEGICADecomposer(Knot):
         if not isinstance(eeg_data, dict):
             raise TypeError("EEGICADecomposer: eeg_data must be a dict")
         if not isinstance(n_components, int) or n_components <= 0:
-            raise ValueError(
-                "EEGICADecomposer: n_components must be a positive integer"
-            )
+            raise ValueError("EEGICADecomposer: n_components must be a positive integer")
         if algorithm not in self._VALID_ALGORITHMS:
             raise ValueError(
                 "EEGICADecomposer: algorithm must be one of 'fastica', 'infomax', 'picard'"
             )
         if not isinstance(max_iter, int) or max_iter <= 0:
-            raise ValueError(
-                "EEGICADecomposer: max_iter must be a positive integer"
-            )
+            raise ValueError("EEGICADecomposer: max_iter must be a positive integer")
         n = n_components
         return {
             "n_components": n,

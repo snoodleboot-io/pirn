@@ -77,28 +77,18 @@ class CoherenceAnalyzer(Knot):
         if not isinstance(signal, SignalFrame):
             raise TypeError("CoherenceAnalyzer: signal must be a SignalFrame")
         if not isinstance(channel_pairs, (list, tuple)):
-            raise TypeError(
-                "CoherenceAnalyzer: channel_pairs must be list/tuple"
-            )
+            raise TypeError("CoherenceAnalyzer: channel_pairs must be list/tuple")
         for pair in channel_pairs:
             if (
                 not isinstance(pair, tuple)
                 or len(pair) != 2
                 or not all(isinstance(p, str) for p in pair)
             ):
-                raise TypeError(
-                    "CoherenceAnalyzer: every channel pair must be (str, str)"
-                )
+                raise TypeError("CoherenceAnalyzer: every channel pair must be (str, str)")
         if not isinstance(band_low_hz, (int, float)) or band_low_hz <= 0:
-            raise ValueError(
-                "CoherenceAnalyzer: band_low_hz must be a positive number"
-            )
+            raise ValueError("CoherenceAnalyzer: band_low_hz must be a positive number")
         if not isinstance(band_high_hz, (int, float)) or band_high_hz <= 0:
-            raise ValueError(
-                "CoherenceAnalyzer: band_high_hz must be a positive number"
-            )
+            raise ValueError("CoherenceAnalyzer: band_high_hz must be a positive number")
         if float(band_low_hz) >= float(band_high_hz):
-            raise ValueError(
-                "CoherenceAnalyzer: band_low_hz must be < band_high_hz"
-            )
+            raise ValueError("CoherenceAnalyzer: band_low_hz must be < band_high_hz")
         return {pair: 0.0 for pair in channel_pairs}

@@ -130,21 +130,15 @@ class ScdType3PreviousValue(Knot):
         **_: Any,
     ) -> dict[str, Any]:
         if not isinstance(source_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "ScdType3PreviousValue: source_pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("ScdType3PreviousValue: source_pool must be a DatabaseConnectionPool")
         if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "ScdType3PreviousValue: target_pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("ScdType3PreviousValue: target_pool must be a DatabaseConnectionPool")
         if not isinstance(source_query, str) or not source_query:
             raise ValueError("ScdType3PreviousValue: source_query must be a non-empty string")
         if not isinstance(target_table, str) or not target_table:
             raise ValueError("ScdType3PreviousValue: target_table must be a non-empty string")
         if not isinstance(previous_suffix, str) or not previous_suffix:
-            raise ValueError(
-                "ScdType3PreviousValue: previous_suffix must be a non-empty string"
-            )
+            raise ValueError("ScdType3PreviousValue: previous_suffix must be a non-empty string")
         IdentifierValidator.validate_column("target_table", target_table)
         key_tuple = tuple(key_columns)
         tracked_tuple = tuple(tracked_columns)

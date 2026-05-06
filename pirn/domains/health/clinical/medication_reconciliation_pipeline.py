@@ -69,13 +69,9 @@ class MedicationReconciliationPipeline(SubTapestry):
             TypeError: If drug_names is not a list/tuple or mapping is not a Mapping.
         """
         if not isinstance(drug_names, (list, tuple)):
-            raise TypeError(
-                "MedicationReconciliationPipeline: drug_names must be list/tuple"
-            )
+            raise TypeError("MedicationReconciliationPipeline: drug_names must be list/tuple")
         if not isinstance(mapping, Mapping):
-            raise TypeError(
-                "MedicationReconciliationPipeline: mapping must be a Mapping"
-            )
+            raise TypeError("MedicationReconciliationPipeline: mapping must be a Mapping")
         with Tapestry() as inner:
             normalised = RxNormNormalizer(
                 drug_names=tuple(drug_names),

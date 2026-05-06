@@ -95,22 +95,16 @@ class DimensionalityReductionPipeline(SubTapestry):
                 "DimensionalityReductionPipeline: pool must be a DatabaseConnectionPool"
             )
         if not isinstance(query, str) or not query:
-            raise ValueError(
-                "DimensionalityReductionPipeline: query must be a non-empty string"
-            )
+            raise ValueError("DimensionalityReductionPipeline: query must be a non-empty string")
         feature_tuple = tuple(feature_names)
         if not feature_tuple:
-            raise ValueError(
-                "DimensionalityReductionPipeline: feature_names must be non-empty"
-            )
+            raise ValueError("DimensionalityReductionPipeline: feature_names must be non-empty")
         if algorithm not in self.valid_algorithms:
             raise ValueError(
                 f"DimensionalityReductionPipeline: algorithm must be one of {sorted(self.valid_algorithms)}"
             )
         if not isinstance(n_components, int) or n_components < 1:
-            raise ValueError(
-                "DimensionalityReductionPipeline: n_components must be an int >= 1"
-            )
+            raise ValueError("DimensionalityReductionPipeline: n_components must be an int >= 1")
         with Tapestry() as inner:
             dataset = DatasetLoader(
                 name="dim-reduction",

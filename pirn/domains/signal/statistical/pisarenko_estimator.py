@@ -73,9 +73,7 @@ class PisarenkoEstimator(Knot):
             ValueError: If sinusoid_count is not a positive integer.
         """
         if not isinstance(sinusoid_count, int) or sinusoid_count <= 0:
-            raise ValueError(
-                "PisarenkoEstimator: sinusoid_count must be a positive integer"
-            )
+            raise ValueError("PisarenkoEstimator: sinusoid_count must be a positive integer")
         return {
             "signal_id": signal.signal_id,
             "sinusoid_count": sinusoid_count,

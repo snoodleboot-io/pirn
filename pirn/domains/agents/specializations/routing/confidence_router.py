@@ -58,14 +58,10 @@ class ConfidenceRouter(Knot):
             TypeError: If score or threshold is not numeric.
         """
         if not isinstance(score, (int, float)):
-            raise TypeError(
-                "ConfidenceRouter: score must be a float, "
-                f"got {type(score).__name__}"
-            )
+            raise TypeError(f"ConfidenceRouter: score must be a float, got {type(score).__name__}")
         if not isinstance(threshold, (int, float)):
             raise TypeError(
-                "ConfidenceRouter: threshold must be a float, "
-                f"got {type(threshold).__name__}"
+                f"ConfidenceRouter: threshold must be a float, got {type(threshold).__name__}"
             )
         if float(score) >= float(threshold):
             return "primary"

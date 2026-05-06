@@ -24,9 +24,7 @@ class MLDataset(PirnOpaqueValue):
     target_name: str | None = None
     row_count: int = 0
     source_uri: str = ""
-    fetched_at: datetime = field(
-        default_factory=lambda: datetime.now(UTC)
-    )
+    fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
         """Flatten to a primitive dict for pydantic serialisation."""

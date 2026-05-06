@@ -138,7 +138,9 @@ class PagerDutyClient(ApiClient):
     ) -> Any:
         """Generic escape hatch — authenticated httpx call to the REST API."""
         client = await self._ensure_client()
-        base_url = self._config.base_url if self._config is not None else "https://api.pagerduty.com"
+        base_url = (
+            self._config.base_url if self._config is not None else "https://api.pagerduty.com"
+        )
         url = f"{base_url}{path}"
         api_key = self._api_key()
         merged_headers: dict[str, str] = {

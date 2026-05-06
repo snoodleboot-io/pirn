@@ -70,18 +70,13 @@ class MemorySearchRetriever(Knot):
         """
         if not isinstance(store, MemoryStore):
             raise TypeError(
-                "MemorySearchRetriever: store must be a MemoryStore, "
-                f"got {type(store).__name__}"
+                f"MemorySearchRetriever: store must be a MemoryStore, got {type(store).__name__}"
             )
         if not isinstance(top_k, int) or top_k <= 0:
-            raise ValueError(
-                "MemorySearchRetriever: top_k must be a positive int, "
-                f"got {top_k!r}"
-            )
+            raise ValueError(f"MemorySearchRetriever: top_k must be a positive int, got {top_k!r}")
         if not isinstance(query, str):
             raise TypeError(
-                "MemorySearchRetriever: query must be a string, "
-                f"got {type(query).__name__}"
+                f"MemorySearchRetriever: query must be a string, got {type(query).__name__}"
             )
         candidate = store.search(query, top_k=top_k)
         if hasattr(candidate, "__await__"):

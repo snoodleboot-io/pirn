@@ -55,9 +55,7 @@ class FhirJsonFormat(BatchFileFormat):
     def name(self) -> str:
         return "fhir_json"
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         self._load_fhir()
         raw = json.loads(payload.decode("utf-8"))
         records: list[dict[str, Any]] = []
@@ -69,9 +67,7 @@ class FhirJsonFormat(BatchFileFormat):
             records.append(self._resource_to_record(raw))
         return records
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         self._load_fhir()
         materialised = [dict(r) for r in records]
         entries = []
@@ -95,19 +91,11 @@ class FhirJsonFormat(BatchFileFormat):
         resource_type = resource.get("resourceType", "")
         resource_id = resource.get("id")
         status = resource.get("status")
-        data = {
-            k: v
-            for k, v in resource.items()
-            if k not in cls._phi_keywords
-        }
+        data = {k: v for k, v in resource.items() if k not in cls._phi_keywords}
         identifier_raw = resource.get("identifier")
         if identifier_raw is not None:
-            identifier_str = json.dumps(
-                identifier_raw, sort_keys=True, default=str
-            )
-            data["identifier_hash"] = hashlib.sha256(
-                identifier_str.encode("utf-8")
-            ).hexdigest()
+            identifier_str = json.dumps(identifier_raw, sort_keys=True, default=str)
+            data["identifier_hash"] = hashlib.sha256(identifier_str.encode("utf-8")).hexdigest()
         return {
             "resource_type": resource_type,
             "resource_id": resource_id,
@@ -121,7 +109,6 @@ class FhirJsonFormat(BatchFileFormat):
             import fhir.resources
         except ImportError as exc:
             raise ImportError(
-                "FhirJsonFormat requires fhir.resources. Install with "
-                "`pip install pirn[health]`."
+                "FhirJsonFormat requires fhir.resources. Install with `pip install pirn[health]`."
             ) from exc
         return fhir.resources

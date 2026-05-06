@@ -59,9 +59,7 @@ class _SQLExecutor(Knot):
             ValueError: If sql is empty.
         """
         if not isinstance(sql, str) or not sql:
-            raise ValueError(
-                "SQLAgent: generator returned empty SQL"
-            )
+            raise ValueError("SQLAgent: generator returned empty SQL")
         # Defends against prompt-injected dynamic SQL and accidental
         # ``str.format`` interpolation in the generated query.
         pool._reject_inline_interpolation(sql)

@@ -79,16 +79,10 @@ class Trainer(Knot):
             TypeError: If hyperparameters is not a Mapping when provided.
         """
         if not isinstance(algorithm, str) or not algorithm:
-            raise ValueError(
-                "Trainer: algorithm must be a non-empty string"
-            )
+            raise ValueError("Trainer: algorithm must be a non-empty string")
         if hyperparameters is not None and not isinstance(hyperparameters, Mapping):
-            raise TypeError(
-                "Trainer: hyperparameters must be a Mapping[str, Any]"
-            )
-        frozen_hp = MappingProxyType(
-            dict(hyperparameters) if hyperparameters is not None else {}
-        )
+            raise TypeError("Trainer: hyperparameters must be a Mapping[str, Any]")
+        frozen_hp = MappingProxyType(dict(hyperparameters) if hyperparameters is not None else {})
         model_id = self._derive_model_id(split, algorithm, frozen_hp)
         return TrainedModel(
             model_id=model_id,

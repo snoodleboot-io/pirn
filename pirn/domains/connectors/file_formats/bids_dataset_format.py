@@ -45,13 +45,9 @@ class BidsDatasetFormat(BatchFileFormat):
     def name(self) -> str:
         return "bids_dataset"
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         if not zipfile.is_zipfile(io.BytesIO(payload)):
-            raise ValueError(
-                "BidsDatasetFormat: payload is not a valid zip file."
-            )
+            raise ValueError("BidsDatasetFormat: payload is not a valid zip file.")
         records: list[Mapping[str, Any]] = []
         with zipfile.ZipFile(io.BytesIO(payload), "r") as zf:
             for info in zf.infolist():
@@ -68,9 +64,7 @@ class BidsDatasetFormat(BatchFileFormat):
         self._validate_bids_if_available(records)
         return records
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
             for record in records:
@@ -79,8 +73,7 @@ class BidsDatasetFormat(BatchFileFormat):
                 content = record["content"]
                 if not isinstance(content, (bytes, bytearray)):
                     raise TypeError(
-                        "BidsDatasetFormat: 'content' must be bytes, got "
-                        f"{type(content).__name__}"
+                        f"BidsDatasetFormat: 'content' must be bytes, got {type(content).__name__}"
                     )
                 zf.writestr(path, bytes(content))
         return buf.getvalue()
@@ -89,23 +82,16 @@ class BidsDatasetFormat(BatchFileFormat):
     def _validate_member_path(name: str) -> None:
         """Raise ValueError if *name* is unsafe (path traversal / absolute)."""
         if not name:
-            raise ValueError(
-                "BidsDatasetFormat: member path must be non-empty"
-            )
+            raise ValueError("BidsDatasetFormat: member path must be non-empty")
         if "\x00" in name:
-            raise ValueError(
-                f"BidsDatasetFormat: member path contains NUL byte: {name!r}"
-            )
+            raise ValueError(f"BidsDatasetFormat: member path contains NUL byte: {name!r}")
         import os.path as _osp
+
         if _osp.isabs(name):
-            raise ValueError(
-                f"BidsDatasetFormat: member path must be relative, got {name!r}"
-            )
+            raise ValueError(f"BidsDatasetFormat: member path must be relative, got {name!r}")
         parts = name.replace("\\", "/").split("/")
         if ".." in parts:
-            raise ValueError(
-                f"BidsDatasetFormat: member path contains '..' component: {name!r}"
-            )
+            raise ValueError(f"BidsDatasetFormat: member path contains '..' component: {name!r}")
 
     @staticmethod
     def _validate_bids_if_available(
@@ -133,9 +119,9 @@ class BidsDatasetFormat(BatchFileFormat):
                 pass
             except Exception as exc:
                 import warnings
+
                 warnings.warn(
-                    f"BidsDatasetFormat: BIDS layout validation raised an "
-                    f"unexpected error: {exc}",
+                    f"BidsDatasetFormat: BIDS layout validation raised an unexpected error: {exc}",
                     RuntimeWarning,
                     stacklevel=4,
                 )

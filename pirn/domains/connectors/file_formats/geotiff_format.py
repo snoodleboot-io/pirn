@@ -41,19 +41,13 @@ class GeotiffFormat(BatchFileFormat):
     def name(self) -> str:
         return "geotiff"
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         rasterio = self._load_rasterio()
         path = self._materialise_payload(payload)
         try:
             with rasterio.open(path) as dataset:
-                transform_mapping = self._transform_to_mapping(
-                    dataset.transform
-                )
-                crs_repr = (
-                    str(dataset.crs) if dataset.crs is not None else ""
-                )
+                transform_mapping = self._transform_to_mapping(dataset.transform)
+                crs_repr = str(dataset.crs) if dataset.crs is not None else ""
                 width = int(dataset.width)
                 height = int(dataset.height)
                 records: list[Mapping[str, Any]] = []
@@ -77,9 +71,7 @@ class GeotiffFormat(BatchFileFormat):
             except OSError:
                 pass
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         rasterio = self._load_rasterio()
         numpy = self._load_numpy()
         materialised: list[Mapping[str, Any]] = list(records)
@@ -97,9 +89,7 @@ class GeotiffFormat(BatchFileFormat):
                 "GeotiffFormat: width and height must be positive, "
                 f"got width={width} height={height}"
             )
-        transform = self._transform_from_mapping(
-            rasterio, first_record.get("transform")
-        )
+        transform = self._transform_from_mapping(rasterio, first_record.get("transform"))
         crs_value = first_record.get("crs") or ""
         dtype = first_record.get("dtype", "float64")
         path = self._reserve_path()
@@ -117,9 +107,7 @@ class GeotiffFormat(BatchFileFormat):
             with rasterio.open(path, "w", **profile) as dataset:
                 for index, record in enumerate(materialised, start=1):
                     self._validate_record(record)
-                    band_data = numpy.asarray(
-                        record["data"], dtype=dtype
-                    ).reshape(height, width)
+                    band_data = numpy.asarray(record["data"], dtype=dtype).reshape(height, width)
                     dataset.write(band_data, index)
             with open(path, "rb") as handle:
                 return handle.read()
@@ -154,22 +142,18 @@ class GeotiffFormat(BatchFileFormat):
         coefficients = list(transform)
         keys = ("a", "b", "c", "d", "e", "f")
         return {
-            key: float(coefficients[index])
-            for index, key in enumerate(keys[: len(coefficients)])
+            key: float(coefficients[index]) for index, key in enumerate(keys[: len(coefficients)])
         }
 
     @staticmethod
-    def _transform_from_mapping(
-        rasterio: Any, mapping: Any
-    ) -> Any:
+    def _transform_from_mapping(rasterio: Any, mapping: Any) -> Any:
         from rasterio.transform import Affine
 
         if mapping is None:
             return Affine.identity()
         if not isinstance(mapping, Mapping):
             raise TypeError(
-                "GeotiffFormat: transform must be a Mapping, got "
-                f"{type(mapping).__name__}"
+                f"GeotiffFormat: transform must be a Mapping, got {type(mapping).__name__}"
             )
         keys = ("a", "b", "c", "d", "e", "f")
         try:
@@ -185,10 +169,7 @@ class GeotiffFormat(BatchFileFormat):
     def _validate_record(record: Mapping[str, Any]) -> None:
         for required in ("data", "width", "height"):
             if required not in record:
-                raise ValueError(
-                    "GeotiffFormat: record missing required field "
-                    f"{required!r}"
-                )
+                raise ValueError(f"GeotiffFormat: record missing required field {required!r}")
         data = record["data"]
         if not isinstance(data, (list, tuple)):
             raise TypeError(
@@ -202,8 +183,7 @@ class GeotiffFormat(BatchFileFormat):
             import rasterio
         except ImportError as exc:
             raise ImportError(
-                "GeotiffFormat requires rasterio. Install with "
-                "`pip install pirn[geotiff]`."
+                "GeotiffFormat requires rasterio. Install with `pip install pirn[geotiff]`."
             ) from exc
         return rasterio
 

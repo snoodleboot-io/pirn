@@ -62,16 +62,10 @@ class SnomedCTNormalizer(Knot):
             TypeError: If codes is not a list/tuple of strings or mapping is not a Mapping.
         """
         if not isinstance(codes, (list, tuple)):
-            raise TypeError(
-                "SnomedCTNormalizer: codes must be a list or tuple"
-            )
+            raise TypeError("SnomedCTNormalizer: codes must be a list or tuple")
         if not isinstance(mapping, Mapping):
-            raise TypeError(
-                "SnomedCTNormalizer: mapping must be a Mapping"
-            )
+            raise TypeError("SnomedCTNormalizer: mapping must be a Mapping")
         for code in codes:
             if not isinstance(code, str):
-                raise TypeError(
-                    "SnomedCTNormalizer: every code must be a string"
-                )
+                raise TypeError("SnomedCTNormalizer: every code must be a string")
         return tuple(mapping.get(code, "") for code in codes)

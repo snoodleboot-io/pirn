@@ -74,18 +74,14 @@ class EnvironmentalCorrectionApplicator(Knot):
             List of dicts with ``depth_ft``, ``raw_value``, and ``corrected_value``.
         """
         if not isinstance(correction_table, dict):
-            raise TypeError(
-                "EnvironmentalCorrectionApplicator: correction_table must be a dict"
-            )
+            raise TypeError("EnvironmentalCorrectionApplicator: correction_table must be a dict")
         _valid_log_types = frozenset({"gamma_ray", "resistivity", "neutron", "density", "sonic"})
         if log_type not in _valid_log_types:
             raise ValueError(
                 f"EnvironmentalCorrectionApplicator: log_type must be one of "
                 f"{sorted(_valid_log_types)}"
             )
-        correction_factor: float = float(
-            correction_table.get("correction_factor", 1.0)
-        )
+        correction_factor: float = float(correction_table.get("correction_factor", 1.0))
         return [
             {
                 **entry,

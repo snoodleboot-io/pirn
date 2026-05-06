@@ -98,17 +98,13 @@ class PolarsJoin(Knot):
         """
         allowed_how = ("inner", "left", "right", "full", "semi", "anti", "cross")
         if how not in allowed_how:
-            raise ValueError(
-                f"PolarsJoin: how must be one of {list(allowed_how)}, got {how!r}"
-            )
+            raise ValueError(f"PolarsJoin: how must be one of {list(allowed_how)}, got {how!r}")
         on_coerced = self._coerce_keys("on", on)
         left_on_coerced = self._coerce_keys("left_on", left_on)
         right_on_coerced = self._coerce_keys("right_on", right_on)
         if how == "cross":
             if on is not None or left_on is not None or right_on is not None:
-                raise TypeError(
-                    "PolarsJoin: cross join takes no on/left_on/right_on"
-                )
+                raise TypeError("PolarsJoin: cross join takes no on/left_on/right_on")
         else:
             self._validate_keys(on, left_on, right_on)
         join_kwargs: dict[str, Any] = {"how": how, "suffix": suffix}
@@ -133,9 +129,7 @@ class PolarsJoin(Knot):
         right_on: Any,
     ) -> None:
         if on is not None and (left_on is not None or right_on is not None):
-            raise TypeError(
-                "PolarsJoin: pass either on= or left_on/right_on, not both"
-            )
+            raise TypeError("PolarsJoin: pass either on= or left_on/right_on, not both")
         if on is None and (left_on is None or right_on is None):
             raise TypeError(
                 "PolarsJoin: provide on= for matching columns, or both "

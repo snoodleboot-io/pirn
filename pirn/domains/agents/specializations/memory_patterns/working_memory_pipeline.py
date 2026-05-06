@@ -84,18 +84,15 @@ class WorkingMemoryPipeline(SubTapestry):
         """
         if not isinstance(store, MemoryStore):
             raise TypeError(
-                "WorkingMemoryPipeline: store must be a MemoryStore, "
-                f"got {type(store).__name__}"
+                f"WorkingMemoryPipeline: store must be a MemoryStore, got {type(store).__name__}"
             )
         if not isinstance(session_id, str) or not session_id:
             raise ValueError(
-                "WorkingMemoryPipeline: session_id must be a non-empty "
-                f"string, got {session_id!r}"
+                f"WorkingMemoryPipeline: session_id must be a non-empty string, got {session_id!r}"
             )
         if not isinstance(max_size, int) or max_size <= 0:
             raise ValueError(
-                "WorkingMemoryPipeline: max_size must be a positive int, "
-                f"got {max_size!r}"
+                f"WorkingMemoryPipeline: max_size must be a positive int, got {max_size!r}"
             )
         with Tapestry() as inner:
             WorkingMemoryWindowWriter(
@@ -108,7 +105,5 @@ class WorkingMemoryPipeline(SubTapestry):
         inner_result = await self._run_inner(inner)
         window = inner_result.outputs.get("window")
         if not isinstance(window, tuple):
-            raise RuntimeError(
-                "WorkingMemoryPipeline: inner writer did not return a tuple"
-            )
+            raise RuntimeError("WorkingMemoryPipeline: inner writer did not return a tuple")
         return window

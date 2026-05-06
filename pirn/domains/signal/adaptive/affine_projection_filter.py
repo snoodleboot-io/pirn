@@ -88,17 +88,11 @@ class AffineProjectionFilter(Knot):
             ValueError: If filter_length, projection_order, or step_size are invalid.
         """
         if not isinstance(filter_length, int) or filter_length <= 0:
-            raise ValueError(
-                "AffineProjectionFilter: filter_length must be a positive integer"
-            )
+            raise ValueError("AffineProjectionFilter: filter_length must be a positive integer")
         if not isinstance(projection_order, int) or projection_order <= 0:
-            raise ValueError(
-                "AffineProjectionFilter: projection_order must be a positive integer"
-            )
+            raise ValueError("AffineProjectionFilter: projection_order must be a positive integer")
         if not isinstance(step_size, (int, float)) or step_size <= 0:
-            raise ValueError(
-                "AffineProjectionFilter: step_size must be positive"
-            )
+            raise ValueError("AffineProjectionFilter: step_size must be positive")
         return SignalFrame(
             signal_id=f"{signal.signal_id}:apa",
             channel_count=signal.channel_count,

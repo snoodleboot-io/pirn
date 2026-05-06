@@ -67,7 +67,5 @@ class PSVTestRecordParser(Knot):
             raise TypeError("PSVTestRecordParser: raw_record must be a dict")
         missing = [f for f in required_fields if f not in raw_record]
         if missing:
-            raise ValueError(
-                f"PSVTestRecordParser: missing required fields: {missing}"
-            )
+            raise ValueError(f"PSVTestRecordParser: missing required fields: {missing}")
         return {**raw_record, "parsed": True}

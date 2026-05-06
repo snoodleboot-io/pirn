@@ -70,18 +70,11 @@ class MemoryWriter(Knot):
         """
         if not isinstance(store, MemoryStore):
             raise TypeError(
-                "MemoryWriter: store must be a MemoryStore, "
-                f"got {type(store).__name__}"
+                f"MemoryWriter: store must be a MemoryStore, got {type(store).__name__}"
             )
         if not isinstance(key, str) or not key:
-            raise ValueError(
-                "MemoryWriter: key must be a non-empty string, "
-                f"got {key!r}"
-            )
+            raise ValueError(f"MemoryWriter: key must be a non-empty string, got {key!r}")
         if not isinstance(value, Mapping):
-            raise TypeError(
-                "MemoryWriter: value must be a Mapping, "
-                f"got {type(value).__name__}"
-            )
+            raise TypeError(f"MemoryWriter: value must be a Mapping, got {type(value).__name__}")
         await store.store(key, value)
         return key

@@ -154,9 +154,7 @@ class ClickhousePool(DatabaseConnectionPool):
                 "`pip install pirn[clickhouse]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError(
-                "ClickhousePool: missing config and no injected client"
-            )
+            raise RuntimeError("ClickhousePool: missing config and no injected client")
 
         kwargs: dict[str, Any] = {
             "host": self._config.host,
@@ -170,9 +168,7 @@ class ClickhousePool(DatabaseConnectionPool):
         if self._config.database is not None:
             kwargs["database"] = self._config.database
         try:
-            client = await asyncio.to_thread(
-                clickhouse_connect.get_client, **kwargs
-            )
+            client = await asyncio.to_thread(clickhouse_connect.get_client, **kwargs)
         except Exception as exc:
             self._reraise_scrubbed(exc)
         self._logger.debug("clickhouse.connect")

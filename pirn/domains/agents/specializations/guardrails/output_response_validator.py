@@ -77,7 +77,9 @@ class OutputResponseValidator(Knot):
             ValueError: If the response content matches a deny pattern or a tool call references a disallowed tool.
         """
         deny_compiled = tuple(
-            compile_safe_pattern(raw, index=i, owner="OutputResponseValidator", field="deny_patterns")
+            compile_safe_pattern(
+                raw, index=i, owner="OutputResponseValidator", field="deny_patterns"
+            )
             for i, raw in enumerate(deny_patterns)
         )
         allowed_set = frozenset(allowed_tool_names)

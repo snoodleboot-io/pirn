@@ -72,9 +72,7 @@ class FactClaimExtractor(Knot):
             "claim per line; do not editorialise.\n\n"
             f"Answer:\n{response.content}"
         )
-        raw = await llm.chat(
-            [{"role": "user", "content": prompt}]
-        )
+        raw = await llm.chat([{"role": "user", "content": prompt}])
         text = self._extract_text(raw)
         claims: list[str] = []
         for raw_line in text.splitlines():
@@ -83,7 +81,7 @@ class FactClaimExtractor(Knot):
                 continue
             for marker in ("- ", "* ", "• "):
                 if cleaned.startswith(marker):
-                    cleaned = cleaned[len(marker):].strip()
+                    cleaned = cleaned[len(marker) :].strip()
                     break
             if cleaned:
                 claims.append(cleaned)

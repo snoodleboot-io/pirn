@@ -84,17 +84,11 @@ class EEMDDecomposer(Knot):
             ValueError: If ensemble_size, noise_amplitude, or max_imf_count are invalid.
         """
         if not isinstance(ensemble_size, int) or ensemble_size <= 0:
-            raise ValueError(
-                "EEMDDecomposer: ensemble_size must be a positive integer"
-            )
+            raise ValueError("EEMDDecomposer: ensemble_size must be a positive integer")
         if not isinstance(noise_amplitude, (int, float)) or noise_amplitude <= 0:
-            raise ValueError(
-                "EEMDDecomposer: noise_amplitude must be positive"
-            )
+            raise ValueError("EEMDDecomposer: noise_amplitude must be positive")
         if not isinstance(max_imf_count, int) or max_imf_count <= 0:
-            raise ValueError(
-                "EEMDDecomposer: max_imf_count must be a positive integer"
-            )
+            raise ValueError("EEMDDecomposer: max_imf_count must be a positive integer")
         return WaveletFrame(
             signal_id=signal.signal_id,
             wavelet_name="eemd",

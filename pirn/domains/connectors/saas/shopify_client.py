@@ -42,13 +42,9 @@ class ShopifyClient(ApiClient, TableSource):
         resource: str = "orders",
     ) -> None:
         if config is None and client is None:
-            raise TypeError(
-                "ShopifyClient requires either config= or client="
-            )
+            raise TypeError("ShopifyClient requires either config= or client=")
         if not isinstance(resource, str) or not resource:
-            raise ValueError(
-                "ShopifyClient: resource must be a non-empty string"
-            )
+            raise ValueError("ShopifyClient: resource must be a non-empty string")
         self._config = config
         self._client = client
         self._closed = False
@@ -71,9 +67,7 @@ class ShopifyClient(ApiClient, TableSource):
         page_size: int | None = None,
     ) -> tuple[list[Mapping[str, Any]], str | None]:
         """:class:`TableSource` adapter — pages the configured resource."""
-        return await self._list_resource(
-            self._resource, cursor=cursor, page_size=page_size
-        )
+        return await self._list_resource(self._resource, cursor=cursor, page_size=page_size)
 
     async def list_orders(
         self,
@@ -82,9 +76,7 @@ class ShopifyClient(ApiClient, TableSource):
         page_size: int | None = None,
     ) -> tuple[list[Mapping[str, Any]], str | None]:
         """Vendor-typed read of Shopify orders."""
-        return await self._list_resource(
-            "orders", cursor=cursor, page_size=page_size
-        )
+        return await self._list_resource("orders", cursor=cursor, page_size=page_size)
 
     async def list_products(
         self,
@@ -93,9 +85,7 @@ class ShopifyClient(ApiClient, TableSource):
         page_size: int | None = None,
     ) -> tuple[list[Mapping[str, Any]], str | None]:
         """Vendor-typed read of Shopify products."""
-        return await self._list_resource(
-            "products", cursor=cursor, page_size=page_size
-        )
+        return await self._list_resource("products", cursor=cursor, page_size=page_size)
 
     async def _list_resource(
         self,
@@ -158,9 +148,7 @@ class ShopifyClient(ApiClient, TableSource):
         return response
 
     @classmethod
-    def _extract_next_cursor(
-        cls, response: Any, body: Any
-    ) -> str | None:
+    def _extract_next_cursor(cls, response: Any, body: Any) -> str | None:
         link_header = cls._extract_link_header(response, body)
         if link_header:
             cursor = cls._parse_link_header_cursor(link_header)
@@ -264,13 +252,10 @@ class ShopifyClient(ApiClient, TableSource):
             import shopify  # type: ignore[import-not-found]
         except ImportError as exc:
             raise ImportError(
-                "ShopifyClient requires ShopifyAPI; install via "
-                "`pip install pirn[shopify]`"
+                "ShopifyClient requires ShopifyAPI; install via `pip install pirn[shopify]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError(
-                "ShopifyClient: missing config and no injected client"
-            )
+            raise RuntimeError("ShopifyClient: missing config and no injected client")
         if self._config.shop_url is None:
             raise ValueError("ShopifyClient: config.shop_url is required")
         if self._config.access_token is None:

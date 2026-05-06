@@ -90,13 +90,9 @@ class MaterialBalanceCalculator(Knot):
             ("average_pressure_psi", average_pressure_psi),
         ):
             if not isinstance(value, (int, float)):
-                raise TypeError(
-                    f"MaterialBalanceCalculator: {label} must be numeric"
-                )
+                raise TypeError(f"MaterialBalanceCalculator: {label} must be numeric")
             if value < 0.0:
-                raise ValueError(
-                    f"MaterialBalanceCalculator: {label} must be non-negative"
-                )
+                raise ValueError(f"MaterialBalanceCalculator: {label} must be non-negative")
         return {
             "ooip_stb": max(float(cumulative_oil_stb), 1.0) * 10.0,
             "ogip_mscf": max(float(cumulative_gas_mscf), 1.0) * 10.0,

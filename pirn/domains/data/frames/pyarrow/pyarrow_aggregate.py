@@ -94,9 +94,7 @@ class PyarrowAggregate(Knot):
             A new PyarrowDataBatch containing one row per group with the caller-named columns.
         """
         if isinstance(by, (str, bytes)):
-            raise TypeError(
-                "PyarrowAggregate: by must be a sequence of column names, not a string"
-            )
+            raise TypeError("PyarrowAggregate: by must be a sequence of column names, not a string")
         IdentifierValidator.validate_columns("PyarrowAggregate.by", by)
         if not isinstance(aggs, Mapping) or not aggs:
             raise TypeError(
@@ -104,9 +102,7 @@ class PyarrowAggregate(Knot):
                 "[output_name, (input_column, aggregation_function)]"
             )
         for output, spec in aggs.items():
-            IdentifierValidator.validate_column(
-                "PyarrowAggregate: output column", output
-            )
+            IdentifierValidator.validate_column("PyarrowAggregate: output column", output)
             if (
                 not isinstance(spec, tuple)
                 or len(spec) != 2
@@ -129,10 +125,7 @@ class PyarrowAggregate(Knot):
                     f"{sorted(self._allowed_functions)}"
                 )
 
-        agg_specs = [
-            (input_column, function_name)
-            for input_column, function_name in aggs.values()
-        ]
+        agg_specs = [(input_column, function_name) for input_column, function_name in aggs.values()]
         aggregated = batch.table.group_by(list(by)).aggregate(agg_specs)
         # PyArrow's aggregate emits the by-columns first followed by the
         # aggregated columns in input order, named ``"<input>_<fn>"``.

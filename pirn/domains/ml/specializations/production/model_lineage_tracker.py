@@ -120,9 +120,7 @@ class ModelLineageTracker(Knot):
                 "lineage_id": lineage_id,
                 "train_name": split.train.name,
                 "test_name": split.test.name,
-                "validation_name": (
-                    split.validation.name if split.validation else None
-                ),
+                "validation_name": (split.validation.name if split.validation else None),
                 "recorded_at": recorded_at,
             },
         )

@@ -20,15 +20,11 @@ class QualityReport:
     passed: bool
     checks: tuple[QualityCheck, ...] = ()
     row_count: int = 0
-    sampled_at: datetime = field(
-        default_factory=lambda: datetime.now(UTC)
-    )
+    sampled_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def __post_init__(self) -> None:
         if any(not c.passed for c in self.checks) and self.passed:
-            raise ValueError(
-                "QualityReport.passed cannot be True when any check failed"
-            )
+            raise ValueError("QualityReport.passed cannot be True when any check failed")
 
     @property
     def failed_checks(self) -> tuple[QualityCheck, ...]:

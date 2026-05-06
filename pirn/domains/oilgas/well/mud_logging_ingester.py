@@ -68,9 +68,7 @@ class MudLoggingIngester(Knot):
             first_row_keys = set(data[0].keys())
             missing = [c for c in required_curves if c not in first_row_keys]
             if missing:
-                raise ValueError(
-                    f"MudLoggingIngester: missing required curves: {missing}"
-                )
+                raise ValueError(f"MudLoggingIngester: missing required curves: {missing}")
         header: dict[str, Any] = raw_mud_log.get("header", {})
         curves = list(data[0].keys()) if data else list(required_curves)
         return {

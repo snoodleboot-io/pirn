@@ -94,10 +94,14 @@ class NGramExtractor(Knot):
             raise ValueError("NGramExtractor: max_features must be >= 1")
         now = datetime.now(UTC)
         return DataSplit(
-            train=self._add_ngram_features(split.train, text_column, n, analyzer, max_features, now),
+            train=self._add_ngram_features(
+                split.train, text_column, n, analyzer, max_features, now
+            ),
             test=self._add_ngram_features(split.test, text_column, n, analyzer, max_features, now),
             validation=(
-                self._add_ngram_features(split.validation, text_column, n, analyzer, max_features, now)
+                self._add_ngram_features(
+                    split.validation, text_column, n, analyzer, max_features, now
+                )
                 if split.validation is not None
                 else None
             ),
@@ -113,9 +117,7 @@ class NGramExtractor(Knot):
         fetched_at: datetime,
     ) -> MLDataset:
         existing = [f for f in dataset.feature_names if f != text_column]
-        ngram_features = [
-            f"ngram_{analyzer}_{n}_{i}" for i in range(max_features)
-        ]
+        ngram_features = [f"ngram_{analyzer}_{n}_{i}" for i in range(max_features)]
         return MLDataset(
             name=f"{dataset.name}:ngram_{analyzer}_{n}",
             feature_names=tuple(existing + ngram_features),

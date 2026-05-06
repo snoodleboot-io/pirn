@@ -20,15 +20,11 @@ class ImageEncoderProvider(PirnOpaqueValue):
         self, images: Sequence[bytes], *, model: str | None = None
     ) -> list[list[float]]:
         """Return one embedding vector per image, in input order."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement encode()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement encode()")
 
     async def close(self) -> None:
         """Close the provider and release any underlying resources."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement close()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement close()")
 
     def _clear_credentials(self) -> None:
         """Drop the in-memory credential reference held by the provider."""

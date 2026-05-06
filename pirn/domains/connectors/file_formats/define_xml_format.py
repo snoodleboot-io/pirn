@@ -42,9 +42,7 @@ class DefineXmlFormat(BatchFileFormat):
     def name(self) -> str:
         return "define_xml"
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         defusedxml = self._load_defusedxml()
         tree = defusedxml.ElementTree.parse(io.BytesIO(payload))
         root = tree.getroot()
@@ -53,9 +51,7 @@ class DefineXmlFormat(BatchFileFormat):
             records.append(self._item_def_to_record(item_def))
         return records
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         lxml_etree = self._load_lxml()
         materialised = [dict(r) for r in records]
         nsmap = {
@@ -70,15 +66,11 @@ class DefineXmlFormat(BatchFileFormat):
         root.set("Granularity", "Metadata")
         study = lxml_etree.SubElement(root, f"{{{DefineXmlFormat._odm_ns}}}Study")
         study.set("OID", "STUDY.1")
-        meta = lxml_etree.SubElement(
-            study, f"{{{DefineXmlFormat._odm_ns}}}MetaDataVersion"
-        )
+        meta = lxml_etree.SubElement(study, f"{{{DefineXmlFormat._odm_ns}}}MetaDataVersion")
         meta.set("OID", "MDV.1")
         meta.set("Name", "MetaDataVersion")
         for record in materialised:
-            item_def = lxml_etree.SubElement(
-                meta, f"{{{DefineXmlFormat._odm_ns}}}ItemDef"
-            )
+            item_def = lxml_etree.SubElement(meta, f"{{{DefineXmlFormat._odm_ns}}}ItemDef")
             item_def.set("OID", record.get("oid") or "")
             item_def.set("Name", record.get("name") or "")
             item_def.set("DataType", record.get("data_type") or "")
@@ -87,12 +79,8 @@ class DefineXmlFormat(BatchFileFormat):
                 item_def.set("Length", str(length))
             label = record.get("label")
             if label is not None:
-                desc = lxml_etree.SubElement(
-                    item_def, f"{{{DefineXmlFormat._odm_ns}}}Description"
-                )
-                trans = lxml_etree.SubElement(
-                    desc, f"{{{DefineXmlFormat._odm_ns}}}TranslatedText"
-                )
+                desc = lxml_etree.SubElement(item_def, f"{{{DefineXmlFormat._odm_ns}}}Description")
+                trans = lxml_etree.SubElement(desc, f"{{{DefineXmlFormat._odm_ns}}}TranslatedText")
                 trans.text = str(label)
         return lxml_etree.tostring(
             root,
@@ -133,8 +121,7 @@ class DefineXmlFormat(BatchFileFormat):
             import defusedxml.ElementTree
         except ImportError as exc:
             raise ImportError(
-                "DefineXmlFormat requires defusedxml. Install with "
-                "`pip install pirn[health]`."
+                "DefineXmlFormat requires defusedxml. Install with `pip install pirn[health]`."
             ) from exc
         return defusedxml
 
@@ -144,7 +131,6 @@ class DefineXmlFormat(BatchFileFormat):
             from lxml import etree
         except ImportError as exc:
             raise ImportError(
-                "DefineXmlFormat requires lxml. Install with "
-                "`pip install pirn[health]`."
+                "DefineXmlFormat requires lxml. Install with `pip install pirn[health]`."
             ) from exc
         return etree

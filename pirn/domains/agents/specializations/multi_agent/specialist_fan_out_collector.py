@@ -68,8 +68,7 @@ class SpecialistFanOutCollector(Knot):
         for name, candidate in responses.items():
             if not isinstance(name, str):
                 raise TypeError(
-                    "SpecialistFanOutCollector: keys must be strings, "
-                    f"got {type(name).__name__}"
+                    f"SpecialistFanOutCollector: keys must be strings, got {type(name).__name__}"
                 )
             if not isinstance(candidate, AgentResponse):
                 raise TypeError(

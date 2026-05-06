@@ -39,7 +39,9 @@ class OrchestratorRouter(Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        super().__init__(task=task, llm=llm, specialist_names=specialist_names, _config=_config, **kwargs)
+        super().__init__(
+            task=task, llm=llm, specialist_names=specialist_names, _config=_config, **kwargs
+        )
 
     async def process(
         self,
@@ -61,19 +63,13 @@ class OrchestratorRouter(Knot):
         """
         if not isinstance(llm, LLMProvider):
             raise TypeError(
-                "OrchestratorRouter: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
+                f"OrchestratorRouter: llm must be an LLMProvider, got {type(llm).__name__}"
             )
         names = tuple(specialist_names)
         if not names:
-            raise ValueError(
-                "OrchestratorRouter: specialist_names must be non-empty"
-            )
+            raise ValueError("OrchestratorRouter: specialist_names must be non-empty")
         if not isinstance(task, str):
-            raise TypeError(
-                "OrchestratorRouter: task must be a string, "
-                f"got {type(task).__name__}"
-            )
+            raise TypeError(f"OrchestratorRouter: task must be a string, got {type(task).__name__}")
         prompt = (
             "You are an orchestrator. Choose exactly one specialist to "
             "handle the task. Reply with the specialist name only.\n\n"

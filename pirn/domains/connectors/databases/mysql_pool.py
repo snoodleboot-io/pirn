@@ -41,8 +41,7 @@ class MySQLPool(DatabaseConnectionPool):
             raise TypeError("MySQLPool requires either config= or pool=")
         if config is not None and not isinstance(config, MySQLConfig):
             raise TypeError(
-                "MySQLPool: config must be a MySQLConfig instance, got "
-                f"{type(config).__name__}"
+                f"MySQLPool: config must be a MySQLConfig instance, got {type(config).__name__}"
             )
         self._config = config
         self._pool = pool
@@ -161,8 +160,7 @@ class MySQLPool(DatabaseConnectionPool):
             import aiomysql  # type: ignore[import-not-found]
         except ImportError as exc:
             raise ImportError(
-                "MySQLPool requires aiomysql; install via "
-                "`pip install pirn[mysql]`"
+                "MySQLPool requires aiomysql; install via `pip install pirn[mysql]`"
             ) from exc
         if self._config is None:
             raise RuntimeError("MySQLPool: missing config and no injected pool")

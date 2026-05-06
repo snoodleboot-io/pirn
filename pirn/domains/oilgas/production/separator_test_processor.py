@@ -62,9 +62,7 @@ class SeparatorTestProcessor(Knot):
         if not isinstance(separator_stages, int):
             raise TypeError("SeparatorTestProcessor: separator_stages must be an int")
         if separator_stages not in {1, 2, 3}:
-            raise ValueError(
-                "SeparatorTestProcessor: separator_stages must be 1, 2, or 3"
-            )
+            raise ValueError("SeparatorTestProcessor: separator_stages must be 1, 2, or 3")
         if not isinstance(test_data, dict):
             raise TypeError("SeparatorTestProcessor: test_data must be a dict")
         oil = float(test_data.get("oil_rate_bopd", 1.0) or 1.0)

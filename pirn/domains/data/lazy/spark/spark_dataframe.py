@@ -44,9 +44,7 @@ class SparkDataFrame:
     frame: Any
     backend_name: str = "spark"
     source_uri: str = ""
-    fetched_at: datetime = field(
-        default_factory=lambda: datetime.now(UTC)
-    )
+    fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     @property
     def column_names(self) -> tuple[str, ...]:

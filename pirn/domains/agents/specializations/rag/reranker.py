@@ -83,20 +83,11 @@ class Reranker(Knot):
             ValueError: If top_k is not a positive integer.
         """
         if not isinstance(query, str):
-            raise TypeError(
-                "Reranker: query must be a string, "
-                f"got {type(query).__name__}"
-            )
+            raise TypeError(f"Reranker: query must be a string, got {type(query).__name__}")
         if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "Reranker: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
+            raise TypeError(f"Reranker: llm must be an LLMProvider, got {type(llm).__name__}")
         if not isinstance(top_k, int) or top_k <= 0:
-            raise ValueError(
-                "Reranker: top_k must be a positive int, "
-                f"got {top_k!r}"
-            )
+            raise ValueError(f"Reranker: top_k must be a positive int, got {top_k!r}")
         if not documents:
             return []
 

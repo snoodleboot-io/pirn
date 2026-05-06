@@ -60,17 +60,11 @@ class FlaringMeasurementProcessor(Knot):
             and ``event_count`` (int).
         """
         if not isinstance(gas_composition, dict):
-            raise TypeError(
-                "FlaringMeasurementProcessor: gas_composition must be a dict"
-            )
+            raise TypeError("FlaringMeasurementProcessor: gas_composition must be a dict")
         if not isinstance(efficiency_factor, (int, float)):
-            raise TypeError(
-                "FlaringMeasurementProcessor: efficiency_factor must be numeric"
-            )
+            raise TypeError("FlaringMeasurementProcessor: efficiency_factor must be numeric")
         if not (0 < efficiency_factor <= 1.0):
-            raise ValueError(
-                "FlaringMeasurementProcessor: efficiency_factor must be in (0, 1]"
-            )
+            raise ValueError("FlaringMeasurementProcessor: efficiency_factor must be in (0, 1]")
         total_flared = 0.0
         for m in measurements:
             rate = float(m.get("flow_rate_mmscfd", 0.0))

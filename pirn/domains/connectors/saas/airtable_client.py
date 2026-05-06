@@ -183,9 +183,7 @@ class AirtableClient(ApiClient, TableSource):
             if not getattr(self._config, field)
         ]
         if missing:
-            raise ValueError(
-                f"AirtableConfig: the following fields must be non-empty: {missing}"
-            )
+            raise ValueError(f"AirtableConfig: the following fields must be non-empty: {missing}")
 
     async def close(self) -> None:
         if self._client is not None:

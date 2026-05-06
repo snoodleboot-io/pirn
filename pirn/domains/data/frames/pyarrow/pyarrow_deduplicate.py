@@ -100,9 +100,7 @@ class PyarrowDeduplicate(Knot):
             preserving input order.
         """
         if not isinstance(keys, Sequence) or isinstance(keys, (str, bytes)):
-            raise TypeError(
-                "PyarrowDeduplicate: keys must be a sequence of column names"
-            )
+            raise TypeError("PyarrowDeduplicate: keys must be a sequence of column names")
         if not keys:
             raise ValueError("PyarrowDeduplicate: keys must be non-empty")
         for key in keys:
@@ -123,9 +121,7 @@ class PyarrowDeduplicate(Knot):
         index_array = pa.array(range(table.num_rows), type=pa.int64())
         stamped = table.append_column(idx_name, index_array)
         # Per-group minimum index = the first occurrence in input order.
-        grouped = stamped.group_by(list(keys)).aggregate(
-            [(idx_name, "min")]
-        )
+        grouped = stamped.group_by(list(keys)).aggregate([(idx_name, "min")])
         # The aggregate output column is named ``"<idx_name>_min"`` per
         # PyArrow's convention.
         first_indices = grouped.column(f"{idx_name}_min")

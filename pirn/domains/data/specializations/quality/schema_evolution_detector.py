@@ -77,31 +77,17 @@ class SchemaEvolutionDetector(Knot):
             ValueError: When expected_schema is empty or schema_query is empty.
         """
         if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError(
-                "SchemaEvolutionDetector: pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("SchemaEvolutionDetector: pool must be a DatabaseConnectionPool")
         IdentifierValidator.validate_column("monitored_table", monitored_table)
         if not expected_schema:
-            raise ValueError(
-                "SchemaEvolutionDetector: expected_schema must be non-empty"
-            )
+            raise ValueError("SchemaEvolutionDetector: expected_schema must be non-empty")
         if not isinstance(schema_query, str) or not schema_query:
-            raise ValueError(
-                "SchemaEvolutionDetector: schema_query must be a non-empty string"
-            )
+            raise ValueError("SchemaEvolutionDetector: schema_query must be a non-empty string")
         rows = await pool.fetch_all(schema_query)
-        actual_schema: dict[str, str] = {
-            str(row[0]).lower(): str(row[1]).upper() for row in rows
-        }
-        expected_normalised = {
-            k.lower(): v.upper() for k, v in expected_schema.items()
-        }
-        added_columns = [
-            col for col in actual_schema if col not in expected_normalised
-        ]
-        dropped_columns = [
-            col for col in expected_normalised if col not in actual_schema
-        ]
+        actual_schema: dict[str, str] = {str(row[0]).lower(): str(row[1]).upper() for row in rows}
+        expected_normalised = {k.lower(): v.upper() for k, v in expected_schema.items()}
+        added_columns = [col for col in actual_schema if col not in expected_normalised]
+        dropped_columns = [col for col in expected_normalised if col not in actual_schema]
         type_changes = [
             {
                 "column": col,
@@ -109,8 +95,7 @@ class SchemaEvolutionDetector(Knot):
                 "actual": actual_schema[col],
             }
             for col in expected_normalised
-            if col in actual_schema
-            and actual_schema[col] != expected_normalised[col]
+            if col in actual_schema and actual_schema[col] != expected_normalised[col]
         ]
         schema_changed = bool(added_columns or dropped_columns or type_changes)
         return {

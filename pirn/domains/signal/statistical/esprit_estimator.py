@@ -75,9 +75,7 @@ class ESPRITEstimator(Knot):
             ValueError: If signal_subspace_dim is not a positive integer.
         """
         if not isinstance(signal_subspace_dim, int) or signal_subspace_dim <= 0:
-            raise ValueError(
-                "ESPRITEstimator: signal_subspace_dim must be a positive integer"
-            )
+            raise ValueError("ESPRITEstimator: signal_subspace_dim must be a positive integer")
         return {
             "signal_id": signal.signal_id,
             "signal_subspace_dim": signal_subspace_dim,

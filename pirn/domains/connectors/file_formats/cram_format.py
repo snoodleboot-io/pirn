@@ -39,14 +39,9 @@ class CramFormat(BatchFileFormat):
         if reference_fasta is not None and (
             not isinstance(reference_fasta, str) or not reference_fasta
         ):
-            raise ValueError(
-                "CramFormat: reference_fasta must be a non-empty string "
-                "or None"
-            )
+            raise ValueError("CramFormat: reference_fasta must be a non-empty string or None")
         if header_lines is not None:
-            if isinstance(header_lines, (str, bytes)) or not isinstance(
-                header_lines, Sequence
-            ):
+            if isinstance(header_lines, (str, bytes)) or not isinstance(header_lines, Sequence):
                 raise TypeError(
                     "CramFormat: header_lines must be a sequence of "
                     f"strings, got {type(header_lines).__name__}"
@@ -54,13 +49,11 @@ class CramFormat(BatchFileFormat):
             for line in header_lines:
                 if not isinstance(line, str) or not line:
                     raise ValueError(
-                        "CramFormat: every header line must be a "
-                        f"non-empty string, got {line!r}"
+                        f"CramFormat: every header line must be a non-empty string, got {line!r}"
                     )
                 if not line.startswith("@"):
                     raise ValueError(
-                        "CramFormat: every header line must start with "
-                        f"'@', got {line!r}"
+                        f"CramFormat: every header line must start with '@', got {line!r}"
                     )
         self._reference_fasta = reference_fasta
         self._header_lines: tuple[str, ...] | None = (
@@ -79,9 +72,7 @@ class CramFormat(BatchFileFormat):
     def header_lines(self) -> tuple[str, ...] | None:
         return self._header_lines
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         pysam = self._load_pysam()
         path = _SamUtils.write_tempfile(payload, suffix=".cram")
         try:
@@ -100,13 +91,9 @@ class CramFormat(BatchFileFormat):
         finally:
             _SamUtils.safe_unlink(path)
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         if self._reference_fasta is None:
-            raise ValueError(
-                "CramFormat: reference_fasta is required for write"
-            )
+            raise ValueError("CramFormat: reference_fasta is required for write")
         pysam = self._load_pysam()
         materialised: list[Mapping[str, Any]] = list(records)
         header = _SamUtils.build_header(pysam, self._header_lines, materialised)
@@ -135,7 +122,6 @@ class CramFormat(BatchFileFormat):
             import pysam
         except ImportError as exc:
             raise ImportError(
-                "CramFormat requires pysam. Install with "
-                "`pip install pirn[genomics]`."
+                "CramFormat requires pysam. Install with `pip install pirn[genomics]`."
             ) from exc
         return pysam

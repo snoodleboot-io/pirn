@@ -97,9 +97,7 @@ class ScdType1MergeKnot(Knot):
         **_: Any,
     ) -> dict[str, int]:
         if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "ScdType1MergeKnot: target_pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("ScdType1MergeKnot: target_pool must be a DatabaseConnectionPool")
         IdentifierValidator.validate_column("target_table", target_table)
         primary_key_tuple = tuple(primary_keys)
         IdentifierValidator.validate_columns("primary_keys", primary_key_tuple)
@@ -107,18 +105,14 @@ class ScdType1MergeKnot(Knot):
         IdentifierValidator.validate_columns("column_names", column_tuple)
         missing = [k for k in primary_key_tuple if k not in column_tuple]
         if missing:
-            raise ValueError(
-                f"ScdType1MergeKnot: primary_keys not in column_names: {missing}"
-            )
+            raise ValueError(f"ScdType1MergeKnot: primary_keys not in column_names: {missing}")
         non_key_columns = tuple(c for c in column_tuple if c not in primary_key_tuple)
         materialised: list[tuple[Any, ...]] = [tuple(r) for r in rows]
         if not materialised:
             return {"inserted": 0, "updated": 0}
         select_q = ScdType1MergeKnot._select_query(target_table, column_tuple)
         insert_q = ScdType1MergeKnot._insert_query(target_table, column_tuple)
-        update_q = ScdType1MergeKnot._update_query(
-            target_table, primary_key_tuple, non_key_columns
-        )
+        update_q = ScdType1MergeKnot._update_query(target_table, primary_key_tuple, non_key_columns)
         existing_rows = await target_pool.fetch_all(select_q)
         key_indices = tuple(column_tuple.index(k) for k in primary_key_tuple)
         non_key_indices = tuple(column_tuple.index(c) for c in non_key_columns)

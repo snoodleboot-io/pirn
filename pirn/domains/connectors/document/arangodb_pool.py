@@ -53,23 +53,17 @@ class ArangoDBPool(DatabaseConnectionPool):
         """Execute an AQL query; returns cursor result as str."""
         await self._ensure_db()
         bind_vars = args[0] if args else {}
-        cursor = await asyncio.to_thread(
-            self._db.aql.execute, query, bind_vars=bind_vars
-        )
+        cursor = await asyncio.to_thread(self._db.aql.execute, query, bind_vars=bind_vars)
         return str(cursor)
 
     async def fetch_all(self, query: str, *args: Any) -> list[Any]:
         """Execute an AQL query and return all result documents."""
         await self._ensure_db()
         bind_vars = args[0] if args else {}
-        cursor = await asyncio.to_thread(
-            self._db.aql.execute, query, bind_vars=bind_vars
-        )
+        cursor = await asyncio.to_thread(self._db.aql.execute, query, bind_vars=bind_vars)
         return list(cursor)
 
-    async def execute_many(
-        self, query: str, args_seq: Iterable[Iterable[Any]]
-    ) -> None:
+    async def execute_many(self, query: str, args_seq: Iterable[Iterable[Any]]) -> None:
         """Execute an AQL query for each bind_vars dict in args_seq."""
         for bind_vars in args_seq:
             await self.execute(query, bind_vars)

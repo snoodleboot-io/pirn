@@ -38,13 +38,9 @@ class WaterInjectionTracker(Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        super().__init__(
-            injection_rate=injection_rate, _config=_config, **kwargs
-        )
+        super().__init__(injection_rate=injection_rate, _config=_config, **kwargs)
 
-    async def process(
-        self, injection_rate: ScadaTimeSeries, **_: Any
-    ) -> ScadaTimeSeries:
+    async def process(self, injection_rate: ScadaTimeSeries, **_: Any) -> ScadaTimeSeries:
         """Accept an injection-rate series and return the cumulative injected volume as a time series.
 
         Args:

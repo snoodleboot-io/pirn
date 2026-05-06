@@ -35,9 +35,7 @@ class SnappyCodec(Codec):
             ) from exc
         return snappy
 
-    async def compress_stream(
-        self, body: AsyncIterator[bytes]
-    ) -> AsyncIterator[bytes]:
+    async def compress_stream(self, body: AsyncIterator[bytes]) -> AsyncIterator[bytes]:
         snappy = self._load_snappy()
         compressor = snappy.StreamCompressor()
         async for chunk in body:
@@ -47,9 +45,7 @@ class SnappyCodec(Codec):
             if framed:
                 yield framed
 
-    async def decompress_stream(
-        self, body: AsyncIterator[bytes]
-    ) -> AsyncIterator[bytes]:
+    async def decompress_stream(self, body: AsyncIterator[bytes]) -> AsyncIterator[bytes]:
         snappy = self._load_snappy()
         decompressor = snappy.StreamDecompressor()
         async for chunk in body:

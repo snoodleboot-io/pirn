@@ -70,21 +70,13 @@ class LLMCall(Knot):
         """
         if not isinstance(context, AgentContext):
             raise TypeError(
-                "LLMCall: context must be an AgentContext, "
-                f"got {type(context).__name__}"
+                f"LLMCall: context must be an AgentContext, got {type(context).__name__}"
             )
         if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "LLMCall: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
+            raise TypeError(f"LLMCall: llm must be an LLMProvider, got {type(llm).__name__}")
         if model is not None and (not isinstance(model, str) or not model):
-            raise ValueError(
-                "LLMCall: model must be a non-empty string or None, "
-                f"got {model!r}"
-            )
+            raise ValueError(f"LLMCall: model must be a non-empty string or None, got {model!r}")
         wire_messages = tuple(
-            {"role": message.role, "content": message.content}
-            for message in context.messages
+            {"role": message.role, "content": message.content} for message in context.messages
         )
         return await llm.chat(messages=wire_messages, model=model)

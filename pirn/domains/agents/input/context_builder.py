@@ -67,8 +67,7 @@ class ContextBuilder(Knot):
         """
         if not isinstance(messages, Sequence) or isinstance(messages, (str, bytes)):
             raise TypeError(
-                "ContextBuilder: messages must be a sequence, "
-                f"got {type(messages).__name__}"
+                f"ContextBuilder: messages must be a sequence, got {type(messages).__name__}"
             )
         ordered = tuple(messages)
         for index, message in enumerate(ordered):
@@ -83,9 +82,7 @@ class ContextBuilder(Knot):
                 f"got {type(system_prompt).__name__}"
             )
         if isinstance(system_prompt, str) and not system_prompt:
-            raise ValueError(
-                "ContextBuilder: system_prompt must be non-empty when provided"
-            )
+            raise ValueError("ContextBuilder: system_prompt must be non-empty when provided")
         if system_prompt:
             system_message = AgentMessage(role="system", content=system_prompt)
             ordered = (system_message, *ordered)

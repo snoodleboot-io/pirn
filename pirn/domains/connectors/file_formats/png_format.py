@@ -41,14 +41,9 @@ class PngFormat(BatchFileFormat):
     def name(self) -> str:
         return "png"
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         if not isinstance(payload, (bytes, bytearray)):
-            raise TypeError(
-                "PngFormat: payload must be bytes, got "
-                f"{type(payload).__name__}"
-            )
+            raise TypeError(f"PngFormat: payload must be bytes, got {type(payload).__name__}")
         pil_image = self._load_pil_image()
         with pil_image.open(io.BytesIO(payload)) as image:
             image.load()
@@ -61,9 +56,7 @@ class PngFormat(BatchFileFormat):
                 }
             ]
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         materialised: list[Mapping[str, Any]] = list(records)
         if not materialised:
             raise ValueError(
@@ -93,25 +86,13 @@ class PngFormat(BatchFileFormat):
         mode = record["mode"]
         data = record["data"]
         if not isinstance(width, int) or width <= 0:
-            raise ValueError(
-                "PngFormat: 'width' must be a positive int, got "
-                f"{width!r}"
-            )
+            raise ValueError(f"PngFormat: 'width' must be a positive int, got {width!r}")
         if not isinstance(height, int) or height <= 0:
-            raise ValueError(
-                "PngFormat: 'height' must be a positive int, got "
-                f"{height!r}"
-            )
+            raise ValueError(f"PngFormat: 'height' must be a positive int, got {height!r}")
         if not isinstance(mode, str) or not mode:
-            raise ValueError(
-                "PngFormat: 'mode' must be a non-empty string, got "
-                f"{mode!r}"
-            )
+            raise ValueError(f"PngFormat: 'mode' must be a non-empty string, got {mode!r}")
         if not isinstance(data, (bytes, bytearray)):
-            raise TypeError(
-                "PngFormat: 'data' must be bytes, got "
-                f"{type(data).__name__}"
-            )
+            raise TypeError(f"PngFormat: 'data' must be bytes, got {type(data).__name__}")
         return width, height, mode, bytes(data)
 
     @staticmethod
@@ -120,7 +101,6 @@ class PngFormat(BatchFileFormat):
             from PIL import Image
         except ImportError as exc:
             raise ImportError(
-                "PngFormat requires Pillow. Install with "
-                "`pip install pirn[image]`."
+                "PngFormat requires Pillow. Install with `pip install pirn[image]`."
             ) from exc
         return Image

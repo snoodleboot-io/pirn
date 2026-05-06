@@ -106,24 +106,18 @@ class DataVaultPITTableBuilder(Knot):
             ("target_table", target_table),
         ):
             if not isinstance(value, str) or not value:
-                raise ValueError(
-                    f"DataVaultPITTableBuilder: {label} must be a non-empty string"
-                )
+                raise ValueError(f"DataVaultPITTableBuilder: {label} must be a non-empty string")
         for label, value in (
             ("hub_hash_key_column", hub_hash_key_column),
             ("snapshot_date_column", snapshot_date_column),
         ):
             if not isinstance(value, str) or not value:
-                raise ValueError(
-                    f"DataVaultPITTableBuilder: {label} must be a non-empty string"
-                )
+                raise ValueError(f"DataVaultPITTableBuilder: {label} must be a non-empty string")
         IdentifierValidator.validate_column("target_table", target_table)
         IdentifierValidator.validate_column("hub_hash_key_column", hub_hash_key_column)
         IdentifierValidator.validate_column("snapshot_date_column", snapshot_date_column)
         if not satellite_configs:
-            raise ValueError(
-                "DataVaultPITTableBuilder: satellite_configs must be non-empty"
-            )
+            raise ValueError("DataVaultPITTableBuilder: satellite_configs must be non-empty")
         validated_sat_configs: list[dict[str, str]] = []
         for idx, cfg in enumerate(satellite_configs):
             for required_key in ("table", "hub_hash_key_column", "pit_pointer_column"):
@@ -132,9 +126,7 @@ class DataVaultPITTableBuilder(Knot):
                         f"DataVaultPITTableBuilder: satellite_configs[{idx}] "
                         f"missing required key {required_key!r}"
                     )
-            IdentifierValidator.validate_column(
-                f"satellite_configs[{idx}].table", cfg["table"]
-            )
+            IdentifierValidator.validate_column(f"satellite_configs[{idx}].table", cfg["table"])
             IdentifierValidator.validate_column(
                 f"satellite_configs[{idx}].hub_hash_key_column",
                 cfg["hub_hash_key_column"],
@@ -166,9 +158,7 @@ class DataVaultPITTableBuilder(Knot):
         all_cols = [hub_hash_key_column, snapshot_date_column, *pointer_columns]
         col_list = ", ".join(all_cols)
         placeholders = ", ".join(["?"] * len(all_cols))
-        insert_sql = (
-            f"INSERT INTO {target_table} ({col_list}) VALUES ({placeholders})"
-        )
+        insert_sql = f"INSERT INTO {target_table} ({col_list}) VALUES ({placeholders})"
         rows_written = 0
         for spine_row in spine_rows:
             hub_hk, snapshot_date = spine_row[0], spine_row[1]

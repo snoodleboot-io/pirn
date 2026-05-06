@@ -88,9 +88,7 @@ class DataBatchToDuckdb(Knot):
             A DuckdbDataBatch wrapping a DuckDB relation with the batch's rows.
         """
         if connection is not None and not isinstance(connection, DuckDBConnection):
-            raise TypeError(
-                "DataBatchToDuckdb: connection must be a DuckDBConnection or None"
-            )
+            raise TypeError("DataBatchToDuckdb: connection must be a DuckDBConnection or None")
         raw_conn: duckdb.DuckDBPyConnection = (
             connection.conn if connection is not None else duckdb.connect(database=":memory:")
         )

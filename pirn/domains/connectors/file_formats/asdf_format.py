@@ -33,9 +33,7 @@ class AsdfFormat(BatchFileFormat):
     def name(self) -> str:
         return "asdf"
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         asdf_mod = self._load_asdf()
         import numpy as np
 
@@ -43,9 +41,7 @@ class AsdfFormat(BatchFileFormat):
             tree = self._serialise_tree(dict(af.tree), np)
         return [tree]
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         asdf_mod = self._load_asdf()
         import numpy as np
 
@@ -87,7 +83,6 @@ class AsdfFormat(BatchFileFormat):
             import asdf
         except ImportError as exc:
             raise ImportError(
-                "AsdfFormat requires asdf. Install with "
-                "`pip install pirn[astronomy]`."
+                "AsdfFormat requires asdf. Install with `pip install pirn[astronomy]`."
             ) from exc
         return asdf

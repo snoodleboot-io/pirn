@@ -65,8 +65,7 @@ class _TranslationLoadAndChunk(Knot):
         """
         if not isinstance(source, str) or not source:
             raise TypeError(
-                "DocumentTranslationPipeline: source must be a non-empty "
-                f"string, got {source!r}"
+                f"DocumentTranslationPipeline: source must be a non-empty string, got {source!r}"
             )
         text = await _TranslationLoadAndChunk._load_text(source)
         if not text:

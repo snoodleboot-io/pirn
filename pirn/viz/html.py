@@ -225,9 +225,7 @@ h1 { margin: 0 0 16px 0; font-size: 22px; }
         ]
 
         by_output = {
-            rec.output_hash: rec.knot_id
-            for rec in result.lineage
-            if rec.output_hash is not None
+            rec.output_hash: rec.knot_id for rec in result.lineage if rec.output_hash is not None
         }
         edges: list[dict[str, Any]] = []
         for rec in result.lineage:
@@ -399,11 +397,11 @@ h1 { margin: 0 0 16px 0; font-size: 22px; }
             parts.append('<rect x="-70" y="-20" width="140" height="40" rx="6" />')
             parts.append(
                 f'<text class="node-label" y="-2">'
-                f'{_html_module.escape(cls._truncate(node["id"], 16))}</text>'
+                f"{_html_module.escape(cls._truncate(node['id'], 16))}</text>"
             )
             parts.append(
                 f'<text class="node-class" y="14">'
-                f'{_html_module.escape(cls._truncate(node["class"], 18))}</text>'
+                f"{_html_module.escape(cls._truncate(node['class'], 18))}</text>"
             )
             parts.append("</g>")
 

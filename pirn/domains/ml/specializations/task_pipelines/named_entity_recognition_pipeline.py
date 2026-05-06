@@ -84,13 +84,9 @@ class NamedEntityRecognitionPipeline(SubTapestry):
             TypeError: If pool is not a DatabaseConnectionPool.
         """
         if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError(
-                "NamedEntityRecognitionPipeline: pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("NamedEntityRecognitionPipeline: pool must be a DatabaseConnectionPool")
         if not isinstance(query, str) or not query:
-            raise ValueError(
-                "NamedEntityRecognitionPipeline: query must be a non-empty string"
-            )
+            raise ValueError("NamedEntityRecognitionPipeline: query must be a non-empty string")
         if not isinstance(text_column, str) or not text_column:
             raise ValueError(
                 "NamedEntityRecognitionPipeline: text_column must be a non-empty string"
@@ -100,9 +96,7 @@ class NamedEntityRecognitionPipeline(SubTapestry):
                 "NamedEntityRecognitionPipeline: label_column must be a non-empty string"
             )
         if not isinstance(algorithm, str) or not algorithm:
-            raise ValueError(
-                "NamedEntityRecognitionPipeline: algorithm must be a non-empty string"
-            )
+            raise ValueError("NamedEntityRecognitionPipeline: algorithm must be a non-empty string")
         with Tapestry() as inner:
             dataset = DatasetLoader(
                 name="ner",

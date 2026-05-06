@@ -63,9 +63,13 @@ class AdaptiveRAGPipeline(SubTapestry):
         top_k: Knot | int = 5,
         **kwargs: Any,
     ) -> None:
-        super().__init__(query=query, memory=memory, llm=llm, top_k=top_k, _config=_config, **kwargs)
+        super().__init__(
+            query=query, memory=memory, llm=llm, top_k=top_k, _config=_config, **kwargs
+        )
 
-    async def process(self, query: str, memory: MemoryStore, llm: LLMProvider, top_k: int, **_: Any) -> AgentResponse:
+    async def process(
+        self, query: str, memory: MemoryStore, llm: LLMProvider, top_k: int, **_: Any
+    ) -> AgentResponse:
         """Classify query complexity and route to the appropriate RAG strategy.
 
         Args:
@@ -125,13 +129,9 @@ class AdaptiveRAGPipeline(SubTapestry):
                     _config=KnotConfig(id="decompose"),
                 )
             decompose_result = await self._run_inner(inner_decompose)
-            sub_questions_raw = str(
-                decompose_result.outputs.get("decompose", query)
-            )
+            sub_questions_raw = str(decompose_result.outputs.get("decompose", query))
             sub_questions = [
-                line.strip()
-                for line in sub_questions_raw.splitlines()
-                if line.strip()
+                line.strip() for line in sub_questions_raw.splitlines() if line.strip()
             ][:3]
             if not sub_questions:
                 sub_questions = [query]

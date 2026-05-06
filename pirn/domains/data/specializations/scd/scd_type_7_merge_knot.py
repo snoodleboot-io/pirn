@@ -88,19 +88,11 @@ class ScdType7MergeKnot(Knot):
         target_table: str, column_names: tuple[str, ...], current_flag_column: str
     ) -> str:
         column_list = ", ".join(column_names)
-        return (
-            f"SELECT {column_list} FROM {target_table} "
-            f"WHERE {current_flag_column} = 1"
-        )
+        return f"SELECT {column_list} FROM {target_table} WHERE {current_flag_column} = 1"
 
     @staticmethod
-    def _max_surrogate_query(
-        target_table: str, surrogate_key_column: str
-    ) -> str:
-        return (
-            f"SELECT COALESCE(MAX({surrogate_key_column}), 0) "
-            f"FROM {target_table}"
-        )
+    def _max_surrogate_query(target_table: str, surrogate_key_column: str) -> str:
+        return f"SELECT COALESCE(MAX({surrogate_key_column}), 0) FROM {target_table}"
 
     @staticmethod
     def _insert_query(
@@ -152,9 +144,7 @@ class ScdType7MergeKnot(Knot):
         **_: Any,
     ) -> dict[str, int]:
         if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "ScdType7MergeKnot: target_pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("ScdType7MergeKnot: target_pool must be a DatabaseConnectionPool")
         IdentifierValidator.validate_column("target_table", target_table)
         primary_key_tuple = tuple(primary_keys)
         IdentifierValidator.validate_columns("primary_keys", primary_key_tuple)
@@ -166,9 +156,7 @@ class ScdType7MergeKnot(Knot):
         IdentifierValidator.validate_column("current_flag_column", current_flag_column)
         missing = [k for k in primary_key_tuple if k not in column_tuple]
         if missing:
-            raise ValueError(
-                f"ScdType7MergeKnot: primary_keys not in column_names: {missing}"
-            )
+            raise ValueError(f"ScdType7MergeKnot: primary_keys not in column_names: {missing}")
         bookkeeping = (
             surrogate_key_column,
             effective_date_column,
@@ -185,9 +173,7 @@ class ScdType7MergeKnot(Knot):
         materialised: list[tuple[Any, ...]] = [tuple(r) for r in rows]
         if not materialised:
             return {"inserted": 0, "expired": 0}
-        select_q = ScdType7MergeKnot._select_query(
-            target_table, column_tuple, current_flag_column
-        )
+        select_q = ScdType7MergeKnot._select_query(target_table, column_tuple, current_flag_column)
         max_q = ScdType7MergeKnot._max_surrogate_query(target_table, surrogate_key_column)
         insert_q = ScdType7MergeKnot._insert_query(
             target_table,

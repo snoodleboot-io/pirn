@@ -31,9 +31,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.data.identifier_validator import IdentifierValidator
 
-_VALID_PARTS: frozenset[str] = frozenset(
-    ("year", "month", "day", "hour", "weekday", "quarter")
-)
+_VALID_PARTS: frozenset[str] = frozenset(("year", "month", "day", "hour", "weekday", "quarter"))
 
 
 class DatePartExtractor(Knot):

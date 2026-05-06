@@ -33,9 +33,7 @@ class LasFormat(BatchFileFormat):
     def name(self) -> str:
         return "las"
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         lasio = self._load_lasio()
         text = payload.decode("utf-8", errors="replace")
         las = lasio.read(io.StringIO(text))
@@ -52,9 +50,7 @@ class LasFormat(BatchFileFormat):
                 continue
             if hasattr(section, "items"):
                 for key, item in section.items():
-                    metadata[f"{section_name}.{key}"] = getattr(
-                        item, "value", str(item)
-                    )
+                    metadata[f"{section_name}.{key}"] = getattr(item, "value", str(item))
         record: dict[str, Any] = {
             "curves": curves,
             "data": data,
@@ -62,15 +58,11 @@ class LasFormat(BatchFileFormat):
         }
         return [record]
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         lasio = self._load_lasio()
         materialised = [dict(r) for r in records]
         if not materialised:
-            raise ValueError(
-                "LasFormat: cannot encode an empty record stream"
-            )
+            raise ValueError("LasFormat: cannot encode an empty record stream")
         record = materialised[0]
         curves: list[str] = list(record.get("curves", []))
         data: list[list[float]] = list(record.get("data", []))
@@ -82,9 +74,7 @@ class LasFormat(BatchFileFormat):
             las.write(buf)
             return buf.getvalue().encode("utf-8")
         depth_curve = curves[0]
-        depth_values = (
-            [row[0] for row in data] if data else []
-        )
+        depth_values = [row[0] for row in data] if data else []
         las.append_curve(
             depth_curve,
             np.array(depth_values, dtype=float),
@@ -106,7 +96,6 @@ class LasFormat(BatchFileFormat):
             import lasio
         except ImportError as exc:
             raise ImportError(
-                "LasFormat requires lasio. Install with "
-                "`pip install pirn[oilgas]`."
+                "LasFormat requires lasio. Install with `pip install pirn[oilgas]`."
             ) from exc
         return lasio

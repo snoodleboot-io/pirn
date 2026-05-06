@@ -60,7 +60,13 @@ class IbisJoin(Knot):
     """Binary join over two :class:`IbisTable` parents."""
 
     _allowed_how: tuple[str, ...] = (
-        "inner", "left", "right", "outer", "semi", "anti", "cross",
+        "inner",
+        "left",
+        "right",
+        "outer",
+        "semi",
+        "anti",
+        "cross",
     )
 
     def __init__(
@@ -104,34 +110,30 @@ class IbisJoin(Knot):
             A new IbisTable containing the joined deferred expression.
         """
         if how not in self._allowed_how:
-            raise ValueError(
-                f"IbisJoin: how must be one of {list(self._allowed_how)}, got {how!r}"
-            )
+            raise ValueError(f"IbisJoin: how must be one of {list(self._allowed_how)}, got {how!r}")
         if how == "cross":
             if predicates is not None:
-                raise TypeError(
-                    "IbisJoin: cross join takes no predicates"
-                )
+                raise TypeError("IbisJoin: cross join takes no predicates")
             joined = left.expression.cross_join(right.expression)
             return left.with_expression(joined)
         if predicates is None:
-            raise TypeError(
-                "IbisJoin: predicates is required for non-cross joins"
-            )
+            raise TypeError("IbisJoin: predicates is required for non-cross joins")
         if isinstance(predicates, Sequence) and not isinstance(predicates, str):
             for column in predicates:
                 if not isinstance(column, str) or not column:
-                    raise TypeError(
-                        "IbisJoin: predicates sequence must be non-empty strings"
-                    )
+                    raise TypeError("IbisJoin: predicates sequence must be non-empty strings")
         if callable(predicates):
             condition = predicates(left.expression, right.expression)
             joined = left.expression.join(
-                right.expression, predicates=condition, how=how,
+                right.expression,
+                predicates=condition,
+                how=how,
             )
         elif isinstance(predicates, str):
             joined = left.expression.join(
-                right.expression, predicates=predicates, how=how,
+                right.expression,
+                predicates=predicates,
+                how=how,
             )
         else:
             joined = left.expression.join(

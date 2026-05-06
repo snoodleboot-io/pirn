@@ -63,7 +63,5 @@ class NotchFilter(Knot):
         if not isinstance(signal, SignalFrame):
             raise TypeError("NotchFilter: signal must be a SignalFrame")
         if not isinstance(notch_hz, (int, float)) or float(notch_hz) <= 0:
-            raise ValueError(
-                "NotchFilter: notch_hz must be a positive number"
-            )
+            raise ValueError("NotchFilter: notch_hz must be a positive number")
         return signal

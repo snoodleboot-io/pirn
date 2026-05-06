@@ -18,6 +18,7 @@ References:
     - Good et al. (2001) A voxel-based morphometric study of ageing in 465 normal adult human brains.
     - SPM VBM: https://www.fil.ion.ucl.ac.uk/spm/
 """
+
 from __future__ import annotations
 
 from typing import Any

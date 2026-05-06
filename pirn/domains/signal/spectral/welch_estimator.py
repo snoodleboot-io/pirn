@@ -83,22 +83,12 @@ class WelchEstimator(Knot):
             ValueError: If segment_length or overlap are invalid.
         """
         if not isinstance(segment_length, int) or segment_length <= 0:
-            raise ValueError(
-                "WelchEstimator: segment_length must be a positive integer"
-            )
+            raise ValueError("WelchEstimator: segment_length must be a positive integer")
         if not isinstance(overlap, int) or overlap < 0:
-            raise ValueError(
-                "WelchEstimator: overlap must be a non-negative integer"
-            )
+            raise ValueError("WelchEstimator: overlap must be a non-negative integer")
         if overlap >= segment_length:
-            raise ValueError(
-                "WelchEstimator: overlap must be smaller than segment_length"
-            )
-        resolution = (
-            signal.sample_rate_hz / segment_length
-            if signal.sample_rate_hz > 0
-            else 0.0
-        )
+            raise ValueError("WelchEstimator: overlap must be smaller than segment_length")
+        resolution = signal.sample_rate_hz / segment_length if signal.sample_rate_hz > 0 else 0.0
         return SpectrumFrame(
             signal_id=signal.signal_id,
             frequency_bins=segment_length // 2 + 1,

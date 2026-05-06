@@ -47,9 +47,7 @@ class FastqFormat(StreamingFileFormat):
     def encoding(self) -> str:
         return self._encoding
 
-    async def read(
-        self, body: AsyncIterator[bytes]
-    ) -> AsyncIterator[Mapping[str, Any]]:
+    async def read(self, body: AsyncIterator[bytes]) -> AsyncIterator[Mapping[str, Any]]:
         encoding = self._encoding
 
         async def _iter() -> AsyncIterator[Mapping[str, Any]]:
@@ -77,9 +75,7 @@ class FastqFormat(StreamingFileFormat):
 
         return _iter()
 
-    async def write(
-        self, records: AsyncIterator[Mapping[str, Any]]
-    ) -> AsyncIterator[bytes]:
+    async def write(self, records: AsyncIterator[Mapping[str, Any]]) -> AsyncIterator[bytes]:
         encoding = self._encoding
 
         async def _iter() -> AsyncIterator[bytes]:
@@ -87,31 +83,23 @@ class FastqFormat(StreamingFileFormat):
                 seq_id = record.get("seq_id")
                 if not isinstance(seq_id, str) or not seq_id:
                     raise ValueError(
-                        "FastqFormat: each record must have a non-empty "
-                        "string 'seq_id'"
+                        "FastqFormat: each record must have a non-empty string 'seq_id'"
                     )
                 if any(ch.isspace() for ch in seq_id):
                     raise ValueError(
-                        "FastqFormat: 'seq_id' may not contain "
-                        f"whitespace, got {seq_id!r}"
+                        f"FastqFormat: 'seq_id' may not contain whitespace, got {seq_id!r}"
                     )
                 description = record.get("description", "")
                 if description is None:
                     description = ""
                 if not isinstance(description, str):
-                    raise TypeError(
-                        "FastqFormat: 'description' must be str"
-                    )
+                    raise TypeError("FastqFormat: 'description' must be str")
                 sequence = record.get("sequence", "")
                 if not isinstance(sequence, str):
-                    raise TypeError(
-                        "FastqFormat: 'sequence' must be str"
-                    )
+                    raise TypeError("FastqFormat: 'sequence' must be str")
                 quality = record.get("quality", "")
                 if not isinstance(quality, str):
-                    raise TypeError(
-                        "FastqFormat: 'quality' must be str"
-                    )
+                    raise TypeError("FastqFormat: 'quality' must be str")
                 if len(quality) != len(sequence):
                     raise ValueError(
                         "FastqFormat: 'quality' length "
@@ -122,13 +110,7 @@ class FastqFormat(StreamingFileFormat):
                     header = f"@{seq_id} {description}\n"
                 else:
                     header = f"@{seq_id}\n"
-                payload = (
-                    header
-                    + sequence
-                    + "\n+\n"
-                    + quality
-                    + "\n"
-                )
+                payload = header + sequence + "\n+\n" + quality + "\n"
                 yield payload.encode(encoding)
 
         return _iter()
@@ -153,13 +135,11 @@ class FastqFormat(StreamingFileFormat):
         header_line, sequence_line, separator_line, quality_line = lines
         if not header_line.startswith("@"):
             raise ValueError(
-                "FastqFormat: expected header line to start with '@', got "
-                f"{header_line!r}"
+                f"FastqFormat: expected header line to start with '@', got {header_line!r}"
             )
         if not separator_line.startswith("+"):
             raise ValueError(
-                "FastqFormat: expected separator line to start with '+', "
-                f"got {separator_line!r}"
+                f"FastqFormat: expected separator line to start with '+', got {separator_line!r}"
             )
         if len(quality_line) != len(sequence_line):
             raise ValueError(

@@ -66,13 +66,11 @@ class OutcomeSimulator(Knot):
         """
         if not isinstance(llm, LLMProvider):
             raise TypeError(
-                "OutcomeSimulator: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
+                f"OutcomeSimulator: llm must be an LLMProvider, got {type(llm).__name__}"
             )
         if not isinstance(action, str):
             raise TypeError(
-                "OutcomeSimulator: action must be a string, "
-                f"got {type(action).__name__}"
+                f"OutcomeSimulator: action must be a string, got {type(action).__name__}"
             )
         messages = [
             {"role": "system", "content": type(self)._simulation_system},

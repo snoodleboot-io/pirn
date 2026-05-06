@@ -74,29 +74,20 @@ class DuckdbRename(Knot):
             A new DuckdbDataBatch with the applicable columns renamed.
         """
         if not isinstance(mapping, Mapping) or not mapping:
-            raise TypeError(
-                "DuckdbRename: mapping must be a non-empty Mapping[old_name, new_name]"
-            )
+            raise TypeError("DuckdbRename: mapping must be a non-empty Mapping[old_name, new_name]")
         for old, new in mapping.items():
             if not isinstance(old, str) or not isinstance(new, str) or not old or not new:
-                raise TypeError(
-                    "DuckdbRename: mapping keys and values must be non-empty strings"
-                )
+                raise TypeError("DuckdbRename: mapping keys and values must be non-empty strings")
             self._reject_unsafe_identifier("mapping key", old)
             self._reject_unsafe_identifier("mapping value", new)
-        applicable = {
-            old: new for old, new in mapping.items()
-            if old in batch.relation.columns
-        }
+        applicable = {old: new for old, new in mapping.items() if old in batch.relation.columns}
         if not applicable:
             return batch
         # Validate every column name we're about to interpolate. Upstream
         # column names could in principle be crafted; refuse anything that
         # is not a bare identifier.
         for column in batch.relation.columns:
-            IdentifierValidator.validate_column(
-                "DuckdbRename: upstream column", column
-            )
+            IdentifierValidator.validate_column("DuckdbRename: upstream column", column)
         fragments: list[str] = []
         for column in batch.relation.columns:
             if column in applicable:
@@ -116,6 +107,5 @@ class DuckdbRename(Knot):
         for token in forbidden:
             if token in value:
                 raise ValueError(
-                    f"DuckdbRename: {label} {value!r} contains forbidden "
-                    f"token {token!r}"
+                    f"DuckdbRename: {label} {value!r} contains forbidden token {token!r}"
                 )

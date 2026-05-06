@@ -69,9 +69,7 @@ class HashEncoder(Knot):
             ValueError: If categorical_column is empty or n_components < 1.
         """
         if not isinstance(categorical_column, str) or not categorical_column:
-            raise ValueError(
-                "HashEncoder: categorical_column must be a non-empty string"
-            )
+            raise ValueError("HashEncoder: categorical_column must be a non-empty string")
         if not isinstance(n_components, int):
             raise TypeError("HashEncoder: n_components must be an int")
         if n_components < 1:
@@ -95,9 +93,7 @@ class HashEncoder(Knot):
         fetched_at: datetime,
     ) -> MLDataset:
         existing = [f for f in dataset.feature_names if f != categorical_column]
-        hash_features = [
-            f"{categorical_column}_hash_{i}" for i in range(n_components)
-        ]
+        hash_features = [f"{categorical_column}_hash_{i}" for i in range(n_components)]
         return MLDataset(
             name=f"{dataset.name}:hash_encoded",
             feature_names=tuple(existing + hash_features),

@@ -96,8 +96,7 @@ class DerivedColumnCalculator(Knot):
             op = _UNARY_OPS.get(type(node.op))
             if op is None:
                 raise ValueError(
-                    f"DerivedColumnCalculator: unsupported unary operator "
-                    f"{type(node.op).__name__}"
+                    f"DerivedColumnCalculator: unsupported unary operator {type(node.op).__name__}"
                 )
             return op(cls._eval_node(node.operand, row))
         if isinstance(node, ast.Compare):
@@ -106,8 +105,7 @@ class DerivedColumnCalculator(Knot):
                 op = _CMP_OPS.get(type(cmp_op))
                 if op is None:
                     raise ValueError(
-                        f"DerivedColumnCalculator: unsupported comparison "
-                        f"{type(cmp_op).__name__}"
+                        f"DerivedColumnCalculator: unsupported comparison {type(cmp_op).__name__}"
                     )
                 right = cls._eval_node(comparator, row)
                 if not op(left, right):
@@ -121,8 +119,7 @@ class DerivedColumnCalculator(Knot):
         if isinstance(node, ast.Expression):
             return cls._eval_node(node.body, row)
         raise ValueError(
-            f"DerivedColumnCalculator: unsupported expression node "
-            f"{type(node).__name__}"
+            f"DerivedColumnCalculator: unsupported expression node {type(node).__name__}"
         )
 
     async def process(
@@ -138,9 +135,7 @@ class DerivedColumnCalculator(Knot):
             IdentifierValidator.validate_column("expressions[column]", col)
             expr_str = spec.get("expression", "")
             if not isinstance(expr_str, str) or not expr_str:
-                raise ValueError(
-                    "DerivedColumnCalculator: expression must be a non-empty string"
-                )
+                raise ValueError("DerivedColumnCalculator: expression must be a non-empty string")
             try:
                 tree = ast.parse(expr_str, mode="eval")
             except SyntaxError as exc:

@@ -105,9 +105,7 @@ class NeuralNetTrainerPipeline(SubTapestry):
             TypeError: If the evaluator, serializer, or registrar output has an unexpected type.
         """
         if not isinstance(algorithm, str) or not algorithm:
-            raise ValueError(
-                "NeuralNetTrainerPipeline: algorithm must be a non-empty string"
-            )
+            raise ValueError("NeuralNetTrainerPipeline: algorithm must be a non-empty string")
         if not isinstance(lineage, LineageStore):
             raise TypeError("NeuralNetTrainerPipeline: lineage must be a LineageStore")
         if not isinstance(store, ObjectStore):
@@ -158,17 +156,11 @@ class NeuralNetTrainerPipeline(SubTapestry):
         serialized_bytes = result.outputs["serialize"]
         model_id = result.outputs["register"]
         if not isinstance(report, EvalReport):
-            raise TypeError(
-                "NeuralNetTrainerPipeline: evaluator did not return an EvalReport"
-            )
+            raise TypeError("NeuralNetTrainerPipeline: evaluator did not return an EvalReport")
         if not isinstance(serialized_bytes, (bytes, bytearray)):
-            raise TypeError(
-                "NeuralNetTrainerPipeline: serializer did not return bytes"
-            )
+            raise TypeError("NeuralNetTrainerPipeline: serializer did not return bytes")
         if not isinstance(model_id, str):
-            raise TypeError(
-                "NeuralNetTrainerPipeline: registrar did not return a string id"
-            )
+            raise TypeError("NeuralNetTrainerPipeline: registrar did not return a string id")
         return {
             "model_id": model_id,
             "eval_report": report,

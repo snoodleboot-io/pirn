@@ -35,9 +35,7 @@ class ResqmlFormat(BatchFileFormat):
     def name(self) -> str:
         return "resqml"
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         defusedxml = self._load_defusedxml()
         tree = defusedxml.ElementTree.parse(io.BytesIO(payload))
         root = tree.getroot()
@@ -52,9 +50,7 @@ class ResqmlFormat(BatchFileFormat):
             records.append(self._element_to_flat_dict(root))
         return records
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         lxml_etree = self._load_lxml()
         materialised = [dict(r) for r in records]
         root = lxml_etree.Element(
@@ -84,9 +80,7 @@ class ResqmlFormat(BatchFileFormat):
             for grandchild in child:
                 gc_tag = cls._strip_ns(grandchild.tag)
                 if grandchild.text and grandchild.text.strip():
-                    result[f"{child_tag}.{gc_tag}"] = (
-                        grandchild.text.strip()
-                    )
+                    result[f"{child_tag}.{gc_tag}"] = grandchild.text.strip()
         if not result and element.text and element.text.strip():
             result[cls._strip_ns(element.tag)] = element.text.strip()
         return result
@@ -95,6 +89,7 @@ class ResqmlFormat(BatchFileFormat):
     def _validate_xml_ncname(name: str) -> None:
         """Raise ValueError if *name* is not a valid XML NCName."""
         import re
+
         if not re.fullmatch(r"[a-zA-Z_][a-zA-Z0-9._\-]*", name):
             raise ValueError(
                 f"ResqmlFormat: record key {name!r} is not a valid XML "
@@ -114,8 +109,7 @@ class ResqmlFormat(BatchFileFormat):
             import defusedxml.ElementTree
         except ImportError as exc:
             raise ImportError(
-                "ResqmlFormat requires defusedxml. Install with "
-                "`pip install pirn[oilgas]`."
+                "ResqmlFormat requires defusedxml. Install with `pip install pirn[oilgas]`."
             ) from exc
         return defusedxml
 
@@ -125,7 +119,6 @@ class ResqmlFormat(BatchFileFormat):
             from lxml import etree
         except ImportError as exc:
             raise ImportError(
-                "ResqmlFormat requires lxml. Install with "
-                "`pip install pirn[oilgas]`."
+                "ResqmlFormat requires lxml. Install with `pip install pirn[oilgas]`."
             ) from exc
         return etree

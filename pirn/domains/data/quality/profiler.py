@@ -64,8 +64,7 @@ class Profiler(Knot):
         **_: Any,
     ) -> DataProfile:
         if columns is not None and (
-            not isinstance(columns, tuple)
-            or not all(isinstance(c, str) for c in columns)
+            not isinstance(columns, tuple) or not all(isinstance(c, str) for c in columns)
         ):
             raise TypeError("Profiler: columns must be a tuple of strings")
 
@@ -80,9 +79,7 @@ class Profiler(Knot):
         )
 
     @staticmethod
-    def _target_columns(
-        batch: DataBatch, columns: tuple[str, ...] | None
-    ) -> tuple[str, ...]:
+    def _target_columns(batch: DataBatch, columns: tuple[str, ...] | None) -> tuple[str, ...]:
         if columns is not None:
             return columns
         if batch.schema.column_names:

@@ -26,8 +26,7 @@ class AggregateSpec:
         allowed = self._allowed_functions()
         if self.function not in allowed:
             raise ValueError(
-                f"AggregateSpec.function must be one of {list(allowed)}, "
-                f"got {self.function!r}"
+                f"AggregateSpec.function must be one of {list(allowed)}, got {self.function!r}"
             )
 
     @classmethod

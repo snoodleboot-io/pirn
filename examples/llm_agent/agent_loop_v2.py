@@ -159,6 +159,7 @@ class StubTool(Tool):
 
 # ----------------------------------------------------------------- shared tools / LLM
 
+
 class PlannerStubLLMProvider(StubLLMProvider):
     """LLM stub for the Planner knot.
 
@@ -170,12 +171,9 @@ class PlannerStubLLMProvider(StubLLMProvider):
     _POOL: tuple[str, ...] = (
         "1. calculate: compound interest on the principal amount\n"
         "2. lookup: applicable policy terms and conditions",
-        "1. search: recent developments and key findings\n"
-        "2. calculate: estimated impact figures",
-        "1. lookup: existing knowledge base entries\n"
-        "2. search: supplementary external sources",
-        "1. calculate: cost projections for the period\n"
-        "2. lookup: pricing and billing details",
+        "1. search: recent developments and key findings\n2. calculate: estimated impact figures",
+        "1. lookup: existing knowledge base entries\n2. search: supplementary external sources",
+        "1. calculate: cost projections for the period\n2. lookup: pricing and billing details",
         "1. search: authoritative references on the topic\n"
         "2. lookup: internal policy documentation",
     )
@@ -374,6 +372,7 @@ class _PlanFirstStep(Knot):
 
     async def process(self, plan: Any, **_: Any) -> str:
         from pirn.domains.agents.types.plan import Plan as _Plan
+
         if isinstance(plan, _Plan) and plan.steps:
             return plan.steps[0]
         return str(plan)
@@ -420,7 +419,8 @@ class PlannerRunner(SubTapestry):
         result = await self._run_inner(inner)
         exec_out = result.outputs.get("exec")
         tool_content = (
-            str(exec_out.result) if exec_out and exec_out.error is None
+            str(exec_out.result)
+            if exec_out and exec_out.error is None
             else (str(exec_out.error) if exec_out else "[planner: no output]")
         )
         return AgentResponse(content=f"[plan→tool] {tool_content}")

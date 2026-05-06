@@ -58,13 +58,9 @@ class PigRunDataProcessor(Knot):
             length of the longest anomaly in inches).
         """
         if not isinstance(pipeline_id, str) or not pipeline_id:
-            raise ValueError(
-                "PigRunDataProcessor: pipeline_id must be a non-empty string"
-            )
+            raise ValueError("PigRunDataProcessor: pipeline_id must be a non-empty string")
         if not isinstance(run_path, str) or not run_path:
-            raise ValueError(
-                "PigRunDataProcessor: run_path must be a non-empty string"
-            )
+            raise ValueError("PigRunDataProcessor: run_path must be a non-empty string")
         return {
             "pipeline_id": pipeline_id,
             "feature_count": 0,

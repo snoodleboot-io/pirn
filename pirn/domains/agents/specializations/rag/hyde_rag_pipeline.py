@@ -66,9 +66,13 @@ class HyDERAGPipeline(SubTapestry):
         top_k: Knot | int = 5,
         **kwargs: Any,
     ) -> None:
-        super().__init__(query=query, memory=memory, llm=llm, top_k=top_k, _config=_config, **kwargs)
+        super().__init__(
+            query=query, memory=memory, llm=llm, top_k=top_k, _config=_config, **kwargs
+        )
 
-    async def process(self, query: str, memory: MemoryStore, llm: LLMProvider, top_k: int, **_: Any) -> AgentResponse:
+    async def process(
+        self, query: str, memory: MemoryStore, llm: LLMProvider, top_k: int, **_: Any
+    ) -> AgentResponse:
         """Generate a hypothetical answer, retrieve on it, then produce the final answer via the LLM.
 
         Args:

@@ -38,9 +38,7 @@ class PrometheusClient(ApiClient, MetricQuery):
         client: Any = None,
     ) -> None:
         if config is None and client is None:
-            raise TypeError(
-                "PrometheusClient requires either config= or client="
-            )
+            raise TypeError("PrometheusClient requires either config= or client=")
         self._config = config
         self._client = client
         self._closed = False
@@ -67,18 +65,12 @@ class PrometheusClient(ApiClient, MetricQuery):
           defaults to ``"60s"``.
         """
         if not isinstance(query, str) or not query:
-            raise ValueError(
-                "PrometheusClient.query: query must be non-empty"
-            )
+            raise ValueError("PrometheusClient.query: query must be non-empty")
         if start is None:
             return await self.query_instant(query, time=end)
         if end is None:
-            raise ValueError(
-                "PrometheusClient.query: end is required when start is set"
-            )
-        return await self.query_range(
-            query, start=start, end=end, step=step or "60s"
-        )
+            raise ValueError("PrometheusClient.query: end is required when start is set")
+        return await self.query_range(query, start=start, end=end, step=step or "60s")
 
     async def query_instant(
         self,
@@ -88,9 +80,7 @@ class PrometheusClient(ApiClient, MetricQuery):
     ) -> Mapping[str, Any]:
         """Vendor-typed instant query against ``/api/v1/query``."""
         if not isinstance(query, str) or not query:
-            raise ValueError(
-                "PrometheusClient.query_instant: query must be non-empty"
-            )
+            raise ValueError("PrometheusClient.query_instant: query must be non-empty")
         params: dict[str, Any] = {"query": query}
         if time is not None:
             params["time"] = int(time.timestamp())
@@ -109,22 +99,16 @@ class PrometheusClient(ApiClient, MetricQuery):
     ) -> Mapping[str, Any]:
         """Vendor-typed range query against ``/api/v1/query_range``."""
         if not isinstance(query, str) or not query:
-            raise ValueError(
-                "PrometheusClient.query_range: query must be non-empty"
-            )
+            raise ValueError("PrometheusClient.query_range: query must be non-empty")
         if not isinstance(step, str) or not step:
-            raise ValueError(
-                "PrometheusClient.query_range: step must be non-empty"
-            )
+            raise ValueError("PrometheusClient.query_range: step must be non-empty")
         params = {
             "query": query,
             "start": int(start.timestamp()),
             "end": int(end.timestamp()),
             "step": step,
         }
-        response = await self.request(
-            "GET", "/api/v1/query_range", params=params
-        )
+        response = await self.request("GET", "/api/v1/query_range", params=params)
         if not isinstance(response, Mapping):
             return {"data": response}
         return response
@@ -139,13 +123,9 @@ class PrometheusClient(ApiClient, MetricQuery):
         headers: Mapping[str, str] | None = None,
     ) -> Any:
         if not isinstance(method, str) or not method:
-            raise ValueError(
-                "PrometheusClient.request: method must be non-empty"
-            )
+            raise ValueError("PrometheusClient.request: method must be non-empty")
         if not isinstance(path, str) or not path:
-            raise ValueError(
-                "PrometheusClient.request: path must be non-empty"
-            )
+            raise ValueError("PrometheusClient.request: path must be non-empty")
         client = await self._ensure_client()
         request_params = dict(params) if params is not None else None
         request_body = dict(body) if body is not None else None
@@ -190,23 +170,16 @@ class PrometheusClient(ApiClient, MetricQuery):
             import httpx  # type: ignore[import-not-found]
         except ImportError as exc:
             raise ImportError(
-                "PrometheusClient requires httpx; install via "
-                "`pip install pirn[http]`"
+                "PrometheusClient requires httpx; install via `pip install pirn[http]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError(
-                "PrometheusClient: missing config and no injected client"
-            )
+            raise RuntimeError("PrometheusClient: missing config and no injected client")
         if self._config.base_url is None:
-            raise RuntimeError(
-                "PrometheusClient: config.base_url is required"
-            )
+            raise RuntimeError("PrometheusClient: config.base_url is required")
 
         client_headers: dict[str, str] = {}
         if self._config.bearer_token is not None:
-            client_headers["Authorization"] = (
-                f"Bearer {self._config.bearer_token}"
-            )
+            client_headers["Authorization"] = f"Bearer {self._config.bearer_token}"
 
         try:
             client = httpx.AsyncClient(

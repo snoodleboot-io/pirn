@@ -69,18 +69,12 @@ class TimeFrequencyDecomposer(Knot):
             ValueError: If any frequency is non-positive or method is invalid.
         """
         if not isinstance(signal, SignalFrame):
-            raise TypeError(
-                "TimeFrequencyDecomposer: signal must be a SignalFrame"
-            )
+            raise TypeError("TimeFrequencyDecomposer: signal must be a SignalFrame")
         if not isinstance(frequencies_hz, (list, tuple)):
-            raise TypeError(
-                "TimeFrequencyDecomposer: frequencies_hz must be list/tuple"
-            )
+            raise TypeError("TimeFrequencyDecomposer: frequencies_hz must be list/tuple")
         for freq in frequencies_hz:
             if not isinstance(freq, (int, float)) or float(freq) <= 0:
-                raise ValueError(
-                    "TimeFrequencyDecomposer: every frequency must be positive"
-                )
+                raise ValueError("TimeFrequencyDecomposer: every frequency must be positive")
         if method not in ("morlet", "multitaper", "stockwell"):
             raise ValueError(
                 "TimeFrequencyDecomposer: method must be one of morlet/multitaper/stockwell"

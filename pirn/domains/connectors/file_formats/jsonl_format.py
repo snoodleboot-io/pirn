@@ -39,9 +39,7 @@ class JsonlFormat(StreamingFileFormat):
     def encoding(self) -> str:
         return self._encoding
 
-    async def read(
-        self, body: AsyncIterator[bytes]
-    ) -> AsyncIterator[Mapping[str, Any]]:
+    async def read(self, body: AsyncIterator[bytes]) -> AsyncIterator[Mapping[str, Any]]:
         encoding = self._encoding
         buffered = bytearray()
 
@@ -60,8 +58,7 @@ class JsonlFormat(StreamingFileFormat):
                     record = json.loads(text)
                     if not isinstance(record, dict):
                         raise ValueError(
-                            "JsonlFormat: line is not a JSON object: "
-                            f"{type(record).__name__}"
+                            f"JsonlFormat: line is not a JSON object: {type(record).__name__}"
                         )
                     yield record
             if buffered:
@@ -71,16 +68,13 @@ class JsonlFormat(StreamingFileFormat):
                     record = json.loads(text)
                     if not isinstance(record, dict):
                         raise ValueError(
-                            "JsonlFormat: line is not a JSON object: "
-                            f"{type(record).__name__}"
+                            f"JsonlFormat: line is not a JSON object: {type(record).__name__}"
                         )
                     yield record
 
         return _iter()
 
-    async def write(
-        self, records: AsyncIterator[Mapping[str, Any]]
-    ) -> AsyncIterator[bytes]:
+    async def write(self, records: AsyncIterator[Mapping[str, Any]]) -> AsyncIterator[bytes]:
         encoding = self._encoding
 
         async def _iter() -> AsyncIterator[bytes]:

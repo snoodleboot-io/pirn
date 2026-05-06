@@ -60,9 +60,7 @@ class ShadowDeployer(Knot):
             TypeError: If model does not resolve to a TrainedModel.
         """
         if not isinstance(model, TrainedModel):
-            raise TypeError(
-                "ShadowDeployer: model must resolve to a TrainedModel"
-            )
+            raise TypeError("ShadowDeployer: model must resolve to a TrainedModel")
         deployed_at = datetime.now(UTC)
         deployment_id = self._derive_deployment_id(model, deployed_at)
         await registry.log_event(
@@ -76,9 +74,7 @@ class ShadowDeployer(Knot):
         )
         return deployment_id
 
-    def _derive_deployment_id(
-        self, model: TrainedModel, deployed_at: datetime
-    ) -> str:
+    def _derive_deployment_id(self, model: TrainedModel, deployed_at: datetime) -> str:
         payload = json.dumps(
             {
                 "model_id": model.model_id,

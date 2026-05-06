@@ -80,17 +80,13 @@ class ImageEmbeddingExtractor(SubTapestry):
             TypeError: If image_encoder is not an ImageEncoderProvider or inner encoder fails.
         """
         if not isinstance(image_column, str) or not image_column:
-            raise ValueError(
-                "ImageEmbeddingExtractor: image_column must be a non-empty string"
-            )
+            raise ValueError("ImageEmbeddingExtractor: image_column must be a non-empty string")
         if not isinstance(image_encoder, ImageEncoderProvider):
             raise TypeError(
                 "ImageEmbeddingExtractor: image_encoder must be an ImageEncoderProvider"
             )
         with Tapestry() as inner:
-            split_node = _emit_value(
-                value=split, _config=KnotConfig(id="split")
-            )
+            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
             _ImageEncoderExtractor(
                 split=split_node,
                 image_column=image_column,
@@ -100,7 +96,5 @@ class ImageEmbeddingExtractor(SubTapestry):
         result = await self._run_inner(inner)
         encoded = result.outputs["encode"]
         if not isinstance(encoded, DataSplit):
-            raise TypeError(
-                "ImageEmbeddingExtractor: inner encoder did not return a DataSplit"
-            )
+            raise TypeError("ImageEmbeddingExtractor: inner encoder did not return a DataSplit")
         return encoded

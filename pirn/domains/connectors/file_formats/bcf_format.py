@@ -37,8 +37,7 @@ class BcfFormat(BatchFileFormat):
         if header_lines is not None:
             if isinstance(header_lines, (str, bytes)):
                 raise TypeError(
-                    "BcfFormat: header_lines must be a sequence of "
-                    "strings, not str/bytes"
+                    "BcfFormat: header_lines must be a sequence of strings, not str/bytes"
                 )
             if not isinstance(header_lines, Sequence):
                 raise TypeError(
@@ -48,8 +47,7 @@ class BcfFormat(BatchFileFormat):
             for line in header_lines:
                 if not isinstance(line, str) or not line:
                     raise ValueError(
-                        "BcfFormat: every header line must be a "
-                        f"non-empty string, got {line!r}"
+                        f"BcfFormat: every header line must be a non-empty string, got {line!r}"
                     )
             self._header_lines: tuple[str, ...] | None = tuple(header_lines)
         else:
@@ -63,13 +61,9 @@ class BcfFormat(BatchFileFormat):
     def header_lines(self) -> tuple[str, ...] | None:
         return self._header_lines
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         pysam = self._load_pysam()
-        with tempfile.NamedTemporaryFile(
-            suffix=".bcf", delete=False
-        ) as tmp:
+        with tempfile.NamedTemporaryFile(suffix=".bcf", delete=False) as tmp:
             tmp.write(payload)
             tmp_path = tmp.name
         try:
@@ -87,9 +81,7 @@ class BcfFormat(BatchFileFormat):
             except OSError:
                 pass
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         pysam = self._load_pysam()
         materialised: list[Mapping[str, Any]] = list(records)
         if not materialised and self._header_lines is None:
@@ -98,9 +90,7 @@ class BcfFormat(BatchFileFormat):
                 "set; pass header_lines=... to the constructor"
             )
         header = self._build_header(pysam, materialised)
-        with tempfile.NamedTemporaryFile(
-            suffix=".bcf", delete=False
-        ) as tmp:
+        with tempfile.NamedTemporaryFile(suffix=".bcf", delete=False) as tmp:
             tmp_path = tmp.name
         try:
             writer = pysam.VariantFile(tmp_path, "wb", header=header)
@@ -146,10 +136,7 @@ class BcfFormat(BatchFileFormat):
                     if isinstance(key, str) and key not in info_keys:
                         info_keys.append(key)
         for key in info_keys:
-            header.add_line(
-                f"##INFO=<ID={key},Number=1,Type=String,"
-                f'Description="{key}">'
-            )
+            header.add_line(f'##INFO=<ID={key},Number=1,Type=String,Description="{key}">')
         for record in records:
             chrom = record.get("chrom")
             if isinstance(chrom, str) and chrom not in seen_contigs:
@@ -163,11 +150,9 @@ class BcfFormat(BatchFileFormat):
             import pysam
         except ImportError as exc:
             raise ImportError(
-                "BcfFormat requires pysam. Install with "
-                "`pip install pirn[genomics]`."
+                "BcfFormat requires pysam. Install with `pip install pirn[genomics]`."
             ) from exc
         return pysam
-
 
     @staticmethod
     def _record_from_variant(variant: Any) -> Mapping[str, Any]:
@@ -231,9 +216,7 @@ class BcfFormat(BatchFileFormat):
         qual = record.get("qual")
         if qual is not None:
             if not isinstance(qual, (int, float)) or isinstance(qual, bool):
-                raise TypeError(
-                    "BcfFormat: 'qual' must be float, int, or None"
-                )
+                raise TypeError("BcfFormat: 'qual' must be float, int, or None")
             new_record.qual = float(qual)
         filt = record.get("filter")
         if isinstance(filt, str) and filt and filt != ".":

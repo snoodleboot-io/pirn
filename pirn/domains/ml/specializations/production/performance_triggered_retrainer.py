@@ -92,9 +92,7 @@ class PerformanceTriggeredRetrainer(SubTapestry):
         if not isinstance(threshold, (int, float)):
             raise TypeError("PerformanceTriggeredRetrainer: threshold must be numeric")
         if not isinstance(algorithm, str) or not algorithm:
-            raise ValueError(
-                "PerformanceTriggeredRetrainer: algorithm must be a non-empty string"
-            )
+            raise ValueError("PerformanceTriggeredRetrainer: algorithm must be a non-empty string")
         threshold_f = float(threshold)
         with Tapestry() as inner:
             model_node = _emit_value(value=model, _config=KnotConfig(id="model"))

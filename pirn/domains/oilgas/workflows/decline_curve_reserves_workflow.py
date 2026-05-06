@@ -108,13 +108,9 @@ class DeclineCurveReservesWorkflow(SubTapestry):
             RunResult from the inner pipeline spanning SCADA ingest through Monte-Carlo reserves estimation.
         """
         if not isinstance(oil_tag, str) or not oil_tag:
-            raise ValueError(
-                "DeclineCurveReservesWorkflow: oil_tag must be a non-empty string"
-            )
+            raise ValueError("DeclineCurveReservesWorkflow: oil_tag must be a non-empty string")
         if not isinstance(trial_count, int) or trial_count <= 0:
-            raise ValueError(
-                "DeclineCurveReservesWorkflow: trial_count must be a positive integer"
-            )
+            raise ValueError("DeclineCurveReservesWorkflow: trial_count must be a positive integer")
         with Tapestry() as inner:
             rate = ScadaHistorianIngester(
                 connection=connection,

@@ -85,13 +85,9 @@ class FlowlinePressureModeler(Knot):
             ("roughness_in", roughness_in),
         ):
             if not isinstance(value, (int, float)):
-                raise TypeError(
-                    f"FlowlinePressureModeler: {label} must be numeric"
-                )
+                raise TypeError(f"FlowlinePressureModeler: {label} must be numeric")
             if value <= 0.0:
-                raise ValueError(
-                    f"FlowlinePressureModeler: {label} must be positive"
-                )
+                raise ValueError(f"FlowlinePressureModeler: {label} must be positive")
         return ScadaTimeSeries(
             sensor_id=f"dp:{rate_series.sensor_id}",
             sample_interval_sec=rate_series.sample_interval_sec,

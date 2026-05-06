@@ -59,7 +59,9 @@ class CodeAgent(SubTapestry):
     ) -> None:
         super().__init__(task=task, llm=llm, language=language, _config=_config, **kwargs)
 
-    async def process(self, task: str, llm: LLMProvider, language: str = "python", **_: Any) -> AgentResponse:
+    async def process(
+        self, task: str, llm: LLMProvider, language: str = "python", **_: Any
+    ) -> AgentResponse:
         """Generate code for the task, run a lint pass, and return the formatted AgentResponse.
 
         Args:
@@ -75,20 +77,11 @@ class CodeAgent(SubTapestry):
                 or language is not a non-empty string.
         """
         if not isinstance(task, str) or not task:
-            raise TypeError(
-                "CodeAgent: task must be a non-empty string, "
-                f"got {task!r}"
-            )
+            raise TypeError(f"CodeAgent: task must be a non-empty string, got {task!r}")
         if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "CodeAgent: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
+            raise TypeError(f"CodeAgent: llm must be an LLMProvider, got {type(llm).__name__}")
         if not isinstance(language, str) or not language:
-            raise TypeError(
-                "CodeAgent: language must be a non-empty string, "
-                f"got {language!r}"
-            )
+            raise TypeError(f"CodeAgent: language must be a non-empty string, got {language!r}")
         with Tapestry() as inner:
             code = _CodeGenerator(
                 task=task,

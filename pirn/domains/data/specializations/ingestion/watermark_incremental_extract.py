@@ -107,9 +107,7 @@ class WatermarkIncrementalExtract(Knot):
             ("watermark_column", watermark_column),
         ):
             if not isinstance(value, str) or not value:
-                raise ValueError(
-                    f"WatermarkIncrementalExtract: {label} must be a non-empty string"
-                )
+                raise ValueError(f"WatermarkIncrementalExtract: {label} must be a non-empty string")
         column_tuple = tuple(columns)
         if not column_tuple:
             raise ValueError("WatermarkIncrementalExtract: columns must be non-empty")
@@ -121,10 +119,7 @@ class WatermarkIncrementalExtract(Knot):
         # Build and execute the source SELECT query.
         column_list = ", ".join(column_tuple)
         if high_water_mark is None:
-            source_query = (
-                f"SELECT {column_list} FROM {source_table} "
-                f"ORDER BY {watermark_column}"
-            )
+            source_query = f"SELECT {column_list} FROM {source_table} ORDER BY {watermark_column}"
             new_rows = await source_pool.fetch_all(source_query)
         else:
             source_query = (
@@ -133,8 +128,6 @@ class WatermarkIncrementalExtract(Knot):
                 f"ORDER BY {watermark_column}"
             )
             new_rows = await source_pool.fetch_all(source_query, (high_water_mark,))
-        insert_query = WatermarkIncrementalExtract._build_insert_query(
-            target_table, column_tuple
-        )
+        insert_query = WatermarkIncrementalExtract._build_insert_query(target_table, column_tuple)
         await target_pool.execute_many(insert_query, [tuple(r) for r in new_rows])
         return {"succeeded": True, "rows_inserted": len(new_rows)}

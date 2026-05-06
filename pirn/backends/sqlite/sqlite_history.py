@@ -17,6 +17,7 @@ def _json_default(obj: Any) -> Any:
         return obj.isoformat()
     if hasattr(obj, "__dataclass_fields__"):
         import dataclasses
+
         return dataclasses.asdict(obj)
     raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 

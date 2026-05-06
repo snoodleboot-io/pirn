@@ -96,44 +96,29 @@ class TreeOfThought(Knot):
             ValueError: If k_candidates, beam_width, or depth are not positive ints.
         """
         if not isinstance(prompt, str):
-            raise TypeError(
-                "TreeOfThought: prompt must be a string, "
-                f"got {type(prompt).__name__}"
-            )
+            raise TypeError(f"TreeOfThought: prompt must be a string, got {type(prompt).__name__}")
         if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "TreeOfThought: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
+            raise TypeError(f"TreeOfThought: llm must be an LLMProvider, got {type(llm).__name__}")
         if not isinstance(k_candidates, int) or k_candidates <= 0:
             raise ValueError(
-                "TreeOfThought: k_candidates must be a positive int, "
-                f"got {k_candidates!r}"
+                f"TreeOfThought: k_candidates must be a positive int, got {k_candidates!r}"
             )
         if not isinstance(beam_width, int) or beam_width <= 0:
             raise ValueError(
-                "TreeOfThought: beam_width must be a positive int, "
-                f"got {beam_width!r}"
+                f"TreeOfThought: beam_width must be a positive int, got {beam_width!r}"
             )
         if not isinstance(depth, int) or depth <= 0:
-            raise ValueError(
-                "TreeOfThought: depth must be a positive int, "
-                f"got {depth!r}"
-            )
+            raise ValueError(f"TreeOfThought: depth must be a positive int, got {depth!r}")
         beam: list[tuple[str, float]] = [(prompt, 0.0)]
         for _ in range(depth):
             candidates: list[tuple[str, float]] = []
-            expansion_tasks = [
-                self._expand(path, llm, k_candidates) for path, _ in beam
-            ]
+            expansion_tasks = [self._expand(path, llm, k_candidates) for path, _ in beam]
             expanded_batches = await asyncio.gather(*expansion_tasks)
             for (parent_path, _), new_thoughts in zip(beam, expanded_batches, strict=False):
                 for thought in new_thoughts:
                     combined = f"{parent_path}\n{thought}"
                     candidates.append((combined, 0.0))
-            scored = await asyncio.gather(
-                *[self._score(path, llm) for path, _ in candidates]
-            )
+            scored = await asyncio.gather(*[self._score(path, llm) for path, _ in candidates])
             beam = sorted(
                 zip([p for p, _ in candidates], scored, strict=False),
                 key=lambda pair: pair[1],

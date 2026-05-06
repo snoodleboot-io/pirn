@@ -36,8 +36,7 @@ class SafetensorsFormat(BatchFileFormat):
     def __init__(self, include_data: bool = True) -> None:
         if not isinstance(include_data, bool):
             raise TypeError(
-                "SafetensorsFormat: include_data must be a bool, "
-                f"got {type(include_data).__name__}"
+                f"SafetensorsFormat: include_data must be a bool, got {type(include_data).__name__}"
             )
         self._include_data = include_data
 
@@ -49,24 +48,18 @@ class SafetensorsFormat(BatchFileFormat):
     def include_data(self) -> bool:
         return self._include_data
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         if not isinstance(payload, (bytes, bytearray)):
             raise TypeError(
-                "SafetensorsFormat: payload must be bytes, "
-                f"got {type(payload).__name__}"
+                f"SafetensorsFormat: payload must be bytes, got {type(payload).__name__}"
             )
         numpy_module = self._load_numpy()
         safetensors_numpy = self._load_safetensors_numpy()
         try:
-            tensors_array: Mapping[str, Any] = safetensors_numpy.load(
-                bytes(payload)
-            )
+            tensors_array: Mapping[str, Any] = safetensors_numpy.load(bytes(payload))
         except Exception as exc:
             raise ValueError(
-                "SafetensorsFormat: failed to parse safetensors payload — "
-                f"{exc}"
+                f"SafetensorsFormat: failed to parse safetensors payload — {exc}"
             ) from exc
         metadata = self._extract_metadata(bytes(payload))
         tensors_record: dict[str, dict[str, Any]] = {}
@@ -84,9 +77,7 @@ class SafetensorsFormat(BatchFileFormat):
         }
         return [record]
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         materialised: list[Mapping[str, Any]] = list(records)
         if len(materialised) != 1:
             raise ValueError(
@@ -95,20 +86,16 @@ class SafetensorsFormat(BatchFileFormat):
             )
         record = materialised[0]
         if "tensors" not in record:
-            raise ValueError(
-                "SafetensorsFormat: record missing required 'tensors' key"
-            )
+            raise ValueError("SafetensorsFormat: record missing required 'tensors' key")
         tensors_in = record["tensors"]
         if not isinstance(tensors_in, Mapping):
             raise TypeError(
-                "SafetensorsFormat: 'tensors' must be a mapping, "
-                f"got {type(tensors_in).__name__}"
+                f"SafetensorsFormat: 'tensors' must be a mapping, got {type(tensors_in).__name__}"
             )
         metadata = record.get("metadata") or {}
         if not isinstance(metadata, Mapping):
             raise TypeError(
-                "SafetensorsFormat: 'metadata' must be a mapping, "
-                f"got {type(metadata).__name__}"
+                f"SafetensorsFormat: 'metadata' must be a mapping, got {type(metadata).__name__}"
             )
         for key, value in metadata.items():
             if not isinstance(key, str) or not isinstance(value, str):
@@ -126,17 +113,11 @@ class SafetensorsFormat(BatchFileFormat):
                     "SafetensorsFormat: tensor names must be non-empty "
                     f"strings, got {tensor_name!r}"
                 )
-            arrays[tensor_name] = self._coerce_to_array(
-                tensor_spec, numpy_module
-            )
+            arrays[tensor_name] = self._coerce_to_array(tensor_spec, numpy_module)
         try:
-            return safetensors_numpy.save(
-                arrays, metadata=dict(metadata) if metadata else None
-            )
+            return safetensors_numpy.save(arrays, metadata=dict(metadata) if metadata else None)
         except Exception as exc:
-            raise ValueError(
-                f"SafetensorsFormat: failed to serialise tensors — {exc}"
-            ) from exc
+            raise ValueError(f"SafetensorsFormat: failed to serialise tensors — {exc}") from exc
 
     @staticmethod
     def _coerce_to_array(spec: Any, numpy_module: Any) -> Any:
@@ -152,13 +133,10 @@ class SafetensorsFormat(BatchFileFormat):
             dtype = spec.get("dtype")
             if shape is None or dtype is None:
                 raise ValueError(
-                    "SafetensorsFormat: tensor spec requires 'shape' and "
-                    "'dtype' fields"
+                    "SafetensorsFormat: tensor spec requires 'shape' and 'dtype' fields"
                 )
             array = numpy_module.asarray(spec["data"], dtype=dtype)
-            return numpy_module.ascontiguousarray(
-                array.reshape(tuple(shape))
-            )
+            return numpy_module.ascontiguousarray(array.reshape(tuple(shape)))
         raise TypeError(
             "SafetensorsFormat: tensor entries must be a numpy array "
             "or a mapping with 'data', 'shape', 'dtype'; "
@@ -181,9 +159,7 @@ class SafetensorsFormat(BatchFileFormat):
         meta = header.get("__metadata__") if isinstance(header, dict) else None
         if not isinstance(meta, dict):
             return {}
-        return {
-            str(key): str(value) for key, value in meta.items()
-        }
+        return {str(key): str(value) for key, value in meta.items()}
 
     @staticmethod
     def _load_safetensors_numpy() -> Any:

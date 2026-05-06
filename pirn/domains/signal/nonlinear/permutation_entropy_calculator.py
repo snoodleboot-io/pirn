@@ -80,13 +80,9 @@ class PermutationEntropyCalculator(Knot):
             ValueError: If order or delay are invalid.
         """
         if not isinstance(order, int) or order < 2 or order > 8:
-            raise ValueError(
-                "PermutationEntropyCalculator: order must be an integer in [2, 8]"
-            )
+            raise ValueError("PermutationEntropyCalculator: order must be an integer in [2, 8]")
         if not isinstance(delay, int) or delay <= 0:
-            raise ValueError(
-                "PermutationEntropyCalculator: delay must be a positive integer"
-            )
+            raise ValueError("PermutationEntropyCalculator: delay must be a positive integer")
         return {
             "permutation_entropy": 0.0,
             "normalized_entropy": 0.0,

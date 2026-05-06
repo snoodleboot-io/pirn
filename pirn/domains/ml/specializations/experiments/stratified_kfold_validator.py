@@ -109,13 +109,9 @@ class StratifiedKFoldValidator(SubTapestry):
         if k < 2:
             raise ValueError("StratifiedKFoldValidator: k must be >= 2")
         if not isinstance(stratify_column, str) or not stratify_column:
-            raise ValueError(
-                "StratifiedKFoldValidator: stratify_column must be a non-empty string"
-            )
+            raise ValueError("StratifiedKFoldValidator: stratify_column must be a non-empty string")
         if not isinstance(algorithm, str) or not algorithm:
-            raise ValueError(
-                "StratifiedKFoldValidator: algorithm must be a non-empty string"
-            )
+            raise ValueError("StratifiedKFoldValidator: algorithm must be a non-empty string")
         metric_tuple = tuple(metrics)
         if not metric_tuple:
             raise ValueError("StratifiedKFoldValidator: metrics must be non-empty")
@@ -125,9 +121,7 @@ class StratifiedKFoldValidator(SubTapestry):
                     "StratifiedKFoldValidator: every metric name must be a non-empty string"
                 )
         with Tapestry() as inner:
-            dataset_node = _emit_value(
-                value=dataset, _config=KnotConfig(id="dataset")
-            )
+            dataset_node = _emit_value(value=dataset, _config=KnotConfig(id="dataset"))
             CrossValidator(
                 dataset=dataset_node,
                 k=k,
@@ -161,9 +155,7 @@ class StratifiedKFoldValidator(SubTapestry):
                 raise TypeError(
                     f"StratifiedKFoldValidator: fold {fold_index} did not produce an EvalReport"
                 )
-            per_fold_metrics.append(
-                {name: float(value) for name, value in report.metrics.items()}
-            )
+            per_fold_metrics.append({name: float(value) for name, value in report.metrics.items()})
         aggregated = self._aggregate(per_fold_metrics)
         return EvalReport(
             model_id=f"{algorithm}:kfold-{k}",
@@ -180,14 +172,11 @@ class StratifiedKFoldValidator(SubTapestry):
             evaluated_at=datetime.now(UTC),
         )
 
-    def _aggregate(
-        self, per_fold_metrics: list[dict[str, float]]
-    ) -> dict[str, float]:
+    def _aggregate(self, per_fold_metrics: list[dict[str, float]]) -> dict[str, float]:
         if not per_fold_metrics:
             return {}
         names = per_fold_metrics[0].keys()
         return {
-            name: sum(fold[name] for fold in per_fold_metrics)
-            / float(len(per_fold_metrics))
+            name: sum(fold[name] for fold in per_fold_metrics) / float(len(per_fold_metrics))
             for name in names
         }

@@ -33,9 +33,7 @@ class Scaler(Knot):
     """Apply a logical scaling transformation to every :class:`MLDataset`
     in a :class:`DataSplit`."""
 
-    valid_methods: ClassVar[frozenset[str]] = frozenset(
-        {"standardise", "minmax", "robust"}
-    )
+    valid_methods: ClassVar[frozenset[str]] = frozenset({"standardise", "minmax", "robust"})
 
     def __init__(
         self,
@@ -73,28 +71,20 @@ class Scaler(Knot):
             raise ValueError("Scaler: columns must be non-empty")
         for column in column_tuple:
             if not isinstance(column, str) or not column:
-                raise ValueError(
-                    "Scaler: every column name must be a non-empty string"
-                )
+                raise ValueError("Scaler: every column name must be a non-empty string")
         if method not in self.valid_methods:
-            raise ValueError(
-                f"Scaler: method must be one of {sorted(self.valid_methods)}"
-            )
+            raise ValueError(f"Scaler: method must be one of {sorted(self.valid_methods)}")
         suffix = f"scaled_{method}"
         now = datetime.now(UTC)
         return DataSplit(
             train=self._mark(split.train, suffix, now),
             test=self._mark(split.test, suffix, now),
             validation=(
-                self._mark(split.validation, suffix, now)
-                if split.validation is not None
-                else None
+                self._mark(split.validation, suffix, now) if split.validation is not None else None
             ),
         )
 
-    def _mark(
-        self, dataset: MLDataset, suffix: str, fetched_at: datetime
-    ) -> MLDataset:
+    def _mark(self, dataset: MLDataset, suffix: str, fetched_at: datetime) -> MLDataset:
         return MLDataset(
             name=f"{dataset.name}:{suffix}",
             feature_names=dataset.feature_names,

@@ -250,9 +250,7 @@ class AnomalyDetector(Knot):
         "spine": ["compression fracture", "disc herniation"],
     }
 
-    async def process(
-        self, study: Study, tissue: TissueClassification, **_: Any
-    ) -> AnomalyReport:
+    async def process(self, study: Study, tissue: TissueClassification, **_: Any) -> AnomalyReport:
         rng = _rng(study.study_id, "anomaly")
         pool = self._FINDING_POOL.get(tissue.primary_tissue, ["incidental finding"])
         anomalies_found = rng.random() < 0.45
@@ -267,9 +265,7 @@ class AnomalyDetector(Knot):
         n_findings = rng.randint(1, min(3, len(pool)))
         findings = rng.sample(pool, k=n_findings)
         severity = rng.choice(["mild", "mild", "moderate", "severe"])
-        urgent = severity == "severe" or (
-            severity == "moderate" and rng.random() < 0.3
-        )
+        urgent = severity == "severe" or (severity == "moderate" and rng.random() < 0.3)
         return AnomalyReport(
             study_id=study.study_id,
             anomalies_found=True,
@@ -364,10 +360,7 @@ class TriageDecider(Knot):
             )
         elif anomalies.anomalies_found:
             decision = "review"
-            rationale = (
-                f"Review requested: {', '.join(anomalies.findings)} "
-                f"({anomalies.severity})"
-            )
+            rationale = f"Review requested: {', '.join(anomalies.findings)} ({anomalies.severity})"
         else:
             decision = "routine"
             rationale = (
@@ -393,9 +386,7 @@ class TriageDecider(Knot):
             store.register(
                 StudyDispatcher(
                     queue=self,
-                    _config=KnotConfig(
-                        id=f"dispatch_{new_queue.study_idx}", validate_io=False
-                    ),
+                    _config=KnotConfig(id=f"dispatch_{new_queue.study_idx}", validate_io=False),
                 )
             )
         else:
@@ -455,9 +446,7 @@ STUDY_MANIFEST = [
 
 
 def make_queue() -> TriageQueue:
-    studies = tuple(
-        _synthetic_study(sid, modality) for sid, modality in STUDY_MANIFEST
-    )
+    studies = tuple(_synthetic_study(sid, modality) for sid, modality in STUDY_MANIFEST)
     return TriageQueue(studies=studies)
 
 
@@ -498,10 +487,12 @@ async def main() -> None:
         print(f"          {outcome.rationale}")
         decisions[outcome.decision].append(outcome.study_id)
 
-    print(f"\nSummary ({final.n_studies} studies): "
-          f"{len(decisions['urgent'])} urgent · "
-          f"{len(decisions['review'])} review · "
-          f"{len(decisions['routine'])} routine")
+    print(
+        f"\nSummary ({final.n_studies} studies): "
+        f"{len(decisions['urgent'])} urgent · "
+        f"{len(decisions['review'])} review · "
+        f"{len(decisions['routine'])} routine"
+    )
 
 
 if __name__ == "__main__":

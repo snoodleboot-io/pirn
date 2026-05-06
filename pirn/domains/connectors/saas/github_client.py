@@ -46,9 +46,7 @@ class GitHubClient(ApiClient, TableSource):
         if config is None and client is None:
             raise TypeError("GitHubClient requires either config= or client=")
         if not isinstance(resource, str) or not resource:
-            raise ValueError(
-                "GitHubClient: resource must be a non-empty string"
-            )
+            raise ValueError("GitHubClient: resource must be a non-empty string")
         self._config = config
         self._client = client
         self._closed = False
@@ -78,12 +76,8 @@ class GitHubClient(ApiClient, TableSource):
         the listing is exhausted.
         """
         if not isinstance(owner, str) or not owner:
-            raise ValueError(
-                "GitHubClient.list_repos: owner must be a non-empty string"
-            )
-        return await self._list_resource(
-            f"/users/{owner}/repos", page=page, per_page=per_page
-        )
+            raise ValueError("GitHubClient.list_repos: owner must be a non-empty string")
+        return await self._list_resource(f"/users/{owner}/repos", page=page, per_page=per_page)
 
     async def list_issues(
         self,
@@ -95,13 +89,9 @@ class GitHubClient(ApiClient, TableSource):
     ) -> tuple[list[Mapping[str, Any]], str | None]:
         """Vendor-typed read of issues for ``owner/repo``."""
         if not isinstance(owner, str) or not owner:
-            raise ValueError(
-                "GitHubClient.list_issues: owner must be a non-empty string"
-            )
+            raise ValueError("GitHubClient.list_issues: owner must be a non-empty string")
         if not isinstance(repo, str) or not repo:
-            raise ValueError(
-                "GitHubClient.list_issues: repo must be a non-empty string"
-            )
+            raise ValueError("GitHubClient.list_issues: repo must be a non-empty string")
         return await self._list_resource(
             f"/repos/{owner}/{repo}/issues", page=page, per_page=per_page
         )
@@ -137,9 +127,7 @@ class GitHubClient(ApiClient, TableSource):
         params: dict[str, Any] = {"page": page, "per_page": per_page}
         response = await self.request("GET", path, params=params)
         rows = self._extract_rows(response)
-        next_cursor = (
-            str(page + 1) if rows and len(rows) == per_page else None
-        )
+        next_cursor = str(page + 1) if rows and len(rows) == per_page else None
         return rows, next_cursor
 
     @staticmethod
@@ -205,24 +193,16 @@ class GitHubClient(ApiClient, TableSource):
             from github import Auth, Github  # type: ignore[import-not-found]
         except ImportError as exc:
             raise ImportError(
-                "GitHubClient requires PyGithub; install via "
-                "`pip install pirn[github]`"
+                "GitHubClient requires PyGithub; install via `pip install pirn[github]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError(
-                "GitHubClient: missing config and no injected client"
-            )
+            raise RuntimeError("GitHubClient: missing config and no injected client")
 
         kwargs: dict[str, Any] = {"base_url": self._config.base_url}
         if self._config.token is not None:
             kwargs["auth"] = Auth.Token(self._config.token)
-        elif (
-            self._config.app_id is not None
-            and self._config.private_key is not None
-        ):
-            kwargs["auth"] = Auth.AppAuth(
-                self._config.app_id, self._config.private_key
-            )
+        elif self._config.app_id is not None and self._config.private_key is not None:
+            kwargs["auth"] = Auth.AppAuth(self._config.app_id, self._config.private_key)
 
         try:
             client = await asyncio.to_thread(Github, **kwargs)

@@ -71,13 +71,11 @@ class StepBackPrompting(Knot):
         """
         if not isinstance(prompt, str):
             raise TypeError(
-                "StepBackPrompting: prompt must be a string, "
-                f"got {type(prompt).__name__}"
+                f"StepBackPrompting: prompt must be a string, got {type(prompt).__name__}"
             )
         if not isinstance(llm, LLMProvider):
             raise TypeError(
-                "StepBackPrompting: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
+                f"StepBackPrompting: llm must be an LLMProvider, got {type(llm).__name__}"
             )
         step_back_messages = [
             {"role": "system", "content": type(self)._step_back_system},
@@ -91,8 +89,7 @@ class StepBackPrompting(Knot):
             {
                 "role": "user",
                 "content": (
-                    f"Background principles:\n{step_back_answer}\n\n"
-                    f"Original question:\n{prompt}"
+                    f"Background principles:\n{step_back_answer}\n\nOriginal question:\n{prompt}"
                 ),
             },
         ]

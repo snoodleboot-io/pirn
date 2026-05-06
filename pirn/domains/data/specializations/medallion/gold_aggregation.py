@@ -66,9 +66,7 @@ class GoldAggregation(Knot):
         )
 
     @staticmethod
-    def _build_insert_query(
-        target_table: str, target_columns: tuple[str, ...]
-    ) -> str:
+    def _build_insert_query(target_table: str, target_columns: tuple[str, ...]) -> str:
         column_list = ", ".join(target_columns)
         placeholders = ", ".join(["?"] * len(target_columns))
         return f"INSERT INTO {target_table} ({column_list}) VALUES ({placeholders})"
@@ -127,21 +125,13 @@ class GoldAggregation(Knot):
             ValueError: If any string argument is empty, or sequence arguments are empty.
         """
         if not isinstance(source_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "GoldAggregation: source_pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("GoldAggregation: source_pool must be a DatabaseConnectionPool")
         if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "GoldAggregation: target_pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("GoldAggregation: target_pool must be a DatabaseConnectionPool")
         if not isinstance(source_query, str) or not source_query:
-            raise ValueError(
-                "GoldAggregation: source_query must be a non-empty string"
-            )
+            raise ValueError("GoldAggregation: source_query must be a non-empty string")
         if not isinstance(target_table, str) or not target_table:
-            raise ValueError(
-                "GoldAggregation: target_table must be a non-empty string"
-            )
+            raise ValueError("GoldAggregation: target_table must be a non-empty string")
         source_column_tuple = tuple(source_columns)
         if not source_column_tuple:
             raise ValueError("GoldAggregation: source_columns must be non-empty")
@@ -152,9 +142,7 @@ class GoldAggregation(Knot):
         target_columns = by_tuple + tuple(aggs_dict.keys())
         # Fetch silver rows and convert to row dicts.
         raw_rows = await source_pool.fetch_all(source_query)
-        row_dicts = [
-            dict(zip(source_column_tuple, tuple(r), strict=False)) for r in raw_rows
-        ]
+        row_dicts = [dict(zip(source_column_tuple, tuple(r), strict=False)) for r in raw_rows]
         # Group rows by the by-tuple key.
         groups: dict[tuple[Any, ...], list[dict[str, Any]]] = defaultdict(list)
         for row in row_dicts:

@@ -77,9 +77,7 @@ class CouchDBPool(DatabaseConnectionPool):
         result = await db.find(selector)
         return list(result)
 
-    async def execute_many(
-        self, query: str, args_seq: Iterable[Iterable[Any]]
-    ) -> None:
+    async def execute_many(self, query: str, args_seq: Iterable[Iterable[Any]]) -> None:
         """Bulk-save documents via _bulk_docs."""
         await self._ensure_session()
         assert self._config is not None

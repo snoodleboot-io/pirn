@@ -71,9 +71,7 @@ class CalibrationFitter(Knot):
         """
         allowed = {"platt", "isotonic"}
         if method not in allowed:
-            raise ValueError(
-                f"CalibrationFitter: method must be one of {allowed}, got {method!r}"
-            )
+            raise ValueError(f"CalibrationFitter: method must be one of {allowed}, got {method!r}")
         payload = json.dumps(
             {
                 "model_id": model.model_id,

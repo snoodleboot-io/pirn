@@ -76,15 +76,14 @@ class S3Store(ObjectStore):
             async for c in body:
                 if not isinstance(c, (bytes, bytearray)):
                     raise TypeError(
-                        "S3Store.put: body iterator must yield bytes; "
-                        f"got {type(c).__name__}"
+                        f"S3Store.put: body iterator must yield bytes; got {type(c).__name__}"
                     )
                 chunks.append(bytes(c))
             payload = b"".join(chunks)
-        await client.put_object(
-            Bucket=self._config.bucket, Key=key, Body=payload
+        await client.put_object(Bucket=self._config.bucket, Key=key, Body=payload)
+        self._logger.debug(
+            "s3.put", extra={"bucket": self._config.bucket, "key": key, "size": len(payload)}
         )
-        self._logger.debug("s3.put", extra={"bucket": self._config.bucket, "key": key, "size": len(payload)})
 
     async def delete(self, key: str) -> None:
         self._validate_key(key)

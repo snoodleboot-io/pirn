@@ -80,17 +80,12 @@ class Predictor(Knot):
             ValueError: If model_id resolves to an empty string.
         """
         if not isinstance(model_id, str) or not model_id:
-            raise ValueError(
-                "Predictor: model_id must resolve to a non-empty string"
-            )
+            raise ValueError("Predictor: model_id must resolve to a non-empty string")
         # Touch the lineage store so misconfigured connectors fail loudly at
         # run time. The fetch results aren't required for deterministic scoring.
         await lineage.fetch_lineage(model_id)
         feature_rows = list(features)
-        return [
-            self._predict(model_id, row)
-            for row in feature_rows
-        ]
+        return [self._predict(model_id, row) for row in feature_rows]
 
     def _predict(self, model_id: str, row: Mapping[str, Any]) -> float:
         payload = json.dumps(

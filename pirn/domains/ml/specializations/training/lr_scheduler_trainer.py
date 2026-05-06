@@ -42,9 +42,7 @@ async def _emit_value(value: Any) -> Any:
 class LRSchedulerTrainer(SubTapestry):
     """Train a neural net with a configurable learning-rate scheduler."""
 
-    valid_schedulers: ClassVar[frozenset[str]] = frozenset(
-        {"step", "cosine", "reduce_on_plateau"}
-    )
+    valid_schedulers: ClassVar[frozenset[str]] = frozenset({"step", "cosine", "reduce_on_plateau"})
 
     def __init__(
         self,
@@ -104,12 +102,13 @@ class LRSchedulerTrainer(SubTapestry):
             raise ValueError("LRSchedulerTrainer: metrics must be non-empty")
         for metric in metric_tuple:
             if not isinstance(metric, str) or not metric:
-                raise ValueError(
-                    "LRSchedulerTrainer: every metric name must be a non-empty string"
-                )
+                raise ValueError("LRSchedulerTrainer: every metric name must be a non-empty string")
         if hyperparameters is not None and not isinstance(hyperparameters, Mapping):
             raise TypeError("LRSchedulerTrainer: hyperparameters must be a Mapping")
-        hp = {**(dict(hyperparameters) if hyperparameters is not None else {}), "lr_scheduler": scheduler}
+        hp = {
+            **(dict(hyperparameters) if hyperparameters is not None else {}),
+            "lr_scheduler": scheduler,
+        }
         with Tapestry() as inner:
             split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
             model = Trainer(
@@ -128,13 +127,9 @@ class LRSchedulerTrainer(SubTapestry):
         trained_model = result.outputs["train"]
         report = result.outputs["evaluate"]
         if not isinstance(trained_model, TrainedModel):
-            raise TypeError(
-                "LRSchedulerTrainer: trainer did not return a TrainedModel"
-            )
+            raise TypeError("LRSchedulerTrainer: trainer did not return a TrainedModel")
         if not isinstance(report, EvalReport):
-            raise TypeError(
-                "LRSchedulerTrainer: evaluator did not return an EvalReport"
-            )
+            raise TypeError("LRSchedulerTrainer: evaluator did not return an EvalReport")
         return {
             "model": trained_model,
             "eval_report": report,

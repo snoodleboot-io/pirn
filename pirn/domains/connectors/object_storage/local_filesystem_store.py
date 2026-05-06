@@ -30,9 +30,7 @@ class LocalFilesystemStore(ObjectStore):
         if config.create_root:
             self._root.mkdir(parents=True, exist_ok=True)
         elif not self._root.is_dir():
-            raise FileNotFoundError(
-                f"LocalFilesystemStore root does not exist: {self._root}"
-            )
+            raise FileNotFoundError(f"LocalFilesystemStore root does not exist: {self._root}")
 
     @property
     def config(self) -> LocalFilesystemConfig:
@@ -84,9 +82,7 @@ class LocalFilesystemStore(ObjectStore):
 
     async def list(self, prefix: str = "") -> AsyncIterator[str]:
         if prefix:
-            base = self._resolve_safe(
-                prefix.rstrip("/") if prefix.endswith("/") else prefix
-            )
+            base = self._resolve_safe(prefix.rstrip("/") if prefix.endswith("/") else prefix)
         else:
             base = self._root
 
@@ -118,7 +114,5 @@ class LocalFilesystemStore(ObjectStore):
         except ValueError as exc:
             # Surface the rejection without echoing the resolved path —
             # the caller-supplied key is enough context.
-            raise PermissionError(
-                f"key {key!r} resolves outside the configured root"
-            ) from exc
+            raise PermissionError(f"key {key!r} resolves outside the configured root") from exc
         return candidate

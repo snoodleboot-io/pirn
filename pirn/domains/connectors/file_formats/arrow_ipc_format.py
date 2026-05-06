@@ -24,16 +24,12 @@ class ArrowIpcFormat(StreamingFileFormat):
             ``"zstd"``.
     """
 
-    _supported_compression: ClassVar[frozenset[str]] = frozenset(
-        {"lz4", "zstd"}
-    )
+    _supported_compression: ClassVar[frozenset[str]] = frozenset({"lz4", "zstd"})
 
     def __init__(self, compression: str | None = None) -> None:
         if compression is not None:
             if not isinstance(compression, str):
-                raise TypeError(
-                    "ArrowIpcFormat: compression must be str | None"
-                )
+                raise TypeError("ArrowIpcFormat: compression must be str | None")
             if compression not in self._supported_compression:
                 raise ValueError(
                     "ArrowIpcFormat: compression must be one of "
@@ -50,16 +46,13 @@ class ArrowIpcFormat(StreamingFileFormat):
     def compression(self) -> str | None:
         return self._compression
 
-    async def read(
-        self, body: AsyncIterator[bytes]
-    ) -> AsyncIterator[Mapping[str, Any]]:
+    async def read(self, body: AsyncIterator[bytes]) -> AsyncIterator[Mapping[str, Any]]:
         try:
             import pyarrow as pa
             import pyarrow.ipc as ipc
         except ImportError as exc:
             raise ImportError(
-                "ArrowIpcFormat requires pyarrow. Install with "
-                "'pip install pirn[arrow]'."
+                "ArrowIpcFormat requires pyarrow. Install with 'pip install pirn[arrow]'."
             ) from exc
 
         payload = await self._drain_bytes(body)
@@ -73,16 +66,13 @@ class ArrowIpcFormat(StreamingFileFormat):
 
         return _iter()
 
-    async def write(
-        self, records: AsyncIterator[Mapping[str, Any]]
-    ) -> AsyncIterator[bytes]:
+    async def write(self, records: AsyncIterator[Mapping[str, Any]]) -> AsyncIterator[bytes]:
         try:
             import pyarrow as pa
             import pyarrow.ipc as ipc
         except ImportError as exc:
             raise ImportError(
-                "ArrowIpcFormat requires pyarrow. Install with "
-                "'pip install pirn[arrow]'."
+                "ArrowIpcFormat requires pyarrow. Install with 'pip install pirn[arrow]'."
             ) from exc
 
         materialised = await self._drain_records(records)

@@ -85,9 +85,7 @@ class BlendingEnsembleBuilder(SubTapestry):
         """
         base_tuple = tuple(base_algorithms)
         if len(base_tuple) < 2:
-            raise ValueError(
-                "BlendingEnsembleBuilder: at least two base_algorithms are required"
-            )
+            raise ValueError("BlendingEnsembleBuilder: at least two base_algorithms are required")
         for alg in base_tuple:
             if not isinstance(alg, str) or not alg:
                 raise ValueError(
@@ -122,9 +120,7 @@ class BlendingEnsembleBuilder(SubTapestry):
         blend_split = DataSplit(train=base_train_ds, test=blend_test_ds)
 
         with Tapestry() as inner:
-            split_node = _emit_value(
-                value=blend_split, _config=KnotConfig(id="blend_split")
-            )
+            split_node = _emit_value(value=blend_split, _config=KnotConfig(id="blend_split"))
             base_models = []
             for i, alg in enumerate(base_tuple):
                 model = Trainer(
@@ -148,13 +144,9 @@ class BlendingEnsembleBuilder(SubTapestry):
         ensemble_model = result.outputs["ensemble"]
         report = result.outputs["evaluate"]
         if not isinstance(ensemble_model, TrainedModel):
-            raise TypeError(
-                "BlendingEnsembleBuilder: ensemble did not return a TrainedModel"
-            )
+            raise TypeError("BlendingEnsembleBuilder: ensemble did not return a TrainedModel")
         if not isinstance(report, EvalReport):
-            raise TypeError(
-                "BlendingEnsembleBuilder: evaluator did not return an EvalReport"
-            )
+            raise TypeError("BlendingEnsembleBuilder: evaluator did not return an EvalReport")
         return {
             "ensemble_model": ensemble_model,
             "eval_report": report,

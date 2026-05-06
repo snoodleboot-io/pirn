@@ -102,13 +102,9 @@ class RollingWindowAggregator(Knot):
         IdentifierValidator.validate_column("timestamp_column", timestamp_column)
         IdentifierValidator.validate_column("value_column", value_column)
         if not isinstance(window_size, int) or window_size < 1:
-            raise ValueError(
-                "RollingWindowAggregator: window_size must be a positive integer"
-            )
+            raise ValueError("RollingWindowAggregator: window_size must be a positive integer")
         if statistic not in ("mean", "sum", "std", "min", "max"):
-            raise ValueError(
-                "RollingWindowAggregator: statistic must be mean/sum/std/min/max"
-            )
+            raise ValueError("RollingWindowAggregator: statistic must be mean/sum/std/min/max")
 
         output_column = f"{value_column}_{statistic}"
 

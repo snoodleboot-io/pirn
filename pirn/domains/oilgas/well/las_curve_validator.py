@@ -66,9 +66,7 @@ class LasCurveValidator(Knot):
         """
         required_tuple = tuple(required_curves)
         if not required_tuple:
-            raise ValueError(
-                "LasCurveValidator: required_curves must be non-empty"
-            )
+            raise ValueError("LasCurveValidator: required_curves must be non-empty")
         for curve in required_tuple:
             if not isinstance(curve, str) or not curve:
                 raise ValueError(
@@ -78,7 +76,6 @@ class LasCurveValidator(Knot):
         missing = [c for c in required_tuple if c not in present]
         if missing:
             raise ValueError(
-                f"LasCurveValidator({las_file.well_id!r}): missing required "
-                f"curve(s) {missing!r}"
+                f"LasCurveValidator({las_file.well_id!r}): missing required curve(s) {missing!r}"
             )
         return las_file

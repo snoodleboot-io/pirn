@@ -104,14 +104,10 @@ class VshaleCalculator(Knot):
             if value <= 0:
                 raise ValueError(f"VshaleCalculator: {label} must be positive")
         if gr_shale <= gr_clean:
-            raise ValueError(
-                "VshaleCalculator: gr_shale must be greater than gr_clean"
-            )
+            raise ValueError("VshaleCalculator: gr_shale must be greater than gr_clean")
         _valid_methods = frozenset({"linear", "larionov_older", "larionov_tertiary", "clavier"})
         if method not in _valid_methods:
-            raise ValueError(
-                f"VshaleCalculator: method must be one of {sorted(_valid_methods)}"
-            )
+            raise ValueError(f"VshaleCalculator: method must be one of {sorted(_valid_methods)}")
         results: list[dict[str, Any]] = []
         for entry in gr_log:
             gr = float(entry.get("gr_api", 0.0))

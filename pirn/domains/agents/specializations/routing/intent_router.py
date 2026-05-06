@@ -42,9 +42,7 @@ class IntentRouter(Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        super().__init__(
-            message=message, llm=llm, categories=categories, _config=_config, **kwargs
-        )
+        super().__init__(message=message, llm=llm, categories=categories, _config=_config, **kwargs)
 
     async def process(
         self,
@@ -68,26 +66,17 @@ class IntentRouter(Knot):
             ValueError: If categories is empty or contains invalid entries.
         """
         if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "IntentRouter: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
+            raise TypeError(f"IntentRouter: llm must be an LLMProvider, got {type(llm).__name__}")
         categories_tuple = tuple(categories)
         if not categories_tuple:
-            raise ValueError(
-                "IntentRouter: categories must be a non-empty sequence"
-            )
+            raise ValueError("IntentRouter: categories must be a non-empty sequence")
         for index, cat in enumerate(categories_tuple):
             if not isinstance(cat, str) or not cat:
                 raise ValueError(
-                    f"IntentRouter: categories[{index}] must be a non-empty "
-                    f"string, got {cat!r}"
+                    f"IntentRouter: categories[{index}] must be a non-empty string, got {cat!r}"
                 )
         if not isinstance(message, str):
-            raise TypeError(
-                "IntentRouter: message must be a string, "
-                f"got {type(message).__name__}"
-            )
+            raise TypeError(f"IntentRouter: message must be a string, got {type(message).__name__}")
         category_list = ", ".join(categories_tuple)
         prompt = (
             f"Classify the following message into exactly one of these "

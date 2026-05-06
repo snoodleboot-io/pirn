@@ -65,17 +65,11 @@ class FormationTopPicker(Knot):
             FormationTop at the configured measured depth and formation name.
         """
         if not isinstance(formation_name, str) or not formation_name:
-            raise ValueError(
-                "FormationTopPicker: formation_name must be a non-empty string"
-            )
+            raise ValueError("FormationTopPicker: formation_name must be a non-empty string")
         if not isinstance(depth_md, (int, float)):
-            raise TypeError(
-                "FormationTopPicker: depth_md must be numeric"
-            )
+            raise TypeError("FormationTopPicker: depth_md must be numeric")
         if depth_md < 0.0:
-            raise ValueError(
-                "FormationTopPicker: depth_md must be non-negative"
-            )
+            raise ValueError("FormationTopPicker: depth_md must be non-negative")
         return FormationTop(
             well_id=las_file.well_id,
             formation_name=formation_name,

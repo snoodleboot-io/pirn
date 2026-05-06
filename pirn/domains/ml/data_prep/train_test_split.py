@@ -88,28 +88,18 @@ class TrainTestSplit(Knot):
         if not isinstance(test_fraction, (int, float)):
             raise TypeError("TrainTestSplit: test_fraction must be numeric")
         if not isinstance(validation_fraction, (int, float)):
-            raise TypeError(
-                "TrainTestSplit: validation_fraction must be numeric"
-            )
+            raise TypeError("TrainTestSplit: validation_fraction must be numeric")
         if test_fraction <= 0.0 or test_fraction >= 1.0:
-            raise ValueError(
-                "TrainTestSplit: test_fraction must be in (0, 1)"
-            )
+            raise ValueError("TrainTestSplit: test_fraction must be in (0, 1)")
         if validation_fraction < 0.0 or validation_fraction >= 1.0:
-            raise ValueError(
-                "TrainTestSplit: validation_fraction must be in [0, 1)"
-            )
+            raise ValueError("TrainTestSplit: validation_fraction must be in [0, 1)")
         if test_fraction + validation_fraction >= 1.0:
-            raise ValueError(
-                "TrainTestSplit: test_fraction + validation_fraction must be < 1"
-            )
+            raise ValueError("TrainTestSplit: test_fraction + validation_fraction must be < 1")
         if not isinstance(random_seed, int):
             raise TypeError("TrainTestSplit: random_seed must be an int")
         total = int(dataset.row_count)
         if total < 0:
-            raise ValueError(
-                "TrainTestSplit: dataset.row_count must be non-negative"
-            )
+            raise ValueError("TrainTestSplit: dataset.row_count must be non-negative")
         # Deterministic offsets — seed influences the split borders very
         # slightly so two seeds produce repeatable but different splits.
         seed_bias = self._seed_bias(random_seed)
@@ -120,25 +110,19 @@ class TrainTestSplit(Knot):
             else 0
         )
         if test_count + validation_count >= total:
-            raise ValueError(
-                "TrainTestSplit: requested fractions exceed dataset size"
-            )
+            raise ValueError("TrainTestSplit: requested fractions exceed dataset size")
         train_count = total - test_count - validation_count
         now = datetime.now(UTC)
         train = self._mk(dataset, "train", train_count, now)
         test = self._mk(dataset, "test", test_count, now)
         validation = (
-            self._mk(dataset, "validation", validation_count, now)
-            if validation_count > 0
-            else None
+            self._mk(dataset, "validation", validation_count, now) if validation_count > 0 else None
         )
         return DataSplit(train=train, test=test, validation=validation)
 
     def _seed_bias(self, random_seed: int) -> float:
         # Map the seed into [0, 1) so the bias is small but seed-dependent.
-        digest = hashlib.sha256(
-            str(random_seed).encode("utf-8")
-        ).digest()
+        digest = hashlib.sha256(str(random_seed).encode("utf-8")).digest()
         # Use the first 4 bytes for a stable float bias.
         scaled = int.from_bytes(digest[:4], "big") / float(0x100000000)
         return scaled - 0.5  # centred at 0; magnitude < 0.5

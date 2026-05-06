@@ -83,14 +83,10 @@ class PlanRevisor(Knot):
             TypeError: If original_plan is not a Plan instance.
         """
         if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "PlanRevisor: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
+            raise TypeError(f"PlanRevisor: llm must be an LLMProvider, got {type(llm).__name__}")
         if not isinstance(original_plan, Plan):
             raise TypeError(
-                "PlanRevisor: original_plan must be a Plan, "
-                f"got {type(original_plan).__name__}"
+                f"PlanRevisor: original_plan must be a Plan, got {type(original_plan).__name__}"
             )
         original_steps_text = "\n".join(
             f"{i + 1}. {step}" for i, step in enumerate(original_plan.steps)
@@ -116,7 +112,7 @@ class PlanRevisor(Knot):
             stripped = line.strip()
             if not stripped:
                 continue
-            if len(stripped) >= 2 and stripped[0].isdigit() and stripped[1] in ".)" :
+            if len(stripped) >= 2 and stripped[0].isdigit() and stripped[1] in ".)":
                 step = stripped[2:].strip()
                 if step:
                     steps.append(step)

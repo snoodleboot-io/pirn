@@ -81,16 +81,12 @@ class ReferentialIntegrityCheck(Knot):
             ValueError: When any identifier is invalid.
         """
         if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError(
-                "ReferentialIntegrityCheck: pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("ReferentialIntegrityCheck: pool must be a DatabaseConnectionPool")
         IdentifierValidator.validate_column("fact_table", fact_table)
         IdentifierValidator.validate_column("fact_column", fact_column)
         IdentifierValidator.validate_column("dimension_table", dimension_table)
         IdentifierValidator.validate_column("dimension_column", dimension_column)
-        total_rows_result = await pool.fetch_all(
-            f"SELECT COUNT(*) FROM {fact_table}"
-        )
+        total_rows_result = await pool.fetch_all(f"SELECT COUNT(*) FROM {fact_table}")
         total_rows = total_rows_result[0][0]
         orphaned_rows_result = await pool.fetch_all(
             f"SELECT COUNT(*) FROM {fact_table} f "
@@ -98,9 +94,7 @@ class ReferentialIntegrityCheck(Knot):
             f"(SELECT {dimension_column} FROM {dimension_table})"
         )
         orphaned_rows = orphaned_rows_result[0][0]
-        orphaned_pct = (
-            (orphaned_rows / total_rows * 100.0) if total_rows > 0 else 0.0
-        )
+        orphaned_pct = (orphaned_rows / total_rows * 100.0) if total_rows > 0 else 0.0
         return {
             "succeeded": True,
             "fact_table": fact_table,

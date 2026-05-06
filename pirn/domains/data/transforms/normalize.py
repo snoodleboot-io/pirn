@@ -82,8 +82,7 @@ class Normalize(Knot):
         """
         if not isinstance(rules, Mapping) or not rules:
             raise TypeError(
-                "Normalize: rules must be a non-empty Mapping[column, "
-                "NormalizeColumnRule]"
+                "Normalize: rules must be a non-empty Mapping[column, NormalizeColumnRule]"
             )
         for column, rule in rules.items():
             if not isinstance(column, str) or not column:

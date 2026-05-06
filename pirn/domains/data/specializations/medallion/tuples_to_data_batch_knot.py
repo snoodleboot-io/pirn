@@ -37,9 +37,7 @@ class TuplesToDataBatchKnot(Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        super().__init__(
-            rows=rows, column_names=column_names, _config=_config, **kwargs
-        )
+        super().__init__(rows=rows, column_names=column_names, _config=_config, **kwargs)
 
     async def process(
         self,
@@ -63,8 +61,5 @@ class TuplesToDataBatchKnot(Knot):
         column_tuple = tuple(column_names)
         if not column_tuple:
             raise ValueError("TuplesToDataBatchKnot: column_names must be non-empty")
-        materialised = tuple(
-            dict(zip(column_tuple, tuple(row), strict=False))
-            for row in rows
-        )
+        materialised = tuple(dict(zip(column_tuple, tuple(row), strict=False)) for row in rows)
         return DataBatch(rows=materialised)

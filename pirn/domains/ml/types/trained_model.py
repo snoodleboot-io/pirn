@@ -21,14 +21,10 @@ class TrainedModel(PirnOpaqueValue):
 
     model_id: str = ""
     algorithm: str = ""
-    hyperparameters: Mapping[str, Any] = field(
-        default_factory=lambda: MappingProxyType({})
-    )
+    hyperparameters: Mapping[str, Any] = field(default_factory=lambda: MappingProxyType({}))
     feature_names: tuple[str, ...] = ()
     target_name: str | None = None
-    created_at: datetime = field(
-        default_factory=lambda: datetime.now(UTC)
-    )
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
         """Flatten to a primitive dict for pydantic serialisation."""

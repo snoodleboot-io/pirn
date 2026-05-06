@@ -39,9 +39,7 @@ _MODEL_KEY_RE = re.compile(r"^model_(\d+)$")
 class EnsembleBuilder(Knot):
     """Stack / blend multiple :class:`TrainedModel`s into a meta-learner."""
 
-    valid_strategies: ClassVar[frozenset[str]] = frozenset(
-        {"stacking", "blending", "voting"}
-    )
+    valid_strategies: ClassVar[frozenset[str]] = frozenset({"stacking", "blending", "voting"})
 
     def __init__(
         self,
@@ -74,8 +72,7 @@ class EnsembleBuilder(Knot):
         """
         if strategy not in self.valid_strategies:
             raise ValueError(
-                f"EnsembleBuilder: strategy must be one of "
-                f"{sorted(self.valid_strategies)}"
+                f"EnsembleBuilder: strategy must be one of {sorted(self.valid_strategies)}"
             )
         # Collect children in index order from numbered kwargs.
         indexed: list[tuple[int, TrainedModel]] = []
@@ -84,14 +81,10 @@ class EnsembleBuilder(Knot):
             if match is None:
                 continue
             if not isinstance(value, TrainedModel):
-                raise TypeError(
-                    f"EnsembleBuilder: {key} must resolve to a TrainedModel"
-                )
+                raise TypeError(f"EnsembleBuilder: {key} must resolve to a TrainedModel")
             indexed.append((int(match.group(1)), value))
         if len(indexed) < 2:
-            raise ValueError(
-                "EnsembleBuilder: at least two models are required"
-            )
+            raise ValueError("EnsembleBuilder: at least two models are required")
         children: list[TrainedModel] = [m for _, m in sorted(indexed)]
         algorithm = f"ensemble:{strategy}"
         feature_names = children[0].feature_names

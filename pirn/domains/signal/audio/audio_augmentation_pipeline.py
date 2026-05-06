@@ -82,18 +82,12 @@ class AudioAugmentationPipeline(Knot):
             ValueError: If augmentations is empty, contains unknown names, or seed is negative.
         """
         if not isinstance(augmentations, tuple) or len(augmentations) == 0:
-            raise ValueError(
-                "AudioAugmentationPipeline: augmentations must be a non-empty tuple"
-            )
+            raise ValueError("AudioAugmentationPipeline: augmentations must be a non-empty tuple")
         invalid = set(augmentations) - self._VALID_AUGMENTATIONS
         if invalid:
-            raise ValueError(
-                f"AudioAugmentationPipeline: unknown augmentations {sorted(invalid)}"
-            )
+            raise ValueError(f"AudioAugmentationPipeline: unknown augmentations {sorted(invalid)}")
         if not isinstance(seed, int) or seed < 0:
-            raise ValueError(
-                "AudioAugmentationPipeline: seed must be a non-negative integer"
-            )
+            raise ValueError("AudioAugmentationPipeline: seed must be a non-negative integer")
         return SignalFrame(
             signal_id=f"{signal.signal_id}:augmented",
             channel_count=signal.channel_count,

@@ -104,9 +104,7 @@ class SparkSource(Source):
         if spark_session is None:
             raise TypeError("SparkSource: spark_session is required")
         if path is None and query is None:
-            raise TypeError(
-                "SparkSource: either path=... or query=... must be supplied"
-            )
+            raise TypeError("SparkSource: either path=... or query=... must be supplied")
         if path is not None and query is not None:
             raise TypeError("SparkSource: path and query are mutually exclusive")
         if path is not None:

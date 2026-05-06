@@ -74,13 +74,8 @@ class Interpolator(Knot):
         Raises:
             ValueError: If target_sample_rate_hz or kind are invalid.
         """
-        if (
-            not isinstance(target_sample_rate_hz, (int, float))
-            or target_sample_rate_hz <= 0
-        ):
-            raise ValueError(
-                "Interpolator: target_sample_rate_hz must be positive"
-            )
+        if not isinstance(target_sample_rate_hz, (int, float)) or target_sample_rate_hz <= 0:
+            raise ValueError("Interpolator: target_sample_rate_hz must be positive")
         if kind not in frozenset({"linear", "cubic", "quadratic", "spline"}):
             raise ValueError(
                 "Interpolator: kind must be 'linear', 'cubic', 'quadratic', or 'spline'"

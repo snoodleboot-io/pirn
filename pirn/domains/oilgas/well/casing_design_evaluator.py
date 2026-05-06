@@ -80,13 +80,9 @@ class CasingDesignEvaluator(Knot):
             ("tension_limit_lbf", tension_limit_lbf),
         ):
             if not isinstance(value, (int, float)):
-                raise TypeError(
-                    f"CasingDesignEvaluator: {label} must be numeric"
-                )
+                raise TypeError(f"CasingDesignEvaluator: {label} must be numeric")
             if value <= 0.0:
-                raise ValueError(
-                    f"CasingDesignEvaluator: {label} must be positive"
-                )
+                raise ValueError(f"CasingDesignEvaluator: {label} must be positive")
         return {
             "well_id": well_path.well_id,
             "burst_safety_factor": 1.5,

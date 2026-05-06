@@ -92,19 +92,15 @@ class PropensityScoreMatcherPipeline(Knot):
                 "PropensityScoreMatcherPipeline: covariates must be a non-empty sequence"
             )
         if not isinstance(matching_ratio, int) or matching_ratio < 1:
-            raise ValueError(
-                "PropensityScoreMatcherPipeline: matching_ratio must be >= 1"
-            )
+            raise ValueError("PropensityScoreMatcherPipeline: matching_ratio must be >= 1")
         if not isinstance(caliper, (int, float)) or float(caliper) <= 0.0:
-            raise ValueError(
-                "PropensityScoreMatcherPipeline: caliper must be > 0.0"
-            )
+            raise ValueError("PropensityScoreMatcherPipeline: caliper must be > 0.0")
         treated = [r for r in cohort if r.get(treatment_col)]
         controls = [r for r in cohort if not r.get(treatment_col)]
         matched_pairs: list[dict[str, Any]] = []
         n_matched = 0
         for patient in treated:
-            available = controls[n_matched * matching_ratio: (n_matched + 1) * matching_ratio]
+            available = controls[n_matched * matching_ratio : (n_matched + 1) * matching_ratio]
             if not available:
                 break
             matched_pairs.append(

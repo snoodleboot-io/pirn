@@ -124,7 +124,10 @@ class FactTableLoad(Knot):
             if not isinstance(spec, dict):
                 raise TypeError(f"FactTableLoad: {label} must be a dict")
             _required_keys = (
-                "dim_table", "natural_key_columns", "surrogate_key_column", "fact_fk_column"
+                "dim_table",
+                "natural_key_columns",
+                "surrogate_key_column",
+                "fact_fk_column",
             )
             for key in _required_keys:
                 if key not in spec:
@@ -133,9 +136,7 @@ class FactTableLoad(Knot):
             IdentifierValidator.validate_column(
                 f"{label}.surrogate_key_column", spec["surrogate_key_column"]
             )
-            IdentifierValidator.validate_column(
-                f"{label}.fact_fk_column", spec["fact_fk_column"]
-            )
+            IdentifierValidator.validate_column(f"{label}.fact_fk_column", spec["fact_fk_column"])
             nk_cols = tuple(spec["natural_key_columns"])
             IdentifierValidator.validate_columns(f"{label}.natural_key_columns", nk_cols)
             if "is_current_column" in spec and spec["is_current_column"] is not None:
@@ -144,9 +145,7 @@ class FactTableLoad(Knot):
                 )
             dim_pool = spec.get("dim_pool", None)
             if dim_pool is not None and not isinstance(dim_pool, DatabaseConnectionPool):
-                raise TypeError(
-                    f"FactTableLoad: {label}.dim_pool must be a DatabaseConnectionPool"
-                )
+                raise TypeError(f"FactTableLoad: {label}.dim_pool must be a DatabaseConnectionPool")
             validated_lookups.append(
                 {
                     "dim_table": spec["dim_table"],

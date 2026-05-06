@@ -82,17 +82,13 @@ class FeatureStoreReader(SubTapestry):
             ValueError: If entity_keys or feature_names are empty or contain invalid names.
         """
         if not isinstance(feature_store, FeatureStoreProvider):
-            raise TypeError(
-                "FeatureStoreReader: feature_store must be a FeatureStoreProvider"
-            )
+            raise TypeError("FeatureStoreReader: feature_store must be a FeatureStoreProvider")
         key_tuple = tuple(entity_keys)
         if not key_tuple:
             raise ValueError("FeatureStoreReader: entity_keys must be non-empty")
         for key in key_tuple:
             if not isinstance(key, str) or not key:
-                raise ValueError(
-                    "FeatureStoreReader: every entity key must be a non-empty string"
-                )
+                raise ValueError("FeatureStoreReader: every entity key must be a non-empty string")
         name_tuple = tuple(feature_names)
         if not name_tuple:
             raise ValueError("FeatureStoreReader: feature_names must be non-empty")
@@ -102,9 +98,7 @@ class FeatureStoreReader(SubTapestry):
                     "FeatureStoreReader: every feature name must be a non-empty string"
                 )
         with Tapestry() as inner:
-            split_node = _emit_value(
-                value=split, _config=KnotConfig(id="split")
-            )
+            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
             _FeatureStoreReaderKnot(
                 split=split_node,
                 feature_store=feature_store,
@@ -115,7 +109,5 @@ class FeatureStoreReader(SubTapestry):
         result = await self._run_inner(inner)
         joined = result.outputs["read"]
         if not isinstance(joined, DataSplit):
-            raise TypeError(
-                "FeatureStoreReader: inner reader did not return a DataSplit"
-            )
+            raise TypeError("FeatureStoreReader: inner reader did not return a DataSplit")
         return joined

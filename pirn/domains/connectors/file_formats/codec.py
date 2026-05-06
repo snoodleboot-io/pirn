@@ -17,22 +17,12 @@ class Codec:
     @property
     def name(self) -> str:
         """Codec identifier (``"gzip"``, ``"zstd"``, etc.)."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement name"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement name")
 
-    async def compress_stream(
-        self, body: AsyncIterator[bytes]
-    ) -> AsyncIterator[bytes]:
+    async def compress_stream(self, body: AsyncIterator[bytes]) -> AsyncIterator[bytes]:
         """Compress an incoming byte stream."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement compress_stream()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement compress_stream()")
 
-    async def decompress_stream(
-        self, body: AsyncIterator[bytes]
-    ) -> AsyncIterator[bytes]:
+    async def decompress_stream(self, body: AsyncIterator[bytes]) -> AsyncIterator[bytes]:
         """Decompress an incoming byte stream."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement decompress_stream()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement decompress_stream()")

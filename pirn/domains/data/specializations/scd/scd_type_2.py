@@ -88,12 +88,13 @@ class ScdType2(Knot):
     ) -> dict[str, int]:
         if not source_rows:
             return {"inserted": 0, "expired": 0}
-        select_q = ScdType2MergeKnot._select_query(
-            target_table, column_tuple, current_flag_column
-        )
+        select_q = ScdType2MergeKnot._select_query(target_table, column_tuple, current_flag_column)
         insert_q = ScdType2MergeKnot._insert_query(
-            target_table, column_tuple, effective_date_column,
-            expiry_date_column, current_flag_column,
+            target_table,
+            column_tuple,
+            effective_date_column,
+            expiry_date_column,
+            current_flag_column,
         )
         expire_q = ScdType2MergeKnot._expire_query(
             target_table, primary_key_tuple, expiry_date_column, current_flag_column

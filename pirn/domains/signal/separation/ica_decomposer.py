@@ -73,9 +73,7 @@ class ICADecomposer(Knot):
             ValueError: If source_count is not a positive integer.
         """
         if not isinstance(source_count, int) or source_count <= 0:
-            raise ValueError(
-                "ICADecomposer: source_count must be a positive integer"
-            )
+            raise ValueError("ICADecomposer: source_count must be a positive integer")
         return SourceFrame(
             signal_id=signal.signal_id,
             source_count=source_count,

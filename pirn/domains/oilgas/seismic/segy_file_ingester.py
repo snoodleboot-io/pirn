@@ -62,11 +62,7 @@ class SegyFileIngester(Knot):
             SegyVolume reference identified by the configured volume ID.
         """
         if not isinstance(file_path, str) or not file_path:
-            raise ValueError(
-                "SegyFileIngester: file_path must be a non-empty string"
-            )
+            raise ValueError("SegyFileIngester: file_path must be a non-empty string")
         if not isinstance(volume_id, str) or not volume_id:
-            raise ValueError(
-                "SegyFileIngester: volume_id must be a non-empty string"
-            )
+            raise ValueError("SegyFileIngester: volume_id must be a non-empty string")
         return SegyVolume(volume_id=volume_id)

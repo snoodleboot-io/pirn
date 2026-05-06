@@ -144,8 +144,7 @@ class MssqlPool(DatabaseConnectionPool):
             import aioodbc  # type: ignore[import-not-found]
         except ImportError as exc:
             raise ImportError(
-                "MssqlPool requires aioodbc; install via "
-                "`pip install pirn[mssql]`"
+                "MssqlPool requires aioodbc; install via `pip install pirn[mssql]`"
             ) from exc
         if self._config is None:
             raise RuntimeError("MssqlPool: missing config and no injected pool")

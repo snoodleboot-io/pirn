@@ -88,9 +88,7 @@ class FunnelAnalysisKnot(Knot):
         IdentifierValidator.validate_column("user_column", user_column)
         IdentifierValidator.validate_column("event_column", event_column)
         if not funnel_steps or not isinstance(funnel_steps, (list, tuple)):
-            raise ValueError(
-                "FunnelAnalysisKnot: funnel_steps must be a non-empty sequence"
-            )
+            raise ValueError("FunnelAnalysisKnot: funnel_steps must be a non-empty sequence")
 
         steps = list(funnel_steps)
         user_events: dict[Any, set[str]] = {}

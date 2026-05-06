@@ -86,26 +86,19 @@ class PandasAggregate(Knot):
             A new PandasDataBatch containing the aggregated result.
         """
         if not isinstance(by, Sequence) or isinstance(by, (str, bytes)):
-            raise TypeError(
-                "PandasAggregate: by must be a sequence of column names"
-            )
+            raise TypeError("PandasAggregate: by must be a sequence of column names")
         if not by:
             raise ValueError("PandasAggregate: by must be non-empty")
         for column in by:
             if not isinstance(column, str) or not column:
-                raise TypeError(
-                    "PandasAggregate: every entry in by must be a non-empty string"
-                )
+                raise TypeError("PandasAggregate: every entry in by must be a non-empty string")
         if not isinstance(aggs, Mapping) or not aggs:
             raise TypeError(
-                "PandasAggregate: aggs must be a non-empty Mapping[output_column, "
-                "AggregateSpec]"
+                "PandasAggregate: aggs must be a non-empty Mapping[output_column, AggregateSpec]"
             )
         for output_name, spec in aggs.items():
             if not isinstance(output_name, str) or not output_name:
-                raise TypeError(
-                    "PandasAggregate: aggs keys must be non-empty strings"
-                )
+                raise TypeError("PandasAggregate: aggs keys must be non-empty strings")
             if not isinstance(spec, AggregateSpec):
                 raise TypeError(
                     f"PandasAggregate: aggs[{output_name!r}] must be an AggregateSpec, "
@@ -148,6 +141,4 @@ class PandasAggregate(Knot):
         if function == "last":
             return series.iloc[-1] if len(series) > 0 else None
         # AggregateSpec validation should have prevented this; defence in depth.
-        raise ValueError(
-            f"PandasAggregate: unknown aggregation function {function!r}"
-        )
+        raise ValueError(f"PandasAggregate: unknown aggregation function {function!r}")

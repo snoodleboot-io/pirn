@@ -34,13 +34,9 @@ class WavFormat(BatchFileFormat):
     def name(self) -> str:
         return "wav"
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         if not payload:
-            raise ValueError(
-                "WavFormat: payload is empty — cannot decode WAV"
-            )
+            raise ValueError("WavFormat: payload is empty — cannot decode WAV")
         buf = io.BytesIO(payload)
         with wave.open(buf, "rb") as wf:
             record: dict[str, Any] = {
@@ -52,14 +48,10 @@ class WavFormat(BatchFileFormat):
             }
         return [record]
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         materialised = [dict(r) for r in records]
         if not materialised:
-            raise ValueError(
-                "WavFormat: cannot encode an empty record stream"
-            )
+            raise ValueError("WavFormat: cannot encode an empty record stream")
         record = materialised[0]
         buf = io.BytesIO()
         with wave.open(buf, "wb") as wf:

@@ -71,13 +71,9 @@ class FeatureStoreWriter(SubTapestry):
             TypeError: If feature_store is not a FeatureStoreProvider or inner writer fails.
         """
         if not isinstance(feature_store, FeatureStoreProvider):
-            raise TypeError(
-                "FeatureStoreWriter: feature_store must be a FeatureStoreProvider"
-            )
+            raise TypeError("FeatureStoreWriter: feature_store must be a FeatureStoreProvider")
         with Tapestry() as inner:
-            split_node = _emit_value(
-                value=split, _config=KnotConfig(id="split")
-            )
+            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
             FeatureStore(
                 split=split_node,
                 provider=feature_store,
@@ -86,7 +82,5 @@ class FeatureStoreWriter(SubTapestry):
         result = await self._run_inner(inner)
         written = result.outputs["write"]
         if not isinstance(written, int):
-            raise TypeError(
-                "FeatureStoreWriter: inner writer did not return an int"
-            )
+            raise TypeError("FeatureStoreWriter: inner writer did not return an int")
         return written

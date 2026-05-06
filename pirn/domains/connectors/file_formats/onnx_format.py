@@ -36,10 +36,7 @@ class OnnxFormat(BatchFileFormat):
 
     def __init__(self, validate: bool = True) -> None:
         if not isinstance(validate, bool):
-            raise TypeError(
-                "OnnxFormat: validate must be a bool, "
-                f"got {type(validate).__name__}"
-            )
+            raise TypeError(f"OnnxFormat: validate must be a bool, got {type(validate).__name__}")
         self._validate = validate
 
     @property
@@ -50,28 +47,19 @@ class OnnxFormat(BatchFileFormat):
     def validate(self) -> bool:
         return self._validate
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         if not isinstance(payload, (bytes, bytearray)):
-            raise TypeError(
-                "OnnxFormat: payload must be bytes, "
-                f"got {type(payload).__name__}"
-            )
+            raise TypeError(f"OnnxFormat: payload must be bytes, got {type(payload).__name__}")
         onnx = self._load_onnx()
         try:
             model = onnx.load_model_from_string(bytes(payload))
         except Exception as exc:
-            raise ValueError(
-                f"OnnxFormat: failed to parse ONNX payload — {exc}"
-            ) from exc
+            raise ValueError(f"OnnxFormat: failed to parse ONNX payload — {exc}") from exc
         if self._validate:
             try:
                 onnx.checker.check_model(model)
             except Exception as exc:
-                raise ValueError(
-                    f"OnnxFormat: ONNX checker rejected model — {exc}"
-                ) from exc
+                raise ValueError(f"OnnxFormat: ONNX checker rejected model — {exc}") from exc
         graph = model.graph
         record: dict[str, Any] = {
             "model_bytes": bytes(payload),
@@ -83,9 +71,7 @@ class OnnxFormat(BatchFileFormat):
         }
         return [record]
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         materialised: list[Mapping[str, Any]] = list(records)
         if len(materialised) != 1:
             raise ValueError(
@@ -94,14 +80,11 @@ class OnnxFormat(BatchFileFormat):
             )
         record = materialised[0]
         if "model_bytes" not in record:
-            raise ValueError(
-                "OnnxFormat: record missing required 'model_bytes' key"
-            )
+            raise ValueError("OnnxFormat: record missing required 'model_bytes' key")
         payload = record["model_bytes"]
         if not isinstance(payload, (bytes, bytearray)):
             raise TypeError(
-                "OnnxFormat: 'model_bytes' must be bytes, "
-                f"got {type(payload).__name__}"
+                f"OnnxFormat: 'model_bytes' must be bytes, got {type(payload).__name__}"
             )
         payload_bytes = bytes(payload)
         onnx = self._load_onnx()
@@ -119,7 +102,6 @@ class OnnxFormat(BatchFileFormat):
             import onnx
         except ImportError as exc:
             raise ImportError(
-                "OnnxFormat requires onnx. Install with "
-                "`pip install pirn[onnx]`."
+                "OnnxFormat requires onnx. Install with `pip install pirn[onnx]`."
             ) from exc
         return onnx

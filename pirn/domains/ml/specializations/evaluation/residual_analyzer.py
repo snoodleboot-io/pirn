@@ -75,13 +75,9 @@ class ResidualAnalyzer(Knot):
         """
         if not isinstance(n_bins, int) or n_bins < 2:
             raise ValueError("ResidualAnalyzer: n_bins must be an int >= 2")
-        histogram = [
-            self._bin_value(model, split, i) for i in range(n_bins)
-        ]
+        histogram = [self._bin_value(model, split, i) for i in range(n_bins)]
         qq_theoretical = [round((i + 0.5) / n_bins, 4) for i in range(n_bins)]
-        qq_sample = [
-            self._qq_value(model, split, i) for i in range(n_bins)
-        ]
+        qq_sample = [self._qq_value(model, split, i) for i in range(n_bins)]
         durbin_watson = self._dw_value(model, split)
         heteroscedastic = durbin_watson < 1.5 or durbin_watson > 2.5
         return {

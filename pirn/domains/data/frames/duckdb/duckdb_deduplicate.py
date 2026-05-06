@@ -87,9 +87,7 @@ class DuckdbDeduplicate(Knot):
         IdentifierValidator.validate_columns("DuckdbDeduplicate.keys", keys)
         coerced_keys: tuple[str, ...] = tuple(keys)
         for column in batch.relation.columns:
-            IdentifierValidator.validate_column(
-                "DuckdbDeduplicate: upstream column", column
-            )
+            IdentifierValidator.validate_column("DuckdbDeduplicate: upstream column", column)
         partition = ", ".join(f'"{key}"' for key in coerced_keys)
         original_columns = ", ".join(f'"{column}"' for column in batch.relation.columns)
         # Two-stage plan:

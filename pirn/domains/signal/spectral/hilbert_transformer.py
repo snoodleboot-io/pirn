@@ -49,9 +49,7 @@ class HilbertTransformer(Knot):
     ) -> None:
         super().__init__(signal=signal, _config=_config, **kwargs)
 
-    async def process(
-        self, signal: SignalFrame, **_: Any
-    ) -> SignalFrame:
+    async def process(self, signal: SignalFrame, **_: Any) -> SignalFrame:
         """Compute the analytic signal via the Hilbert transform and return the 90-degree phase-shifted SignalFrame.
 
         Args:

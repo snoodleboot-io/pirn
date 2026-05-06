@@ -70,15 +70,9 @@ class StaticCorrection(Knot):
             SegyVolume with static corrections applied.
         """
         if not isinstance(datum_elevation_m, (int, float)):
-            raise TypeError(
-                "StaticCorrection: datum_elevation_m must be numeric"
-            )
+            raise TypeError("StaticCorrection: datum_elevation_m must be numeric")
         if not isinstance(replacement_velocity_m_s, (int, float)):
-            raise TypeError(
-                "StaticCorrection: replacement_velocity_m_s must be numeric"
-            )
+            raise TypeError("StaticCorrection: replacement_velocity_m_s must be numeric")
         if replacement_velocity_m_s <= 0.0:
-            raise ValueError(
-                "StaticCorrection: replacement_velocity_m_s must be positive"
-            )
+            raise ValueError("StaticCorrection: replacement_velocity_m_s must be positive")
         return SegyVolume(volume_id=f"{gather.volume_id}:static")

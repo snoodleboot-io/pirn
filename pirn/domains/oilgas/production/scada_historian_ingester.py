@@ -71,21 +71,13 @@ class ScadaHistorianIngester(Knot):
             configured sample_interval_sec.
         """
         if not isinstance(connection, HistorianConnection):
-            raise TypeError(
-                "ScadaHistorianIngester: connection must be a HistorianConnection"
-            )
+            raise TypeError("ScadaHistorianIngester: connection must be a HistorianConnection")
         if not isinstance(tag, str) or not tag:
-            raise ValueError(
-                "ScadaHistorianIngester: tag must be a non-empty string"
-            )
+            raise ValueError("ScadaHistorianIngester: tag must be a non-empty string")
         if not isinstance(since, datetime):
-            raise TypeError(
-                "ScadaHistorianIngester: since must be a datetime"
-            )
+            raise TypeError("ScadaHistorianIngester: since must be a datetime")
         if not isinstance(sample_interval_sec, (int, float)) or sample_interval_sec <= 0.0:
-            raise ValueError(
-                "ScadaHistorianIngester: sample_interval_sec must be positive"
-            )
+            raise ValueError("ScadaHistorianIngester: sample_interval_sec must be positive")
         return ScadaTimeSeries(
             sensor_id=tag,
             sample_interval_sec=float(sample_interval_sec),

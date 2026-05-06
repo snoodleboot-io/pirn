@@ -95,13 +95,11 @@ class _DocumentLoader(Knot):
         """
         if max_bytes <= 0:
             raise ValueError(
-                "_DocumentLoader: max_bytes must be a positive int, "
-                f"got {max_bytes!r}"
+                f"_DocumentLoader: max_bytes must be a positive int, got {max_bytes!r}"
             )
         if not isinstance(source, str) or not source:
             raise TypeError(
-                "DocumentIngestionPipeline: source must be a non-empty "
-                f"string, got {source!r}"
+                f"DocumentIngestionPipeline: source must be a non-empty string, got {source!r}"
             )
         parsed = urlparse(source)
         scheme = parsed.scheme.lower()
@@ -110,39 +108,28 @@ class _DocumentLoader(Knot):
         if scheme == "" or scheme == "file":
             local_path = parsed.path if scheme == "file" else source
             return await self._read_file(local_path, allowed_root, max_bytes)
-        raise ValueError(
-            f"_DocumentLoader: unsupported source scheme: {parsed.scheme!r}"
-        )
+        raise ValueError(f"_DocumentLoader: unsupported source scheme: {parsed.scheme!r}")
 
     async def _read_file(self, path_str: str, allowed_root: str | None, max_bytes: int) -> str:
         if allowed_root is None:
             raise ValueError(
-                "_DocumentLoader: local file reads require allowed_root "
-                "constructor argument"
+                "_DocumentLoader: local file reads require allowed_root constructor argument"
             )
         root = Path(allowed_root).resolve(strict=True)
         candidate = Path(path_str)
         try:
             resolved = candidate.resolve(strict=True)
         except FileNotFoundError as exc:
-            raise ValueError(
-                f"_DocumentLoader: file does not exist: {path_str!r}"
-            ) from exc
+            raise ValueError(f"_DocumentLoader: file does not exist: {path_str!r}") from exc
         if not resolved.is_relative_to(root):
             raise ValueError(
-                f"_DocumentLoader: refusing to read outside allowed_root: "
-                f"{path_str!r}"
+                f"_DocumentLoader: refusing to read outside allowed_root: {path_str!r}"
             )
         if candidate.is_symlink():
-            raise ValueError(
-                f"_DocumentLoader: refusing to read symlink: {path_str!r}"
-            )
+            raise ValueError(f"_DocumentLoader: refusing to read symlink: {path_str!r}")
         size = resolved.stat().st_size
         if size > max_bytes:
-            raise ValueError(
-                f"_DocumentLoader: file size {size} exceeds max_bytes "
-                f"{max_bytes}"
-            )
+            raise ValueError(f"_DocumentLoader: file size {size} exceeds max_bytes {max_bytes}")
         return await asyncio.to_thread(resolved.read_text, encoding="utf-8")
 
     async def _fetch_url(
@@ -162,34 +149,20 @@ class _DocumentLoader(Knot):
         parsed = urlparse(url)
         hostname = parsed.hostname
         if not hostname:
-            raise ValueError(
-                f"_DocumentLoader: URL has no hostname: {url!r}"
-            )
+            raise ValueError(f"_DocumentLoader: URL has no hostname: {url!r}")
         try:
             ip = ipaddress.ip_address(socket.gethostbyname(hostname))
         except (socket.gaierror, ValueError) as exc:
             raise ValueError(
-                f"_DocumentLoader: refusing to fetch unresolvable host: "
-                f"{hostname!r}"
+                f"_DocumentLoader: refusing to fetch unresolvable host: {hostname!r}"
             ) from exc
-        if (
-            ip.is_private
-            or ip.is_loopback
-            or ip.is_link_local
-            or ip.is_reserved
-            or ip.is_multicast
-        ):
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
             raise ValueError(
                 f"_DocumentLoader: refusing to fetch "
                 f"private/loopback/link-local: {hostname!r} -> {ip}"
             )
-        if (
-            allowed_hosts is not None
-            and hostname not in allowed_hosts
-        ):
-            raise ValueError(
-                f"_DocumentLoader: host {hostname!r} not in allowed_hosts"
-            )
+        if allowed_hosts is not None and hostname not in allowed_hosts:
+            raise ValueError(f"_DocumentLoader: host {hostname!r} not in allowed_hosts")
         timeout = httpx.Timeout(request_timeout, connect=connect_timeout)
         async with httpx.AsyncClient(
             timeout=timeout,

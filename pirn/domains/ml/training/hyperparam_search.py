@@ -43,9 +43,7 @@ from pirn.domains.ml.types.trained_model import TrainedModel
 class HyperparamSearch(Knot):
     """Emit the best :class:`TrainedModel` from an enumerated search space."""
 
-    valid_strategies: ClassVar[frozenset[str]] = frozenset(
-        {"grid", "random", "bayesian"}
-    )
+    valid_strategies: ClassVar[frozenset[str]] = frozenset({"grid", "random", "bayesian"})
 
     def __init__(
         self,
@@ -99,31 +97,21 @@ class HyperparamSearch(Knot):
             TypeError: If n_trials or random_seed are not ints.
         """
         if not isinstance(algorithm, str) or not algorithm:
-            raise ValueError(
-                "HyperparamSearch: algorithm must be a non-empty string"
-            )
+            raise ValueError("HyperparamSearch: algorithm must be a non-empty string")
         if not isinstance(search_space, Mapping) or not search_space:
-            raise ValueError(
-                "HyperparamSearch: search_space must be a non-empty Mapping"
-            )
+            raise ValueError("HyperparamSearch: search_space must be a non-empty Mapping")
         for name, values in search_space.items():
             if not isinstance(name, str) or not name:
-                raise ValueError(
-                    "HyperparamSearch: search_space keys must be non-empty strings"
-                )
+                raise ValueError("HyperparamSearch: search_space keys must be non-empty strings")
             if not isinstance(values, Sequence) or isinstance(values, str):
                 raise TypeError(
-                    f"HyperparamSearch: search_space[{name!r}] must be a "
-                    "non-string Sequence"
+                    f"HyperparamSearch: search_space[{name!r}] must be a non-string Sequence"
                 )
             if len(values) == 0:
-                raise ValueError(
-                    f"HyperparamSearch: search_space[{name!r}] must be non-empty"
-                )
+                raise ValueError(f"HyperparamSearch: search_space[{name!r}] must be non-empty")
         if strategy not in self.valid_strategies:
             raise ValueError(
-                f"HyperparamSearch: strategy must be one of "
-                f"{sorted(self.valid_strategies)}"
+                f"HyperparamSearch: strategy must be one of {sorted(self.valid_strategies)}"
             )
         if not isinstance(n_trials, int):
             raise TypeError("HyperparamSearch: n_trials must be an int")
@@ -131,9 +119,7 @@ class HyperparamSearch(Knot):
             raise ValueError("HyperparamSearch: n_trials must be >= 1")
         if not isinstance(random_seed, int):
             raise TypeError("HyperparamSearch: random_seed must be an int")
-        frozen_space = MappingProxyType(
-            {k: tuple(v) for k, v in search_space.items()}
-        )
+        frozen_space = MappingProxyType({k: tuple(v) for k, v in search_space.items()})
         candidates = self._enumerate(frozen_space, strategy, n_trials, random_seed)
         best = self._best_candidate(candidates, random_seed)
         model_id = self._derive_model_id(split, best, algorithm, strategy)
@@ -157,22 +143,16 @@ class HyperparamSearch(Knot):
         value_lists = [list(search_space[n]) for n in names]
         if strategy == "grid":
             return [
-                dict(zip(names, combo, strict=False))
-                for combo in itertools.product(*value_lists)
+                dict(zip(names, combo, strict=False)) for combo in itertools.product(*value_lists)
             ]
         # random + bayesian both walk the cartesian product up to n_trials,
         # the bayesian variant additionally shuffles to a deterministic order.
         rng = random.Random(random_seed)
-        full = [
-            dict(zip(names, combo, strict=False))
-            for combo in itertools.product(*value_lists)
-        ]
+        full = [dict(zip(names, combo, strict=False)) for combo in itertools.product(*value_lists)]
         rng.shuffle(full)
         return full[:n_trials]
 
-    def _best_candidate(
-        self, candidates: list[dict[str, Any]], random_seed: int
-    ) -> dict[str, Any]:
+    def _best_candidate(self, candidates: list[dict[str, Any]], random_seed: int) -> dict[str, Any]:
         # Score every candidate; pick the one with the highest score.
         # Subclasses override _score_candidate to plug in real metrics.
         scored = [(self._score_candidate(c, random_seed), c) for c in candidates]

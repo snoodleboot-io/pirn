@@ -49,9 +49,7 @@ class HallucinationDetector(Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        super().__init__(
-            response=response, sources=sources, llm=llm, _config=_config, **kwargs
-        )
+        super().__init__(response=response, sources=sources, llm=llm, _config=_config, **kwargs)
 
     async def process(
         self,
@@ -77,9 +75,7 @@ class HallucinationDetector(Knot):
                 "HallucinationDetector: response must be an AgentResponse, "
                 f"got {type(response).__name__}"
             )
-        sources_text = "\n\n".join(
-            f"[Source {i + 1}]: {src}" for i, src in enumerate(sources)
-        )
+        sources_text = "\n\n".join(f"[Source {i + 1}]: {src}" for i, src in enumerate(sources))
         prompt = (
             "You are a hallucination detector. Given the sources and a response, "
             "list any claims in the response that are NOT supported by the sources.\n"
@@ -99,7 +95,7 @@ class HallucinationDetector(Knot):
                 continue
             for marker in ("- ", "* ", "• "):
                 if cleaned.startswith(marker):
-                    cleaned = cleaned[len(marker):].strip()
+                    cleaned = cleaned[len(marker) :].strip()
                     break
             if cleaned:
                 flagged.append(cleaned)

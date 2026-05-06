@@ -23,9 +23,7 @@ class VictoriaMetricsPool(DatabaseConnectionPool):
         client: Any = None,
     ) -> None:
         if config is None and client is None:
-            raise TypeError(
-                "VictoriaMetricsPool requires either config= or client="
-            )
+            raise TypeError("VictoriaMetricsPool requires either config= or client=")
         self._config = config
         self._client = client
         self._closed = False
@@ -79,9 +77,7 @@ class VictoriaMetricsPool(DatabaseConnectionPool):
             self._reraise_scrubbed(exc)
         return list(data.get("data", {}).get("result", []))
 
-    async def execute_many(
-        self, query: str, args_seq: Iterable[Iterable[Any]]
-    ) -> None:
+    async def execute_many(self, query: str, args_seq: Iterable[Iterable[Any]]) -> None:
         """Write multiple metric lines as a single remote write batch."""
         await self._ensure_client()
         lines = "\n".join(str(item) for row in args_seq for item in row)
@@ -110,9 +106,7 @@ class VictoriaMetricsPool(DatabaseConnectionPool):
                 "`pip install pirn[victoriametrics]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError(
-                "VictoriaMetricsPool: missing config and no injected client"
-            )
+            raise RuntimeError("VictoriaMetricsPool: missing config and no injected client")
         auth = None
         if self._config.username is not None:
             auth = (self._config.username, self._config.password or "")

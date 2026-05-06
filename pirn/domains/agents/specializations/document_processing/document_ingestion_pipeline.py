@@ -113,19 +113,13 @@ class DocumentIngestionPipeline(SubTapestry):
         """
         if not isinstance(source, str) or not source:
             raise TypeError(
-                "DocumentIngestionPipeline: source must be a non-empty "
-                f"string, got {source!r}"
+                f"DocumentIngestionPipeline: source must be a non-empty string, got {source!r}"
             )
         if not isinstance(chunk_size, int) or chunk_size <= 0:
             raise ValueError(
-                "DocumentIngestionPipeline: chunk_size must be a positive int, "
-                f"got {chunk_size!r}"
+                f"DocumentIngestionPipeline: chunk_size must be a positive int, got {chunk_size!r}"
             )
-        if (
-            not isinstance(chunk_overlap, int)
-            or chunk_overlap < 0
-            or chunk_overlap >= chunk_size
-        ):
+        if not isinstance(chunk_overlap, int) or chunk_overlap < 0 or chunk_overlap >= chunk_size:
             raise ValueError(
                 "DocumentIngestionPipeline: chunk_overlap must be a non-"
                 "negative int strictly less than chunk_size, "

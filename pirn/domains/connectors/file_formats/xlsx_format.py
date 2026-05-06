@@ -36,18 +36,13 @@ class XlsxFormat(BatchFileFormat):
         column_names: Sequence[str] | None = None,
     ) -> None:
         if not isinstance(sheet_name, str) or not sheet_name:
-            raise ValueError(
-                "XlsxFormat: sheet_name must be a non-empty string"
-            )
+            raise ValueError("XlsxFormat: sheet_name must be a non-empty string")
         if not isinstance(has_header, bool):
             raise TypeError(
-                "XlsxFormat: has_header must be a bool, "
-                f"got {type(has_header).__name__}"
+                f"XlsxFormat: has_header must be a bool, got {type(has_header).__name__}"
             )
         if column_names is not None:
-            if not isinstance(column_names, Sequence) or isinstance(
-                column_names, (str, bytes)
-            ):
+            if not isinstance(column_names, Sequence) or isinstance(column_names, (str, bytes)):
                 raise TypeError(
                     "XlsxFormat: column_names must be a sequence of "
                     f"strings, got {type(column_names).__name__}"
@@ -55,14 +50,10 @@ class XlsxFormat(BatchFileFormat):
             for col in column_names:
                 if not isinstance(col, str) or not col:
                     raise ValueError(
-                        "XlsxFormat: every column name must be a "
-                        f"non-empty string, got {col!r}"
+                        f"XlsxFormat: every column name must be a non-empty string, got {col!r}"
                     )
         if not has_header and column_names is None:
-            raise ValueError(
-                "XlsxFormat: column_names is required when "
-                "has_header=False"
-            )
+            raise ValueError("XlsxFormat: column_names is required when has_header=False")
         self._sheet_name = sheet_name
         self._has_header = has_header
         self._column_names: tuple[str, ...] | None = (
@@ -85,9 +76,7 @@ class XlsxFormat(BatchFileFormat):
     def column_names(self) -> tuple[str, ...] | None:
         return self._column_names
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         openpyxl = self._load_openpyxl()
         workbook = openpyxl.load_workbook(
             io.BytesIO(payload),
@@ -112,10 +101,7 @@ class XlsxFormat(BatchFileFormat):
                 if self._column_names is not None:
                     columns = self._column_names
                 else:
-                    columns = tuple(
-                        str(cell) if cell is not None else ""
-                        for cell in header_row
-                    )
+                    columns = tuple(str(cell) if cell is not None else "" for cell in header_row)
             else:
                 if self._column_names is None:
                     raise RuntimeError(
@@ -129,17 +115,13 @@ class XlsxFormat(BatchFileFormat):
                     continue
                 record: dict[str, Any] = {}
                 for index, column in enumerate(columns):
-                    record[column] = (
-                        row[index] if index < len(row) else None
-                    )
+                    record[column] = row[index] if index < len(row) else None
                 records.append(record)
             return records
         finally:
             workbook.close()
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         xlsxwriter = self._load_xlsxwriter()
         materialised: list[Mapping[str, Any]] = list(records)
         if self._column_names is not None:
@@ -160,9 +142,7 @@ class XlsxFormat(BatchFileFormat):
             for row_index, record in enumerate(materialised):
                 for col_index, column in enumerate(columns):
                     value = record.get(column)
-                    worksheet.write(
-                        row_index + row_offset, col_index, value
-                    )
+                    worksheet.write(row_index + row_offset, col_index, value)
         finally:
             workbook.close()
         return buf.getvalue()
@@ -173,8 +153,7 @@ class XlsxFormat(BatchFileFormat):
             import openpyxl
         except ImportError as exc:
             raise ImportError(
-                "XlsxFormat requires openpyxl. Install with "
-                "`pip install pirn[xlsx]`."
+                "XlsxFormat requires openpyxl. Install with `pip install pirn[xlsx]`."
             ) from exc
         return openpyxl
 
@@ -184,7 +163,6 @@ class XlsxFormat(BatchFileFormat):
             import xlsxwriter
         except ImportError as exc:
             raise ImportError(
-                "XlsxFormat requires xlsxwriter. Install with "
-                "`pip install pirn[xlsx]`."
+                "XlsxFormat requires xlsxwriter. Install with `pip install pirn[xlsx]`."
             ) from exc
         return xlsxwriter

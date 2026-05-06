@@ -175,8 +175,7 @@ class DbtStyleSnapshot(Knot):
         overlap = set(key_tuple) & set(tracked_tuple)
         if overlap:
             raise ValueError(
-                f"DbtStyleSnapshot: key_columns and tracked_columns overlap "
-                f"on {sorted(overlap)!r}"
+                f"DbtStyleSnapshot: key_columns and tracked_columns overlap on {sorted(overlap)!r}"
             )
         source_columns = key_tuple + tracked_tuple
         select_q = DbtStyleSnapshot._select_current_query(

@@ -82,9 +82,7 @@ class PolarsUnpivot(Knot):
             raise ValueError("PolarsUnpivot: value_name must be non-empty")
         on_coerced = self._coerce_columns("on", on, allow_empty=False)
         index_coerced = (
-            self._coerce_columns("index", index, allow_empty=True)
-            if index is not None
-            else ()
+            self._coerce_columns("index", index, allow_empty=True) if index is not None else ()
         )
         return batch.with_frame(
             batch.frame.unpivot(
@@ -96,24 +94,19 @@ class PolarsUnpivot(Knot):
         )
 
     @staticmethod
-    def _coerce_columns(
-        name: str, value: Any, *, allow_empty: bool
-    ) -> tuple[str, ...]:
+    def _coerce_columns(name: str, value: Any, *, allow_empty: bool) -> tuple[str, ...]:
         if isinstance(value, str):
             if not value:
                 raise ValueError(f"PolarsUnpivot: {name} must be a non-empty string")
             return (value,)
         if not isinstance(value, Sequence):
             raise TypeError(
-                f"PolarsUnpivot: {name} must be a sequence of strings, "
-                f"got {type(value).__name__}"
+                f"PolarsUnpivot: {name} must be a sequence of strings, got {type(value).__name__}"
             )
         coerced = tuple(value)
         if not coerced and not allow_empty:
             raise ValueError(f"PolarsUnpivot: {name} must be non-empty")
         for column in coerced:
             if not isinstance(column, str) or not column:
-                raise TypeError(
-                    f"PolarsUnpivot: every entry in {name} must be a non-empty string"
-                )
+                raise TypeError(f"PolarsUnpivot: every entry in {name} must be a non-empty string")
         return coerced

@@ -43,9 +43,25 @@ class LLMChatCall(Knot):
         temperature: Knot | float | None = None,
         **kwargs: Any,
     ) -> None:
-        super().__init__(prompt=prompt, llm=llm, system=system, max_tokens=max_tokens, temperature=temperature, _config=_config, **kwargs)
+        super().__init__(
+            prompt=prompt,
+            llm=llm,
+            system=system,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            _config=_config,
+            **kwargs,
+        )
 
-    async def process(self, prompt: str, llm: LLMProvider, system: str | None = None, max_tokens: int | None = None, temperature: float | None = None, **_: Any) -> str:
+    async def process(
+        self,
+        prompt: str,
+        llm: LLMProvider,
+        system: str | None = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        **_: Any,
+    ) -> str:
         """Send the prompt as a user message to the LLM and return the extracted text response.
 
         Args:
@@ -59,27 +75,17 @@ class LLMChatCall(Knot):
             ValueError: If max_tokens is not a positive int or temperature is not a number.
         """
         if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "LLMChatCall: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
-        if max_tokens is not None and (
-            not isinstance(max_tokens, int) or max_tokens <= 0
-        ):
+            raise TypeError(f"LLMChatCall: llm must be an LLMProvider, got {type(llm).__name__}")
+        if max_tokens is not None and (not isinstance(max_tokens, int) or max_tokens <= 0):
             raise ValueError(
-                "LLMChatCall: max_tokens must be a positive int or None, "
-                f"got {max_tokens!r}"
+                f"LLMChatCall: max_tokens must be a positive int or None, got {max_tokens!r}"
             )
         if temperature is not None and not isinstance(temperature, (int, float)):
             raise ValueError(
-                "LLMChatCall: temperature must be a number or None, "
-                f"got {temperature!r}"
+                f"LLMChatCall: temperature must be a number or None, got {temperature!r}"
             )
         if not isinstance(prompt, str):
-            raise TypeError(
-                "LLMChatCall: prompt must be a string, "
-                f"got {type(prompt).__name__}"
-            )
+            raise TypeError(f"LLMChatCall: prompt must be a string, got {type(prompt).__name__}")
         actual_temperature = float(temperature) if temperature is not None else None
         chat_messages: list[dict[str, Any]] = []
         if system:

@@ -69,8 +69,7 @@ class RelativePermeabilityModeler(Knot):
         """
         if method not in self.valid_methods:
             raise ValueError(
-                f"RelativePermeabilityModeler: method must be one of "
-                f"{sorted(self.valid_methods)}"
+                f"RelativePermeabilityModeler: method must be one of {sorted(self.valid_methods)}"
             )
         return {
             "fluid_id": pvt.fluid_id,

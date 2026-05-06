@@ -71,13 +71,9 @@ class CorrosionRateEstimator(Knot):
             ``feature_count`` (number of anomaly features in the current run).
         """
         if not isinstance(years_between, (int, float)):
-            raise TypeError(
-                "CorrosionRateEstimator: years_between must be numeric"
-            )
+            raise TypeError("CorrosionRateEstimator: years_between must be numeric")
         if years_between <= 0.0:
-            raise ValueError(
-                "CorrosionRateEstimator: years_between must be positive"
-            )
+            raise ValueError("CorrosionRateEstimator: years_between must be positive")
         return {
             "max_rate_mpy": 5.0,
             "mean_rate_mpy": 1.0,

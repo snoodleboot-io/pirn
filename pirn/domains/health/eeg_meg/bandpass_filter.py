@@ -70,13 +70,9 @@ class BandpassFilter(Knot):
         if not isinstance(signal, SignalFrame):
             raise TypeError("BandpassFilter: signal must be a SignalFrame")
         if not isinstance(low_hz, (int, float)) or float(low_hz) <= 0:
-            raise ValueError(
-                "BandpassFilter: low_hz must be a positive number"
-            )
+            raise ValueError("BandpassFilter: low_hz must be a positive number")
         if not isinstance(high_hz, (int, float)) or float(high_hz) <= 0:
-            raise ValueError(
-                "BandpassFilter: high_hz must be a positive number"
-            )
+            raise ValueError("BandpassFilter: high_hz must be a positive number")
         if float(low_hz) >= float(high_hz):
             raise ValueError("BandpassFilter: low_hz must be < high_hz")
         return signal

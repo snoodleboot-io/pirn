@@ -359,16 +359,30 @@ def _synthetic_messages() -> list[Hl7Message]:
             {
                 "segment_id": "MSH",
                 "fields": [
-                    "^~\\&", "SENDING_APP", "SENDING_FAC",
-                    "RECV_APP", "RECV_FAC", "20260502120000",
-                    "", msg_type, f"MSG{i:06d}", "P", "2.5",
+                    "^~\\&",
+                    "SENDING_APP",
+                    "SENDING_FAC",
+                    "RECV_APP",
+                    "RECV_FAC",
+                    "20260502120000",
+                    "",
+                    msg_type,
+                    f"MSG{i:06d}",
+                    "P",
+                    "2.5",
                 ],
             },
             {
                 "segment_id": "PID",
                 "fields": [
-                    "1", enc, enc, "", f"DOE^PATIENT{i}", "",
-                    "19800101", rng.choice(["M", "F"]),
+                    "1",
+                    enc,
+                    enc,
+                    "",
+                    f"DOE^PATIENT{i}",
+                    "",
+                    "19800101",
+                    rng.choice(["M", "F"]),
                 ],
             },
             {
@@ -407,9 +421,17 @@ def _synthetic_messages() -> list[Hl7Message]:
             {
                 "segment_id": "MSH",
                 "fields": [
-                    "^~\\&", "CPOE", "HOSPITAL",
-                    "LAB", "HOSPITAL", "20260502130000",
-                    "", "ORM^O01", f"MSG{i + 3:06d}", "P", "2.5",
+                    "^~\\&",
+                    "CPOE",
+                    "HOSPITAL",
+                    "LAB",
+                    "HOSPITAL",
+                    "20260502130000",
+                    "",
+                    "ORM^O01",
+                    f"MSG{i + 3:06d}",
+                    "P",
+                    "2.5",
                 ],
             },
             {
@@ -460,9 +482,17 @@ def _synthetic_messages() -> list[Hl7Message]:
             {
                 "segment_id": "MSH",
                 "fields": [
-                    "^~\\&", "LIS", "LAB",
-                    "CPOE", "HOSPITAL", "20260502140000",
-                    "", "ORU^R01", f"MSG{i + 5:06d}", "P", "2.5",
+                    "^~\\&",
+                    "LIS",
+                    "LAB",
+                    "CPOE",
+                    "HOSPITAL",
+                    "20260502140000",
+                    "",
+                    "ORU^R01",
+                    f"MSG{i + 5:06d}",
+                    "P",
+                    "2.5",
                 ],
             },
             {
@@ -540,8 +570,7 @@ async def main() -> None:
             exc_info = result.exceptions[0] if result.exceptions else None
             err_msg = exc_info.message[:60] if exc_info else "unknown error"
             err_line = (
-                f"{msg.encounter_id:>10}  {msg.message_type:<12}"
-                f"  {'ERROR':<12}  {'':6}  {err_msg}"
+                f"{msg.encounter_id:>10}  {msg.message_type:<12}  {'ERROR':<12}  {'':6}  {err_msg}"
             )
             print(err_line)
             continue

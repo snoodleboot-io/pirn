@@ -62,15 +62,9 @@ class TaskPlanner(Knot):
             TypeError: If goal is not a string.
         """
         if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "TaskPlanner: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
+            raise TypeError(f"TaskPlanner: llm must be an LLMProvider, got {type(llm).__name__}")
         if not isinstance(goal, str):
-            raise TypeError(
-                "TaskPlanner: goal must be a string, "
-                f"got {type(goal).__name__}"
-            )
+            raise TypeError(f"TaskPlanner: goal must be a string, got {type(goal).__name__}")
         messages = [
             {"role": "system", "content": type(self)._planning_system},
             {"role": "user", "content": goal},
@@ -87,7 +81,7 @@ class TaskPlanner(Knot):
             stripped = line.strip()
             if not stripped:
                 continue
-            if len(stripped) >= 2 and stripped[0].isdigit() and stripped[1] in ".)" :
+            if len(stripped) >= 2 and stripped[0].isdigit() and stripped[1] in ".)":
                 step = stripped[2:].strip()
                 if step:
                     steps.append(step)

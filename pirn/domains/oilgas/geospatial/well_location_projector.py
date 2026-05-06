@@ -74,29 +74,17 @@ class WellLocationProjector(Knot):
             and the target ``crs`` string.
         """
         if not isinstance(well_id, str) or not well_id:
-            raise ValueError(
-                "WellLocationProjector: well_id must be a non-empty string"
-            )
+            raise ValueError("WellLocationProjector: well_id must be a non-empty string")
         if not isinstance(longitude_deg, (int, float)):
-            raise TypeError(
-                "WellLocationProjector: longitude_deg must be numeric"
-            )
+            raise TypeError("WellLocationProjector: longitude_deg must be numeric")
         if not -180.0 <= longitude_deg <= 180.0:
-            raise ValueError(
-                "WellLocationProjector: longitude_deg must lie in [-180, 180]"
-            )
+            raise ValueError("WellLocationProjector: longitude_deg must lie in [-180, 180]")
         if not isinstance(latitude_deg, (int, float)):
-            raise TypeError(
-                "WellLocationProjector: latitude_deg must be numeric"
-            )
+            raise TypeError("WellLocationProjector: latitude_deg must be numeric")
         if not -90.0 <= latitude_deg <= 90.0:
-            raise ValueError(
-                "WellLocationProjector: latitude_deg must lie in [-90, 90]"
-            )
+            raise ValueError("WellLocationProjector: latitude_deg must lie in [-90, 90]")
         if not isinstance(target_crs, str) or not target_crs:
-            raise ValueError(
-                "WellLocationProjector: target_crs must be a non-empty string"
-            )
+            raise ValueError("WellLocationProjector: target_crs must be a non-empty string")
         return {
             "well_id": well_id,
             "x": 0.0,

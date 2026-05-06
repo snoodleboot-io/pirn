@@ -18,6 +18,7 @@ References:
     - CPIC: https://cpicpgx.org/
     - DPWG: https://www.pharmgkb.org/page/dpwg
 """
+
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -68,9 +69,7 @@ class PharmacogenomicScorer(Knot):
             ValueError: If guideline is invalid or gene_panel is empty.
         """
         if not isinstance(guideline, str) or guideline not in {"cpic", "dpwg"}:
-            raise ValueError(
-                "PharmacogenomicScorer: guideline must be one of ['cpic', 'dpwg']"
-            )
+            raise ValueError("PharmacogenomicScorer: guideline must be one of ['cpic', 'dpwg']")
         if not gene_panel:
             raise ValueError("PharmacogenomicScorer: gene_panel must be non-empty")
         return {

@@ -79,14 +79,11 @@ class GCSStore(ObjectStore):
             async for c in body:
                 if not isinstance(c, (bytes, bytearray)):
                     raise TypeError(
-                        "GCSStore.put: body iterator must yield bytes; "
-                        f"got {type(c).__name__}"
+                        f"GCSStore.put: body iterator must yield bytes; got {type(c).__name__}"
                     )
                 chunks.append(bytes(c))
             payload = b"".join(chunks)
-        await client.upload(
-            bucket=self._config.bucket, object_name=key, file_data=payload
-        )
+        await client.upload(bucket=self._config.bucket, object_name=key, file_data=payload)
         self._logger.debug(
             "gcs.put",
             extra={"bucket": self._config.bucket, "key": key, "size": len(payload)},
@@ -96,9 +93,7 @@ class GCSStore(ObjectStore):
         self._validate_key(key)
         client = await self._ensure_client()
         await client.delete(bucket=self._config.bucket, object_name=key)
-        self._logger.debug(
-            "gcs.delete", extra={"bucket": self._config.bucket, "key": key}
-        )
+        self._logger.debug("gcs.delete", extra={"bucket": self._config.bucket, "key": key})
 
     async def list(self, prefix: str = "") -> AsyncIterator[str]:
         client = await self._ensure_client()
@@ -128,8 +123,7 @@ class GCSStore(ObjectStore):
             from gcloud.aio.storage import Storage  # type: ignore[import-not-found]
         except ImportError as exc:
             raise ImportError(
-                "GCSStore requires gcloud-aio-storage; "
-                "install via `pip install pirn[gcs]`"
+                "GCSStore requires gcloud-aio-storage; install via `pip install pirn[gcs]`"
             ) from exc
         self._owned_client = Storage(
             service_file=self._config.service_account_json,

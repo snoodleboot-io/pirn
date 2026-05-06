@@ -65,15 +65,11 @@ class PyarrowRename(Knot):
             )
         for old, new in mapping.items():
             if not isinstance(old, str) or not isinstance(new, str) or not old or not new:
-                raise TypeError(
-                    "PyarrowRename: mapping keys and values must be non-empty strings"
-                )
+                raise TypeError("PyarrowRename: mapping keys and values must be non-empty strings")
         # PyArrow's rename_columns takes a positional list parallel to the
         # current column order (no skipping). Build that list explicitly,
         # leaving columns absent from the mapping unchanged.
-        new_names = [
-            mapping.get(name, name) for name in batch.table.column_names
-        ]
+        new_names = [mapping.get(name, name) for name in batch.table.column_names]
         if new_names == list(batch.table.column_names):
             return batch
         return batch.with_table(batch.table.rename_columns(new_names))

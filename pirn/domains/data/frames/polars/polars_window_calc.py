@@ -69,9 +69,7 @@ class PolarsWindowCalc(Knot):
             A new PolarsDataBatch with the window expression columns appended.
         """
         if not isinstance(windows, Sequence) or isinstance(windows, (str, bytes)):
-            raise TypeError(
-                "PolarsWindowCalc: windows must be a sequence of polars.Expr"
-            )
+            raise TypeError("PolarsWindowCalc: windows must be a sequence of polars.Expr")
         if not windows:
             raise ValueError("PolarsWindowCalc: windows must be non-empty")
         for expression in windows:

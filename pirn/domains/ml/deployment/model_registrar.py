@@ -71,13 +71,9 @@ class ModelRegistrar(Knot):
             TypeError: If serialized is not bytes or model is not a TrainedModel.
         """
         if not isinstance(serialized, (bytes, bytearray)):
-            raise TypeError(
-                "ModelRegistrar: serialized must resolve to bytes"
-            )
+            raise TypeError("ModelRegistrar: serialized must resolve to bytes")
         if not isinstance(model, TrainedModel):
-            raise TypeError(
-                "ModelRegistrar: model must resolve to a TrainedModel"
-            )
+            raise TypeError("ModelRegistrar: model must resolve to a TrainedModel")
         key = f"models/{model.model_id}.bin"
         await store.put(key, bytes(serialized))
         await lineage.log_event(

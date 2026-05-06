@@ -75,8 +75,7 @@ class SchemaValidator(Knot):
     ) -> QualityReport:
         if not isinstance(schema, DataSchema):
             raise TypeError(
-                "SchemaValidator: schema must be a DataSchema, "
-                f"got {type(schema).__name__}"
+                f"SchemaValidator: schema must be a DataSchema, got {type(schema).__name__}"
             )
         checks: list[QualityCheck] = []
         for column, expected_type in schema.columns.items():
@@ -116,37 +115,45 @@ class SchemaValidator(Knot):
         results: list[QualityCheck] = []
 
         if present_count == batch.row_count:
-            results.append(QualityCheck(
-                name="column_presence",
-                passed=True,
-                threshold=str(batch.row_count),
-                actual=str(present_count),
-                column=column,
-            ))
+            results.append(
+                QualityCheck(
+                    name="column_presence",
+                    passed=True,
+                    threshold=str(batch.row_count),
+                    actual=str(present_count),
+                    column=column,
+                )
+            )
         else:
-            results.append(QualityCheck(
-                name="column_missing",
-                passed=False,
-                threshold=str(batch.row_count),
-                actual=str(present_count),
-                column=column,
-            ))
+            results.append(
+                QualityCheck(
+                    name="column_missing",
+                    passed=False,
+                    threshold=str(batch.row_count),
+                    actual=str(present_count),
+                    column=column,
+                )
+            )
 
-        results.append(QualityCheck(
-            name="column_type",
-            passed=type_errors == 0,
-            threshold=expected_type.__name__,
-            actual=f"{type_errors} mismatches",
-            column=column,
-        ))
+        results.append(
+            QualityCheck(
+                name="column_type",
+                passed=type_errors == 0,
+                threshold=expected_type.__name__,
+                actual=f"{type_errors} mismatches",
+                column=column,
+            )
+        )
 
         if not is_nullable:
-            results.append(QualityCheck(
-                name="column_null_unexpected",
-                passed=null_count == 0,
-                threshold="0",
-                actual=str(null_count),
-                column=column,
-            ))
+            results.append(
+                QualityCheck(
+                    name="column_null_unexpected",
+                    passed=null_count == 0,
+                    threshold="0",
+                    actual=str(null_count),
+                    column=column,
+                )
+            )
 
         return results

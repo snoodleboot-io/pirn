@@ -23,5 +23,4 @@ and replace the stub ``process()`` bodies with vendor SDK calls in your
 own subclasses (or wait for the production implementations to land).
 """
 
-
 __all__: list[str] = []

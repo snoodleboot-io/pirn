@@ -58,9 +58,7 @@ class MemgraphPool(DatabaseConnectionPool):
         results = await conn.execute(query, parameters=parameters)
         return [dict(r) for r in results]
 
-    async def execute_many(
-        self, query: str, args_seq: Iterable[Any]
-    ) -> None:
+    async def execute_many(self, query: str, args_seq: Iterable[Any]) -> None:
         for params in args_seq:
             await self.execute(query, params)
 
@@ -76,13 +74,10 @@ class MemgraphPool(DatabaseConnectionPool):
             import gqlalchemy  # type: ignore[import]
         except ImportError as exc:
             raise ImportError(
-                "MemgraphPool requires gqlalchemy; install via "
-                "pip install pirn[memgraph]"
+                "MemgraphPool requires gqlalchemy; install via pip install pirn[memgraph]"
             ) from exc
         if self._config is None:
-            raise RuntimeError(
-                "MemgraphPool: missing config and no injected connection"
-            )
+            raise RuntimeError("MemgraphPool: missing config and no injected connection")
         try:
             conn = gqlalchemy.Memgraph(
                 host=self._config.host,

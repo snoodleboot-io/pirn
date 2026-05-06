@@ -66,9 +66,7 @@ class InteractionFeatureGenerator(Knot):
         """
         pairs_tuple = tuple(column_pairs)
         if not pairs_tuple:
-            raise ValueError(
-                "InteractionFeatureGenerator: column_pairs must be non-empty"
-            )
+            raise ValueError("InteractionFeatureGenerator: column_pairs must be non-empty")
         for pair in pairs_tuple:
             if (
                 not isinstance(pair, (tuple, list))

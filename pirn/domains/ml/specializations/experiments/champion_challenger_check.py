@@ -100,24 +100,14 @@ class ChampionChallengerCheck(SubTapestry):
             TypeError: If min_improvement is not numeric or evaluators return unexpected types.
         """
         if not isinstance(primary_metric, str) or not primary_metric:
-            raise ValueError(
-                "ChampionChallengerCheck: primary_metric must be a non-empty string"
-            )
+            raise ValueError("ChampionChallengerCheck: primary_metric must be a non-empty string")
         if not isinstance(min_improvement, (int, float)):
-            raise TypeError(
-                "ChampionChallengerCheck: min_improvement must be a number"
-            )
+            raise TypeError("ChampionChallengerCheck: min_improvement must be a number")
         min_imp = float(min_improvement)
         with Tapestry() as inner:
-            champion_node = _emit_value(
-                value=champion, _config=KnotConfig(id="champion")
-            )
-            challenger_node = _emit_value(
-                value=challenger, _config=KnotConfig(id="challenger")
-            )
-            split_node = _emit_value(
-                value=split, _config=KnotConfig(id="split")
-            )
+            champion_node = _emit_value(value=champion, _config=KnotConfig(id="champion"))
+            challenger_node = _emit_value(value=challenger, _config=KnotConfig(id="challenger"))
+            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
             Evaluator(
                 model=champion_node,
                 split=split_node,

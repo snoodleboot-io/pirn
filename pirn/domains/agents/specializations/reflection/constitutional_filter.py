@@ -89,13 +89,11 @@ class ConstitutionalFilter(Knot):
         """
         if not isinstance(llm, LLMProvider):
             raise TypeError(
-                "ConstitutionalFilter: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
+                f"ConstitutionalFilter: llm must be an LLMProvider, got {type(llm).__name__}"
             )
         if not isinstance(max_revisions, int) or max_revisions <= 0:
             raise ValueError(
-                "ConstitutionalFilter: max_revisions must be a positive int, "
-                f"got {max_revisions!r}"
+                f"ConstitutionalFilter: max_revisions must be a positive int, got {max_revisions!r}"
             )
         if not isinstance(response, AgentResponse):
             raise TypeError(
@@ -110,10 +108,7 @@ class ConstitutionalFilter(Knot):
                 {"role": "system", "content": type(self)._evaluation_system},
                 {
                     "role": "user",
-                    "content": (
-                        f"Principles:\n{principles_text}\n\n"
-                        f"Response:\n{current_content}"
-                    ),
+                    "content": (f"Principles:\n{principles_text}\n\nResponse:\n{current_content}"),
                 },
             ]
             raw = await llm.chat(messages=messages)

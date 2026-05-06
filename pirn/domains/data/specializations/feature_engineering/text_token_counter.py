@@ -65,6 +65,7 @@ class TextTokenCounter(Knot):
 
             return _count
         except ImportError:
+
             def _count(text: str) -> int:  # type: ignore[misc]
                 return len(text.split())
 

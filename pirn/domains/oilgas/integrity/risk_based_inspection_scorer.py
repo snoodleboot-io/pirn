@@ -70,13 +70,9 @@ class RiskBasedInspectionScorer(Knot):
             ``risk_score`` (product of the two).
         """
         if not isinstance(consequence_score, (int, float)):
-            raise TypeError(
-                "RiskBasedInspectionScorer: consequence_score must be numeric"
-            )
+            raise TypeError("RiskBasedInspectionScorer: consequence_score must be numeric")
         if not 0.0 <= consequence_score <= 1.0:
-            raise ValueError(
-                "RiskBasedInspectionScorer: consequence_score must lie in [0, 1]"
-            )
+            raise ValueError("RiskBasedInspectionScorer: consequence_score must lie in [0, 1]")
         max_rate = float(corrosion_assessment.get("max_rate_mpy", 0.0))
         pof = min(max_rate / 10.0, 1.0)
         cscore = float(consequence_score)

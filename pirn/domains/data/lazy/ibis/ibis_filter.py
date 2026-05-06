@@ -72,8 +72,6 @@ class IbisFilter(Knot):
             A new IbisTable with the filter predicate appended to the deferred expression.
         """
         if not callable(predicate):
-            raise TypeError(
-                "IbisFilter: predicate must be a callable (table) -> ibis.Expr"
-            )
+            raise TypeError("IbisFilter: predicate must be a callable (table) -> ibis.Expr")
         expression = predicate(batch.expression)
         return batch.with_expression(batch.expression.filter(expression))

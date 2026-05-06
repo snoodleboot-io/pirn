@@ -85,21 +85,15 @@ class StagingModelKnot(Knot):
         **_: Any,
     ) -> dict[str, Any]:
         if not isinstance(source_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "StagingModelKnot: source_pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("StagingModelKnot: source_pool must be a DatabaseConnectionPool")
         if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "StagingModelKnot: target_pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("StagingModelKnot: target_pool must be a DatabaseConnectionPool")
         for label, value in (
             ("source_query", source_query),
             ("target_table", target_table),
         ):
             if not isinstance(value, str) or not value:
-                raise ValueError(
-                    f"StagingModelKnot: {label} must be a non-empty string"
-                )
+                raise ValueError(f"StagingModelKnot: {label} must be a non-empty string")
         if not column_map:
             raise ValueError("StagingModelKnot: column_map must be a non-empty mapping")
         IdentifierValidator.validate_column("target_table", target_table)

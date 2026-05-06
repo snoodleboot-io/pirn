@@ -75,8 +75,7 @@ class ProceduralMemoryWriter(Knot):
         """
         if not isinstance(store, MemoryStore):
             raise TypeError(
-                "ProceduralMemoryWriter: store must be a MemoryStore, "
-                f"got {type(store).__name__}"
+                f"ProceduralMemoryWriter: store must be a MemoryStore, got {type(store).__name__}"
             )
         if not isinstance(agent_response, AgentResponse):
             raise TypeError(
@@ -84,13 +83,8 @@ class ProceduralMemoryWriter(Knot):
                 f"AgentResponse, got {type(agent_response).__name__}"
             )
         if not isinstance(task_description, str) or not task_description:
-            raise ValueError(
-                "ProceduralMemoryWriter: task_description must be a "
-                "non-empty string"
-            )
-        digest = hashlib.sha1(
-            task_description.encode("utf-8")
-        ).hexdigest()
+            raise ValueError("ProceduralMemoryWriter: task_description must be a non-empty string")
+        digest = hashlib.sha1(task_description.encode("utf-8")).hexdigest()
         key = f"procedure:{digest}"
         payload: dict[str, Any] = {
             "task": task_description,

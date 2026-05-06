@@ -66,8 +66,7 @@ class DaskFilter(Knot):
         """
         if not callable(predicate):
             raise TypeError(
-                "DaskFilter: predicate must be a callable "
-                "(frame) -> dask.dataframe.Series"
+                "DaskFilter: predicate must be a callable (frame) -> dask.dataframe.Series"
             )
         mask = predicate(batch.frame)
         return batch.with_frame(batch.frame[mask])

@@ -70,8 +70,7 @@ class MetadataExtractor(Knot):
         """
         if not isinstance(document, str):
             raise TypeError(
-                "MetadataExtractor: document must be a string, "
-                f"got {type(document).__name__}"
+                f"MetadataExtractor: document must be a string, got {type(document).__name__}"
             )
         prompt = (
             "Extract metadata from the document below.\n"

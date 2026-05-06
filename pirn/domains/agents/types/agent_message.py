@@ -34,9 +34,7 @@ class AgentMessage(PirnOpaqueValue):
     content: str
     name: str | None = None
     tool_call_id: str | None = None
-    created_at: datetime = field(
-        default_factory=lambda: datetime.now(UTC)
-    )
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
         return {

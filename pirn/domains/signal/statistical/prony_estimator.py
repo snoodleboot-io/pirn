@@ -73,9 +73,7 @@ class PronyEstimator(Knot):
             ValueError: If component_count is not a positive integer.
         """
         if not isinstance(component_count, int) or component_count <= 0:
-            raise ValueError(
-                "PronyEstimator: component_count must be a positive integer"
-            )
+            raise ValueError("PronyEstimator: component_count must be a positive integer")
         return {
             "signal_id": signal.signal_id,
             "component_count": component_count,

@@ -48,9 +48,7 @@ class FhirXmlFormat(BatchFileFormat):
     def name(self) -> str:
         return "fhir_xml"
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         self._load_fhir()
         defusedxml = self._load_defusedxml()
         tree = defusedxml.ElementTree.parse(io.BytesIO(payload))
@@ -71,21 +69,17 @@ class FhirXmlFormat(BatchFileFormat):
             records.append(self._element_to_record(root))
         return records
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         self._load_fhir()
         lxml_etree = self._load_lxml()
         materialised = [dict(r) for r in records]
         nsmap = {None: FhirXmlFormat._fhir_ns}
         bundle_el = lxml_etree.Element(f"{{{FhirXmlFormat._fhir_ns}}}Bundle", nsmap=nsmap)
-        lxml_etree.SubElement(
-            bundle_el, f"{{{FhirXmlFormat._fhir_ns}}}type"
-        ).set("value", "collection")
+        lxml_etree.SubElement(bundle_el, f"{{{FhirXmlFormat._fhir_ns}}}type").set(
+            "value", "collection"
+        )
         for record in materialised:
-            entry_el = lxml_etree.SubElement(
-                bundle_el, f"{{{FhirXmlFormat._fhir_ns}}}entry"
-            )
+            entry_el = lxml_etree.SubElement(bundle_el, f"{{{FhirXmlFormat._fhir_ns}}}entry")
             resource_wrapper = lxml_etree.SubElement(
                 entry_el, f"{{{FhirXmlFormat._fhir_ns}}}resource"
             )
@@ -98,18 +92,14 @@ class FhirXmlFormat(BatchFileFormat):
                 id_el = lxml_etree.SubElement(res_el, f"{{{FhirXmlFormat._fhir_ns}}}id")
                 id_el.set("value", str(record["resource_id"]))
             if record.get("status"):
-                st_el = lxml_etree.SubElement(
-                    res_el, f"{{{FhirXmlFormat._fhir_ns}}}status"
-                )
+                st_el = lxml_etree.SubElement(res_el, f"{{{FhirXmlFormat._fhir_ns}}}status")
                 st_el.set("value", str(record["status"]))
             data = record.get("data", {})
             for key, value in data.items():
                 if key in ("resourceType", "id", "status", "identifier_hash"):
                     continue
                 self._validate_xml_ncname(str(key))
-                child_el = lxml_etree.SubElement(
-                    res_el, f"{{{FhirXmlFormat._fhir_ns}}}{key}"
-                )
+                child_el = lxml_etree.SubElement(res_el, f"{{{FhirXmlFormat._fhir_ns}}}{key}")
                 child_el.set("value", str(value) if value is not None else "")
         return lxml_etree.tostring(
             bundle_el,
@@ -156,6 +146,7 @@ class FhirXmlFormat(BatchFileFormat):
     def _validate_xml_ncname(name: str) -> None:
         """Raise ValueError if *name* is not a valid XML NCName."""
         import re
+
         if not re.fullmatch(r"[a-zA-Z_][a-zA-Z0-9._\-]*", name):
             raise ValueError(
                 f"FhirXmlFormat: value {name!r} is not a valid XML element "
@@ -175,8 +166,7 @@ class FhirXmlFormat(BatchFileFormat):
             import fhir.resources
         except ImportError as exc:
             raise ImportError(
-                "FhirXmlFormat requires fhir.resources. Install with "
-                "`pip install pirn[health]`."
+                "FhirXmlFormat requires fhir.resources. Install with `pip install pirn[health]`."
             ) from exc
         return fhir.resources
 
@@ -186,8 +176,7 @@ class FhirXmlFormat(BatchFileFormat):
             import defusedxml.ElementTree
         except ImportError as exc:
             raise ImportError(
-                "FhirXmlFormat requires defusedxml. Install with "
-                "`pip install pirn[health]`."
+                "FhirXmlFormat requires defusedxml. Install with `pip install pirn[health]`."
             ) from exc
         return defusedxml
 
@@ -197,7 +186,6 @@ class FhirXmlFormat(BatchFileFormat):
             from lxml import etree
         except ImportError as exc:
             raise ImportError(
-                "FhirXmlFormat requires lxml. Install with "
-                "`pip install pirn[health]`."
+                "FhirXmlFormat requires lxml. Install with `pip install pirn[health]`."
             ) from exc
         return etree

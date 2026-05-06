@@ -59,9 +59,7 @@ class BdfFormat(BatchFileFormat):
     def name(self) -> str:
         return "bdf"
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         import numpy as np
 
         pyedflib = self._load_pyedflib()
@@ -88,9 +86,7 @@ class BdfFormat(BatchFileFormat):
             Path(tmp_path).unlink(missing_ok=True)
         return records
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         import numpy as np
 
         pyedflib = self._load_pyedflib()
@@ -107,7 +103,9 @@ class BdfFormat(BatchFileFormat):
         try:
             # filetype=2 selects EDF+/BDF+ in pyedflib (BDF = type 3 in
             # some versions). Try filetype keyword; fall back to default.
-            with pyedflib.EdfWriter(tmp_path, len(materialised), file_type=pyedflib.FILETYPE_BDF) as writer:
+            with pyedflib.EdfWriter(
+                tmp_path, len(materialised), file_type=pyedflib.FILETYPE_BDF
+            ) as writer:
                 self._apply_phi_redaction(writer)
                 headers = []
                 signal_arrays = []
@@ -119,17 +117,19 @@ class BdfFormat(BatchFileFormat):
                     phys_min = float(rec.get("physical_min", -8000000.0))
                     phys_max = float(rec.get("physical_max", 8000000.0))
                     label = str(rec.get("label", ""))
-                    headers.append({
-                        "label": label,
-                        "dimension": "uV",
-                        "sample_frequency": sample_rate,
-                        "physical_min": phys_min,
-                        "physical_max": phys_max,
-                        "digital_min": -8388608,
-                        "digital_max": 8388607,
-                        "transducer": "",
-                        "prefilter": "",
-                    })
+                    headers.append(
+                        {
+                            "label": label,
+                            "dimension": "uV",
+                            "sample_frequency": sample_rate,
+                            "physical_min": phys_min,
+                            "physical_max": phys_max,
+                            "digital_min": -8388608,
+                            "digital_max": 8388607,
+                            "transducer": "",
+                            "prefilter": "",
+                        }
+                    )
                     if len(arr) < n_samples:
                         arr = np.pad(arr, (0, n_samples - len(arr)))
                     elif len(arr) > n_samples:
@@ -180,7 +180,6 @@ class BdfFormat(BatchFileFormat):
             import pyedflib
         except ImportError as exc:
             raise ImportError(
-                "BdfFormat requires pyedflib. Install with "
-                "`pip install pirn[health]`."
+                "BdfFormat requires pyedflib. Install with `pip install pirn[health]`."
             ) from exc
         return pyedflib

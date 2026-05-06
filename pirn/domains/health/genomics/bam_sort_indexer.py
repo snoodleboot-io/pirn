@@ -12,6 +12,7 @@ References:
     - samtools sort: https://www.htslib.org/doc/samtools-sort.html
     - samtools index: https://www.htslib.org/doc/samtools-index.html
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -63,9 +64,7 @@ class BAMSortIndexer(Knot):
             ValueError: If sort_by is invalid or threads is non-positive.
         """
         if not isinstance(sort_by, str) or sort_by not in {"coordinate", "name"}:
-            raise ValueError(
-                "BAMSortIndexer: sort_by must be one of ['coordinate', 'name']"
-            )
+            raise ValueError("BAMSortIndexer: sort_by must be one of ['coordinate', 'name']")
         if not isinstance(threads, int) or threads <= 0:
             raise ValueError("BAMSortIndexer: threads must be > 0")
         if not isinstance(bam_path, str) or not bam_path:

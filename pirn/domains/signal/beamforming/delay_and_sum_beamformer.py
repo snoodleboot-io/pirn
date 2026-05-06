@@ -85,9 +85,7 @@ class DelayAndSumBeamformer(Knot):
         if not isinstance(num_elements, int) or num_elements <= 0:
             raise ValueError("DelayAndSumBeamformer: num_elements must be a positive integer")
         if not isinstance(element_spacing_m, (int, float)) or element_spacing_m <= 0:
-            raise ValueError(
-                "DelayAndSumBeamformer: element_spacing_m must be a positive scalar"
-            )
+            raise ValueError("DelayAndSumBeamformer: element_spacing_m must be a positive scalar")
         if not isinstance(steering_angle_deg, (int, float)):
             raise TypeError("DelayAndSumBeamformer: steering_angle_deg must be a float")
         return SignalFrame(

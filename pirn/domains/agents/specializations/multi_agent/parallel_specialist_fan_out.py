@@ -65,20 +65,14 @@ class ParallelSpecialistFanOut(SubTapestry):
             TypeError: If task is not a string.
         """
         if not isinstance(specialists, Mapping) or not specialists:
-            raise ValueError(
-                "ParallelSpecialistFanOut: specialists must be a non-empty "
-                "mapping"
-            )
+            raise ValueError("ParallelSpecialistFanOut: specialists must be a non-empty mapping")
         if not isinstance(task, str):
             raise TypeError(
-                "ParallelSpecialistFanOut: task must be a string, "
-                f"got {type(task).__name__}"
+                f"ParallelSpecialistFanOut: task must be a string, got {type(task).__name__}"
             )
         specialists_dict: dict[str, SubTapestry] = dict(specialists)  # type: ignore[arg-type]
         names = list(specialists_dict.keys())
-        coros = [
-            specialists_dict[name].process(task=task) for name in names
-        ]
+        coros = [specialists_dict[name].process(task=task) for name in names]
         raw_results = await asyncio.gather(*coros)
         materialised: dict[str, AgentResponse] = {}
         for name, raw in zip(names, raw_results, strict=False):

@@ -80,21 +80,13 @@ class AppendOnlyIngest(Knot):
             ValueError: If either query is empty.
         """
         if not isinstance(source_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "AppendOnlyIngest: source_pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("AppendOnlyIngest: source_pool must be a DatabaseConnectionPool")
         if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "AppendOnlyIngest: target_pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("AppendOnlyIngest: target_pool must be a DatabaseConnectionPool")
         if not isinstance(source_query, str) or not source_query:
-            raise ValueError(
-                "AppendOnlyIngest: source_query must be a non-empty string"
-            )
+            raise ValueError("AppendOnlyIngest: source_query must be a non-empty string")
         if not isinstance(insert_query, str) or not insert_query:
-            raise ValueError(
-                "AppendOnlyIngest: insert_query must be a non-empty string"
-            )
+            raise ValueError("AppendOnlyIngest: insert_query must be a non-empty string")
         rows = await source_pool.fetch_all(source_query)
         await target_pool.execute_many(insert_query, [tuple(r) for r in rows])
         return {"succeeded": True, "rows_inserted": len(rows)}

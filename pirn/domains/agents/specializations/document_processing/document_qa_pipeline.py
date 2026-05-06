@@ -102,19 +102,14 @@ class DocumentQAPipeline(SubTapestry):
             ValueError: If top_k is not a positive int.
         """
         if not isinstance(top_k, int) or top_k <= 0:
-            raise ValueError(
-                "DocumentQAPipeline: top_k must be a positive int, "
-                f"got {top_k!r}"
-            )
+            raise ValueError(f"DocumentQAPipeline: top_k must be a positive int, got {top_k!r}")
         if not isinstance(source, str) or not source:
             raise TypeError(
-                "DocumentQAPipeline: source must be a non-empty string, "
-                f"got {source!r}"
+                f"DocumentQAPipeline: source must be a non-empty string, got {source!r}"
             )
         if not isinstance(question, str) or not question:
             raise TypeError(
-                "DocumentQAPipeline: question must be a non-empty string, "
-                f"got {question!r}"
+                f"DocumentQAPipeline: question must be a non-empty string, got {question!r}"
             )
         with Tapestry() as inner:
             chunks = _QALoadAndChunk(

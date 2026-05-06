@@ -66,16 +66,14 @@ class SemanticFactWriter(Knot):
         """
         if not isinstance(store, MemoryStore):
             raise TypeError(
-                "SemanticFactWriter: store must be a MemoryStore, "
-                f"got {type(store).__name__}"
+                f"SemanticFactWriter: store must be a MemoryStore, got {type(store).__name__}"
             )
         count = 0
         now = datetime.now(UTC).isoformat()
         for fact in facts:
             if not isinstance(fact, str):
                 raise TypeError(
-                    "SemanticFactWriter: every fact must be a string, "
-                    f"got {type(fact).__name__}"
+                    f"SemanticFactWriter: every fact must be a string, got {type(fact).__name__}"
                 )
             digest = hashlib.sha1(fact.encode("utf-8")).hexdigest()
             key = f"semantic:{digest}"

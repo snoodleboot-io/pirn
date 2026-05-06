@@ -46,13 +46,9 @@ class DatadogClient(ApiClient, TableSource, EventEmitter, MetricQuery):
         resource: str = "metrics",
     ) -> None:
         if config is None and client is None:
-            raise TypeError(
-                "DatadogClient requires either config= or client="
-            )
+            raise TypeError("DatadogClient requires either config= or client=")
         if not isinstance(resource, str) or not resource:
-            raise ValueError(
-                "DatadogClient: resource must be a non-empty string"
-            )
+            raise ValueError("DatadogClient: resource must be a non-empty string")
         self._config = config
         self._client = client
         self._closed = False
@@ -85,9 +81,7 @@ class DatadogClient(ApiClient, TableSource, EventEmitter, MetricQuery):
             try:
                 page_number = int(cursor)
             except ValueError as exc:
-                raise ValueError(
-                    f"DatadogClient.fetch_page: invalid cursor {cursor!r}"
-                ) from exc
+                raise ValueError(f"DatadogClient.fetch_page: invalid cursor {cursor!r}") from exc
         params: dict[str, Any] = {"page[number]": page_number}
         if page_size is not None:
             params["page[size]"] = page_size
@@ -118,10 +112,7 @@ class DatadogClient(ApiClient, TableSource, EventEmitter, MetricQuery):
         ``type``, ``host``.
         """
         if "metric" not in event or "points" not in event:
-            raise ValueError(
-                "DatadogClient.emit: event requires 'metric' and "
-                "'points' keys"
-            )
+            raise ValueError("DatadogClient.emit: event requires 'metric' and 'points' keys")
         await self.submit_metric(
             name=event["metric"],
             points=event["points"],
@@ -140,9 +131,7 @@ class DatadogClient(ApiClient, TableSource, EventEmitter, MetricQuery):
         ``points`` is a list of ``[timestamp, value]`` pairs.
         """
         if not isinstance(name, str) or not name:
-            raise ValueError(
-                "DatadogClient.submit_metric: name must be non-empty"
-            )
+            raise ValueError("DatadogClient.submit_metric: name must be non-empty")
         series_entry: dict[str, Any] = {"metric": name, "points": list(points)}
         if tags is not None:
             series_entry["tags"] = list(tags)
@@ -164,13 +153,9 @@ class DatadogClient(ApiClient, TableSource, EventEmitter, MetricQuery):
         window).
         """
         if not isinstance(query, str) or not query:
-            raise ValueError(
-                "DatadogClient.query: query must be non-empty"
-            )
+            raise ValueError("DatadogClient.query: query must be non-empty")
         if start is None or end is None:
-            raise ValueError(
-                "DatadogClient.query: start and end are required"
-            )
+            raise ValueError("DatadogClient.query: start and end are required")
         return await self.query_metrics(query, start=start, end=end)
 
     async def query_metrics(
@@ -201,13 +186,9 @@ class DatadogClient(ApiClient, TableSource, EventEmitter, MetricQuery):
         headers: Mapping[str, str] | None = None,
     ) -> Any:
         if not isinstance(method, str) or not method:
-            raise ValueError(
-                "DatadogClient.request: method must be non-empty"
-            )
+            raise ValueError("DatadogClient.request: method must be non-empty")
         if not isinstance(path, str) or not path:
-            raise ValueError(
-                "DatadogClient.request: path must be non-empty"
-            )
+            raise ValueError("DatadogClient.request: path must be non-empty")
         client = await self._ensure_client()
         method_upper = method.upper()
         request_params = dict(params) if params is not None else None
@@ -256,13 +237,10 @@ class DatadogClient(ApiClient, TableSource, EventEmitter, MetricQuery):
             )
         except ImportError as exc:
             raise ImportError(
-                "DatadogClient requires datadog-api-client; install via "
-                "`pip install pirn[datadog]`"
+                "DatadogClient requires datadog-api-client; install via `pip install pirn[datadog]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError(
-                "DatadogClient: missing config and no injected client"
-            )
+            raise RuntimeError("DatadogClient: missing config and no injected client")
 
         def _build() -> Any:
             configuration = Configuration()

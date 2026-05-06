@@ -14,19 +14,13 @@ from pirn.domains.health.types.dicom_series import DICOMSeries
 class PACSClient(PirnOpaqueValue):
     """Interface every PACS/DICOMweb client must satisfy."""
 
-    async def fetch_series(
-        self, study_uid: str, series_uid: str
-    ) -> DICOMSeries:
+    async def fetch_series(self, study_uid: str, series_uid: str) -> DICOMSeries:
         """Fetch and return the DICOM series identified by the UIDs."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement fetch_series()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement fetch_series()")
 
     async def close(self) -> None:
         """Release any underlying transport resources."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement close()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement close()")
 
     def _clear_credentials(self) -> None:
         """Drop the in-memory credential reference held by the client.

@@ -43,9 +43,7 @@ class FastaFormat(StreamingFileFormat):
         if not isinstance(line_width, int) or isinstance(line_width, bool):
             raise TypeError("FastaFormat: line_width must be int")
         if line_width < 1:
-            raise ValueError(
-                "FastaFormat: line_width must be a positive integer"
-            )
+            raise ValueError("FastaFormat: line_width must be a positive integer")
         self._encoding = encoding
         self._line_width = line_width
 
@@ -61,9 +59,7 @@ class FastaFormat(StreamingFileFormat):
     def line_width(self) -> int:
         return self._line_width
 
-    async def read(
-        self, body: AsyncIterator[bytes]
-    ) -> AsyncIterator[Mapping[str, Any]]:
+    async def read(self, body: AsyncIterator[bytes]) -> AsyncIterator[Mapping[str, Any]]:
         encoding = self._encoding
 
         async def _iter() -> AsyncIterator[Mapping[str, Any]]:
@@ -88,27 +84,18 @@ class FastaFormat(StreamingFileFormat):
                             yield {
                                 "seq_id": current_seq_id,
                                 "description": current_description,
-                                "sequence": "".join(
-                                    current_sequence_parts
-                                ),
+                                "sequence": "".join(current_sequence_parts),
                             }
                         header = line[1:].lstrip()
                         if not header:
-                            raise ValueError(
-                                "FastaFormat: header line missing seq_id"
-                            )
+                            raise ValueError("FastaFormat: header line missing seq_id")
                         split = header.split(None, 1)
                         current_seq_id = split[0]
-                        current_description = (
-                            split[1] if len(split) == 2 else ""
-                        )
+                        current_description = split[1] if len(split) == 2 else ""
                         current_sequence_parts = []
                     else:
                         if current_seq_id is None:
-                            raise ValueError(
-                                "FastaFormat: sequence data before any "
-                                "header"
-                            )
+                            raise ValueError("FastaFormat: sequence data before any header")
                         current_sequence_parts.append(line.strip())
 
             # Flush trailing partial line (no newline at EOF).
@@ -121,27 +108,18 @@ class FastaFormat(StreamingFileFormat):
                             yield {
                                 "seq_id": current_seq_id,
                                 "description": current_description,
-                                "sequence": "".join(
-                                    current_sequence_parts
-                                ),
+                                "sequence": "".join(current_sequence_parts),
                             }
                         header = line[1:].lstrip()
                         if not header:
-                            raise ValueError(
-                                "FastaFormat: header line missing seq_id"
-                            )
+                            raise ValueError("FastaFormat: header line missing seq_id")
                         split = header.split(None, 1)
                         current_seq_id = split[0]
-                        current_description = (
-                            split[1] if len(split) == 2 else ""
-                        )
+                        current_description = split[1] if len(split) == 2 else ""
                         current_sequence_parts = []
                     else:
                         if current_seq_id is None:
-                            raise ValueError(
-                                "FastaFormat: sequence data before any "
-                                "header"
-                            )
+                            raise ValueError("FastaFormat: sequence data before any header")
                         current_sequence_parts.append(line.strip())
 
             if current_seq_id is not None:
@@ -153,9 +131,7 @@ class FastaFormat(StreamingFileFormat):
 
         return _iter()
 
-    async def write(
-        self, records: AsyncIterator[Mapping[str, Any]]
-    ) -> AsyncIterator[bytes]:
+    async def write(self, records: AsyncIterator[Mapping[str, Any]]) -> AsyncIterator[bytes]:
         encoding = self._encoding
         line_width = self._line_width
 
@@ -164,28 +140,22 @@ class FastaFormat(StreamingFileFormat):
                 seq_id = record.get("seq_id")
                 if not isinstance(seq_id, str) or not seq_id:
                     raise ValueError(
-                        "FastaFormat: each record must have a non-empty "
-                        "string 'seq_id'"
+                        "FastaFormat: each record must have a non-empty string 'seq_id'"
                     )
                 if any(ch.isspace() for ch in seq_id):
                     raise ValueError(
-                        "FastaFormat: 'seq_id' may not contain "
-                        f"whitespace, got {seq_id!r}"
+                        f"FastaFormat: 'seq_id' may not contain whitespace, got {seq_id!r}"
                     )
                 description = record.get("description", "")
                 if description is None:
                     description = ""
                 if not isinstance(description, str):
-                    raise TypeError(
-                        "FastaFormat: 'description' must be str"
-                    )
+                    raise TypeError("FastaFormat: 'description' must be str")
                 sequence = record.get("sequence", "")
                 if sequence is None:
                     sequence = ""
                 if not isinstance(sequence, str):
-                    raise TypeError(
-                        "FastaFormat: 'sequence' must be str"
-                    )
+                    raise TypeError("FastaFormat: 'sequence' must be str")
                 if description:
                     header_line = f">{seq_id} {description}\n"
                 else:

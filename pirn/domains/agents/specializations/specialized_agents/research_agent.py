@@ -86,24 +86,16 @@ class ResearchAgent(SubTapestry):
             ValueError: If max_searches is not a positive integer.
         """
         if not isinstance(topic, str) or not topic:
-            raise TypeError(
-                "ResearchAgent: topic must be a non-empty string, "
-                f"got {topic!r}"
-            )
+            raise TypeError(f"ResearchAgent: topic must be a non-empty string, got {topic!r}")
         if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "ResearchAgent: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
+            raise TypeError(f"ResearchAgent: llm must be an LLMProvider, got {type(llm).__name__}")
         if not isinstance(search_tool, Tool):
             raise TypeError(
-                "ResearchAgent: search_tool must be a Tool, "
-                f"got {type(search_tool).__name__}"
+                f"ResearchAgent: search_tool must be a Tool, got {type(search_tool).__name__}"
             )
         if not isinstance(max_searches, int) or max_searches <= 0:
             raise ValueError(
-                "ResearchAgent: max_searches must be a positive int, "
-                f"got {max_searches!r}"
+                f"ResearchAgent: max_searches must be a positive int, got {max_searches!r}"
             )
         seed_messages = (
             AgentMessage(

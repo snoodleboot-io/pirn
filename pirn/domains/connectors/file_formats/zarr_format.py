@@ -45,9 +45,7 @@ class ZarrFormat(BatchFileFormat):
         field_names: Sequence[str] | None = None,
     ) -> None:
         if not isinstance(dataset_path, str) or not dataset_path:
-            raise ValueError(
-                "ZarrFormat: dataset_path must be a non-empty string"
-            )
+            raise ValueError("ZarrFormat: dataset_path must be a non-empty string")
         if chunks is not None:
             if not isinstance(chunks, tuple):
                 raise TypeError(
@@ -55,19 +53,12 @@ class ZarrFormat(BatchFileFormat):
                     f"ints or None, got {type(chunks).__name__}"
                 )
             for chunk in chunks:
-                if (
-                    not isinstance(chunk, int)
-                    or isinstance(chunk, bool)
-                    or chunk <= 0
-                ):
+                if not isinstance(chunk, int) or isinstance(chunk, bool) or chunk <= 0:
                     raise ValueError(
-                        "ZarrFormat: every chunk dimension must be a "
-                        f"positive int, got {chunk!r}"
+                        f"ZarrFormat: every chunk dimension must be a positive int, got {chunk!r}"
                     )
         if field_names is not None:
-            if not isinstance(field_names, Sequence) or isinstance(
-                field_names, (str, bytes)
-            ):
+            if not isinstance(field_names, Sequence) or isinstance(field_names, (str, bytes)):
                 raise TypeError(
                     "ZarrFormat: field_names must be a sequence of "
                     f"strings, got {type(field_names).__name__}"
@@ -75,8 +66,7 @@ class ZarrFormat(BatchFileFormat):
             for name in field_names:
                 if not isinstance(name, str) or not name:
                     raise ValueError(
-                        "ZarrFormat: every field name must be a "
-                        f"non-empty string, got {name!r}"
+                        f"ZarrFormat: every field name must be a non-empty string, got {name!r}"
                     )
         self._dataset_path = dataset_path
         self._chunks = chunks
@@ -100,9 +90,7 @@ class ZarrFormat(BatchFileFormat):
     def field_names(self) -> tuple[str, ...] | None:
         return self._field_names
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         zarr_module, np = self._load_zarr_numpy()
         # ZipStore needs a filesystem path; write the payload through a
         # named tempfile and clean up on the way out.
@@ -129,9 +117,7 @@ class ZarrFormat(BatchFileFormat):
                 for row in data:
                     record: dict[str, Any] = {}
                     for field in data.dtype.names:
-                        record[field] = self._unwrap_scalar(
-                            row[field], np
-                        )
+                        record[field] = self._unwrap_scalar(row[field], np)
                     records.append(record)
                 return records
             finally:
@@ -140,9 +126,7 @@ class ZarrFormat(BatchFileFormat):
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         zarr_module, np = self._load_zarr_numpy()
         materialised = [dict(record) for record in records]
         if not materialised:
@@ -155,9 +139,7 @@ class ZarrFormat(BatchFileFormat):
         try:
             store = zarr_module.storage.ZipStore(tmp_path, mode="w")
             try:
-                root = zarr_module.group(
-                    store=store, overwrite=True
-                )
+                root = zarr_module.group(store=store, overwrite=True)
                 array_kwargs: dict[str, Any] = {
                     "name": self._dataset_path,
                     "shape": structured.shape,
@@ -175,18 +157,12 @@ class ZarrFormat(BatchFileFormat):
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
 
-    def _records_to_structured_array(
-        self, records: list[dict[str, Any]], np: Any
-    ) -> Any:
+    def _records_to_structured_array(self, records: list[dict[str, Any]], np: Any) -> Any:
         field_order = self._derive_field_order(records)
         dtype_fields: list[tuple[str, Any]] = []
         for field in field_order:
-            sample_value = next(
-                (rec[field] for rec in records if field in rec), None
-            )
-            dtype_fields.append(
-                (field, self._infer_numpy_dtype(sample_value, records, field, np))
-            )
+            sample_value = next((rec[field] for rec in records if field in rec), None)
+            dtype_fields.append((field, self._infer_numpy_dtype(sample_value, records, field, np)))
         structured = np.zeros(len(records), dtype=dtype_fields)
         for index, record in enumerate(records):
             for field in field_order:
@@ -198,9 +174,7 @@ class ZarrFormat(BatchFileFormat):
                     )
         return structured
 
-    def _derive_field_order(
-        self, records: list[dict[str, Any]]
-    ) -> list[str]:
+    def _derive_field_order(self, records: list[dict[str, Any]]) -> list[str]:
         if self._field_names is not None:
             return list(self._field_names)
         order: list[str] = []
@@ -227,11 +201,7 @@ class ZarrFormat(BatchFileFormat):
             return np.float64
         if isinstance(sample_value, str):
             max_len = max(
-                (
-                    len(rec[field])
-                    for rec in records
-                    if isinstance(rec.get(field), str)
-                ),
+                (len(rec[field]) for rec in records if isinstance(rec.get(field), str)),
                 default=1,
             )
             return f"U{max(max_len, 1)}"
@@ -275,7 +245,6 @@ class ZarrFormat(BatchFileFormat):
             import zarr.storage  # registers ZipStore on the zarr namespace
         except ImportError as exc:
             raise ImportError(
-                "ZarrFormat requires zarr and numpy. Install with "
-                "`pip install pirn[zarr]`."
+                "ZarrFormat requires zarr and numpy. Install with `pip install pirn[zarr]`."
             ) from exc
         return zarr, np

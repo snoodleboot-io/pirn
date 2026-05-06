@@ -77,18 +77,10 @@ class SpectrogramRenderer(Knot):
             ValueError: If window_length or scaling are invalid.
         """
         if not isinstance(window_length, int) or window_length <= 0:
-            raise ValueError(
-                "SpectrogramRenderer: window_length must be a positive integer"
-            )
+            raise ValueError("SpectrogramRenderer: window_length must be a positive integer")
         if scaling not in self._valid_scalings:
-            raise ValueError(
-                "SpectrogramRenderer: scaling must be 'density' or 'spectrum'"
-            )
-        resolution = (
-            signal.sample_rate_hz / window_length
-            if signal.sample_rate_hz > 0
-            else 0.0
-        )
+            raise ValueError("SpectrogramRenderer: scaling must be 'density' or 'spectrum'")
+        resolution = signal.sample_rate_hz / window_length if signal.sample_rate_hz > 0 else 0.0
         return SpectrumFrame(
             signal_id=signal.signal_id,
             frequency_bins=window_length // 2 + 1,

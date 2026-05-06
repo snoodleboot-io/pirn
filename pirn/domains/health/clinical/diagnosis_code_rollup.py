@@ -64,22 +64,12 @@ class DiagnosisCodeRollup(Knot):
             ValueError: If prefix_length is not positive.
         """
         if not isinstance(codes, (list, tuple)):
-            raise TypeError(
-                "DiagnosisCodeRollup: codes must be a list or tuple"
-            )
+            raise TypeError("DiagnosisCodeRollup: codes must be a list or tuple")
         for code in codes:
             if not isinstance(code, str):
-                raise TypeError(
-                    "DiagnosisCodeRollup: every code must be a string"
-                )
+                raise TypeError("DiagnosisCodeRollup: every code must be a string")
         if not isinstance(prefix_length, int):
-            raise TypeError(
-                "DiagnosisCodeRollup: prefix_length must be an int"
-            )
+            raise TypeError("DiagnosisCodeRollup: prefix_length must be an int")
         if prefix_length <= 0:
-            raise ValueError(
-                "DiagnosisCodeRollup: prefix_length must be positive"
-            )
-        return tuple(
-            code.split(".", 1)[0][:prefix_length] for code in codes
-        )
+            raise ValueError("DiagnosisCodeRollup: prefix_length must be positive")
+        return tuple(code.split(".", 1)[0][:prefix_length] for code in codes)

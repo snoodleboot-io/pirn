@@ -173,7 +173,9 @@ async def main() -> None:
         RunRequest(
             parameters={
                 "raw_body": json.dumps({"action": "summarise", "text": "Hello"}),
-                "headers_json": json.dumps({"Authorization": f"Bearer {os.environ.get('DEMO_TOKEN', '<set DEMO_TOKEN>')}"}),
+                "headers_json": json.dumps(
+                    {"Authorization": f"Bearer {os.environ.get('DEMO_TOKEN', '<set DEMO_TOKEN>')}"}
+                ),
                 "required_scope": "write",
             }
         )

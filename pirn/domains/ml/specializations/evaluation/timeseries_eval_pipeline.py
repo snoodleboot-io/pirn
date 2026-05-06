@@ -81,16 +81,10 @@ class TimeSeriesEvalPipeline(SubTapestry):
             ValueError: If time_column is empty.
         """
         if not isinstance(time_column, str) or not time_column:
-            raise ValueError(
-                "TimeSeriesEvalPipeline: time_column must be a non-empty string"
-            )
+            raise ValueError("TimeSeriesEvalPipeline: time_column must be a non-empty string")
         with Tapestry() as inner:
-            model_node = _emit_value(
-                value=model, _config=KnotConfig(id="model")
-            )
-            split_node = _emit_value(
-                value=split, _config=KnotConfig(id="split")
-            )
+            model_node = _emit_value(value=model, _config=KnotConfig(id="model"))
+            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
             Evaluator(
                 model=model_node,
                 split=split_node,

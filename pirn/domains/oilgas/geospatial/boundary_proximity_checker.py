@@ -72,13 +72,9 @@ class BoundaryProximityChecker(Knot):
             and ``buffer_distance_m``.
         """
         if not isinstance(buffer_distance_m, (int, float)):
-            raise TypeError(
-                "BoundaryProximityChecker: buffer_distance_m must be numeric"
-            )
+            raise TypeError("BoundaryProximityChecker: buffer_distance_m must be numeric")
         if buffer_distance_m < 0.0:
-            raise ValueError(
-                "BoundaryProximityChecker: buffer_distance_m must be non-negative"
-            )
+            raise ValueError("BoundaryProximityChecker: buffer_distance_m must be non-negative")
         return {
             "well_id": location.get("well_id", ""),
             "field_id": boundary.get("field_id", ""),

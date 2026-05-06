@@ -89,13 +89,9 @@ class DirectionalDrillingPlanner(Knot):
             ("max_dogleg_deg_per_30m", max_dogleg_deg_per_30m),
         ):
             if not isinstance(value, (int, float)):
-                raise TypeError(
-                    f"DirectionalDrillingPlanner: {label} must be numeric"
-                )
+                raise TypeError(f"DirectionalDrillingPlanner: {label} must be numeric")
         if max_dogleg_deg_per_30m <= 0.0:
-            raise ValueError(
-                "DirectionalDrillingPlanner: max_dogleg_deg_per_30m must be positive"
-            )
+            raise ValueError("DirectionalDrillingPlanner: max_dogleg_deg_per_30m must be positive")
         return WellPath3D(
             well_id=current_path.well_id,
             point_count=current_path.point_count,

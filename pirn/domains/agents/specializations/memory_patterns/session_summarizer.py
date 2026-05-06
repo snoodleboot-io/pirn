@@ -77,8 +77,7 @@ class SessionSummarizer(Knot):
         """
         if not isinstance(llm, LLMProvider):
             raise TypeError(
-                "SessionSummarizer: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
+                f"SessionSummarizer: llm must be an LLMProvider, got {type(llm).__name__}"
             )
         if not isinstance(token_threshold, int) or token_threshold <= 0:
             raise ValueError(
@@ -92,15 +91,11 @@ class SessionSummarizer(Knot):
                     f"SessionSummarizer: messages[{index}] must be an "
                     f"AgentMessage, got {type(msg).__name__}"
                 )
-        total_tokens = sum(
-            len(msg.content.split()) for msg in message_list
-        )
+        total_tokens = sum(len(msg.content.split()) for msg in message_list)
         if total_tokens <= token_threshold:
             return message_list
 
-        rendered = "\n".join(
-            f"{m.role}: {m.content}" for m in message_list
-        )
+        rendered = "\n".join(f"{m.role}: {m.content}" for m in message_list)
         summary_prompt = (
             "Summarize the following conversation concisely, preserving "
             "all key facts, decisions, and context needed for the agent "

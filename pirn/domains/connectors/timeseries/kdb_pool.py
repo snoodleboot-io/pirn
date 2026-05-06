@@ -64,9 +64,7 @@ class KdbPool(DatabaseConnectionPool):
             self._reraise_scrubbed(exc)
         return self._to_rows(result)
 
-    async def execute_many(
-        self, query: str, args_seq: Iterable[Iterable[Any]]
-    ) -> None:
+    async def execute_many(self, query: str, args_seq: Iterable[Iterable[Any]]) -> None:
         await self._ensure_connection()
         for args in args_seq:
             try:
@@ -100,13 +98,9 @@ class KdbPool(DatabaseConnectionPool):
 
     async def _create_connection(self) -> Any:
         if self._config is None:
-            raise RuntimeError(
-                "KdbPool: missing config and no injected connection"
-            )
+            raise RuntimeError("KdbPool: missing config and no injected connection")
         try:
-            connection = await asyncio.to_thread(
-                self._connect_sync, self._config
-            )
+            connection = await asyncio.to_thread(self._connect_sync, self._config)
         except Exception as exc:
             self._reraise_scrubbed(exc)
         self._logger.debug("kdb.connect")
@@ -128,6 +122,7 @@ class KdbPool(DatabaseConnectionPool):
             )
         except ImportError as _pykx_err:
             import logging as _logging
+
             _logging.getLogger(__name__).debug(
                 "kdb: pykx not available (%s), trying qpython", _pykx_err
             )
@@ -146,6 +141,5 @@ class KdbPool(DatabaseConnectionPool):
             return conn
         except ImportError as exc:
             raise ImportError(
-                "KdbPool requires pykx or qpython; install via "
-                "`pip install pirn[kdb]`"
+                "KdbPool requires pykx or qpython; install via `pip install pirn[kdb]`"
             ) from exc

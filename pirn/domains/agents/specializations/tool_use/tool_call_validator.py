@@ -65,21 +65,17 @@ class ToolCallValidator(Knot):
         for index, tool in enumerate(tool_list):
             if not isinstance(tool, Tool):
                 raise TypeError(
-                    f"ToolCallValidator: tools[{index}] must be a Tool, "
-                    f"got {type(tool).__name__}"
+                    f"ToolCallValidator: tools[{index}] must be a Tool, got {type(tool).__name__}"
                 )
         tool_registry: dict[str, Tool] = {tool.name: tool for tool in tool_list}
 
         if not isinstance(tool_call, ToolCall):
             raise TypeError(
-                "ToolCallValidator: tool_call must be a ToolCall, "
-                f"got {type(tool_call).__name__}"
+                f"ToolCallValidator: tool_call must be a ToolCall, got {type(tool_call).__name__}"
             )
         tool = tool_registry.get(tool_call.tool_name)
         if tool is None:
-            raise ValueError(
-                f"ToolCallValidator: unknown tool '{tool_call.tool_name}'"
-            )
+            raise ValueError(f"ToolCallValidator: unknown tool '{tool_call.tool_name}'")
         schema = tool.parameters_schema
         self._validate_against_schema(tool_call.arguments, schema, tool_call.tool_name)
         return tool_call

@@ -78,13 +78,9 @@ class ArbitraryResamplerPipeline(Knot):
             ValueError: If input_rate_hz or output_rate_hz are not positive.
         """
         if not isinstance(input_rate_hz, (int, float)) or input_rate_hz <= 0:
-            raise ValueError(
-                "ArbitraryResamplerPipeline: input_rate_hz must be positive"
-            )
+            raise ValueError("ArbitraryResamplerPipeline: input_rate_hz must be positive")
         if not isinstance(output_rate_hz, (int, float)) or output_rate_hz <= 0:
-            raise ValueError(
-                "ArbitraryResamplerPipeline: output_rate_hz must be positive"
-            )
+            raise ValueError("ArbitraryResamplerPipeline: output_rate_hz must be positive")
         ratio = output_rate_hz / input_rate_hz
         new_samples = int(signal.samples_per_channel * ratio)
         return SignalFrame(

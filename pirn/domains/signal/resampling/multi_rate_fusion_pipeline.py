@@ -74,9 +74,7 @@ class MultiRateFusionPipeline(Knot):
             ValueError: If output_rate_hz is not positive.
         """
         if not isinstance(output_rate_hz, (int, float)) or output_rate_hz <= 0:
-            raise ValueError(
-                "MultiRateFusionPipeline: output_rate_hz must be positive"
-            )
+            raise ValueError("MultiRateFusionPipeline: output_rate_hz must be positive")
 
         def _resample(sf: SignalFrame, suffix: str) -> SignalFrame:
             ratio = output_rate_hz / max(sf.sample_rate_hz, 1.0)

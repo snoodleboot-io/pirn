@@ -76,24 +76,18 @@ class IntentClassifier(Knot):
         """
         if not isinstance(context, AgentContext):
             raise TypeError(
-                "IntentClassifier: context must be an AgentContext, "
-                f"got {type(context).__name__}"
+                f"IntentClassifier: context must be an AgentContext, got {type(context).__name__}"
             )
         if not isinstance(llm, LLMProvider):
             raise TypeError(
-                "IntentClassifier: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
+                f"IntentClassifier: llm must be an LLMProvider, got {type(llm).__name__}"
             )
         if not isinstance(intent_categories, Sequence) or isinstance(
             intent_categories, (str, bytes)
         ):
-            raise TypeError(
-                "IntentClassifier: intent_categories must be a sequence of strings"
-            )
+            raise TypeError("IntentClassifier: intent_categories must be a sequence of strings")
         if not intent_categories:
-            raise ValueError(
-                "IntentClassifier: intent_categories must be non-empty"
-            )
+            raise ValueError("IntentClassifier: intent_categories must be non-empty")
         for index, intent in enumerate(intent_categories):
             if not isinstance(intent, str) or not intent:
                 raise ValueError(
@@ -129,9 +123,7 @@ class IntentClassifier(Knot):
                 return message.content
         if context.messages:
             return context.messages[-1].content
-        raise ValueError(
-            "IntentClassifier: context has no messages to classify"
-        )
+        raise ValueError("IntentClassifier: context has no messages to classify")
 
     def _extract_text(self, response: Any) -> str:
         if isinstance(response, str):

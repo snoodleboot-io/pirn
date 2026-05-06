@@ -16,16 +16,10 @@ class HistorianConnection(PirnOpaqueValue):
     opaque (see :class:`PirnOpaqueValue`).
     """
 
-    async def fetch_tag(
-        self, tag: str, since: datetime
-    ) -> AsyncIterator[Mapping[str, object]]:
+    async def fetch_tag(self, tag: str, since: datetime) -> AsyncIterator[Mapping[str, object]]:
         """Yield ``{timestamp, value}`` mappings for ``tag`` since ``since``."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement fetch_tag()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement fetch_tag()")
 
     async def close(self) -> None:
         """Close the underlying transport and release resources."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement close()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement close()")

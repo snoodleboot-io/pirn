@@ -85,9 +85,7 @@ class BaselineEstablisher(SubTapestry):
             TypeError: If the inner evaluator does not return an EvalReport.
         """
         if not isinstance(algorithm, str) or not algorithm:
-            raise ValueError(
-                "BaselineEstablisher: algorithm must be a non-empty string"
-            )
+            raise ValueError("BaselineEstablisher: algorithm must be a non-empty string")
         metric_tuple = tuple(metrics)
         if not metric_tuple:
             raise ValueError("BaselineEstablisher: metrics must be non-empty")
@@ -97,9 +95,7 @@ class BaselineEstablisher(SubTapestry):
                     "BaselineEstablisher: every metric name must be a non-empty string"
                 )
         with Tapestry() as inner:
-            split_node = _emit_value(
-                value=split, _config=KnotConfig(id="split")
-            )
+            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
             model = Trainer(
                 split=split_node,
                 algorithm=algorithm,
@@ -114,7 +110,5 @@ class BaselineEstablisher(SubTapestry):
         inner_result = await self._run_inner(inner)
         report = inner_result.outputs["evaluate"]
         if not isinstance(report, EvalReport):
-            raise TypeError(
-                "BaselineEstablisher: inner evaluator did not return an EvalReport"
-            )
+            raise TypeError("BaselineEstablisher: inner evaluator did not return an EvalReport")
         return report

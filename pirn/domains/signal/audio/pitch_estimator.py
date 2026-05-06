@@ -84,13 +84,9 @@ class PitchEstimator(Knot):
             ValueError: If f_min_hz, f_max_hz, or algorithm are invalid.
         """
         if not isinstance(f_min_hz, (int, float)) or f_min_hz <= 0:
-            raise ValueError(
-                "PitchEstimator: f_min_hz must be positive"
-            )
+            raise ValueError("PitchEstimator: f_min_hz must be positive")
         if not isinstance(f_max_hz, (int, float)) or f_max_hz <= f_min_hz:
-            raise ValueError(
-                "PitchEstimator: f_max_hz must exceed f_min_hz"
-            )
+            raise ValueError("PitchEstimator: f_max_hz must exceed f_min_hz")
         if algorithm not in {"yin", "pyin", "autocorrelation"}:
             raise ValueError(
                 "PitchEstimator: algorithm must be 'yin', 'pyin', or 'autocorrelation'"

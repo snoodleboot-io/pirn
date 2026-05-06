@@ -74,9 +74,7 @@ class _LagAppendKnot(Knot):
             ValueError: If time_column, columns, or lags are invalid.
         """
         if not isinstance(time_column, str) or not time_column:
-            raise ValueError(
-                "_LagAppendKnot: time_column must be a non-empty string"
-            )
+            raise ValueError("_LagAppendKnot: time_column must be a non-empty string")
         column_tuple = tuple(columns)
         if not column_tuple:
             raise ValueError("_LagAppendKnot: columns must be non-empty")

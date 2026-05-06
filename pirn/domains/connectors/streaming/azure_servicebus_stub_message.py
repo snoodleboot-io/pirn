@@ -21,7 +21,5 @@ class AzureServiceBusStubMessage:
         self.body = body
         self.session_id = key.decode("utf-8") if key is not None else None
         self.application_properties = (
-            {name: bytes(val) for name, val in headers.items()}
-            if headers
-            else None
+            {name: bytes(val) for name, val in headers.items()} if headers else None
         )

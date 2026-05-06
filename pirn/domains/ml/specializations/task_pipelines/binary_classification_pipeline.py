@@ -97,26 +97,18 @@ class BinaryClassificationPipeline(SubTapestry):
             TypeError: If pool is not a DatabaseConnectionPool.
         """
         if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError(
-                "BinaryClassificationPipeline: pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("BinaryClassificationPipeline: pool must be a DatabaseConnectionPool")
         if not isinstance(query, str) or not query:
-            raise ValueError(
-                "BinaryClassificationPipeline: query must be a non-empty string"
-            )
+            raise ValueError("BinaryClassificationPipeline: query must be a non-empty string")
         if not isinstance(target_column, str) or not target_column:
             raise ValueError(
                 "BinaryClassificationPipeline: target_column must be a non-empty string"
             )
         feature_tuple = tuple(feature_names)
         if not feature_tuple:
-            raise ValueError(
-                "BinaryClassificationPipeline: feature_names must be non-empty"
-            )
+            raise ValueError("BinaryClassificationPipeline: feature_names must be non-empty")
         if not isinstance(algorithm, str) or not algorithm:
-            raise ValueError(
-                "BinaryClassificationPipeline: algorithm must be a non-empty string"
-            )
+            raise ValueError("BinaryClassificationPipeline: algorithm must be a non-empty string")
         with Tapestry() as inner:
             dataset = DatasetLoader(
                 name="binary-classification",

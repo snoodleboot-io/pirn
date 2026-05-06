@@ -59,14 +59,10 @@ class ReadmissionRiskScorer(Knot):
             TypeError: If records is not a list/tuple or contains non-ClinicalRecord items.
         """
         if not isinstance(records, (list, tuple)):
-            raise TypeError(
-                "ReadmissionRiskScorer: records must be a list or tuple"
-            )
+            raise TypeError("ReadmissionRiskScorer: records must be a list or tuple")
         for record in records:
             if not isinstance(record, ClinicalRecord):
-                raise TypeError(
-                    "ReadmissionRiskScorer: every record must be a ClinicalRecord"
-                )
+                raise TypeError("ReadmissionRiskScorer: every record must be a ClinicalRecord")
         out: dict[str, float] = {}
         for record in records:
             # Stub deterministic score — count of observation codes saturated.

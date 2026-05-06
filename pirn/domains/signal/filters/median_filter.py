@@ -68,9 +68,7 @@ class MedianFilter(Knot):
             ValueError: If kernel_size is not a positive odd integer.
         """
         if not isinstance(kernel_size, int) or kernel_size <= 0 or kernel_size % 2 == 0:
-            raise ValueError(
-                "MedianFilter: kernel_size must be a positive odd integer"
-            )
+            raise ValueError("MedianFilter: kernel_size must be a positive odd integer")
         return SignalFrame(
             signal_id=f"{signal.signal_id}:median",
             channel_count=signal.channel_count,

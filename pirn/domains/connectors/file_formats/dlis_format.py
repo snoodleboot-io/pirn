@@ -36,27 +36,19 @@ class DlisFormat(BatchFileFormat):
     def name(self) -> str:
         return "dlis"
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         dlisio = self._load_dlisio()
         records: list[dict[str, Any]] = []
-        with tempfile.NamedTemporaryFile(
-            suffix=".dlis", delete=False
-        ) as tmp:
+        with tempfile.NamedTemporaryFile(suffix=".dlis", delete=False) as tmp:
             tmp_path = tmp.name
             tmp.write(payload)
         try:
             with dlisio.dlis(tmp_path) as files:
                 for logical_file in files:
                     for frame in logical_file.frames:
-                        frame_name = str(
-                            getattr(frame, "name", "unknown")
-                        )
+                        frame_name = str(getattr(frame, "name", "unknown"))
                         for channel in frame.channels:
-                            channel_name = str(
-                                getattr(channel, "name", "unknown")
-                            )
+                            channel_name = str(getattr(channel, "name", "unknown"))
                             try:
                                 array = channel.curves()
                                 data = array.tobytes()
@@ -73,9 +65,7 @@ class DlisFormat(BatchFileFormat):
             Path(tmp_path).unlink(missing_ok=True)
         return records
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         raise NotImplementedError("DlisFormat: write is not supported")
 
     @staticmethod
@@ -84,7 +74,6 @@ class DlisFormat(BatchFileFormat):
             import dlisio
         except ImportError as exc:
             raise ImportError(
-                "DlisFormat requires dlisio. Install with "
-                "`pip install pirn[oilgas]`."
+                "DlisFormat requires dlisio. Install with `pip install pirn[oilgas]`."
             ) from exc
         return dlisio

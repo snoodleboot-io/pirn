@@ -30,6 +30,4 @@ class MetricQuery:
         ``step`` are passed when supplied; concrete implementations
         clamp or ignore them per their API.
         """
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement query()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement query()")

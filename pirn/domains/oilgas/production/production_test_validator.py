@@ -69,11 +69,7 @@ class ProductionTestValidator(Knot):
             ("max_water_rate_bwpd", max_water_rate_bwpd),
         ):
             if not isinstance(value, (int, float)):
-                raise TypeError(
-                    f"ProductionTestValidator: {label} must be numeric"
-                )
+                raise TypeError(f"ProductionTestValidator: {label} must be numeric")
             if value <= 0.0:
-                raise ValueError(
-                    f"ProductionTestValidator: {label} must be positive"
-                )
+                raise ValueError(f"ProductionTestValidator: {label} must be positive")
         return series

@@ -76,13 +76,8 @@ class AudioResampler(Knot):
         Raises:
             ValueError: If target_sample_rate_hz or quality are invalid.
         """
-        if (
-            not isinstance(target_sample_rate_hz, (int, float))
-            or target_sample_rate_hz <= 0
-        ):
-            raise ValueError(
-                "AudioResampler: target_sample_rate_hz must be positive"
-            )
+        if not isinstance(target_sample_rate_hz, (int, float)) or target_sample_rate_hz <= 0:
+            raise ValueError("AudioResampler: target_sample_rate_hz must be positive")
         if quality not in {"kaiser_best", "kaiser_fast", "linear", "polyphase"}:
             raise ValueError(
                 "AudioResampler: quality must be 'kaiser_best', 'kaiser_fast', "

@@ -60,17 +60,10 @@ class PolarsRename(Knot):
             A new PolarsDataBatch with the applicable columns renamed.
         """
         if not isinstance(mapping, Mapping) or not mapping:
-            raise TypeError(
-                "PolarsRename: mapping must be a non-empty Mapping[old_name, new_name]"
-            )
+            raise TypeError("PolarsRename: mapping must be a non-empty Mapping[old_name, new_name]")
         for old, new in mapping.items():
             if not isinstance(old, str) or not isinstance(new, str) or not old or not new:
-                raise TypeError(
-                    "PolarsRename: mapping keys and values must be non-empty strings"
-                )
+                raise TypeError("PolarsRename: mapping keys and values must be non-empty strings")
         # Polars rejects unknown columns; restrict to those present.
-        applicable = {
-            old: new for old, new in mapping.items()
-            if old in batch.frame.columns
-        }
+        applicable = {old: new for old, new in mapping.items() if old in batch.frame.columns}
         return batch.with_frame(batch.frame.rename(applicable))

@@ -24,9 +24,7 @@ from pirn.core.knot_config import KnotConfig
 class EEGMontageApplier(Knot):
     """Apply electrode montage (re-reference, set channel positions) to EEG data."""
 
-    _VALID_REFERENCES: frozenset[str] = frozenset(
-        {"average", "linked_mastoids", "cz", "nose"}
-    )
+    _VALID_REFERENCES: frozenset[str] = frozenset({"average", "linked_mastoids", "cz", "nose"})
 
     def __init__(
         self,
@@ -75,18 +73,13 @@ class EEGMontageApplier(Knot):
         if not isinstance(eeg_data, dict):
             raise TypeError("EEGMontageApplier: eeg_data must be a dict")
         if not isinstance(montage_name, str) or not montage_name:
-            raise ValueError(
-                "EEGMontageApplier: montage_name must be a non-empty string"
-            )
+            raise ValueError("EEGMontageApplier: montage_name must be a non-empty string")
         if reference not in self._VALID_REFERENCES:
             raise ValueError(
                 "EEGMontageApplier: reference must be one of "
                 "'average', 'linked_mastoids', 'cz', 'nose'"
             )
-        channels = [
-            ch for ch in eeg_data.get("channels", [])
-            if ch not in drop_channels
-        ]
+        channels = [ch for ch in eeg_data.get("channels", []) if ch not in drop_channels]
         return {
             "channels": channels,
             "data": eeg_data.get("data"),

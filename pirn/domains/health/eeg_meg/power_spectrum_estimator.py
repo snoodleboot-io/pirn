@@ -66,13 +66,9 @@ class PowerSpectrumEstimator(Knot):
             ValueError: If method is not one of welch/multitaper.
         """
         if not isinstance(signal, SignalFrame):
-            raise TypeError(
-                "PowerSpectrumEstimator: signal must be a SignalFrame"
-            )
+            raise TypeError("PowerSpectrumEstimator: signal must be a SignalFrame")
         if method not in ("welch", "multitaper"):
-            raise ValueError(
-                "PowerSpectrumEstimator: method must be one of welch/multitaper"
-            )
+            raise ValueError("PowerSpectrumEstimator: method must be one of welch/multitaper")
         return {
             "delta": 0.0,
             "theta": 0.0,

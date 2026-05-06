@@ -44,21 +44,11 @@ class SalesforceClient(ApiClient, TableSource, RecordWriter):
         sobject_type: str | None = None,
     ) -> None:
         if config is None and client is None:
-            raise TypeError(
-                "SalesforceClient requires either config= or client="
-            )
-        if soql_query is not None and (
-            not isinstance(soql_query, str) or not soql_query
-        ):
-            raise ValueError(
-                "SalesforceClient: soql_query must be a non-empty string"
-            )
-        if sobject_type is not None and (
-            not isinstance(sobject_type, str) or not sobject_type
-        ):
-            raise ValueError(
-                "SalesforceClient: sobject_type must be a non-empty string"
-            )
+            raise TypeError("SalesforceClient requires either config= or client=")
+        if soql_query is not None and (not isinstance(soql_query, str) or not soql_query):
+            raise ValueError("SalesforceClient: soql_query must be a non-empty string")
+        if sobject_type is not None and (not isinstance(sobject_type, str) or not sobject_type):
+            raise ValueError("SalesforceClient: sobject_type must be a non-empty string")
         self._config = config
         self._client = client
         self._closed = False
@@ -100,12 +90,9 @@ class SalesforceClient(ApiClient, TableSource, RecordWriter):
         else:
             if self._soql_query is None:
                 raise RuntimeError(
-                    "SalesforceClient.fetch_page: no soql_query configured "
-                    "and no cursor supplied"
+                    "SalesforceClient.fetch_page: no soql_query configured and no cursor supplied"
                 )
-            response = await self.request(
-                "GET", "/query", params={"q": self._soql_query}
-            )
+            response = await self.request("GET", "/query", params={"q": self._soql_query})
         return self._extract_page(response)
 
     async def soql(
@@ -122,9 +109,7 @@ class SalesforceClient(ApiClient, TableSource, RecordWriter):
         """
         del batch_size  # Salesforce controls SOQL batch size server-side.
         if not isinstance(query, str) or not query:
-            raise ValueError(
-                "SalesforceClient.soql: query must be a non-empty string"
-            )
+            raise ValueError("SalesforceClient.soql: query must be a non-empty string")
         response = await self.request("GET", "/query", params={"q": query})
         rows, cursor = self._extract_page(response)
         for row in rows:
@@ -160,9 +145,7 @@ class SalesforceClient(ApiClient, TableSource, RecordWriter):
         rows = list(response.get("records") or ())
         done = bool(response.get("done", True))
         next_url = response.get("nextRecordsUrl")
-        next_cursor = (
-            str(next_url) if (not done and next_url) else None
-        )
+        next_cursor = str(next_url) if (not done and next_url) else None
         return rows, next_cursor
 
     async def request(
@@ -211,9 +194,7 @@ class SalesforceClient(ApiClient, TableSource, RecordWriter):
         return normalised.startswith("query") or normalised.endswith("/query")
 
     @staticmethod
-    def _extract_soql(
-        path: str, params: Mapping[str, Any] | None
-    ) -> str:
+    def _extract_soql(path: str, params: Mapping[str, Any] | None) -> str:
         if params is not None and "q" in params:
             return str(params["q"])
         if "?" in path:
@@ -222,9 +203,7 @@ class SalesforceClient(ApiClient, TableSource, RecordWriter):
                 key, sep, value = pair.partition("=")
                 if sep and key.lower() == "q":
                     return value
-        raise ValueError(
-            "SalesforceClient.request: SOQL path requires 'q' parameter"
-        )
+        raise ValueError("SalesforceClient.request: SOQL path requires 'q' parameter")
 
     async def _ensure_client(self) -> Any:
         if self._closed:
@@ -242,9 +221,7 @@ class SalesforceClient(ApiClient, TableSource, RecordWriter):
                 "`pip install pirn[salesforce]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError(
-                "SalesforceClient: missing config and no injected client"
-            )
+            raise RuntimeError("SalesforceClient: missing config and no injected client")
 
         kwargs: dict[str, Any] = {"domain": self._config.domain}
         for name in (

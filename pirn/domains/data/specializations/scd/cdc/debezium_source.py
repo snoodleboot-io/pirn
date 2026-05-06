@@ -119,12 +119,8 @@ class DebeziumSource(Source):
         """
         if not isinstance(topic, str) or not topic:
             raise ValueError("DebeziumSource: topic must be a non-empty string")
-        if max_messages is not None and (
-            not isinstance(max_messages, int) or max_messages < 0
-        ):
-            raise ValueError(
-                "DebeziumSource: max_messages must be None or a non-negative integer"
-            )
+        if max_messages is not None and (not isinstance(max_messages, int) or max_messages < 0):
+            raise ValueError("DebeziumSource: max_messages must be None or a non-negative integer")
         if max_messages is None:
             raise RuntimeError(
                 "DebeziumSource.process() requires max_messages — for "
@@ -156,30 +152,20 @@ class DebeziumSource(Source):
             try:
                 value = value.decode("utf-8")
             except UnicodeDecodeError as exc:
-                raise ValueError(
-                    "DebeziumSource: message value is not valid UTF-8"
-                ) from exc
+                raise ValueError("DebeziumSource: message value is not valid UTF-8") from exc
         if isinstance(value, str):
             try:
                 value = json.loads(value)
             except json.JSONDecodeError as exc:
-                raise ValueError(
-                    "DebeziumSource: message value is not valid JSON"
-                ) from exc
+                raise ValueError("DebeziumSource: message value is not valid JSON") from exc
         if not isinstance(value, Mapping):
-            raise ValueError(
-                "DebeziumSource: message value is not a JSON object"
-            )
+            raise ValueError("DebeziumSource: message value is not a JSON object")
         for required in self._required_keys:
             if required not in value:
-                raise ValueError(
-                    f"DebeziumSource: envelope missing required key {required!r}"
-                )
+                raise ValueError(f"DebeziumSource: envelope missing required key {required!r}")
         op = value.get("op")
         if op not in self._supported_ops:
-            raise ValueError(
-                f"DebeziumSource: unsupported op {op!r} in envelope"
-            )
+            raise ValueError(f"DebeziumSource: unsupported op {op!r} in envelope")
         return {
             "op": op,
             "before": value.get("before"),

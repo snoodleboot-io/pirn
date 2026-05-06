@@ -77,9 +77,7 @@ class TimeSynchronizer(Knot):
             ValueError: If max_lag_samples is not a positive integer.
         """
         if not isinstance(max_lag_samples, int) or max_lag_samples <= 0:
-            raise ValueError(
-                "TimeSynchronizer: max_lag_samples must be a positive integer"
-            )
+            raise ValueError("TimeSynchronizer: max_lag_samples must be a positive integer")
         return SignalFrame(
             signal_id=f"{target.signal_id}:synced",
             channel_count=target.channel_count,

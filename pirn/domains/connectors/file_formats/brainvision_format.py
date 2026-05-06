@@ -66,20 +66,17 @@ class BrainVisionFormat(BatchFileFormat):
     # Decode
     # ------------------------------------------------------------------
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         bundle = self._unpack_zip(payload)
         try:
             import mne as _mne  # noqa: F401
+
             return self._decode_with_mne(bundle)
         except ImportError:
             return self._decode_fallback(bundle)
 
     @classmethod
-    def _decode_with_mne(
-        cls, bundle: dict[str, bytes]
-    ) -> list[Mapping[str, Any]]:
+    def _decode_with_mne(cls, bundle: dict[str, bytes]) -> list[Mapping[str, Any]]:
         import tempfile
         from pathlib import Path
 
@@ -104,9 +101,7 @@ class BrainVisionFormat(BatchFileFormat):
             vmrk_path.write_bytes(vmrk_bytes)
             eeg_path.write_bytes(eeg_bytes)
 
-            raw = mne.io.read_raw_brainvision(
-                str(vhdr_path), preload=True, verbose=False
-            )
+            raw = mne.io.read_raw_brainvision(str(vhdr_path), preload=True, verbose=False)
             data, _ = raw.get_data(return_times=True)
             sfreq = raw.info["sfreq"]
             ch_names = raw.info["ch_names"]
@@ -125,32 +120,20 @@ class BrainVisionFormat(BatchFileFormat):
         return records
 
     @classmethod
-    def _decode_fallback(
-        cls, bundle: dict[str, bytes]
-    ) -> list[Mapping[str, Any]]:
+    def _decode_fallback(cls, bundle: dict[str, bytes]) -> list[Mapping[str, Any]]:
         """Pure-Python BrainVision decoder (no mne required)."""
         import numpy as np
 
-        vhdr_text = bundle.get("recording.vhdr", b"").decode(
-            "utf-8", errors="replace"
-        )
+        vhdr_text = bundle.get("recording.vhdr", b"").decode("utf-8", errors="replace")
         eeg_bytes = bundle.get("recording.eeg", b"")
 
         parser = cls._parse_vhdr(vhdr_text)
 
         # Channel count and sample rate from header
-        n_channels = int(
-            parser.get("Common Infos", "NumberOfChannels", fallback="0")
-        )
-        sfreq = 1_000_000.0 / float(
-            parser.get("Common Infos", "SamplingInterval", fallback="1000")
-        )
-        data_format = parser.get(
-            "Common Infos", "DataFormat", fallback="BINARY"
-        ).upper()
-        binary_format = parser.get(
-            "Binary Infos", "BinaryFormat", fallback="INT_16"
-        ).upper()
+        n_channels = int(parser.get("Common Infos", "NumberOfChannels", fallback="0"))
+        sfreq = 1_000_000.0 / float(parser.get("Common Infos", "SamplingInterval", fallback="1000"))
+        data_format = parser.get("Common Infos", "DataFormat", fallback="BINARY").upper()
+        binary_format = parser.get("Binary Infos", "BinaryFormat", fallback="INT_16").upper()
         data_orientation = parser.get(
             "Common Infos", "DataOrientation", fallback="MULTIPLEXED"
         ).upper()
@@ -175,14 +158,10 @@ class BrainVisionFormat(BatchFileFormat):
                 total_samples = len(raw_array)
                 n_samples = total_samples // n_channels
                 raw_array = raw_array[: n_samples * n_channels]
-                data = raw_array.reshape(n_samples, n_channels).T.astype(
-                    np.float64
-                )
+                data = raw_array.reshape(n_samples, n_channels).T.astype(np.float64)
             else:
                 n_samples = len(raw_array) // n_channels
-                data = raw_array.reshape(n_channels, n_samples).astype(
-                    np.float64
-                )
+                data = raw_array.reshape(n_channels, n_samples).astype(np.float64)
         else:
             n_channels = max(n_channels, 1)
             data = np.zeros((n_channels, 0), dtype=np.float64)
@@ -209,9 +188,7 @@ class BrainVisionFormat(BatchFileFormat):
     # Encode
     # ------------------------------------------------------------------
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         import numpy as np
 
         materialised = [dict(r) for r in records]
@@ -222,7 +199,7 @@ class BrainVisionFormat(BatchFileFormat):
             )
 
         sfreq = float(materialised[0].get("sample_rate", 1000.0))
-        ch_names = [str(r.get("channel_name", f"Ch{r['channel_index']+1}")) for r in materialised]
+        ch_names = [str(r.get("channel_name", f"Ch{r['channel_index'] + 1}")) for r in materialised]
 
         # Build data matrix (channels x samples)
         arrays = []
@@ -279,9 +256,7 @@ class BrainVisionFormat(BatchFileFormat):
     # ------------------------------------------------------------------
 
     @classmethod
-    def _build_vhdr(
-        cls, ch_names: list[str], sfreq: float, n_samples: int
-    ) -> str:
+    def _build_vhdr(cls, ch_names: list[str], sfreq: float, n_samples: int) -> str:
         sampling_interval = int(1_000_000 / sfreq)
         lines = [
             "Brain Vision Data Exchange Header File Version 1.0",
@@ -304,7 +279,7 @@ class BrainVisionFormat(BatchFileFormat):
             # Redact PHI fields if present in channel name (unlikely but
             # consistent with the class-level policy).
             safe_name = "[REDACTED]" if name in cls._phi_header_fields else name
-            lines.append(f"Ch{idx+1}={safe_name},,1,µV")
+            lines.append(f"Ch{idx + 1}={safe_name},,1,µV")
         lines.append("")
         return "\n".join(lines)
 

@@ -42,9 +42,7 @@ async def _emit_value(value: Any) -> Any:
 class BaggingEnsembleBuilder(SubTapestry):
     """Train N base models on bootstrap samples and combine via voting/averaging."""
 
-    valid_tasks: ClassVar[frozenset[str]] = frozenset(
-        {"classification", "regression"}
-    )
+    valid_tasks: ClassVar[frozenset[str]] = frozenset({"classification", "regression"})
 
     def __init__(
         self,
@@ -145,13 +143,9 @@ class BaggingEnsembleBuilder(SubTapestry):
         ensemble_model = result.outputs["ensemble"]
         report = result.outputs["evaluate"]
         if not isinstance(ensemble_model, TrainedModel):
-            raise TypeError(
-                "BaggingEnsembleBuilder: ensemble did not return a TrainedModel"
-            )
+            raise TypeError("BaggingEnsembleBuilder: ensemble did not return a TrainedModel")
         if not isinstance(report, EvalReport):
-            raise TypeError(
-                "BaggingEnsembleBuilder: evaluator did not return an EvalReport"
-            )
+            raise TypeError("BaggingEnsembleBuilder: evaluator did not return an EvalReport")
         return {
             "ensemble_model": ensemble_model,
             "eval_report": report,

@@ -77,19 +77,13 @@ class FKDenoisingKnot(Knot):
             Dict with ``denoised_traces`` (list) and ``noise_model`` (dict).
         """
         if not isinstance(velocity_threshold_m_s, (int, float)):
-            raise TypeError(
-                "FKDenoisingKnot: velocity_threshold_m_s must be numeric"
-            )
+            raise TypeError("FKDenoisingKnot: velocity_threshold_m_s must be numeric")
         if velocity_threshold_m_s <= 0:
-            raise ValueError(
-                "FKDenoisingKnot: velocity_threshold_m_s must be positive"
-            )
+            raise ValueError("FKDenoisingKnot: velocity_threshold_m_s must be positive")
         if not isinstance(taper_width_pct, (int, float)):
             raise TypeError("FKDenoisingKnot: taper_width_pct must be numeric")
         if not (0 < taper_width_pct <= 50):
-            raise ValueError(
-                "FKDenoisingKnot: taper_width_pct must be in (0, 50]"
-            )
+            raise ValueError("FKDenoisingKnot: taper_width_pct must be in (0, 50]")
         if not isinstance(gather, dict):
             raise TypeError("FKDenoisingKnot: gather must be a dict")
         traces = gather.get("traces", [])

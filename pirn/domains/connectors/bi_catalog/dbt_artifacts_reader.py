@@ -68,16 +68,13 @@ class DbtArtifactsReader(MetadataCatalog):
     ) -> None:
         if config is None and manifest is None and run_results is None:
             raise TypeError(
-                "DbtArtifactsReader requires either config= or pre-loaded "
-                "manifest=/run_results="
+                "DbtArtifactsReader requires either config= or pre-loaded manifest=/run_results="
             )
         if config is not None and config.target_path is not None:
             self._validate_target_path(config.target_path)
         self._config = config
         self._manifest = dict(manifest) if manifest is not None else None
-        self._run_results = (
-            dict(run_results) if run_results is not None else None
-        )
+        self._run_results = dict(run_results) if run_results is not None else None
         self._logger = logging.getLogger(self.__class__.__module__)
 
     @staticmethod
@@ -90,8 +87,7 @@ class DbtArtifactsReader(MetadataCatalog):
         """
         if any(part == ".." for part in target_path.split(os.sep)):
             raise ValueError(
-                "DbtArtifactsReader: config.target_path must not contain "
-                "'..' segments"
+                "DbtArtifactsReader: config.target_path must not contain '..' segments"
             )
 
     @property
@@ -136,8 +132,7 @@ class DbtArtifactsReader(MetadataCatalog):
             entries = [
                 node
                 for node in node_entries.values()
-                if isinstance(node, Mapping)
-                and node.get("resource_type") == entity_type
+                if isinstance(node, Mapping) and node.get("resource_type") == entity_type
             ]
         else:
             raise ValueError(
@@ -166,14 +161,11 @@ class DbtArtifactsReader(MetadataCatalog):
         if entity_id in sources:
             return sources[entity_id]
         raise KeyError(
-            f"DbtArtifactsReader: entity_id {entity_id!r} not found in "
-            "manifest nodes or sources"
+            f"DbtArtifactsReader: entity_id {entity_id!r} not found in manifest nodes or sources"
         )
 
     @staticmethod
-    def _matches_filter(
-        entity: Mapping[str, Any], filter: Mapping[str, Any]
-    ) -> bool:
+    def _matches_filter(entity: Mapping[str, Any], filter: Mapping[str, Any]) -> bool:
         for key, value in filter.items():
             if entity.get(key) != value:
                 return False
@@ -182,8 +174,7 @@ class DbtArtifactsReader(MetadataCatalog):
     def _artifact_path(self, filename: str) -> str:
         if self._config is None or self._config.target_path is None:
             raise RuntimeError(
-                "DbtArtifactsReader: config.target_path is required to read "
-                f"{filename} from disk"
+                f"DbtArtifactsReader: config.target_path is required to read {filename} from disk"
             )
         return os.path.join(self._config.target_path, filename)
 

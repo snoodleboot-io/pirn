@@ -29,9 +29,7 @@ class FileFormat(PirnOpaqueValue):
     @property
     def name(self) -> str:
         """Identifier used by registries and YAML pipelines."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement name"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement name")
 
     @property
     def streaming(self) -> bool:
@@ -41,21 +39,13 @@ class FileFormat(PirnOpaqueValue):
         inheriting from :class:`StreamingFileFormat`."""
         return False
 
-    async def read(
-        self, body: AsyncIterator[bytes]
-    ) -> AsyncIterator[Mapping[str, Any]]:
+    async def read(self, body: AsyncIterator[bytes]) -> AsyncIterator[Mapping[str, Any]]:
         """Decode a streamed body into an iterator of records."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement read()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement read()")
 
-    async def write(
-        self, records: AsyncIterator[Mapping[str, Any]]
-    ) -> AsyncIterator[bytes]:
+    async def write(self, records: AsyncIterator[Mapping[str, Any]]) -> AsyncIterator[bytes]:
         """Encode records into a streamed body."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement write()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement write()")
 
     @staticmethod
     async def _drain_bytes(body: AsyncIterator[bytes]) -> bytes:

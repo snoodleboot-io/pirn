@@ -21,9 +21,7 @@ class LASFile(PirnOpaqueValue):
     well_id: str = ""
     curves: tuple[str, ...] = ()
     depth_unit: str = "m"
-    fetched_at: datetime = field(
-        default_factory=lambda: datetime.now(UTC)
-    )
+    fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
         return {

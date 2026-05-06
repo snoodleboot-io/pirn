@@ -83,17 +83,9 @@ class VADDetector(Knot):
             ValueError: If frame_duration_ms or aggressiveness are invalid.
         """
         if frame_duration_ms not in self._VALID_FRAME_DURATIONS:
-            raise ValueError(
-                "VADDetector: frame_duration_ms must be one of 10, 20, or 30"
-            )
-        if (
-            not isinstance(aggressiveness, int)
-            or aggressiveness < 0
-            or aggressiveness > 3
-        ):
-            raise ValueError(
-                "VADDetector: aggressiveness must be an integer in [0, 3]"
-            )
+            raise ValueError("VADDetector: frame_duration_ms must be one of 10, 20, or 30")
+        if not isinstance(aggressiveness, int) or aggressiveness < 0 or aggressiveness > 3:
+            raise ValueError("VADDetector: aggressiveness must be an integer in [0, 3]")
         frame_duration_sec = frame_duration_ms / 1000.0
         duration_sec = signal.samples_per_channel / max(signal.sample_rate_hz, 1.0)
         segments: list[dict[str, Any]] = []

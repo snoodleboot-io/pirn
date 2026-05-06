@@ -51,9 +51,7 @@ class ZendeskClient(ApiClient, TableSource, RecordWriter):
         if config is None and client is None:
             raise TypeError("ZendeskClient requires either config= or client=")
         if not isinstance(resource, str) or not resource:
-            raise ValueError(
-                "ZendeskClient: resource must be a non-empty string"
-            )
+            raise ValueError("ZendeskClient: resource must be a non-empty string")
         self._config = config
         self._client = client
         self._closed = False
@@ -76,9 +74,7 @@ class ZendeskClient(ApiClient, TableSource, RecordWriter):
         page_size: int | None = None,
     ) -> tuple[list[Mapping[str, Any]], str | None]:
         """:class:`TableSource` adapter — pages the configured resource."""
-        return await self._list_resource(
-            self._resource, cursor=cursor, page_size=page_size
-        )
+        return await self._list_resource(self._resource, cursor=cursor, page_size=page_size)
 
     async def list_tickets(
         self,
@@ -87,9 +83,7 @@ class ZendeskClient(ApiClient, TableSource, RecordWriter):
         page_size: int | None = None,
     ) -> tuple[list[Mapping[str, Any]], str | None]:
         """Vendor-typed read of Zendesk tickets."""
-        return await self._list_resource(
-            "tickets", cursor=cursor, page_size=page_size
-        )
+        return await self._list_resource("tickets", cursor=cursor, page_size=page_size)
 
     async def list_users(
         self,
@@ -98,9 +92,7 @@ class ZendeskClient(ApiClient, TableSource, RecordWriter):
         page_size: int | None = None,
     ) -> tuple[list[Mapping[str, Any]], str | None]:
         """Vendor-typed read of Zendesk users."""
-        return await self._list_resource(
-            "users", cursor=cursor, page_size=page_size
-        )
+        return await self._list_resource("users", cursor=cursor, page_size=page_size)
 
     async def _list_resource(
         self,
@@ -137,9 +129,7 @@ class ZendeskClient(ApiClient, TableSource, RecordWriter):
         """POST each record as a ticket via ``/api/v2/tickets.json``."""
         materialised = list(records)
         for record in materialised:
-            await self.request(
-                "POST", "/api/v2/tickets.json", body=record
-            )
+            await self.request("POST", "/api/v2/tickets.json", body=record)
         return len(materialised)
 
     async def request(
@@ -176,8 +166,7 @@ class ZendeskClient(ApiClient, TableSource, RecordWriter):
                     body=request_body,
                 )
             raise RuntimeError(
-                "ZendeskClient: underlying client exposes no usable "
-                "request entry-point"
+                "ZendeskClient: underlying client exposes no usable request entry-point"
             )
 
         try:
@@ -209,13 +198,10 @@ class ZendeskClient(ApiClient, TableSource, RecordWriter):
             from zenpy import Zenpy  # type: ignore[import-not-found]
         except ImportError as exc:
             raise ImportError(
-                "ZendeskClient requires zenpy; install via "
-                "`pip install pirn[zendesk]`"
+                "ZendeskClient requires zenpy; install via `pip install pirn[zendesk]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError(
-                "ZendeskClient: missing config and no injected client"
-            )
+            raise RuntimeError("ZendeskClient: missing config and no injected client")
 
         creds: dict[str, Any] = {}
         if self._config.subdomain is not None:

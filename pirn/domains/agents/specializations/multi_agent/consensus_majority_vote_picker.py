@@ -57,10 +57,7 @@ class ConsensusMajorityVotePicker(Knot):
             TypeError: If any value in responses is not an AgentResponse.
         """
         if not isinstance(responses, Mapping) or not responses:
-            raise ValueError(
-                "ConsensusMajorityVotePicker: responses must be a "
-                "non-empty mapping"
-            )
+            raise ValueError("ConsensusMajorityVotePicker: responses must be a non-empty mapping")
         ordered: OrderedDict[str, AgentResponse] = OrderedDict()
         for name, response in responses.items():
             if not isinstance(response, AgentResponse):
@@ -69,9 +66,7 @@ class ConsensusMajorityVotePicker(Knot):
                     f"AgentResponse, got {type(response).__name__} for {name!r}"
                 )
             ordered[name] = response
-        counter: Counter[str] = Counter(
-            r.content for r in ordered.values()
-        )
+        counter: Counter[str] = Counter(r.content for r in ordered.values())
         winning_content = counter.most_common(1)[0][0]
         for response in ordered.values():
             if response.content == winning_content:

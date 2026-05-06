@@ -44,6 +44,4 @@ class TableSource:
             Caller's preferred page size. Concrete implementations may
             clamp to vendor-specific limits.
         """
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement fetch_page()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement fetch_page()")

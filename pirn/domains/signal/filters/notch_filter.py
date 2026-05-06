@@ -79,9 +79,7 @@ class NotchFilter(Knot):
         if not isinstance(notch_hz, (int, float)) or notch_hz <= 0:
             raise ValueError("NotchFilter: notch_hz must be positive")
         if not isinstance(quality_factor, (int, float)) or quality_factor <= 0:
-            raise ValueError(
-                "NotchFilter: quality_factor must be positive"
-            )
+            raise ValueError("NotchFilter: quality_factor must be positive")
         return SignalFrame(
             signal_id=f"{signal.signal_id}:notch",
             channel_count=signal.channel_count,

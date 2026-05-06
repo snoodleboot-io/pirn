@@ -61,9 +61,7 @@ class RodPumpOptimizer(Knot):
         if not isinstance(target_fillage_pct, (int, float)):
             raise TypeError("RodPumpOptimizer: target_fillage_pct must be numeric")
         if not (0 < target_fillage_pct <= 100):
-            raise ValueError(
-                "RodPumpOptimizer: target_fillage_pct must be in (0, 100]"
-            )
+            raise ValueError("RodPumpOptimizer: target_fillage_pct must be in (0, 100]")
         if not isinstance(max_spm, (int, float)):
             raise TypeError("RodPumpOptimizer: max_spm must be numeric")
         if max_spm <= 0:

@@ -71,13 +71,9 @@ class SleepStageClassifier(Knot):
         if not isinstance(psg_data, dict):
             raise TypeError("SleepStageClassifier: psg_data must be a dict")
         if epoch_duration_sec != 30:
-            raise ValueError(
-                "SleepStageClassifier: epoch_duration_sec must be 30"
-            )
+            raise ValueError("SleepStageClassifier: epoch_duration_sec must be 30")
         if not isinstance(channels, tuple) or len(channels) == 0:
-            raise ValueError(
-                "SleepStageClassifier: channels must be a non-empty tuple"
-            )
+            raise ValueError("SleepStageClassifier: channels must be a non-empty tuple")
         epochs = psg_data.get("epochs", [])
         stage_labels = ["N2"] * len(epochs)
         n_sleep = sum(1 for s in stage_labels if s != "W")

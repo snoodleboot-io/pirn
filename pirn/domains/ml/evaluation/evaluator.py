@@ -70,9 +70,7 @@ class Evaluator(Knot):
             raise ValueError("Evaluator: metrics must be non-empty")
         for metric in metric_tuple:
             if not isinstance(metric, str) or not metric:
-                raise ValueError(
-                    "Evaluator: every metric name must be a non-empty string"
-                )
+                raise ValueError("Evaluator: every metric name must be a non-empty string")
         scored = MappingProxyType(
             {metric: self._score(model, split, metric) for metric in metric_tuple}
         )
@@ -89,9 +87,7 @@ class Evaluator(Knot):
             ),
         )
 
-    def _score(
-        self, model: TrainedModel, split: DataSplit, metric: str
-    ) -> float:
+    def _score(self, model: TrainedModel, split: DataSplit, metric: str) -> float:
         payload = json.dumps(
             {
                 "model_id": model.model_id,
@@ -104,4 +100,3 @@ class Evaluator(Knot):
         )
         digest = hashlib.sha256(payload.encode("utf-8")).digest()
         return int.from_bytes(digest[:8], "big") / float(2**64)
-

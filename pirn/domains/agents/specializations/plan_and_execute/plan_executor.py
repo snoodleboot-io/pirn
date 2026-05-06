@@ -61,15 +61,9 @@ class PlanExecutor(Knot):
             TypeError: If plan is not a Plan instance.
         """
         if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "PlanExecutor: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
+            raise TypeError(f"PlanExecutor: llm must be an LLMProvider, got {type(llm).__name__}")
         if not isinstance(plan, Plan):
-            raise TypeError(
-                "PlanExecutor: plan must be a Plan, "
-                f"got {type(plan).__name__}"
-            )
+            raise TypeError(f"PlanExecutor: plan must be a Plan, got {type(plan).__name__}")
         step_results: list[str] = []
         for index, step in enumerate(plan.steps):
             prior_context = "\n".join(
@@ -87,9 +81,7 @@ class PlanExecutor(Knot):
             raw = await llm.chat(messages=messages)
             result = self._extract_text(raw)
             step_results.append(result)
-        combined = "\n".join(
-            f"Step {i + 1}: {r}" for i, r in enumerate(step_results)
-        )
+        combined = "\n".join(f"Step {i + 1}: {r}" for i, r in enumerate(step_results))
         return AgentResponse(content=combined)
 
     @staticmethod

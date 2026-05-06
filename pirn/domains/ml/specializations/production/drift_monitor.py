@@ -80,9 +80,7 @@ class DriftMonitor(Knot):
             raise ValueError("DriftMonitor: columns must be non-empty")
         for column in column_tuple:
             if not isinstance(column, str) or not column:
-                raise ValueError(
-                    "DriftMonitor: every column name must be a non-empty string"
-                )
+                raise ValueError("DriftMonitor: every column name must be a non-empty string")
         if not isinstance(threshold, (int, float)):
             raise TypeError("DriftMonitor: threshold must be numeric")
         if threshold < 0.0 or threshold > 1.0:
@@ -98,9 +96,7 @@ class DriftMonitor(Knot):
             "threshold": threshold_f,
         }
 
-    def _drift_score(
-        self, baseline: DataSplit, current: DataSplit, column: str
-    ) -> float:
+    def _drift_score(self, baseline: DataSplit, current: DataSplit, column: str) -> float:
         payload = json.dumps(
             {
                 "baseline_train_rows": baseline.train.row_count,

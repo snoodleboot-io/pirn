@@ -36,17 +36,11 @@ class EpubFormat(BatchFileFormat):
         identifier: str = "pirn-epub",
     ) -> None:
         if not isinstance(title, str) or not title:
-            raise ValueError(
-                "EpubFormat: title must be a non-empty string"
-            )
+            raise ValueError("EpubFormat: title must be a non-empty string")
         if not isinstance(language, str) or not language:
-            raise ValueError(
-                "EpubFormat: language must be a non-empty string"
-            )
+            raise ValueError("EpubFormat: language must be a non-empty string")
         if not isinstance(identifier, str) or not identifier:
-            raise ValueError(
-                "EpubFormat: identifier must be a non-empty string"
-            )
+            raise ValueError("EpubFormat: identifier must be a non-empty string")
         self._title = title
         self._language = language
         self._identifier = identifier
@@ -67,16 +61,12 @@ class EpubFormat(BatchFileFormat):
     def identifier(self) -> str:
         return self._identifier
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         if not payload:
             return []
         epub = self._load_epub()
         ebooklib = self._load_ebooklib()
-        with tempfile.NamedTemporaryFile(
-            suffix=".epub", delete=False
-        ) as handle:
+        with tempfile.NamedTemporaryFile(suffix=".epub", delete=False) as handle:
             handle.write(payload)
             tmp_path = handle.name
         try:
@@ -109,9 +99,7 @@ class EpubFormat(BatchFileFormat):
             except OSError:
                 pass
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         epub = self._load_epub()
         materialised = list(records)
         book = epub.EpubBook()
@@ -120,12 +108,8 @@ class EpubFormat(BatchFileFormat):
         book.set_language(self._language)
         chapters: list[Any] = []
         for index, record in enumerate(materialised):
-            chapter_id = self._extract_str(
-                record, "chapter_id", default=f"chap_{index + 1}"
-            )
-            title = self._extract_str(
-                record, "title", default=f"Chapter {index + 1}"
-            )
+            chapter_id = self._extract_str(record, "chapter_id", default=f"chap_{index + 1}")
+            title = self._extract_str(record, "title", default=f"Chapter {index + 1}")
             text = self._extract_str(record, "text", default="")
             file_name = f"{chapter_id}.xhtml"
             chapter = epub.EpubHtml(
@@ -141,9 +125,7 @@ class EpubFormat(BatchFileFormat):
         book.add_item(epub.EpubNcx())
         book.add_item(epub.EpubNav())
         book.spine = ["nav", *chapters]
-        with tempfile.NamedTemporaryFile(
-            suffix=".epub", delete=False
-        ) as handle:
+        with tempfile.NamedTemporaryFile(suffix=".epub", delete=False) as handle:
             tmp_path = handle.name
         try:
             epub.write_epub(tmp_path, book)
@@ -158,14 +140,12 @@ class EpubFormat(BatchFileFormat):
     @staticmethod
     def _wrap_html(title: str, text: str) -> str:
         body_paragraphs = "".join(
-            f"<p>{paragraph}</p>"
-            for paragraph in text.split("\n\n")
-            if paragraph.strip()
+            f"<p>{paragraph}</p>" for paragraph in text.split("\n\n") if paragraph.strip()
         )
         if not body_paragraphs:
             body_paragraphs = "<p>&nbsp;</p>"
         return (
-            "<html xmlns=\"http://www.w3.org/1999/xhtml\">"
+            '<html xmlns="http://www.w3.org/1999/xhtml">'
             f"<head><title>{title}</title></head>"
             f"<body><h1>{title}</h1>{body_paragraphs}</body>"
             "</html>"
@@ -191,17 +171,12 @@ class EpubFormat(BatchFileFormat):
         return body_text[start + len("<title>") : end].strip() or None
 
     @staticmethod
-    def _extract_str(
-        record: Mapping[str, Any], key: str, default: str
-    ) -> str:
+    def _extract_str(record: Mapping[str, Any], key: str, default: str) -> str:
         value = record.get(key, default)
         if value is None:
             return default
         if not isinstance(value, str):
-            raise TypeError(
-                f"EpubFormat: record {key!r} must be str, got "
-                f"{type(value).__name__}"
-            )
+            raise TypeError(f"EpubFormat: record {key!r} must be str, got {type(value).__name__}")
         return value
 
     @staticmethod
@@ -210,8 +185,7 @@ class EpubFormat(BatchFileFormat):
             from ebooklib import epub
         except ImportError as exc:
             raise ImportError(
-                "EpubFormat requires ebooklib. Install with "
-                "`pip install pirn[epub]`."
+                "EpubFormat requires ebooklib. Install with `pip install pirn[epub]`."
             ) from exc
         return epub
 
@@ -221,7 +195,6 @@ class EpubFormat(BatchFileFormat):
             import ebooklib
         except ImportError as exc:
             raise ImportError(
-                "EpubFormat requires ebooklib. Install with "
-                "`pip install pirn[epub]`."
+                "EpubFormat requires ebooklib. Install with `pip install pirn[epub]`."
             ) from exc
         return ebooklib

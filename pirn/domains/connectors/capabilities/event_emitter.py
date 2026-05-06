@@ -25,9 +25,7 @@ class EventEmitter:
         ``event`` for their vendor (e.g., Mixpanel needs
         ``{"distinct_id", "event", "properties"}``).
         """
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement emit()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement emit()")
 
     async def emit_many(self, events: Iterable[Mapping[str, Any]]) -> int:
         """Send a batch of events; return the count successfully accepted.

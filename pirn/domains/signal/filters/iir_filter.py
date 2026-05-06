@@ -88,9 +88,7 @@ class IIRFilter(Knot):
             raise ValueError("IIRFilter: denominator[0] must be non-zero")
         for c in (*b, *a):
             if not isinstance(c, (int, float)):
-                raise TypeError(
-                    "IIRFilter: every coefficient must be a real number"
-                )
+                raise TypeError("IIRFilter: every coefficient must be a real number")
         return SignalFrame(
             signal_id=f"{signal.signal_id}:iir",
             channel_count=signal.channel_count,

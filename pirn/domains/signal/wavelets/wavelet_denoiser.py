@@ -86,9 +86,7 @@ class WaveletDenoiser(Knot):
         if not isinstance(level, int) or level <= 0:
             raise ValueError("WaveletDenoiser: level must be a positive integer")
         if threshold_mode not in {"soft", "hard"}:
-            raise ValueError(
-                "WaveletDenoiser: threshold_mode must be one of 'soft', 'hard'"
-            )
+            raise ValueError("WaveletDenoiser: threshold_mode must be one of 'soft', 'hard'")
         return SignalFrame(
             signal_id=f"{signal.signal_id}:denoised-{threshold_mode}",
             channel_count=signal.channel_count,

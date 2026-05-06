@@ -79,17 +79,11 @@ class SpeakerDiarizationPipeline(Knot):
             ValueError: If min_speakers, max_speakers, or embedding_model are invalid.
         """
         if not isinstance(min_speakers, int) or min_speakers < 1:
-            raise ValueError(
-                "SpeakerDiarizationPipeline: min_speakers must be >= 1"
-            )
+            raise ValueError("SpeakerDiarizationPipeline: min_speakers must be >= 1")
         if not isinstance(max_speakers, int):
-            raise TypeError(
-                "SpeakerDiarizationPipeline: max_speakers must be an integer"
-            )
+            raise TypeError("SpeakerDiarizationPipeline: max_speakers must be an integer")
         if max_speakers < min_speakers:
-            raise ValueError(
-                "SpeakerDiarizationPipeline: max_speakers must be >= min_speakers"
-            )
+            raise ValueError("SpeakerDiarizationPipeline: max_speakers must be >= min_speakers")
         if not isinstance(embedding_model, str) or not embedding_model:
             raise ValueError(
                 "SpeakerDiarizationPipeline: embedding_model must be a non-empty string"

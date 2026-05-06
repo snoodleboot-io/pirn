@@ -75,22 +75,12 @@ class STFTDecomposer(Knot):
             ValueError: If window_length or hop_length are invalid.
         """
         if not isinstance(window_length, int) or window_length <= 0:
-            raise ValueError(
-                "STFTDecomposer: window_length must be a positive integer"
-            )
+            raise ValueError("STFTDecomposer: window_length must be a positive integer")
         if not isinstance(hop_length, int) or hop_length <= 0:
-            raise ValueError(
-                "STFTDecomposer: hop_length must be a positive integer"
-            )
+            raise ValueError("STFTDecomposer: hop_length must be a positive integer")
         if hop_length > window_length:
-            raise ValueError(
-                "STFTDecomposer: hop_length must not exceed window_length"
-            )
-        resolution = (
-            signal.sample_rate_hz / window_length
-            if signal.sample_rate_hz > 0
-            else 0.0
-        )
+            raise ValueError("STFTDecomposer: hop_length must not exceed window_length")
+        resolution = signal.sample_rate_hz / window_length if signal.sample_rate_hz > 0 else 0.0
         return SpectrumFrame(
             signal_id=signal.signal_id,
             frequency_bins=window_length // 2 + 1,

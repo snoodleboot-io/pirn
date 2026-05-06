@@ -54,15 +54,9 @@ class ICD10CodeValidator(Knot):
             TypeError: If codes is not a list/tuple or contains non-string items.
         """
         if not isinstance(codes, (list, tuple)):
-            raise TypeError(
-                "ICD10CodeValidator: codes must be a list or tuple"
-            )
+            raise TypeError("ICD10CodeValidator: codes must be a list or tuple")
         for code in codes:
             if not isinstance(code, str):
-                raise TypeError(
-                    "ICD10CodeValidator: every code must be a string"
-                )
+                raise TypeError("ICD10CodeValidator: every code must be a string")
         icd10_pattern = re.compile(r"^[A-TV-Z][0-9][0-9AB]\.?[0-9A-TV-Z]{0,4}$")
-        return all(
-            icd10_pattern.match(code) is not None for code in codes
-        )
+        return all(icd10_pattern.match(code) is not None for code in codes)

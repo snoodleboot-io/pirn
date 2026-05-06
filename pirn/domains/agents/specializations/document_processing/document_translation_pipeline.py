@@ -98,8 +98,7 @@ class DocumentTranslationPipeline(SubTapestry):
             )
         if not isinstance(source, str) or not source:
             raise TypeError(
-                "DocumentTranslationPipeline: source must be a non-empty "
-                f"string, got {source!r}"
+                f"DocumentTranslationPipeline: source must be a non-empty string, got {source!r}"
             )
         with Tapestry() as inner:
             chunks = _TranslationLoadAndChunk(

@@ -77,13 +77,9 @@ class MultiresolutionAnalyzer(Knot):
             ValueError: If wavelet_name or level_count are invalid.
         """
         if not isinstance(wavelet_name, str) or not wavelet_name:
-            raise ValueError(
-                "MultiresolutionAnalyzer: wavelet_name must be a non-empty string"
-            )
+            raise ValueError("MultiresolutionAnalyzer: wavelet_name must be a non-empty string")
         if not isinstance(level_count, int) or level_count <= 0:
-            raise ValueError(
-                "MultiresolutionAnalyzer: level_count must be a positive integer"
-            )
+            raise ValueError("MultiresolutionAnalyzer: level_count must be a positive integer")
         return WaveletFrame(
             signal_id=signal.signal_id,
             wavelet_name=wavelet_name,

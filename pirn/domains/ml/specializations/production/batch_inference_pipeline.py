@@ -75,9 +75,7 @@ class BatchInferencePipeline(Knot):
         if not isinstance(batch_size, int) or batch_size < 1:
             raise ValueError("BatchInferencePipeline: batch_size must be an int >= 1")
         if not isinstance(output_column, str) or not output_column:
-            raise ValueError(
-                "BatchInferencePipeline: output_column must be a non-empty string"
-            )
+            raise ValueError("BatchInferencePipeline: output_column must be a non-empty string")
         n_rows = split.test.row_count
         n_batches = max(1, (n_rows + batch_size - 1) // batch_size)
         payload = json.dumps(

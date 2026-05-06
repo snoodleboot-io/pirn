@@ -68,8 +68,7 @@ class ParallelToolCaller(Knot):
         for index, tool in enumerate(tool_list):
             if not isinstance(tool, Tool):
                 raise TypeError(
-                    f"ParallelToolCaller: tools[{index}] must be a Tool, "
-                    f"got {type(tool).__name__}"
+                    f"ParallelToolCaller: tools[{index}] must be a Tool, got {type(tool).__name__}"
                 )
         tool_registry: dict[str, Tool] = {tool.name: tool for tool in tool_list}
 

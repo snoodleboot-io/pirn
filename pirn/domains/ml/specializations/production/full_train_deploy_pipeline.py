@@ -55,9 +55,7 @@ async def _holdout_features(split: DataSplit) -> list[Mapping[str, Any]]:
     # this with a real feature loader.
     rows = []
     for index in range(int(split.test.row_count)):
-        row: dict[str, Any] = {
-            feature: float(index) for feature in split.test.feature_names
-        }
+        row: dict[str, Any] = {feature: float(index) for feature in split.test.feature_names}
         rows.append(row)
     return rows
 

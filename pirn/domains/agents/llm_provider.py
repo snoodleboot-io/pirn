@@ -36,9 +36,7 @@ class LLMProvider(PirnOpaqueValue):
         ``messages`` is a sequence of role/content mappings (the chat
         wire format used by Anthropic/OpenAI-compatible APIs).
         """
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement chat()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement chat()")
 
     async def stream_chat(
         self,
@@ -49,15 +47,11 @@ class LLMProvider(PirnOpaqueValue):
         temperature: float | None = None,
     ) -> AsyncIterator[Mapping[str, Any]]:
         """Yield streamed chat-completion chunks for ``messages``."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement stream_chat()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement stream_chat()")
 
     async def close(self) -> None:
         """Release any underlying connections / resources."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement close()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement close()")
 
     def _clear_credentials(self) -> None:
         """Drop the in-memory credential reference held by the provider.

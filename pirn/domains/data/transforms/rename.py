@@ -72,18 +72,12 @@ class Rename(Knot):
             A new DataBatch with columns renamed and the schema updated to reflect the new names.
         """
         if not isinstance(mapping, Mapping) or not mapping:
-            raise TypeError(
-                "Rename: mapping must be a non-empty Mapping[old_name, new_name]"
-            )
+            raise TypeError("Rename: mapping must be a non-empty Mapping[old_name, new_name]")
         for old, new in mapping.items():
             if not isinstance(old, str) or not isinstance(new, str):
-                raise TypeError(
-                    "Rename: mapping keys and values must be strings"
-                )
+                raise TypeError("Rename: mapping keys and values must be strings")
             if not old or not new:
-                raise ValueError(
-                    "Rename: mapping keys and values must be non-empty"
-                )
+                raise ValueError("Rename: mapping keys and values must be non-empty")
         mapping_dict: dict[str, str] = dict(mapping)
         new_rows = tuple(self._rename_row(row, mapping_dict) for row in batch.rows)
         new_schema = self._rename_schema(batch.schema, mapping_dict)
@@ -99,15 +93,10 @@ class Rename(Knot):
     @staticmethod
     def _rename_schema(schema: DataSchema, mapping: dict[str, str]) -> DataSchema:
         new_columns = {
-            mapping.get(name, name): expected_type
-            for name, expected_type in schema.columns.items()
+            mapping.get(name, name): expected_type for name, expected_type in schema.columns.items()
         }
-        new_primary_keys = tuple(
-            mapping.get(k, k) for k in schema.primary_keys
-        )
-        new_nullable = tuple(
-            mapping.get(k, k) for k in schema.nullable
-        )
+        new_primary_keys = tuple(mapping.get(k, k) for k in schema.primary_keys)
+        new_nullable = tuple(mapping.get(k, k) for k in schema.nullable)
         return DataSchema(
             columns=new_columns,
             primary_keys=new_primary_keys,

@@ -62,14 +62,10 @@ class RxNormNormalizer(Knot):
             TypeError: If drug_names is not a list/tuple of strings or mapping is not a Mapping.
         """
         if not isinstance(drug_names, (list, tuple)):
-            raise TypeError(
-                "RxNormNormalizer: drug_names must be a list or tuple"
-            )
+            raise TypeError("RxNormNormalizer: drug_names must be a list or tuple")
         if not isinstance(mapping, Mapping):
             raise TypeError("RxNormNormalizer: mapping must be a Mapping")
         for name in drug_names:
             if not isinstance(name, str):
-                raise TypeError(
-                    "RxNormNormalizer: every drug name must be a string"
-                )
+                raise TypeError("RxNormNormalizer: every drug name must be a string")
         return tuple(mapping.get(name, "") for name in drug_names)

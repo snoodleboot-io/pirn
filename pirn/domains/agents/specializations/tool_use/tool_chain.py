@@ -69,13 +69,11 @@ class ToolChain(Knot):
         for index, tool in enumerate(tool_list):
             if not isinstance(tool, Tool):
                 raise TypeError(
-                    f"ToolChain: tools[{index}] must be a Tool, "
-                    f"got {type(tool).__name__}"
+                    f"ToolChain: tools[{index}] must be a Tool, got {type(tool).__name__}"
                 )
         if not isinstance(initial_call, ToolCall):
             raise TypeError(
-                "ToolChain: initial_call must be a ToolCall, "
-                f"got {type(initial_call).__name__}"
+                f"ToolChain: initial_call must be a ToolCall, got {type(initial_call).__name__}"
             )
         current_arguments: dict[str, Any] = dict(initial_call.arguments)
         current_call_id = initial_call.call_id

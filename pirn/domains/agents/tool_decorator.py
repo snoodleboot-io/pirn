@@ -71,6 +71,7 @@ def _annotation_to_schema(annotation: Any) -> dict[str, Any]:
     # Python 3.10+ `X | Y` syntax surfaces as types.UnionType
     try:
         import types as _types
+
         if isinstance(annotation, _types.UnionType):
             parts = list(args) if args else []
             # Fall back to __args__ populated by __class_getitem__
@@ -224,9 +225,7 @@ def tool(fn: Callable[..., Any]) -> FunctionTool:
         react = ReActLoop(messages=msgs, llm=llm, tools=[calculate, lookup_policy], ...)
     """
     if not callable(fn):
-        raise TypeError(
-            f"@tool requires a callable, got {type(fn).__name__}"
-        )
+        raise TypeError(f"@tool requires a callable, got {type(fn).__name__}")
 
     raw_doc = inspect.getdoc(fn) or ""
     description = raw_doc.split("\n\n")[0].strip() or fn.__name__

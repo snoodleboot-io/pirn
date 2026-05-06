@@ -88,21 +88,15 @@ class TargetEncoder(SubTapestry):
             TypeError: If the inner encoder does not return a DataSplit.
         """
         if not isinstance(categorical_column, str) or not categorical_column:
-            raise ValueError(
-                "TargetEncoder: categorical_column must be a non-empty string"
-            )
+            raise ValueError("TargetEncoder: categorical_column must be a non-empty string")
         if not isinstance(target_column, str) or not target_column:
-            raise ValueError(
-                "TargetEncoder: target_column must be a non-empty string"
-            )
+            raise ValueError("TargetEncoder: target_column must be a non-empty string")
         if not isinstance(smoothing, (int, float)):
             raise TypeError("TargetEncoder: smoothing must be a number")
         if float(smoothing) < 0.0:
             raise ValueError("TargetEncoder: smoothing must be >= 0.0")
         with Tapestry() as inner:
-            split_node = _emit_value(
-                value=split, _config=KnotConfig(id="split")
-            )
+            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
             Encoder(
                 split=split_node,
                 columns=(categorical_column,),
@@ -112,7 +106,5 @@ class TargetEncoder(SubTapestry):
         result = await self._run_inner(inner)
         encoded = result.outputs["encode"]
         if not isinstance(encoded, DataSplit):
-            raise TypeError(
-                "TargetEncoder: inner encoder did not return a DataSplit"
-            )
+            raise TypeError("TargetEncoder: inner encoder did not return a DataSplit")
         return encoded

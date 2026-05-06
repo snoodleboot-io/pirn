@@ -124,8 +124,7 @@ class ScdType1Overwrite(Knot):
         overlap = set(key_tuple) & set(non_key_tuple)
         if overlap:
             raise ValueError(
-                f"ScdType1Overwrite: key_columns and non_key_columns overlap "
-                f"on {sorted(overlap)!r}"
+                f"ScdType1Overwrite: key_columns and non_key_columns overlap on {sorted(overlap)!r}"
             )
         all_columns = key_tuple + non_key_tuple
         source_rows = await source_pool.fetch_all(source_query)

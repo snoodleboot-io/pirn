@@ -100,13 +100,10 @@ class SparkAggregate(Knot):
         IdentifierValidator.validate_columns("SparkAggregate.by", by)
         if not isinstance(aggs, Mapping) or not aggs:
             raise TypeError(
-                "SparkAggregate: aggs must be a non-empty mapping of "
-                "output_col -> (input_col, fn)"
+                "SparkAggregate: aggs must be a non-empty mapping of output_col -> (input_col, fn)"
             )
         for output_col, spec in aggs.items():
-            IdentifierValidator.validate_column(
-                "SparkAggregate: output column", output_col
-            )
+            IdentifierValidator.validate_column("SparkAggregate: output column", output_col)
             if (
                 not isinstance(spec, tuple)
                 or len(spec) != 2
@@ -114,8 +111,7 @@ class SparkAggregate(Knot):
                 or not isinstance(spec[1], str)
             ):
                 raise TypeError(
-                    f"SparkAggregate: aggs[{output_col!r}] must be "
-                    "(input_col, fn) — both strings"
+                    f"SparkAggregate: aggs[{output_col!r}] must be (input_col, fn) — both strings"
                 )
             input_col, fn = spec
             IdentifierValidator.validate_column(

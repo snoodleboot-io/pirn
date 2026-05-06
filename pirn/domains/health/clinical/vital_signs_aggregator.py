@@ -57,14 +57,10 @@ class VitalSignsAggregator(Knot):
             TypeError: If rows is not a list/tuple or contains non-Mapping items.
         """
         if not isinstance(rows, (list, tuple)):
-            raise TypeError(
-                "VitalSignsAggregator: rows must be a list or tuple"
-            )
+            raise TypeError("VitalSignsAggregator: rows must be a list or tuple")
         for row in rows:
             if not isinstance(row, Mapping):
-                raise TypeError(
-                    "VitalSignsAggregator: every row must be a Mapping"
-                )
+                raise TypeError("VitalSignsAggregator: every row must be a Mapping")
         out: dict[str, dict[str, dict[str, float]]] = {}
         for row in rows:
             patient_id = str(row.get("patient_id", ""))
@@ -85,9 +81,7 @@ class VitalSignsAggregator(Knot):
                 }
             else:
                 count = current["count"] + 1.0
-                current["mean"] = (
-                    current["mean"] * current["count"] + value
-                ) / count
+                current["mean"] = (current["mean"] * current["count"] + value) / count
                 current["min"] = min(current["min"], value)
                 current["max"] = max(current["max"], value)
                 current["latest"] = value

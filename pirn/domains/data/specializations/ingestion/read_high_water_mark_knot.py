@@ -63,17 +63,13 @@ class ReadHighWaterMarkKnot(Knot):
             ValueError: If identifiers are empty or contain invalid characters.
         """
         if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError(
-                "ReadHighWaterMarkKnot: pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("ReadHighWaterMarkKnot: pool must be a DatabaseConnectionPool")
         for label, value in (
             ("table", table),
             ("watermark_column", watermark_column),
         ):
             if not isinstance(value, str) or not value:
-                raise ValueError(
-                    f"ReadHighWaterMarkKnot: {label} must be a non-empty string"
-                )
+                raise ValueError(f"ReadHighWaterMarkKnot: {label} must be a non-empty string")
             if not value.replace("_", "").isalnum():
                 raise ValueError(
                     f"ReadHighWaterMarkKnot: {label} {value!r} must be "
@@ -81,9 +77,7 @@ class ReadHighWaterMarkKnot(Knot):
                 )
         fetch_all = getattr(pool, "fetch_all", None)
         if fetch_all is None:
-            raise TypeError(
-                "ReadHighWaterMarkKnot: pool does not support fetch_all()"
-            )
+            raise TypeError("ReadHighWaterMarkKnot: pool does not support fetch_all()")
         rows = await fetch_all(f"SELECT MAX({watermark_column}) FROM {table}")
         if not rows:
             return None

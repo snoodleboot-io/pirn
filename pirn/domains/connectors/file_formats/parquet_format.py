@@ -41,23 +41,18 @@ class ParquetFormat(StreamingFileFormat):
     ) -> None:
         if compression is not None:
             if not isinstance(compression, str):
-                raise TypeError(
-                    "ParquetFormat: compression must be str | None"
-                )
+                raise TypeError("ParquetFormat: compression must be str | None")
             if compression not in self._supported_compression:
                 raise ValueError(
                     "ParquetFormat: compression must be one of "
                     f"{sorted(self._supported_compression)} or None, "
                     f"got {compression!r}"
                 )
-        if not isinstance(row_group_size, int) or isinstance(
-            row_group_size, bool
-        ):
+        if not isinstance(row_group_size, int) or isinstance(row_group_size, bool):
             raise TypeError("ParquetFormat: row_group_size must be int")
         if row_group_size <= 0:
             raise ValueError(
-                "ParquetFormat: row_group_size must be positive, "
-                f"got {row_group_size}"
+                f"ParquetFormat: row_group_size must be positive, got {row_group_size}"
             )
         self._compression = compression
         self._row_group_size = row_group_size
@@ -74,9 +69,7 @@ class ParquetFormat(StreamingFileFormat):
     def row_group_size(self) -> int:
         return self._row_group_size
 
-    async def read(
-        self, body: AsyncIterator[bytes]
-    ) -> AsyncIterator[Mapping[str, Any]]:
+    async def read(self, body: AsyncIterator[bytes]) -> AsyncIterator[Mapping[str, Any]]:
         try:
             import pyarrow as pa
             import pyarrow.parquet as pq
@@ -98,9 +91,7 @@ class ParquetFormat(StreamingFileFormat):
 
         return _iter()
 
-    async def write(
-        self, records: AsyncIterator[Mapping[str, Any]]
-    ) -> AsyncIterator[bytes]:
+    async def write(self, records: AsyncIterator[Mapping[str, Any]]) -> AsyncIterator[bytes]:
         try:
             import pyarrow as pa
             import pyarrow.parquet as pq

@@ -66,11 +66,7 @@ class NmoCorrection(Knot):
             SegyVolume of the NMO-corrected gather.
         """
         if not isinstance(stacking_velocity_m_s, (int, float)):
-            raise TypeError(
-                "NmoCorrection: stacking_velocity_m_s must be numeric"
-            )
+            raise TypeError("NmoCorrection: stacking_velocity_m_s must be numeric")
         if stacking_velocity_m_s <= 0.0:
-            raise ValueError(
-                "NmoCorrection: stacking_velocity_m_s must be positive"
-            )
+            raise ValueError("NmoCorrection: stacking_velocity_m_s must be positive")
         return SegyVolume(volume_id=f"{gather.volume_id}:nmo")

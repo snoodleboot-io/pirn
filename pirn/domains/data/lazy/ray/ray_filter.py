@@ -66,7 +66,5 @@ class RayFilter(Knot):
             A new RayDataset with the filter predicate applied to the deferred plan.
         """
         if not callable(predicate):
-            raise TypeError(
-                "RayFilter: predicate must be a callable (row) -> bool"
-            )
+            raise TypeError("RayFilter: predicate must be a callable (row) -> bool")
         return batch.with_dataset(batch.dataset.filter(predicate))

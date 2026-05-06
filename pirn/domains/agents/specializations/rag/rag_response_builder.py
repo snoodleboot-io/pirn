@@ -49,7 +49,6 @@ class RAGResponseBuilder(Knot):
         """
         if not isinstance(answer, str):
             raise TypeError(
-                "RAGResponseBuilder: answer must be a string, "
-                f"got {type(answer).__name__}"
+                f"RAGResponseBuilder: answer must be a string, got {type(answer).__name__}"
             )
         return AgentResponse(content=answer, finish_reason="stop")

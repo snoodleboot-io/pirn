@@ -32,14 +32,10 @@ class DataSchema(PirnOpaqueValue):
     def __post_init__(self) -> None:
         unknown_pks = [k for k in self.primary_keys if k not in self.columns]
         if unknown_pks:
-            raise ValueError(
-                f"primary_keys reference unknown columns: {unknown_pks}"
-            )
+            raise ValueError(f"primary_keys reference unknown columns: {unknown_pks}")
         unknown_nullable = [k for k in self.nullable if k not in self.columns]
         if unknown_nullable:
-            raise ValueError(
-                f"nullable references unknown columns: {unknown_nullable}"
-            )
+            raise ValueError(f"nullable references unknown columns: {unknown_nullable}")
 
     @property
     def column_names(self) -> tuple[str, ...]:
@@ -83,10 +79,7 @@ class DataSchema(PirnOpaqueValue):
         path (and vice versa).
         """
         return {
-            "columns": {
-                name: column_type.__name__
-                for name, column_type in self.columns.items()
-            },
+            "columns": {name: column_type.__name__ for name, column_type in self.columns.items()},
             "primary_keys": list(self.primary_keys),
             "nullable": list(self.nullable),
         }

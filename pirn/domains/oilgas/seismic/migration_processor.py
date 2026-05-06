@@ -61,12 +61,7 @@ class MigrationProcessor(Knot):
         Returns:
             SegyVolume of the migrated image.
         """
-        valid_methods: frozenset[str] = frozenset(
-            {"kirchhoff", "rtm", "phase_shift", "stolt"}
-        )
+        valid_methods: frozenset[str] = frozenset({"kirchhoff", "rtm", "phase_shift", "stolt"})
         if method not in valid_methods:
-            raise ValueError(
-                f"MigrationProcessor: method must be one of "
-                f"{sorted(valid_methods)}"
-            )
+            raise ValueError(f"MigrationProcessor: method must be one of {sorted(valid_methods)}")
         return SegyVolume(volume_id=f"{volume.volume_id}:migrated_{method}")

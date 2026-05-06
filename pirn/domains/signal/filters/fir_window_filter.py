@@ -77,9 +77,7 @@ class FIRWindowFilter(Knot):
             ValueError: If num_taps, cutoff_hz, or window are invalid.
         """
         if not isinstance(num_taps, int) or num_taps <= 0 or num_taps % 2 == 0:
-            raise ValueError(
-                "FIRWindowFilter: num_taps must be a positive odd integer"
-            )
+            raise ValueError("FIRWindowFilter: num_taps must be a positive odd integer")
         if not isinstance(cutoff_hz, (int, float)) or cutoff_hz <= 0:
             raise ValueError("FIRWindowFilter: cutoff_hz must be a positive scalar")
         if window not in frozenset({"hamming", "hann", "blackman", "rectangular"}):

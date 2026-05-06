@@ -43,8 +43,7 @@ class TiffFormat(BatchFileFormat):
     def __init__(self, compression: str = "lzw") -> None:
         if not isinstance(compression, str) or not compression:
             raise ValueError(
-                "TiffFormat: compression must be a non-empty string, "
-                f"got {compression!r}"
+                f"TiffFormat: compression must be a non-empty string, got {compression!r}"
             )
         self._compression = compression
 
@@ -56,22 +55,15 @@ class TiffFormat(BatchFileFormat):
     def compression(self) -> str:
         return self._compression
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         if not isinstance(payload, (bytes, bytearray)):
-            raise TypeError(
-                "TiffFormat: payload must be bytes, got "
-                f"{type(payload).__name__}"
-            )
+            raise TypeError(f"TiffFormat: payload must be bytes, got {type(payload).__name__}")
         tifffile = self._load_tifffile()
         records: list[Mapping[str, Any]] = []
         with tifffile.TiffFile(io.BytesIO(payload)) as tiff:
             for index, page in enumerate(tiff.pages):
                 array = page.asarray()
-                width, height, mode = self._derive_dimensions_and_mode(
-                    array
-                )
+                width, height, mode = self._derive_dimensions_and_mode(array)
                 records.append(
                     {
                         "page_number": index,
@@ -84,9 +76,7 @@ class TiffFormat(BatchFileFormat):
                 )
         return records
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         materialised: list[Mapping[str, Any]] = list(records)
         if not materialised:
             raise ValueError(
@@ -95,10 +85,7 @@ class TiffFormat(BatchFileFormat):
             )
         tifffile = self._load_tifffile()
         numpy = self._load_numpy()
-        arrays = [
-            self._record_to_array(record, numpy)
-            for record in materialised
-        ]
+        arrays = [self._record_to_array(record, numpy) for record in materialised]
         buf = io.BytesIO()
         with tifffile.TiffWriter(buf) as tw:
             for array in arrays:
@@ -123,15 +110,12 @@ class TiffFormat(BatchFileFormat):
                 mode = f"MULTI{channels}"
         else:
             raise ValueError(
-                "TiffFormat: unsupported page shape "
-                f"{array.shape!r} — expected 2 or 3 dimensions"
+                f"TiffFormat: unsupported page shape {array.shape!r} — expected 2 or 3 dimensions"
             )
         return int(width), int(height), mode
 
     @staticmethod
-    def _record_to_array(
-        record: Mapping[str, Any], numpy: Any
-    ) -> Any:
+    def _record_to_array(record: Mapping[str, Any], numpy: Any) -> Any:
         for field in ("width", "height", "mode", "data", "dtype"):
             if field not in record:
                 raise ValueError(
@@ -144,30 +128,15 @@ class TiffFormat(BatchFileFormat):
         data = record["data"]
         dtype = record["dtype"]
         if not isinstance(width, int) or width <= 0:
-            raise ValueError(
-                "TiffFormat: 'width' must be a positive int, got "
-                f"{width!r}"
-            )
+            raise ValueError(f"TiffFormat: 'width' must be a positive int, got {width!r}")
         if not isinstance(height, int) or height <= 0:
-            raise ValueError(
-                "TiffFormat: 'height' must be a positive int, got "
-                f"{height!r}"
-            )
+            raise ValueError(f"TiffFormat: 'height' must be a positive int, got {height!r}")
         if not isinstance(mode, str) or not mode:
-            raise ValueError(
-                "TiffFormat: 'mode' must be a non-empty string, got "
-                f"{mode!r}"
-            )
+            raise ValueError(f"TiffFormat: 'mode' must be a non-empty string, got {mode!r}")
         if not isinstance(data, (bytes, bytearray)):
-            raise TypeError(
-                "TiffFormat: 'data' must be bytes, got "
-                f"{type(data).__name__}"
-            )
+            raise TypeError(f"TiffFormat: 'data' must be bytes, got {type(data).__name__}")
         if not isinstance(dtype, str) or not dtype:
-            raise ValueError(
-                "TiffFormat: 'dtype' must be a non-empty string, got "
-                f"{dtype!r}"
-            )
+            raise ValueError(f"TiffFormat: 'dtype' must be a non-empty string, got {dtype!r}")
         # Reconstruct shape from mode.
         if mode in ("L", "I;16"):
             shape: tuple[int, ...] = (height, width)
@@ -179,12 +148,8 @@ class TiffFormat(BatchFileFormat):
             channels = int(mode.removeprefix("MULTI"))
             shape = (height, width, channels)
         else:
-            raise ValueError(
-                f"TiffFormat: unsupported mode {mode!r} for encode"
-            )
-        array = numpy.frombuffer(bytes(data), dtype=dtype).reshape(
-            shape
-        )
+            raise ValueError(f"TiffFormat: unsupported mode {mode!r} for encode")
+        array = numpy.frombuffer(bytes(data), dtype=dtype).reshape(shape)
         return array
 
     @staticmethod
@@ -193,8 +158,7 @@ class TiffFormat(BatchFileFormat):
             import tifffile
         except ImportError as exc:
             raise ImportError(
-                "TiffFormat requires tifffile. Install with "
-                "`pip install pirn[tiff]`."
+                "TiffFormat requires tifffile. Install with `pip install pirn[tiff]`."
             ) from exc
         return tifffile
 

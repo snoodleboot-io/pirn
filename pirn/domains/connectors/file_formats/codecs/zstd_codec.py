@@ -22,10 +22,7 @@ class ZstdCodec(Codec):
 
     def __init__(self, level: int = 3) -> None:
         if not isinstance(level, int):
-            raise TypeError(
-                "ZstdCodec: level must be int, got "
-                f"{type(level).__name__}"
-            )
+            raise TypeError(f"ZstdCodec: level must be int, got {type(level).__name__}")
         self._level = level
 
     @property
@@ -38,14 +35,11 @@ class ZstdCodec(Codec):
             import zstandard
         except ImportError as exc:  # pragma: no cover - import guard
             raise ImportError(
-                "ZstdCodec requires the 'zstandard' package. "
-                "Install with: pip install 'pirn[zstd]'"
+                "ZstdCodec requires the 'zstandard' package. Install with: pip install 'pirn[zstd]'"
             ) from exc
         return zstandard
 
-    async def compress_stream(
-        self, body: AsyncIterator[bytes]
-    ) -> AsyncIterator[bytes]:
+    async def compress_stream(self, body: AsyncIterator[bytes]) -> AsyncIterator[bytes]:
         zstandard = self._load_zstandard()
         compressor = zstandard.ZstdCompressor(level=self._level)
         compressobj = compressor.compressobj()
@@ -59,9 +53,7 @@ class ZstdCodec(Codec):
         if tail:
             yield tail
 
-    async def decompress_stream(
-        self, body: AsyncIterator[bytes]
-    ) -> AsyncIterator[bytes]:
+    async def decompress_stream(self, body: AsyncIterator[bytes]) -> AsyncIterator[bytes]:
         zstandard = self._load_zstandard()
         decompressor = zstandard.ZstdDecompressor()
         decompressobj = decompressor.decompressobj()

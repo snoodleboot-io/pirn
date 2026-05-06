@@ -54,9 +54,7 @@ class SemanticMemoryPipeline(SubTapestry):
         messages: Knot | Sequence[AgentMessage],
         llm: Knot | LLMProvider,
         store: Knot | MemoryStore,
-        fact_extraction_prompt: Knot | str = (
-            "Extract key facts from the following conversation."
-        ),
+        fact_extraction_prompt: Knot | str = ("Extract key facts from the following conversation."),
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
@@ -95,18 +93,15 @@ class SemanticMemoryPipeline(SubTapestry):
         """
         if not isinstance(llm, LLMProvider):
             raise TypeError(
-                "SemanticMemoryPipeline: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
+                f"SemanticMemoryPipeline: llm must be an LLMProvider, got {type(llm).__name__}"
             )
         if not isinstance(store, MemoryStore):
             raise TypeError(
-                "SemanticMemoryPipeline: store must be a MemoryStore, "
-                f"got {type(store).__name__}"
+                f"SemanticMemoryPipeline: store must be a MemoryStore, got {type(store).__name__}"
             )
         if not isinstance(fact_extraction_prompt, str) or not fact_extraction_prompt:
             raise ValueError(
-                "SemanticMemoryPipeline: fact_extraction_prompt must be a "
-                "non-empty string"
+                "SemanticMemoryPipeline: fact_extraction_prompt must be a non-empty string"
             )
         seed_messages = tuple(messages)
         with Tapestry() as inner:
@@ -124,7 +119,5 @@ class SemanticMemoryPipeline(SubTapestry):
         inner_result = await self._run_inner(inner)
         count = inner_result.outputs.get("write")
         if not isinstance(count, int):
-            raise RuntimeError(
-                "SemanticMemoryPipeline: inner write did not return a count"
-            )
+            raise RuntimeError("SemanticMemoryPipeline: inner write did not return a count")
         return count

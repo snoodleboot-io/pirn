@@ -93,9 +93,7 @@ class AblationStudyPipeline(SubTapestry):
             TypeError: If any inner evaluator output is not an EvalReport.
         """
         if not isinstance(algorithm, str) or not algorithm:
-            raise ValueError(
-                "AblationStudyPipeline: algorithm must be a non-empty string"
-            )
+            raise ValueError("AblationStudyPipeline: algorithm must be a non-empty string")
         fg = feature_groups or {}
         if not isinstance(fg, Mapping) or not fg:
             raise ValueError(
@@ -133,9 +131,7 @@ class AblationStudyPipeline(SubTapestry):
         frozen_groups = {name: tuple(cols) for name, cols in fg.items()}
         arm_names = [self._full_arm_name, *sorted(frozen_groups.keys())]
         with Tapestry() as inner:
-            split_node = _emit_value(
-                value=split, _config=KnotConfig(id="split")
-            )
+            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
             for arm in arm_names:
                 model = Trainer(
                     split=split_node,

@@ -87,30 +87,20 @@ class FullRefreshExtract(Knot):
             ValueError: If any string argument is empty or ``target_table`` is non-alphanumeric.
         """
         if not isinstance(source_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "FullRefreshExtract: source_pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("FullRefreshExtract: source_pool must be a DatabaseConnectionPool")
         if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "FullRefreshExtract: target_pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("FullRefreshExtract: target_pool must be a DatabaseConnectionPool")
         if not isinstance(source_query, str) or not source_query:
-            raise ValueError(
-                "FullRefreshExtract: source_query must be a non-empty string"
-            )
+            raise ValueError("FullRefreshExtract: source_query must be a non-empty string")
         if not isinstance(target_table, str) or not target_table:
-            raise ValueError(
-                "FullRefreshExtract: target_table must be a non-empty string"
-            )
+            raise ValueError("FullRefreshExtract: target_table must be a non-empty string")
         if not target_table.replace("_", "").isalnum():
             raise ValueError(
                 f"FullRefreshExtract: target_table {target_table!r} must be "
                 "alphanumeric (plus underscores)"
             )
         if not isinstance(insert_query, str) or not insert_query:
-            raise ValueError(
-                "FullRefreshExtract: insert_query must be a non-empty string"
-            )
+            raise ValueError("FullRefreshExtract: insert_query must be a non-empty string")
         rows = await source_pool.fetch_all(source_query)
         await target_pool.execute(f"DELETE FROM {target_table}")
         await target_pool.execute_many(insert_query, [tuple(r) for r in rows])

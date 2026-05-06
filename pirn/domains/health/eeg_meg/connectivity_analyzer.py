@@ -67,23 +67,12 @@ class ConnectivityAnalyzer(Knot):
             ValueError: If method is not one of plv/coherence/wpli.
         """
         if not isinstance(signal, SignalFrame):
-            raise TypeError(
-                "ConnectivityAnalyzer: signal must be a SignalFrame"
-            )
+            raise TypeError("ConnectivityAnalyzer: signal must be a SignalFrame")
         if not isinstance(channel_names, (list, tuple)):
-            raise TypeError(
-                "ConnectivityAnalyzer: channel_names must be list/tuple"
-            )
+            raise TypeError("ConnectivityAnalyzer: channel_names must be list/tuple")
         for name in channel_names:
             if not isinstance(name, str):
-                raise TypeError(
-                    "ConnectivityAnalyzer: every channel name must be string"
-                )
+                raise TypeError("ConnectivityAnalyzer: every channel name must be string")
         if method not in ("plv", "coherence", "wpli"):
-            raise ValueError(
-                "ConnectivityAnalyzer: method must be one of plv/coherence/wpli"
-            )
-        return {
-            ch: {other: 0.0 for other in channel_names}
-            for ch in channel_names
-        }
+            raise ValueError("ConnectivityAnalyzer: method must be one of plv/coherence/wpli")
+        return {ch: {other: 0.0 for other in channel_names} for ch in channel_names}

@@ -85,8 +85,7 @@ class YamlExtractorPipeline(SubTapestry):
         """
         if not isinstance(llm, LLMProvider):
             raise TypeError(
-                "YamlExtractorPipeline: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
+                f"YamlExtractorPipeline: llm must be an LLMProvider, got {type(llm).__name__}"
             )
         if schema is not None and not isinstance(schema, Mapping):
             raise TypeError(
@@ -95,17 +94,13 @@ class YamlExtractorPipeline(SubTapestry):
             )
         if not isinstance(max_retries, int) or max_retries <= 0:
             raise ValueError(
-                "YamlExtractorPipeline: max_retries must be a positive int, "
-                f"got {max_retries!r}"
+                f"YamlExtractorPipeline: max_retries must be a positive int, got {max_retries!r}"
             )
         if not isinstance(prompt, str):
             raise TypeError(
-                "YamlExtractorPipeline: prompt must be a string, "
-                f"got {type(prompt).__name__}"
+                f"YamlExtractorPipeline: prompt must be a string, got {type(prompt).__name__}"
             )
-        resolved_schema: dict[str, Any] | None = (
-            dict(schema) if schema is not None else None
-        )
+        resolved_schema: dict[str, Any] | None = dict(schema) if schema is not None else None
         prior_error = ""
         last_error = "no attempts were made"
         for attempt_index in range(max_retries):
@@ -124,6 +119,5 @@ class YamlExtractorPipeline(SubTapestry):
             prior_error = str(outcome) if outcome is not None else "no output"
             last_error = prior_error
         raise ValueError(
-            "YamlExtractorPipeline: exhausted "
-            f"{max_retries} attempt(s); last error: {last_error}"
+            f"YamlExtractorPipeline: exhausted {max_retries} attempt(s); last error: {last_error}"
         )

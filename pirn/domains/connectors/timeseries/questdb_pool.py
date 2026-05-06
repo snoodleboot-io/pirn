@@ -59,9 +59,7 @@ class QuestDBPool(DatabaseConnectionPool):
         rows = await pool.fetch(query, *args)
         return list(rows)
 
-    async def execute_many(
-        self, query: str, args_seq: Iterable[Iterable[Any]]
-    ) -> None:
+    async def execute_many(self, query: str, args_seq: Iterable[Iterable[Any]]) -> None:
         self._reject_inline_interpolation(query)
         pool = await self._ensure_pool()
         await pool.executemany(query, [tuple(a) for a in args_seq])
@@ -78,8 +76,7 @@ class QuestDBPool(DatabaseConnectionPool):
             import asyncpg
         except ImportError as exc:
             raise ImportError(
-                "QuestDBPool requires asyncpg; install via "
-                "`pip install pirn[questdb]`"
+                "QuestDBPool requires asyncpg; install via `pip install pirn[questdb]`"
             ) from exc
         if self._config is None:
             raise RuntimeError("QuestDBPool: missing config and no injected pool")

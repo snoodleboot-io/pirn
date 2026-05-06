@@ -33,9 +33,7 @@ class LakehouseTable(PirnOpaqueValue):
     @property
     def name(self) -> str:
         """Table identifier."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement name"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement name")
 
     async def scan(
         self,
@@ -56,9 +54,7 @@ class LakehouseTable(PirnOpaqueValue):
         ``columns`` projects only the named columns. ``None`` returns
         all columns.
         """
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement scan()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement scan()")
 
     async def append(
         self,
@@ -66,9 +62,7 @@ class LakehouseTable(PirnOpaqueValue):
     ) -> str:
         """Insert ``records`` as a new commit. Returns the new
         snapshot id (as a string for vendor consistency)."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement append()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement append()")
 
     async def overwrite(
         self,
@@ -78,9 +72,7 @@ class LakehouseTable(PirnOpaqueValue):
     ) -> str:
         """Replace the entire table (or a partition slice) with
         ``records``. Returns the new snapshot id."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement overwrite()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement overwrite()")
 
     async def merge(
         self,
@@ -90,22 +82,16 @@ class LakehouseTable(PirnOpaqueValue):
     ) -> str:
         """MERGE-style upsert: rows whose ``on`` keys exist are updated,
         new keys are inserted. Returns the new snapshot id."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement merge()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement merge()")
 
     async def history(self) -> AsyncIterator[Mapping[str, Any]]:
         """Yield commit history (snapshot id, timestamp, operation,
         committer, metrics)."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement history()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement history()")
 
     async def close(self) -> None:
         """Release any underlying SDK / connection resources."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement close()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement close()")
 
     def _clear_credentials(self) -> None:
         """Drop in-memory credentials. Concrete implementations call

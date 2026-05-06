@@ -86,13 +86,11 @@ class SchemaVersionMigrator(Knot):
         for idx, (version, ddl) in enumerate(mig_list):
             if not isinstance(version, int) or version < 1:
                 raise ValueError(
-                    f"SchemaVersionMigrator: migrations[{idx}] version must be "
-                    f"a positive integer"
+                    f"SchemaVersionMigrator: migrations[{idx}] version must be a positive integer"
                 )
             if not isinstance(ddl, str) or not ddl:
                 raise ValueError(
-                    f"SchemaVersionMigrator: migrations[{idx}] DDL must be "
-                    f"a non-empty string"
+                    f"SchemaVersionMigrator: migrations[{idx}] DDL must be a non-empty string"
                 )
         IdentifierValidator.validate_column("migration_table", migration_table)
         versions = [v for v, _ in mig_list]

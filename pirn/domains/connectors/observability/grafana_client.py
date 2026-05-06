@@ -43,13 +43,9 @@ class GrafanaClient(ApiClient, TableSource, MetricQuery):
         datasource_uid: str | None = None,
     ) -> None:
         if config is None and client is None:
-            raise TypeError(
-                "GrafanaClient requires either config= or client="
-            )
+            raise TypeError("GrafanaClient requires either config= or client=")
         if not isinstance(resource, str) or not resource:
-            raise ValueError(
-                "GrafanaClient: resource must be a non-empty string"
-            )
+            raise ValueError("GrafanaClient: resource must be a non-empty string")
         if resource not in ("dashboards", "folders", "datasources"):
             raise ValueError(
                 "GrafanaClient: resource must be one of "
@@ -93,20 +89,12 @@ class GrafanaClient(ApiClient, TableSource, MetricQuery):
             try:
                 page = int(cursor)
             except ValueError as exc:
-                raise ValueError(
-                    f"GrafanaClient.fetch_page: invalid cursor {cursor!r}"
-                ) from exc
+                raise ValueError(f"GrafanaClient.fetch_page: invalid cursor {cursor!r}") from exc
         if self._resource == "dashboards":
-            return await self.list_dashboards(
-                page=page, limit=page_size or 100
-            )
+            return await self.list_dashboards(page=page, limit=page_size or 100)
         if self._resource == "folders":
-            return await self.list_folders(
-                page=page, limit=page_size or 100
-            )
-        return await self.list_datasources(
-            page=page, limit=page_size or 100
-        )
+            return await self.list_folders(page=page, limit=page_size or 100)
+        return await self.list_datasources(page=page, limit=page_size or 100)
 
     async def list_dashboards(
         self,
@@ -150,9 +138,7 @@ class GrafanaClient(ApiClient, TableSource, MetricQuery):
         all_rows = list(response or ())
         offset = max(page - 1, 0) * limit
         rows = all_rows[offset : offset + limit]
-        next_cursor = (
-            str(page + 1) if offset + limit < len(all_rows) else None
-        )
+        next_cursor = str(page + 1) if offset + limit < len(all_rows) else None
         return rows, next_cursor
 
     async def query(
@@ -172,13 +158,10 @@ class GrafanaClient(ApiClient, TableSource, MetricQuery):
         format).
         """
         if not isinstance(query, str) or not query:
-            raise ValueError(
-                "GrafanaClient.query: query must be non-empty"
-            )
+            raise ValueError("GrafanaClient.query: query must be non-empty")
         if self._datasource_uid is None:
             raise RuntimeError(
-                "GrafanaClient.query: datasource_uid is required; pass "
-                "it to the constructor"
+                "GrafanaClient.query: datasource_uid is required; pass it to the constructor"
             )
         body: dict[str, Any] = {
             "queries": [
@@ -209,13 +192,9 @@ class GrafanaClient(ApiClient, TableSource, MetricQuery):
         headers: Mapping[str, str] | None = None,
     ) -> Any:
         if not isinstance(method, str) or not method:
-            raise ValueError(
-                "GrafanaClient.request: method must be non-empty"
-            )
+            raise ValueError("GrafanaClient.request: method must be non-empty")
         if not isinstance(path, str) or not path:
-            raise ValueError(
-                "GrafanaClient.request: path must be non-empty"
-            )
+            raise ValueError("GrafanaClient.request: path must be non-empty")
         client = await self._ensure_client()
         request_params = dict(params) if params is not None else None
         request_body = dict(body) if body is not None else None
@@ -260,23 +239,16 @@ class GrafanaClient(ApiClient, TableSource, MetricQuery):
             import httpx  # type: ignore[import-not-found]
         except ImportError as exc:
             raise ImportError(
-                "GrafanaClient requires httpx; install via "
-                "`pip install pirn[grafana]`"
+                "GrafanaClient requires httpx; install via `pip install pirn[grafana]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError(
-                "GrafanaClient: missing config and no injected client"
-            )
+            raise RuntimeError("GrafanaClient: missing config and no injected client")
         if self._config.base_url is None:
-            raise RuntimeError(
-                "GrafanaClient: config.base_url is required"
-            )
+            raise RuntimeError("GrafanaClient: config.base_url is required")
 
         client_headers: dict[str, str] = {}
         if self._config.api_key is not None:
-            client_headers["Authorization"] = (
-                f"Bearer {self._config.api_key}"
-            )
+            client_headers["Authorization"] = f"Bearer {self._config.api_key}"
 
         try:
             client = httpx.AsyncClient(

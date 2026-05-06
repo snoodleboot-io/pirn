@@ -85,12 +85,8 @@ class ShadowDeploymentPipeline(SubTapestry):
         if not isinstance(lineage, LineageStore):
             raise TypeError("ShadowDeploymentPipeline: lineage must be a LineageStore")
         with Tapestry() as inner:
-            champion_node = _emit_value(
-                value=champion, _config=KnotConfig(id="champion")
-            )
-            challenger_node = _emit_value(
-                value=challenger, _config=KnotConfig(id="challenger")
-            )
+            champion_node = _emit_value(value=champion, _config=KnotConfig(id="champion"))
+            challenger_node = _emit_value(value=challenger, _config=KnotConfig(id="challenger"))
             ShadowDeployer(
                 model=champion_node,
                 registry=lineage,

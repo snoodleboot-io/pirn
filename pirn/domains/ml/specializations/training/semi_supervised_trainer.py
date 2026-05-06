@@ -135,13 +135,9 @@ class SemiSupervisedTrainer(SubTapestry):
         trained_model = result.outputs["train"]
         report = result.outputs["evaluate"]
         if not isinstance(trained_model, TrainedModel):
-            raise TypeError(
-                "SemiSupervisedTrainer: trainer did not return a TrainedModel"
-            )
+            raise TypeError("SemiSupervisedTrainer: trainer did not return a TrainedModel")
         if not isinstance(report, EvalReport):
-            raise TypeError(
-                "SemiSupervisedTrainer: evaluator did not return an EvalReport"
-            )
+            raise TypeError("SemiSupervisedTrainer: evaluator did not return an EvalReport")
         return {
             "model": trained_model,
             "eval_report": report,

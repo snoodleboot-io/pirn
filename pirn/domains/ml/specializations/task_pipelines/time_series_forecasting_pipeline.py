@@ -93,13 +93,9 @@ class TimeSeriesForecastingPipeline(SubTapestry):
             TypeError: If pool is not a DatabaseConnectionPool.
         """
         if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError(
-                "TimeSeriesForecastingPipeline: pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("TimeSeriesForecastingPipeline: pool must be a DatabaseConnectionPool")
         if not isinstance(query, str) or not query:
-            raise ValueError(
-                "TimeSeriesForecastingPipeline: query must be a non-empty string"
-            )
+            raise ValueError("TimeSeriesForecastingPipeline: query must be a non-empty string")
         if not isinstance(time_column, str) or not time_column:
             raise ValueError(
                 "TimeSeriesForecastingPipeline: time_column must be a non-empty string"
@@ -110,17 +106,11 @@ class TimeSeriesForecastingPipeline(SubTapestry):
             )
         feature_tuple = tuple(feature_names)
         if not feature_tuple:
-            raise ValueError(
-                "TimeSeriesForecastingPipeline: feature_names must be non-empty"
-            )
+            raise ValueError("TimeSeriesForecastingPipeline: feature_names must be non-empty")
         if not isinstance(horizon, int) or horizon < 1:
-            raise ValueError(
-                "TimeSeriesForecastingPipeline: horizon must be an int >= 1"
-            )
+            raise ValueError("TimeSeriesForecastingPipeline: horizon must be an int >= 1")
         if not isinstance(algorithm, str) or not algorithm:
-            raise ValueError(
-                "TimeSeriesForecastingPipeline: algorithm must be a non-empty string"
-            )
+            raise ValueError("TimeSeriesForecastingPipeline: algorithm must be a non-empty string")
         with Tapestry() as inner:
             dataset = DatasetLoader(
                 name="ts-forecasting",

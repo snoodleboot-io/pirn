@@ -60,9 +60,7 @@ class LithologyClassifier(Knot):
         """
         _valid = {"crossplot", "neural_net", "rule_based"}
         if method not in _valid:
-            raise ValueError(
-                f"LithologyClassifier: method must be one of {sorted(_valid)}"
-            )
+            raise ValueError(f"LithologyClassifier: method must be one of {sorted(_valid)}")
         return LASFile(
             well_id=las_file.well_id,
             curves=(*las_file.curves, "LITH"),

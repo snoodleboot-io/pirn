@@ -56,10 +56,7 @@ class _CodeGenerator(Knot):
             TypeError: If task is not a non-empty string.
         """
         if not isinstance(task, str) or not task:
-            raise TypeError(
-                "CodeAgent: task must be a non-empty string, "
-                f"got {task!r}"
-            )
+            raise TypeError(f"CodeAgent: task must be a non-empty string, got {task!r}")
         chat_messages = [
             {
                 "role": "system",

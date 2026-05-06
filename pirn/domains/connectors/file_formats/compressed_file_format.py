@@ -35,9 +35,7 @@ class CompressedFileFormat(FileFormat):
 
     def __init__(self, inner: FileFormat, *, codec: str) -> None:
         if not isinstance(inner, FileFormat):
-            raise TypeError(
-                "CompressedFileFormat: inner must be a FileFormat"
-            )
+            raise TypeError("CompressedFileFormat: inner must be a FileFormat")
         if codec not in self._supported_codecs:
             raise ValueError(
                 f"CompressedFileFormat: codec must be one of "
@@ -62,28 +60,20 @@ class CompressedFileFormat(FileFormat):
     def codec(self) -> str:
         return self._codec
 
-    async def read(
-        self, body: AsyncIterator[bytes]
-    ) -> AsyncIterator[Mapping[str, Any]]:
+    async def read(self, body: AsyncIterator[bytes]) -> AsyncIterator[Mapping[str, Any]]:
         decompressed = self._decompress_stream(body)
         return await self._inner.read(decompressed)
 
-    async def write(
-        self, records: AsyncIterator[Mapping[str, Any]]
-    ) -> AsyncIterator[bytes]:
+    async def write(self, records: AsyncIterator[Mapping[str, Any]]) -> AsyncIterator[bytes]:
         encoded = await self._inner.write(records)
         return self._compress_stream(encoded)
 
-    async def _compress_stream(
-        self, body: AsyncIterator[bytes]
-    ) -> AsyncIterator[bytes]:
+    async def _compress_stream(self, body: AsyncIterator[bytes]) -> AsyncIterator[bytes]:
         codec = self._load_codec()
         async for chunk in codec.compress_stream(body):
             yield chunk
 
-    async def _decompress_stream(
-        self, body: AsyncIterator[bytes]
-    ) -> AsyncIterator[bytes]:
+    async def _decompress_stream(self, body: AsyncIterator[bytes]) -> AsyncIterator[bytes]:
         codec = self._load_codec()
         async for chunk in codec.decompress_stream(body):
             yield chunk
@@ -94,27 +84,30 @@ class CompressedFileFormat(FileFormat):
             from pirn.domains.connectors.file_formats.codecs.gzip_codec import (
                 GzipCodec,
             )
+
             return GzipCodec()
         if self._codec == "bzip2":
             from pirn.domains.connectors.file_formats.codecs.bzip2_codec import (
                 Bzip2Codec,
             )
+
             return Bzip2Codec()
         if self._codec == "zstd":
             from pirn.domains.connectors.file_formats.codecs.zstd_codec import (
                 ZstdCodec,
             )
+
             return ZstdCodec()
         if self._codec == "snappy":
             from pirn.domains.connectors.file_formats.codecs.snappy_codec import (
                 SnappyCodec,
             )
+
             return SnappyCodec()
         if self._codec == "lz4":
             from pirn.domains.connectors.file_formats.codecs.lz4_codec import (
                 Lz4Codec,
             )
+
             return Lz4Codec()
-        raise RuntimeError(
-            f"CompressedFileFormat: codec {self._codec!r} not loadable"
-        )
+        raise RuntimeError(f"CompressedFileFormat: codec {self._codec!r} not loadable")

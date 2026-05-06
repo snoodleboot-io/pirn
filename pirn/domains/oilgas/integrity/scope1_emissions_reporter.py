@@ -73,9 +73,7 @@ class Scope1EmissionsReporter(Knot):
         if co2_eq_factors is None:
             co2_eq_factors = {"ch4": 25.0, "n2o": 298.0, "co2": 1.0}
         if not isinstance(co2_eq_factors, dict):
-            raise TypeError(
-                "Scope1EmissionsReporter: co2_eq_factors must be a dict"
-            )
+            raise TypeError("Scope1EmissionsReporter: co2_eq_factors must be a dict")
         total_co2e = 0.0
         sources: list[str] = []
         for event in events:

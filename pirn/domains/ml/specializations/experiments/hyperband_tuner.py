@@ -103,18 +103,12 @@ class HyperbandTuner(SubTapestry):
             TypeError: If the inner search or evaluator returns an unexpected type.
         """
         if not isinstance(algorithm, str) or not algorithm:
-            raise ValueError(
-                "HyperbandTuner: algorithm must be a non-empty string"
-            )
+            raise ValueError("HyperbandTuner: algorithm must be a non-empty string")
         ss = search_space or {}
         if not isinstance(ss, Mapping) or not ss:
-            raise ValueError(
-                "HyperbandTuner: search_space must be a non-empty Mapping"
-            )
+            raise ValueError("HyperbandTuner: search_space must be a non-empty Mapping")
         if not isinstance(primary_metric, str) or not primary_metric:
-            raise ValueError(
-                "HyperbandTuner: primary_metric must be a non-empty string"
-            )
+            raise ValueError("HyperbandTuner: primary_metric must be a non-empty string")
         if not isinstance(max_configs, int):
             raise TypeError("HyperbandTuner: max_configs must be an int")
         if max_configs < 1:
@@ -125,9 +119,7 @@ class HyperbandTuner(SubTapestry):
         rounds = max(1, math.ceil(math.log2(max_configs)))
         n_trials = max(1, max_configs // (2 ** (rounds - 1)))
         with Tapestry() as inner:
-            split_node = _emit_value(
-                value=split, _config=KnotConfig(id="split")
-            )
+            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
             best = HyperparamSearch(
                 split=split_node,
                 algorithm=algorithm,
@@ -147,13 +139,9 @@ class HyperbandTuner(SubTapestry):
         model = result.outputs["search"]
         report = result.outputs["evaluate"]
         if not isinstance(model, TrainedModel):
-            raise TypeError(
-                "HyperbandTuner: search did not return a TrainedModel"
-            )
+            raise TypeError("HyperbandTuner: search did not return a TrainedModel")
         if not isinstance(report, EvalReport):
-            raise TypeError(
-                "HyperbandTuner: evaluator did not return an EvalReport"
-            )
+            raise TypeError("HyperbandTuner: evaluator did not return an EvalReport")
         return {
             "best_model": model,
             "eval_report": report,

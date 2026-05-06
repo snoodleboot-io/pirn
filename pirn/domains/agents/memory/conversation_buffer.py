@@ -85,8 +85,7 @@ class ConversationBuffer(Knot):
                 )
         if not isinstance(max_size, int) or max_size <= 0:
             raise ValueError(
-                "ConversationBuffer: max_size must be a positive int, "
-                f"got {max_size!r}"
+                f"ConversationBuffer: max_size must be a positive int, got {max_size!r}"
             )
         ordered = (*tuple(history), new_message)
         if len(ordered) <= max_size:

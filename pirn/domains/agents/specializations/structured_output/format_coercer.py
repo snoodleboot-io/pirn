@@ -43,7 +43,9 @@ class FormatCoercer(Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        super().__init__(response=response, llm=llm, target_format=target_format, _config=_config, **kwargs)
+        super().__init__(
+            response=response, llm=llm, target_format=target_format, _config=_config, **kwargs
+        )
 
     async def process(
         self,
@@ -68,10 +70,7 @@ class FormatCoercer(Knot):
             ValueError: If target_format is not a supported format.
         """
         if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "FormatCoercer: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
+            raise TypeError(f"FormatCoercer: llm must be an LLMProvider, got {type(llm).__name__}")
         if target_format not in type(self)._supported_formats:
             raise ValueError(
                 f"FormatCoercer: target_format must be one of "
@@ -79,8 +78,7 @@ class FormatCoercer(Knot):
             )
         if not isinstance(response, AgentResponse):
             raise TypeError(
-                "FormatCoercer: response must be an AgentResponse, "
-                f"got {type(response).__name__}"
+                f"FormatCoercer: response must be an AgentResponse, got {type(response).__name__}"
             )
         if self._already_matches(response.content, target_format):
             return response

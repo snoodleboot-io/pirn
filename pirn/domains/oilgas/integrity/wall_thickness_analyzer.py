@@ -78,13 +78,9 @@ class WallThicknessAnalyzer(Knot):
             ("minimum_allowable_thickness_in", minimum_allowable_thickness_in),
         ):
             if not isinstance(value, (int, float)):
-                raise TypeError(
-                    f"WallThicknessAnalyzer: {label} must be numeric"
-                )
+                raise TypeError(f"WallThicknessAnalyzer: {label} must be numeric")
             if value <= 0.0:
-                raise ValueError(
-                    f"WallThicknessAnalyzer: {label} must be positive"
-                )
+                raise ValueError(f"WallThicknessAnalyzer: {label} must be positive")
         if minimum_allowable_thickness_in >= nominal_thickness_in:
             raise ValueError(
                 "WallThicknessAnalyzer: minimum_allowable_thickness_in must be "

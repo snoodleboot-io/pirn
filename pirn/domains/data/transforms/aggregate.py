@@ -108,10 +108,7 @@ class Aggregate(Knot):
             A new DataBatch with one row per group and columns for each aggregation output.
         """
         if not isinstance(by, Sequence) or isinstance(by, (str, bytes)):
-            raise TypeError(
-                "Aggregate: by must be a sequence of column names "
-                "(e.g. tuple or list)"
-            )
+            raise TypeError("Aggregate: by must be a sequence of column names (e.g. tuple or list)")
         if not by:
             raise ValueError("Aggregate: by must be non-empty")
         for b in by:
@@ -119,8 +116,7 @@ class Aggregate(Knot):
                 raise TypeError("Aggregate: every entry in by must be a non-empty string")
         if not isinstance(aggs, Mapping) or not aggs:
             raise TypeError(
-                "Aggregate: aggs must be a non-empty Mapping[output_column, "
-                "AggregateSpec]"
+                "Aggregate: aggs must be a non-empty Mapping[output_column, AggregateSpec]"
             )
         for output_name, spec in aggs.items():
             if not isinstance(output_name, str) or not output_name:
@@ -137,11 +133,7 @@ class Aggregate(Knot):
         for key_tuple, rows_in_group in groups.items():
             out_row: dict[str, Any] = dict(zip(by_tuple, key_tuple, strict=False))
             for output_name, spec in aggs_dict.items():
-                values = [
-                    row[spec.source]
-                    for row in rows_in_group
-                    if spec.source in row
-                ]
+                values = [row[spec.source] for row in rows_in_group if spec.source in row]
                 out_row[output_name] = self._apply(spec.function, values)
             out_rows.append(out_row)
         new_schema = self._rebuild_schema(batch.schema, by_tuple, aggs_dict)

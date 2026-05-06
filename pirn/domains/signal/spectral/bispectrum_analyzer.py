@@ -75,14 +75,8 @@ class BispectrumAnalyzer(Knot):
             ValueError: If segment_length is not a positive integer.
         """
         if not isinstance(segment_length, int) or segment_length <= 0:
-            raise ValueError(
-                "BispectrumAnalyzer: segment_length must be a positive integer"
-            )
-        resolution = (
-            signal.sample_rate_hz / segment_length
-            if signal.sample_rate_hz > 0
-            else 0.0
-        )
+            raise ValueError("BispectrumAnalyzer: segment_length must be a positive integer")
+        resolution = signal.sample_rate_hz / segment_length if signal.sample_rate_hz > 0 else 0.0
         return SpectrumFrame(
             signal_id=signal.signal_id,
             frequency_bins=segment_length // 2 + 1,

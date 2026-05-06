@@ -76,9 +76,7 @@ class PredictionDriftMonitor(Knot):
             ValueError: If sigma_threshold is not positive.
         """
         if not isinstance(sigma_threshold, (int, float)) or sigma_threshold <= 0.0:
-            raise ValueError(
-                "PredictionDriftMonitor: sigma_threshold must be a positive number"
-            )
+            raise ValueError("PredictionDriftMonitor: sigma_threshold must be a positive number")
         sigma_f = float(sigma_threshold)
         baseline_mean = self._stat(model, baseline, "mean")
         baseline_std = max(1e-9, self._stat(model, baseline, "std"))

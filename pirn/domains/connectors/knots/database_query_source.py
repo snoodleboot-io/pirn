@@ -44,7 +44,13 @@ class DatabaseQuerySource(Source):
     ) -> None:
         super().__init__(pool=pool, query=query, parameters=parameters, _config=_config, **kwargs)
 
-    async def process(self, pool: DatabaseConnectionPool, query: str, parameters: tuple[Any, ...] | None = None, **_: Any) -> list[tuple[Any, ...]]:
+    async def process(
+        self,
+        pool: DatabaseConnectionPool,
+        query: str,
+        parameters: tuple[Any, ...] | None = None,
+        **_: Any,
+    ) -> list[tuple[Any, ...]]:
         """Run the configured SELECT query against the pool and return the result rows.
 
         Args:

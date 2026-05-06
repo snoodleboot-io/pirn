@@ -31,9 +31,7 @@ from pirn.domains.ml.types.ml_dataset import MLDataset
 class FeatureSelector(Knot):
     """Truncate feature list to ``k`` entries via a stable scoring method."""
 
-    valid_methods: ClassVar[frozenset[str]] = frozenset(
-        {"mutual_information", "variance", "rfe"}
-    )
+    valid_methods: ClassVar[frozenset[str]] = frozenset({"mutual_information", "variance", "rfe"})
 
     def __init__(
         self,
@@ -72,10 +70,7 @@ class FeatureSelector(Knot):
         if k < 1:
             raise ValueError("FeatureSelector: k must be >= 1")
         if method not in self.valid_methods:
-            raise ValueError(
-                f"FeatureSelector: method must be one of "
-                f"{sorted(self.valid_methods)}"
-            )
+            raise ValueError(f"FeatureSelector: method must be one of {sorted(self.valid_methods)}")
         now = datetime.now(UTC)
         return DataSplit(
             train=self._reduce(split.train, k, method, now),
@@ -87,9 +82,7 @@ class FeatureSelector(Knot):
             ),
         )
 
-    def _reduce(
-        self, dataset: MLDataset, k: int, method: str, fetched_at: datetime
-    ) -> MLDataset:
+    def _reduce(self, dataset: MLDataset, k: int, method: str, fetched_at: datetime) -> MLDataset:
         kept = dataset.feature_names[:k]
         return MLDataset(
             name=f"{dataset.name}:selected_{method}",

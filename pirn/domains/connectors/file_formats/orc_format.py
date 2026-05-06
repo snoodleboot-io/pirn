@@ -48,25 +48,19 @@ class OrcFormat(BatchFileFormat):
     def compression(self) -> str | None:
         return self._compression
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         pa, orc = self._load_pyarrow_orc()
         buf = pa.BufferReader(payload)
         table = orc.read_table(buf)
         return [dict(row) for row in table.to_pylist()]
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         pa, orc = self._load_pyarrow_orc()
         materialised: list[Mapping[str, Any]] = list(records)
         table = pa.Table.from_pylist(materialised)
         sink = pa.BufferOutputStream()
         if self._compression is not None:
-            orc.write_table(
-                table, sink, compression=self._compression
-            )
+            orc.write_table(table, sink, compression=self._compression)
         else:
             orc.write_table(table, sink)
         return bytes(sink.getvalue())
@@ -78,7 +72,6 @@ class OrcFormat(BatchFileFormat):
             import pyarrow.orc as orc
         except ImportError as exc:
             raise ImportError(
-                "OrcFormat requires pyarrow with ORC support. Install "
-                "with `pip install pirn[orc]`."
+                "OrcFormat requires pyarrow with ORC support. Install with `pip install pirn[orc]`."
             ) from exc
         return pa, orc

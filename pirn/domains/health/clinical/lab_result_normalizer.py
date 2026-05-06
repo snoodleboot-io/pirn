@@ -72,17 +72,11 @@ class LabResultNormalizer(Knot):
         if not isinstance(rows, (list, tuple)):
             raise TypeError("LabResultNormalizer: rows must be list/tuple")
         if not isinstance(unit_conversions, Mapping):
-            raise TypeError(
-                "LabResultNormalizer: unit_conversions must be a Mapping"
-            )
+            raise TypeError("LabResultNormalizer: unit_conversions must be a Mapping")
         if not isinstance(target_unit, str):
-            raise TypeError(
-                "LabResultNormalizer: target_unit must be a string"
-            )
+            raise TypeError("LabResultNormalizer: target_unit must be a string")
         if not target_unit:
-            raise ValueError(
-                "LabResultNormalizer: target_unit must be non-empty"
-            )
+            raise ValueError("LabResultNormalizer: target_unit must be non-empty")
         out: list[Mapping[str, Any]] = []
         for row in rows:
             from_unit = str(row.get("unit", ""))
@@ -90,9 +84,7 @@ class LabResultNormalizer(Knot):
                 value = float(row.get("value", 0.0))
             except (TypeError, ValueError):
                 value = 0.0
-            multiplier = unit_conversions.get(
-                (from_unit, target_unit), 1.0
-            )
+            multiplier = unit_conversions.get((from_unit, target_unit), 1.0)
             out.append(
                 {
                     **row,

@@ -83,22 +83,16 @@ class AcousticImpedanceInverter(Knot):
             and ``misfit`` (float).
         """
         if not isinstance(regularization, (int, float)):
-            raise TypeError(
-                "AcousticImpedanceInverter: regularization must be numeric"
-            )
+            raise TypeError("AcousticImpedanceInverter: regularization must be numeric")
         if regularization < 0.0:
-            raise ValueError(
-                "AcousticImpedanceInverter: regularization must be >= 0.0"
-            )
+            raise ValueError("AcousticImpedanceInverter: regularization must be >= 0.0")
         for name, obj in (
             ("seismic_volume", seismic_volume),
             ("wavelet", wavelet),
             ("low_frequency_model", low_frequency_model),
         ):
             if not isinstance(obj, dict):
-                raise TypeError(
-                    f"AcousticImpedanceInverter: {name} must be a dict"
-                )
+                raise TypeError(f"AcousticImpedanceInverter: {name} must be a dict")
         shape = seismic_volume.get("shape", [0, 0, 0])
         return {
             "impedance_volume": {"shape": shape, "values_stub": []},

@@ -62,14 +62,10 @@ class LOINCMapper(Knot):
             TypeError: If lab_test_names is not a list/tuple of strings or mapping is not a Mapping.
         """
         if not isinstance(lab_test_names, (list, tuple)):
-            raise TypeError(
-                "LOINCMapper: lab_test_names must be a list or tuple"
-            )
+            raise TypeError("LOINCMapper: lab_test_names must be a list or tuple")
         if not isinstance(mapping, Mapping):
             raise TypeError("LOINCMapper: mapping must be a Mapping")
         for name in lab_test_names:
             if not isinstance(name, str):
-                raise TypeError(
-                    "LOINCMapper: every lab test name must be a string"
-                )
+                raise TypeError("LOINCMapper: every lab test name must be a string")
         return tuple(mapping.get(name, "") for name in lab_test_names)

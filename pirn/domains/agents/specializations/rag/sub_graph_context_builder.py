@@ -80,8 +80,7 @@ class SubGraphContextBuilder(Knot):
         """
         if not isinstance(hop_count, int) or hop_count <= 0:
             raise ValueError(
-                "SubGraphContextBuilder: hop_count must be a positive int, "
-                f"got {hop_count!r}"
+                f"SubGraphContextBuilder: hop_count must be a positive int, got {hop_count!r}"
             )
         entities: list[Mapping[str, Any]] = []
         relations: list[Mapping[str, Any]] = []
@@ -104,9 +103,9 @@ class SubGraphContextBuilder(Knot):
                 "kind": "entity",
                 "id": entity.get("id"),
                 "label": entity.get("label"),
-                "attrs": dict(entity.get("attrs", {})) if isinstance(
-                    entity.get("attrs", {}), Mapping
-                ) else {},
+                "attrs": dict(entity.get("attrs", {}))
+                if isinstance(entity.get("attrs", {}), Mapping)
+                else {},
             }
             for entity in entities
         ]

@@ -75,13 +75,11 @@ class DocumentSummarizerPipeline(SubTapestry):
         """
         if not isinstance(chunk_size, int) or chunk_size <= 0:
             raise ValueError(
-                "DocumentSummarizerPipeline: chunk_size must be a positive "
-                f"int, got {chunk_size!r}"
+                f"DocumentSummarizerPipeline: chunk_size must be a positive int, got {chunk_size!r}"
             )
         if not isinstance(source, str) or not source:
             raise TypeError(
-                "DocumentSummarizerPipeline: source must be a non-empty "
-                f"string, got {source!r}"
+                f"DocumentSummarizerPipeline: source must be a non-empty string, got {source!r}"
             )
         with Tapestry() as inner:
             chunks = _LoadAndChunk(

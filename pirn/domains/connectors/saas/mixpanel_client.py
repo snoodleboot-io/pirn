@@ -35,9 +35,7 @@ class MixpanelClient(ApiClient, EventEmitter):
         client: Any = None,
     ) -> None:
         if config is None and client is None:
-            raise TypeError(
-                "MixpanelClient requires either config= or client="
-            )
+            raise TypeError("MixpanelClient requires either config= or client=")
         self._config = config
         self._client = client
         self._closed = False
@@ -55,10 +53,7 @@ class MixpanelClient(ApiClient, EventEmitter):
         ``properties`` is optional.
         """
         if "distinct_id" not in event or "event" not in event:
-            raise ValueError(
-                "MixpanelClient.emit: event requires 'distinct_id' and "
-                "'event' keys"
-            )
+            raise ValueError("MixpanelClient.emit: event requires 'distinct_id' and 'event' keys")
         await self.track(
             distinct_id=event["distinct_id"],
             event_name=event["event"],
@@ -74,12 +69,8 @@ class MixpanelClient(ApiClient, EventEmitter):
     ) -> None:
         """Vendor-typed wrapper around ``Mixpanel.track``."""
         client = await self._ensure_client()
-        properties_arg: dict[str, Any] = (
-            dict(properties) if properties is not None else {}
-        )
-        await asyncio.to_thread(
-            client.track, distinct_id, event_name, properties_arg
-        )
+        properties_arg: dict[str, Any] = dict(properties) if properties is not None else {}
+        await asyncio.to_thread(client.track, distinct_id, event_name, properties_arg)
 
     async def import_data(self, **payload: Any) -> Any:
         """Vendor-typed wrapper around ``Mixpanel.import_data``."""
@@ -96,35 +87,23 @@ class MixpanelClient(ApiClient, EventEmitter):
         headers: Mapping[str, str] | None = None,
     ) -> Any:
         if not isinstance(method, str) or not method:
-            raise ValueError(
-                "MixpanelClient.request: method must be non-empty"
-            )
+            raise ValueError("MixpanelClient.request: method must be non-empty")
         if not isinstance(path, str) or not path:
-            raise ValueError(
-                "MixpanelClient.request: path must be non-empty"
-            )
+            raise ValueError("MixpanelClient.request: path must be non-empty")
         upper_method = method.upper()
         if upper_method != "POST":
-            raise ValueError(
-                "MixpanelClient.request: only POST is supported; got "
-                f"{method!r}"
-            )
+            raise ValueError(f"MixpanelClient.request: only POST is supported; got {method!r}")
         normalised = "/" + path.lstrip("/")
         if normalised not in ("/track", "/import"):
             raise ValueError(
-                "MixpanelClient.request: unsupported path "
-                f"{path!r}; supported: /track, /import"
+                f"MixpanelClient.request: unsupported path {path!r}; supported: /track, /import"
             )
         request_body: dict[str, Any] = dict(body) if body is not None else {}
         client = await self._ensure_client()
 
         if normalised == "/track":
-            return await asyncio.to_thread(
-                self._invoke_track, client, request_body
-            )
-        return await asyncio.to_thread(
-            self._invoke_import, client, request_body
-        )
+            return await asyncio.to_thread(self._invoke_track, client, request_body)
+        return await asyncio.to_thread(self._invoke_import, client, request_body)
 
     async def close(self) -> None:
         if self._client is not None:
@@ -140,16 +119,11 @@ class MixpanelClient(ApiClient, EventEmitter):
     def _invoke_track(client: Any, body: Mapping[str, Any]) -> Any:
         if "distinct_id" not in body or "event" not in body:
             raise ValueError(
-                "MixpanelClient.request(/track): body requires "
-                "'distinct_id' and 'event'"
+                "MixpanelClient.request(/track): body requires 'distinct_id' and 'event'"
             )
         properties = body.get("properties")
-        properties_arg: dict[str, Any] = (
-            dict(properties) if properties is not None else {}
-        )
-        return client.track(
-            body["distinct_id"], body["event"], properties_arg
-        )
+        properties_arg: dict[str, Any] = dict(properties) if properties is not None else {}
+        return client.track(body["distinct_id"], body["event"], properties_arg)
 
     @staticmethod
     def _invoke_import(client: Any, body: Mapping[str, Any]) -> Any:
@@ -167,21 +141,14 @@ class MixpanelClient(ApiClient, EventEmitter):
             from mixpanel import Mixpanel  # type: ignore[import-not-found]
         except ImportError as exc:
             raise ImportError(
-                "MixpanelClient requires mixpanel; install via "
-                "`pip install pirn[mixpanel]`"
+                "MixpanelClient requires mixpanel; install via `pip install pirn[mixpanel]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError(
-                "MixpanelClient: missing config and no injected client"
-            )
+            raise RuntimeError("MixpanelClient: missing config and no injected client")
         if self._config.project_token is None:
-            raise RuntimeError(
-                "MixpanelClient: config.project_token is required"
-            )
+            raise RuntimeError("MixpanelClient: config.project_token is required")
         try:
-            client = await asyncio.to_thread(
-                Mixpanel, self._config.project_token
-            )
+            client = await asyncio.to_thread(Mixpanel, self._config.project_token)
         except Exception as exc:
             self._reraise_scrubbed(exc)
         self._logger.debug("mixpanel.connect")

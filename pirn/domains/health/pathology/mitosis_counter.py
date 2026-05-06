@@ -39,7 +39,9 @@ class MitosisCounter(Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        super().__init__(tiles=tiles, confidence_threshold=confidence_threshold, _config=_config, **kwargs)
+        super().__init__(
+            tiles=tiles, confidence_threshold=confidence_threshold, _config=_config, **kwargs
+        )
 
     async def process(
         self,

@@ -68,17 +68,11 @@ class LogNormalizer(Knot):
             LASFile with curves resampled to the configured depth grid and unit.
         """
         if not isinstance(target_depth_step, (int, float)):
-            raise TypeError(
-                "LogNormalizer: target_depth_step must be numeric"
-            )
+            raise TypeError("LogNormalizer: target_depth_step must be numeric")
         if target_depth_step <= 0.0:
-            raise ValueError(
-                "LogNormalizer: target_depth_step must be positive"
-            )
+            raise ValueError("LogNormalizer: target_depth_step must be positive")
         if target_depth_unit not in ("m", "ft"):
-            raise ValueError(
-                "LogNormalizer: target_depth_unit must be 'm' or 'ft'"
-            )
+            raise ValueError("LogNormalizer: target_depth_unit must be 'm' or 'ft'")
         return LASFile(
             well_id=las_file.well_id,
             curves=las_file.curves,

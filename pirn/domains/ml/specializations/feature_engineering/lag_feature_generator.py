@@ -86,9 +86,7 @@ class LagFeatureGenerator(SubTapestry):
             TypeError: If any lag is not an int or inner knot fails.
         """
         if not isinstance(time_column, str) or not time_column:
-            raise ValueError(
-                "LagFeatureGenerator: time_column must be a non-empty string"
-            )
+            raise ValueError("LagFeatureGenerator: time_column must be a non-empty string")
         column_tuple = tuple(columns)
         if not column_tuple:
             raise ValueError("LagFeatureGenerator: columns must be non-empty")
@@ -106,9 +104,7 @@ class LagFeatureGenerator(SubTapestry):
             if lag < 1:
                 raise ValueError("LagFeatureGenerator: every lag must be >= 1")
         with Tapestry() as inner:
-            split_node = _emit_value(
-                value=split, _config=KnotConfig(id="split")
-            )
+            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
             _LagAppendKnot(
                 split=split_node,
                 time_column=time_column,
@@ -119,7 +115,5 @@ class LagFeatureGenerator(SubTapestry):
         result = await self._run_inner(inner)
         lagged = result.outputs["append_lags"]
         if not isinstance(lagged, DataSplit):
-            raise TypeError(
-                "LagFeatureGenerator: inner knot did not return a DataSplit"
-            )
+            raise TypeError("LagFeatureGenerator: inner knot did not return a DataSplit")
         return lagged

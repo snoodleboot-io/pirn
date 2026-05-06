@@ -75,15 +75,12 @@ class HDFSStore(ObjectStore):
             async for chunk in body:
                 if not isinstance(chunk, (bytes, bytearray)):
                     raise TypeError(
-                        "HDFSStore.put: body iterator must yield bytes; "
-                        f"got {type(chunk).__name__}"
+                        f"HDFSStore.put: body iterator must yield bytes; got {type(chunk).__name__}"
                     )
                 chunks.append(bytes(chunk))
             payload = b"".join(chunks)
         await client.put(path, payload)
-        self._logger.debug(
-            "hdfs.put", extra={"path": path, "size": len(payload)}
-        )
+        self._logger.debug("hdfs.put", extra={"path": path, "size": len(payload)})
 
     async def delete(self, key: str) -> None:
         self._validate_key(key)
@@ -123,20 +120,15 @@ class HDFSStore(ObjectStore):
             import requests  # type: ignore[import-untyped]
         except ImportError as exc:
             raise ImportError(
-                "HDFSStore (WebHDFS) requires requests; install via "
-                "`pip install pirn[hdfs]`"
+                "HDFSStore (WebHDFS) requires requests; install via `pip install pirn[hdfs]`"
             ) from exc
         from urllib.parse import quote as _quote
+
         config = self._config
         scheme = "https" if getattr(config, "tls", False) else "http"
-        base_url = (
-            f"{scheme}://{config.namenode_host}:{config.namenode_port}"
-            f"/webhdfs/v1"
-        )
+        base_url = f"{scheme}://{config.namenode_host}:{config.namenode_port}/webhdfs/v1"
         user = _quote(config.user or "hadoop", safe="")
-        self._client = _WebHDFSClient(
-            base_url=base_url, user=user, session=requests.Session()
-        )
+        self._client = _WebHDFSClient(base_url=base_url, user=user, session=requests.Session())
         self._logger.debug(
             "hdfs.webhdfs.connect",
             extra={"host": config.namenode_host, "port": config.namenode_port},
@@ -148,8 +140,7 @@ class HDFSStore(ObjectStore):
             import pyarrow.fs as pafs  # type: ignore[import-untyped]
         except ImportError as exc:
             raise ImportError(
-                "HDFSStore (PyArrow) requires pyarrow; install via "
-                "`pip install pirn[hdfs-arrow]`"
+                "HDFSStore (PyArrow) requires pyarrow; install via `pip install pirn[hdfs-arrow]`"
             ) from exc
         config = self._config
         fs = pafs.HadoopFileSystem(
@@ -190,10 +181,7 @@ class _WebHDFSClient:
         await asyncio.to_thread(self._sync_put, path, data)
 
     def _sync_put(self, path: str, data: bytes) -> None:
-        url = (
-            f"{self._base_url}{path}"
-            f"?op=CREATE&overwrite=true&user.name={self._user}"
-        )
+        url = f"{self._base_url}{path}?op=CREATE&overwrite=true&user.name={self._user}"
         resp = self._session.put(url, data=data, allow_redirects=True)
         resp.raise_for_status()
 
@@ -217,11 +205,7 @@ class _WebHDFSClient:
         resp = self._session.get(url)
         resp.raise_for_status()
         statuses = resp.json().get("FileStatuses", {}).get("FileStatus", [])
-        return [
-            f"{path.rstrip('/')}/{s['pathSuffix']}"
-            for s in statuses
-            if s.get("pathSuffix")
-        ]
+        return [f"{path.rstrip('/')}/{s['pathSuffix']}" for s in statuses if s.get("pathSuffix")]
 
     def close(self) -> None:
         self._session.close()
@@ -262,7 +246,5 @@ class _PyArrowHDFSClient:
         return await asyncio.to_thread(self._sync_list, path)
 
     def _sync_list(self, path: str) -> list[str]:
-        file_info = self._fs.get_file_info(
-            self._fs.FileSelector(path, recursive=False)
-        )
+        file_info = self._fs.get_file_info(self._fs.FileSelector(path, recursive=False))
         return [fi.path for fi in file_info]

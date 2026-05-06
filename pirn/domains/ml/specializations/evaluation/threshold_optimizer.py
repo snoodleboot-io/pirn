@@ -72,9 +72,7 @@ class ThresholdOptimizer(Knot):
         """
         allowed = {"f1", "precision", "recall"}
         if metric not in allowed:
-            raise ValueError(
-                f"ThresholdOptimizer: metric must be one of {allowed}, got {metric!r}"
-            )
+            raise ValueError(f"ThresholdOptimizer: metric must be one of {allowed}, got {metric!r}")
         scores: dict[float, float] = {}
         for i in range(1, 100):
             t = round(i / 100.0, 2)

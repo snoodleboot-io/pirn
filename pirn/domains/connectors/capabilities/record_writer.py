@@ -23,6 +23,4 @@ class RecordWriter:
         records: Iterable[Mapping[str, Any]],
     ) -> int:
         """Persist ``records`` to the vendor; return the count written."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement write_records()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement write_records()")

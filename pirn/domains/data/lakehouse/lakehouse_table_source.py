@@ -79,18 +79,13 @@ class LakehouseTableSource(Source):
         **_: Any,
     ) -> DataBatch:
         if not isinstance(table, LakehouseTable):
-            raise TypeError(
-                "LakehouseTableSource: table must be a LakehouseTable instance"
-            )
+            raise TypeError("LakehouseTableSource: table must be a LakehouseTable instance")
         if snapshot_id is not None and as_of_timestamp is not None:
             raise ValueError(
-                "LakehouseTableSource: snapshot_id and as_of_timestamp "
-                "are mutually exclusive"
+                "LakehouseTableSource: snapshot_id and as_of_timestamp are mutually exclusive"
             )
         if schema is not None and not isinstance(schema, DataSchema):
-            raise TypeError(
-                "LakehouseTableSource: schema must be a DataSchema instance"
-            )
+            raise TypeError("LakehouseTableSource: schema must be a DataSchema instance")
         resolved_filter = dict(filter) if filter is not None else None
         resolved_columns = tuple(columns) if columns is not None else None
         rows: list[dict[str, Any]] = []

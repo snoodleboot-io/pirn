@@ -46,9 +46,7 @@ class Hl7v2Format(BatchFileFormat):
     def name(self) -> str:
         return "hl7v2"
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         hl7 = self._load_hl7()
         text = payload.decode("utf-8", errors="replace")
         raw_messages = self._split_messages(text)
@@ -60,15 +58,11 @@ class Hl7v2Format(BatchFileFormat):
             try:
                 message = hl7.parse(raw)
             except Exception as exc:
-                raise ValueError(
-                    f"Hl7v2Format: failed to parse HL7 message: {exc}"
-                ) from exc
+                raise ValueError(f"Hl7v2Format: failed to parse HL7 message: {exc}") from exc
             records.append(self._message_to_record(message))
         return records
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         lines: list[str] = []
         for record in records:
             segments = record.get("segments", [])
@@ -142,7 +136,6 @@ class Hl7v2Format(BatchFileFormat):
             import hl7
         except ImportError as exc:
             raise ImportError(
-                "Hl7v2Format requires hl7. Install with "
-                "`pip install pirn[health]`."
+                "Hl7v2Format requires hl7. Install with `pip install pirn[health]`."
             ) from exc
         return hl7

@@ -73,11 +73,7 @@ class ConversationMemoryPruner(Knot):
             if total <= token_budget:
                 break
             prunable_index = next(
-                (
-                    i
-                    for i, msg in enumerate(result)
-                    if msg.role != "system"
-                ),
+                (i for i, msg in enumerate(result) if msg.role != "system"),
                 None,
             )
             if prunable_index is None:

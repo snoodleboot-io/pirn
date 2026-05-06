@@ -80,17 +80,11 @@ class StreamingBufferManager(Knot):
             ValueError: If frame_size or hop_size are invalid.
         """
         if not isinstance(frame_size, int) or frame_size <= 0:
-            raise ValueError(
-                "StreamingBufferManager: frame_size must be a positive integer"
-            )
+            raise ValueError("StreamingBufferManager: frame_size must be a positive integer")
         if not isinstance(hop_size, int) or hop_size <= 0:
-            raise ValueError(
-                "StreamingBufferManager: hop_size must be a positive integer"
-            )
+            raise ValueError("StreamingBufferManager: hop_size must be a positive integer")
         if hop_size > frame_size:
-            raise ValueError(
-                "StreamingBufferManager: hop_size must not exceed frame_size"
-            )
+            raise ValueError("StreamingBufferManager: hop_size must not exceed frame_size")
         return SignalFrame(
             signal_id=f"{signal.signal_id}:framed",
             channel_count=signal.channel_count,

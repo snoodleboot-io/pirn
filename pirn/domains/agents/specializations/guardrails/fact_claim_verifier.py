@@ -98,9 +98,7 @@ class FactClaimVerifier(Knot):
         if not unverified:
             return response
         warning_lines = "\n".join(f"- {claim}" for claim in unverified)
-        warning = (
-            "\n\n[fact_check_gate] Unverified claims:\n" + warning_lines
-        )
+        warning = "\n\n[fact_check_gate] Unverified claims:\n" + warning_lines
         return AgentResponse(
             content=response.content + warning,
             tool_calls=response.tool_calls,

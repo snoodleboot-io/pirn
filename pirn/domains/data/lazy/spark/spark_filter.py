@@ -60,9 +60,7 @@ class SparkFilter(Knot):
             A new SparkDataFrame with the SQL WHERE predicate applied to the deferred plan.
         """
         if not isinstance(predicate, str):
-            raise TypeError(
-                "SparkFilter: predicate must be a Spark SQL expression string"
-            )
+            raise TypeError("SparkFilter: predicate must be a Spark SQL expression string")
         if not predicate.strip():
             raise ValueError("SparkFilter: predicate must be non-empty")
         return frame.with_frame(frame.frame.filter(predicate))

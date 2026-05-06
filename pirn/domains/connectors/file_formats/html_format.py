@@ -41,8 +41,7 @@ class HtmlFormat(BatchFileFormat):
     def __init__(self, extract_tables: bool = False) -> None:
         if not isinstance(extract_tables, bool):
             raise TypeError(
-                "HtmlFormat: extract_tables must be a bool, "
-                f"got {type(extract_tables).__name__}"
+                f"HtmlFormat: extract_tables must be a bool, got {type(extract_tables).__name__}"
             )
         self._extract_tables = extract_tables
 
@@ -54,9 +53,7 @@ class HtmlFormat(BatchFileFormat):
     def extract_tables(self) -> bool:
         return self._extract_tables
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         bs4 = self._load_bs4()
         # Verify lxml is importable so the parser argument below works.
         self._load_lxml()
@@ -65,17 +62,13 @@ class HtmlFormat(BatchFileFormat):
             return self._decode_tables(soup)
         return [self._decode_document(soup)]
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         materialised = list(records)
         body_chunks: list[str] = []
         title = ""
         for record in materialised:
             record_title = record.get("title")
-            if record_title is not None and not isinstance(
-                record_title, str
-            ):
+            if record_title is not None and not isinstance(record_title, str):
                 raise TypeError(
                     "HtmlFormat: 'title' must be a string when "
                     f"provided, got {type(record_title).__name__}"
@@ -83,15 +76,12 @@ class HtmlFormat(BatchFileFormat):
             text = record.get("text")
             if text is not None and not isinstance(text, str):
                 raise TypeError(
-                    "HtmlFormat: 'text' must be a string when "
-                    f"provided, got {type(text).__name__}"
+                    f"HtmlFormat: 'text' must be a string when provided, got {type(text).__name__}"
                 )
             if record_title and not title:
                 title = record_title
             if text:
-                body_chunks.append(
-                    f"<p>{html.escape(text)}</p>"
-                )
+                body_chunks.append(f"<p>{html.escape(text)}</p>")
         document = (
             "<!DOCTYPE html><html><head>"
             f"<title>{html.escape(title)}</title>"
@@ -127,9 +117,7 @@ class HtmlFormat(BatchFileFormat):
             headers: list[str] = []
             data_rows = rows
             if header_cells:
-                headers = [
-                    cell.get_text(strip=True) for cell in header_cells
-                ]
+                headers = [cell.get_text(strip=True) for cell in header_cells]
                 data_rows = rows[1:]
             for row in data_rows:
                 cells = row.find_all(["td", "th"])
@@ -151,8 +139,7 @@ class HtmlFormat(BatchFileFormat):
             import bs4
         except ImportError as exc:
             raise ImportError(
-                "HtmlFormat requires beautifulsoup4. Install with "
-                "`pip install pirn[html]`."
+                "HtmlFormat requires beautifulsoup4. Install with `pip install pirn[html]`."
             ) from exc
         return bs4
 
@@ -162,7 +149,6 @@ class HtmlFormat(BatchFileFormat):
             import lxml
         except ImportError as exc:
             raise ImportError(
-                "HtmlFormat requires lxml. Install with "
-                "`pip install pirn[html]`."
+                "HtmlFormat requires lxml. Install with `pip install pirn[html]`."
             ) from exc
         return lxml

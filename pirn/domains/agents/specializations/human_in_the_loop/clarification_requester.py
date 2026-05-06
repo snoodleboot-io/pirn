@@ -54,8 +54,7 @@ class ClarificationRequester(Knot):
         """
         if not isinstance(message, str):
             raise TypeError(
-                "ClarificationRequester: message must be a string, "
-                f"got {type(message).__name__}"
+                f"ClarificationRequester: message must be a string, got {type(message).__name__}"
             )
         prompt = (
             "You are evaluating whether a user message is ambiguous.\n"

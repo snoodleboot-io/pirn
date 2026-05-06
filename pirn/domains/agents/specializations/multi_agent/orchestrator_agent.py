@@ -75,18 +75,12 @@ class OrchestratorAgent(SubTapestry):
         """
         if not isinstance(llm, LLMProvider):
             raise TypeError(
-                "OrchestratorAgent: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
+                f"OrchestratorAgent: llm must be an LLMProvider, got {type(llm).__name__}"
             )
         if not isinstance(specialists, Mapping) or not specialists:
-            raise ValueError(
-                "OrchestratorAgent: specialists must be a non-empty mapping"
-            )
+            raise ValueError("OrchestratorAgent: specialists must be a non-empty mapping")
         if not isinstance(task, str):
-            raise TypeError(
-                "OrchestratorAgent: task must be a string, "
-                f"got {type(task).__name__}"
-            )
+            raise TypeError(f"OrchestratorAgent: task must be a string, got {type(task).__name__}")
         specialists_dict: dict[str, SubTapestry] = dict(specialists)  # type: ignore[arg-type]
         with Tapestry() as inner:
             OrchestratorRouter(

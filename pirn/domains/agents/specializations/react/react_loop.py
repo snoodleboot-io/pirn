@@ -116,21 +116,16 @@ class ReActLoop(SubTapestry):
             ValueError: If max_iterations is not a positive integer.
         """
         if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "ReActLoop: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
+            raise TypeError(f"ReActLoop: llm must be an LLMProvider, got {type(llm).__name__}")
         if not isinstance(max_iterations, int) or max_iterations <= 0:
             raise ValueError(
-                "ReActLoop: max_iterations must be a positive int, "
-                f"got {max_iterations!r}"
+                f"ReActLoop: max_iterations must be a positive int, got {max_iterations!r}"
             )
         tool_tuple = tuple(tools)
         for index, candidate in enumerate(tool_tuple):
             if not isinstance(candidate, Tool):
                 raise TypeError(
-                    f"ReActLoop: tools[{index}] must be a Tool, "
-                    f"got {type(candidate).__name__}"
+                    f"ReActLoop: tools[{index}] must be a Tool, got {type(candidate).__name__}"
                 )
         seed_messages = tuple(messages)
         with Tapestry() as inner:

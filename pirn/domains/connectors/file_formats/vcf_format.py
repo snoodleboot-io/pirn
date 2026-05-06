@@ -61,9 +61,7 @@ class VcfFormat(StreamingFileFormat):
     def fileformat(self) -> str:
         return self._fileformat
 
-    async def read(
-        self, body: AsyncIterator[bytes]
-    ) -> AsyncIterator[Mapping[str, Any]]:
+    async def read(self, body: AsyncIterator[bytes]) -> AsyncIterator[Mapping[str, Any]]:
         encoding = self._encoding
 
         async def _iter() -> AsyncIterator[Mapping[str, Any]]:
@@ -98,17 +96,12 @@ class VcfFormat(StreamingFileFormat):
 
         return _iter()
 
-    async def write(
-        self, records: AsyncIterator[Mapping[str, Any]]
-    ) -> AsyncIterator[bytes]:
+    async def write(self, records: AsyncIterator[Mapping[str, Any]]) -> AsyncIterator[bytes]:
         encoding = self._encoding
         fileformat = self._fileformat
 
         async def _iter() -> AsyncIterator[bytes]:
-            header = (
-                f"##fileformat={fileformat}\n"
-                "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
-            )
+            header = f"##fileformat={fileformat}\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
             yield header.encode(encoding)
             async for record in records:
                 yield VcfFormat._serialize_data_row(record).encode(encoding)
@@ -138,15 +131,11 @@ class VcfFormat(StreamingFileFormat):
                 "VcfFormat: data row must have at least 8 tab-separated "
                 f"fields (CHROM..INFO); got {len(fields)}"
             )
-        chrom, pos_text, identifier, ref, alt, qual_text, filt, info_text = (
-            fields[:8]
-        )
+        chrom, pos_text, identifier, ref, alt, qual_text, filt, info_text = fields[:8]
         try:
             pos = int(pos_text)
         except ValueError as exc:
-            raise ValueError(
-                f"VcfFormat: POS must be integer, got {pos_text!r}"
-            ) from exc
+            raise ValueError(f"VcfFormat: POS must be integer, got {pos_text!r}") from exc
         qual: float | None
         if qual_text == "." or qual_text == "":
             qual = None
@@ -188,9 +177,7 @@ class VcfFormat(StreamingFileFormat):
     def _serialize_data_row(record: Mapping[str, Any]) -> str:
         chrom = record.get("chrom")
         if not isinstance(chrom, str) or not chrom:
-            raise ValueError(
-                "VcfFormat: 'chrom' must be a non-empty string"
-            )
+            raise ValueError("VcfFormat: 'chrom' must be a non-empty string")
         pos = record.get("pos")
         if not isinstance(pos, int) or isinstance(pos, bool):
             raise TypeError("VcfFormat: 'pos' must be int")
@@ -201,23 +188,17 @@ class VcfFormat(StreamingFileFormat):
             raise TypeError("VcfFormat: 'id' must be str")
         ref = record.get("ref")
         if not isinstance(ref, str) or not ref:
-            raise ValueError(
-                "VcfFormat: 'ref' must be a non-empty string"
-            )
+            raise ValueError("VcfFormat: 'ref' must be a non-empty string")
         alt = record.get("alt")
         if not isinstance(alt, str) or not alt:
-            raise ValueError(
-                "VcfFormat: 'alt' must be a non-empty string"
-            )
+            raise ValueError("VcfFormat: 'alt' must be a non-empty string")
         qual = record.get("qual")
         if qual is None:
             qual_text = "."
         elif isinstance(qual, (int, float)) and not isinstance(qual, bool):
             qual_text = f"{float(qual):g}"
         else:
-            raise TypeError(
-                "VcfFormat: 'qual' must be float, int, or None"
-            )
+            raise TypeError("VcfFormat: 'qual' must be float, int, or None")
         filt = record.get("filter", ".")
         if filt is None:
             filt = "."
@@ -227,14 +208,9 @@ class VcfFormat(StreamingFileFormat):
         if info is None:
             info = {}
         if not isinstance(info, Mapping):
-            raise TypeError(
-                "VcfFormat: 'info' must be a mapping (dict-like)"
-            )
+            raise TypeError("VcfFormat: 'info' must be a mapping (dict-like)")
         info_text = VcfFormat._serialize_info_field(info)
-        return (
-            f"{chrom}\t{pos}\t{identifier}\t{ref}\t{alt}\t"
-            f"{qual_text}\t{filt}\t{info_text}\n"
-        )
+        return f"{chrom}\t{pos}\t{identifier}\t{ref}\t{alt}\t{qual_text}\t{filt}\t{info_text}\n"
 
     @staticmethod
     def _serialize_info_field(info: Mapping[str, Any]) -> str:
@@ -243,9 +219,7 @@ class VcfFormat(StreamingFileFormat):
         parts: list[str] = []
         for key, value in info.items():
             if not isinstance(key, str) or not key:
-                raise ValueError(
-                    "VcfFormat: every INFO key must be a non-empty string"
-                )
+                raise ValueError("VcfFormat: every INFO key must be a non-empty string")
             if value is True:
                 parts.append(key)
             elif value is False or value is None:

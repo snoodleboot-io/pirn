@@ -313,9 +313,7 @@ def _synthetic_reads(run_name: str, n_reads: int) -> list[FastqRead]:
 
         if variant < 0.10:
             # High-N read — will fail QC
-            seq = "".join(
-                read_rng.choice("N" * 6 + normal_bases) for _ in range(read_length)
-            )
+            seq = "".join(read_rng.choice("N" * 6 + normal_bases) for _ in range(read_length))
         else:
             seq = "".join(read_rng.choice(normal_bases) for _ in range(read_length))
 
@@ -323,26 +321,18 @@ def _synthetic_reads(run_name: str, n_reads: int) -> list[FastqRead]:
         if variant < 0.08:
             # Low-quality tail - last 20 bases are poor quality (Phred 15-19)
             good_len = read_length - 20
-            good_qual = "".join(
-                chr(read_rng.randint(25, 40) + 33) for _ in range(good_len)
-            )
-            bad_qual = "".join(
-                chr(read_rng.randint(15, 19) + 33) for _ in range(20)
-            )
+            good_qual = "".join(chr(read_rng.randint(25, 40) + 33) for _ in range(good_len))
+            bad_qual = "".join(chr(read_rng.randint(15, 19) + 33) for _ in range(20))
             qual = good_qual + bad_qual
         else:
-            qual = "".join(
-                chr(read_rng.randint(20, 40) + 33) for _ in range(read_length)
-            )
+            qual = "".join(chr(read_rng.randint(20, 40) + 33) for _ in range(read_length))
 
         # Prepend adapter to ~15 % of reads
         if variant > 0.85:
             adapter = _KNOWN_ADAPTER
-            seq = adapter + seq[:read_length - len(adapter)]
-            adapter_qual = "".join(
-                chr(read_rng.randint(20, 35) + 33) for _ in range(len(adapter))
-            )
-            qual = adapter_qual + qual[len(adapter):]
+            seq = adapter + seq[: read_length - len(adapter)]
+            adapter_qual = "".join(chr(read_rng.randint(20, 35) + 33) for _ in range(len(adapter)))
+            qual = adapter_qual + qual[len(adapter) :]
 
         description = f"instrument=SYNTH flowcell=FC{run_name} lane={read_rng.randint(1, 8)}"
 

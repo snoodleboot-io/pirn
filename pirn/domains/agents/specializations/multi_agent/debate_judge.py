@@ -70,17 +70,13 @@ class DebateJudge(Knot):
         """
         if not isinstance(judge_llm, LLMProvider):
             raise TypeError(
-                "DebateJudge: judge_llm must be an LLMProvider, "
-                f"got {type(judge_llm).__name__}"
+                f"DebateJudge: judge_llm must be an LLMProvider, got {type(judge_llm).__name__}"
             )
         responses = tuple(final_round)
         if not responses:
-            raise ValueError(
-                "DebateJudge: final_round must contain at least one response"
-            )
+            raise ValueError("DebateJudge: final_round must contain at least one response")
         rendered = "\n".join(
-            f"[{index}] {response.content}"
-            for index, response in enumerate(responses)
+            f"[{index}] {response.content}" for index, response in enumerate(responses)
         )
         prompt = (
             "You are a debate judge. Pick the strongest argument by index.\n"
@@ -88,9 +84,7 @@ class DebateJudge(Knot):
             f"Arguments:\n{rendered}\n\n"
             "Reply with the winning index only."
         )
-        raw = await judge_llm.chat(
-            [{"role": "user", "content": prompt}]
-        )
+        raw = await judge_llm.chat([{"role": "user", "content": prompt}])
         text = self._extract_text(raw).strip()
         for token in text.replace(",", " ").split():
             cleaned = token.strip("[]().: ")

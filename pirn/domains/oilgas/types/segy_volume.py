@@ -22,9 +22,7 @@ class SegyVolume(PirnOpaqueValue):
     inline_count: int = 0
     xline_count: int = 0
     sample_count: int = 0
-    fetched_at: datetime = field(
-        default_factory=lambda: datetime.now(UTC)
-    )
+    fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
         return {

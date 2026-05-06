@@ -38,9 +38,25 @@ class MessageBrokerPublishSink(Sink):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        super().__init__(broker=broker, topic=topic, value=value, key=key, headers=headers, _config=_config, **kwargs)
+        super().__init__(
+            broker=broker,
+            topic=topic,
+            value=value,
+            key=key,
+            headers=headers,
+            _config=_config,
+            **kwargs,
+        )
 
-    async def process(self, broker: MessageBroker, topic: str, value: bytes, key: bytes | None = None, headers: dict[str, bytes] | None = None, **_: Any) -> None:
+    async def process(
+        self,
+        broker: MessageBroker,
+        topic: str,
+        value: bytes,
+        key: bytes | None = None,
+        headers: dict[str, bytes] | None = None,
+        **_: Any,
+    ) -> None:
         """Publish the bytes payload to the configured broker topic.
 
         Args:

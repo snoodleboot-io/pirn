@@ -79,15 +79,13 @@ class BacktestingEvaluator(Knot):
         if not isinstance(n_windows, int) or n_windows < 1:
             raise ValueError("BacktestingEvaluator: n_windows must be an int >= 1")
         if not isinstance(metric, str) or not metric:
-            raise ValueError(
-                "BacktestingEvaluator: metric must be a non-empty string"
-            )
+            raise ValueError("BacktestingEvaluator: metric must be a non-empty string")
         window_scores: list[float] = []
         for w in range(n_windows):
             window_scores.append(self._window_score(model, split, w, metric))
         mean_score = sum(window_scores) / len(window_scores)
         variance = sum((s - mean_score) ** 2 for s in window_scores) / len(window_scores)
-        std_score = variance ** 0.5
+        std_score = variance**0.5
         return {
             "window_scores": window_scores,
             "mean_score": mean_score,

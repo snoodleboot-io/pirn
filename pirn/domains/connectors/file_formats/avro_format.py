@@ -31,8 +31,7 @@ class AvroFormat(BatchFileFormat):
     def __init__(self, schema: dict[str, Any] | None = None) -> None:
         if schema is not None and not isinstance(schema, dict):
             raise TypeError(
-                "AvroFormat: schema must be a dict or None, got "
-                f"{type(schema).__name__}"
+                f"AvroFormat: schema must be a dict or None, got {type(schema).__name__}"
             )
         self._schema = schema
 
@@ -44,16 +43,12 @@ class AvroFormat(BatchFileFormat):
     def schema(self) -> dict[str, Any] | None:
         return self._schema
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         fastavro = self._load_fastavro()
         reader = fastavro.reader(io.BytesIO(payload))
         return [dict(record) for record in reader]
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         fastavro = self._load_fastavro()
         materialised: list[Mapping[str, Any]] = list(records)
         schema = self._schema
@@ -74,15 +69,12 @@ class AvroFormat(BatchFileFormat):
             import fastavro
         except ImportError as exc:
             raise ImportError(
-                "AvroFormat requires fastavro. Install with "
-                "`pip install pirn[avro]`."
+                "AvroFormat requires fastavro. Install with `pip install pirn[avro]`."
             ) from exc
         return fastavro
 
     @classmethod
-    def _infer_schema(
-        cls, sample: Mapping[str, Any]
-    ) -> dict[str, Any]:
+    def _infer_schema(cls, sample: Mapping[str, Any]) -> dict[str, Any]:
         fields: list[dict[str, Any]] = []
         for key, value in sample.items():
             fields.append(

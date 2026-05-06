@@ -77,9 +77,7 @@ class KinesisBroker(MessageBroker):
             Data=bytes(value),
             PartitionKey=partition_key,
         )
-        self._logger.debug(
-            "kinesis.publish", extra={"stream": topic, "size": len(value)}
-        )
+        self._logger.debug("kinesis.publish", extra={"stream": topic, "size": len(value)})
 
     async def consume(
         self,
@@ -107,9 +105,7 @@ class KinesisBroker(MessageBroker):
                 )
                 shard_iterator = iterator_response["ShardIterator"]
                 while shard_iterator is not None:
-                    records_response = await client.get_records(
-                        ShardIterator=shard_iterator
-                    )
+                    records_response = await client.get_records(ShardIterator=shard_iterator)
                     records = records_response.get("Records", [])
                     if not records:
                         break
@@ -134,8 +130,7 @@ class KinesisBroker(MessageBroker):
             import aioboto3  # type: ignore[import-untyped]
         except ImportError as exc:
             raise ImportError(
-                "KinesisBroker requires aioboto3; install via "
-                "`pip install pirn[kinesis]`"
+                "KinesisBroker requires aioboto3; install via `pip install pirn[kinesis]`"
             ) from exc
         session = aioboto3.Session(
             aws_access_key_id=self._config.access_key_id,

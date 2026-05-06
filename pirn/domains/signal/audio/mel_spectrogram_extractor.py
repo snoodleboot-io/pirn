@@ -85,26 +85,14 @@ class MelSpectrogramExtractor(Knot):
             ValueError: If n_mels, n_fft, or hop_length are invalid.
         """
         if not isinstance(n_mels, int) or n_mels <= 0:
-            raise ValueError(
-                "MelSpectrogramExtractor: n_mels must be a positive integer"
-            )
+            raise ValueError("MelSpectrogramExtractor: n_mels must be a positive integer")
         if not isinstance(n_fft, int) or n_fft <= 0:
-            raise ValueError(
-                "MelSpectrogramExtractor: n_fft must be a positive integer"
-            )
+            raise ValueError("MelSpectrogramExtractor: n_fft must be a positive integer")
         if not isinstance(hop_length, int) or hop_length <= 0:
-            raise ValueError(
-                "MelSpectrogramExtractor: hop_length must be a positive integer"
-            )
+            raise ValueError("MelSpectrogramExtractor: hop_length must be a positive integer")
         if hop_length > n_fft:
-            raise ValueError(
-                "MelSpectrogramExtractor: hop_length must not exceed n_fft"
-            )
-        resolution = (
-            signal.sample_rate_hz / n_fft
-            if signal.sample_rate_hz > 0
-            else 0.0
-        )
+            raise ValueError("MelSpectrogramExtractor: hop_length must not exceed n_fft")
+        resolution = signal.sample_rate_hz / n_fft if signal.sample_rate_hz > 0 else 0.0
         return SpectrumFrame(
             signal_id=signal.signal_id,
             frequency_bins=n_mels,

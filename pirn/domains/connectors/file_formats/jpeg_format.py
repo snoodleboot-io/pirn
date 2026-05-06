@@ -43,15 +43,9 @@ class JpegFormat(BatchFileFormat):
 
     def __init__(self, quality: int = 95) -> None:
         if not isinstance(quality, int) or isinstance(quality, bool):
-            raise TypeError(
-                "JpegFormat: quality must be an int, got "
-                f"{type(quality).__name__}"
-            )
+            raise TypeError(f"JpegFormat: quality must be an int, got {type(quality).__name__}")
         if quality < 1 or quality > 100:
-            raise ValueError(
-                "JpegFormat: quality must be in [1, 100], got "
-                f"{quality}"
-            )
+            raise ValueError(f"JpegFormat: quality must be in [1, 100], got {quality}")
         self._quality = quality
 
     @property
@@ -62,14 +56,9 @@ class JpegFormat(BatchFileFormat):
     def quality(self) -> int:
         return self._quality
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         if not isinstance(payload, (bytes, bytearray)):
-            raise TypeError(
-                "JpegFormat: payload must be bytes, got "
-                f"{type(payload).__name__}"
-            )
+            raise TypeError(f"JpegFormat: payload must be bytes, got {type(payload).__name__}")
         pil_image = self._load_pil_image()
         with pil_image.open(io.BytesIO(payload)) as image:
             image.load()
@@ -82,9 +71,7 @@ class JpegFormat(BatchFileFormat):
                 }
             ]
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         materialised: list[Mapping[str, Any]] = list(records)
         if not materialised:
             raise ValueError(
@@ -114,25 +101,13 @@ class JpegFormat(BatchFileFormat):
         mode = record["mode"]
         data = record["data"]
         if not isinstance(width, int) or width <= 0:
-            raise ValueError(
-                "JpegFormat: 'width' must be a positive int, got "
-                f"{width!r}"
-            )
+            raise ValueError(f"JpegFormat: 'width' must be a positive int, got {width!r}")
         if not isinstance(height, int) or height <= 0:
-            raise ValueError(
-                "JpegFormat: 'height' must be a positive int, got "
-                f"{height!r}"
-            )
+            raise ValueError(f"JpegFormat: 'height' must be a positive int, got {height!r}")
         if not isinstance(mode, str) or not mode:
-            raise ValueError(
-                "JpegFormat: 'mode' must be a non-empty string, got "
-                f"{mode!r}"
-            )
+            raise ValueError(f"JpegFormat: 'mode' must be a non-empty string, got {mode!r}")
         if not isinstance(data, (bytes, bytearray)):
-            raise TypeError(
-                "JpegFormat: 'data' must be bytes, got "
-                f"{type(data).__name__}"
-            )
+            raise TypeError(f"JpegFormat: 'data' must be bytes, got {type(data).__name__}")
         return width, height, mode, bytes(data)
 
     @staticmethod
@@ -141,7 +116,6 @@ class JpegFormat(BatchFileFormat):
             from PIL import Image
         except ImportError as exc:
             raise ImportError(
-                "JpegFormat requires Pillow. Install with "
-                "`pip install pirn[image]`."
+                "JpegFormat requires Pillow. Install with `pip install pirn[image]`."
             ) from exc
         return Image

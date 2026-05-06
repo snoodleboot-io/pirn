@@ -82,13 +82,9 @@ class PartitionedOverwrite(Knot):
         **_: Any,
     ) -> dict[str, Any]:
         if not isinstance(source_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "PartitionedOverwrite: source_pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("PartitionedOverwrite: source_pool must be a DatabaseConnectionPool")
         if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "PartitionedOverwrite: target_pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("PartitionedOverwrite: target_pool must be a DatabaseConnectionPool")
         if not isinstance(source_query, str) or not source_query:
             raise ValueError("PartitionedOverwrite: source_query must be a non-empty string")
         if not isinstance(target_table, str) or not target_table:

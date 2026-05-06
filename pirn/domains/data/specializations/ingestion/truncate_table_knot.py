@@ -58,8 +58,7 @@ class TruncateTableKnot(Knot):
             raise ValueError("TruncateTableKnot: table must be a non-empty string")
         if not table.replace("_", "").isalnum():
             raise ValueError(
-                f"TruncateTableKnot: table {table!r} must be alphanumeric "
-                "(plus underscores)"
+                f"TruncateTableKnot: table {table!r} must be alphanumeric (plus underscores)"
             )
         await pool.execute(f"DELETE FROM {table}")
         return table

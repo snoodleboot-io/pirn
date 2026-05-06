@@ -89,19 +89,13 @@ class ImageClassificationPipeline(SubTapestry):
             TypeError: If pool is not a DatabaseConnectionPool.
         """
         if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError(
-                "ImageClassificationPipeline: pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("ImageClassificationPipeline: pool must be a DatabaseConnectionPool")
         if not isinstance(query, str) or not query:
             raise ValueError("ImageClassificationPipeline: query must be a non-empty string")
         if not isinstance(image_column, str) or not image_column:
-            raise ValueError(
-                "ImageClassificationPipeline: image_column must be a non-empty string"
-            )
+            raise ValueError("ImageClassificationPipeline: image_column must be a non-empty string")
         if not isinstance(label_column, str) or not label_column:
-            raise ValueError(
-                "ImageClassificationPipeline: label_column must be a non-empty string"
-            )
+            raise ValueError("ImageClassificationPipeline: label_column must be a non-empty string")
         if architecture not in self.valid_architectures:
             raise ValueError(
                 f"ImageClassificationPipeline: architecture must be one of {sorted(self.valid_architectures)}"

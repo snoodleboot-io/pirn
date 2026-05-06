@@ -83,17 +83,11 @@ class SSADecomposer(Knot):
             ValueError: If embedding_dim or component_count are invalid.
         """
         if not isinstance(embedding_dim, int) or embedding_dim <= 1:
-            raise ValueError(
-                "SSADecomposer: embedding_dim must be an integer > 1"
-            )
+            raise ValueError("SSADecomposer: embedding_dim must be an integer > 1")
         if not isinstance(component_count, int) or component_count <= 0:
-            raise ValueError(
-                "SSADecomposer: component_count must be a positive integer"
-            )
+            raise ValueError("SSADecomposer: component_count must be a positive integer")
         if component_count > embedding_dim:
-            raise ValueError(
-                "SSADecomposer: component_count must not exceed embedding_dim"
-            )
+            raise ValueError("SSADecomposer: component_count must not exceed embedding_dim")
         return SourceFrame(
             signal_id=signal.signal_id,
             source_count=component_count,

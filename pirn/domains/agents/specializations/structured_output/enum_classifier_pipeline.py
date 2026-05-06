@@ -72,14 +72,11 @@ class EnumClassifierPipeline(SubTapestry):
         """
         if not isinstance(llm, LLMProvider):
             raise TypeError(
-                "EnumClassifierPipeline: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
+                f"EnumClassifierPipeline: llm must be an LLMProvider, got {type(llm).__name__}"
             )
         labels_tuple = tuple(labels)
         if not labels_tuple:
-            raise ValueError(
-                "EnumClassifierPipeline: labels must be a non-empty sequence"
-            )
+            raise ValueError("EnumClassifierPipeline: labels must be a non-empty sequence")
         for index, label in enumerate(labels_tuple):
             if not isinstance(label, str) or not label:
                 raise TypeError(
@@ -88,8 +85,7 @@ class EnumClassifierPipeline(SubTapestry):
                 )
         if not isinstance(prompt, str):
             raise TypeError(
-                "EnumClassifierPipeline: prompt must be a string, "
-                f"got {type(prompt).__name__}"
+                f"EnumClassifierPipeline: prompt must be a string, got {type(prompt).__name__}"
             )
         with Tapestry() as inner:
             _EnumClassifierAttempt(
@@ -102,7 +98,6 @@ class EnumClassifierPipeline(SubTapestry):
         choice = inner_result.outputs.get("classify")
         if not isinstance(choice, str):
             raise ValueError(
-                "EnumClassifierPipeline: classifier produced "
-                f"{type(choice).__name__}, expected str"
+                f"EnumClassifierPipeline: classifier produced {type(choice).__name__}, expected str"
             )
         return choice

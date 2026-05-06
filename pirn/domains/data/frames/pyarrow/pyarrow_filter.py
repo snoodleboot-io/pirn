@@ -83,9 +83,7 @@ class PyarrowFilter(Knot):
                 "or predicate=<callable(table) -> pyarrow.Array[bool] | Expression>"
             )
         if expression is not None and predicate is not None:
-            raise TypeError(
-                "PyarrowFilter: pass either expression= or predicate=, not both"
-            )
+            raise TypeError("PyarrowFilter: pass either expression= or predicate=, not both")
         if expression is not None:
             if not isinstance(expression, pc.Expression):
                 raise TypeError(

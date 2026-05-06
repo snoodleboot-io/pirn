@@ -61,9 +61,7 @@ class BronzeRawIngest(Knot):
         )
 
     @staticmethod
-    def _build_insert_query(
-        target_table: str, source_columns: tuple[str, ...]
-    ) -> str:
+    def _build_insert_query(target_table: str, source_columns: tuple[str, ...]) -> str:
         all_cols = [*source_columns, "_ingested_at", "_source_uri"]
         column_list = ", ".join(all_cols)
         placeholders = ", ".join(["?"] * len(all_cols))
@@ -98,25 +96,15 @@ class BronzeRawIngest(Knot):
             ValueError: If any string argument is empty, or ``source_columns`` is empty.
         """
         if not isinstance(source_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "BronzeRawIngest: source_pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("BronzeRawIngest: source_pool must be a DatabaseConnectionPool")
         if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "BronzeRawIngest: target_pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("BronzeRawIngest: target_pool must be a DatabaseConnectionPool")
         if not isinstance(source_query, str) or not source_query:
-            raise ValueError(
-                "BronzeRawIngest: source_query must be a non-empty string"
-            )
+            raise ValueError("BronzeRawIngest: source_query must be a non-empty string")
         if not isinstance(target_table, str) or not target_table:
-            raise ValueError(
-                "BronzeRawIngest: target_table must be a non-empty string"
-            )
+            raise ValueError("BronzeRawIngest: target_table must be a non-empty string")
         if not isinstance(source_uri, str) or not source_uri:
-            raise ValueError(
-                "BronzeRawIngest: source_uri must be a non-empty string"
-            )
+            raise ValueError("BronzeRawIngest: source_uri must be a non-empty string")
         column_tuple = tuple(source_columns)
         if not column_tuple:
             raise ValueError("BronzeRawIngest: source_columns must be non-empty")

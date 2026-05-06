@@ -106,34 +106,22 @@ class DataVaultHubLoader(Knot):
         **_: Any,
     ) -> dict[str, Any]:
         if not isinstance(source_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "DataVaultHubLoader: source_pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("DataVaultHubLoader: source_pool must be a DatabaseConnectionPool")
         if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "DataVaultHubLoader: target_pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("DataVaultHubLoader: target_pool must be a DatabaseConnectionPool")
         for label, value in (
             ("source_query", source_query),
             ("target_table", target_table),
             ("record_source", record_source),
         ):
             if not isinstance(value, str) or not value:
-                raise ValueError(
-                    f"DataVaultHubLoader: {label} must be a non-empty string"
-                )
+                raise ValueError(f"DataVaultHubLoader: {label} must be a non-empty string")
         if not isinstance(load_date_column, str) or not load_date_column:
-            raise ValueError(
-                "DataVaultHubLoader: load_date_column must be a non-empty string"
-            )
+            raise ValueError("DataVaultHubLoader: load_date_column must be a non-empty string")
         if not isinstance(record_source_column, str) or not record_source_column:
-            raise ValueError(
-                "DataVaultHubLoader: record_source_column must be a non-empty string"
-            )
+            raise ValueError("DataVaultHubLoader: record_source_column must be a non-empty string")
         if not isinstance(hash_key_column, str) or not hash_key_column:
-            raise ValueError(
-                "DataVaultHubLoader: hash_key_column must be a non-empty string"
-            )
+            raise ValueError("DataVaultHubLoader: hash_key_column must be a non-empty string")
         IdentifierValidator.validate_column("target_table", target_table)
         IdentifierValidator.validate_column("hash_key_column", hash_key_column)
         IdentifierValidator.validate_column("load_date_column", load_date_column)

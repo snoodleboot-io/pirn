@@ -82,16 +82,9 @@ class AudioDenoiser(Knot):
             ValueError: If noise_estimate_frames or over_subtraction_factor are invalid.
         """
         if not isinstance(noise_estimate_frames, int) or noise_estimate_frames <= 0:
-            raise ValueError(
-                "AudioDenoiser: noise_estimate_frames must be a positive integer"
-            )
-        if (
-            not isinstance(over_subtraction_factor, (int, float))
-            or over_subtraction_factor < 1.0
-        ):
-            raise ValueError(
-                "AudioDenoiser: over_subtraction_factor must be >= 1.0"
-            )
+            raise ValueError("AudioDenoiser: noise_estimate_frames must be a positive integer")
+        if not isinstance(over_subtraction_factor, (int, float)) or over_subtraction_factor < 1.0:
+            raise ValueError("AudioDenoiser: over_subtraction_factor must be >= 1.0")
         return SignalFrame(
             signal_id=f"{signal.signal_id}:denoised",
             channel_count=signal.channel_count,

@@ -92,9 +92,7 @@ class RayMap(Knot):
             raise TypeError("RayMap: fn must be a callable (batch) -> batch")
         if batch_format is not None and not isinstance(batch_format, str):
             raise TypeError("RayMap: batch_format must be a string or None")
-        if batch_size is not None and (
-            not isinstance(batch_size, int) or batch_size <= 0
-        ):
+        if batch_size is not None and (not isinstance(batch_size, int) or batch_size <= 0):
             raise ValueError("RayMap: batch_size must be a positive int")
         map_kwargs: dict[str, Any] = {}
         if batch_format is not None:

@@ -72,7 +72,5 @@ class ExpressionQuantifier(Knot):
             ("sample_id", sample_id),
         ):
             if not isinstance(value, str) or not value:
-                raise ValueError(
-                    f"ExpressionQuantifier: {label} must be a non-empty string"
-                )
+                raise ValueError(f"ExpressionQuantifier: {label} must be a non-empty string")
         return {}

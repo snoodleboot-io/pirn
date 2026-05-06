@@ -77,12 +77,8 @@ class RankingEvalPipeline(SubTapestry):
             f"map_at_{k}",
         )
         with Tapestry() as inner:
-            model_node = _emit_value(
-                value=model, _config=KnotConfig(id="model")
-            )
-            split_node = _emit_value(
-                value=split, _config=KnotConfig(id="split")
-            )
+            model_node = _emit_value(value=model, _config=KnotConfig(id="model"))
+            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
             Evaluator(
                 model=model_node,
                 split=split_node,

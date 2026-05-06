@@ -59,15 +59,9 @@ class ChainOfThought(Knot):
             TypeError: If prompt is not a string or llm is not an LLMProvider.
         """
         if not isinstance(prompt, str):
-            raise TypeError(
-                "ChainOfThought: prompt must be a string, "
-                f"got {type(prompt).__name__}"
-            )
+            raise TypeError(f"ChainOfThought: prompt must be a string, got {type(prompt).__name__}")
         if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "ChainOfThought: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
+            raise TypeError(f"ChainOfThought: llm must be an LLMProvider, got {type(llm).__name__}")
         messages = [
             {"role": "system", "content": type(self)._system_prompt},
             {"role": "user", "content": prompt},

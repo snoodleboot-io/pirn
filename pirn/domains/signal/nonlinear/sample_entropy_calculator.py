@@ -79,13 +79,9 @@ class SampleEntropyCalculator(Knot):
             ValueError: If m or r are invalid.
         """
         if not isinstance(m, int) or m <= 0:
-            raise ValueError(
-                "SampleEntropyCalculator: m must be a positive integer"
-            )
+            raise ValueError("SampleEntropyCalculator: m must be a positive integer")
         if not isinstance(r, (int, float)) or r <= 0.0:
-            raise ValueError(
-                "SampleEntropyCalculator: r must be a positive float"
-            )
+            raise ValueError("SampleEntropyCalculator: r must be a positive float")
         return {
             "sample_entropy": 0.0,
             "m": float(m),

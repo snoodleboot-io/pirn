@@ -81,9 +81,7 @@ class ExposureLineageTag(Knot):
             ("audit_log_table", audit_log_table),
         ):
             if not isinstance(value, str) or not value:
-                raise ValueError(
-                    f"ExposureLineageTag: {label} must be a non-empty string"
-                )
+                raise ValueError(f"ExposureLineageTag: {label} must be a non-empty string")
         IdentifierValidator.validate_column("source_table", source_table)
         IdentifierValidator.validate_column("target_table", target_table)
         IdentifierValidator.validate_column("audit_log_table", audit_log_table)

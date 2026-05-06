@@ -84,17 +84,11 @@ class EchoCanceller(Knot):
             ValueError: If filter_length or step_size are invalid, or sample rates differ.
         """
         if not isinstance(filter_length, int) or filter_length <= 0:
-            raise ValueError(
-                "EchoCanceller: filter_length must be a positive integer"
-            )
+            raise ValueError("EchoCanceller: filter_length must be a positive integer")
         if not isinstance(step_size, (int, float)) or step_size <= 0 or step_size > 1:
-            raise ValueError(
-                "EchoCanceller: step_size must be in range (0, 1]"
-            )
+            raise ValueError("EchoCanceller: step_size must be in range (0, 1]")
         if microphone.sample_rate_hz != far_end.sample_rate_hz:
-            raise ValueError(
-                "EchoCanceller: microphone and far_end sample rates must match"
-            )
+            raise ValueError("EchoCanceller: microphone and far_end sample rates must match")
         return SignalFrame(
             signal_id=f"{microphone.signal_id}:echo_cancelled",
             channel_count=microphone.channel_count,

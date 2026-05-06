@@ -81,17 +81,11 @@ class PolyphaseResampler(Knot):
             ValueError: If upsample_factor, downsample_factor, or filter_length are invalid.
         """
         if not isinstance(upsample_factor, int) or upsample_factor <= 0:
-            raise ValueError(
-                "PolyphaseResampler: upsample_factor must be a positive integer"
-            )
+            raise ValueError("PolyphaseResampler: upsample_factor must be a positive integer")
         if not isinstance(downsample_factor, int) or downsample_factor <= 0:
-            raise ValueError(
-                "PolyphaseResampler: downsample_factor must be a positive integer"
-            )
+            raise ValueError("PolyphaseResampler: downsample_factor must be a positive integer")
         if not isinstance(filter_length, int) or filter_length <= 0:
-            raise ValueError(
-                "PolyphaseResampler: filter_length must be a positive integer"
-            )
+            raise ValueError("PolyphaseResampler: filter_length must be a positive integer")
         new_rate = (signal.sample_rate_hz * upsample_factor) / downsample_factor
         new_samples = (signal.samples_per_channel * upsample_factor) // downsample_factor
         return SignalFrame(

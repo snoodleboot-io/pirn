@@ -95,7 +95,12 @@ class S3DataStore(_CloudObjectStore):
             except Exception as exc:
                 err_name = type(exc).__name__
                 err_str = str(exc)
-                if "NoSuchKey" in err_name or "NoSuchKey" in err_str or "404" in err_str or "NotFound" in err_name:
+                if (
+                    "NoSuchKey" in err_name
+                    or "NoSuchKey" in err_str
+                    or "404" in err_str
+                    or "NotFound" in err_name
+                ):
                     return False
                 raise
 

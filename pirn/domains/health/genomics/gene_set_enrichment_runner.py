@@ -16,6 +16,7 @@ References:
     - Subramanian et al. (2005) Gene set enrichment analysis.
     - clusterProfiler: https://bioconductor.org/packages/clusterProfiler/
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -27,9 +28,7 @@ from pirn.core.knot_config import KnotConfig
 class GeneSetEnrichmentRunner(Knot):
     """Run GSEA or over-representation analysis on a ranked gene list."""
 
-    _VALID_DATABASES: frozenset[str] = frozenset(
-        {"hallmark", "kegg", "reactome", "go_bp", "go_mf"}
-    )
+    _VALID_DATABASES: frozenset[str] = frozenset({"hallmark", "kegg", "reactome", "go_bp", "go_mf"})
     _VALID_METHODS: frozenset[str] = frozenset({"gsea", "ora"})
 
     def __init__(

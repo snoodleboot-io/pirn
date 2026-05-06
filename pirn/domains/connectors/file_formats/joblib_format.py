@@ -47,8 +47,7 @@ class JoblibFormat(BatchFileFormat):
     ) -> None:
         if not isinstance(allow_unsigned, bool):
             raise TypeError(
-                "JoblibFormat: allow_unsigned must be a bool, "
-                f"got {type(allow_unsigned).__name__}"
+                f"JoblibFormat: allow_unsigned must be a bool, got {type(allow_unsigned).__name__}"
             )
         if signer is None and not allow_unsigned:
             raise ValueError(
@@ -69,14 +68,9 @@ class JoblibFormat(BatchFileFormat):
     def signed(self) -> bool:
         return self._signer is not None
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         if not isinstance(payload, (bytes, bytearray)):
-            raise TypeError(
-                "JoblibFormat: payload must be bytes, "
-                f"got {type(payload).__name__}"
-            )
+            raise TypeError(f"JoblibFormat: payload must be bytes, got {type(payload).__name__}")
         raw = bytes(payload)
         if self._signer is not None:
             raw = self._signer.verify(raw)
@@ -84,18 +78,14 @@ class JoblibFormat(BatchFileFormat):
         try:
             obj = joblib.load(io.BytesIO(raw))
         except Exception as exc:
-            raise ValueError(
-                f"JoblibFormat: failed to deserialise payload — {exc}"
-            ) from exc
+            raise ValueError(f"JoblibFormat: failed to deserialise payload — {exc}") from exc
         record: dict[str, Any] = {
             "object": obj,
             "object_type": type(obj).__name__,
         }
         return [record]
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         materialised: list[Mapping[str, Any]] = list(records)
         if len(materialised) != 1:
             raise ValueError(
@@ -104,17 +94,13 @@ class JoblibFormat(BatchFileFormat):
             )
         record = materialised[0]
         if "object" not in record:
-            raise ValueError(
-                "JoblibFormat: record missing required 'object' key"
-            )
+            raise ValueError("JoblibFormat: record missing required 'object' key")
         joblib = self._load_joblib()
         buf = io.BytesIO()
         try:
             joblib.dump(record["object"], buf)
         except Exception as exc:
-            raise ValueError(
-                f"JoblibFormat: failed to serialise object — {exc}"
-            ) from exc
+            raise ValueError(f"JoblibFormat: failed to serialise object — {exc}") from exc
         payload = buf.getvalue()
         if self._signer is not None:
             payload = self._signer.sign(payload)
@@ -126,7 +112,6 @@ class JoblibFormat(BatchFileFormat):
             import joblib
         except ImportError as exc:
             raise ImportError(
-                "JoblibFormat requires joblib. Install with "
-                "`pip install pirn[joblib]`."
+                "JoblibFormat requires joblib. Install with `pip install pirn[joblib]`."
             ) from exc
         return joblib

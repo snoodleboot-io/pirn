@@ -206,7 +206,10 @@ class PipelineLoader:
 
         if isinstance(node_spec, SourceSpec):
             callable_obj = PipelineLoader._resolve_callable(
-                node_spec.callable, known, pipeline_spec.allow_callable_refs, allowed_module_prefixes
+                node_spec.callable,
+                known,
+                pipeline_spec.allow_callable_refs,
+                allowed_module_prefixes,
             )
             if isinstance(callable_obj, KnotFactory):
                 factory = callable_obj
@@ -218,7 +221,10 @@ class PipelineLoader:
 
         if isinstance(node_spec, (KnotSpec, SinkSpec)):
             callable_obj = PipelineLoader._resolve_callable(
-                node_spec.callable, known, pipeline_spec.allow_callable_refs, allowed_module_prefixes
+                node_spec.callable,
+                known,
+                pipeline_spec.allow_callable_refs,
+                allowed_module_prefixes,
             )
             # Build kwargs: parents (resolved from built) + config values.
             kwargs: dict[str, Any] = {"_config": cfg, "tapestry": tapestry}
@@ -255,7 +261,10 @@ class PipelineLoader:
 
         if isinstance(node_spec, BranchSpec):
             selector = PipelineLoader._resolve_callable(
-                node_spec.selector, known, pipeline_spec.allow_callable_refs, allowed_module_prefixes
+                node_spec.selector,
+                known,
+                pipeline_spec.allow_callable_refs,
+                allowed_module_prefixes,
             )
             return Branch(
                 input=built[node_spec.input],
@@ -267,7 +276,10 @@ class PipelineLoader:
 
         if isinstance(node_spec, GateSpec):
             predicate = PipelineLoader._resolve_callable(
-                node_spec.predicate, known, pipeline_spec.allow_callable_refs, allowed_module_prefixes
+                node_spec.predicate,
+                known,
+                pipeline_spec.allow_callable_refs,
+                allowed_module_prefixes,
             )
             return Gate(
                 input=built[node_spec.input],

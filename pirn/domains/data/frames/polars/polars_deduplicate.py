@@ -57,16 +57,12 @@ class PolarsDeduplicate(Knot):
             A new PolarsDataBatch with duplicate key-tuple rows removed.
         """
         if not isinstance(keys, Sequence) or isinstance(keys, (str, bytes)):
-            raise TypeError(
-                "PolarsDeduplicate: keys must be a sequence of column names"
-            )
+            raise TypeError("PolarsDeduplicate: keys must be a sequence of column names")
         if not keys:
             raise ValueError("PolarsDeduplicate: keys must be non-empty")
         for key in keys:
             if not isinstance(key, str) or not key:
-                raise TypeError(
-                    "PolarsDeduplicate: every entry in keys must be a non-empty string"
-                )
+                raise TypeError("PolarsDeduplicate: every entry in keys must be a non-empty string")
         return batch.with_frame(
             batch.frame.unique(subset=list(keys), keep="first", maintain_order=True)
         )

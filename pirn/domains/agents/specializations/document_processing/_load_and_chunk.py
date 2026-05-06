@@ -65,13 +65,11 @@ class _LoadAndChunk(Knot):
         """
         if not isinstance(source, str) or not source:
             raise TypeError(
-                "DocumentSummarizerPipeline: source must be a non-empty "
-                f"string, got {source!r}"
+                f"DocumentSummarizerPipeline: source must be a non-empty string, got {source!r}"
             )
         if chunk_size <= 0:
             raise ValueError(
-                "DocumentSummarizerPipeline: chunk_size must be positive, "
-                f"got {chunk_size!r}"
+                f"DocumentSummarizerPipeline: chunk_size must be positive, got {chunk_size!r}"
             )
         text = await _LoadAndChunk._load_text(source)
         if not text:

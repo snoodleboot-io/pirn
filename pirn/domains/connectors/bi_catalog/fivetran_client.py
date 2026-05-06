@@ -35,13 +35,9 @@ class FivetranClient(ApiClient, TableSource):
         resource: str = "connectors",
     ) -> None:
         if config is None and client is None:
-            raise TypeError(
-                "FivetranClient requires either config= or client="
-            )
+            raise TypeError("FivetranClient requires either config= or client=")
         if not isinstance(resource, str) or not resource:
-            raise ValueError(
-                "FivetranClient: resource must be a non-empty string"
-            )
+            raise ValueError("FivetranClient: resource must be a non-empty string")
         self._config = config
         self._client = client
         self._closed = False
@@ -64,9 +60,7 @@ class FivetranClient(ApiClient, TableSource):
         limit: int | None = None,
     ) -> tuple[list[Mapping[str, Any]], str | None]:
         """Vendor-typed read of Fivetran connectors."""
-        return await self._list_resource(
-            "connectors", cursor=cursor, limit=limit
-        )
+        return await self._list_resource("connectors", cursor=cursor, limit=limit)
 
     async def list_groups(
         self,
@@ -75,9 +69,7 @@ class FivetranClient(ApiClient, TableSource):
         limit: int | None = None,
     ) -> tuple[list[Mapping[str, Any]], str | None]:
         """Vendor-typed read of Fivetran groups."""
-        return await self._list_resource(
-            "groups", cursor=cursor, limit=limit
-        )
+        return await self._list_resource("groups", cursor=cursor, limit=limit)
 
     async def fetch_page(
         self,
@@ -86,9 +78,7 @@ class FivetranClient(ApiClient, TableSource):
         page_size: int | None = None,
     ) -> tuple[list[Mapping[str, Any]], str | None]:
         """:class:`TableSource` adapter — pages the configured resource."""
-        return await self._list_resource(
-            self._resource, cursor=cursor, limit=page_size
-        )
+        return await self._list_resource(self._resource, cursor=cursor, limit=page_size)
 
     async def _list_resource(
         self,
@@ -102,9 +92,7 @@ class FivetranClient(ApiClient, TableSource):
             params["cursor"] = cursor
         if limit is not None:
             params["limit"] = limit
-        response = await self.request(
-            "GET", f"/{resource}", params=params or None
-        )
+        response = await self.request("GET", f"/{resource}", params=params or None)
         data = response.get("data") or {}
         rows = list(data.get("items") or ())
         next_cursor = data.get("next_cursor")
@@ -167,26 +155,15 @@ class FivetranClient(ApiClient, TableSource):
             import httpx  # type: ignore[import-not-found]
         except ImportError as exc:
             raise ImportError(
-                "FivetranClient requires httpx; install via "
-                "`pip install pirn[fivetran]`"
+                "FivetranClient requires httpx; install via `pip install pirn[fivetran]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError(
-                "FivetranClient: missing config and no injected client"
-            )
-        if (
-            self._config.api_key is None
-            or self._config.api_secret is None
-        ):
-            raise RuntimeError(
-                "FivetranClient: config.api_key and config.api_secret are "
-                "required"
-            )
+            raise RuntimeError("FivetranClient: missing config and no injected client")
+        if self._config.api_key is None or self._config.api_secret is None:
+            raise RuntimeError("FivetranClient: config.api_key and config.api_secret are required")
         try:
             client = httpx.AsyncClient(
-                auth=httpx.BasicAuth(
-                    self._config.api_key, self._config.api_secret
-                )
+                auth=httpx.BasicAuth(self._config.api_key, self._config.api_secret)
             )
         except Exception as exc:
             safe_message = self._scrubber.scrub(str(exc))

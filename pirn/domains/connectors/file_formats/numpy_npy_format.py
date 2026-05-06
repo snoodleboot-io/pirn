@@ -39,9 +39,7 @@ class NumpyNpyFormat(BatchFileFormat):
         field_names: Sequence[str] | None = None,
     ) -> None:
         if field_names is not None:
-            if not isinstance(field_names, Sequence) or isinstance(
-                field_names, (str, bytes)
-            ):
+            if not isinstance(field_names, Sequence) or isinstance(field_names, (str, bytes)):
                 raise TypeError(
                     "NumpyNpyFormat: field_names must be a sequence "
                     f"of strings, got {type(field_names).__name__}"
@@ -49,8 +47,7 @@ class NumpyNpyFormat(BatchFileFormat):
             for name in field_names:
                 if not isinstance(name, str) or not name:
                     raise ValueError(
-                        "NumpyNpyFormat: every field name must be a "
-                        f"non-empty string, got {name!r}"
+                        f"NumpyNpyFormat: every field name must be a non-empty string, got {name!r}"
                     )
         self._field_names: tuple[str, ...] | None = (
             tuple(field_names) if field_names is not None else None
@@ -64,9 +61,7 @@ class NumpyNpyFormat(BatchFileFormat):
     def field_names(self) -> tuple[str, ...] | None:
         return self._field_names
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         np = self._load_numpy()
         array = np.load(io.BytesIO(payload), allow_pickle=False)
         if array.dtype.names is not None:
@@ -97,9 +92,7 @@ class NumpyNpyFormat(BatchFileFormat):
             records.append(record)
         return records
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         np = self._load_numpy()
         materialised = [dict(record) for record in records]
         if not materialised:
@@ -114,18 +107,12 @@ class NumpyNpyFormat(BatchFileFormat):
         return buf.getvalue()
 
     @classmethod
-    def _records_to_structured_array(
-        cls, records: list[dict[str, Any]], np: Any
-    ) -> Any:
+    def _records_to_structured_array(cls, records: list[dict[str, Any]], np: Any) -> Any:
         field_order = cls._derive_field_order(records)
         dtype_fields: list[tuple[str, Any]] = []
         for field in field_order:
-            sample_value = next(
-                (rec[field] for rec in records if field in rec), None
-            )
-            dtype_fields.append(
-                (field, cls._infer_numpy_dtype(sample_value, records, field, np))
-            )
+            sample_value = next((rec[field] for rec in records if field in rec), None)
+            dtype_fields.append((field, cls._infer_numpy_dtype(sample_value, records, field, np)))
         structured = np.zeros(len(records), dtype=dtype_fields)
         for index, record in enumerate(records):
             for field in field_order:
@@ -149,9 +136,7 @@ class NumpyNpyFormat(BatchFileFormat):
         return field_order
 
     @staticmethod
-    def _iter_structured(
-        array: Any, np: Any
-    ) -> list[Mapping[str, Any]]:
+    def _iter_structured(array: Any, np: Any) -> list[Mapping[str, Any]]:
         records: list[Mapping[str, Any]] = []
         names = array.dtype.names
         for row in array:
@@ -176,21 +161,13 @@ class NumpyNpyFormat(BatchFileFormat):
             return np.float64
         if isinstance(sample_value, str):
             max_len = max(
-                (
-                    len(rec[field])
-                    for rec in records
-                    if isinstance(rec.get(field), str)
-                ),
+                (len(rec[field]) for rec in records if isinstance(rec.get(field), str)),
                 default=1,
             )
             return f"U{max(max_len, 1)}"
         if isinstance(sample_value, bytes):
             max_len = max(
-                (
-                    len(rec[field])
-                    for rec in records
-                    if isinstance(rec.get(field), bytes)
-                ),
+                (len(rec[field]) for rec in records if isinstance(rec.get(field), bytes)),
                 default=1,
             )
             return f"S{max(max_len, 1)}"
@@ -225,7 +202,6 @@ class NumpyNpyFormat(BatchFileFormat):
             import numpy as np
         except ImportError as exc:
             raise ImportError(
-                "NumpyNpyFormat requires numpy. Install with "
-                "`pip install pirn[ml]`."
+                "NumpyNpyFormat requires numpy. Install with `pip install pirn[ml]`."
             ) from exc
         return np

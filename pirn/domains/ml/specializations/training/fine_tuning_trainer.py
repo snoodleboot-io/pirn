@@ -92,9 +92,7 @@ class FineTuningTrainer(SubTapestry):
             TypeError: If the inner trainer or evaluator returns an unexpected type.
         """
         if not isinstance(pretrained_model_id, str) or not pretrained_model_id:
-            raise ValueError(
-                "FineTuningTrainer: pretrained_model_id must be a non-empty string"
-            )
+            raise ValueError("FineTuningTrainer: pretrained_model_id must be a non-empty string")
         if not isinstance(algorithm, str) or not algorithm:
             raise ValueError("FineTuningTrainer: algorithm must be a non-empty string")
         if not isinstance(frozen_layers, int):
@@ -106,9 +104,7 @@ class FineTuningTrainer(SubTapestry):
             raise ValueError("FineTuningTrainer: metrics must be non-empty")
         for metric in metric_tuple:
             if not isinstance(metric, str) or not metric:
-                raise ValueError(
-                    "FineTuningTrainer: every metric name must be a non-empty string"
-                )
+                raise ValueError("FineTuningTrainer: every metric name must be a non-empty string")
         if hyperparameters is not None and not isinstance(hyperparameters, Mapping):
             raise TypeError("FineTuningTrainer: hyperparameters must be a Mapping")
         hp = dict(hyperparameters) if hyperparameters is not None else {}
@@ -132,13 +128,9 @@ class FineTuningTrainer(SubTapestry):
         trained_model = result.outputs["train"]
         report = result.outputs["evaluate"]
         if not isinstance(trained_model, TrainedModel):
-            raise TypeError(
-                "FineTuningTrainer: trainer did not return a TrainedModel"
-            )
+            raise TypeError("FineTuningTrainer: trainer did not return a TrainedModel")
         if not isinstance(report, EvalReport):
-            raise TypeError(
-                "FineTuningTrainer: evaluator did not return an EvalReport"
-            )
+            raise TypeError("FineTuningTrainer: evaluator did not return an EvalReport")
         return {
             "model": trained_model,
             "eval_report": report,

@@ -107,23 +107,15 @@ class WellborePetrophysicsWorkflow(SubTapestry):
             RunResult from the inner pipeline spanning LAS ingest through lithology classification.
         """
         if not isinstance(file_path, str) or not file_path:
-            raise ValueError(
-                "WellborePetrophysicsWorkflow: file_path must be a non-empty string"
-            )
+            raise ValueError("WellborePetrophysicsWorkflow: file_path must be a non-empty string")
         if not isinstance(well_id, str) or not well_id:
-            raise ValueError(
-                "WellborePetrophysicsWorkflow: well_id must be a non-empty string"
-            )
+            raise ValueError("WellborePetrophysicsWorkflow: well_id must be a non-empty string")
         curve_tuple = tuple(curves)
         required_tuple = tuple(required_curves)
         if not curve_tuple:
-            raise ValueError(
-                "WellborePetrophysicsWorkflow: curves must be non-empty"
-            )
+            raise ValueError("WellborePetrophysicsWorkflow: curves must be non-empty")
         if not required_tuple:
-            raise ValueError(
-                "WellborePetrophysicsWorkflow: required_curves must be non-empty"
-            )
+            raise ValueError("WellborePetrophysicsWorkflow: required_curves must be non-empty")
         with Tapestry() as inner:
             ingest = LasFileIngester(
                 file_path=file_path,

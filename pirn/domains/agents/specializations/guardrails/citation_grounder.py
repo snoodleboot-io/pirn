@@ -43,9 +43,7 @@ class CitationGrounder(Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        super().__init__(
-            response=response, sources=sources, llm=llm, _config=_config, **kwargs
-        )
+        super().__init__(response=response, sources=sources, llm=llm, _config=_config, **kwargs)
 
     async def process(
         self,
@@ -71,9 +69,7 @@ class CitationGrounder(Knot):
                 "CitationGrounder: response must be an AgentResponse, "
                 f"got {type(response).__name__}"
             )
-        sources_text = "\n\n".join(
-            f"[{i + 1}]: {src}" for i, src in enumerate(sources)
-        )
+        sources_text = "\n\n".join(f"[{i + 1}]: {src}" for i, src in enumerate(sources))
         prompt = (
             "Rewrite the following response to include inline citations "
             "referencing the numbered source passages below. "

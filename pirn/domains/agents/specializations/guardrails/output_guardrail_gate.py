@@ -87,7 +87,6 @@ class OutputGuardrailGate(SubTapestry):
         validated = inner_result.outputs.get("validate")
         if not isinstance(validated, AgentResponse):
             raise RuntimeError(
-                "OutputGuardrailGate: inner validator did not return an "
-                "AgentResponse"
+                "OutputGuardrailGate: inner validator did not return an AgentResponse"
             )
         return validated

@@ -78,17 +78,13 @@ class TextEmbeddingExtractor(SubTapestry):
             TypeError: If embedding_provider is not an EmbeddingProvider or the inner extractor does not return a DataSplit.
         """
         if not isinstance(text_column, str) or not text_column:
-            raise ValueError(
-                "TextEmbeddingExtractor: text_column must be a non-empty string"
-            )
+            raise ValueError("TextEmbeddingExtractor: text_column must be a non-empty string")
         if not isinstance(embedding_provider, EmbeddingProvider):
             raise TypeError(
                 "TextEmbeddingExtractor: embedding_provider must be an EmbeddingProvider"
             )
         with Tapestry() as inner:
-            split_node = _emit_value(
-                value=split, _config=KnotConfig(id="split")
-            )
+            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
             EmbeddingExtractor(
                 split=split_node,
                 text_column=text_column,
@@ -98,7 +94,5 @@ class TextEmbeddingExtractor(SubTapestry):
         result = await self._run_inner(inner)
         embedded = result.outputs["embed"]
         if not isinstance(embedded, DataSplit):
-            raise TypeError(
-                "TextEmbeddingExtractor: inner extractor did not return a DataSplit"
-            )
+            raise TypeError("TextEmbeddingExtractor: inner extractor did not return a DataSplit")
         return embedded

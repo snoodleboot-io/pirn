@@ -74,13 +74,10 @@ class ImageEmbeddingExtractor(Knot):
             TypeError: If image_encoder is not an ImageEncoderProvider.
         """
         if not isinstance(image_column, str) or not image_column:
-            raise ValueError(
-                "ImageEmbeddingExtractor: image_column must be a non-empty string"
-            )
+            raise ValueError("ImageEmbeddingExtractor: image_column must be a non-empty string")
         if not isinstance(image_encoder, ImageEncoderProvider):
             raise TypeError(
-                "ImageEmbeddingExtractor: image_encoder must be an "
-                "ImageEncoderProvider"
+                "ImageEmbeddingExtractor: image_encoder must be an ImageEncoderProvider"
             )
         # Touch the encoder so misconfigured providers fail loudly at
         # planning time. We feed the column name encoded as bytes as a

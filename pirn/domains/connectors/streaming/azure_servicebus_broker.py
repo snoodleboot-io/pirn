@@ -118,9 +118,7 @@ class AzureServiceBusBroker(MessageBroker):
                 async with receiver as active_receiver:
                     async for message in active_receiver:
                         yield message
-                        complete = getattr(
-                            active_receiver, "complete_message", None
-                        )
+                        complete = getattr(active_receiver, "complete_message", None)
                         if complete is not None:
                             result = complete(message)
                             if hasattr(result, "__await__"):
@@ -167,9 +165,7 @@ class AzureServiceBusBroker(MessageBroker):
         if headers:
             properties = getattr(message, "application_properties", None)
             if properties is None:
-                message.application_properties = {
-                    name: bytes(val) for name, val in headers.items()
-                }
+                message.application_properties = {name: bytes(val) for name, val in headers.items()}
             else:
                 for name, val in headers.items():
                     properties[name] = bytes(val)
@@ -197,8 +193,6 @@ class AzureServiceBusBroker(MessageBroker):
                 "AzureServiceBusBroker: connection_string is required to "
                 "construct a ServiceBusClient"
             )
-        client = ServiceBusClient.from_connection_string(
-            self._config.connection_string
-        )
+        client = ServiceBusClient.from_connection_string(self._config.connection_string)
         self._logger.debug("azure_servicebus.connect")
         return client

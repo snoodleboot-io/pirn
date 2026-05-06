@@ -62,9 +62,7 @@ class JsonFormat(StreamingFileFormat):
     def encoding(self) -> str:
         return self._encoding
 
-    async def read(
-        self, body: AsyncIterator[bytes]
-    ) -> AsyncIterator[Mapping[str, Any]]:
+    async def read(self, body: AsyncIterator[bytes]) -> AsyncIterator[Mapping[str, Any]]:
         payload = await self._drain_bytes(body)
         if not payload.strip():
             parsed: Any = [] if self._array_root else {}
@@ -74,22 +72,19 @@ class JsonFormat(StreamingFileFormat):
         if self._array_root:
             if not isinstance(parsed, list):
                 raise ValueError(
-                    "JsonFormat: expected JSON array at root, got "
-                    f"{type(parsed).__name__}"
+                    f"JsonFormat: expected JSON array at root, got {type(parsed).__name__}"
                 )
             records: list[Mapping[str, Any]] = []
             for item in parsed:
                 if not isinstance(item, dict):
                     raise ValueError(
-                        "JsonFormat: array element is not a JSON "
-                        f"object: {type(item).__name__}"
+                        f"JsonFormat: array element is not a JSON object: {type(item).__name__}"
                     )
                 records.append(item)
         else:
             if not isinstance(parsed, dict):
                 raise ValueError(
-                    "JsonFormat: expected JSON object at root, got "
-                    f"{type(parsed).__name__}"
+                    f"JsonFormat: expected JSON object at root, got {type(parsed).__name__}"
                 )
             records = [parsed] if parsed else []
 
@@ -99,9 +94,7 @@ class JsonFormat(StreamingFileFormat):
 
         return _iter()
 
-    async def write(
-        self, records: AsyncIterator[Mapping[str, Any]]
-    ) -> AsyncIterator[bytes]:
+    async def write(self, records: AsyncIterator[Mapping[str, Any]]) -> AsyncIterator[bytes]:
         materialised = await self._drain_records(records)
         rows = [dict(record) for record in materialised]
 
@@ -110,8 +103,7 @@ class JsonFormat(StreamingFileFormat):
         else:
             if len(rows) > 1:
                 raise ValueError(
-                    "JsonFormat: array_root=False requires at most one "
-                    f"record, got {len(rows)}"
+                    f"JsonFormat: array_root=False requires at most one record, got {len(rows)}"
                 )
             single = rows[0] if rows else {}
             payload = json.dumps(single).encode(self._encoding)

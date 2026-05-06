@@ -52,7 +52,13 @@ class InputMessageScrubber(Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        super().__init__(messages=messages, deny_patterns=deny_patterns, pii_patterns=pii_patterns, _config=_config, **kwargs)
+        super().__init__(
+            messages=messages,
+            deny_patterns=deny_patterns,
+            pii_patterns=pii_patterns,
+            _config=_config,
+            **kwargs,
+        )
 
     async def process(
         self,

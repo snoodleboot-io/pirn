@@ -58,11 +58,7 @@ class WellCompletionIngester(Knot):
             DrillingParameters stub identified by the configured well ID.
         """
         if not isinstance(well_id, str) or not well_id:
-            raise ValueError(
-                "WellCompletionIngester: well_id must be a non-empty string"
-            )
+            raise ValueError("WellCompletionIngester: well_id must be a non-empty string")
         if not isinstance(record_path, str) or not record_path:
-            raise ValueError(
-                "WellCompletionIngester: record_path must be a non-empty string"
-            )
+            raise ValueError("WellCompletionIngester: record_path must be a non-empty string")
         return DrillingParameters(well_id=well_id)

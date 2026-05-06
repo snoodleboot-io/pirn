@@ -68,10 +68,7 @@ class PolynomialFeatures(Knot):
             raise ValueError("PolynomialFeatures: columns must be non-empty")
         for column in column_tuple:
             if not isinstance(column, str) or not column:
-                raise ValueError(
-                    "PolynomialFeatures: every column name must be a "
-                    "non-empty string"
-                )
+                raise ValueError("PolynomialFeatures: every column name must be a non-empty string")
         if not isinstance(degree, int):
             raise TypeError("PolynomialFeatures: degree must be an int")
         if degree < 2:
@@ -88,9 +85,7 @@ class PolynomialFeatures(Knot):
             ),
         )
 
-    def _derive_feature_names(
-        self, columns: tuple[str, ...], degree: int
-    ) -> tuple[str, ...]:
+    def _derive_feature_names(self, columns: tuple[str, ...], degree: int) -> tuple[str, ...]:
         names: list[str] = []
         for current_degree in range(2, degree + 1):
             for combo in combinations_with_replacement(columns, current_degree):

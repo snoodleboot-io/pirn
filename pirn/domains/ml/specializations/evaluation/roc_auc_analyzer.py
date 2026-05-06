@@ -43,9 +43,7 @@ class ROCAUCAnalyzer(Knot):
     ) -> None:
         super().__init__(model=model, split=split, _config=_config, **kwargs)
 
-    async def process(
-        self, model: TrainedModel, split: DataSplit, **_: Any
-    ) -> Mapping[str, Any]:
+    async def process(self, model: TrainedModel, split: DataSplit, **_: Any) -> Mapping[str, Any]:
         """Compute the ROC curve, AUC, and optimal operating point for the model on the test split.
 
         Args:

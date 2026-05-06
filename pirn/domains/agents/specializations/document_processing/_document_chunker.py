@@ -67,8 +67,7 @@ class _DocumentChunker(Knot):
         """
         if chunk_size <= 0:
             raise ValueError(
-                "DocumentIngestionPipeline: chunk_size must be positive, "
-                f"got {chunk_size!r}"
+                f"DocumentIngestionPipeline: chunk_size must be positive, got {chunk_size!r}"
             )
         if chunk_overlap < 0 or chunk_overlap >= chunk_size:
             raise ValueError(

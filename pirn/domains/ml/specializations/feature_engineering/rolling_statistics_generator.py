@@ -32,9 +32,7 @@ from pirn.domains.ml.types.ml_dataset import MLDataset
 class RollingStatisticsGenerator(Knot):
     """Append rolling statistic feature names to a time-series DataSplit."""
 
-    valid_statistics: ClassVar[frozenset[str]] = frozenset(
-        {"mean", "std", "min", "max"}
-    )
+    valid_statistics: ClassVar[frozenset[str]] = frozenset({"mean", "std", "min", "max"})
 
     def __init__(
         self,
@@ -104,10 +102,16 @@ class RollingStatisticsGenerator(Knot):
                 )
         now = datetime.now(UTC)
         return DataSplit(
-            train=self._add_rolling_features(split.train, column_tuple, window_tuple, stat_tuple, now),
-            test=self._add_rolling_features(split.test, column_tuple, window_tuple, stat_tuple, now),
+            train=self._add_rolling_features(
+                split.train, column_tuple, window_tuple, stat_tuple, now
+            ),
+            test=self._add_rolling_features(
+                split.test, column_tuple, window_tuple, stat_tuple, now
+            ),
             validation=(
-                self._add_rolling_features(split.validation, column_tuple, window_tuple, stat_tuple, now)
+                self._add_rolling_features(
+                    split.validation, column_tuple, window_tuple, stat_tuple, now
+                )
                 if split.validation is not None
                 else None
             ),

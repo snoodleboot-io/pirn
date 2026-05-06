@@ -75,9 +75,7 @@ class MusicInformationRetriever(Knot):
             ValueError: If feature_set is empty or contains unknown feature names.
         """
         if not isinstance(feature_set, tuple) or not feature_set:
-            raise ValueError(
-                "MusicInformationRetriever: feature_set must be a non-empty tuple"
-            )
+            raise ValueError("MusicInformationRetriever: feature_set must be a non-empty tuple")
         for feature in feature_set:
             if feature not in self._ALLOWED_FEATURES:
                 raise ValueError(

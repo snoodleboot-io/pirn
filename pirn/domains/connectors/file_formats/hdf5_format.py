@@ -39,9 +39,7 @@ class Hdf5Format(BatchFileFormat):
             filters.
     """
 
-    _supported_compression: ClassVar[frozenset[str]] = frozenset(
-        {"gzip", "lzf", "szip"}
-    )
+    _supported_compression: ClassVar[frozenset[str]] = frozenset({"gzip", "lzf", "szip"})
 
     def __init__(
         self,
@@ -49,14 +47,11 @@ class Hdf5Format(BatchFileFormat):
         compression: str | None = None,
     ) -> None:
         if not isinstance(dataset_path, str) or not dataset_path:
-            raise ValueError(
-                "Hdf5Format: dataset_path must be a non-empty string"
-            )
+            raise ValueError("Hdf5Format: dataset_path must be a non-empty string")
         if compression is not None:
             if not isinstance(compression, str):
                 raise TypeError(
-                    "Hdf5Format: compression must be str | None, got "
-                    f"{type(compression).__name__}"
+                    f"Hdf5Format: compression must be str | None, got {type(compression).__name__}"
                 )
             if compression not in self._supported_compression:
                 raise ValueError(
@@ -64,11 +59,7 @@ class Hdf5Format(BatchFileFormat):
                     f"{sorted(self._supported_compression)} or None, "
                     f"got {compression!r}"
                 )
-        self._dataset_path = (
-            dataset_path
-            if dataset_path.startswith("/")
-            else f"/{dataset_path}"
-        )
+        self._dataset_path = dataset_path if dataset_path.startswith("/") else f"/{dataset_path}"
         self._compression = compression
 
     @property
@@ -83,9 +74,7 @@ class Hdf5Format(BatchFileFormat):
     def compression(self) -> str | None:
         return self._compression
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         h5py, np = self._load_h5py_numpy()
         records: list[Mapping[str, Any]] = []
         with h5py.File(io.BytesIO(payload), "r") as handle:
@@ -97,13 +86,10 @@ class Hdf5Format(BatchFileFormat):
                 )
             dataset = handle[self._dataset_path]
             data = dataset[()]
-            field_names = (
-                data.dtype.names if data.dtype.names is not None else None
-            )
+            field_names = data.dtype.names if data.dtype.names is not None else None
             if field_names is None:
                 raise ValueError(
-                    "Hdf5Format: dataset is not a structured array; "
-                    "cannot reconstruct records"
+                    "Hdf5Format: dataset is not a structured array; cannot reconstruct records"
                 )
             for row in data:
                 record: dict[str, Any] = {}
@@ -112,9 +98,7 @@ class Hdf5Format(BatchFileFormat):
                 records.append(record)
         return records
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         h5py, np = self._load_h5py_numpy()
         materialised = [dict(record) for record in records]
         if not materialised:
@@ -128,15 +112,11 @@ class Hdf5Format(BatchFileFormat):
             kwargs: dict[str, Any] = {}
             if self._compression is not None:
                 kwargs["compression"] = self._compression
-            handle.create_dataset(
-                self._dataset_path, data=structured, **kwargs
-            )
+            handle.create_dataset(self._dataset_path, data=structured, **kwargs)
         return buf.getvalue()
 
     @classmethod
-    def _records_to_structured_array(
-        cls, records: list[dict[str, Any]], np: Any
-    ) -> Any:
+    def _records_to_structured_array(cls, records: list[dict[str, Any]], np: Any) -> Any:
         field_order: list[str] = []
         seen: set[str] = set()
         for record in records:
@@ -150,12 +130,8 @@ class Hdf5Format(BatchFileFormat):
         string_fields: set[str] = set()
         dtype_fields: list[tuple[str, Any]] = []
         for field in field_order:
-            sample_value = next(
-                (rec[field] for rec in records if field in rec), None
-            )
-            field_dtype = cls._infer_numpy_dtype(
-                sample_value, records, field, np
-            )
+            sample_value = next((rec[field] for rec in records if field in rec), None)
+            field_dtype = cls._infer_numpy_dtype(sample_value, records, field, np)
             if isinstance(sample_value, str):
                 string_fields.add(field)
             dtype_fields.append((field, field_dtype))
@@ -231,7 +207,6 @@ class Hdf5Format(BatchFileFormat):
             import numpy as np
         except ImportError as exc:
             raise ImportError(
-                "Hdf5Format requires h5py and numpy. Install with "
-                "`pip install pirn[hdf5]`."
+                "Hdf5Format requires h5py and numpy. Install with `pip install pirn[hdf5]`."
             ) from exc
         return h5py, np

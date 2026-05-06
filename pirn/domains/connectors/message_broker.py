@@ -32,21 +32,15 @@ class MessageBroker(PirnOpaqueValue):
         headers: dict[str, bytes] | None = None,
     ) -> None:
         """Publish ``value`` to ``topic``."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement publish()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement publish()")
 
-    async def consume(
-        self, topic: str, *, group: str | None = None
-    ) -> AsyncIterator[Any]:
+    async def consume(self, topic: str, *, group: str | None = None) -> AsyncIterator[Any]:
         """Yield consumed messages from ``topic``.
 
         Each yielded item exposes at least ``value``, ``key``, and
         ``headers`` attributes.
         """
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement consume()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement consume()")
 
     def _clear_credentials(self) -> None:
         """Drop the in-memory credential reference held by the broker.
@@ -58,4 +52,3 @@ class MessageBroker(PirnOpaqueValue):
         the broker reference.
         """
         self._config = None
-

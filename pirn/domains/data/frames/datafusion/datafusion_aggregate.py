@@ -81,9 +81,7 @@ class DatafusionAggregate(Knot):
                 "[output_name, datafusion.Expr | callable]"
             )
         for output, expression in aggs.items():
-            IdentifierValidator.validate_column(
-                "DatafusionAggregate: output column", output
-            )
+            IdentifierValidator.validate_column("DatafusionAggregate: output column", output)
             if not (isinstance(expression, df.Expr) or callable(expression)):
                 raise TypeError(
                     f"DatafusionAggregate: aggs[{output!r}] must be a "

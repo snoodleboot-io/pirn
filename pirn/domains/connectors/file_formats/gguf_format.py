@@ -39,14 +39,9 @@ class GgufFormat(BatchFileFormat):
     def name(self) -> str:
         return "gguf"
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         if not isinstance(payload, (bytes, bytearray)):
-            raise TypeError(
-                "GgufFormat: payload must be bytes, "
-                f"got {type(payload).__name__}"
-            )
+            raise TypeError(f"GgufFormat: payload must be bytes, got {type(payload).__name__}")
         gguf = self._load_gguf()
         # ``GGUFReader`` accepts a path or an open file handle. To avoid
         # disk IO when callers hand us bytes, materialise a temp file.
@@ -59,18 +54,14 @@ class GgufFormat(BatchFileFormat):
             try:
                 reader = gguf.GGUFReader(tmp_path)
             except Exception as exc:
-                raise ValueError(
-                    f"GgufFormat: failed to parse GGUF payload — {exc}"
-                ) from exc
+                raise ValueError(f"GgufFormat: failed to parse GGUF payload — {exc}") from exc
             metadata: dict[str, Any] = {}
             fields = getattr(reader, "fields", {}) or {}
             for key, field in fields.items():
                 metadata[str(key)] = self._field_value(field)
             tensors = getattr(reader, "tensors", []) or []
             tensor_names = [str(getattr(t, "name", "")) for t in tensors]
-            version_value = metadata.get(
-                "GGUF.version"
-            ) or metadata.get("general.version")
+            version_value = metadata.get("GGUF.version") or metadata.get("general.version")
             try:
                 version = int(version_value) if version_value is not None else 0
             except (TypeError, ValueError):
@@ -88,15 +79,10 @@ class GgufFormat(BatchFileFormat):
             except OSError:
                 pass
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         materialised: list[Mapping[str, Any]] = list(records)
         if len(materialised) != 1:
-            raise ValueError(
-                "GgufFormat: expected exactly one record, got "
-                f"{len(materialised)}"
-            )
+            raise ValueError(f"GgufFormat: expected exactly one record, got {len(materialised)}")
         record = materialised[0]
         for key in ("metadata", "tensors", "architecture"):
             if key not in record:
@@ -108,21 +94,16 @@ class GgufFormat(BatchFileFormat):
         architecture = record["architecture"]
         if not isinstance(architecture, str) or not architecture:
             raise ValueError(
-                "GgufFormat: 'architecture' must be a non-empty string, "
-                f"got {architecture!r}"
+                f"GgufFormat: 'architecture' must be a non-empty string, got {architecture!r}"
             )
         metadata = record["metadata"]
         if not isinstance(metadata, Mapping):
             raise TypeError(
-                "GgufFormat: 'metadata' must be a Mapping, "
-                f"got {type(metadata).__name__}"
+                f"GgufFormat: 'metadata' must be a Mapping, got {type(metadata).__name__}"
             )
         tensors = record["tensors"]
         if not isinstance(tensors, Iterable):
-            raise TypeError(
-                "GgufFormat: 'tensors' must be iterable, "
-                f"got {type(tensors).__name__}"
-            )
+            raise TypeError(f"GgufFormat: 'tensors' must be iterable, got {type(tensors).__name__}")
         gguf = self._load_gguf()
         with tempfile.NamedTemporaryFile(
             prefix="pirn-gguf-write-", suffix=".gguf", delete=False
@@ -134,27 +115,20 @@ class GgufFormat(BatchFileFormat):
                 for key, value in metadata.items():
                     if not isinstance(key, str):
                         raise TypeError(
-                            "GgufFormat: metadata keys must be str, "
-                            f"got {type(key).__name__}"
+                            f"GgufFormat: metadata keys must be str, got {type(key).__name__}"
                         )
                     self._write_metadata_value(writer, key, value)
                 for tensor in tensors:
                     if not isinstance(tensor, Mapping):
                         raise TypeError(
-                            "GgufFormat: each tensor must be a "
-                            "Mapping with 'name' and 'data' keys"
+                            "GgufFormat: each tensor must be a Mapping with 'name' and 'data' keys"
                         )
                     name = tensor.get("name")
                     data = tensor.get("data")
                     if not isinstance(name, str) or not name:
-                        raise ValueError(
-                            "GgufFormat: tensor 'name' must be a "
-                            "non-empty string"
-                        )
+                        raise ValueError("GgufFormat: tensor 'name' must be a non-empty string")
                     if data is None:
-                        raise ValueError(
-                            "GgufFormat: tensor 'data' is required"
-                        )
+                        raise ValueError("GgufFormat: tensor 'data' is required")
                     writer.add_tensor(name, data)
                 writer.write_header_to_file()
                 writer.write_kv_data_to_file()
@@ -200,8 +174,7 @@ class GgufFormat(BatchFileFormat):
             writer.add_string(key, value)
         else:
             raise TypeError(
-                f"GgufFormat: unsupported metadata value type for "
-                f"{key!r}: {type(value).__name__}"
+                f"GgufFormat: unsupported metadata value type for {key!r}: {type(value).__name__}"
             )
 
     @staticmethod
@@ -210,8 +183,6 @@ class GgufFormat(BatchFileFormat):
             import gguf
         except ImportError as exc:
             raise ImportError(
-                "GgufFormat requires gguf. Install with "
-                "`pip install pirn[gguf]`."
+                "GgufFormat requires gguf. Install with `pip install pirn[gguf]`."
             ) from exc
         return gguf
-

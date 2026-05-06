@@ -66,18 +66,15 @@ class EpisodicMemoryRetriever(Knot):
         """
         if not isinstance(store, MemoryStore):
             raise TypeError(
-                "EpisodicMemoryRetriever: store must be a MemoryStore, "
-                f"got {type(store).__name__}"
+                f"EpisodicMemoryRetriever: store must be a MemoryStore, got {type(store).__name__}"
             )
         if not isinstance(top_k, int) or top_k <= 0:
             raise ValueError(
-                "EpisodicMemoryRetriever: top_k must be a positive int, "
-                f"got {top_k!r}"
+                f"EpisodicMemoryRetriever: top_k must be a positive int, got {top_k!r}"
             )
         if not isinstance(context, str):
             raise TypeError(
-                "EpisodicMemoryRetriever: context must be a string, "
-                f"got {type(context).__name__}"
+                f"EpisodicMemoryRetriever: context must be a string, got {type(context).__name__}"
             )
         candidate = store.search(context, top_k=top_k)
         if hasattr(candidate, "__await__"):
@@ -90,5 +87,5 @@ class EpisodicMemoryRetriever(Knot):
                     break
             return collected
         if isinstance(candidate, list):
-            return list(candidate[: top_k])
-        return [item for item in candidate][: top_k]
+            return list(candidate[:top_k])
+        return [item for item in candidate][:top_k]

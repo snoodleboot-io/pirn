@@ -64,9 +64,7 @@ class CoordinateSystemTransformer(Knot):
             and the target ``crs`` string.
         """
         if not isinstance(target_crs, str) or not target_crs:
-            raise ValueError(
-                "CoordinateSystemTransformer: target_crs must be a non-empty string"
-            )
+            raise ValueError("CoordinateSystemTransformer: target_crs must be a non-empty string")
         return {
             "well_id": location.get("well_id", ""),
             "x": float(location.get("x", 0.0)),

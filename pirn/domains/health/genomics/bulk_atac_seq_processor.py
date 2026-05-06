@@ -12,6 +12,7 @@ References:
     - ENCODE ATAC-seq pipeline: https://www.encodeproject.org/atac-seq/
     - Buenrostro et al. (2013) Transposition of native chromatin for fast and sensitive epigenomic profiling.
 """
+
 from __future__ import annotations
 
 from typing import Any

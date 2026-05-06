@@ -76,8 +76,7 @@ class _JsonExtractorAttempt(Knot):
         """
         if not isinstance(prompt, str):
             raise TypeError(
-                "JsonExtractorPipeline: prompt must be a string, "
-                f"got {type(prompt).__name__}"
+                f"JsonExtractorPipeline: prompt must be a string, got {type(prompt).__name__}"
             )
         schema_dict = dict(schema)
         system_lines = [
@@ -88,8 +87,7 @@ class _JsonExtractorAttempt(Knot):
         ]
         if prior_error:
             system_lines.append(
-                f"The previous attempt failed: {prior_error}. "
-                "Correct the error and respond again."
+                f"The previous attempt failed: {prior_error}. Correct the error and respond again."
             )
         chat_messages = [
             {"role": "system", "content": "\n".join(system_lines)},

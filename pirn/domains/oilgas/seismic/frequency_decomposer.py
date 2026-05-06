@@ -69,15 +69,10 @@ class FrequencyDecomposer(Knot):
         """
         freq_tuple = tuple(center_frequencies_hz)
         if not freq_tuple:
-            raise ValueError(
-                "FrequencyDecomposer: center_frequencies_hz must be non-empty"
-            )
+            raise ValueError("FrequencyDecomposer: center_frequencies_hz must be non-empty")
         for f in freq_tuple:
             if not isinstance(f, (int, float)) or f <= 0.0:
-                raise ValueError(
-                    "FrequencyDecomposer: every centre frequency must be positive"
-                )
+                raise ValueError("FrequencyDecomposer: every centre frequency must be positive")
         return tuple(
-            SegyVolume(volume_id=f"{volume.volume_id}:band_{float(f):.1f}hz")
-            for f in freq_tuple
+            SegyVolume(volume_id=f"{volume.volume_id}:band_{float(f):.1f}hz") for f in freq_tuple
         )

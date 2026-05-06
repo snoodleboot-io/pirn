@@ -66,8 +66,7 @@ class OutputParser(Knot):
         """
         if not isinstance(response, Mapping):
             raise TypeError(
-                "OutputParser: response must be a Mapping, "
-                f"got {type(response).__name__}"
+                f"OutputParser: response must be a Mapping, got {type(response).__name__}"
             )
         content_text, tool_calls = self._extract_content(response)
         finish_reason = self._extract_finish_reason(response)
@@ -98,8 +97,7 @@ class OutputParser(Knot):
                     if isinstance(inner, str):
                         return inner, ()
         raise ValueError(
-            "OutputParser: response did not contain a recognisable "
-            "'content' or 'choices' field"
+            "OutputParser: response did not contain a recognisable 'content' or 'choices' field"
         )
 
     def _coerce_blocks(

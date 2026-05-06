@@ -59,8 +59,7 @@ class MessageParser(Knot):
         parsed = tuple(self._coerce_one(index, item) for index, item in enumerate(items))
         if not parsed:
             raise ValueError(
-                "MessageParser: raw_input produced zero messages; "
-                "input must be non-empty"
+                "MessageParser: raw_input produced zero messages; input must be non-empty"
             )
         return parsed
 
@@ -69,9 +68,7 @@ class MessageParser(Knot):
             return (raw_input,)
         if isinstance(raw_input, str):
             if not raw_input:
-                raise ValueError(
-                    "MessageParser: raw_input string must be non-empty"
-                )
+                raise ValueError("MessageParser: raw_input string must be non-empty")
             return (raw_input,)
         if isinstance(raw_input, Mapping):
             return (raw_input,)
@@ -87,16 +84,13 @@ class MessageParser(Knot):
             return item
         if isinstance(item, str):
             if not item:
-                raise ValueError(
-                    f"MessageParser: item[{index}] string must be non-empty"
-                )
+                raise ValueError(f"MessageParser: item[{index}] string must be non-empty")
             return AgentMessage(role="user", content=item)
         if isinstance(item, Mapping):
             role = item.get("role", "user")
             if not isinstance(role, str) or not role:
                 raise ValueError(
-                    f"MessageParser: item[{index}].role must be a non-empty string, "
-                    f"got {role!r}"
+                    f"MessageParser: item[{index}].role must be a non-empty string, got {role!r}"
                 )
             content = item.get("content")
             if not isinstance(content, str):

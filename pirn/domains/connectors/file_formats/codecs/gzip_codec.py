@@ -23,13 +23,11 @@ class GzipCodec(Codec):
     def __init__(self, compresslevel: int = 9) -> None:
         if not isinstance(compresslevel, int):
             raise TypeError(
-                "GzipCodec: compresslevel must be int, got "
-                f"{type(compresslevel).__name__}"
+                f"GzipCodec: compresslevel must be int, got {type(compresslevel).__name__}"
             )
         if not 0 <= compresslevel <= 9:
             raise ValueError(
-                "GzipCodec: compresslevel must be between 0 and 9, "
-                f"got {compresslevel}"
+                f"GzipCodec: compresslevel must be between 0 and 9, got {compresslevel}"
             )
         self._compresslevel = compresslevel
 
@@ -37,18 +35,14 @@ class GzipCodec(Codec):
     def name(self) -> str:
         return "gzip"
 
-    async def compress_stream(
-        self, body: AsyncIterator[bytes]
-    ) -> AsyncIterator[bytes]:
+    async def compress_stream(self, body: AsyncIterator[bytes]) -> AsyncIterator[bytes]:
         chunks: list[bytes] = []
         async for chunk in body:
             chunks.append(chunk)
         payload = b"".join(chunks)
         yield gzip.compress(payload, compresslevel=self._compresslevel)
 
-    async def decompress_stream(
-        self, body: AsyncIterator[bytes]
-    ) -> AsyncIterator[bytes]:
+    async def decompress_stream(self, body: AsyncIterator[bytes]) -> AsyncIterator[bytes]:
         chunks: list[bytes] = []
         async for chunk in body:
             chunks.append(chunk)

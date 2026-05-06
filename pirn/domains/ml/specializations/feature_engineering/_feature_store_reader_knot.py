@@ -79,9 +79,7 @@ class _FeatureStoreReaderKnot(Knot):
             ValueError: If entity_keys or feature_names are empty.
         """
         if not isinstance(feature_store, FeatureStoreProvider):
-            raise TypeError(
-                "_FeatureStoreReaderKnot: feature_store must be a FeatureStoreProvider"
-            )
+            raise TypeError("_FeatureStoreReaderKnot: feature_store must be a FeatureStoreProvider")
         entity_key_tuple = tuple(entity_keys)
         if not entity_key_tuple:
             raise ValueError("_FeatureStoreReaderKnot: entity_keys must be non-empty")

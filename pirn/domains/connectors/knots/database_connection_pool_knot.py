@@ -13,6 +13,7 @@ Algorithm:
 References:
     - :class:`pirn.domains.connectors.database_connection_pool.DatabaseConnectionPool`
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -23,7 +24,9 @@ from pirn.domains.connectors.database_connection_pool import DatabaseConnectionP
 
 
 class DatabaseConnectionPoolKnot(Knot):
-    def __init__(self, *, pool: Knot | DatabaseConnectionPool, _config: KnotConfig, **kwargs: Any) -> None:
+    def __init__(
+        self, *, pool: Knot | DatabaseConnectionPool, _config: KnotConfig, **kwargs: Any
+    ) -> None:
         super().__init__(pool=pool, _config=_config, **kwargs)
 
     async def process(self, pool: DatabaseConnectionPool, **_: Any) -> DatabaseConnectionPool:

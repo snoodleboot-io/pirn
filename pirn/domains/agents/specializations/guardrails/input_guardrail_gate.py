@@ -59,7 +59,13 @@ class InputGuardrailGate(SubTapestry):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        super().__init__(messages=messages, deny_patterns=deny_patterns, pii_patterns=pii_patterns, _config=_config, **kwargs)
+        super().__init__(
+            messages=messages,
+            deny_patterns=deny_patterns,
+            pii_patterns=pii_patterns,
+            _config=_config,
+            **kwargs,
+        )
 
     async def process(
         self,
@@ -107,7 +113,5 @@ class InputGuardrailGate(SubTapestry):
         inner_result = await self._run_inner(inner)
         cleaned = inner_result.outputs.get("scrub")
         if not isinstance(cleaned, tuple):
-            raise RuntimeError(
-                "InputGuardrailGate: inner scrubber did not return a tuple"
-            )
+            raise RuntimeError("InputGuardrailGate: inner scrubber did not return a tuple")
         return cleaned

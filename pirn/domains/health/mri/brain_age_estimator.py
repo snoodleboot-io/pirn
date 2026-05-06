@@ -18,6 +18,7 @@ References:
     - Cole et al. (2017) Predicting brain age with deep learning from raw imaging data.
     - brainageR: https://github.com/james-cole/brainageR
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -75,7 +76,10 @@ class BrainAgeEstimator(Knot):
             raise TypeError("BrainAgeEstimator: mri_features must be a dict")
         if not isinstance(model_name, str) or not model_name:
             raise ValueError("BrainAgeEstimator: model_name must be non-empty")
-        if not isinstance(reference_population, str) or reference_population not in self._VALID_POPULATIONS:
+        if (
+            not isinstance(reference_population, str)
+            or reference_population not in self._VALID_POPULATIONS
+        ):
             raise ValueError(
                 f"BrainAgeEstimator: reference_population must be one of "
                 f"{sorted(self._VALID_POPULATIONS)}"

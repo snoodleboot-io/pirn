@@ -56,10 +56,7 @@ class _SQLResponseFormatter(Knot):
             An AgentResponse whose content contains the SQL query and a formatted rows block.
         """
         rendered_rows = "\n".join(repr(row) for row in rows)
-        content = (
-            f"SQL:\n{sql}\n\n"
-            f"Rows ({len(rows)}):\n{rendered_rows}"
-        )
+        content = f"SQL:\n{sql}\n\nRows ({len(rows)}):\n{rendered_rows}"
         return AgentResponse(content=content, finish_reason="stop")
 
     @staticmethod

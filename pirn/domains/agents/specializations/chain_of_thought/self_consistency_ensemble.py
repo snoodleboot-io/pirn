@@ -62,18 +62,15 @@ class SelfConsistencyEnsemble(Knot):
         """
         if not isinstance(prompt, str):
             raise TypeError(
-                "SelfConsistencyEnsemble: prompt must be a string, "
-                f"got {type(prompt).__name__}"
+                f"SelfConsistencyEnsemble: prompt must be a string, got {type(prompt).__name__}"
             )
         if not isinstance(llm, LLMProvider):
             raise TypeError(
-                "SelfConsistencyEnsemble: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
+                f"SelfConsistencyEnsemble: llm must be an LLMProvider, got {type(llm).__name__}"
             )
         if not isinstance(samples, int) or samples <= 0:
             raise ValueError(
-                "SelfConsistencyEnsemble: samples must be a positive int, "
-                f"got {samples!r}"
+                f"SelfConsistencyEnsemble: samples must be a positive int, got {samples!r}"
             )
         messages = [{"role": "user", "content": prompt}]
         tasks = [llm.chat(messages=messages) for _ in range(samples)]

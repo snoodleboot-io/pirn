@@ -66,17 +66,11 @@ class TwilioClient(ApiClient, RecordWriter):
         produces for the POST against ``/Accounts/{sid}/Messages.json``).
         """
         if not isinstance(from_number, str) or not from_number:
-            raise ValueError(
-                "TwilioClient.send_sms: from_number must be a non-empty string"
-            )
+            raise ValueError("TwilioClient.send_sms: from_number must be a non-empty string")
         if not isinstance(to, str) or not to:
-            raise ValueError(
-                "TwilioClient.send_sms: to must be a non-empty string"
-            )
+            raise ValueError("TwilioClient.send_sms: to must be a non-empty string")
         if not isinstance(body, str) or not body:
-            raise ValueError(
-                "TwilioClient.send_sms: body must be a non-empty string"
-            )
+            raise ValueError("TwilioClient.send_sms: body must be a non-empty string")
         path = self._messages_path()
         return await self.request(
             "POST",
@@ -99,8 +93,7 @@ class TwilioClient(ApiClient, RecordWriter):
         for record in materialised:
             if "from" not in record or "to" not in record or "body" not in record:
                 raise ValueError(
-                    "TwilioClient.write_records: each record requires "
-                    "'from', 'to', and 'body' keys"
+                    "TwilioClient.write_records: each record requires 'from', 'to', and 'body' keys"
                 )
             await self.send_sms(
                 from_number=record["from"],
@@ -149,11 +142,7 @@ class TwilioClient(ApiClient, RecordWriter):
         self._logger.debug("twilio.close")
 
     def _messages_path(self) -> str:
-        sid = (
-            self._config.account_sid
-            if self._config is not None
-            else None
-        )
+        sid = self._config.account_sid if self._config is not None else None
         if sid is None:
             sid = "Account"
         return f"/2010-04-01/Accounts/{sid}/Messages.json"
@@ -170,13 +159,10 @@ class TwilioClient(ApiClient, RecordWriter):
             from twilio.rest import Client  # type: ignore[import-not-found]
         except ImportError as exc:
             raise ImportError(
-                "TwilioClient requires the twilio SDK; install via "
-                "`pip install pirn[twilio]`"
+                "TwilioClient requires the twilio SDK; install via `pip install pirn[twilio]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError(
-                "TwilioClient: missing config and no injected client"
-            )
+            raise RuntimeError("TwilioClient: missing config and no injected client")
 
         kwargs: dict[str, Any] = {}
         if self._config.region is not None:

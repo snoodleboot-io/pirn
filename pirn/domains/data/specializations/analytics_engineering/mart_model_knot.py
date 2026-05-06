@@ -83,21 +83,15 @@ class MartModelKnot(Knot):
         **_: Any,
     ) -> dict[str, Any]:
         if not isinstance(source_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "MartModelKnot: source_pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("MartModelKnot: source_pool must be a DatabaseConnectionPool")
         if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "MartModelKnot: target_pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("MartModelKnot: target_pool must be a DatabaseConnectionPool")
         for label, value in (
             ("source_table", source_table),
             ("target_table", target_table),
         ):
             if not isinstance(value, str) or not value:
-                raise ValueError(
-                    f"MartModelKnot: {label} must be a non-empty string"
-                )
+                raise ValueError(f"MartModelKnot: {label} must be a non-empty string")
         group_by_tuple = tuple(group_by_columns)
         metric_tuple = tuple(metric_expressions)
         if not metric_tuple:

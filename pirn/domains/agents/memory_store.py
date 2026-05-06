@@ -25,15 +25,11 @@ class MemoryStore(PirnOpaqueValue):
 
     async def store(self, key: str, value: Mapping[str, Any]) -> None:
         """Persist ``value`` under ``key``."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement store()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement store()")
 
     async def retrieve(self, key: str) -> Mapping[str, Any] | None:
         """Return the value previously stored under ``key``, or ``None``."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement retrieve()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement retrieve()")
 
     async def search(
         self,
@@ -42,21 +38,15 @@ class MemoryStore(PirnOpaqueValue):
         top_k: int = 10,
     ) -> AsyncIterator[Mapping[str, Any]]:
         """Yield up to ``top_k`` mappings most similar to ``query``."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement search()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement search()")
 
     async def forget(self, key: str) -> None:
         """Remove the entry stored under ``key`` if present."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement forget()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement forget()")
 
     async def close(self) -> None:
         """Release any underlying connections / resources."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement close()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement close()")
 
     def _clear_credentials(self) -> None:
         """Drop the in-memory credential reference held by the store.

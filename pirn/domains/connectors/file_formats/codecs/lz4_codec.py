@@ -30,14 +30,11 @@ class Lz4Codec(Codec):
             import lz4.frame as lz4_frame
         except ImportError as exc:  # pragma: no cover - import guard
             raise ImportError(
-                "Lz4Codec requires the 'lz4' package. "
-                "Install with: pip install 'pirn[lz4]'"
+                "Lz4Codec requires the 'lz4' package. Install with: pip install 'pirn[lz4]'"
             ) from exc
         return lz4_frame
 
-    async def compress_stream(
-        self, body: AsyncIterator[bytes]
-    ) -> AsyncIterator[bytes]:
+    async def compress_stream(self, body: AsyncIterator[bytes]) -> AsyncIterator[bytes]:
         lz4_frame = self._load_lz4_frame()
         chunks: list[bytes] = []
         async for chunk in body:
@@ -45,9 +42,7 @@ class Lz4Codec(Codec):
         payload = b"".join(chunks)
         yield lz4_frame.compress(payload)
 
-    async def decompress_stream(
-        self, body: AsyncIterator[bytes]
-    ) -> AsyncIterator[bytes]:
+    async def decompress_stream(self, body: AsyncIterator[bytes]) -> AsyncIterator[bytes]:
         lz4_frame = self._load_lz4_frame()
         chunks: list[bytes] = []
         async for chunk in body:

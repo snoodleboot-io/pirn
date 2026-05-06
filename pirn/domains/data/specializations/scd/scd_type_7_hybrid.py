@@ -103,10 +103,7 @@ class ScdType7Hybrid(Knot):
     ) -> str:
         cols = ", ".join(tracked_columns)
         where = " AND ".join(f"{c} = ?" for c in key_columns)
-        return (
-            f"SELECT {cols} FROM {target_table} "
-            f"WHERE {where} AND {current_flag_column} = 1"
-        )
+        return f"SELECT {cols} FROM {target_table} WHERE {where} AND {current_flag_column} = 1"
 
     @staticmethod
     def _close_out_query(
@@ -190,16 +187,13 @@ class ScdType7Hybrid(Knot):
             raise TypeError("ScdType7Hybrid: current_columns must be a Mapping[str, str]")
         missing = [c for c in tracked_tuple if c not in current_columns]
         if missing:
-            raise ValueError(
-                f"ScdType7Hybrid: current_columns missing entries for {missing!r}"
-            )
+            raise ValueError(f"ScdType7Hybrid: current_columns missing entries for {missing!r}")
         for label, value in current_columns.items():
             IdentifierValidator.validate_column(f"current_columns[{label!r}]", value)
         overlap = set(key_tuple) & set(tracked_tuple)
         if overlap:
             raise ValueError(
-                "ScdType7Hybrid: key_columns and tracked_columns overlap on "
-                f"{sorted(overlap)!r}"
+                f"ScdType7Hybrid: key_columns and tracked_columns overlap on {sorted(overlap)!r}"
             )
         current_column_names = tuple(current_columns[c] for c in tracked_tuple)
         source_columns = key_tuple + tracked_tuple

@@ -73,14 +73,9 @@ class EmbeddingExtractor(Knot):
             TypeError: If embedding_provider is not an EmbeddingProvider.
         """
         if not isinstance(text_column, str) or not text_column:
-            raise ValueError(
-                "EmbeddingExtractor: text_column must be a non-empty string"
-            )
+            raise ValueError("EmbeddingExtractor: text_column must be a non-empty string")
         if not isinstance(embedding_provider, EmbeddingProvider):
-            raise TypeError(
-                "EmbeddingExtractor: embedding_provider must be an "
-                "EmbeddingProvider"
-            )
+            raise TypeError("EmbeddingExtractor: embedding_provider must be an EmbeddingProvider")
         # Touch the provider so misconfigured providers fail loudly at
         # planning time. We embed the column name as a single probe text
         # rather than the full column (we don't have rows here).

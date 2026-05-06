@@ -97,6 +97,4 @@ class PathologyFeatureExtractor(Knot):
             tile_count = max(len(cell_counts), 1)
             base = mitosis_counts // tile_count
             return {position: base for position in cell_counts}
-        raise TypeError(
-            "PathologyFeatureExtractor: mitosis_counts must be a Mapping or int"
-        )
+        raise TypeError("PathologyFeatureExtractor: mitosis_counts must be a Mapping or int")

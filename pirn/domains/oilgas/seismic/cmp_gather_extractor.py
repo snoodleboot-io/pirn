@@ -62,13 +62,9 @@ class CmpGatherExtractor(Knot):
             SegyVolume representing the extracted CMP gather sub-cube.
         """
         if not isinstance(cmp_inline, int) or cmp_inline < 0:
-            raise ValueError(
-                "CmpGatherExtractor: cmp_inline must be a non-negative integer"
-            )
+            raise ValueError("CmpGatherExtractor: cmp_inline must be a non-negative integer")
         if not isinstance(cmp_xline, int) or cmp_xline < 0:
-            raise ValueError(
-                "CmpGatherExtractor: cmp_xline must be a non-negative integer"
-            )
+            raise ValueError("CmpGatherExtractor: cmp_xline must be a non-negative integer")
         return SegyVolume(
             volume_id=f"{volume.volume_id}:cmp_{cmp_inline}_{cmp_xline}",
         )

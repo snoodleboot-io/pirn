@@ -71,9 +71,7 @@ class SilverCleanTransform(Knot):
         return f"INSERT INTO {target_table} ({column_list}) VALUES ({placeholders})"
 
     @staticmethod
-    def _cast_batch(
-        batch: DataBatch, casts: dict[str, type]
-    ) -> DataBatch:
+    def _cast_batch(batch: DataBatch, casts: dict[str, type]) -> DataBatch:
         def cast_row(row: Mapping[str, Any]) -> dict[str, Any]:
             out: dict[str, Any] = {}
             for key, value in row.items():
@@ -91,14 +89,10 @@ class SilverCleanTransform(Knot):
         batch: DataBatch,
         predicate: Callable[[Mapping[str, Any]], bool],
     ) -> DataBatch:
-        return batch.with_rows(
-            tuple(row for row in batch.rows if predicate(row))
-        )
+        return batch.with_rows(tuple(row for row in batch.rows if predicate(row)))
 
     @staticmethod
-    def _deduplicate_batch(
-        batch: DataBatch, primary_keys: tuple[str, ...]
-    ) -> DataBatch:
+    def _deduplicate_batch(batch: DataBatch, primary_keys: tuple[str, ...]) -> DataBatch:
         seen: set[tuple[Any, ...]] = set()
         kept = []
         for row in batch.rows:
@@ -141,21 +135,13 @@ class SilverCleanTransform(Knot):
             ValueError: If any string argument is empty, or sequence arguments are empty.
         """
         if not isinstance(source_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "SilverCleanTransform: source_pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("SilverCleanTransform: source_pool must be a DatabaseConnectionPool")
         if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError(
-                "SilverCleanTransform: target_pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("SilverCleanTransform: target_pool must be a DatabaseConnectionPool")
         if not isinstance(source_query, str) or not source_query:
-            raise ValueError(
-                "SilverCleanTransform: source_query must be a non-empty string"
-            )
+            raise ValueError("SilverCleanTransform: source_query must be a non-empty string")
         if not isinstance(target_table, str) or not target_table:
-            raise ValueError(
-                "SilverCleanTransform: target_table must be a non-empty string"
-            )
+            raise ValueError("SilverCleanTransform: target_table must be a non-empty string")
         column_tuple = tuple(column_names)
         if not column_tuple:
             raise ValueError("SilverCleanTransform: column_names must be non-empty")
@@ -166,21 +152,15 @@ class SilverCleanTransform(Knot):
         # Fetch bronze rows and convert to DataBatch.
         raw_rows = await source_pool.fetch_all(source_query)
         batch = DataBatch(
-            rows=tuple(
-                dict(zip(column_tuple, tuple(r), strict=False)) for r in raw_rows
-            )
+            rows=tuple(dict(zip(column_tuple, tuple(r), strict=False)) for r in raw_rows)
         )
         # Apply transform chain.
         batch = SilverCleanTransform._cast_batch(batch, casts_dict)
         batch = SilverCleanTransform._filter_batch(batch, filter_predicate)
         batch = SilverCleanTransform._deduplicate_batch(batch, primary_key_tuple)
         # Project to positional tuples for INSERT.
-        output_rows = [
-            tuple(row.get(col) for col in column_tuple) for row in batch.rows
-        ]
-        insert_query = SilverCleanTransform._build_insert_query(
-            target_table, column_tuple
-        )
+        output_rows = [tuple(row.get(col) for col in column_tuple) for row in batch.rows]
+        insert_query = SilverCleanTransform._build_insert_query(target_table, column_tuple)
         await target_pool.execute_many(insert_query, output_rows)
         return {
             "succeeded": True,

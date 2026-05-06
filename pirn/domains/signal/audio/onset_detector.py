@@ -78,9 +78,7 @@ class OnsetDetector(Knot):
             ValueError: If hop_length or threshold are invalid.
         """
         if not isinstance(hop_length, int) or hop_length <= 0:
-            raise ValueError(
-                "OnsetDetector: hop_length must be a positive integer"
-            )
+            raise ValueError("OnsetDetector: hop_length must be a positive integer")
         if not isinstance(threshold, (int, float)) or threshold <= 0:
             raise ValueError("OnsetDetector: threshold must be positive")
         return {

@@ -84,25 +84,17 @@ class VolumetricEstimator(Knot):
             ("formation_volume_factor", formation_volume_factor),
         ):
             if not isinstance(value, (int, float)):
-                raise TypeError(
-                    f"VolumetricEstimator: {label} must be numeric"
-                )
+                raise TypeError(f"VolumetricEstimator: {label} must be numeric")
             if value <= 0.0:
-                raise ValueError(
-                    f"VolumetricEstimator: {label} must be positive"
-                )
+                raise ValueError(f"VolumetricEstimator: {label} must be positive")
         for label, value in (
             ("porosity_fraction", porosity_fraction),
             ("water_saturation_fraction", water_saturation_fraction),
         ):
             if not isinstance(value, (int, float)):
-                raise TypeError(
-                    f"VolumetricEstimator: {label} must be numeric"
-                )
+                raise TypeError(f"VolumetricEstimator: {label} must be numeric")
             if not 0.0 <= value <= 1.0:
-                raise ValueError(
-                    f"VolumetricEstimator: {label} must lie in [0, 1]"
-                )
+                raise ValueError(f"VolumetricEstimator: {label} must lie in [0, 1]")
         return (
             7758.0
             * float(area_acres)

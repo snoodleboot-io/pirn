@@ -74,22 +74,16 @@ class EpochExtractor(Knot):
         if not isinstance(signal, SignalFrame):
             raise TypeError("EpochExtractor: signal must be a SignalFrame")
         if not isinstance(event_times_sec, (list, tuple)):
-            raise TypeError(
-                "EpochExtractor: event_times_sec must be list/tuple"
-            )
+            raise TypeError("EpochExtractor: event_times_sec must be list/tuple")
         for t in event_times_sec:
             if not isinstance(t, (int, float)):
-                raise TypeError(
-                    "EpochExtractor: every event time must be numeric"
-                )
+                raise TypeError("EpochExtractor: every event time must be numeric")
         if not isinstance(tmin_sec, (int, float)):
             raise TypeError("EpochExtractor: tmin_sec must be numeric")
         if not isinstance(tmax_sec, (int, float)):
             raise TypeError("EpochExtractor: tmax_sec must be numeric")
         if float(tmin_sec) >= float(tmax_sec):
-            raise ValueError(
-                "EpochExtractor: tmin_sec must be < tmax_sec"
-            )
+            raise ValueError("EpochExtractor: tmin_sec must be < tmax_sec")
         # Production: slice the underlying ndarray around each event time.
         epoch_samples = max(
             1,

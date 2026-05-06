@@ -61,17 +61,13 @@ class PandasDeduplicate(Knot):
             A new PandasDataBatch with duplicate rows removed, keeping the first occurrence per key.
         """
         if not isinstance(keys, Sequence) or isinstance(keys, (str, bytes)):
-            raise TypeError(
-                "PandasDeduplicate: keys must be a sequence of column names"
-            )
+            raise TypeError("PandasDeduplicate: keys must be a sequence of column names")
         if not keys:
             raise ValueError("PandasDeduplicate: keys must be non-empty")
         for key in keys:
             if not isinstance(key, str) or not key:
-                raise TypeError(
-                    "PandasDeduplicate: every entry in keys must be a non-empty string"
-                )
-        deduped = batch.frame.drop_duplicates(
-            subset=list(keys), keep="first"
-        ).reset_index(drop=True)
+                raise TypeError("PandasDeduplicate: every entry in keys must be a non-empty string")
+        deduped = batch.frame.drop_duplicates(subset=list(keys), keep="first").reset_index(
+            drop=True
+        )
         return batch.with_frame(deduped)

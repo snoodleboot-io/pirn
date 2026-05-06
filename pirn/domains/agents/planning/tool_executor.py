@@ -74,21 +74,15 @@ class ToolExecutor(Knot):
             ValueError: If tools is empty.
         """
         if not isinstance(call, ToolCall):
-            raise TypeError(
-                "ToolExecutor: call must be a ToolCall, "
-                f"got {type(call).__name__}"
-            )
+            raise TypeError(f"ToolExecutor: call must be a ToolCall, got {type(call).__name__}")
         if not isinstance(tools, Sequence) or isinstance(tools, (str, bytes)):
-            raise TypeError(
-                "ToolExecutor: tools must be a sequence of Tool instances"
-            )
+            raise TypeError("ToolExecutor: tools must be a sequence of Tool instances")
         if not tools:
             raise ValueError("ToolExecutor: tools must be non-empty")
         for index, tool in enumerate(tools):
             if not isinstance(tool, Tool):
                 raise TypeError(
-                    f"ToolExecutor: tools[{index}] must be a Tool, "
-                    f"got {type(tool).__name__}"
+                    f"ToolExecutor: tools[{index}] must be a Tool, got {type(tool).__name__}"
                 )
         registry = {tool.name: tool for tool in tools}
         tool = registry.get(call.tool_name)

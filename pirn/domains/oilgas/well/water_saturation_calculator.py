@@ -92,18 +92,13 @@ class WaterSaturationCalculator(Knot):
         _valid_methods = frozenset({"archie", "simandoux", "indonesia", "waxman_smits"})
         if method not in _valid_methods:
             raise ValueError(
-                f"WaterSaturationCalculator: method must be one of "
-                f"{sorted(_valid_methods)}"
+                f"WaterSaturationCalculator: method must be one of {sorted(_valid_methods)}"
             )
         for label, value in (("rw", rw), ("a", a), ("m", m), ("n", n)):
             if not isinstance(value, (int, float)):
-                raise TypeError(
-                    f"WaterSaturationCalculator: {label} must be numeric"
-                )
+                raise TypeError(f"WaterSaturationCalculator: {label} must be numeric")
             if value <= 0.0:
-                raise ValueError(
-                    f"WaterSaturationCalculator: {label} must be positive"
-                )
+                raise ValueError(f"WaterSaturationCalculator: {label} must be positive")
         return LASFile(
             well_id=las_file.well_id,
             curves=(*las_file.curves, f"SW_{method}"),

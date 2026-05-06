@@ -82,17 +82,11 @@ class LMSAdaptiveFilter(Knot):
             ValueError: If filter_length or step_size are invalid, or sample rates differ.
         """
         if not isinstance(filter_length, int) or filter_length <= 0:
-            raise ValueError(
-                "LMSAdaptiveFilter: filter_length must be a positive integer"
-            )
+            raise ValueError("LMSAdaptiveFilter: filter_length must be a positive integer")
         if not isinstance(step_size, (int, float)) or step_size <= 0:
-            raise ValueError(
-                "LMSAdaptiveFilter: step_size must be positive"
-            )
+            raise ValueError("LMSAdaptiveFilter: step_size must be positive")
         if signal.sample_rate_hz != reference.sample_rate_hz:
-            raise ValueError(
-                "LMSAdaptiveFilter: signal and reference sample rates must match"
-            )
+            raise ValueError("LMSAdaptiveFilter: signal and reference sample rates must match")
         return SignalFrame(
             signal_id=f"{signal.signal_id}:lms",
             channel_count=signal.channel_count,

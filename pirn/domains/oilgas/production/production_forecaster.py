@@ -69,9 +69,7 @@ class ProductionForecaster(Knot):
             configured number of months.
         """
         if not isinstance(forecast_months, int) or forecast_months <= 0:
-            raise ValueError(
-                "ProductionForecaster: forecast_months must be a positive integer"
-            )
+            raise ValueError("ProductionForecaster: forecast_months must be a positive integer")
         return ScadaTimeSeries(
             sensor_id="forecast",
             sample_count=forecast_months,

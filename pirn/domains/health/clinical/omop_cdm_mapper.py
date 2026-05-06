@@ -58,9 +58,7 @@ class OMOPCDMMapper(Knot):
             TypeError: If record is not a ClinicalRecord.
         """
         if not isinstance(record, ClinicalRecord):
-            raise TypeError(
-                "OMOPCDMMapper: record must be a ClinicalRecord"
-            )
+            raise TypeError("OMOPCDMMapper: record must be a ClinicalRecord")
         row: Mapping[str, Any] = {
             "person_id": record.patient_id,
             "visit_occurrence_id": record.encounter_id,

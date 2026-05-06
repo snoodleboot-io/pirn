@@ -94,18 +94,12 @@ class RayAggregate(Knot):
             A new RayDataset wrapping the aggregated Ray Data plan.
         """
         if aggregator is None and by is None:
-            raise TypeError(
-                "RayAggregate: either aggregator or (by, aggs) must be supplied"
-            )
+            raise TypeError("RayAggregate: either aggregator or (by, aggs) must be supplied")
         if aggregator is not None and (by is not None or aggs is not None):
-            raise TypeError(
-                "RayAggregate: aggregator is mutually exclusive with by/aggs"
-            )
+            raise TypeError("RayAggregate: aggregator is mutually exclusive with by/aggs")
         if aggregator is not None:
             if not callable(aggregator):
-                raise TypeError(
-                    "RayAggregate: aggregator must be a callable (dataset) -> dataset"
-                )
+                raise TypeError("RayAggregate: aggregator must be a callable (dataset) -> dataset")
             aggregated = aggregator(batch.dataset)
             return batch.with_dataset(aggregated)
 
@@ -119,20 +113,14 @@ class RayAggregate(Knot):
                 raise ValueError("RayAggregate: by must be non-empty")
             for column in by:
                 if not isinstance(column, str) or not column:
-                    raise TypeError(
-                        "RayAggregate: every entry in by must be a non-empty string"
-                    )
+                    raise TypeError("RayAggregate: every entry in by must be a non-empty string")
             resolved_by = list(by)
         else:
-            raise TypeError(
-                "RayAggregate: by must be a column name or sequence of names"
-            )
+            raise TypeError("RayAggregate: by must be a column name or sequence of names")
         if aggs is None:
             raise TypeError("RayAggregate: aggs is required when by is supplied")
         if not isinstance(aggs, Sequence) or isinstance(aggs, (str, bytes)):
-            raise TypeError(
-                "RayAggregate: aggs must be a sequence of ray.data.aggregate instances"
-            )
+            raise TypeError("RayAggregate: aggs must be a sequence of ray.data.aggregate instances")
         if not aggs:
             raise ValueError("RayAggregate: aggs must be non-empty")
         grouped = batch.dataset.groupby(resolved_by)

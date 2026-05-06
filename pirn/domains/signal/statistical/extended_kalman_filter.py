@@ -79,13 +79,9 @@ class ExtendedKalmanFilter(Knot):
             ValueError: If state_dim or observation_dim are not positive integers.
         """
         if not isinstance(state_dim, int) or state_dim <= 0:
-            raise ValueError(
-                "ExtendedKalmanFilter: state_dim must be a positive integer"
-            )
+            raise ValueError("ExtendedKalmanFilter: state_dim must be a positive integer")
         if not isinstance(observation_dim, int) or observation_dim <= 0:
-            raise ValueError(
-                "ExtendedKalmanFilter: observation_dim must be a positive integer"
-            )
+            raise ValueError("ExtendedKalmanFilter: observation_dim must be a positive integer")
         return SignalFrame(
             signal_id=f"{signal.signal_id}:ekf",
             channel_count=signal.channel_count,

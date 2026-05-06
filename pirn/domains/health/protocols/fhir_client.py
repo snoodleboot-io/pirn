@@ -16,27 +16,19 @@ from pirn.core.pirn_opaque_value import PirnOpaqueValue
 class FHIRClient(PirnOpaqueValue):
     """Interface every FHIR-server client must satisfy."""
 
-    async def fetch_resource(
-        self, resource_type: str, id: str
-    ) -> Mapping[str, Any]:
+    async def fetch_resource(self, resource_type: str, id: str) -> Mapping[str, Any]:
         """Return a single FHIR resource by ``resource_type`` / ``id``."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement fetch_resource()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement fetch_resource()")
 
     async def search(
         self, resource_type: str, params: Mapping[str, Any]
     ) -> AsyncIterator[Mapping[str, Any]]:
         """Yield matching FHIR resources for ``resource_type`` + ``params``."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement search()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement search()")
 
     async def close(self) -> None:
         """Release any underlying transport resources."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement close()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement close()")
 
     def _clear_credentials(self) -> None:
         """Drop the in-memory credential reference held by the client.

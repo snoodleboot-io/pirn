@@ -63,17 +63,13 @@ class PvtTableProcessor(Knot):
             grid sizes.
         """
         if not isinstance(fluid_id, str) or not fluid_id:
-            raise ValueError(
-                "PvtTableProcessor: fluid_id must be a non-empty string"
-            )
+            raise ValueError("PvtTableProcessor: fluid_id must be a non-empty string")
         for label, value in (
             ("pressure_count", pressure_count),
             ("temperature_count", temperature_count),
         ):
             if not isinstance(value, int) or value <= 0:
-                raise ValueError(
-                    f"PvtTableProcessor: {label} must be a positive integer"
-                )
+                raise ValueError(f"PvtTableProcessor: {label} must be a positive integer")
         return PVTTable(
             fluid_id=fluid_id,
             pressure_count=pressure_count,

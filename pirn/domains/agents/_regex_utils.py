@@ -36,9 +36,7 @@ def compile_safe_pattern(
     try:
         return re.compile(raw, flags=flags)
     except re.error as exc:
-        raise ValueError(
-            f"{owner}: {field}[{index}] is not a valid regex: {exc}"
-        ) from exc
+        raise ValueError(f"{owner}: {field}[{index}] is not a valid regex: {exc}") from exc
 
 
 async def search_any(

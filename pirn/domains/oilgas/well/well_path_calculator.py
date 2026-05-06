@@ -68,10 +68,7 @@ class WellPathCalculator(Knot):
         """
         _valid_methods = frozenset({"minimum_curvature", "tangential", "balanced_tangential"})
         if method not in _valid_methods:
-            raise ValueError(
-                f"WellPathCalculator: method must be one of "
-                f"{sorted(_valid_methods)}"
-            )
+            raise ValueError(f"WellPathCalculator: method must be one of {sorted(_valid_methods)}")
         return WellPath3D(
             well_id=survey.well_id,
             point_count=survey.station_count,

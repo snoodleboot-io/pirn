@@ -16,9 +16,7 @@ class ScadaTimeSeries(PirnOpaqueValue):
     sensor_id: str = ""
     sample_count: int = 0
     sample_interval_sec: float = 0.0
-    fetched_at: datetime = field(
-        default_factory=lambda: datetime.now(UTC)
-    )
+    fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
         return {

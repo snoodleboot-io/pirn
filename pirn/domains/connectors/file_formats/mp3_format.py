@@ -34,13 +34,9 @@ class Mp3Format(BatchFileFormat):
     def name(self) -> str:
         return "mp3"
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         if not payload:
-            raise ValueError(
-                "Mp3Format: payload is empty — cannot decode MP3"
-            )
+            raise ValueError("Mp3Format: payload is empty — cannot decode MP3")
         AudioSegment = self._load_pydub()
         segment = AudioSegment.from_file(io.BytesIO(payload), format="mp3")
         record: dict[str, Any] = {
@@ -52,14 +48,10 @@ class Mp3Format(BatchFileFormat):
         }
         return [record]
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         materialised = [dict(r) for r in records]
         if not materialised:
-            raise ValueError(
-                "Mp3Format: cannot encode an empty record stream"
-            )
+            raise ValueError("Mp3Format: cannot encode an empty record stream")
         AudioSegment = self._load_pydub()
         record = materialised[0]
         segment = AudioSegment(

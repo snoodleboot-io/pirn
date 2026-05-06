@@ -80,8 +80,7 @@ class MetricLayerAggregator(Knot):
             agg_expr = f"AVG({value_column})"
         else:
             agg_expr = (
-                f"CAST(SUM({numerator_column}) AS REAL) / "
-                f"NULLIF(SUM({denominator_column}), 0)"
+                f"CAST(SUM({numerator_column}) AS REAL) / NULLIF(SUM({denominator_column}), 0)"
             )
         if dimension_columns:
             dim_list = ", ".join(dimension_columns)
@@ -112,9 +111,7 @@ class MetricLayerAggregator(Knot):
             ("metric_name", metric_name),
         ):
             if not isinstance(value, str) or not value:
-                raise ValueError(
-                    f"MetricLayerAggregator: {label} must be a non-empty string"
-                )
+                raise ValueError(f"MetricLayerAggregator: {label} must be a non-empty string")
         if aggregation not in _SUPPORTED_AGGREGATIONS:
             raise ValueError(
                 f"MetricLayerAggregator: aggregation must be one of "

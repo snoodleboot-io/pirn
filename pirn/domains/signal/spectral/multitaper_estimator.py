@@ -78,19 +78,11 @@ class MultitaperEstimator(Knot):
             ValueError: If time_bandwidth or taper_count are invalid.
         """
         if not isinstance(time_bandwidth, (int, float)) or time_bandwidth <= 0:
-            raise ValueError(
-                "MultitaperEstimator: time_bandwidth must be positive"
-            )
+            raise ValueError("MultitaperEstimator: time_bandwidth must be positive")
         if not isinstance(taper_count, int) or taper_count <= 0:
-            raise ValueError(
-                "MultitaperEstimator: taper_count must be a positive integer"
-            )
+            raise ValueError("MultitaperEstimator: taper_count must be a positive integer")
         n = max(signal.samples_per_channel, 1)
-        resolution = (
-            signal.sample_rate_hz / n
-            if signal.sample_rate_hz > 0
-            else 0.0
-        )
+        resolution = signal.sample_rate_hz / n if signal.sample_rate_hz > 0 else 0.0
         return SpectrumFrame(
             signal_id=signal.signal_id,
             frequency_bins=n // 2 + 1,

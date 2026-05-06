@@ -71,9 +71,7 @@ class CosmosDBPool(DatabaseConnectionPool):
             )
         ]
 
-    async def execute_many(
-        self, query: str, args_seq: Iterable[Iterable[Any]]
-    ) -> None:
+    async def execute_many(self, query: str, args_seq: Iterable[Iterable[Any]]) -> None:
         """Upsert each item dict yielded by args_seq."""
         await self._ensure_container()
         for args in args_seq:

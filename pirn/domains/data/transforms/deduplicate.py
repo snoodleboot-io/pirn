@@ -79,16 +79,13 @@ class Deduplicate(Knot):
         """
         if not isinstance(keys, Sequence) or isinstance(keys, (str, bytes)):
             raise TypeError(
-                "Deduplicate: keys must be a sequence of column names "
-                "(e.g. tuple or list)"
+                "Deduplicate: keys must be a sequence of column names (e.g. tuple or list)"
             )
         if not keys:
             raise ValueError("Deduplicate: keys must be non-empty")
         for k in keys:
             if not isinstance(k, str) or not k:
-                raise TypeError(
-                    "Deduplicate: every entry in keys must be a non-empty string"
-                )
+                raise TypeError("Deduplicate: every entry in keys must be a non-empty string")
         keys_tuple: tuple[str, ...] = tuple(keys)
         seen: set[tuple[Any, ...]] = set()
         kept: list[Mapping[str, Any]] = []

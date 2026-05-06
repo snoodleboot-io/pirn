@@ -58,8 +58,7 @@ class _EnumClassifierAttempt(Knot):
         """
         if not isinstance(prompt, str):
             raise TypeError(
-                "EnumClassifierPipeline: prompt must be a string, "
-                f"got {type(prompt).__name__}"
+                f"EnumClassifierPipeline: prompt must be a string, got {type(prompt).__name__}"
             )
         labels_tuple = tuple(labels)
         lower_index = {label.lower(): label for label in labels_tuple}

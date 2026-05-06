@@ -92,9 +92,7 @@ class DuckdbAggregate(Knot):
                 "DuckdbAggregate: aggs must be a non-empty Mapping[output_name, expression]"
             )
         for output, expression in aggs.items():
-            IdentifierValidator.validate_column(
-                "DuckdbAggregate: output column", output
-            )
+            IdentifierValidator.validate_column("DuckdbAggregate: output column", output)
             if not isinstance(expression, str) or not expression.strip():
                 raise TypeError(
                     f"DuckdbAggregate: aggs[{output!r}] must be a non-empty SQL expression string"

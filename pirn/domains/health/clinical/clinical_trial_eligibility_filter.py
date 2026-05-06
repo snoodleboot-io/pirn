@@ -64,18 +64,14 @@ class ClinicalTrialEligibilityFilter(Knot):
             TypeError: If records or criteria have wrong types.
         """
         if not isinstance(records, (list, tuple)):
-            raise TypeError(
-                "ClinicalTrialEligibilityFilter: records must be list/tuple"
-            )
+            raise TypeError("ClinicalTrialEligibilityFilter: records must be list/tuple")
         for record in records:
             if not isinstance(record, ClinicalRecord):
                 raise TypeError(
                     "ClinicalTrialEligibilityFilter: every record must be a ClinicalRecord"
                 )
         if not isinstance(criteria, Mapping):
-            raise TypeError(
-                "ClinicalTrialEligibilityFilter: criteria must be a Mapping"
-            )
+            raise TypeError("ClinicalTrialEligibilityFilter: criteria must be a Mapping")
         for name, predicate in criteria.items():
             if not callable(predicate):
                 raise TypeError(

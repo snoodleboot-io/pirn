@@ -72,8 +72,7 @@ class DataVaultBridgeTableBuilder(Knot):
     def _hub_lookup_query(hub_cfg: dict[str, Any]) -> str:
         cols = ", ".join(hub_cfg["bridge_columns"])
         return (
-            f"SELECT {cols} FROM {hub_cfg['hub_table']} "
-            f"WHERE {hub_cfg['hub_hash_key_column']} = ?"
+            f"SELECT {cols} FROM {hub_cfg['hub_table']} WHERE {hub_cfg['hub_hash_key_column']} = ?"
         )
 
     async def process(
@@ -100,9 +99,7 @@ class DataVaultBridgeTableBuilder(Knot):
             ("link_table", link_table),
         ):
             if not isinstance(value, str) or not value:
-                raise ValueError(
-                    f"DataVaultBridgeTableBuilder: {label} must be a non-empty string"
-                )
+                raise ValueError(f"DataVaultBridgeTableBuilder: {label} must be a non-empty string")
         if not isinstance(link_hash_key_column, str) or not link_hash_key_column:
             raise ValueError(
                 "DataVaultBridgeTableBuilder: link_hash_key_column must be a non-empty string"
@@ -111,9 +108,7 @@ class DataVaultBridgeTableBuilder(Knot):
         IdentifierValidator.validate_column("link_table", link_table)
         IdentifierValidator.validate_column("link_hash_key_column", link_hash_key_column)
         if not hub_configs:
-            raise ValueError(
-                "DataVaultBridgeTableBuilder: hub_configs must be non-empty"
-            )
+            raise ValueError("DataVaultBridgeTableBuilder: hub_configs must be non-empty")
         validated_hub_configs: list[dict[str, Any]] = []
         for idx, cfg in enumerate(hub_configs):
             for required_key in (
@@ -127,9 +122,7 @@ class DataVaultBridgeTableBuilder(Knot):
                         f"DataVaultBridgeTableBuilder: hub_configs[{idx}] "
                         f"missing required key {required_key!r}"
                     )
-            IdentifierValidator.validate_column(
-                f"hub_configs[{idx}].hub_table", cfg["hub_table"]
-            )
+            IdentifierValidator.validate_column(f"hub_configs[{idx}].hub_table", cfg["hub_table"])
             IdentifierValidator.validate_column(
                 f"hub_configs[{idx}].hub_hash_key_column", cfg["hub_hash_key_column"]
             )
@@ -137,9 +130,7 @@ class DataVaultBridgeTableBuilder(Knot):
                 f"hub_configs[{idx}].link_fk_column", cfg["link_fk_column"]
             )
             bridge_cols = list(cfg["bridge_columns"])
-            IdentifierValidator.validate_columns(
-                f"hub_configs[{idx}].bridge_columns", bridge_cols
-            )
+            IdentifierValidator.validate_columns(f"hub_configs[{idx}].bridge_columns", bridge_cols)
             validated_hub_configs.append(
                 {
                     "hub_table": cfg["hub_table"],
@@ -159,9 +150,7 @@ class DataVaultBridgeTableBuilder(Knot):
             all_bridge_cols.extend(hub_cfg["bridge_columns"])
         col_list = ", ".join(all_bridge_cols)
         placeholders = ", ".join(["?"] * len(all_bridge_cols))
-        insert_sql = (
-            f"INSERT INTO {target_table} ({col_list}) VALUES ({placeholders})"
-        )
+        insert_sql = f"INSERT INTO {target_table} ({col_list}) VALUES ({placeholders})"
         rows_written = 0
         for link_row in link_rows:
             link_hk = link_row[0]

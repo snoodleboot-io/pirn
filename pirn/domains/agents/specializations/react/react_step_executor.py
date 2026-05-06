@@ -93,8 +93,7 @@ class ReActStepExecutor(Knot):
         """
         if not isinstance(llm, LLMProvider):
             raise TypeError(
-                "ReActStepExecutor: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
+                f"ReActStepExecutor: llm must be an LLMProvider, got {type(llm).__name__}"
             )
         tool_tuple = tuple(tools)
         for index, candidate in enumerate(tool_tuple):
@@ -137,9 +136,7 @@ class ReActStepExecutor(Knot):
         else:
             messages = tuple(context) if context else ()
         rendered = "\n".join(f"{m.role}: {m.content}" for m in messages)
-        tool_lines = "\n".join(
-            f"- {tool.name}: {tool.description}" for tool in tools
-        )
+        tool_lines = "\n".join(f"- {tool.name}: {tool.description}" for tool in tools)
         return (
             "You are a ReAct agent. Available tools:\n"
             f"{tool_lines}\n\n"
@@ -158,15 +155,13 @@ class ReActStepExecutor(Knot):
             if line.startswith(self._action_marker) and not line.startswith(
                 self._action_input_marker
             ):
-                action_name = line[len(self._action_marker):].strip() or None
+                action_name = line[len(self._action_marker) :].strip() or None
             elif line.startswith(self._action_input_marker):
-                action_input = line[len(self._action_input_marker):].strip()
+                action_input = line[len(self._action_input_marker) :].strip()
         return action_name, action_input
 
     @staticmethod
-    async def _invoke_tool(
-        tools_by_name: dict[str, Tool], name: str, raw_input: str
-    ) -> str:
+    async def _invoke_tool(tools_by_name: dict[str, Tool], name: str, raw_input: str) -> str:
         tool = tools_by_name.get(name)
         if tool is None:
             return f"Tool {name!r} is not registered."

@@ -82,24 +82,14 @@ class ReservesEstimationPipeline(Knot):
             and ``eur_mbo`` (float).
         """
         if not isinstance(economic_limit_bopd, (int, float)):
-            raise TypeError(
-                "ReservesEstimationPipeline: economic_limit_bopd must be numeric"
-            )
+            raise TypeError("ReservesEstimationPipeline: economic_limit_bopd must be numeric")
         if economic_limit_bopd <= 0:
-            raise ValueError(
-                "ReservesEstimationPipeline: economic_limit_bopd must be positive"
-            )
+            raise ValueError("ReservesEstimationPipeline: economic_limit_bopd must be positive")
         if not isinstance(royalty_rate, (int, float)):
-            raise TypeError(
-                "ReservesEstimationPipeline: royalty_rate must be numeric"
-            )
+            raise TypeError("ReservesEstimationPipeline: royalty_rate must be numeric")
         if not (0.0 <= royalty_rate < 1.0):
-            raise ValueError(
-                "ReservesEstimationPipeline: royalty_rate must be in [0, 1)"
-            )
-        total_production = sum(
-            float(e.get("rate_bopd", 0.0)) for e in production_history
-        )
+            raise ValueError("ReservesEstimationPipeline: royalty_rate must be in [0, 1)")
+        total_production = sum(float(e.get("rate_bopd", 0.0)) for e in production_history)
         eur_bbl = total_production * 365 * 0.1
         proved = eur_bbl * (1.0 - float(royalty_rate)) / 1000.0
         probable = proved * 0.3

@@ -82,9 +82,7 @@ class PCADecomposer(Knot):
             TypeError: If whiten is not a bool.
         """
         if not isinstance(component_count, int) or component_count <= 0:
-            raise ValueError(
-                "PCADecomposer: component_count must be a positive integer"
-            )
+            raise ValueError("PCADecomposer: component_count must be a positive integer")
         if not isinstance(whiten, bool):
             raise TypeError("PCADecomposer: whiten must be a bool")
         return SourceFrame(

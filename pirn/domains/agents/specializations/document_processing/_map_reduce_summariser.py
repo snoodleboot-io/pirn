@@ -79,18 +79,14 @@ class _MapReduceSummariser(Knot):
             },
             {
                 "role": "user",
-                "content": (
-                    f"Chunk {index + 1} of {total}.\n\n{chunk}"
-                ),
+                "content": (f"Chunk {index + 1} of {total}.\n\n{chunk}"),
             },
         ]
         raw = await llm.chat(chat_messages)
         return _MapReduceSummariser._extract_text(raw)
 
     async def _reduce(self, summaries: list[str], llm: LLMProvider) -> str:
-        joined = "\n\n".join(
-            f"Summary {i + 1}: {s}" for i, s in enumerate(summaries)
-        )
+        joined = "\n\n".join(f"Summary {i + 1}: {s}" for i, s in enumerate(summaries))
         chat_messages = [
             {
                 "role": "system",

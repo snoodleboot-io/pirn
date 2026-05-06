@@ -77,13 +77,9 @@ class RMSAmplitudeWindowExtractor(Knot):
             ("window_ms_below", window_ms_below),
         ):
             if not isinstance(value, (int, float)):
-                raise TypeError(
-                    f"RMSAmplitudeWindowExtractor: {label} must be numeric"
-                )
+                raise TypeError(f"RMSAmplitudeWindowExtractor: {label} must be numeric")
             if value <= 0:
-                raise ValueError(
-                    f"RMSAmplitudeWindowExtractor: {label} must be positive"
-                )
+                raise ValueError(f"RMSAmplitudeWindowExtractor: {label} must be positive")
         if not isinstance(volume, dict):
             raise TypeError("RMSAmplitudeWindowExtractor: volume must be a dict")
         if not isinstance(horizon, dict):

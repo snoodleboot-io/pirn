@@ -43,17 +43,12 @@ class IcebergTable(LakehouseTable):
     ) -> None:
         if config is None and table is None:
             raise TypeError(
-                "IcebergTable requires either config= or table= "
-                "(injected pyiceberg.table.Table)"
+                "IcebergTable requires either config= or table= (injected pyiceberg.table.Table)"
             )
         if config is not None and not isinstance(config, IcebergTableConfig):
-            raise TypeError(
-                "IcebergTable: config must be an IcebergTableConfig instance"
-            )
+            raise TypeError("IcebergTable: config must be an IcebergTableConfig instance")
         if config is not None and not config.table_identifier:
-            raise ValueError(
-                "IcebergTable: config.table_identifier must be a non-empty string"
-            )
+            raise ValueError("IcebergTable: config.table_identifier must be a non-empty string")
         self._config = config
         self._table = table
         self._closed = False
@@ -81,9 +76,7 @@ class IcebergTable(LakehouseTable):
         if snapshot_id is not None:
             scan_kwargs["snapshot_id"] = int(snapshot_id)
         elif as_of_timestamp is not None:
-            scan_kwargs["snapshot_id"] = self._snapshot_for_timestamp(
-                table, as_of_timestamp
-            )
+            scan_kwargs["snapshot_id"] = self._snapshot_for_timestamp(table, as_of_timestamp)
         if filter is not None:
             scan_kwargs["row_filter"] = self._row_filter_expression(filter)
         if columns is not None:
@@ -186,9 +179,7 @@ class IcebergTable(LakehouseTable):
             if ts_ms <= millis:
                 chosen = int(snap_id)
         if chosen is None:
-            raise ValueError(
-                f"IcebergTable.scan: no snapshot at or before timestamp {ts!r}"
-            )
+            raise ValueError(f"IcebergTable.scan: no snapshot at or before timestamp {ts!r}")
         return chosen
 
     @staticmethod
@@ -219,8 +210,7 @@ class IcebergTable(LakehouseTable):
         snapshot = table.current_snapshot()
         if snapshot is None:
             raise RuntimeError(
-                "IcebergTable: no current snapshot after write — "
-                "vendor SDK returned None"
+                "IcebergTable: no current snapshot after write — vendor SDK returned None"
             )
         return str(snapshot.snapshot_id)
 

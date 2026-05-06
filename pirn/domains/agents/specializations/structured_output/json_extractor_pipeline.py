@@ -89,23 +89,19 @@ class JsonExtractorPipeline(SubTapestry):
         """
         if not isinstance(llm, LLMProvider):
             raise TypeError(
-                "JsonExtractorPipeline: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
+                f"JsonExtractorPipeline: llm must be an LLMProvider, got {type(llm).__name__}"
             )
         if not isinstance(schema, Mapping):
             raise TypeError(
-                "JsonExtractorPipeline: schema must be a Mapping, "
-                f"got {type(schema).__name__}"
+                f"JsonExtractorPipeline: schema must be a Mapping, got {type(schema).__name__}"
             )
         if not isinstance(max_retries, int) or max_retries <= 0:
             raise ValueError(
-                "JsonExtractorPipeline: max_retries must be a positive int, "
-                f"got {max_retries!r}"
+                f"JsonExtractorPipeline: max_retries must be a positive int, got {max_retries!r}"
             )
         if not isinstance(prompt, str):
             raise TypeError(
-                "JsonExtractorPipeline: prompt must be a string, "
-                f"got {type(prompt).__name__}"
+                f"JsonExtractorPipeline: prompt must be a string, got {type(prompt).__name__}"
             )
         schema_dict = dict(schema)
         prior_error = ""
@@ -126,6 +122,5 @@ class JsonExtractorPipeline(SubTapestry):
             prior_error = str(outcome) if outcome is not None else "no output"
             last_error = prior_error
         raise ValueError(
-            "JsonExtractorPipeline: exhausted "
-            f"{max_retries} attempt(s); last error: {last_error}"
+            f"JsonExtractorPipeline: exhausted {max_retries} attempt(s); last error: {last_error}"
         )

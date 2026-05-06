@@ -65,9 +65,7 @@ class RedshiftPool(DatabaseConnectionPool):
         rows = await pool.fetch(query, *args)
         return list(rows)
 
-    async def execute_many(
-        self, query: str, args_seq: Iterable[Iterable[Any]]
-    ) -> None:
+    async def execute_many(self, query: str, args_seq: Iterable[Iterable[Any]]) -> None:
         self._reject_inline_interpolation(query)
         pool = await self._ensure_pool()
         await pool.executemany(query, [tuple(a) for a in args_seq])
@@ -84,13 +82,10 @@ class RedshiftPool(DatabaseConnectionPool):
             import asyncpg
         except ImportError as exc:
             raise ImportError(
-                "RedshiftPool requires asyncpg; install via "
-                "`pip install pirn[redshift]`"
+                "RedshiftPool requires asyncpg; install via `pip install pirn[redshift]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError(
-                "RedshiftPool: missing config and no injected pool"
-            )
+            raise RuntimeError("RedshiftPool: missing config and no injected pool")
 
         kwargs: dict[str, Any] = {
             "min_size": self._config.min_size,

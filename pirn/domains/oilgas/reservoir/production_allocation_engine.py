@@ -35,9 +35,7 @@ from pirn.core.knot_config import KnotConfig
 class ProductionAllocationEngine(Knot):
     """Allocate field totals to individual wells using well test ratios or regression."""
 
-    valid_methods: ClassVar[frozenset[str]] = frozenset(
-        {"ratio", "test_period", "regression"}
-    )
+    valid_methods: ClassVar[frozenset[str]] = frozenset({"ratio", "test_period", "regression"})
 
     def __init__(
         self,
@@ -91,9 +89,15 @@ class ProductionAllocationEngine(Knot):
             results.append(
                 {
                     "well_id": w["well_id"],
-                    "allocated_oil_bopd": field_oil * float(w.get("test_oil_bopd", 0.0)) / total_test_oil,
-                    "allocated_gas_mmscfd": field_gas * float(w.get("test_gas_mmscfd", 0.0)) / total_test_gas,
-                    "allocated_water_bwpd": field_water * float(w.get("test_water_bwpd", 0.0)) / total_test_water,
+                    "allocated_oil_bopd": field_oil
+                    * float(w.get("test_oil_bopd", 0.0))
+                    / total_test_oil,
+                    "allocated_gas_mmscfd": field_gas
+                    * float(w.get("test_gas_mmscfd", 0.0))
+                    / total_test_gas,
+                    "allocated_water_bwpd": field_water
+                    * float(w.get("test_water_bwpd", 0.0))
+                    / total_test_water,
                 }
             )
         return results

@@ -69,22 +69,16 @@ class ToolRouter(Knot):
             ValueError: If step is empty, tools is empty, or no tool name appears in the step.
         """
         if not isinstance(tools, Sequence) or isinstance(tools, (str, bytes)):
-            raise TypeError(
-                "ToolRouter: tools must be a sequence of Tool instances"
-            )
+            raise TypeError("ToolRouter: tools must be a sequence of Tool instances")
         if not tools:
             raise ValueError("ToolRouter: tools must be non-empty")
         for index, tool in enumerate(tools):
             if not isinstance(tool, Tool):
                 raise TypeError(
-                    f"ToolRouter: tools[{index}] must be a Tool, "
-                    f"got {type(tool).__name__}"
+                    f"ToolRouter: tools[{index}] must be a Tool, got {type(tool).__name__}"
                 )
         if not isinstance(step, str) or not step:
-            raise ValueError(
-                "ToolRouter: step must be a non-empty string, "
-                f"got {step!r}"
-            )
+            raise ValueError(f"ToolRouter: step must be a non-empty string, got {step!r}")
         step_lower = step.lower()
         for tool in tools:
             if tool.name.lower() in step_lower:

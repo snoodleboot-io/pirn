@@ -86,8 +86,5 @@ class PiiRedactorCheck(SubTapestry):
         inner_result = await self._run_inner(inner)
         redacted = inner_result.outputs.get("redact")
         if not isinstance(redacted, AgentResponse):
-            raise RuntimeError(
-                "PiiRedactorCheck: inner redactor did not return an "
-                "AgentResponse"
-            )
+            raise RuntimeError("PiiRedactorCheck: inner redactor did not return an AgentResponse")
         return redacted

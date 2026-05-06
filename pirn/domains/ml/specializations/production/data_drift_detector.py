@@ -75,9 +75,7 @@ class DataDriftDetector(Knot):
             raise ValueError("DataDriftDetector: features must be non-empty")
         for feat in feature_tuple:
             if not isinstance(feat, str) or not feat:
-                raise ValueError(
-                    "DataDriftDetector: every feature name must be a non-empty string"
-                )
+                raise ValueError("DataDriftDetector: every feature name must be a non-empty string")
         if not isinstance(psi_threshold, (int, float)) or psi_threshold < 0.0:
             raise ValueError("DataDriftDetector: psi_threshold must be a non-negative number")
         threshold_f = float(psi_threshold)

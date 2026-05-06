@@ -30,13 +30,10 @@ class OdsFormat(BatchFileFormat):
         has_header: bool = True,
     ) -> None:
         if not isinstance(sheet_name, str) or not sheet_name:
-            raise ValueError(
-                "OdsFormat: sheet_name must be a non-empty string"
-            )
+            raise ValueError("OdsFormat: sheet_name must be a non-empty string")
         if not isinstance(has_header, bool):
             raise TypeError(
-                "OdsFormat: has_header must be a bool, "
-                f"got {type(has_header).__name__}"
+                f"OdsFormat: has_header must be a bool, got {type(has_header).__name__}"
             )
         self._sheet_name = sheet_name
         self._has_header = has_header
@@ -53,9 +50,7 @@ class OdsFormat(BatchFileFormat):
     def has_header(self) -> bool:
         return self._has_header
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         opendocument, table_ns, text_ns = self._load_odfpy_read()
         document = opendocument.load(io.BytesIO(payload))
         target_table = None
@@ -65,10 +60,7 @@ class OdsFormat(BatchFileFormat):
                 target_table = table
                 break
         if target_table is None:
-            raise ValueError(
-                "OdsFormat: sheet "
-                f"{self._sheet_name!r} not found in document"
-            )
+            raise ValueError(f"OdsFormat: sheet {self._sheet_name!r} not found in document")
         rows: list[list[Any]] = []
         for row in target_table.getElementsByType(table_ns.TableRow):
             cells: list[Any] = []
@@ -88,10 +80,7 @@ class OdsFormat(BatchFileFormat):
         if not rows:
             return []
         if self._has_header:
-            header = [
-                str(cell) if cell is not None else ""
-                for cell in rows[0]
-            ]
+            header = [str(cell) if cell is not None else "" for cell in rows[0]]
             data_rows = rows[1:]
         else:
             header = [f"col_{index}" for index in range(len(rows[0]))]
@@ -100,17 +89,11 @@ class OdsFormat(BatchFileFormat):
         for row_values in data_rows:
             record: dict[str, Any] = {}
             for index, column in enumerate(header):
-                record[column] = (
-                    row_values[index]
-                    if index < len(row_values)
-                    else None
-                )
+                record[column] = row_values[index] if index < len(row_values) else None
             records.append(record)
         return records
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         (
             opendocument_spreadsheet,
             table_ns,
@@ -119,9 +102,7 @@ class OdsFormat(BatchFileFormat):
         materialised: list[Mapping[str, Any]] = list(records)
         document = opendocument_spreadsheet()
         table = table_ns.Table(name=self._sheet_name)
-        columns: tuple[str, ...] = (
-            tuple(materialised[0].keys()) if materialised else ()
-        )
+        columns: tuple[str, ...] = tuple(materialised[0].keys()) if materialised else ()
         if self._has_header and columns:
             header_row = table_ns.TableRow()
             for column in columns:
@@ -131,9 +112,7 @@ class OdsFormat(BatchFileFormat):
         for record in materialised:
             data_row = table_ns.TableRow()
             for column in columns:
-                cell = self._build_cell(
-                    record.get(column), table_ns, text_ns
-                )
+                cell = self._build_cell(record.get(column), table_ns, text_ns)
                 data_row.addElement(cell)
             table.addElement(data_row)
         document.spreadsheet.addElement(table)
@@ -142,9 +121,7 @@ class OdsFormat(BatchFileFormat):
         return buf.getvalue()
 
     @classmethod
-    def _build_cell(
-        cls, value: Any, table_ns: Any, text_ns: Any
-    ) -> Any:
+    def _build_cell(cls, value: Any, table_ns: Any, text_ns: Any) -> Any:
         if value is None:
             return table_ns.TableCell()
         if isinstance(value, bool):
@@ -199,8 +176,7 @@ class OdsFormat(BatchFileFormat):
             from odf import text as text_ns
         except ImportError as exc:
             raise ImportError(
-                "OdsFormat requires odfpy. Install with "
-                "`pip install pirn[ods]`."
+                "OdsFormat requires odfpy. Install with `pip install pirn[ods]`."
             ) from exc
         return opendocument, table_ns, text_ns
 
@@ -214,7 +190,6 @@ class OdsFormat(BatchFileFormat):
             )
         except ImportError as exc:
             raise ImportError(
-                "OdsFormat requires odfpy. Install with "
-                "`pip install pirn[ods]`."
+                "OdsFormat requires odfpy. Install with `pip install pirn[ods]`."
             ) from exc
         return OpenDocumentSpreadsheet, table_ns, text_ns

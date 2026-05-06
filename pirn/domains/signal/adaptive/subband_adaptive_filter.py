@@ -86,20 +86,13 @@ class SubbandAdaptiveFilter(Knot):
             ValueError: If any parameter is invalid.
         """
         if not isinstance(subband_count, int) or subband_count <= 1:
-            raise ValueError(
-                "SubbandAdaptiveFilter: subband_count must be an integer > 1"
-            )
-        if (
-            not isinstance(filter_length_per_band, int)
-            or filter_length_per_band <= 0
-        ):
+            raise ValueError("SubbandAdaptiveFilter: subband_count must be an integer > 1")
+        if not isinstance(filter_length_per_band, int) or filter_length_per_band <= 0:
             raise ValueError(
                 "SubbandAdaptiveFilter: filter_length_per_band must be a positive integer"
             )
         if not isinstance(step_size, (int, float)) or step_size <= 0:
-            raise ValueError(
-                "SubbandAdaptiveFilter: step_size must be positive"
-            )
+            raise ValueError("SubbandAdaptiveFilter: step_size must be positive")
         return SignalFrame(
             signal_id=f"{signal.signal_id}:subband-adaptive",
             channel_count=signal.channel_count,

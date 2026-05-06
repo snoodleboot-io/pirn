@@ -36,9 +36,7 @@ class DataProfile:
     row_count: int
     column_count: int
     columns: tuple[ColumnProfile, ...] = ()
-    sampled_at: datetime = field(
-        default_factory=lambda: datetime.now(UTC)
-    )
+    sampled_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def column(self, name: str) -> ColumnProfile | None:
         """Return the per-column profile for ``name`` or ``None``."""

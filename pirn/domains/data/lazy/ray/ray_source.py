@@ -92,9 +92,7 @@ class RaySource(Source):
         if factory is not None and path is not None:
             raise TypeError("RaySource: factory and path are mutually exclusive")
         if factory is not None and not callable(factory):
-            raise TypeError(
-                "RaySource: factory must be a callable () -> ray.data.Dataset"
-            )
+            raise TypeError("RaySource: factory must be a callable () -> ray.data.Dataset")
         if path is not None:
             if not isinstance(path, str) or not path:
                 raise ValueError("RaySource: path must be a non-empty string")

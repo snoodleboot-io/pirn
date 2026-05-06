@@ -67,20 +67,12 @@ class SourceLocalizer(Knot):
             ValueError: If method is not a valid inverse method.
         """
         if not isinstance(signal, SignalFrame):
-            raise TypeError(
-                "SourceLocalizer: signal must be a SignalFrame"
-            )
+            raise TypeError("SourceLocalizer: signal must be a SignalFrame")
         if method not in ("mne", "dspm", "sloreta", "beamformer"):
-            raise ValueError(
-                "SourceLocalizer: method must be one of mne/dspm/sloreta/beamformer"
-            )
+            raise ValueError("SourceLocalizer: method must be one of mne/dspm/sloreta/beamformer")
         if not isinstance(source_labels, (list, tuple)):
-            raise TypeError(
-                "SourceLocalizer: source_labels must be list/tuple"
-            )
+            raise TypeError("SourceLocalizer: source_labels must be list/tuple")
         for label in source_labels:
             if not isinstance(label, str):
-                raise TypeError(
-                    "SourceLocalizer: every source label must be a string"
-                )
+                raise TypeError("SourceLocalizer: every source label must be a string")
         return {label: 0.0 for label in source_labels}

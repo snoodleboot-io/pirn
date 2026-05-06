@@ -73,13 +73,9 @@ class FractionalDelayFilter(Knot):
             ValueError: If delay_samples or filter_order are invalid.
         """
         if not isinstance(delay_samples, (int, float)) or delay_samples < 0.0:
-            raise ValueError(
-                "FractionalDelayFilter: delay_samples must be >= 0.0"
-            )
+            raise ValueError("FractionalDelayFilter: delay_samples must be >= 0.0")
         if not isinstance(filter_order, int) or filter_order <= 0:
-            raise ValueError(
-                "FractionalDelayFilter: filter_order must be a positive integer"
-            )
+            raise ValueError("FractionalDelayFilter: filter_order must be a positive integer")
         return SignalFrame(
             signal_id=f"{signal.signal_id}:frac_delayed",
             channel_count=signal.channel_count,

@@ -80,27 +80,17 @@ class PorosityCalculator(Knot):
         """
         _valid_methods = frozenset({"density", "neutron", "density_neutron"})
         if method not in _valid_methods:
-            raise ValueError(
-                f"PorosityCalculator: method must be one of "
-                f"{sorted(_valid_methods)}"
-            )
+            raise ValueError(f"PorosityCalculator: method must be one of {sorted(_valid_methods)}")
         for label, value in (
             ("matrix_density", matrix_density),
             ("fluid_density", fluid_density),
         ):
             if not isinstance(value, (int, float)):
-                raise TypeError(
-                    f"PorosityCalculator: {label} must be numeric"
-                )
+                raise TypeError(f"PorosityCalculator: {label} must be numeric")
             if value <= 0.0:
-                raise ValueError(
-                    f"PorosityCalculator: {label} must be positive"
-                )
+                raise ValueError(f"PorosityCalculator: {label} must be positive")
         if fluid_density >= matrix_density:
-            raise ValueError(
-                "PorosityCalculator: fluid_density must be less than "
-                "matrix_density"
-            )
+            raise ValueError("PorosityCalculator: fluid_density must be less than matrix_density")
         return LASFile(
             well_id=las_file.well_id,
             curves=(*las_file.curves, f"PHI_{method}"),

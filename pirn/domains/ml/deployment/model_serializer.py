@@ -56,10 +56,7 @@ class ModelSerializer(Knot):
             ValueError: If format is not a known serialisation format.
         """
         if format not in self.valid_formats:
-            raise ValueError(
-                f"ModelSerializer: format must be one of "
-                f"{sorted(self.valid_formats)}"
-            )
+            raise ValueError(f"ModelSerializer: format must be one of {sorted(self.valid_formats)}")
         payload = {
             "format": format,
             "model_id": model.model_id,

@@ -95,40 +95,25 @@ class DicomFormat(BatchFileFormat):
     def name(self) -> str:
         return "dicom"
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         if not isinstance(payload, (bytes, bytearray)):
-            raise TypeError(
-                "DicomFormat: payload must be bytes, got "
-                f"{type(payload).__name__}"
-            )
+            raise TypeError(f"DicomFormat: payload must be bytes, got {type(payload).__name__}")
         pydicom = self._load_pydicom()
         dataset = pydicom.dcmread(io.BytesIO(bytes(payload)))
         patient_id = self._safe_text(getattr(dataset, "PatientID", ""))
         record: dict[str, Any] = {
-            "sop_instance_uid": self._safe_text(
-                getattr(dataset, "SOPInstanceUID", "")
-            ),
+            "sop_instance_uid": self._safe_text(getattr(dataset, "SOPInstanceUID", "")),
             "patient_id_hash": self._hash_patient_id(patient_id),
-            "study_uid": self._safe_text(
-                getattr(dataset, "StudyInstanceUID", "")
-            ),
-            "series_uid": self._safe_text(
-                getattr(dataset, "SeriesInstanceUID", "")
-            ),
-            "modality": self._safe_text(
-                getattr(dataset, "Modality", "")
-            ),
+            "study_uid": self._safe_text(getattr(dataset, "StudyInstanceUID", "")),
+            "series_uid": self._safe_text(getattr(dataset, "SeriesInstanceUID", "")),
+            "modality": self._safe_text(getattr(dataset, "Modality", "")),
             "pixel_array_shape": self._extract_pixel_shape(dataset),
             "pixel_data": self._extract_pixel_bytes(dataset),
             "metadata": self._sanitise_metadata(dataset),
         }
         return [record]
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         materialised = [dict(record) for record in records]
         if not materialised:
             raise ValueError(
@@ -147,9 +132,7 @@ class DicomFormat(BatchFileFormat):
         return buf.getvalue()
 
     @classmethod
-    def _build_dataset(
-        cls, record: Mapping[str, Any], pydicom: Any
-    ) -> Any:
+    def _build_dataset(cls, record: Mapping[str, Any], pydicom: Any) -> Any:
         from pydicom.dataset import Dataset, FileMetaDataset
         from pydicom.uid import (
             ExplicitVRLittleEndian,
@@ -172,19 +155,14 @@ class DicomFormat(BatchFileFormat):
         dataset.is_implicit_VR = False
         dataset.SOPInstanceUID = sop_instance
         dataset.SOPClassUID = "1.2.840.10008.5.1.4.1.1.7"
-        dataset.StudyInstanceUID = (
-            cls._safe_text(record.get("study_uid", "")) or generate_uid()
-        )
-        dataset.SeriesInstanceUID = (
-            cls._safe_text(record.get("series_uid", "")) or generate_uid()
-        )
+        dataset.StudyInstanceUID = cls._safe_text(record.get("study_uid", "")) or generate_uid()
+        dataset.SeriesInstanceUID = cls._safe_text(record.get("series_uid", "")) or generate_uid()
         dataset.Modality = cls._safe_text(record.get("modality", "OT"))
 
         pixel_data = record.get("pixel_data", b"")
         if not isinstance(pixel_data, (bytes, bytearray)):
             raise TypeError(
-                "DicomFormat: 'pixel_data' must be bytes, got "
-                f"{type(pixel_data).__name__}"
+                f"DicomFormat: 'pixel_data' must be bytes, got {type(pixel_data).__name__}"
             )
         shape = record.get("pixel_array_shape")
         rows, columns = cls._coerce_shape(shape)
@@ -219,13 +197,11 @@ class DicomFormat(BatchFileFormat):
             columns = int(shape[1])
             if rows <= 0 or columns <= 0:
                 raise ValueError(
-                    "DicomFormat: pixel_array_shape rows/columns must "
-                    f"be positive, got {shape!r}"
+                    f"DicomFormat: pixel_array_shape rows/columns must be positive, got {shape!r}"
                 )
             return rows, columns
         raise ValueError(
-            "DicomFormat: pixel_array_shape must be a (rows, cols[, ...])"
-            f" tuple, got {shape!r}"
+            f"DicomFormat: pixel_array_shape must be a (rows, cols[, ...]) tuple, got {shape!r}"
         )
 
     @classmethod
@@ -296,7 +272,6 @@ class DicomFormat(BatchFileFormat):
             import pydicom
         except ImportError as exc:
             raise ImportError(
-                "DicomFormat requires pydicom. Install with "
-                "`pip install pirn[dicom]`."
+                "DicomFormat requires pydicom. Install with `pip install pirn[dicom]`."
             ) from exc
         return pydicom

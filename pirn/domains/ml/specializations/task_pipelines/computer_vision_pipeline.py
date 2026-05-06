@@ -112,9 +112,7 @@ class ComputerVisionPipeline(SubTapestry):
         if not isinstance(target_column, str) or not target_column:
             raise ValueError("ComputerVisionPipeline: target_column must be a non-empty string")
         if not isinstance(image_encoder, ImageEncoderProvider):
-            raise TypeError(
-                "ComputerVisionPipeline: image_encoder must be an ImageEncoderProvider"
-            )
+            raise TypeError("ComputerVisionPipeline: image_encoder must be an ImageEncoderProvider")
         if not isinstance(algorithm, str) or not algorithm:
             raise ValueError("ComputerVisionPipeline: algorithm must be a non-empty string")
         with Tapestry() as inner:

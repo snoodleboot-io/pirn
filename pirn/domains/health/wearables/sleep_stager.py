@@ -42,7 +42,9 @@ class SleepStager(Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        super().__init__(signal=signal, epoch_length_sec=epoch_length_sec, _config=_config, **kwargs)
+        super().__init__(
+            signal=signal, epoch_length_sec=epoch_length_sec, _config=_config, **kwargs
+        )
 
     async def process(
         self,

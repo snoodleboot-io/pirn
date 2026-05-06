@@ -102,14 +102,11 @@ class PyarrowJoin(Knot):
                 f"PyarrowJoin: how must be one of {list(self._allowed_how)}, got {how!r}"
             )
         if on is not None and (left_on is not None or right_on is not None):
-            raise TypeError(
-                "PyarrowJoin: pass either on= or left_on/right_on, not both"
-            )
+            raise TypeError("PyarrowJoin: pass either on= or left_on/right_on, not both")
         if on is None and (left_on is None or right_on is None):
             if left_on is not None or right_on is not None:
                 raise TypeError(
-                    "PyarrowJoin: provide both left_on= and right_on= "
-                    "for differently-named keys"
+                    "PyarrowJoin: provide both left_on= and right_on= for differently-named keys"
                 )
             raise TypeError(
                 "PyarrowJoin: provide on=<column(s)> for matching keys, "
@@ -125,9 +122,7 @@ class PyarrowJoin(Knot):
             and norm_right_on is not None
             and len(norm_left_on) != len(norm_right_on)
         ):
-            raise ValueError(
-                "PyarrowJoin: left_on and right_on must have the same length"
-            )
+            raise ValueError("PyarrowJoin: left_on and right_on must have the same length")
 
         if norm_on is not None:
             joined = left.table.join(

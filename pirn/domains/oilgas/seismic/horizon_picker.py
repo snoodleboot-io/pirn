@@ -68,17 +68,11 @@ class HorizonPicker(Knot):
             SegyVolume representing the picked horizon surface.
         """
         if not isinstance(horizon_name, str) or not horizon_name:
-            raise ValueError(
-                "HorizonPicker: horizon_name must be a non-empty string"
-            )
+            raise ValueError("HorizonPicker: horizon_name must be a non-empty string")
         if not isinstance(seed_inline, int) or seed_inline < 0:
-            raise ValueError(
-                "HorizonPicker: seed_inline must be a non-negative integer"
-            )
+            raise ValueError("HorizonPicker: seed_inline must be a non-negative integer")
         if not isinstance(seed_xline, int) or seed_xline < 0:
-            raise ValueError(
-                "HorizonPicker: seed_xline must be a non-negative integer"
-            )
+            raise ValueError("HorizonPicker: seed_xline must be a non-negative integer")
         return SegyVolume(
             volume_id=f"{volume.volume_id}:horizon_{horizon_name}",
         )

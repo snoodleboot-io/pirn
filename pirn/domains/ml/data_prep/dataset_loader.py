@@ -92,30 +92,17 @@ class DatasetLoader(Knot):
             raise ValueError("DatasetLoader: feature_names must be non-empty")
         for feature in feature_tuple:
             if not isinstance(feature, str) or not feature:
-                raise ValueError(
-                    "DatasetLoader: every feature name must be a non-empty string"
-                )
+                raise ValueError("DatasetLoader: every feature name must be a non-empty string")
         has_pool_query = pool is not None and query is not None
         has_parquet = parquet_path is not None
         if has_pool_query == has_parquet:
-            raise ValueError(
-                "DatasetLoader: provide exactly one of (pool + query) "
-                "or parquet_path"
-            )
+            raise ValueError("DatasetLoader: provide exactly one of (pool + query) or parquet_path")
         if pool is not None and not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError(
-                "DatasetLoader: pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("DatasetLoader: pool must be a DatabaseConnectionPool")
         if query is not None and (not isinstance(query, str) or not query):
-            raise ValueError(
-                "DatasetLoader: query must be a non-empty string"
-            )
-        if parquet_path is not None and (
-            not isinstance(parquet_path, str) or not parquet_path
-        ):
-            raise ValueError(
-                "DatasetLoader: parquet_path must be a non-empty string"
-            )
+            raise ValueError("DatasetLoader: query must be a non-empty string")
+        if parquet_path is not None and (not isinstance(parquet_path, str) or not parquet_path):
+            raise ValueError("DatasetLoader: parquet_path must be a non-empty string")
         if has_pool_query:
             row_count = await self._count_pool_rows(pool, query)
             source_uri = f"db://{type(pool).__name__}"
@@ -134,9 +121,7 @@ class DatasetLoader(Knot):
     async def _count_pool_rows(self, pool: DatabaseConnectionPool, query: str) -> int:
         fetch_all = getattr(pool, "fetch_all", None)
         if fetch_all is None:
-            raise TypeError(
-                "DatasetLoader: pool does not support fetch_all()"
-            )
+            raise TypeError("DatasetLoader: pool does not support fetch_all()")
         rows = await fetch_all(query)
         return len(rows)
 
@@ -147,8 +132,7 @@ class DatasetLoader(Knot):
             import pyarrow.parquet as pq
         except ImportError as exc:
             raise RuntimeError(
-                "DatasetLoader: parquet_path requires pyarrow; install "
-                "the data extra"
+                "DatasetLoader: parquet_path requires pyarrow; install the data extra"
             ) from exc
         table = pq.read_table(parquet_path)
         return int(table.num_rows)

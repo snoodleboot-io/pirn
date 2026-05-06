@@ -76,16 +76,9 @@ class VMDDecomposer(Knot):
             ValueError: If mode_count or bandwidth_constraint are invalid.
         """
         if not isinstance(mode_count, int) or mode_count <= 0:
-            raise ValueError(
-                "VMDDecomposer: mode_count must be a positive integer"
-            )
-        if (
-            not isinstance(bandwidth_constraint, (int, float))
-            or bandwidth_constraint <= 0
-        ):
-            raise ValueError(
-                "VMDDecomposer: bandwidth_constraint must be positive"
-            )
+            raise ValueError("VMDDecomposer: mode_count must be a positive integer")
+        if not isinstance(bandwidth_constraint, (int, float)) or bandwidth_constraint <= 0:
+            raise ValueError("VMDDecomposer: bandwidth_constraint must be positive")
         return WaveletFrame(
             signal_id=signal.signal_id,
             wavelet_name="vmd",

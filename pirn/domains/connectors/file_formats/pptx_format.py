@@ -50,9 +50,7 @@ class PptxFormat(BatchFileFormat):
     def extract_speaker_notes(self) -> bool:
         return self._extract_speaker_notes
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         pptx = self._load_pptx()
         presentation = pptx.Presentation(io.BytesIO(payload))
         records: list[Mapping[str, Any]] = []
@@ -70,9 +68,7 @@ class PptxFormat(BatchFileFormat):
             )
         return records
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         pptx = self._load_pptx()
         presentation = pptx.Presentation()
         blank_layout = presentation.slide_layouts[6]
@@ -84,15 +80,11 @@ class PptxFormat(BatchFileFormat):
                 )
             text = record["text"]
             if not isinstance(text, str):
-                raise TypeError(
-                    "PptxFormat: 'text' must be a string, got "
-                    f"{type(text).__name__}"
-                )
+                raise TypeError(f"PptxFormat: 'text' must be a string, got {type(text).__name__}")
             notes = record.get("notes")
             if notes is not None and not isinstance(notes, str):
                 raise TypeError(
-                    "PptxFormat: 'notes' must be a string or None, "
-                    f"got {type(notes).__name__}"
+                    f"PptxFormat: 'notes' must be a string or None, got {type(notes).__name__}"
                 )
             slide = presentation.slides.add_slide(blank_layout)
             self._add_textbox(presentation, slide, text)
@@ -148,7 +140,6 @@ class PptxFormat(BatchFileFormat):
             import pptx
         except ImportError as exc:
             raise ImportError(
-                "PptxFormat requires python-pptx. Install with "
-                "`pip install pirn[pptx]`."
+                "PptxFormat requires python-pptx. Install with `pip install pirn[pptx]`."
             ) from exc
         return pptx

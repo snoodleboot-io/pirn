@@ -70,13 +70,9 @@ class WitsmlDrillingMonitor(Knot):
             ``kpis`` (dict), and ``alerts`` (list[str]).
         """
         if not isinstance(well_uid, str) or not well_uid:
-            raise ValueError(
-                "WitsmlDrillingMonitor: well_uid must be a non-empty string"
-            )
+            raise ValueError("WitsmlDrillingMonitor: well_uid must be a non-empty string")
         if not isinstance(alert_thresholds, dict):
-            raise TypeError(
-                "WitsmlDrillingMonitor: alert_thresholds must be a dict"
-            )
+            raise TypeError("WitsmlDrillingMonitor: alert_thresholds must be a dict")
         if not isinstance(witsml_data, dict):
             raise TypeError("WitsmlDrillingMonitor: witsml_data must be a dict")
         log_data: list[dict[str, Any]] = witsml_data.get("log_data", [])
@@ -91,9 +87,7 @@ class WitsmlDrillingMonitor(Knot):
                     if alert_msg not in alerts:
                         alerts.append(alert_msg)
         count = len(log_data)
-        kpis = {
-            k: v / count if count else 0.0 for k, v in kpi_totals.items()
-        }
+        kpis = {k: v / count if count else 0.0 for k, v in kpi_totals.items()}
         return {
             "well_uid": well_uid,
             "record_count": count,

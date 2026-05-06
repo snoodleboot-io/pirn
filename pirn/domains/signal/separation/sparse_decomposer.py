@@ -84,17 +84,11 @@ class SparseDecomposer(Knot):
             ValueError: If atom_count, sparsity_target, or algorithm are invalid.
         """
         if not isinstance(atom_count, int) or atom_count <= 0:
-            raise ValueError(
-                "SparseDecomposer: atom_count must be a positive integer"
-            )
+            raise ValueError("SparseDecomposer: atom_count must be a positive integer")
         if not isinstance(sparsity_target, int) or sparsity_target <= 0:
-            raise ValueError(
-                "SparseDecomposer: sparsity_target must be a positive integer"
-            )
+            raise ValueError("SparseDecomposer: sparsity_target must be a positive integer")
         if algorithm not in self._valid_algorithms:
-            raise ValueError(
-                "SparseDecomposer: algorithm must be 'omp', 'lasso', or 'lars'"
-            )
+            raise ValueError("SparseDecomposer: algorithm must be 'omp', 'lasso', or 'lars'")
         return SourceFrame(
             signal_id=signal.signal_id,
             source_count=sparsity_target,

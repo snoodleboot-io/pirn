@@ -43,9 +43,9 @@ class ParticleFilter(Knot):
     implementation.
     """
 
-    _valid_resampling_strategies = frozenset({
-        "multinomial", "stratified", "systematic", "residual"
-    })
+    _valid_resampling_strategies = frozenset(
+        {"multinomial", "stratified", "systematic", "residual"}
+    )
 
     def __init__(
         self,
@@ -90,13 +90,9 @@ class ParticleFilter(Knot):
             ValueError: If state_dim, particle_count, or resampling_strategy are invalid.
         """
         if not isinstance(state_dim, int) or state_dim <= 0:
-            raise ValueError(
-                "ParticleFilter: state_dim must be a positive integer"
-            )
+            raise ValueError("ParticleFilter: state_dim must be a positive integer")
         if not isinstance(particle_count, int) or particle_count <= 0:
-            raise ValueError(
-                "ParticleFilter: particle_count must be a positive integer"
-            )
+            raise ValueError("ParticleFilter: particle_count must be a positive integer")
         if resampling_strategy not in self._valid_resampling_strategies:
             raise ValueError(
                 "ParticleFilter: resampling_strategy must be 'multinomial', "

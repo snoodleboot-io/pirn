@@ -38,9 +38,7 @@ class WaterCutTracker(Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        super().__init__(
-            oil_rate=oil_rate, water_rate=water_rate, _config=_config, **kwargs
-        )
+        super().__init__(oil_rate=oil_rate, water_rate=water_rate, _config=_config, **kwargs)
 
     async def process(
         self,

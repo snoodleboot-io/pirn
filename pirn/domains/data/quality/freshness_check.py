@@ -133,11 +133,7 @@ class FreshnessCheck(Knot):
             value = row[column]
             if not isinstance(value, datetime):
                 continue
-            normalised = (
-                value.replace(tzinfo=UTC)
-                if value.tzinfo is None
-                else value
-            )
+            normalised = value.replace(tzinfo=UTC) if value.tzinfo is None else value
             if newest is None or normalised > newest:
                 newest = normalised
         return newest

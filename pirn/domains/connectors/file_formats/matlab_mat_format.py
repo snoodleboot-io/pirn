@@ -41,14 +41,9 @@ class MatlabMatFormat(BatchFileFormat):
         field_names: Sequence[str] | None = None,
     ) -> None:
         if not isinstance(variable_name, str) or not variable_name:
-            raise ValueError(
-                "MatlabMatFormat: variable_name must be a non-empty "
-                "string"
-            )
+            raise ValueError("MatlabMatFormat: variable_name must be a non-empty string")
         if field_names is not None:
-            if not isinstance(field_names, Sequence) or isinstance(
-                field_names, (str, bytes)
-            ):
+            if not isinstance(field_names, Sequence) or isinstance(field_names, (str, bytes)):
                 raise TypeError(
                     "MatlabMatFormat: field_names must be a sequence "
                     f"of strings, got {type(field_names).__name__}"
@@ -76,9 +71,7 @@ class MatlabMatFormat(BatchFileFormat):
     def field_names(self) -> tuple[str, ...] | None:
         return self._field_names
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         scipy_io, np = self._load_scipy_numpy()
         # scipy.io.loadmat may invoke pickle for MATLAB object arrays (cell
         # arrays containing arbitrary MATLAB objects). Do not load untrusted
@@ -94,8 +87,7 @@ class MatlabMatFormat(BatchFileFormat):
         array = loaded[self._variable_name]
         if array.dtype.names is None:
             raise ValueError(
-                "MatlabMatFormat: variable "
-                f"{self._variable_name!r} is not a structured array"
+                f"MatlabMatFormat: variable {self._variable_name!r} is not a structured array"
             )
         # scipy.io packs the record array as shape (1, N).
         if array.ndim == 2 and array.shape[0] == 1:
@@ -110,9 +102,7 @@ class MatlabMatFormat(BatchFileFormat):
             records.append(record)
         return records
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         scipy_io, np = self._load_scipy_numpy()
         materialised = [dict(record) for record in records]
         if not materialised:
@@ -126,18 +116,12 @@ class MatlabMatFormat(BatchFileFormat):
         scipy_io.savemat(buf, {self._variable_name: structured})
         return buf.getvalue()
 
-    def _records_to_structured_array(
-        self, records: list[dict[str, Any]], np: Any
-    ) -> Any:
+    def _records_to_structured_array(self, records: list[dict[str, Any]], np: Any) -> Any:
         field_order = self._derive_field_order(records)
         dtype_fields: list[tuple[str, Any]] = []
         for field in field_order:
-            sample_value = next(
-                (rec[field] for rec in records if field in rec), None
-            )
-            dtype_fields.append(
-                (field, self._infer_numpy_dtype(sample_value, records, field, np))
-            )
+            sample_value = next((rec[field] for rec in records if field in rec), None)
+            dtype_fields.append((field, self._infer_numpy_dtype(sample_value, records, field, np)))
         structured = np.zeros(len(records), dtype=dtype_fields)
         for index, record in enumerate(records):
             for field in field_order:
@@ -149,9 +133,7 @@ class MatlabMatFormat(BatchFileFormat):
                     )
         return structured
 
-    def _derive_field_order(
-        self, records: list[dict[str, Any]]
-    ) -> list[str]:
+    def _derive_field_order(self, records: list[dict[str, Any]]) -> list[str]:
         if self._field_names is not None:
             return list(self._field_names)
         order: list[str] = []
@@ -179,11 +161,7 @@ class MatlabMatFormat(BatchFileFormat):
             return np.float64
         if isinstance(sample_value, str):
             max_len = max(
-                (
-                    len(rec[field])
-                    for rec in records
-                    if isinstance(rec.get(field), str)
-                ),
+                (len(rec[field]) for rec in records if isinstance(rec.get(field), str)),
                 default=1,
             )
             return f"U{max(max_len, 1)}"
@@ -213,9 +191,7 @@ class MatlabMatFormat(BatchFileFormat):
                     return str(value.flat[0])
                 return "".join(str(v) for v in value.flat)
             if value.size == 1:
-                return MatlabMatFormat._unwrap_matlab_scalar(
-                    value.flat[0], np
-                )
+                return MatlabMatFormat._unwrap_matlab_scalar(value.flat[0], np)
             return value
         if isinstance(value, bytes):
             return value.decode("utf-8")
@@ -230,7 +206,6 @@ class MatlabMatFormat(BatchFileFormat):
             import scipy.io as scipy_io
         except ImportError as exc:
             raise ImportError(
-                "MatlabMatFormat requires scipy. Install with "
-                "`pip install pirn[matlab]`."
+                "MatlabMatFormat requires scipy. Install with `pip install pirn[matlab]`."
             ) from exc
         return scipy_io, np

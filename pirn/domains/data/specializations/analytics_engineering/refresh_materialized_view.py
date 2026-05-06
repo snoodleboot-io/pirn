@@ -74,13 +74,9 @@ class RefreshMaterializedView(Knot):
         **_: Any,
     ) -> dict[str, Any]:
         if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError(
-                "RefreshMaterializedView: pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("RefreshMaterializedView: pool must be a DatabaseConnectionPool")
         if not isinstance(view_name, str) or not view_name:
-            raise ValueError(
-                "RefreshMaterializedView: view_name must be a non-empty string"
-            )
+            raise ValueError("RefreshMaterializedView: view_name must be a non-empty string")
         if dialect not in _SUPPORTED_DIALECTS:
             raise ValueError(
                 f"RefreshMaterializedView: dialect must be one of "

@@ -49,7 +49,9 @@ class EpisodicMemoryPipeline(SubTapestry):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        super().__init__(messages=messages, session_id=session_id, store=store, _config=_config, **kwargs)
+        super().__init__(
+            messages=messages, session_id=session_id, store=store, _config=_config, **kwargs
+        )
 
     async def process(
         self,
@@ -75,13 +77,11 @@ class EpisodicMemoryPipeline(SubTapestry):
         """
         if not isinstance(store, MemoryStore):
             raise TypeError(
-                "EpisodicMemoryPipeline: store must be a MemoryStore, "
-                f"got {type(store).__name__}"
+                f"EpisodicMemoryPipeline: store must be a MemoryStore, got {type(store).__name__}"
             )
         if not isinstance(session_id, str) or not session_id:
             raise ValueError(
-                "EpisodicMemoryPipeline: session_id must be a non-empty "
-                f"string, got {session_id!r}"
+                f"EpisodicMemoryPipeline: session_id must be a non-empty string, got {session_id!r}"
             )
         seed_messages = tuple(messages)
         with Tapestry() as inner:
@@ -94,7 +94,5 @@ class EpisodicMemoryPipeline(SubTapestry):
         inner_result = await self._run_inner(inner)
         key = inner_result.outputs.get("write_episode")
         if not isinstance(key, str):
-            raise RuntimeError(
-                "EpisodicMemoryPipeline: inner write did not return a key"
-            )
+            raise RuntimeError("EpisodicMemoryPipeline: inner write did not return a key")
         return key

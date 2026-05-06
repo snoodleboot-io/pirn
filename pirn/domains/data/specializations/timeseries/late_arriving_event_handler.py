@@ -120,13 +120,9 @@ class LateArrivingEventHandler(Knot):
             ("allowed_lateness_seconds", allowed_lateness_seconds),
         ):
             if not isinstance(val, (int, float)) or val <= 0:
-                raise ValueError(
-                    f"LateArrivingEventHandler: {name} must be a positive number"
-                )
+                raise ValueError(f"LateArrivingEventHandler: {name} must be a positive number")
         if aggregation not in ("mean", "sum", "count"):
-            raise ValueError(
-                "LateArrivingEventHandler: aggregation must be mean/sum/count"
-            )
+            raise ValueError("LateArrivingEventHandler: aggregation must be mean/sum/count")
 
         bucket_td = timedelta(seconds=bucket_seconds)
         lateness_td = timedelta(seconds=allowed_lateness_seconds)

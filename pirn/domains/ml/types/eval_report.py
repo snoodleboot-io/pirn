@@ -17,15 +17,9 @@ class EvalReport(PirnOpaqueValue):
 
     model_id: str = ""
     dataset_name: str = ""
-    metrics: Mapping[str, float] = field(
-        default_factory=lambda: MappingProxyType({})
-    )
-    details: Mapping[str, Any] = field(
-        default_factory=lambda: MappingProxyType({})
-    )
-    evaluated_at: datetime = field(
-        default_factory=lambda: datetime.now(UTC)
-    )
+    metrics: Mapping[str, float] = field(default_factory=lambda: MappingProxyType({}))
+    details: Mapping[str, Any] = field(default_factory=lambda: MappingProxyType({}))
+    evaluated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
         """Flatten to a primitive dict for pydantic serialisation."""

@@ -19,9 +19,7 @@ class _HtmlStripper(HTMLParser):
     def handle_data(self, data: str) -> None:
         self._parts.append(data)
 
-    def handle_starttag(
-        self, tag: str, attrs: list[tuple[str, str | None]]
-    ) -> None:
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         if tag in self._BLOCK_TAGS:
             self._parts.append("\n")
 
@@ -31,6 +29,4 @@ class _HtmlStripper(HTMLParser):
 
     def text(self) -> str:
         joined = "".join(self._parts)
-        return "\n".join(
-            line.strip() for line in joined.splitlines() if line.strip()
-        )
+        return "\n".join(line.strip() for line in joined.splitlines() if line.strip())

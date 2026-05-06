@@ -87,12 +87,8 @@ class BiasDetector(SubTapestry):
                     "BiasDetector: every sensitive column name must be a non-empty string"
                 )
         with Tapestry() as inner:
-            model_node = _emit_value(
-                value=model, _config=KnotConfig(id="model")
-            )
-            split_node = _emit_value(
-                value=split, _config=KnotConfig(id="split")
-            )
+            model_node = _emit_value(value=model, _config=KnotConfig(id="model"))
+            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
             FairnessAudit(
                 model=model_node,
                 split=split_node,

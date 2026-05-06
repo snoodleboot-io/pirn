@@ -42,9 +42,7 @@ class CapabilityRouter(Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        super().__init__(
-            task=task, llm=llm, capabilities=capabilities, _config=_config, **kwargs
-        )
+        super().__init__(task=task, llm=llm, capabilities=capabilities, _config=_config, **kwargs)
 
     async def process(
         self,
@@ -69,18 +67,14 @@ class CapabilityRouter(Knot):
         """
         if not isinstance(llm, LLMProvider):
             raise TypeError(
-                "CapabilityRouter: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
+                f"CapabilityRouter: llm must be an LLMProvider, got {type(llm).__name__}"
             )
         if not isinstance(capabilities, Mapping) or not capabilities:
-            raise ValueError(
-                "CapabilityRouter: capabilities must be a non-empty mapping"
-            )
+            raise ValueError("CapabilityRouter: capabilities must be a non-empty mapping")
         for name, desc in capabilities.items():
             if not isinstance(name, str) or not name:
                 raise ValueError(
-                    f"CapabilityRouter: capabilities key must be a non-empty "
-                    f"string, got {name!r}"
+                    f"CapabilityRouter: capabilities key must be a non-empty string, got {name!r}"
                 )
             if not isinstance(desc, str):
                 raise TypeError(
@@ -88,14 +82,8 @@ class CapabilityRouter(Knot):
                     f"string, got {type(desc).__name__}"
                 )
         if not isinstance(task, str):
-            raise TypeError(
-                "CapabilityRouter: task must be a string, "
-                f"got {type(task).__name__}"
-            )
-        agent_lines = "\n".join(
-            f"- {name}: {desc}"
-            for name, desc in capabilities.items()
-        )
+            raise TypeError(f"CapabilityRouter: task must be a string, got {type(task).__name__}")
+        agent_lines = "\n".join(f"- {name}: {desc}" for name, desc in capabilities.items())
         prompt = (
             "Select the single best agent for the task below.\n"
             "Reply with the agent name only.\n\n"

@@ -12,6 +12,7 @@ References:
     - MNI152: https://www.mcgill.ca/bic/software/tools-data-analysis/anatomical-mri/atlases/mni-152-lin
     - FSL FNIRT: https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/FNIRT
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -74,7 +75,10 @@ class SpatialNormalizer(Knot):
             raise ValueError(
                 f"SpatialNormalizer: template must be one of {sorted(valid_templates)}"
             )
-        if not isinstance(registration_type, str) or registration_type not in valid_registration_types:
+        if (
+            not isinstance(registration_type, str)
+            or registration_type not in valid_registration_types
+        ):
             raise ValueError(
                 f"SpatialNormalizer: registration_type must be one of "
                 f"{sorted(valid_registration_types)}"

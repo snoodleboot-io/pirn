@@ -106,14 +106,10 @@ class DuckdbJoin(Knot):
         """
         allowed_how = ("inner", "left", "right", "outer", "cross")
         if how not in allowed_how:
-            raise ValueError(
-                f"DuckdbJoin: how must be one of {list(allowed_how)}, got {how!r}"
-            )
+            raise ValueError(f"DuckdbJoin: how must be one of {list(allowed_how)}, got {how!r}")
         if how == "cross":
             if on is not None or condition is not None:
-                raise TypeError(
-                    "DuckdbJoin: cross join takes no on= or condition="
-                )
+                raise TypeError("DuckdbJoin: cross join takes no on= or condition=")
         else:
             if on is None and condition is None:
                 raise TypeError(
@@ -121,9 +117,7 @@ class DuckdbJoin(Knot):
                     "or condition=<sql> for an arbitrary predicate"
                 )
             if on is not None and condition is not None:
-                raise TypeError(
-                    "DuckdbJoin: pass either on= or condition=, not both"
-                )
+                raise TypeError("DuckdbJoin: pass either on= or condition=, not both")
         coerced_on: tuple[str, ...] | None = None
         if on is not None:
             if isinstance(on, str):
@@ -137,9 +131,7 @@ class DuckdbJoin(Knot):
             IdentifierValidator.validate_columns("DuckdbJoin: on=", coerced_on)
         if condition is not None:
             if not isinstance(condition, str) or not condition.strip():
-                raise TypeError(
-                    "DuckdbJoin: condition= must be a non-empty SQL string"
-                )
+                raise TypeError("DuckdbJoin: condition= must be a non-empty SQL string")
             self._reject_obvious_injection(condition)
         right_relation = self._align_right(left, right)
         # Materialise both sides as views on the shared connection. SQL
@@ -155,16 +147,10 @@ class DuckdbJoin(Knot):
             sql = f"SELECT * FROM {left_view} CROSS JOIN {right_view}"
         elif coerced_on is not None:
             using_columns = ", ".join(f'"{column}"' for column in coerced_on)
-            sql = (
-                f"SELECT * FROM {left_view} {sql_how} JOIN {right_view} "
-                f"USING ({using_columns})"
-            )
+            sql = f"SELECT * FROM {left_view} {sql_how} JOIN {right_view} USING ({using_columns})"
         else:
             assert condition is not None
-            sql = (
-                f"SELECT * FROM {left_view} {sql_how} JOIN {right_view} "
-                f"ON {condition}"
-            )
+            sql = f"SELECT * FROM {left_view} {sql_how} JOIN {right_view} ON {condition}"
         joined = left.connection.sql(sql)
         return left.with_relation(joined)
 
@@ -179,9 +165,7 @@ class DuckdbJoin(Knot):
         }[how]
 
     @staticmethod
-    def _align_right(
-        left: DuckdbDataBatch, right: DuckdbDataBatch
-    ) -> Any:
+    def _align_right(left: DuckdbDataBatch, right: DuckdbDataBatch) -> Any:
         """Ensure ``right.relation`` lives on ``left.connection``.
 
         DuckDB requires both sides of a relational join to come from
@@ -203,6 +187,4 @@ class DuckdbJoin(Knot):
         red_flags = (";", "--", "/*", "*/")
         for token in red_flags:
             if token in value:
-                raise ValueError(
-                    f"DuckdbJoin: condition contains forbidden token {token!r}"
-                )
+                raise ValueError(f"DuckdbJoin: condition contains forbidden token {token!r}")

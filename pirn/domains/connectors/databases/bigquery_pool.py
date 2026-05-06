@@ -137,9 +137,7 @@ class BigqueryPool(DatabaseConnectionPool):
                     wrapped.append(value)
                 else:
                     wrapped.append(
-                        bigquery.ScalarQueryParameter(
-                            None, self._guess_bq_type(value), value
-                        )
+                        bigquery.ScalarQueryParameter(None, self._guess_bq_type(value), value)
                     )
             return bigquery.QueryJobConfig(query_parameters=wrapped)
         # When the SDK is not installed (e.g. stub-injected client tests),
@@ -175,9 +173,7 @@ class BigqueryPool(DatabaseConnectionPool):
                 "`pip install pirn[bigquery]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError(
-                "BigqueryPool: missing config and no injected client"
-            )
+            raise RuntimeError("BigqueryPool: missing config and no injected client")
 
         kwargs: dict[str, Any] = {"location": self._config.location}
         if self._config.project_id is not None:

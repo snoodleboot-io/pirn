@@ -90,31 +90,22 @@ class QueryNewRowsKnot(Knot):
         if not isinstance(table, str) or not table:
             raise ValueError("QueryNewRowsKnot: table must be a non-empty string")
         if not isinstance(watermark_column, str) or not watermark_column:
-            raise ValueError(
-                "QueryNewRowsKnot: watermark_column must be a non-empty string"
-            )
+            raise ValueError("QueryNewRowsKnot: watermark_column must be a non-empty string")
         for label, value in (("table", table), ("watermark_column", watermark_column)):
             if not value.replace("_", "").isalnum():
-                raise ValueError(
-                    f"QueryNewRowsKnot: {label} {value!r} must be alphanumeric"
-                )
+                raise ValueError(f"QueryNewRowsKnot: {label} {value!r} must be alphanumeric")
         column_tuple = tuple(columns)
         if not column_tuple:
             raise ValueError("QueryNewRowsKnot: columns must be non-empty")
         for column in column_tuple:
             if not isinstance(column, str) or not column.replace("_", "").isalnum():
-                raise ValueError(
-                    f"QueryNewRowsKnot: column {column!r} must be alphanumeric"
-                )
+                raise ValueError(f"QueryNewRowsKnot: column {column!r} must be alphanumeric")
         fetch_all = getattr(pool, "fetch_all", None)
         if fetch_all is None:
             raise TypeError("QueryNewRowsKnot: pool does not support fetch_all()")
         column_list = ", ".join(column_tuple)
         if high_water_mark is None:
-            query = (
-                f"SELECT {column_list} FROM {table} "
-                f"ORDER BY {watermark_column}"
-            )
+            query = f"SELECT {column_list} FROM {table} ORDER BY {watermark_column}"
             return await fetch_all(query)
         query = (
             f"SELECT {column_list} FROM {table} "

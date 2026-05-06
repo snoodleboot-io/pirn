@@ -72,14 +72,10 @@ class PatientCohortBuilder(SubTapestry):
             TypeError: If records is not a list/tuple of ClinicalRecords or stages is not a Mapping.
         """
         if not isinstance(records, (list, tuple)):
-            raise TypeError(
-                "PatientCohortBuilder: records must be a list or tuple"
-            )
+            raise TypeError("PatientCohortBuilder: records must be a list or tuple")
         for record in records:
             if not isinstance(record, ClinicalRecord):
-                raise TypeError(
-                    "PatientCohortBuilder: every record must be a ClinicalRecord"
-                )
+                raise TypeError("PatientCohortBuilder: every record must be a ClinicalRecord")
         if not isinstance(stages, Mapping):
             raise TypeError("PatientCohortBuilder: stages must be a Mapping")
         for stage_name, criteria in stages.items():

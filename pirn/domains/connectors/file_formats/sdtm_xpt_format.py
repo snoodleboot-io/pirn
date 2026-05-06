@@ -40,9 +40,7 @@ class SdtmXptFormat(BatchFileFormat):
     def name(self) -> str:
         return "sdtm_xpt"
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         pyreadstat = self._load_pyreadstat()
         with tempfile.NamedTemporaryFile(suffix=".xpt", delete=False) as tmp:
             tmp.write(payload)
@@ -54,9 +52,7 @@ class SdtmXptFormat(BatchFileFormat):
 
         column_labels: dict[str, str] = {}
         if hasattr(meta, "column_labels") and meta.column_labels:
-            column_labels = dict(
-                zip(meta.column_names, meta.column_labels, strict=False)
-            )
+            column_labels = dict(zip(meta.column_names, meta.column_labels, strict=False))
         file_label: str = ""
         if hasattr(meta, "file_label") and meta.file_label:
             file_label = str(meta.file_label)
@@ -73,9 +69,7 @@ class SdtmXptFormat(BatchFileFormat):
             records.append(record)
         return records
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         pyreadstat = self._load_pyreadstat()
         materialised = [dict(r) for r in records]
         # Extract metadata from first record if present
@@ -97,14 +91,11 @@ class SdtmXptFormat(BatchFileFormat):
             import pandas as pd
         except ImportError as exc:
             raise ImportError(
-                "SdtmXptFormat requires pandas. Install with "
-                "`pip install pirn[health]`."
+                "SdtmXptFormat requires pandas. Install with `pip install pirn[health]`."
             ) from exc
 
         df = pd.DataFrame(clean_rows)
-        with tempfile.NamedTemporaryFile(
-            suffix=".xpt", delete=False
-        ) as tmp:
+        with tempfile.NamedTemporaryFile(suffix=".xpt", delete=False) as tmp:
             tmp_path = tmp.name
         try:
             col_names = list(df.columns)
@@ -125,7 +116,6 @@ class SdtmXptFormat(BatchFileFormat):
             import pyreadstat
         except ImportError as exc:
             raise ImportError(
-                "SdtmXptFormat requires pyreadstat. Install with "
-                "`pip install pirn[health]`."
+                "SdtmXptFormat requires pyreadstat. Install with `pip install pirn[health]`."
             ) from exc
         return pyreadstat

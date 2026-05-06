@@ -83,13 +83,9 @@ class TankGaugingProcessor(Knot):
         if not isinstance(tank_table, dict):
             raise TypeError("TankGaugingProcessor: tank_table must be a dict")
         if not isinstance(bsw_correction_factor, (int, float)):
-            raise TypeError(
-                "TankGaugingProcessor: bsw_correction_factor must be numeric"
-            )
+            raise TypeError("TankGaugingProcessor: bsw_correction_factor must be numeric")
         if not (0.0 <= bsw_correction_factor <= 1.0):
-            raise ValueError(
-                "TankGaugingProcessor: bsw_correction_factor must be in [0, 1]"
-            )
+            raise ValueError("TankGaugingProcessor: bsw_correction_factor must be in [0, 1]")
         if not isinstance(gauge_readings, dict):
             raise TypeError("TankGaugingProcessor: gauge_readings must be a dict")
         opening = float(gauge_readings.get("opening_level_in", 0.0))

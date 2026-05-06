@@ -20,13 +20,11 @@ class Bzip2Codec(Codec):
     def __init__(self, compresslevel: int = 9) -> None:
         if not isinstance(compresslevel, int):
             raise TypeError(
-                "Bzip2Codec: compresslevel must be int, got "
-                f"{type(compresslevel).__name__}"
+                f"Bzip2Codec: compresslevel must be int, got {type(compresslevel).__name__}"
             )
         if not 1 <= compresslevel <= 9:
             raise ValueError(
-                "Bzip2Codec: compresslevel must be between 1 and 9, "
-                f"got {compresslevel}"
+                f"Bzip2Codec: compresslevel must be between 1 and 9, got {compresslevel}"
             )
         self._compresslevel = compresslevel
 
@@ -34,18 +32,14 @@ class Bzip2Codec(Codec):
     def name(self) -> str:
         return "bzip2"
 
-    async def compress_stream(
-        self, body: AsyncIterator[bytes]
-    ) -> AsyncIterator[bytes]:
+    async def compress_stream(self, body: AsyncIterator[bytes]) -> AsyncIterator[bytes]:
         chunks: list[bytes] = []
         async for chunk in body:
             chunks.append(chunk)
         payload = b"".join(chunks)
         yield bz2.compress(payload, compresslevel=self._compresslevel)
 
-    async def decompress_stream(
-        self, body: AsyncIterator[bytes]
-    ) -> AsyncIterator[bytes]:
+    async def decompress_stream(self, body: AsyncIterator[bytes]) -> AsyncIterator[bytes]:
         chunks: list[bytes] = []
         async for chunk in body:
             chunks.append(chunk)

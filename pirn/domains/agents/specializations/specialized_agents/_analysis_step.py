@@ -88,17 +88,12 @@ class _AnalysisStep(Knot):
             },
             {
                 "role": "user",
-                "content": (
-                    f"Question: {question}\n\n"
-                    f"SQL result:\n{sql_response.content}"
-                ),
+                "content": (f"Question: {question}\n\nSQL result:\n{sql_response.content}"),
             },
         ]
         raw = await llm.chat(chat_messages)
         analysis = _AnalysisStep._extract_text(raw)
-        combined = (
-            f"{sql_response.content}\n\nAnalysis:\n{analysis}"
-        )
+        combined = f"{sql_response.content}\n\nAnalysis:\n{analysis}"
         return AgentResponse(content=combined, finish_reason="stop")
 
     @staticmethod

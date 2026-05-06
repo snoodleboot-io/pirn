@@ -115,16 +115,10 @@ class GreatExpectationsPandasValidator(Knot):
         # Names are random to keep ``add_pandas`` calls unique across
         # invocations should the underlying context ever be reused.
         suffix = uuid4().hex[:8]
-        data_source = context.data_sources.add_pandas(
-            f"pirn_pandas_{suffix}"
-        )
+        data_source = context.data_sources.add_pandas(f"pirn_pandas_{suffix}")
         asset = data_source.add_dataframe_asset(f"pirn_asset_{suffix}")
-        batch_definition = asset.add_batch_definition_whole_dataframe(
-            f"pirn_bd_{suffix}"
-        )
-        ge_batch = batch_definition.get_batch(
-            batch_parameters={"dataframe": frame}
-        )
+        batch_definition = asset.add_batch_definition_whole_dataframe(f"pirn_bd_{suffix}")
+        ge_batch = batch_definition.get_batch(batch_parameters={"dataframe": frame})
 
         result = ge_batch.validate(suite)
 
@@ -181,9 +175,7 @@ class GreatExpectationsPandasValidator(Knot):
                 QualityCheck(
                     name=str(name),
                     passed=False,
-                    threshold=GreatExpectationsPandasValidator._serialise_threshold(
-                        kwargs
-                    ),
+                    threshold=GreatExpectationsPandasValidator._serialise_threshold(kwargs),
                     actual=GreatExpectationsPandasValidator._serialise_actual(
                         getattr(outcome, "result", None)
                     ),

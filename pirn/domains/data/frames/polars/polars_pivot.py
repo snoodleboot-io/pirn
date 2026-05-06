@@ -79,7 +79,15 @@ class PolarsPivot(Knot):
             A new PolarsDataBatch in wide format with one column per unique value in ``on``.
         """
         allowed_aggs = (
-            "first", "last", "sum", "mean", "min", "max", "count", "len", None,
+            "first",
+            "last",
+            "sum",
+            "mean",
+            "min",
+            "max",
+            "count",
+            "len",
+            None,
         )
         if aggregate_function not in allowed_aggs:
             raise ValueError(
@@ -114,7 +122,5 @@ class PolarsPivot(Knot):
             raise ValueError(f"PolarsPivot: {name} must be non-empty")
         for column in coerced:
             if not isinstance(column, str) or not column:
-                raise TypeError(
-                    f"PolarsPivot: every entry in {name} must be a non-empty string"
-                )
+                raise TypeError(f"PolarsPivot: every entry in {name} must be a non-empty string")
         return coerced

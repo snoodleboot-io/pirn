@@ -94,9 +94,7 @@ class PubSubBroker(MessageBroker):
             return future.result()
 
         await asyncio.to_thread(_publish_sync)
-        self._logger.debug(
-            "pubsub.publish", extra={"topic": topic, "size": len(value)}
-        )
+        self._logger.debug("pubsub.publish", extra={"topic": topic, "size": len(value)})
 
     async def consume(
         self,
@@ -159,17 +157,14 @@ class PubSubBroker(MessageBroker):
             from google.cloud import pubsub_v1  # type: ignore[import-untyped]
         except ImportError as exc:
             raise ImportError(
-                "PubSubBroker requires google-cloud-pubsub; install via "
-                "`pip install pirn[pubsub]`"
+                "PubSubBroker requires google-cloud-pubsub; install via `pip install pirn[pubsub]`"
             ) from exc
         kwargs: dict[str, Any] = {}
         if self._config.service_account_json is not None:
             from google.oauth2 import service_account  # type: ignore[import-untyped]
 
-            kwargs["credentials"] = (
-                service_account.Credentials.from_service_account_file(
-                    self._config.service_account_json
-                )
+            kwargs["credentials"] = service_account.Credentials.from_service_account_file(
+                self._config.service_account_json
             )
         return pubsub_v1.PublisherClient(**kwargs)
 
@@ -178,17 +173,14 @@ class PubSubBroker(MessageBroker):
             from google.cloud import pubsub_v1  # type: ignore[import-untyped]
         except ImportError as exc:
             raise ImportError(
-                "PubSubBroker requires google-cloud-pubsub; install via "
-                "`pip install pirn[pubsub]`"
+                "PubSubBroker requires google-cloud-pubsub; install via `pip install pirn[pubsub]`"
             ) from exc
         kwargs: dict[str, Any] = {}
         if self._config.service_account_json is not None:
             from google.oauth2 import service_account  # type: ignore[import-untyped]
 
-            kwargs["credentials"] = (
-                service_account.Credentials.from_service_account_file(
-                    self._config.service_account_json
-                )
+            kwargs["credentials"] = service_account.Credentials.from_service_account_file(
+                self._config.service_account_json
             )
         return pubsub_v1.SubscriberClient(**kwargs)
 
@@ -215,7 +207,5 @@ class PubSubBroker(MessageBroker):
             )
         subscription_path = getattr(subscriber, "subscription_path", None)
         if subscription_path is None:
-            return (
-                f"projects/{self._config.project}/subscriptions/{subscription}"
-            )
+            return f"projects/{self._config.project}/subscriptions/{subscription}"
         return subscription_path(self._config.project, subscription)

@@ -73,14 +73,11 @@ class GasChromatographyAnalyzer(Knot):
         if not isinstance(gc_report, dict):
             raise TypeError("GasChromatographyAnalyzer: gc_report must be a dict")
         if not isinstance(normalize_fractions, bool):
-            raise TypeError(
-                "GasChromatographyAnalyzer: normalize_fractions must be a bool"
-            )
+            raise TypeError("GasChromatographyAnalyzer: normalize_fractions must be a bool")
         components: list[dict[str, Any]] = gc_report.get("components", [])
         total_area: float = float(gc_report.get("total_area", 1.0) or 1.0)
         raw: dict[str, float] = {
-            c["name"]: float(c["area_percent"]) / total_area * 100.0
-            for c in components
+            c["name"]: float(c["area_percent"]) / total_area * 100.0 for c in components
         }
         if normalize_fractions and raw:
             total = sum(raw.values())

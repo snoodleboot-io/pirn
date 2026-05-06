@@ -401,8 +401,8 @@ def build_tapestry(history=None) -> Tapestry:
 def _synthetic_features(region: str, n: int) -> list[GeoFeature]:
     """Generate deterministic synthetic GeoJSON-style features for a region."""
     region_centres: dict[str, tuple[float, float]] = {
-        "Thames Valley":   (-0.9, 51.5),
-        "Rhine Delta":     (4.9, 51.9),
+        "Thames Valley": (-0.9, 51.5),
+        "Rhine Delta": (4.9, 51.9),
         "Sacramento Basin": (-121.5, 38.5),
     }
     centre_lon, centre_lat = region_centres.get(region, (0.0, 51.0))
@@ -420,13 +420,15 @@ def _synthetic_features(region: str, n: int) -> list[GeoFeature]:
         else:
             d = rng.uniform(0.001, 0.012)  # roughly 100 m - 1 km side
             geometry_type = "Polygon"
-            coords = [[
-                [round(lon,       6), round(lat,       6)],
-                [round(lon + d,   6), round(lat,       6)],
-                [round(lon + d,   6), round(lat + d,   6)],
-                [round(lon,       6), round(lat + d,   6)],
-                [round(lon,       6), round(lat,       6)],
-            ]]
+            coords = [
+                [
+                    [round(lon, 6), round(lat, 6)],
+                    [round(lon + d, 6), round(lat, 6)],
+                    [round(lon + d, 6), round(lat + d, 6)],
+                    [round(lon, 6), round(lat + d, 6)],
+                    [round(lon, 6), round(lat, 6)],
+                ]
+            ]
         features.append(
             GeoFeature(
                 feature_id=fid,
@@ -444,8 +446,8 @@ def _synthetic_features(region: str, n: int) -> list[GeoFeature]:
 _GRADE_LABEL = {"A": "Excellent", "B": "Good", "C": "Marginal", "D": "Poor"}
 
 REGIONS = [
-    ("Thames Valley",    5),
-    ("Rhine Delta",      4),
+    ("Thames Valley", 5),
+    ("Rhine Delta", 4),
     ("Sacramento Basin", 4),
 ]
 

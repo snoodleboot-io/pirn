@@ -75,13 +75,9 @@ class MonteCarloSimulator(Knot):
             Dict with keys ``p10``, ``p50``, ``p90``, and ``trial_count``.
         """
         if not isinstance(trial_count, int) or trial_count <= 0:
-            raise ValueError(
-                "MonteCarloSimulator: trial_count must be a positive integer"
-            )
+            raise ValueError("MonteCarloSimulator: trial_count must be a positive integer")
         if not isinstance(seed, int):
-            raise TypeError(
-                "MonteCarloSimulator: seed must be an integer"
-            )
+            raise TypeError("MonteCarloSimulator: seed must be an integer")
         base = float(deterministic_estimate)
         return {
             "p10": base * 0.7,

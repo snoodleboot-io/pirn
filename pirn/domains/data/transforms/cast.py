@@ -81,16 +81,13 @@ class Cast(Knot):
             A new DataBatch with cast column values and an updated schema reflecting the new types.
         """
         if not isinstance(casts, Mapping) or not casts:
-            raise TypeError(
-                "Cast: casts must be a non-empty Mapping[column, type]"
-            )
+            raise TypeError("Cast: casts must be a non-empty Mapping[column, type]")
         for column, target in casts.items():
             if not isinstance(column, str) or not column:
                 raise TypeError("Cast: casts keys must be non-empty strings")
             if not isinstance(target, type):
                 raise TypeError(
-                    f"Cast: casts[{column!r}] must be a type, "
-                    f"got {type(target).__name__}"
+                    f"Cast: casts[{column!r}] must be a type, got {type(target).__name__}"
                 )
         casts_dict: dict[str, type] = dict(casts)
         new_rows = tuple(self._cast_row(row, casts_dict) for row in batch.rows)
@@ -118,6 +115,5 @@ class Cast(Knot):
             return target(value)
         except (ValueError, TypeError) as exc:
             raise ValueError(
-                f"Cast: column {column!r} could not coerce value to "
-                f"{target.__name__}"
+                f"Cast: column {column!r} could not coerce value to {target.__name__}"
             ) from exc

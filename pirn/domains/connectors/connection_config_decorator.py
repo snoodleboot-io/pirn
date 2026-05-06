@@ -42,9 +42,7 @@ def connection_config(
     """
 
     def wrap(target: type[_T]) -> type[_T]:
-        decorated = dataclasses.dataclass(
-            frozen=frozen, repr=False, **dataclass_kwargs
-        )(target)
+        decorated = dataclasses.dataclass(frozen=frozen, repr=False, **dataclass_kwargs)(target)
         if "__repr__" in decorated.__dict__:
             del decorated.__dict__["__repr__"]  # type: ignore[arg-type]
         return decorated

@@ -80,9 +80,7 @@ class AdversarialRobustnessEvaluator(Knot):
                 f"AdversarialRobustnessEvaluator: attack must be one of {allowed}, got {attack!r}"
             )
         if not isinstance(epsilon, (int, float)) or epsilon <= 0.0:
-            raise ValueError(
-                "AdversarialRobustnessEvaluator: epsilon must be a positive number"
-            )
+            raise ValueError("AdversarialRobustnessEvaluator: epsilon must be a positive number")
         eps = float(epsilon)
         payload = json.dumps(
             {

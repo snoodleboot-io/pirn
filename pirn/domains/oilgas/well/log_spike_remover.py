@@ -86,9 +86,7 @@ class LogSpikeRemover(Knot):
         if not isinstance(window_size, int):
             raise TypeError("LogSpikeRemover: window_size must be an int")
         if window_size <= 1 or window_size % 2 == 0:
-            raise ValueError(
-                "LogSpikeRemover: window_size must be an odd integer greater than 1"
-            )
+            raise ValueError("LogSpikeRemover: window_size must be an odd integer greater than 1")
         if not isinstance(mad_threshold, (int, float)):
             raise TypeError("LogSpikeRemover: mad_threshold must be numeric")
         if mad_threshold <= 0:
@@ -104,7 +102,5 @@ class LogSpikeRemover(Knot):
             mad = self._median([abs(v - med) for v in window]) or 1.0
             is_spike = abs(values[i] - med) / mad > float(mad_threshold)
             out_value = med if is_spike else values[i]
-            results.append(
-                {**entry, "value": out_value, "spike_removed": is_spike}
-            )
+            results.append({**entry, "value": out_value, "spike_removed": is_spike})
         return results

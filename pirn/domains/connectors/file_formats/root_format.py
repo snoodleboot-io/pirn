@@ -42,9 +42,7 @@ class RootFormat(BatchFileFormat):
     def name(self) -> str:
         return "root"
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         uproot = self._load_uproot()
         tmp_path = self._write_temp(payload, ".root")
         records: list[Mapping[str, Any]] = []
@@ -83,12 +81,9 @@ class RootFormat(BatchFileFormat):
                 os.remove(tmp_path)
         return records
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         raise NotImplementedError(
-            "RootFormat: write is not supported — ROOT files require "
-            "uproot4 + awkward"
+            "RootFormat: write is not supported — ROOT files require uproot4 + awkward"
         )
 
     @staticmethod
@@ -104,7 +99,6 @@ class RootFormat(BatchFileFormat):
             import uproot
         except ImportError as exc:
             raise ImportError(
-                "RootFormat requires uproot. Install with "
-                "`pip install pirn[physics]`."
+                "RootFormat requires uproot. Install with `pip install pirn[physics]`."
             ) from exc
         return uproot

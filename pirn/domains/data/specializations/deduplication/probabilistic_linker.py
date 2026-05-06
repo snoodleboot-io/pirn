@@ -108,17 +108,11 @@ class ProbabilisticLinker(Knot):
                         "must be a float in (0, 1)"
                     )
         if not isinstance(match_threshold, (int, float)):
-            raise TypeError(
-                "ProbabilisticLinker: match_threshold must be a number"
-            )
+            raise TypeError("ProbabilisticLinker: match_threshold must be a number")
         if not isinstance(review_threshold, (int, float)):
-            raise TypeError(
-                "ProbabilisticLinker: review_threshold must be a number"
-            )
+            raise TypeError("ProbabilisticLinker: review_threshold must be a number")
         if match_threshold <= review_threshold:
-            raise ValueError(
-                "ProbabilisticLinker: match_threshold must be > review_threshold"
-            )
+            raise ValueError("ProbabilisticLinker: match_threshold must be > review_threshold")
         field_specs_list = list(field_specs)
         results: list[dict[str, Any]] = []
         for li, left in enumerate(left_rows):

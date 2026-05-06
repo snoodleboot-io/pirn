@@ -69,7 +69,5 @@ class SeizureDetector(Knot):
         if not isinstance(threshold, (int, float)):
             raise TypeError("SeizureDetector: threshold must be numeric")
         if float(threshold) < 0:
-            raise ValueError(
-                "SeizureDetector: threshold must be non-negative"
-            )
+            raise ValueError("SeizureDetector: threshold must be non-negative")
         return ()

@@ -23,25 +23,15 @@ class BatchFileFormat(FileFormat):
     def streaming(self) -> bool:
         return False
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         """Decode a complete file payload into records."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement _decode_full()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement _decode_full()")
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         """Encode a complete record sequence into a single byte payload."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement _encode_full()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement _encode_full()")
 
-    async def read(
-        self, body: AsyncIterator[bytes]
-    ) -> AsyncIterator[Mapping[str, Any]]:
+    async def read(self, body: AsyncIterator[bytes]) -> AsyncIterator[Mapping[str, Any]]:
         payload = await self._drain_bytes(body)
         decoded = await self._decode_full(payload)
 
@@ -51,9 +41,7 @@ class BatchFileFormat(FileFormat):
 
         return _iter()
 
-    async def write(
-        self, records: AsyncIterator[Mapping[str, Any]]
-    ) -> AsyncIterator[bytes]:
+    async def write(self, records: AsyncIterator[Mapping[str, Any]]) -> AsyncIterator[bytes]:
         materialised = await self._drain_records(records)
         payload = await self._encode_full(materialised)
 

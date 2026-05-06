@@ -84,9 +84,7 @@ class RabbitMQBroker(MessageBroker):
         message = self._build_message(value, key=key, headers=headers)
         default_exchange = channel.default_exchange
         await default_exchange.publish(message, routing_key=topic)
-        self._logger.debug(
-            "rabbitmq.publish", extra={"topic": topic, "size": len(value)}
-        )
+        self._logger.debug("rabbitmq.publish", extra={"topic": topic, "size": len(value)})
 
     async def consume(
         self,
@@ -151,8 +149,7 @@ class RabbitMQBroker(MessageBroker):
             import aio_pika  # type: ignore[import-untyped]
         except ImportError as exc:
             raise ImportError(
-                "RabbitMQBroker requires aio-pika; install via "
-                "`pip install pirn[rabbitmq]`"
+                "RabbitMQBroker requires aio-pika; install via `pip install pirn[rabbitmq]`"
             ) from exc
         connection = await aio_pika.connect_robust(
             host=self._config.host,

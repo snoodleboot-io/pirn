@@ -39,8 +39,7 @@ class SelfCritiqueRevise(Knot):
     """
 
     _generation_system: str = (
-        "You are a helpful assistant. Answer the question as accurately and "
-        "completely as you can."
+        "You are a helpful assistant. Answer the question as accurately and completely as you can."
     )
     _critique_system: str = (
         "You are a critical reviewer. Identify the main weaknesses, errors, "
@@ -77,37 +76,41 @@ class SelfCritiqueRevise(Knot):
         """
         if not isinstance(llm, LLMProvider):
             raise TypeError(
-                "SelfCritiqueRevise: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
+                f"SelfCritiqueRevise: llm must be an LLMProvider, got {type(llm).__name__}"
             )
         if not isinstance(prompt, str):
             raise TypeError(
-                "SelfCritiqueRevise: prompt must be a string, "
-                f"got {type(prompt).__name__}"
+                f"SelfCritiqueRevise: prompt must be a string, got {type(prompt).__name__}"
             )
-        initial_raw = await llm.chat(messages=[
-            {"role": "system", "content": type(self)._generation_system},
-            {"role": "user", "content": prompt},
-        ])
+        initial_raw = await llm.chat(
+            messages=[
+                {"role": "system", "content": type(self)._generation_system},
+                {"role": "user", "content": prompt},
+            ]
+        )
         initial = self._extract_text(initial_raw)
 
-        critique_raw = await llm.chat(messages=[
-            {"role": "system", "content": type(self)._critique_system},
-            {"role": "user", "content": initial},
-        ])
+        critique_raw = await llm.chat(
+            messages=[
+                {"role": "system", "content": type(self)._critique_system},
+                {"role": "user", "content": initial},
+            ]
+        )
         critique = self._extract_text(critique_raw)
 
-        revision_raw = await llm.chat(messages=[
-            {"role": "system", "content": type(self)._revision_system},
-            {
-                "role": "user",
-                "content": (
-                    f"Original question:\n{prompt}\n\n"
-                    f"Initial answer:\n{initial}\n\n"
-                    f"Critique:\n{critique}"
-                ),
-            },
-        ])
+        revision_raw = await llm.chat(
+            messages=[
+                {"role": "system", "content": type(self)._revision_system},
+                {
+                    "role": "user",
+                    "content": (
+                        f"Original question:\n{prompt}\n\n"
+                        f"Initial answer:\n{initial}\n\n"
+                        f"Critique:\n{critique}"
+                    ),
+                },
+            ]
+        )
         revised = self._extract_text(revision_raw)
         return AgentResponse(content=revised)
 

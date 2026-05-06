@@ -44,21 +44,13 @@ class GoogleAnalyticsClient(ApiClient, TableSource):
         report_request: Mapping[str, Any] | None = None,
     ) -> None:
         if config is None and client is None:
-            raise TypeError(
-                "GoogleAnalyticsClient requires either config= or client="
-            )
-        if report_request is not None and not isinstance(
-            report_request, Mapping
-        ):
-            raise ValueError(
-                "GoogleAnalyticsClient: report_request must be a Mapping"
-            )
+            raise TypeError("GoogleAnalyticsClient requires either config= or client=")
+        if report_request is not None and not isinstance(report_request, Mapping):
+            raise ValueError("GoogleAnalyticsClient: report_request must be a Mapping")
         self._config = config
         self._client = client
         self._closed = False
-        self._report_request = (
-            dict(report_request) if report_request is not None else None
-        )
+        self._report_request = dict(report_request) if report_request is not None else None
         self._scrubber = DsnScrubber()
         self._logger = logging.getLogger(self.__class__.__module__)
 
@@ -77,9 +69,7 @@ class GoogleAnalyticsClient(ApiClient, TableSource):
         legacy escape hatch and the typed surface share one path.
         """
         if not isinstance(request, Mapping):
-            raise ValueError(
-                "GoogleAnalyticsClient.run_report: request must be a Mapping"
-            )
+            raise ValueError("GoogleAnalyticsClient.run_report: request must be a Mapping")
         return await self.request("POST", "runReport", body=request)
 
     async def fetch_page(
@@ -95,9 +85,7 @@ class GoogleAnalyticsClient(ApiClient, TableSource):
         the response is full (``len(rows) == limit``); otherwise ``None``.
         """
         if self._report_request is None:
-            raise RuntimeError(
-                "GoogleAnalyticsClient.fetch_page: no report_request configured"
-            )
+            raise RuntimeError("GoogleAnalyticsClient.fetch_page: no report_request configured")
         offset = int(cursor) if cursor else 0
         limit = page_size or 1000
         body = dict(self._report_request)
@@ -105,9 +93,7 @@ class GoogleAnalyticsClient(ApiClient, TableSource):
         body["limit"] = limit
         response = await self.request("POST", "runReport", body=body)
         rows = self._extract_rows(response)
-        next_cursor = (
-            str(offset + len(rows)) if len(rows) == limit else None
-        )
+        next_cursor = str(offset + len(rows)) if len(rows) == limit else None
         return rows, next_cursor
 
     @staticmethod
@@ -131,13 +117,9 @@ class GoogleAnalyticsClient(ApiClient, TableSource):
         headers: Mapping[str, str] | None = None,
     ) -> Any:
         if not isinstance(method, str) or not method:
-            raise ValueError(
-                "GoogleAnalyticsClient.request: method must be non-empty"
-            )
+            raise ValueError("GoogleAnalyticsClient.request: method must be non-empty")
         if not isinstance(path, str) or not path:
-            raise ValueError(
-                "GoogleAnalyticsClient.request: path must be non-empty"
-            )
+            raise ValueError("GoogleAnalyticsClient.request: path must be non-empty")
         request_body: dict[str, Any] = dict(body) if body is not None else {}
         operation = self._resolve_operation(path)
         client = await self._ensure_client()
@@ -175,8 +157,7 @@ class GoogleAnalyticsClient(ApiClient, TableSource):
         if normalised not in mapping:
             supported = ", ".join(sorted(mapping))
             raise ValueError(
-                "GoogleAnalyticsClient.request: unsupported path "
-                f"{path!r}; supported: {supported}"
+                f"GoogleAnalyticsClient.request: unsupported path {path!r}; supported: {supported}"
             )
         return mapping[normalised]
 
@@ -198,9 +179,7 @@ class GoogleAnalyticsClient(ApiClient, TableSource):
                 "via `pip install pirn[google-analytics]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError(
-                "GoogleAnalyticsClient: missing config and no injected client"
-            )
+            raise RuntimeError("GoogleAnalyticsClient: missing config and no injected client")
 
         kwargs: dict[str, Any] = {}
         if self._config.service_account_json is not None:
@@ -214,13 +193,9 @@ class GoogleAnalyticsClient(ApiClient, TableSource):
                     "`pip install pirn[google-analytics]`"
                 ) from exc
             info = json.loads(self._config.service_account_json)
-            kwargs["credentials"] = (
-                service_account.Credentials.from_service_account_info(info)
-            )
+            kwargs["credentials"] = service_account.Credentials.from_service_account_info(info)
         try:
-            client = await asyncio.to_thread(
-                BetaAnalyticsDataClient, **kwargs
-            )
+            client = await asyncio.to_thread(BetaAnalyticsDataClient, **kwargs)
         except Exception as exc:
             self._reraise_scrubbed(exc)
         self._logger.debug("google_analytics.connect")

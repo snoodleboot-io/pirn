@@ -62,27 +62,19 @@ class FieldBoundaryDefiner(Knot):
             ``crs``, and ``vertex_count``.
         """
         if not isinstance(field_id, str) or not field_id:
-            raise ValueError(
-                "FieldBoundaryDefiner: field_id must be a non-empty string"
-            )
+            raise ValueError("FieldBoundaryDefiner: field_id must be a non-empty string")
         vertex_tuple = tuple(vertices)
         if len(vertex_tuple) < 3:
-            raise ValueError(
-                "FieldBoundaryDefiner: at least 3 vertices required"
-            )
+            raise ValueError("FieldBoundaryDefiner: at least 3 vertices required")
         for vertex in vertex_tuple:
             if (
                 not isinstance(vertex, tuple)
                 or len(vertex) != 2
                 or not all(isinstance(c, (int, float)) for c in vertex)
             ):
-                raise ValueError(
-                    "FieldBoundaryDefiner: every vertex must be a (x, y) tuple"
-                )
+                raise ValueError("FieldBoundaryDefiner: every vertex must be a (x, y) tuple")
         if not isinstance(crs, str) or not crs:
-            raise ValueError(
-                "FieldBoundaryDefiner: crs must be a non-empty string"
-            )
+            raise ValueError("FieldBoundaryDefiner: crs must be a non-empty string")
         converted = tuple((float(x), float(y)) for x, y in vertex_tuple)
         return {
             "field_id": field_id,

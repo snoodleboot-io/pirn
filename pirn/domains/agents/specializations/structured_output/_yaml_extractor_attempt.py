@@ -80,8 +80,7 @@ class _YamlExtractorAttempt(Knot):
         """
         if not isinstance(prompt, str):
             raise TypeError(
-                "YamlExtractorPipeline: prompt must be a string, "
-                f"got {type(prompt).__name__}"
+                f"YamlExtractorPipeline: prompt must be a string, got {type(prompt).__name__}"
             )
         schema_dict: dict[str, Any] | None = dict(schema) if schema is not None else None
         system_lines = [
@@ -95,8 +94,7 @@ class _YamlExtractorAttempt(Knot):
             )
         if prior_error:
             system_lines.append(
-                f"The previous attempt failed: {prior_error}. "
-                "Correct the error and respond again."
+                f"The previous attempt failed: {prior_error}. Correct the error and respond again."
             )
         chat_messages = [
             {"role": "system", "content": "\n".join(system_lines)},
@@ -109,10 +107,7 @@ class _YamlExtractorAttempt(Knot):
         except yaml.YAMLError as exc:
             return f"invalid YAML: {exc}"
         if not isinstance(parsed, dict):
-            return (
-                "expected YAML mapping at the root, got "
-                f"{type(parsed).__name__}"
-            )
+            return f"expected YAML mapping at the root, got {type(parsed).__name__}"
         if schema_dict is not None:
             missing = [key for key in schema_dict if key not in parsed]
             if missing:

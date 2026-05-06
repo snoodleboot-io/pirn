@@ -18,6 +18,7 @@ References:
     - Friston et al. (1994) Statistical parametric maps in functional imaging.
     - nilearn GLM: https://nilearn.github.io/stable/glm/index.html
 """
+
 from __future__ import annotations
 
 from typing import Any

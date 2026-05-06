@@ -45,9 +45,7 @@ class JiraClient(ApiClient, TableSource):
         if config is None and client is None:
             raise TypeError("JiraClient requires either config= or client=")
         if jql is not None and (not isinstance(jql, str) or not jql):
-            raise ValueError(
-                "JiraClient: jql must be a non-empty string"
-            )
+            raise ValueError("JiraClient: jql must be a non-empty string")
         self._config = config
         self._client = client
         self._closed = False
@@ -76,12 +74,8 @@ class JiraClient(ApiClient, TableSource):
         remain, else ``None``.
         """
         if not isinstance(jql, str) or not jql:
-            raise ValueError(
-                "JiraClient.search: jql must be a non-empty string"
-            )
-        return await self._search(
-            jql, start_at=start_at, max_results=max_results
-        )
+            raise ValueError("JiraClient.search: jql must be a non-empty string")
+        return await self._search(jql, start_at=start_at, max_results=max_results)
 
     async def fetch_page(
         self,
@@ -91,14 +85,10 @@ class JiraClient(ApiClient, TableSource):
     ) -> tuple[list[Mapping[str, Any]], str | None]:
         """:class:`TableSource` adapter — pages the constructor's ``jql``."""
         if self._jql is None:
-            raise RuntimeError(
-                "JiraClient.fetch_page: no jql configured"
-            )
+            raise RuntimeError("JiraClient.fetch_page: no jql configured")
         start_at = int(cursor) if cursor else 0
         max_results = page_size or 50
-        return await self._search(
-            self._jql, start_at=start_at, max_results=max_results
-        )
+        return await self._search(self._jql, start_at=start_at, max_results=max_results)
 
     async def _search(
         self,
@@ -164,9 +154,7 @@ class JiraClient(ApiClient, TableSource):
                 return client.put(path, data=request_body)
             if method_upper == "DELETE":
                 return client.delete(path)
-            raise ValueError(
-                f"JiraClient: unsupported HTTP method {method!r}"
-            )
+            raise ValueError(f"JiraClient: unsupported HTTP method {method!r}")
 
         try:
             return await asyncio.to_thread(_run)
@@ -197,13 +185,10 @@ class JiraClient(ApiClient, TableSource):
             from atlassian import Jira  # type: ignore[import-not-found]
         except ImportError as exc:
             raise ImportError(
-                "JiraClient requires atlassian-python-api; install via "
-                "`pip install pirn[jira]`"
+                "JiraClient requires atlassian-python-api; install via `pip install pirn[jira]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError(
-                "JiraClient: missing config and no injected client"
-            )
+            raise RuntimeError("JiraClient: missing config and no injected client")
 
         kwargs: dict[str, Any] = {"cloud": self._config.cloud}
         if self._config.url is not None:

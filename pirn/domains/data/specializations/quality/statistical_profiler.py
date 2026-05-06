@@ -89,9 +89,7 @@ class StatisticalProfiler(Knot):
         total_rows: int,
         top_n: int,
     ) -> dict[str, Any]:
-        all_rows = await pool.fetch_all(
-            f"SELECT {column} FROM {monitored_table}"
-        )
+        all_rows = await pool.fetch_all(f"SELECT {column} FROM {monitored_table}")
         all_values = [r[0] for r in all_rows]
         null_count = sum(1 for v in all_values if v is None)
         null_rate = null_count / total_rows if total_rows > 0 else 0.0
@@ -104,9 +102,7 @@ class StatisticalProfiler(Knot):
                 freq[v] = freq.get(v, 0) + 1
             top_values = [
                 {"value": v, "count": c}
-                for v, c in sorted(
-                    freq.items(), key=lambda x: x[1], reverse=True
-                )[:top_n]
+                for v, c in sorted(freq.items(), key=lambda x: x[1], reverse=True)[:top_n]
             ]
         numeric_vals: list[float] = []
         for v in non_null:
@@ -120,9 +116,7 @@ class StatisticalProfiler(Knot):
             col_max = numeric_sorted[-1]
             col_mean = statistics.mean(numeric_vals)
             col_median = statistics.median(numeric_vals)
-            col_stddev = (
-                statistics.stdev(numeric_vals) if len(numeric_vals) > 1 else 0.0
-            )
+            col_stddev = statistics.stdev(numeric_vals) if len(numeric_vals) > 1 else 0.0
             p5 = StatisticalProfiler._percentile(numeric_sorted, 0.05)
             p25 = StatisticalProfiler._percentile(numeric_sorted, 0.25)
             p75 = StatisticalProfiler._percentile(numeric_sorted, 0.75)
@@ -166,19 +160,13 @@ class StatisticalProfiler(Knot):
             ValueError: When columns is empty or top_n is not a positive integer.
         """
         if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError(
-                "StatisticalProfiler: pool must be a DatabaseConnectionPool"
-            )
+            raise TypeError("StatisticalProfiler: pool must be a DatabaseConnectionPool")
         IdentifierValidator.validate_column("monitored_table", monitored_table)
         column_tuple = tuple(columns)
         IdentifierValidator.validate_columns("columns", column_tuple)
         if not isinstance(top_n, int) or top_n < 1:
-            raise ValueError(
-                "StatisticalProfiler: top_n must be a positive integer"
-            )
-        total_rows_result = await pool.fetch_all(
-            f"SELECT COUNT(*) FROM {monitored_table}"
-        )
+            raise ValueError("StatisticalProfiler: top_n must be a positive integer")
+        total_rows_result = await pool.fetch_all(f"SELECT COUNT(*) FROM {monitored_table}")
         total_rows = total_rows_result[0][0]
         profiles = []
         for column in column_tuple:

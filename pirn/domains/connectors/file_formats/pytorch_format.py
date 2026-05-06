@@ -48,18 +48,15 @@ class PytorchFormat(BatchFileFormat):
     ) -> None:
         if not isinstance(weights_only, bool):
             raise TypeError(
-                "PytorchFormat: weights_only must be a bool, "
-                f"got {type(weights_only).__name__}"
+                f"PytorchFormat: weights_only must be a bool, got {type(weights_only).__name__}"
             )
         if signer is not None and not isinstance(signer, _Signer):
             raise TypeError(
-                "PytorchFormat: signer must be a _Signer or None, "
-                f"got {type(signer).__name__}"
+                f"PytorchFormat: signer must be a _Signer or None, got {type(signer).__name__}"
             )
         if not isinstance(allow_unsigned, bool):
             raise TypeError(
-                "PytorchFormat: allow_unsigned must be a bool, "
-                f"got {type(allow_unsigned).__name__}"
+                f"PytorchFormat: allow_unsigned must be a bool, got {type(allow_unsigned).__name__}"
             )
         if not weights_only and signer is None and not allow_unsigned:
             raise ValueError(
@@ -88,26 +85,17 @@ class PytorchFormat(BatchFileFormat):
     def allow_unsigned(self) -> bool:
         return self._allow_unsigned
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         if not isinstance(payload, (bytes, bytearray)):
-            raise TypeError(
-                "PytorchFormat: payload must be bytes, "
-                f"got {type(payload).__name__}"
-            )
+            raise TypeError(f"PytorchFormat: payload must be bytes, got {type(payload).__name__}")
         raw = bytes(payload)
         if self._signer is not None:
             raw = self._signer.verify(raw)
         torch = self._load_torch()
         try:
-            state = torch.load(
-                io.BytesIO(raw), weights_only=self._weights_only
-            )
+            state = torch.load(io.BytesIO(raw), weights_only=self._weights_only)
         except Exception as exc:
-            raise ValueError(
-                f"PytorchFormat: failed to deserialise payload — {exc}"
-            ) from exc
+            raise ValueError(f"PytorchFormat: failed to deserialise payload — {exc}") from exc
         record: dict[str, Any] = {
             "state_dict": state,
             "metadata": {
@@ -117,9 +105,7 @@ class PytorchFormat(BatchFileFormat):
         }
         return [record]
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         materialised: list[Mapping[str, Any]] = list(records)
         if len(materialised) != 1:
             raise ValueError(
@@ -128,18 +114,14 @@ class PytorchFormat(BatchFileFormat):
             )
         record = materialised[0]
         if "state_dict" not in record:
-            raise ValueError(
-                "PytorchFormat: record missing required 'state_dict' key"
-            )
+            raise ValueError("PytorchFormat: record missing required 'state_dict' key")
         state = record["state_dict"]
         torch = self._load_torch()
         buffer = io.BytesIO()
         try:
             torch.save(state, buffer)
         except Exception as exc:
-            raise ValueError(
-                f"PytorchFormat: failed to serialise state_dict — {exc}"
-            ) from exc
+            raise ValueError(f"PytorchFormat: failed to serialise state_dict — {exc}") from exc
         raw = buffer.getvalue()
         if self._signer is not None:
             raw = self._signer.sign(raw)
@@ -151,7 +133,6 @@ class PytorchFormat(BatchFileFormat):
             import torch
         except ImportError as exc:
             raise ImportError(
-                "PytorchFormat requires torch. Install with "
-                "`pip install pirn[pytorch]`."
+                "PytorchFormat requires torch. Install with `pip install pirn[pytorch]`."
             ) from exc
         return torch

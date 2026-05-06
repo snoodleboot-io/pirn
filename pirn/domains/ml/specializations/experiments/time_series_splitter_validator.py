@@ -102,13 +102,9 @@ class TimeSeriesSplitterValidator(SubTapestry):
             TypeError: If any inner split evaluator does not return an EvalReport.
         """
         if not isinstance(time_column, str) or not time_column:
-            raise ValueError(
-                "TimeSeriesSplitterValidator: time_column must be a non-empty string"
-            )
+            raise ValueError("TimeSeriesSplitterValidator: time_column must be a non-empty string")
         if not isinstance(algorithm, str) or not algorithm:
-            raise ValueError(
-                "TimeSeriesSplitterValidator: algorithm must be a non-empty string"
-            )
+            raise ValueError("TimeSeriesSplitterValidator: algorithm must be a non-empty string")
         if not isinstance(n_splits, int):
             raise TypeError("TimeSeriesSplitterValidator: n_splits must be an int")
         if n_splits < 2:
@@ -148,9 +144,7 @@ class TimeSeriesSplitterValidator(SubTapestry):
                 raise TypeError(
                     f"TimeSeriesSplitterValidator: split {split_index} did not produce an EvalReport"
                 )
-            per_split_metrics.append(
-                {name: float(value) for name, value in report.metrics.items()}
-            )
+            per_split_metrics.append({name: float(value) for name, value in report.metrics.items()})
         aggregated = self._aggregate(per_split_metrics)
         return EvalReport(
             model_id=f"{algorithm}:tscv-{n_splits}",
@@ -198,14 +192,11 @@ class TimeSeriesSplitterValidator(SubTapestry):
             splits.append(DataSplit(train=train, test=test, validation=None))
         return splits
 
-    def _aggregate(
-        self, per_split_metrics: list[dict[str, float]]
-    ) -> dict[str, float]:
+    def _aggregate(self, per_split_metrics: list[dict[str, float]]) -> dict[str, float]:
         if not per_split_metrics:
             return {}
         names = per_split_metrics[0].keys()
         return {
-            name: sum(split[name] for split in per_split_metrics)
-            / float(len(per_split_metrics))
+            name: sum(split[name] for split in per_split_metrics) / float(len(per_split_metrics))
             for name in names
         }

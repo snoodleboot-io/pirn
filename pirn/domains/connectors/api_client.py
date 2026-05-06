@@ -57,15 +57,11 @@ class ApiClient(PirnOpaqueValue):
             the typed surface does not yet cover; new code should
             avoid it.
         """
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement request()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement request()")
 
     async def close(self) -> None:
         """Close the client and release any underlying resources."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement close()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement close()")
 
     def _reraise_scrubbed(self, exc: BaseException) -> None:
         """Re-raise ``exc`` with credential markers scrubbed from the message.
@@ -90,4 +86,3 @@ class ApiClient(PirnOpaqueValue):
         ``close()`` benefit; default deployments are unaffected.
         """
         self._config = None
-

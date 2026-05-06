@@ -20,9 +20,7 @@ class TapestryGraphScanner:
         "create_pipeline",
     )
 
-    def scan_folder(
-        self, folder: Path
-    ) -> tuple[list[TapestryGraph], list[dict[str, Any]]]:
+    def scan_folder(self, folder: Path) -> tuple[list[TapestryGraph], list[dict[str, Any]]]:
         """Return (tapestries, runs) found under *folder*."""
         tapestries = self._scan_tapestries(folder)
         runs = self._scan_runs(folder)
@@ -253,8 +251,7 @@ class TapestryGraphScanner:
     @staticmethod
     def _is_ignored(path: Path) -> bool:
         return any(
-            part in {"__pycache__", ".git", ".venv", "node_modules", ".tox"}
-            for part in path.parts
+            part in {"__pycache__", ".git", ".venv", "node_modules", ".tox"} for part in path.parts
         )
 
     @staticmethod

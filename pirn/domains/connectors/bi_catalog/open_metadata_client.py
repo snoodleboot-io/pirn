@@ -43,13 +43,9 @@ class OpenMetadataClient(ApiClient, TableSource, MetadataCatalog):
         entity_type: str = "tables",
     ) -> None:
         if config is None and client is None:
-            raise TypeError(
-                "OpenMetadataClient requires either config= or client="
-            )
+            raise TypeError("OpenMetadataClient requires either config= or client=")
         if not isinstance(entity_type, str) or not entity_type:
-            raise ValueError(
-                "OpenMetadataClient: entity_type must be a non-empty string"
-            )
+            raise ValueError("OpenMetadataClient: entity_type must be a non-empty string")
         self._config = config
         self._client = client
         self._closed = False
@@ -72,9 +68,7 @@ class OpenMetadataClient(ApiClient, TableSource, MetadataCatalog):
         limit: int | None = None,
     ) -> tuple[list[Mapping[str, Any]], str | None]:
         """Vendor-typed read of OpenMetadata tables."""
-        return await self._list_resource(
-            "tables", after=after, limit=limit
-        )
+        return await self._list_resource("tables", after=after, limit=limit)
 
     async def list_dashboards(
         self,
@@ -83,9 +77,7 @@ class OpenMetadataClient(ApiClient, TableSource, MetadataCatalog):
         limit: int | None = None,
     ) -> tuple[list[Mapping[str, Any]], str | None]:
         """Vendor-typed read of OpenMetadata dashboards."""
-        return await self._list_resource(
-            "dashboards", after=after, limit=limit
-        )
+        return await self._list_resource("dashboards", after=after, limit=limit)
 
     async def fetch_page(
         self,
@@ -94,9 +86,7 @@ class OpenMetadataClient(ApiClient, TableSource, MetadataCatalog):
         page_size: int | None = None,
     ) -> tuple[list[Mapping[str, Any]], str | None]:
         """:class:`TableSource` adapter — pages the configured entity_type."""
-        return await self._list_resource(
-            self._entity_type, after=cursor, limit=page_size
-        )
+        return await self._list_resource(self._entity_type, after=cursor, limit=page_size)
 
     async def list_entities(
         self,
@@ -107,9 +97,7 @@ class OpenMetadataClient(ApiClient, TableSource, MetadataCatalog):
         """:class:`MetadataCatalog` adapter — paginates internally."""
         cursor: str | None = None
         while True:
-            rows, next_cursor = await self._list_resource(
-                entity_type, after=cursor, limit=None
-            )
+            rows, next_cursor = await self._list_resource(entity_type, after=cursor, limit=None)
             for entity in rows:
                 if filter is None or self._matches_filter(entity, filter):
                     yield entity
@@ -122,9 +110,7 @@ class OpenMetadataClient(ApiClient, TableSource, MetadataCatalog):
         entity_id: str,
     ) -> Mapping[str, Any]:
         """GET ``/api/v1/entities/{id}``."""
-        return await self.request(
-            "GET", f"/api/v1/entities/{entity_id}"
-        )
+        return await self.request("GET", f"/api/v1/entities/{entity_id}")
 
     async def _list_resource(
         self,
@@ -149,9 +135,7 @@ class OpenMetadataClient(ApiClient, TableSource, MetadataCatalog):
         return rows, next_cursor if next_cursor else None
 
     @staticmethod
-    def _matches_filter(
-        entity: Mapping[str, Any], filter: Mapping[str, Any]
-    ) -> bool:
+    def _matches_filter(entity: Mapping[str, Any], filter: Mapping[str, Any]) -> bool:
         for key, value in filter.items():
             if entity.get(key) != value:
                 return False
@@ -216,26 +200,17 @@ class OpenMetadataClient(ApiClient, TableSource, MetadataCatalog):
             import httpx  # type: ignore[import-not-found]
         except ImportError as exc:
             raise ImportError(
-                "OpenMetadataClient requires httpx; install via "
-                "`pip install pirn[open-metadata]`"
+                "OpenMetadataClient requires httpx; install via `pip install pirn[open-metadata]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError(
-                "OpenMetadataClient: missing config and no injected client"
-            )
+            raise RuntimeError("OpenMetadataClient: missing config and no injected client")
         if self._config.host_url is None:
-            raise RuntimeError(
-                "OpenMetadataClient: config.host_url is required"
-            )
+            raise RuntimeError("OpenMetadataClient: config.host_url is required")
         if self._config.jwt_token is None:
-            raise RuntimeError(
-                "OpenMetadataClient: config.jwt_token is required"
-            )
+            raise RuntimeError("OpenMetadataClient: config.jwt_token is required")
         try:
             client = httpx.AsyncClient(
-                headers={
-                    "Authorization": f"Bearer {self._config.jwt_token}"
-                }
+                headers={"Authorization": f"Bearer {self._config.jwt_token}"}
             )
         except Exception as exc:
             safe_message = self._scrubber.scrub(str(exc))

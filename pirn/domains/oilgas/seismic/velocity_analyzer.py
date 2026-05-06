@@ -70,11 +70,7 @@ class VelocityAnalyzer(Knot):
             Stacking velocity in metres per second (float).
         """
         if not isinstance(initial_velocity_m_s, (int, float)):
-            raise TypeError(
-                "VelocityAnalyzer: initial_velocity_m_s must be numeric"
-            )
+            raise TypeError("VelocityAnalyzer: initial_velocity_m_s must be numeric")
         if initial_velocity_m_s <= 0.0:
-            raise ValueError(
-                "VelocityAnalyzer: initial_velocity_m_s must be positive"
-            )
+            raise ValueError("VelocityAnalyzer: initial_velocity_m_s must be positive")
         return float(initial_velocity_m_s)

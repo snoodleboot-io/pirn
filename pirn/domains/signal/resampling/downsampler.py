@@ -71,9 +71,7 @@ class Downsampler(Knot):
             ValueError: If downsample_factor is not an integer > 1.
         """
         if not isinstance(downsample_factor, int) or downsample_factor <= 1:
-            raise ValueError(
-                "Downsampler: downsample_factor must be an integer > 1"
-            )
+            raise ValueError("Downsampler: downsample_factor must be an integer > 1")
         return SignalFrame(
             signal_id=f"{signal.signal_id}:downsample",
             channel_count=signal.channel_count,

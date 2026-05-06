@@ -154,17 +154,11 @@ class SklearnTrainerPipeline(SubTapestry):
         serialized_bytes = result.outputs["serialize"]
         model_id = result.outputs["register"]
         if not isinstance(report, EvalReport):
-            raise TypeError(
-                "SklearnTrainerPipeline: evaluator did not return an EvalReport"
-            )
+            raise TypeError("SklearnTrainerPipeline: evaluator did not return an EvalReport")
         if not isinstance(serialized_bytes, (bytes, bytearray)):
-            raise TypeError(
-                "SklearnTrainerPipeline: serializer did not return bytes"
-            )
+            raise TypeError("SklearnTrainerPipeline: serializer did not return bytes")
         if not isinstance(model_id, str):
-            raise TypeError(
-                "SklearnTrainerPipeline: registrar did not return a string id"
-            )
+            raise TypeError("SklearnTrainerPipeline: registrar did not return a string id")
         return {
             "model_id": model_id,
             "eval_report": report,

@@ -78,17 +78,13 @@ class FIRParksMcClellanFilter(Knot):
             ValueError: If num_taps, bands, or desired are invalid.
         """
         if not isinstance(num_taps, int) or num_taps <= 0 or num_taps % 2 == 0:
-            raise ValueError(
-                "FIRParksMcClellanFilter: num_taps must be a positive odd integer"
-            )
+            raise ValueError("FIRParksMcClellanFilter: num_taps must be a positive odd integer")
         if not isinstance(bands, tuple) or len(bands) < 2 or len(bands) % 2 != 0:
             raise ValueError(
                 "FIRParksMcClellanFilter: bands must be a tuple of an even number of edge frequencies"
             )
         if not isinstance(desired, tuple) or len(desired) != len(bands) // 2:
-            raise ValueError(
-                "FIRParksMcClellanFilter: desired must have one value per band"
-            )
+            raise ValueError("FIRParksMcClellanFilter: desired must have one value per band")
         return SignalFrame(
             signal_id=f"{signal.signal_id}:fir-pm",
             channel_count=signal.channel_count,

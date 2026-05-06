@@ -96,10 +96,7 @@ class ScdType2History(Knot):
     ) -> str:
         cols = ", ".join(tracked_columns)
         where = " AND ".join(f"{c} = ?" for c in key_columns)
-        return (
-            f"SELECT {cols} FROM {target_table} "
-            f"WHERE {where} AND {current_flag_column} = 1"
-        )
+        return f"SELECT {cols} FROM {target_table} WHERE {where} AND {current_flag_column} = 1"
 
     @staticmethod
     def _close_out_query(
@@ -164,8 +161,7 @@ class ScdType2History(Knot):
         overlap = set(key_tuple) & set(tracked_tuple)
         if overlap:
             raise ValueError(
-                "ScdType2History: key_columns and tracked_columns overlap on "
-                f"{sorted(overlap)!r}"
+                f"ScdType2History: key_columns and tracked_columns overlap on {sorted(overlap)!r}"
             )
         envelope_overlap = (set(key_tuple) | set(tracked_tuple)) & {
             valid_from_column,

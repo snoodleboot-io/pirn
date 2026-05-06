@@ -79,21 +79,13 @@ class MEGRawIngestor(Knot):
             ("signal_id", signal_id),
         ):
             if not isinstance(value, str) or not value:
-                raise ValueError(
-                    f"MEGRawIngestor: {label} must be a non-empty string"
-                )
+                raise ValueError(f"MEGRawIngestor: {label} must be a non-empty string")
         if not isinstance(channel_count, int) or channel_count <= 0:
-            raise ValueError(
-                "MEGRawIngestor: channel_count must be a positive int"
-            )
+            raise ValueError("MEGRawIngestor: channel_count must be a positive int")
         if not isinstance(sample_rate_hz, (int, float)) or sample_rate_hz <= 0:
-            raise ValueError(
-                "MEGRawIngestor: sample_rate_hz must be a positive number"
-            )
+            raise ValueError("MEGRawIngestor: sample_rate_hz must be a positive number")
         if not isinstance(samples_per_channel, int) or samples_per_channel <= 0:
-            raise ValueError(
-                "MEGRawIngestor: samples_per_channel must be a positive int"
-            )
+            raise ValueError("MEGRawIngestor: samples_per_channel must be a positive int")
         return SignalFrame(
             signal_id=signal_id,
             channel_count=channel_count,

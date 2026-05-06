@@ -74,8 +74,7 @@ class TerminationCheck(Knot):
             )
         if not isinstance(max_iterations, int) or max_iterations <= 0:
             raise ValueError(
-                "TerminationCheck: max_iterations must be a positive int, "
-                f"got {max_iterations!r}"
+                f"TerminationCheck: max_iterations must be a positive int, got {max_iterations!r}"
             )
         if not isinstance(current_iteration, int):
             raise TypeError(

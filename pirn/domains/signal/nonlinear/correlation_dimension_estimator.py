@@ -89,13 +89,9 @@ class CorrelationDimensionEstimator(Knot):
                 "CorrelationDimensionEstimator: embedding_dim must be a positive integer"
             )
         if not isinstance(radius_min, (int, float)) or radius_min <= 0:
-            raise ValueError(
-                "CorrelationDimensionEstimator: radius_min must be positive"
-            )
+            raise ValueError("CorrelationDimensionEstimator: radius_min must be positive")
         if not isinstance(radius_max, (int, float)) or radius_max <= radius_min:
-            raise ValueError(
-                "CorrelationDimensionEstimator: radius_max must exceed radius_min"
-            )
+            raise ValueError("CorrelationDimensionEstimator: radius_max must exceed radius_min")
         return {
             "signal_id": signal.signal_id,
             "embedding_dim": embedding_dim,

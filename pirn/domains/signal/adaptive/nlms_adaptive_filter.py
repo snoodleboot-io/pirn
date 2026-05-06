@@ -86,17 +86,11 @@ class NLMSAdaptiveFilter(Knot):
             ValueError: If any parameter is invalid.
         """
         if not isinstance(filter_length, int) or filter_length <= 0:
-            raise ValueError(
-                "NLMSAdaptiveFilter: filter_length must be a positive integer"
-            )
+            raise ValueError("NLMSAdaptiveFilter: filter_length must be a positive integer")
         if not isinstance(step_size, (int, float)) or step_size <= 0:
-            raise ValueError(
-                "NLMSAdaptiveFilter: step_size must be positive"
-            )
+            raise ValueError("NLMSAdaptiveFilter: step_size must be positive")
         if not isinstance(regularization, (int, float)) or regularization < 0:
-            raise ValueError(
-                "NLMSAdaptiveFilter: regularization must be non-negative"
-            )
+            raise ValueError("NLMSAdaptiveFilter: regularization must be non-negative")
         return SignalFrame(
             signal_id=f"{signal.signal_id}:nlms",
             channel_count=signal.channel_count,

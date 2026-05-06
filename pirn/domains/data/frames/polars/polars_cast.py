@@ -66,19 +66,15 @@ class PolarsCast(Knot):
             A new PolarsDataBatch with the configured columns cast to their target dtypes.
         """
         if not isinstance(casts, Mapping) or not casts:
-            raise TypeError(
-                "PolarsCast: casts must be a non-empty Mapping[column, dtype]"
-            )
+            raise TypeError("PolarsCast: casts must be a non-empty Mapping[column, dtype]")
         for column in casts:
             if not isinstance(column, str) or not column:
                 raise TypeError("PolarsCast: casts keys must be non-empty strings")
         normalised: dict[str, pl.DataType] = {
-            column: self._normalise_dtype(column, dtype)
-            for column, dtype in casts.items()
+            column: self._normalise_dtype(column, dtype) for column, dtype in casts.items()
         }
         applicable = {
-            column: dtype for column, dtype in normalised.items()
-            if column in batch.frame.columns
+            column: dtype for column, dtype in normalised.items() if column in batch.frame.columns
         }
         if not applicable:
             return batch

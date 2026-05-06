@@ -63,8 +63,7 @@ class PermeabilityEstimator(Knot):
         _valid_methods = frozenset({"timur", "coates", "wyllie_rose"})
         if method not in _valid_methods:
             raise ValueError(
-                f"PermeabilityEstimator: method must be one of "
-                f"{sorted(_valid_methods)}"
+                f"PermeabilityEstimator: method must be one of {sorted(_valid_methods)}"
             )
         return LASFile(
             well_id=las_file.well_id,

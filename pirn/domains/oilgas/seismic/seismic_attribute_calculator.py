@@ -49,9 +49,7 @@ class SeismicAttributeCalculator(Knot):
     ) -> None:
         super().__init__(volume=volume, attribute=attribute, _config=_config, **kwargs)
 
-    async def process(
-        self, volume: SegyVolume, attribute: str, **_: Any
-    ) -> SegyVolume:
+    async def process(self, volume: SegyVolume, attribute: str, **_: Any) -> SegyVolume:
         """Compute the configured seismic attribute on the input volume and return the resulting attribute SegyVolume.
 
         Args:
@@ -75,7 +73,6 @@ class SeismicAttributeCalculator(Knot):
         )
         if attribute not in valid_attributes:
             raise ValueError(
-                f"SeismicAttributeCalculator: attribute must be one of "
-                f"{sorted(valid_attributes)}"
+                f"SeismicAttributeCalculator: attribute must be one of {sorted(valid_attributes)}"
             )
         return SegyVolume(volume_id=f"{volume.volume_id}:attr_{attribute}")

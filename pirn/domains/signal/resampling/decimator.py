@@ -74,9 +74,7 @@ class Decimator(Knot):
             ValueError: If decimation_factor is not an integer > 1.
         """
         if not isinstance(decimation_factor, int) or decimation_factor <= 1:
-            raise ValueError(
-                "Decimator: decimation_factor must be an integer > 1"
-            )
+            raise ValueError("Decimator: decimation_factor must be an integer > 1")
         return SignalFrame(
             signal_id=f"{signal.signal_id}:decimate",
             channel_count=signal.channel_count,

@@ -76,9 +76,7 @@ class ChirpletDecomposer(Knot):
             ValueError: If chirplet_count is not a positive integer.
         """
         if not isinstance(chirplet_count, int) or chirplet_count <= 0:
-            raise ValueError(
-                "ChirpletDecomposer: chirplet_count must be a positive integer"
-            )
+            raise ValueError("ChirpletDecomposer: chirplet_count must be a positive integer")
         return SpectrumFrame(
             signal_id=signal.signal_id,
             frequency_bins=chirplet_count,

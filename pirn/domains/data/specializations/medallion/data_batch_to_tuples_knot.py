@@ -37,9 +37,7 @@ class DataBatchToTuplesKnot(Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        super().__init__(
-            batch=batch, column_names=column_names, _config=_config, **kwargs
-        )
+        super().__init__(batch=batch, column_names=column_names, _config=_config, **kwargs)
 
     async def process(
         self,
@@ -62,10 +60,5 @@ class DataBatchToTuplesKnot(Knot):
         """
         column_tuple = tuple(column_names)
         if not column_tuple:
-            raise ValueError(
-                "DataBatchToTuplesKnot: column_names must be non-empty"
-            )
-        return [
-            tuple(row.get(column) for column in column_tuple)
-            for row in batch.rows
-        ]
+            raise ValueError("DataBatchToTuplesKnot: column_names must be non-empty")
+        return [tuple(row.get(column) for column in column_tuple) for row in batch.rows]

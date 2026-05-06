@@ -100,22 +100,16 @@ class CDCDebezium(Knot):
             try:
                 value = value.decode("utf-8")
             except UnicodeDecodeError:
-                _logger.warning(
-                    "cdc.debezium.decode_failed topic=%s reason=non_utf8", topic
-                )
+                _logger.warning("cdc.debezium.decode_failed topic=%s reason=non_utf8", topic)
                 return None
         if isinstance(value, str):
             try:
                 value = json.loads(value)
             except json.JSONDecodeError:
-                _logger.warning(
-                    "cdc.debezium.decode_failed topic=%s reason=invalid_json", topic
-                )
+                _logger.warning("cdc.debezium.decode_failed topic=%s reason=invalid_json", topic)
                 return None
         if not isinstance(value, dict):
-            _logger.warning(
-                "cdc.debezium.decode_failed topic=%s reason=not_object", topic
-            )
+            _logger.warning("cdc.debezium.decode_failed topic=%s reason=not_object", topic)
             return None
         return value
 
@@ -215,9 +209,7 @@ class CDCDebezium(Knot):
         IdentifierValidator.validate_columns("key_columns", key_tuple)
         if max_messages is not None:
             if not isinstance(max_messages, int) or max_messages < 0:
-                raise ValueError(
-                    "CDCDebezium: max_messages must be None or a non-negative integer"
-                )
+                raise ValueError("CDCDebezium: max_messages must be None or a non-negative integer")
         applied = 0
         errors = 0
         consumed = 0
@@ -232,9 +224,7 @@ class CDCDebezium(Knot):
                     )
                     applied += 1
                 except Exception:
-                    _logger.exception(
-                        "cdc.debezium.apply_failed table=%s", target_table
-                    )
+                    _logger.exception("cdc.debezium.apply_failed table=%s", target_table)
                     errors += 1
             consumed += 1
             if max_messages is not None and consumed >= max_messages:

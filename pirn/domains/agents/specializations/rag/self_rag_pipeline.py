@@ -104,25 +104,17 @@ class SelfRAGPipeline(SubTapestry):
             ValueError: If top_k is not a positive integer.
         """
         if not isinstance(query, str):
-            raise TypeError(
-                "SelfRAGPipeline: query must be a string, "
-                f"got {type(query).__name__}"
-            )
+            raise TypeError(f"SelfRAGPipeline: query must be a string, got {type(query).__name__}")
         if not isinstance(memory, MemoryStore):
             raise TypeError(
-                "SelfRAGPipeline: memory must be a MemoryStore, "
-                f"got {type(memory).__name__}"
+                f"SelfRAGPipeline: memory must be a MemoryStore, got {type(memory).__name__}"
             )
         if not isinstance(llm, LLMProvider):
             raise TypeError(
-                "SelfRAGPipeline: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
+                f"SelfRAGPipeline: llm must be an LLMProvider, got {type(llm).__name__}"
             )
         if not isinstance(top_k, int) or top_k <= 0:
-            raise ValueError(
-                "SelfRAGPipeline: top_k must be a positive int, "
-                f"got {top_k!r}"
-            )
+            raise ValueError(f"SelfRAGPipeline: top_k must be a positive int, got {top_k!r}")
         with Tapestry() as inner_draft:
             LLMChatCall(
                 prompt=query,

@@ -37,9 +37,7 @@ class AmplitudeClient(ApiClient, EventEmitter):
         client: Any = None,
     ) -> None:
         if config is None and client is None:
-            raise TypeError(
-                "AmplitudeClient requires either config= or client="
-            )
+            raise TypeError("AmplitudeClient requires either config= or client=")
         self._config = config
         self._client = client
         self._closed = False
@@ -58,16 +56,12 @@ class AmplitudeClient(ApiClient, EventEmitter):
         ``properties`` is optional.
         """
         if "user_id" not in event:
-            raise ValueError(
-                "AmplitudeClient.emit: event requires 'user_id'"
-            )
+            raise ValueError("AmplitudeClient.emit: event requires 'user_id'")
         event_type = event.get("event_type")
         if event_type is None:
             event_type = event.get("event")
         if event_type is None:
-            raise ValueError(
-                "AmplitudeClient.emit: event requires 'event_type' or 'event'"
-            )
+            raise ValueError("AmplitudeClient.emit: event requires 'event_type' or 'event'")
         await self.track(
             user_id=event["user_id"],
             event_type=event_type,
@@ -83,20 +77,14 @@ class AmplitudeClient(ApiClient, EventEmitter):
     ) -> None:
         """Vendor-typed wrapper around ``Amplitude.track``."""
         if not isinstance(user_id, str) or not user_id:
-            raise ValueError(
-                "AmplitudeClient.track: user_id must be a non-empty string"
-            )
+            raise ValueError("AmplitudeClient.track: user_id must be a non-empty string")
         if not isinstance(event_type, str) or not event_type:
-            raise ValueError(
-                "AmplitudeClient.track: event_type must be a non-empty string"
-            )
+            raise ValueError("AmplitudeClient.track: event_type must be a non-empty string")
         amplitude_event = await self._build_event(
             {
                 "event": event_type,
                 "user_id": user_id,
-                "properties": (
-                    dict(properties) if properties is not None else None
-                ),
+                "properties": (dict(properties) if properties is not None else None),
             }
         )
         client = await self._ensure_client()
@@ -112,30 +100,20 @@ class AmplitudeClient(ApiClient, EventEmitter):
         headers: Mapping[str, str] | None = None,
     ) -> Any:
         if not isinstance(method, str) or not method:
-            raise ValueError(
-                "AmplitudeClient.request: method must be non-empty"
-            )
+            raise ValueError("AmplitudeClient.request: method must be non-empty")
         if not isinstance(path, str) or not path:
-            raise ValueError(
-                "AmplitudeClient.request: path must be non-empty"
-            )
+            raise ValueError("AmplitudeClient.request: path must be non-empty")
         upper_method = method.upper()
         if upper_method != "POST":
-            raise ValueError(
-                "AmplitudeClient.request: only POST is supported; got "
-                f"{method!r}"
-            )
+            raise ValueError(f"AmplitudeClient.request: only POST is supported; got {method!r}")
         normalised = "/" + path.lstrip("/")
         if normalised != "/track":
             raise ValueError(
-                "AmplitudeClient.request: unsupported path "
-                f"{path!r}; supported: /track"
+                f"AmplitudeClient.request: unsupported path {path!r}; supported: /track"
             )
         request_body: dict[str, Any] = dict(body) if body is not None else {}
         if "event" not in request_body:
-            raise ValueError(
-                "AmplitudeClient.request(/track): body requires 'event'"
-            )
+            raise ValueError("AmplitudeClient.request(/track): body requires 'event'")
         event = await self._build_event(request_body)
         client = await self._ensure_client()
         return await asyncio.to_thread(client.track, event)
@@ -164,9 +142,7 @@ class AmplitudeClient(ApiClient, EventEmitter):
         return BaseEvent(
             event_type=body["event"],
             user_id=body.get("user_id"),
-            event_properties=(
-                dict(body["properties"]) if body.get("properties") else None
-            ),
+            event_properties=(dict(body["properties"]) if body.get("properties") else None),
         )
 
     async def _ensure_client(self) -> Any:
@@ -185,13 +161,9 @@ class AmplitudeClient(ApiClient, EventEmitter):
                 "`pip install pirn[amplitude]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError(
-                "AmplitudeClient: missing config and no injected client"
-            )
+            raise RuntimeError("AmplitudeClient: missing config and no injected client")
         if self._config.api_key is None:
-            raise RuntimeError(
-                "AmplitudeClient: config.api_key is required"
-            )
+            raise RuntimeError("AmplitudeClient: config.api_key is required")
         try:
             client = await asyncio.to_thread(Amplitude, self._config.api_key)
         except Exception as exc:

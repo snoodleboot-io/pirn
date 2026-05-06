@@ -101,10 +101,7 @@ class ScdType6Hybrid(Knot):
     ) -> str:
         cols = ", ".join(tracked_columns)
         where = " AND ".join(f"{c} = ?" for c in key_columns)
-        return (
-            f"SELECT {cols} FROM {target_table} "
-            f"WHERE {where} AND {current_flag_column} = 1"
-        )
+        return f"SELECT {cols} FROM {target_table} WHERE {where} AND {current_flag_column} = 1"
 
     @staticmethod
     def _close_out_query(
@@ -192,8 +189,7 @@ class ScdType6Hybrid(Knot):
         overlap = set(key_tuple) & set(tracked_tuple)
         if overlap:
             raise ValueError(
-                "ScdType6Hybrid: key_columns and tracked_columns overlap on "
-                f"{sorted(overlap)!r}"
+                f"ScdType6Hybrid: key_columns and tracked_columns overlap on {sorted(overlap)!r}"
             )
         if not isinstance(current_columns, Mapping):
             raise TypeError("ScdType6Hybrid: current_columns must be a Mapping[str, str]")
@@ -261,11 +257,7 @@ class ScdType6Hybrid(Knot):
             rows_closed += 1
             await target_pool.execute(
                 insert_q,
-                key_values
-                + tracked_values
-                + tracked_values
-                + current_tracked
-                + (now_iso, None, 1),
+                key_values + tracked_values + tracked_values + current_tracked + (now_iso, None, 1),
             )
             rows_inserted += 1
             await target_pool.execute(backfill_q, tracked_values + key_values)

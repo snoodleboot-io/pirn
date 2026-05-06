@@ -68,20 +68,12 @@ class DifferentialExpressionAnalyzer(Knot):
             TypeError: If case_counts or control_counts are not Mappings or gene_ids is not list/tuple of strings.
         """
         if not isinstance(case_counts, Mapping):
-            raise TypeError(
-                "DifferentialExpressionAnalyzer: case_counts must be Mapping"
-            )
+            raise TypeError("DifferentialExpressionAnalyzer: case_counts must be Mapping")
         if not isinstance(control_counts, Mapping):
-            raise TypeError(
-                "DifferentialExpressionAnalyzer: control_counts must be Mapping"
-            )
+            raise TypeError("DifferentialExpressionAnalyzer: control_counts must be Mapping")
         if not isinstance(gene_ids, (list, tuple)):
-            raise TypeError(
-                "DifferentialExpressionAnalyzer: gene_ids must be list/tuple"
-            )
+            raise TypeError("DifferentialExpressionAnalyzer: gene_ids must be list/tuple")
         for gid in gene_ids:
             if not isinstance(gid, str):
-                raise TypeError(
-                    "DifferentialExpressionAnalyzer: every gene id must be a string"
-                )
+                raise TypeError("DifferentialExpressionAnalyzer: every gene id must be a string")
         return {gid: {"log2fc": 0.0, "pvalue": 1.0, "padj": 1.0} for gid in gene_ids}

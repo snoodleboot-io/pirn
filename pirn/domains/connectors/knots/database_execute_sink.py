@@ -49,7 +49,9 @@ class DatabaseExecuteSink(Sink):
     ) -> None:
         super().__init__(pool=pool, query=query, rows=rows, _config=_config, **kwargs)
 
-    async def process(self, pool: DatabaseConnectionPool, query: str, rows: Iterable[Iterable[Any]], **_: Any) -> int:
+    async def process(
+        self, pool: DatabaseConnectionPool, query: str, rows: Iterable[Iterable[Any]], **_: Any
+    ) -> int:
         """Execute the configured query once per parameter row and return the number of rows processed.
 
         Args:

@@ -89,19 +89,13 @@ class ZeroPhaseFilter(Knot):
                 or len(cutoff_hz) != 2
                 or any(not isinstance(c, (int, float)) for c in cutoff_hz)
             ):
-                raise ValueError(
-                    "ZeroPhaseFilter: bandpass/bandstop requires (low, high) tuple"
-                )
+                raise ValueError("ZeroPhaseFilter: bandpass/bandstop requires (low, high) tuple")
             low, high = cutoff_hz
             if low <= 0 or high <= 0 or low >= high:
-                raise ValueError(
-                    "ZeroPhaseFilter: cutoff bounds must satisfy 0 < low < high"
-                )
+                raise ValueError("ZeroPhaseFilter: cutoff bounds must satisfy 0 < low < high")
         else:
             if not isinstance(cutoff_hz, (int, float)) or cutoff_hz <= 0:
-                raise ValueError(
-                    "ZeroPhaseFilter: cutoff_hz must be a positive scalar"
-                )
+                raise ValueError("ZeroPhaseFilter: cutoff_hz must be a positive scalar")
         return SignalFrame(
             signal_id=f"{signal.signal_id}:zerophase-{filter_type}",
             channel_count=signal.channel_count,

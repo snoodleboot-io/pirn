@@ -22,9 +22,7 @@ from pirn.domains.connectors.file_formats.batch_file_format import (
 class FeatherFormat(BatchFileFormat):
     """Whole-file Feather v2 encoder/decoder backed by ``pyarrow``."""
 
-    _supported_compressions: ClassVar[frozenset[str]] = frozenset(
-        {"lz4", "zstd", "uncompressed"}
-    )
+    _supported_compressions: ClassVar[frozenset[str]] = frozenset({"lz4", "zstd", "uncompressed"})
 
     def __init__(self, compression: str | None = None) -> None:
         if compression is not None:
@@ -49,24 +47,18 @@ class FeatherFormat(BatchFileFormat):
     def compression(self) -> str | None:
         return self._compression
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         pa, feather = self._load_pyarrow_feather()
         table = feather.read_table(pa.BufferReader(payload))
         return [dict(row) for row in table.to_pylist()]
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         pa, feather = self._load_pyarrow_feather()
         materialised: list[Mapping[str, Any]] = list(records)
         table = pa.Table.from_pylist(materialised)
         buf = io.BytesIO()
         if self._compression is not None:
-            feather.write_feather(
-                table, buf, compression=self._compression
-            )
+            feather.write_feather(table, buf, compression=self._compression)
         else:
             feather.write_feather(table, buf)
         return buf.getvalue()

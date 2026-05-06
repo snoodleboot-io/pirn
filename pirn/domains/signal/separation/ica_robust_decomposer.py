@@ -77,16 +77,12 @@ class ICARobustDecomposer(Knot):
             ValueError: If source_count or contamination_fraction are invalid.
         """
         if not isinstance(source_count, int) or source_count <= 0:
-            raise ValueError(
-                "ICARobustDecomposer: source_count must be a positive integer"
-            )
+            raise ValueError("ICARobustDecomposer: source_count must be a positive integer")
         if (
             not isinstance(contamination_fraction, (int, float))
             or not 0.0 <= contamination_fraction < 1.0
         ):
-            raise ValueError(
-                "ICARobustDecomposer: contamination_fraction must lie in [0, 1)"
-            )
+            raise ValueError("ICARobustDecomposer: contamination_fraction must lie in [0, 1)")
         return SourceFrame(
             signal_id=signal.signal_id,
             source_count=source_count,

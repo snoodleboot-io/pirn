@@ -90,9 +90,7 @@ class ValkeyStreamBroker(MessageBroker):
                     return
                 for _stream_name, entries in response:
                     for entry_id, fields in entries:
-                        yield ValkeyRecord(
-                            entry_id=entry_id, stream=topic, fields=fields
-                        )
+                        yield ValkeyRecord(entry_id=entry_id, stream=topic, fields=fields)
                         await client.xack(topic, effective_group, entry_id)
 
         return _iter()
@@ -121,9 +119,7 @@ class ValkeyStreamBroker(MessageBroker):
         self._logger.debug("valkey.connect")
         return client
 
-    async def _ensure_group(
-        self, client: Any, topic: str, group: str
-    ) -> None:
+    async def _ensure_group(self, client: Any, topic: str, group: str) -> None:
         try:
             await client.xgroup_create(topic, group, mkstream=True)
         except Exception as exc:

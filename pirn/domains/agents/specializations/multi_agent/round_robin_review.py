@@ -84,9 +84,7 @@ class RoundRobinReview(SubTapestry):
         """
         reviewer_list = list(reviewers)
         if not reviewer_list:
-            raise ValueError(
-                "RoundRobinReview: reviewers must be a non-empty sequence"
-            )
+            raise ValueError("RoundRobinReview: reviewers must be a non-empty sequence")
         if not isinstance(response, AgentResponse):
             raise TypeError(
                 "RoundRobinReview: response must be an AgentResponse, "

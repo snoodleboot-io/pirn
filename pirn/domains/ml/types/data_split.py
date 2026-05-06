@@ -21,9 +21,6 @@ class DataSplit(PirnOpaqueValue):
         """Flatten to a primitive dict for pydantic serialisation."""
         return {
             "train": self.train._pirn_audit_dict(),
-            "validation": (
-                None if self.validation is None
-                else self.validation._pirn_audit_dict()
-            ),
+            "validation": (None if self.validation is None else self.validation._pirn_audit_dict()),
             "test": self.test._pirn_audit_dict(),
         }

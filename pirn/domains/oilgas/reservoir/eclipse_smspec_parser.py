@@ -57,11 +57,7 @@ class EclipseSmspecParser(Knot):
             ScadaTimeSeries keyed by ``eclipse:{vector_name}``.
         """
         if not isinstance(smspec_path, str) or not smspec_path:
-            raise ValueError(
-                "EclipseSmspecParser: smspec_path must be a non-empty string"
-            )
+            raise ValueError("EclipseSmspecParser: smspec_path must be a non-empty string")
         if not isinstance(vector_name, str) or not vector_name:
-            raise ValueError(
-                "EclipseSmspecParser: vector_name must be a non-empty string"
-            )
+            raise ValueError("EclipseSmspecParser: vector_name must be a non-empty string")
         return ScadaTimeSeries(sensor_id=f"eclipse:{vector_name}")

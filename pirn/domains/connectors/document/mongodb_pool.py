@@ -71,9 +71,7 @@ class MongoDBPool(DatabaseConnectionPool):
         rows = await cursor.to_list(length=None)
         return [{k: v for k, v in doc.items() if k != "_id"} for doc in rows]
 
-    async def execute_many(
-        self, query: str, args_seq: Iterable[Iterable[Any]]
-    ) -> None:
+    async def execute_many(self, query: str, args_seq: Iterable[Iterable[Any]]) -> None:
         """Bulk-insert documents into ``query`` collection."""
         db = await self.acquire()
         docs = list(args_seq)
@@ -97,9 +95,7 @@ class MongoDBPool(DatabaseConnectionPool):
             raise RuntimeError("MongoDBPool: missing config and no injected client")
 
         uri = self._config.uri
-        if uri == type(self)._default_uri and (
-            self._config.username or self._config.password
-        ):
+        if uri == type(self)._default_uri and (self._config.username or self._config.password):
             # Build URI using driver kwargs instead of embedding creds in string
             uri = None  # signal to use explicit kwargs below
 

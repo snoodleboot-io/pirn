@@ -81,8 +81,7 @@ class ConsensusAggregator(SubTapestry):
         """
         if not isinstance(llm, LLMProvider):
             raise TypeError(
-                "ConsensusAggregator: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
+                f"ConsensusAggregator: llm must be an LLMProvider, got {type(llm).__name__}"
             )
         if strategy not in self._supported_strategies:
             raise ValueError(
@@ -90,9 +89,7 @@ class ConsensusAggregator(SubTapestry):
                 f"{self._supported_strategies!r}, got {strategy!r}"
             )
         if not isinstance(responses, Mapping) or not responses:
-            raise ValueError(
-                "ConsensusAggregator: responses must be a non-empty mapping"
-            )
+            raise ValueError("ConsensusAggregator: responses must be a non-empty mapping")
         with Tapestry() as inner:
             if strategy == "majority_vote":
                 ConsensusMajorityVotePicker(

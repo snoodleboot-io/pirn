@@ -12,6 +12,7 @@ References:
     - Veraart et al. (2016) Denoising of diffusion MRI using random matrix theory.
     - Andersson & Sotiropoulos (2016) An integrated approach to correction for off-resonance effects and subject movement in diffusion MR imaging.
 """
+
 from __future__ import annotations
 
 from typing import Any

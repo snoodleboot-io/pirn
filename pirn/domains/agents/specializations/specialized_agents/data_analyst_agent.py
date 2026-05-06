@@ -88,13 +88,11 @@ class DataAnalystAgent(SubTapestry):
         """
         if not isinstance(question, str) or not question:
             raise TypeError(
-                "DataAnalystAgent: question must be a non-empty string, "
-                f"got {question!r}"
+                f"DataAnalystAgent: question must be a non-empty string, got {question!r}"
             )
         if not isinstance(llm, LLMProvider):
             raise TypeError(
-                "DataAnalystAgent: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
+                f"DataAnalystAgent: llm must be an LLMProvider, got {type(llm).__name__}"
             )
         if not isinstance(pool, DatabaseConnectionPool):
             raise TypeError(

@@ -112,13 +112,9 @@ class DaskAggregate(Knot):
             A new DaskDataFrame wrapping the aggregated, still-deferred Dask graph.
         """
         if aggregator is None and by is None:
-            raise TypeError(
-                "DaskAggregate: either aggregator or (by, aggs) must be supplied"
-            )
+            raise TypeError("DaskAggregate: either aggregator or (by, aggs) must be supplied")
         if aggregator is not None and (by is not None or aggs is not None):
-            raise TypeError(
-                "DaskAggregate: aggregator is mutually exclusive with by/aggs"
-            )
+            raise TypeError("DaskAggregate: aggregator is mutually exclusive with by/aggs")
         if aggregator is not None:
             if not callable(aggregator):
                 raise TypeError(
@@ -128,27 +124,15 @@ class DaskAggregate(Knot):
             aggregated = aggregator(batch.frame)
         else:
             if isinstance(by, (str, bytes)) or not isinstance(by, Sequence):
-                raise TypeError(
-                    "DaskAggregate: by must be a sequence of column names"
-                )
+                raise TypeError("DaskAggregate: by must be a sequence of column names")
             if not by:
                 raise ValueError("DaskAggregate: by must be non-empty")
             for column in by:
                 if not isinstance(column, str) or not column:
-                    raise TypeError(
-                        "DaskAggregate: every entry in by must be a non-empty string"
-                    )
+                    raise TypeError("DaskAggregate: every entry in by must be a non-empty string")
             if aggs is None:
-                raise TypeError(
-                    "DaskAggregate: aggs is required when by is supplied"
-                )
+                raise TypeError("DaskAggregate: aggs is required when by is supplied")
             if not isinstance(aggs, dict) or not aggs:
-                raise TypeError(
-                    "DaskAggregate: aggs must be a non-empty dict"
-                )
-            aggregated = (
-                batch.frame.groupby(list(by))
-                .agg(aggs)
-                .reset_index()
-            )
+                raise TypeError("DaskAggregate: aggs must be a non-empty dict")
+            aggregated = batch.frame.groupby(list(by)).agg(aggs).reset_index()
         return batch.with_frame(aggregated)

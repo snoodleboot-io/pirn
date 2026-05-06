@@ -91,18 +91,13 @@ class DatafusionJoin(Knot):
         """
         allowed_how = ("inner", "left", "right", "full", "semi", "anti")
         if how not in allowed_how:
-            raise ValueError(
-                f"DatafusionJoin: how must be one of {list(allowed_how)}, got {how!r}"
-            )
+            raise ValueError(f"DatafusionJoin: how must be one of {list(allowed_how)}, got {how!r}")
         if on is not None and (left_on is not None or right_on is not None):
-            raise TypeError(
-                "DatafusionJoin: pass either on= or left_on/right_on, not both"
-            )
+            raise TypeError("DatafusionJoin: pass either on= or left_on/right_on, not both")
         if on is None and (left_on is None or right_on is None):
             if left_on is not None or right_on is not None:
                 raise TypeError(
-                    "DatafusionJoin: provide both left_on= and right_on= "
-                    "for differently-named keys"
+                    "DatafusionJoin: provide both left_on= and right_on= for differently-named keys"
                 )
             raise TypeError(
                 "DatafusionJoin: provide on=<column(s)> for matching keys, "
@@ -118,9 +113,7 @@ class DatafusionJoin(Knot):
             and norm_right_on is not None
             and len(norm_left_on) != len(norm_right_on)
         ):
-            raise ValueError(
-                "DatafusionJoin: left_on and right_on must have the same length"
-            )
+            raise ValueError("DatafusionJoin: left_on and right_on must have the same length")
 
         if norm_on is not None:
             joined = left.frame.join(right.frame, on=list(norm_on), how=how)

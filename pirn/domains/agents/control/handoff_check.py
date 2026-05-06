@@ -68,19 +68,14 @@ class HandoffCheck(Knot):
         """
         if not isinstance(response, AgentResponse):
             raise TypeError(
-                "HandoffCheck: response must be an AgentResponse, "
-                f"got {type(response).__name__}"
+                f"HandoffCheck: response must be an AgentResponse, got {type(response).__name__}"
             )
         if not isinstance(escalation_patterns, Sequence) or isinstance(
             escalation_patterns, (str, bytes)
         ):
-            raise TypeError(
-                "HandoffCheck: escalation_patterns must be a sequence of regex strings"
-            )
+            raise TypeError("HandoffCheck: escalation_patterns must be a sequence of regex strings")
         if not escalation_patterns:
-            raise ValueError(
-                "HandoffCheck: escalation_patterns must be non-empty"
-            )
+            raise ValueError("HandoffCheck: escalation_patterns must be non-empty")
         compiled: list[re.Pattern[str]] = []
         for index, pattern in enumerate(escalation_patterns):
             if not isinstance(pattern, str) or not pattern:

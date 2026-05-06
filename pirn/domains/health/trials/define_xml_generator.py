@@ -71,9 +71,7 @@ class DefineXMLGenerator(Knot):
                 raise ValueError(
                     f"DefineXMLGenerator: variable {var_name!r} spec must include 'type' and 'length'"
                 )
-        parts: list[str] = [
-            f'<ItemGroupDef OID="IG.{dataset_name}" Name="{dataset_name}">'
-        ]
+        parts: list[str] = [f'<ItemGroupDef OID="IG.{dataset_name}" Name="{dataset_name}">']
         for var_name, spec in variables.items():
             parts.append(
                 f'<ItemDef OID="IT.{dataset_name}.{var_name}" '

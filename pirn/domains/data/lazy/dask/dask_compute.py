@@ -113,9 +113,7 @@ class DaskCompute(Sink):
         if writer is not None and not callable(writer):
             raise TypeError("DaskCompute: writer must be callable")
         if return_pandas and target_path is not None:
-            raise TypeError(
-                "DaskCompute: return_pandas and target_path are mutually exclusive"
-            )
+            raise TypeError("DaskCompute: return_pandas and target_path are mutually exclusive")
 
         resolved_kwargs: dict[str, Any] = dict(writer_kwargs or {})
         partitions = batch.npartitions

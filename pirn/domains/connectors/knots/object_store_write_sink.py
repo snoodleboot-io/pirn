@@ -50,13 +50,10 @@ class ObjectStoreWriteSink(Sink):
         """
         if not isinstance(store, ObjectStore):
             raise TypeError(
-                f"ObjectStoreWriteSink: store must be an ObjectStore, "
-                f"got {type(store).__name__}"
+                f"ObjectStoreWriteSink: store must be an ObjectStore, got {type(store).__name__}"
             )
         if not isinstance(key, str) or not key:
             raise ValueError("ObjectStoreWriteSink: key must be a non-empty string")
         if not isinstance(body, (bytes, bytearray)):
-            raise TypeError(
-                f"ObjectStoreWriteSink: body must be bytes, got {type(body).__name__}"
-            )
+            raise TypeError(f"ObjectStoreWriteSink: body must be bytes, got {type(body).__name__}")
         await store.put(key, bytes(body))

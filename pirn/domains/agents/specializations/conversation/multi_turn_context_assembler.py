@@ -35,8 +35,11 @@ class MultiTurnContextAssembler(Knot):
         **kwargs: Any,
     ) -> None:
         super().__init__(
-            messages=messages, max_turns=max_turns, max_tokens=max_tokens,
-            _config=_config, **kwargs,
+            messages=messages,
+            max_turns=max_turns,
+            max_tokens=max_tokens,
+            _config=_config,
+            **kwargs,
         )
 
     async def process(
@@ -63,13 +66,11 @@ class MultiTurnContextAssembler(Knot):
         """
         if not isinstance(max_turns, int) or max_turns <= 0:
             raise ValueError(
-                "MultiTurnContextAssembler: max_turns must be a positive int, "
-                f"got {max_turns!r}"
+                f"MultiTurnContextAssembler: max_turns must be a positive int, got {max_turns!r}"
             )
         if not isinstance(max_tokens, int) or max_tokens <= 0:
             raise ValueError(
-                "MultiTurnContextAssembler: max_tokens must be a positive int, "
-                f"got {max_tokens!r}"
+                f"MultiTurnContextAssembler: max_tokens must be a positive int, got {max_tokens!r}"
             )
         for index, msg in enumerate(messages):
             if not isinstance(msg, AgentMessage):

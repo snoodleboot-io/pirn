@@ -18,6 +18,7 @@ References:
     - Aryee et al. (2014) Minfi: a flexible and comprehensive Bioconductor package for the analysis of Infinium DNA methylation microarrays.
     - ENCODE methylation pipeline: https://www.encodeproject.org/
 """
+
 from __future__ import annotations
 
 from typing import Any

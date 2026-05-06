@@ -72,6 +72,5 @@ class DepthShiftCorrector(Knot):
         if not isinstance(resample, bool):
             raise TypeError("DepthShiftCorrector: resample must be a bool")
         return [
-            {**entry, "depth_ft": float(entry["depth_ft"]) + float(shift_ft)}
-            for entry in log_curve
+            {**entry, "depth_ft": float(entry["depth_ft"]) + float(shift_ft)} for entry in log_curve
         ]

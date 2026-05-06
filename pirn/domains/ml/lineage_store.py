@@ -19,25 +19,17 @@ from pirn.core.pirn_opaque_value import PirnOpaqueValue
 class LineageStore(PirnOpaqueValue):
     """Interface every ML lineage / registry implementation must satisfy."""
 
-    async def log_event(
-        self, event_type: str, payload: Mapping[str, Any]
-    ) -> None:
+    async def log_event(self, event_type: str, payload: Mapping[str, Any]) -> None:
         """Record a lineage event (training, evaluation, deployment)."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement log_event()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement log_event()")
 
     async def fetch_lineage(self, model_id: str) -> Mapping[str, Any]:
         """Return the recorded lineage chain for ``model_id``."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement fetch_lineage()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement fetch_lineage()")
 
     async def close(self) -> None:
         """Close the store and release any underlying resources."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement close()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement close()")
 
     def _clear_credentials(self) -> None:
         """Drop the in-memory credential reference held by the store.

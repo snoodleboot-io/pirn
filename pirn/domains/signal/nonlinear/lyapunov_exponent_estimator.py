@@ -80,13 +80,9 @@ class LyapunovExponentEstimator(Knot):
             ValueError: If embedding_dim or time_delay are invalid.
         """
         if not isinstance(embedding_dim, int) or embedding_dim <= 0:
-            raise ValueError(
-                "LyapunovExponentEstimator: embedding_dim must be a positive integer"
-            )
+            raise ValueError("LyapunovExponentEstimator: embedding_dim must be a positive integer")
         if not isinstance(time_delay, int) or time_delay <= 0:
-            raise ValueError(
-                "LyapunovExponentEstimator: time_delay must be a positive integer"
-            )
+            raise ValueError("LyapunovExponentEstimator: time_delay must be a positive integer")
         return {
             "signal_id": signal.signal_id,
             "embedding_dim": embedding_dim,

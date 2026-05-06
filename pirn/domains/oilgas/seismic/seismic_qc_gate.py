@@ -87,15 +87,11 @@ class SeismicQCGate(Knot):
         fold: int = int(data.get("fold", 0))
         traces: list[Any] = data.get("traces", [])
         if fold < min_fold:
-            raise ValueError(
-                f"SeismicQCGate: fold {fold} is below minimum {min_fold}"
-            )
+            raise ValueError(f"SeismicQCGate: fold {fold} is below minimum {min_fold}")
         null_count = sum(1 for t in traces if t is None)
         null_pct = (null_count / len(traces) * 100.0) if traces else 0.0
         if null_pct > max_null_pct:
-            raise ValueError(
-                f"SeismicQCGate: null_pct {null_pct:.1f} exceeds max {max_null_pct}"
-            )
+            raise ValueError(f"SeismicQCGate: null_pct {null_pct:.1f} exceeds max {max_null_pct}")
         return {
             "passed": True,
             "trace_count": len(traces),

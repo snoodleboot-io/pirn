@@ -13,6 +13,7 @@ Algorithm:
 References:
     - :class:`pirn.domains.agents.memory_store.MemoryStore`
 """
+
 from __future__ import annotations
 
 from typing import Any

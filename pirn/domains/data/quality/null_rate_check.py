@@ -91,8 +91,7 @@ class NullRateCheck(Knot):
                 )
             if not 0.0 <= float(rate) <= 1.0:
                 raise ValueError(
-                    f"NullRateCheck: threshold for {column!r} must be in [0.0, 1.0], "
-                    f"got {rate!r}"
+                    f"NullRateCheck: threshold for {column!r} must be in [0.0, 1.0], got {rate!r}"
                 )
 
         normalised: dict[str, float] = {k: float(v) for k, v in thresholds.items()}
@@ -122,8 +121,5 @@ class NullRateCheck(Knot):
     def _null_rate(batch: DataBatch, column: str, row_count: int) -> float:
         if row_count == 0:
             return 0.0
-        null_count = sum(
-            1 for row in batch.rows
-            if column not in row or row[column] is None
-        )
+        null_count = sum(1 for row in batch.rows if column not in row or row[column] is None)
         return null_count / row_count

@@ -111,14 +111,14 @@ class SelfSupervisedPretrainer(SubTapestry):
                 raise ValueError(
                     "SelfSupervisedPretrainer: every metric name must be a non-empty string"
                 )
-        if pretrain_hyperparameters is not None and not isinstance(pretrain_hyperparameters, Mapping):
-            raise TypeError(
-                "SelfSupervisedPretrainer: pretrain_hyperparameters must be a Mapping"
-            )
-        if finetune_hyperparameters is not None and not isinstance(finetune_hyperparameters, Mapping):
-            raise TypeError(
-                "SelfSupervisedPretrainer: finetune_hyperparameters must be a Mapping"
-            )
+        if pretrain_hyperparameters is not None and not isinstance(
+            pretrain_hyperparameters, Mapping
+        ):
+            raise TypeError("SelfSupervisedPretrainer: pretrain_hyperparameters must be a Mapping")
+        if finetune_hyperparameters is not None and not isinstance(
+            finetune_hyperparameters, Mapping
+        ):
+            raise TypeError("SelfSupervisedPretrainer: finetune_hyperparameters must be a Mapping")
         pretrain_hp = dict(pretrain_hyperparameters) if pretrain_hyperparameters is not None else {}
         finetune_hp = dict(finetune_hyperparameters) if finetune_hyperparameters is not None else {}
         with Tapestry() as inner:
@@ -149,9 +149,7 @@ class SelfSupervisedPretrainer(SubTapestry):
                 "SelfSupervisedPretrainer: fine-tune trainer did not return a TrainedModel"
             )
         if not isinstance(report, EvalReport):
-            raise TypeError(
-                "SelfSupervisedPretrainer: evaluator did not return an EvalReport"
-            )
+            raise TypeError("SelfSupervisedPretrainer: evaluator did not return an EvalReport")
         return {
             "model": trained_model,
             "eval_report": report,

@@ -78,9 +78,7 @@ class EMDDecomposer(Knot):
             ValueError: If max_imf_count is not a positive integer.
         """
         if not isinstance(max_imf_count, int) or max_imf_count <= 0:
-            raise ValueError(
-                "EMDDecomposer: max_imf_count must be a positive integer"
-            )
+            raise ValueError("EMDDecomposer: max_imf_count must be a positive integer")
         return WaveletFrame(
             signal_id=signal.signal_id,
             wavelet_name="emd",

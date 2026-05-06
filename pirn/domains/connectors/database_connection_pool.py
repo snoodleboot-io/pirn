@@ -32,21 +32,15 @@ class DatabaseConnectionPool(PirnOpaqueValue):
 
     async def acquire(self) -> Any:
         """Return a connection (or async-context manager wrapping one)."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement acquire()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement acquire()")
 
     async def release(self, connection: Any) -> None:
         """Return a previously-acquired connection to the pool."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement release()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement release()")
 
     async def close(self) -> None:
         """Close the pool and release any underlying resources."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement close()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement close()")
 
     # Per-engine placeholder grammar. The default regex rejects Python
     # brace interpolation (``{...}``) and printf-style (``%s``/``%d``).
@@ -96,7 +90,5 @@ class DatabaseConnectionPool(PirnOpaqueValue):
                 "depending on the engine) and pass parameters separately."
             )
             raise ValueError(
-                f"{type(self).__name__}: query contains inline interpolation "
-                f"markers. {hint}"
+                f"{type(self).__name__}: query contains inline interpolation markers. {hint}"
             )
-

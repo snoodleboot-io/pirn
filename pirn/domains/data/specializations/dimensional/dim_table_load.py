@@ -90,10 +90,7 @@ class DimTableLoad(Knot):
         cols = ", ".join(non_key_columns)
         where = " AND ".join(f"{c} = ?" for c in natural_key_columns)
         if scd_type == 2:
-            return (
-                f"SELECT {cols} FROM {target_table} "
-                f"WHERE {where} AND {current_flag_column} = 1"
-            )
+            return f"SELECT {cols} FROM {target_table} WHERE {where} AND {current_flag_column} = 1"
         return f"SELECT {cols} FROM {target_table} WHERE {where}"
 
     @staticmethod

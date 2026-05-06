@@ -77,9 +77,7 @@ class InfluxDBPool(DatabaseConnectionPool):
                 rows.append(dict(record.values))
         return rows
 
-    async def execute_many(
-        self, query: str, args_seq: Iterable[Iterable[Any]]
-    ) -> None:
+    async def execute_many(self, query: str, args_seq: Iterable[Iterable[Any]]) -> None:
         await self._ensure_client()
         lines = list(args_seq)
         try:
@@ -108,8 +106,7 @@ class InfluxDBPool(DatabaseConnectionPool):
             )
         except ImportError as exc:
             raise ImportError(
-                "InfluxDBPool requires influxdb-client; "
-                "install via pip install pirn[influxdb]"
+                "InfluxDBPool requires influxdb-client; install via pip install pirn[influxdb]"
             ) from exc
         if self._config is None:
             raise RuntimeError("InfluxDBPool: missing config and no injected client")

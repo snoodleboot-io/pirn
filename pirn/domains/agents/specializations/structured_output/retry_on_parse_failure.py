@@ -87,23 +87,19 @@ class RetryOnParseFailure(SubTapestry):
         """
         if not isinstance(llm, LLMProvider):
             raise TypeError(
-                "RetryOnParseFailure: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
+                f"RetryOnParseFailure: llm must be an LLMProvider, got {type(llm).__name__}"
             )
         if not callable(parser):
             raise TypeError(
-                "RetryOnParseFailure: parser must be callable, "
-                f"got {type(parser).__name__}"
+                f"RetryOnParseFailure: parser must be callable, got {type(parser).__name__}"
             )
         if not isinstance(max_retries, int) or max_retries <= 0:
             raise ValueError(
-                "RetryOnParseFailure: max_retries must be a positive int, "
-                f"got {max_retries!r}"
+                f"RetryOnParseFailure: max_retries must be a positive int, got {max_retries!r}"
             )
         if not isinstance(prompt, str):
             raise TypeError(
-                "RetryOnParseFailure: prompt must be a string, "
-                f"got {type(prompt).__name__}"
+                f"RetryOnParseFailure: prompt must be a string, got {type(prompt).__name__}"
             )
         current_prompt = prompt
         last_error: str = "no attempts were made"
@@ -127,6 +123,5 @@ class RetryOnParseFailure(SubTapestry):
                     "Please fix the issue and try again."
                 )
         raise ValueError(
-            f"RetryOnParseFailure: exhausted {max_retries} "
-            f"attempt(s); last error: {last_error}"
+            f"RetryOnParseFailure: exhausted {max_retries} attempt(s); last error: {last_error}"
         )

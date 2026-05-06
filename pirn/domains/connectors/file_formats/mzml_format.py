@@ -35,9 +35,7 @@ class MzmlFormat(BatchFileFormat):
     def name(self) -> str:
         return "mzml"
 
-    async def _decode_full(
-        self, payload: bytes
-    ) -> Iterable[Mapping[str, Any]]:
+    async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         import io as _io
 
         pyteomics_mzml = self._load_pyteomics_mzml()
@@ -47,9 +45,7 @@ class MzmlFormat(BatchFileFormat):
                 records.append(self._spectrum_to_record(spectrum))
         return records
 
-    async def _encode_full(
-        self, records: Iterable[Mapping[str, Any]]
-    ) -> bytes:
+    async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         lxml_etree = self._load_lxml()
         import io as _io
 
@@ -59,13 +55,9 @@ class MzmlFormat(BatchFileFormat):
         nsmap = {None: "http://psi.hupo.org/ms/mzml"}
         root = lxml_etree.Element("mzML", nsmap=nsmap)
         run_el = lxml_etree.SubElement(root, "run")
-        spec_list = lxml_etree.SubElement(
-            run_el, "spectrumList", count=str(len(materialised))
-        )
+        spec_list = lxml_etree.SubElement(run_el, "spectrumList", count=str(len(materialised)))
         for index, record in enumerate(materialised):
-            self._record_to_spectrum_element(
-                spec_list, record, index, lxml_etree, np
-            )
+            self._record_to_spectrum_element(spec_list, record, index, lxml_etree, np)
         buf = _io.BytesIO()
         tree = lxml_etree.ElementTree(root)
         tree.write(
@@ -83,9 +75,7 @@ class MzmlFormat(BatchFileFormat):
         scan_number = 0
         scan_info = spectrum.get("scanList", {}).get("scan", [{}])
         if scan_info:
-            scan_number = int(
-                scan_info[0].get("scan start time", 0) * 1000
-            )
+            scan_number = int(scan_info[0].get("scan start time", 0) * 1000)
         # pyteomics uses 'id' field for the spectrum identifier
         spec_id = spectrum.get("id", "")
         if "scan=" in str(spec_id):
@@ -98,22 +88,14 @@ class MzmlFormat(BatchFileFormat):
         retention_time = 0.0
         if scan_info:
             rt_raw = scan_info[0].get("scan start time", 0.0)
-            _rt_unit = scan_info[0].get(
-                "scan start time", {}
-            )
+            _rt_unit = scan_info[0].get("scan start time", {})
             retention_time = float(rt_raw) if rt_raw else 0.0
 
         mz = spectrum.get("m/z array")
         intensity = spectrum.get("intensity array")
-        mz_bytes = (
-            np.asarray(mz, dtype=np.float64).tobytes()
-            if mz is not None
-            else b""
-        )
+        mz_bytes = np.asarray(mz, dtype=np.float64).tobytes() if mz is not None else b""
         intensity_bytes = (
-            np.asarray(intensity, dtype=np.float64).tobytes()
-            if intensity is not None
-            else b""
+            np.asarray(intensity, dtype=np.float64).tobytes() if intensity is not None else b""
         )
         return {
             "scan_number": scan_number,
@@ -137,14 +119,10 @@ class MzmlFormat(BatchFileFormat):
         mz_raw = record.get("mz_array", b"")
         intensity_raw = record.get("intensity_array", b"")
         if not isinstance(mz_raw, (bytes, bytearray)):
-            raise TypeError(
-                "MzmlFormat: 'mz_array' must be bytes, got "
-                f"{type(mz_raw).__name__}"
-            )
+            raise TypeError(f"MzmlFormat: 'mz_array' must be bytes, got {type(mz_raw).__name__}")
         if not isinstance(intensity_raw, (bytes, bytearray)):
             raise TypeError(
-                "MzmlFormat: 'intensity_array' must be bytes, got "
-                f"{type(intensity_raw).__name__}"
+                f"MzmlFormat: 'intensity_array' must be bytes, got {type(intensity_raw).__name__}"
             )
         mz_arr = np.frombuffer(mz_raw, dtype=np.float64)
         intensity_arr = np.frombuffer(intensity_raw, dtype=np.float64)
@@ -174,9 +152,7 @@ class MzmlFormat(BatchFileFormat):
             value=str(retention_time),
             unitName="second",
         )
-        binary_array_list = etree.SubElement(
-            spec_el, "binaryDataArrayList", count="2"
-        )
+        binary_array_list = etree.SubElement(spec_el, "binaryDataArrayList", count="2")
 
         for arr, _accession, array_name in (
             (mz_arr, "MS:1000514", "m/z array"),
@@ -202,9 +178,7 @@ class MzmlFormat(BatchFileFormat):
                 name="64-bit float",
             )
             binary_el = etree.SubElement(bda, "binary")
-            binary_el.text = base64.b64encode(
-                arr.astype(np.float64).tobytes()
-            ).decode("ascii")
+            binary_el.text = base64.b64encode(arr.astype(np.float64).tobytes()).decode("ascii")
 
     @staticmethod
     def _load_pyteomics_mzml() -> Any:
@@ -212,8 +186,7 @@ class MzmlFormat(BatchFileFormat):
             from pyteomics import mzml
         except ImportError as exc:
             raise ImportError(
-                "MzmlFormat requires pyteomics. Install with "
-                "`pip install pirn[health]`."
+                "MzmlFormat requires pyteomics. Install with `pip install pirn[health]`."
             ) from exc
         return mzml
 
@@ -223,7 +196,6 @@ class MzmlFormat(BatchFileFormat):
             from lxml import etree
         except ImportError as exc:
             raise ImportError(
-                "MzmlFormat requires lxml. Install with "
-                "`pip install pirn[health]`."
+                "MzmlFormat requires lxml. Install with `pip install pirn[health]`."
             ) from exc
         return etree

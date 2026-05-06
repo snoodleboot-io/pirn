@@ -81,9 +81,7 @@ class ButterworthFilter(Knot):
             ValueError: If order, band_type, or cutoff_hz are invalid.
         """
         if not isinstance(order, int) or order <= 0:
-            raise ValueError(
-                "ButterworthFilter: order must be a positive integer"
-            )
+            raise ValueError("ButterworthFilter: order must be a positive integer")
         if band_type not in {"lowpass", "highpass", "bandpass", "bandstop"}:
             raise ValueError(
                 "ButterworthFilter: band_type must be one of "
@@ -95,19 +93,13 @@ class ButterworthFilter(Knot):
                 or len(cutoff_hz) != 2
                 or any(not isinstance(c, (int, float)) for c in cutoff_hz)
             ):
-                raise ValueError(
-                    "ButterworthFilter: bandpass/bandstop requires (low, high) tuple"
-                )
+                raise ValueError("ButterworthFilter: bandpass/bandstop requires (low, high) tuple")
             low, high = cutoff_hz
             if low <= 0 or high <= 0 or low >= high:
-                raise ValueError(
-                    "ButterworthFilter: cutoff bounds must satisfy 0 < low < high"
-                )
+                raise ValueError("ButterworthFilter: cutoff bounds must satisfy 0 < low < high")
         else:
             if not isinstance(cutoff_hz, (int, float)) or cutoff_hz <= 0:
-                raise ValueError(
-                    "ButterworthFilter: cutoff_hz must be a positive scalar"
-                )
+                raise ValueError("ButterworthFilter: cutoff_hz must be a positive scalar")
         return SignalFrame(
             signal_id=f"{signal.signal_id}:butter-{band_type}",
             channel_count=signal.channel_count,

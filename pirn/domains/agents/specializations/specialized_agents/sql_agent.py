@@ -95,19 +95,12 @@ class SQLAgent(SubTapestry):
                 pool is not a DatabaseConnectionPool, or schema_description is not a string.
         """
         if not isinstance(question, str) or not question:
-            raise TypeError(
-                "SQLAgent: question must be a non-empty string, "
-                f"got {question!r}"
-            )
+            raise TypeError(f"SQLAgent: question must be a non-empty string, got {question!r}")
         if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                "SQLAgent: llm must be an LLMProvider, "
-                f"got {type(llm).__name__}"
-            )
+            raise TypeError(f"SQLAgent: llm must be an LLMProvider, got {type(llm).__name__}")
         if not isinstance(pool, DatabaseConnectionPool):
             raise TypeError(
-                "SQLAgent: pool must be a DatabaseConnectionPool, "
-                f"got {type(pool).__name__}"
+                f"SQLAgent: pool must be a DatabaseConnectionPool, got {type(pool).__name__}"
             )
         if not isinstance(schema_description, str):
             raise TypeError(

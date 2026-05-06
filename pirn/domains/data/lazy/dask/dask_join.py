@@ -44,7 +44,11 @@ class DaskJoin(Knot):
     """Binary merge over two :class:`DaskDataFrame` parents."""
 
     _allowed_how: tuple[str, ...] = (
-        "inner", "left", "right", "outer", "cross",
+        "inner",
+        "left",
+        "right",
+        "outer",
+        "cross",
     )
 
     def __init__(
@@ -94,36 +98,23 @@ class DaskJoin(Knot):
             A new DaskDataFrame containing the merged deferred graph.
         """
         if how not in self._allowed_how:
-            raise ValueError(
-                f"DaskJoin: how must be one of {list(self._allowed_how)}, "
-                f"got {how!r}"
-            )
+            raise ValueError(f"DaskJoin: how must be one of {list(self._allowed_how)}, got {how!r}")
         if how == "cross":
             if on is not None or left_on is not None or right_on is not None:
-                raise TypeError(
-                    "DaskJoin: cross join takes no on / left_on / right_on"
-                )
+                raise TypeError("DaskJoin: cross join takes no on / left_on / right_on")
             joined = left.frame.merge(right.frame, how="cross")
         else:
             if on is None and (left_on is None or right_on is None):
-                raise TypeError(
-                    "DaskJoin: must supply on=... OR both left_on= and right_on="
-                )
+                raise TypeError("DaskJoin: must supply on=... OR both left_on= and right_on=")
             if on is not None and (left_on is not None or right_on is not None):
-                raise TypeError(
-                    "DaskJoin: on is mutually exclusive with left_on/right_on"
-                )
+                raise TypeError("DaskJoin: on is mutually exclusive with left_on/right_on")
             if on is not None:
                 resolved_on = on if isinstance(on, str) else list(on)
                 joined = left.frame.merge(right.frame, on=resolved_on, how=how)
             else:
                 assert left_on is not None and right_on is not None
-                resolved_left_on = (
-                    left_on if isinstance(left_on, str) else list(left_on)
-                )
-                resolved_right_on = (
-                    right_on if isinstance(right_on, str) else list(right_on)
-                )
+                resolved_left_on = left_on if isinstance(left_on, str) else list(left_on)
+                resolved_right_on = right_on if isinstance(right_on, str) else list(right_on)
                 joined = left.frame.merge(
                     right.frame,
                     left_on=resolved_left_on,

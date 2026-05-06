@@ -74,12 +74,8 @@ class SafetyCheck(Knot):
                 "SafetyCheck: message must be an AgentMessage or AgentResponse, "
                 f"got {type(message).__name__}"
             )
-        if not isinstance(deny_patterns, Sequence) or isinstance(
-            deny_patterns, (str, bytes)
-        ):
-            raise TypeError(
-                "SafetyCheck: deny_patterns must be a sequence of regex strings"
-            )
+        if not isinstance(deny_patterns, Sequence) or isinstance(deny_patterns, (str, bytes)):
+            raise TypeError("SafetyCheck: deny_patterns must be a sequence of regex strings")
         if not deny_patterns:
             raise ValueError("SafetyCheck: deny_patterns must be non-empty")
         compiled: list[re.Pattern[str]] = []

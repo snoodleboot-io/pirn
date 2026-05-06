@@ -41,13 +41,9 @@ class HubSpotClient(ApiClient, TableSource, RecordWriter):
         object_type: str = "contacts",
     ) -> None:
         if config is None and client is None:
-            raise TypeError(
-                "HubSpotClient requires either config= or client="
-            )
+            raise TypeError("HubSpotClient requires either config= or client=")
         if not isinstance(object_type, str) or not object_type:
-            raise ValueError(
-                "HubSpotClient: object_type must be a non-empty string"
-            )
+            raise ValueError("HubSpotClient: object_type must be a non-empty string")
         self._config = config
         self._client = client
         self._closed = False
@@ -70,9 +66,7 @@ class HubSpotClient(ApiClient, TableSource, RecordWriter):
         page_size: int | None = None,
     ) -> tuple[list[Mapping[str, Any]], str | None]:
         """:class:`TableSource` adapter — pages the configured object type."""
-        return await self.list_objects(
-            self._object_type, after=cursor, limit=page_size
-        )
+        return await self.list_objects(self._object_type, after=cursor, limit=page_size)
 
     async def list_objects(
         self,
@@ -88,9 +82,7 @@ class HubSpotClient(ApiClient, TableSource, RecordWriter):
         else ``None``.
         """
         if not isinstance(object_type, str) or not object_type:
-            raise ValueError(
-                "HubSpotClient.list_objects: object_type must be a non-empty string"
-            )
+            raise ValueError("HubSpotClient.list_objects: object_type must be a non-empty string")
         params: dict[str, Any] = {}
         if after is not None:
             params["after"] = after
@@ -177,13 +169,10 @@ class HubSpotClient(ApiClient, TableSource, RecordWriter):
             from hubspot import HubSpot  # type: ignore[import-not-found]
         except ImportError as exc:
             raise ImportError(
-                "HubSpotClient requires hubspot-api-client; install via "
-                "`pip install pirn[hubspot]`"
+                "HubSpotClient requires hubspot-api-client; install via `pip install pirn[hubspot]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError(
-                "HubSpotClient: missing config and no injected client"
-            )
+            raise RuntimeError("HubSpotClient: missing config and no injected client")
 
         kwargs: dict[str, Any] = {}
         if self._config.access_token is not None:
