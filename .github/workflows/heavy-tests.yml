@@ -1,0 +1,52 @@
+name: Heavy Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: heavy-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: read
+
+env:
+  UV_PROJECT_ENVIRONMENT: /opt/pirn-deps/.venv
+  UV_PYTHON_PREFERENCE: only-system
+  UV_FROZEN: "1"
+
+jobs:
+  heavy-tests:
+    name: Heavy Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    environment: heavy
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py${{ matrix.python-version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - name: Install pirn + heavy extras (torch, tensorflow)
+        run: uv sync --all-extras --frozen
+
+      - name: Run heavy tests
+        run: |
+          uv run python -m pytest tests/unit \
+            -m heavy \
+            --junitxml=test-results/heavy-${{ matrix.python-version }}.xml \
+            --timeout=120 \
+            -v
+
+      - name: Upload test results
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        if: always()
+        with:
+          name: test-results-heavy-${{ matrix.python-version }}
+          path: test-results/heavy-${{ matrix.python-version }}.xml
+          retention-days: 30

@@ -7,6 +7,8 @@ import unittest
 
 import pytest
 
+pytestmark = pytest.mark.heavy
+
 from pirn.backends._signer import _Signer
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,

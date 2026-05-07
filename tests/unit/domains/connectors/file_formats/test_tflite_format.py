@@ -13,6 +13,8 @@ import unittest
 
 import pytest
 
+pytestmark = pytest.mark.heavy
+
 from pirn.domains.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
