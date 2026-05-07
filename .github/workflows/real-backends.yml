@@ -4,18 +4,34 @@ on:
   pull_request:
     branches:
       - main
-  push:
-    branches:
-      - main
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  packages: read
+
+env:
+  UV_PROJECT_ENVIRONMENT: /opt/pirn-deps/.venv
+  UV_PYTHON_PREFERENCE: only-system
+  UV_FROZEN: "1"
+
 jobs:
+  approve:
+    name: Approve Real Backend Tests
+    runs-on: ubuntu-latest
+    environment: real-backends
+    steps:
+      - run: echo "Approved — starting real backend tests"
+
   real-backends:
     name: Real Backend Tests
     runs-on: ubuntu-latest
+    needs: [approve]
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py3.12
 
     services:
       postgres:
@@ -40,7 +56,6 @@ jobs:
           --health-timeout 1s
           --health-retries 30
 
-
     env:
       PIRN_TEST_POSTGRES_URL: postgresql://pirn:pirn@localhost:5432/pirn_test
       PIRN_TEST_VALKEY_URL: redis://localhost:6379/0
@@ -49,27 +64,14 @@ jobs:
       PIRN_TEST_S3_ACCESS_KEY: pirn
       PIRN_TEST_S3_SECRET_KEY: pirntestpassword
       PIRN_TEST_S3_BUCKET: pirn-test
-      # Celery uses ValKey as its broker on db 1 (db 0 is used by ValKey tests)
       PIRN_TEST_CELERY_BROKER: redis://localhost:6379/1
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7
-        with:
-          enable-cache: true
-
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
-        with:
-          python-version: "3.12"
-
-      - name: Install dependencies
+      - name: Install pirn
         run: uv sync --all-extras
 
-      # MinIO and Redpanda run via docker run — service containers don't
-      # support custom startup commands that these images require.
       - name: Start MinIO
         run: |
           docker run -d --name minio \
@@ -117,7 +119,7 @@ jobs:
             -v
 
       - name: Upload test results
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         if: always()
         with:
           name: test-results-real-backends

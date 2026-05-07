@@ -29,6 +29,8 @@ jobs:
 
       - name: Build docs
         run: uv run mkdocs build
+        env:
+          DISABLE_MKDOCS_2_WARNING: "true"
 
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9  # v5
         with:

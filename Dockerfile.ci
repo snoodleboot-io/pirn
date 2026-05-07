@@ -1,0 +1,53 @@
+ARG PYTHON_VERSION=3.12
+FROM python:${PYTHON_VERSION}-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update -qq && \
+    apt-get install -y --no-install-recommends \
+      build-essential \
+      gdal-bin \
+      libgdal-dev \
+      libsndfile1 \
+      libbz2-dev \
+      liblzma-dev \
+      libcurl4-openssl-dev \
+      libeccodes-dev \
+      ffmpeg \
+      curl \
+      git \
+      ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install uv from the official distroless image — no shell needed
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Pre-build all dependencies (excluding pirn itself — installed at runtime)
+WORKDIR /opt/pirn-deps
+COPY pyproject.toml uv.lock ./
+
+# Use the system Python already in the image; freeze to lockfile exactly
+ENV UV_PYTHON_PREFERENCE=only-system \
+    UV_PROJECT_ENVIRONMENT=/opt/pirn-deps/.venv
+
+# Exclude torch and tensorflow — they're large GPU packages only needed for
+# heavy tests, which install them at runtime via the heavy-tests workflow.
+RUN uv sync --all-extras --no-install-project --frozen \
+    --no-install-package torch \
+    --no-install-package tensorflow \
+    --no-install-package nvidia-cublas-cu13 \
+    --no-install-package nvidia-cuda-cupti-cu13 \
+    --no-install-package nvidia-cuda-nvrtc-cu13 \
+    --no-install-package nvidia-cuda-runtime-cu13 \
+    --no-install-package nvidia-cudnn-cu13 \
+    --no-install-package nvidia-cufft-cu13 \
+    --no-install-package nvidia-curand-cu13 \
+    --no-install-package nvidia-cusolver-cu13 \
+    --no-install-package nvidia-cusparse-cu13 \
+    --no-install-package nvidia-nccl-cu13 \
+    --no-install-package nvidia-nvjitlink-cu13 \
+    --no-install-package nvidia-cufile-cu13 \
+    --no-install-package nvidia-cusparselt-cu13 \
+    --no-install-package nvidia-nvshmem-cu13 \
+    --no-install-package triton \
+    --no-install-package ai-edge-litert

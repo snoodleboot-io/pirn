@@ -56,7 +56,7 @@ azure = ["azure-storage-blob>=12.0"]
 
 # Distributed dispatchers.
 dask = ["dask[distributed]>=2024.1"]
-docs = ["mkdocs>=1.6", "mkdocstrings[python]>=0.25", "pymdown-extensions>=10.0"]
+docs = ["mkdocs>=1.6", "mkdocstrings[python]>=0.25", "pymdown-extensions>=10.0", "mkdocs-section-index>=0.3"]
 ray = ["ray>=2.9"]
 celery = ["celery>=5.3"]
 
@@ -399,10 +399,11 @@ packages = ["pirn"]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 # Default run excludes slow and mutation; opt in with -m slow / -m mutation.
-addopts = "--strict-markers -ra --ignore=tests/perf -m 'not slow and not mutation'"
+addopts = "--strict-markers -ra --ignore=tests/perf -m 'not slow and not mutation and not heavy'"
 markers = [
     "slow: tests that take meaningful wall-clock time",
     "mutation: mutation-test-specific assertions",
+    "heavy: requires large ML deps (torch, tensorflow) — excluded from default suite, runs in heavy-tests CI job",
     "needs_postgres: requires a real Postgres at $PIRN_TEST_POSTGRES_URL",
     "needs_valkey: requires a real ValKey at $PIRN_TEST_VALKEY_URL",
     "needs_kafka: requires a real Kafka at $PIRN_TEST_KAFKA_URL",

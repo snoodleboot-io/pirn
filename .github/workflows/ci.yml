@@ -19,43 +19,34 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  packages: read
+
 env:
   PACKAGE_NAME: pirn
   PYTHON_MIN_VERSION: "3.11"
   MAJOR_VERSION: "0"
   IS_MAIN: ${{ github.ref == 'refs/heads/main' }}
+  CI_REGISTRY: ghcr.io/${{ github.repository_owner }}
+  # Pre-built venv location baked into every CI image
+  UV_PROJECT_ENVIRONMENT: /opt/pirn-deps/.venv
+  UV_PYTHON_PREFERENCE: only-system
+  UV_FROZEN: "1"
 
 # =============================================================================
-# PHASE 1: TEST
+# PHASE 1: LINT (fast gate — must pass before anything else runs)
 # =============================================================================
 jobs:
   lint:
     name: Lint & Type Check
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py3.12
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
-      - name: Install system dependencies for native extras
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends \
-            gdal-bin libgdal-dev \
-            libsndfile1 \
-            libbz2-dev liblzma-dev libcurl4-openssl-dev \
-            libeccodes-dev \
-            ffmpeg
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7.6.0
-        with:
-          enable-cache: true
-          # Must match pythonVersion in pyrightconfig.json. Pyright uses the
-          # interpreter to resolve optional-extra stubs (polars, duckdb, etc.);
-          # a version mismatch causes spurious attribute-access errors on those
-          # packages even when --all-extras is installed.
-          python-version: "3.12"
-
-      - name: Install dev dependencies
+      - name: Install pirn
         run: uv sync --all-extras
 
       - name: Ruff lint
@@ -67,9 +58,16 @@ jobs:
       - name: Pyright type check
         run: uv run pyright
 
+# =============================================================================
+# PHASE 2: TEST (runs only after lint passes)
+# =============================================================================
+
   unit-tests:
     name: Unit Tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    needs: [lint]
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py${{ matrix.python-version }}
     strategy:
       fail-fast: false
       matrix:
@@ -77,25 +75,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
-      - name: Install system dependencies for native extras
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends \
-            gdal-bin libgdal-dev \
-            libsndfile1 \
-            libbz2-dev liblzma-dev libcurl4-openssl-dev \
-            libeccodes-dev \
-            ffmpeg
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7.6.0
-        with:
-          enable-cache: true
-          python-version: ${{ matrix.python-version }}
-          python-version-file: ""
-          allow-python-prereleases: true
-
-      - name: Install dependencies
+      - name: Install pirn
         run: uv sync --all-extras
 
       - name: Run unit tests
@@ -140,56 +120,51 @@ jobs:
           path: sbom.json
           if-no-files-found: error
 
-  domain-extras-matrix:
-    name: Domain Extras Install (${{ matrix.extra }})
+  extras-isolation:
+    name: Extras Isolation
     runs-on: ubuntu-latest
-    # Verifies each domain extra installs in isolation and that the matching
-    # `pirn.domains.<extra>` import succeeds without any other domain installed.
-    # Catches accidental cross-domain dep coupling early.
-    strategy:
-      fail-fast: false
-      matrix:
-        extra:
-          - data
-          - agents
-          - ml
-          - health
-          - signal
-          - oilgas
+    needs: [lint, unit-tests]
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py3.12
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
-      - name: Install system dependencies for native extras
+      # ── Domain extras ────────────────────────────────────────────────────────
+
+      - name: "[data] install + import"
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends \
-            gdal-bin libgdal-dev \
-            libsndfile1 \
-            libbz2-dev liblzma-dev libcurl4-openssl-dev \
-            libeccodes-dev \
-            ffmpeg
+          uv pip install -e ".[data]"
+          uv run python -c "import pirn.domains.data; print('OK: data')"
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7.6.0
-        with:
-          enable-cache: true
-          python-version: "3.12"
-
-      - name: Install pirn with only this extra
+      - name: "[agents] install + import"
         run: |
-          uv venv
-          uv pip install -e ".[${{ matrix.extra }}]"
+          uv pip install -e ".[agents]"
+          uv run python -c "import pirn.domains.agents; print('OK: agents')"
 
-      - name: Import the domain (must succeed)
+      - name: "[ml] install + import"
         run: |
-          uv run python -c "
-          import pirn.domains
-          mod = __import__('pirn.domains.${{ matrix.extra }}')
-          print('OK: pirn.domains.${{ matrix.extra }} imports cleanly with only [${{ matrix.extra }}] installed')
-          "
+          uv pip install -e ".[ml]"
+          uv run python -c "import pirn.domains.ml; print('OK: ml')"
 
-      - name: Always-clean domains import without cross-coupling
-        # The domains namespace + agents + connectors must never require an extra.
+      - name: "[health] install + import"
+        run: |
+          uv pip install -e ".[health]"
+          uv run python -c "import pirn.domains.health; print('OK: health')"
+
+      - name: "[signal] install + import"
+        run: |
+          uv pip install -e ".[signal]"
+          uv run python -c "import pirn.domains.signal; print('OK: signal')"
+
+      - name: "[oilgas] install + import"
+        run: |
+          uv pip install -e ".[oilgas]"
+          uv run python -c "import pirn.domains.oilgas; print('OK: oilgas')"
+
+      - name: "domains namespace — no cross-coupling"
         run: |
           uv run python -c "
           import pirn.domains
@@ -198,90 +173,151 @@ jobs:
           print('OK: namespace + agents + connectors import without their own extras')
           "
 
-  connector-extras-matrix:
-    name: Connector Extras Install (${{ matrix.extra }})
-    runs-on: ubuntu-latest
-    # Each connector extra must install on its own. Mirrors the domain matrix
-    # but for the per-backend connector extras (postgres, snowflake, kafka, …).
-    strategy:
-      fail-fast: false
-      matrix:
-        extra:
-          - postgres
-          - sqlite
-          - duckdb
-          - mysql
-          - bigquery
-          - snowflake
-          - clickhouse
-          - mssql
-          - oracle
-          - s3
-          - gcs
-          - azure
-          - kafka
-          - kinesis
-          - pubsub
-          - rabbitmq
-          - azure-servicebus
-          - salesforce
-          - hubspot
-          - stripe
-          - github
-          - jira
-          - shopify
-          - datadog
-          - prometheus
-          - otel
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      # ── Connector extras ─────────────────────────────────────────────────────
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7.6.0
-        with:
-          enable-cache: true
-          python-version: "3.12"
-
-      - name: Install pirn with only this connector extra
+      - name: "[postgres] install + import"
         run: |
-          uv venv
-          uv pip install -e ".[${{ matrix.extra }}]"
+          uv pip install -e ".[postgres]"
+          uv run python -c "import pirn.domains.connectors; print('OK: postgres')"
 
-      - name: Connectors namespace imports
+      - name: "[sqlite] install + import"
         run: |
-          uv run python -c "
-          import pirn.domains.connectors
-          print('OK: pirn.domains.connectors imports with only [${{ matrix.extra }}] installed')
-          "
+          uv pip install -e ".[sqlite]"
+          uv run python -c "import pirn.domains.connectors; print('OK: sqlite')"
+
+      - name: "[duckdb] install + import"
+        run: |
+          uv pip install -e ".[duckdb]"
+          uv run python -c "import pirn.domains.connectors; print('OK: duckdb')"
+
+      - name: "[mysql] install + import"
+        run: |
+          uv pip install -e ".[mysql]"
+          uv run python -c "import pirn.domains.connectors; print('OK: mysql')"
+
+      - name: "[bigquery] install + import"
+        run: |
+          uv pip install -e ".[bigquery]"
+          uv run python -c "import pirn.domains.connectors; print('OK: bigquery')"
+
+      - name: "[snowflake] install + import"
+        run: |
+          uv pip install -e ".[snowflake]"
+          uv run python -c "import pirn.domains.connectors; print('OK: snowflake')"
+
+      - name: "[clickhouse] install + import"
+        run: |
+          uv pip install -e ".[clickhouse]"
+          uv run python -c "import pirn.domains.connectors; print('OK: clickhouse')"
+
+      - name: "[mssql] install + import"
+        run: |
+          uv pip install -e ".[mssql]"
+          uv run python -c "import pirn.domains.connectors; print('OK: mssql')"
+
+      - name: "[oracle] install + import"
+        run: |
+          uv pip install -e ".[oracle]"
+          uv run python -c "import pirn.domains.connectors; print('OK: oracle')"
+
+      - name: "[s3] install + import"
+        run: |
+          uv pip install -e ".[s3]"
+          uv run python -c "import pirn.domains.connectors; print('OK: s3')"
+
+      - name: "[gcs] install + import"
+        run: |
+          uv pip install -e ".[gcs]"
+          uv run python -c "import pirn.domains.connectors; print('OK: gcs')"
+
+      - name: "[azure] install + import"
+        run: |
+          uv pip install -e ".[azure]"
+          uv run python -c "import pirn.domains.connectors; print('OK: azure')"
+
+      - name: "[kafka] install + import"
+        run: |
+          uv pip install -e ".[kafka]"
+          uv run python -c "import pirn.domains.connectors; print('OK: kafka')"
+
+      - name: "[kinesis] install + import"
+        run: |
+          uv pip install -e ".[kinesis]"
+          uv run python -c "import pirn.domains.connectors; print('OK: kinesis')"
+
+      - name: "[pubsub] install + import"
+        run: |
+          uv pip install -e ".[pubsub]"
+          uv run python -c "import pirn.domains.connectors; print('OK: pubsub')"
+
+      - name: "[rabbitmq] install + import"
+        run: |
+          uv pip install -e ".[rabbitmq]"
+          uv run python -c "import pirn.domains.connectors; print('OK: rabbitmq')"
+
+      - name: "[azure-servicebus] install + import"
+        run: |
+          uv pip install -e ".[azure-servicebus]"
+          uv run python -c "import pirn.domains.connectors; print('OK: azure-servicebus')"
+
+      - name: "[salesforce] install + import"
+        run: |
+          uv pip install -e ".[salesforce]"
+          uv run python -c "import pirn.domains.connectors; print('OK: salesforce')"
+
+      - name: "[hubspot] install + import"
+        run: |
+          uv pip install -e ".[hubspot]"
+          uv run python -c "import pirn.domains.connectors; print('OK: hubspot')"
+
+      - name: "[stripe] install + import"
+        run: |
+          uv pip install -e ".[stripe]"
+          uv run python -c "import pirn.domains.connectors; print('OK: stripe')"
+
+      - name: "[github] install + import"
+        run: |
+          uv pip install -e ".[github]"
+          uv run python -c "import pirn.domains.connectors; print('OK: github')"
+
+      - name: "[jira] install + import"
+        run: |
+          uv pip install -e ".[jira]"
+          uv run python -c "import pirn.domains.connectors; print('OK: jira')"
+
+      - name: "[shopify] install + import"
+        run: |
+          uv pip install -e ".[shopify]"
+          uv run python -c "import pirn.domains.connectors; print('OK: shopify')"
+
+      - name: "[datadog] install + import"
+        run: |
+          uv pip install -e ".[datadog]"
+          uv run python -c "import pirn.domains.connectors; print('OK: datadog')"
+
+      - name: "[prometheus] install + import"
+        run: |
+          uv pip install -e ".[prometheus]"
+          uv run python -c "import pirn.domains.connectors; print('OK: prometheus')"
+
+      - name: "[otel] install + import"
+        run: |
+          uv pip install -e ".[otel]"
+          uv run python -c "import pirn.domains.connectors; print('OK: otel')"
 
   mock-integration-tests:
     name: Integration Tests (mock backends)
     runs-on: ubuntu-latest
+    needs: [unit-tests]
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py3.12
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
-      - name: Install system dependencies for native extras
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends \
-            gdal-bin libgdal-dev \
-            libsndfile1 \
-            libbz2-dev liblzma-dev libcurl4-openssl-dev \
-            libeccodes-dev \
-            ffmpeg
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7.6.0
-        with:
-          enable-cache: true
-          python-version: "3.12"
-
-      - name: Install dependencies
+      - name: Install pirn
         run: uv sync --all-extras
 
       - name: Run mock integration tests
-        # --real is NOT passed: real-backend tests skip automatically
-        # needs_dask / needs_ray use LocalCluster — excluded here; run separately below with higher timeout
         run: |
           uv run python -m pytest tests/integration \
             --ignore=tests/integration/test_dask_real.py \
@@ -291,7 +327,7 @@ jobs:
             -v
 
       - name: Run Dask / Ray integration tests
-        continue-on-error: true  # distributed runtimes have heavy startup cost; flaky on 2-core runners
+        continue-on-error: true
         run: |
           uv run python -m pytest tests/integration/test_dask_real.py tests/integration/test_ray_real.py \
             --junitxml=test-results/integration-dask-ray.xml \
@@ -309,26 +345,13 @@ jobs:
   smoke-tests:
     name: Smoke Tests
     runs-on: ubuntu-latest
+    needs: [unit-tests]
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py3.12
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
-      - name: Install system dependencies for native extras
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends \
-            gdal-bin libgdal-dev \
-            libsndfile1 \
-            libbz2-dev liblzma-dev libcurl4-openssl-dev \
-            libeccodes-dev \
-            ffmpeg
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7.6.0
-        with:
-          enable-cache: true
-          python-version: "3.12"
-
-      - name: Install dependencies
+      - name: Install pirn
         run: uv sync --all-extras
 
       - name: Run smoke tests
@@ -350,27 +373,13 @@ jobs:
     name: End-to-End Tests
     runs-on: ubuntu-latest
     needs: [lint, unit-tests]
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py3.12
     if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
-      - name: Install system dependencies for native extras
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends \
-            gdal-bin libgdal-dev \
-            libsndfile1 \
-            libbz2-dev liblzma-dev libcurl4-openssl-dev \
-            libeccodes-dev \
-            ffmpeg
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7.6.0
-        with:
-          enable-cache: true
-          python-version: "3.12"
-
-      - name: Install dependencies
+      - name: Install pirn
         run: uv sync --all-extras
 
       - name: Run end-to-end tests
@@ -422,14 +431,13 @@ jobs:
           retention-days: 30
 
 # =============================================================================
-# PHASE 2: BUILD
+# PHASE 3: BUILD
 # =============================================================================
 
   build-feature:
     name: Build (Feature Branch)
     runs-on: ubuntu-latest
-    needs: [lint, unit-tests, domain-extras-matrix, connector-extras-matrix, mock-integration-tests, smoke-tests]
-    # Feature branch pushes only — not main, not PRs
+    needs: [lint, unit-tests, extras-isolation, mock-integration-tests, smoke-tests]
     if: github.event_name == 'push' && github.ref != 'refs/heads/main'
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
@@ -481,7 +489,7 @@ jobs:
   build-release:
     name: Build (Release)
     runs-on: ubuntu-latest
-    needs: [lint, unit-tests, domain-extras-matrix, connector-extras-matrix, mock-integration-tests, smoke-tests, end-to-end-tests]
+    needs: [lint, unit-tests, mock-integration-tests, smoke-tests, end-to-end-tests]
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -535,7 +543,7 @@ jobs:
           retention-days: 7
 
 # =============================================================================
-# PHASE 3: PUBLISH
+# PHASE 4: PUBLISH
 # =============================================================================
 
   publish-testpypi:
@@ -594,7 +602,7 @@ jobs:
           skip-existing: false
 
 # =============================================================================
-# PHASE 4: VERIFY PUBLISH
+# PHASE 5: VERIFY PUBLISH
 # =============================================================================
 
   verify-testpypi:
