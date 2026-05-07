@@ -1,0 +1,203 @@
+name: Extras Isolation
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: extras-isolation-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI_REGISTRY: ghcr.io/${{ github.repository_owner }}
+
+jobs:
+  extras-isolation:
+    name: Extras Isolation
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py3.12
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      # ── Domain extras ────────────────────────────────────────────────────────
+
+      - name: "[data] install + import"
+        run: |
+          uv pip install -e ".[data]"
+          uv run python -c "import pirn.domains.data; print('OK: data')"
+
+      - name: "[agents] install + import"
+        run: |
+          uv pip install -e ".[agents]"
+          uv run python -c "import pirn.domains.agents; print('OK: agents')"
+
+      - name: "[ml] install + import"
+        run: |
+          uv pip install -e ".[ml]"
+          uv run python -c "import pirn.domains.ml; print('OK: ml')"
+
+      - name: "[health] install + import"
+        run: |
+          uv pip install -e ".[health]"
+          uv run python -c "import pirn.domains.health; print('OK: health')"
+
+      - name: "[signal] install + import"
+        run: |
+          uv pip install -e ".[signal]"
+          uv run python -c "import pirn.domains.signal; print('OK: signal')"
+
+      - name: "[oilgas] install + import"
+        run: |
+          uv pip install -e ".[oilgas]"
+          uv run python -c "import pirn.domains.oilgas; print('OK: oilgas')"
+
+      - name: "domains namespace — no cross-coupling"
+        run: |
+          uv run python -c "
+          import pirn.domains
+          import pirn.domains.agents
+          import pirn.domains.connectors
+          print('OK: namespace + agents + connectors import without their own extras')
+          "
+
+      # ── Connector extras ─────────────────────────────────────────────────────
+
+      - name: "[postgres] install + import"
+        run: |
+          uv pip install -e ".[postgres]"
+          uv run python -c "import pirn.domains.connectors; print('OK: postgres')"
+
+      - name: "[sqlite] install + import"
+        run: |
+          uv pip install -e ".[sqlite]"
+          uv run python -c "import pirn.domains.connectors; print('OK: sqlite')"
+
+      - name: "[duckdb] install + import"
+        run: |
+          uv pip install -e ".[duckdb]"
+          uv run python -c "import pirn.domains.connectors; print('OK: duckdb')"
+
+      - name: "[mysql] install + import"
+        run: |
+          uv pip install -e ".[mysql]"
+          uv run python -c "import pirn.domains.connectors; print('OK: mysql')"
+
+      - name: "[bigquery] install + import"
+        run: |
+          uv pip install -e ".[bigquery]"
+          uv run python -c "import pirn.domains.connectors; print('OK: bigquery')"
+
+      - name: "[snowflake] install + import"
+        run: |
+          uv pip install -e ".[snowflake]"
+          uv run python -c "import pirn.domains.connectors; print('OK: snowflake')"
+
+      - name: "[clickhouse] install + import"
+        run: |
+          uv pip install -e ".[clickhouse]"
+          uv run python -c "import pirn.domains.connectors; print('OK: clickhouse')"
+
+      - name: "[mssql] install + import"
+        run: |
+          uv pip install -e ".[mssql]"
+          uv run python -c "import pirn.domains.connectors; print('OK: mssql')"
+
+      - name: "[oracle] install + import"
+        run: |
+          uv pip install -e ".[oracle]"
+          uv run python -c "import pirn.domains.connectors; print('OK: oracle')"
+
+      - name: "[s3] install + import"
+        run: |
+          uv pip install -e ".[s3]"
+          uv run python -c "import pirn.domains.connectors; print('OK: s3')"
+
+      - name: "[gcs] install + import"
+        run: |
+          uv pip install -e ".[gcs]"
+          uv run python -c "import pirn.domains.connectors; print('OK: gcs')"
+
+      - name: "[azure] install + import"
+        run: |
+          uv pip install -e ".[azure]"
+          uv run python -c "import pirn.domains.connectors; print('OK: azure')"
+
+      - name: "[kafka] install + import"
+        run: |
+          uv pip install -e ".[kafka]"
+          uv run python -c "import pirn.domains.connectors; print('OK: kafka')"
+
+      - name: "[kinesis] install + import"
+        run: |
+          uv pip install -e ".[kinesis]"
+          uv run python -c "import pirn.domains.connectors; print('OK: kinesis')"
+
+      - name: "[pubsub] install + import"
+        run: |
+          uv pip install -e ".[pubsub]"
+          uv run python -c "import pirn.domains.connectors; print('OK: pubsub')"
+
+      - name: "[rabbitmq] install + import"
+        run: |
+          uv pip install -e ".[rabbitmq]"
+          uv run python -c "import pirn.domains.connectors; print('OK: rabbitmq')"
+
+      - name: "[azure-servicebus] install + import"
+        run: |
+          uv pip install -e ".[azure-servicebus]"
+          uv run python -c "import pirn.domains.connectors; print('OK: azure-servicebus')"
+
+      - name: "[salesforce] install + import"
+        run: |
+          uv pip install -e ".[salesforce]"
+          uv run python -c "import pirn.domains.connectors; print('OK: salesforce')"
+
+      - name: "[hubspot] install + import"
+        run: |
+          uv pip install -e ".[hubspot]"
+          uv run python -c "import pirn.domains.connectors; print('OK: hubspot')"
+
+      - name: "[stripe] install + import"
+        run: |
+          uv pip install -e ".[stripe]"
+          uv run python -c "import pirn.domains.connectors; print('OK: stripe')"
+
+      - name: "[github] install + import"
+        run: |
+          uv pip install -e ".[github]"
+          uv run python -c "import pirn.domains.connectors; print('OK: github')"
+
+      - name: "[jira] install + import"
+        run: |
+          uv pip install -e ".[jira]"
+          uv run python -c "import pirn.domains.connectors; print('OK: jira')"
+
+      - name: "[shopify] install + import"
+        run: |
+          uv pip install -e ".[shopify]"
+          uv run python -c "import pirn.domains.connectors; print('OK: shopify')"
+
+      - name: "[datadog] install + import"
+        run: |
+          uv pip install -e ".[datadog]"
+          uv run python -c "import pirn.domains.connectors; print('OK: datadog')"
+
+      - name: "[prometheus] install + import"
+        run: |
+          uv pip install -e ".[prometheus]"
+          uv run python -c "import pirn.domains.connectors; print('OK: prometheus')"
+
+      - name: "[otel] install + import"
+        run: |
+          uv pip install -e ".[otel]"
+          uv run python -c "import pirn.domains.connectors; print('OK: otel')"
