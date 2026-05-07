@@ -14,6 +14,7 @@ RUN apt-get update -qq && \
       libcurl4-openssl-dev \
       libeccodes-dev \
       ffmpeg \
+      curl \
       git \
       ca-certificates && \
     rm -rf /var/lib/apt/lists/*
