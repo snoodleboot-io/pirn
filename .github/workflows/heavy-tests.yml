@@ -19,10 +19,17 @@ env:
   UV_FROZEN: "1"
 
 jobs:
+  approve:
+    name: Approve Heavy Tests
+    runs-on: ubuntu-latest
+    environment: heavy
+    steps:
+      - run: echo "Approved — running heavy tests across all Python versions"
+
   heavy-tests:
     name: Heavy Tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
-    environment: heavy
+    needs: [approve]
     container:
       image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py${{ matrix.python-version }}
     strategy:
