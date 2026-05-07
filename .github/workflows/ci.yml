@@ -140,15 +140,9 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
       - name: Install pirn with only this extra
-        env:
-          UV_PROJECT_ENVIRONMENT: /tmp/venv-${{ matrix.extra }}
-        run: |
-          uv venv /tmp/venv-${{ matrix.extra }}
-          uv pip install -e ".[${{ matrix.extra }}]"
+        run: uv pip install -e ".[${{ matrix.extra }}]"
 
       - name: Import the domain (must succeed)
-        env:
-          UV_PROJECT_ENVIRONMENT: /tmp/venv-${{ matrix.extra }}
         run: |
           uv run python -c "
           import pirn.domains
@@ -157,8 +151,6 @@ jobs:
           "
 
       - name: Always-clean domains import without cross-coupling
-        env:
-          UV_PROJECT_ENVIRONMENT: /tmp/venv-${{ matrix.extra }}
         run: |
           uv run python -c "
           import pirn.domains
@@ -211,15 +203,11 @@ jobs:
           python-version: "3.12"
 
       - name: Install pirn with only this connector extra
-        env:
-          UV_PROJECT_ENVIRONMENT: /tmp/venv-${{ matrix.extra }}
         run: |
-          uv venv /tmp/venv-${{ matrix.extra }}
+          uv venv
           uv pip install -e ".[${{ matrix.extra }}]"
 
       - name: Connectors namespace imports
-        env:
-          UV_PROJECT_ENVIRONMENT: /tmp/venv-${{ matrix.extra }}
         run: |
           uv run python -c "
           import pirn.domains.connectors
