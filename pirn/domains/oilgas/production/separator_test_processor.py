@@ -33,31 +33,57 @@ from __future__ import annotations
 from typing import Any
 
 from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
 
 
 class SeparatorTestProcessor(Knot):
     """Compute GOR, WOR, and oil shrinkage factor from separator test measurements."""
 
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
+    def __init__(
+        self,
+        *,
+        test_data: Knot,
+        separator_stages: Knot | int,
+        oil_rate_field: Knot | str = "oil_rate_bopd",
+        gas_rate_field: Knot | str = "gas_rate_mmscfd",
+        water_rate_field: Knot | str = "water_rate_bwpd",
+        _config: KnotConfig,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            test_data=test_data,
+            separator_stages=separator_stages,
+            oil_rate_field=oil_rate_field,
+            gas_rate_field=gas_rate_field,
+            water_rate_field=water_rate_field,
+            _config=_config,
+            **kwargs,
+        )
 
     async def process(
         self,
         test_data: dict[str, Any],
         separator_stages: int,
+        oil_rate_field: str = "oil_rate_bopd",
+        gas_rate_field: str = "gas_rate_mmscfd",
+        water_rate_field: str = "water_rate_bwpd",
         **_: Any,
     ) -> dict[str, Any]:
         """Compute GOR, WOR, and oil shrinkage from separator test data.
 
         Args:
-            test_data: Dict with ``oil_rate_bopd``, ``gas_rate_mmscfd``,
-                ``water_rate_bwpd``, ``separator_pressure_psig``,
-                and ``separator_temp_f``.
+            test_data: Dict with separator test rate measurements.
             separator_stages: Number of separator stages; must be 1, 2, or 3.
+            oil_rate_field: Tag name for oil rate (bopd) in test_data.
+            gas_rate_field: Tag name for gas rate (MMSCFD) in test_data.
+            water_rate_field: Tag name for water rate (bwpd) in test_data.
 
         Returns:
             Dict with ``gor_scf_bbl`` (float), ``wor_bbl_bbl`` (float),
             and ``oil_shrinkage_factor`` (float).
+
+        Raises:
+            KeyError: If test_data is missing any required rate field.
         """
         if not isinstance(separator_stages, int):
             raise TypeError("SeparatorTestProcessor: separator_stages must be an int")
@@ -65,9 +91,15 @@ class SeparatorTestProcessor(Knot):
             raise ValueError("SeparatorTestProcessor: separator_stages must be 1, 2, or 3")
         if not isinstance(test_data, dict):
             raise TypeError("SeparatorTestProcessor: test_data must be a dict")
-        oil = float(test_data.get("oil_rate_bopd", 1.0) or 1.0)
-        gas_mmscfd = float(test_data.get("gas_rate_mmscfd", 0.0))
-        water = float(test_data.get("water_rate_bwpd", 0.0))
+        for field in (oil_rate_field, gas_rate_field, water_rate_field):
+            if field not in test_data:
+                raise KeyError(
+                    f"SeparatorTestProcessor: test_data missing required field '{field}'; "
+                    f"got: {list(test_data)}"
+                )
+        oil = float(test_data[oil_rate_field]) or 1.0
+        gas_mmscfd = float(test_data[gas_rate_field])
+        water = float(test_data[water_rate_field])
         gas_scfd = gas_mmscfd * 1_000_000.0
         gor = gas_scfd / oil if oil else 0.0
         wor = water / oil if oil else 0.0

@@ -41,3 +41,33 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         assert "recommended_spm" in out
         assert "recommended_stroke_in" in out
         assert out["fillage_pct"] == 80.0
+
+    async def test_raises_on_missing_spm_field(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(KeyError, "current_spm"):
+            await knot.process(
+                dynagraph_card={"stroke_length_in": 144.0},
+                target_fillage_pct=80.0,
+                max_spm=10.0,
+            )
+
+    async def test_raises_on_missing_stroke_field(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(KeyError, "stroke_length_in"):
+            await knot.process(
+                dynagraph_card={"current_spm": 8.0},
+                target_fillage_pct=80.0,
+                max_spm=10.0,
+            )
+
+    async def test_custom_field_names(self) -> None:
+        knot = self._make_knot()
+        scada_card: dict[str, Any] = {"SPM": 8.0, "STROKE_IN": 144.0}
+        out = await knot.process(
+            dynagraph_card=scada_card,
+            target_fillage_pct=80.0,
+            max_spm=10.0,
+            spm_field="SPM",
+            stroke_field="STROKE_IN",
+        )
+        assert out["recommended_stroke_in"] == 144.0

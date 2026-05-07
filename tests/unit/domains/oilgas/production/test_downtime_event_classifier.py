@@ -52,3 +52,30 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         knot = self._make_knot(gap_threshold_hours=4.0)
         out = await knot.process(production_series=_SERIES_NO_GAP, gap_threshold_hours=4.0)
         assert out == []
+
+    async def test_raises_on_missing_timestamp_field(self) -> None:
+        knot = self._make_knot()
+        bad = [{"rate_bopd": 100.0}]
+        with self.assertRaisesRegex(KeyError, "timestamp_iso"):
+            await knot.process(production_series=bad, gap_threshold_hours=4.0)
+
+    async def test_raises_on_missing_rate_field(self) -> None:
+        knot = self._make_knot()
+        bad = [{"timestamp_iso": "2026-01-01T00:00:00Z"}]
+        with self.assertRaisesRegex(KeyError, "rate_bopd"):
+            await knot.process(production_series=bad, gap_threshold_hours=4.0)
+
+    async def test_custom_field_names(self) -> None:
+        knot = self._make_knot()
+        scada_series: list[dict[str, Any]] = [
+            {"TS": "2026-01-01T00:00:00Z", "RATE": 100.0},
+            {"TS": "2026-01-02T00:00:00Z", "RATE": 0.0},
+            {"TS": "2026-01-03T00:00:00Z", "RATE": 80.0},
+        ]
+        out = await knot.process(
+            production_series=scada_series,
+            gap_threshold_hours=4.0,
+            timestamp_field="TS",
+            rate_field="RATE",
+        )
+        assert len(out) == 1

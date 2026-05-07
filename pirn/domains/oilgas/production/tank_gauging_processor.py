@@ -33,13 +33,34 @@ from __future__ import annotations
 from typing import Any
 
 from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
 
 
 class TankGaugingProcessor(Knot):
     """Compute gross volume, net oil, and BS&W-adjusted volume from tank gauge readings."""
 
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
+    def __init__(
+        self,
+        *,
+        gauge_readings: Knot,
+        tank_table: Knot,
+        bsw_correction_factor: Knot | float,
+        opening_field: Knot | str = "opening_level_in",
+        closing_field: Knot | str = "closing_level_in",
+        bsw_pct_field: Knot | str = "bsw_pct",
+        _config: KnotConfig,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            gauge_readings=gauge_readings,
+            tank_table=tank_table,
+            bsw_correction_factor=bsw_correction_factor,
+            opening_field=opening_field,
+            closing_field=closing_field,
+            bsw_pct_field=bsw_pct_field,
+            _config=_config,
+            **kwargs,
+        )
 
     @staticmethod
     def _interpolate(table: dict[str, float], level: float) -> float:
@@ -65,20 +86,28 @@ class TankGaugingProcessor(Knot):
         gauge_readings: dict[str, Any],
         tank_table: dict[str, float],
         bsw_correction_factor: float,
+        opening_field: str = "opening_level_in",
+        closing_field: str = "closing_level_in",
+        bsw_pct_field: str = "bsw_pct",
         **_: Any,
     ) -> dict[str, Any]:
         """Compute gross volume, net oil, and BS&W-adjusted volume from gauge readings.
 
         Args:
-            gauge_readings: Dict with ``opening_level_in``, ``closing_level_in``,
-                ``bsw_pct``, and ``temperature_f``.
+            gauge_readings: Dict with tank gauge readings.
             tank_table: Dict mapping gauge level (str key, float-convertible) to
                 volume in barrels.
             bsw_correction_factor: BS&W correction factor in [0, 1].
+            opening_field: Tag name for opening gauge level (inches) in gauge_readings.
+            closing_field: Tag name for closing gauge level (inches) in gauge_readings.
+            bsw_pct_field: Tag name for BS&W percentage in gauge_readings.
 
         Returns:
             Dict with ``gross_volume_bbl`` (float), ``net_oil_bbl`` (float),
             and ``bsw_adjusted_bbl`` (float).
+
+        Raises:
+            KeyError: If gauge_readings is missing any required field.
         """
         if not isinstance(tank_table, dict):
             raise TypeError("TankGaugingProcessor: tank_table must be a dict")
@@ -88,9 +117,15 @@ class TankGaugingProcessor(Knot):
             raise ValueError("TankGaugingProcessor: bsw_correction_factor must be in [0, 1]")
         if not isinstance(gauge_readings, dict):
             raise TypeError("TankGaugingProcessor: gauge_readings must be a dict")
-        opening = float(gauge_readings.get("opening_level_in", 0.0))
-        closing = float(gauge_readings.get("closing_level_in", 0.0))
-        bsw_pct = float(gauge_readings.get("bsw_pct", 0.0))
+        for field in (opening_field, closing_field, bsw_pct_field):
+            if field not in gauge_readings:
+                raise KeyError(
+                    f"TankGaugingProcessor: gauge_readings missing required field '{field}'; "
+                    f"got: {list(gauge_readings)}"
+                )
+        opening = float(gauge_readings[opening_field])
+        closing = float(gauge_readings[closing_field])
+        bsw_pct = float(gauge_readings[bsw_pct_field])
         opening_vol = self._interpolate(tank_table, opening)
         closing_vol = self._interpolate(tank_table, closing)
         gross_volume = abs(closing_vol - opening_vol)

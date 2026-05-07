@@ -46,6 +46,8 @@ class DowntimeEventClassifier(Knot):
             "weather",
             "regulatory",
         ),
+        timestamp_field: Knot | str = "timestamp_iso",
+        rate_field: Knot | str = "rate_bopd",
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
@@ -53,6 +55,8 @@ class DowntimeEventClassifier(Knot):
             production_series=production_series,
             gap_threshold_hours=gap_threshold_hours,
             categories=categories,
+            timestamp_field=timestamp_field,
+            rate_field=rate_field,
             _config=_config,
             **kwargs,
         )
@@ -67,20 +71,26 @@ class DowntimeEventClassifier(Knot):
             "weather",
             "regulatory",
         ),
+        timestamp_field: str = "timestamp_iso",
+        rate_field: str = "rate_bopd",
         **_: Any,
     ) -> list[dict[str, Any]]:
         """Detect gaps in the production series and classify each as a downtime event.
 
         Args:
-            production_series: List of dicts with ``timestamp_iso`` and
-                ``rate_bopd`` entries in chronological order.
+            production_series: List of chronological production rate dicts.
             gap_threshold_hours: Positive float; minimum duration (hours)
                 to count as a downtime event.
             categories: Tuple of downtime category labels; first is default.
+            timestamp_field: Historian tag name for the timestamp in each entry.
+            rate_field: Historian tag name for the production rate (bopd) in each entry.
 
         Returns:
             List of downtime event dicts with ``start_iso``, ``end_iso``,
             ``duration_hours``, and ``category``.
+
+        Raises:
+            KeyError: If any series entry is missing timestamp_field or rate_field.
         """
         if not isinstance(gap_threshold_hours, (int, float)):
             raise TypeError("DowntimeEventClassifier: gap_threshold_hours must be numeric")
@@ -90,9 +100,19 @@ class DowntimeEventClassifier(Knot):
         events: list[dict[str, Any]] = []
         zero_start: str | None = None
         prev_ts: str | None = None
-        for entry in production_series:
-            ts: str = entry["timestamp_iso"]
-            rate: float = float(entry.get("rate_bopd", 0.0))
+        for i, entry in enumerate(production_series):
+            if timestamp_field not in entry:
+                raise KeyError(
+                    f"DowntimeEventClassifier: series[{i}] missing required field "
+                    f"'{timestamp_field}'; got: {list(entry)}"
+                )
+            if rate_field not in entry:
+                raise KeyError(
+                    f"DowntimeEventClassifier: series[{i}] missing required field "
+                    f"'{rate_field}'; got: {list(entry)}"
+                )
+            ts: str = entry[timestamp_field]
+            rate: float = float(entry[rate_field])
             if rate == 0.0 and zero_start is None:
                 zero_start = ts
             elif rate > 0.0 and zero_start is not None:

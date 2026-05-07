@@ -63,13 +63,19 @@ class MudLoggingIngester(Knot):
         """
         if not isinstance(raw_mud_log, dict):
             raise TypeError("MudLoggingIngester: raw_mud_log must be a dict")
-        data: list[dict[str, Any]] = raw_mud_log.get("data", [])
+        for field in ("data", "header"):
+            if field not in raw_mud_log:
+                raise KeyError(
+                    f"MudLoggingIngester: raw_mud_log missing required field '{field}'; "
+                    f"got: {list(raw_mud_log)}"
+                )
+        data: list[dict[str, Any]] = raw_mud_log["data"]
+        header: dict[str, Any] = raw_mud_log["header"]
         if data:
             first_row_keys = set(data[0].keys())
             missing = [c for c in required_curves if c not in first_row_keys]
             if missing:
                 raise ValueError(f"MudLoggingIngester: missing required curves: {missing}")
-        header: dict[str, Any] = raw_mud_log.get("header", {})
         curves = list(data[0].keys()) if data else list(required_curves)
         return {
             "well_name": header.get("well_name", "unknown"),

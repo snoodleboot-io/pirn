@@ -60,3 +60,33 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         )
         assert len(out["alerts"]) > 0
         assert out["health_score"] < 100.0
+
+    async def test_raises_on_missing_temp_field(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(KeyError, "motor_temp_c"):
+            await knot.process(
+                telemetry={"vibration_g": 0.1},
+                vibration_threshold_g=1.0,
+                temperature_threshold_c=100.0,
+            )
+
+    async def test_raises_on_missing_vibration_field(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(KeyError, "vibration_g"):
+            await knot.process(
+                telemetry={"motor_temp_c": 80.0},
+                vibration_threshold_g=1.0,
+                temperature_threshold_c=100.0,
+            )
+
+    async def test_custom_field_names(self) -> None:
+        knot = self._make_knot()
+        scada_style = {"MTR_TEMP": 80.0, "VIB_G": 0.1}
+        out = await knot.process(
+            telemetry=scada_style,
+            vibration_threshold_g=1.0,
+            temperature_threshold_c=100.0,
+            temp_field="MTR_TEMP",
+            vibration_field="VIB_G",
+        )
+        assert out["health_score"] == 100.0

@@ -43,12 +43,16 @@ class GasChromatographyAnalyzer(Knot):
         *,
         gc_report: Knot,
         normalize_fractions: Knot | bool = True,
+        components_field: Knot | str = "components",
+        total_area_field: Knot | str = "total_area",
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
         super().__init__(
             gc_report=gc_report,
             normalize_fractions=normalize_fractions,
+            components_field=components_field,
+            total_area_field=total_area_field,
             _config=_config,
             **kwargs,
         )
@@ -57,25 +61,37 @@ class GasChromatographyAnalyzer(Knot):
         self,
         gc_report: dict[str, Any],
         normalize_fractions: bool = True,
+        components_field: str = "components",
+        total_area_field: str = "total_area",
         **_: Any,
     ) -> dict[str, Any]:
         """Parse GC report to compute mole fractions, gross heating value, and specific gravity.
 
         Args:
-            gc_report: Dict with keys ``components`` (list of dicts with ``name`` and
-                ``area_percent``) and ``total_area`` (float).
+            gc_report: Dict containing component area data from the chromatograph.
             normalize_fractions: If True, renormalise fractions to sum to 1.
+            components_field: Key for the components list in gc_report.
+            total_area_field: Key for the total peak area in gc_report.
 
         Returns:
             Dict with ``mole_fractions`` (dict[str, float]),
             ``gross_heating_value_btu_scf`` (float), and ``specific_gravity`` (float).
+
+        Raises:
+            KeyError: If gc_report is missing the components_field or total_area_field key.
         """
         if not isinstance(gc_report, dict):
             raise TypeError("GasChromatographyAnalyzer: gc_report must be a dict")
         if not isinstance(normalize_fractions, bool):
             raise TypeError("GasChromatographyAnalyzer: normalize_fractions must be a bool")
-        components: list[dict[str, Any]] = gc_report.get("components", [])
-        total_area: float = float(gc_report.get("total_area", 1.0) or 1.0)
+        for field in (components_field, total_area_field):
+            if field not in gc_report:
+                raise KeyError(
+                    f"GasChromatographyAnalyzer: gc_report missing required field '{field}'; "
+                    f"got: {list(gc_report)}"
+                )
+        components: list[dict[str, Any]] = gc_report[components_field]
+        total_area: float = float(gc_report[total_area_field]) or 1.0
         raw: dict[str, float] = {
             c["name"]: float(c["area_percent"]) / total_area * 100.0 for c in components
         }

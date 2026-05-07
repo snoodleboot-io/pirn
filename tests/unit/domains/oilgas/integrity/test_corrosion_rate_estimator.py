@@ -37,3 +37,17 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         out = await knot.process(previous_run=_RUN, current_run=_RUN, years_between=5.0)
         assert out["max_rate_mpy"] == 5.0
         assert out["feature_count"] == 10.0
+
+    async def test_raises_on_missing_feature_count_field(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(KeyError, "feature_count"):
+            await knot.process(previous_run=_RUN, current_run={}, years_between=5.0)
+
+    async def test_custom_feature_count_field(self) -> None:
+        knot = self._make_knot()
+        custom_run: dict[str, Any] = {"anomaly_count": 7}
+        out = await knot.process(
+            previous_run=_RUN, current_run=custom_run, years_between=5.0,
+            feature_count_field="anomaly_count",
+        )
+        assert out["feature_count"] == 7.0

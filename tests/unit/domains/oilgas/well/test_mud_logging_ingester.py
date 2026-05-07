@@ -39,3 +39,13 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         knot = self._make_knot()
         with self.assertRaises(ValueError):
             await knot.process(raw_mud_log=_MISSING_CURVE_LOG)
+
+    async def test_raises_on_missing_data_key(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(KeyError, "data"):
+            await knot.process(raw_mud_log={"header": {"well_name": "Well-X"}})
+
+    async def test_raises_on_missing_header_key(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(KeyError, "header"):
+            await knot.process(raw_mud_log={"data": []})

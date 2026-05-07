@@ -44,3 +44,23 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         assert "wor_bbl_bbl" in out
         assert "oil_shrinkage_factor" in out
         assert out["gor_scf_bbl"] > 0.0
+
+    async def test_raises_on_missing_oil_rate_field(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(KeyError, "oil_rate_bopd"):
+            await knot.process(
+                test_data={"gas_rate_mmscfd": 0.5, "water_rate_bwpd": 200.0},
+                separator_stages=2,
+            )
+
+    async def test_custom_field_names(self) -> None:
+        knot = self._make_knot()
+        scada_data: dict[str, Any] = {"OIL": 500.0, "GAS": 0.5, "WATER": 200.0}
+        out = await knot.process(
+            test_data=scada_data,
+            separator_stages=2,
+            oil_rate_field="OIL",
+            gas_rate_field="GAS",
+            water_rate_field="WATER",
+        )
+        assert "gor_scf_bbl" in out

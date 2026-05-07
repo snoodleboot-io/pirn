@@ -43,3 +43,29 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         assert isinstance(out, list)
         assert len(out) == 1
         assert "normalized_rate_bopd" in out[0]
+
+    async def test_raises_on_missing_rate_field(self) -> None:
+        knot = self._make_knot()
+        bad = [{"wellhead_pressure_psia": 100.0, "wellhead_temp_f": 120.0}]
+        with self.assertRaisesRegex(KeyError, "rate_bopd"):
+            await knot.process(measurements=bad, reference_pressure_psia=14.7, reference_temp_f=60.0)
+
+    async def test_raises_on_missing_pressure_field(self) -> None:
+        knot = self._make_knot()
+        bad = [{"rate_bopd": 500.0, "wellhead_temp_f": 120.0}]
+        with self.assertRaisesRegex(KeyError, "wellhead_pressure_psia"):
+            await knot.process(measurements=bad, reference_pressure_psia=14.7, reference_temp_f=60.0)
+
+    async def test_custom_field_names(self) -> None:
+        knot = self._make_knot()
+        historian_style = [{"RATE": 500.0, "WHP": 100.0, "WHT": 120.0}]
+        out = await knot.process(
+            measurements=historian_style,
+            reference_pressure_psia=14.7,
+            reference_temp_f=60.0,
+            rate_field="RATE",
+            pressure_field="WHP",
+            temp_field="WHT",
+        )
+        assert len(out) == 1
+        assert "normalized_rate_bopd" in out[0]
