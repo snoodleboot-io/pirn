@@ -10,6 +10,7 @@ theme:
 
 plugins:
   - search
+  - section-index
   - mkdocstrings:
       handlers:
         python:
@@ -50,10 +51,12 @@ extra_javascript:
 nav:
   - Home: index.md
   - Getting Started:
+    - getting-started/index.md
     - Quickstart: getting-started/quickstart.md
     - Concepts: getting-started/concepts.md
     - First Pipeline: getting-started/first-pipeline.md
   - Guides:
+    - guides/index.md
     - Knot Registration: guides/knot-registration.md
     - YAML Pipelines: guides/yaml-pipelines.md
     - Error Handling: guides/error-handling.md
@@ -62,10 +65,12 @@ nav:
     - Observability: guides/observability.md
     - Visualization: guides/visualization.md
   - Architecture:
+    - architecture/index.md
     - Overview: architecture/overview.md
     - Execution Model: architecture/execution-model.md
     - Extension Points: architecture/extension-points.md
   - API Reference:
+    - api/index.md
     - Tapestry: api/tapestry.md
     - Core: api/core.md
     - Nodes: api/nodes.md
@@ -77,11 +82,13 @@ nav:
     - YAML Loader: api/yaml-loader.md
     - Visualization: api/visualization.md
   - Cookbook:
+    - cookbook/index.md
     - Fan-Out with Map: cookbook/fan-out.md
     - Branching Pipelines: cookbook/branching.md
     - Streaming Sources: cookbook/streaming.md
     - Testing Patterns: cookbook/testing-patterns.md
   - Domains:
+    - domains/index.md
     - Data: domains/data.md
     - Agents: domains/agents.md
     - ML: domains/ml.md
@@ -89,8 +96,9 @@ nav:
     - Signal: domains/signal.md
     - Oil & Gas: domains/oilgas.md
   - Connectors:
-    - Format Matrix: connectors/index.md
+    - connectors/index.md
   - Contributing:
+    - contributing/index.md
     - Domain Knots: contributing/domain-knots.md
     - Knot Design Rules: contributing/knot-design-rules.md
     - Knot Remediation Process: contributing/knot-remediation-process.md

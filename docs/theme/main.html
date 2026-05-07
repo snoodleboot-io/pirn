@@ -39,7 +39,11 @@
         {% for item in items %}
           {% if item.is_section %}
             <div class="nav-section{% if item.active %} active{% endif %}" data-depth="{{ depth }}">
-              <div class="nav-section-label">{{ item.title }}</div>
+              {% if item.index %}
+                <a href="{{ item.index.url|url }}" class="nav-section-label{% if item.index.active %} active{% endif %}">{{ item.title }}</a>
+              {% else %}
+                <div class="nav-section-label">{{ item.title }}</div>
+              {% endif %}
               <div class="nav-section-body">
                 {{ render_nav(item.children, depth + 1) }}
               </div>
