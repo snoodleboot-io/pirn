@@ -1,4 +1,4 @@
-name: Build CI Base Image
+name: Build CI Base Images
 
 on:
   push:
@@ -6,19 +6,25 @@ on:
       - main
     paths:
       - 'Dockerfile.ci'
+      - 'pyproject.toml'
+      - 'uv.lock'
       - '.github/workflows/build-ci-image.yml'
   workflow_dispatch:
 
 env:
-  IMAGE: ghcr.io/${{ github.repository_owner }}/pirn-ci-base
+  REGISTRY: ghcr.io/${{ github.repository_owner }}
 
 jobs:
   build-and-push:
-    name: Build & Push pirn-ci-base
+    name: Build pirn-ci-base:py${{ matrix.python-version }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
@@ -37,9 +43,11 @@ jobs:
         with:
           context: .
           file: Dockerfile.ci
+          build-args: |
+            PYTHON_VERSION=${{ matrix.python-version }}
           push: true
           tags: |
-            ${{ env.IMAGE }}:latest
-            ${{ env.IMAGE }}:${{ github.sha }}
-          cache-from: type=registry,ref=${{ env.IMAGE }}:cache
-          cache-to: type=registry,ref=${{ env.IMAGE }}:cache,mode=max
+            ${{ env.REGISTRY }}/pirn-ci-base:py${{ matrix.python-version }}
+            ${{ env.REGISTRY }}/pirn-ci-base:py${{ matrix.python-version }}-${{ github.sha }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/pirn-ci-base:cache-py${{ matrix.python-version }}
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/pirn-ci-base:cache-py${{ matrix.python-version }},mode=max

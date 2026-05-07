@@ -1,9 +1,11 @@
-FROM ubuntu:24.04
+ARG PYTHON_VERSION=3.12
+FROM python:${PYTHON_VERSION}-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update -qq && \
     apt-get install -y --no-install-recommends \
+      build-essential \
       gdal-bin \
       libgdal-dev \
       libsndfile1 \
@@ -12,7 +14,19 @@ RUN apt-get update -qq && \
       libcurl4-openssl-dev \
       libeccodes-dev \
       ffmpeg \
-      curl \
       git \
       ca-certificates && \
     rm -rf /var/lib/apt/lists/*
+
+# Install uv from the official distroless image — no shell needed
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Pre-build all dependencies (excluding pirn itself — installed at runtime)
+WORKDIR /opt/pirn-deps
+COPY pyproject.toml uv.lock ./
+
+# Use the system Python already in the image; freeze to lockfile exactly
+ENV UV_PYTHON_PREFERENCE=only-system \
+    UV_PROJECT_ENVIRONMENT=/opt/pirn-deps/.venv
+
+RUN uv sync --all-extras --no-install-project --frozen
