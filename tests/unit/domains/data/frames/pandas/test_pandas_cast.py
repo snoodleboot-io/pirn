@@ -63,8 +63,8 @@ class TestPandasCast(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         out: PandasDataBatch = result.outputs["casted"]
-        # No-op; original dtypes preserved.
-        assert out.frame["id"].dtype == object
+        # No-op; original dtypes preserved (object in pandas <2, StringDtype in pandas 3+).
+        assert pd.api.types.is_string_dtype(out.frame["id"])
 
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
