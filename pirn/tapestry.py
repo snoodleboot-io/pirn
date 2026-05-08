@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from pirn.core.knot import Knot
     from pirn.core.run_request import RunRequest
     from pirn.core.run_result import RunResult
-    from pirn.core.transport.i_data_transport import IDataTransport
+    from pirn.core.transport.data_transport import DataTransport
     from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
     from pirn.engine.dispatchers.dispatcher import Dispatcher
 
@@ -98,7 +98,7 @@ class Tapestry:
         emitters: list[Any] | None = None,
         emitter_error_policy: EmitterErrorPolicy | None = None,
         traceback_filter: Callable[[str], str] | None = None,
-        transport: IDataTransport | None = None,
+        transport: DataTransport | None = None,
     ) -> None:
         # Defer imports to avoid a circular at module load time.
         from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
@@ -115,7 +115,7 @@ class Tapestry:
         self._emitters: list[Any] = list(emitters or [])
         self._emitter_error_policy: _EEP = emitter_error_policy or _EEP.WARN
         self._traceback_filter: Callable[[str], str] | None = traceback_filter
-        self._transport: IDataTransport = transport or InlineTransport()
+        self._transport: DataTransport = transport or InlineTransport()
 
         # Token returned by ContextVar.set, used to reset on __exit__.
         self._token: Any = None
@@ -139,7 +139,7 @@ class Tapestry:
         return self._dispatcher
 
     @property
-    def transport(self) -> IDataTransport:
+    def transport(self) -> DataTransport:
         return self._transport
 
     # ------------------------------------------------------------- knot ops

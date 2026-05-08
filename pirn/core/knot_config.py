@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import re
-from typing import ClassVar
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from pirn.core.error_policy import ErrorPolicy
+
+if TYPE_CHECKING:
+    pass
 
 
 class KnotConfig(BaseModel):
@@ -19,7 +22,7 @@ class KnotConfig(BaseModel):
     lineage records readable.
     """
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(frozen=True, extra="forbid", arbitrary_types_allowed=True)
 
     _knot_id_re: ClassVar[re.Pattern[str]] = re.compile(r"^[a-zA-Z0-9_\-\.:]{1,256}$")
 
@@ -57,3 +60,14 @@ class KnotConfig(BaseModel):
         default=(),
         description="Free-form tags for grouping in visualisations.",
     )
+    transport: Annotated[Any, Field(default=None, exclude=True)] = None
+    """Per-knot transport override (Pass 2).
+
+    When set, the engine uses this transport for writing this knot's output
+    instead of the tapestry-level default.  The field is excluded from
+    ``model_dump`` so it never appears in lineage hashes (which must remain
+    stable regardless of which transport is in use).
+
+    Pass an :class:`~pirn.core.transport.data_transport.DataTransport`
+    instance; ``None`` means "inherit from the tapestry".
+    """

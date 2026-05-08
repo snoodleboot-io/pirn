@@ -12,11 +12,11 @@ from __future__ import annotations
 import pickle
 from typing import Any
 
-from pirn.core.transport.serializers.i_serializer import ISerializer
 from pirn.core.transport.serializers.serialiser_error import SerialiserError
+from pirn.core.transport.serializers.serializer import Serializer
 
 
-class PickleSerializer(ISerializer):
+class PickleSerializer(Serializer):
     """Serialise any Python value via ``pickle`` (protocol 5)."""
 
     def serialise(self, value: Any) -> bytes:

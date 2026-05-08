@@ -44,7 +44,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from pirn.core.transport.i_data_transport import IDataTransport
+from pirn.core.transport.data_transport import DataTransport
 from pirn.core.transport.serializers.serializer_registry import SerializerRegistry
 from pirn.core.transport.transport_error import TransportError
 from pirn.core.transport.transport_handle import TransportHandle
@@ -55,7 +55,7 @@ _MANIFEST_NAME = "pirn-manifest.json"
 _LOCK_NAME = "pirn-lock"
 
 
-class FilesystemTransport(IDataTransport):
+class FilesystemTransport(DataTransport):
     """Store knot outputs as files under a local directory.
 
     Parameters

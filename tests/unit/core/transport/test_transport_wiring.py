@@ -1,4 +1,4 @@
-"""Tests verifying that IDataTransport is wired through Tapestry → Engine."""
+"""Tests verifying that DataTransport is wired through Tapestry → Engine."""
 
 from __future__ import annotations
 
@@ -96,3 +96,34 @@ class TestTransportWiring(unittest.IsolatedAsyncioTestCase):
         await t.run(RunRequest(parameters={"x": 1}))
         _, kwargs = mock_transport.end_run.call_args
         assert kwargs["success"] is True
+
+    async def test_per_knot_transport_override_used_for_that_knot(self) -> None:
+        """KnotConfig.transport routes that knot's write to a different transport."""
+        tapestry_transport = InlineTransport()
+        tapestry_transport.write = AsyncMock(wraps=tapestry_transport.write)
+
+        knot_transport = InlineTransport()
+        knot_transport.write = AsyncMock(wraps=knot_transport.write)
+
+        with Tapestry(transport=tapestry_transport) as t:
+            p = Parameter("x", int)
+            double(x=p, _config=KnotConfig(id="d", transport=knot_transport))
+
+        result = await t.run(RunRequest(parameters={"x": 5}))
+        assert result.outputs["d"] == 10
+
+        knot_transport.write.assert_called_once()
+        written_knot_id = knot_transport.write.call_args[0][1]
+        assert written_knot_id == "d"
+
+    async def test_per_knot_transport_end_run_called(self) -> None:
+        tapestry_transport = InlineTransport()
+        knot_transport = InlineTransport()
+        knot_transport.end_run = AsyncMock(wraps=knot_transport.end_run)
+
+        with Tapestry(transport=tapestry_transport) as t:
+            p = Parameter("x", int)
+            double(x=p, _config=KnotConfig(id="d", transport=knot_transport))
+
+        await t.run(RunRequest(parameters={"x": 2}))
+        knot_transport.end_run.assert_called_once()

@@ -16,8 +16,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from pirn.core.transport.serializers.i_serializer import ISerializer
 from pirn.core.transport.serializers.pickle_serializer import PickleSerializer
+from pirn.core.transport.serializers.serializer import Serializer
 
 
 class SerializerRegistry:
@@ -32,9 +32,9 @@ class SerializerRegistry:
     """
 
     def __init__(self) -> None:
-        self._entries: list[tuple[type, ISerializer]] = []
+        self._entries: list[tuple[type, Serializer]] = []
 
-    def register(self, handled_type: type, serialiser: ISerializer) -> None:
+    def register(self, handled_type: type, serialiser: Serializer) -> None:
         """Register *serialiser* as the handler for *handled_type* and its subclasses.
 
         Registrations are prepended so later calls take priority over
@@ -42,7 +42,7 @@ class SerializerRegistry:
         """
         self._entries.insert(0, (handled_type, serialiser))
 
-    def get(self, value: Any) -> ISerializer:
+    def get(self, value: Any) -> Serializer:
         """Return the most specific registered serialiser for *value*.
 
         Falls back to :class:`~pirn.core.transport.serializers.pickle_serializer.PickleSerializer`
@@ -54,7 +54,7 @@ class SerializerRegistry:
                 return serialiser
         return PickleSerializer()
 
-    def get_by_type_name(self, type_name: str) -> ISerializer:
+    def get_by_type_name(self, type_name: str) -> Serializer:
         """Return a serialiser capable of deserialising *type_name*.
 
         Iterates registrations in priority order and returns the first

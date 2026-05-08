@@ -13,11 +13,11 @@ from __future__ import annotations
 import io
 from typing import Any
 
-from pirn.core.transport.serializers.i_serializer import ISerializer
 from pirn.core.transport.serializers.serialiser_error import SerialiserError
+from pirn.core.transport.serializers.serializer import Serializer
 
 
-class NumpySerializer(ISerializer):
+class NumpySerializer(Serializer):
     """Serialise ``numpy.ndarray`` values using the ``.npy`` binary format."""
 
     def serialise(self, value: Any) -> bytes:

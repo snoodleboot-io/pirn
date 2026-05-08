@@ -31,7 +31,7 @@ import hashlib
 import logging
 from typing import Any
 
-from pirn.core.transport.i_data_transport import IDataTransport
+from pirn.core.transport.data_transport import DataTransport
 from pirn.core.transport.serializers.serializer_registry import SerializerRegistry
 from pirn.core.transport.transport_error import TransportError
 from pirn.core.transport.transport_handle import TransportHandle
@@ -41,7 +41,7 @@ _log = logging.getLogger(__name__)
 _KEY_PREFIX = "pirn"
 
 
-class ValkeyTransport(IDataTransport):
+class ValkeyTransport(DataTransport):
     """Store knot outputs in Valkey or Redis using ``valkey-glide``.
 
     Parameters

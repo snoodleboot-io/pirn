@@ -25,13 +25,13 @@ import logging
 import sys
 from typing import Any
 
-from pirn.core.transport.i_data_transport import IDataTransport
+from pirn.core.transport.data_transport import DataTransport
 from pirn.core.transport.transport_handle import TransportHandle
 
 _log = logging.getLogger(__name__)
 
 
-class InlineTransport(IDataTransport):
+class InlineTransport(DataTransport):
     """Store knot outputs directly in the :class:`TransportHandle`.
 
     Parameters

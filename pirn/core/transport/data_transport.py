@@ -1,4 +1,4 @@
-"""``IDataTransport`` — pluggable data-movement layer between knots.
+"""``DataTransport`` — pluggable data-movement layer between knots.
 
 Every edge in a pirn knot graph has a transport. The transport decides
 where a knot's output lives between when the upstream knot produces it
@@ -16,9 +16,8 @@ every edge:
 
 Pass 2 — per-knot override
 ---------------------------
-Individual knots can override the tapestry default via the reserved
-``_transport=`` constructor kwarg. This is orthogonal to ``_config=``
-and is injected by the executor, never read by knot code.
+Individual knots can override the tapestry default via ``KnotConfig.transport``.
+This is injected by the executor and is never read by knot code.
 
 Lifecycle
 ---------
@@ -30,52 +29,46 @@ failure). Transports use these hooks to manage run-scoped resources
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from typing import Any
 
 from pirn.core.transport.transport_handle import TransportHandle
 
 
-class IDataTransport(ABC):
-    """Abstract contract for all pirn data transports.
+class DataTransport:
+    """Base class for all pirn data transports.
 
-    Implementors are responsible for serialisation, storage, retrieval,
-    and cleanup. The executor guarantees that :meth:`begin_run` is called
-    before any :meth:`write` calls for a given *run_id*, and
-    :meth:`end_run` is called exactly once per *run_id* when execution
-    completes (regardless of success or failure).
+    Subclass and override all methods. The executor guarantees that
+    :meth:`begin_run` is called before any :meth:`write` calls for a
+    given *run_id*, and :meth:`end_run` is called exactly once per
+    *run_id* when execution completes (regardless of success or failure).
     """
 
     @property
-    @abstractmethod
     def transport_id(self) -> str:
         """Stable identifier for this transport instance.
 
         Stored in every :class:`~pirn.core.transport.transport_handle.TransportHandle`
-        produced by this transport. Used by the executor to route reads
-        back to the correct backend.
+        produced by this transport.
         """
+        raise NotImplementedError(f"{type(self).__name__} must implement transport_id")
 
-    @abstractmethod
     async def begin_run(self, run_id: str) -> None:
         """Called once before any writes for *run_id*.
 
         Use for allocating run-scoped resources (e.g. creating a temp
         directory, acquiring a connection, recording a manifest entry).
         """
+        raise NotImplementedError(f"{type(self).__name__} must implement begin_run()")
 
-    @abstractmethod
     async def write(self, run_id: str, knot_id: str, value: Any) -> TransportHandle:
         """Persist *value* and return a handle that can retrieve it.
 
         Parameters
         ----------
         run_id:
-            Identifier of the current execution run. Scopes the write
-            so concurrent runs do not collide.
+            Identifier of the current execution run.
         knot_id:
-            Identifier of the knot whose output is being stored. Used
-            to construct a deterministic storage key.
+            Identifier of the knot whose output is being stored.
         value:
             The fully-materialised output of a knot's ``process()`` call.
 
@@ -89,8 +82,8 @@ class IDataTransport(ABC):
         TransportError
             If the write cannot complete.
         """
+        raise NotImplementedError(f"{type(self).__name__} must implement write()")
 
-    @abstractmethod
     async def read(self, handle: TransportHandle) -> Any:
         """Retrieve and return the value referenced by *handle*.
 
@@ -99,12 +92,12 @@ class IDataTransport(ABC):
         TransportError
             If the value cannot be retrieved (missing, corrupted, expired).
         """
+        raise NotImplementedError(f"{type(self).__name__} must implement read()")
 
-    @abstractmethod
     async def exists(self, handle: TransportHandle) -> bool:
         """Return True if the value referenced by *handle* is still available."""
+        raise NotImplementedError(f"{type(self).__name__} must implement exists()")
 
-    @abstractmethod
     async def end_run(self, run_id: str, *, success: bool) -> None:
         """Called once after execution of *run_id* finishes.
 
@@ -113,12 +106,11 @@ class IDataTransport(ABC):
         run_id:
             The run whose resources should be released.
         success:
-            True if the run completed without errors. Transports may
-            choose to retain data on failure for debugging.
+            True if the run completed without errors.
 
         Raises
         ------
         TransportError
-            If cleanup fails. The executor logs but does not re-raise
-            cleanup failures so that the run result is not obscured.
+            If cleanup fails.
         """
+        raise NotImplementedError(f"{type(self).__name__} must implement end_run()")

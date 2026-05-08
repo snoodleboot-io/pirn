@@ -1,12 +1,11 @@
-"""``ISerializer`` — abstract contract for value serialisation within transports."""
+"""``Serializer`` — base class for value serialisation within transports."""
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from typing import Any
 
 
-class ISerializer(ABC):
+class Serializer:
     """Converts Python values to bytes and back.
 
     Each concrete serialiser handles a specific type or family of types.
@@ -14,7 +13,6 @@ class ISerializer(ABC):
     serialiser instance.
     """
 
-    @abstractmethod
     def serialise(self, value: Any) -> bytes:
         """Convert *value* to a byte string.
 
@@ -23,8 +21,8 @@ class ISerializer(ABC):
         SerialiserError
             If *value* cannot be serialised by this serialiser.
         """
+        raise NotImplementedError(f"{type(self).__name__} must implement serialise()")
 
-    @abstractmethod
     def deserialise(self, data: bytes, type_name: str) -> Any:
         """Reconstruct a value from *data*.
 
@@ -35,14 +33,14 @@ class ISerializer(ABC):
         type_name:
             Fully-qualified class name stored in the
             :class:`~pirn.core.transport.transport_handle.TransportHandle`.
-            Used when a single serialiser handles multiple types.
 
         Raises
         ------
         SerialiserError
             If *data* cannot be deserialised.
         """
+        raise NotImplementedError(f"{type(self).__name__} must implement deserialise()")
 
-    @abstractmethod
     def can_handle(self, value: Any) -> bool:
         """Return True if this serialiser can serialise *value*."""
+        raise NotImplementedError(f"{type(self).__name__} must implement can_handle()")

@@ -40,7 +40,7 @@ from pirn.core.run_context import RunContext
 from pirn.core.run_request import RunRequest
 from pirn.core.run_result import RunResult
 from pirn.core.skipped import Skipped
-from pirn.core.transport.i_data_transport import IDataTransport
+from pirn.core.transport.data_transport import DataTransport
 from pirn.core.transport.inline_transport import InlineTransport
 from pirn.core.transport.transport_handle import TransportHandle
 from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
@@ -72,7 +72,7 @@ class Engine:
         emitter_error_policy: EmitterErrorPolicy = EmitterErrorPolicy.WARN,
         parent_run_id: str | None = None,
         parent_knot_id: str | None = None,
-        transport: IDataTransport | None = None,
+        transport: DataTransport | None = None,
     ) -> RunResult:
         shed = Shed.from_terminals(terminals)
 
@@ -109,7 +109,7 @@ class Engine:
 
             subscribe_token = extensible_store.subscribe(pending_new.append)
 
-        active_transport: IDataTransport = transport or InlineTransport()
+        active_transport: DataTransport = transport or InlineTransport()
         try:
             return await self._execute_loop(
                 shed=shed,
@@ -136,9 +136,9 @@ class Engine:
         pending_new: list[Knot],
         request: RunRequest,
         emitter_error_policy: EmitterErrorPolicy = EmitterErrorPolicy.WARN,
-        transport: IDataTransport | None = None,
+        transport: DataTransport | None = None,
     ) -> RunResult:
-        active_transport: IDataTransport = transport or InlineTransport()
+        active_transport: DataTransport = transport or InlineTransport()
         await active_transport.begin_run(ctx.run_id)
 
         # Bind parameters.  Setup-time errors propagate; recovery is the
@@ -152,6 +152,15 @@ class Engine:
         # handles[knot_id] holds the TransportHandle for that knot's output,
         # written after each successful knot execution.
         handles: dict[str, TransportHandle] = {}
+
+        # handle_transports[knot_id] records which transport wrote that knot's
+        # output so _materialize can read from the correct backend.  Defaults
+        # to active_transport; overridden per-knot via KnotConfig.transport.
+        handle_transports: dict[str, DataTransport] = {}
+
+        # started_transports tracks per-knot transports that have had
+        # begin_run called so we can call end_run on them at cleanup.
+        started_transports: dict[int, DataTransport] = {id(active_transport): active_transport}
 
         order = shed.topological_order()
         remaining = set(order)
@@ -209,7 +218,7 @@ class Engine:
                 # Materialize each parent value through the transport before
                 # dispatching so non-inline transports read from their store.
                 materialized = await self._materialize(
-                    knot, decision, shed, handles, active_transport
+                    knot, decision, shed, handles, handle_transports, active_transport
                 )
                 tasks[kid] = asyncio.create_task(self._dispatch_with_timing(knot, materialized))
 
@@ -225,8 +234,14 @@ class Engine:
                     # Persist value to data store keyed by hash.
                     out_hash = content_hash(result.value)
                     await data_store.put(out_hash, result.value)
-                    # Write through transport; store handle for downstream reads.
-                    handles[kid] = await active_transport.write(ctx.run_id, kid, result.value)
+                    # Write through transport.  Per-knot override takes
+                    # priority; lazy begin_run for newly-seen transports.
+                    knot_transport: DataTransport = knot.config.transport or active_transport
+                    if id(knot_transport) not in started_transports:
+                        await knot_transport.begin_run(ctx.run_id)
+                        started_transports[id(knot_transport)] = knot_transport
+                    handles[kid] = await knot_transport.write(ctx.run_id, kid, result.value)
+                    handle_transports[kid] = knot_transport
                 elif isinstance(result, Skipped):
                     # A knot that runs but produces Skipped (e.g. a
                     # BranchOutput whose branch wasn't selected, a Gate
@@ -275,7 +290,8 @@ class Engine:
         await history.record_run(run_result)
 
         succeeded = all(isinstance(r, (Ok, Skipped)) for r in results.values())
-        await active_transport.end_run(ctx.run_id, success=succeeded)
+        for t in started_transports.values():
+            await t.end_run(ctx.run_id, success=succeeded)
 
         # Fire emitter hooks for lineage and run result.  We do these
         # after history.record_run so emitters see the persisted state.
@@ -301,13 +317,18 @@ class Engine:
         decision: dict[str, Any],
         shed: Shed,
         handles: dict[str, TransportHandle],
-        transport: IDataTransport,
+        handle_transports: dict[str, DataTransport],
+        default_transport: DataTransport,
     ) -> dict[str, Any]:
         """Read each parent value through the transport before dispatch.
 
         For ``InlineTransport`` this is a trivial pass-through (the handle
         carries the value in-memory).  For other transports the value is
         fetched from the backing store (disk, Valkey, etc.).
+
+        Each parent is read from whichever transport wrote it (recorded in
+        ``handle_transports``); this supports mixed-transport pipelines where
+        different knots write to different backends.
 
         ``Result`` objects (produced under ``RECEIVE_ERRORS`` policy) are
         passed through unchanged — they are small Python objects and are
@@ -321,7 +342,8 @@ class Engine:
                 continue
             parent_id = name_to_parent.get(name)
             if parent_id is not None and parent_id in handles:
-                out[name] = await transport.read(handles[parent_id])
+                t = handle_transports.get(parent_id, default_transport)
+                out[name] = await t.read(handles[parent_id])
             else:
                 out[name] = value
         return out

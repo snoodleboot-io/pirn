@@ -4,5 +4,5 @@ from __future__ import annotations
 
 
 class TransportError(Exception):
-    """Raised by :class:`~pirn.core.transport.i_data_transport.IDataTransport`
+    """Raised by :class:`~pirn.core.transport.data_transport.DataTransport`
     implementations when a read, write, or cleanup operation cannot complete."""

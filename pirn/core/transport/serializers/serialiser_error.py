@@ -4,5 +4,5 @@ from __future__ import annotations
 
 
 class SerialiserError(Exception):
-    """Raised by :class:`~pirn.core.transport.serializers.i_serializer.ISerializer`
+    """Raised by :class:`~pirn.core.transport.serializers.serializer.Serializer`
     implementations when serialisation or deserialisation fails."""
