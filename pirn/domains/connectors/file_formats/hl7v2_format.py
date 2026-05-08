@@ -64,10 +64,20 @@ class Hl7v2Format(BatchFileFormat):
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         lines: list[str] = []
-        for record in records:
-            segments = record.get("segments", [])
-            for seg in segments:
-                seg_id = seg.get("segment_id", "")
+        for i, record in enumerate(records):
+            if "segments" not in record:
+                raise KeyError(
+                    f"Hl7v2Format: record[{i}] missing required field 'segments'; "
+                    f"got: {list(record)}"
+                )
+            segments = record["segments"]
+            for j, seg in enumerate(segments):
+                if "segment_id" not in seg:
+                    raise KeyError(
+                        f"Hl7v2Format: record[{i}].segments[{j}] missing required field "
+                        f"'segment_id'; got: {list(seg)}"
+                    )
+                seg_id = seg["segment_id"]
                 fields = seg.get("fields", [])
                 line = seg_id + "|" + "|".join(str(f) for f in fields)
                 lines.append(line)

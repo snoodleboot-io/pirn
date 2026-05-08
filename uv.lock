@@ -5213,6 +5213,7 @@ version = "0.3.0"
 source = { editable = "." }
 dependencies = [
     { name = "cloudpickle" },
+    { name = "numpy" },
     { name = "pydantic" },
     { name = "pyyaml" },
     { name = "sweet-tea" },
@@ -5857,6 +5858,7 @@ requires-dist = [
     { name = "nibabel", marker = "extra == 'all'", specifier = ">=5.2" },
     { name = "nibabel", marker = "extra == 'all-domains'", specifier = ">=5.2" },
     { name = "nibabel", marker = "extra == 'health'", specifier = ">=5.2" },
+    { name = "numpy", specifier = ">=2.4.4" },
     { name = "numpy", marker = "extra == 'all'", specifier = ">=1.26" },
     { name = "numpy", marker = "extra == 'all-domains'", specifier = ">=1.26" },
     { name = "numpy", marker = "extra == 'ml'", specifier = ">=1.26" },

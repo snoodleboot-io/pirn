@@ -157,7 +157,11 @@ class DicomFormat(BatchFileFormat):
         dataset.SOPClassUID = "1.2.840.10008.5.1.4.1.1.7"
         dataset.StudyInstanceUID = cls._safe_text(record.get("study_uid", "")) or generate_uid()
         dataset.SeriesInstanceUID = cls._safe_text(record.get("series_uid", "")) or generate_uid()
-        dataset.Modality = cls._safe_text(record.get("modality", "OT"))
+        if "modality" not in record:
+            raise KeyError(
+                f"DicomFormat: record missing required field 'modality'; got: {list(record)}"
+            )
+        dataset.Modality = cls._safe_text(record["modality"])
 
         pixel_data = record.get("pixel_data", b"")
         if not isinstance(pixel_data, (bytes, bytearray)):

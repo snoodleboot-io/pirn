@@ -121,11 +121,17 @@ class EdfFormat(BatchFileFormat):
                 self._apply_phi_redaction(writer)
                 headers = []
                 signal_arrays = []
-                for rec in signal_records:
-                    data_bytes = rec.get("data", b"")
+                for i, rec in enumerate(signal_records):
+                    for field in ("data", "sample_rate"):
+                        if field not in rec:
+                            raise KeyError(
+                                f"EdfFormat: signal record[{i}] missing required field "
+                                f"'{field}'; got: {list(rec)}"
+                            )
+                    data_bytes = rec["data"]
                     arr = np.frombuffer(data_bytes, dtype=np.float64)
                     n_samples = int(rec.get("n_samples", len(arr)))
-                    sample_rate = int(rec.get("sample_rate", 1))
+                    sample_rate = int(rec["sample_rate"])
                     phys_min = float(rec.get("physical_min", -32768.0))
                     phys_max = float(rec.get("physical_max", 32767.0))
                     label = str(rec.get("label", ""))

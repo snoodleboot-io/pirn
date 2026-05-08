@@ -90,7 +90,11 @@ class GeotiffFormat(BatchFileFormat):
                 f"got width={width} height={height}"
             )
         transform = self._transform_from_mapping(rasterio, first_record.get("transform"))
-        crs_value = first_record.get("crs") or ""
+        if not first_record.get("crs"):
+            raise KeyError(
+                f"GeotiffFormat: record missing required field 'crs'; got: {list(first_record)}"
+            )
+        crs_value = first_record["crs"]
         dtype = first_record.get("dtype", "float64")
         path = self._reserve_path()
         try:

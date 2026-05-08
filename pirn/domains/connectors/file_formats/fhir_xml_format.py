@@ -83,7 +83,12 @@ class FhirXmlFormat(BatchFileFormat):
             resource_wrapper = lxml_etree.SubElement(
                 entry_el, f"{{{FhirXmlFormat._fhir_ns}}}resource"
             )
-            resource_type = record.get("resource_type", "Resource")
+            if "resource_type" not in record:
+                raise KeyError(
+                    "FhirXmlFormat: record missing required field 'resource_type'; "
+                    f"got: {list(record)}"
+                )
+            resource_type = record["resource_type"]
             self._validate_xml_ncname(str(resource_type))
             res_el = lxml_etree.SubElement(
                 resource_wrapper, f"{{{FhirXmlFormat._fhir_ns}}}{resource_type}"
