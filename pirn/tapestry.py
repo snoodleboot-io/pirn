@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     from pirn.core.knot import Knot
     from pirn.core.run_request import RunRequest
     from pirn.core.run_result import RunResult
+    from pirn.core.transport.i_data_transport import IDataTransport
     from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
     from pirn.engine.dispatchers.dispatcher import Dispatcher
 
@@ -97,11 +98,13 @@ class Tapestry:
         emitters: list[Any] | None = None,
         emitter_error_policy: EmitterErrorPolicy | None = None,
         traceback_filter: Callable[[str], str] | None = None,
+        transport: IDataTransport | None = None,
     ) -> None:
         # Defer imports to avoid a circular at module load time.
         from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
         from pirn.backends.in_memory.in_memory_history import InMemoryHistory
         from pirn.backends.in_memory.in_memory_store import InMemoryStore
+        from pirn.core.transport.inline_transport import InlineTransport
         from pirn.emitters.base import EmitterErrorPolicy as _EEP
         from pirn.engine.dispatchers.local_dispatcher import LocalDispatcher
 
@@ -112,6 +115,7 @@ class Tapestry:
         self._emitters: list[Any] = list(emitters or [])
         self._emitter_error_policy: _EEP = emitter_error_policy or _EEP.WARN
         self._traceback_filter: Callable[[str], str] | None = traceback_filter
+        self._transport: IDataTransport = transport or InlineTransport()
 
         # Token returned by ContextVar.set, used to reset on __exit__.
         self._token: Any = None
@@ -133,6 +137,10 @@ class Tapestry:
     @property
     def dispatcher(self) -> Dispatcher:
         return self._dispatcher
+
+    @property
+    def transport(self) -> IDataTransport:
+        return self._transport
 
     # ------------------------------------------------------------- knot ops
 
@@ -237,6 +245,7 @@ class Tapestry:
                 emitter_error_policy=active_policy,
                 parent_run_id=_parent_run_id,
                 parent_knot_id=_parent_knot_id,
+                transport=self._transport,
             )
         finally:
             _current_run_id.reset(token_run_id)

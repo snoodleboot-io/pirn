@@ -40,6 +40,9 @@ from pirn.core.run_context import RunContext
 from pirn.core.run_request import RunRequest
 from pirn.core.run_result import RunResult
 from pirn.core.skipped import Skipped
+from pirn.core.transport.i_data_transport import IDataTransport
+from pirn.core.transport.inline_transport import InlineTransport
+from pirn.core.transport.transport_handle import TransportHandle
 from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
 from pirn.engine._emitter_subscriber import _EmitterSubscriber
 from pirn.engine.dispatchers.dispatcher import Dispatcher
@@ -69,6 +72,7 @@ class Engine:
         emitter_error_policy: EmitterErrorPolicy = EmitterErrorPolicy.WARN,
         parent_run_id: str | None = None,
         parent_knot_id: str | None = None,
+        transport: IDataTransport | None = None,
     ) -> RunResult:
         shed = Shed.from_terminals(terminals)
 
@@ -105,6 +109,7 @@ class Engine:
 
             subscribe_token = extensible_store.subscribe(pending_new.append)
 
+        active_transport: IDataTransport = transport or InlineTransport()
         try:
             return await self._execute_loop(
                 shed=shed,
@@ -115,6 +120,7 @@ class Engine:
                 pending_new=pending_new,
                 request=request,
                 emitter_error_policy=emitter_error_policy,
+                transport=active_transport,
             )
         finally:
             if extensible_store is not None and subscribe_token is not None:
@@ -130,7 +136,11 @@ class Engine:
         pending_new: list[Knot],
         request: RunRequest,
         emitter_error_policy: EmitterErrorPolicy = EmitterErrorPolicy.WARN,
+        transport: IDataTransport | None = None,
     ) -> RunResult:
+        active_transport: IDataTransport = transport or InlineTransport()
+        await active_transport.begin_run(ctx.run_id)
+
         # Bind parameters.  Setup-time errors propagate; recovery is the
         # caller's job (correct an unbound parameter and try again).
         self._bind_parameters(shed, ctx)
@@ -138,6 +148,10 @@ class Engine:
         # results[knot_id] holds Ok | Err | Skipped, or absent if not yet
         # considered.  We use the same dict for lineage I/O hash lookups.
         results: dict[str, Result[Any]] = {}
+
+        # handles[knot_id] holds the TransportHandle for that knot's output,
+        # written after each successful knot execution.
+        handles: dict[str, TransportHandle] = {}
 
         order = shed.topological_order()
         remaining = set(order)
@@ -192,7 +206,12 @@ class Engine:
                     continue
 
                 # decision is the resolved input dict.
-                tasks[kid] = asyncio.create_task(self._dispatch_with_timing(knot, decision))
+                # Materialize each parent value through the transport before
+                # dispatching so non-inline transports read from their store.
+                materialized = await self._materialize(
+                    knot, decision, shed, handles, active_transport
+                )
+                tasks[kid] = asyncio.create_task(self._dispatch_with_timing(knot, materialized))
 
             for kid, task in tasks.items():
                 result, parent_hashes, started_at = await task
@@ -206,6 +225,8 @@ class Engine:
                     # Persist value to data store keyed by hash.
                     out_hash = content_hash(result.value)
                     await data_store.put(out_hash, result.value)
+                    # Write through transport; store handle for downstream reads.
+                    handles[kid] = await active_transport.write(ctx.run_id, kid, result.value)
                 elif isinstance(result, Skipped):
                     # A knot that runs but produces Skipped (e.g. a
                     # BranchOutput whose branch wasn't selected, a Gate
@@ -253,6 +274,9 @@ class Engine:
         run_result = ctx.finalize(outputs)
         await history.record_run(run_result)
 
+        succeeded = all(isinstance(r, (Ok, Skipped)) for r in results.values())
+        await active_transport.end_run(ctx.run_id, success=succeeded)
+
         # Fire emitter hooks for lineage and run result.  We do these
         # after history.record_run so emitters see the persisted state.
         # on_status was wired earlier as a subscriber to StatusManager.
@@ -270,6 +294,37 @@ class Engine:
         return run_result
 
     # ------------------------------------------------------------- helpers
+
+    async def _materialize(
+        self,
+        knot: Knot,
+        decision: dict[str, Any],
+        shed: Shed,
+        handles: dict[str, TransportHandle],
+        transport: IDataTransport,
+    ) -> dict[str, Any]:
+        """Read each parent value through the transport before dispatch.
+
+        For ``InlineTransport`` this is a trivial pass-through (the handle
+        carries the value in-memory).  For other transports the value is
+        fetched from the backing store (disk, Valkey, etc.).
+
+        ``Result`` objects (produced under ``RECEIVE_ERRORS`` policy) are
+        passed through unchanged — they are small Python objects and are
+        never written to the transport.
+        """
+        name_to_parent = {e.name: e.parent_id for e in shed.parents_of(knot.knot_id)}
+        out: dict[str, Any] = {}
+        for name, value in decision.items():
+            if isinstance(value, (Ok, Err, Skipped)):
+                out[name] = value
+                continue
+            parent_id = name_to_parent.get(name)
+            if parent_id is not None and parent_id in handles:
+                out[name] = await transport.read(handles[parent_id])
+            else:
+                out[name] = value
+        return out
 
     def _handle_emitter_error(
         self,
