@@ -1,14 +1,12 @@
-"""``ECGRPeakDetector`` — detect R-peaks in an ECG signal.
-
-Production version uses Pan-Tompkins / NeuroKit2 / wfdb. This stub
-validates inputs and returns an empty tuple of peak sample indices.
+"""``ECGRPeakDetector`` — detect R-peaks in an ECG signal using Pan-Tompkins.
 
 Algorithm:
-    1. Receive signal (SignalFrame) and method string.
-    2. Validate signal is a SignalFrame and method is one of pan_tompkins/neurokit/elgendi.
-    3. Apply bandpass filter to isolate QRS complex frequency band.
-    4. Detect peaks above a dynamic threshold using the selected method.
-    5. Return a tuple of sample indices corresponding to R-peak positions.
+    1. Receive signal (SignalPayload) and method string.
+    2. Validate signal is a SignalPayload and method is one of pan_tompkins/neurokit/elgendi.
+    3. Bandpass filter 5-15 Hz to isolate QRS complex frequency band.
+    4. Differentiate, square, and integrate with a moving window.
+    5. Threshold at 0.6 * max integrated signal and find peaks.
+    6. Return a tuple of sample indices corresponding to R-peak positions.
 
 
 References:
@@ -18,11 +16,38 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
+import scipy.signal
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.types.signal_frame import SignalFrame
+from pirn.domains.health.types.signal_payload import SignalPayload
+
+
+def _pan_tompkins(ecg: np.ndarray, fs: float) -> tuple[int, ...]:
+    """Run Pan-Tompkins R-peak detection on a 1-D ECG array.
+
+    Args:
+        ecg: 1-D array of ECG samples.
+        fs: Sampling rate in Hz.
+
+    Returns:
+        Tuple of integer sample indices for detected R-peaks.
+    """
+    sos = scipy.signal.butter(2, [5.0, 15.0], btype="bandpass", fs=fs, output="sos")
+    filtered = scipy.signal.sosfiltfilt(sos, ecg)
+    deriv = np.diff(filtered, prepend=filtered[0])
+    squared = deriv**2
+    window_samples = max(1, int(0.150 * fs))
+    kernel = np.ones(window_samples) / window_samples
+    integrated = np.convolve(squared, kernel, mode="same")
+    threshold = 0.6 * float(integrated.max()) if integrated.size > 0 else 0.0
+    min_distance = max(1, int(0.3 * fs))
+    peaks, _ = scipy.signal.find_peaks(integrated, height=threshold, distance=min_distance)
+    return tuple(int(p) for p in peaks)
 
 
 class ECGRPeakDetector(Knot):
@@ -31,7 +56,7 @@ class ECGRPeakDetector(Knot):
     def __init__(
         self,
         *,
-        signal: Knot | SignalFrame,
+        signal: Knot | SignalPayload,
         method: Knot | str,
         _config: KnotConfig,
         **kwargs: Any,
@@ -40,27 +65,29 @@ class ECGRPeakDetector(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         method: str,
         **_: Any,
     ) -> tuple[int, ...]:
         """Detect R-peak sample indices in the ECG signal using the configured method.
 
         Args:
-            signal: SignalFrame containing the ECG recording.
+            signal: SignalPayload containing the ECG recording.
             method: One of pan_tompkins, neurokit, elgendi.
 
         Returns:
             Tuple of integer sample indices corresponding to detected R-peaks.
 
         Raises:
-            TypeError: If signal is not a SignalFrame.
+            TypeError: If signal is not a SignalPayload.
             ValueError: If method is not one of the supported options.
         """
-        if not isinstance(signal, SignalFrame):
-            raise TypeError("ECGRPeakDetector: signal must be a SignalFrame")
+        if not isinstance(signal, SignalPayload):
+            raise TypeError("ECGRPeakDetector: signal must be a SignalPayload")
         if method not in ("pan_tompkins", "neurokit", "elgendi"):
             raise ValueError(
                 "ECGRPeakDetector: method must be one of pan_tompkins/neurokit/elgendi"
             )
-        return ()
+        ecg = signal.data if signal.data.ndim == 1 else signal.data[0]
+        fs = signal.frame.sample_rate_hz
+        return await asyncio.to_thread(_pan_tompkins, ecg, fs)

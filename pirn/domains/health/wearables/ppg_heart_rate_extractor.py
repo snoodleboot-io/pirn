@@ -1,11 +1,11 @@
-"""``PPGHeartRateExtractor`` — extract heart rate and SpO2 from PPG waveform data.
+"""``PPGHeartRateExtractor`` — extract heart rate from PPG waveform data.
 
 Algorithm:
     1. Receive ppg_data dict, sample_rate_hz, window_sec, and wavelengths.
     2. Validate ppg_data is a dict and sample_rate_hz / window_sec are positive.
-    3. Segment the signal into windows of window_sec length at sample_rate_hz.
-    4. Estimate heart rate from peak intervals in the red/IR channel.
-    5. Return per-window dicts with start_iso, end_iso, heart_rate_bpm, and spo2_pct.
+    3. Bandpass filter each window 0.5-4 Hz to isolate pulse range.
+    4. Detect peaks and compute heart rate from peak-to-peak intervals.
+    5. Return per-window dicts with start_iso, end_iso, hr_bpm, and timestamp_sec.
 
 Math:
     Heart rate from inter-beat interval (IBI):
@@ -19,10 +19,45 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
+import scipy.signal
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+
+
+def _ppg_peaks(ppg: np.ndarray, fs: float) -> list[dict[str, Any]]:
+    """Detect peaks in a PPG signal and compute HR per segment.
+
+    Args:
+        ppg: 1-D array of PPG samples.
+        fs: Sampling rate in Hz.
+
+    Returns:
+        List of dicts with hr_bpm and timestamp_sec for each inter-peak segment.
+    """
+    if ppg.size < 4 or fs <= 0:
+        return []
+    low = 0.5
+    high = min(4.0, fs / 2.0 - 0.1)
+    if low >= high:
+        return []
+    sos = scipy.signal.butter(2, [low, high], btype="bandpass", fs=fs, output="sos")
+    filtered = scipy.signal.sosfiltfilt(sos, ppg)
+    min_distance = max(1, int(0.25 * fs))
+    peaks, _ = scipy.signal.find_peaks(filtered, distance=min_distance)
+    if peaks.size < 2:
+        return []
+    results: list[dict[str, Any]] = []
+    for i in range(len(peaks) - 1):
+        ibi_sec = (peaks[i + 1] - peaks[i]) / fs
+        hr_bpm = 60.0 / ibi_sec if ibi_sec > 0 else 0.0
+        timestamp_sec = float(peaks[i]) / fs
+        results.append({"hr_bpm": hr_bpm, "timestamp_sec": timestamp_sec})
+    return results
 
 
 class PPGHeartRateExtractor(Knot):
@@ -55,7 +90,7 @@ class PPGHeartRateExtractor(Knot):
         wavelengths: tuple[str, ...] = ("red", "ir"),
         **_: Any,
     ) -> list[dict[str, Any]]:
-        """Extract heart rate and SpO2 from PPG signal windows.
+        """Extract heart rate from PPG signal using bandpass filtering and peak detection.
 
         Args:
             ppg_data: Dict with red (list of float), ir (list of float),
@@ -65,8 +100,7 @@ class PPGHeartRateExtractor(Knot):
             wavelengths: Tuple of wavelength channel names to process.
 
         Returns:
-            List of dicts, each with start_iso, end_iso, heart_rate_bpm
-            (float), and spo2_pct (float).
+            List of dicts, each with hr_bpm (float) and timestamp_sec (float).
 
         Raises:
             TypeError: If ppg_data is not a dict.
@@ -78,20 +112,7 @@ class PPGHeartRateExtractor(Knot):
             raise ValueError("PPGHeartRateExtractor: sample_rate_hz must be > 0")
         if not isinstance(window_sec, (int, float)) or window_sec <= 0:
             raise ValueError("PPGHeartRateExtractor: window_sec must be > 0")
-        timestamps = ppg_data.get("timestamps_iso", [])
-        window_samples = max(1, int(sample_rate_hz * window_sec))
-        results: list[dict[str, Any]] = []
-        n = len(timestamps)
-        for start_idx in range(0, n, window_samples):
-            end_idx = min(start_idx + window_samples, n)
-            start_iso = timestamps[start_idx] if start_idx < len(timestamps) else ""
-            end_iso = timestamps[end_idx - 1] if end_idx - 1 < len(timestamps) else ""
-            results.append(
-                {
-                    "start_iso": start_iso,
-                    "end_iso": end_iso,
-                    "heart_rate_bpm": 0.0,
-                    "spo2_pct": 0.0,
-                }
-            )
-        return results
+        channel = wavelengths[0] if wavelengths else "red"
+        raw = ppg_data.get(channel, ppg_data.get("red", []))
+        ppg_array = np.asarray(raw, dtype=float)
+        return await asyncio.to_thread(_ppg_peaks, ppg_array, float(sample_rate_hz))

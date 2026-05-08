@@ -19,14 +19,60 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+import asyncio
+from typing import Any, ClassVar
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 
+def _pearson_matrix(x: np.ndarray) -> np.ndarray:
+    """Compute symmetric Pearson correlation matrix for rows of x."""
+    x_c = x - x.mean(axis=1, keepdims=True)
+    norms = np.linalg.norm(x_c, axis=1, keepdims=True)
+    norms = np.where(norms == 0, 1.0, norms)
+    x_n = x_c / norms
+    return x_n @ x_n.T
+
+
+def _partial_corr_matrix(x: np.ndarray) -> np.ndarray:
+    """Partial correlation via precision matrix inversion."""
+    corr = np.corrcoef(x)
+    try:
+        prec = np.linalg.inv(corr)
+    except np.linalg.LinAlgError:
+        prec = np.linalg.pinv(corr)
+    d = np.sqrt(np.abs(np.diag(prec)))
+    d = np.where(d == 0, 1.0, d)
+    partial = -prec / np.outer(d, d)
+    np.fill_diagonal(partial, 1.0)
+    return partial
+
+
+def _compute_connectivity(
+    roi_timeseries: dict[str, list[float]],
+    connectivity_measure: str,
+) -> tuple[list[list[float]], list[str]]:
+    roi_labels = list(roi_timeseries.keys())
+    if not roi_labels:
+        return [], roi_labels
+    x = np.array([roi_timeseries[lbl] for lbl in roi_labels], dtype=float)
+    if connectivity_measure == "partial_correlation":
+        mat = _partial_corr_matrix(x)
+    else:
+        mat = _pearson_matrix(x)
+    return mat.tolist(), roi_labels
+
+
 class FunctionalConnectivityExtractor(Knot):
     """Extract functional connectivity matrix from resting-state fMRI timeseries."""
+
+    _valid_measures: ClassVar[frozenset[str]] = frozenset(
+        {"correlation", "partial_correlation", "tangent"}
+    )
+    _valid_strategies: ClassVar[frozenset[str]] = frozenset({"none", "simple", "full"})
 
     def __init__(
         self,
@@ -75,28 +121,29 @@ class FunctionalConnectivityExtractor(Knot):
             raise TypeError("FunctionalConnectivityExtractor: bold_timeseries must be a dict")
         if not isinstance(atlas, str) or not atlas:
             raise ValueError("FunctionalConnectivityExtractor: atlas must be non-empty")
-        valid_measures = frozenset({"correlation", "partial_correlation", "tangent"})
-        valid_confound_strategies = frozenset({"none", "simple", "full"})
-        if not isinstance(connectivity_measure, str) or connectivity_measure not in valid_measures:
+        if (
+            not isinstance(connectivity_measure, str)
+            or connectivity_measure not in self._valid_measures
+        ):
             raise ValueError(
                 f"FunctionalConnectivityExtractor: connectivity_measure must be one of "
-                f"{sorted(valid_measures)}"
+                f"{sorted(self._valid_measures)}"
             )
         if (
             not isinstance(confound_strategy, str)
-            or confound_strategy not in valid_confound_strategies
+            or confound_strategy not in self._valid_strategies
         ):
             raise ValueError(
                 f"FunctionalConnectivityExtractor: confound_strategy must be one of "
-                f"{sorted(valid_confound_strategies)}"
+                f"{sorted(self._valid_strategies)}"
             )
         roi_timeseries: dict[str, list[float]] = bold_timeseries.get("roi_timeseries", {})
-        roi_labels = list(roi_timeseries.keys())
-        n_rois = len(roi_labels)
-        matrix = [[0.0] * n_rois for _ in range(n_rois)]
+        matrix, roi_labels = await asyncio.to_thread(
+            _compute_connectivity, roi_timeseries, connectivity_measure
+        )
         return {
             "connectivity_matrix": matrix,
             "roi_labels": roi_labels,
-            "n_rois": n_rois,
+            "n_rois": len(roi_labels),
             "measure": connectivity_measure,
         }

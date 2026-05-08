@@ -1,26 +1,33 @@
 """``NotchFilter`` — notch-filter at a specific frequency (e.g. 50/60 Hz).
 
-Production version uses ``mne.filter.notch_filter``. This stub
-validates inputs and returns the signal unchanged.
-
 Algorithm:
-    1. Receive a SignalFrame and notch_hz frequency.
-    2. Validate that signal is a SignalFrame and notch_hz is a positive number.
-    3. Design and apply a notch filter at the specified frequency.
-    4. Return the filtered SignalFrame.
-
+    1. Receive a SignalPayload and notch_hz frequency.
+    2. Validate that signal is a SignalPayload and notch_hz is a positive number.
+    3. Design a notch IIR filter via iirnotch, convert to SOS, and apply zero-phase filtering.
+    4. Return a SignalPayload with filtered data.
 
 References:
-    - MNE notch_filter: https://mne.tools/stable/generated/mne.filter.notch_filter.html
+    - SciPy iirnotch: https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.iirnotch.html
 """
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
+from scipy import signal as ss
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.types.signal_frame import SignalFrame
+from pirn.domains.health.types.signal_payload import SignalPayload
+
+
+def _apply_notch(data: np.ndarray, notch_hz: float, fs: float) -> np.ndarray:
+    b, a = ss.iirnotch(notch_hz, Q=30.0, fs=fs)
+    sos = ss.tf2sos(b, a)
+    return ss.sosfiltfilt(sos, data, axis=-1)
 
 
 class NotchFilter(Knot):
@@ -29,7 +36,7 @@ class NotchFilter(Knot):
     def __init__(
         self,
         *,
-        signal: Knot | SignalFrame,
+        signal: Knot | SignalPayload,
         notch_hz: Knot | float,
         _config: KnotConfig,
         **kwargs: Any,
@@ -43,25 +50,36 @@ class NotchFilter(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         notch_hz: float,
         **_: Any,
-    ) -> SignalFrame:
-        """Apply a notch filter at the configured frequency and return the filtered SignalFrame.
+    ) -> SignalPayload:
+        """Apply a notch filter at the configured frequency and return the filtered SignalPayload.
 
         Args:
-            signal: The SignalFrame to filter.
+            signal: The SignalPayload to filter.
             notch_hz: Positive frequency in Hz at which to apply the notch filter.
 
         Returns:
-            A SignalFrame with the notch filter applied at the configured frequency.
+            A SignalPayload with the notch filter applied at the configured frequency.
 
         Raises:
-            TypeError: If signal is not a SignalFrame.
+            TypeError: If signal is not a SignalPayload.
             ValueError: If notch_hz is not a positive number.
         """
-        if not isinstance(signal, SignalFrame):
-            raise TypeError("NotchFilter: signal must be a SignalFrame")
+        if not isinstance(signal, SignalPayload):
+            raise TypeError("NotchFilter: signal must be a SignalPayload")
         if not isinstance(notch_hz, (int, float)) or float(notch_hz) <= 0:
             raise ValueError("NotchFilter: notch_hz must be a positive number")
-        return signal
+
+        fs = signal.frame.sample_rate_hz
+        filtered = await asyncio.to_thread(_apply_notch, signal.data, float(notch_hz), fs)
+
+        frame = SignalFrame(
+            signal_id=signal.frame.signal_id + ":notch",
+            channel_count=signal.frame.channel_count,
+            sample_rate_hz=signal.frame.sample_rate_hz,
+            samples_per_channel=signal.frame.samples_per_channel,
+            fetched_at=signal.frame.fetched_at,
+        )
+        return SignalPayload(frame=frame, data=filtered)

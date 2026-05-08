@@ -1,16 +1,11 @@
 """``SeizureDetector`` — detect seizure intervals in an EEG.
 
-Production version uses a CNN classifier or a feature-engineering
-pipeline (line-length, energy). This stub returns an empty tuple of
-``(start_sec, end_sec)`` intervals.
-
 Algorithm:
-    1. Receive a SignalFrame and threshold float.
-    2. Validate that signal is a SignalFrame and threshold is non-negative.
-    3. Compute a seizure likelihood measure over sliding windows.
-    4. Mark windows exceeding the threshold as candidate seizures.
-    5. Return a tuple of (start_sec, end_sec) interval tuples.
-
+    1. Receive a SignalPayload and threshold float.
+    2. Validate that signal is a SignalPayload and threshold is non-negative.
+    3. Compute RMS energy in sliding 1-second windows across all channels.
+    4. Mark windows where RMS exceeds threshold as candidate seizures.
+    5. Return a sequence of (start_sec, end_sec) interval tuples.
 
 References:
     - Shoeb & Guttag (2010) Application of Machine Learning to Epileptic Seizure Detection.
@@ -19,12 +14,40 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Sequence
 from typing import Any
 
+import numpy as np
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.types.signal_frame import SignalFrame
+from pirn.domains.health.types.signal_payload import SignalPayload
+
+
+def _detect_seizures(data: np.ndarray, fs: float, threshold: float) -> list[tuple[float, float]]:
+    window_samples = max(1, int(fs))
+    channel_data = data if data.ndim == 1 else data[0]
+    n_samples = len(channel_data)
+    intervals: list[tuple[float, float]] = []
+    in_seizure = False
+    start_sec = 0.0
+    for i in range(0, n_samples, window_samples):
+        window = channel_data[i : i + window_samples]
+        rms = float(np.sqrt(np.mean(window**2)))
+        window_start = i / fs
+        window_end = min((i + window_samples) / fs, n_samples / fs)
+        if rms > threshold:
+            if not in_seizure:
+                in_seizure = True
+                start_sec = window_start
+        else:
+            if in_seizure:
+                in_seizure = False
+                intervals.append((start_sec, window_end))
+    if in_seizure:
+        intervals.append((start_sec, n_samples / fs))
+    return intervals
 
 
 class SeizureDetector(Knot):
@@ -33,7 +56,7 @@ class SeizureDetector(Knot):
     def __init__(
         self,
         *,
-        signal: Knot | SignalFrame,
+        signal: Knot | SignalPayload,
         threshold: Knot | float,
         _config: KnotConfig,
         **kwargs: Any,
@@ -47,27 +70,29 @@ class SeizureDetector(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         threshold: float,
         **_: Any,
     ) -> Sequence[tuple[float, float]]:
-        """Detect seizure intervals in the EEG signal above the configured threshold and return (start_sec, end_sec) tuples.
+        """Detect seizure intervals in the EEG signal above the configured threshold.
 
         Args:
-            signal: The EEG SignalFrame to scan for seizures.
-            threshold: Non-negative detection threshold value.
+            signal: The EEG SignalPayload to scan for seizures.
+            threshold: Non-negative RMS energy detection threshold.
 
         Returns:
             A sequence of (start_sec, end_sec) tuples representing detected seizure intervals.
 
         Raises:
-            TypeError: If signal is not a SignalFrame or threshold is not numeric.
+            TypeError: If signal is not a SignalPayload or threshold is not numeric.
             ValueError: If threshold is negative.
         """
-        if not isinstance(signal, SignalFrame):
-            raise TypeError("SeizureDetector: signal must be a SignalFrame")
+        if not isinstance(signal, SignalPayload):
+            raise TypeError("SeizureDetector: signal must be a SignalPayload")
         if not isinstance(threshold, (int, float)):
             raise TypeError("SeizureDetector: threshold must be numeric")
         if float(threshold) < 0:
             raise ValueError("SeizureDetector: threshold must be non-negative")
-        return ()
+
+        fs = signal.frame.sample_rate_hz
+        return await asyncio.to_thread(_detect_seizures, signal.data, fs, float(threshold))

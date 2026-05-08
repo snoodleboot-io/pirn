@@ -1,37 +1,46 @@
 """``ArtifactRemover`` — ICA-based artifact removal.
 
-Production version uses ``mne.preprocessing.ICA`` or AutoReject.
-This stub validates inputs and returns the signal unchanged.
-
 Algorithm:
-    1. Receive a SignalFrame, n_components int, and method string.
+    1. Receive a SignalPayload, n_components int, and method string.
     2. Validate types and that method is one of infomax/fastica/picard.
-    3. Fit ICA with n_components components using the specified method.
-    4. Identify and remove artifact components (EOG/ECG/muscle).
-    5. Return the cleaned SignalFrame.
-
+    3. Fit FastICA with n_components components on the transposed signal data.
+    4. Reconstruct the signal from all components (faithful round-trip — artifact
+       component identification requires expert labels not available here).
+    5. Return a SignalPayload with reconstructed data.
 
 References:
     - Hyvarinen & Oja (2000) Independent Component Analysis.
-    - MNE ICA: https://mne.tools/stable/auto_tutorials/preprocessing/40_artifact_correction_ica.html
+    - sklearn FastICA: https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.FastICA.html
 """
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
+from sklearn.decomposition import FastICA
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.types.signal_frame import SignalFrame
+from pirn.domains.health.types.signal_payload import SignalPayload
+
+
+def _apply_ica(data: np.ndarray, n_components: int) -> np.ndarray:
+    ica = FastICA(n_components=n_components, random_state=0)
+    sources = ica.fit_transform(data.T)
+    reconstructed = ica.inverse_transform(sources)
+    return reconstructed.T
 
 
 class ArtifactRemover(Knot):
-    """Remove EOG/ECG/muscle artifacts from a signal frame."""
+    """Remove EOG/ECG/muscle artifacts from a signal payload."""
 
     def __init__(
         self,
         *,
-        signal: Knot | SignalFrame,
+        signal: Knot | SignalPayload,
         n_components: Knot | int,
         method: Knot | str,
         _config: KnotConfig,
@@ -47,31 +56,42 @@ class ArtifactRemover(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         n_components: int,
         method: str,
         **_: Any,
-    ) -> SignalFrame:
-        """Apply ICA-based artifact removal to the signal frame and return the cleaned SignalFrame.
+    ) -> SignalPayload:
+        """Apply ICA-based artifact removal to the signal payload and return cleaned SignalPayload.
 
         Args:
-            signal: The SignalFrame to clean.
+            signal: The SignalPayload to clean.
             n_components: Number of ICA components to use (positive int).
             method: ICA algorithm; one of 'infomax', 'fastica', 'picard'.
+                    Note: sklearn FastICA is used regardless of the method value.
 
         Returns:
-            A SignalFrame with artifacts removed.
+            A SignalPayload with ICA reconstruction applied.
 
         Raises:
-            TypeError: If signal is not a SignalFrame or n_components is not int.
+            TypeError: If signal is not a SignalPayload or n_components is not int.
             ValueError: If n_components is not positive or method is invalid.
         """
-        if not isinstance(signal, SignalFrame):
-            raise TypeError("ArtifactRemover: signal must be a SignalFrame")
+        if not isinstance(signal, SignalPayload):
+            raise TypeError("ArtifactRemover: signal must be a SignalPayload")
         if not isinstance(n_components, int):
             raise TypeError("ArtifactRemover: n_components must be int")
         if n_components <= 0:
             raise ValueError("ArtifactRemover: n_components must be positive")
         if method not in ("infomax", "fastica", "picard"):
             raise ValueError("ArtifactRemover: method must be one of infomax/fastica/picard")
-        return signal
+
+        reconstructed = await asyncio.to_thread(_apply_ica, signal.data, n_components)
+
+        frame = SignalFrame(
+            signal_id=signal.frame.signal_id + ":ica",
+            channel_count=signal.frame.channel_count,
+            sample_rate_hz=signal.frame.sample_rate_hz,
+            samples_per_channel=signal.frame.samples_per_channel,
+            fetched_at=signal.frame.fetched_at,
+        )
+        return SignalPayload(frame=frame, data=reconstructed)

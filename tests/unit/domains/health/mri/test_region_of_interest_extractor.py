@@ -5,8 +5,12 @@ from __future__ import annotations
 import unittest
 from collections.abc import Mapping
 
+import pytest
+
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.mri.region_of_interest_extractor import RegionOfInterestExtractor
+
+nibabel = pytest.importorskip("nibabel", reason="nibabel not installed")
+from pirn.domains.health.mri.region_of_interest_extractor import RegionOfInterestExtractor  # noqa: E402
 
 _CFG = KnotConfig(id="r")
 

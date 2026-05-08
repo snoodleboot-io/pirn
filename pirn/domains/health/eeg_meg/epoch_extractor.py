@@ -1,13 +1,10 @@
 """``EpochExtractor`` — extract event-locked epochs from a signal.
 
-Production version uses ``mne.Epochs``. This stub validates inputs and
-returns a tuple of one :class:`SignalFrame` per supplied event.
-
 Algorithm:
-    1. Receive a SignalFrame, event_times_sec sequence, tmin_sec, and tmax_sec.
+    1. Receive a SignalPayload, event_times_sec sequence, tmin_sec, and tmax_sec.
     2. Validate types and that tmin_sec < tmax_sec.
-    3. For each event time, slice the signal from tmin_sec to tmax_sec relative to the event.
-    4. Return each slice as a SignalFrame in a tuple.
+    3. For each event time, slice signal.data from tmin_sec to tmax_sec relative to the event.
+    4. Return each slice as a SignalPayload in a tuple.
 
 Math:
     $$n_{\\text{samples}} = \\text{round}((t_{\\max} - t_{\\min}) \\times f_s)$$
@@ -18,12 +15,33 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Sequence
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.types.signal_frame import SignalFrame
+from pirn.domains.health.types.signal_payload import SignalPayload
+
+
+def _extract_epochs(
+    data: np.ndarray,
+    fs: float,
+    event_times: Sequence[float],
+    tmin: float,
+    tmax: float,
+) -> list[np.ndarray]:
+    """Slice data around each event time and return a list of epoch arrays."""
+    n_samples = data.shape[-1]
+    epochs: list[np.ndarray] = []
+    for t in event_times:
+        start = max(0, round((t + tmin) * fs))
+        end = min(n_samples, round((t + tmax) * fs))
+        epochs.append(data[..., start:end])
+    return epochs
 
 
 class EpochExtractor(Knot):
@@ -32,7 +50,7 @@ class EpochExtractor(Knot):
     def __init__(
         self,
         *,
-        signal: Knot | SignalFrame,
+        signal: Knot | SignalPayload,
         event_times_sec: Knot | Sequence[float],
         tmin_sec: Knot | float,
         tmax_sec: Knot | float,
@@ -50,29 +68,29 @@ class EpochExtractor(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         event_times_sec: Sequence[float],
         tmin_sec: float,
         tmax_sec: float,
         **_: Any,
-    ) -> tuple[SignalFrame, ...]:
-        """Slice the signal around each event time and return one SignalFrame per epoch.
+    ) -> tuple[SignalPayload, ...]:
+        """Slice the signal around each event time and return one SignalPayload per epoch.
 
         Args:
-            signal: The continuous SignalFrame to slice.
+            signal: The continuous SignalPayload to slice.
             event_times_sec: Sequence of event onset times in seconds.
             tmin_sec: Start time relative to event in seconds.
             tmax_sec: End time relative to event in seconds (must exceed tmin_sec).
 
         Returns:
-            A tuple of SignalFrames, one per event time, each spanning tmin_sec to tmax_sec.
+            A tuple of SignalPayloads, one per event time, each spanning tmin_sec to tmax_sec.
 
         Raises:
-            TypeError: If signal is not SignalFrame or event_times_sec is not list/tuple of numbers.
+            TypeError: If signal is not SignalPayload or event_times_sec is not list/tuple of numbers.
             ValueError: If tmin_sec >= tmax_sec.
         """
-        if not isinstance(signal, SignalFrame):
-            raise TypeError("EpochExtractor: signal must be a SignalFrame")
+        if not isinstance(signal, SignalPayload):
+            raise TypeError("EpochExtractor: signal must be a SignalPayload")
         if not isinstance(event_times_sec, (list, tuple)):
             raise TypeError("EpochExtractor: event_times_sec must be list/tuple")
         for t in event_times_sec:
@@ -84,18 +102,20 @@ class EpochExtractor(Knot):
             raise TypeError("EpochExtractor: tmax_sec must be numeric")
         if float(tmin_sec) >= float(tmax_sec):
             raise ValueError("EpochExtractor: tmin_sec must be < tmax_sec")
-        # Production: slice the underlying ndarray around each event time.
-        epoch_samples = max(
-            1,
-            round((float(tmax_sec) - float(tmin_sec)) * signal.sample_rate_hz),
+
+        fs = signal.frame.sample_rate_hz
+        arrays = await asyncio.to_thread(
+            _extract_epochs, signal.data, fs, event_times_sec, float(tmin_sec), float(tmax_sec)
         )
-        return tuple(
-            SignalFrame(
-                signal_id=f"{signal.signal_id}-epoch-{idx}",
-                channel_count=signal.channel_count,
-                sample_rate_hz=signal.sample_rate_hz,
+        result: list[SignalPayload] = []
+        for idx, arr in enumerate(arrays):
+            epoch_samples = arr.shape[-1]
+            frame = SignalFrame(
+                signal_id=f"{signal.frame.signal_id}-epoch-{idx}",
+                channel_count=signal.frame.channel_count,
+                sample_rate_hz=fs,
                 samples_per_channel=epoch_samples,
-                fetched_at=signal.fetched_at,
+                fetched_at=signal.frame.fetched_at,
             )
-            for idx in range(len(event_times_sec))
-        )
+            result.append(SignalPayload(frame=frame, data=arr))
+        return tuple(result)

@@ -53,4 +53,4 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         out = result.outputs["s"]
         assert isinstance(out, Mapping)
-        assert "fev1_l" in out
+        assert "fev1" in out

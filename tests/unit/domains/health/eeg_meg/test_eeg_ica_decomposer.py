@@ -5,16 +5,19 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
+import numpy as np
+
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.domains.health.eeg_meg.eeg_ica_decomposer import EEGICADecomposer
 from pirn.tapestry import Tapestry
 
+_RNG = np.random.default_rng(0)
 _EEG_DATA: dict[str, Any] = {
-    "n_channels": 64,
-    "n_samples": 1000,
+    "n_channels": 8,
+    "n_samples": 200,
     "sample_rate_hz": 250.0,
-    "data": [],
+    "data": _RNG.standard_normal((8, 200)).tolist(),
 }
 
 

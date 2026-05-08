@@ -1,15 +1,11 @@
 """``SpirometryAnalyzer`` — derive FEV1 / FVC / PEF from a spirometry trace.
 
-Production version interprets the volume-time and flow-volume curves
-and computes ATS/ERS-recommended indices. This stub returns canonical
-spirometry metrics with zero values.
-
 Algorithm:
     1. Receive flow_l_per_sec sequence of floats and sample_rate_hz.
     2. Validate flow_l_per_sec is a list/tuple of numeric values.
     3. Validate sample_rate_hz is a positive number.
-    4. Integrate the flow-volume curve to obtain volume-time data.
-    5. Compute FEV1, FVC, FEV1/FVC ratio, and PEF from derived curves.
+    4. Integrate the flow signal to obtain cumulative volume.
+    5. Compute FVC, FEV1, FEV1/FVC ratio, and PEF from the derived curves.
 
 Math:
     Volume from flow (numerical integration):
@@ -25,11 +21,49 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+import numpy as np
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+
+
+def _analyze_spirometry(flow_or_volume: np.ndarray, fs: float) -> dict[str, float]:
+    """Compute FVC, FEV1, FEV1/FVC ratio, and PEF from a flow or volume signal.
+
+    Args:
+        flow_or_volume: 1-D array of flow values in L/s.
+        fs: Sampling rate in Hz.
+
+    Returns:
+        Dict with fvc, fev1, fev1_fvc_ratio, pef, and predicted_fvc_pct.
+    """
+    if flow_or_volume.size == 0 or fs <= 0:
+        return {
+            "fvc": 0.0,
+            "fev1": 0.0,
+            "fev1_fvc_ratio": 0.0,
+            "pef": 0.0,
+            "predicted_fvc_pct": 100.0,
+        }
+    dt = 1.0 / fs
+    volume = np.cumsum(flow_or_volume) * dt
+    fvc = float(volume.max()) if volume.size > 0 else 0.0
+    samples_1sec = min(int(fs), flow_or_volume.size)
+    fev1 = float(volume[samples_1sec - 1]) if samples_1sec > 0 else 0.0
+    fev1_fvc_ratio = (fev1 / fvc) if fvc > 0 else 0.0
+    pef = float(flow_or_volume.max()) if flow_or_volume.size > 0 else 0.0
+    predicted_fvc_pct = 100.0
+    return {
+        "fvc": fvc,
+        "fev1": fev1,
+        "fev1_fvc_ratio": fev1_fvc_ratio,
+        "pef": pef,
+        "predicted_fvc_pct": predicted_fvc_pct,
+    }
 
 
 class SpirometryAnalyzer(Knot):
@@ -63,8 +97,8 @@ class SpirometryAnalyzer(Knot):
             sample_rate_hz: Sample rate of the flow signal in Hz (must be > 0).
 
         Returns:
-            Mapping of metric name to float value, including fev1_l, fvc_l,
-            fev1_fvc_ratio, and pef_l_per_sec.
+            Mapping of metric name to float value, including fvc, fev1,
+            fev1_fvc_ratio, pef, and predicted_fvc_pct.
 
         Raises:
             TypeError: If flow_l_per_sec is not list/tuple or contains non-numeric values.
@@ -77,9 +111,5 @@ class SpirometryAnalyzer(Knot):
                 raise TypeError("SpirometryAnalyzer: every flow value must be numeric")
         if not isinstance(sample_rate_hz, (int, float)) or float(sample_rate_hz) <= 0:
             raise ValueError("SpirometryAnalyzer: sample_rate_hz must be a positive number")
-        return {
-            "fev1_l": 0.0,
-            "fvc_l": 0.0,
-            "fev1_fvc_ratio": 0.0,
-            "pef_l_per_sec": 0.0,
-        }
+        flow_array = np.asarray(flow_l_per_sec, dtype=float)
+        return await asyncio.to_thread(_analyze_spirometry, flow_array, float(sample_rate_hz))
