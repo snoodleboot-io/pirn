@@ -109,9 +109,7 @@ class VCFFilter(Knot):
                 qual = float(row[qual_field])
                 af = float(row[af_field])
             except (TypeError, ValueError) as exc:
-                raise ValueError(
-                    f"VCFFilter: row[{i}] field values must be numeric: {exc}"
-                ) from exc
+                raise ValueError(f"VCFFilter: row[{i}] field values must be numeric") from exc
             if qual >= q and af <= f:
                 out.append(dict(row))
         return tuple(out)

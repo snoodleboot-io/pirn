@@ -86,10 +86,16 @@ class AccelerometerActivityClassifier(Knot):
             raise ValueError(
                 "AccelerometerActivityClassifier: activity_classes must be a non-empty tuple"
             )
-        x = accel_data.get("x", [])
-        y = accel_data.get("y", [])
-        z = accel_data.get("z", [])
-        timestamps = accel_data.get("timestamps_iso", [])
+        for field in ("x", "y", "z", "timestamps_iso"):
+            if field not in accel_data:
+                raise KeyError(
+                    f"AccelerometerActivityClassifier: accel_data missing required field '{field}'; "
+                    f"got: {list(accel_data)}"
+                )
+        x = accel_data["x"]
+        y = accel_data["y"]
+        z = accel_data["z"]
+        timestamps = accel_data["timestamps_iso"]
         window_samples = max(1, int(sample_rate_hz * window_sec))
         results: list[dict[str, Any]] = []
         n = len(timestamps)

@@ -75,7 +75,7 @@ class GenomicsQCCheck(Knot):
         for record in records:
             if record.quality_score < threshold:
                 raise GenomicsQCError(
-                    f"sample {record.sample_id!r} quality {record.quality_score} below {threshold}"
+                    f"GenomicsQCCheck: a record's quality_score is below the minimum threshold of {threshold}"
                 )
         return tuple(records)
 

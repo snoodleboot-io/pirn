@@ -66,3 +66,8 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         valid_stages = {"W", "N1", "N2", "N3", "REM"}
         for label in out["stage_labels"]:
             assert label in valid_stages
+
+    async def test_raises_on_missing_epochs_field(self) -> None:
+        knot_inst = _make_knot()
+        with self.assertRaisesRegex(KeyError, "epochs"):
+            await knot_inst.process(psg_data={"sample_rate_hz": 256.0}, epoch_duration_sec=30)
