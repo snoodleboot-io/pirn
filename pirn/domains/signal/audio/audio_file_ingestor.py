@@ -15,20 +15,38 @@ References:
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+import asyncio
 from typing import Any
+
+import librosa
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+
+def _load_audio(path: str) -> SignalPayload:
+    y, sr = librosa.load(path, sr=None, mono=False)
+    if y.ndim == 1:
+        y = y[np.newaxis, :]
+    return SignalPayload(
+        frame=SignalFrame(
+            signal_id=path,
+            channel_count=y.shape[0],
+            sample_rate_hz=float(sr),
+            samples_per_channel=y.shape[1],
+        ),
+        data=y,
+    )
 
 
 class AudioFileIngestor(Knot):
-    """Emit a :class:`SignalFrame` reference for an audio file.
+    """Load an audio file from disk into a :class:`SignalPayload`.
 
-    Production needs ``librosa.load`` (or ``soundfile.read``) to read
-    samples from disk; this stub validates the path and emits a typed
-    reference suitable for downstream wiring.
+    Uses ``librosa.load`` to read samples at the native sample rate,
+    preserving all channels.
     """
 
     def __init__(
@@ -57,17 +75,18 @@ class AudioFileIngestor(Knot):
         channel_count: int,
         samples_per_channel: int,
         **_: Any,
-    ) -> SignalFrame:
-        """Resolve the configured audio file path and return a typed SignalFrame reference.
+    ) -> SignalPayload:
+        """Load the audio file at ``path`` and return a SignalPayload.
 
         Args:
             path: Non-empty path string to the audio file.
-            sample_rate_hz: Positive sample rate in Hz.
-            channel_count: Positive integer number of channels.
-            samples_per_channel: Non-negative integer number of samples per channel.
+            sample_rate_hz: Positive sample rate in Hz (used for validation only;
+                actual rate is read from the file).
+            channel_count: Positive integer number of channels (used for validation only).
+            samples_per_channel: Non-negative integer (used for validation only).
 
         Returns:
-            SignalFrame reference built from the configured parameters.
+            SignalPayload with sample data loaded from disk.
 
         Raises:
             ValueError: If any parameter is invalid.
@@ -80,10 +99,4 @@ class AudioFileIngestor(Knot):
             raise ValueError("AudioFileIngestor: channel_count must be a positive integer")
         if not isinstance(samples_per_channel, int) or samples_per_channel < 0:
             raise ValueError("AudioFileIngestor: samples_per_channel must be non-negative")
-        return SignalFrame(
-            signal_id=path,
-            channel_count=channel_count,
-            sample_rate_hz=float(sample_rate_hz),
-            samples_per_channel=samples_per_channel,
-            fetched_at=datetime.now(UTC),
-        )
+        return await asyncio.to_thread(_load_audio, path)

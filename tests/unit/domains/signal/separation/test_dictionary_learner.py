@@ -9,15 +9,15 @@ import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.domains.signal.separation.dictionary_learner import DictionaryLearner
-from pirn.domains.signal.types.signal_frame import SignalFrame
-from pirn.domains.signal.types.source_frame import SourceFrame
-from tests.unit.domains.signal.conftest import make_signal_frame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+from pirn.domains.signal.types.source_payload import SourcePayload
+from tests.unit.domains.signal.conftest import make_signal_payload
 
-_SIGNAL = make_signal_frame()
+_SIGNAL = make_signal_payload(channel_count=8)
 
 
 def _up(name: str = "signal") -> Parameter:
-    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
+    return Parameter(name, SignalPayload, _config=KnotConfig(id=name))
 
 
 class TestDictionaryLearner(unittest.IsolatedAsyncioTestCase):
@@ -52,5 +52,5 @@ class TestDictionaryLearner(unittest.IsolatedAsyncioTestCase):
     async def test_emits_source_frame(self) -> None:
         knot = self._make()
         out = await knot.process(_SIGNAL, atom_count=8, sparsity_target=3)
-        assert isinstance(out, SourceFrame)
-        assert out.source_count == 8
+        assert isinstance(out, SourcePayload)
+        assert out.frame.source_count == 8

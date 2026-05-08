@@ -6,10 +6,10 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.signal.types.wavelet_frame import WaveletFrame
+from pirn.domains.signal.types.wavelet_payload import WaveletPayload
 from pirn.domains.signal.wavelets.dwt_decomposer import DWTDecomposer
 from pirn.tapestry import Tapestry
-from tests.unit.domains.signal.conftest import emit_signal_frame
+from tests.unit.domains.signal.conftest import emit_signal_payload
 
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
@@ -31,9 +31,9 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
-    async def test_emits_wavelet_frame(self) -> None:
+    async def test_emits_wavelet_payload(self) -> None:
         with Tapestry() as t:
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
+            sig = emit_signal_payload(_config=KnotConfig(id="sig"))
             DWTDecomposer(
                 signal=sig,
                 wavelet_name="db4",
@@ -42,6 +42,8 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         out = result.outputs["w"]
-        assert isinstance(out, WaveletFrame)
-        assert out.wavelet_name == "db4"
-        assert out.scale_count == 4
+        assert isinstance(out, WaveletPayload)
+        assert out.frame.wavelet_name == "db4"
+        # pywt.wavedec with level=4 returns level+1=5 arrays: [cA4, cD4, cD3, cD2, cD1]
+        assert out.frame.scale_count == 5
+        assert len(out.data) == 5

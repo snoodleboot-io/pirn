@@ -9,8 +9,8 @@ Algorithm:
        a. Propagate particles through the state transition model.
        b. Compute importance weights from the likelihood p(y_k | x_k^i).
        c. Normalise weights.
-       d. Apply the selected resampling strategy when the effective sample size drops.
-    5. Return a SignalFrame of particle mean state estimates.
+       d. Apply systematic resampling when the effective sample size drops.
+    5. Return a SignalPayload of particle mean state estimates.
 
 Math:
     Particle weight update:
@@ -29,19 +29,62 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+
+def _systematic_resample(weights: np.ndarray, n: int) -> np.ndarray:
+    """Systematic resampling; returns array of indices."""
+    positions = (np.arange(n) + np.random.uniform()) / n
+    cumsum = np.cumsum(weights)
+    indices = np.zeros(n, dtype=int)
+    i, j = 0, 0
+    while i < n:
+        if positions[i] < cumsum[j]:
+            indices[i] = j
+            i += 1
+        else:
+            j += 1
+    return indices
+
+
+def _particle_filter(y: np.ndarray, num_particles: int, q: float, r: float) -> np.ndarray:
+    """Bootstrap particle filter with systematic resampling.
+
+    Returns weighted-mean state estimates shaped (len(y),).
+    """
+    n = len(y)
+    particles = np.random.randn(num_particles)
+    weights = np.ones(num_particles) / num_particles
+    estimates = np.zeros(n)
+    for k in range(n):
+        # Propagate
+        particles = particles + np.sqrt(q) * np.random.randn(num_particles)
+        # Weight: Gaussian likelihood
+        log_w = -0.5 * (y[k] - particles) ** 2 / r
+        log_w -= np.max(log_w)
+        weights = np.exp(log_w)
+        weights /= weights.sum()
+        # MMSE estimate
+        estimates[k] = float(weights @ particles)
+        # Effective sample size — resample if needed
+        n_eff = 1.0 / float(np.sum(weights**2))
+        if n_eff < num_particles / 2:
+            indices = _systematic_resample(weights, num_particles)
+            particles = particles[indices]
+            weights = np.ones(num_particles) / num_particles
+    return estimates
 
 
 class ParticleFilter(Knot):
-    """Particle (bootstrap) filter for nonlinear non-Gaussian systems.
-
-    Production needs ``filterpy`` or a custom Sequential Monte Carlo
-    implementation.
-    """
+    """Particle (bootstrap) filter for nonlinear non-Gaussian systems."""
 
     _valid_resampling_strategies = frozenset(
         {"multinomial", "stratified", "systematic", "residual"}
@@ -68,23 +111,23 @@ class ParticleFilter(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         state_dim: int,
         particle_count: int,
         resampling_strategy: str = "systematic",
         **_: Any,
-    ) -> SignalFrame:
+    ) -> SignalPayload:
         """Filter the signal through the sequential Monte Carlo particle filter.
 
         Args:
-            signal: Observed signal to filter through the nonlinear non-Gaussian state estimator.
+            signal: Observed signal payload to filter through the nonlinear non-Gaussian state estimator.
             state_dim: Dimension of the hidden state vector (positive integer).
             particle_count: Number of Monte Carlo particles (positive integer).
             resampling_strategy: Resampling algorithm — ``multinomial``, ``stratified``,
                 ``systematic``, or ``residual``.
 
         Returns:
-            SignalFrame of particle-filter state estimates.
+            SignalPayload of particle-filter state estimates.
 
         Raises:
             ValueError: If state_dim, particle_count, or resampling_strategy are invalid.
@@ -98,9 +141,16 @@ class ParticleFilter(Knot):
                 "ParticleFilter: resampling_strategy must be 'multinomial', "
                 "'stratified', 'systematic', or 'residual'"
             )
-        return SignalFrame(
-            signal_id=f"{signal.signal_id}:particle",
-            channel_count=signal.channel_count,
-            sample_rate_hz=signal.sample_rate_hz,
-            samples_per_channel=signal.samples_per_channel,
+        x = signal.data[0] if signal.data.ndim > 1 else signal.data
+        process_noise = 1e-2
+        measurement_noise = 1e-1
+        filtered = await asyncio.to_thread(
+            _particle_filter, x.astype(float), particle_count, process_noise, measurement_noise
         )
+        frame = SignalFrame(
+            signal_id=f"{signal.frame.signal_id}:particle",
+            channel_count=1,
+            sample_rate_hz=signal.frame.sample_rate_hz,
+            samples_per_channel=len(filtered),
+        )
+        return SignalPayload(frame=frame, data=filtered)

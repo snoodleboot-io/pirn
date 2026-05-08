@@ -1,14 +1,14 @@
 """``EchoCanceller`` — acoustic echo cancellation.
 
 Algorithm:
-    1. Receive the microphone (near-end) and far-end reference signal frames.
+    1. Receive the microphone (near-end) and far-end reference signal payloads.
     2. Validate filter_length and step_size.
     3. Verify that microphone and far_end have matching sample rates.
     4. Model the echo path using an LMS adaptive filter of length filter_length.
     5. For each sample n: estimate echo y(n) = w^T * x_far(n).
     6. Compute error: e(n) = mic(n) - y(n).
     7. Update weights: w(n+1) = w(n) + step_size * e(n) * x_far(n).
-    8. Return a SignalFrame with the estimated echo removed.
+    8. Return a SignalPayload with the estimated echo removed.
 
 Math:
     LMS weight update for echo path modelling:
@@ -28,19 +28,38 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+
+def _lms_echo(
+    mic_data: np.ndarray,
+    far_data: np.ndarray,
+    filter_length: int,
+    step_size: float,
+) -> np.ndarray:
+    """Run LMS-based echo cancellation and return the residual (echo-cancelled) signal."""
+    n_samples = len(mic_data)
+    w = np.zeros(filter_length)
+    e_out = np.zeros(n_samples)
+    for n in range(filter_length, n_samples):
+        x = far_data[n - filter_length : n][::-1]
+        y = w @ x
+        e = mic_data[n] - y
+        w = w + step_size * e * x
+        e_out[n] = e
+    return e_out
 
 
 class EchoCanceller(Knot):
-    """Acoustic echo canceller using LMS adaptive filtering.
-
-    Production needs an adaptive-filtering library (``padasip``) or a
-    hand-rolled NumPy implementation.
-    """
+    """Acoustic echo canceller using LMS adaptive filtering."""
 
     def __init__(
         self,
@@ -63,22 +82,22 @@ class EchoCanceller(Knot):
 
     async def process(
         self,
-        microphone: SignalFrame,
-        far_end: SignalFrame,
+        microphone: SignalPayload,
+        far_end: SignalPayload,
         filter_length: int,
         step_size: float,
         **_: Any,
-    ) -> SignalFrame:
+    ) -> SignalPayload:
         """Remove acoustic echo from the microphone signal using the far-end reference.
 
         Args:
-            microphone: Near-end microphone signal containing speech plus echo.
-            far_end: Far-end reference signal used to model the echo path.
+            microphone: Near-end microphone signal payload containing speech plus echo.
+            far_end: Far-end reference signal payload used to model the echo path.
             filter_length: Number of LMS taps (positive integer).
             step_size: LMS step size in (0, 1].
 
         Returns:
-            SignalFrame with the estimated echo removed.
+            SignalPayload with the estimated echo removed.
 
         Raises:
             ValueError: If filter_length or step_size are invalid, or sample rates differ.
@@ -87,11 +106,20 @@ class EchoCanceller(Knot):
             raise ValueError("EchoCanceller: filter_length must be a positive integer")
         if not isinstance(step_size, (int, float)) or step_size <= 0 or step_size > 1:
             raise ValueError("EchoCanceller: step_size must be in range (0, 1]")
-        if microphone.sample_rate_hz != far_end.sample_rate_hz:
+        if microphone.frame.sample_rate_hz != far_end.frame.sample_rate_hz:
             raise ValueError("EchoCanceller: microphone and far_end sample rates must match")
-        return SignalFrame(
-            signal_id=f"{microphone.signal_id}:echo_cancelled",
-            channel_count=microphone.channel_count,
-            sample_rate_hz=microphone.sample_rate_hz,
-            samples_per_channel=microphone.samples_per_channel,
+
+        mic_data = microphone.data[0] if microphone.data.ndim > 1 else microphone.data
+        far_data = far_end.data[0] if far_end.data.ndim > 1 else far_end.data
+
+        result = await asyncio.to_thread(_lms_echo, mic_data, far_data, filter_length, step_size)
+
+        return SignalPayload(
+            frame=SignalFrame(
+                signal_id=f"{microphone.frame.signal_id}:echo_cancelled",
+                channel_count=1,
+                sample_rate_hz=microphone.frame.sample_rate_hz,
+                samples_per_channel=result.shape[0],
+            ),
+            data=result,
         )

@@ -9,14 +9,14 @@ import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.domains.signal.audio.beat_tracker import BeatTracker
-from pirn.domains.signal.types.signal_frame import SignalFrame
-from tests.unit.domains.signal.conftest import make_signal_frame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+from tests.unit.domains.signal.conftest import make_signal_payload
 
-_SIGNAL = make_signal_frame()
+_SIGNAL = make_signal_payload()
 
 
 def _up(name: str = "signal") -> Parameter:
-    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
+    return Parameter(name, SignalPayload, _config=KnotConfig(id=name))
 
 
 class TestBeatTracker(unittest.IsolatedAsyncioTestCase):
@@ -46,4 +46,5 @@ class TestBeatTracker(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, hop_length=512)
         assert isinstance(out, dict)
-        assert out["feature"] == "beats"
+        assert "tempo_bpm" in out
+        assert "beat_frames" in out

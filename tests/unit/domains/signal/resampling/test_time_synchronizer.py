@@ -9,15 +9,15 @@ import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.domains.signal.resampling.time_synchronizer import TimeSynchronizer
-from pirn.domains.signal.types.signal_frame import SignalFrame
-from tests.unit.domains.signal.conftest import make_signal_frame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+from tests.unit.domains.signal.conftest import make_signal_payload
 
-_REFERENCE = make_signal_frame()
-_TARGET = make_signal_frame(signal_id="target")
+_REFERENCE = make_signal_payload()
+_TARGET = make_signal_payload(signal_id="target")
 
 
 def _up(name: str) -> Parameter:
-    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
+    return Parameter(name, SignalPayload, _config=KnotConfig(id=name))
 
 
 class TestTimeSynchronizer(unittest.IsolatedAsyncioTestCase):
@@ -37,5 +37,5 @@ class TestTimeSynchronizer(unittest.IsolatedAsyncioTestCase):
     async def test_emits_signal_frame(self) -> None:
         knot = self._make()
         out = await knot.process(_REFERENCE, _TARGET, max_lag_samples=128)
-        assert isinstance(out, SignalFrame)
-        assert out.signal_id == "target:synced"
+        assert isinstance(out, SignalPayload)
+        assert out.frame.signal_id == "target:synced"

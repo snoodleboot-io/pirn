@@ -11,14 +11,14 @@ from pirn.core.parameter import Parameter
 from pirn.domains.signal.nonlinear.permutation_entropy_calculator import (
     PermutationEntropyCalculator,
 )
-from pirn.domains.signal.types.signal_frame import SignalFrame
-from tests.unit.domains.signal.conftest import make_signal_frame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+from tests.unit.domains.signal.conftest import make_signal_payload
 
-_SIGNAL = make_signal_frame()
+_SIGNAL = make_signal_payload()
 
 
 def _up(name: str = "signal") -> Parameter:
-    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
+    return Parameter(name, SignalPayload, _config=KnotConfig(id=name))
 
 
 class TestPermutationEntropyCalculator(unittest.IsolatedAsyncioTestCase):
@@ -49,4 +49,5 @@ class TestPermutationEntropyCalculator(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, order=3, delay=1)
         assert isinstance(out, dict)
-        assert "permutation_entropy" in out
+        assert "value" in out
+        assert "embedding_dim" in out

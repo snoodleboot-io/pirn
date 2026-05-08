@@ -6,10 +6,10 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
 from pirn.domains.signal.wavelets.wavelet_denoiser import WaveletDenoiser
 from pirn.tapestry import Tapestry
-from tests.unit.domains.signal.conftest import emit_signal_frame
+from tests.unit.domains.signal.conftest import emit_signal_payload
 
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
@@ -36,9 +36,9 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
-    async def test_emits_signal_frame_with_mode_marker(self) -> None:
+    async def test_emits_signal_payload_with_mode_marker(self) -> None:
         with Tapestry() as t:
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
+            sig = emit_signal_payload(_config=KnotConfig(id="sig"))
             WaveletDenoiser(
                 signal=sig,
                 wavelet="db4",
@@ -48,6 +48,6 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         out = result.outputs["d"]
-        assert isinstance(out, SignalFrame)
-        assert out.signal_id == "test:denoised-soft"
-        assert out.sample_rate_hz == 1000.0
+        assert isinstance(out, SignalPayload)
+        assert out.frame.signal_id == "test:denoised-soft"
+        assert out.frame.sample_rate_hz == 1000.0

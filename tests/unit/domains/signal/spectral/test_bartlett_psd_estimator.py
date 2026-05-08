@@ -4,37 +4,47 @@ from __future__ import annotations
 
 import unittest
 
+import numpy as np
 import pytest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
 from pirn.domains.signal.spectral.bartlett_psd_estimator import BartlettPSDEstimator
 from pirn.domains.signal.types.signal_frame import SignalFrame
-from pirn.domains.signal.types.spectrum_frame import SpectrumFrame
-from tests.unit.domains.signal.conftest import make_signal_frame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+from pirn.domains.signal.types.spectrum_payload import SpectrumPayload
+from pirn.tapestry import Tapestry
+from tests.unit.domains.signal.conftest import emit_signal_payload
 
-_SIGNAL = make_signal_frame()
 
-
-def _up(name: str = "signal") -> Parameter:
-    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
+def _make_signal_payload(samples: int = 1024) -> SignalPayload:
+    frame = SignalFrame(
+        signal_id="test",
+        channel_count=1,
+        sample_rate_hz=1000.0,
+        samples_per_channel=samples,
+    )
+    return SignalPayload(frame=frame, data=np.zeros(samples))
 
 
 class TestBartlettPSDEstimator(unittest.IsolatedAsyncioTestCase):
-    def _make(self) -> BartlettPSDEstimator:
-        return BartlettPSDEstimator(
-            signal=_up(),
-            num_segments=4,
-            _config=KnotConfig(id="bpsd"),
-        )
-
     async def test_rejects_non_positive_num_segments(self) -> None:
-        knot = self._make()
+        with Tapestry():
+            k = BartlettPSDEstimator.__new__(BartlettPSDEstimator)
+            object.__setattr__(k, "_config", KnotConfig(id="bpsd"))
+        signal = _make_signal_payload()
         with pytest.raises(ValueError, match="num_segments"):
-            await knot.process(_SIGNAL, num_segments=0)
+            await k.process(signal=signal, num_segments=0)
 
-    async def test_emits_spectrum_frame(self) -> None:
-        knot = self._make()
-        out = await knot.process(_SIGNAL, num_segments=4)
-        assert isinstance(out, SpectrumFrame)
-        assert out.signal_id == "test"
+    async def test_emits_spectrum_payload(self) -> None:
+        with Tapestry() as t:
+            sig = emit_signal_payload(_config=KnotConfig(id="sig"))
+            BartlettPSDEstimator(
+                signal=sig,
+                num_segments=4,
+                _config=KnotConfig(id="bpsd"),
+            )
+        result = await t.run(RunRequest())
+        out = result.outputs["bpsd"]
+        assert isinstance(out, SpectrumPayload)
+        assert out.frame.signal_id == "test"

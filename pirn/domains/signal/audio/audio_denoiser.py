@@ -30,18 +30,72 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+_frame_size = 512
+_hop_size = 256
+_spectral_floor = 0.002
+
+
+def _spectral_gate(x: np.ndarray, noise_estimate_frames: int, alpha: float) -> np.ndarray:
+    """Apply spectral gating via overlap-add STFT frames."""
+    n = len(x)
+    num_frames = max(1, (n - _frame_size) // _hop_size + 1)
+    window = np.hanning(_frame_size)
+
+    frames = np.array(
+        [
+            x[i * _hop_size : i * _hop_size + _frame_size] * window
+            for i in range(num_frames)
+            if i * _hop_size + _frame_size <= n
+        ]
+    )
+    if frames.ndim == 1 or len(frames) == 0:
+        return x
+
+    spectra = np.fft.rfft(frames, axis=1)
+    magnitudes = np.abs(spectra)
+    phases = np.angle(spectra)
+
+    noise_frames = min(noise_estimate_frames, len(frames))
+    noise_floor = np.mean(magnitudes[:noise_frames], axis=0)
+
+    cleaned_mag = np.maximum(
+        magnitudes - alpha * noise_floor,
+        _spectral_floor * magnitudes,
+    )
+    cleaned_spectra = cleaned_mag * np.exp(1j * phases)
+    cleaned_frames = np.fft.irfft(cleaned_spectra, n=_frame_size, axis=1)
+
+    out = np.zeros(n, dtype=np.float32)
+    norm = np.zeros(n, dtype=np.float32)
+    for i, frame in enumerate(cleaned_frames):
+        start = i * _hop_size
+        end = start + _frame_size
+        out[start:end] += frame * window
+        norm[start:end] += window**2
+
+    nz = norm > 1e-8
+    out[nz] /= norm[nz]
+    return out
+
+
+def _denoise_signal(data: np.ndarray, noise_estimate_frames: int, alpha: float) -> np.ndarray:
+    if data.ndim == 1:
+        return _spectral_gate(data, noise_estimate_frames, alpha)
+    return np.stack([_spectral_gate(ch, noise_estimate_frames, alpha) for ch in data])
 
 
 class AudioDenoiser(Knot):
-    """Spectral-subtraction noise reduction for audio signals.
-
-    Production needs ``librosa`` or a hand-rolled STFT-based implementation.
-    """
+    """Spectral-subtraction noise reduction for audio signals."""
 
     def __init__(
         self,
@@ -62,11 +116,11 @@ class AudioDenoiser(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         noise_estimate_frames: int,
         over_subtraction_factor: float,
         **_: Any,
-    ) -> SignalFrame:
+    ) -> SignalPayload:
         """Apply spectral subtraction to reduce background noise.
 
         Args:
@@ -76,7 +130,7 @@ class AudioDenoiser(Knot):
             over_subtraction_factor: Multiplier on the noise estimate (>= 1.0).
 
         Returns:
-            SignalFrame with reduced background noise.
+            SignalPayload with reduced background noise.
 
         Raises:
             ValueError: If noise_estimate_frames or over_subtraction_factor are invalid.
@@ -85,9 +139,15 @@ class AudioDenoiser(Knot):
             raise ValueError("AudioDenoiser: noise_estimate_frames must be a positive integer")
         if not isinstance(over_subtraction_factor, (int, float)) or over_subtraction_factor < 1.0:
             raise ValueError("AudioDenoiser: over_subtraction_factor must be >= 1.0")
-        return SignalFrame(
-            signal_id=f"{signal.signal_id}:denoised",
-            channel_count=signal.channel_count,
-            sample_rate_hz=signal.sample_rate_hz,
-            samples_per_channel=signal.samples_per_channel,
+        result = await asyncio.to_thread(
+            _denoise_signal, signal.data, noise_estimate_frames, float(over_subtraction_factor)
+        )
+        return SignalPayload(
+            frame=SignalFrame(
+                signal_id=f"{signal.frame.signal_id}:denoised",
+                channel_count=signal.frame.channel_count,
+                sample_rate_hz=signal.frame.sample_rate_hz,
+                samples_per_channel=result.shape[-1],
+            ),
+            data=np.asarray(result),
         )

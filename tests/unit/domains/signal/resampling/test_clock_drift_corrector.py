@@ -9,14 +9,14 @@ import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.domains.signal.resampling.clock_drift_corrector import ClockDriftCorrector
-from pirn.domains.signal.types.signal_frame import SignalFrame
-from tests.unit.domains.signal.conftest import make_signal_frame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+from tests.unit.domains.signal.conftest import make_signal_payload
 
-_SIGNAL = make_signal_frame()
+_SIGNAL = make_signal_payload()
 
 
 def _up(name: str = "signal") -> Parameter:
-    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
+    return Parameter(name, SignalPayload, _config=KnotConfig(id=name))
 
 
 class TestClockDriftCorrector(unittest.IsolatedAsyncioTestCase):
@@ -41,5 +41,5 @@ class TestClockDriftCorrector(unittest.IsolatedAsyncioTestCase):
     async def test_emits_signal_frame(self) -> None:
         knot = self._make()
         out = await knot.process(_SIGNAL, reference_rate_hz=1000.0, measured_rate_hz=999.5)
-        assert isinstance(out, SignalFrame)
-        assert out.signal_id == "test:drift_corrected"
+        assert isinstance(out, SignalPayload)
+        assert out.frame.signal_id == "test:drift_corrected"

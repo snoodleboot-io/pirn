@@ -22,23 +22,80 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Mapping
 from typing import Any, ClassVar
 
+import librosa
+import numpy as np
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+
+def _compute_mir_features(
+    mono: np.ndarray, sr: int, feature_set: tuple[str, ...]
+) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+
+    if "chroma" in feature_set:
+        chroma = librosa.feature.chroma_stft(y=mono, sr=sr)
+        result["chroma"] = chroma.tolist()
+
+    if "spectral_contrast" in feature_set:
+        contrast = librosa.feature.spectral_contrast(y=mono, sr=sr)
+        result["spectral_contrast"] = contrast.tolist()
+
+    if "tonnetz" in feature_set:
+        harmonic = librosa.effects.harmonic(mono)
+        tn = librosa.feature.tonnetz(y=harmonic, sr=sr)
+        result["tonnetz"] = tn.tolist()
+
+    if "tempo" in feature_set:
+        tempo, _ = librosa.beat.beat_track(y=mono, sr=sr)
+        result["tempo"] = float(np.atleast_1d(tempo)[0])
+
+    if "key" in feature_set:
+        chroma = librosa.feature.chroma_cqt(y=mono, sr=sr)
+        chroma_mean = chroma.mean(axis=1)
+        pitch_classes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+        result["key"] = pitch_classes[int(np.argmax(chroma_mean))]
+
+    if "harmonic" in feature_set:
+        harmonic = librosa.effects.harmonic(mono)
+        result["harmonic"] = harmonic.tolist()
+
+    if "percussive" in feature_set:
+        percussive = librosa.effects.percussive(mono)
+        result["percussive"] = percussive.tolist()
+
+    if "structure" in feature_set:
+        mfcc = librosa.feature.mfcc(y=mono, sr=sr, n_mfcc=13)
+        recurrence = librosa.segment.recurrence_matrix(mfcc, mode="affinity")
+        result["structure"] = recurrence.tolist()
+
+    return result
 
 
 class MusicInformationRetriever(Knot):
-    """Aggregate MIR features (chroma, key, segments, structure).
+    """Aggregate MIR features using ``librosa``.
 
-    Production needs ``librosa`` plus optional MIR-specific libraries
-    (``msaf``, ``mir_eval``).
+    Supported features: ``chroma``, ``spectral_contrast``, ``tonnetz``,
+    ``tempo``, ``key``, ``harmonic``, ``percussive``, ``structure``.
     """
 
     _allowed_features: ClassVar[frozenset[str]] = frozenset(
-        {"chroma", "tempo", "key", "structure", "harmonic", "percussive"}
+        {
+            "chroma",
+            "tempo",
+            "key",
+            "structure",
+            "harmonic",
+            "percussive",
+            "spectral_contrast",
+            "tonnetz",
+        }
     )
 
     def __init__(
@@ -58,7 +115,7 @@ class MusicInformationRetriever(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         feature_set: tuple[str, ...] = ("chroma", "tempo", "key"),
         **_: Any,
     ) -> Mapping[str, Any]:
@@ -69,7 +126,8 @@ class MusicInformationRetriever(Knot):
             feature_set: Non-empty tuple of feature names to compute.
 
         Returns:
-            Mapping containing ``signal_id`` and a ``feature_set`` list of computed feature names.
+            Mapping containing ``signal_id`` and computed feature arrays/scalars
+            keyed by feature name.
 
         Raises:
             ValueError: If feature_set is empty or contains unknown feature names.
@@ -82,7 +140,7 @@ class MusicInformationRetriever(Knot):
                     f"MusicInformationRetriever: unknown feature {feature!r}; "
                     f"allowed: {sorted(self._allowed_features)!r}"
                 )
-        return {
-            "signal_id": signal.signal_id,
-            "feature_set": list(feature_set),
-        }
+        mono = signal.data[0] if signal.data.ndim > 1 else signal.data
+        sr = int(signal.frame.sample_rate_hz)
+        features = await asyncio.to_thread(_compute_mir_features, mono, sr, feature_set)
+        return {"signal_id": signal.frame.signal_id, **features}

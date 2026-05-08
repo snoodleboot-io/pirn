@@ -1,46 +1,61 @@
 """``ChirpletDecomposer`` — chirplet-transform decomposition.
 
 Algorithm:
-    1. Receive the input signal frame and chirplet_count.
+    1. Receive the input signal payload and chirplet_count.
     2. Validate chirplet_count (positive integer).
-    3. Initialise a bank of chirplet atoms parameterised by time centre,
-       frequency centre, duration, and chirp rate.
-    4. Apply a matching-pursuit or basis-projection step to select the
-       best chirplet_count atoms explaining the signal.
-    5. Return a SpectrumFrame with frequency_bins equal to chirplet_count.
+    3. For each of chirplet_count chirp atoms at linearly spaced frequencies:
+       modulate signal with chirp, apply Hann window, FFT.
+    4. Return a SpectrumPayload with frequency_bins = chirplet_count.
 
 Math:
     Chirplet atom:
 
-    $$g_{t_0, f_0, \\sigma, c}(t) = \\frac{1}{(2\\pi \\sigma^2)^{1/4}}
-      e^{-(t-t_0)^2/(4\\sigma^2)} e^{j 2\\pi (f_0 t + c t^2 / 2)}$$
-
-    Chirplet transform coefficient:
-
-    $$C_{t_0, f_0, c} = \\langle x, g_{t_0, f_0, \\sigma, c} \\rangle$$
+    $$g_{f_0}(t) = w(t) \\cdot e^{j 2\\pi f_0 t}$$
 
 References:
     - Mann, S. & Haykin, S. (1995). "The chirplet transform: Physical considerations."
       IEEE Trans. Signal Process., 43(11), 2745-2761.
-    - scipy.signal: https://docs.scipy.org/doc/scipy/reference/signal.html
+    - scipy.signal.chirp: https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.chirp.html
 """
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
+from scipy import signal as ss
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
 from pirn.domains.signal.types.spectrum_frame import SpectrumFrame
+from pirn.domains.signal.types.spectrum_payload import SpectrumPayload
+
+
+def _compute_chirplets(
+    data: np.ndarray,
+    sample_rate: float,
+    chirplet_count: int,
+) -> np.ndarray:
+    n = data.shape[-1]
+    t = np.arange(n) / sample_rate if sample_rate > 0 else np.arange(n, dtype=float)
+    nyquist = sample_rate / 2.0 if sample_rate > 0 else 0.5
+    freqs = np.linspace(0.0, nyquist, chirplet_count, endpoint=False)
+    window = ss.windows.hann(n)
+    results = []
+    for f0 in freqs:
+        f1 = min(f0 + nyquist / chirplet_count, nyquist)
+        t_end = t[-1] if len(t) > 1 else 1.0
+        chirp_atom = ss.chirp(t, f0=f0, t1=t_end, f1=f1) * window
+        modulated = data * chirp_atom
+        spectrum = np.fft.rfft(modulated, axis=-1)
+        results.append(spectrum[..., 0])
+    return np.stack(results, axis=-1)
 
 
 class ChirpletDecomposer(Knot):
-    """Chirplet-transform decomposition for non-stationary signals.
-
-    Production needs a chirplet library or a custom matching-pursuit
-    implementation on top of ``scipy``.
-    """
+    """Chirplet-transform decomposition for non-stationary signals."""
 
     def __init__(
         self,
@@ -59,26 +74,37 @@ class ChirpletDecomposer(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         chirplet_count: int,
         **_: Any,
-    ) -> SpectrumFrame:
-        """Decompose the signal into chirplet atoms and return a SpectrumFrame of transform coefficients.
+    ) -> SpectrumPayload:
+        """Decompose the signal into chirplet atoms and return a SpectrumPayload.
 
         Args:
-            signal: Non-stationary signal to decompose using the chirplet transform.
-            chirplet_count: Number of chirplet atoms to extract (positive integer).
+            signal: Non-stationary signal payload to decompose using the chirplet transform.
+            chirplet_count: Number of chirplet atoms / frequency scales (positive integer).
 
         Returns:
-            SpectrumFrame with ``frequency_bins`` equal to ``chirplet_count``.
+            SpectrumPayload with chirplet coefficients and frequency_bins = chirplet_count.
 
         Raises:
             ValueError: If chirplet_count is not a positive integer.
         """
         if not isinstance(chirplet_count, int) or chirplet_count <= 0:
             raise ValueError("ChirpletDecomposer: chirplet_count must be a positive integer")
-        return SpectrumFrame(
-            signal_id=signal.signal_id,
-            frequency_bins=chirplet_count,
-            frequency_resolution_hz=0.0,
+
+        stacked = await asyncio.to_thread(
+            _compute_chirplets,
+            signal.data,
+            signal.frame.sample_rate_hz,
+            chirplet_count,
+        )
+
+        return SpectrumPayload(
+            frame=SpectrumFrame(
+                signal_id=signal.frame.signal_id,
+                frequency_bins=chirplet_count,
+                frequency_resolution_hz=0.0,
+            ),
+            data=stacked,
         )

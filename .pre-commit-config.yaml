@@ -17,3 +17,10 @@ repos:
         types: [python]
         pass_filenames: false
         files: ^pirn/
+
+      - id: no-caps-constants
+        name: no UPPER_SNAKE constants
+        entry: python scripts/check_no_caps_constants.py
+        language: system
+        types: [python]
+        files: ^pirn/

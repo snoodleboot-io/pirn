@@ -25,19 +25,41 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Mapping
 from typing import Any
 
+import numpy as np
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+
+def _pisarenko(x: np.ndarray, p: int, sample_rate_hz: float) -> list[float]:
+    """Estimate p sinusoid frequencies via Pisarenko harmonic decomposition."""
+    n = len(x)
+    size = p + 1
+    # Build Toeplitz autocorrelation matrix
+    r = np.array([np.dot(x[: n - k], x[k:]) / n for k in range(size)])
+    R = np.array([[r[abs(i - j)] for j in range(size)] for i in range(size)])
+    eigenvalues, eigenvectors = np.linalg.eigh(R)
+    # Minimum eigenvalue corresponds to noise subspace
+    min_idx = int(np.argmin(eigenvalues))
+    noise_vec = eigenvectors[:, min_idx]
+    # Roots of the polynomial defined by the noise vector
+    roots = np.roots(noise_vec)
+    # Keep roots on or near unit circle
+    on_circle = roots[np.abs(np.abs(roots) - 1.0) < 0.3]
+    # Frequencies from angles of roots
+    freqs = sorted(
+        float(np.angle(r) / (2.0 * np.pi) * sample_rate_hz) for r in on_circle if np.angle(r) > 0
+    )
+    return freqs[:p]
 
 
 class PisarenkoEstimator(Knot):
-    """Pisarenko harmonic-decomposition frequency estimator.
-
-    Production needs an eigen-decomposition-based estimator.
-    """
+    """Pisarenko harmonic-decomposition frequency estimator."""
 
     def __init__(
         self,
@@ -56,26 +78,29 @@ class PisarenkoEstimator(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         sinusoid_count: int,
         **_: Any,
     ) -> Mapping[str, Any]:
         """Estimate sinusoid frequencies via Pisarenko harmonic decomposition and return a parameter mapping.
 
         Args:
-            signal: Signal to estimate harmonic frequencies from.
+            signal: Signal payload to estimate harmonic frequencies from.
             sinusoid_count: Number of sinusoidal components to identify (positive integer).
 
         Returns:
-            Mapping containing ``signal_id``, ``sinusoid_count``, and ``estimator``.
+            Mapping containing ``frequencies_hz``, ``sample_rate_hz``, and ``num_sinusoids``.
 
         Raises:
             ValueError: If sinusoid_count is not a positive integer.
         """
         if not isinstance(sinusoid_count, int) or sinusoid_count <= 0:
             raise ValueError("PisarenkoEstimator: sinusoid_count must be a positive integer")
+        x = signal.data[0] if signal.data.ndim > 1 else signal.data
+        rate = signal.frame.sample_rate_hz
+        freqs = await asyncio.to_thread(_pisarenko, x, sinusoid_count, rate)
         return {
-            "signal_id": signal.signal_id,
-            "sinusoid_count": sinusoid_count,
-            "estimator": "pisarenko",
+            "frequencies_hz": freqs,
+            "sample_rate_hz": rate,
+            "num_sinusoids": sinusoid_count,
         }

@@ -24,12 +24,30 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
+from sklearn.decomposition import DictionaryLearning
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
 from pirn.domains.signal.types.source_frame import SourceFrame
+from pirn.domains.signal.types.source_payload import SourcePayload
+
+
+def _run_dictionary_learning(
+    data: np.ndarray, atom_count: int, sparsity_target: int, max_iterations: int
+) -> np.ndarray:
+    dl = DictionaryLearning(  # type: ignore[call-overload]
+        n_components=atom_count,
+        alpha=int(sparsity_target),  # stubs expect int
+        max_iter=max_iterations,
+        random_state=0,
+    )
+    codes = dl.fit_transform(data.T)  # shape: (n_samples, atom_count)
+    return codes.T  # shape: (atom_count, n_samples)
 
 
 class DictionaryLearner(Knot):
@@ -59,24 +77,25 @@ class DictionaryLearner(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         atom_count: int,
         sparsity_target: int,
         max_iterations: int = 100,
         **_: Any,
-    ) -> SourceFrame:
-        """Train an over-complete dictionary from the signal and return a SourceFrame of learned atoms.
+    ) -> SourcePayload:
+        """Train an over-complete dictionary from the signal and return a SourcePayload of learned codes.
 
         Args:
             signal: Multichannel signal used to train the sparse-coding dictionary.
             atom_count: Number of dictionary atoms to learn (positive integer).
-            sparsity_target: Maximum non-zeros per sparse code (positive integer,
+            sparsity_target: L1 regularisation strength for sparse codes (positive integer,
                 must not exceed atom_count).
-            max_iterations: Maximum K-SVD / alternating iterations (positive integer).
+            max_iterations: Maximum alternating optimisation iterations (positive integer).
 
         Returns:
-            SourceFrame with ``source_count`` equal to ``atom_count`` and the corresponding
-            mixing matrix shape.
+            SourcePayload with ``source_count`` equal to ``atom_count`` and the corresponding
+            mixing matrix shape.  The data array holds the learned code matrix
+            (atom_count x n_samples).
 
         Raises:
             ValueError: If atom_count, sparsity_target, or max_iterations are invalid.
@@ -89,8 +108,14 @@ class DictionaryLearner(Knot):
             raise ValueError("DictionaryLearner: sparsity_target must not exceed atom_count")
         if not isinstance(max_iterations, int) or max_iterations <= 0:
             raise ValueError("DictionaryLearner: max_iterations must be a positive integer")
-        return SourceFrame(
-            signal_id=signal.signal_id,
-            source_count=atom_count,
-            mixing_matrix_shape=(signal.channel_count, atom_count),
+        codes = await asyncio.to_thread(
+            _run_dictionary_learning, signal.data, atom_count, sparsity_target, max_iterations
+        )
+        return SourcePayload(
+            frame=SourceFrame(
+                signal_id=f"{signal.frame.signal_id}:dict",
+                source_count=atom_count,
+                mixing_matrix_shape=(signal.frame.channel_count, atom_count),
+            ),
+            data=np.asarray(codes),
         )

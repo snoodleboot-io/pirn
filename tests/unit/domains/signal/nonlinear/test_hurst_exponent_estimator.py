@@ -9,14 +9,14 @@ import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.domains.signal.nonlinear.hurst_exponent_estimator import HurstExponentEstimator
-from pirn.domains.signal.types.signal_frame import SignalFrame
-from tests.unit.domains.signal.conftest import make_signal_frame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+from tests.unit.domains.signal.conftest import make_signal_payload
 
-_SIGNAL = make_signal_frame()
+_SIGNAL = make_signal_payload()
 
 
 def _up(name: str = "signal") -> Parameter:
-    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
+    return Parameter(name, SignalPayload, _config=KnotConfig(id=name))
 
 
 class TestHurstExponentEstimator(unittest.IsolatedAsyncioTestCase):
@@ -36,5 +36,5 @@ class TestHurstExponentEstimator(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, method="rs")
         assert isinstance(out, dict)
-        assert out["estimator"] == "hurst"
-        assert out["method"] == "rs"
+        assert "hurst_exponent" in out
+        assert "signal_id" in out

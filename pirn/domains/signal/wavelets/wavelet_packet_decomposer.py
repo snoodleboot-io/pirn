@@ -24,19 +24,26 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
+import pywt
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
 from pirn.domains.signal.types.wavelet_frame import WaveletFrame
+from pirn.domains.signal.types.wavelet_payload import WaveletPayload
+
+
+def _run_wp(data: np.ndarray, wavelet_name: str, level: int) -> list[np.ndarray]:
+    wp = pywt.WaveletPacket(data, wavelet_name, maxlevel=level)
+    return [node.data for node in wp.get_level(level, "freq")]
 
 
 class WaveletPacketDecomposer(Knot):
-    """Wavelet-packet decomposition (binary subband tree).
-
-    Production needs ``pywt.WaveletPacket``.
-    """
+    """Wavelet-packet decomposition (binary subband tree)."""
 
     def __init__(
         self,
@@ -57,20 +64,20 @@ class WaveletPacketDecomposer(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         wavelet_name: str,
         level_count: int,
         **_: Any,
-    ) -> WaveletFrame:
-        """Decompose the signal into the full wavelet-packet binary subband tree and return a WaveletFrame.
+    ) -> WaveletPayload:
+        """Decompose the signal into the full wavelet-packet binary subband tree.
 
         Args:
-            signal: Signal to decompose using the configured wavelet at the configured tree depth.
+            signal: Signal payload to decompose.
             wavelet_name: Name of the wavelet (non-empty string).
             level_count: Decomposition tree depth (positive integer).
 
         Returns:
-            WaveletFrame of wavelet-packet subbands with ``2 ** level_count`` scales.
+            WaveletPayload of wavelet-packet leaf node coefficient arrays.
 
         Raises:
             ValueError: If wavelet_name or level_count are invalid.
@@ -79,8 +86,10 @@ class WaveletPacketDecomposer(Knot):
             raise ValueError("WaveletPacketDecomposer: wavelet_name must be a non-empty string")
         if not isinstance(level_count, int) or level_count <= 0:
             raise ValueError("WaveletPacketDecomposer: level_count must be a positive integer")
-        return WaveletFrame(
-            signal_id=signal.signal_id,
+        nodes = await asyncio.to_thread(_run_wp, signal.data, wavelet_name, level_count)
+        frame = WaveletFrame(
+            signal_id=signal.frame.signal_id,
             wavelet_name=wavelet_name,
-            scale_count=2**level_count,
+            scale_count=len(nodes),
         )
+        return WaveletPayload(frame=frame, data=nodes)

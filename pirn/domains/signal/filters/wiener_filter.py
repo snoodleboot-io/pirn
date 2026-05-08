@@ -1,13 +1,10 @@
 """``WienerFilter`` — minimum-MSE linear filter.
 
 Algorithm:
-    1. Receive the input signal frame, window_size, and optional noise_power.
+    1. Receive the input signal payload, window_size, and optional noise_power.
     2. Validate window_size (positive integer) and noise_power (positive if supplied).
-    3. Estimate the local signal mean and variance over a window of window_size samples.
-    4. Estimate noise variance: use noise_power if supplied, otherwise estimate from
-       the minimum local variance across the signal.
-    5. Apply the Wiener formula: y(n) = mu(n) + max(0, sigma^2 - sigma_n^2) / sigma^2 * (x(n) - mu(n))
-    6. Return a denoised SignalFrame.
+    3. Apply scipy.signal.wiener(data, mysize=window_size, noise=noise_power).
+    4. Return a denoised SignalPayload.
 
 Math:
     Wiener filter optimal frequency-domain solution:
@@ -26,18 +23,20 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
+from scipy import signal as ss
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
 
 
 class WienerFilter(Knot):
-    """Stationary Wiener filter.
-
-    Production needs ``scipy.signal.wiener``.
-    """
+    """Stationary Wiener filter."""
 
     def __init__(
         self,
@@ -58,20 +57,20 @@ class WienerFilter(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         window_size: int,
         noise_power: float | None = None,
         **_: Any,
-    ) -> SignalFrame:
+    ) -> SignalPayload:
         """Apply the Wiener filter to the input signal.
 
         Args:
-            signal: Noisy signal to denoise with the stationary Wiener filter.
+            signal: Noisy signal payload to denoise with the stationary Wiener filter.
             window_size: Local statistics window size (positive integer).
             noise_power: Known noise power (positive float), or None to estimate.
 
         Returns:
-            SignalFrame of the minimum-MSE Wiener-filtered output.
+            SignalPayload of the minimum-MSE Wiener-filtered output.
 
         Raises:
             ValueError: If window_size or noise_power are invalid.
@@ -82,9 +81,16 @@ class WienerFilter(Knot):
             not isinstance(noise_power, (int, float)) or noise_power <= 0
         ):
             raise ValueError("WienerFilter: noise_power must be positive when supplied")
-        return SignalFrame(
-            signal_id=f"{signal.signal_id}:wiener",
-            channel_count=signal.channel_count,
-            sample_rate_hz=signal.sample_rate_hz,
-            samples_per_channel=signal.samples_per_channel,
+
+        filtered = await asyncio.to_thread(
+            ss.wiener, signal.data, mysize=window_size, noise=noise_power
+        )
+        return SignalPayload(
+            frame=SignalFrame(
+                signal_id=f"{signal.frame.signal_id}:wiener",
+                channel_count=signal.frame.channel_count,
+                sample_rate_hz=signal.frame.sample_rate_hz,
+                samples_per_channel=signal.data.shape[-1],
+            ),
+            data=np.asarray(filtered),
         )

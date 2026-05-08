@@ -26,12 +26,22 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
+from sklearn.decomposition import SparsePCA
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
 from pirn.domains.signal.types.source_frame import SourceFrame
+from pirn.domains.signal.types.source_payload import SourcePayload
+
+
+def _run_sparse_pca(data: np.ndarray, atom_count: int, alpha: float) -> np.ndarray:
+    sparse_pca = SparsePCA(n_components=atom_count, alpha=alpha, random_state=0)  # type: ignore[call-overload]
+    return sparse_pca.fit_transform(data.T).T
 
 
 class SparseDecomposer(Knot):
@@ -63,22 +73,24 @@ class SparseDecomposer(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         atom_count: int,
         sparsity_target: int,
         algorithm: str = "omp",
         **_: Any,
-    ) -> SourceFrame:
-        """Decompose the signal as a sparse linear combination of dictionary atoms and return a SourceFrame.
+    ) -> SourcePayload:
+        """Decompose the signal as a sparse linear combination of dictionary atoms and return a SourcePayload.
 
         Args:
             signal: Multichannel signal to represent sparsely over the configured atom dictionary.
-            atom_count: Total number of dictionary atoms (positive integer).
-            sparsity_target: Maximum non-zeros per sparse code (positive integer).
-            algorithm: Pursuit algorithm — ``omp``, ``lasso``, or ``lars``.
+            atom_count: Total number of dictionary atoms / sparse components (positive integer).
+            sparsity_target: Maximum non-zeros per sparse code, used as L1 regularisation alpha
+                (positive integer).
+            algorithm: Pursuit algorithm — ``omp``, ``lasso``, or ``lars`` (retained for API
+                compatibility; SparsePCA uses coordinate descent internally).
 
         Returns:
-            SourceFrame with ``source_count`` equal to ``sparsity_target`` and the mixing matrix shape.
+            SourcePayload with ``source_count`` equal to ``atom_count`` and the mixing matrix shape.
 
         Raises:
             ValueError: If atom_count, sparsity_target, or algorithm are invalid.
@@ -89,8 +101,13 @@ class SparseDecomposer(Knot):
             raise ValueError("SparseDecomposer: sparsity_target must be a positive integer")
         if algorithm not in self._valid_algorithms:
             raise ValueError("SparseDecomposer: algorithm must be 'omp', 'lasso', or 'lars'")
-        return SourceFrame(
-            signal_id=signal.signal_id,
-            source_count=sparsity_target,
-            mixing_matrix_shape=(signal.channel_count, atom_count),
+        alpha = float(sparsity_target)
+        components = await asyncio.to_thread(_run_sparse_pca, signal.data, atom_count, alpha)
+        return SourcePayload(
+            frame=SourceFrame(
+                signal_id=f"{signal.frame.signal_id}:sparse",
+                source_count=atom_count,
+                mixing_matrix_shape=(signal.frame.channel_count, atom_count),
+            ),
+            data=np.asarray(components),
         )

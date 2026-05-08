@@ -22,8 +22,6 @@ from pirn.core.transport.transport_handle import TransportHandle
 
 _log = logging.getLogger(__name__)
 
-_DEFAULT_THRESHOLD = 1024 * 1024  # 1 MiB
-
 
 class SmartTransport(DataTransport):
     """Route writes to *fast* or *bulk* transport based on serialised size.
@@ -54,7 +52,7 @@ class SmartTransport(DataTransport):
         *,
         fast: DataTransport | None = None,
         bulk: DataTransport | None = None,
-        threshold_bytes: int = _DEFAULT_THRESHOLD,
+        threshold_bytes: int = 1024 * 1024,
         large_types: tuple[type, ...] = (),
         serializer_registry: SerializerRegistry | None = None,
     ) -> None:

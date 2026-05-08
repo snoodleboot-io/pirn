@@ -24,16 +24,25 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
+import pywt
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
-from pirn.domains.signal.types.wavelet_frame import WaveletFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+from pirn.domains.signal.types.wavelet_payload import WaveletPayload
+
+
+def _run_idwt(coeffs: list[np.ndarray], wavelet: str) -> np.ndarray:
+    return pywt.waverec(coeffs, wavelet, axis=-1)
 
 
 class IDWTReconstructor(Knot):
-    """Reconstruct a time-domain signal from a WaveletFrame via inverse DWT."""
+    """Reconstruct a time-domain signal from a WaveletPayload via inverse DWT."""
 
     def __init__(
         self,
@@ -54,20 +63,20 @@ class IDWTReconstructor(Knot):
 
     async def process(
         self,
-        wavelet_frame: WaveletFrame,
+        wavelet_frame: WaveletPayload,
         wavelet: str,
         level: int,
         **_: Any,
-    ) -> SignalFrame:
-        """Reconstruct the time-domain signal from a WaveletFrame via inverse DWT.
+    ) -> SignalPayload:
+        """Reconstruct the time-domain signal from a WaveletPayload via inverse DWT.
 
         Args:
-            wavelet_frame: The wavelet-domain representation to invert.
+            wavelet_frame: The wavelet-domain payload to invert.
             wavelet: Synthesis wavelet name (non-empty string).
             level: Number of reconstruction levels (positive integer).
 
         Returns:
-            SignalFrame containing the reconstructed signal.
+            SignalPayload containing the reconstructed signal data.
 
         Raises:
             ValueError: If wavelet or level are invalid.
@@ -76,9 +85,12 @@ class IDWTReconstructor(Knot):
             raise ValueError("IDWTReconstructor: wavelet must be a non-empty string")
         if not isinstance(level, int) or level <= 0:
             raise ValueError("IDWTReconstructor: level must be a positive integer")
-        return SignalFrame(
-            signal_id=f"{wavelet_frame.signal_id}:idwt",
+        reconstructed = await asyncio.to_thread(_run_idwt, wavelet_frame.data, wavelet)
+        samples = reconstructed.shape[-1]
+        out_frame = SignalFrame(
+            signal_id=f"{wavelet_frame.frame.signal_id}:idwt",
             channel_count=1,
             sample_rate_hz=0.0,
-            samples_per_channel=wavelet_frame.scale_count * (2**level),
+            samples_per_channel=samples,
         )
+        return SignalPayload(frame=out_frame, data=reconstructed)

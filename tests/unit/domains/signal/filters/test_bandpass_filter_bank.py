@@ -9,21 +9,21 @@ import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.domains.signal.filters.bandpass_filter_bank import BandpassFilterBank
-from pirn.domains.signal.types.signal_frame import SignalFrame
-from tests.unit.domains.signal.conftest import make_signal_frame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+from tests.unit.domains.signal.conftest import make_signal_payload
 
-_SIGNAL = make_signal_frame()
+_SIGNAL = make_signal_payload()
 
 
 def _up(name: str = "signal") -> Parameter:
-    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
+    return Parameter(name, SignalPayload, _config=KnotConfig(id=name))
 
 
 class TestBandpassFilterBank(unittest.IsolatedAsyncioTestCase):
     def _make(self) -> BandpassFilterBank:
         return BandpassFilterBank(
             signal=_up(),
-            bands=((100.0, 500.0), (500.0, 2000.0)),
+            bands=((100.0, 200.0), (200.0, 400.0)),
             order=4,
             _config=KnotConfig(id="bfb"),
         )
@@ -38,9 +38,8 @@ class TestBandpassFilterBank(unittest.IsolatedAsyncioTestCase):
         with pytest.raises(ValueError, match="order"):
             await knot.process(_SIGNAL, bands=((100.0, 500.0),), order=0)
 
-    async def test_emits_list_of_signal_frames(self) -> None:
+    async def test_emits_signal_payload(self) -> None:
         knot = self._make()
-        out = await knot.process(_SIGNAL, bands=((100.0, 500.0), (500.0, 2000.0)), order=4)
-        assert isinstance(out, list)
-        assert len(out) == 2
-        assert all(isinstance(sf, SignalFrame) for sf in out)
+        out = await knot.process(_SIGNAL, bands=((100.0, 200.0), (200.0, 400.0)), order=4)
+        assert isinstance(out, SignalPayload)
+        assert out.frame.signal_id == "test:bp-bank"

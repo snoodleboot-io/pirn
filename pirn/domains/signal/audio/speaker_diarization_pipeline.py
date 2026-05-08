@@ -22,19 +22,41 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import librosa
+import numpy as np
+from sklearn.cluster import KMeans
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+_mfcc_hop = 512
+_mfcc_n = 20
+
+
+def _diarize(
+    data: np.ndarray,
+    sr: int,
+    num_speakers: int,
+) -> dict[str, Any]:
+    mono = data[0] if data.ndim > 1 else data
+    mfcc = librosa.feature.mfcc(y=mono, sr=sr, n_mfcc=_mfcc_n, hop_length=_mfcc_hop)
+    features = mfcc.T
+    n_frames = features.shape[0]
+    k = min(num_speakers, n_frames)
+    if k < 2 or n_frames < 2:
+        labels = [0] * n_frames
+    else:
+        kmeans = KMeans(n_clusters=k, random_state=0, n_init="auto")
+        labels = kmeans.fit_predict(features).tolist()
+    return {"speaker_labels": labels, "num_speakers": num_speakers}
 
 
 class SpeakerDiarizationPipeline(Knot):
-    """Segment audio by speaker identity using speaker embeddings.
-
-    Production needs ``pyannote.audio`` or a hand-rolled clustering
-    pipeline.
-    """
+    """Segment audio by speaker identity using MFCC + KMeans clustering."""
 
     def __init__(
         self,
@@ -57,23 +79,24 @@ class SpeakerDiarizationPipeline(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         min_speakers: int,
         max_speakers: int,
         embedding_model: str,
         **_: Any,
-    ) -> list[dict[str, Any]]:
+    ) -> dict[str, Any]:
         """Segment the audio signal by speaker.
 
         Args:
             signal: Audio signal to diarize.
             min_speakers: Minimum expected number of speakers (>= 1).
             max_speakers: Maximum expected number of speakers (>= min_speakers).
-            embedding_model: Non-empty model name string for speaker embeddings.
+            embedding_model: Non-empty model name string (used for validation;
+                clustering is performed with KMeans on MFCC frames).
 
         Returns:
-            List of segment dicts, each with keys ``start_sec``, ``end_sec``,
-            and ``speaker_id``.
+            Dictionary with ``speaker_labels`` (list[int] per MFCC frame),
+            ``num_speakers``, and ``signal_id``.
 
         Raises:
             ValueError: If min_speakers, max_speakers, or embedding_model are invalid.
@@ -88,11 +111,7 @@ class SpeakerDiarizationPipeline(Knot):
             raise ValueError(
                 "SpeakerDiarizationPipeline: embedding_model must be a non-empty string"
             )
-        duration_sec = signal.samples_per_channel / max(signal.sample_rate_hz, 1.0)
-        return [
-            {
-                "start_sec": 0.0,
-                "end_sec": duration_sec,
-                "speaker_id": "SPEAKER_00",
-            }
-        ]
+        sr = int(signal.frame.sample_rate_hz)
+        result = await asyncio.to_thread(_diarize, signal.data, sr, max_speakers)
+        result["signal_id"] = signal.frame.signal_id
+        return result

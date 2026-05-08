@@ -38,8 +38,6 @@ from pirn.core.transport.transport_handle import TransportHandle
 
 _log = logging.getLogger(__name__)
 
-_KEY_PREFIX = "pirn"
-
 
 class ValkeyTransport(DataTransport):
     """Store knot outputs in Valkey or Redis using ``valkey-glide``.
@@ -69,6 +67,8 @@ class ValkeyTransport(DataTransport):
         Registry of type→serialiser mappings. Defaults to
         :meth:`~pirn.core.transport.serializers.serializer_registry.SerializerRegistry.default`.
     """
+
+    _key_prefix = "pirn"
 
     def __init__(
         self,
@@ -185,11 +185,11 @@ class ValkeyTransport(DataTransport):
 
     def _make_key(self, run_id: str, knot_id: str, raw: bytes) -> str:
         if self._mode == "write_over":
-            return f"{_KEY_PREFIX}:latest:{self._slot_name}"
+            return f"{self._key_prefix}:latest:{self._slot_name}"
         content_hash = hashlib.sha256(raw).hexdigest()[:16]
         safe_knot = knot_id.replace("/", "_").replace(":", "_")
         safe_run = run_id.replace("/", "_")
-        return f"{_KEY_PREFIX}:{safe_run}:{safe_knot}:{content_hash}"
+        return f"{self._key_prefix}:{safe_run}:{safe_knot}:{content_hash}"
 
     async def _connect(self) -> Any:
         try:

@@ -1,19 +1,13 @@
 """``MultitaperEstimator`` — Slepian-taper PSD with low spectral leakage.
 
 Algorithm:
-    1. Receive the input signal frame, time_bandwidth, and taper_count.
+    1. Receive the input signal payload, time_bandwidth, and taper_count.
     2. Validate time_bandwidth (positive float) and taper_count (positive integer).
-    3. Compute taper_count DPSS tapers from ``scipy.signal.windows.dpss`` with
-       the given time-bandwidth product NW.
-    4. Multiply the signal by each taper and compute the periodogram.
-    5. Average the taper periodograms (possibly with adaptive weighting).
-    6. Return a SpectrumFrame with bins equal to half the sample count plus one.
+    3. Compute DPSS tapers via ``scipy.signal.windows.dpss``.
+    4. Apply each taper to the signal, FFT each, average power across tapers.
+    5. Return a SpectrumPayload with bins = samples // 2 + 1.
 
 Math:
-    DPSS concentration:
-
-    $$\\lambda_k = \\int_{-W}^{W} |U_k(f)|^2 df \\to 1 \\quad \\text{as} \\quad NW \\to \\infty$$
-
     Multitaper PSD:
 
     $$\\hat{S}_{\\text{MT}}(f) = \\frac{1}{K} \\sum_{k=0}^{K-1} \\lambda_k \\hat{S}_k(f)$$
@@ -25,20 +19,34 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
+from scipy.signal import windows
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
 from pirn.domains.signal.types.spectrum_frame import SpectrumFrame
+from pirn.domains.signal.types.spectrum_payload import SpectrumPayload
+
+
+def _compute_multitaper(
+    data: np.ndarray,
+    n: int,
+    time_bandwidth: float,
+    taper_count: int,
+) -> np.ndarray:
+    tapers = windows.dpss(n, time_bandwidth, Kmax=taper_count)
+    tapered = data[..., np.newaxis, :] * tapers
+    spectra = np.fft.rfft(tapered, axis=-1)
+    pxx = np.mean(np.abs(spectra) ** 2, axis=-2)
+    return pxx
 
 
 class MultitaperEstimator(Knot):
-    """Multitaper PSD via discrete prolate spheroidal sequences (DPSS).
-
-    Production needs ``scipy.signal.windows.dpss`` plus a multitaper
-    averaging routine.
-    """
+    """Multitaper PSD via discrete prolate spheroidal sequences (DPSS)."""
 
     def __init__(
         self,
@@ -59,20 +67,20 @@ class MultitaperEstimator(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         time_bandwidth: float,
         taper_count: int,
         **_: Any,
-    ) -> SpectrumFrame:
-        """Estimate the PSD via Slepian-taper averaging and return a SpectrumFrame.
+    ) -> SpectrumPayload:
+        """Estimate the PSD via Slepian-taper averaging and return a SpectrumPayload.
 
         Args:
-            signal: Signal to estimate the multitaper power spectral density from.
+            signal: Signal payload to estimate the multitaper power spectral density from.
             time_bandwidth: DPSS time-bandwidth product NW (positive float).
             taper_count: Number of DPSS tapers to average (positive integer).
 
         Returns:
-            SpectrumFrame with bins equal to half the sample count plus one.
+            SpectrumPayload with PSD data and bins = samples // 2 + 1.
 
         Raises:
             ValueError: If time_bandwidth or taper_count are invalid.
@@ -81,10 +89,26 @@ class MultitaperEstimator(Knot):
             raise ValueError("MultitaperEstimator: time_bandwidth must be positive")
         if not isinstance(taper_count, int) or taper_count <= 0:
             raise ValueError("MultitaperEstimator: taper_count must be a positive integer")
-        n = max(signal.samples_per_channel, 1)
-        resolution = signal.sample_rate_hz / n if signal.sample_rate_hz > 0 else 0.0
-        return SpectrumFrame(
-            signal_id=signal.signal_id,
-            frequency_bins=n // 2 + 1,
-            frequency_resolution_hz=resolution,
+
+        n = signal.data.shape[-1]
+        pxx = await asyncio.to_thread(
+            _compute_multitaper,
+            signal.data,
+            n,
+            float(time_bandwidth),
+            taper_count,
+        )
+
+        freq_bins = n // 2 + 1
+        freq_res = (
+            signal.frame.sample_rate_hz / n if signal.frame.sample_rate_hz > 0 and n > 0 else 0.0
+        )
+
+        return SpectrumPayload(
+            frame=SpectrumFrame(
+                signal_id=signal.frame.signal_id,
+                frequency_bins=freq_bins,
+                frequency_resolution_hz=freq_res,
+            ),
+            data=pxx,
         )

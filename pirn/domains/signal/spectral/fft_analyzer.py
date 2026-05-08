@@ -1,11 +1,10 @@
-"""``FFTAnalyzer`` — emit a :class:`SpectrumFrame` reference for a signal.
+"""``FFTAnalyzer`` — forward FFT producing a one-sided complex spectrum.
 
 Algorithm:
-    1. Receive the input signal frame and n_fft.
+    1. Receive the input signal payload and n_fft.
     2. Validate n_fft (positive integer, power of two for radix-2 FFT).
-    3. Zero-pad or truncate the signal to n_fft samples.
-    4. Apply the Cooley-Tukey radix-2 DIT FFT algorithm.
-    5. Return the one-sided spectrum (n_fft // 2 + 1 bins) as a SpectrumFrame.
+    3. Apply ``np.fft.rfft`` to produce the one-sided complex spectrum.
+    4. Return a SpectrumPayload with frequency_bins = n_fft // 2 + 1.
 
 Math:
     Discrete Fourier transform:
@@ -20,26 +19,24 @@ References:
     - Cooley, J.W. & Tukey, J.W. (1965). "An algorithm for the machine computation of complex
       Fourier series." Math. Comp., 19(90), 297-301.
     - scipy.fft: https://docs.scipy.org/doc/scipy/reference/fft.html
-
-Production deployments install ``scipy`` (``scipy.fft`` / ``numpy.fft``)
-and substitute a concrete implementation that fills in the spectrum
-samples. This stub focuses on shape/lineage validation so the rest of
-the orchestration graph can be built and tested without the heavy DSP
-dependency.
 """
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
 from pirn.domains.signal.types.spectrum_frame import SpectrumFrame
+from pirn.domains.signal.types.spectrum_payload import SpectrumPayload
 
 
 class FFTAnalyzer(Knot):
-    """Forward FFT of a single-channel signal."""
+    """Forward FFT of a signal producing a one-sided complex spectrum."""
 
     def __init__(
         self,
@@ -58,18 +55,18 @@ class FFTAnalyzer(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         n_fft: int,
         **_: Any,
-    ) -> SpectrumFrame:
-        """Compute the forward FFT of the signal and return a SpectrumFrame of magnitude bins.
+    ) -> SpectrumPayload:
+        """Compute the forward FFT of the signal and return a SpectrumPayload.
 
         Args:
-            signal: Signal to transform into the frequency domain.
+            signal: Signal payload to transform into the frequency domain.
             n_fft: FFT size (positive integer, must be a power of two).
 
         Returns:
-            SpectrumFrame with ``frequency_bins`` equal to ``n_fft // 2 + 1``.
+            SpectrumPayload with complex spectrum and ``frequency_bins`` equal to ``n_fft // 2 + 1``.
 
         Raises:
             ValueError: If n_fft is not a positive power-of-two integer.
@@ -78,9 +75,16 @@ class FFTAnalyzer(Knot):
             raise ValueError("FFTAnalyzer: n_fft must be a positive integer")
         if n_fft & (n_fft - 1) != 0:
             raise ValueError("FFTAnalyzer: n_fft must be a power of two for radix-2 FFT")
-        resolution = signal.sample_rate_hz / n_fft if signal.sample_rate_hz > 0 else 0.0
-        return SpectrumFrame(
-            signal_id=signal.signal_id,
-            frequency_bins=n_fft // 2 + 1,
-            frequency_resolution_hz=resolution,
+
+        spectrum = await asyncio.to_thread(np.fft.rfft, signal.data, n=n_fft, axis=-1)
+        freq_bins = n_fft // 2 + 1
+        freq_res = signal.frame.sample_rate_hz / n_fft if signal.frame.sample_rate_hz > 0 else 0.0
+
+        return SpectrumPayload(
+            frame=SpectrumFrame(
+                signal_id=signal.frame.signal_id,
+                frequency_bins=freq_bins,
+                frequency_resolution_hz=freq_res,
+            ),
+            data=spectrum,
         )

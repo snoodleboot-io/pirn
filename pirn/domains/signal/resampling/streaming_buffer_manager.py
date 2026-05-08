@@ -27,11 +27,23 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+
+def _frame_signal(data: np.ndarray, frame_size: int, hop_size: int) -> np.ndarray:
+    ch = data[0] if data.ndim > 1 else data
+    n_samples = ch.shape[-1]
+    n_frames = max(0, (n_samples - frame_size) // hop_size + 1)
+    frames = np.stack([ch[i * hop_size : i * hop_size + frame_size] for i in range(n_frames)])
+    return frames
 
 
 class StreamingBufferManager(Knot):
@@ -60,12 +72,12 @@ class StreamingBufferManager(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         frame_size: int,
         hop_size: int,
         **_: Any,
-    ) -> SignalFrame:
-        """Frame the input signal into overlapping blocks and return the buffered SignalFrame.
+    ) -> SignalPayload:
+        """Frame the input signal into overlapping blocks and return the buffered SignalPayload.
 
         Args:
             signal: Streaming signal to partition into overlapping frames.
@@ -74,7 +86,8 @@ class StreamingBufferManager(Knot):
                 must not exceed frame_size).
 
         Returns:
-            SignalFrame representing the overlap-add buffered output with the same sample count.
+            SignalPayload representing the overlap-add buffered output with shape
+            (n_frames, frame_size).
 
         Raises:
             ValueError: If frame_size or hop_size are invalid.
@@ -85,9 +98,16 @@ class StreamingBufferManager(Knot):
             raise ValueError("StreamingBufferManager: hop_size must be a positive integer")
         if hop_size > frame_size:
             raise ValueError("StreamingBufferManager: hop_size must not exceed frame_size")
-        return SignalFrame(
-            signal_id=f"{signal.signal_id}:framed",
-            channel_count=signal.channel_count,
-            sample_rate_hz=signal.sample_rate_hz,
-            samples_per_channel=signal.samples_per_channel,
+
+        frames = await asyncio.to_thread(_frame_signal, signal.data, frame_size, hop_size)
+        n_frames = frames.shape[0]
+
+        return SignalPayload(
+            frame=SignalFrame(
+                signal_id=f"{signal.frame.signal_id}:framed",
+                channel_count=n_frames,
+                sample_rate_hz=signal.frame.sample_rate_hz,
+                samples_per_channel=frame_size,
+            ),
+            data=frames,
         )

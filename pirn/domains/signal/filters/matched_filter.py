@@ -1,12 +1,10 @@
 """``MatchedFilter`` — correlate the input with a known template.
 
 Algorithm:
-    1. Receive the input signal frame and template sequence.
+    1. Receive the input signal payload and template sequence.
     2. Validate that template is non-empty and all values are real numbers.
-    3. Time-reverse the template to form the matched filter impulse response:
-       h(n) = template*(T-1-n).
-    4. Convolve the input signal with h using linear cross-correlation.
-    5. Return a SignalFrame of the cross-correlation output.
+    3. Apply scipy.signal.correlate per channel with mode='full'.
+    4. Return a SignalPayload of the cross-correlation output.
 
 Math:
     Matched filter impulse response:
@@ -27,19 +25,29 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Sequence
 from typing import Any
+
+import numpy as np
+from scipy import signal as ss
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+
+def _correlate_multichannel(data: np.ndarray, template: np.ndarray) -> np.ndarray:
+    """Cross-correlate each channel of data with template, returning full-mode output."""
+    if data.ndim == 1:
+        return ss.correlate(data, template, mode="full")
+    rows = [ss.correlate(data[i], template, mode="full") for i in range(data.shape[0])]
+    return np.stack(rows, axis=0)
 
 
 class MatchedFilter(Knot):
-    """Matched filter for detecting a known waveform in noise.
-
-    Production needs ``scipy.signal.correlate``.
-    """
+    """Matched filter for detecting a known waveform in noise."""
 
     def __init__(
         self,
@@ -58,18 +66,18 @@ class MatchedFilter(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         template: Sequence[float],
         **_: Any,
-    ) -> SignalFrame:
+    ) -> SignalPayload:
         """Correlate the input signal against the configured template.
 
         Args:
-            signal: Signal to correlate against the known waveform template.
+            signal: Signal payload to correlate against the known waveform template.
             template: Non-empty sequence of real-valued template samples.
 
         Returns:
-            SignalFrame of the cross-correlation output.
+            SignalPayload of the cross-correlation output.
 
         Raises:
             ValueError: If template is empty.
@@ -81,9 +89,16 @@ class MatchedFilter(Knot):
         for value in templ:
             if not isinstance(value, (int, float)):
                 raise TypeError("MatchedFilter: template values must be real numbers")
-        return SignalFrame(
-            signal_id=f"{signal.signal_id}:matched",
-            channel_count=signal.channel_count,
-            sample_rate_hz=signal.sample_rate_hz,
-            samples_per_channel=signal.samples_per_channel,
+
+        tmpl_arr = np.array(templ)
+        out_samples = signal.data.shape[-1] + len(templ) - 1
+        filtered = await asyncio.to_thread(_correlate_multichannel, signal.data, tmpl_arr)
+        return SignalPayload(
+            frame=SignalFrame(
+                signal_id=f"{signal.frame.signal_id}:matched",
+                channel_count=signal.frame.channel_count,
+                sample_rate_hz=signal.frame.sample_rate_hz,
+                samples_per_channel=out_samples,
+            ),
+            data=np.asarray(filtered),
         )

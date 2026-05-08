@@ -25,18 +25,31 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import librosa
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+
+def _resample(data: np.ndarray, orig_sr: int, target_sr: int, res_type: str) -> np.ndarray:
+    if data.ndim == 1:
+        return librosa.resample(data, orig_sr=orig_sr, target_sr=target_sr, res_type=res_type)
+    return np.stack(
+        [
+            librosa.resample(ch, orig_sr=orig_sr, target_sr=target_sr, res_type=res_type)
+            for ch in data
+        ]
+    )
 
 
 class AudioResampler(Knot):
-    """Resample audio to a target sample rate.
-
-    Production needs ``librosa.resample`` or ``scipy.signal.resample_poly``.
-    """
+    """Resample audio to a target sample rate using ``librosa.resample``."""
 
     def __init__(
         self,
@@ -57,11 +70,11 @@ class AudioResampler(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         target_sample_rate_hz: float,
         quality: str = "kaiser_best",
         **_: Any,
-    ) -> SignalFrame:
+    ) -> SignalPayload:
         """Resample the input signal to the configured target rate.
 
         Args:
@@ -71,7 +84,7 @@ class AudioResampler(Knot):
                 ``linear``, or ``polyphase``.
 
         Returns:
-            SignalFrame at the configured target sample rate with an adjusted sample count.
+            SignalPayload at the configured target sample rate with an adjusted sample count.
 
         Raises:
             ValueError: If target_sample_rate_hz or quality are invalid.
@@ -83,14 +96,15 @@ class AudioResampler(Knot):
                 "AudioResampler: quality must be 'kaiser_best', 'kaiser_fast', "
                 "'linear', or 'polyphase'"
             )
-        if signal.sample_rate_hz > 0:
-            ratio = target_sample_rate_hz / signal.sample_rate_hz
-            new_samples = int(signal.samples_per_channel * ratio)
-        else:
-            new_samples = signal.samples_per_channel
-        return SignalFrame(
-            signal_id=f"{signal.signal_id}:resampled",
-            channel_count=signal.channel_count,
-            sample_rate_hz=target_sample_rate_hz,
-            samples_per_channel=new_samples,
+        orig_sr = int(signal.frame.sample_rate_hz)
+        target_sr = int(target_sample_rate_hz)
+        result = await asyncio.to_thread(_resample, signal.data, orig_sr, target_sr, quality)
+        return SignalPayload(
+            frame=SignalFrame(
+                signal_id=f"{signal.frame.signal_id}:resampled",
+                channel_count=signal.frame.channel_count,
+                sample_rate_hz=float(target_sample_rate_hz),
+                samples_per_channel=result.shape[-1],
+            ),
+            data=np.asarray(result),
         )

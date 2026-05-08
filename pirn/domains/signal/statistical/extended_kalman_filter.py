@@ -9,7 +9,7 @@ Algorithm:
        b. Compute the Jacobian F_k = ∂f/∂x at x̂(k-1|k-1).
        c. Update: compute the Kalman gain K_k from Jacobian H_k = ∂h/∂x.
        d. Correct the state and covariance estimates.
-    5. Return a SignalFrame of filtered state estimates.
+    5. Return a SignalPayload of filtered state estimates.
 
 Math:
     EKF predict step:
@@ -27,19 +27,47 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+
+def _ekf(y: np.ndarray, q: float, r: float, dim: int) -> np.ndarray:
+    """Linearised EKF with identity state transition, scalar observation per step.
+
+    Returns filtered state estimates shaped (len(y),).
+    """
+    n = len(y)
+    F = np.eye(dim)
+    H = np.zeros((1, dim))
+    H[0, 0] = 1.0
+    Q = q * np.eye(dim)
+    R_mat = np.array([[r]])
+    x = np.zeros(dim)
+    P = np.eye(dim)
+    estimates = np.zeros(n)
+    for k in range(n):
+        # Predict
+        x_pred = F @ x
+        P_pred = F @ P @ F.T + Q
+        # Update
+        S = H @ P_pred @ H.T + R_mat
+        K = P_pred @ H.T @ np.linalg.inv(S)
+        innov = y[k] - float(H @ x_pred)
+        x = x_pred + K[:, 0] * innov
+        P = (np.eye(dim) - K @ H) @ P_pred
+        estimates[k] = float(x[0])
+    return estimates
 
 
 class ExtendedKalmanFilter(Knot):
-    """Extended Kalman filter for nonlinear state-space models.
-
-    Production needs ``filterpy.kalman.ExtendedKalmanFilter`` or
-    hand-rolled NumPy.
-    """
+    """Extended Kalman filter for nonlinear state-space models."""
 
     def __init__(
         self,
@@ -60,20 +88,20 @@ class ExtendedKalmanFilter(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         state_dim: int,
         observation_dim: int,
         **_: Any,
-    ) -> SignalFrame:
+    ) -> SignalPayload:
         """Filter the signal through the extended Kalman filter via local linearisation.
 
         Args:
-            signal: Observed signal to filter through the nonlinear state estimator.
+            signal: Observed signal payload to filter through the nonlinear state estimator.
             state_dim: Dimension of the hidden state vector (positive integer).
             observation_dim: Dimension of the observation vector (positive integer).
 
         Returns:
-            SignalFrame of EKF-filtered state estimates.
+            SignalPayload of EKF-filtered state estimates.
 
         Raises:
             ValueError: If state_dim or observation_dim are not positive integers.
@@ -82,9 +110,16 @@ class ExtendedKalmanFilter(Knot):
             raise ValueError("ExtendedKalmanFilter: state_dim must be a positive integer")
         if not isinstance(observation_dim, int) or observation_dim <= 0:
             raise ValueError("ExtendedKalmanFilter: observation_dim must be a positive integer")
-        return SignalFrame(
-            signal_id=f"{signal.signal_id}:ekf",
-            channel_count=signal.channel_count,
-            sample_rate_hz=signal.sample_rate_hz,
-            samples_per_channel=signal.samples_per_channel,
+        x = signal.data[0] if signal.data.ndim > 1 else signal.data
+        process_noise = 1e-3
+        measurement_noise = 1e-1
+        filtered = await asyncio.to_thread(
+            _ekf, x.astype(float), process_noise, measurement_noise, state_dim
         )
+        frame = SignalFrame(
+            signal_id=f"{signal.frame.signal_id}:ekf",
+            channel_count=1,
+            sample_rate_hz=signal.frame.sample_rate_hz,
+            samples_per_channel=len(filtered),
+        )
+        return SignalPayload(frame=frame, data=filtered)

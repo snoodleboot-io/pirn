@@ -7,9 +7,8 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.domains.signal.statistical.prony_estimator import PronyEstimator
-from pirn.domains.signal.types.signal_frame import SignalFrame
 from pirn.tapestry import Tapestry
-from tests.unit.domains.signal.conftest import emit_signal_frame
+from tests.unit.domains.signal.conftest import emit_signal_payload, make_signal_payload
 
 
 class TestConstruction(unittest.IsolatedAsyncioTestCase):
@@ -17,9 +16,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
         with Tapestry():
             k = PronyEstimator.__new__(PronyEstimator)
             object.__setattr__(k, "_config", KnotConfig(id="p"))
-        signal = SignalFrame(
-            signal_id="test", channel_count=1, sample_rate_hz=1000.0, samples_per_channel=1024
-        )
+        signal = make_signal_payload()
         with self.assertRaises((TypeError, ValueError)):
             await k.process(signal=signal, component_count=0)
 
@@ -27,7 +24,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_estimator_dict(self) -> None:
         with Tapestry() as t:
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
+            sig = emit_signal_payload(_config=KnotConfig(id="sig"))
             PronyEstimator(
                 signal=sig,
                 component_count=4,
@@ -35,5 +32,5 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         out = result.outputs["p"]
-        assert out["estimator"] == "prony"
-        assert out["component_count"] == 4
+        assert "poles" in out
+        assert out["model_order"] == 4

@@ -27,18 +27,24 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
+from scipy import signal as ss
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+
+def _decimate(data: np.ndarray, q: int) -> np.ndarray:
+    return ss.decimate(data, q=q, axis=-1)
 
 
 class Decimator(Knot):
-    """Decimate by an integer factor.
-
-    Production needs ``scipy.signal.decimate``.
-    """
+    """Decimate by an integer factor using scipy anti-alias filter."""
 
     def __init__(
         self,
@@ -57,10 +63,10 @@ class Decimator(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         decimation_factor: int,
         **_: Any,
-    ) -> SignalFrame:
+    ) -> SignalPayload:
         """Anti-alias filter and decimate the signal by the configured integer factor.
 
         Args:
@@ -68,16 +74,20 @@ class Decimator(Knot):
             decimation_factor: Integer downsampling factor (must be > 1).
 
         Returns:
-            SignalFrame at the reduced sample rate with a proportionally smaller sample count.
+            SignalPayload at the reduced sample rate with a proportionally smaller sample count.
 
         Raises:
             ValueError: If decimation_factor is not an integer > 1.
         """
         if not isinstance(decimation_factor, int) or decimation_factor <= 1:
             raise ValueError("Decimator: decimation_factor must be an integer > 1")
-        return SignalFrame(
-            signal_id=f"{signal.signal_id}:decimate",
-            channel_count=signal.channel_count,
-            sample_rate_hz=signal.sample_rate_hz / decimation_factor,
-            samples_per_channel=signal.samples_per_channel // decimation_factor,
+
+        decimated = await asyncio.to_thread(_decimate, signal.data, decimation_factor)
+
+        new_frame = SignalFrame(
+            signal_id=f"{signal.frame.signal_id}:decimate",
+            channel_count=signal.frame.channel_count,
+            sample_rate_hz=signal.frame.sample_rate_hz / decimation_factor,
+            samples_per_channel=signal.frame.samples_per_channel // decimation_factor,
         )
+        return SignalPayload(frame=new_frame, data=decimated)

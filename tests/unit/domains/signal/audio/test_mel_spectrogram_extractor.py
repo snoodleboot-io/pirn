@@ -9,15 +9,14 @@ import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.domains.signal.audio.mel_spectrogram_extractor import MelSpectrogramExtractor
-from pirn.domains.signal.types.signal_frame import SignalFrame
-from pirn.domains.signal.types.spectrum_frame import SpectrumFrame
-from tests.unit.domains.signal.conftest import make_signal_frame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+from tests.unit.domains.signal.conftest import make_signal_payload
 
-_SIGNAL = make_signal_frame()
+_SIGNAL = make_signal_payload()
 
 
 def _up(name: str = "signal") -> Parameter:
-    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
+    return Parameter(name, SignalPayload, _config=KnotConfig(id=name))
 
 
 class TestMelSpectrogramExtractor(unittest.IsolatedAsyncioTestCase):
@@ -48,5 +47,5 @@ class TestMelSpectrogramExtractor(unittest.IsolatedAsyncioTestCase):
     async def test_emits_spectrum_frame(self) -> None:
         knot = self._make()
         out = await knot.process(_SIGNAL, n_mels=128, n_fft=512, hop_length=256)
-        assert isinstance(out, SpectrumFrame)
-        assert out.frequency_bins == 128
+        assert isinstance(out, dict)
+        assert out["n_mels"] == 128

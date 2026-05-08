@@ -28,19 +28,58 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Mapping
 from typing import Any
 
+import numpy as np
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+
+def _delay_embed(x: np.ndarray, m: int, tau: int = 1) -> np.ndarray:
+    """Build Takens delay embedding matrix of shape (N - (m-1)*tau, m)."""
+    n = len(x)
+    length = n - (m - 1) * tau
+    if length <= 0:
+        return np.empty((0, m))
+    return np.array([x[i : i + m * tau : tau] for i in range(length)])
+
+
+def _corr_dim(x: np.ndarray, m: int, r_max: float) -> float:
+    """Correlation dimension via Grassberger-Procaccia algorithm."""
+    embedded = _delay_embed(x, m)
+    n_pts = len(embedded)
+    if n_pts < 4:
+        return 0.0
+    # Compute pairwise distances (upper triangle only)
+    dists = []
+    for i in range(n_pts):
+        for j in range(i + 1, n_pts):
+            dists.append(float(np.linalg.norm(embedded[i] - embedded[j])))
+    dists_arr = np.array(dists)
+    n_pairs = len(dists_arr)
+    if n_pairs == 0:
+        return 0.0
+    r_min = float(np.min(dists_arr[dists_arr > 0])) if np.any(dists_arr > 0) else 1e-6
+    radii = np.logspace(np.log10(r_min), np.log10(r_max), 20)
+    log_r = []
+    log_c = []
+    for r in radii:
+        c = float(np.sum(dists_arr < r)) / n_pairs
+        if c > 0:
+            log_r.append(float(np.log(r)))
+            log_c.append(float(np.log(c)))
+    if len(log_r) < 2:
+        return 0.0
+    coeffs = np.polyfit(log_r, log_c, 1)
+    return float(max(0.0, coeffs[0]))
 
 
 class CorrelationDimensionEstimator(Knot):
-    """Correlation-dimension estimator (Grassberger-Procaccia).
-
-    Production needs ``nolds`` or a hand-rolled implementation.
-    """
+    """Correlation-dimension estimator (Grassberger-Procaccia)."""
 
     def __init__(
         self,
@@ -63,7 +102,7 @@ class CorrelationDimensionEstimator(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         embedding_dim: int,
         radius_min: float,
         radius_max: float,
@@ -72,14 +111,13 @@ class CorrelationDimensionEstimator(Knot):
         """Estimate the Grassberger-Procaccia correlation dimension from the signal.
 
         Args:
-            signal: Time series signal to estimate the correlation dimension from.
+            signal: Signal payload to estimate the correlation dimension from.
             embedding_dim: Embedding dimension for phase-space reconstruction (positive integer).
             radius_min: Minimum radius for correlation integral (positive float).
             radius_max: Maximum radius for correlation integral (must exceed radius_min).
 
         Returns:
-            Mapping containing ``signal_id``, ``embedding_dim``, ``radius_min``,
-            ``radius_max``, and ``estimator``.
+            Mapping containing ``correlation_dimension``, ``embedding_dim``, and ``max_radius``.
 
         Raises:
             ValueError: If embedding_dim, radius_min, or radius_max are invalid.
@@ -92,10 +130,10 @@ class CorrelationDimensionEstimator(Knot):
             raise ValueError("CorrelationDimensionEstimator: radius_min must be positive")
         if not isinstance(radius_max, (int, float)) or radius_max <= radius_min:
             raise ValueError("CorrelationDimensionEstimator: radius_max must exceed radius_min")
+        x = signal.data[0] if signal.data.ndim > 1 else signal.data
+        dim = await asyncio.to_thread(_corr_dim, x.astype(float), embedding_dim, float(radius_max))
         return {
-            "signal_id": signal.signal_id,
+            "correlation_dimension": dim,
             "embedding_dim": embedding_dim,
-            "radius_min": float(radius_min),
-            "radius_max": float(radius_max),
-            "estimator": "correlation_dimension",
+            "max_radius": float(radius_max),
         }

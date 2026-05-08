@@ -24,11 +24,33 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
+from scipy.interpolate import interp1d
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+
+def _interpolate(data: np.ndarray, src_rate: float, tgt_rate: float, kind: str) -> np.ndarray:
+    n_in = data.shape[-1]
+    n_out = round(n_in * tgt_rate / src_rate)
+    t_in = np.arange(n_in) / src_rate
+    t_out = np.arange(n_out) / tgt_rate
+    interp_kind = "cubic" if kind == "spline" else kind
+    fn = interp1d(
+        t_in,
+        data,
+        kind=interp_kind,
+        axis=-1,
+        fill_value="extrapolate",  # type: ignore[arg-type]
+        bounds_error=False,
+    )
+    return np.asarray(fn(t_out))
 
 
 class Interpolator(Knot):
@@ -56,11 +78,11 @@ class Interpolator(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         target_sample_rate_hz: float,
         kind: str = "cubic",
         **_: Any,
-    ) -> SignalFrame:
+    ) -> SignalPayload:
         """Interpolate the signal to the configured target sample rate.
 
         Args:
@@ -69,7 +91,7 @@ class Interpolator(Knot):
             kind: Interpolation method — ``linear``, ``cubic``, ``quadratic``, or ``spline``.
 
         Returns:
-            SignalFrame at the configured target sample rate with an adjusted sample count.
+            SignalPayload at the configured target sample rate with an adjusted sample count.
 
         Raises:
             ValueError: If target_sample_rate_hz or kind are invalid.
@@ -80,14 +102,18 @@ class Interpolator(Knot):
             raise ValueError(
                 "Interpolator: kind must be 'linear', 'cubic', 'quadratic', or 'spline'"
             )
-        if signal.sample_rate_hz > 0:
-            ratio = target_sample_rate_hz / signal.sample_rate_hz
-            new_samples = int(signal.samples_per_channel * ratio)
-        else:
-            new_samples = signal.samples_per_channel
-        return SignalFrame(
-            signal_id=f"{signal.signal_id}:interp",
-            channel_count=signal.channel_count,
-            sample_rate_hz=float(target_sample_rate_hz),
-            samples_per_channel=new_samples,
+
+        src_rate = signal.frame.sample_rate_hz
+        result = await asyncio.to_thread(
+            _interpolate, signal.data, src_rate, float(target_sample_rate_hz), kind
+        )
+
+        return SignalPayload(
+            frame=SignalFrame(
+                signal_id=f"{signal.frame.signal_id}:interp",
+                channel_count=signal.frame.channel_count,
+                sample_rate_hz=float(target_sample_rate_hz),
+                samples_per_channel=result.shape[-1],
+            ),
+            data=result,
         )

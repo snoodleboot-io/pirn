@@ -28,12 +28,44 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
 from pirn.domains.signal.types.source_frame import SourceFrame
+from pirn.domains.signal.types.source_payload import SourcePayload
+
+
+def _ssa(x: np.ndarray, window_length: int, source_count: int) -> np.ndarray:
+    n = len(x)
+    k = n - window_length + 1
+    trajectory = np.array([x[i : i + window_length] for i in range(k)]).T
+    u, s, vt = np.linalg.svd(trajectory, full_matrices=False)
+    count = min(source_count, len(s))
+    components = np.zeros((count, n))
+    for i in range(count):
+        rank1 = s[i] * np.outer(u[:, i], vt[i])
+        reconstructed = np.zeros(n)
+        counts = np.zeros(n)
+        for col in range(k):
+            for row in range(window_length):
+                reconstructed[row + col] += rank1[row, col]
+                counts[row + col] += 1
+        components[i] = reconstructed / counts
+    return components
+
+
+def _run_ssa(data: np.ndarray, window_length: int, source_count: int) -> np.ndarray:
+    if data.ndim == 1:
+        return _ssa(data, window_length, source_count)
+    channel_components = [
+        _ssa(data[ch], window_length, source_count) for ch in range(data.shape[0])
+    ]
+    return np.concatenate(channel_components, axis=0)
 
 
 class SSADecomposer(Knot):
@@ -62,12 +94,12 @@ class SSADecomposer(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         embedding_dim: int,
         component_count: int,
         **_: Any,
-    ) -> SourceFrame:
-        """Decompose the signal via trajectory-matrix SVD and return a SourceFrame of SSA components.
+    ) -> SourcePayload:
+        """Decompose the signal via trajectory-matrix SVD and return a SourcePayload of SSA components.
 
         Args:
             signal: Time series signal to decompose using singular spectrum analysis.
@@ -76,7 +108,7 @@ class SSADecomposer(Knot):
                 must not exceed embedding_dim).
 
         Returns:
-            SourceFrame with ``source_count`` equal to ``component_count`` and the
+            SourcePayload with ``source_count`` equal to ``component_count`` per channel and the
             embedding-matrix shape.
 
         Raises:
@@ -88,8 +120,12 @@ class SSADecomposer(Knot):
             raise ValueError("SSADecomposer: component_count must be a positive integer")
         if component_count > embedding_dim:
             raise ValueError("SSADecomposer: component_count must not exceed embedding_dim")
-        return SourceFrame(
-            signal_id=signal.signal_id,
-            source_count=component_count,
-            mixing_matrix_shape=(embedding_dim, component_count),
+        components = await asyncio.to_thread(_run_ssa, signal.data, embedding_dim, component_count)
+        return SourcePayload(
+            frame=SourceFrame(
+                signal_id=f"{signal.frame.signal_id}:ssa",
+                source_count=component_count,
+                mixing_matrix_shape=(embedding_dim, component_count),
+            ),
+            data=np.asarray(components),
         )

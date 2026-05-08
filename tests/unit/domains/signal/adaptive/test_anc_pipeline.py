@@ -9,15 +9,15 @@ import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.domains.signal.adaptive.anc_pipeline import ANCPipeline
-from pirn.domains.signal.types.signal_frame import SignalFrame
-from tests.unit.domains.signal.conftest import make_signal_frame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+from tests.unit.domains.signal.conftest import make_signal_payload
 
-_REF = make_signal_frame(signal_id="test")
-_ERR = make_signal_frame(signal_id="reference")
+_REF = make_signal_payload(signal_id="test")
+_ERR = make_signal_payload(signal_id="reference")
 
 
 def _up(name: str) -> Parameter:
-    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
+    return Parameter(name, SignalPayload, _config=KnotConfig(id=name))
 
 
 class TestANCPipeline(unittest.IsolatedAsyncioTestCase):
@@ -47,12 +47,12 @@ class TestANCPipeline(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_mismatched_sample_rates(self) -> None:
         knot = self._make()
-        diff_rate = make_signal_frame(signal_id="err", sample_rate_hz=2000.0)
+        diff_rate = make_signal_payload(signal_id="err", sample_rate_hz=2000.0)
         with pytest.raises(ValueError, match="sample_rate"):
             await knot.process(_REF, diff_rate, step_size=0.01, filter_length=32)
 
     async def test_emits_signal_frame(self) -> None:
         knot = self._make()
         out = await knot.process(_REF, _ERR, step_size=0.01, filter_length=32)
-        assert isinstance(out, SignalFrame)
-        assert out.sample_rate_hz == 1000.0
+        assert isinstance(out, SignalPayload)
+        assert out.frame.sample_rate_hz == 1000.0

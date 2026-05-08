@@ -29,19 +29,27 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import librosa
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.signal.types.signal_frame import SignalFrame
-from pirn.domains.signal.types.spectrum_frame import SpectrumFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+
+def _compute_mel_spectrogram(
+    mono: np.ndarray, sr: int, n_mels: int, n_fft: int, hop_length: int
+) -> np.ndarray:
+    return librosa.feature.melspectrogram(
+        y=mono, sr=sr, n_mels=n_mels, n_fft=n_fft, hop_length=hop_length
+    )
 
 
 class MelSpectrogramExtractor(Knot):
-    """Compute a mel-spectrogram from an audio signal.
-
-    Production needs ``librosa.feature.melspectrogram``.
-    """
+    """Compute a mel-spectrogram from an audio signal using ``librosa.feature.melspectrogram``."""
 
     def __init__(
         self,
@@ -64,12 +72,12 @@ class MelSpectrogramExtractor(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         n_mels: int,
         n_fft: int,
         hop_length: int,
         **_: Any,
-    ) -> SpectrumFrame:
+    ) -> dict[str, Any]:
         """Compute a mel-spectrogram from the audio signal.
 
         Args:
@@ -79,7 +87,7 @@ class MelSpectrogramExtractor(Knot):
             hop_length: Hop size in samples (positive integer, must not exceed n_fft).
 
         Returns:
-            SpectrumFrame with ``frequency_bins`` equal to ``n_mels`` and Hz-per-bin resolution.
+            Dictionary with ``mel_spectrogram`` (list of lists), ``n_mels``, and ``signal_id``.
 
         Raises:
             ValueError: If n_mels, n_fft, or hop_length are invalid.
@@ -92,9 +100,11 @@ class MelSpectrogramExtractor(Knot):
             raise ValueError("MelSpectrogramExtractor: hop_length must be a positive integer")
         if hop_length > n_fft:
             raise ValueError("MelSpectrogramExtractor: hop_length must not exceed n_fft")
-        resolution = signal.sample_rate_hz / n_fft if signal.sample_rate_hz > 0 else 0.0
-        return SpectrumFrame(
-            signal_id=signal.signal_id,
-            frequency_bins=n_mels,
-            frequency_resolution_hz=resolution,
-        )
+        mono = signal.data[0] if signal.data.ndim > 1 else signal.data
+        sr = int(signal.frame.sample_rate_hz)
+        mel = await asyncio.to_thread(_compute_mel_spectrogram, mono, sr, n_mels, n_fft, hop_length)
+        return {
+            "mel_spectrogram": mel.tolist(),
+            "n_mels": n_mels,
+            "signal_id": signal.frame.signal_id,
+        }

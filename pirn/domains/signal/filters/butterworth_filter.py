@@ -1,17 +1,12 @@
 """``ButterworthFilter`` — maximally-flat IIR filter (no passband ripple).
 
-Production needs ``scipy.signal.butter`` plus ``scipy.signal.sosfiltfilt``
-or equivalent. This stub validates the design parameters and threads a
-:class:`SignalFrame` reference through with the same shape.
-
 Algorithm:
-    1. Receive the input signal frame, order, cutoff_hz, and band_type.
+    1. Receive the input signal payload, order, cutoff_hz, and band_type.
     2. Validate order (positive integer), band_type (known string), and cutoff_hz
        (positive scalar for lowpass/highpass; (low, high) tuple for bandpass/bandstop).
     3. Design a Butterworth IIR filter of the given order using ``scipy.signal.butter``.
-    4. Apply zero-phase filtering via ``sosfiltfilt`` for offline use, or
-       causal ``sosfilt`` for realtime.
-    5. Return a filtered SignalFrame.
+    4. Apply causal filtering via ``sosfilt``.
+    5. Return a filtered SignalPayload.
 
 Math:
     Butterworth squared magnitude response:
@@ -28,11 +23,16 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
+from scipy import signal as ss
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
 
 
 class ButterworthFilter(Knot):
@@ -59,23 +59,23 @@ class ButterworthFilter(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         order: int,
         cutoff_hz: float | tuple[float, float],
         band_type: str = "lowpass",
         **_: Any,
-    ) -> SignalFrame:
+    ) -> SignalPayload:
         """Apply the Butterworth IIR filter to the input signal.
 
         Args:
-            signal: Signal to filter with a maximally-flat Butterworth design.
+            signal: Signal payload to filter with a maximally-flat Butterworth design.
             order: Filter order (positive integer).
             cutoff_hz: Cutoff frequency in Hz; scalar for lowpass/highpass,
                 (low, high) tuple for bandpass/bandstop.
             band_type: One of ``lowpass``, ``highpass``, ``bandpass``, ``bandstop``.
 
         Returns:
-            SignalFrame filtered by the configured Butterworth IIR.
+            SignalPayload filtered by the configured Butterworth IIR.
 
         Raises:
             ValueError: If order, band_type, or cutoff_hz are invalid.
@@ -100,9 +100,24 @@ class ButterworthFilter(Knot):
         else:
             if not isinstance(cutoff_hz, (int, float)) or cutoff_hz <= 0:
                 raise ValueError("ButterworthFilter: cutoff_hz must be a positive scalar")
-        return SignalFrame(
-            signal_id=f"{signal.signal_id}:butter-{band_type}",
-            channel_count=signal.channel_count,
-            sample_rate_hz=signal.sample_rate_hz,
-            samples_per_channel=signal.samples_per_channel,
+
+        fs = signal.frame.sample_rate_hz
+        btype_map = {
+            "lowpass": "low",
+            "highpass": "high",
+            "bandpass": "bandpass",
+            "bandstop": "bandstop",
+        }
+        sos = await asyncio.to_thread(
+            ss.butter, order, cutoff_hz, btype=btype_map[band_type], fs=fs, output="sos"
+        )
+        filtered = await asyncio.to_thread(ss.sosfilt, sos, signal.data, axis=-1)
+        return SignalPayload(
+            frame=SignalFrame(
+                signal_id=f"{signal.frame.signal_id}:butter-{band_type}",
+                channel_count=signal.frame.channel_count,
+                sample_rate_hz=signal.frame.sample_rate_hz,
+                samples_per_channel=signal.data.shape[-1],
+            ),
+            data=np.asarray(filtered),
         )

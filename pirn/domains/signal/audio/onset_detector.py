@@ -26,19 +26,24 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Mapping
 from typing import Any
 
+import librosa
+import numpy as np
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+
+def _detect_onsets(mono: np.ndarray, sr: int, hop_length: int) -> np.ndarray:
+    return librosa.onset.onset_detect(y=mono, sr=sr, hop_length=hop_length, units="time")
 
 
 class OnsetDetector(Knot):
-    """Detect onset times in an audio signal.
-
-    Production needs ``librosa.onset``.
-    """
+    """Detect onset times in an audio signal using ``librosa.onset.onset_detect``."""
 
     def __init__(
         self,
@@ -59,7 +64,7 @@ class OnsetDetector(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         hop_length: int,
         threshold: float = 0.5,
         **_: Any,
@@ -72,7 +77,7 @@ class OnsetDetector(Knot):
             threshold: Peak-picking threshold multiplier (must be positive).
 
         Returns:
-            Mapping containing ``signal_id``, ``hop_length``, ``threshold``, and ``feature``.
+            Mapping containing ``onset_times_sec`` (list of floats) and ``signal_id``.
 
         Raises:
             ValueError: If hop_length or threshold are invalid.
@@ -81,9 +86,10 @@ class OnsetDetector(Knot):
             raise ValueError("OnsetDetector: hop_length must be a positive integer")
         if not isinstance(threshold, (int, float)) or threshold <= 0:
             raise ValueError("OnsetDetector: threshold must be positive")
+        mono = signal.data[0] if signal.data.ndim > 1 else signal.data
+        sr = int(signal.frame.sample_rate_hz)
+        onsets = await asyncio.to_thread(_detect_onsets, mono, sr, hop_length)
         return {
-            "signal_id": signal.signal_id,
-            "hop_length": hop_length,
-            "threshold": threshold,
-            "feature": "onsets",
+            "onset_times_sec": onsets.tolist(),
+            "signal_id": signal.frame.signal_id,
         }

@@ -1,11 +1,11 @@
 """``BandPassFilter`` — pass a frequency band, attenuate elsewhere.
 
 Algorithm:
-    1. Receive the input signal frame, low_cutoff_hz, and high_cutoff_hz.
+    1. Receive the input signal payload, low_cutoff_hz, and high_cutoff_hz.
     2. Validate that both cutoffs are positive and low_cutoff_hz < high_cutoff_hz.
-    3. Design a bandpass IIR or FIR filter with the given edge frequencies.
-    4. Apply the filter to the signal.
-    5. Return a filtered SignalFrame.
+    3. Design a bandpass Butterworth IIR filter with the given edge frequencies.
+    4. Apply the filter to the signal data.
+    5. Return a filtered SignalPayload.
 
 Math:
     Ideal bandpass frequency response:
@@ -21,18 +21,20 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
+from scipy import signal as ss
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
 
 
 class BandPassFilter(Knot):
-    """Band-pass filter wrapper (front-end on a chosen IIR/FIR design).
-
-    Production needs ``scipy.signal``.
-    """
+    """Band-pass Butterworth filter."""
 
     def __init__(
         self,
@@ -53,20 +55,20 @@ class BandPassFilter(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         low_cutoff_hz: float,
         high_cutoff_hz: float,
         **_: Any,
-    ) -> SignalFrame:
+    ) -> SignalPayload:
         """Apply the band-pass filter to the input signal.
 
         Args:
-            signal: Signal to band-pass filter.
+            signal: Signal payload to band-pass filter.
             low_cutoff_hz: Lower cutoff frequency in Hz (positive float).
             high_cutoff_hz: Upper cutoff frequency in Hz (must exceed low_cutoff_hz).
 
         Returns:
-            SignalFrame with frequencies outside the configured band attenuated.
+            SignalPayload with frequencies outside the configured band attenuated.
 
         Raises:
             ValueError: If cutoff frequencies are invalid.
@@ -77,9 +79,18 @@ class BandPassFilter(Knot):
             raise ValueError("BandPassFilter: high_cutoff_hz must be positive")
         if low_cutoff_hz >= high_cutoff_hz:
             raise ValueError("BandPassFilter: low_cutoff_hz must be < high_cutoff_hz")
-        return SignalFrame(
-            signal_id=f"{signal.signal_id}:bandpass",
-            channel_count=signal.channel_count,
-            sample_rate_hz=signal.sample_rate_hz,
-            samples_per_channel=signal.samples_per_channel,
+
+        fs = signal.frame.sample_rate_hz
+        sos = await asyncio.to_thread(
+            ss.butter, 4, [low_cutoff_hz, high_cutoff_hz], btype="bandpass", fs=fs, output="sos"
+        )
+        filtered = await asyncio.to_thread(ss.sosfilt, sos, signal.data, axis=-1)
+        return SignalPayload(
+            frame=SignalFrame(
+                signal_id=f"{signal.frame.signal_id}:bandpass",
+                channel_count=signal.frame.channel_count,
+                sample_rate_hz=signal.frame.sample_rate_hz,
+                samples_per_channel=signal.data.shape[-1],
+            ),
+            data=np.asarray(filtered),
         )

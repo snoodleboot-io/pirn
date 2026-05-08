@@ -51,9 +51,6 @@ from pirn.core.transport.transport_handle import TransportHandle
 
 _log = logging.getLogger(__name__)
 
-_MANIFEST_NAME = "pirn-manifest.json"
-_LOCK_NAME = "pirn-lock"
-
 
 class FilesystemTransport(DataTransport):
     """Store knot outputs as files under a local directory.
@@ -77,6 +74,9 @@ class FilesystemTransport(DataTransport):
         Registry of type→serialiser mappings. Defaults to
         :meth:`~pirn.core.transport.serializers.serializer_registry.SerializerRegistry.default`.
     """
+
+    _manifest_name = "pirn-manifest.json"
+    _lock_name = "pirn-lock"
 
     def __init__(
         self,
@@ -189,7 +189,7 @@ class FilesystemTransport(DataTransport):
         for entry in self._base_dir.iterdir():
             if not entry.is_dir() or not entry.name.startswith("pirn-"):
                 continue
-            manifest_path = entry / _MANIFEST_NAME
+            manifest_path = entry / self._manifest_name
             if not manifest_path.exists():
                 continue
             try:
@@ -199,7 +199,7 @@ class FilesystemTransport(DataTransport):
             created_at = manifest.get("created_at", 0.0)
             if created_at > cutoff:
                 continue
-            if self._is_lock_held(entry / _LOCK_NAME):
+            if self._is_lock_held(entry / self._lock_name):
                 continue
             try:
                 shutil.rmtree(entry)
@@ -215,7 +215,7 @@ class FilesystemTransport(DataTransport):
 
     def _write_manifest(self, run_dir: Path, run_id: str) -> None:
         manifest = {"run_id": run_id, "created_at": time.time()}
-        (run_dir / _MANIFEST_NAME).write_text(json.dumps(manifest))
+        (run_dir / self._manifest_name).write_text(json.dumps(manifest))
 
     def _check_disk_space(self) -> None:
         assert self._min_free_gb is not None
@@ -228,7 +228,7 @@ class FilesystemTransport(DataTransport):
             )
 
     def _acquire_lock(self, run_id: str, run_dir: Path) -> None:
-        lock_path = run_dir / _LOCK_NAME
+        lock_path = run_dir / self._lock_name
         try:
             fh = open(lock_path, "w")
             try:

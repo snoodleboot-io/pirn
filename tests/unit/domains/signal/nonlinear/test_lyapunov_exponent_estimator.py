@@ -9,14 +9,14 @@ import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.domains.signal.nonlinear.lyapunov_exponent_estimator import LyapunovExponentEstimator
-from pirn.domains.signal.types.signal_frame import SignalFrame
-from tests.unit.domains.signal.conftest import make_signal_frame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+from tests.unit.domains.signal.conftest import make_signal_payload
 
-_SIGNAL = make_signal_frame()
+_SIGNAL = make_signal_payload()
 
 
 def _up(name: str = "signal") -> Parameter:
-    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
+    return Parameter(name, SignalPayload, _config=KnotConfig(id=name))
 
 
 class TestLyapunovExponentEstimator(unittest.IsolatedAsyncioTestCase):
@@ -42,4 +42,4 @@ class TestLyapunovExponentEstimator(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, embedding_dim=3, time_delay=1)
         assert isinstance(out, dict)
-        assert out["estimator"] == "lyapunov"
+        assert "lyapunov_exponent" in out

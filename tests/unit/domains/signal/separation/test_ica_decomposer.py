@@ -4,20 +4,25 @@ from __future__ import annotations
 
 import unittest
 
+import numpy as np
 import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.domains.signal.separation.ica_decomposer import ICADecomposer
 from pirn.domains.signal.types.signal_frame import SignalFrame
-from pirn.domains.signal.types.source_frame import SourceFrame
-from tests.unit.domains.signal.conftest import make_signal_frame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+from pirn.domains.signal.types.source_payload import SourcePayload
 
-_SIGNAL = make_signal_frame()
+_rng = np.random.default_rng(0)
+_SIGNAL = SignalPayload(
+    frame=SignalFrame(signal_id="test", channel_count=8, sample_rate_hz=1000.0, samples_per_channel=1024),
+    data=_rng.standard_normal((8, 1024)),
+)
 
 
 def _up(name: str = "signal") -> Parameter:
-    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
+    return Parameter(name, SignalPayload, _config=KnotConfig(id=name))
 
 
 class TestICADecomposer(unittest.IsolatedAsyncioTestCase):
@@ -36,5 +41,5 @@ class TestICADecomposer(unittest.IsolatedAsyncioTestCase):
     async def test_emits_source_frame(self) -> None:
         knot = self._make()
         out = await knot.process(_SIGNAL, source_count=3)
-        assert isinstance(out, SourceFrame)
-        assert out.source_count == 3
+        assert isinstance(out, SourcePayload)
+        assert out.frame.source_count == 3

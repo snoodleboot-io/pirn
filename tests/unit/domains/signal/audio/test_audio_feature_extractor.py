@@ -9,14 +9,14 @@ import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.domains.signal.audio.audio_feature_extractor import AudioFeatureExtractor
-from pirn.domains.signal.types.signal_frame import SignalFrame
-from tests.unit.domains.signal.conftest import make_signal_frame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+from tests.unit.domains.signal.conftest import make_signal_payload
 
-_SIGNAL = make_signal_frame()
+_SIGNAL = make_signal_payload()
 
 
 def _up(name: str = "signal") -> Parameter:
-    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
+    return Parameter(name, SignalPayload, _config=KnotConfig(id=name))
 
 
 class TestAudioFeatureExtractor(unittest.IsolatedAsyncioTestCase):
@@ -49,4 +49,4 @@ class TestAudioFeatureExtractor(unittest.IsolatedAsyncioTestCase):
         out = await knot.process(_SIGNAL, n_mfcc=13, n_fft=512, hop_length=256)
         assert isinstance(out, dict)
         assert "rms_energy" in out
-        assert "mfcc_mean" in out
+        assert "zero_crossing_rate" in out

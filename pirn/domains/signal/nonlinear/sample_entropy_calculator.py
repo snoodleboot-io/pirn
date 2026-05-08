@@ -27,19 +27,38 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+
+def _sample_entropy(x: np.ndarray, m: int, r: float) -> float:
+    """Sample entropy via Chebyshev template matching (self-matches excluded)."""
+    n = len(x)
+
+    def _phi(m_val: int) -> int:
+        count = 0
+        for i in range(n - m_val):
+            template = x[i : i + m_val]
+            for j in range(n - m_val):
+                if i != j and np.max(np.abs(x[j : j + m_val] - template)) < r:
+                    count += 1
+        return count
+
+    a = _phi(m + 1)
+    b = _phi(m)
+    if b == 0:
+        return 0.0
+    return float(-np.log(a / b))
 
 
 class SampleEntropyCalculator(Knot):
-    """Compute sample entropy of a time series signal.
-
-    Production needs ``antropy`` or a hand-rolled template-matching
-    implementation.
-    """
+    """Compute sample entropy of a time series signal."""
 
     def __init__(
         self,
@@ -60,7 +79,7 @@ class SampleEntropyCalculator(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         m: int,
         r: float,
         **_: Any,
@@ -68,12 +87,12 @@ class SampleEntropyCalculator(Knot):
         """Compute sample entropy of the signal using template matching.
 
         Args:
-            signal: Time series signal to analyse.
+            signal: Signal payload to analyse.
             m: Template length for pattern matching (positive integer).
             r: Tolerance for template matching (positive float).
 
         Returns:
-            Dictionary with keys ``sample_entropy``, ``m``, and ``r``.
+            Dictionary with keys ``value``, ``embedding_dim``, and ``tolerance``.
 
         Raises:
             ValueError: If m or r are invalid.
@@ -82,8 +101,10 @@ class SampleEntropyCalculator(Knot):
             raise ValueError("SampleEntropyCalculator: m must be a positive integer")
         if not isinstance(r, (int, float)) or r <= 0.0:
             raise ValueError("SampleEntropyCalculator: r must be a positive float")
+        x = signal.data[0] if signal.data.ndim > 1 else signal.data
+        value = await asyncio.to_thread(_sample_entropy, x.astype(float), m, float(r))
         return {
-            "sample_entropy": 0.0,
-            "m": float(m),
-            "r": float(r),
+            "value": value,
+            "embedding_dim": m,
+            "tolerance": float(r),
         }

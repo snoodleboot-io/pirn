@@ -28,19 +28,49 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Mapping
 from typing import Any
 
+import librosa
+import numpy as np
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+
+def _estimate_pitch_yin(mono: np.ndarray, sr: int, fmin: float, fmax: float) -> np.ndarray:
+    return librosa.yin(mono, fmin=fmin, fmax=fmax, sr=sr)
+
+
+def _estimate_pitch_pyin(mono: np.ndarray, sr: int, fmin: float, fmax: float) -> np.ndarray:
+    f0, _voiced_flag, _voiced_probs = librosa.pyin(mono, fmin=fmin, fmax=fmax, sr=sr)
+    return np.nan_to_num(f0)
+
+
+def _estimate_pitch_autocorrelation(
+    mono: np.ndarray, sr: int, fmin: float, fmax: float
+) -> np.ndarray:
+    frame_size = 2048
+    hop = 512
+    frames = librosa.util.frame(mono, frame_length=frame_size, hop_length=hop)
+    f0_frames = []
+    for frame in frames.T:
+        ac = np.correlate(frame, frame, mode="full")[frame_size - 1 :]
+        ac = ac / (ac[0] + 1e-10)
+        min_lag = max(1, int(sr / fmax))
+        max_lag = min(len(ac) - 1, int(sr / fmin))
+        if min_lag >= max_lag:
+            f0_frames.append(0.0)
+            continue
+        peak = int(np.argmax(ac[min_lag:max_lag])) + min_lag
+        f0_frames.append(float(sr) / peak if peak > 0 else 0.0)
+    return np.array(f0_frames, dtype=np.float32)
 
 
 class PitchEstimator(Knot):
-    """Estimate fundamental frequency over time.
-
-    Production needs ``librosa.pyin`` / ``librosa.yin``.
-    """
+    """Estimate fundamental frequency over time using ``librosa.yin`` or ``librosa.pyin``."""
 
     def __init__(
         self,
@@ -63,7 +93,7 @@ class PitchEstimator(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         f_min_hz: float,
         f_max_hz: float,
         algorithm: str = "yin",
@@ -78,7 +108,7 @@ class PitchEstimator(Knot):
             algorithm: Pitch detection algorithm: ``yin``, ``pyin``, or ``autocorrelation``.
 
         Returns:
-            Mapping containing ``signal_id``, ``f_min_hz``, ``f_max_hz``, and ``algorithm``.
+            Mapping containing ``f0_hz`` (list of floats per frame) and ``signal_id``.
 
         Raises:
             ValueError: If f_min_hz, f_max_hz, or algorithm are invalid.
@@ -91,9 +121,17 @@ class PitchEstimator(Knot):
             raise ValueError(
                 "PitchEstimator: algorithm must be 'yin', 'pyin', or 'autocorrelation'"
             )
+        mono = signal.data[0] if signal.data.ndim > 1 else signal.data
+        sr = int(signal.frame.sample_rate_hz)
+        if algorithm == "yin":
+            f0 = await asyncio.to_thread(_estimate_pitch_yin, mono, sr, f_min_hz, f_max_hz)
+        elif algorithm == "pyin":
+            f0 = await asyncio.to_thread(_estimate_pitch_pyin, mono, sr, f_min_hz, f_max_hz)
+        else:
+            f0 = await asyncio.to_thread(
+                _estimate_pitch_autocorrelation, mono, sr, f_min_hz, f_max_hz
+            )
         return {
-            "signal_id": signal.signal_id,
-            "f_min_hz": float(f_min_hz),
-            "f_max_hz": float(f_max_hz),
-            "algorithm": algorithm,
+            "f0_hz": f0.tolist(),
+            "signal_id": signal.frame.signal_id,
         }

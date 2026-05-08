@@ -9,14 +9,14 @@ import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.domains.signal.resampling.streaming_buffer_manager import StreamingBufferManager
-from pirn.domains.signal.types.signal_frame import SignalFrame
-from tests.unit.domains.signal.conftest import make_signal_frame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+from tests.unit.domains.signal.conftest import make_signal_payload
 
-_SIGNAL = make_signal_frame()
+_SIGNAL = make_signal_payload()
 
 
 def _up(name: str = "signal") -> Parameter:
-    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
+    return Parameter(name, SignalPayload, _config=KnotConfig(id=name))
 
 
 class TestStreamingBufferManager(unittest.IsolatedAsyncioTestCase):
@@ -46,5 +46,5 @@ class TestStreamingBufferManager(unittest.IsolatedAsyncioTestCase):
     async def test_emits_signal_frame(self) -> None:
         knot = self._make()
         out = await knot.process(_SIGNAL, frame_size=512, hop_size=256)
-        assert isinstance(out, SignalFrame)
-        assert out.signal_id == "test:framed"
+        assert isinstance(out, SignalPayload)
+        assert out.frame.signal_id == "test:framed"

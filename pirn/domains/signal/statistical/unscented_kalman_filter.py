@@ -8,7 +8,7 @@ Algorithm:
     4. Propagate sigma points through the nonlinear state transition function f(x).
     5. Compute the predicted mean and covariance from the propagated sigma points.
     6. Apply the UKF update equations using the observation sigma points and Kalman gain.
-    7. Return a SignalFrame of UKF-filtered state estimates.
+    7. Return a SignalPayload of UKF-filtered state estimates.
 
 Math:
     Sigma points:
@@ -27,18 +27,71 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+
+def _ukf(
+    y: np.ndarray,
+    q: float,
+    r: float,
+    dim: int,
+    alpha: float,
+    beta: float,
+    kappa: float,
+) -> np.ndarray:
+    """UKF with sigma-point propagation and identity state transition.
+
+    Returns filtered state estimates shaped (len(y),).
+    """
+    n = len(y)
+    lam = alpha**2 * (dim + kappa) - dim
+    # Weights for mean and covariance
+    Wm = np.full(2 * dim + 1, 0.5 / (dim + lam))
+    Wc = Wm.copy()
+    Wm[0] = lam / (dim + lam)
+    Wc[0] = lam / (dim + lam) + (1.0 - alpha**2 + beta)
+    Q = q * np.eye(dim)
+    R_scalar = r
+    x = np.zeros(dim)
+    P = np.eye(dim)
+    estimates = np.zeros(n)
+    for k in range(n):
+        # Sigma points
+        try:
+            L = np.linalg.cholesky((dim + lam) * P)
+        except np.linalg.LinAlgError:
+            L = np.eye(dim) * np.sqrt(dim + lam)
+        sigma = np.zeros((2 * dim + 1, dim))
+        sigma[0] = x
+        for i in range(dim):
+            sigma[i + 1] = x + L[:, i]
+            sigma[dim + i + 1] = x - L[:, i]
+        # Predict (identity transition)
+        x_pred = Wm @ sigma
+        diff = sigma - x_pred
+        P_pred = diff.T @ np.diag(Wc) @ diff + Q
+        # Observation sigma points (H maps first state component to observation)
+        z_sigma = sigma[:, 0]
+        z_pred = float(Wm @ z_sigma)
+        Pzz = float(Wc @ (z_sigma - z_pred) ** 2) + R_scalar
+        Pxz = diff.T @ np.diag(Wc) @ (z_sigma - z_pred)
+        K = Pxz / Pzz
+        x = x_pred + K * (y[k] - z_pred)
+        P = P_pred - np.outer(K, K) * Pzz
+        estimates[k] = float(x[0])
+    return estimates
 
 
 class UnscentedKalmanFilter(Knot):
-    """Unscented Kalman filter using sigma-point propagation.
-
-    Production needs ``filterpy.kalman.UnscentedKalmanFilter``.
-    """
+    """Unscented Kalman filter using sigma-point propagation."""
 
     def __init__(
         self,
@@ -65,18 +118,18 @@ class UnscentedKalmanFilter(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         state_dim: int,
         observation_dim: int,
         alpha: float = 1e-3,
         beta: float = 2.0,
         kappa: float = 0.0,
         **_: Any,
-    ) -> SignalFrame:
+    ) -> SignalPayload:
         """Filter the signal through the unscented Kalman filter via sigma-point propagation.
 
         Args:
-            signal: Observed signal to filter through the derivative-free nonlinear state estimator.
+            signal: Observed signal payload to filter through the derivative-free nonlinear state estimator.
             state_dim: Dimension of the hidden state vector (positive integer).
             observation_dim: Dimension of the observation vector (positive integer).
             alpha: Sigma-point spread parameter (positive float, typically 1e-3).
@@ -84,7 +137,7 @@ class UnscentedKalmanFilter(Knot):
             kappa: Secondary scaling parameter (real number).
 
         Returns:
-            SignalFrame of UKF-filtered state estimates.
+            SignalPayload of UKF-filtered state estimates.
 
         Raises:
             ValueError: If state_dim, observation_dim, or alpha are invalid.
@@ -100,9 +153,16 @@ class UnscentedKalmanFilter(Knot):
             raise TypeError("UnscentedKalmanFilter: beta must be a real number")
         if not isinstance(kappa, (int, float)):
             raise TypeError("UnscentedKalmanFilter: kappa must be a real number")
-        return SignalFrame(
-            signal_id=f"{signal.signal_id}:ukf",
-            channel_count=signal.channel_count,
-            sample_rate_hz=signal.sample_rate_hz,
-            samples_per_channel=signal.samples_per_channel,
+        x = signal.data[0] if signal.data.ndim > 1 else signal.data
+        process_noise = 1e-3
+        measurement_noise = 1e-1
+        filtered = await asyncio.to_thread(
+            _ukf, x.astype(float), process_noise, measurement_noise, state_dim, alpha, beta, kappa
         )
+        frame = SignalFrame(
+            signal_id=f"{signal.frame.signal_id}:ukf",
+            channel_count=1,
+            sample_rate_hz=signal.frame.sample_rate_hz,
+            samples_per_channel=len(filtered),
+        )
+        return SignalPayload(frame=frame, data=filtered)

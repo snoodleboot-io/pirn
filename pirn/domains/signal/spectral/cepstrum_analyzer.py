@@ -1,48 +1,45 @@
 """``CepstrumAnalyzer`` — real cepstrum (IFFT of log-magnitude FFT).
 
 Algorithm:
-    1. Receive the input signal frame and cepstrum_kind.
+    1. Receive the input signal payload and cepstrum_kind.
     2. Validate cepstrum_kind (one of ``real``, ``complex``, ``power``).
-    3. Compute the FFT of the signal.
-    4. Apply the log of the magnitude (real cepstrum) or the complex log (complex cepstrum)
-       or the squared magnitude log (power cepstrum).
-    5. Apply the IFFT to the log spectrum to obtain the cepstrum.
-    6. Return a SpectrumFrame with bins equal to the input sample count.
+    3. Compute X = np.fft.rfft(signal.data, axis=-1).
+    4. Compute log_X = np.log(np.abs(X) + 1e-10).
+    5. Compute cepstrum = np.fft.irfft(log_X, axis=-1).
+    6. Return a SpectrumPayload with frequency_bins = cepstrum.shape[-1].
 
 Math:
     Real cepstrum:
 
     $$c_r(\\tau) = \\text{IFFT}\\{\\ln|X(f)|\\}$$
 
-    Complex cepstrum:
-
-    $$c_c(\\tau) = \\text{IFFT}\\{\\ln X(f)\\}$$
-
-    Power cepstrum:
-
-    $$c_p(\\tau) = |\\text{IFFT}\\{\\ln|X(f)|^2\\}|^2$$
-
 References:
     - Bogert, B.P., Healy, M.J.R. & Tukey, J.W. (1963). "The quefrency analysis of time series for
       echoes." Proc. Symp. Time Series Analysis, 15, 209-243.
-    - scipy.fft: https://docs.scipy.org/doc/scipy/reference/fft.html
 """
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
 from pirn.domains.signal.types.spectrum_frame import SpectrumFrame
+from pirn.domains.signal.types.spectrum_payload import SpectrumPayload
+
+
+def _compute_cepstrum(data: np.ndarray) -> np.ndarray:
+    x = np.fft.rfft(data, axis=-1)
+    log_x = np.log(np.abs(x) + 1e-10)
+    return np.fft.irfft(log_x, axis=-1)
 
 
 class CepstrumAnalyzer(Knot):
-    """Real cepstrum estimator.
-
-    Production needs ``scipy.fft``.
-    """
+    """Real cepstrum estimator via IFFT of log-magnitude spectrum."""
 
     _valid_kinds = frozenset({"real", "complex", "power"})
 
@@ -63,18 +60,18 @@ class CepstrumAnalyzer(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         cepstrum_kind: str = "real",
         **_: Any,
-    ) -> SpectrumFrame:
-        """Compute the cepstrum from the signal and return a SpectrumFrame of cepstral coefficients.
+    ) -> SpectrumPayload:
+        """Compute the cepstrum from the signal and return a SpectrumPayload.
 
         Args:
-            signal: Signal to compute the cepstrum from via IFFT of the log-magnitude spectrum.
+            signal: Signal payload to compute the cepstrum from.
             cepstrum_kind: One of ``real``, ``complex``, or ``power``.
 
         Returns:
-            SpectrumFrame with bins equal to the input sample count.
+            SpectrumPayload with cepstral data and frequency_bins = cepstrum.shape[-1].
 
         Raises:
             ValueError: If cepstrum_kind is not valid.
@@ -83,9 +80,15 @@ class CepstrumAnalyzer(Knot):
             raise ValueError(
                 "CepstrumAnalyzer: cepstrum_kind must be 'real', 'complex', or 'power'"
             )
-        n = max(signal.samples_per_channel, 1)
-        return SpectrumFrame(
-            signal_id=signal.signal_id,
-            frequency_bins=n,
-            frequency_resolution_hz=0.0,
+
+        cepstrum = await asyncio.to_thread(_compute_cepstrum, signal.data)
+        freq_bins = cepstrum.shape[-1]
+
+        return SpectrumPayload(
+            frame=SpectrumFrame(
+                signal_id=signal.frame.signal_id,
+                frequency_bins=freq_bins,
+                frequency_resolution_hz=0.0,
+            ),
+            data=cepstrum,
         )

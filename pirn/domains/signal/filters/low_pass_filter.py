@@ -1,11 +1,11 @@
 """``LowPassFilter`` — pass low frequencies, attenuate high.
 
 Algorithm:
-    1. Receive the input signal frame and cutoff_hz.
+    1. Receive the input signal payload and cutoff_hz.
     2. Validate cutoff_hz (positive float).
-    3. Design a lowpass IIR or FIR filter with the given cutoff.
-    4. Apply the filter to the signal.
-    5. Return a filtered SignalFrame.
+    3. Design a lowpass Butterworth IIR filter with the given cutoff.
+    4. Apply the filter to the signal data.
+    5. Return a filtered SignalPayload.
 
 Math:
     Ideal lowpass frequency response:
@@ -22,18 +22,20 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
+from scipy import signal as ss
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
 
 
 class LowPassFilter(Knot):
-    """Low-pass filter wrapper.
-
-    Production needs ``scipy.signal``.
-    """
+    """Low-pass Butterworth filter."""
 
     def __init__(
         self,
@@ -52,27 +54,34 @@ class LowPassFilter(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         cutoff_hz: float,
         **_: Any,
-    ) -> SignalFrame:
+    ) -> SignalPayload:
         """Apply the low-pass filter to the input signal.
 
         Args:
-            signal: Signal to low-pass filter below the configured cutoff frequency.
+            signal: Signal payload to low-pass filter below the configured cutoff frequency.
             cutoff_hz: Cutoff frequency in Hz (positive float).
 
         Returns:
-            SignalFrame with high-frequency content attenuated.
+            SignalPayload with high-frequency content attenuated.
 
         Raises:
             ValueError: If cutoff_hz is not positive.
         """
         if not isinstance(cutoff_hz, (int, float)) or cutoff_hz <= 0:
             raise ValueError("LowPassFilter: cutoff_hz must be positive")
-        return SignalFrame(
-            signal_id=f"{signal.signal_id}:lowpass",
-            channel_count=signal.channel_count,
-            sample_rate_hz=signal.sample_rate_hz,
-            samples_per_channel=signal.samples_per_channel,
+
+        fs = signal.frame.sample_rate_hz
+        sos = await asyncio.to_thread(ss.butter, 4, cutoff_hz, btype="low", fs=fs, output="sos")
+        filtered = await asyncio.to_thread(ss.sosfilt, sos, signal.data, axis=-1)
+        return SignalPayload(
+            frame=SignalFrame(
+                signal_id=f"{signal.frame.signal_id}:lowpass",
+                channel_count=signal.frame.channel_count,
+                sample_rate_hz=signal.frame.sample_rate_hz,
+                samples_per_channel=signal.data.shape[-1],
+            ),
+            data=np.asarray(filtered),
         )

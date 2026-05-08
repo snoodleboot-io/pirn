@@ -28,19 +28,42 @@ References:
 
 from __future__ import annotations
 
+import asyncio
+import math
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+
+def _perm_entropy(x: np.ndarray, m: int, delay: int) -> tuple[float, float]:
+    """Compute permutation entropy and normalised permutation entropy.
+
+    Returns (permutation_entropy, normalized_entropy).
+    """
+    n = len(x)
+    counts: dict[tuple[int, ...], int] = {}
+    for i in range(0, n - (m - 1) * delay, 1):
+        sub = x[i : i + m * delay : delay]
+        if len(sub) < m:
+            continue
+        pattern = tuple(int(r) for r in np.argsort(sub))
+        counts[pattern] = counts.get(pattern, 0) + 1
+    total = sum(counts.values())
+    if total == 0:
+        return 0.0, 0.0
+    probs = np.array([v / total for v in counts.values()])
+    h = float(-np.sum(probs * np.log(probs + 1e-12)))
+    max_h = math.log(math.factorial(m))
+    normalized = h / max_h if max_h > 0 else 0.0
+    return h, normalized
 
 
 class PermutationEntropyCalculator(Knot):
-    """Compute permutation entropy and normalised permutation entropy.
-
-    Production needs ``antropy`` or a hand-rolled ordinal-pattern
-    implementation.
-    """
+    """Compute permutation entropy and normalised permutation entropy."""
 
     def __init__(
         self,
@@ -61,7 +84,7 @@ class PermutationEntropyCalculator(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         order: int,
         delay: int,
         **_: Any,
@@ -69,12 +92,12 @@ class PermutationEntropyCalculator(Knot):
         """Compute permutation entropy from ordinal patterns in the signal.
 
         Args:
-            signal: Time series signal to analyse.
+            signal: Signal payload to analyse.
             order: Ordinal pattern length (integer in [2, 8]).
             delay: Sample lag between pattern elements (positive integer).
 
         Returns:
-            Dictionary with keys ``permutation_entropy`` and ``normalized_entropy``.
+            Dictionary with keys ``value`` and ``embedding_dim``.
 
         Raises:
             ValueError: If order or delay are invalid.
@@ -83,7 +106,12 @@ class PermutationEntropyCalculator(Knot):
             raise ValueError("PermutationEntropyCalculator: order must be an integer in [2, 8]")
         if not isinstance(delay, int) or delay <= 0:
             raise ValueError("PermutationEntropyCalculator: delay must be a positive integer")
+        x = signal.data[0] if signal.data.ndim > 1 else signal.data
+        result: tuple[float, float] = await asyncio.to_thread(
+            _perm_entropy, x.astype(float), order, delay
+        )
+        h = result[0]
         return {
-            "permutation_entropy": 0.0,
-            "normalized_entropy": 0.0,
+            "value": h,
+            "embedding_dim": order,
         }
