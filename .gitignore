@@ -41,3 +41,5 @@ site/
 *.db-journal
 *.db-wal
 *.db-shm
+_later_designs/
+_pheenyx_charts/
