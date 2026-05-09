@@ -33,6 +33,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import numpy as np
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -86,9 +88,68 @@ class FKDenoisingKnot(Knot):
             raise ValueError("FKDenoisingKnot: taper_width_pct must be in (0, 50]")
         if not isinstance(gather, dict):
             raise TypeError("FKDenoisingKnot: gather must be a dict")
-        traces = gather.get("traces", [])
+        traces: list[dict[str, Any]] = gather.get("traces", [])
+        if not traces:
+            return {
+                "denoised_traces": traces,
+                "noise_model": {
+                    "velocity_threshold_m_s": float(velocity_threshold_m_s),
+                    "taper_width_pct": float(taper_width_pct),
+                },
+            }
+
+        n_traces = len(traces)
+        n_samples = max(len(tr.get("samples", [])) for tr in traces)
+        if n_samples == 0:
+            return {
+                "denoised_traces": traces,
+                "noise_model": {
+                    "velocity_threshold_m_s": float(velocity_threshold_m_s),
+                    "taper_width_pct": float(taper_width_pct),
+                },
+            }
+
+        dt = float(gather.get("sample_interval_ms", 4.0)) * 1e-3
+        dx = float(gather.get("trace_spacing_m", 25.0))
+
+        data_matrix = np.zeros((n_samples, n_traces), dtype=np.float64)
+        offsets_m: list[float] = []
+        for j, tr in enumerate(traces):
+            samps = tr.get("samples", [])
+            data_matrix[: len(samps), j] = samps
+            offsets_m.append(float(tr.get("offset_m", j * dx)))
+
+        fk = np.fft.fft2(data_matrix)
+        freqs = np.fft.fftfreq(n_samples, d=dt)
+        kxs = np.fft.fftfreq(n_traces, d=dx)
+
+        taper_frac = taper_width_pct / 100.0
+        v_thr = float(velocity_threshold_m_s)
+        v_taper_lo = v_thr * (1.0 - taper_frac)
+
+        mask = np.ones((n_samples, n_traces), dtype=np.float64)
+        for i, f in enumerate(freqs):
+            for j, kx in enumerate(kxs):
+                if abs(kx) < 1e-12:
+                    continue
+                v_app = abs(f / kx)
+                if v_app >= v_thr:
+                    mask[i, j] = 1.0
+                elif v_app <= v_taper_lo:
+                    mask[i, j] = 0.0
+                else:
+                    t = (v_app - v_taper_lo) / (v_thr - v_taper_lo)
+                    mask[i, j] = 0.5 * (1.0 - np.cos(np.pi * t))
+
+        filtered = np.real(np.fft.ifft2(fk * mask))
+
+        denoised_traces: list[dict[str, Any]] = []
+        for j, tr in enumerate(traces):
+            n = len(tr.get("samples", []))
+            denoised_traces.append({**tr, "samples": filtered[:n, j].tolist()})
+
         return {
-            "denoised_traces": traces,
+            "denoised_traces": denoised_traces,
             "noise_model": {
                 "velocity_threshold_m_s": float(velocity_threshold_m_s),
                 "taper_width_pct": float(taper_width_pct),

@@ -106,9 +106,21 @@ def _canonicalise(value: Any) -> Any:
     if isinstance(value, BaseModel):
         # Model JSON, then re-canonicalise the resulting dict so nested
         # non-Pydantic values are handled consistently.
+        #
+        # Pass a fallback to handle opaque payload types (PirnOpaqueValue
+        # dataclasses with np.ndarray fields) that pydantic's runtime
+        # dict[str, Any] serialiser cannot reach via __get_pydantic_core_schema__
+        # alone.  _pirn_audit_dict() is the established contract; repr is the
+        # last-resort fallback that _canonicalise itself uses for truly opaque
+        # values.
+        def _opaque_fallback(v: Any) -> Any:
+            if hasattr(v, "_pirn_audit_dict"):
+                return v._pirn_audit_dict()
+            return repr(v)
+
         return {
             "__model__": value.__class__.__name__,
-            "data": _canonicalise(value.model_dump(mode="json")),
+            "data": _canonicalise(value.model_dump(mode="json", fallback=_opaque_fallback)),
         }
     # Pydantic-aware fallback for non-``BaseModel`` types declaring a
     # custom core schema. Excludes containers so the dedicated branches

@@ -30,6 +30,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import numpy as np
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -97,4 +99,32 @@ class SeismicBandpassFilter(Knot):
             )
         if not isinstance(data, dict):
             raise TypeError("SeismicBandpassFilter: data must be a dict")
-        return {**data, "filtered": True}
+        sample_interval_ms: float = float(data.get("sample_interval_ms", 4.0))
+        dt = sample_interval_ms * 1e-3
+
+        def _ormsby(samples: list[float]) -> list[float]:
+            arr = np.asarray(samples, dtype=np.float64)
+            n = len(arr)
+            if n == 0:
+                return samples
+            freqs = np.fft.rfftfreq(n, d=dt)
+            spectrum = np.fft.rfft(arr)
+            h = np.zeros_like(freqs)
+            f_lc, f_lp, f_hp, f_hc = low_cut_hz, low_pass_hz, high_pass_hz, high_cut_hz
+            for i, f in enumerate(freqs):
+                fa = abs(f)
+                if fa < f_lc or fa > f_hc:
+                    h[i] = 0.0
+                elif fa < f_lp:
+                    h[i] = (fa - f_lc) / (f_lp - f_lc)
+                elif fa <= f_hp:
+                    h[i] = 1.0
+                else:
+                    h[i] = (f_hc - fa) / (f_hc - f_hp)
+            filtered = np.fft.irfft(spectrum * h, n=n)
+            return filtered.tolist()
+
+        filtered_traces = [
+            {**tr, "samples": _ormsby(tr.get("samples", []))} for tr in data.get("traces", [])
+        ]
+        return {**data, "traces": filtered_traces, "filtered": True}

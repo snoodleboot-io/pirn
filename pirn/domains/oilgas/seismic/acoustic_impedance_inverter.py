@@ -36,6 +36,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import numpy as np
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -93,8 +95,37 @@ class AcousticImpedanceInverter(Knot):
         ):
             if not isinstance(obj, dict):
                 raise TypeError(f"AcousticImpedanceInverter: {name} must be a dict")
-        shape = seismic_volume.get("shape", [0, 0, 0])
+        shape = seismic_volume.get("shape", [1, 1, 10])
+        n_samples = int(shape[2]) if len(shape) >= 3 else 10
+
+        wavelet_samples = np.asarray(wavelet.get("samples", [0.0, 1.0, 0.0]), dtype=np.float64)
+        lf_impedance = np.asarray(
+            low_frequency_model.get("impedance", [1.0] * n_samples), dtype=np.float64
+        )
+        if len(lf_impedance) == 0:
+            lf_impedance = np.ones(n_samples)
+        lf_impedance = lf_impedance[:n_samples]
+        if len(lf_impedance) < n_samples:
+            lf_impedance = np.pad(
+                lf_impedance, (0, n_samples - len(lf_impedance)), constant_values=lf_impedance[-1]
+            )
+
+        reflectivity = np.diff(lf_impedance, prepend=lf_impedance[0]) / (lf_impedance + 1e-12)
+        synthetic = np.convolve(wavelet_samples, reflectivity, mode="same")
+
+        observed = np.asarray(seismic_volume.get("data", []), dtype=np.float64)
+        if len(observed) < n_samples:
+            observed = np.pad(observed, (0, max(0, n_samples - len(observed))))
+        observed = observed[:n_samples]
+
+        data_misfit = float(np.mean((synthetic - observed) ** 2))
+        reg_misfit = float(regularization) * float(
+            np.mean((lf_impedance - np.mean(lf_impedance)) ** 2)
+        )
+        misfit = data_misfit + reg_misfit
+
+        updated_impedance = lf_impedance + 0.01 * (observed - synthetic)
         return {
-            "impedance_volume": {"shape": shape, "values_stub": []},
-            "misfit": 0.01 + float(regularization) * 0.001,
+            "impedance_volume": {"shape": shape, "values": updated_impedance.tolist()},
+            "misfit": misfit,
         }
