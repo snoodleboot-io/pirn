@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import numpy as np
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -82,8 +84,34 @@ class CellSegmenter(Knot):
             raise ValueError(
                 "CellSegmenter: stain_type must be one of 'hematoxylin', 'dab', 'fluorescence'"
             )
+        pixel_data = image_tile.get("pixel_data")
+        width_px = int(image_tile.get("width_px", 0))
+        height_px = int(image_tile.get("height_px", 0))
+        resolution_um_per_px = float(image_tile.get("resolution_um_per_px", 0.25))
+        if not pixel_data or width_px == 0 or height_px == 0:
+            return {"cell_count": 0, "cell_masks": [], "mean_cell_area_um2": 0.0}
+        arr = (
+            np.asarray(pixel_data, dtype=np.float64).reshape(height_px, width_px, -1)
+            if len(pixel_data) == width_px * height_px
+            else np.asarray(pixel_data, dtype=np.float64)
+        )
+        if arr.ndim == 3 and arr.shape[-1] >= 3:
+            gray = 0.299 * arr[..., 0] + 0.587 * arr[..., 1] + 0.114 * arr[..., 2]
+        else:
+            gray = arr.reshape(height_px, width_px) if arr.ndim > 1 else arr
+        threshold = float(np.mean(gray))
+        min_area_px2 = (min_cell_diameter_um / resolution_um_per_px / 2) ** 2 * 3.14159
+        max_area_px2 = (max_cell_diameter_um / resolution_um_per_px / 2) ** 2 * 3.14159
+        if stain_type == "fluorescence":
+            cell_mask = gray > threshold
+        else:
+            cell_mask = gray < threshold
+        cell_area_px2 = (min_area_px2 + max_area_px2) / 2.0
+        candidate_pixels = int(cell_mask.sum())
+        cell_count = max(0, int(candidate_pixels / max(1.0, cell_area_px2)))
+        mean_cell_area_um2 = cell_area_px2 * resolution_um_per_px**2
         return {
-            "cell_count": 0,
+            "cell_count": cell_count,
             "cell_masks": [],
-            "mean_cell_area_um2": 0.0,
+            "mean_cell_area_um2": mean_cell_area_um2,
         }

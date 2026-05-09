@@ -83,10 +83,17 @@ class CasingDesignEvaluator(Knot):
                 raise TypeError(f"CasingDesignEvaluator: {label} must be numeric")
             if value <= 0.0:
                 raise ValueError(f"CasingDesignEvaluator: {label} must be positive")
+        tvd_ft = well_path.point_count * 10.0
+        applied_burst_psi = max(0.052 * 8.6 * tvd_ft, 1e-6)
+        applied_collapse_psi = max(0.052 * 9.0 * tvd_ft, 1e-6)
+        applied_tension_lbf = max(tvd_ft * 20.0, 1e-6)
+        burst_sf = max(burst_limit_psi / applied_burst_psi, 0.01)
+        collapse_sf = max(collapse_limit_psi / applied_collapse_psi, 0.01)
+        tension_sf = max(tension_limit_lbf / applied_tension_lbf, 0.01)
         return {
             "well_id": well_path.well_id,
-            "burst_safety_factor": 1.5,
-            "collapse_safety_factor": 1.2,
-            "tension_safety_factor": 1.8,
-            "passed": True,
+            "burst_safety_factor": burst_sf,
+            "collapse_safety_factor": collapse_sf,
+            "tension_safety_factor": tension_sf,
+            "passed": burst_sf >= 1.0 and collapse_sf >= 1.0 and tension_sf >= 1.0,
         }

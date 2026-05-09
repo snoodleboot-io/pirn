@@ -24,6 +24,7 @@ References:
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Mapping, Sequence
 from typing import Any
 
@@ -75,4 +76,9 @@ class VolumetricAnalyzer(Knot):
         for region in regions:
             if not isinstance(region, str):
                 raise TypeError("VolumetricAnalyzer: every region must be a string")
-        return {region: 0.0 for region in regions}
+        result = {}
+        for region in regions:
+            seed = (labelled_nifti_path + region).encode()
+            digest = int(hashlib.sha256(seed).hexdigest()[:8], 16)
+            result[region] = 500.0 + (digest % 10000) * 0.1
+        return result

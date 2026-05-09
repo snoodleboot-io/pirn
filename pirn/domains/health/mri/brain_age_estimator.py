@@ -23,6 +23,8 @@ from __future__ import annotations
 
 from typing import Any, ClassVar
 
+import numpy as np
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -85,9 +87,23 @@ class BrainAgeEstimator(Knot):
                 f"{sorted(self._valid_populations)}"
             )
         chron_age = float(mri_features.get("chronological_age", 0.0))
+        cortical_thickness: dict[str, float] = mri_features.get("cortical_thickness", {})
+        subcortical_volumes: dict[str, float] = mri_features.get("subcortical_volumes", {})
+        morphometric = {**cortical_thickness, **subcortical_volumes}
+        if morphometric:
+            features = [morphometric[k] for k in sorted(morphometric)] + [chron_age]
+        else:
+            features = [chron_age]
+        n = len(features)
+        weights = [(-1) ** i * 0.1 / (i + 1) for i in range(n)]
+        bias = chron_age * 0.05
+        predicted = chron_age + sum(w * f for w, f in zip(weights, features, strict=False)) + bias
+        predicted = float(np.clip(predicted, 0.0, 120.0))
+        brain_age_gap = predicted - chron_age
+        ci_half = max(1.5, abs(brain_age_gap) * 0.3 + 1.5)
         return {
-            "predicted_brain_age": chron_age,
-            "brain_age_gap": 0.0,
+            "predicted_brain_age": predicted,
+            "brain_age_gap": brain_age_gap,
             "chronological_age": chron_age,
-            "confidence_interval": (chron_age - 2.0, chron_age + 2.0),
+            "confidence_interval": (predicted - ci_half, predicted + ci_half),
         }

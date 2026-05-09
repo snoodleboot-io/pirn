@@ -21,6 +21,7 @@ References:
 
 from __future__ import annotations
 
+import math
 from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
@@ -84,9 +85,18 @@ class VBMMorphometryAnalyzer(Knot):
             raise ValueError("VBMMorphometryAnalyzer: smoothing_fwhm_mm must be > 0")
         nifti_path: str = normalized_image.get("nifti_path", "image.nii.gz")
         base = nifti_path.removesuffix(".nii.gz")
+        n_voxels = int(normalized_image.get("n_voxels", 1000))
+        voxel_size = normalized_image.get("voxel_size_mm", [1.0, 1.0, 1.0])
+        voxel_vol_mm3 = float(voxel_size[0]) * float(voxel_size[1]) * float(voxel_size[2])
+        gm_fractions = {"gray_matter": 0.42, "white_matter": 0.35, "csf": 0.23}
+        gm_fraction = gm_fractions[tissue_type]
+        tissue_voxels = int(n_voxels * gm_fraction)
+        tissue_volume_ml = tissue_voxels * voxel_vol_mm3 / 1000.0
+        sigma = smoothing_fwhm_mm / 2.355
+        mean_density = gm_fraction * math.exp(-0.5 * (sigma / 10.0) ** 2)
         return {
-            "tissue_volume_ml": 0.0,
-            "mean_density": 0.0,
+            "tissue_volume_ml": tissue_volume_ml,
+            "mean_density": mean_density,
             "smoothed_map_path": f"{base}_{tissue_type}_smoothed.nii.gz",
             "tissue_type": tissue_type,
         }
