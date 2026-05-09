@@ -97,26 +97,48 @@ class AccelerometerActivityClassifier(Knot):
         z = accel_data["z"]
         timestamps = accel_data["timestamps_iso"]
         window_samples = max(1, int(sample_rate_hz * window_sec))
-        results: list[dict[str, Any]] = []
         n = len(timestamps)
+
+        # First pass: compute per-window VM to establish the activity range.
+        window_vms: list[float] = []
         for start_idx in range(0, n, window_samples):
             end_idx = min(start_idx + window_samples, n)
-            window_x = x[start_idx:end_idx]
-            window_y = y[start_idx:end_idx]
-            window_z = z[start_idx:end_idx]
-            vm = 0.0
-            if window_x and window_y and window_z:
-                mean_x = sum(window_x) / len(window_x)
-                mean_y = sum(window_y) / len(window_y)
-                mean_z = sum(window_z) / len(window_z)
+            wx = x[start_idx:end_idx]
+            wy = y[start_idx:end_idx]
+            wz = z[start_idx:end_idx]
+            if wx and wy and wz:
+                mean_x = sum(wx) / len(wx)
+                mean_y = sum(wy) / len(wy)
+                mean_z = sum(wz) / len(wz)
                 vm = math.sqrt(mean_x**2 + mean_y**2 + mean_z**2)
+            else:
+                vm = 0.0
+            window_vms.append(vm)
+
+        # ENMO-style: remove gravity (≈1 g) and clamp negative to zero.
+        enmo_vals = [max(0.0, vm - 1.0) for vm in window_vms]
+        enmo_max = max(enmo_vals) if enmo_vals else 0.0
+
+        # Evenly-spaced thresholds across [0, enmo_max] for N classes.
+        n_classes = len(activity_classes)
+        step = enmo_max / n_classes if enmo_max > 0 else 1.0
+
+        def _classify(enmo: float) -> str:
+            idx = min(int(enmo / step), n_classes - 1) if step > 0 else 0
+            return activity_classes[idx]
+
+        results: list[dict[str, Any]] = []
+        for i, (start_idx, vm) in enumerate(
+            zip(range(0, n, window_samples), window_vms, strict=False)
+        ):
+            end_idx = min(start_idx + window_samples, n)
             start_iso = timestamps[start_idx] if start_idx < len(timestamps) else ""
             end_iso = timestamps[end_idx - 1] if end_idx - 1 < len(timestamps) else ""
             results.append(
                 {
                     "start_iso": start_iso,
                     "end_iso": end_iso,
-                    "activity_class": activity_classes[0],
+                    "activity_class": _classify(enmo_vals[i]),
                     "vector_magnitude": vm,
                 }
             )

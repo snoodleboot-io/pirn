@@ -75,10 +75,30 @@ class BIDSConverter(Knot):
             raise ValueError(f"BIDSConverter: modality must be one of {sorted(valid_modalities)}")
         if not isinstance(subject_id, str) or not subject_id:
             raise ValueError("BIDSConverter: subject_id must be non-empty")
-        bids_path = f"{output_dir}/sub-{subject_id}/{modality}.nii.gz"
+        metadata: dict[str, Any] = input_data.get("metadata", {}) or {}
+        session = str(metadata.get("session", "01")).zfill(2)
+
+        # BIDS datatype directory and filename suffix per modality
+        datatype_map = {
+            "T1w": ("anat", "T1w"),
+            "T2w": ("anat", "T2w"),
+            "FLAIR": ("anat", "FLAIR"),
+            "BOLD": ("func", "task-rest_bold"),
+            "DWI": ("dwi", "dwi"),
+        }
+        datatype, suffix = datatype_map[modality]
+
+        bids_root = f"sub-{subject_id}/ses-{session}/{datatype}"
+        filename = f"sub-{subject_id}_ses-{session}_{suffix}.nii.gz"
+        bids_path = f"{output_dir}/{bids_root}/{filename}"
+
+        sidecar = f"{output_dir}/{bids_root}/sub-{subject_id}_ses-{session}_{suffix}.json"
+
         return {
             "bids_path": bids_path,
+            "sidecar_path": sidecar,
             "subject_id": subject_id,
+            "session_id": session,
             "modality": modality,
-            "session_id": None,
+            "datatype": datatype,
         }

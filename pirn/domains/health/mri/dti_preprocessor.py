@@ -80,9 +80,59 @@ class DTIPreprocessor(Knot):
             raise TypeError("DTIPreprocessor: eddy_correct must be a bool")
         if not isinstance(denoise, bool):
             raise TypeError("DTIPreprocessor: denoise must be a bool")
+
+        import numpy as np
+
+        b_values: list[float] = [float(v) for v in bval_file.get("bvals", [])]
+        bvecs: list[list[float]] = bval_file.get("bvecs", []) or bvec_file.get("bvecs", [])
+        n_directions = len(b_values) or len(bvecs)
+
+        # Voxel data: optional 2D array (n_voxels x n_directions)
+        raw: list[list[float]] | None = dwi_data.get("voxels")
+        motion_outliers: list[int] = []
+
+        if raw is not None and len(raw) > 0:
+            data = np.asarray(raw, dtype=np.float64)
+
+            if denoise:
+                # MP-PCA denoising: threshold singular values below the
+                # Marchenko-Pastur noise floor estimate.
+                if data.ndim == 2 and data.shape[1] > 1:
+                    u, s, vt = np.linalg.svd(data, full_matrices=False)
+                    m, n = data.shape
+                    sigma_sq = float(np.median(s) ** 2 / n)
+                    mp_threshold = sigma_sq * (1.0 + np.sqrt(m / n)) ** 2
+                    s_denoised = np.where(s**2 > mp_threshold, s, 0.0)
+                    data = u @ np.diag(s_denoised) @ vt
+
+            if eddy_correct and data.shape[1] > 1 if data.ndim == 2 else False:
+                # Flag volumes with variance > 2 std above mean as motion outliers
+                vol_vars = np.var(data, axis=0)
+                mean_var = float(np.mean(vol_vars))
+                std_var = float(np.std(vol_vars))
+                motion_outliers = [
+                    int(i) for i, v in enumerate(vol_vars) if v > mean_var + 2 * std_var
+                ]
+
+        dwi_path = dwi_data.get("path", "preprocessed_dwi.nii.gz")
+        suffix = (
+            "_denoised_eddy"
+            if denoise and eddy_correct
+            else "_denoised"
+            if denoise
+            else "_eddy"
+            if eddy_correct
+            else ""
+        )
+        preprocessed_path = (
+            str(dwi_path).replace(".nii.gz", f"{suffix}.nii.gz")
+            if dwi_path
+            else f"preprocessed_dwi{suffix}.nii.gz"
+        )
+
         return {
-            "preprocessed_dwi_path": "preprocessed_dwi.nii.gz",
-            "n_directions": 0,
-            "b_values": [],
-            "motion_outliers": [],
+            "preprocessed_dwi_path": preprocessed_path,
+            "n_directions": n_directions,
+            "b_values": b_values,
+            "motion_outliers": motion_outliers,
         }
