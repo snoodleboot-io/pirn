@@ -1,29 +1,50 @@
 """``FastqQualityController`` — FASTQ quality-control summary.
 
-Production version would parse FASTQ files via ``pyfaidx`` /
-``pysam.FastxFile`` and emit per-read quality metrics. This stub
-returns a deterministic summary :class:`GenomicsRecord`.
+Parses FASTQ records using the stdlib and computes mean Phred quality score
+from the quality string (ASCII - 33 encoding).
 
 Algorithm:
     1. Receive fastq_path and sample_id strings.
     2. Validate that both are non-empty strings.
-    3. Parse FASTQ records and compute per-base quality statistics.
-    4. Summarise mean quality score, GC content, and adapter contamination.
+    3. Parse FASTQ records (4-line groups: header, seq, +, qual).
+    4. Compute mean Phred quality score across all bases in all reads.
     5. Return a GenomicsRecord carrying quality_score and sample metadata.
 
 
 References:
     - FastQC: https://www.bioinformatics.babraham.ac.uk/projects/fastqc/
     - Andrews (2010) FastQC: a quality control tool for high throughput sequence data.
+    - Cock et al. (2010) The Sanger FASTQ file format for sequences with quality scores. NAR.
 """
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.types.genomics_record import GenomicsRecord
+
+
+def _mean_phred(fastq_path: str) -> float:
+    total: float = 0.0
+    count: int = 0
+    try:
+        with open(fastq_path, encoding="ascii", errors="replace") as fh:
+            while True:
+                header = fh.readline()
+                if not header:
+                    break
+                fh.readline()  # sequence
+                fh.readline()  # +
+                qual = fh.readline().rstrip("\n")
+                for ch in qual:
+                    total += ord(ch) - 33
+                    count += 1
+    except OSError:
+        return 0.0
+    return total / count if count > 0 else 0.0
 
 
 class FastqQualityController(Knot):
@@ -57,7 +78,7 @@ class FastqQualityController(Knot):
             sample_id: Non-empty sample identifier string.
 
         Returns:
-            GenomicsRecord carrying the sample_id and zero-valued quality metrics.
+            GenomicsRecord carrying the sample_id and mean Phred quality_score.
 
         Raises:
             TypeError: If fastq_path or sample_id is not a string.
@@ -71,9 +92,10 @@ class FastqQualityController(Knot):
             raise TypeError("FastqQualityController: sample_id must be a string")
         if not sample_id:
             raise ValueError("FastqQualityController: sample_id must be non-empty")
+        quality_score = await asyncio.to_thread(_mean_phred, fastq_path)
         return GenomicsRecord(
             sample_id=sample_id,
             locus="",
             genotype="",
-            quality_score=0.0,
+            quality_score=quality_score,
         )

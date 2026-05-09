@@ -68,6 +68,8 @@ class TestWebhookTriggerStream(unittest.IsolatedAsyncioTestCase):
             builder([1, 2, 3], None)
 
     async def test_handle_request_auth_token_required(self) -> None:
+        import pytest
+        pytest.importorskip("starlette")
         trigger = WebhookTrigger(auth_token="my-secret")
 
         class FakeRequest:
@@ -77,11 +79,12 @@ class TestWebhookTriggerStream(unittest.IsolatedAsyncioTestCase):
             async def body(self):
                 return b'{}'
 
-        from starlette.responses import JSONResponse
         response = await trigger._handle_request(FakeRequest())
         self.assertEqual(response.status_code, 401)
 
     async def test_handle_request_valid_auth(self) -> None:
+        import pytest
+        pytest.importorskip("starlette")
         trigger = WebhookTrigger(auth_token="my-secret")
 
         class FakeRequest:

@@ -6,7 +6,7 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.eeg_meg.meg_raw_ingestor import MEGRawIngestor
-from pirn.domains.health.types.signal_frame import SignalFrame
+from pirn.domains.health.types.signal_payload import SignalPayload
 
 _CFG = KnotConfig(id="i")
 _KNOT = MEGRawIngestor(
@@ -50,7 +50,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
                 samples_per_channel=1024,
             )
 
-    async def test_returns_signal_frame(self) -> None:
+    async def test_returns_signal_payload(self) -> None:
         out = await _KNOT.process(
             recording_path="x.fif",
             signal_id="sig",
@@ -58,5 +58,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             sample_rate_hz=1000.0,
             samples_per_channel=1024,
         )
-        assert isinstance(out, SignalFrame)
-        assert out.signal_id == "sig"
+        assert isinstance(out, SignalPayload)
+        assert out.frame.signal_id == "sig"
+        assert out.frame.channel_count == 128
+        assert out.data.shape == (128, 1024)

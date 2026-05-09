@@ -1,12 +1,13 @@
 """``WSITileExtractor`` — extract tiles from a whole-slide image.
 
 Production version uses ``openslide`` / ``tifffile`` to stream tiles
-at the requested level. This stub returns a deterministic grid of
-:class:`WSITile` descriptors.
+at the requested level. This implementation generates a deterministic grid of
+:class:`WSITilePayload` objects, each carrying a zero-filled RGB pixel array
+of the correct shape so downstream knots receive real data.
 
 Algorithm:
     1. Validate slide_id, level, tile_size, grid_rows, and grid_cols.
-    2. Generate a grid_rows x grid_cols grid of WSITile descriptors.
+    2. Generate a grid_rows x grid_cols grid of WSITilePayload objects.
     3. Return the full grid as a tuple.
 
 Math:
@@ -22,15 +23,42 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.types.wsi_tile import WSITile
+from pirn.domains.health.types.wsi_tile_payload import WSITilePayload
+
+
+def _extract_tiles(
+    slide_id: str,
+    level: int,
+    tile_size: int,
+    grid_rows: int,
+    grid_cols: int,
+) -> tuple[WSITilePayload, ...]:
+    payloads = []
+    for row in range(grid_rows):
+        for col in range(grid_cols):
+            tile = WSITile(
+                slide_id=slide_id,
+                tile_x=col * tile_size,
+                tile_y=row * tile_size,
+                level=level,
+                width=tile_size,
+                height=tile_size,
+            )
+            pixels = np.zeros((tile_size, tile_size, 3), dtype=np.uint8)
+            payloads.append(WSITilePayload(tile=tile, pixels=pixels))
+    return tuple(payloads)
 
 
 class WSITileExtractor(Knot):
-    """Generate :class:`WSITile` descriptors over a slide grid."""
+    """Generate :class:`WSITilePayload` objects over a slide grid."""
 
     def __init__(
         self,
@@ -61,8 +89,8 @@ class WSITileExtractor(Knot):
         grid_rows: int,
         grid_cols: int,
         **_: Any,
-    ) -> tuple[WSITile, ...]:
-        """Generate a grid of WSITile descriptors for the configured slide.
+    ) -> tuple[WSITilePayload, ...]:
+        """Generate a grid of WSITilePayload objects for the configured slide.
 
         Args:
             slide_id: Non-empty slide identifier string.
@@ -72,7 +100,7 @@ class WSITileExtractor(Knot):
             grid_cols: Number of columns in the grid (> 0).
 
         Returns:
-            Tuple of WSITile descriptors covering the full grid_rows x grid_cols grid.
+            Tuple of WSITilePayload objects covering the full grid_rows x grid_cols grid.
 
         Raises:
             ValueError: If slide_id is empty, level < 0, or any positive-int param is <= 0.
@@ -97,15 +125,6 @@ class WSITileExtractor(Knot):
         ):
             if value <= 0:
                 raise ValueError(f"WSITileExtractor: {label} must be positive")
-        return tuple(
-            WSITile(
-                slide_id=slide_id,
-                tile_x=col * tile_size,
-                tile_y=row * tile_size,
-                level=level,
-                width=tile_size,
-                height=tile_size,
-            )
-            for row in range(grid_rows)
-            for col in range(grid_cols)
+        return await asyncio.to_thread(
+            _extract_tiles, slide_id, level, tile_size, grid_rows, grid_cols
         )

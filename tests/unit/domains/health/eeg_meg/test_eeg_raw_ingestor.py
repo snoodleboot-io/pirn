@@ -6,7 +6,7 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.eeg_meg.eeg_raw_ingestor import EEGRawIngestor
-from pirn.domains.health.types.raw_eeg import RawEEG
+from pirn.domains.health.types.signal_payload import SignalPayload
 
 _CFG = KnotConfig(id="i")
 _KNOT = EEGRawIngestor(
@@ -60,7 +60,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
                 duration_sec=120.0,
             )
 
-    async def test_returns_raw_eeg(self) -> None:
+    async def test_returns_signal_payload(self) -> None:
         out = await _KNOT.process(
             recording_path="x.edf",
             subject_id="S1",
@@ -68,5 +68,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             sample_rate_hz=1000.0,
             duration_sec=120.0,
         )
-        assert isinstance(out, RawEEG)
-        assert out.subject_id == "S1"
+        assert isinstance(out, SignalPayload)
+        assert out.frame.signal_id == "S1"
+        assert out.frame.channel_count == 64
+        assert out.data.shape == (64, 120000)

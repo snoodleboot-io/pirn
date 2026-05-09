@@ -6,7 +6,7 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.pathology.wsi_tile_extractor import WSITileExtractor
-from pirn.domains.health.types.wsi_tile import WSITile
+from pirn.domains.health.types.wsi_tile_payload import WSITilePayload
 
 _CFG = KnotConfig(id="w")
 
@@ -35,9 +35,11 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(ValueError, "positive"):
             await knot.process(slide_id="s", level=0, tile_size=0, grid_rows=2, grid_cols=3)
 
-    async def test_returns_grid_of_tiles(self) -> None:
+    async def test_returns_grid_of_payloads(self) -> None:
         knot = self._make_knot()
         out = await knot.process(slide_id="slide-1", level=0, tile_size=256, grid_rows=2, grid_cols=3)
         assert isinstance(out, tuple)
         assert len(out) == 6
-        assert all(isinstance(x, WSITile) for x in out)
+        assert all(isinstance(x, WSITilePayload) for x in out)
+        assert out[0].pixels.shape == (256, 256, 3)
+        assert out[0].tile.slide_id == "slide-1"

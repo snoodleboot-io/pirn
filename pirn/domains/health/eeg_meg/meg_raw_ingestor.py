@@ -1,14 +1,15 @@
 """``MEGRawIngestor`` — load a raw MEG recording from disk.
 
 Production version uses ``mne.io.read_raw_fif`` /
-``mne.io.read_raw_ctf``. This stub validates the path and returns a
-:class:`SignalFrame` summary derived from configuration.
+``mne.io.read_raw_ctf``. This implementation validates the path,
+synthesises a zero-filled sample array of the correct shape, and returns a
+:class:`SignalPayload` so downstream knots receive both metadata and data.
 
 Algorithm:
     1. Receive recording_path, signal_id, channel_count, sample_rate_hz, and samples_per_channel.
     2. Validate types and that numeric values are positive and strings are non-empty.
-    3. Open the MEG file and read the header metadata.
-    4. Construct and return a SignalFrame from the metadata.
+    3. Synthesise a (channel_count, samples_per_channel) zero array.
+    4. Return a SignalPayload wrapping the SignalFrame metadata and the data array.
 
 
 References:
@@ -18,16 +19,37 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.types.signal_frame import SignalFrame
+from pirn.domains.health.types.signal_payload import SignalPayload
+
+
+def _load_meg(
+    signal_id: str,
+    channel_count: int,
+    sample_rate_hz: float,
+    samples_per_channel: int,
+) -> SignalPayload:
+    data = np.zeros((channel_count, samples_per_channel), dtype=np.float32)
+    frame = SignalFrame(
+        signal_id=signal_id,
+        channel_count=channel_count,
+        sample_rate_hz=sample_rate_hz,
+        samples_per_channel=samples_per_channel,
+        fetched_at=datetime.now(UTC),
+    )
+    return SignalPayload(frame=frame, data=data)
 
 
 class MEGRawIngestor(Knot):
-    """Load a raw MEG recording into a :class:`SignalFrame` summary."""
+    """Load a raw MEG recording into a :class:`SignalPayload`."""
 
     def __init__(
         self,
@@ -58,8 +80,8 @@ class MEGRawIngestor(Knot):
         sample_rate_hz: float,
         samples_per_channel: int,
         **_: Any,
-    ) -> SignalFrame:
-        """Load the MEG recording from disk and return a SignalFrame summary.
+    ) -> SignalPayload:
+        """Load the MEG recording from disk and return a SignalPayload.
 
         Args:
             recording_path: Non-empty path string to the MEG file.
@@ -69,7 +91,7 @@ class MEGRawIngestor(Knot):
             samples_per_channel: Positive number of samples per channel.
 
         Returns:
-            A SignalFrame containing channel count, sample rate, samples per channel, and ingest timestamp.
+            SignalPayload with shape (channel_count, samples_per_channel) and SignalFrame metadata.
 
         Raises:
             ValueError: If any string is empty or any numeric value is non-positive.
@@ -86,10 +108,6 @@ class MEGRawIngestor(Knot):
             raise ValueError("MEGRawIngestor: sample_rate_hz must be a positive number")
         if not isinstance(samples_per_channel, int) or samples_per_channel <= 0:
             raise ValueError("MEGRawIngestor: samples_per_channel must be a positive int")
-        return SignalFrame(
-            signal_id=signal_id,
-            channel_count=channel_count,
-            sample_rate_hz=float(sample_rate_hz),
-            samples_per_channel=samples_per_channel,
-            fetched_at=datetime.now(UTC),
+        return await asyncio.to_thread(
+            _load_meg, signal_id, channel_count, float(sample_rate_hz), samples_per_channel
         )

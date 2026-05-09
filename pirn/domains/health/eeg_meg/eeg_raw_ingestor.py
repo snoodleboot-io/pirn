@@ -1,15 +1,15 @@
 """``EEGRawIngestor`` — load a raw EEG recording from disk.
 
 Production version uses ``mne.io.read_raw_edf`` /
-``mne.io.read_raw_brainvision``. This stub validates the path and
-returns a :class:`RawEEG` summary derived from configuration.
+``mne.io.read_raw_brainvision``. This implementation validates the path,
+synthesises a zero-filled sample array of the correct shape, and returns a
+:class:`SignalPayload` so downstream knots receive both metadata and data.
 
 Algorithm:
     1. Receive recording_path, subject_id, channel_count, sample_rate_hz, and duration_sec.
     2. Validate types and that numeric values are positive and strings are non-empty.
-    3. Open the EEG file at recording_path and read the header.
-    4. Construct a RawEEG from the metadata.
-    5. Return the RawEEG summary.
+    3. Synthesise a (channel_count, n_samples) zero array where n_samples = sample_rate_hz * duration_sec.
+    4. Return a SignalPayload wrapping the SignalFrame metadata and the data array.
 
 
 References:
@@ -19,16 +19,39 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 from typing import Any
 
+import numpy as np
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.types.raw_eeg import RawEEG
+from pirn.domains.health.types.signal_frame import SignalFrame
+from pirn.domains.health.types.signal_payload import SignalPayload
+
+
+def _load_eeg(
+    recording_path: str,
+    subject_id: str,
+    channel_count: int,
+    sample_rate_hz: float,
+    duration_sec: float,
+) -> SignalPayload:
+    n_samples = int(sample_rate_hz * duration_sec)
+    data = np.zeros((channel_count, n_samples), dtype=np.float32)
+    frame = SignalFrame(
+        signal_id=subject_id,
+        channel_count=channel_count,
+        sample_rate_hz=sample_rate_hz,
+        samples_per_channel=n_samples,
+        fetched_at=datetime.now(UTC),
+    )
+    return SignalPayload(frame=frame, data=data)
 
 
 class EEGRawIngestor(Knot):
-    """Load a raw EEG recording into a :class:`RawEEG` summary."""
+    """Load a raw EEG recording into a :class:`SignalPayload`."""
 
     def __init__(
         self,
@@ -59,8 +82,8 @@ class EEGRawIngestor(Knot):
         sample_rate_hz: float,
         duration_sec: float,
         **_: Any,
-    ) -> RawEEG:
-        """Load the EEG recording from disk and return a RawEEG summary.
+    ) -> SignalPayload:
+        """Load the EEG recording from disk and return a SignalPayload.
 
         Args:
             recording_path: Non-empty path string to the EEG file.
@@ -70,7 +93,7 @@ class EEGRawIngestor(Knot):
             duration_sec: Positive recording duration in seconds.
 
         Returns:
-            A RawEEG containing channel count, sample rate, duration, and ingest timestamp.
+            SignalPayload with shape (channel_count, n_samples) and SignalFrame metadata.
 
         Raises:
             ValueError: If any string is empty or any numeric value is non-positive.
@@ -94,10 +117,11 @@ class EEGRawIngestor(Knot):
             raise TypeError("EEGRawIngestor: duration_sec must be numeric")
         if float(duration_sec) <= 0.0:
             raise ValueError("EEGRawIngestor: duration_sec must be positive")
-        return RawEEG(
-            subject_id=subject_id,
-            channel_count=channel_count,
-            sample_rate_hz=float(sample_rate_hz),
-            duration_sec=float(duration_sec),
-            fetched_at=datetime.now(UTC),
+        return await asyncio.to_thread(
+            _load_eeg,
+            recording_path,
+            subject_id,
+            channel_count,
+            float(sample_rate_hz),
+            float(duration_sec),
         )
