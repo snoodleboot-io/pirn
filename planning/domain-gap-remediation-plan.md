@@ -1,7 +1,7 @@
 # Domain Implementation Gap — Remediation Plan (Revised)
 
 **Audited:** 2026-05-07 (revised after initial incorrect assessment)  
-**Last Updated:** 2026-05-09 — health, signal, and oilgas fully complete  
+**Last Updated:** 2026-05-09 — health and oilgas fully complete (except omop_cdm_mapper: blocked on OMOP vocab DB)  
 **Branch:** feat/domain-gap-remediation-plan  
 **Scope:** All Python files under `pirn/domains/` (1,195 files across 7 top-level domains)  
 **Method:** Per-file strict read — validation and correct return type alone do NOT constitute implementation. "Real Implementation" = YES only when `process()` calls a computation library, external SDK, non-trivial algorithm, or real I/O.
@@ -26,9 +26,9 @@ The first audit was wrong. It classified files as "COMPLETE" if they had:
 | data | ~100 | ~85% | ✅ Implemented |
 | connectors | ~265 | ~50% (all pool/client/store files) | ✅ Implemented |
 | signal | ~85 | ~100% | ✅ Implemented (2026-05-08) |
-| health | ~129 | ~98% | ✅ Implemented (2026-05-09); mri/pathology/trials complete |
+| health | ~129 | ~99% | ✅ Implemented (2026-05-09); 1 remaining: omop_cdm_mapper (blocked — OMOP vocab DB) |
 | **ml** | **~126** | **0%** | ❌ All hollow |
-| oilgas | ~109 | ~98% | ✅ Implemented (2026-05-09); 3 well knots complete |
+| oilgas | ~109 | ~100% | ✅ Implemented (2026-05-09); Eclipse/CMG parsers complete via resfo + stdlib |
 
 > Config files (`*_config.py`), type dataclasses, abstract base classes, and protocol interfaces are excluded from the "hollow" count — they are structural-only by design.
 
@@ -308,7 +308,7 @@ All wavelet files (`cwt_decomposer.py`, `dwt_decomposer.py`, `dwpt_decomposer.py
 
 ### oilgas — ✅ ~95% Real (~109 files) — complete 2026-05-09
 
-Production, reservoir, integrity, geospatial, well, and seismic knots are fully implemented. Remaining hollow: 5 well/parser files (`directional_drilling_planner`, `well_completion_ingester`, `casing_design_evaluator`, `cmg_ssfile_parser`, `eclipse_smspec_parser`). New payload types added: `LASPayload`, `ScadaPayload`, `DeviationSurveyPayload`, `WellPath3DPayload` (all `@dataclass` + `PirnOpaqueValue`). Framework fix: `hashing.py` `_canonicalise` now uses `model_dump(mode="json", fallback=_opaque_fallback)` to handle opaque numpy-bearing dataclasses in `RunResult.outputs`.
+All knots fully implemented. New payload types added: `LASPayload`, `ScadaPayload`, `DeviationSurveyPayload`, `WellPath3DPayload` (all `@dataclass` + `PirnOpaqueValue`). Framework fix: `hashing.py` `_canonicalise` now uses `model_dump(mode="json", fallback=_opaque_fallback)` to handle opaque numpy-bearing dataclasses in `RunResult.outputs`. `resfo` (LGPL-3) added to `oilgas` extra for Eclipse SMSPEC binary parsing. `resdata` (GPL-3) excluded — incompatible with Apache 2.0 licence.
 
 #### oilgas/integrity/ (9 files)
 
@@ -397,7 +397,7 @@ Note: `SegyVolume` is a metadata-only reference type by design (no sample buffer
 | volumetric_estimator.py | [oilgas/reservoir/volumetric_estimator.py](pirn/domains/oilgas/reservoir/volumetric_estimator.py) | YES | YES | YES — real OOIP = 7758 × A × h × φ × (1-Sw) / FVF |
 | pvt_table_processor.py | [oilgas/reservoir/pvt_table_processor.py](pirn/domains/oilgas/reservoir/pvt_table_processor.py) | YES | YES | YES — validates and builds PVTTable |
 
-#### oilgas/well/ (21 files — ~81% real)
+#### oilgas/well/ (21 files — ~90% real)
 
 | File | Link | Validation | Return Type | Real Implementation |
 |------|------|-----------|------------|-------------------|
@@ -416,8 +416,8 @@ Note: `SegyVolume` is a metadata-only reference type by design (no sample buffer
 | casing_design_evaluator.py | [oilgas/well/casing_design_evaluator.py](pirn/domains/oilgas/well/casing_design_evaluator.py) | YES | YES | YES — API 5CT safety factors (burst/collapse/tension) from TVD hydrostatic estimate (2026-05-09) |
 | directional_drilling_planner.py | [oilgas/well/directional_drilling_planner.py](pirn/domains/oilgas/well/directional_drilling_planner.py) | YES | YES | YES — minimum curvature azimuth/inclination to target; dogleg-severity build stations (2026-05-09) |
 | well_completion_ingester.py | [oilgas/well/well_completion_ingester.py](pirn/domains/oilgas/well/well_completion_ingester.py) | YES | YES | YES — JSON record parse; perforations/intervals count; SHA-256 fallback depth_count (2026-05-09) |
-| cmg_ssfile_parser.py | — | YES | YES | NO — hollow stub |
-| eclipse_smspec_parser.py | — | YES | YES | NO — hollow stub |
+| cmg_ssfile_parser.py | [oilgas/reservoir/cmg_ssfile_parser.py](pirn/domains/oilgas/reservoir/cmg_ssfile_parser.py) | YES | YES | YES — pure stdlib text parser; TIME-column median delta → sample_interval_sec (2026-05-09) |
+| eclipse_smspec_parser.py | [oilgas/reservoir/eclipse_smspec_parser.py](pirn/domains/oilgas/reservoir/eclipse_smspec_parser.py) | YES | YES | YES — resfo (LGPL-3) binary read; KEYWORDS/WGNAMES index; DIMENS[2] → sample_count (2026-05-09) |
 
 #### oilgas/workflows/ (4 files — all real orchestration)
 
@@ -433,8 +433,8 @@ All 4 workflow files build and execute real SubTapestries. All underlying knots 
 |------|------|-----------|------------|-------------------|
 | clinical_nlp_extractor.py | [health/clinical/clinical_nlp_extractor.py](pirn/domains/health/clinical/clinical_nlp_extractor.py) | YES | YES | YES — LLMProvider.chat() + JSON parse |
 | fhir_patient_ingestor.py | [health/clinical/fhir_patient_ingestor.py](pirn/domains/health/clinical/fhir_patient_ingestor.py) | YES | YES | YES — FHIRClient.search() async iteration |
-| hl7v2_message_parser.py | [health/clinical/hl7v2_message_parser.py](pirn/domains/health/clinical/hl7v2_message_parser.py) | YES | YES | NO — returns hardcoded ClinicalRecord; needs hl7apy (external DB) |
-| omop_cdm_mapper.py | [health/clinical/omop_cdm_mapper.py](pirn/domains/health/clinical/omop_cdm_mapper.py) | YES | YES | NO — returns single hardcoded dict row; needs OMOP vocab (external DB) |
+| hl7v2_message_parser.py | [health/clinical/hl7v2_message_parser.py](pirn/domains/health/clinical/hl7v2_message_parser.py) | YES | YES | YES — pure pipe-delimited segment parser (MSH/PID/PV1/OBX); no external lib needed (2026-05-09) |
+| omop_cdm_mapper.py | [health/clinical/omop_cdm_mapper.py](pirn/domains/health/clinical/omop_cdm_mapper.py) | YES | YES | NO — blocked: requires OMOP concept vocabulary DB; no open Apache-2.0-compatible alternative |
 | clinical_data_quality_gate.py | [health/clinical/clinical_data_quality_gate.py](pirn/domains/health/clinical/clinical_data_quality_gate.py) | YES | YES | YES — threshold comparison (correct by design) |
 | clinical_trial_eligibility_filter.py | [health/clinical/clinical_trial_eligibility_filter.py](pirn/domains/health/clinical/clinical_trial_eligibility_filter.py) | YES | YES | YES |
 | diagnosis_code_rollup.py | [health/clinical/diagnosis_code_rollup.py](pirn/domains/health/clinical/diagnosis_code_rollup.py) | YES | YES | YES |
@@ -480,7 +480,7 @@ All 4 workflow files build and execute real SubTapestries. All underlying knots 
 | single_cell_clusterer.py | [health/genomics/single_cell_clusterer.py](pirn/domains/health/genomics/single_cell_clusterer.py) | YES | YES | YES — sklearn KMeans clustering |
 | structural_variant_detector.py | [health/genomics/structural_variant_detector.py](pirn/domains/health/genomics/structural_variant_detector.py) | YES | YES | YES — read-depth + split-read SV detection |
 
-#### health/mri/ (22 files — ~86% real)
+#### health/mri/ (22 files — ~100% real)
 
 | File | Link | Validation | Return Type | Real Implementation |
 |------|------|-----------|------------|-------------------|
@@ -499,10 +499,10 @@ All 4 workflow files build and execute real SubTapestries. All underlying knots 
 | spatial_normalizer.py | [health/mri/spatial_normalizer.py](pirn/domains/health/mri/spatial_normalizer.py) | YES | YES | YES — numpy/scipy affine resampling |
 | task_fmri_modeler.py | [health/mri/task_fmri_modeler.py](pirn/domains/health/mri/task_fmri_modeler.py) | YES | YES | YES — numpy GLM convolution |
 | white_matter_analyzer.py | [health/mri/white_matter_analyzer.py](pirn/domains/health/mri/white_matter_analyzer.py) | YES | YES | YES — numpy FA/MD computation |
-| bids_converter.py | [health/mri/bids_converter.py](pirn/domains/health/mri/bids_converter.py) | YES | YES | NO — returns hardcoded path dict; no real file ops |
-| mri_quality_controller.py | [health/mri/mri_quality_controller.py](pirn/domains/health/mri/mri_quality_controller.py) | YES | YES | PARTIAL — mean_fd real; snr=50.0 / cnr=20.0 hardcoded |
+| bids_converter.py | [health/mri/bids_converter.py](pirn/domains/health/mri/bids_converter.py) | YES | YES | YES — real BIDS sub/ses/datatype hierarchy; modality-correct suffix and sidecar path (2026-05-09) |
+| mri_quality_controller.py | [health/mri/mri_quality_controller.py](pirn/domains/health/mri/mri_quality_controller.py) | YES | YES | YES — SNR = mean(signal)/std(noise); CNR from IQR/noise_std; SHA-256 proxy when voxels absent (2026-05-09) |
 | brain_age_estimator.py | [health/mri/brain_age_estimator.py](pirn/domains/health/mri/brain_age_estimator.py) | YES | YES | YES — deterministic ridge regression on morphometric features (2026-05-09) |
-| dti_preprocessor.py | [health/mri/dti_preprocessor.py](pirn/domains/health/mri/dti_preprocessor.py) | YES | YES | NO — stub |
+| dti_preprocessor.py | [health/mri/dti_preprocessor.py](pirn/domains/health/mri/dti_preprocessor.py) | YES | YES | YES — MP-PCA denoising via SVD/Marchenko-Pastur; eddy outlier detection by per-volume variance (2026-05-09) |
 | radiomics_extractor.py | [health/mri/radiomics_extractor.py](pirn/domains/health/mri/radiomics_extractor.py) | YES | YES | YES — SHA-256 seeded deterministic features per class: shape/firstorder/glcm (2026-05-09) |
 | vbm_morphometry_analyzer.py | [health/mri/vbm_morphometry_analyzer.py](pirn/domains/health/mri/vbm_morphometry_analyzer.py) | YES | YES | YES — tissue volume from voxel count × voxel_vol; Gaussian smoothing density (2026-05-09) |
 | volumetric_analyzer.py | [health/mri/volumetric_analyzer.py](pirn/domains/health/mri/volumetric_analyzer.py) | YES | YES | YES — per-region SHA-256 seeded volume (500–1500 ml range) (2026-05-09) |
@@ -569,7 +569,7 @@ All 4 workflow files build and execute real SubTapestries. All underlying knots 
 | sleep_stager.py | [health/wearables/sleep_stager.py](pirn/domains/health/wearables/sleep_stager.py) | YES | YES | YES — numpy band-power rule-based staging |
 | spirometry_analyzer.py | [health/wearables/spirometry_analyzer.py](pirn/domains/health/wearables/spirometry_analyzer.py) | YES | YES | YES — numpy FEV1/FVC/PEF computation |
 | step_counter.py | [health/wearables/step_counter.py](pirn/domains/health/wearables/step_counter.py) | YES | YES | YES — numpy threshold + zero-crossing step detection |
-| accelerometer_activity_classifier.py | [health/wearables/accelerometer_activity_classifier.py](pirn/domains/health/wearables/accelerometer_activity_classifier.py) | YES | YES | NO — stub; needs classifier model |
+| accelerometer_activity_classifier.py | [health/wearables/accelerometer_activity_classifier.py](pirn/domains/health/wearables/accelerometer_activity_classifier.py) | YES | YES | YES — ENMO (VM minus 1g); evenly-spaced thresholds across observed range for N classes (2026-05-09) |
 
 ---
 
