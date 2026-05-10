@@ -2,7 +2,7 @@
 
 Monitors a validation metric and stops training when no improvement has
 been observed for ``patience`` consecutive epochs. Returns the best
-:class:`TrainedModel` found before early stopping triggered.
+:class:`ModelManifest` found before early stopping triggered.
 
 Algorithm:
     1. Receive ``split``, ``algorithm``, ``monitor_metric``, ``patience``,
@@ -26,9 +26,9 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -68,7 +68,7 @@ class EarlyStoppingTrainer(SubTapestry):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         algorithm: str = "",
         monitor_metric: str = "",
         patience: int = 5,
@@ -80,7 +80,7 @@ class EarlyStoppingTrainer(SubTapestry):
         """Train the model with early stopping and return the best model, its evaluation, and training metadata.
 
         Args:
-            split: DataSplit used for training and validation metric monitoring.
+            split: SplitManifest used for training and validation metric monitoring.
             algorithm: Non-empty algorithm identifier.
             monitor_metric: Non-empty name of the metric to monitor for early stopping.
             patience: Consecutive epochs without improvement before stopping; must be >= 1.
@@ -89,7 +89,7 @@ class EarlyStoppingTrainer(SubTapestry):
             metrics: Optional sequence of metrics to evaluate; defaults to monitor_metric.
 
         Returns:
-            Dict with ``model`` (TrainedModel), ``eval_report`` (EvalReport),
+            Dict with ``model`` (ModelManifest), ``eval_report`` (EvalMetadata),
             ``stopped_epoch`` (int), and ``patience`` (int).
 
         Raises:
@@ -130,10 +130,10 @@ class EarlyStoppingTrainer(SubTapestry):
         result = await self._run_inner(inner)
         trained_model = result.outputs["train"]
         report = result.outputs["evaluate"]
-        if not isinstance(trained_model, TrainedModel):
-            raise TypeError("EarlyStoppingTrainer: trainer did not return a TrainedModel")
-        if not isinstance(report, EvalReport):
-            raise TypeError("EarlyStoppingTrainer: evaluator did not return an EvalReport")
+        if not isinstance(trained_model, ModelManifest):
+            raise TypeError("EarlyStoppingTrainer: trainer did not return a ModelManifest")
+        if not isinstance(report, EvalReportPayload):
+            raise TypeError("EarlyStoppingTrainer: evaluator did not return an EvalReportPayload")
         return {
             "model": trained_model,
             "eval_report": report,

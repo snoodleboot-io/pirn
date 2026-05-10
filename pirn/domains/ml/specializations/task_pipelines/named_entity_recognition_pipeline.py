@@ -7,7 +7,7 @@ Algorithm:
     2. Validate all inputs.
     3. Wire DatasetLoader → TrainTestSplit → Trainer → Evaluator in an
        inner Tapestry.
-    4. Run via _run_inner() and return the EvalReport.
+    4. Run via _run_inner() and return the EvalMetadata.
 
 
 References:
@@ -27,7 +27,7 @@ from pirn.domains.ml.data_prep.dataset_loader import DatasetLoader
 from pirn.domains.ml.data_prep.train_test_split import TrainTestSplit
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.eval_report import EvalReport
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -66,8 +66,8 @@ class NamedEntityRecognitionPipeline(SubTapestry):
         label_column: str = "",
         algorithm: str = "crf",
         **_: Any,
-    ) -> EvalReport:
-        """Tokenise, train NER model, and return an EvalReport with entity-level precision/recall/F1.
+    ) -> EvalReportPayload:
+        """Tokenise, train NER model, and return an EvalMetadata with entity-level precision/recall/F1.
 
         Args:
             pool: DatabaseConnectionPool for loading the dataset.
@@ -77,7 +77,7 @@ class NamedEntityRecognitionPipeline(SubTapestry):
             algorithm: Non-empty algorithm identifier.
 
         Returns:
-            EvalReport containing precision, recall, and f1 metrics from the NER evaluation stage.
+            EvalReportPayload containing precision, recall, and f1 metrics from the NER evaluation stage.
 
         Raises:
             ValueError: If any input fails validation.

@@ -1,11 +1,11 @@
-"""``Encoder`` — categorical encoder over a :class:`DataSplit`.
+"""``Encoder`` — categorical encoder over a :class:`SplitManifest`.
 
 Algorithm:
-    1. Receive ``split`` (DataSplit), ``columns`` (sequence of str), and ``method`` (str) via process().
+    1. Receive ``split`` (SplitManifest), ``columns`` (sequence of str), and ``method`` (str) via process().
     2. Validate columns is non-empty and all elements are non-empty strings.
     3. Validate method is one of the valid encoding methods.
-    4. Append the ``encoded_<method>`` suffix to the name of each partition's MLDataset.
-    5. Return the renamed DataSplit.
+    4. Append the ``encoded_<method>`` suffix to the name of each partition's DatasetManifest.
+    5. Return the renamed SplitManifest.
 
 
 References:
@@ -20,8 +20,8 @@ from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class Encoder(Knot):
@@ -42,20 +42,20 @@ class Encoder(Knot):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         columns: Sequence[str] = (),
         method: str = "onehot",
         **_: Any,
-    ) -> DataSplit:
-        """Apply the configured categorical encoding method to the split and return a renamed DataSplit.
+    ) -> SplitManifest:
+        """Apply the configured categorical encoding method to the split and return a renamed SplitManifest.
 
         Args:
-            split: DataSplit whose partitions are logically tagged with the encoding suffix.
+            split: SplitManifest whose partitions are logically tagged with the encoding suffix.
             columns: Non-empty sequence of column names to encode.
             method: Encoding method; must be one of ``valid_methods``.
 
         Returns:
-            DataSplit with each partition renamed to include the ``encoded_<method>`` suffix.
+            SplitManifest with each partition renamed to include the ``encoded_<method>`` suffix.
 
         Raises:
             ValueError: If columns is empty, any element is empty, or method is invalid.
@@ -70,7 +70,7 @@ class Encoder(Knot):
             raise ValueError(f"Encoder: method must be one of {sorted(self.valid_methods)}")
         suffix = f"encoded_{method}"
         now = datetime.now(UTC)
-        return DataSplit(
+        return SplitManifest(
             train=self._mark(split.train, suffix, now),
             test=self._mark(split.test, suffix, now),
             validation=(
@@ -78,8 +78,8 @@ class Encoder(Knot):
             ),
         )
 
-    def _mark(self, dataset: MLDataset, suffix: str, fetched_at: datetime) -> MLDataset:
-        return MLDataset(
+    def _mark(self, dataset: DatasetManifest, suffix: str, fetched_at: datetime) -> DatasetManifest:
+        return DatasetManifest(
             name=f"{dataset.name}:{suffix}",
             feature_names=dataset.feature_names,
             target_name=dataset.target_name,

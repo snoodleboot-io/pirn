@@ -10,21 +10,22 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.experiments.baseline_establisher import (
     BaselineEstablisher,
 )
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.split_manifest import SplitManifest
+from pirn.domains.ml.types.eval_metadata import EvalMetadata
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 from pirn.tapestry import Tapestry
 
 
 @knot
-async def emit_split() -> DataSplit:
-    train = MLDataset(
+async def emit_split() -> SplitManifest:
+    train = DatasetManifest(
         name="d:train", feature_names=("a", "b"), target_name="y", row_count=80
     )
-    test = MLDataset(
+    test = DatasetManifest(
         name="d:test", feature_names=("a", "b"), target_name="y", row_count=20
     )
-    return DataSplit(train=train, test=test)
+    return SplitManifest(train=train, test=test)
 
 
 def _make_establisher() -> BaselineEstablisher:
@@ -39,14 +40,14 @@ def _make_establisher() -> BaselineEstablisher:
     return establisher
 
 
-def _split_fixture() -> DataSplit:
-    train = MLDataset(
+def _split_fixture() -> SplitManifest:
+    train = DatasetManifest(
         name="d:train", feature_names=("a", "b"), target_name="y", row_count=80
     )
-    test = MLDataset(
+    test = DatasetManifest(
         name="d:test", feature_names=("a", "b"), target_name="y", row_count=20
     )
-    return DataSplit(train=train, test=test)
+    return SplitManifest(train=train, test=test)
 
 
 class TestConstruction(unittest.IsolatedAsyncioTestCase):
@@ -76,6 +77,6 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         assert result.succeeded
         report = result.outputs["baseline"]
-        assert isinstance(report, EvalReport)
-        assert "accuracy" in report.metrics
-        assert report.dataset_name == "d:test"
+        assert isinstance(report, EvalReportPayload)
+        assert "accuracy" in report.metrics.scores
+        assert report.report.dataset_name == "d:test"

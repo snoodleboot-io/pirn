@@ -8,7 +8,7 @@ Algorithm:
     2. Validate all inputs.
     3. Wire DatasetLoader → TrainTestSplit → Scaler → Trainer → Evaluator
        in an inner Tapestry.
-    4. Run via _run_inner() and return the EvalReport.
+    4. Run via _run_inner() and return the EvalMetadata.
 
 
 References:
@@ -30,7 +30,7 @@ from pirn.domains.ml.data_prep.train_test_split import TrainTestSplit
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.features.scaler import Scaler
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.eval_report import EvalReport
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -72,8 +72,8 @@ class AnomalyDetectionPipeline(SubTapestry):
         algorithm: str = "isolation_forest",
         contamination: float = 0.1,
         **_: Any,
-    ) -> EvalReport:
-        """Load data, scale, train anomaly detector, and return an EvalReport with anomaly metrics.
+    ) -> EvalReportPayload:
+        """Load data, scale, train anomaly detector, and return an EvalMetadata with anomaly metrics.
 
         Args:
             pool: DatabaseConnectionPool for loading the dataset.
@@ -83,7 +83,7 @@ class AnomalyDetectionPipeline(SubTapestry):
             contamination: Expected fraction of anomalies; must be in (0, 0.5).
 
         Returns:
-            EvalReport containing precision, recall, f1, and roc_auc metrics from the evaluation stage.
+            EvalReportPayload containing precision, recall, f1, and roc_auc metrics from the evaluation stage.
 
         Raises:
             ValueError: If any input fails validation.

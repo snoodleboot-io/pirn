@@ -1,15 +1,15 @@
 """``KFoldCrossValidator`` — plain K-fold cross-validation.
 
-Splits the upstream :class:`MLDataset` into K folds, trains and evaluates
-on each fold, and returns a single :class:`EvalReport` whose metrics are
+Splits the upstream :class:`DatasetManifest` into K folds, trains and evaluates
+on each fold, and returns a single :class:`EvalMetadata` whose metrics are
 the mean and standard deviation across all folds.
 
 Algorithm:
-    1. Receive ``dataset`` (MLDataset), ``algorithm``, ``metrics``, and ``k`` via process().
+    1. Receive ``dataset`` (DatasetManifest), ``algorithm``, ``metrics``, and ``k`` via process().
     2. Validate all inputs.
     3. Wire CrossValidator in an inner Tapestry to produce k folds.
     4. Wire Trainer + Evaluator per fold in a second inner Tapestry.
-    5. Aggregate per-fold metrics (mean ± std) and return an EvalReport.
+    5. Aggregate per-fold metrics (mean ± std) and return an EvalMetadata.
 
 Math:
     mean = sum(fold_metric) / k
@@ -33,9 +33,11 @@ from pirn.core.knot_factory import knot
 from pirn.domains.ml.data_prep.cross_validator import CrossValidator
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.eval_metadata import EvalMetadata
+from pirn.domains.ml.types.eval_metrics import EvalMetrics
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -69,27 +71,27 @@ class KFoldCrossValidator(SubTapestry):
 
     async def process(
         self,
-        dataset: MLDataset,
+        dataset: DatasetManifest,
         algorithm: str = "",
         metrics: Sequence[str] = (),
         k: int = 5,
         **_: Any,
-    ) -> EvalReport:
-        """Run K-fold cross-validation and return an EvalReport with mean and std metrics.
+    ) -> EvalReportPayload:
+        """Run K-fold cross-validation and return an EvalReportPayload with mean and std metrics.
 
         Args:
-            dataset: MLDataset to partition into k folds.
+            dataset: DatasetManifest to partition into k folds.
             algorithm: Non-empty algorithm name string.
             metrics: Non-empty sequence of metric name strings.
             k: Number of folds; must be an int >= 2.
 
         Returns:
-            EvalReport with ``<metric>_mean`` and ``<metric>_std`` keys plus
+            EvalReportPayload with ``<metric>_mean`` and ``<metric>_std`` keys plus
             per-fold details.
 
         Raises:
             ValueError: If any input fails validation.
-            TypeError: If any fold evaluator does not return an EvalReport.
+            TypeError: If any fold evaluator does not return an EvalReportPayload.
         """
         if not isinstance(k, int):
             raise TypeError("KFoldCrossValidator: k must be an int")
@@ -113,7 +115,7 @@ class KFoldCrossValidator(SubTapestry):
                 _config=KnotConfig(id="folds"),
             )
         folds_result = await self._run_inner(inner)
-        folds: tuple[DataSplit, ...] = folds_result.outputs["folds"]
+        folds: tuple[SplitManifest, ...] = folds_result.outputs["folds"]
 
         with Tapestry() as inner_eval:
             for fold_index, fold in enumerate(folds):
@@ -137,25 +139,29 @@ class KFoldCrossValidator(SubTapestry):
         per_fold: list[dict[str, float]] = []
         for fold_index in range(len(folds)):
             report = eval_result.outputs[f"evaluate_{fold_index}"]
-            if not isinstance(report, EvalReport):
+            if not isinstance(report, EvalReportPayload):
                 raise TypeError(
-                    f"KFoldCrossValidator: fold {fold_index} did not produce an EvalReport"
+                    f"KFoldCrossValidator: fold {fold_index} did not produce an EvalReportPayload"
                 )
-            per_fold.append({name: float(value) for name, value in report.metrics.items()})
+            per_fold.append({name: float(value) for name, value in report.metrics.scores.items()})
 
         aggregated = self._aggregate(per_fold)
-        return EvalReport(
-            model_id=f"{algorithm}:kfold-{k}",
-            dataset_name=dataset.name,
-            metrics=MappingProxyType(aggregated),
-            details=MappingProxyType(
-                {
-                    "k": k,
-                    "algorithm": algorithm,
-                    "per_fold_metrics": per_fold,
-                }
+        return EvalReportPayload(
+            metadata=EvalMetadata(
+                model_id=f"{algorithm}:kfold-{k}",
+                dataset_name=dataset.name,
+                evaluated_at=datetime.now(UTC),
             ),
-            evaluated_at=datetime.now(UTC),
+            data=EvalMetrics(
+                scores=MappingProxyType(aggregated),
+                details=MappingProxyType(
+                    {
+                        "k": k,
+                        "algorithm": algorithm,
+                        "per_fold_metrics": per_fold,
+                    }
+                ),
+            ),
         )
 
     def _aggregate(self, per_fold: list[dict[str, float]]) -> dict[str, float]:

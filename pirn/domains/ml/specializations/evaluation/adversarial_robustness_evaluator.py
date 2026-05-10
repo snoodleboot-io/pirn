@@ -2,7 +2,7 @@
 PGD perturbations to inputs and evaluates model accuracy under attack.
 
 Algorithm:
-    1. Receive ``model`` (TrainedModel), ``split`` (DataSplit), ``attack`` (str),
+    1. Receive ``model`` (ModelManifest), ``split`` (SplitManifest), ``attack`` (str),
        and ``epsilon`` (float) via process().
     2. Validate attack is one of {"fgsm", "pgd"} and epsilon > 0.
     3. Derive deterministic clean and adversarial accuracy from SHA-256 of inputs.
@@ -25,8 +25,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class AdversarialRobustnessEvaluator(Knot):
@@ -53,8 +53,8 @@ class AdversarialRobustnessEvaluator(Knot):
 
     async def process(
         self,
-        model: TrainedModel,
-        split: DataSplit,
+        model: ModelManifest,
+        split: SplitManifest,
         attack: str = "fgsm",
         epsilon: float = 0.1,
         **_: Any,
@@ -62,8 +62,8 @@ class AdversarialRobustnessEvaluator(Knot):
         """Apply adversarial perturbations and return clean vs adversarial accuracy metrics.
 
         Args:
-            model: TrainedModel reference to evaluate under attack.
-            split: DataSplit whose test partition is used for adversarial evaluation.
+            model: ModelManifest reference to evaluate under attack.
+            split: SplitManifest whose test partition is used for adversarial evaluation.
             attack: Attack method; must be one of {"fgsm", "pgd"}.
             epsilon: Perturbation magnitude; must be a positive float.
 

@@ -3,7 +3,7 @@ train/test split, train, evaluate, serialise, register, predict on a
 holdout slice.
 
 The pipeline returns a primitive summary mapping carrying the registered
-``model_id`` and the produced :class:`EvalReport` so downstream
+``model_id`` and the produced :class:`EvalMetadata` so downstream
 orchestration can hash the result without descending into knot-bearing
 intermediates.
 
@@ -41,14 +41,14 @@ from pirn.domains.ml.deployment.predictor import Predictor
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.lineage_store import LineageStore
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
+from pirn.domains.ml.types.eval_metadata import EvalMetadata
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
 
 @knot
-async def _holdout_features(split: DataSplit) -> list[Mapping[str, Any]]:
+async def _holdout_features(split: SplitManifest) -> list[Mapping[str, Any]]:
     # Emit one placeholder feature row per holdout test row so the
     # downstream :class:`Predictor` has something to score. The orchestration
     # layer never materialises actual data here; concrete subclasses replace
@@ -120,7 +120,7 @@ class FullTrainDeployPipeline(SubTapestry):
 
         Returns:
             Mapping with ``model_id`` (str registered in the object store) and
-            ``eval_report`` (:class:`EvalReport` from the evaluation stage).
+            ``eval_report`` (:class:`EvalMetadata` from the evaluation stage).
 
         Raises:
             ValueError: If any string param is empty or sequences are empty.
@@ -193,7 +193,7 @@ class FullTrainDeployPipeline(SubTapestry):
                 _config=KnotConfig(id="predict"),
             )
         inner_result = await self._run_inner(inner)
-        report: EvalReport = inner_result.outputs["evaluate"]
+        report: EvalMetadata = inner_result.outputs["evaluate"]
         return {
             "model_id": inner_result.outputs["register"],
             "eval_report": report,

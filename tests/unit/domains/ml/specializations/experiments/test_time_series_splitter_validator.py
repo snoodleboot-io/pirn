@@ -51,9 +51,9 @@ class TestConstruction(unittest.TestCase):
 class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_empty_time_column(self) -> None:
         validator = _make_validator()
-        from pirn.domains.ml.types.ml_dataset import MLDataset
+        from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 
-        ds = MLDataset(
+        ds = DatasetManifest(
             name="ds",
             feature_names=("x",),
             target_name="y",
@@ -71,9 +71,9 @@ class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_n_splits_less_than_2(self) -> None:
         validator = _make_validator()
-        from pirn.domains.ml.types.ml_dataset import MLDataset
+        from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 
-        ds = MLDataset(
+        ds = DatasetManifest(
             name="ds",
             feature_names=("x",),
             target_name="y",
@@ -91,9 +91,9 @@ class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_empty_algorithm(self) -> None:
         validator = _make_validator()
-        from pirn.domains.ml.types.ml_dataset import MLDataset
+        from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 
-        ds = MLDataset(
+        ds = DatasetManifest(
             name="ds",
             feature_names=("x",),
             target_name="y",
@@ -111,9 +111,9 @@ class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_empty_metrics(self) -> None:
         validator = _make_validator()
-        from pirn.domains.ml.types.ml_dataset import MLDataset
+        from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 
-        ds = MLDataset(
+        ds = DatasetManifest(
             name="ds",
             feature_names=("x",),
             target_name="y",

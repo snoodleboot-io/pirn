@@ -33,8 +33,8 @@ from pirn.domains.ml.deployment.model_serializer import ModelSerializer
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.lineage_store import LineageStore
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -76,7 +76,7 @@ class NeuralNetTrainerPipeline(SubTapestry):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         lineage: LineageStore | None = None,
         store: ObjectStore | None = None,
         metrics: Sequence[str] = (),
@@ -88,7 +88,7 @@ class NeuralNetTrainerPipeline(SubTapestry):
         """Train the neural-net model, evaluate it, serialise in the configured format, register it, and return a summary dict.
 
         Args:
-            split: DataSplit used for training and evaluation.
+            split: SplitManifest used for training and evaluation.
             lineage: LineageStore for model registration.
             store: ObjectStore for artifact storage.
             metrics: Non-empty sequence of metric names.
@@ -97,7 +97,7 @@ class NeuralNetTrainerPipeline(SubTapestry):
             format: Serialization format; must be one of {"onnx", "pytorch"}.
 
         Returns:
-            Dict with ``model_id`` (str), ``eval_report`` (:class:`EvalReport`),
+            Dict with ``model_id`` (str), ``eval_report`` (:class:`EvalMetadata`),
             and ``serialized_size`` (int byte count of the serialized artifact).
 
         Raises:
@@ -155,8 +155,10 @@ class NeuralNetTrainerPipeline(SubTapestry):
         report = result.outputs["evaluate"]
         serialized_bytes = result.outputs["serialize"]
         model_id = result.outputs["register"]
-        if not isinstance(report, EvalReport):
-            raise TypeError("NeuralNetTrainerPipeline: evaluator did not return an EvalReport")
+        if not isinstance(report, EvalReportPayload):
+            raise TypeError(
+                "NeuralNetTrainerPipeline: evaluator did not return an EvalReportPayload"
+            )
         if not isinstance(serialized_bytes, (bytes, bytearray)):
             raise TypeError("NeuralNetTrainerPipeline: serializer did not return bytes")
         if not isinstance(model_id, str):

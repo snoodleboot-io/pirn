@@ -10,8 +10,8 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.domains.ml.features.image_embedding_extractor import ImageEmbeddingExtractor
 from pirn.domains.ml.image_encoder_provider import ImageEncoderProvider
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.split_manifest import SplitManifest
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 from pirn.tapestry import Tapestry
 
 
@@ -27,15 +27,15 @@ class _SplitSource(Knot):
     def __init__(self, *, _config: KnotConfig, **kwargs: Any) -> None:
         super().__init__(_config=_config, **kwargs)
 
-    async def process(self, **_: Any) -> DataSplit:
-        ds = MLDataset(name="ds", feature_names=("img_col", "x"), row_count=10)
-        return DataSplit(train=ds, test=ds)
+    async def process(self, **_: Any) -> SplitManifest:
+        ds = DatasetManifest(name="ds", feature_names=("img_col", "x"), row_count=10)
+        return SplitManifest(train=ds, test=ds)
 
 
 class TestConstruction(unittest.IsolatedAsyncioTestCase):
-    def _make_split(self) -> DataSplit:
-        ds = MLDataset(name="ds", feature_names=("img_col", "x"), row_count=10)
-        return DataSplit(train=ds, test=ds)
+    def _make_split(self) -> SplitManifest:
+        ds = DatasetManifest(name="ds", feature_names=("img_col", "x"), row_count=10)
+        return SplitManifest(train=ds, test=ds)
 
     async def test_rejects_empty_image_column(self) -> None:
         with Tapestry():
@@ -64,5 +64,5 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         split = result.outputs["ext"]
-        self.assertIsInstance(split, DataSplit)
+        self.assertIsInstance(split, SplitManifest)
         self.assertIn("img_col_embedding", split.train.feature_names)

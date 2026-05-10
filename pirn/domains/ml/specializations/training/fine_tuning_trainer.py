@@ -1,7 +1,7 @@
 """``FineTuningTrainer`` — load a pretrained model, freeze base layers, and
 fine-tune the head on a new dataset.
 
-Returns the fine-tuned :class:`TrainedModel` and its evaluation report.
+Returns the fine-tuned :class:`ModelManifest` and its evaluation report.
 
 Algorithm:
     1. Receive ``split``, ``pretrained_model_id``, ``algorithm``,
@@ -25,9 +25,9 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -65,7 +65,7 @@ class FineTuningTrainer(SubTapestry):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         pretrained_model_id: str = "",
         algorithm: str = "",
         metrics: Sequence[str] = (),
@@ -76,7 +76,7 @@ class FineTuningTrainer(SubTapestry):
         """Fine-tune the pretrained model and return the resulting model and its evaluation.
 
         Args:
-            split: DataSplit used for fine-tuning and evaluation.
+            split: SplitManifest used for fine-tuning and evaluation.
             pretrained_model_id: Non-empty identifier of the pretrained model.
             algorithm: Non-empty algorithm identifier.
             metrics: Non-empty sequence of metric names.
@@ -84,7 +84,7 @@ class FineTuningTrainer(SubTapestry):
             hyperparameters: Optional mapping of additional hyperparameters.
 
         Returns:
-            Dict with ``model`` (TrainedModel), ``eval_report`` (EvalReport),
+            Dict with ``model`` (ModelManifest), ``eval_report`` (EvalMetadata),
             ``pretrained_model_id`` (str), and ``frozen_layers`` (int).
 
         Raises:
@@ -127,10 +127,10 @@ class FineTuningTrainer(SubTapestry):
         result = await self._run_inner(inner)
         trained_model = result.outputs["train"]
         report = result.outputs["evaluate"]
-        if not isinstance(trained_model, TrainedModel):
-            raise TypeError("FineTuningTrainer: trainer did not return a TrainedModel")
-        if not isinstance(report, EvalReport):
-            raise TypeError("FineTuningTrainer: evaluator did not return an EvalReport")
+        if not isinstance(trained_model, ModelManifest):
+            raise TypeError("FineTuningTrainer: trainer did not return a ModelManifest")
+        if not isinstance(report, EvalReportPayload):
+            raise TypeError("FineTuningTrainer: evaluator did not return an EvalReportPayload")
         return {
             "model": trained_model,
             "eval_report": report,

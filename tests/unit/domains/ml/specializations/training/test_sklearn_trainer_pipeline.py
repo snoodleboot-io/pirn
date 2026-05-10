@@ -12,8 +12,8 @@ from pirn.domains.ml.lineage_store import LineageStore
 from pirn.domains.ml.specializations.training.sklearn_trainer_pipeline import (
     SklearnTrainerPipeline,
 )
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.split_manifest import SplitManifest
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 from pirn.tapestry import Tapestry
 
 
@@ -47,9 +47,9 @@ def _make_knot() -> SklearnTrainerPipeline:
     return k
 
 
-def _split() -> DataSplit:
-    ds = MLDataset(name="ds", feature_names=("x",), target_name="y", row_count=10, source_uri="mem://")
-    return DataSplit(train=ds, test=ds)
+def _split() -> SplitManifest:
+    ds = DatasetManifest(name="ds", feature_names=("x",), target_name="y", row_count=10, source_uri="mem://")
+    return SplitManifest(train=ds, test=ds)
 
 
 class TestSklearnTrainerPipelineValidation(unittest.IsolatedAsyncioTestCase):

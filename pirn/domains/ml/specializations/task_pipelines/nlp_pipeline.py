@@ -3,7 +3,7 @@
 Composes data load → split → embedding extraction → train → evaluate.
 The :class:`EmbeddingExtractor` knot fans the configured
 :class:`EmbeddingProvider` over the named text column so the downstream
-trainer sees an :class:`MLDataset` whose ``feature_names`` carry the
+trainer sees an :class:`DatasetManifest` whose ``feature_names`` carry the
 augmented embedding feature.
 
 Algorithm:
@@ -12,7 +12,7 @@ Algorithm:
     2. Validate all inputs.
     3. Wire DatasetLoader → TrainTestSplit → EmbeddingExtractor → Trainer
        → Evaluator in an inner Tapestry.
-    4. Run via _run_inner() and return the EvalReport.
+    4. Run via _run_inner() and return the EvalMetadata.
 
 
 References:
@@ -34,7 +34,7 @@ from pirn.domains.ml.embedding_provider import EmbeddingProvider
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.features.embedding_extractor import EmbeddingExtractor
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.eval_report import EvalReport
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -81,8 +81,8 @@ class NLPPipeline(SubTapestry):
         embedding_provider: EmbeddingProvider | None = None,
         algorithm: str = "logistic",
         **_: Any,
-    ) -> EvalReport:
-        """Load data, split, embed the text column, train a text classifier, and return the resulting EvalReport.
+    ) -> EvalReportPayload:
+        """Load data, split, embed the text column, train a text classifier, and return the resulting EvalMetadata.
 
         Args:
             pool: DatabaseConnectionPool for loading the dataset.
@@ -93,7 +93,7 @@ class NLPPipeline(SubTapestry):
             algorithm: Non-empty algorithm identifier.
 
         Returns:
-            EvalReport containing accuracy, precision, recall, and f1 metrics
+            EvalReportPayload containing accuracy, precision, recall, and f1 metrics
             from the text-classification evaluation stage.
 
         Raises:

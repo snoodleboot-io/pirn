@@ -7,7 +7,7 @@ Algorithm:
     2. Validate all inputs.
     3. Wire DatasetLoader → TrainTestSplit → Trainer → TimeSeriesEvalPipeline
        in an inner Tapestry.
-    4. Run via _run_inner() and return the EvalReport.
+    4. Run via _run_inner() and return the EvalMetadata.
 
 
 References:
@@ -30,7 +30,7 @@ from pirn.domains.ml.specializations.evaluation.timeseries_eval_pipeline import 
     TimeSeriesEvalPipeline,
 )
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.eval_report import EvalReport
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -73,7 +73,7 @@ class TimeSeriesForecastingPipeline(SubTapestry):
         horizon: int = 7,
         algorithm: str = "arima",
         **_: Any,
-    ) -> EvalReport:
+    ) -> EvalReportPayload:
         """Run the full time-series pipeline: load → split → train → evaluate with temporal metrics.
 
         Args:
@@ -86,7 +86,7 @@ class TimeSeriesForecastingPipeline(SubTapestry):
             algorithm: Non-empty algorithm identifier.
 
         Returns:
-            EvalReport containing mape, smape, and mase metrics from the evaluation stage.
+            EvalReportPayload containing mape, smape, and mase metrics from the evaluation stage.
 
         Raises:
             ValueError: If any input fails validation.

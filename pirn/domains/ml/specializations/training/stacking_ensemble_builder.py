@@ -1,7 +1,7 @@
 """``StackingEnsembleBuilder`` — train base models, use their OOF predictions
 as features for a meta-learner.
 
-Returns the stacked ensemble :class:`TrainedModel` and its evaluation
+Returns the stacked ensemble :class:`ModelManifest` and its evaluation
 report.
 
 Algorithm:
@@ -28,9 +28,9 @@ from pirn.core.knot_factory import knot
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.training.ensemble_builder import EnsembleBuilder
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -64,7 +64,7 @@ class StackingEnsembleBuilder(SubTapestry):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         base_algorithms: Sequence[str] = (),
         meta_algorithm: str = "",
         metrics: Sequence[str] = (),
@@ -73,13 +73,13 @@ class StackingEnsembleBuilder(SubTapestry):
         """Train base models and a stacking meta-learner, return the ensemble and its evaluation.
 
         Args:
-            split: DataSplit used for base model training and meta-learner evaluation.
+            split: SplitManifest used for base model training and meta-learner evaluation.
             base_algorithms: At least two non-empty algorithm identifiers.
             meta_algorithm: Non-empty algorithm identifier for the meta-learner.
             metrics: Non-empty sequence of metric names.
 
         Returns:
-            Dict with ``ensemble_model`` (TrainedModel), ``eval_report`` (EvalReport),
+            Dict with ``ensemble_model`` (ModelManifest), ``eval_report`` (EvalMetadata),
             and ``n_base_models`` (int).
 
         Raises:
@@ -128,10 +128,12 @@ class StackingEnsembleBuilder(SubTapestry):
         result = await self._run_inner(inner)
         ensemble_model = result.outputs["ensemble"]
         report = result.outputs["evaluate"]
-        if not isinstance(ensemble_model, TrainedModel):
-            raise TypeError("StackingEnsembleBuilder: ensemble did not return a TrainedModel")
-        if not isinstance(report, EvalReport):
-            raise TypeError("StackingEnsembleBuilder: evaluator did not return an EvalReport")
+        if not isinstance(ensemble_model, ModelManifest):
+            raise TypeError("StackingEnsembleBuilder: ensemble did not return a ModelManifest")
+        if not isinstance(report, EvalReportPayload):
+            raise TypeError(
+                "StackingEnsembleBuilder: evaluator did not return an EvalReportPayload"
+            )
         return {
             "ensemble_model": ensemble_model,
             "eval_report": report,

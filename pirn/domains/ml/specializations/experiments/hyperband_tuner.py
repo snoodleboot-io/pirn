@@ -2,7 +2,7 @@
 
 Trains many configurations for a few iterations, retains the top half,
 and repeats until one configuration survives. Returns the best config
-wrapped in a :class:`TrainedModel` / :class:`EvalReport` pair.
+wrapped in a :class:`ModelManifest` / :class:`EvalMetadata` pair.
 
 The orchestration layer implements successive halving over a randomly
 sampled initial population using :class:`HyperparamSearch` with the
@@ -10,7 +10,7 @@ sampled initial population using :class:`HyperparamSearch` with the
 real partial-fit iterations.
 
 Algorithm:
-    1. Receive ``split`` (DataSplit), ``algorithm``, ``search_space``,
+    1. Receive ``split`` (SplitManifest), ``algorithm``, ``search_space``,
        ``primary_metric``, ``max_configs``, and ``random_seed`` via process().
     2. Validate all inputs.
     3. Compute n_trials from max_configs and log2 rounding.
@@ -36,9 +36,9 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.training.hyperparam_search import HyperparamSearch
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -76,7 +76,7 @@ class HyperbandTuner(SubTapestry):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         algorithm: str = "",
         search_space: Mapping[str, Sequence[Any]] | None = None,
         primary_metric: str = "",
@@ -87,7 +87,7 @@ class HyperbandTuner(SubTapestry):
         """Run successive-halving and return the surviving best model and its evaluation.
 
         Args:
-            split: DataSplit used for candidate training and evaluation.
+            split: SplitManifest used for candidate training and evaluation.
             algorithm: Non-empty algorithm name string.
             search_space: Non-empty mapping of hyperparameter name to candidate values.
             primary_metric: Non-empty metric name to optimise.
@@ -95,7 +95,7 @@ class HyperbandTuner(SubTapestry):
             random_seed: Seed for deterministic sampling.
 
         Returns:
-            Dict with ``best_model`` (TrainedModel), ``eval_report`` (EvalReport),
+            Dict with ``best_model`` (ModelManifest), ``eval_report`` (EvalMetadata),
             and ``rounds`` (int number of halving rounds performed).
 
         Raises:
@@ -138,10 +138,10 @@ class HyperbandTuner(SubTapestry):
         result = await self._run_inner(inner)
         model = result.outputs["search"]
         report = result.outputs["evaluate"]
-        if not isinstance(model, TrainedModel):
-            raise TypeError("HyperbandTuner: search did not return a TrainedModel")
-        if not isinstance(report, EvalReport):
-            raise TypeError("HyperbandTuner: evaluator did not return an EvalReport")
+        if not isinstance(model, ModelManifest):
+            raise TypeError("HyperbandTuner: search did not return a ModelManifest")
+        if not isinstance(report, EvalReportPayload):
+            raise TypeError("HyperbandTuner: evaluator did not return an EvalReportPayload")
         return {
             "best_model": model,
             "eval_report": report,

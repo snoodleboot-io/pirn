@@ -10,14 +10,15 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.experiments.time_series_splitter_validator import (
     TimeSeriesSplitterValidator,
 )
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.eval_metadata import EvalMetadata
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 from pirn.tapestry import Tapestry
 
 
 @knot
-async def emit_dataset() -> MLDataset:
-    return MLDataset(
+async def emit_dataset() -> DatasetManifest:
+    return DatasetManifest(
         name="ts",
         feature_names=("a", "b"),
         target_name="y",
@@ -39,8 +40,8 @@ def _make_validator() -> TimeSeriesSplitterValidator:
     return validator
 
 
-def _dataset_fixture() -> MLDataset:
-    return MLDataset(
+def _dataset_fixture() -> DatasetManifest:
+    return DatasetManifest(
         name="ts", feature_names=("a", "b"), target_name="y", row_count=120
     )
 
@@ -86,8 +87,8 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         assert result.succeeded
         report = result.outputs["tscv"]
-        assert isinstance(report, EvalReport)
-        assert "rmse" in report.metrics
-        assert report.details["n_splits"] == 3
-        per_split = report.details["per_split_metrics"]
+        assert isinstance(report, EvalReportPayload)
+        assert "rmse" in report.metrics.scores
+        assert report.metrics.details["n_splits"] == 3
+        per_split = report.metrics.details["per_split_metrics"]
         assert isinstance(per_split, list) and len(per_split) == 3

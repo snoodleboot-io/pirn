@@ -1,5 +1,5 @@
 """``EmbeddingExtractor`` — append an embedding-derived feature to every
-:class:`MLDataset` in a :class:`DataSplit`.
+:class:`DatasetManifest` in a :class:`SplitManifest`.
 
 The actual texts are not embedded here. The knot calls the configured
 :class:`EmbeddingProvider` once with the column name as a probe (so
@@ -7,12 +7,12 @@ provider configuration can fail loudly at run time) and emits a split
 whose feature lists carry an extra entry named ``<column>_embedding``.
 
 Algorithm:
-    1. Receive ``split`` (DataSplit), ``text_column`` (str), and
+    1. Receive ``split`` (SplitManifest), ``text_column`` (str), and
        ``embedding_provider`` (EmbeddingProvider) via process().
     2. Validate text_column is non-empty and embedding_provider is the right type.
     3. Probe the provider with the column name to catch misconfiguration early.
     4. Append ``<text_column>_embedding`` to the feature list of each partition.
-    5. Return the updated DataSplit.
+    5. Return the updated SplitManifest.
 
 
 References:
@@ -27,8 +27,8 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.ml.embedding_provider import EmbeddingProvider
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class EmbeddingExtractor(Knot):
@@ -53,20 +53,20 @@ class EmbeddingExtractor(Knot):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         text_column: str,
         embedding_provider: EmbeddingProvider,
         **_: Any,
-    ) -> DataSplit:
-        """Probe the embedding provider, append the text-column embedding feature to each split partition, and return the updated DataSplit.
+    ) -> SplitManifest:
+        """Probe the embedding provider, append the text-column embedding feature to each split partition, and return the updated SplitManifest.
 
         Args:
-            split: DataSplit whose partitions receive the new embedding feature.
+            split: SplitManifest whose partitions receive the new embedding feature.
             text_column: Non-empty name of the text column to embed.
             embedding_provider: EmbeddingProvider used to probe and embed the column.
 
         Returns:
-            DataSplit with ``<text_column>_embedding`` appended to every partition's feature list.
+            SplitManifest with ``<text_column>_embedding`` appended to every partition's feature list.
 
         Raises:
             ValueError: If text_column is empty.
@@ -82,7 +82,7 @@ class EmbeddingExtractor(Knot):
         await embedding_provider.embed([text_column])
         feature = f"{text_column}_embedding"
         now = datetime.now(UTC)
-        return DataSplit(
+        return SplitManifest(
             train=self._add_feature(split.train, feature, now),
             test=self._add_feature(split.test, feature, now),
             validation=(
@@ -94,15 +94,15 @@ class EmbeddingExtractor(Knot):
 
     def _add_feature(
         self,
-        dataset: MLDataset,
+        dataset: DatasetManifest,
         feature: str,
         fetched_at: datetime,
-    ) -> MLDataset:
+    ) -> DatasetManifest:
         if feature in dataset.feature_names:
             features = dataset.feature_names
         else:
             features = (*dataset.feature_names, feature)
-        return MLDataset(
+        return DatasetManifest(
             name=f"{dataset.name}:embedded",
             feature_names=features,
             target_name=dataset.target_name,

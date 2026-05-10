@@ -9,7 +9,8 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.task_pipelines.binary_classification_pipeline import (
     BinaryClassificationPipeline,
 )
-from pirn.domains.ml.types.eval_report import EvalReport
+from pirn.domains.ml.types.eval_metadata import EvalMetadata
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.tapestry import Tapestry
 from tests.unit.domains.ml._stubs.recording_database_pool import (
     RecordingDatabasePool,
@@ -56,8 +57,8 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert result.succeeded
-        report: EvalReport = result.outputs["bin"]
-        assert isinstance(report, EvalReport)
-        assert "accuracy" in report.metrics
-        assert "f1" in report.metrics
-        assert "roc_auc" in report.metrics
+        report: EvalReportPayload = result.outputs["bin"]
+        assert isinstance(report, EvalReportPayload)
+        assert "accuracy" in report.metrics.scores
+        assert "f1" in report.metrics.scores
+        assert "roc_auc" in report.metrics.scores

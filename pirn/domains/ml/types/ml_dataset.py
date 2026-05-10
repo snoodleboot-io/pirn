@@ -1,9 +1,13 @@
-"""``MLDataset`` — a typed reference to an ML training/eval dataset.
+"""``DatasetManifest`` — a typed reference to an ML training/eval dataset.
 
 The dataset's actual rows are not embedded in this value; the value is
 a *reference* (logical name + provenance) that downstream knots resolve
 when they need to materialise the data. This keeps content-addressing
 cheap and avoids accidental memory bloat in lineage records.
+
+.. deprecated::
+    Import :class:`pirn.domains.ml.types.dataset_manifest.DatasetManifest` instead.
+    This module is retained for backwards compatibility only.
 """
 
 from __future__ import annotations
@@ -16,7 +20,7 @@ from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 
 @dataclass(frozen=True)
-class MLDataset(PirnOpaqueValue):
+class DatasetManifest(PirnOpaqueValue):
     """Reference to a dataset shaped for ML consumption."""
 
     name: str = ""

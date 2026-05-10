@@ -1,16 +1,16 @@
-"""``Evaluator`` — compute metrics for a :class:`TrainedModel` on a
-:class:`DataSplit.test` slice.
+"""``Evaluator`` — compute metrics for a :class:`ModelManifest` on a
+:class:`SplitManifest.test` slice.
 
-The base class returns a deterministic :class:`EvalReport` so the
+The base class returns a deterministic :class:`EvalMetadata` so the
 orchestration plan is well-formed offline. Concrete subclasses override
 :meth:`_score` to perform a real fit/predict/score loop.
 
 Algorithm:
-    1. Receive ``model`` (TrainedModel), ``split`` (DataSplit), and ``metrics``
+    1. Receive ``model`` (ModelManifest), ``split`` (SplitManifest), and ``metrics``
        (sequence of str) via process().
     2. Validate that metrics is non-empty and all elements are non-empty strings.
     3. For each metric, compute a deterministic score via SHA-256(model_id + metric + split).
-    4. Wrap scores in an EvalReport and return.
+    4. Wrap scores in an EvalMetadata and return.
 
 Math:
     score[metric] = sha256(model_id || metric || test_name || test_row_count)[0:8] as uint64 / 2^64
@@ -30,9 +30,11 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.eval_metadata import EvalMetadata
+from pirn.domains.ml.types.eval_metrics import EvalMetrics
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class Evaluator(Knot):
@@ -50,17 +52,17 @@ class Evaluator(Knot):
         super().__init__(model=model, split=split, metrics=metrics, _config=_config, **kwargs)
 
     async def process(
-        self, model: TrainedModel, split: DataSplit, metrics: Sequence[str] = (), **_: Any
-    ) -> EvalReport:
-        """Compute each configured metric for the model on the test split and return an EvalReport.
+        self, model: ModelManifest, split: SplitManifest, metrics: Sequence[str] = (), **_: Any
+    ) -> EvalReportPayload:
+        """Compute each configured metric for the model on the test split and return an EvalReportPayload.
 
         Args:
-            model: TrainedModel reference to evaluate.
-            split: DataSplit whose test partition is used for scoring.
+            model: ModelManifest reference to evaluate.
+            split: SplitManifest whose test partition is used for scoring.
             metrics: Non-empty sequence of metric name strings.
 
         Returns:
-            EvalReport containing all configured metrics and evaluation metadata.
+            EvalReportPayload containing all configured metrics and evaluation metadata.
 
         Raises:
             ValueError: If metrics is empty or any element is not a non-empty string.
@@ -74,20 +76,24 @@ class Evaluator(Knot):
         scored = MappingProxyType(
             {metric: self._score(model, split, metric) for metric in metric_tuple}
         )
-        return EvalReport(
-            model_id=model.model_id,
-            metrics=scored,
-            dataset_name=split.test.name,
-            evaluated_at=datetime.now(UTC),
-            details=MappingProxyType(
-                {
-                    "algorithm": model.algorithm,
-                    "test_row_count": split.test.row_count,
-                }
+        return EvalReportPayload(
+            metadata=EvalMetadata(
+                model_id=model.model_id,
+                dataset_name=split.test.name,
+                evaluated_at=datetime.now(UTC),
+            ),
+            data=EvalMetrics(
+                scores=scored,
+                details=MappingProxyType(
+                    {
+                        "algorithm": model.algorithm,
+                        "test_row_count": split.test.row_count,
+                    }
+                ),
             ),
         )
 
-    def _score(self, model: TrainedModel, split: DataSplit, metric: str) -> float:
+    def _score(self, model: ModelManifest, split: SplitManifest, metric: str) -> float:
         payload = json.dumps(
             {
                 "model_id": model.model_id,

@@ -25,8 +25,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class PredictionDriftMonitor(Knot):
@@ -53,18 +53,18 @@ class PredictionDriftMonitor(Knot):
 
     async def process(
         self,
-        model: TrainedModel,
-        baseline: DataSplit,
-        current: DataSplit,
+        model: ModelManifest,
+        baseline: SplitManifest,
+        current: SplitManifest,
         sigma_threshold: float = 3.0,
         **_: Any,
     ) -> Mapping[str, Any]:
         """Compare rolling prediction statistics between baseline and current windows and alert on deviations.
 
         Args:
-            model: TrainedModel whose predictions are being monitored.
-            baseline: DataSplit representing the reference prediction distribution.
-            current: DataSplit representing the recent prediction window.
+            model: ModelManifest whose predictions are being monitored.
+            baseline: SplitManifest representing the reference prediction distribution.
+            current: SplitManifest representing the recent prediction window.
             sigma_threshold: Number of standard deviations for the alert threshold; must be > 0.
 
         Returns:
@@ -94,7 +94,7 @@ class PredictionDriftMonitor(Knot):
             "sigma_threshold": sigma_f,
         }
 
-    def _stat(self, model: TrainedModel, split: DataSplit, stat: str) -> float:
+    def _stat(self, model: ModelManifest, split: SplitManifest, stat: str) -> float:
         payload = json.dumps(
             {
                 "model_id": model.model_id,

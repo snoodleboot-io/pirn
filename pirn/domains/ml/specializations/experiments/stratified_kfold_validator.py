@@ -3,12 +3,12 @@ stratification.
 
 Composition:
 
-1. :class:`CrossValidator` produces ``k`` logical :class:`DataSplit`
-   folds from the upstream :class:`MLDataset`.
+1. :class:`CrossValidator` produces ``k`` logical :class:`SplitManifest`
+   folds from the upstream :class:`DatasetManifest`.
 2. For each fold, :class:`Trainer` fits the configured algorithm and
    :class:`Evaluator` scores it on the fold's test partition.
 3. Per-fold metric values are averaged into a single aggregate
-   :class:`EvalReport`.
+   :class:`EvalMetadata`.
 
 The stratification column is recorded in the aggregate report's
 ``details`` for audit; the orchestration layer's :class:`CrossValidator`
@@ -16,12 +16,12 @@ emits logical fold metadata only — concrete subclasses are responsible
 for the actual stratified row partitioning.
 
 Algorithm:
-    1. Receive ``dataset`` (MLDataset), ``stratify_column``, ``algorithm``,
+    1. Receive ``dataset`` (DatasetManifest), ``stratify_column``, ``algorithm``,
        ``metrics``, and ``k`` via process().
     2. Validate all inputs.
     3. Wire CrossValidator in an inner Tapestry to produce k folds.
     4. Wire Trainer + Evaluator per fold in a second inner Tapestry.
-    5. Aggregate per-fold metrics (mean) and return an EvalReport.
+    5. Aggregate per-fold metrics (mean) and return an EvalMetadata.
 
 Math:
     mean_metric = sum(fold_metric) / k
@@ -43,9 +43,11 @@ from pirn.core.knot_factory import knot
 from pirn.domains.ml.data_prep.cross_validator import CrossValidator
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.eval_metadata import EvalMetadata
+from pirn.domains.ml.types.eval_metrics import EvalMetrics
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -81,28 +83,28 @@ class StratifiedKFoldValidator(SubTapestry):
 
     async def process(
         self,
-        dataset: MLDataset,
+        dataset: DatasetManifest,
         stratify_column: str = "",
         algorithm: str = "",
         metrics: Sequence[str] = (),
         k: int = 5,
         **_: Any,
-    ) -> EvalReport:
-        """Run stratified K-fold cross-validation and return an aggregate EvalReport with per-fold mean metrics.
+    ) -> EvalReportPayload:
+        """Run stratified K-fold cross-validation and return an aggregate EvalReportPayload with per-fold mean metrics.
 
         Args:
-            dataset: MLDataset reference to partition into k folds.
+            dataset: DatasetManifest reference to partition into k folds.
             stratify_column: Non-empty column name used for stratification.
             algorithm: Non-empty algorithm name string.
             metrics: Non-empty sequence of metric name strings.
             k: Number of folds; must be an int >= 2.
 
         Returns:
-            EvalReport with averaged per-fold metrics and per-fold details in the details dict.
+            EvalReportPayload with averaged per-fold metrics and per-fold details in the details dict.
 
         Raises:
             ValueError: If any input fails validation.
-            TypeError: If any inner fold evaluator does not return an EvalReport.
+            TypeError: If any inner fold evaluator does not return an EvalReportPayload.
         """
         if not isinstance(k, int):
             raise TypeError("StratifiedKFoldValidator: k must be an int")
@@ -128,7 +130,7 @@ class StratifiedKFoldValidator(SubTapestry):
                 _config=KnotConfig(id="folds"),
             )
         folds_result = await self._run_inner(inner)
-        folds: tuple[DataSplit, ...] = folds_result.outputs["folds"]
+        folds: tuple[SplitManifest, ...] = folds_result.outputs["folds"]
         per_fold_metrics: list[dict[str, float]] = []
         with Tapestry() as inner_eval:
             for fold_index, fold in enumerate(folds):
@@ -151,25 +153,31 @@ class StratifiedKFoldValidator(SubTapestry):
         eval_result = await self._run_inner(inner_eval)
         for fold_index in range(len(folds)):
             report = eval_result.outputs[f"evaluate_{fold_index}"]
-            if not isinstance(report, EvalReport):
+            if not isinstance(report, EvalReportPayload):
                 raise TypeError(
-                    f"StratifiedKFoldValidator: fold {fold_index} did not produce an EvalReport"
+                    f"StratifiedKFoldValidator: fold {fold_index} did not produce an EvalMetadata"
                 )
-            per_fold_metrics.append({name: float(value) for name, value in report.metrics.items()})
+            per_fold_metrics.append(
+                {name: float(value) for name, value in report.metrics.scores.items()}
+            )
         aggregated = self._aggregate(per_fold_metrics)
-        return EvalReport(
-            model_id=f"{algorithm}:kfold-{k}",
-            dataset_name=dataset.name,
-            metrics=MappingProxyType(aggregated),
-            details=MappingProxyType(
-                {
-                    "k": k,
-                    "stratify_column": stratify_column,
-                    "algorithm": algorithm,
-                    "per_fold_metrics": per_fold_metrics,
-                }
+        return EvalReportPayload(
+            metadata=EvalMetadata(
+                model_id=f"{algorithm}:kfold-{k}",
+                dataset_name=dataset.name,
+                evaluated_at=datetime.now(UTC),
             ),
-            evaluated_at=datetime.now(UTC),
+            data=EvalMetrics(
+                scores=MappingProxyType(aggregated),
+                details=MappingProxyType(
+                    {
+                        "k": k,
+                        "stratify_column": stratify_column,
+                        "algorithm": algorithm,
+                        "per_fold_metrics": per_fold_metrics,
+                    }
+                ),
+            ),
         )
 
     def _aggregate(self, per_fold_metrics: list[dict[str, float]]) -> dict[str, float]:

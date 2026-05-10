@@ -8,7 +8,7 @@ Algorithm:
     2. Validate all inputs.
     3. Wire DatasetLoader → TrainTestSplit → Trainer → Evaluator in an
        inner Tapestry.
-    4. Run via _run_inner() and return the final EvalReport.
+    4. Run via _run_inner() and return the final EvalMetadata.
 
 
 References:
@@ -29,7 +29,7 @@ from pirn.domains.ml.data_prep.dataset_loader import DatasetLoader
 from pirn.domains.ml.data_prep.train_test_split import TrainTestSplit
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.eval_report import EvalReport
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -74,8 +74,8 @@ class ActiveLearningLoop(SubTapestry):
         query_size: int = 10,
         algorithm: str = "logistic",
         **_: Any,
-    ) -> EvalReport:
-        """Run the active learning loop for N rounds and return the final round EvalReport.
+    ) -> EvalReportPayload:
+        """Run the active learning loop for N rounds and return the final round EvalMetadata.
 
         Args:
             pool: DatabaseConnectionPool for loading the dataset.
@@ -87,7 +87,7 @@ class ActiveLearningLoop(SubTapestry):
             algorithm: Non-empty algorithm identifier.
 
         Returns:
-            EvalReport from the final round containing accuracy and f1 metrics,
+            EvalReportPayload from the final round containing accuracy and f1 metrics,
             with round history in details.
 
         Raises:

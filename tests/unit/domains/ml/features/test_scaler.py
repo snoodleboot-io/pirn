@@ -8,19 +8,19 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.domains.ml.features.scaler import Scaler
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.split_manifest import SplitManifest
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 from pirn.tapestry import Tapestry
 
 
-def _split() -> DataSplit:
-    train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
-    test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
-    return DataSplit(train=train, test=test)
+def _split() -> SplitManifest:
+    train = DatasetManifest(name="d:train", feature_names=("a",), row_count=80)
+    test = DatasetManifest(name="d:test", feature_names=("a",), row_count=20)
+    return SplitManifest(train=train, test=test)
 
 
 @knot
-async def emit_split() -> DataSplit:
+async def emit_split() -> SplitManifest:
     return _split()
 
 
@@ -36,7 +36,7 @@ class TestScalerHappyPath(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert result.succeeded
-        out: DataSplit = result.outputs["scaler"]
+        out: SplitManifest = result.outputs["scaler"]
         assert out.train.name.endswith(":scaled_standardise")
         assert out.test.name.endswith(":scaled_standardise")
         assert out.train.row_count == 80

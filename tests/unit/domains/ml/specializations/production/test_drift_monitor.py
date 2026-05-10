@@ -8,8 +8,8 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.ml.specializations.production.drift_monitor import DriftMonitor
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.split_manifest import SplitManifest
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 from pirn.tapestry import Tapestry
 
 
@@ -21,10 +21,10 @@ class _KnotStub(Knot):
         return None
 
 
-def _make_split() -> DataSplit:
-    train = MLDataset(name="d:train", feature_names=("f1", "f2"), row_count=80)
-    test = MLDataset(name="d:test", feature_names=("f1", "f2"), row_count=20)
-    return DataSplit(train=train, test=test)
+def _make_split() -> SplitManifest:
+    train = DatasetManifest(name="d:train", feature_names=("f1", "f2"), row_count=80)
+    test = DatasetManifest(name="d:test", feature_names=("f1", "f2"), row_count=20)
+    return SplitManifest(train=train, test=test)
 
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):

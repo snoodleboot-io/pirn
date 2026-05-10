@@ -1,11 +1,11 @@
-"""``TrainTestSplit`` — partition an :class:`MLDataset` into train / val / test
+"""``TrainTestSplit`` — partition an :class:`DatasetManifest` into train / val / test
 references.
 
 Pirn does not load the dataset rows here. Instead, it computes the
 expected size of each partition deterministically from the
 ``random_seed`` and the upstream ``row_count`` and emits three
-:class:`MLDataset` references (with adjusted ``row_count``) wrapped in a
-:class:`DataSplit`. Downstream knots that need actual rows resolve them
+:class:`DatasetManifest` references (with adjusted ``row_count``) wrapped in a
+:class:`SplitManifest`. Downstream knots that need actual rows resolve them
 by streaming the source and filtering by hash-of-row-index against the
 same seed.
 
@@ -16,7 +16,7 @@ Algorithm:
     3. Compute a small seed_bias from SHA-256(random_seed) to make splits seed-dependent.
     4. Compute test_count and optional validation_count from total * fractions + bias.
     5. Compute train_count = total - test_count - validation_count.
-    6. Construct MLDataset references for each partition and wrap in a DataSplit.
+    6. Construct DatasetManifest references for each partition and wrap in a SplitManifest.
 
 Math:
     seed_bias = (sha256_bytes[0:4] as uint32) / 2**32 - 0.5   # in (-0.5, 0.5)
@@ -36,12 +36,13 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.dataset_payload import DatasetPayload
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class TrainTestSplit(Knot):
-    """Compute logical train/validation/test :class:`DataSplit` from a dataset."""
+    """Compute logical train/validation/test :class:`SplitManifest` from a dataset."""
 
     def __init__(
         self,
@@ -64,27 +65,29 @@ class TrainTestSplit(Knot):
 
     async def process(
         self,
-        dataset: MLDataset,
+        dataset: DatasetManifest | DatasetPayload,
         test_fraction: float = 0.2,
         validation_fraction: float = 0.0,
         random_seed: int = 42,
         **_: Any,
-    ) -> DataSplit:
-        """Partition the dataset reference into train, test, and optional validation splits and return a DataSplit.
+    ) -> SplitManifest:
+        """Partition the dataset reference into train, test, and optional validation splits and return a SplitManifest.
 
         Args:
-            dataset: MLDataset reference to partition.
+            dataset: DatasetManifest reference to partition.
             test_fraction: Fraction of rows for the test partition; must be in (0, 1).
             validation_fraction: Fraction of rows for the validation partition; must be in [0, 1).
             random_seed: Seed that introduces a small deterministic bias to split borders.
 
         Returns:
-            DataSplit with train, test, and optional validation MLDataset references.
+            SplitManifest with train, test, and optional validation DatasetManifest references.
 
         Raises:
             TypeError: If fraction or seed args have wrong types.
             ValueError: If dataset.row_count is negative or fractions exceed dataset size.
         """
+        if isinstance(dataset, DatasetPayload):
+            dataset = dataset.manifest
         if not isinstance(test_fraction, (int, float)):
             raise TypeError("TrainTestSplit: test_fraction must be numeric")
         if not isinstance(validation_fraction, (int, float)):
@@ -118,7 +121,7 @@ class TrainTestSplit(Knot):
         validation = (
             self._mk(dataset, "validation", validation_count, now) if validation_count > 0 else None
         )
-        return DataSplit(train=train, test=test, validation=validation)
+        return SplitManifest(train=train, test=test, validation=validation)
 
     def _seed_bias(self, random_seed: int) -> float:
         # Map the seed into [0, 1) so the bias is small but seed-dependent.
@@ -129,12 +132,12 @@ class TrainTestSplit(Knot):
 
     def _mk(
         self,
-        source: MLDataset,
+        source: DatasetManifest,
         partition: str,
         count: int,
         fetched_at: datetime,
-    ) -> MLDataset:
-        return MLDataset(
+    ) -> DatasetManifest:
+        return DatasetManifest(
             name=f"{source.name}:{partition}",
             feature_names=source.feature_names,
             target_name=source.target_name,

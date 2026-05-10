@@ -2,7 +2,7 @@
 ``partial_fit`` on mini-batches.
 
 Tracks a running metric across all mini-batches and returns the
-final :class:`TrainedModel` with the last evaluation report.
+final :class:`ModelManifest` with the last evaluation report.
 
 Algorithm:
     1. Receive ``split``, ``algorithm``, ``monitor_metric``,
@@ -26,10 +26,10 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.ml_dataset import MLDataset
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -65,7 +65,7 @@ class OnlineLearnerTrainer(SubTapestry):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         algorithm: str = "",
         monitor_metric: str = "",
         n_batches: int = 10,
@@ -75,7 +75,7 @@ class OnlineLearnerTrainer(SubTapestry):
         """Incrementally train on mini-batches and return the final model and running metric history.
 
         Args:
-            split: DataSplit whose training partition is divided into n_batches
+            split: SplitManifest whose training partition is divided into n_batches
                 mini-batches for incremental partial_fit updates.
             algorithm: Non-empty algorithm identifier.
             monitor_metric: Non-empty metric name to track across batches.
@@ -83,7 +83,7 @@ class OnlineLearnerTrainer(SubTapestry):
             hyperparameters: Optional mapping of additional hyperparameters.
 
         Returns:
-            Dict with ``model`` (TrainedModel), ``eval_report`` (EvalReport),
+            Dict with ``model`` (ModelManifest), ``eval_report`` (EvalMetadata),
             and ``n_batches`` (int number of mini-batches processed).
 
         Raises:
@@ -105,14 +105,14 @@ class OnlineLearnerTrainer(SubTapestry):
 
         with Tapestry() as inner:
             for batch_idx in range(n_batches):
-                batch_ds = MLDataset(
+                batch_ds = DatasetManifest(
                     name=f"{split.train.name}:batch_{batch_idx}",
                     feature_names=split.train.feature_names,
                     target_name=split.train.target_name,
                     row_count=rows_per_batch,
                     source_uri=split.train.source_uri,
                 )
-                batch_split = DataSplit(train=batch_ds, test=split.test)
+                batch_split = SplitManifest(train=batch_ds, test=split.test)
                 batch_node = _emit_value(
                     value=batch_split,
                     _config=KnotConfig(id=f"batch_{batch_idx}"),
@@ -138,10 +138,10 @@ class OnlineLearnerTrainer(SubTapestry):
         last_idx = n_batches - 1
         trained_model = result.outputs[f"train_{last_idx}"]
         report = result.outputs[f"evaluate_{last_idx}"]
-        if not isinstance(trained_model, TrainedModel):
-            raise TypeError("OnlineLearnerTrainer: trainer did not return a TrainedModel")
-        if not isinstance(report, EvalReport):
-            raise TypeError("OnlineLearnerTrainer: evaluator did not return an EvalReport")
+        if not isinstance(trained_model, ModelManifest):
+            raise TypeError("OnlineLearnerTrainer: trainer did not return a ModelManifest")
+        if not isinstance(report, EvalReportPayload):
+            raise TypeError("OnlineLearnerTrainer: evaluator did not return an EvalReportPayload")
         return {
             "model": trained_model,
             "eval_report": report,

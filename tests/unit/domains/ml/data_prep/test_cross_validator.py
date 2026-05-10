@@ -8,14 +8,14 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.domains.ml.data_prep.cross_validator import CrossValidator
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.split_manifest import SplitManifest
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 from pirn.tapestry import Tapestry
 
 
 @knot
-async def emit_dataset() -> MLDataset:
-    return MLDataset(
+async def emit_dataset() -> DatasetManifest:
+    return DatasetManifest(
         name="customers",
         feature_names=("a",),
         row_count=100,
@@ -23,8 +23,8 @@ async def emit_dataset() -> MLDataset:
     )
 
 
-def _make_dataset(row_count: int = 100) -> MLDataset:
-    return MLDataset(
+def _make_dataset(row_count: int = 100) -> DatasetManifest:
+    return DatasetManifest(
         name="customers",
         feature_names=("a",),
         row_count=row_count,
@@ -44,11 +44,11 @@ class TestCrossValidatorHappyPath(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert result.succeeded
-        out: tuple[DataSplit, ...] = result.outputs["cv"]
+        out: tuple[SplitManifest, ...] = result.outputs["cv"]
         assert isinstance(out, tuple)
         assert len(out) == 5
         for split in out:
-            assert isinstance(split, DataSplit)
+            assert isinstance(split, SplitManifest)
             assert split.validation is None
             assert split.train.row_count + split.test.row_count == 100
 

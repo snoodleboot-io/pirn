@@ -2,7 +2,7 @@
 algorithm's hyperparameter space.
 
 This orchestration-layer knot picks the first candidate from the search
-space (deterministic given the seed) and emits a :class:`TrainedModel`
+space (deterministic given the seed) and emits a :class:`ModelManifest`
 reference. Concrete subclasses can override :meth:`_score_candidate` to
 plug in a real fit/score loop; the base class returns a constant score
 for every candidate so the search remains well-defined offline.
@@ -13,7 +13,7 @@ Algorithm:
     3. Enumerate candidates (grid: all combos; random/bayesian: shuffled sample up to n_trials).
     4. Score each candidate via _score_candidate (deterministic hash in base class).
     5. Select the highest-scoring candidate and derive a model_id.
-    6. Return a TrainedModel for the best candidate.
+    6. Return a ModelManifest for the best candidate.
 
 Math:
     candidate_score = sha256(random_seed || candidate)[0:8] as uint64 / 2^64
@@ -36,12 +36,12 @@ from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class HyperparamSearch(Knot):
-    """Emit the best :class:`TrainedModel` from an enumerated search space."""
+    """Emit the best :class:`ModelManifest` from an enumerated search space."""
 
     valid_strategies: ClassVar[frozenset[str]] = frozenset({"grid", "random", "bayesian"})
 
@@ -70,18 +70,18 @@ class HyperparamSearch(Knot):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         algorithm: str,
         search_space: Mapping[str, Sequence[Any]],
         strategy: str = "grid",
         n_trials: int = 10,
         random_seed: int = 42,
         **_: Any,
-    ) -> TrainedModel:
-        """Enumerate and score candidates from the search space using the configured strategy and return the best TrainedModel.
+    ) -> ModelManifest:
+        """Enumerate and score candidates from the search space using the configured strategy and return the best ModelManifest.
 
         Args:
-            split: DataSplit whose train partition metadata is used to derive
+            split: SplitManifest whose train partition metadata is used to derive
                 the deterministic model_id for the winning candidate.
             algorithm: Non-empty algorithm name string.
             search_space: Non-empty mapping of hyperparameter name to candidate values.
@@ -90,7 +90,7 @@ class HyperparamSearch(Knot):
             random_seed: Seed for deterministic candidate shuffling.
 
         Returns:
-            TrainedModel for the highest-scoring candidate hyperparameter set.
+            ModelManifest for the highest-scoring candidate hyperparameter set.
 
         Raises:
             ValueError: If inputs fail validation.
@@ -123,7 +123,7 @@ class HyperparamSearch(Knot):
         candidates = self._enumerate(frozen_space, strategy, n_trials, random_seed)
         best = self._best_candidate(candidates, random_seed)
         model_id = self._derive_model_id(split, best, algorithm, strategy)
-        return TrainedModel(
+        return ModelManifest(
             model_id=model_id,
             algorithm=algorithm,
             hyperparameters=MappingProxyType(dict(best)),
@@ -174,7 +174,7 @@ class HyperparamSearch(Knot):
         return int.from_bytes(digest[:8], "big") / float(2**64)
 
     def _derive_model_id(
-        self, split: DataSplit, candidate: Mapping[str, Any], algorithm: str, strategy: str
+        self, split: SplitManifest, candidate: Mapping[str, Any], algorithm: str, strategy: str
     ) -> str:
         payload = json.dumps(
             {

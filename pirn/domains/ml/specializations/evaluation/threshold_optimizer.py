@@ -2,7 +2,7 @@
 (0.01-0.99) and finds the optimal threshold maximising the requested metric.
 
 Algorithm:
-    1. Receive ``model`` (TrainedModel), ``split`` (DataSplit), and ``metric`` (str) via process().
+    1. Receive ``model`` (ModelManifest), ``split`` (SplitManifest), and ``metric`` (str) via process().
     2. Validate metric is one of {"f1", "precision", "recall"}.
     3. Compute score at each threshold 0.01-0.99 via SHA-256.
     4. Select the threshold with the highest score.
@@ -25,8 +25,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class ThresholdOptimizer(Knot):
@@ -51,16 +51,16 @@ class ThresholdOptimizer(Knot):
 
     async def process(
         self,
-        model: TrainedModel,
-        split: DataSplit,
+        model: ModelManifest,
+        split: SplitManifest,
         metric: str = "f1",
         **_: Any,
     ) -> Mapping[str, Any]:
         """Sweep thresholds 0.01-0.99 and return the threshold that maximises the requested metric.
 
         Args:
-            model: TrainedModel reference whose class probabilities are being thresholded.
-            split: DataSplit whose test partition drives the threshold sweep.
+            model: ModelManifest reference whose class probabilities are being thresholded.
+            split: SplitManifest whose test partition drives the threshold sweep.
             metric: Optimization metric; must be one of {"f1", "precision", "recall"}.
 
         Returns:
@@ -86,7 +86,7 @@ class ThresholdOptimizer(Knot):
         }
 
     def _threshold_score(
-        self, model: TrainedModel, split: DataSplit, threshold: float, metric: str
+        self, model: ModelManifest, split: SplitManifest, threshold: float, metric: str
     ) -> float:
         payload = json.dumps(
             {

@@ -13,23 +13,24 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.experiments.champion_challenger_check import (
     ChampionChallengerCheck,
 )
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.ml_dataset import MLDataset
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.split_manifest import SplitManifest
+from pirn.domains.ml.types.eval_metadata import EvalMetadata
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.model_manifest import ModelManifest
 from pirn.tapestry import Tapestry
 
 
 @knot
-async def emit_split() -> DataSplit:
-    train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
-    test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
-    return DataSplit(train=train, test=test)
+async def emit_split() -> SplitManifest:
+    train = DatasetManifest(name="d:train", feature_names=("a",), row_count=80)
+    test = DatasetManifest(name="d:test", feature_names=("a",), row_count=20)
+    return SplitManifest(train=train, test=test)
 
 
 @knot
-async def emit_champion() -> TrainedModel:
-    return TrainedModel(
+async def emit_champion() -> ModelManifest:
+    return ModelManifest(
         model_id="champ",
         algorithm="rf",
         feature_names=("a",),
@@ -38,8 +39,8 @@ async def emit_champion() -> TrainedModel:
 
 
 @knot
-async def emit_challenger() -> TrainedModel:
-    return TrainedModel(
+async def emit_challenger() -> ModelManifest:
+    return ModelManifest(
         model_id="chal",
         algorithm="xgb",
         feature_names=("a",),
@@ -108,7 +109,7 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         assert "challenger_wins" in out
         assert isinstance(out["challenger_wins"], bool)
         comparison = out["comparison"]
-        assert isinstance(comparison, EvalReport)
-        assert "champion_accuracy" in comparison.metrics
-        assert "challenger_accuracy" in comparison.metrics
-        assert "delta_accuracy" in comparison.metrics
+        assert isinstance(comparison, EvalReportPayload)
+        assert "champion_accuracy" in comparison.metrics.scores
+        assert "challenger_accuracy" in comparison.metrics.scores
+        assert "delta_accuracy" in comparison.metrics.scores

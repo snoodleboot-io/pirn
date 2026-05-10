@@ -20,8 +20,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class SHAPExplainer(Knot):
@@ -37,12 +37,14 @@ class SHAPExplainer(Knot):
     ) -> None:
         super().__init__(model=model, split=split, _config=_config, **kwargs)
 
-    async def process(self, model: TrainedModel, split: DataSplit, **_: Any) -> Mapping[str, Any]:
+    async def process(
+        self, model: ModelManifest, split: SplitManifest, **_: Any
+    ) -> Mapping[str, Any]:
         """Compute SHAP values for the model on the test split and return per-feature importance.
 
         Args:
-            model: TrainedModel reference to explain.
-            split: DataSplit whose test partition is used as the explanation batch.
+            model: ModelManifest reference to explain.
+            split: SplitManifest whose test partition is used as the explanation batch.
 
         Returns:
             Mapping with ``feature_importance`` (dict[str, float]),
@@ -67,8 +69,8 @@ class SHAPExplainer(Knot):
 
     def _shap_value(
         self,
-        model: TrainedModel,
-        split: DataSplit,
+        model: ModelManifest,
+        split: SplitManifest,
         feature: str,
         kind: str,
     ) -> float:

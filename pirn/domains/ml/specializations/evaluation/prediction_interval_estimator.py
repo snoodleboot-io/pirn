@@ -2,7 +2,7 @@
 wrapper to produce calibrated prediction intervals alongside point predictions.
 
 Algorithm:
-    1. Receive ``model`` (TrainedModel), ``split`` (DataSplit), and ``coverage`` (float) via process().
+    1. Receive ``model`` (ModelManifest), ``split`` (SplitManifest), and ``coverage`` (float) via process().
     2. Validate coverage is numeric and in the open interval (0, 1).
     3. Derive mean interval width and empirical coverage via SHA-256 of inputs.
     4. Clamp empirical_coverage to [0, 1].
@@ -26,8 +26,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class PredictionIntervalEstimator(Knot):
@@ -52,16 +52,16 @@ class PredictionIntervalEstimator(Knot):
 
     async def process(
         self,
-        model: TrainedModel,
-        split: DataSplit,
+        model: ModelManifest,
+        split: SplitManifest,
         coverage: float = 0.9,
         **_: Any,
     ) -> Mapping[str, Any]:
         """Fit a conformal prediction wrapper and return point predictions with calibrated intervals.
 
         Args:
-            model: TrainedModel to wrap with conformal prediction.
-            split: DataSplit whose test partition is used for interval calibration.
+            model: ModelManifest to wrap with conformal prediction.
+            split: SplitManifest whose test partition is used for interval calibration.
             coverage: Target coverage probability; must be a float in (0, 1).
 
         Returns:

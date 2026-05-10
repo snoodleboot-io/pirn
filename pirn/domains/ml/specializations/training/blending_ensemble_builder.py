@@ -1,7 +1,7 @@
 """``BlendingEnsembleBuilder`` — train base models on 80% of data, blend
 predictions on 20% holdout using a weighted average.
 
-Returns the blended ensemble :class:`TrainedModel` and its evaluation
+Returns the blended ensemble :class:`ModelManifest` and its evaluation
 report.
 
 Algorithm:
@@ -27,10 +27,10 @@ from pirn.core.knot_factory import knot
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.training.ensemble_builder import EnsembleBuilder
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.ml_dataset import MLDataset
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -62,7 +62,7 @@ class BlendingEnsembleBuilder(SubTapestry):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         base_algorithms: Sequence[str] = (),
         metrics: Sequence[str] = (),
         **_: Any,
@@ -70,13 +70,13 @@ class BlendingEnsembleBuilder(SubTapestry):
         """Train base models on 80% of training data and blend on 20% holdout.
 
         Args:
-            split: DataSplit whose train partition is further divided 80/20
+            split: SplitManifest whose train partition is further divided 80/20
                 for base training and blending.
             base_algorithms: At least two non-empty algorithm identifiers.
             metrics: Non-empty sequence of metric names.
 
         Returns:
-            Dict with ``ensemble_model`` (TrainedModel), ``eval_report`` (EvalReport),
+            Dict with ``ensemble_model`` (ModelManifest), ``eval_report`` (EvalMetadata),
             and ``n_base_models`` (int).
 
         Raises:
@@ -103,21 +103,21 @@ class BlendingEnsembleBuilder(SubTapestry):
         blend_rows = max(1, train_rows // 5)
         base_rows = train_rows - blend_rows
 
-        base_train_ds = MLDataset(
+        base_train_ds = DatasetManifest(
             name=f"{split.train.name}:blend_train",
             feature_names=split.train.feature_names,
             target_name=split.train.target_name,
             row_count=base_rows,
             source_uri=split.train.source_uri,
         )
-        blend_test_ds = MLDataset(
+        blend_test_ds = DatasetManifest(
             name=f"{split.train.name}:blend_holdout",
             feature_names=split.train.feature_names,
             target_name=split.train.target_name,
             row_count=blend_rows,
             source_uri=split.train.source_uri,
         )
-        blend_split = DataSplit(train=base_train_ds, test=blend_test_ds)
+        blend_split = SplitManifest(train=base_train_ds, test=blend_test_ds)
 
         with Tapestry() as inner:
             split_node = _emit_value(value=blend_split, _config=KnotConfig(id="blend_split"))
@@ -143,10 +143,12 @@ class BlendingEnsembleBuilder(SubTapestry):
         result = await self._run_inner(inner)
         ensemble_model = result.outputs["ensemble"]
         report = result.outputs["evaluate"]
-        if not isinstance(ensemble_model, TrainedModel):
-            raise TypeError("BlendingEnsembleBuilder: ensemble did not return a TrainedModel")
-        if not isinstance(report, EvalReport):
-            raise TypeError("BlendingEnsembleBuilder: evaluator did not return an EvalReport")
+        if not isinstance(ensemble_model, ModelManifest):
+            raise TypeError("BlendingEnsembleBuilder: ensemble did not return a ModelManifest")
+        if not isinstance(report, EvalReportPayload):
+            raise TypeError(
+                "BlendingEnsembleBuilder: evaluator did not return an EvalReportPayload"
+            )
         return {
             "ensemble_model": ensemble_model,
             "eval_report": report,

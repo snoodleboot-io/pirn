@@ -9,7 +9,8 @@ import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.domains.ml.data_prep.dataset_loader import DatasetLoader
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.dataset_payload import DatasetPayload
 from pirn.tapestry import Tapestry
 from tests.unit.domains.ml._stubs.recording_database_pool import (
     RecordingDatabasePool,
@@ -18,7 +19,12 @@ from tests.unit.domains.ml._stubs.recording_database_pool import (
 
 class TestDatasetLoaderHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_loads_metadata_from_pool_query(self) -> None:
-        pool = RecordingDatabasePool(rows=[(1,), (2,), (3,)])
+        rows = [
+            {"age": 25.0, "income": 50000.0, "churned": 0.0},
+            {"age": 30.0, "income": 60000.0, "churned": 1.0},
+            {"age": 45.0, "income": 80000.0, "churned": 0.0},
+        ]
+        pool = RecordingDatabasePool(rows=rows)
         with Tapestry() as t:
             DatasetLoader(
                 name="customers",
@@ -30,12 +36,16 @@ class TestDatasetLoaderHappyPath(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert result.succeeded
-        out: MLDataset = result.outputs["loader"]
-        assert isinstance(out, MLDataset)
-        assert out.name == "customers"
-        assert out.feature_names == ("age", "income")
-        assert out.target_name == "churned"
-        assert out.row_count == 3
+        out: DatasetPayload = result.outputs["loader"]
+        assert isinstance(out, DatasetPayload)
+        assert isinstance(out.manifest, DatasetManifest)
+        assert out.manifest.name == "customers"
+        assert out.manifest.feature_names == ("age", "income")
+        assert out.manifest.target_name == "churned"
+        assert out.manifest.row_count == 3
+        assert out.features.X.shape == (3, 2)
+        assert out.features.y is not None
+        assert out.features.y.shape == (3,)
         assert pool.queries == [("SELECT id FROM customers", None)]
 
 

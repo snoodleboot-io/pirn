@@ -3,7 +3,7 @@ then fine-tune on a labeled dataset.
 
 The pretraining objective (e.g. masked feature prediction) is encoded
 in the ``pretrain_algorithm`` parameter. Fine-tuning uses the configured
-``finetune_algorithm`` on the labeled :class:`DataSplit`.
+``finetune_algorithm`` on the labeled :class:`SplitManifest`.
 
 Algorithm:
     1. Receive ``split``, ``pretrain_algorithm``, ``finetune_algorithm``,
@@ -28,9 +28,9 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -68,7 +68,7 @@ class SelfSupervisedPretrainer(SubTapestry):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         pretrain_algorithm: str = "",
         finetune_algorithm: str = "",
         metrics: Sequence[str] = (),
@@ -79,7 +79,7 @@ class SelfSupervisedPretrainer(SubTapestry):
         """Pretrain via a self-supervised objective then fine-tune on labeled data.
 
         Args:
-            split: DataSplit used for both the self-supervised pretraining and
+            split: SplitManifest used for both the self-supervised pretraining and
                 the supervised fine-tuning pass.
             pretrain_algorithm: Non-empty algorithm identifier for pretraining.
             finetune_algorithm: Non-empty algorithm identifier for fine-tuning.
@@ -88,7 +88,7 @@ class SelfSupervisedPretrainer(SubTapestry):
             finetune_hyperparameters: Optional mapping of fine-tuning hyperparameters.
 
         Returns:
-            Dict with ``model`` (TrainedModel), ``eval_report`` (EvalReport),
+            Dict with ``model`` (ModelManifest), ``eval_report`` (EvalMetadata),
             ``pretrain_algorithm`` (str), and ``finetune_algorithm`` (str).
 
         Raises:
@@ -144,12 +144,14 @@ class SelfSupervisedPretrainer(SubTapestry):
         result = await self._run_inner(inner)
         trained_model = result.outputs["finetune"]
         report = result.outputs["evaluate"]
-        if not isinstance(trained_model, TrainedModel):
+        if not isinstance(trained_model, ModelManifest):
             raise TypeError(
-                "SelfSupervisedPretrainer: fine-tune trainer did not return a TrainedModel"
+                "SelfSupervisedPretrainer: fine-tune trainer did not return a ModelManifest"
             )
-        if not isinstance(report, EvalReport):
-            raise TypeError("SelfSupervisedPretrainer: evaluator did not return an EvalReport")
+        if not isinstance(report, EvalReportPayload):
+            raise TypeError(
+                "SelfSupervisedPretrainer: evaluator did not return an EvalReportPayload"
+            )
         return {
             "model": trained_model,
             "eval_report": report,

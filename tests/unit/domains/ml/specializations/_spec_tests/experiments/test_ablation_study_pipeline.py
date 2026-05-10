@@ -10,27 +10,28 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.experiments.ablation_study_pipeline import (
     AblationStudyPipeline,
 )
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.split_manifest import SplitManifest
+from pirn.domains.ml.types.eval_metadata import EvalMetadata
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 from pirn.tapestry import Tapestry
 
 
 @knot
-async def emit_split() -> DataSplit:
-    train = MLDataset(
+async def emit_split() -> SplitManifest:
+    train = DatasetManifest(
         name="d:train",
         feature_names=("a", "b", "c"),
         target_name="y",
         row_count=80,
     )
-    test = MLDataset(
+    test = DatasetManifest(
         name="d:test",
         feature_names=("a", "b", "c"),
         target_name="y",
         row_count=20,
     )
-    return DataSplit(train=train, test=test)
+    return SplitManifest(train=train, test=test)
 
 
 def _make_pipeline() -> AblationStudyPipeline:
@@ -46,14 +47,14 @@ def _make_pipeline() -> AblationStudyPipeline:
     return pipeline
 
 
-def _split_fixture() -> DataSplit:
-    train = MLDataset(
+def _split_fixture() -> SplitManifest:
+    train = DatasetManifest(
         name="d:train", feature_names=("a", "b", "c"), target_name="y", row_count=80
     )
-    test = MLDataset(
+    test = DatasetManifest(
         name="d:test", feature_names=("a", "b", "c"), target_name="y", row_count=20
     )
-    return DataSplit(train=train, test=test)
+    return SplitManifest(train=train, test=test)
 
 
 class TestConstruction(unittest.IsolatedAsyncioTestCase):
@@ -97,5 +98,5 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         assert isinstance(reports, dict)
         assert set(reports.keys()) == {"full", "g1", "g2"}
         for _arm, report in reports.items():
-            assert isinstance(report, EvalReport)
-            assert "accuracy" in report.metrics
+            assert isinstance(report, EvalReportPayload)
+            assert "accuracy" in report.metrics.scores

@@ -9,7 +9,8 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.production.full_train_deploy_pipeline import (
     FullTrainDeployPipeline,
 )
-from pirn.domains.ml.types.eval_report import EvalReport
+from pirn.domains.ml.types.eval_metadata import EvalMetadata
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.tapestry import Tapestry
 from tests.unit.domains.ml._stubs.recording_database_pool import (
     RecordingDatabasePool,
@@ -81,7 +82,7 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         out = result.outputs["train-deploy"]
         assert isinstance(out["model_id"], str)
         assert out["model_id"].startswith("logistic:")
-        assert isinstance(out["eval_report"], EvalReport)
+        assert isinstance(out["eval_report"], EvalReportPayload)
         # Model registered with lineage + object store
         assert any(event[0] == "model_registered" for event in lineage.events)
         assert any(

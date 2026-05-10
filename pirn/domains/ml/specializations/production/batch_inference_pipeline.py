@@ -23,8 +23,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class BatchInferencePipeline(Knot):
@@ -51,8 +51,8 @@ class BatchInferencePipeline(Knot):
 
     async def process(
         self,
-        model: TrainedModel,
-        split: DataSplit,
+        model: ModelManifest,
+        split: SplitManifest,
         batch_size: int = 256,
         output_column: str = "prediction",
         **_: Any,
@@ -60,8 +60,8 @@ class BatchInferencePipeline(Knot):
         """Run batch inference over the test partition and return a predictions summary.
 
         Args:
-            model: TrainedModel reference to use for inference.
-            split: DataSplit whose test partition is used as the inference dataset.
+            model: ModelManifest reference to use for inference.
+            split: SplitManifest whose test partition is used as the inference dataset.
             batch_size: Number of rows per batch; must be an int >= 1.
             output_column: Non-empty name for the prediction output column.
 

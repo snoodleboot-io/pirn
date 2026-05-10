@@ -7,7 +7,7 @@ Algorithm:
     2. Validate all inputs.
     3. Wire DatasetLoader → TrainTestSplit → Trainer → RankingEvalPipeline
        in an inner Tapestry.
-    4. Run via _run_inner() and return the EvalReport.
+    4. Run via _run_inner() and return the EvalMetadata.
 
 
 References:
@@ -29,7 +29,7 @@ from pirn.domains.ml.specializations.evaluation.ranking_eval_pipeline import (
     RankingEvalPipeline,
 )
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.eval_report import EvalReport
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -74,7 +74,7 @@ class CollaborativeFilteringPipeline(SubTapestry):
         algorithm: str = "als",
         top_k: int = 10,
         **_: Any,
-    ) -> EvalReport:
+    ) -> EvalReportPayload:
         """Train a matrix factorisation model and evaluate with ranking metrics.
 
         Args:
@@ -87,7 +87,7 @@ class CollaborativeFilteringPipeline(SubTapestry):
             top_k: Number of recommendations per user; must be int >= 1.
 
         Returns:
-            EvalReport containing ndcg_at_k, mrr, and map_at_k ranking metrics.
+            EvalReportPayload containing ndcg_at_k, mrr, and map_at_k ranking metrics.
 
         Raises:
             ValueError: If any input fails validation.

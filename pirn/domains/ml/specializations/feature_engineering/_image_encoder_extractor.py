@@ -1,5 +1,5 @@
 """``_ImageEncoderExtractor`` — append a ``<image_column>_embedding``
-feature to every partition of a :class:`DataSplit` via an
+feature to every partition of a :class:`SplitManifest` via an
 :class:`ImageEncoderProvider`.
 
 Mirrors :class:`EmbeddingExtractor` but operates over image bytes
@@ -11,7 +11,7 @@ Algorithm:
     1. Receive ``split``, ``image_column``, and ``image_encoder`` via process().
     2. Validate inputs.
     3. Probe the encoder with column-name bytes.
-    4. Append ``<image_column>_embedding`` to every partition and return the extended DataSplit.
+    4. Append ``<image_column>_embedding`` to every partition and return the extended SplitManifest.
 
 
 References:
@@ -26,8 +26,8 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.ml.image_encoder_provider import ImageEncoderProvider
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class _ImageEncoderExtractor(Knot):
@@ -52,20 +52,20 @@ class _ImageEncoderExtractor(Knot):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         image_column: str = "",
         image_encoder: ImageEncoderProvider | None = None,
         **_: Any,
-    ) -> DataSplit:
-        """Probe the image encoder, append the image-column embedding feature to each partition, and return the updated DataSplit.
+    ) -> SplitManifest:
+        """Probe the image encoder, append the image-column embedding feature to each partition, and return the updated SplitManifest.
 
         Args:
-            split: DataSplit whose partitions receive the new image embedding feature.
+            split: SplitManifest whose partitions receive the new image embedding feature.
             image_column: Non-empty name of the image column.
             image_encoder: ImageEncoderProvider to probe.
 
         Returns:
-            DataSplit with ``<image_column>_embedding`` appended to every partition's feature list.
+            SplitManifest with ``<image_column>_embedding`` appended to every partition's feature list.
 
         Raises:
             ValueError: If image_column is not a non-empty string.
@@ -81,7 +81,7 @@ class _ImageEncoderExtractor(Knot):
         await image_encoder.encode([image_column.encode("utf-8")])
         feature = f"{image_column}_embedding"
         now = datetime.now(UTC)
-        return DataSplit(
+        return SplitManifest(
             train=self._add_feature(split.train, feature, now),
             test=self._add_feature(split.test, feature, now),
             validation=(
@@ -93,15 +93,15 @@ class _ImageEncoderExtractor(Knot):
 
     def _add_feature(
         self,
-        dataset: MLDataset,
+        dataset: DatasetManifest,
         feature: str,
         fetched_at: datetime,
-    ) -> MLDataset:
+    ) -> DatasetManifest:
         if feature in dataset.feature_names:
             features = dataset.feature_names
         else:
             features = (*dataset.feature_names, feature)
-        return MLDataset(
+        return DatasetManifest(
             name=f"{dataset.name}:image_embedded",
             feature_names=features,
             target_name=dataset.target_name,

@@ -27,9 +27,9 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -67,7 +67,7 @@ class LRSchedulerTrainer(SubTapestry):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         algorithm: str = "",
         scheduler: str = "cosine",
         metrics: Sequence[str] = (),
@@ -77,14 +77,14 @@ class LRSchedulerTrainer(SubTapestry):
         """Train the model with a learning-rate scheduler and return the model, evaluation, and scheduler info.
 
         Args:
-            split: DataSplit used for training and evaluation.
+            split: SplitManifest used for training and evaluation.
             algorithm: Non-empty algorithm identifier.
             scheduler: LR scheduler strategy; must be one of {"step", "cosine", "reduce_on_plateau"}.
             metrics: Non-empty sequence of metric names.
             hyperparameters: Optional mapping of additional hyperparameters.
 
         Returns:
-            Dict with ``model`` (TrainedModel), ``eval_report`` (EvalReport),
+            Dict with ``model`` (ModelManifest), ``eval_report`` (EvalMetadata),
             and ``scheduler`` (str name of the scheduler used).
 
         Raises:
@@ -126,10 +126,10 @@ class LRSchedulerTrainer(SubTapestry):
         result = await self._run_inner(inner)
         trained_model = result.outputs["train"]
         report = result.outputs["evaluate"]
-        if not isinstance(trained_model, TrainedModel):
-            raise TypeError("LRSchedulerTrainer: trainer did not return a TrainedModel")
-        if not isinstance(report, EvalReport):
-            raise TypeError("LRSchedulerTrainer: evaluator did not return an EvalReport")
+        if not isinstance(trained_model, ModelManifest):
+            raise TypeError("LRSchedulerTrainer: trainer did not return a ModelManifest")
+        if not isinstance(report, EvalReportPayload):
+            raise TypeError("LRSchedulerTrainer: evaluator did not return an EvalReportPayload")
         return {
             "model": trained_model,
             "eval_report": report,

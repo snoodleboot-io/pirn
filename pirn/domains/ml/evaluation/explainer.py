@@ -6,7 +6,7 @@ subclasses override :meth:`process` to compute real importances via
 SHAP or scikit-learn's permutation importance.
 
 Algorithm:
-    1. Receive ``model`` (TrainedModel), ``split`` (DataSplit), and ``method`` (str) via process().
+    1. Receive ``model`` (ModelManifest), ``split`` (SplitManifest), and ``method`` (str) via process().
     2. Validate method against valid_methods.
     3. For each feature in model.feature_names, compute a deterministic importance score.
     4. Return a mapping of feature name to score.
@@ -27,8 +27,8 @@ from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class Explainer(Knot):
@@ -48,13 +48,13 @@ class Explainer(Knot):
         super().__init__(model=model, split=split, method=method, _config=_config, **kwargs)
 
     async def process(
-        self, model: TrainedModel, split: DataSplit, method: str = "permutation", **_: Any
+        self, model: ModelManifest, split: SplitManifest, method: str = "permutation", **_: Any
     ) -> Mapping[str, float]:
         """Compute feature importances for each model feature using the configured method and return a feature-to-importance mapping.
 
         Args:
-            model: TrainedModel reference whose feature list drives the explanation.
-            split: DataSplit whose test partition is used for importance scoring.
+            model: ModelManifest reference whose feature list drives the explanation.
+            split: SplitManifest whose test partition is used for importance scoring.
             method: Importance method; must be one of ``valid_methods``.
 
         Returns:
@@ -71,7 +71,7 @@ class Explainer(Knot):
         }
 
     def _importance(
-        self, model: TrainedModel, split: DataSplit, feature: str, method: str
+        self, model: ModelManifest, split: SplitManifest, feature: str, method: str
     ) -> float:
         payload = json.dumps(
             {

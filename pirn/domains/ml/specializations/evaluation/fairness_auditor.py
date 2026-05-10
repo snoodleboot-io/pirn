@@ -2,7 +2,7 @@
 odds, and individual fairness metrics across protected attribute groups.
 
 Algorithm:
-    1. Receive ``model`` (TrainedModel), ``split`` (DataSplit), and
+    1. Receive ``model`` (ModelManifest), ``split`` (SplitManifest), and
        ``protected_attributes`` (Sequence[str]) via process().
     2. Validate protected_attributes is non-empty with non-empty string elements.
     3. For each attribute compute demographic parity and equalized odds via SHA-256.
@@ -25,8 +25,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class FairnessAuditor(Knot):
@@ -51,16 +51,16 @@ class FairnessAuditor(Knot):
 
     async def process(
         self,
-        model: TrainedModel,
-        split: DataSplit,
+        model: ModelManifest,
+        split: SplitManifest,
         protected_attributes: Sequence[str] = (),
         **_: Any,
     ) -> Mapping[str, Any]:
         """Compute fairness metrics across protected attribute groups for the model on the test split.
 
         Args:
-            model: TrainedModel reference to audit for fairness.
-            split: DataSplit whose test partition contains protected attribute labels.
+            model: ModelManifest reference to audit for fairness.
+            split: SplitManifest whose test partition contains protected attribute labels.
             protected_attributes: Non-empty sequence of protected attribute column names.
 
         Returns:
@@ -92,8 +92,8 @@ class FairnessAuditor(Knot):
 
     def _fairness_value(
         self,
-        model: TrainedModel,
-        split: DataSplit,
+        model: ModelManifest,
+        split: SplitManifest,
         attribute: str,
         kind: str,
     ) -> float:

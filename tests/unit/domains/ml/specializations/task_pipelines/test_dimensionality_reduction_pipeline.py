@@ -9,7 +9,8 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.task_pipelines.dimensionality_reduction_pipeline import (
     DimensionalityReductionPipeline,
 )
-from pirn.domains.ml.types.eval_report import EvalReport
+from pirn.domains.ml.types.eval_metadata import EvalMetadata
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.tapestry import Tapestry
 from tests.unit.domains.ml._stubs.recording_database_pool import (
     RecordingDatabasePool,
@@ -56,6 +57,6 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert result.succeeded
-        report: EvalReport = result.outputs["dr"]
-        assert isinstance(report, EvalReport)
-        assert "explained_variance" in report.metrics
+        report: EvalReportPayload = result.outputs["dr"]
+        assert isinstance(report, EvalReportPayload)
+        assert "explained_variance" in report.metrics.scores

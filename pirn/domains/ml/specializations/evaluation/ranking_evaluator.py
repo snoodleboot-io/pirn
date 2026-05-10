@@ -2,7 +2,7 @@
 Precision@K for a recommender or ranking model.
 
 Algorithm:
-    1. Receive ``model`` (TrainedModel), ``split`` (DataSplit), and ``k`` (int) via process().
+    1. Receive ``model`` (ModelManifest), ``split`` (SplitManifest), and ``k`` (int) via process().
     2. Validate k is an int >= 1.
     3. Compute NDCG@K, MAP@K, MRR, and Precision@K via SHA-256 hashes.
     4. Return all four metrics plus k.
@@ -23,8 +23,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class RankingEvaluator(Knot):
@@ -49,16 +49,16 @@ class RankingEvaluator(Knot):
 
     async def process(
         self,
-        model: TrainedModel,
-        split: DataSplit,
+        model: ModelManifest,
+        split: SplitManifest,
         k: int = 10,
         **_: Any,
     ) -> Mapping[str, Any]:
         """Compute NDCG@K, MAP@K, MRR, and Precision@K for the ranking model on the test split.
 
         Args:
-            model: TrainedModel reference for a ranking task.
-            split: DataSplit whose test partition contains ground-truth relevance labels.
+            model: ModelManifest reference for a ranking task.
+            split: SplitManifest whose test partition contains ground-truth relevance labels.
             k: Cut-off rank; must be an int >= 1.
 
         Returns:
@@ -77,7 +77,7 @@ class RankingEvaluator(Knot):
             "k": k,
         }
 
-    def _metric_value(self, model: TrainedModel, split: DataSplit, metric: str) -> float:
+    def _metric_value(self, model: ModelManifest, split: SplitManifest, metric: str) -> float:
         payload = json.dumps(
             {
                 "model_id": model.model_id,

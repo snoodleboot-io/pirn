@@ -1,4 +1,9 @@
-"""``DataSplit`` — train / validation / test partition of an ``MLDataset``."""
+"""``DataSplitPayload`` — train / validation / test partition of a ``DatasetManifest``.
+
+.. deprecated::
+    Import :class:`pirn.domains.ml.types.split_manifest.SplitManifest` instead.
+    This module is retained for backwards compatibility only.
+"""
 
 from __future__ import annotations
 
@@ -6,16 +11,16 @@ from dataclasses import dataclass
 from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.ml_dataset import DatasetManifest
 
 
 @dataclass(frozen=True)
-class DataSplit(PirnOpaqueValue):
-    """Partition of an :class:`MLDataset` into train / validation / test."""
+class DataSplitPayload(PirnOpaqueValue):
+    """Partition of a :class:`DatasetManifest` into train / validation / test."""
 
-    train: MLDataset
-    test: MLDataset
-    validation: MLDataset | None = None
+    train: DatasetManifest
+    test: DatasetManifest
+    validation: DatasetManifest | None = None
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
         """Flatten to a primitive dict for pydantic serialisation."""

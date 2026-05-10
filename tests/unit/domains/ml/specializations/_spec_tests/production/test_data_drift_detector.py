@@ -10,22 +10,22 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.production.data_drift_detector import (
     DataDriftDetector,
 )
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.split_manifest import SplitManifest
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 from pirn.tapestry import Tapestry
 
 
 @knot
-async def emit_split() -> DataSplit:
-    train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
-    test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
-    return DataSplit(train=train, test=test)
+async def emit_split() -> SplitManifest:
+    train = DatasetManifest(name="d:train", feature_names=("a",), row_count=80)
+    test = DatasetManifest(name="d:test", feature_names=("a",), row_count=20)
+    return SplitManifest(train=train, test=test)
 
 
-def _split_fixture(name_prefix: str = "d") -> DataSplit:
-    train = MLDataset(name=f"{name_prefix}:train", feature_names=("a",), row_count=80)
-    test = MLDataset(name=f"{name_prefix}:test", feature_names=("a",), row_count=20)
-    return DataSplit(train=train, test=test)
+def _split_fixture(name_prefix: str = "d") -> SplitManifest:
+    train = DatasetManifest(name=f"{name_prefix}:train", feature_names=("a",), row_count=80)
+    test = DatasetManifest(name=f"{name_prefix}:test", feature_names=("a",), row_count=20)
+    return SplitManifest(train=train, test=test)
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

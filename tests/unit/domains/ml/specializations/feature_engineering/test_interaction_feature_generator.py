@@ -11,8 +11,8 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.feature_engineering.interaction_feature_generator import (
     InteractionFeatureGenerator,
 )
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.split_manifest import SplitManifest
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 from pirn.tapestry import Tapestry
 
 
@@ -20,9 +20,9 @@ class _SplitSource(Knot):
     def __init__(self, *, _config: KnotConfig, **kwargs: Any) -> None:
         super().__init__(_config=_config, **kwargs)
 
-    async def process(self, **_: Any) -> DataSplit:
-        ds = MLDataset(name="ds", feature_names=("a", "b"), row_count=10)
-        return DataSplit(train=ds, test=ds)
+    async def process(self, **_: Any) -> SplitManifest:
+        ds = DatasetManifest(name="ds", feature_names=("a", "b"), row_count=10)
+        return SplitManifest(train=ds, test=ds)
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
@@ -31,9 +31,9 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         object.__setattr__(k, "_config", KnotConfig(id="ifg"))
         return k
 
-    def _make_split(self) -> DataSplit:
-        ds = MLDataset(name="ds", feature_names=("a", "b"), row_count=10)
-        return DataSplit(train=ds, test=ds)
+    def _make_split(self) -> SplitManifest:
+        ds = DatasetManifest(name="ds", feature_names=("a", "b"), row_count=10)
+        return SplitManifest(train=ds, test=ds)
 
     async def test_rejects_empty_column_pairs(self) -> None:
         k = self._make_knot()
@@ -58,5 +58,5 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         split = result.outputs["ifg"]
-        self.assertIsInstance(split, DataSplit)
+        self.assertIsInstance(split, SplitManifest)
         self.assertIn("a_x_b", split.train.feature_names)

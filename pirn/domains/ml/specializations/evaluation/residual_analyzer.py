@@ -3,7 +3,7 @@ histogram, Q-Q plot data, Durbin-Watson statistic, and a
 heteroscedasticity flag.
 
 Algorithm:
-    1. Receive ``model`` (TrainedModel), ``split`` (DataSplit), and ``n_bins`` (int) via process().
+    1. Receive ``model`` (ModelManifest), ``split`` (SplitManifest), and ``n_bins`` (int) via process().
     2. Validate n_bins is an int >= 2.
     3. Compute histogram bin counts and Q-Q plot data via SHA-256 hashes.
     4. Compute Durbin-Watson statistic scaled to [0, 4].
@@ -27,8 +27,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class ResidualAnalyzer(Knot):
@@ -53,16 +53,16 @@ class ResidualAnalyzer(Knot):
 
     async def process(
         self,
-        model: TrainedModel,
-        split: DataSplit,
+        model: ModelManifest,
+        split: SplitManifest,
         n_bins: int = 20,
         **_: Any,
     ) -> Mapping[str, Any]:
         """Compute residual diagnostics for the regression model on the test split.
 
         Args:
-            model: TrainedModel reference for a regression task.
-            split: DataSplit whose test partition is used for residual computation.
+            model: ModelManifest reference for a regression task.
+            split: SplitManifest whose test partition is used for residual computation.
             n_bins: Number of histogram bins; must be an int >= 2.
 
         Returns:
@@ -88,7 +88,7 @@ class ResidualAnalyzer(Knot):
             "heteroscedastic": heteroscedastic,
         }
 
-    def _bin_value(self, model: TrainedModel, split: DataSplit, bin_idx: int) -> float:
+    def _bin_value(self, model: ModelManifest, split: SplitManifest, bin_idx: int) -> float:
         payload = json.dumps(
             {
                 "model_id": model.model_id,
@@ -102,7 +102,7 @@ class ResidualAnalyzer(Knot):
         digest = hashlib.sha256(payload.encode("utf-8")).digest()
         return int.from_bytes(digest[:8], "big") / float(2**64)
 
-    def _qq_value(self, model: TrainedModel, split: DataSplit, idx: int) -> float:
+    def _qq_value(self, model: ModelManifest, split: SplitManifest, idx: int) -> float:
         payload = json.dumps(
             {
                 "model_id": model.model_id,
@@ -116,7 +116,7 @@ class ResidualAnalyzer(Knot):
         digest = hashlib.sha256(payload.encode("utf-8")).digest()
         return int.from_bytes(digest[:8], "big") / float(2**64)
 
-    def _dw_value(self, model: TrainedModel, split: DataSplit) -> float:
+    def _dw_value(self, model: ModelManifest, split: SplitManifest) -> float:
         payload = json.dumps(
             {
                 "model_id": model.model_id,

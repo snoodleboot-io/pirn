@@ -2,7 +2,7 @@
 SubTapestry: data load → train/test split → preprocess (scaling) → train
 → evaluate.
 
-The output is the :class:`EvalReport` produced by the final evaluation
+The output is the :class:`EvalMetadata` produced by the final evaluation
 stage so callers can gate downstream knots on the model's score.
 
 Algorithm:
@@ -11,7 +11,7 @@ Algorithm:
     2. Validate all inputs.
     3. Wire DatasetLoader → TrainTestSplit → Scaler → Trainer → Evaluator
        in an inner Tapestry.
-    4. Run via _run_inner() and return the EvalReport.
+    4. Run via _run_inner() and return the EvalMetadata.
 
 
 References:
@@ -33,7 +33,7 @@ from pirn.domains.ml.data_prep.train_test_split import TrainTestSplit
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.features.scaler import Scaler
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.eval_report import EvalReport
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -78,8 +78,8 @@ class BinaryClassificationPipeline(SubTapestry):
         feature_names: Sequence[str] = (),
         algorithm: str = "logistic",
         **_: Any,
-    ) -> EvalReport:
-        """Load data, split, scale, train a binary classifier, and return the EvalReport from the evaluation stage.
+    ) -> EvalReportPayload:
+        """Load data, split, scale, train a binary classifier, and return the EvalMetadata from the evaluation stage.
 
         Args:
             pool: DatabaseConnectionPool for loading the dataset.
@@ -89,7 +89,7 @@ class BinaryClassificationPipeline(SubTapestry):
             algorithm: Non-empty algorithm identifier.
 
         Returns:
-            EvalReport containing accuracy, precision, recall, f1, and
+            EvalReportPayload containing accuracy, precision, recall, f1, and
             roc_auc metrics from the evaluation stage.
 
         Raises:

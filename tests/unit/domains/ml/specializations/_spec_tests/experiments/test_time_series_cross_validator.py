@@ -10,14 +10,15 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.experiments.time_series_cross_validator import (
     TimeSeriesCrossValidator,
 )
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.eval_metadata import EvalMetadata
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 from pirn.tapestry import Tapestry
 
 
 @knot
-async def emit_dataset() -> MLDataset:
-    return MLDataset(
+async def emit_dataset() -> DatasetManifest:
+    return DatasetManifest(
         name="ts", feature_names=("t", "v"), target_name="y", row_count=120
     )
 
@@ -35,8 +36,8 @@ def _make_validator() -> TimeSeriesCrossValidator:
     return validator
 
 
-def _dataset_fixture() -> MLDataset:
-    return MLDataset(
+def _dataset_fixture() -> DatasetManifest:
+    return DatasetManifest(
         name="ts", feature_names=("t", "v"), target_name="y", row_count=120
     )
 
@@ -73,10 +74,10 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         assert result.succeeded
         report = result.outputs["tscv"]
-        assert isinstance(report, EvalReport)
-        assert "rmse" in report.metrics
-        assert report.details["n_splits"] == 3
-        per_fold = report.details["per_fold_metrics"]
+        assert isinstance(report, EvalReportPayload)
+        assert "rmse" in report.metrics.scores
+        assert report.metrics.details["n_splits"] == 3
+        per_fold = report.metrics.details["per_fold_metrics"]
         assert isinstance(per_fold, list) and len(per_fold) == 3
 
     async def test_model_id_contains_algorithm(self) -> None:
@@ -92,4 +93,4 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         assert result.succeeded
         report = result.outputs["tscv"]
-        assert "xgb" in report.model_id
+        assert "xgb" in report.report.model_id

@@ -41,8 +41,8 @@ from pirn.domains.ml.deployment.model_serializer import ModelSerializer
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.lineage_store import LineageStore
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -80,7 +80,7 @@ class SklearnTrainerPipeline(SubTapestry):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         algorithm: str = "",
         lineage: LineageStore | None = None,
         store: ObjectStore | None = None,
@@ -91,7 +91,7 @@ class SklearnTrainerPipeline(SubTapestry):
         """Train the sklearn model, evaluate it, serialise with joblib, register it, and return a summary dict.
 
         Args:
-            split: DataSplit used for training and evaluation.
+            split: SplitManifest used for training and evaluation.
             algorithm: Non-empty algorithm identifier.
             lineage: LineageStore for model registration.
             store: ObjectStore for artifact storage.
@@ -99,7 +99,7 @@ class SklearnTrainerPipeline(SubTapestry):
             hyperparameters: Optional mapping of additional hyperparameters.
 
         Returns:
-            Dict with ``model_id`` (str), ``eval_report`` (:class:`EvalReport`),
+            Dict with ``model_id`` (str), ``eval_report`` (:class:`EvalMetadata`),
             and ``serialized_size`` (int byte count of the joblib artifact).
 
         Raises:
@@ -153,8 +153,8 @@ class SklearnTrainerPipeline(SubTapestry):
         report = result.outputs["evaluate"]
         serialized_bytes = result.outputs["serialize"]
         model_id = result.outputs["register"]
-        if not isinstance(report, EvalReport):
-            raise TypeError("SklearnTrainerPipeline: evaluator did not return an EvalReport")
+        if not isinstance(report, EvalReportPayload):
+            raise TypeError("SklearnTrainerPipeline: evaluator did not return an EvalReportPayload")
         if not isinstance(serialized_bytes, (bytes, bytearray)):
             raise TypeError("SklearnTrainerPipeline: serializer did not return bytes")
         if not isinstance(model_id, str):

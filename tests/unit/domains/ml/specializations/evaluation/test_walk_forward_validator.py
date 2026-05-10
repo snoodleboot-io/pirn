@@ -7,11 +7,11 @@ import unittest
 from pirn.domains.ml.specializations.evaluation.walk_forward_validator import (
     WalkForwardValidator,
 )
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 
 
-def _dataset(row_count: int = 50) -> MLDataset:
-    return MLDataset(
+def _dataset(row_count: int = 50) -> DatasetManifest:
+    return DatasetManifest(
         name="test-dataset",
         feature_names=("a", "b"),
         target_name="y",

@@ -22,8 +22,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class LIMEExplainer(Knot):
@@ -48,16 +48,16 @@ class LIMEExplainer(Knot):
 
     async def process(
         self,
-        model: TrainedModel,
-        split: DataSplit,
+        model: ModelManifest,
+        split: SplitManifest,
         n_samples: int = 100,
         **_: Any,
     ) -> Mapping[str, Any]:
         """Generate LIME explanations for the test partition instances and return feature importance.
 
         Args:
-            model: TrainedModel reference to explain.
-            split: DataSplit whose test partition contains instances to explain.
+            model: ModelManifest reference to explain.
+            split: SplitManifest whose test partition contains instances to explain.
             n_samples: Number of perturbation samples; must be an int >= 1.
 
         Returns:
@@ -86,8 +86,8 @@ class LIMEExplainer(Knot):
 
     def _lime_value(
         self,
-        model: TrainedModel,
-        split: DataSplit,
+        model: ModelManifest,
+        split: SplitManifest,
         feature: str,
         n_samples: int,
     ) -> float:

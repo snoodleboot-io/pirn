@@ -5,11 +5,11 @@ for each (column, period) combination. Typical periods: hour-of-day (24),
 day-of-week (7), month-of-year (12).
 
 Algorithm:
-    1. Receive ``split`` (DataSplit), ``columns`` (Sequence[str]), and
+    1. Receive ``split`` (SplitManifest), ``columns`` (Sequence[str]), and
        ``periods`` (Sequence[int]) via process().
     2. Validate columns and periods.
     3. For each (column, period) pair, append sin and cos feature names.
-    4. Return updated DataSplit.
+    4. Return updated SplitManifest.
 
 
 References:
@@ -24,8 +24,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class FourierFeatureGenerator(Knot):
@@ -50,20 +50,20 @@ class FourierFeatureGenerator(Knot):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         columns: Sequence[str] = (),
         periods: Sequence[int] = (),
         **_: Any,
-    ) -> DataSplit:
+    ) -> SplitManifest:
         """Append sin/cos feature names for each (column, period) combination to every partition.
 
         Args:
-            split: DataSplit whose partitions receive the Fourier feature names.
+            split: SplitManifest whose partitions receive the Fourier feature names.
             columns: Non-empty sequence of column names to generate features for.
             periods: Non-empty sequence of integer periods; each must be >= 2.
 
         Returns:
-            DataSplit with ``<column>_sin_<period>`` and ``<column>_cos_<period>``
+            SplitManifest with ``<column>_sin_<period>`` and ``<column>_cos_<period>``
             feature names appended to every partition.
 
         Raises:
@@ -86,7 +86,7 @@ class FourierFeatureGenerator(Knot):
             if period < 2:
                 raise ValueError("FourierFeatureGenerator: every period must be >= 2")
         now = datetime.now(UTC)
-        return DataSplit(
+        return SplitManifest(
             train=self._add_fourier_features(split.train, column_tuple, period_tuple, now),
             test=self._add_fourier_features(split.test, column_tuple, period_tuple, now),
             validation=(
@@ -98,11 +98,11 @@ class FourierFeatureGenerator(Knot):
 
     def _add_fourier_features(
         self,
-        dataset: MLDataset,
+        dataset: DatasetManifest,
         columns: tuple[str, ...],
         periods: tuple[int, ...],
         fetched_at: datetime,
-    ) -> MLDataset:
+    ) -> DatasetManifest:
         features = list(dataset.feature_names)
         for col in columns:
             for period in periods:
@@ -112,7 +112,7 @@ class FourierFeatureGenerator(Knot):
                     features.append(sin_name)
                 if cos_name not in features:
                     features.append(cos_name)
-        return MLDataset(
+        return DatasetManifest(
             name=f"{dataset.name}:fourier",
             feature_names=tuple(features),
             target_name=dataset.target_name,

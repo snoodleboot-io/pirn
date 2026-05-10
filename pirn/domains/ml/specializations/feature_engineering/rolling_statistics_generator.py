@@ -6,11 +6,11 @@ Appends ``<column>_roll<window>_<stat>`` feature names for each
 ``mean``, ``std``, ``min``, ``max``.
 
 Algorithm:
-    1. Receive ``split`` (DataSplit), ``columns``, ``windows``, and
+    1. Receive ``split`` (SplitManifest), ``columns``, ``windows``, and
        ``statistics`` via process().
     2. Validate all inputs.
     3. Append rolling statistic feature names for each (column, window, stat).
-    4. Return updated DataSplit.
+    4. Return updated SplitManifest.
 
 
 References:
@@ -25,12 +25,12 @@ from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class RollingStatisticsGenerator(Knot):
-    """Append rolling statistic feature names to a time-series DataSplit."""
+    """Append rolling statistic feature names to a time-series SplitManifest."""
 
     valid_statistics: ClassVar[frozenset[str]] = frozenset({"mean", "std", "min", "max"})
 
@@ -55,22 +55,22 @@ class RollingStatisticsGenerator(Knot):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         columns: Sequence[str] = (),
         windows: Sequence[int] = (7, 14),
         statistics: Sequence[str] = ("mean", "std"),
         **_: Any,
-    ) -> DataSplit:
+    ) -> SplitManifest:
         """Append rolling statistic feature names for each (column, window, stat) combination.
 
         Args:
-            split: DataSplit whose partitions receive the rolling feature names.
+            split: SplitManifest whose partitions receive the rolling feature names.
             columns: Non-empty sequence of column names.
             windows: Non-empty sequence of window sizes; each must be an int >= 1.
             statistics: Non-empty sequence of statistic names from the valid set.
 
         Returns:
-            DataSplit with ``<column>_roll<window>_<stat>`` feature names appended.
+            SplitManifest with ``<column>_roll<window>_<stat>`` feature names appended.
 
         Raises:
             ValueError: If any input fails validation.
@@ -101,7 +101,7 @@ class RollingStatisticsGenerator(Knot):
                     f"one of {sorted(self.valid_statistics)}"
                 )
         now = datetime.now(UTC)
-        return DataSplit(
+        return SplitManifest(
             train=self._add_rolling_features(
                 split.train, column_tuple, window_tuple, stat_tuple, now
             ),
@@ -119,12 +119,12 @@ class RollingStatisticsGenerator(Knot):
 
     def _add_rolling_features(
         self,
-        dataset: MLDataset,
+        dataset: DatasetManifest,
         columns: tuple[str, ...],
         windows: tuple[int, ...],
         statistics: tuple[str, ...],
         fetched_at: datetime,
-    ) -> MLDataset:
+    ) -> DatasetManifest:
         features = list(dataset.feature_names)
         for col in columns:
             for window in windows:
@@ -132,7 +132,7 @@ class RollingStatisticsGenerator(Knot):
                     name = f"{col}_roll{window}_{stat}"
                     if name not in features:
                         features.append(name)
-        return MLDataset(
+        return DatasetManifest(
             name=f"{dataset.name}:rolling_stats",
             feature_names=tuple(features),
             target_name=dataset.target_name,

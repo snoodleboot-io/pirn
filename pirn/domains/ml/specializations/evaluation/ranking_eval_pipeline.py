@@ -3,10 +3,10 @@
 Computes NDCG@k, MRR, and MAP@k for a ranking model on a held-out split.
 
 Algorithm:
-    1. Receive ``model`` (TrainedModel), ``split`` (DataSplit), and ``k`` (int) via process().
+    1. Receive ``model`` (ModelManifest), ``split`` (SplitManifest), and ``k`` (int) via process().
     2. Validate k is an int >= 1.
     3. Wire an inner Tapestry with Evaluator using NDCG@k, MRR, MAP@k metrics.
-    4. Run the inner Tapestry via _run_inner() and return the EvalReport.
+    4. Run the inner Tapestry via _run_inner() and return the EvalMetadata.
 
 
 References:
@@ -21,9 +21,9 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.domains.ml.evaluation.evaluator import Evaluator
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -49,20 +49,20 @@ class RankingEvalPipeline(SubTapestry):
 
     async def process(
         self,
-        model: TrainedModel,
-        split: DataSplit,
+        model: ModelManifest,
+        split: SplitManifest,
         k: int = 10,
         **_: Any,
-    ) -> EvalReport:
-        """Evaluate the ranking model with NDCG@k, MRR, and MAP@k and return the resulting EvalReport.
+    ) -> EvalReportPayload:
+        """Evaluate the ranking model with NDCG@k, MRR, and MAP@k and return the resulting EvalMetadata.
 
         Args:
-            model: TrainedModel reference to evaluate.
-            split: DataSplit whose test partition is used for ranking metrics.
+            model: ModelManifest reference to evaluate.
+            split: SplitManifest whose test partition is used for ranking metrics.
             k: Cut-off rank; must be an int >= 1.
 
         Returns:
-            EvalReport containing ndcg_at_k, mrr, and map_at_k metrics.
+            EvalReportPayload containing ndcg_at_k, mrr, and map_at_k metrics.
 
         Raises:
             ValueError: If k is not a valid int >= 1.

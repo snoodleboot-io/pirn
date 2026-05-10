@@ -31,7 +31,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.domains.ml.deployment.shadow_deployer import ShadowDeployer
 from pirn.domains.ml.lineage_store import LineageStore
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.model_manifest import ModelManifest
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -63,16 +63,16 @@ class ShadowDeploymentPipeline(SubTapestry):
 
     async def process(
         self,
-        champion: TrainedModel,
-        challenger: TrainedModel,
+        champion: ModelManifest,
+        challenger: ModelManifest,
         lineage: LineageStore | None = None,
         **_: Any,
     ) -> Mapping[str, Any]:
         """Shadow-deploy both the champion and challenger, record a divergence event, and return their deployment ids and the divergence id.
 
         Args:
-            champion: Current production TrainedModel to shadow-deploy.
-            challenger: Candidate TrainedModel to shadow-deploy alongside the champion.
+            champion: Current production ModelManifest to shadow-deploy.
+            challenger: Candidate ModelManifest to shadow-deploy alongside the champion.
             lineage: LineageStore for recording the divergence event.
 
         Returns:
@@ -121,8 +121,8 @@ class ShadowDeploymentPipeline(SubTapestry):
 
     def _derive_divergence_id(
         self,
-        champion: TrainedModel,
-        challenger: TrainedModel,
+        champion: ModelManifest,
+        challenger: ModelManifest,
         recorded_at: str,
     ) -> str:
         payload = json.dumps(

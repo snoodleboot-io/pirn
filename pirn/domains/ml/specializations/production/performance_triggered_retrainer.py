@@ -25,9 +25,9 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -63,8 +63,8 @@ class PerformanceTriggeredRetrainer(SubTapestry):
 
     async def process(
         self,
-        model: TrainedModel,
-        split: DataSplit,
+        model: ModelManifest,
+        split: SplitManifest,
         metric: str = "",
         threshold: float = 0.0,
         algorithm: str = "random_forest",
@@ -73,8 +73,8 @@ class PerformanceTriggeredRetrainer(SubTapestry):
         """Evaluate the live metric and retrain if it falls below the threshold.
 
         Args:
-            model: Current TrainedModel to evaluate.
-            split: DataSplit used for evaluation and retraining.
+            model: Current ModelManifest to evaluate.
+            split: SplitManifest used for evaluation and retraining.
             metric: Non-empty metric name to monitor.
             threshold: Score threshold below which retraining is triggered.
             algorithm: Non-empty algorithm identifier for retraining.
@@ -104,8 +104,8 @@ class PerformanceTriggeredRetrainer(SubTapestry):
                 _config=KnotConfig(id="evaluate"),
             )
         inner_result = await self._run_inner(inner)
-        report: EvalReport = inner_result.outputs["evaluate"]
-        current_score = float(report.metrics[metric])
+        report: EvalReportPayload = inner_result.outputs["evaluate"]
+        current_score = float(report.metrics.scores[metric])
         triggered = current_score < threshold_f
         if not triggered:
             return {
@@ -123,7 +123,7 @@ class PerformanceTriggeredRetrainer(SubTapestry):
                 _config=KnotConfig(id="retrain"),
             )
         retrain_result = await self._run_inner(retrain_inner)
-        new_model: TrainedModel = retrain_result.outputs["retrain"]
+        new_model: ModelManifest = retrain_result.outputs["retrain"]
         return {
             "triggered": True,
             "current_score": current_score,

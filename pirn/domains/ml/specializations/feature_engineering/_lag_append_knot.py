@@ -1,6 +1,6 @@
 """``_LagAppendKnot`` — internal core knot used by
 :class:`LagFeatureGenerator` to append lag-feature names to every
-partition of a :class:`DataSplit`.
+partition of a :class:`SplitManifest`.
 
 Single-underscore name marks this knot as a private composition
 detail. The orchestration layer touches feature-name metadata only;
@@ -10,7 +10,7 @@ Algorithm:
     1. Receive ``split``, ``time_column``, ``columns``, and ``lags`` via process().
     2. Validate inputs.
     3. For each partition, append ``<column>_lag_<N>`` feature names.
-    4. Return the extended DataSplit.
+    4. Return the extended SplitManifest.
 
 
 References:
@@ -25,8 +25,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class _LagAppendKnot(Knot):
@@ -53,22 +53,22 @@ class _LagAppendKnot(Knot):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         time_column: str = "",
         columns: Sequence[str] = (),
         lags: Sequence[int] = (),
         **_: Any,
-    ) -> DataSplit:
-        """Append lag feature names for each configured (column, lag) pair to every partition and return the extended DataSplit.
+    ) -> SplitManifest:
+        """Append lag feature names for each configured (column, lag) pair to every partition and return the extended SplitManifest.
 
         Args:
-            split: DataSplit whose partitions receive the new lag feature names.
+            split: SplitManifest whose partitions receive the new lag feature names.
             time_column: Non-empty name of the time column (passed through for provenance).
             columns: Non-empty sequence of column names to lag.
             lags: Non-empty sequence of lag integers.
 
         Returns:
-            DataSplit with ``<column>_lag_<N>`` feature names appended to every partition.
+            SplitManifest with ``<column>_lag_<N>`` feature names appended to every partition.
 
         Raises:
             ValueError: If time_column, columns, or lags are invalid.
@@ -82,7 +82,7 @@ class _LagAppendKnot(Knot):
         if not lag_tuple:
             raise ValueError("_LagAppendKnot: lags must be non-empty")
         now = datetime.now(UTC)
-        return DataSplit(
+        return SplitManifest(
             train=self._add_lag_features(split.train, column_tuple, lag_tuple, now),
             test=self._add_lag_features(split.test, column_tuple, lag_tuple, now),
             validation=(
@@ -94,18 +94,18 @@ class _LagAppendKnot(Knot):
 
     def _add_lag_features(
         self,
-        dataset: MLDataset,
+        dataset: DatasetManifest,
         columns: tuple[str, ...],
         lags: tuple[int, ...],
         fetched_at: datetime,
-    ) -> MLDataset:
+    ) -> DatasetManifest:
         features = list(dataset.feature_names)
         for column in columns:
             for lag in lags:
                 name = f"{column}_lag_{lag}"
                 if name not in features:
                     features.append(name)
-        return MLDataset(
+        return DatasetManifest(
             name=f"{dataset.name}:lagged",
             feature_names=tuple(features),
             target_name=dataset.target_name,

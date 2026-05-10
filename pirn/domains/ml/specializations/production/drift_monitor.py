@@ -27,7 +27,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class DriftMonitor(Knot):
@@ -54,8 +54,8 @@ class DriftMonitor(Knot):
 
     async def process(
         self,
-        baseline: DataSplit,
-        current: DataSplit,
+        baseline: SplitManifest,
+        current: SplitManifest,
         columns: Sequence[str] = (),
         threshold: float = 0.1,
         **_: Any,
@@ -63,8 +63,8 @@ class DriftMonitor(Knot):
         """Compute per-column drift scores between the baseline and current splits and return a mapping with drift_detected and per-column scores.
 
         Args:
-            baseline: DataSplit representing the reference distribution.
-            current: DataSplit representing the live or recent distribution.
+            baseline: SplitManifest representing the reference distribution.
+            current: SplitManifest representing the live or recent distribution.
             columns: Non-empty sequence of column names to check for drift.
             threshold: Drift score threshold; must be in [0, 1].
 
@@ -96,7 +96,7 @@ class DriftMonitor(Knot):
             "threshold": threshold_f,
         }
 
-    def _drift_score(self, baseline: DataSplit, current: DataSplit, column: str) -> float:
+    def _drift_score(self, baseline: SplitManifest, current: SplitManifest, column: str) -> float:
         payload = json.dumps(
             {
                 "baseline_train_rows": baseline.train.row_count,

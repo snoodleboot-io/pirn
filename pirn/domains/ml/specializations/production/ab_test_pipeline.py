@@ -30,9 +30,9 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.domains.ml.evaluation.evaluator import Evaluator
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -68,9 +68,9 @@ class ABTestPipeline(SubTapestry):
 
     async def process(
         self,
-        model_a: TrainedModel,
-        model_b: TrainedModel,
-        split: DataSplit,
+        model_a: ModelManifest,
+        model_b: ModelManifest,
+        split: SplitManifest,
         primary_metric: str = "",
         alpha: float = 0.05,
         **_: Any,
@@ -80,7 +80,7 @@ class ABTestPipeline(SubTapestry):
         Args:
             model_a: First trained model to evaluate against the test split.
             model_b: Second trained model to evaluate against the test split.
-            split: DataSplit whose test partition is used for both evaluations.
+            split: SplitManifest whose test partition is used for both evaluations.
             primary_metric: Non-empty metric name to compare.
             alpha: Significance level; must be in (0, 1).
 
@@ -115,10 +115,10 @@ class ABTestPipeline(SubTapestry):
                 _config=KnotConfig(id="evaluate-b"),
             )
         inner_result = await self._run_inner(inner)
-        report_a: EvalReport = inner_result.outputs["evaluate-a"]
-        report_b: EvalReport = inner_result.outputs["evaluate-b"]
-        score_a = float(report_a.metrics[primary_metric])
-        score_b = float(report_b.metrics[primary_metric])
+        report_a: EvalReportPayload = inner_result.outputs["evaluate-a"]
+        report_b: EvalReportPayload = inner_result.outputs["evaluate-b"]
+        score_a = float(report_a.metrics.scores[primary_metric])
+        score_b = float(report_b.metrics.scores[primary_metric])
         effect_size = score_a - score_b
         n = max(2, int(split.test.row_count))
         pooled_var = max(1e-9, (abs(score_a) + abs(score_b)) / float(n))

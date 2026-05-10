@@ -10,37 +10,37 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.feature_engineering.lag_feature_generator import (
     LagFeatureGenerator,
 )
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.split_manifest import SplitManifest
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 from pirn.tapestry import Tapestry
 
 
 @knot
-async def emit_split() -> DataSplit:
-    train = MLDataset(
+async def emit_split() -> SplitManifest:
+    train = DatasetManifest(
         name="ts:train",
         feature_names=("t", "value"),
         target_name="y",
         row_count=80,
     )
-    test = MLDataset(
+    test = DatasetManifest(
         name="ts:test",
         feature_names=("t", "value"),
         target_name="y",
         row_count=20,
     )
-    return DataSplit(train=train, test=test)
+    return SplitManifest(train=train, test=test)
 
 
 class TestConstruction(unittest.IsolatedAsyncioTestCase):
-    def _make_split(self) -> DataSplit:
-        train = MLDataset(
+    def _make_split(self) -> SplitManifest:
+        train = DatasetManifest(
             name="ts:train", feature_names=("t", "value"), target_name="y", row_count=80
         )
-        test = MLDataset(
+        test = DatasetManifest(
             name="ts:test", feature_names=("t", "value"), target_name="y", row_count=20
         )
-        return DataSplit(train=train, test=test)
+        return SplitManifest(train=train, test=test)
 
     async def test_rejects_empty_columns(self) -> None:
         with Tapestry():
@@ -73,7 +73,7 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         assert result.succeeded
         out = result.outputs["lag"]
-        assert isinstance(out, DataSplit)
+        assert isinstance(out, SplitManifest)
         assert "value_lag_1" in out.train.feature_names
         assert "value_lag_7" in out.train.feature_names
         assert "value_lag_1" in out.test.feature_names

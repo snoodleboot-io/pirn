@@ -2,7 +2,7 @@
 aggregate predictions.
 
 Classification uses majority voting; regression uses averaging. Returns
-the ensemble :class:`TrainedModel` reference and its evaluation report.
+the ensemble :class:`ModelManifest` reference and its evaluation report.
 
 Algorithm:
     1. Receive ``split``, ``algorithm``, ``n_estimators``, ``task``,
@@ -27,9 +27,9 @@ from pirn.core.knot_factory import knot
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.training.ensemble_builder import EnsembleBuilder
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -69,7 +69,7 @@ class BaggingEnsembleBuilder(SubTapestry):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         algorithm: str = "",
         n_estimators: int = 10,
         task: str = "classification",
@@ -80,7 +80,7 @@ class BaggingEnsembleBuilder(SubTapestry):
         """Train N base models, build a bagging ensemble, and return the ensemble model and its evaluation.
 
         Args:
-            split: DataSplit used for base model training and ensemble evaluation.
+            split: SplitManifest used for base model training and ensemble evaluation.
             algorithm: Non-empty algorithm identifier for base models.
             n_estimators: Number of base models; must be an int >= 2.
             task: Task type; must be one of {"classification", "regression"}.
@@ -88,7 +88,7 @@ class BaggingEnsembleBuilder(SubTapestry):
             hyperparameters: Optional mapping of hyperparameters.
 
         Returns:
-            Dict with ``ensemble_model`` (TrainedModel), ``eval_report`` (EvalReport),
+            Dict with ``ensemble_model`` (ModelManifest), ``eval_report`` (EvalMetadata),
             and ``n_estimators`` (int).
 
         Raises:
@@ -142,10 +142,10 @@ class BaggingEnsembleBuilder(SubTapestry):
         result = await self._run_inner(inner)
         ensemble_model = result.outputs["ensemble"]
         report = result.outputs["evaluate"]
-        if not isinstance(ensemble_model, TrainedModel):
-            raise TypeError("BaggingEnsembleBuilder: ensemble did not return a TrainedModel")
-        if not isinstance(report, EvalReport):
-            raise TypeError("BaggingEnsembleBuilder: evaluator did not return an EvalReport")
+        if not isinstance(ensemble_model, ModelManifest):
+            raise TypeError("BaggingEnsembleBuilder: ensemble did not return a ModelManifest")
+        if not isinstance(report, EvalReportPayload):
+            raise TypeError("BaggingEnsembleBuilder: evaluator did not return an EvalReportPayload")
         return {
             "ensemble_model": ensemble_model,
             "eval_report": report,

@@ -4,7 +4,7 @@ SubTapestry.
 Composes data load → split → image-embedding extraction → train →
 evaluate. The :class:`ImageEmbeddingExtractor` knot fans the configured
 :class:`ImageEncoderProvider` over the named image column so the
-downstream trainer sees an :class:`MLDataset` whose ``feature_names``
+downstream trainer sees an :class:`DatasetManifest` whose ``feature_names``
 carry the augmented embedding feature.
 
 Algorithm:
@@ -13,7 +13,7 @@ Algorithm:
     2. Validate all inputs.
     3. Wire DatasetLoader → TrainTestSplit → ImageEmbeddingExtractor →
        Trainer → Evaluator in an inner Tapestry.
-    4. Run via _run_inner() and return the EvalReport.
+    4. Run via _run_inner() and return the EvalMetadata.
 
 
 References:
@@ -37,7 +37,7 @@ from pirn.domains.ml.features.image_embedding_extractor import (
 )
 from pirn.domains.ml.image_encoder_provider import ImageEncoderProvider
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.eval_report import EvalReport
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -84,8 +84,8 @@ class ComputerVisionPipeline(SubTapestry):
         image_encoder: ImageEncoderProvider | None = None,
         algorithm: str = "logistic",
         **_: Any,
-    ) -> EvalReport:
-        """Load data, split, extract image embeddings, train a classifier, and return the resulting EvalReport.
+    ) -> EvalReportPayload:
+        """Load data, split, extract image embeddings, train a classifier, and return the resulting EvalMetadata.
 
         Args:
             pool: DatabaseConnectionPool for loading the dataset.
@@ -96,7 +96,7 @@ class ComputerVisionPipeline(SubTapestry):
             algorithm: Non-empty algorithm identifier.
 
         Returns:
-            EvalReport containing accuracy, precision, recall, and f1 metrics
+            EvalReportPayload containing accuracy, precision, recall, and f1 metrics
             from the image-classification evaluation stage.
 
         Raises:

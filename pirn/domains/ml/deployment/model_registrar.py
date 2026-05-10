@@ -2,7 +2,7 @@
 :class:`LineageStore` and an :class:`ObjectStore`.
 
 Algorithm:
-    1. Receive ``serialized`` (bytes), ``model`` (TrainedModel), ``lineage``
+    1. Receive ``serialized`` (bytes), ``model`` (ModelManifest), ``lineage``
        (LineageStore), and ``store`` (ObjectStore) via process().
     2. Validate types for serialized and model.
     3. Derive the object store key as ``models/<model_id>.bin``.
@@ -23,7 +23,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.connectors.object_store import ObjectStore
 from pirn.domains.ml.lineage_store import LineageStore
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.model_manifest import ModelManifest
 
 
 class ModelRegistrar(Knot):
@@ -51,7 +51,7 @@ class ModelRegistrar(Knot):
     async def process(
         self,
         serialized: bytes,
-        model: TrainedModel,
+        model: ModelManifest,
         lineage: LineageStore,
         store: ObjectStore | None = None,
         **_: Any,
@@ -60,20 +60,20 @@ class ModelRegistrar(Knot):
 
         Args:
             serialized: Serialised model bytes to store.
-            model: TrainedModel reference providing the model_id and metadata.
+            model: ModelManifest reference providing the model_id and metadata.
             lineage: LineageStore used to log the registration event.
             store: ObjectStore where the serialised bytes are persisted.
 
         Returns:
-            The model_id string from the TrainedModel.
+            The model_id string from the ModelManifest.
 
         Raises:
-            TypeError: If serialized is not bytes or model is not a TrainedModel.
+            TypeError: If serialized is not bytes or model is not a ModelManifest.
         """
         if not isinstance(serialized, (bytes, bytearray)):
             raise TypeError("ModelRegistrar: serialized must resolve to bytes")
-        if not isinstance(model, TrainedModel):
-            raise TypeError("ModelRegistrar: model must resolve to a TrainedModel")
+        if not isinstance(model, ModelManifest):
+            raise TypeError("ModelRegistrar: model must resolve to a ModelManifest")
         if store is None:
             raise TypeError("ModelRegistrar: store must be an ObjectStore")
         key = f"models/{model.model_id}.bin"

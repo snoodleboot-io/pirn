@@ -5,11 +5,11 @@ TF-IDF dimensions. The feature-name catalogue is updated at the
 orchestration layer; concrete subclasses materialise the sparse matrix.
 
 Algorithm:
-    1. Receive ``split`` (DataSplit), ``text_column``, and ``max_features``
+    1. Receive ``split`` (SplitManifest), ``text_column``, and ``max_features``
        via process().
     2. Validate all inputs.
     3. Remove the original text column and append tfidf feature names.
-    4. Return updated DataSplit.
+    4. Return updated SplitManifest.
 
 
 References:
@@ -23,8 +23,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class TFIDFExtractor(Knot):
@@ -49,20 +49,20 @@ class TFIDFExtractor(Knot):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         text_column: str = "",
         max_features: int = 100,
         **_: Any,
-    ) -> DataSplit:
+    ) -> SplitManifest:
         """Append tfidf feature names for the text column to every partition.
 
         Args:
-            split: DataSplit whose partitions receive the TF-IDF feature names.
+            split: SplitManifest whose partitions receive the TF-IDF feature names.
             text_column: Non-empty name of the text column to transform.
             max_features: Number of TF-IDF dimensions; must be an int >= 1.
 
         Returns:
-            DataSplit with ``tfidf_<i>`` feature names appended to every partition,
+            SplitManifest with ``tfidf_<i>`` feature names appended to every partition,
             and the original text column removed from the feature list.
 
         Raises:
@@ -76,7 +76,7 @@ class TFIDFExtractor(Knot):
         if max_features < 1:
             raise ValueError("TFIDFExtractor: max_features must be >= 1")
         now = datetime.now(UTC)
-        return DataSplit(
+        return SplitManifest(
             train=self._add_tfidf_features(split.train, text_column, max_features, now),
             test=self._add_tfidf_features(split.test, text_column, max_features, now),
             validation=(
@@ -88,14 +88,14 @@ class TFIDFExtractor(Knot):
 
     def _add_tfidf_features(
         self,
-        dataset: MLDataset,
+        dataset: DatasetManifest,
         text_column: str,
         max_features: int,
         fetched_at: datetime,
-    ) -> MLDataset:
+    ) -> DatasetManifest:
         existing = [f for f in dataset.feature_names if f != text_column]
         tfidf_features = [f"tfidf_{i}" for i in range(max_features)]
-        return MLDataset(
+        return DatasetManifest(
             name=f"{dataset.name}:tfidf",
             feature_names=tuple(existing + tfidf_features),
             target_name=dataset.target_name,

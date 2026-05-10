@@ -8,23 +8,24 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.domains.ml.evaluation.evaluator import Evaluator
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.ml_dataset import MLDataset
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.split_manifest import SplitManifest
+from pirn.domains.ml.types.eval_metadata import EvalMetadata
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.model_manifest import ModelManifest
 from pirn.tapestry import Tapestry
 
 
 @knot
-async def emit_split() -> DataSplit:
-    train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
-    test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
-    return DataSplit(train=train, test=test)
+async def emit_split() -> SplitManifest:
+    train = DatasetManifest(name="d:train", feature_names=("a",), row_count=80)
+    test = DatasetManifest(name="d:test", feature_names=("a",), row_count=20)
+    return SplitManifest(train=train, test=test)
 
 
 @knot
-async def emit_model() -> TrainedModel:
-    return TrainedModel(
+async def emit_model() -> ModelManifest:
+    return ModelManifest(
         model_id="m1",
         algorithm="rf",
         feature_names=("a",),
@@ -45,21 +46,22 @@ class TestEvaluatorHappyPath(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert result.succeeded
-        out: EvalReport = result.outputs["eval"]
-        assert isinstance(out, EvalReport)
-        assert out.model_id == "m1"
-        assert set(out.metrics.keys()) == {"accuracy", "f1"}
-        assert out.dataset_name == "d:test"
+        out: EvalReportPayload = result.outputs["eval"]
+        assert isinstance(out, EvalReportPayload)
+        assert isinstance(out.report, EvalMetadata)
+        assert out.report.model_id == "m1"
+        assert set(out.metrics.scores.keys()) == {"accuracy", "f1"}
+        assert out.report.dataset_name == "d:test"
 
 
 class TestEvaluatorProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_empty_metrics(self) -> None:
         evaluator = Evaluator.__new__(Evaluator)
         object.__setattr__(evaluator, "_config", KnotConfig(id="x"))
-        train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
-        test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
-        split = DataSplit(train=train, test=test)
-        model = TrainedModel(
+        train = DatasetManifest(name="d:train", feature_names=("a",), row_count=80)
+        test = DatasetManifest(name="d:test", feature_names=("a",), row_count=20)
+        split = SplitManifest(train=train, test=test)
+        model = ModelManifest(
             model_id="m1",
             algorithm="rf",
             feature_names=("a",),

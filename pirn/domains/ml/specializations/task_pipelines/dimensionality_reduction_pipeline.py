@@ -7,7 +7,7 @@ Algorithm:
     2. Validate all inputs.
     3. Wire DatasetLoader → TrainTestSplit → Scaler → Trainer → Evaluator
        in an inner Tapestry.
-    4. Run via _run_inner() and return the EvalReport.
+    4. Run via _run_inner() and return the EvalMetadata.
 
 
 References:
@@ -29,7 +29,7 @@ from pirn.domains.ml.data_prep.train_test_split import TrainTestSplit
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.features.scaler import Scaler
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.eval_report import EvalReport
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -73,8 +73,8 @@ class DimensionalityReductionPipeline(SubTapestry):
         algorithm: str = "pca",
         n_components: int = 2,
         **_: Any,
-    ) -> EvalReport:
-        """Scale, reduce dimensionality, and return an EvalReport with reconstruction quality metrics.
+    ) -> EvalReportPayload:
+        """Scale, reduce dimensionality, and return an EvalMetadata with reconstruction quality metrics.
 
         Args:
             pool: DatabaseConnectionPool for loading the dataset.
@@ -84,7 +84,7 @@ class DimensionalityReductionPipeline(SubTapestry):
             n_components: Number of output dimensions; must be int >= 1.
 
         Returns:
-            EvalReport containing explained_variance, reconstruction_error, and trustworthiness metrics.
+            EvalReportPayload containing explained_variance, reconstruction_error, and trustworthiness metrics.
 
         Raises:
             ValueError: If any input fails validation.

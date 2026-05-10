@@ -2,7 +2,7 @@
 and per-class precision, recall, and F1 with macro/weighted averages.
 
 Algorithm:
-    1. Receive ``model`` (TrainedModel), ``split`` (DataSplit), and
+    1. Receive ``model`` (ModelManifest), ``split`` (SplitManifest), and
        ``class_labels`` (Sequence[str] | None) via process().
     2. Resolve class labels to ("class_0", "class_1") if not provided.
     3. Compute confusion matrix cells and per-class metrics via SHA-256 hashes.
@@ -27,8 +27,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class ConfusionMatrixAnalyzer(Knot):
@@ -53,16 +53,16 @@ class ConfusionMatrixAnalyzer(Knot):
 
     async def process(
         self,
-        model: TrainedModel,
-        split: DataSplit,
+        model: ModelManifest,
+        split: SplitManifest,
         class_labels: Sequence[str] | None = None,
         **_: Any,
     ) -> Mapping[str, Any]:
         """Compute the confusion matrix and per-class metrics for the model on the test split.
 
         Args:
-            model: TrainedModel reference to evaluate.
-            split: DataSplit whose test partition is used for predictions.
+            model: ModelManifest reference to evaluate.
+            split: SplitManifest whose test partition is used for predictions.
             class_labels: Optional sequence of class label strings; defaults to ("class_0", "class_1").
 
         Returns:
@@ -94,8 +94,8 @@ class ConfusionMatrixAnalyzer(Knot):
 
     def _cell_value(
         self,
-        model: TrainedModel,
-        split: DataSplit,
+        model: ModelManifest,
+        split: SplitManifest,
         row: int,
         col: int,
     ) -> float:
@@ -114,8 +114,8 @@ class ConfusionMatrixAnalyzer(Knot):
 
     def _metric_value(
         self,
-        model: TrainedModel,
-        split: DataSplit,
+        model: ModelManifest,
+        split: SplitManifest,
         label: str,
         metric: str,
     ) -> float:

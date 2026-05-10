@@ -9,7 +9,8 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.task_pipelines.named_entity_recognition_pipeline import (
     NamedEntityRecognitionPipeline,
 )
-from pirn.domains.ml.types.eval_report import EvalReport
+from pirn.domains.ml.types.eval_metadata import EvalMetadata
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.tapestry import Tapestry
 from tests.unit.domains.ml._stubs.recording_database_pool import (
     RecordingDatabasePool,
@@ -47,6 +48,6 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert result.succeeded
-        report: EvalReport = result.outputs["ner"]
-        assert isinstance(report, EvalReport)
-        assert {"precision", "recall", "f1"}.issubset(report.metrics.keys())
+        report: EvalReportPayload = result.outputs["ner"]
+        assert isinstance(report, EvalReportPayload)
+        assert {"precision", "recall", "f1"}.issubset(report.metrics.scores.keys())

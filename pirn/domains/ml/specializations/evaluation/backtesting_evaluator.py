@@ -2,7 +2,7 @@
 rolling historical windows, returning per-window and aggregate metrics.
 
 Algorithm:
-    1. Receive ``model`` (TrainedModel), ``split`` (DataSplit), ``n_windows`` (int),
+    1. Receive ``model`` (ModelManifest), ``split`` (SplitManifest), ``n_windows`` (int),
        and ``metric`` (str) via process().
     2. Validate n_windows >= 1 and metric is non-empty.
     3. For each window index, compute a deterministic score via SHA-256.
@@ -27,8 +27,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class BacktestingEvaluator(Knot):
@@ -55,8 +55,8 @@ class BacktestingEvaluator(Knot):
 
     async def process(
         self,
-        model: TrainedModel,
-        split: DataSplit,
+        model: ModelManifest,
+        split: SplitManifest,
         n_windows: int = 5,
         metric: str = "mape",
         **_: Any,
@@ -64,8 +64,8 @@ class BacktestingEvaluator(Knot):
         """Evaluate the model across rolling windows and return per-window and aggregate metrics.
 
         Args:
-            model: TrainedModel reference for a forecasting task.
-            split: DataSplit used as the historical data pool for rolling windows.
+            model: ModelManifest reference for a forecasting task.
+            split: SplitManifest used as the historical data pool for rolling windows.
             n_windows: Number of rolling windows; must be an int >= 1.
             metric: Metric name to report; must be a non-empty string.
 
@@ -94,7 +94,7 @@ class BacktestingEvaluator(Knot):
         }
 
     def _window_score(
-        self, model: TrainedModel, split: DataSplit, window_idx: int, metric: str
+        self, model: ModelManifest, split: SplitManifest, window_idx: int, metric: str
     ) -> float:
         payload = json.dumps(
             {

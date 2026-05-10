@@ -1,7 +1,7 @@
 """``SemiSupervisedTrainer`` — train on labeled data, predict pseudo-labels
 for unlabeled data, then retrain on the combined set.
 
-Returns the final :class:`TrainedModel` and its evaluation report after
+Returns the final :class:`ModelManifest` and its evaluation report after
 the pseudo-labeling iteration.
 
 Algorithm:
@@ -27,10 +27,10 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.ml_dataset import MLDataset
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -66,7 +66,7 @@ class SemiSupervisedTrainer(SubTapestry):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         algorithm: str = "",
         unlabeled_row_count: int = 0,
         metrics: Sequence[str] = (),
@@ -76,14 +76,14 @@ class SemiSupervisedTrainer(SubTapestry):
         """Train on labeled data, generate pseudo-labels, and retrain on combined set.
 
         Args:
-            split: DataSplit with labeled train and test partitions.
+            split: SplitManifest with labeled train and test partitions.
             algorithm: Non-empty algorithm identifier.
             unlabeled_row_count: Number of pseudo-labeled rows to add; must be int >= 0.
             metrics: Non-empty sequence of metric names.
             hyperparameters: Optional mapping of additional hyperparameters.
 
         Returns:
-            Dict with ``model`` (TrainedModel), ``eval_report`` (EvalReport),
+            Dict with ``model`` (ModelManifest), ``eval_report`` (EvalMetadata),
             and ``pseudo_labeled_rows`` (int rows added from unlabeled set).
 
         Raises:
@@ -108,14 +108,14 @@ class SemiSupervisedTrainer(SubTapestry):
             raise TypeError("SemiSupervisedTrainer: hyperparameters must be a Mapping")
         hp = dict(hyperparameters) if hyperparameters is not None else {}
         combined_rows = split.train.row_count + unlabeled_row_count
-        combined_ds = MLDataset(
+        combined_ds = DatasetManifest(
             name=f"{split.train.name}:semi_supervised",
             feature_names=split.train.feature_names,
             target_name=split.train.target_name,
             row_count=combined_rows,
             source_uri=split.train.source_uri,
         )
-        combined_split = DataSplit(train=combined_ds, test=split.test)
+        combined_split = SplitManifest(train=combined_ds, test=split.test)
 
         with Tapestry() as inner:
             split_node = _emit_value(value=combined_split, _config=KnotConfig(id="split"))
@@ -134,10 +134,10 @@ class SemiSupervisedTrainer(SubTapestry):
         result = await self._run_inner(inner)
         trained_model = result.outputs["train"]
         report = result.outputs["evaluate"]
-        if not isinstance(trained_model, TrainedModel):
-            raise TypeError("SemiSupervisedTrainer: trainer did not return a TrainedModel")
-        if not isinstance(report, EvalReport):
-            raise TypeError("SemiSupervisedTrainer: evaluator did not return an EvalReport")
+        if not isinstance(trained_model, ModelManifest):
+            raise TypeError("SemiSupervisedTrainer: trainer did not return a ModelManifest")
+        if not isinstance(report, EvalReportPayload):
+            raise TypeError("SemiSupervisedTrainer: evaluator did not return an EvalReportPayload")
         return {
             "model": trained_model,
             "eval_report": report,

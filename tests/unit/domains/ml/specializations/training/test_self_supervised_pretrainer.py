@@ -29,12 +29,12 @@ def _make_knot() -> SelfSupervisedPretrainer:
 
 
 def _split():
-    from pirn.domains.ml.types.data_split import DataSplit
-    from pirn.domains.ml.types.ml_dataset import MLDataset
+    from pirn.domains.ml.types.split_manifest import SplitManifest
+    from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 
-    return DataSplit(
-        train=MLDataset(name="tr", feature_names=["x"], target_name="y", row_count=10, source_uri="mem://"),
-        test=MLDataset(name="te", feature_names=["x"], target_name="y", row_count=5, source_uri="mem://"),
+    return SplitManifest(
+        train=DatasetManifest(name="tr", feature_names=["x"], target_name="y", row_count=10, source_uri="mem://"),
+        test=DatasetManifest(name="te", feature_names=["x"], target_name="y", row_count=5, source_uri="mem://"),
     )
 
 

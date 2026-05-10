@@ -7,7 +7,7 @@ Algorithm:
     2. Validate all inputs.
     3. Wire DatasetLoader → TrainTestSplit → Scaler → Trainer → Evaluator
        in an inner Tapestry.
-    4. Run via _run_inner() and return the EvalReport.
+    4. Run via _run_inner() and return the EvalMetadata.
 
 
 References:
@@ -29,7 +29,7 @@ from pirn.domains.ml.data_prep.train_test_split import TrainTestSplit
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.features.scaler import Scaler
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.eval_report import EvalReport
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -69,8 +69,8 @@ class ClusteringPipeline(SubTapestry):
         algorithm: str = "kmeans",
         n_clusters: int = 8,
         **_: Any,
-    ) -> EvalReport:
-        """Scale features, fit a clustering model, and return an EvalReport with silhouette and Davies-Bouldin scores.
+    ) -> EvalReportPayload:
+        """Scale features, fit a clustering model, and return an EvalMetadata with silhouette and Davies-Bouldin scores.
 
         Args:
             pool: DatabaseConnectionPool for loading the dataset.
@@ -80,7 +80,7 @@ class ClusteringPipeline(SubTapestry):
             n_clusters: Number of clusters; must be int >= 2.
 
         Returns:
-            EvalReport containing silhouette, davies_bouldin, and inertia metrics.
+            EvalReportPayload containing silhouette, davies_bouldin, and inertia metrics.
 
         Raises:
             ValueError: If any input fails validation.

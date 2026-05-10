@@ -8,7 +8,7 @@ Algorithm:
     2. Validate all inputs.
     3. Wire DatasetLoader → TrainTestSplit → Trainer → TimeSeriesEvalPipeline
        in an inner Tapestry.
-    4. Run via _run_inner() and return the EvalReport.
+    4. Run via _run_inner() and return the EvalMetadata.
 
 
 References:
@@ -31,7 +31,7 @@ from pirn.domains.ml.specializations.evaluation.timeseries_eval_pipeline import 
     TimeSeriesEvalPipeline,
 )
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.eval_report import EvalReport
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -74,8 +74,8 @@ class ForecastingPipeline(SubTapestry):
         horizon: int = 7,
         algorithm: str = "arima",
         **_: Any,
-    ) -> EvalReport:
-        """Load data, split, train a forecasting model with the configured horizon, and return the time-series EvalReport.
+    ) -> EvalReportPayload:
+        """Load data, split, train a forecasting model with the configured horizon, and return the time-series EvalMetadata.
 
         Args:
             pool: DatabaseConnectionPool for loading the dataset.
@@ -87,7 +87,7 @@ class ForecastingPipeline(SubTapestry):
             algorithm: Non-empty algorithm identifier.
 
         Returns:
-            EvalReport from the :class:`TimeSeriesEvalPipeline` evaluation
+            EvalReportPayload from the :class:`TimeSeriesEvalPipeline` evaluation
             stage, covering the configured forecast horizon.
 
         Raises:

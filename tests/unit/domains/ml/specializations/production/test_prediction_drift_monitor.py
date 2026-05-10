@@ -10,29 +10,29 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.production.prediction_drift_monitor import (
     PredictionDriftMonitor,
 )
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.split_manifest import SplitManifest
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.model_manifest import ModelManifest
 from pirn.tapestry import Tapestry
 
 
 @knot
-async def emit_baseline() -> DataSplit:
-    train = MLDataset(name="b:train", feature_names=("a",), row_count=800)
-    test = MLDataset(name="b:test", feature_names=("a",), row_count=200)
-    return DataSplit(train=train, test=test)
+async def emit_baseline() -> SplitManifest:
+    train = DatasetManifest(name="b:train", feature_names=("a",), row_count=800)
+    test = DatasetManifest(name="b:test", feature_names=("a",), row_count=200)
+    return SplitManifest(train=train, test=test)
 
 
 @knot
-async def emit_current() -> DataSplit:
-    train = MLDataset(name="c:train", feature_names=("a",), row_count=100)
-    test = MLDataset(name="c:test", feature_names=("a",), row_count=25)
-    return DataSplit(train=train, test=test)
+async def emit_current() -> SplitManifest:
+    train = DatasetManifest(name="c:train", feature_names=("a",), row_count=100)
+    test = DatasetManifest(name="c:test", feature_names=("a",), row_count=25)
+    return SplitManifest(train=train, test=test)
 
 
 @knot
-async def emit_model() -> TrainedModel:
-    return TrainedModel(model_id="m1", algorithm="logistic")
+async def emit_model() -> ModelManifest:
+    return ModelManifest(model_id="m1", algorithm="logistic")
 
 
 class TestConstruction(unittest.IsolatedAsyncioTestCase):
@@ -40,15 +40,15 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
         with Tapestry():
             k = PredictionDriftMonitor.__new__(PredictionDriftMonitor)
             object.__setattr__(k, "_config", KnotConfig(id="pdm"))
-        baseline = DataSplit(
-            train=MLDataset(name="b:train", feature_names=("a",), row_count=800),
-            test=MLDataset(name="b:test", feature_names=("a",), row_count=200),
+        baseline = SplitManifest(
+            train=DatasetManifest(name="b:train", feature_names=("a",), row_count=800),
+            test=DatasetManifest(name="b:test", feature_names=("a",), row_count=200),
         )
-        current = DataSplit(
-            train=MLDataset(name="c:train", feature_names=("a",), row_count=100),
-            test=MLDataset(name="c:test", feature_names=("a",), row_count=25),
+        current = SplitManifest(
+            train=DatasetManifest(name="c:train", feature_names=("a",), row_count=100),
+            test=DatasetManifest(name="c:test", feature_names=("a",), row_count=25),
         )
-        model = TrainedModel(model_id="m1", algorithm="logistic")
+        model = ModelManifest(model_id="m1", algorithm="logistic")
         with self.assertRaisesRegex((TypeError, ValueError), "sigma_threshold"):
             await k.process(
                 model=model, baseline=baseline, current=current, sigma_threshold=-1.0

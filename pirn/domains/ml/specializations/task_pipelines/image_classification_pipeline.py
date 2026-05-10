@@ -7,7 +7,7 @@ Algorithm:
     2. Validate all inputs.
     3. Wire DatasetLoader → TrainTestSplit → Trainer → Evaluator in an
        inner Tapestry.
-    4. Run via _run_inner() and return the EvalReport.
+    4. Run via _run_inner() and return the EvalMetadata.
 
 
 References:
@@ -27,7 +27,7 @@ from pirn.domains.ml.data_prep.dataset_loader import DatasetLoader
 from pirn.domains.ml.data_prep.train_test_split import TrainTestSplit
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.eval_report import EvalReport
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -70,8 +70,8 @@ class ImageClassificationPipeline(SubTapestry):
         architecture: str = "cnn",
         augment: bool = True,
         **_: Any,
-    ) -> EvalReport:
-        """Load images, optionally augment, train the configured architecture, and return the EvalReport.
+    ) -> EvalReportPayload:
+        """Load images, optionally augment, train the configured architecture, and return the EvalMetadata.
 
         Args:
             pool: DatabaseConnectionPool for loading the dataset.
@@ -82,7 +82,7 @@ class ImageClassificationPipeline(SubTapestry):
             augment: Whether to apply data augmentation.
 
         Returns:
-            EvalReport containing accuracy, precision, recall, and f1 metrics.
+            EvalReportPayload containing accuracy, precision, recall, and f1 metrics.
 
         Raises:
             ValueError: If any input fails validation.

@@ -39,14 +39,14 @@ from pirn.domains.ml.deployment.predictor import Predictor
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.lineage_store import LineageStore
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
+from pirn.domains.ml.types.eval_metadata import EvalMetadata
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
 
 @knot
-async def _holdout_features(split: DataSplit) -> list[Mapping[str, Any]]:
+async def _holdout_features(split: SplitManifest) -> list[Mapping[str, Any]]:
     rows = []
     for index in range(int(split.test.row_count)):
         row: dict[str, Any] = {feature: float(index) for feature in split.test.feature_names}
@@ -146,7 +146,7 @@ class ContinuousTrainingPipeline(SubTapestry):
 
         Returns:
             Mapping with ``model_id`` (str), ``eval_report``
-            (:class:`EvalReport` or ``None`` if skipped), and ``skipped``
+            (:class:`EvalMetadata` or ``None`` if skipped), and ``skipped``
             (bool indicating whether retraining was bypassed due to freshness).
 
         Raises:
@@ -231,7 +231,7 @@ class ContinuousTrainingPipeline(SubTapestry):
                 _config=KnotConfig(id="predict"),
             )
         inner_result = await self._run_inner(inner)
-        report: EvalReport = inner_result.outputs["evaluate"]
+        report: EvalMetadata = inner_result.outputs["evaluate"]
         return {
             "model_id": inner_result.outputs["register"],
             "eval_report": report,

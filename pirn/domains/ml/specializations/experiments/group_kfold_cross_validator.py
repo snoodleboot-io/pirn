@@ -5,12 +5,12 @@ Prevents data leakage when samples within a group are correlated (e.g.
 multiple records for the same patient or user).
 
 Algorithm:
-    1. Receive ``dataset`` (MLDataset), ``algorithm``, ``metrics``,
+    1. Receive ``dataset`` (DatasetManifest), ``algorithm``, ``metrics``,
        ``group_column``, and ``k`` via process().
     2. Validate all inputs.
     3. Wire CrossValidator in an inner Tapestry to produce k folds.
     4. Wire Trainer + Evaluator per fold in a second inner Tapestry.
-    5. Aggregate per-fold metrics and return an EvalReport.
+    5. Aggregate per-fold metrics and return an EvalMetadata.
 
 Math:
     mean_metric = sum(fold_metric) / k  for each metric
@@ -32,9 +32,11 @@ from pirn.core.knot_factory import knot
 from pirn.domains.ml.data_prep.cross_validator import CrossValidator
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.eval_metadata import EvalMetadata
+from pirn.domains.ml.types.eval_metrics import EvalMetrics
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -70,29 +72,29 @@ class GroupKFoldCrossValidator(SubTapestry):
 
     async def process(
         self,
-        dataset: MLDataset,
+        dataset: DatasetManifest,
         algorithm: str = "",
         metrics: Sequence[str] = (),
         group_column: str = "",
         k: int = 5,
         **_: Any,
-    ) -> EvalReport:
-        """Run group K-fold cross-validation and return an EvalReport with mean metrics.
+    ) -> EvalReportPayload:
+        """Run group K-fold cross-validation and return an EvalMetadata with mean metrics.
 
         Args:
-            dataset: MLDataset to partition into k group-aware folds.
+            dataset: DatasetManifest to partition into k group-aware folds.
             algorithm: Non-empty algorithm name string.
             metrics: Non-empty sequence of metric name strings.
             group_column: Non-empty column name that identifies groups.
             k: Number of folds; must be an int >= 2.
 
         Returns:
-            EvalReport with averaged per-fold metrics and group_column recorded
+            EvalReportPayload with averaged per-fold metrics and group_column recorded
             in details.
 
         Raises:
             ValueError: If any input fails validation.
-            TypeError: If any fold evaluator does not return an EvalReport.
+            TypeError: If any fold evaluator does not return an EvalReportPayload.
         """
         if not isinstance(k, int):
             raise TypeError("GroupKFoldCrossValidator: k must be an int")
@@ -118,7 +120,7 @@ class GroupKFoldCrossValidator(SubTapestry):
                 _config=KnotConfig(id="folds"),
             )
         folds_result = await self._run_inner(inner)
-        folds: tuple[DataSplit, ...] = folds_result.outputs["folds"]
+        folds: tuple[SplitManifest, ...] = folds_result.outputs["folds"]
 
         with Tapestry() as inner_eval:
             for fold_index, fold in enumerate(folds):
@@ -142,26 +144,30 @@ class GroupKFoldCrossValidator(SubTapestry):
         per_fold: list[dict[str, float]] = []
         for fold_index in range(len(folds)):
             report = eval_result.outputs[f"evaluate_{fold_index}"]
-            if not isinstance(report, EvalReport):
+            if not isinstance(report, EvalReportPayload):
                 raise TypeError(
-                    f"GroupKFoldCrossValidator: fold {fold_index} did not produce an EvalReport"
+                    f"GroupKFoldCrossValidator: fold {fold_index} did not produce an EvalMetadata"
                 )
-            per_fold.append({name: float(value) for name, value in report.metrics.items()})
+            per_fold.append({name: float(value) for name, value in report.metrics.scores.items()})
 
         aggregated = self._aggregate(per_fold)
-        return EvalReport(
-            model_id=f"{algorithm}:group_kfold-{k}",
-            dataset_name=dataset.name,
-            metrics=MappingProxyType(aggregated),
-            details=MappingProxyType(
-                {
-                    "k": k,
-                    "group_column": group_column,
-                    "algorithm": algorithm,
-                    "per_fold_metrics": per_fold,
-                }
+        return EvalReportPayload(
+            metadata=EvalMetadata(
+                model_id=f"{algorithm}:group_kfold-{k}",
+                dataset_name=dataset.name,
+                evaluated_at=datetime.now(UTC),
             ),
-            evaluated_at=datetime.now(UTC),
+            data=EvalMetrics(
+                scores=MappingProxyType(aggregated),
+                details=MappingProxyType(
+                    {
+                        "k": k,
+                        "group_column": group_column,
+                        "algorithm": algorithm,
+                        "per_fold_metrics": per_fold,
+                    }
+                ),
+            ),
         )
 
     def _aggregate(self, per_fold: list[dict[str, float]]) -> dict[str, float]:

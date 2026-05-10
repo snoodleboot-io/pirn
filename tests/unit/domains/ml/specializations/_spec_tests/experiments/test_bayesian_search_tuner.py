@@ -10,18 +10,19 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.experiments.bayesian_search_tuner import (
     BayesianSearchTuner,
 )
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.ml_dataset import MLDataset
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.split_manifest import SplitManifest
+from pirn.domains.ml.types.eval_metadata import EvalMetadata
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.model_manifest import ModelManifest
 from pirn.tapestry import Tapestry
 
 
 @knot
-async def emit_split() -> DataSplit:
-    train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
-    test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
-    return DataSplit(train=train, test=test)
+async def emit_split() -> SplitManifest:
+    train = DatasetManifest(name="d:train", feature_names=("a",), row_count=80)
+    test = DatasetManifest(name="d:test", feature_names=("a",), row_count=20)
+    return SplitManifest(train=train, test=test)
 
 
 def _make_tuner() -> BayesianSearchTuner:
@@ -38,10 +39,10 @@ def _make_tuner() -> BayesianSearchTuner:
     return tuner
 
 
-def _split_fixture() -> DataSplit:
-    train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
-    test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
-    return DataSplit(train=train, test=test)
+def _split_fixture() -> SplitManifest:
+    train = DatasetManifest(name="d:train", feature_names=("a",), row_count=80)
+    test = DatasetManifest(name="d:test", feature_names=("a",), row_count=20)
+    return SplitManifest(train=train, test=test)
 
 
 class TestConstruction(unittest.IsolatedAsyncioTestCase):
@@ -86,6 +87,6 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         out = result.outputs["bo"]
         assert isinstance(out, dict)
-        assert isinstance(out["best_model"], TrainedModel)
-        assert isinstance(out["eval_report"], EvalReport)
-        assert "accuracy" in out["eval_report"].metrics
+        assert isinstance(out["best_model"], ModelManifest)
+        assert isinstance(out["eval_report"], EvalReportPayload)
+        assert "accuracy" in out["eval_report"].metrics.scores

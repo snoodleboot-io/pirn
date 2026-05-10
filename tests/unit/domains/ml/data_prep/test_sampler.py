@@ -8,13 +8,13 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.domains.ml.data_prep.sampler import Sampler
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 from pirn.tapestry import Tapestry
 
 
 @knot
-async def emit_dataset() -> MLDataset:
-    return MLDataset(
+async def emit_dataset() -> DatasetManifest:
+    return DatasetManifest(
         name="customers",
         feature_names=("a",),
         row_count=1000,
@@ -22,8 +22,8 @@ async def emit_dataset() -> MLDataset:
     )
 
 
-def _make_dataset(row_count: int = 1000) -> MLDataset:
-    return MLDataset(
+def _make_dataset(row_count: int = 1000) -> DatasetManifest:
+    return DatasetManifest(
         name="customers",
         feature_names=("a",),
         row_count=row_count,
@@ -42,7 +42,7 @@ class TestSamplerHappyPath(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert result.succeeded
-        out: MLDataset = result.outputs["sample"]
+        out: DatasetManifest = result.outputs["sample"]
         assert out.row_count == 100
         assert out.name.endswith(":sampled")
 
@@ -55,7 +55,7 @@ class TestSamplerHappyPath(unittest.IsolatedAsyncioTestCase):
                 _config=KnotConfig(id="sample"),
             )
         result = await t.run(RunRequest())
-        out: MLDataset = result.outputs["sample"]
+        out: DatasetManifest = result.outputs["sample"]
         assert out.row_count == 250
 
 

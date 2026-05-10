@@ -22,8 +22,8 @@ from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class ConceptDriftDetector(Knot):
@@ -52,8 +52,8 @@ class ConceptDriftDetector(Knot):
 
     async def process(
         self,
-        model: TrainedModel,
-        split: DataSplit,
+        model: ModelManifest,
+        split: SplitManifest,
         method: str = "adwin",
         delta: float = 0.002,
         **_: Any,
@@ -61,8 +61,8 @@ class ConceptDriftDetector(Knot):
         """Apply the configured drift detection algorithm and signal if concept drift is detected.
 
         Args:
-            model: TrainedModel whose prediction distribution is being monitored.
-            split: DataSplit representing the current prediction window.
+            model: ModelManifest whose prediction distribution is being monitored.
+            split: SplitManifest representing the current prediction window.
             method: Drift detection method; must be one of {"adwin", "page_hinkley"}.
             delta: Sensitivity parameter; must be a positive number.
 

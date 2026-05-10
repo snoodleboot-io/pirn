@@ -10,8 +10,8 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.feature_engineering.feature_store_writer import (
     FeatureStoreWriter,
 )
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.split_manifest import SplitManifest
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 from pirn.tapestry import Tapestry
 from tests.unit.domains.ml._stubs.recording_feature_store_provider import (
     RecordingFeatureStoreProvider,
@@ -19,25 +19,25 @@ from tests.unit.domains.ml._stubs.recording_feature_store_provider import (
 
 
 @knot
-async def emit_split() -> DataSplit:
-    train = MLDataset(
+async def emit_split() -> SplitManifest:
+    train = DatasetManifest(
         name="d:train", feature_names=("a",), target_name="y", row_count=80
     )
-    test = MLDataset(
+    test = DatasetManifest(
         name="d:test", feature_names=("a",), target_name="y", row_count=20
     )
-    return DataSplit(train=train, test=test)
+    return SplitManifest(train=train, test=test)
 
 
 class TestConstruction(unittest.IsolatedAsyncioTestCase):
-    def _make_split(self) -> DataSplit:
-        train = MLDataset(
+    def _make_split(self) -> SplitManifest:
+        train = DatasetManifest(
             name="d:train", feature_names=("a",), target_name="y", row_count=80
         )
-        test = MLDataset(
+        test = DatasetManifest(
             name="d:test", feature_names=("a",), target_name="y", row_count=20
         )
-        return DataSplit(train=train, test=test)
+        return SplitManifest(train=train, test=test)
 
     async def test_rejects_non_provider(self) -> None:
         with Tapestry():

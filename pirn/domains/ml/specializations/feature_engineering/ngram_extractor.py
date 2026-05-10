@@ -5,11 +5,11 @@ Appends ``ngram_<analyzer>_<n>_<i>`` feature names for each of the
 ``"char"`` or ``"word"`` n-grams.
 
 Algorithm:
-    1. Receive ``split`` (DataSplit), ``text_column``, ``n``, ``analyzer``,
+    1. Receive ``split`` (SplitManifest), ``text_column``, ``n``, ``analyzer``,
        and ``max_features`` via process().
     2. Validate all inputs.
     3. Remove the original text column and append ngram feature names.
-    4. Return updated DataSplit.
+    4. Return updated SplitManifest.
 
 
 References:
@@ -23,8 +23,8 @@ from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class NGramExtractor(Knot):
@@ -55,24 +55,24 @@ class NGramExtractor(Knot):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         text_column: str = "",
         n: int = 2,
         analyzer: str = "word",
         max_features: int = 50,
         **_: Any,
-    ) -> DataSplit:
+    ) -> SplitManifest:
         """Append n-gram feature names for the text column to every partition.
 
         Args:
-            split: DataSplit whose partitions receive the n-gram feature names.
+            split: SplitManifest whose partitions receive the n-gram feature names.
             text_column: Non-empty name of the text column.
             n: N-gram size; must be an int >= 1.
             analyzer: Must be one of {"char", "word"}.
             max_features: Number of n-gram dimensions; must be an int >= 1.
 
         Returns:
-            DataSplit with ``ngram_<analyzer>_<n>_<i>`` feature names appended
+            SplitManifest with ``ngram_<analyzer>_<n>_<i>`` feature names appended
             to every partition, and the original text column removed.
 
         Raises:
@@ -93,7 +93,7 @@ class NGramExtractor(Knot):
         if max_features < 1:
             raise ValueError("NGramExtractor: max_features must be >= 1")
         now = datetime.now(UTC)
-        return DataSplit(
+        return SplitManifest(
             train=self._add_ngram_features(
                 split.train, text_column, n, analyzer, max_features, now
             ),
@@ -109,16 +109,16 @@ class NGramExtractor(Knot):
 
     def _add_ngram_features(
         self,
-        dataset: MLDataset,
+        dataset: DatasetManifest,
         text_column: str,
         n: int,
         analyzer: str,
         max_features: int,
         fetched_at: datetime,
-    ) -> MLDataset:
+    ) -> DatasetManifest:
         existing = [f for f in dataset.feature_names if f != text_column]
         ngram_features = [f"ngram_{analyzer}_{n}_{i}" for i in range(max_features)]
-        return MLDataset(
+        return DatasetManifest(
             name=f"{dataset.name}:ngram_{analyzer}_{n}",
             feature_names=tuple(existing + ngram_features),
             target_name=dataset.target_name,

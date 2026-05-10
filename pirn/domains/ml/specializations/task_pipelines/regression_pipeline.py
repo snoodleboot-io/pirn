@@ -9,7 +9,7 @@ Algorithm:
     2. Validate all inputs.
     3. Wire DatasetLoader → TrainTestSplit → Scaler → Trainer → Evaluator
        in an inner Tapestry.
-    4. Run via _run_inner() and return the EvalReport.
+    4. Run via _run_inner() and return the EvalMetadata.
 
 
 References:
@@ -31,7 +31,7 @@ from pirn.domains.ml.data_prep.train_test_split import TrainTestSplit
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.features.scaler import Scaler
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.eval_report import EvalReport
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -70,8 +70,8 @@ class RegressionPipeline(SubTapestry):
         feature_names: Sequence[str] = (),
         algorithm: str = "random_forest",
         **_: Any,
-    ) -> EvalReport:
-        """Load data, split, scale, train a regressor, and return the RMSE/MAE/R2/MAPE EvalReport.
+    ) -> EvalReportPayload:
+        """Load data, split, scale, train a regressor, and return the RMSE/MAE/R2/MAPE EvalMetadata.
 
         Args:
             pool: DatabaseConnectionPool for loading the dataset.
@@ -81,7 +81,7 @@ class RegressionPipeline(SubTapestry):
             algorithm: Non-empty algorithm identifier.
 
         Returns:
-            EvalReport containing rmse, mae, r2, and mape metrics from the
+            EvalReportPayload containing rmse, mae, r2, and mape metrics from the
             regression evaluation stage.
 
         Raises:

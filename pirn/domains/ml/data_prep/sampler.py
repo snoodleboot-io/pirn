@@ -1,7 +1,7 @@
-"""``Sampler`` — subsample an :class:`MLDataset` reference.
+"""``Sampler`` — subsample an :class:`DatasetManifest` reference.
 
 Like the other data-prep knots, this one operates on the
-:class:`MLDataset` reference rather than the underlying rows; the
+:class:`DatasetManifest` reference rather than the underlying rows; the
 output ``row_count`` is reduced according to ``n`` or ``fraction`` and
 the source uri / feature schema are preserved.
 
@@ -10,7 +10,7 @@ Algorithm:
        ``random_seed`` via process().
     2. Validate that exactly one of ``n`` or ``fraction`` is provided.
     3. Compute new row_count: min(n, total) when n is set; else max(1, int(total * fraction)).
-    4. Return a renamed MLDataset reference with the reduced row_count.
+    4. Return a renamed DatasetManifest reference with the reduced row_count.
 
 Math:
     row_count = min(n, total)              [when n is provided]
@@ -27,11 +27,11 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 
 
 class Sampler(Knot):
-    """Reduce an :class:`MLDataset` to ``n`` rows or ``fraction`` of rows."""
+    """Reduce an :class:`DatasetManifest` to ``n`` rows or ``fraction`` of rows."""
 
     def __init__(
         self,
@@ -56,24 +56,24 @@ class Sampler(Knot):
 
     async def process(
         self,
-        dataset: MLDataset,
+        dataset: DatasetManifest,
         n: int | None = None,
         fraction: float | None = None,
         stratify_column: str | None = None,
         random_seed: int = 42,
         **_: Any,
-    ) -> MLDataset:
+    ) -> DatasetManifest:
         """Reduce the dataset reference row count to the configured n or fraction and return the sampled reference.
 
         Args:
-            dataset: MLDataset reference to downsample.
+            dataset: DatasetManifest reference to downsample.
             n: Absolute row count ceiling; mutually exclusive with fraction.
             fraction: Fraction of rows to keep in (0, 1]; mutually exclusive with n.
             stratify_column: Optional column name for stratified sampling metadata.
             random_seed: Random seed (reserved for future shuffle logic).
 
         Returns:
-            MLDataset reference with row_count reduced according to n or fraction.
+            DatasetManifest reference with row_count reduced according to n or fraction.
 
         Raises:
             ValueError: If both or neither of n/fraction are provided, or values are out of range.
@@ -102,7 +102,7 @@ class Sampler(Knot):
             row_count = min(n, total)
         else:
             row_count = max(1, int(total * (fraction or 0.0)))
-        return MLDataset(
+        return DatasetManifest(
             name=f"{dataset.name}:sampled",
             feature_names=dataset.feature_names,
             target_name=dataset.target_name,

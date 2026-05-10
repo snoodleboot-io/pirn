@@ -2,10 +2,10 @@
 
 Samples N random hyperparameter combinations from the search space,
 trains and evaluates each, returns the best params + score wrapped in
-a :class:`TrainedModel` / :class:`EvalReport` pair.
+a :class:`ModelManifest` / :class:`EvalMetadata` pair.
 
 Algorithm:
-    1. Receive ``split`` (DataSplit), ``algorithm``, ``search_space``,
+    1. Receive ``split`` (SplitManifest), ``algorithm``, ``search_space``,
        ``primary_metric``, ``n_trials``, and ``random_seed`` via process().
     2. Validate all inputs.
     3. Wire HyperparamSearch (random) + Evaluator in an inner Tapestry.
@@ -26,9 +26,9 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.training.hyperparam_search import HyperparamSearch
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -66,7 +66,7 @@ class RandomSearchTuner(SubTapestry):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         algorithm: str = "",
         search_space: Mapping[str, Sequence[Any]] | None = None,
         primary_metric: str = "",
@@ -77,7 +77,7 @@ class RandomSearchTuner(SubTapestry):
         """Sample N random hyperparameter combinations and return the best model and its evaluation.
 
         Args:
-            split: DataSplit used for candidate training and evaluation.
+            split: SplitManifest used for candidate training and evaluation.
             algorithm: Non-empty algorithm name string.
             search_space: Non-empty mapping of hyperparameter name to candidate values.
             primary_metric: Non-empty metric name to report.
@@ -85,7 +85,7 @@ class RandomSearchTuner(SubTapestry):
             random_seed: Seed for deterministic sampling.
 
         Returns:
-            Dict with ``best_model`` (TrainedModel) and ``eval_report`` (EvalReport).
+            Dict with ``best_model`` (ModelManifest) and ``eval_report`` (EvalMetadata).
 
         Raises:
             ValueError: If any input fails validation.
@@ -125,8 +125,8 @@ class RandomSearchTuner(SubTapestry):
         result = await self._run_inner(inner)
         model = result.outputs["search"]
         report = result.outputs["evaluate"]
-        if not isinstance(model, TrainedModel):
-            raise TypeError("RandomSearchTuner: search did not return a TrainedModel")
-        if not isinstance(report, EvalReport):
-            raise TypeError("RandomSearchTuner: evaluator did not return an EvalReport")
+        if not isinstance(model, ModelManifest):
+            raise TypeError("RandomSearchTuner: search did not return a ModelManifest")
+        if not isinstance(report, EvalReportPayload):
+            raise TypeError("RandomSearchTuner: evaluator did not return an EvalReportPayload")
         return {"best_model": model, "eval_report": report}
