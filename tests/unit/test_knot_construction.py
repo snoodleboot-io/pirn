@@ -161,7 +161,7 @@ async def double(x: int) -> int:
 # ------------------------------------------------------- Optional wrapper
 
 
-    def test_optional_wrapper_is_optional(self):
+    def test_optional_decorator_is_optional(self):
         from pirn.core.knot_factory import knot as knot_decorator
 
         @knot_decorator
@@ -170,7 +170,7 @@ async def double(x: int) -> int:
 
         p = Parameter("x", int, _config=KnotConfig(id="x"))
         i = inner(x=p, _config=KnotConfig(id="inner"))
-        o = Optional(knot=i, _config=KnotConfig(id="opt"))
+        o = Optional(type(i), x=p, _config=KnotConfig(id="opt"))
         assert isinstance(o, Optional)
 
     def test_regular_knot_is_not_optional(self):

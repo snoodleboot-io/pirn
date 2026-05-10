@@ -1,12 +1,10 @@
-"""Optional wrapper and error-policy interaction tests."""
+"""Optional decorator and error-policy interaction tests."""
 
 from __future__ import annotations
 
 from typing import Any
 
 import pytest
-
-pytestmark = pytest.mark.anyio
 
 from pirn.core.error_policy import ErrorPolicy
 from pirn.core.knot import Knot
@@ -15,46 +13,71 @@ from pirn.core.knot_factory import knot
 from pirn.core.optional import Optional
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
+from pirn.core.skipped import Skipped
 from pirn.tapestry import Tapestry
 
-
-@knot
-async def boom(x: int) -> int:
-    raise RuntimeError("not available")
+pytestmark = pytest.mark.anyio
 
 
-def test_optional_is_knot():
+class Boom(Knot):
+    """Always raises — used to exercise Optional failure paths."""
+
+    async def process(self, x: int = 0, **_: Any) -> int:
+        raise RuntimeError("not available")
+
+
+class Echo(Knot):
+    """Returns its input — used to exercise Optional success path."""
+
+    async def process(self, x: int = 0, **_: Any) -> int:
+        return x
+
+
+def test_optional_result_is_knot():
     with Tapestry():
-        inner = boom(x=Parameter("x", int), _config=KnotConfig(id="inner"))
-        opt = Optional(knot=inner, _config=KnotConfig(id="opt"))
+        opt = Optional(Boom, _config=KnotConfig(id="opt"))
     assert isinstance(opt, Knot)
     assert isinstance(opt, Optional)
 
 
-async def test_optional_failure_propagates_as_skipped():
+async def test_optional_failure_produces_skipped_value():
     with Tapestry() as t:
-        p = Parameter("x", int, default=5)
-        inner = boom(x=p, _config=KnotConfig(id="inner"))
-        Optional(knot=inner, _config=KnotConfig(id="opt"))
+        Optional(Boom, _config=KnotConfig(id="opt"))
 
     result = await t.run(RunRequest())
-    assert "opt" in result.skipped
+    assert isinstance(result.outputs["opt"], Skipped)
+    assert "opt" not in result.skipped
 
 
-async def test_optional_skipped_propagates_downstream():
+async def test_optional_always_succeeds_on_failure():
+    with Tapestry() as t:
+        Optional(Boom, _config=KnotConfig(id="opt"))
+
+    result = await t.run(RunRequest())
+    assert "opt" in result.outputs
+    assert "opt" not in result.skipped
+
+
+async def test_optional_passes_value_through_on_success():
+    with Tapestry() as t:
+        p = Parameter("x", int, default=7, _config=KnotConfig(id="x"))
+        Optional(Echo, x=p, _config=KnotConfig(id="opt"))
+
+    result = await t.run(RunRequest())
+    assert result.outputs["opt"] == 7
+
+
+async def test_downstream_receives_skipped_value():
     @knot
-    async def use(x: int) -> int:
-        return x + 1
+    async def use(x: Any) -> bool:
+        return isinstance(x, Skipped)
 
     with Tapestry() as t:
-        p = Parameter("x", int, default=5)
-        inner = boom(x=p, _config=KnotConfig(id="inner"))
-        opt = Optional(knot=inner, _config=KnotConfig(id="opt"))
+        opt = Optional(Boom, _config=KnotConfig(id="opt"))
         use(x=opt, _config=KnotConfig(id="use"))
 
     result = await t.run(RunRequest())
-    assert "opt" in result.skipped
-    assert "use" in result.skipped
+    assert result.outputs["use"] is True
 
 
 async def test_receive_errors_policy_gets_results_directly():
@@ -70,8 +93,8 @@ async def test_receive_errors_policy_gets_results_directly():
             return "skipped"
 
     with Tapestry() as t:
-        p = Parameter("x", int, default=1)
-        b = boom(x=p, _config=KnotConfig(id="b"))
+        p = Parameter("x", int, default=1, _config=KnotConfig(id="x"))
+        b = Boom(x=p, _config=KnotConfig(id="b"))
         HandleAny(
             x=b,
             _config=KnotConfig(
@@ -91,8 +114,8 @@ async def test_require_all_parents_synthetic_err_on_skip():
         return x + 1
 
     with Tapestry() as t:
-        p = Parameter("x", int, default=1)
-        b = boom(x=p, _config=KnotConfig(id="b"))
+        p = Parameter("x", int, default=1, _config=KnotConfig(id="x"))
+        b = Boom(x=p, _config=KnotConfig(id="b"))
         use(
             x=b,
             _config=KnotConfig(
