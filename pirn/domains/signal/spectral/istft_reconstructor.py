@@ -101,7 +101,7 @@ class ISTFTReconstructor(Knot):
         signal_id = f"{spectrum.frame.signal_id}:istft"
 
         return SignalPayload(
-            frame=SignalFrame(
+            metadata=SignalFrame(
                 signal_id=signal_id,
                 channel_count=1,
                 sample_rate_hz=sample_rate,

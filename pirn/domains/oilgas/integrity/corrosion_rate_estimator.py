@@ -26,10 +26,17 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+
+# Mils-per-year proxy when wall-loss lists are absent: each new anomaly feature
+# is assumed to represent ~0.05 mpy of equivalent metal loss (NACE SP0502 §6).
+_feature_to_mpy_proxy = 0.05
 
 
 class CorrosionRateEstimator(Knot):
@@ -86,8 +93,46 @@ class CorrosionRateEstimator(Knot):
                 f"CorrosionRateEstimator: current_run missing required field "
                 f"'{feature_count_field}'; got: {list(current_run)}"
             )
+
+        return await asyncio.to_thread(
+            self._compute,
+            previous_run,
+            current_run,
+            float(years_between),
+            feature_count_field,
+        )
+
+    @staticmethod
+    def _compute(
+        previous_run: dict[str, Any],
+        current_run: dict[str, Any],
+        years: float,
+        feature_count_field: str,
+    ) -> dict[str, float]:
+        feature_count = int(current_run[feature_count_field])
+
+        prev_loss = previous_run.get("wall_loss_in", [])
+        curr_loss = current_run.get("wall_loss_in", [])
+
+        if prev_loss and curr_loss:
+            prev_arr = np.array(prev_loss, dtype=np.float64)
+            curr_arr = np.array(curr_loss, dtype=np.float64)
+            # Pad shorter array with zeros to align feature indices
+            n = max(len(prev_arr), len(curr_arr))
+            prev_pad = np.pad(prev_arr, (0, n - len(prev_arr)))
+            curr_pad = np.pad(curr_arr, (0, n - len(curr_arr)))
+            loss_delta = np.maximum(curr_pad - prev_pad, 0.0)
+            # Wall loss in inches → mpy (mils/year): 1 inch = 1000 mils
+            max_rate = float(np.max(loss_delta) * 1000.0 / years)
+            mean_rate = float(np.mean(loss_delta) * 1000.0 / years)
+        else:
+            prev_count = int(previous_run.get(feature_count_field, 0))
+            new_features = max(0, feature_count - prev_count)
+            max_rate = new_features / years * _feature_to_mpy_proxy
+            mean_rate = max_rate * 0.5
+
         return {
-            "max_rate_mpy": 5.0,
-            "mean_rate_mpy": 1.0,
-            "feature_count": float(current_run[feature_count_field]),
+            "max_rate_mpy": float(max_rate),
+            "mean_rate_mpy": float(mean_rate),
+            "feature_count": float(feature_count),
         }

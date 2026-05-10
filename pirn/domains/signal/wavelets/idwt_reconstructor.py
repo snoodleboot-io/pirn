@@ -93,4 +93,4 @@ class IDWTReconstructor(Knot):
             sample_rate_hz=0.0,
             samples_per_channel=samples,
         )
-        return SignalPayload(frame=out_frame, data=reconstructed)
+        return SignalPayload(metadata=out_frame, data=reconstructed)

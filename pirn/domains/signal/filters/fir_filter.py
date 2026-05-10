@@ -81,7 +81,7 @@ class FIRFilter(Knot):
         h = np.array(coeffs)
         filtered = await asyncio.to_thread(ss.lfilter, h, np.array([1.0]), signal.data, axis=-1)
         return SignalPayload(
-            frame=SignalFrame(
+            metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:fir",
                 channel_count=signal.frame.channel_count,
                 sample_rate_hz=signal.frame.sample_rate_hz,

@@ -90,4 +90,4 @@ class DWTDecomposer(Knot):
             wavelet_name=wavelet_name,
             scale_count=len(coeffs),
         )
-        return WaveletPayload(frame=frame, data=coeffs)
+        return WaveletPayload(metadata=frame, data=coeffs)

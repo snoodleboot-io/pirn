@@ -112,7 +112,7 @@ class MultiRateFusionPipeline(Knot):
         fused = (ra[..., :n_out] + rb[..., :n_out]) / 2.0
 
         return SignalPayload(
-            frame=SignalFrame(
+            metadata=SignalFrame(
                 signal_id=f"{signal_a.frame.signal_id}:fused",
                 channel_count=signal_a.frame.channel_count,
                 sample_rate_hz=float(output_rate_hz),

@@ -86,7 +86,7 @@ class PolyphaseDecimator(Knot):
         )
         new_rate = signal.frame.sample_rate_hz / decimation_factor
         return SignalPayload(
-            frame=SignalFrame(
+            metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:polyphase-dec",
                 channel_count=signal.frame.channel_count,
                 sample_rate_hz=new_rate,

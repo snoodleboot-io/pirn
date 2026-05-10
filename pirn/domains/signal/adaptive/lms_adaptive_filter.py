@@ -113,7 +113,7 @@ class LMSAdaptiveFilter(Knot):
         result = await asyncio.to_thread(_lms, sig_data, ref_data, filter_length, step_size)
 
         return SignalPayload(
-            frame=SignalFrame(
+            metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:lms",
                 channel_count=1,
                 sample_rate_hz=signal.frame.sample_rate_hz,

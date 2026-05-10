@@ -88,7 +88,7 @@ class NotchFilter(Knot):
         sos = await asyncio.to_thread(ss.tf2sos, b, a)
         filtered = await asyncio.to_thread(ss.sosfilt, sos, signal.data, axis=-1)
         return SignalPayload(
-            frame=SignalFrame(
+            metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:notch",
                 channel_count=signal.frame.channel_count,
                 sample_rate_hz=signal.frame.sample_rate_hz,

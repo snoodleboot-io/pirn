@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import MagicMock, patch
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.mri.image_registrar import ImageRegistrar
@@ -26,5 +27,10 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_returns_registered_path(self) -> None:
         knot = self._make_knot()
-        out = await knot.process(moving_path="m.nii.gz", fixed_path="f.nii.gz", transform="affine", output_registered_path="reg.nii.gz")
+        mock_ants = MagicMock()
+        mock_ants.image_read.return_value = MagicMock()
+        mock_ants.registration.return_value = {"warpedmovout": MagicMock()}
+        with patch("pirn.domains.health.mri.image_registrar.ants", mock_ants), \
+             patch("pirn.domains.health.mri.image_registrar._HAS_ANTS", True):
+            out = await knot.process(moving_path="m.nii.gz", fixed_path="f.nii.gz", transform="affine", output_registered_path="reg.nii.gz")
         assert out == "reg.nii.gz"

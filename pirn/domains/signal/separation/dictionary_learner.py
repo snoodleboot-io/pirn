@@ -112,7 +112,7 @@ class DictionaryLearner(Knot):
             _run_dictionary_learning, signal.data, atom_count, sparsity_target, max_iterations
         )
         return SourcePayload(
-            frame=SourceFrame(
+            metadata=SourceFrame(
                 signal_id=f"{signal.frame.signal_id}:dict",
                 source_count=atom_count,
                 mixing_matrix_shape=(signal.frame.channel_count, atom_count),

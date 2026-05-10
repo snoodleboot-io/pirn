@@ -1,10 +1,10 @@
 """``FlowlinePressureModeler`` — predict flowline pressure drop from rates.
 
 Algorithm:
-    1. Receive a flow-rate ScadaTimeSeries and pipe geometry parameters.
+    1. Receive a flow-rate ScadaPayload and pipe geometry parameters.
     2. Validate that all numeric parameters are positive.
     3. Apply the Darcy-Weisbach equation to compute pressure drop per unit length.
-    4. Return a ScadaTimeSeries of pressure-drop values.
+    4. Return a ScadaPayload of pressure-drop values.
 
 Math:
     Darcy-Weisbach pressure drop:
@@ -29,11 +29,31 @@ References:
 
 from __future__ import annotations
 
+import asyncio
+import math
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.domains.oilgas.types.scada_payload import ScadaPayload
 from pirn.domains.oilgas.types.scada_time_series import ScadaTimeSeries
+
+
+def _darcy_weisbach(
+    values: np.ndarray,
+    pipe_inner_diameter_in: float,
+    pipe_length_ft: float,
+) -> np.ndarray:
+    rho = 62.4
+    D_ft = pipe_inner_diameter_in / 12.0
+    A_ft2 = math.pi * (D_ft / 2) ** 2
+    Q_ft3s = values * 5.615 / 86400
+    v = Q_ft3s / (A_ft2 + 1e-12)
+    Re = rho * v * D_ft / (1.0 * 6.72e-4)
+    f = np.where(Re < 2300, 64 / (Re + 1e-9), 0.316 / (Re**0.25 + 1e-9))
+    return f * (pipe_length_ft / D_ft) * (rho * v**2 / 2) / 144
 
 
 class FlowlinePressureModeler(Knot):
@@ -42,7 +62,7 @@ class FlowlinePressureModeler(Knot):
     def __init__(
         self,
         *,
-        rate_series: Knot | ScadaTimeSeries,
+        rate_series: Knot | ScadaPayload,
         pipe_inner_diameter_in: Knot | float,
         pipe_length_ft: Knot | float,
         roughness_in: Knot | float = 0.0006,
@@ -60,25 +80,27 @@ class FlowlinePressureModeler(Knot):
 
     async def process(
         self,
-        rate_series: ScadaTimeSeries,
+        rate_series: ScadaPayload,
         pipe_inner_diameter_in: float,
         pipe_length_ft: float,
         roughness_in: float = 0.0006,
         **_: Any,
-    ) -> ScadaTimeSeries:
-        """Accept a flow-rate series and return a pressure-drop time series computed from the pipe geometry.
+    ) -> ScadaPayload:
+        """Accept a flow-rate payload and return a pressure-drop time series computed from the pipe geometry.
 
         Args:
-            rate_series: ScadaTimeSeries of flow rates used as input to the
+            rate_series: ScadaPayload of flow rates used as input to the
                 pressure-drop model.
             pipe_inner_diameter_in: Positive pipe inner diameter in inches.
             pipe_length_ft: Positive pipe length in feet.
             roughness_in: Positive pipe roughness in inches (default 0.0006 in).
 
         Returns:
-            ScadaTimeSeries of computed pressure-drop values with sensor_id
+            ScadaPayload of computed pressure-drop values with sensor_id
             prefixed ``dp:<rate_sensor_id>``.
         """
+        if not isinstance(rate_series, ScadaPayload):
+            raise TypeError("FlowlinePressureModeler: rate_series must be a ScadaPayload")
         for label, value in (
             ("pipe_inner_diameter_in", pipe_inner_diameter_in),
             ("pipe_length_ft", pipe_length_ft),
@@ -88,7 +110,18 @@ class FlowlinePressureModeler(Knot):
                 raise TypeError(f"FlowlinePressureModeler: {label} must be numeric")
             if value <= 0.0:
                 raise ValueError(f"FlowlinePressureModeler: {label} must be positive")
-        return ScadaTimeSeries(
-            sensor_id=f"dp:{rate_series.sensor_id}",
-            sample_interval_sec=rate_series.sample_interval_sec,
+        dP_psi = await asyncio.to_thread(
+            _darcy_weisbach,
+            rate_series.values,
+            pipe_inner_diameter_in,
+            pipe_length_ft,
+        )
+        n = len(dP_psi)
+        return ScadaPayload(
+            metadata=ScadaTimeSeries(
+                sensor_id=f"dp:{rate_series.series.sensor_id}",
+                sample_count=n,
+                sample_interval_sec=rate_series.series.sample_interval_sec,
+            ),
+            data=dP_psi,
         )

@@ -139,7 +139,7 @@ class SubbandAdaptiveFilter(Knot):
         )
 
         return SignalPayload(
-            frame=SignalFrame(
+            metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:subband-adaptive",
                 channel_count=1,
                 sample_rate_hz=signal.frame.sample_rate_hz,

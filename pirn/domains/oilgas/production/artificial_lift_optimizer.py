@@ -1,7 +1,7 @@
 """``ArtificialLiftOptimizer`` — recommend a lift-system operating point.
 
 Algorithm:
-    1. Receive a production ScadaTimeSeries and a ``lift_type`` string.
+    1. Receive a production ScadaPayload and a ``lift_type`` string.
     2. Validate that ``lift_type`` is one of the recognised lift types.
     3. Analyse the production rate trend to identify the optimal operating setpoint.
     4. Return a dict with ``lift_type``, ``recommended_setpoint``, and
@@ -24,11 +24,14 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.types.scada_time_series import ScadaTimeSeries
+from pirn.domains.oilgas.types.scada_payload import ScadaPayload
 
 
 class ArtificialLiftOptimizer(Knot):
@@ -51,14 +54,14 @@ class ArtificialLiftOptimizer(Knot):
 
     async def process(
         self,
-        production: ScadaTimeSeries,
+        production: ScadaPayload,
         lift_type: str,
         **_: Any,
     ) -> dict[str, Any]:
         """Recommend an operating setpoint for the lift system from the production series and return it with the expected uplift.
 
         Args:
-            production: ScadaTimeSeries of current production rates used to
+            production: ScadaPayload of current production rates used to
                 derive the recommended operating setpoint.
             lift_type: One of ``esp``, ``gas_lift``, ``rod_pump``, ``pcp``,
                 or ``jet_pump``.
@@ -67,6 +70,8 @@ class ArtificialLiftOptimizer(Knot):
             Dict with ``lift_type``, ``recommended_setpoint`` (float), and
             ``expected_uplift_bopd`` (estimated incremental barrels per day).
         """
+        if not isinstance(production, ScadaPayload):
+            raise TypeError("ArtificialLiftOptimizer: production must be a ScadaPayload")
         _valid_lift_types: frozenset[str] = frozenset(
             {"esp", "gas_lift", "rod_pump", "pcp", "jet_pump"}
         )
@@ -74,8 +79,34 @@ class ArtificialLiftOptimizer(Knot):
             raise ValueError(
                 f"ArtificialLiftOptimizer: lift_type must be one of {sorted(_valid_lift_types)}"
             )
+
+        return await asyncio.to_thread(self._optimize, production.values, lift_type)
+
+    @staticmethod
+    def _optimize(values: np.ndarray, lift_type: str) -> dict[str, Any]:
+        q_avg = float(np.mean(values)) if len(values) > 0 else 0.0
+
+        if lift_type == "gas_lift":
+            # Gas lift performance curve peaks near half the surface rate equivalent;
+            # injection rate setpoint in Mscf/day approximated from average production.
+            setpoint = 0.5 * q_avg
+            uplift = 0.20 * q_avg
+        elif lift_type == "esp":
+            # VFD frequency setpoint; 50 Hz is the typical design point for ESP pumps
+            # in oil production environments.
+            setpoint = 50.0
+            uplift = 0.15 * q_avg
+        elif lift_type == "rod_pump":
+            # SPM bounded to mechanical limits of surface unit (5-20 strokes/min).
+            setpoint = max(5.0, min(20.0, q_avg / 10.0))
+            uplift = 0.10 * q_avg
+        else:
+            # pcp / jet_pump: generic 10 % uplift estimate
+            setpoint = q_avg
+            uplift = 0.10 * q_avg
+
         return {
             "lift_type": lift_type,
-            "recommended_setpoint": 1.0,
-            "expected_uplift_bopd": 50.0,
+            "recommended_setpoint": float(setpoint),
+            "expected_uplift_bopd": float(uplift),
         }

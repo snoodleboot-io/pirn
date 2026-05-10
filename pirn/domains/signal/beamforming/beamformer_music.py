@@ -137,7 +137,7 @@ class BeamformerMUSIC(Knot):
             _music_spatial, data, num_elements, float(element_spacing_m), num_sources, n_grid, c, f0
         )
         return SignalPayload(
-            frame=SignalFrame(
+            metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:music",
                 channel_count=1,
                 sample_rate_hz=1.0,

@@ -117,5 +117,5 @@ class EpochExtractor(Knot):
                 samples_per_channel=epoch_samples,
                 fetched_at=signal.frame.fetched_at,
             )
-            result.append(SignalPayload(frame=frame, data=arr))
+            result.append(SignalPayload(metadata=frame, data=arr))
         return tuple(result)

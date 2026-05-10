@@ -4,12 +4,20 @@ from __future__ import annotations
 
 import unittest
 
+import numpy as np
+
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.domains.oilgas.types.las_file import LASFile
+from pirn.domains.oilgas.types.las_payload import LASPayload
 from pirn.domains.oilgas.well.las_file_ingester import LasFileIngester
 from pirn.domains.oilgas.well.permeability_estimator import PermeabilityEstimator
 from pirn.tapestry import Tapestry
+
+_LAS = LASPayload(
+    metadata=LASFile(well_id="W", curves=("GR",)),
+    data={"GR": np.zeros(10)},
+)
 
 
 class TestConstruction(unittest.IsolatedAsyncioTestCase):
@@ -18,7 +26,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
         object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaisesRegex(ValueError, "method"):
             await k.process(
-                las_file=LASFile(well_id="W", curves=("GR",)),
+                payload=_LAS,
                 method="bogus",
             )
 
@@ -29,15 +37,15 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             las = LasFileIngester(
                 file_path="/x",
                 well_id="W",
-                curves=("GR",),
+                curves=("GR", "PHI_density"),
                 _config=KnotConfig(id="i"),
             )
             PermeabilityEstimator(
-                las_file=las,
+                payload=las,
                 method="timur",
                 _config=KnotConfig(id="p"),
             )
         result = await t.run(RunRequest())
         out = result.outputs["p"]
-        assert isinstance(out, LASFile)
-        assert "K_timur" in out.curves
+        assert isinstance(out, LASPayload)
+        assert "K_timur" in out.curve_data

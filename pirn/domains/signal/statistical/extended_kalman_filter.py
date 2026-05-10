@@ -122,4 +122,4 @@ class ExtendedKalmanFilter(Knot):
             sample_rate_hz=signal.frame.sample_rate_hz,
             samples_per_channel=len(filtered),
         )
-        return SignalPayload(frame=frame, data=filtered)
+        return SignalPayload(metadata=frame, data=filtered)

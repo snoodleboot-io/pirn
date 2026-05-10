@@ -18,10 +18,29 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+
+try:
+    import ants
+
+    _HAS_ANTS: bool = True
+except ImportError:
+    ants = None  # type: ignore[assignment]
+    _HAS_ANTS = False
+
+
+def _extract_mask(nifti_path: str, output_mask_path: str) -> None:
+    if not _HAS_ANTS or ants is None:
+        raise ImportError(
+            "antspyx is required for BrainMaskExtractor — install with: pip install 'pirn[mri]'"
+        )
+    img = ants.image_read(nifti_path)
+    mask = ants.get_mask(img)
+    ants.image_write(mask, output_mask_path)
 
 
 class BrainMaskExtractor(Knot):
@@ -66,4 +85,5 @@ class BrainMaskExtractor(Knot):
         ):
             if not isinstance(value, str) or not value:
                 raise ValueError(f"BrainMaskExtractor: {label} must be a non-empty string")
+        await asyncio.to_thread(_extract_mask, nifti_path, output_mask_path)
         return output_mask_path

@@ -47,7 +47,7 @@ class TestAudioFileIngestor(unittest.IsolatedAsyncioTestCase):
     async def test_emits_signal_frame(self) -> None:
         knot = self._make()
         stub = SignalPayload(
-            frame=SignalFrame(
+            metadata=SignalFrame(
                 signal_id="/audio.wav",
                 channel_count=1,
                 sample_rate_hz=44100.0,

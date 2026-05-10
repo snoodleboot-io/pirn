@@ -103,7 +103,7 @@ class StreamingBufferManager(Knot):
         n_frames = frames.shape[0]
 
         return SignalPayload(
-            frame=SignalFrame(
+            metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:framed",
                 channel_count=n_frames,
                 sample_rate_hz=signal.frame.sample_rate_hz,

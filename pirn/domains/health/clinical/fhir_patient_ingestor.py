@@ -71,6 +71,12 @@ class FHIRPatientIngestor(Knot):
             raise TypeError("FHIRPatientIngestor: client must be a FHIRClient")
         if not isinstance(search_params, Mapping):
             raise TypeError("FHIRPatientIngestor: search_params must be a Mapping")
-        # Production: iterate ``client.search('Patient', params)`` and
-        # convert each FHIR Patient resource into a ClinicalRecord.
-        return ()
+        records: list[ClinicalRecord] = []
+        async for resource in await client.search("Patient", search_params):
+            records.append(
+                ClinicalRecord(
+                    patient_id=resource.get("id", ""),
+                    source_system="fhir",
+                )
+            )
+        return tuple(records)

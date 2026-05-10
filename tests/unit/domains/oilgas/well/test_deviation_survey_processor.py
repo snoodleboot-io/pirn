@@ -4,11 +4,23 @@ from __future__ import annotations
 
 import unittest
 
+import numpy as np
+
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.oilgas.types.deviation_survey import DeviationSurvey
+from pirn.domains.oilgas.types.deviation_survey_payload import DeviationSurveyPayload
 from pirn.domains.oilgas.well.deviation_survey_processor import DeviationSurveyProcessor
 
-_SURVEY = DeviationSurvey(well_id="W", station_count=5)
+_SURVEY = DeviationSurveyPayload(
+    metadata=DeviationSurvey(well_id="W", station_count=5),
+    data=np.array([
+        [0.0, 0.0, 0.0],
+        [100.0, 5.0, 10.0],
+        [200.0, 10.0, 15.0],
+        [300.0, 12.0, 20.0],
+        [400.0, 15.0, 25.0],
+    ]),
+)
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
@@ -31,6 +43,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_returns_survey(self) -> None:
         knot = self._make_knot()
-        out = await knot.process(survey=_SURVEY, target_md_step=5.0)
-        assert isinstance(out, DeviationSurvey)
-        assert out.well_id == "W"
+        out = await knot.process(survey=_SURVEY, target_md_step=50.0)
+        assert isinstance(out, DeviationSurveyPayload)
+        assert out.survey.well_id == "W"
+        assert out.stations.shape[1] == 3

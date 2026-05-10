@@ -104,7 +104,7 @@ class SparseDecomposer(Knot):
         alpha = float(sparsity_target)
         components = await asyncio.to_thread(_run_sparse_pca, signal.data, atom_count, alpha)
         return SourcePayload(
-            frame=SourceFrame(
+            metadata=SourceFrame(
                 signal_id=f"{signal.frame.signal_id}:sparse",
                 source_count=atom_count,
                 mixing_matrix_shape=(signal.frame.channel_count, atom_count),

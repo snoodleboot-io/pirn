@@ -86,7 +86,7 @@ class WienerFilter(Knot):
             ss.wiener, signal.data, mysize=window_size, noise=noise_power
         )
         return SignalPayload(
-            frame=SignalFrame(
+            metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:wiener",
                 channel_count=signal.frame.channel_count,
                 sample_rate_hz=signal.frame.sample_rate_hz,

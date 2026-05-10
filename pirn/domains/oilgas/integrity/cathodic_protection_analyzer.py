@@ -1,7 +1,7 @@
 """``CathodicProtectionAnalyzer`` — assess cathodic-protection coverage.
 
 Algorithm:
-    1. Receive a ScadaTimeSeries of pipe-to-soil potential measurements and a
+    1. Receive a ScadaPayload of pipe-to-soil potential measurements and a
        ``protection_threshold_mv`` value.
     2. Validate that ``protection_threshold_mv`` is numeric.
     3. Compute the fraction of samples whose potential satisfies the protection
@@ -26,11 +26,14 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.types.scada_time_series import ScadaTimeSeries
+from pirn.domains.oilgas.types.scada_payload import ScadaPayload
 
 
 class CathodicProtectionAnalyzer(Knot):
@@ -53,14 +56,14 @@ class CathodicProtectionAnalyzer(Knot):
 
     async def process(
         self,
-        potential_series: ScadaTimeSeries,
+        potential_series: ScadaPayload,
         protection_threshold_mv: float,
         **_: Any,
     ) -> dict[str, float]:
         """Score cathodic-protection coverage from the pipe-to-soil potential series and return coverage fraction and threshold.
 
         Args:
-            potential_series: ScadaTimeSeries of pipe-to-soil potential
+            potential_series: ScadaPayload of pipe-to-soil potential
                 measurements used to assess protection coverage.
             protection_threshold_mv: Numeric protection threshold in millivolts.
 
@@ -68,9 +71,21 @@ class CathodicProtectionAnalyzer(Knot):
             Dict with ``coverage_fraction`` (float in [0, 1]) and
             ``threshold_mv`` (the configured protection threshold in mV).
         """
+        if not isinstance(potential_series, ScadaPayload):
+            raise TypeError("CathodicProtectionAnalyzer: potential_series must be a ScadaPayload")
         if not isinstance(protection_threshold_mv, (int, float)):
             raise TypeError("CathodicProtectionAnalyzer: protection_threshold_mv must be numeric")
-        return {
-            "coverage_fraction": 1.0,
-            "threshold_mv": float(protection_threshold_mv),
-        }
+
+        threshold = float(protection_threshold_mv)
+        potentials = potential_series.values
+
+        if len(potentials) == 0:
+            return {"coverage_fraction": 0.0, "threshold_mv": threshold}
+
+        return await asyncio.to_thread(self._score, potentials, threshold)
+
+    @staticmethod
+    def _score(potentials: np.ndarray, threshold: float) -> dict[str, float]:
+        # NACE criterion: protected where V(t) <= threshold (threshold is negative, e.g. -850 mV)
+        coverage = float(np.mean(potentials < threshold))
+        return {"coverage_fraction": coverage, "threshold_mv": threshold}

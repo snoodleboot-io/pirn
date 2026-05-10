@@ -18,10 +18,29 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+
+try:
+    import ants
+
+    _HAS_ANTS: bool = True
+except ImportError:
+    ants = None  # type: ignore[assignment]
+    _HAS_ANTS = False
+
+
+def _correct_motion(nifti_path: str, output_nifti_path: str) -> None:
+    if not _HAS_ANTS or ants is None:
+        raise ImportError(
+            "antspyx is required for MotionCorrector — install with: pip install 'pirn[mri]'"
+        )
+    img = ants.image_read(nifti_path)
+    result = ants.motion_correction(img)
+    ants.image_write(result["motion_corrected"], output_nifti_path)
 
 
 class MotionCorrector(Knot):
@@ -66,4 +85,5 @@ class MotionCorrector(Knot):
         ):
             if not isinstance(value, str) or not value:
                 raise ValueError(f"MotionCorrector: {label} must be a non-empty string")
+        await asyncio.to_thread(_correct_motion, nifti_path, output_nifti_path)
         return output_nifti_path

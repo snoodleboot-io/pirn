@@ -77,7 +77,7 @@ class LowPassFilter(Knot):
         sos = await asyncio.to_thread(ss.butter, 4, cutoff_hz, btype="low", fs=fs, output="sos")
         filtered = await asyncio.to_thread(ss.sosfilt, sos, signal.data, axis=-1)
         return SignalPayload(
-            frame=SignalFrame(
+            metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:lowpass",
                 channel_count=signal.frame.channel_count,
                 sample_rate_hz=signal.frame.sample_rate_hz,

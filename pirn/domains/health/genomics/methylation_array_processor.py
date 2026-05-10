@@ -21,10 +21,35 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any, ClassVar
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+
+
+def _compute_methylation(idat_data: dict[str, Any], alpha: float = 100.0) -> dict[str, Any]:
+    """Compute beta values and M values from red/green IDAT channel data."""
+    red = np.array(idat_data.get("red_channel", []), dtype=float)
+    green = np.array(idat_data.get("green_channel", []), dtype=float)
+    n = min(len(red), len(green))
+    M = red[:n]
+    U = green[:n]
+
+    beta = np.clip(M / (M + U + alpha), 0.0, 1.0)
+    m_val = np.log2(np.maximum(M, 1e-6)) - np.log2(np.maximum(U, 1e-6))
+    detection_p = np.where((M + U) > 100.0, 0.01, 1.0).tolist()
+    probe_ids = [f"cg{i:08d}" for i in range(n)]
+
+    return {
+        "sample_id": idat_data.get("sample_id", ""),
+        "n_probes": n,
+        "beta_values": dict(zip(probe_ids, beta.tolist(), strict=False)),
+        "m_values": dict(zip(probe_ids, m_val.tolist(), strict=False)),
+        "detection_p_values": dict(zip(probe_ids, detection_p, strict=False)),
+    }
 
 
 class MethylationArrayProcessor(Knot):
@@ -87,10 +112,4 @@ class MethylationArrayProcessor(Knot):
                 f"MethylationArrayProcessor: normalization must be one of "
                 f"{sorted(self._valid_normalizations)}"
             )
-        return {
-            "sample_id": idat_data.get("sample_id", ""),
-            "n_probes": 0,
-            "beta_values": {},
-            "m_values": {},
-            "detection_p_values": {},
-        }
+        return await asyncio.to_thread(_compute_methylation, idat_data)

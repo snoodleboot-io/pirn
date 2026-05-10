@@ -19,7 +19,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         return WellborePetrophysicsWorkflow(
             file_path="/x.las",
             well_id="W",
-            curves=("GR", "RHOB", "NPHI"),
+            curves=("GR", "RHOB", "NPHI", "RT"),
             required_curves=("GR",),
             target_depth_step=0.5,
             rw=0.05,
@@ -32,7 +32,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             await knot.process(
                 file_path="",
                 well_id="W",
-                curves=("GR", "RHOB", "NPHI"),
+                curves=("GR", "RHOB", "NPHI", "RT"),
                 required_curves=("GR",),
                 target_depth_step=0.5,
                 rw=0.05,

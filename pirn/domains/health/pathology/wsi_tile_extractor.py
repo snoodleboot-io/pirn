@@ -53,7 +53,7 @@ def _extract_tiles(
                 height=tile_size,
             )
             pixels = np.zeros((tile_size, tile_size, 3), dtype=np.uint8)
-            payloads.append(WSITilePayload(tile=tile, pixels=pixels))
+            payloads.append(WSITilePayload(metadata=tile, data=pixels))
     return tuple(payloads)
 
 

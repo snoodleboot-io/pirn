@@ -35,10 +35,17 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+
+# SPE-PRMS uncertainty scalars for 2P and 3P relative to 1P (Section 2.4).
+_probable_factor = 0.3
+_possible_factor = 0.1
 
 
 class ReservesEstimationPipeline(Knot):
@@ -89,14 +96,48 @@ class ReservesEstimationPipeline(Knot):
             raise TypeError("ReservesEstimationPipeline: royalty_rate must be numeric")
         if not (0.0 <= royalty_rate < 1.0):
             raise ValueError("ReservesEstimationPipeline: royalty_rate must be in [0, 1)")
-        total_production = sum(float(e.get("rate_bopd", 0.0)) for e in production_history)
-        eur_bbl = total_production * 365 * 0.1
-        proved = eur_bbl * (1.0 - float(royalty_rate)) / 1000.0
-        probable = proved * 0.3
-        possible = proved * 0.1
+
+        rates = [float(r["rate_bopd"]) for r in production_history if "rate_bopd" in r]
+
+        if len(rates) < 2:
+            return {
+                "proved_reserves_mbo": 0.0,
+                "probable_reserves_mbo": 0.0,
+                "possible_reserves_mbo": 0.0,
+                "eur_mbo": 0.0,
+            }
+
+        return await asyncio.to_thread(
+            self._arps_integrate,
+            rates,
+            float(economic_limit_bopd),
+            float(royalty_rate),
+        )
+
+    @staticmethod
+    def _arps_integrate(rates: list[float], q_el: float, royalty: float) -> dict[str, Any]:
+        t = np.arange(len(rates), dtype=np.float64)
+        log_q = np.log(np.array(rates, dtype=np.float64) + 1e-9)
+
+        slope, intercept = np.polyfit(t, log_q, 1)
+        di_day = float(-slope)  # positive decline rate per time step (daily)
+        qi = float(np.exp(intercept))
+
+        if di_day > 1e-9 and qi > q_el:
+            t_aban = np.log(qi / q_el) / di_day
+            # Arps exponential EUR: integral of qi*exp(-di*t) from 0 to t_aban
+            eur_bbl = qi / di_day * (1.0 - np.exp(-di_day * t_aban))
+        else:
+            # Flat or increasing production: use observed cumulative as proxy
+            eur_bbl = float(np.sum(rates))
+
+        proved = eur_bbl * (1.0 - royalty) / 1000.0
+        probable = proved * _probable_factor
+        possible = proved * _possible_factor
+
         return {
-            "proved_reserves_mbo": proved,
-            "probable_reserves_mbo": probable,
-            "possible_reserves_mbo": possible,
-            "eur_mbo": eur_bbl / 1000.0,
+            "proved_reserves_mbo": float(proved),
+            "probable_reserves_mbo": float(probable),
+            "possible_reserves_mbo": float(possible),
+            "eur_mbo": float(eur_bbl / 1000.0),
         }

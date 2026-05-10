@@ -14,7 +14,7 @@ from pirn.domains.health.wearables.sleep_stager import SleepStager
 from pirn.tapestry import Tapestry
 
 _SLEEP_SIGNAL = SignalPayload(
-    frame=SignalFrame(signal_id="sleep", channel_count=2, sample_rate_hz=256.0, samples_per_channel=512),
+    metadata=SignalFrame(signal_id="sleep", channel_count=2, sample_rate_hz=256.0, samples_per_channel=512),
     data=np.random.default_rng(0).standard_normal((2, 512)),
 )
 
@@ -53,7 +53,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             SleepStager(
                 signal=SignalPayload(
-                    frame=SignalFrame(signal_id="s", channel_count=2, sample_rate_hz=256.0, samples_per_channel=512),
+                    metadata=SignalFrame(signal_id="s", channel_count=2, sample_rate_hz=256.0, samples_per_channel=512),
                     data=np.random.default_rng(0).standard_normal((2, 512)),
                 ),
                 epoch_length_sec=30.0,

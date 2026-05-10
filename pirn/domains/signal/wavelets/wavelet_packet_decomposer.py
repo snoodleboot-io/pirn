@@ -92,4 +92,4 @@ class WaveletPacketDecomposer(Knot):
             wavelet_name=wavelet_name,
             scale_count=len(nodes),
         )
-        return WaveletPayload(frame=frame, data=nodes)
+        return WaveletPayload(metadata=frame, data=nodes)

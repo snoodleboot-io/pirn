@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.types.las_file import LASFile
+from pirn.domains.oilgas.types.las_payload import LASPayload
 from pirn.domains.oilgas.well.las_file_ingester import LasFileIngester
 
 
@@ -41,6 +41,8 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_las_file(self) -> None:
         knot = self._make_knot()
         out = await knot.process(file_path="/x", well_id="W", curves=("GR", "RHOB"))
-        assert isinstance(out, LASFile)
-        assert out.well_id == "W"
-        assert out.curves == ("GR", "RHOB")
+        assert isinstance(out, LASPayload)
+        assert out.las.well_id == "W"
+        assert out.las.curves == ("GR", "RHOB")
+        assert "GR" in out.curve_data
+        assert "RHOB" in out.curve_data

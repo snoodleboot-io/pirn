@@ -64,7 +64,7 @@ class HilbertTransformer(Knot):
         )
 
         return SpectrumPayload(
-            frame=SpectrumFrame(
+            metadata=SpectrumFrame(
                 signal_id=f"{signal.frame.signal_id}:analytic",
                 frequency_bins=freq_bins,
                 frequency_resolution_hz=freq_res,

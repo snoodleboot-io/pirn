@@ -103,4 +103,4 @@ class EMDDecomposer(Knot):
             wavelet_name="emd",
             scale_count=len(imfs),
         )
-        return WaveletPayload(frame=frame, data=imfs)
+        return WaveletPayload(metadata=frame, data=imfs)

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import MagicMock, patch
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.mri.motion_corrector import MotionCorrector
@@ -21,5 +22,10 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_returns_corrected_path(self) -> None:
         knot = self._make_knot()
-        out = await knot.process(nifti_path="in.nii.gz", output_nifti_path="mc.nii.gz")
+        mock_ants = MagicMock()
+        mock_ants.image_read.return_value = MagicMock()
+        mock_ants.motion_correction.return_value = {"motion_corrected": MagicMock()}
+        with patch("pirn.domains.health.mri.motion_corrector.ants", mock_ants), \
+             patch("pirn.domains.health.mri.motion_corrector._HAS_ANTS", True):
+            out = await knot.process(nifti_path="in.nii.gz", output_nifti_path="mc.nii.gz")
         assert out == "mc.nii.gz"

@@ -29,12 +29,79 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.types.deviation_survey import DeviationSurvey
+from pirn.domains.oilgas.types.deviation_survey_payload import DeviationSurveyPayload
 from pirn.domains.oilgas.types.well_path_3d import WellPath3D
+from pirn.domains.oilgas.types.well_path_3d_payload import WellPath3DPayload
+
+
+def _minimum_curvature(stations: np.ndarray) -> np.ndarray:
+    n = len(stations)
+    points = np.zeros((n, 3), dtype=np.float64)
+    inc = np.deg2rad(stations[:, 1])
+    azi = np.deg2rad(stations[:, 2])
+    for i in range(1, n):
+        delta_md = stations[i, 0] - stations[i - 1, 0]
+        inc1, inc2 = inc[i - 1], inc[i]
+        azi1, azi2 = azi[i - 1], azi[i]
+        dl = np.arccos(
+            np.cos(inc2 - inc1) - np.sin(inc1) * np.sin(inc2) * (1 - np.cos(azi2 - azi1))
+        )
+        rf = (2 / dl) * np.tan(dl / 2) if dl > 1e-6 else 1.0
+        dN = (delta_md / 2) * rf * (np.sin(inc1) * np.cos(azi1) + np.sin(inc2) * np.cos(azi2))
+        dE = (delta_md / 2) * rf * (np.sin(inc1) * np.sin(azi1) + np.sin(inc2) * np.sin(azi2))
+        dTVD = (delta_md / 2) * rf * (np.cos(inc1) + np.cos(inc2))
+        points[i] = points[i - 1] + [dN, dE, dTVD]
+    return points
+
+
+def _tangential(stations: np.ndarray) -> np.ndarray:
+    n = len(stations)
+    points = np.zeros((n, 3), dtype=np.float64)
+    inc = np.deg2rad(stations[:, 1])
+    azi = np.deg2rad(stations[:, 2])
+    for i in range(1, n):
+        delta_md = stations[i, 0] - stations[i - 1, 0]
+        points[i] = points[i - 1] + delta_md * np.array(
+            [
+                np.sin(inc[i]) * np.cos(azi[i]),
+                np.sin(inc[i]) * np.sin(azi[i]),
+                np.cos(inc[i]),
+            ]
+        )
+    return points
+
+
+def _balanced_tangential(stations: np.ndarray) -> np.ndarray:
+    n = len(stations)
+    points = np.zeros((n, 3), dtype=np.float64)
+    inc = np.deg2rad(stations[:, 1])
+    azi = np.deg2rad(stations[:, 2])
+    for i in range(1, n):
+        delta_md = stations[i, 0] - stations[i - 1, 0]
+        mid_inc = (inc[i - 1] + inc[i]) / 2
+        mid_azi = (azi[i - 1] + azi[i]) / 2
+        points[i] = points[i - 1] + delta_md * np.array(
+            [
+                np.sin(mid_inc) * np.cos(mid_azi),
+                np.sin(mid_inc) * np.sin(mid_azi),
+                np.cos(mid_inc),
+            ]
+        )
+    return points
+
+
+_algorithms = {
+    "minimum_curvature": _minimum_curvature,
+    "tangential": _tangential,
+    "balanced_tangential": _balanced_tangential,
+}
 
 
 class WellPathCalculator(Knot):
@@ -52,24 +119,31 @@ class WellPathCalculator(Knot):
 
     async def process(
         self,
-        survey: DeviationSurvey,
+        survey: DeviationSurveyPayload,
         method: str = "minimum_curvature",
         **_: Any,
-    ) -> WellPath3D:
+    ) -> WellPath3DPayload:
         """Convert a deviation survey into a 3-D well path using the configured algorithm.
 
         Args:
-            survey: Deviation survey providing measured-depth, inclination, and azimuth stations.
+            survey: DeviationSurveyPayload providing measured-depth, inclination, and azimuth stations.
             method: Path calculation algorithm; must be one of
                 ``minimum_curvature``, ``tangential``, or ``balanced_tangential``.
 
         Returns:
-            WellPath3D computed from the survey using the configured calculation method.
+            WellPath3DPayload computed from the survey using the configured calculation method.
         """
-        _valid_methods = frozenset({"minimum_curvature", "tangential", "balanced_tangential"})
+        if not isinstance(survey, DeviationSurveyPayload):
+            raise TypeError("WellPathCalculator: survey must be a DeviationSurveyPayload")
+        _valid_methods = frozenset(_algorithms)
         if method not in _valid_methods:
             raise ValueError(f"WellPathCalculator: method must be one of {sorted(_valid_methods)}")
-        return WellPath3D(
-            well_id=survey.well_id,
-            point_count=survey.station_count,
+        algo = _algorithms[method]
+        points = await asyncio.to_thread(algo, survey.stations)
+        return WellPath3DPayload(
+            metadata=WellPath3D(
+                well_id=survey.survey.well_id,
+                point_count=len(points),
+            ),
+            data=points.astype(np.float64),
         )

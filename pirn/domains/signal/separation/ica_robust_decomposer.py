@@ -96,7 +96,7 @@ class ICARobustDecomposer(Knot):
             raise ValueError("ICARobustDecomposer: contamination_fraction must lie in [0, 1)")
         sources = await asyncio.to_thread(_run_robust_ica, signal.data, source_count)
         return SourcePayload(
-            frame=SourceFrame(
+            metadata=SourceFrame(
                 signal_id=f"{signal.frame.signal_id}:ica_robust",
                 source_count=source_count,
                 mixing_matrix_shape=(signal.frame.channel_count, source_count),

@@ -145,7 +145,7 @@ class KalmanSmoother(Knot):
 
         smoothed = await asyncio.to_thread(_rts_smoother, signal.data, state_dim)
         return SignalPayload(
-            frame=SignalFrame(
+            metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:kalman-smooth",
                 channel_count=signal.frame.channel_count,
                 sample_rate_hz=signal.frame.sample_rate_hz,

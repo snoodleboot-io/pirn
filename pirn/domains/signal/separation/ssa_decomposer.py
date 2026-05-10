@@ -122,7 +122,7 @@ class SSADecomposer(Knot):
             raise ValueError("SSADecomposer: component_count must not exceed embedding_dim")
         components = await asyncio.to_thread(_run_ssa, signal.data, embedding_dim, component_count)
         return SourcePayload(
-            frame=SourceFrame(
+            metadata=SourceFrame(
                 signal_id=f"{signal.frame.signal_id}:ssa",
                 source_count=component_count,
                 mixing_matrix_shape=(embedding_dim, component_count),

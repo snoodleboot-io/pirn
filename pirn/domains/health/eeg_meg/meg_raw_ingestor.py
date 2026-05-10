@@ -45,7 +45,7 @@ def _load_meg(
         samples_per_channel=samples_per_channel,
         fetched_at=datetime.now(UTC),
     )
-    return SignalPayload(frame=frame, data=data)
+    return SignalPayload(metadata=frame, data=data)
 
 
 class MEGRawIngestor(Knot):

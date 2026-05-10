@@ -1,7 +1,7 @@
 """``EnergyEfficiencyKpiCalculator`` — compute energy / production efficiency KPIs.
 
 Algorithm:
-    1. Receive aligned ScadaTimeSeries for energy consumption (kWh) and
+    1. Receive aligned ScadaPayloads for energy consumption (kWh) and
        hydrocarbon production (boe).
     2. Sum energy and production over the common period.
     3. Compute kWh/boe and normalise to an energy intensity index.
@@ -23,11 +23,17 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.types.scada_time_series import ScadaTimeSeries
+from pirn.domains.oilgas.types.scada_payload import ScadaPayload
+
+# IOGP 2019e baseline for onshore oil production facilities (kWh per boe).
+_baseline_kwh_per_boe = 25.0
 
 
 class EnergyEfficiencyKpiCalculator(Knot):
@@ -50,22 +56,50 @@ class EnergyEfficiencyKpiCalculator(Knot):
 
     async def process(
         self,
-        energy_consumption: ScadaTimeSeries,
-        production: ScadaTimeSeries,
+        energy_consumption: ScadaPayload,
+        production: ScadaPayload,
         **_: Any,
     ) -> dict[str, float]:
         """Compute kWh/boe and energy intensity index from the energy and production time series and return the KPI dict.
 
         Args:
-            energy_consumption: ScadaTimeSeries of energy consumption readings
+            energy_consumption: ScadaPayload of energy consumption readings
                 (kWh) aligned to the production period.
-            production: ScadaTimeSeries of hydrocarbon production volumes (boe)
+            production: ScadaPayload of hydrocarbon production volumes (boe)
                 over the same period.
 
         Returns:
             Dict with ``kwh_per_boe`` and ``energy_intensity_index`` KPI values.
         """
+        if not isinstance(energy_consumption, ScadaPayload):
+            raise TypeError(
+                "EnergyEfficiencyKpiCalculator: energy_consumption must be a ScadaPayload"
+            )
+        if not isinstance(production, ScadaPayload):
+            raise TypeError("EnergyEfficiencyKpiCalculator: production must be a ScadaPayload")
+
+        return await asyncio.to_thread(
+            self._compute,
+            energy_consumption,
+            production,
+        )
+
+    @staticmethod
+    def _compute(energy_consumption: ScadaPayload, production: ScadaPayload) -> dict[str, float]:
+        n = min(len(energy_consumption.values), len(production.values))
+
+        # Sample values are instantaneous readings (kW and bbl/day respectively);
+        # multiply by interval duration to convert to energy (kWh) and volume (boe).
+        e_interval_hr = energy_consumption.series.sample_interval_sec / 3600.0
+        p_interval_day = production.series.sample_interval_sec / 86400.0
+
+        total_kwh = float(np.sum(energy_consumption.values[:n]) * e_interval_hr)
+        total_boe = float(np.sum(production.values[:n]) * p_interval_day)
+
+        kwh_per_boe = total_kwh / (total_boe + 1e-9)
+        eii = kwh_per_boe / _baseline_kwh_per_boe
+
         return {
-            "kwh_per_boe": 25.0,
-            "energy_intensity_index": 1.0,
+            "kwh_per_boe": float(kwh_per_boe),
+            "energy_intensity_index": float(eii),
         }

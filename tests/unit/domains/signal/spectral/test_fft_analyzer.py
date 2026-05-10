@@ -28,7 +28,7 @@ def _make_signal_payload(
         sample_rate_hz=sample_rate_hz,
         samples_per_channel=samples,
     )
-    return SignalPayload(frame=frame, data=np.zeros(samples))
+    return SignalPayload(metadata=frame, data=np.zeros(samples))
 
 
 class TestConstruction(unittest.IsolatedAsyncioTestCase):

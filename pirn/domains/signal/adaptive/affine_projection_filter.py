@@ -133,7 +133,7 @@ class AffineProjectionFilter(Knot):
         )
 
         return SignalPayload(
-            frame=SignalFrame(
+            metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:apa",
                 channel_count=1,
                 sample_rate_hz=signal.frame.sample_rate_hz,

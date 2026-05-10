@@ -1,7 +1,6 @@
 """``WhiteMatterAnalyzer`` — white-matter integrity / FA / MD analysis.
 
-Production version uses FSL DTI / MRtrix. This stub returns an empty
-mapping ``tract -> {fa, md}``.
+Production version uses dipy + nibabel for DTI fitting.
 
 Algorithm:
     1. Receive dwi_nifti_path, bvec_path, bval_path strings, and tracts sequence.
@@ -17,16 +16,56 @@ Math:
 
 References:
     - Basser et al. (1994) MR diffusion tensor spectroscopy and imaging.
-    - MRtrix3: https://www.mrtrix.org/
+    - dipy: https://dipy.org/
 """
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+import numpy as np
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+
+try:
+    import nibabel as nib
+    from dipy.core.gradients import gradient_table
+    from dipy.reconst.dti import TensorModel
+
+    _HAS_DIPY: bool = True
+except ImportError:
+    nib = None  # type: ignore[assignment]
+    gradient_table = None  # type: ignore[assignment]
+    TensorModel = None  # type: ignore[assignment]
+    _HAS_DIPY = False
+
+
+def _fit_dti(
+    dwi_nifti_path: str,
+    bvec_path: str,
+    bval_path: str,
+    tracts: list[str],
+) -> dict[str, dict[str, float]]:
+    if not _HAS_DIPY or nib is None or gradient_table is None or TensorModel is None:
+        raise ImportError(
+            "dipy and nibabel are required for WhiteMatterAnalyzer — "
+            "install with: pip install 'pirn[mri]'"
+        )
+    img = nib.load(dwi_nifti_path)
+    data = np.asarray(img.dataobj, dtype=float)
+    bvecs = np.loadtxt(bvec_path)
+    bvals = np.loadtxt(bval_path)
+    gtab = gradient_table(bvals, bvecs=bvecs)
+    model = TensorModel(gtab)
+    fit = model.fit(data)
+    fa = np.asarray(fit.fa)
+    md = np.asarray(fit.md)
+    mean_fa = float(np.nanmean(fa))
+    mean_md = float(np.nanmean(md))
+    return {tract: {"fa": mean_fa, "md": mean_md} for tract in tracts}
 
 
 class WhiteMatterAnalyzer(Knot):
@@ -86,4 +125,4 @@ class WhiteMatterAnalyzer(Knot):
         for tract in tracts:
             if not isinstance(tract, str):
                 raise TypeError("WhiteMatterAnalyzer: every tract must be a string")
-        return {tract: {"fa": 0.0, "md": 0.0} for tract in tracts}
+        return await asyncio.to_thread(_fit_dti, dwi_nifti_path, bvec_path, bval_path, list(tracts))

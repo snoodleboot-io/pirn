@@ -87,7 +87,7 @@ class BesselFilter(Knot):
         sos = await asyncio.to_thread(ss.bessel, order, cutoff_hz, "low", fs=fs, output="sos")
         filtered = await asyncio.to_thread(ss.sosfilt, sos, signal.data, axis=-1)
         return SignalPayload(
-            frame=SignalFrame(
+            metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:bessel",
                 channel_count=signal.frame.channel_count,
                 sample_rate_hz=signal.frame.sample_rate_hz,

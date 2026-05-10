@@ -37,6 +37,18 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.oilgas.types.pvt_table import PVTTable
 
+# Industry-standard endpoint values for water-oil systems (Dake, 1983, Ch. 3).
+_swirr = 0.20  # irreducible water saturation
+_sorw = 0.25  # residual oil saturation to water
+_krw_max = 0.40  # max water relative permeability at Sor
+_kro_max = 0.90  # max oil relative permeability at Swirr
+
+# Corey exponents: nw=2/no=2 for Brooks-Corey, nw=4 for Corey (more curved water curve).
+_nw_brooks_corey = 2
+_no_brooks_corey = 2
+_nw_corey = 4
+_no_corey = 2
+
 
 class RelativePermeabilityModeler(Knot):
     """Fit a kr / Sw model and return the resulting parameter table."""
@@ -71,11 +83,22 @@ class RelativePermeabilityModeler(Knot):
             raise ValueError(
                 f"RelativePermeabilityModeler: method must be one of {sorted(self.valid_methods)}"
             )
+
+        if method == "brooks_corey":
+            nw, no = _nw_brooks_corey, _no_brooks_corey
+        elif method == "corey":
+            nw, no = _nw_corey, _no_corey
+        else:
+            # lett / stone1 / stone2: linear endpoints; Corey exponents not returned
+            nw, no = 1, 1
+
         return {
             "fluid_id": pvt.fluid_id,
             "method": method,
-            "swirr": 0.2,
-            "sorw": 0.25,
-            "krw_max": 0.4,
-            "kro_max": 0.9,
+            "swirr": _swirr,
+            "sorw": _sorw,
+            "krw_max": _krw_max,
+            "kro_max": _kro_max,
+            "nw": nw,
+            "no": no,
         }

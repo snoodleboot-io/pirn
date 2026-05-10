@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.genomics.gvcf_combiner import GVCFCombiner
@@ -36,5 +37,9 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_returns_combined_path(self) -> None:
         knot = self._make_knot()
-        out = await knot.process(gvcf_paths=["a.gvcf", "b.gvcf"], reference_path="ref.fa", output_gvcf_path="out.gvcf")
+        mock_proc = MagicMock()
+        mock_proc.returncode = 0
+        mock_proc.communicate = AsyncMock(return_value=(b"", b""))
+        with patch("asyncio.create_subprocess_exec", AsyncMock(return_value=mock_proc)):
+            out = await knot.process(gvcf_paths=["a.gvcf", "b.gvcf"], reference_path="ref.fa", output_gvcf_path="out.gvcf")
         assert out == "out.gvcf"

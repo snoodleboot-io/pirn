@@ -24,7 +24,7 @@ References:
     - GPA Midstream 2145-16 — Table of Physical Properties for Hydrocarbons and
       Other Compounds of Interest to the Natural Gas Industry.
     - ASTM D1945-14 — Standard Method for Analysis of Natural Gas by Gas
-      Chromatography.
+       Chromatography.
 """
 
 from __future__ import annotations
@@ -33,6 +33,39 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+
+# GPA 2145-16, Table 1: gross (higher) heating value in BTU/scf at 60°F, 14.696 psia.
+_hhv_btu_scf: dict[str, float] = {
+    "CH4": 1012.0,
+    "C2H6": 1769.0,
+    "C3H8": 2516.0,
+    "iC4": 3252.0,
+    "nC4": 3262.0,
+    "iC5": 4000.0,
+    "nC5": 4009.0,
+    "C6": 4755.0,
+    "N2": 0.0,
+    "CO2": 0.0,
+    "H2S": 637.0,
+}
+
+# GPA 2145-16, Table 1: molecular weights (g/mol).
+_mw: dict[str, float] = {
+    "CH4": 16.04,
+    "C2H6": 30.07,
+    "C3H8": 44.10,
+    "iC4": 58.12,
+    "nC4": 58.12,
+    "iC5": 72.15,
+    "nC5": 72.15,
+    "C6": 86.18,
+    "N2": 28.01,
+    "CO2": 44.01,
+    "H2S": 34.08,
+}
+
+# Molecular weight of dry air (used as denominator for specific gravity).
+_mw_AIR = 28.97
 
 
 class GasChromatographyAnalyzer(Knot):
@@ -102,8 +135,15 @@ class GasChromatographyAnalyzer(Knot):
             )
         else:
             mole_fractions = raw
+
+        # GHV: sum of (mole fraction x component HHV) using GPA 2145-16 values.
+        ghv = sum(yi * _hhv_btu_scf.get(name, 0.0) for name, yi in mole_fractions.items())
+
+        # Specific gravity: mixture MW / air MW (Kay's mixing rule for ideal gas).
+        sg = sum(yi * _mw.get(name, 0.0) for name, yi in mole_fractions.items()) / _mw_AIR
+
         return {
             "mole_fractions": mole_fractions,
-            "gross_heating_value_btu_scf": 1012.0,
-            "specific_gravity": 0.65,
+            "gross_heating_value_btu_scf": float(ghv),
+            "specific_gravity": float(sg),
         }

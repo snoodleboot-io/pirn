@@ -127,7 +127,7 @@ class BeamformerMVDR(Knot):
         else:
             beamformed = await asyncio.to_thread(_mvdr, data, a)
         return SignalPayload(
-            frame=SignalFrame(
+            metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:mvdr",
                 channel_count=1,
                 sample_rate_hz=signal.frame.sample_rate_hz,

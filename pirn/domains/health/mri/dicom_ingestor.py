@@ -10,7 +10,7 @@ Algorithm:
     1. Receive client PACSClient, study_uid, series_uid, and staging_dir strings.
     2. Validate client is a PACSClient, both UIDs are non-empty strings, and staging_dir is non-empty.
     3. Delegate to client.fetch_series(study_uid, series_uid).
-    4. Return DICOMPayload(series=result, dicom_dir=staging_dir).
+    4. Return DICOMPayload(metadata=result, data=staging_dir).
 
 
 References:
@@ -85,4 +85,4 @@ class DICOMIngestor(Knot):
             if not value:
                 raise ValueError(f"DICOMIngestor: {label} must be non-empty")
         series = await client.fetch_series(study_uid, series_uid)
-        return DICOMPayload(series=series, dicom_dir=staging_dir)
+        return DICOMPayload(metadata=series, data=staging_dir)

@@ -138,4 +138,4 @@ class VMDDecomposer(Knot):
             wavelet_name="vmd",
             scale_count=len(modes),
         )
-        return WaveletPayload(frame=frame, data=modes)
+        return WaveletPayload(metadata=frame, data=modes)

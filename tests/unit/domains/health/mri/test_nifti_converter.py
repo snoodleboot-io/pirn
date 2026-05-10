@@ -11,7 +11,7 @@ from pirn.domains.health.types.dicom_payload import DICOMPayload
 from pirn.domains.health.types.dicom_series import DICOMSeries
 
 _CFG = KnotConfig(id="c")
-_PAYLOAD = DICOMPayload(series=DICOMSeries(), dicom_dir="/tmp/dicom")
+_PAYLOAD = DICOMPayload(metadata=DICOMSeries(), data="/tmp/dicom")
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

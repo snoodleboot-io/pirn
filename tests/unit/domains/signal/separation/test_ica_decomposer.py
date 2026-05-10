@@ -16,7 +16,7 @@ from pirn.domains.signal.types.source_payload import SourcePayload
 
 _rng = np.random.default_rng(0)
 _SIGNAL = SignalPayload(
-    frame=SignalFrame(signal_id="test", channel_count=8, sample_rate_hz=1000.0, samples_per_channel=1024),
+    metadata=SignalFrame(signal_id="test", channel_count=8, sample_rate_hz=1000.0, samples_per_channel=1024),
     data=_rng.standard_normal((8, 1024)),
 )
 

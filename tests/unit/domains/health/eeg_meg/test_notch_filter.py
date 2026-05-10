@@ -13,7 +13,7 @@ from pirn.domains.health.types.signal_payload import SignalPayload
 
 _CFG = KnotConfig(id="n")
 _SIGNAL = SignalPayload(
-    frame=SignalFrame(signal_id="s", channel_count=2, sample_rate_hz=256.0, samples_per_channel=512),
+    metadata=SignalFrame(signal_id="s", channel_count=2, sample_rate_hz=256.0, samples_per_channel=512),
     data=np.random.default_rng(0).standard_normal((2, 512)),
 )
 _KNOT = NotchFilter(signal=_SIGNAL, notch_hz=60.0, _config=_CFG)

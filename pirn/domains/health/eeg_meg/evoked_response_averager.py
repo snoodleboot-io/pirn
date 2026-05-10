@@ -91,4 +91,4 @@ class EvokedResponseAverager(Knot):
             samples_per_channel=averaged.shape[-1],
             fetched_at=first.frame.fetched_at,
         )
-        return SignalPayload(frame=frame, data=averaged)
+        return SignalPayload(metadata=frame, data=averaged)

@@ -96,7 +96,7 @@ class ClockDriftCorrector(Knot):
         result = await asyncio.to_thread(_resample_poly, signal.data, up, down)
 
         return SignalPayload(
-            frame=SignalFrame(
+            metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:drift_corrected",
                 channel_count=signal.frame.channel_count,
                 sample_rate_hz=float(reference_rate_hz),

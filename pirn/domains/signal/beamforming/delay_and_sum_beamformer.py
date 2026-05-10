@@ -115,7 +115,7 @@ class DelayAndSumBeamformer(Knot):
         )
         beamformed = await asyncio.to_thread(_das_beamform, data, delays_samples)
         return SignalPayload(
-            frame=SignalFrame(
+            metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:das",
                 channel_count=1,
                 sample_rate_hz=signal.frame.sample_rate_hz,

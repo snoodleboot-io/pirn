@@ -5,21 +5,33 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
+import numpy as np
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.domains.oilgas.types.deviation_survey import DeviationSurvey
-from pirn.domains.oilgas.types.well_path_3d import WellPath3D
+from pirn.domains.oilgas.types.deviation_survey_payload import DeviationSurveyPayload
+from pirn.domains.oilgas.types.well_path_3d_payload import WellPath3DPayload
 from pirn.domains.oilgas.well.well_path_calculator import WellPathCalculator
 from pirn.tapestry import Tapestry
+
+_STATIONS = np.array([
+    [0.0, 0.0, 0.0],
+    [100.0, 5.0, 10.0],
+    [200.0, 10.0, 15.0],
+])
 
 
 class _SurveySource(Knot):
     def __init__(self, *, _config: KnotConfig, **kwargs: Any) -> None:
         super().__init__(_config=_config, **kwargs)
 
-    async def process(self, **_: Any) -> DeviationSurvey:
-        return DeviationSurvey(well_id="W", station_count=10)
+    async def process(self, **_: Any) -> DeviationSurveyPayload:
+        return DeviationSurveyPayload(
+            metadata=DeviationSurvey(well_id="W", station_count=3),
+            data=_STATIONS,
+        )
 
 
 class TestConstruction(unittest.IsolatedAsyncioTestCase):
@@ -28,7 +40,10 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
         object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaisesRegex(ValueError, "method"):
             await k.process(
-                survey=DeviationSurvey(well_id="W", station_count=1),
+                survey=DeviationSurveyPayload(
+                    metadata=DeviationSurvey(well_id="W", station_count=1),
+                    data=_STATIONS,
+                ),
                 method="bogus",
             )
 
@@ -44,6 +59,6 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         out = result.outputs["wp"]
-        assert isinstance(out, WellPath3D)
-        assert out.well_id == "W"
-        assert out.point_count == 10
+        assert isinstance(out, WellPath3DPayload)
+        assert out.path.well_id == "W"
+        assert out.points.shape == (3, 3)

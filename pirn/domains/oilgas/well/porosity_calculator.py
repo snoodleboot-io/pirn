@@ -1,13 +1,13 @@
 """``PorosityCalculator`` — derive a porosity curve from density / neutron logs.
 
 Algorithm:
-    1. Receive a parsed LAS file, a ``method`` string, a positive
+    1. Receive a LASPayload, a ``method`` string, a positive
        ``matrix_density``, and a positive ``fluid_density`` less than
        ``matrix_density``.
     2. Validate all inputs.
     3. Apply the selected porosity model (density, neutron, or
        density-neutron crossplot) to compute a porosity curve.
-    4. Return a LASFile augmented with the computed porosity curve.
+    4. Return a LASPayload augmented with the computed porosity curve.
 
 Math:
     Density porosity:
@@ -28,20 +28,66 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.oilgas.types.las_file import LASFile
+from pirn.domains.oilgas.types.las_payload import LASPayload
+
+
+def _compute_density(
+    curve_data: dict[str, np.ndarray],
+    matrix_density: float,
+    fluid_density: float,
+) -> np.ndarray:
+    if "RHOB" not in curve_data:
+        raise ValueError(
+            "PorosityCalculator: 'RHOB' curve required in curve_data for density method"
+        )
+    rhob = curve_data["RHOB"]
+    phi = (matrix_density - rhob) / (matrix_density - fluid_density)
+    return np.clip(phi, 0.0, 1.0)
+
+
+def _compute_neutron(curve_data: dict[str, np.ndarray]) -> np.ndarray:
+    if "NPHI" not in curve_data:
+        raise ValueError(
+            "PorosityCalculator: 'NPHI' curve required in curve_data for neutron method"
+        )
+    return np.clip(curve_data["NPHI"], 0.0, 1.0)
+
+
+def _compute_density_neutron(
+    curve_data: dict[str, np.ndarray],
+    matrix_density: float,
+    fluid_density: float,
+) -> np.ndarray:
+    if "RHOB" not in curve_data:
+        raise ValueError(
+            "PorosityCalculator: 'RHOB' curve required in curve_data for density_neutron method"
+        )
+    if "NPHI" not in curve_data:
+        raise ValueError(
+            "PorosityCalculator: 'NPHI' curve required in curve_data for density_neutron method"
+        )
+    rhob = curve_data["RHOB"]
+    phi_d = (matrix_density - rhob) / (matrix_density - fluid_density)
+    phi_n = curve_data["NPHI"]
+    phi_dn = np.sqrt((phi_d**2 + phi_n**2) / 2.0)
+    return np.clip(phi_dn, 0.0, 1.0)
 
 
 class PorosityCalculator(Knot):
-    """Derive a porosity curve and append it to the LAS curve set."""
+    """Derive a porosity curve and append it to the LASPayload."""
 
     def __init__(
         self,
         *,
-        las_file: Knot,
+        payload: Knot,
         method: Knot | str,
         matrix_density: Knot | float,
         fluid_density: Knot | float,
@@ -49,7 +95,7 @@ class PorosityCalculator(Knot):
         **kwargs: Any,
     ) -> None:
         super().__init__(
-            las_file=las_file,
+            payload=payload,
             method=method,
             matrix_density=matrix_density,
             fluid_density=fluid_density,
@@ -59,16 +105,16 @@ class PorosityCalculator(Knot):
 
     async def process(
         self,
-        las_file: LASFile,
+        payload: LASPayload,
         method: str,
         matrix_density: float,
         fluid_density: float,
         **_: Any,
-    ) -> LASFile:
-        """Derive a porosity curve from the LAS log data and return an augmented LASFile.
+    ) -> LASPayload:
+        """Derive a porosity curve from the payload curve data and return an augmented LASPayload.
 
         Args:
-            las_file: LAS file providing the density and/or neutron log curves.
+            payload: LASPayload providing the density and/or neutron log curves.
             method: Porosity model; must be one of ``density``, ``neutron``,
                 or ``density_neutron``.
             matrix_density: Positive rock matrix density (g/cm³).
@@ -76,7 +122,7 @@ class PorosityCalculator(Knot):
                 less than ``matrix_density``.
 
         Returns:
-            LASFile with a porosity curve named ``PHI_{method}`` appended.
+            LASPayload with a porosity curve named ``PHI_{method}`` appended.
         """
         _valid_methods = frozenset({"density", "neutron", "density_neutron"})
         if method not in _valid_methods:
@@ -91,8 +137,27 @@ class PorosityCalculator(Knot):
                 raise ValueError(f"PorosityCalculator: {label} must be positive")
         if fluid_density >= matrix_density:
             raise ValueError("PorosityCalculator: fluid_density must be less than matrix_density")
-        return LASFile(
-            well_id=las_file.well_id,
-            curves=(*las_file.curves, f"PHI_{method}"),
-            depth_unit=las_file.depth_unit,
+
+        curve_data = payload.curve_data
+
+        if method == "density":
+            phi = await asyncio.to_thread(
+                _compute_density, curve_data, matrix_density, fluid_density
+            )
+        elif method == "neutron":
+            phi = await asyncio.to_thread(_compute_neutron, curve_data)
+        else:
+            phi = await asyncio.to_thread(
+                _compute_density_neutron, curve_data, matrix_density, fluid_density
+            )
+
+        mnemonic = f"PHI_{method}"
+        new_curve_data = {**curve_data, mnemonic: phi}
+        return LASPayload(
+            metadata=LASFile(
+                well_id=payload.las.well_id,
+                curves=(*payload.las.curves, mnemonic),
+                depth_unit=payload.las.depth_unit,
+            ),
+            data=new_curve_data,
         )

@@ -96,7 +96,7 @@ class IIRFilter(Knot):
         sos = await asyncio.to_thread(ss.tf2sos, b_arr, a_arr)
         filtered = await asyncio.to_thread(ss.sosfilt, sos, signal.data, axis=-1)
         return SignalPayload(
-            frame=SignalFrame(
+            metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:iir",
                 channel_count=signal.frame.channel_count,
                 sample_rate_hz=signal.frame.sample_rate_hz,

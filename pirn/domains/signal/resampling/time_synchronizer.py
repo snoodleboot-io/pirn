@@ -107,7 +107,7 @@ class TimeSynchronizer(Knot):
         result = await asyncio.to_thread(_synchronize, reference.data, target.data, max_lag_samples)
 
         return SignalPayload(
-            frame=SignalFrame(
+            metadata=SignalFrame(
                 signal_id=f"{target.frame.signal_id}:synced",
                 channel_count=target.frame.channel_count,
                 sample_rate_hz=target.frame.sample_rate_hz,

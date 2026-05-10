@@ -34,8 +34,11 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_returns_corrosion_rate(self) -> None:
         knot = self._make_knot(years=5.0)
-        out = await knot.process(previous_run=_RUN, current_run=_RUN, years_between=5.0)
-        assert out["max_rate_mpy"] == 5.0
+        # previous has 5 features, current has 10 — new_features=5 triggers feature-count path
+        prev: dict[str, Any] = {"feature_count": 5}
+        out = await knot.process(previous_run=prev, current_run=_RUN, years_between=5.0)
+        assert "max_rate_mpy" in out
+        assert out["max_rate_mpy"] > 0.0
         assert out["feature_count"] == 10.0
 
     async def test_raises_on_missing_feature_count_field(self) -> None:

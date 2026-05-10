@@ -1,9 +1,9 @@
 """``WaterCutTracker`` — derive water-cut time-series from oil and water rates.
 
 Algorithm:
-    1. Receive aligned oil-rate and water-rate ScadaTimeSeries.
+    1. Receive aligned oil-rate and water-rate ScadaPayloads.
     2. For each aligned sample, compute the water-cut fraction.
-    3. Return a ScadaTimeSeries of water-cut fraction values.
+    3. Return a ScadaPayload of water-cut fraction values.
 
 Math:
     Water-cut fraction at time :math:`t`:
@@ -20,11 +20,24 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.domains.oilgas.types.scada_payload import ScadaPayload
 from pirn.domains.oilgas.types.scada_time_series import ScadaTimeSeries
+
+
+def _compute_water_cut(
+    oil_values: np.ndarray,
+    water_values: np.ndarray,
+    n: int,
+) -> np.ndarray:
+    wc = water_values[:n] / (oil_values[:n] + water_values[:n] + 1e-9)
+    return np.clip(wc, 0.0, 1.0)
 
 
 class WaterCutTracker(Knot):
@@ -42,22 +55,33 @@ class WaterCutTracker(Knot):
 
     async def process(
         self,
-        oil_rate: ScadaTimeSeries,
-        water_rate: ScadaTimeSeries,
+        oil_rate: ScadaPayload,
+        water_rate: ScadaPayload,
         **_: Any,
-    ) -> ScadaTimeSeries:
-        """Accept oil and water rate series and return the computed water-cut fraction time series.
+    ) -> ScadaPayload:
+        """Accept oil and water rate payloads and return the computed water-cut fraction time series.
 
         Args:
-            oil_rate: ScadaTimeSeries of oil production rates.
-            water_rate: ScadaTimeSeries of water production rates aligned to
+            oil_rate: ScadaPayload of oil production rates.
+            water_rate: ScadaPayload of water production rates aligned to
                 the same timestamps as oil_rate.
 
         Returns:
-            ScadaTimeSeries of water-cut fraction values with sensor_id
+            ScadaPayload of water-cut fraction values with sensor_id
             ``watercut:<oil_sensor_id>:<water_sensor_id>``.
         """
-        return ScadaTimeSeries(
-            sensor_id=f"watercut:{oil_rate.sensor_id}:{water_rate.sensor_id}",
-            sample_interval_sec=oil_rate.sample_interval_sec,
+        if not isinstance(oil_rate, ScadaPayload):
+            raise TypeError("WaterCutTracker: oil_rate must be a ScadaPayload")
+        if not isinstance(water_rate, ScadaPayload):
+            raise TypeError("WaterCutTracker: water_rate must be a ScadaPayload")
+        n = min(len(oil_rate.values), len(water_rate.values))
+        wc = await asyncio.to_thread(_compute_water_cut, oil_rate.values, water_rate.values, n)
+        sensor_id = f"watercut:{oil_rate.series.sensor_id}:{water_rate.series.sensor_id}"
+        return ScadaPayload(
+            metadata=ScadaTimeSeries(
+                sensor_id=sensor_id,
+                sample_count=n,
+                sample_interval_sec=oil_rate.series.sample_interval_sec,
+            ),
+            data=wc,
         )

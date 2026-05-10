@@ -13,7 +13,7 @@ from pirn.domains.health.types.signal_payload import SignalPayload
 
 _CFG = KnotConfig(id="r")
 _SIGNAL = SignalPayload(
-    frame=SignalFrame(signal_id="s", channel_count=2, sample_rate_hz=256.0, samples_per_channel=512),
+    metadata=SignalFrame(signal_id="s", channel_count=2, sample_rate_hz=256.0, samples_per_channel=512),
     data=np.random.default_rng(0).standard_normal((2, 512)),
 )
 _KNOT = ArtifactRemover(signal=_SIGNAL, n_components=10, method="infomax", _config=_CFG)

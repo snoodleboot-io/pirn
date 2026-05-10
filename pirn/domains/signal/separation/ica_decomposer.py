@@ -84,7 +84,7 @@ class ICADecomposer(Knot):
             raise ValueError("ICADecomposer: source_count must be a positive integer")
         sources = await asyncio.to_thread(_run_ica, signal.data, source_count)
         return SourcePayload(
-            frame=SourceFrame(
+            metadata=SourceFrame(
                 signal_id=f"{signal.frame.signal_id}:ica",
                 source_count=source_count,
                 mixing_matrix_shape=(signal.frame.channel_count, source_count),

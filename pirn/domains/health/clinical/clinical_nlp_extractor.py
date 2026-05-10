@@ -21,6 +21,7 @@ References:
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
 from typing import Any
 
@@ -73,10 +74,20 @@ class ClinicalNLPExtractor(Knot):
             raise TypeError("ClinicalNLPExtractor: note_text must be a string")
         if not note_text:
             raise ValueError("ClinicalNLPExtractor: note_text must be non-empty")
-        # Production: send a structured-output prompt to the LLM and parse
-        # the JSON response into diagnoses / medications / vitals.
-        return {
-            "diagnoses": (),
-            "medications": (),
-            "vitals": (),
-        }
+        messages = [
+            {
+                "role": "system",
+                "content": "Extract diagnoses, medications, and vitals from the clinical note. Return JSON with keys diagnoses, medications, vitals (each a list of strings).",
+            },
+            {"role": "user", "content": note_text},
+        ]
+        response = await provider.chat(messages)
+        try:
+            data = json.loads(response.get("content", ""))
+            return {
+                "diagnoses": tuple(data.get("diagnoses", ())),
+                "medications": tuple(data.get("medications", ())),
+                "vitals": tuple(data.get("vitals", ())),
+            }
+        except (json.JSONDecodeError, TypeError, KeyError):
+            return {"diagnoses": (), "medications": (), "vitals": ()}

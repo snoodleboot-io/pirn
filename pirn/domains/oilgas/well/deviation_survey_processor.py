@@ -22,11 +22,24 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.oilgas.types.deviation_survey import DeviationSurvey
+from pirn.domains.oilgas.types.deviation_survey_payload import DeviationSurveyPayload
+
+
+def _resample_survey(stations: np.ndarray, target_md_step: float) -> np.ndarray:
+    sorted_idx = np.argsort(stations[:, 0])
+    s = stations[sorted_idx]
+    new_md = np.arange(s[0, 0], s[-1, 0], target_md_step)
+    new_inc = np.interp(new_md, s[:, 0], s[:, 1])
+    new_azi = np.interp(new_md, s[:, 0], s[:, 2])
+    return np.column_stack([new_md, new_inc, new_azi]).astype(np.float64)
 
 
 class DeviationSurveyProcessor(Knot):
@@ -49,24 +62,30 @@ class DeviationSurveyProcessor(Knot):
 
     async def process(
         self,
-        survey: DeviationSurvey,
+        survey: DeviationSurveyPayload,
         target_md_step: float,
         **_: Any,
-    ) -> DeviationSurvey:
+    ) -> DeviationSurveyPayload:
         """Validate and resample the deviation survey to the configured measured-depth step and return the resampled survey.
 
         Args:
-            survey: Raw deviation survey to validate and resample.
+            survey: Raw DeviationSurveyPayload to validate and resample.
             target_md_step: Positive measured-depth step for the resampled survey (ft or m).
 
         Returns:
-            DeviationSurvey resampled to the configured measured-depth step.
+            DeviationSurveyPayload resampled to the configured measured-depth step.
         """
+        if not isinstance(survey, DeviationSurveyPayload):
+            raise TypeError("DeviationSurveyProcessor: survey must be a DeviationSurveyPayload")
         if not isinstance(target_md_step, (int, float)):
             raise TypeError("DeviationSurveyProcessor: target_md_step must be numeric")
         if target_md_step <= 0.0:
             raise ValueError("DeviationSurveyProcessor: target_md_step must be positive")
-        return DeviationSurvey(
-            well_id=survey.well_id,
-            station_count=survey.station_count,
+        new_stations = await asyncio.to_thread(_resample_survey, survey.stations, target_md_step)
+        return DeviationSurveyPayload(
+            metadata=DeviationSurvey(
+                well_id=survey.survey.well_id,
+                station_count=len(new_stations),
+            ),
+            data=new_stations,
         )

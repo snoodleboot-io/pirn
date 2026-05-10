@@ -4,14 +4,20 @@ from __future__ import annotations
 
 import unittest
 
+import numpy as np
+
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.domains.oilgas.types.las_file import LASFile
+from pirn.domains.oilgas.types.las_payload import LASPayload
 from pirn.domains.oilgas.well.las_file_ingester import LasFileIngester
-from pirn.domains.oilgas.well.water_saturation_calculator import (
-    WaterSaturationCalculator,
-)
+from pirn.domains.oilgas.well.water_saturation_calculator import WaterSaturationCalculator
 from pirn.tapestry import Tapestry
+
+_LAS = LASPayload(
+    metadata=LASFile(well_id="W", curves=("GR",)),
+    data={"GR": np.zeros(10)},
+)
 
 
 class TestConstruction(unittest.IsolatedAsyncioTestCase):
@@ -20,7 +26,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
         object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaisesRegex(ValueError, "method"):
             await k.process(
-                las_file=LASFile(well_id="W", curves=("GR",)),
+                payload=_LAS,
                 method="bogus",
                 rw=0.05,
             )
@@ -30,7 +36,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
         object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaisesRegex(ValueError, "rw"):
             await k.process(
-                las_file=LASFile(well_id="W", curves=("GR",)),
+                payload=_LAS,
                 method="archie",
                 rw=0.0,
             )
@@ -42,16 +48,16 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             las = LasFileIngester(
                 file_path="/x",
                 well_id="W",
-                curves=("GR",),
+                curves=("GR", "RHOB", "NPHI", "RT"),
                 _config=KnotConfig(id="i"),
             )
             WaterSaturationCalculator(
-                las_file=las,
+                payload=las,
                 method="archie",
                 rw=0.05,
                 _config=KnotConfig(id="sw"),
             )
         result = await t.run(RunRequest())
         out = result.outputs["sw"]
-        assert isinstance(out, LASFile)
-        assert "SW_archie" in out.curves
+        assert isinstance(out, LASPayload)
+        assert "SW_archie" in out.curve_data

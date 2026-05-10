@@ -143,7 +143,7 @@ class AudioDenoiser(Knot):
             _denoise_signal, signal.data, noise_estimate_frames, float(over_subtraction_factor)
         )
         return SignalPayload(
-            frame=SignalFrame(
+            metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:denoised",
                 channel_count=signal.frame.channel_count,
                 sample_rate_hz=signal.frame.sample_rate_hz,

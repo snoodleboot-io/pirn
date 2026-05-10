@@ -13,7 +13,7 @@ from pirn.domains.health.types.wsi_tile_payload import WSITilePayload
 
 _CFG = KnotConfig(id="s")
 _TILE = WSITile(slide_id="S", tile_x=0, tile_y=0, level=0, width=512, height=512)
-_PAYLOAD = WSITilePayload(tile=_TILE, pixels=np.zeros((512, 512, 3), dtype=np.uint8))
+_PAYLOAD = WSITilePayload(metadata=_TILE, data=np.zeros((512, 512, 3), dtype=np.uint8))
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

@@ -27,7 +27,10 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -86,8 +89,32 @@ class WallThicknessAnalyzer(Knot):
                 "WallThicknessAnalyzer: minimum_allowable_thickness_in must be "
                 "less than nominal_thickness_in"
             )
+
+        return await asyncio.to_thread(
+            self._assess,
+            pig_run,
+            float(nominal_thickness_in),
+            float(minimum_allowable_thickness_in),
+        )
+
+    @staticmethod
+    def _assess(
+        pig_run: dict[str, Any],
+        nominal: float,
+        mat: float,
+    ) -> dict[str, float]:
+        readings = pig_run.get("thickness_readings_in", [])
+
+        if readings:
+            arr = np.array(readings, dtype=np.float64)
+            min_remaining = float(np.min(arr))
+        else:
+            min_remaining = nominal
+
+        passed = min_remaining >= mat
+
         return {
-            "min_remaining_in": float(nominal_thickness_in),
-            "minimum_allowable_in": float(minimum_allowable_thickness_in),
-            "passed": 1.0,
+            "min_remaining_in": float(min_remaining),
+            "minimum_allowable_in": float(mat),
+            "passed": 1.0 if passed else 0.0,
         }

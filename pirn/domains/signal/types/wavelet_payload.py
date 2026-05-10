@@ -9,25 +9,15 @@ it is ``[scale_0, scale_1, ..., scale_K]``.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any
-
 import numpy as np
 
-from pirn.core.pirn_opaque_value import PirnOpaqueValue
+from pirn.core.payload import Payload
 from pirn.domains.signal.types.wavelet_frame import WaveletFrame
 
 
-@dataclass
-class WaveletPayload(PirnOpaqueValue):
+class WaveletPayload(Payload[WaveletFrame, list[np.ndarray]]):
     """Wavelet-domain signal: metadata frame + list of coefficient arrays."""
 
-    frame: WaveletFrame
-    data: list[np.ndarray]
-
-    def _pirn_audit_dict(self) -> dict[str, Any]:
-        return {
-            **self.frame._pirn_audit_dict(),
-            "n_scales": len(self.data),
-            "scale_shapes": [list(a.shape) for a in self.data],
-        }
+    @property
+    def frame(self) -> WaveletFrame:
+        return self._metadata

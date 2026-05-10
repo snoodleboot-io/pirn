@@ -109,7 +109,7 @@ class Interpolator(Knot):
         )
 
         return SignalPayload(
-            frame=SignalFrame(
+            metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:interp",
                 channel_count=signal.frame.channel_count,
                 sample_rate_hz=float(target_sample_rate_hz),

@@ -14,7 +14,7 @@ from pirn.domains.health.wearables.step_counter import StepCounter
 from pirn.tapestry import Tapestry
 
 _STEP_SIGNAL = SignalPayload(
-    frame=SignalFrame(signal_id="steps", channel_count=2, sample_rate_hz=256.0, samples_per_channel=512),
+    metadata=SignalFrame(signal_id="steps", channel_count=2, sample_rate_hz=256.0, samples_per_channel=512),
     data=np.random.default_rng(0).standard_normal((2, 512)),
 )
 

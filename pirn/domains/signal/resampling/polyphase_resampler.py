@@ -102,7 +102,7 @@ class PolyphaseResampler(Knot):
         new_rate = (signal.frame.sample_rate_hz * upsample_factor) / downsample_factor
 
         return SignalPayload(
-            frame=SignalFrame(
+            metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:polyphase",
                 channel_count=signal.frame.channel_count,
                 sample_rate_hz=new_rate,

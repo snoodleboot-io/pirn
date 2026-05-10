@@ -36,8 +36,14 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             await knot.process(image=_IMAGE, template="MNI152", registration_type="linear", degrees_of_freedom=3)
 
     async def test_returns_dict(self) -> None:
+        from unittest.mock import AsyncMock, MagicMock, patch
+
         knot = _make_knot()
-        out = await knot.process(image=_IMAGE, template="MNI152", registration_type="linear", degrees_of_freedom=12)
+        mock_proc = MagicMock()
+        mock_proc.returncode = 0
+        mock_proc.communicate = AsyncMock(return_value=(b"", b""))
+        with patch("asyncio.create_subprocess_exec", AsyncMock(return_value=mock_proc)):
+            out = await knot.process(image=_IMAGE, template="MNI152", registration_type="linear", degrees_of_freedom=12)
         assert isinstance(out, dict)
         assert out["template"] == "MNI152"
         assert "warped_image_path" in out

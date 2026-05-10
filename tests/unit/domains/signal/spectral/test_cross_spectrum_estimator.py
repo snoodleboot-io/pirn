@@ -25,7 +25,7 @@ async def emit_signal_a_alt_rate() -> SignalPayload:
         sample_rate_hz=2000.0,
         samples_per_channel=1024,
     )
-    return SignalPayload(frame=frame, data=np.zeros(1024))
+    return SignalPayload(metadata=frame, data=np.zeros(1024))
 
 
 def _make_signal_payload(signal_id: str = "test", sample_rate_hz: float = 1000.0) -> SignalPayload:
@@ -35,7 +35,7 @@ def _make_signal_payload(signal_id: str = "test", sample_rate_hz: float = 1000.0
         sample_rate_hz=sample_rate_hz,
         samples_per_channel=1024,
     )
-    return SignalPayload(frame=frame, data=np.zeros(1024))
+    return SignalPayload(metadata=frame, data=np.zeros(1024))
 
 
 class TestConstruction(unittest.IsolatedAsyncioTestCase):

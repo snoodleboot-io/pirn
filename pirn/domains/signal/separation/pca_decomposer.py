@@ -97,7 +97,7 @@ class PCADecomposer(Knot):
             raise TypeError("PCADecomposer: whiten must be a bool")
         components = await asyncio.to_thread(_run_pca, signal.data, component_count, whiten)
         return SourcePayload(
-            frame=SourceFrame(
+            metadata=SourceFrame(
                 signal_id=f"{signal.frame.signal_id}:pca",
                 source_count=component_count,
                 mixing_matrix_shape=(signal.frame.channel_count, component_count),

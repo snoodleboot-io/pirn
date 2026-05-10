@@ -85,7 +85,7 @@ class CepstrumAnalyzer(Knot):
         freq_bins = cepstrum.shape[-1]
 
         return SpectrumPayload(
-            frame=SpectrumFrame(
+            metadata=SpectrumFrame(
                 signal_id=signal.frame.signal_id,
                 frequency_bins=freq_bins,
                 frequency_resolution_hz=0.0,

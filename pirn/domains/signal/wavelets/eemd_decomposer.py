@@ -117,4 +117,4 @@ class EEMDDecomposer(Knot):
             wavelet_name="eemd",
             scale_count=len(imfs),
         )
-        return WaveletPayload(frame=frame, data=imfs)
+        return WaveletPayload(metadata=frame, data=imfs)

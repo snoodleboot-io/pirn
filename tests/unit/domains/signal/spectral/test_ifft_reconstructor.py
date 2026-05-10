@@ -20,7 +20,7 @@ from pirn.tapestry import Tapestry
 async def emit_spectrum_payload() -> SpectrumPayload:
     """Upstream knot emitting a deterministic SpectrumPayload."""
     frame = SpectrumFrame(signal_id="spec", frequency_bins=257, frequency_resolution_hz=1.953)
-    return SpectrumPayload(frame=frame, data=np.zeros(257, dtype=complex))
+    return SpectrumPayload(metadata=frame, data=np.zeros(257, dtype=complex))
 
 
 class TestConstruction(unittest.TestCase):
@@ -36,7 +36,7 @@ class TestProcessDirect(unittest.IsolatedAsyncioTestCase):
             k = IFFTReconstructor.__new__(IFFTReconstructor)
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         frame = SpectrumFrame(signal_id="spec", frequency_bins=257, frequency_resolution_hz=1.953)
-        spectrum = SpectrumPayload(frame=frame, data=np.zeros(257, dtype=complex))
+        spectrum = SpectrumPayload(metadata=frame, data=np.zeros(257, dtype=complex))
         result = await k.process(spectrum=spectrum)
         assert isinstance(result, SignalPayload)
         assert result.frame.signal_id == "spec:ifft"

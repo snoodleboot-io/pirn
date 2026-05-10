@@ -90,4 +90,4 @@ class Decimator(Knot):
             sample_rate_hz=signal.frame.sample_rate_hz / decimation_factor,
             samples_per_channel=signal.frame.samples_per_channel // decimation_factor,
         )
-        return SignalPayload(frame=new_frame, data=decimated)
+        return SignalPayload(metadata=new_frame, data=decimated)

@@ -21,10 +21,17 @@ References:
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+
+# Equirectangular scale factors (Snyder, 1987, §4).
+# 1° of latitude ≈ 110 540 m (semi-major axis x π / 180 for WGS-84 mean radius).
+_meters_per_deg_lat = 110_540.0
+# 1° of longitude ≈ 111 320 m at the equator; scaled by cos(lat) at the point.
+_meters_per_deg_lon_at_equator = 111_320.0
 
 
 class CoordinateSystemTransformer(Knot):
@@ -65,9 +72,22 @@ class CoordinateSystemTransformer(Knot):
         """
         if not isinstance(target_crs, str) or not target_crs:
             raise ValueError("CoordinateSystemTransformer: target_crs must be a non-empty string")
+
+        source_crs = location.get("crs", "")
+        x = float(location.get("x", 0.0))
+        y = float(location.get("y", 0.0))
+
+        if isinstance(source_crs, str) and source_crs.startswith("EPSG:4326"):
+            # Input is geographic (lat=x, lon=y); project to metres via equirectangular.
+            lat_deg = x
+            lon_deg = y
+            x_m = lon_deg * _meters_per_deg_lon_at_equator * math.cos(math.radians(lat_deg))
+            y_m = lat_deg * _meters_per_deg_lat
+            x, y = x_m, y_m
+
         return {
             "well_id": location.get("well_id", ""),
-            "x": float(location.get("x", 0.0)),
-            "y": float(location.get("y", 0.0)),
+            "x": float(x),
+            "y": float(y),
             "crs": target_crs,
         }

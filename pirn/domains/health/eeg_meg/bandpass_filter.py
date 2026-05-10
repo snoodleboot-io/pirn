@@ -93,4 +93,4 @@ class BandpassFilter(Knot):
             samples_per_channel=signal.frame.samples_per_channel,
             fetched_at=signal.frame.fetched_at,
         )
-        return SignalPayload(frame=frame, data=filtered)
+        return SignalPayload(metadata=frame, data=filtered)

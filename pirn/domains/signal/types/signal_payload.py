@@ -9,25 +9,15 @@ downstream knots receive the full picture in one input.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any
-
 import numpy as np
 
-from pirn.core.pirn_opaque_value import PirnOpaqueValue
+from pirn.core.payload import Payload
 from pirn.domains.signal.types.signal_frame import SignalFrame
 
 
-@dataclass
-class SignalPayload(PirnOpaqueValue):
+class SignalPayload(Payload[SignalFrame, np.ndarray]):
     """Time-domain signal: metadata frame + sample array."""
 
-    frame: SignalFrame
-    data: np.ndarray
-
-    def _pirn_audit_dict(self) -> dict[str, Any]:
-        return {
-            **self.frame._pirn_audit_dict(),
-            "data_shape": list(self.data.shape),
-            "data_dtype": str(self.data.dtype),
-        }
+    @property
+    def frame(self) -> SignalFrame:
+        return self._metadata

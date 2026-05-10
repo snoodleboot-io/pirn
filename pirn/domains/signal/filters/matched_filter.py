@@ -94,7 +94,7 @@ class MatchedFilter(Knot):
         out_samples = signal.data.shape[-1] + len(templ) - 1
         filtered = await asyncio.to_thread(_correlate_multichannel, signal.data, tmpl_arr)
         return SignalPayload(
-            frame=SignalFrame(
+            metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:matched",
                 channel_count=signal.frame.channel_count,
                 sample_rate_hz=signal.frame.sample_rate_hz,

@@ -23,7 +23,7 @@ async def emit_spectrum_payload() -> SpectrumPayload:
     frame = SpectrumFrame(signal_id="stft-out", frequency_bins=33, frequency_resolution_hz=7.8)
     n_fft = (33 - 1) * 2
     n_frames = 5
-    return SpectrumPayload(frame=frame, data=np.zeros((33, n_frames), dtype=complex))
+    return SpectrumPayload(metadata=frame, data=np.zeros((33, n_frames), dtype=complex))
 
 
 class TestConstruction(unittest.IsolatedAsyncioTestCase):
@@ -32,7 +32,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
             k = ISTFTReconstructor.__new__(ISTFTReconstructor)
             object.__setattr__(k, "_config", KnotConfig(id="i"))
         frame = SpectrumFrame(signal_id="stft-out", frequency_bins=33, frequency_resolution_hz=7.8)
-        spectrum = SpectrumPayload(frame=frame, data=np.zeros((33, 5), dtype=complex))
+        spectrum = SpectrumPayload(metadata=frame, data=np.zeros((33, 5), dtype=complex))
         with self.assertRaises((TypeError, ValueError)):
             await k.process(spectrum=spectrum, hop_length=0, window="hann")
 
@@ -41,7 +41,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
             k = ISTFTReconstructor.__new__(ISTFTReconstructor)
             object.__setattr__(k, "_config", KnotConfig(id="i"))
         frame = SpectrumFrame(signal_id="stft-out", frequency_bins=33, frequency_resolution_hz=7.8)
-        spectrum = SpectrumPayload(frame=frame, data=np.zeros((33, 5), dtype=complex))
+        spectrum = SpectrumPayload(metadata=frame, data=np.zeros((33, 5), dtype=complex))
         with self.assertRaises((TypeError, ValueError)):
             await k.process(spectrum=spectrum, hop_length=64, window="rectangular")
 

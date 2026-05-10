@@ -111,4 +111,4 @@ class WaveletDenoiser(Knot):
             sample_rate_hz=signal.frame.sample_rate_hz,
             samples_per_channel=denoised.shape[-1],
         )
-        return SignalPayload(frame=out_frame, data=denoised)
+        return SignalPayload(metadata=out_frame, data=denoised)

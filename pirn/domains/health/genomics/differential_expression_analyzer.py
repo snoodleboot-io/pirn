@@ -20,11 +20,65 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+import numpy as np
+from scipy import stats as ss
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+
+
+def _run_de(
+    case_counts: dict[str, Mapping[str, float]],
+    control_counts: dict[str, Mapping[str, float]],
+    gene_ids: list[str],
+) -> dict[str, dict[str, float]]:
+    """Compute log2FC, Welch t-test p-value, and BH-adjusted p-value per gene."""
+    log2fcs: list[float] = []
+    pvalues: list[float] = []
+
+    for gid in gene_ids:
+        case_vals = np.array([s[gid] for s in case_counts.values() if gid in s], dtype=float)
+        ctrl_vals = np.array([s[gid] for s in control_counts.values() if gid in s], dtype=float)
+
+        mean_case = float(np.mean(case_vals)) if len(case_vals) > 0 else 0.0
+        mean_ctrl = float(np.mean(ctrl_vals)) if len(ctrl_vals) > 0 else 0.0
+        log2fc = np.log2(max(mean_case, 1e-10) / max(mean_ctrl, 1e-10))
+        log2fcs.append(float(log2fc))
+
+        if len(case_vals) < 2 or len(ctrl_vals) < 2:
+            pvalues.append(1.0)
+        else:
+            result = ss.ttest_ind(case_vals, ctrl_vals, equal_var=False)
+            pval = float(result.pvalue)
+            if np.isnan(pval):
+                pval = 1.0
+            pvalues.append(pval)
+
+    n = len(gene_ids)
+    if n == 0:
+        return {}
+
+    # Benjamini-Hochberg correction
+    order = np.argsort(pvalues)
+    padjs = np.array(pvalues, dtype=float)
+    for rank_minus1, idx in enumerate(order):
+        r = rank_minus1 + 1
+        padjs[idx] = min(1.0, pvalues[idx] * n / r)
+
+    # Enforce monotonicity (scan from largest rank to smallest)
+    for rank_minus1 in range(n - 2, -1, -1):
+        idx = order[rank_minus1]
+        idx_next = order[rank_minus1 + 1]
+        padjs[idx] = min(padjs[idx], padjs[idx_next])
+
+    return {
+        gid: {"log2fc": log2fcs[i], "pvalue": pvalues[i], "padj": float(padjs[i])}
+        for i, gid in enumerate(gene_ids)
+    }
 
 
 class DifferentialExpressionAnalyzer(Knot):
@@ -76,4 +130,6 @@ class DifferentialExpressionAnalyzer(Knot):
         for gid in gene_ids:
             if not isinstance(gid, str):
                 raise TypeError("DifferentialExpressionAnalyzer: every gene id must be a string")
-        return {gid: {"log2fc": 0.0, "pvalue": 1.0, "padj": 1.0} for gid in gene_ids}
+        return await asyncio.to_thread(
+            _run_de, dict(case_counts), dict(control_counts), list(gene_ids)
+        )

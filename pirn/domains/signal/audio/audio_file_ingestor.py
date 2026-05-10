@@ -32,7 +32,7 @@ def _load_audio(path: str) -> SignalPayload:
     if y.ndim == 1:
         y = y[np.newaxis, :]
     return SignalPayload(
-        frame=SignalFrame(
+        metadata=SignalFrame(
             signal_id=path,
             channel_count=y.shape[0],
             sample_rate_hz=float(sr),

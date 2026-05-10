@@ -25,10 +25,40 @@ References:
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+
+
+def _point_in_polygon(px: float, py: float, polygon: list[list[float]]) -> bool:
+    """Ray-casting algorithm for point-in-polygon test (Jordan curve theorem)."""
+    n = len(polygon)
+    inside = False
+    j = n - 1
+    for i in range(n):
+        xi, yi = polygon[i][0], polygon[i][1]
+        xj, yj = polygon[j][0], polygon[j][1]
+        # Ray from (px, py) in +x direction crosses edge (xi,yi)-(xj,yj) when
+        # the edge straddles py and the intersection is to the right of px.
+        if (yi > py) != (yj > py):
+            x_intersect = (xj - xi) * (py - yi) / (yj - yi + 1e-15) + xi
+            if px < x_intersect:
+                inside = not inside
+        j = i
+    return inside
+
+
+def _dist_to_segment(px: float, py: float, ax: float, ay: float, bx: float, by: float) -> float:
+    """Euclidean distance from point (px, py) to line segment (ax,ay)-(bx,by)."""
+    dx = bx - ax
+    dy = by - ay
+    len_sq = dx * dx + dy * dy
+    if len_sq < 1e-15:
+        return math.hypot(px - ax, py - ay)
+    t = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / len_sq))
+    return math.hypot(px - (ax + t * dx), py - (ay + t * dy))
 
 
 class BoundaryProximityChecker(Knot):
@@ -64,7 +94,7 @@ class BoundaryProximityChecker(Knot):
             location: Projected well location dict containing ``well_id``,
                 ``x``, and ``y``.
             boundary: Field boundary dict containing ``field_id`` and vertex
-                geometry.
+                geometry under the ``polygon`` key (list of [x, y] pairs).
             buffer_distance_m: Non-negative buffer distance in metres.
 
         Returns:
@@ -75,9 +105,31 @@ class BoundaryProximityChecker(Knot):
             raise TypeError("BoundaryProximityChecker: buffer_distance_m must be numeric")
         if buffer_distance_m < 0.0:
             raise ValueError("BoundaryProximityChecker: buffer_distance_m must be non-negative")
+
+        px = float(location.get("x", 0.0))
+        py = float(location.get("y", 0.0))
+        polygon: list[list[float]] = boundary.get("polygon", [])
+
+        within = False
+
+        if len(polygon) >= 3:
+            if _point_in_polygon(px, py, polygon):
+                within = True
+            elif buffer_distance_m > 0.0:
+                n = len(polygon)
+                for i in range(n):
+                    ax, ay = polygon[i][0], polygon[i][1]
+                    bx, by = polygon[(i + 1) % n][0], polygon[(i + 1) % n][1]
+                    if _dist_to_segment(px, py, ax, ay, bx, by) < buffer_distance_m:
+                        within = True
+                        break
+        elif len(polygon) == 0:
+            # No polygon data; conservatively report as inside (fail-safe for empty boundaries)
+            within = True
+
         return {
             "well_id": location.get("well_id", ""),
             "field_id": boundary.get("field_id", ""),
-            "within_buffer": True,
+            "within_buffer": within,
             "buffer_distance_m": float(buffer_distance_m),
         }

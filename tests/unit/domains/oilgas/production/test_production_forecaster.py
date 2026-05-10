@@ -6,7 +6,7 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.oilgas.production.production_forecaster import ProductionForecaster
-from pirn.domains.oilgas.types.scada_time_series import ScadaTimeSeries
+from pirn.domains.oilgas.types.scada_payload import ScadaPayload
 
 _PARAMS: dict[str, float] = {"qi": 1000.0, "di_per_year": 0.15, "b": 0.5}
 
@@ -27,6 +27,6 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_forecast_series(self) -> None:
         knot = self._make_knot()
         out = await knot.process(decline_parameters=_PARAMS, forecast_months=24)
-        assert isinstance(out, ScadaTimeSeries)
-        assert out.sensor_id == "forecast"
-        assert out.sample_count == 24
+        assert isinstance(out, ScadaPayload)
+        assert out.series.sensor_id == "forecast"
+        assert out.series.sample_count == 24

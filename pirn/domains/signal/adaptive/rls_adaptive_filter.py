@@ -119,7 +119,7 @@ class RLSAdaptiveFilter(Knot):
         result = await asyncio.to_thread(_rls, sig_data, ref_data, filter_length, forgetting_factor)
 
         return SignalPayload(
-            frame=SignalFrame(
+            metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:rls",
                 channel_count=1,
                 sample_rate_hz=signal.frame.sample_rate_hz,

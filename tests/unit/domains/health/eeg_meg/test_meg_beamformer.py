@@ -13,7 +13,7 @@ from pirn.domains.health.types.signal_payload import SignalPayload
 
 _CFG = KnotConfig(id="bf")
 _SIGNAL = SignalPayload(
-    frame=SignalFrame(signal_id="meg", channel_count=2, sample_rate_hz=256.0, samples_per_channel=512),
+    metadata=SignalFrame(signal_id="meg", channel_count=2, sample_rate_hz=256.0, samples_per_channel=512),
     data=np.random.default_rng(0).standard_normal((2, 512)),
 )
 _STEERING = [1.0, 0.5]

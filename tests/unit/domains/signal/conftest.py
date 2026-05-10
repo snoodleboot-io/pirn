@@ -57,7 +57,7 @@ def make_signal_payload(
         fetched_at=_FIXED_FETCHED_AT,
     )
     data = np.zeros((channel_count, samples_per_channel)) if channel_count > 1 else np.zeros(samples_per_channel)
-    return SignalPayload(frame=frame, data=data)
+    return SignalPayload(metadata=frame, data=data)
 
 
 @pytest.fixture()
@@ -117,7 +117,7 @@ async def emit_signal_payload() -> SignalPayload:
         samples_per_channel=1024,
         fetched_at=_FIXED_FETCHED_AT,
     )
-    return SignalPayload(frame=frame, data=np.zeros(1024))
+    return SignalPayload(metadata=frame, data=np.zeros(1024))
 
 
 @knot
@@ -131,7 +131,7 @@ async def emit_signal_payload_b() -> SignalPayload:
         samples_per_channel=1024,
         fetched_at=_FIXED_FETCHED_AT,
     )
-    return SignalPayload(frame=frame, data=np.zeros(1024))
+    return SignalPayload(metadata=frame, data=np.zeros(1024))
 
 
 @knot
@@ -139,4 +139,4 @@ async def emit_spectrum_payload() -> SpectrumPayload:
     """Upstream knot emitting a deterministic :class:`SpectrumPayload`."""
 
     frame = SpectrumFrame(signal_id="spec", frequency_bins=257, frequency_resolution_hz=1.953)
-    return SpectrumPayload(frame=frame, data=np.zeros(257, dtype=complex))
+    return SpectrumPayload(metadata=frame, data=np.zeros(257, dtype=complex))

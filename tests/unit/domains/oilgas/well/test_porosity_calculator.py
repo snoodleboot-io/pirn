@@ -4,12 +4,20 @@ from __future__ import annotations
 
 import unittest
 
+import numpy as np
+
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.domains.oilgas.types.las_file import LASFile
+from pirn.domains.oilgas.types.las_payload import LASPayload
 from pirn.domains.oilgas.well.las_file_ingester import LasFileIngester
 from pirn.domains.oilgas.well.porosity_calculator import PorosityCalculator
 from pirn.tapestry import Tapestry
+
+_LAS = LASPayload(
+    metadata=LASFile(well_id="W", curves=("GR",)),
+    data={"GR": np.zeros(10)},
+)
 
 
 class TestConstruction(unittest.IsolatedAsyncioTestCase):
@@ -18,7 +26,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
         object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaisesRegex(ValueError, "method"):
             await k.process(
-                las_file=LASFile(well_id="W", curves=("GR",)),
+                payload=_LAS,
                 method="not_real",
                 matrix_density=2.65,
                 fluid_density=1.0,
@@ -29,7 +37,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
         object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaisesRegex(ValueError, "matrix_density"):
             await k.process(
-                las_file=LASFile(well_id="W", curves=("GR",)),
+                payload=_LAS,
                 method="density",
                 matrix_density=-2.65,
                 fluid_density=1.0,
@@ -40,7 +48,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
         object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaisesRegex(ValueError, "fluid_density"):
             await k.process(
-                las_file=LASFile(well_id="W", curves=("GR",)),
+                payload=_LAS,
                 method="density",
                 matrix_density=1.0,
                 fluid_density=2.65,
@@ -53,11 +61,11 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             las = LasFileIngester(
                 file_path="/x",
                 well_id="W",
-                curves=("GR",),
+                curves=("GR", "RHOB"),
                 _config=KnotConfig(id="i"),
             )
             PorosityCalculator(
-                las_file=las,
+                payload=las,
                 method="density",
                 matrix_density=2.65,
                 fluid_density=1.0,
@@ -65,5 +73,5 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         out = result.outputs["p"]
-        assert isinstance(out, LASFile)
-        assert "PHI_density" in out.curves
+        assert isinstance(out, LASPayload)
+        assert "PHI_density" in out.curve_data

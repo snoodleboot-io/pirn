@@ -82,7 +82,7 @@ class MedianFilter(Knot):
 
         filtered = await asyncio.to_thread(_apply_median_filter, signal.data, kernel_size)
         return SignalPayload(
-            frame=SignalFrame(
+            metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:median",
                 channel_count=signal.frame.channel_count,
                 sample_rate_hz=signal.frame.sample_rate_hz,

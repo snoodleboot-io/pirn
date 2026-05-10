@@ -22,7 +22,7 @@ async def emit_sine_payload_eemd() -> SignalPayload:
     t = np.linspace(0, 1, 1024)
     data = np.sin(2 * np.pi * 5 * t) + 0.5 * np.sin(2 * np.pi * 20 * t)
     frame = SignalFrame(signal_id="test", channel_count=1, sample_rate_hz=1024.0, samples_per_channel=1024)
-    return SignalPayload(frame=frame, data=data)
+    return SignalPayload(metadata=frame, data=data)
 
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):

@@ -94,7 +94,7 @@ class NMFDecomposer(Knot):
             raise ValueError("NMFDecomposer: max_iterations must be a positive integer")
         components = await asyncio.to_thread(_run_nmf, signal.data, component_count, max_iterations)
         return SourcePayload(
-            frame=SourceFrame(
+            metadata=SourceFrame(
                 signal_id=f"{signal.frame.signal_id}:nmf",
                 source_count=component_count,
                 mixing_matrix_shape=(signal.frame.channel_count, component_count),

@@ -15,7 +15,7 @@ from pirn.domains.health.types.signal_payload import SignalPayload
 
 _CFG = KnotConfig(id="e")
 _EPOCH = SignalPayload(
-    frame=SignalFrame(signal_id="ep0", channel_count=2, sample_rate_hz=256.0, samples_per_channel=512),
+    metadata=SignalFrame(signal_id="ep0", channel_count=2, sample_rate_hz=256.0, samples_per_channel=512),
     data=np.random.default_rng(0).standard_normal((2, 512)),
 )
 _KNOT = EvokedResponseAverager(epochs=[_EPOCH], condition="target", _config=_CFG)

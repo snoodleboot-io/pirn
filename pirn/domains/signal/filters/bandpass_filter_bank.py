@@ -113,7 +113,7 @@ class BandpassFilterBank(Knot):
         )
         stacked = np.stack(band_outputs, axis=0)
         return SignalPayload(
-            frame=SignalFrame(
+            metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:bp-bank",
                 channel_count=signal.frame.channel_count,
                 sample_rate_hz=signal.frame.sample_rate_hz,

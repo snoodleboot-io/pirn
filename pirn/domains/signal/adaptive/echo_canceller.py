@@ -115,7 +115,7 @@ class EchoCanceller(Knot):
         result = await asyncio.to_thread(_lms_echo, mic_data, far_data, filter_length, step_size)
 
         return SignalPayload(
-            frame=SignalFrame(
+            metadata=SignalFrame(
                 signal_id=f"{microphone.frame.signal_id}:echo_cancelled",
                 channel_count=1,
                 sample_rate_hz=microphone.frame.sample_rate_hz,

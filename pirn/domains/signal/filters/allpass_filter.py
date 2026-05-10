@@ -82,7 +82,7 @@ class AllpassFilter(Knot):
         a = np.array([1.0, a_coeff])
         filtered = await asyncio.to_thread(ss.lfilter, b, a, signal.data, axis=-1)
         return SignalPayload(
-            frame=SignalFrame(
+            metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:allpass",
                 channel_count=signal.frame.channel_count,
                 sample_rate_hz=signal.frame.sample_rate_hz,

@@ -99,7 +99,7 @@ class SpectrogramRenderer(Knot):
         )
 
         return SpectrumPayload(
-            frame=SpectrumFrame(
+            metadata=SpectrumFrame(
                 signal_id=signal.frame.signal_id,
                 frequency_bins=freq_bins,
                 frequency_resolution_hz=freq_res,

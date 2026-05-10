@@ -80,7 +80,7 @@ class PeriodogramEstimator(Knot):
         freq_bins = len(freqs)
 
         return SpectrumPayload(
-            frame=SpectrumFrame(
+            metadata=SpectrumFrame(
                 signal_id=signal.frame.signal_id,
                 frequency_bins=freq_bins,
                 frequency_resolution_hz=float(freqs[1]) if freq_bins > 1 else 0.0,

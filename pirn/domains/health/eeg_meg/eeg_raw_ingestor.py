@@ -47,7 +47,7 @@ def _load_eeg(
         samples_per_channel=n_samples,
         fetched_at=datetime.now(UTC),
     )
-    return SignalPayload(frame=frame, data=data)
+    return SignalPayload(metadata=frame, data=data)
 
 
 class EEGRawIngestor(Knot):

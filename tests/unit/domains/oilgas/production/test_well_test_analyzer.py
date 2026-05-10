@@ -4,11 +4,17 @@ from __future__ import annotations
 
 import unittest
 
+import numpy as np
+
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.oilgas.production.well_test_analyzer import WellTestAnalyzer
+from pirn.domains.oilgas.types.scada_payload import ScadaPayload
 from pirn.domains.oilgas.types.scada_time_series import ScadaTimeSeries
 
-_SERIES = ScadaTimeSeries(sensor_id="p")
+_SERIES = ScadaPayload(
+    metadata=ScadaTimeSeries(sensor_id="p", sample_count=10, sample_interval_sec=3600.0),
+    data=np.linspace(3000.0, 3100.0, 10),
+)
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

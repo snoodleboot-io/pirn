@@ -18,7 +18,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.types.scada_time_series import ScadaTimeSeries
+from pirn.domains.oilgas.types.scada_payload import ScadaPayload
 
 
 class ProductionTestValidator(Knot):
@@ -45,23 +45,23 @@ class ProductionTestValidator(Knot):
 
     async def process(
         self,
-        series: ScadaTimeSeries,
+        series: ScadaPayload,
         max_oil_rate_bopd: float,
         max_gas_rate_mscfd: float,
         max_water_rate_bwpd: float,
         **_: Any,
-    ) -> ScadaTimeSeries:
+    ) -> ScadaPayload:
         """Validate the production-test series against the oil, gas, and water rate bounds and return it.
 
         Args:
-            series: ScadaTimeSeries containing multi-rate production test data
+            series: ScadaPayload containing multi-rate production test data
                 to validate against the configured rate bounds.
             max_oil_rate_bopd: Positive maximum allowable oil rate in BOPD.
             max_gas_rate_mscfd: Positive maximum allowable gas rate in MSCFD.
             max_water_rate_bwpd: Positive maximum allowable water rate in BWPD.
 
         Returns:
-            The input ScadaTimeSeries, passed through after validation.
+            The input ScadaPayload, passed through after validation.
         """
         for label, value in (
             ("max_oil_rate_bopd", max_oil_rate_bopd),

@@ -97,4 +97,4 @@ class CWTDecomposer(Knot):
             wavelet_name=wavelet_name,
             scale_count=len(coeff_arrays),
         )
-        return WaveletPayload(frame=frame, data=coeff_arrays)
+        return WaveletPayload(metadata=frame, data=coeff_arrays)

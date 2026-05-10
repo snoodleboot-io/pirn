@@ -24,7 +24,7 @@ def _make_signal_payload(samples: int = 1024) -> SignalPayload:
         sample_rate_hz=1000.0,
         samples_per_channel=samples,
     )
-    return SignalPayload(frame=frame, data=np.zeros(samples))
+    return SignalPayload(metadata=frame, data=np.zeros(samples))
 
 
 class TestBartlettPSDEstimator(unittest.IsolatedAsyncioTestCase):

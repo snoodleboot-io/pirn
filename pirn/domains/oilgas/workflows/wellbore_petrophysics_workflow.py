@@ -124,39 +124,39 @@ class WellborePetrophysicsWorkflow(SubTapestry):
                 _config=KnotConfig(id="ingest"),
             )
             validated = LasCurveValidator(
-                las_file=ingest,
+                payload=ingest,
                 required_curves=required_tuple,
                 _config=KnotConfig(id="validate"),
             )
             normalised = LogNormalizer(
-                las_file=validated,
+                payload=validated,
                 target_depth_step=target_depth_step,
                 _config=KnotConfig(id="normalise"),
             )
             evaluated = PetrophysicalEvaluator(
-                las_file=normalised,
+                payload=normalised,
                 _config=KnotConfig(id="evaluate"),
             )
             with_porosity = PorosityCalculator(
-                las_file=evaluated,
+                payload=evaluated,
                 method="density_neutron",
                 matrix_density=matrix_density,
                 fluid_density=fluid_density,
                 _config=KnotConfig(id="porosity"),
             )
             with_perm = PermeabilityEstimator(
-                las_file=with_porosity,
+                payload=with_porosity,
                 method="timur",
                 _config=KnotConfig(id="permeability"),
             )
             with_sw = WaterSaturationCalculator(
-                las_file=with_perm,
+                payload=with_perm,
                 method="archie",
                 rw=rw,
                 _config=KnotConfig(id="water_saturation"),
             )
             LithologyClassifier(
-                las_file=with_sw,
+                payload=with_sw,
                 method="rule_based",
                 _config=KnotConfig(id="lithology"),
             )

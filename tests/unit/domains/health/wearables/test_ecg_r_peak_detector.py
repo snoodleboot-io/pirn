@@ -16,7 +16,7 @@ from pirn.domains.health.wearables.ecg_r_peak_detector import (
 from pirn.tapestry import Tapestry
 
 _ECG_SIGNAL = SignalPayload(
-    frame=SignalFrame(signal_id="ecg", channel_count=1, sample_rate_hz=360.0, samples_per_channel=1024),
+    metadata=SignalFrame(signal_id="ecg", channel_count=1, sample_rate_hz=360.0, samples_per_channel=1024),
     data=np.random.default_rng(0).standard_normal((1, 1024)),
 )
 

@@ -101,7 +101,7 @@ class ChirpletDecomposer(Knot):
         )
 
         return SpectrumPayload(
-            frame=SpectrumFrame(
+            metadata=SpectrumFrame(
                 signal_id=signal.frame.signal_id,
                 frequency_bins=chirplet_count,
                 frequency_resolution_hz=0.0,

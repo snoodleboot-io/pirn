@@ -128,7 +128,7 @@ class AudioAugmentationPipeline(Knot):
         sr = int(signal.frame.sample_rate_hz)
         result = await asyncio.to_thread(_apply_augmentations, signal.data, sr, augmentations, seed)
         return SignalPayload(
-            frame=SignalFrame(
+            metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:augmented",
                 channel_count=signal.frame.channel_count,
                 sample_rate_hz=signal.frame.sample_rate_hz,

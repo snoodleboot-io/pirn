@@ -23,7 +23,7 @@ async def emit_wavelet_payload() -> WaveletPayload:
     data = np.zeros(1024)
     coeffs = list(pywt.wavedec(data, "db4", level=4, axis=-1))
     frame = WaveletFrame(signal_id="wt", wavelet_name="db4", scale_count=len(coeffs))
-    return WaveletPayload(frame=frame, data=coeffs)
+    return WaveletPayload(metadata=frame, data=coeffs)
 
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):

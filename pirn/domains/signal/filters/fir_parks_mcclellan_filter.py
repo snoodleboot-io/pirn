@@ -95,7 +95,7 @@ class FIRParksMcClellanFilter(Knot):
         h = await asyncio.to_thread(ss.remez, num_taps, list(bands), list(desired), fs=fs)
         filtered = await asyncio.to_thread(ss.lfilter, h, np.array([1.0]), signal.data, axis=-1)
         return SignalPayload(
-            frame=SignalFrame(
+            metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:fir-pm",
                 channel_count=signal.frame.channel_count,
                 sample_rate_hz=signal.frame.sample_rate_hz,

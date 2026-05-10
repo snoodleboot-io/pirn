@@ -18,10 +18,35 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+
+try:
+    import ants
+
+    _HAS_ANTS: bool = True
+except ImportError:
+    ants = None  # type: ignore[assignment]
+    _HAS_ANTS = False
+
+
+def _register(moving_path: str, fixed_path: str, transform: str, output_path: str) -> None:
+    if not _HAS_ANTS or ants is None:
+        raise ImportError(
+            "antspyx is required for ImageRegistrar — install with: pip install 'pirn[mri]'"
+        )
+    _transform_map = {"rigid": "Rigid", "affine": "Affine", "syn": "SyN"}
+    fixed = ants.image_read(fixed_path)
+    moving = ants.image_read(moving_path)
+    result = ants.registration(
+        fixed=fixed,
+        moving=moving,
+        type_of_transform=_transform_map[transform],
+    )
+    ants.image_write(result["warpedmovout"], output_path)
 
 
 class ImageRegistrar(Knot):
@@ -77,4 +102,7 @@ class ImageRegistrar(Knot):
                 raise ValueError(f"ImageRegistrar: {label} must be a non-empty string")
         if transform not in ("rigid", "affine", "syn"):
             raise ValueError("ImageRegistrar: transform must be one of rigid/affine/syn")
+        await asyncio.to_thread(
+            _register, moving_path, fixed_path, transform, output_registered_path
+        )
         return output_registered_path

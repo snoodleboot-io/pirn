@@ -4,13 +4,17 @@ from __future__ import annotations
 
 import unittest
 
+import numpy as np
+
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.production.water_injection_tracker import (
-    WaterInjectionTracker,
-)
+from pirn.domains.oilgas.production.water_injection_tracker import WaterInjectionTracker
+from pirn.domains.oilgas.types.scada_payload import ScadaPayload
 from pirn.domains.oilgas.types.scada_time_series import ScadaTimeSeries
 
-_SERIES = ScadaTimeSeries(sensor_id="inj", sample_interval_sec=60.0)
+_SERIES = ScadaPayload(
+    metadata=ScadaTimeSeries(sensor_id="inj", sample_count=10, sample_interval_sec=60.0),
+    data=np.full(10, 100.0),
+)
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
@@ -23,5 +27,5 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_cumulative_series(self) -> None:
         knot = self._make_knot()
         out = await knot.process(injection_rate=_SERIES)
-        assert isinstance(out, ScadaTimeSeries)
-        assert "cumulative_inj" in out.sensor_id
+        assert isinstance(out, ScadaPayload)
+        assert "cumulative_inj" in out.series.sensor_id

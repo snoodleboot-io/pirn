@@ -4,12 +4,21 @@ from __future__ import annotations
 
 import unittest
 
+import numpy as np
+
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.oilgas.production.water_cut_tracker import WaterCutTracker
+from pirn.domains.oilgas.types.scada_payload import ScadaPayload
 from pirn.domains.oilgas.types.scada_time_series import ScadaTimeSeries
 
-_OIL = ScadaTimeSeries(sensor_id="oil", sample_interval_sec=60.0)
-_WATER = ScadaTimeSeries(sensor_id="water", sample_interval_sec=60.0)
+_OIL = ScadaPayload(
+    metadata=ScadaTimeSeries(sensor_id="oil", sample_count=10, sample_interval_sec=60.0),
+    data=np.full(10, 500.0),
+)
+_WATER = ScadaPayload(
+    metadata=ScadaTimeSeries(sensor_id="water", sample_count=10, sample_interval_sec=60.0),
+    data=np.full(10, 200.0),
+)
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
@@ -23,5 +32,5 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_water_cut_series(self) -> None:
         knot = self._make_knot()
         out = await knot.process(oil_rate=_OIL, water_rate=_WATER)
-        assert isinstance(out, ScadaTimeSeries)
-        assert out.sensor_id == "watercut:oil:water"
+        assert isinstance(out, ScadaPayload)
+        assert out.series.sensor_id == "watercut:oil:water"

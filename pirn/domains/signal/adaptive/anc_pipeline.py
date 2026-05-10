@@ -113,7 +113,7 @@ class ANCPipeline(Knot):
         result = await asyncio.to_thread(_lms_anc, ref_data, err_data, filter_length, step_size)
 
         return SignalPayload(
-            frame=SignalFrame(
+            metadata=SignalFrame(
                 signal_id=f"{reference.frame.signal_id}:anc",
                 channel_count=1,
                 sample_rate_hz=reference.frame.sample_rate_hz,

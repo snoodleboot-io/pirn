@@ -6,10 +6,8 @@ import unittest
 from datetime import UTC, datetime
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.production.scada_historian_ingester import (
-    ScadaHistorianIngester,
-)
-from pirn.domains.oilgas.types.scada_time_series import ScadaTimeSeries
+from pirn.domains.oilgas.production.scada_historian_ingester import ScadaHistorianIngester
+from pirn.domains.oilgas.types.scada_payload import ScadaPayload
 from tests.unit.domains.oilgas.conftest import StubHistorianConnection
 
 _SINCE = datetime(2026, 1, 1, tzinfo=UTC)
@@ -74,6 +72,6 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             since=_SINCE,
             sample_interval_sec=60.0,
         )
-        assert isinstance(out, ScadaTimeSeries)
-        assert out.sensor_id == "P:WELL1.OILRATE"
-        assert out.sample_interval_sec == 60.0
+        assert isinstance(out, ScadaPayload)
+        assert out.series.sensor_id == "P:WELL1.OILRATE"
+        assert out.series.sample_interval_sec == 60.0

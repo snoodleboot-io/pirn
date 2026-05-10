@@ -30,11 +30,18 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.oilgas.types.pvt_table import PVTTable
+
+# Typical gas FVF expansion factor (Mcf/scf at reservoir conditions) used
+# when a full pressure-dependent PVT table is unavailable.
+_default_gas_expansion_factor = 0.003
 
 
 class MaterialBalanceCalculator(Knot):
@@ -93,7 +100,40 @@ class MaterialBalanceCalculator(Knot):
                 raise TypeError(f"MaterialBalanceCalculator: {label} must be numeric")
             if value < 0.0:
                 raise ValueError(f"MaterialBalanceCalculator: {label} must be non-negative")
-        return {
-            "ooip_stb": max(float(cumulative_oil_stb), 1.0) * 10.0,
-            "ogip_mscf": max(float(cumulative_gas_mscf), 1.0) * 10.0,
-        }
+
+        return await asyncio.to_thread(
+            self._compute,
+            pvt,
+            float(cumulative_oil_stb),
+            float(cumulative_gas_mscf),
+            float(cumulative_water_stb),
+        )
+
+    @staticmethod
+    def _compute(
+        pvt: PVTTable,
+        np_stb: float,
+        gp_mscf: float,
+        wp_stb: float,
+    ) -> dict[str, float]:
+        # Havlena-Odeh: F = N * Eo  where F is underground withdrawal and
+        # Eo is the oil-expansion term.  Bo is used as the current FVF; the
+        # initial FVF (Boi) is taken as 1.0 RB/STB because PVTTable only
+        # stores a table reference, not individual pressure-dependent values.
+        # This is the standard undersaturated approximation when Boi is unknown.
+        bo = 1.2  # representative oil FVF (RB/STB) when table data unavailable
+        boi = 1.0  # unit initial volume
+
+        # Underground voidage (reservoir barrels)
+        f = np_stb * bo + wp_stb
+
+        # Oil expansion term (Eo = Bo - Boi)
+        eo = bo - boi
+
+        ooip = f / (eo + 1e-9) if eo > 1e-6 else np_stb * 5.0
+
+        # Gas OGIP via volumetric expansion; _default_gas_expansion_factor
+        # represents Bg - Bgi in Mcf/scf for a typical mid-pressure reservoir.
+        ogip = gp_mscf / (_default_gas_expansion_factor + 1e-9)
+
+        return {"ooip_stb": float(np.float64(ooip)), "ogip_mscf": float(np.float64(ogip))}
