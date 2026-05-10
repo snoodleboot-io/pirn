@@ -43,7 +43,6 @@ from pydantic import TypeAdapter, ValidationError
 from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.ok import Ok
-from pirn.core.optional import Optional
 from pirn.core.result import Result
 from pirn.managers.exception_record import ExceptionRecord
 from pirn.nodes.map_markers import DictMap, Map, MapTypeError, ZipMap
@@ -363,11 +362,6 @@ class Knot:
     def input_names(self) -> tuple[str, ...]:
         """Names declared on process(), in declaration order."""
         return tuple(self._mutable_input_adapters.keys())
-
-    @property
-    def is_optional(self) -> bool:
-        """True if this knot is wrapped in an ``Optional`` node."""
-        return isinstance(self, Optional)
 
     # ------------------------------------------------------------- user-impl
 

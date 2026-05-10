@@ -158,24 +158,26 @@ async def double(x: int) -> int:
         assert isinstance(double.knot_class, type)
     
     
-# ------------------------------------------------------- Optional mixin
+# ------------------------------------------------------- Optional wrapper
 
 
-    def test_optional_mixin_marks_class(self):
-        class Opt(Optional, Knot):
-            async def process(self, x: int, **_: Any) -> int:
-                return x
-    
+    def test_optional_wrapper_is_optional(self):
+        from pirn.core.knot_factory import knot as knot_decorator
+
+        @knot_decorator
+        async def inner(x: int) -> int:
+            return x
+
         p = Parameter("x", int, _config=KnotConfig(id="x"))
-        o = Opt(x=p, _config=KnotConfig(id="opt"))
-        assert o.is_optional is True
-    
-    
+        i = inner(x=p, _config=KnotConfig(id="inner"))
+        o = Optional(knot=i, _config=KnotConfig(id="opt"))
+        assert isinstance(o, Optional)
+
     def test_regular_knot_is_not_optional(self):
         p = Parameter("x", int, _config=KnotConfig(id="x"))
         q = Parameter("y", int, _config=KnotConfig(id="y"))
         a = Add(a=p, b=q, _config=KnotConfig(id="a"))
-        assert a.is_optional is False
+        assert not isinstance(a, Optional)
     
     
 # ------------------------------------------------------- immutability
