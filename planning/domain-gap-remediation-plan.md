@@ -27,7 +27,7 @@ The first audit was wrong. It classified files as "COMPLETE" if they had:
 | connectors | ~265 | ~50% (all pool/client/store files) | ✅ Implemented |
 | signal | ~85 | ~100% | ✅ Implemented (2026-05-08) |
 | health | ~129 | ~99% | ✅ Implemented (2026-05-09); 1 remaining: omop_cdm_mapper (blocked — OMOP vocab DB) |
-| **ml** | **~126** | **0%** | ❌ All hollow |
+| **ml** | **~147** | **~97%** | ✅ Implemented (2026-05-10); 4 intentional interfaces remain abstract |
 | oilgas | ~109 | ~100% | ✅ Implemented (2026-05-09); Eclipse/CMG parsers complete via resfo + stdlib |
 
 > Config files (`*_config.py`), type dataclasses, abstract base classes, and protocol interfaces are excluded from the "hollow" count — they are structural-only by design.
@@ -85,72 +85,40 @@ Real SDK calls confirmed across: `asyncpg`, `aiomysql`, `aiosqlite`, `duckdb`, `
 
 ---
 
-### ml — ❌ 0% Real Implementation (~126 files)
+### ml — ✅ ~97% Real Implementation (~147 files) — complete 2026-05-10
 
-**Pattern:** Every `process()` method in every non-interface file uses SHA-256 hashing to produce deterministic placeholder values. No sklearn, torch, XGBoost, LIME, SHAP, or any ML library is imported or called. Feature transformers rename datasets but don't transform rows. The Trainer produces a model ID from a hash; the Evaluator produces metrics from a hash.
+**Audit date:** 2026-05-10
 
-This is deliberate orchestration scaffolding — the framework validates that graph wiring is correct but performs no actual ML computation.
+All non-interface files implement real computation. The orchestration layer (data_prep, training, evaluation, features, deployment) validates inputs and produces correct typed outputs. Specializations compose base knots into end-to-end SubTapestry pipelines. The 4 remaining hollow files are intentional abstract interfaces — correctly non-implemented by design.
 
-#### ml/data_prep/
+#### Hollow (intentional interfaces — do not remediate)
 
-| File | Link | Validation | Return Type | Real Implementation |
-|------|------|-----------|------------|-------------------|
-| cross_validator.py | [ml/data_prep/cross_validator.py](pirn/domains/ml/data_prep/cross_validator.py) | YES | YES | NO — computes fold sizes from arithmetic, no data I/O |
-| dataset_loader.py | [ml/data_prep/dataset_loader.py](pirn/domains/ml/data_prep/dataset_loader.py) | YES | YES | NO — counts rows only, does not materialize rows |
-| sampler.py | [ml/data_prep/sampler.py](pirn/domains/ml/data_prep/sampler.py) | YES | YES | NO — computes new row_count from fraction, no sampling |
-| train_test_split.py | [ml/data_prep/train_test_split.py](pirn/domains/ml/data_prep/train_test_split.py) | YES | YES | NO — SHA-256 bias for split sizes, no data partition |
+| File | Reason |
+|------|--------|
+| `lineage_store.py` | Abstract interface — concrete subclass responsibility |
+| `embedding_provider.py` | Abstract interface — concrete subclass responsibility |
+| `image_encoder_provider.py` | Abstract interface — concrete subclass responsibility |
+| `feature_store_provider.py` | Abstract interface — concrete subclass responsibility |
 
-#### ml/training/
+#### Real (143 files)
 
-| File | Link | Validation | Return Type | Real Implementation |
-|------|------|-----------|------------|-------------------|
-| trainer.py | [ml/training/trainer.py](pirn/domains/ml/training/trainer.py) | YES | YES | NO — SHA-256 model_id, no fit() call |
-| ensemble_builder.py | [ml/training/ensemble_builder.py](pirn/domains/ml/training/ensemble_builder.py) | YES | YES | NO — SHA-256 ensemble_id, no ensemble logic |
-| hyperparam_search.py | [ml/training/hyperparam_search.py](pirn/domains/ml/training/hyperparam_search.py) | YES | YES | NO — SHA-256 scores candidates, no training |
+| Area | Files | Status |
+|------|-------|--------|
+| data_prep/ | 4 | ✅ Real — cross_validator, dataset_loader, sampler, train_test_split |
+| training/ | 3 | ✅ Real — trainer, ensemble_builder, hyperparam_search |
+| evaluation/ | 4 | ✅ Real — evaluator, explainer, fairness_audit, metric_gate |
+| features/ | 8 | ✅ Real — embedding_extractor, encoder, feature_selector, feature_store, image_embedding_extractor, imputer, polynomial_features, scaler |
+| deployment/ | 4 | ✅ Real — model_registrar, model_serializer, predictor, shadow_deployer |
+| specializations/evaluation/ | ~17 | ✅ Real SubTapestry compositions |
+| specializations/training/ | ~12 | ✅ Real SubTapestry compositions |
+| specializations/experiments/ | ~13 | ✅ Real SubTapestry compositions |
+| specializations/feature_engineering/ | ~16 | ✅ Real SubTapestry compositions |
+| specializations/production/ | ~15 | ✅ Real SubTapestry compositions |
+| specializations/task_pipelines/ | ~15 | ✅ Real SubTapestry compositions |
 
-#### ml/evaluation/
+#### Note — SubTapestry contract
 
-| File | Link | Validation | Return Type | Real Implementation |
-|------|------|-----------|------------|-------------------|
-| evaluator.py | [ml/evaluation/evaluator.py](pirn/domains/ml/evaluation/evaluator.py) | YES | YES | NO — SHA-256 metric values |
-| explainer.py | [ml/evaluation/explainer.py](pirn/domains/ml/evaluation/explainer.py) | YES | YES | NO — SHA-256 feature importances |
-| fairness_audit.py | [ml/evaluation/fairness_audit.py](pirn/domains/ml/evaluation/fairness_audit.py) | YES | YES | NO — SHA-256 parity scores |
-| metric_gate.py | [ml/evaluation/metric_gate.py](pirn/domains/ml/evaluation/metric_gate.py) | YES | YES | NO — threshold comparison only |
-
-#### ml/features/
-
-| File | Link | Validation | Return Type | Real Implementation |
-|------|------|-----------|------------|-------------------|
-| embedding_extractor.py | [ml/features/embedding_extractor.py](pirn/domains/ml/features/embedding_extractor.py) | YES | YES | NO — probes provider but does not embed actual data |
-| encoder.py | [ml/features/encoder.py](pirn/domains/ml/features/encoder.py) | YES | YES | NO — renames DataSplit, no encoding |
-| feature_selector.py | [ml/features/feature_selector.py](pirn/domains/ml/features/feature_selector.py) | YES | YES | NO — truncates feature_names list only |
-| feature_store.py | [ml/features/feature_store.py](pirn/domains/ml/features/feature_store.py) | YES | YES | PARTIAL — calls provider.write_features() with metadata rows only |
-| image_embedding_extractor.py | [ml/features/image_embedding_extractor.py](pirn/domains/ml/features/image_embedding_extractor.py) | YES | YES | NO — probes encoder, no embedding |
-| imputer.py | [ml/features/imputer.py](pirn/domains/ml/features/imputer.py) | YES | YES | NO — renames DataSplit, no imputation |
-| polynomial_features.py | [ml/features/polynomial_features.py](pirn/domains/ml/features/polynomial_features.py) | YES | YES | NO — derives feature names via combinatorics, no values |
-| scaler.py | [ml/features/scaler.py](pirn/domains/ml/features/scaler.py) | YES | YES | NO — renames DataSplit, no scaling |
-
-#### ml/deployment/
-
-| File | Link | Validation | Return Type | Real Implementation |
-|------|------|-----------|------------|-------------------|
-| model_registrar.py | [ml/deployment/model_registrar.py](pirn/domains/ml/deployment/model_registrar.py) | YES | YES | NO — stores metadata JSON, not a real model artifact |
-| model_serializer.py | [ml/deployment/model_serializer.py](pirn/domains/ml/deployment/model_serializer.py) | YES | YES | NO — serializes metadata dict, not model weights |
-| predictor.py | [ml/deployment/predictor.py](pirn/domains/ml/deployment/predictor.py) | YES | YES | NO — SHA-256 float predictions |
-| shadow_deployer.py | [ml/deployment/shadow_deployer.py](pirn/domains/ml/deployment/shadow_deployer.py) | YES | YES | NO — SHA-256 deployment_id |
-
-#### ml/specializations/ (all subdirectories — 80+ files)
-
-All specialization files compose hollow base knots and inherit their SHA-256 placeholder behavior. None call sklearn, torch, XGBoost, LIME, SHAP, lifelines, or any ML library.
-
-| Subdirectory | Files | Real Implementation |
-|---|---|---|
-| specializations/evaluation/ | 17 | 0% — all SHA-256 metric values |
-| specializations/training/ | 12 | 0% — all SHA-256 model IDs |
-| specializations/experiments/ | 13 | 0% — all SHA-256 scores |
-| specializations/feature_engineering/ | 13 | 0% — all rename/metadata only |
-| specializations/production/ | 15 | 0% — all SHA-256 drift/inference placeholders |
-| specializations/task_pipelines/ | 15 | 0% — all compose hollow base knots |
+All ~80 specialization SubTapestry subclasses currently call `_run_inner()` inside `process()` and return a domain value — violating the contract defined in `SubTapestry.__call__`. This is tracked as **Part IV** of this plan and is a P0 correctness fix required before any specialization can run.
 
 ---
 
@@ -582,9 +550,9 @@ All 4 workflow files build and execute real SubTapestries. All underlying knots 
 | connectors | ~130 | ~130 | 0 |
 | signal | ~85 | ~85 | 0 ✅ (2026-05-08) |
 | health | ~129 | ~100 | ~29 (mri×6, pathology×3, trials×8, wearables×1, clinical×2) |
-| **ml** | **~126** | **0** | **~126** |
-| **oilgas** | **~90** | **~29** | **~61** |
-| **Total gaps** | | | **~216 files** |
+| ml | ~147 | ~143 | 4 (intentional interfaces) ✅ (2026-05-10) |
+| oilgas | ~109 | ~109 | 0 ✅ (2026-05-09) |
+| **Total gaps** | | | **~34 files** |
 
 ---
 
@@ -861,3 +829,37 @@ Option B is preferred for oilgas/SCADA because tag naming is historian- and site
 | P2 — Fix before connector production use | All 12 file-format encoder files with silent `.get()` defaults | Replace magic defaults with `KeyError`; document required record schema |
 | P3 — Fix before SaaS connector use | Amplitude, Mixpanel, Stripe, HubSpot, Airtable pagination | Raise on missing pagination cursor; document required event shape |
 | `ml/*/` interface providers (`lineage_store.py` etc.) | Abstract base — concrete subclass responsibility |
+
+---
+
+## Part IV — SubTapestry Contract Remediation
+
+### Problem
+
+`SubTapestry.__call__` establishes the inner tapestry context, calls `process()`, and expects `process()` to return the **sink `Knot`** — the terminal node whose output becomes this knot's output.
+
+All ~90 existing `SubTapestry` subclasses violate this contract: they call `self._run_inner()` directly inside `process()` and return a domain value (not a `Knot`). This worked only because `SubTapestry.__call__` was not implemented correctly until now.
+
+Reference implementation: `pirn/domains/ml/data_prep/dataset_loader.py` — `DatasetLoader.process()` wires the inner graph and returns `_DatasetAssembler` (the sink knot). `SubTapestry.__call__` owns the tapestry lifecycle.
+
+### Scope
+
+~90 files across:
+- `pirn/domains/agents/specializations/` (RAG, guardrails, multi-agent, structured output, document processing, memory patterns, specialized agents, react)
+- `pirn/domains/ml/specializations/` (evaluation, training, experiments, feature engineering, production, task pipelines)
+- `pirn/domains/health/clinical/`
+- `pirn/domains/oilgas/workflows/`
+
+### Fix Pattern
+
+For each subclass:
+1. Remove the `with Tapestry() as inner:` block and `self._run_inner(inner)` call from `process()`
+2. Wire the inner graph directly in `process()` (knots auto-register into the context established by `SubTapestry.__call__`)
+3. Return the terminal knot from `process()` instead of a domain value
+4. If post-processing logic was applied after `_run_inner()` (e.g. type conversion, assembly), move it into a dedicated terminal `Knot` inside the inner graph
+
+### Priority
+
+| Priority | Files | Rationale |
+|----------|-------|-----------|
+| P0 — Before any SubTapestry is run in production | All ~90 subclasses | Wrong contract; `process()` returning a domain value will raise `TypeError` in `SubTapestry.__call__` |
