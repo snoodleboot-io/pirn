@@ -3,7 +3,9 @@
 Tries all configured sources concurrently inside an inner tapestry.  Each
 source is wrapped with :class:`Optional` so a missing or failing source
 produces ``Skipped`` rather than an error.  An :class:`Aggregator` picks
-whichever source succeeded; exactly one must produce a result.
+whichever source succeeded; exactly one must produce a result.  A
+:class:`_DatasetAssembler` knot converts the raw :class:`DataBatch` into
+a typed :class:`DatasetPayload` as the terminal step of the inner graph.
 
 Because ``Optional`` intercepts both construction failures (e.g. ``store=None``
 rejected by ``FileSource``) and runtime failures (e.g. file not found), the
@@ -50,7 +52,67 @@ from pirn.domains.ml.types.dataset_payload import DatasetPayload
 from pirn.domains.ml.types.ml_features import MLFeatures
 from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
+
+
+class _DatasetAssembler(Knot):
+    """Convert a raw :class:`DataBatch` into a typed :class:`DatasetPayload`.
+
+    Terminal knot of the :class:`DatasetLoader` inner tapestry.  Extracts
+    the feature matrix ``X`` and optional target vector ``y`` from the batch
+    rows using the declared column names.
+    """
+
+    async def process(
+        self,
+        batch: DataBatch,
+        name: str,
+        feature_names: Sequence[str],
+        target_name: str | None = None,
+        **_: Any,
+    ) -> DatasetPayload:
+        if not name:
+            raise ValueError("DatasetLoader: name must be a non-empty string")
+        if not feature_names:
+            raise ValueError("DatasetLoader: feature_names must be non-empty")
+
+        rows = batch.rows
+        if not rows:
+            x = np.empty((0, len(feature_names)), dtype=float)
+            y: np.ndarray | None = np.empty(0, dtype=float) if target_name else None
+        else:
+            try:
+                x = np.array(
+                    [[row[col] for col in feature_names] for row in rows],
+                    dtype=float,
+                )
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ValueError(
+                    f"DatasetLoader: could not extract features from batch: {exc}"
+                ) from exc
+            y = None
+            if target_name:
+                try:
+                    y = np.array(
+                        [float(row[target_name]) for row in rows],
+                        dtype=float,
+                    )
+                except (KeyError, TypeError, ValueError) as exc:
+                    raise ValueError(
+                        f"DatasetLoader: could not extract target '{target_name}': {exc}"
+                    ) from exc
+
+        manifest = DatasetManifest(
+            name=name,
+            feature_names=tuple(feature_names),
+            target_name=target_name,
+            row_count=int(x.shape[0]),
+            source_uri=batch.source_uri,
+            fetched_at=datetime.now(UTC),
+        )
+        return DatasetPayload(
+            metadata=manifest,
+            data=MLFeatures(X=x, y=y),
+        )
 
 
 class DatasetLoader(SubTapestry):
@@ -58,8 +120,8 @@ class DatasetLoader(SubTapestry):
 
     Constructs an inner tapestry with all three source knots wrapped in
     :class:`Optional`.  Whichever source is configured succeeds; the rest
-    skip.  The :class:`Aggregator` surfaces the live result and this knot
-    converts it into a :class:`DatasetPayload`.
+    skip.  The :class:`Aggregator` surfaces the live result and
+    :class:`_DatasetAssembler` converts it into a :class:`DatasetPayload`.
 
     Parameters
     ----------
@@ -118,123 +180,56 @@ class DatasetLoader(SubTapestry):
         pool: DatabaseConnectionPool | None = None,
         query: str | None = None,
         **_: Any,
-    ) -> DatasetPayload:
+    ) -> Knot:
         from pirn.domains.data.lakehouse.lakehouse_table_source import LakehouseTableSource
         from pirn.domains.data.sources.file_source import FileSource
         from pirn.domains.data.sources.sql_source import SqlSource
 
-        with Tapestry() as inner:
-            # All three sources are constructed unconditionally and wrapped in
-            # Optional.  Optional intercepts construction failures (e.g. FileSource
-            # rejecting store=None) and runtime failures alike, converting both to
-            # Ok(Skipped(...)).  The Aggregator then picks whichever source
-            # produced a real DataBatch.
-            file_src = Optional(
-                FileSource,
-                store=store,
-                format=file_format,
-                key=key,
-                _config=KnotConfig(id="src-file"),
-            )
-            lake_src = Optional(
-                LakehouseTableSource,
-                table=table,
-                _config=KnotConfig(id="src-lake"),
-            )
-            sql_src = Optional(
-                SqlSource,
-                pool=pool,
-                query=query,
-                _config=KnotConfig(id="src-sql"),
-            )
-            Aggregator(
-                combine=self._first_present,
-                file=file_src,
-                lake=lake_src,
-                sql=sql_src,
-                _config=KnotConfig(id="agg"),
-            )
-
-        result = await self._run_inner(inner)
-        batch: DataBatch = result.outputs["agg"]
-        return self._to_payload(batch, name, tuple(feature_names), target_name)
+        # All three sources are constructed unconditionally and wrapped in
+        # Optional.  Optional intercepts construction failures (e.g. FileSource
+        # rejecting store=None) and runtime failures alike, converting both to
+        # Ok(Skipped(...)).  The Aggregator then picks whichever source
+        # produced a real DataBatch.
+        file_src = Optional(
+            FileSource,
+            store=store,
+            format=file_format,
+            key=key,
+            _config=KnotConfig(id="src-file"),
+        )
+        lake_src = Optional(
+            LakehouseTableSource,
+            table=table,
+            _config=KnotConfig(id="src-lake"),
+        )
+        sql_src = Optional(
+            SqlSource,
+            pool=pool,
+            query=query,
+            _config=KnotConfig(id="src-sql"),
+        )
+        agg = Aggregator(
+            combine=self._first_present,
+            file=file_src,
+            lake=lake_src,
+            sql=sql_src,
+            _config=KnotConfig(id="agg"),
+        )
+        return _DatasetAssembler(
+            batch=agg,
+            name=name,
+            feature_names=feature_names,
+            target_name=target_name,
+            _config=KnotConfig(id="assembler"),
+        )
 
     @staticmethod
     def _first_present(**results: Any) -> Any:
-        """Return the first non-``Skipped`` value from the source results.
-
-        Called by the ``Aggregator`` after all Optional-wrapped sources have
-        run.  Raises if every source skipped — that means nothing was
-        configured or everything failed, which is a hard error.
-        """
+        """Return the first non-``Skipped`` value from the source results."""
         for v in results.values():
             if not isinstance(v, Skipped):
                 return v
         raise RuntimeError(
             "DatasetLoader: no source produced data — "
             "provide store+file_format+key, table, or pool+query"
-        )
-
-    # TODO: There is a smell about _to_payload. This approach blends extraction
-    # logic with validation logic — validation ideally belongs in Pydantic models.
-    # It is currently unclear whether this should become:
-    #   1) A dedicated Knot that handles coercion and validation as a pipeline step,
-    #   2) A validation phase inside the Pydantic model (DatasetManifest / MLFeatures),
-    #   3) Something else entirely.
-    # Revisit once the ML type system stabilises.
-    @staticmethod
-    def _to_payload(
-        batch: DataBatch,
-        name: str,
-        feature_names: tuple[str, ...],
-        target_name: str | None,
-    ) -> DatasetPayload:
-        """Convert a raw :class:`DataBatch` into a :class:`DatasetPayload`.
-
-        Extracts the feature matrix ``X`` and optional target vector ``y``
-        from the batch rows using the declared column names, then wraps
-        everything in a :class:`DatasetManifest` + :class:`MLFeatures`.
-        """
-        if not name:
-            raise ValueError("DatasetLoader: name must be a non-empty string")
-        if not feature_names:
-            raise ValueError("DatasetLoader: feature_names must be non-empty")
-
-        rows = batch.rows
-        if not rows:
-            x = np.empty((0, len(feature_names)), dtype=float)
-            y: np.ndarray | None = np.empty(0, dtype=float) if target_name else None
-        else:
-            try:
-                x = np.array(
-                    [[row[col] for col in feature_names] for row in rows],
-                    dtype=float,
-                )
-            except (KeyError, TypeError, ValueError) as exc:
-                raise ValueError(
-                    f"DatasetLoader: could not extract features from batch: {exc}"
-                ) from exc
-            y = None
-            if target_name:
-                try:
-                    y = np.array(
-                        [float(row[target_name]) for row in rows],
-                        dtype=float,
-                    )
-                except (KeyError, TypeError, ValueError) as exc:
-                    raise ValueError(
-                        f"DatasetLoader: could not extract target '{target_name}': {exc}"
-                    ) from exc
-
-        manifest = DatasetManifest(
-            name=name,
-            feature_names=feature_names,
-            target_name=target_name,
-            row_count=int(x.shape[0]),
-            source_uri=batch.source_uri,
-            fetched_at=datetime.now(UTC),
-        )
-        return DatasetPayload(
-            metadata=manifest,
-            data=MLFeatures(X=x, y=y),
         )
