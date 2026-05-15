@@ -3,6 +3,12 @@
 from __future__ import annotations
 
 import unittest
+
+try:
+    import lasio  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("lasio not installed") from _e
+
 from unittest.mock import patch
 
 import numpy as np

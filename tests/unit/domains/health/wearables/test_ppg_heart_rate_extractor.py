@@ -2,8 +2,14 @@
 
 from __future__ import annotations
 
-import math
 import unittest
+
+try:
+    import scipy  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("scipy not installed") from _e
+
+import math
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig

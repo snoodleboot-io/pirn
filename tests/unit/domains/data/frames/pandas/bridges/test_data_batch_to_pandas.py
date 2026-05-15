@@ -4,6 +4,11 @@ from __future__ import annotations
 
 import unittest
 
+try:
+    import pandas  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("pandas not installed") from _e
+
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.domains.data.data_batch import DataBatch

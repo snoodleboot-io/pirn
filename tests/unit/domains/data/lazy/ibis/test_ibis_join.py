@@ -4,6 +4,11 @@ from __future__ import annotations
 
 import unittest
 
+try:
+    import ibis  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("ibis not installed") from _e
+
 import ibis
 
 from pirn.core.knot_config import KnotConfig

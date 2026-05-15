@@ -7,8 +7,19 @@ is missing (the PyPI ``lance`` placeholder package does not provide it).
 
 from __future__ import annotations
 
-import tempfile
 import unittest
+
+try:
+    import pyarrow  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("pyarrow not installed") from _e
+
+try:
+    import lance  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("lance not installed") from _e
+
+import tempfile
 from pathlib import Path
 from typing import Any
 

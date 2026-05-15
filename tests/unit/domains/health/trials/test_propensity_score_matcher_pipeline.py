@@ -3,6 +3,12 @@
 from __future__ import annotations
 
 import unittest
+
+try:
+    import sklearn  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("sklearn not installed") from _e
+
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig

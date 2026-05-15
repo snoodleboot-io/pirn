@@ -4,6 +4,12 @@ from __future__ import annotations
 
 import io
 import unittest
+
+try:
+    import librosa  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("librosa not installed") from _e
+
 from unittest.mock import patch
 
 import numpy as np

@@ -3,6 +3,12 @@
 from __future__ import annotations
 
 import unittest
+
+try:
+    import nibabel  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("nibabel not installed") from _e
+
 from collections.abc import Mapping
 from unittest.mock import MagicMock, patch
 

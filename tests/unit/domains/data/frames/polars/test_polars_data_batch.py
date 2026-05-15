@@ -3,6 +3,11 @@
 from __future__ import annotations
 
 import unittest
+
+try:
+    import polars  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("polars not installed") from _e
 from datetime import UTC
 
 import polars as pl

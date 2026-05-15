@@ -4,6 +4,11 @@ from __future__ import annotations
 
 import unittest
 
+try:
+    import datafusion  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("datafusion not installed") from _e
+
 import datafusion as df
 import datafusion.functions as dff
 

@@ -2,8 +2,14 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
 import unittest
+
+try:
+    import starlette  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("starlette not installed") from _e
+
+from unittest.mock import MagicMock, patch
 
 from starlette.testclient import TestClient
 
