@@ -33,7 +33,7 @@ this knot's output.  ``SubTapestryError`` is raised if the inner run fails;
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pydantic import ValidationError
 
@@ -67,6 +67,11 @@ class SubTapestryError(Exception):
 class SubTapestry(Knot):
     """Base class for knots whose execution is a complete inner tapestry pipeline.
 
+    Set ``_extensible_inner_run = True`` on a subclass to run the inner tapestry
+    in extensible mode, where knots may be registered mid-run.  Override
+    ``_resolve_output_key`` to redirect the output lookup to a knot whose ID
+    differs from the sink returned by ``process()`` (e.g. a mid-run terminal).
+
     Subclass and implement ``process(**kwargs) -> Knot``.  Build the inner
     pipeline inside ``process()`` and return the terminal (sink) knot.
     The base class establishes the tapestry context, runs the graph, and
@@ -80,6 +85,18 @@ class SubTapestry(Knot):
     automatically forwarded to inner runs so they appear in the same history
     store and are reachable by the explorer's drill-down navigation.
     """
+
+    _extensible_inner_run: ClassVar[bool] = False
+
+    def _resolve_output_key(self, sink: Knot) -> str:
+        """Return the ``run_result.outputs`` key to surface as this knot's value.
+
+        The default uses the sink knot's own ID.  Override in subclasses that
+        register their true terminal mid-run (e.g. ``LoopSubTapestry``), where
+        the sink returned by ``process()`` is a proxy and the real output lands
+        under a different, well-known ID.
+        """
+        return sink.knot_id
 
     def __init__(self, **kwargs: Any) -> None:
         # Capture the outer history *before* super().__init__ freezes the object.
@@ -137,13 +154,15 @@ class SubTapestry(Knot):
                 raise TypeError(
                     f"{type(self).__name__}.process() must return a Knot; got {type(sink).__name__}"
                 )
-            if inner.get(sink.knot_id) is None:
+            # For extensible runs the true terminal is registered mid-run, so the
+            # sink returned by process() may not yet be in the inner tapestry.
+            if not self._extensible_inner_run and inner.get(sink.knot_id) is None:
                 raise ValueError(
                     f"{type(self).__name__}.process() returned a Knot not registered "
                     "in the inner tapestry — was it built outside the process() body?"
                 )
-            run_result = await self._run_inner(inner)
-            output = run_result.outputs[sink.knot_id]
+            run_result = await self._run_inner(inner, extensible=self._extensible_inner_run)
+            output = run_result.outputs[self._resolve_output_key(sink)]
         except BaseException as exc:
             return Err(record=ExceptionRecord.for_knot(config.id, exc))
 

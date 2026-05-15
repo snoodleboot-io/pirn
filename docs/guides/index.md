@@ -10,6 +10,7 @@ In-depth guides for common pirn workflows and patterns.
 | [Knot Registration](knot-registration.md) | Auto-discovery and manual registration via sweet_tea |
 | [Observability](observability.md) | Emitters, OpenTelemetry, and run introspection |
 | [SubTapestry](sub-tapestry.md) | Knots whose execution body is a complete inner pipeline |
+| [Agentic Loops](agentic-loops.md) | Iterative, feedback-driven loops with full run-history observability |
 | [Testing](testing.md) | Unit and integration testing patterns |
 | [Visualization](visualization.md) | Explorer and graph rendering |
 | [YAML Pipelines](yaml-pipelines.md) | Declarative pipeline definition and the YAML loader |

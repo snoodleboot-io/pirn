@@ -316,3 +316,11 @@ async def process(self, name: str) -> Knot:   # raises TypeError at class defini
 async def process(self, name: str, **_: Any) -> Knot:
     ...
 ```
+
+## 10. Iterative and agentic loops
+
+When the number of steps is not known ahead of time — an LLM agent refining across tool calls, a training loop that halts on convergence, a conversational session — use `LoopSubTapestry` instead of a bare `SubTapestry`.
+
+`LoopSubTapestry` is a `SubTapestry` variant that runs its inner tapestry in extensible mode, allowing each iteration to register the next as a real, traceable knot in run history.  You implement two methods — `step(state)` to plan the next iteration and `fold(state, result)` to integrate its output — and the framework drives the loop.
+
+See [agentic-loops.md](agentic-loops.md) for the full contract, a conversational LLM example, and observability details.
