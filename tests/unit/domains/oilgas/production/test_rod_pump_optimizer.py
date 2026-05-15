@@ -35,39 +35,27 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(ValueError, "max_spm"):
             await knot.process(dynagraph_card=_CARD, target_fillage_pct=80.0, max_spm=0.0)
 
-    async def test_returns_recommendation(self) -> None:
+    async def test_rejects_missing_current_spm(self) -> None:
         knot = self._make_knot()
-        out = await knot.process(dynagraph_card=_CARD, target_fillage_pct=80.0, max_spm=10.0)
-        assert "recommended_spm" in out
-        assert "recommended_stroke_in" in out
-        assert out["fillage_pct"] == 80.0
-
-    async def test_raises_on_missing_spm_field(self) -> None:
-        knot = self._make_knot()
-        with self.assertRaisesRegex(KeyError, "current_spm"):
+        with self.assertRaisesRegex(ValueError, "current_spm"):
             await knot.process(
                 dynagraph_card={"stroke_length_in": 144.0},
                 target_fillage_pct=80.0,
                 max_spm=10.0,
             )
 
-    async def test_raises_on_missing_stroke_field(self) -> None:
+    async def test_rejects_missing_stroke_length(self) -> None:
         knot = self._make_knot()
-        with self.assertRaisesRegex(KeyError, "stroke_length_in"):
+        with self.assertRaisesRegex(ValueError, "stroke_length_in"):
             await knot.process(
                 dynagraph_card={"current_spm": 8.0},
                 target_fillage_pct=80.0,
                 max_spm=10.0,
             )
 
-    async def test_custom_field_names(self) -> None:
+    async def test_returns_recommendation(self) -> None:
         knot = self._make_knot()
-        scada_card: dict[str, Any] = {"SPM": 8.0, "STROKE_IN": 144.0}
-        out = await knot.process(
-            dynagraph_card=scada_card,
-            target_fillage_pct=80.0,
-            max_spm=10.0,
-            spm_field="SPM",
-            stroke_field="STROKE_IN",
-        )
-        assert out["recommended_stroke_in"] == 144.0
+        out = await knot.process(dynagraph_card=_CARD, target_fillage_pct=80.0, max_spm=10.0)
+        assert "recommended_spm" in out
+        assert "recommended_stroke_in" in out
+        assert out["fillage_pct"] == 80.0

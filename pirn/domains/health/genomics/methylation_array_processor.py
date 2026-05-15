@@ -32,8 +32,14 @@ from pirn.core.knot_config import KnotConfig
 
 def _compute_methylation(idat_data: dict[str, Any], alpha: float = 100.0) -> dict[str, Any]:
     """Compute beta values and M values from red/green IDAT channel data."""
-    red = np.array(idat_data.get("red_channel", []), dtype=float)
-    green = np.array(idat_data.get("green_channel", []), dtype=float)
+    for required_field in ("sample_id", "red_channel", "green_channel"):
+        if required_field not in idat_data:
+            raise ValueError(
+                f"MethylationArrayProcessor: required field '{required_field}' missing from "
+                f"idat_data; got: {list(idat_data)}"
+            )
+    red = np.array(idat_data["red_channel"], dtype=float)
+    green = np.array(idat_data["green_channel"], dtype=float)
     probe_count = min(len(red), len(green))
     methylated = red[:probe_count]
     unmethylated = green[:probe_count]
@@ -44,7 +50,7 @@ def _compute_methylation(idat_data: dict[str, Any], alpha: float = 100.0) -> dic
     probe_ids = [f"cg{probe_index:08d}" for probe_index in range(probe_count)]
 
     return {
-        "sample_id": idat_data.get("sample_id", ""),
+        "sample_id": idat_data["sample_id"],
         "n_probes": probe_count,
         "beta_values": dict(zip(probe_ids, beta.tolist(), strict=False)),
         "m_values": dict(zip(probe_ids, m_val.tolist(), strict=False)),

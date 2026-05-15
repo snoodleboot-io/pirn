@@ -135,8 +135,19 @@ def _run_survival(
     group_col: str | None,
     covariates: Sequence[str],
 ) -> dict[str, Any]:
-    times = np.array([float(r.get(time_col, 0)) for r in survival_data])
-    events = np.array([float(r.get(event_col, 0)) for r in survival_data])
+    for record_index, record in enumerate(survival_data):
+        if time_col not in record:
+            raise ValueError(
+                f"SurvivalAnalysisPipeline: survival_data[{record_index}] missing required "
+                f"field '{time_col}'; got: {list(record)}"
+            )
+        if event_col not in record:
+            raise ValueError(
+                f"SurvivalAnalysisPipeline: survival_data[{record_index}] missing required "
+                f"field '{event_col}'; got: {list(record)}"
+            )
+    times = np.array([float(r[time_col]) for r in survival_data])
+    events = np.array([float(r[event_col]) for r in survival_data])
     n_events = int(events.sum())
 
     median = _km_median(times, events)

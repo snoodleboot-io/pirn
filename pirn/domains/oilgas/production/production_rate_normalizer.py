@@ -39,9 +39,6 @@ class ProductionRateNormalizer(Knot):
         measurements: Knot,
         reference_pressure_psia: Knot | float,
         reference_temp_f: Knot | float,
-        rate_field: Knot | str = "rate_bopd",
-        pressure_field: Knot | str = "wellhead_pressure_psia",
-        temp_field: Knot | str = "wellhead_temp_f",
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
@@ -49,9 +46,6 @@ class ProductionRateNormalizer(Knot):
             measurements=measurements,
             reference_pressure_psia=reference_pressure_psia,
             reference_temp_f=reference_temp_f,
-            rate_field=rate_field,
-            pressure_field=pressure_field,
-            temp_field=temp_field,
             _config=_config,
             **kwargs,
         )
@@ -61,26 +55,18 @@ class ProductionRateNormalizer(Knot):
         measurements: list[dict[str, Any]],
         reference_pressure_psia: float,
         reference_temp_f: float,
-        rate_field: str = "rate_bopd",
-        pressure_field: str = "wellhead_pressure_psia",
-        temp_field: str = "wellhead_temp_f",
         **_: Any,
     ) -> list[dict[str, Any]]:
         """Normalize each measurement's rate to reference conditions.
 
         Args:
-            measurements: List of measurement dicts from the historian.
+            measurements: List of dicts with ``rate_bopd``, ``wellhead_pressure_psia``,
+                and ``wellhead_temp_f``.
             reference_pressure_psia: Positive reference pressure in psia.
             reference_temp_f: Reference temperature in degrees Fahrenheit.
-            rate_field: Historian tag name for the production rate (bopd).
-            pressure_field: Historian tag name for wellhead pressure (psia).
-            temp_field: Historian tag name for wellhead temperature (°F).
 
         Returns:
             List of dicts with the same keys plus ``normalized_rate_bopd``.
-
-        Raises:
-            KeyError: If any measurement dict is missing a required field.
         """
         if not isinstance(reference_pressure_psia, (int, float)):
             raise TypeError("ProductionRateNormalizer: reference_pressure_psia must be numeric")
@@ -91,16 +77,22 @@ class ProductionRateNormalizer(Knot):
         ref_t_rankine = float(reference_temp_f) + 459.67
         ref_p = float(reference_pressure_psia)
         results: list[dict[str, Any]] = []
-        for i, m in enumerate(measurements):
-            for field in (rate_field, pressure_field, temp_field):
-                if field not in m:
-                    raise KeyError(
-                        f"ProductionRateNormalizer: measurement[{i}] missing required field "
-                        f"'{field}'; got: {list(m)}"
-                    )
-            rate = float(m[rate_field])
-            wh_p = float(m[pressure_field])
-            wh_t = float(m[temp_field])
+        for m in measurements:
+            if "rate_bopd" not in m:
+                raise ValueError(
+                    "ProductionRateNormalizer: required field 'rate_bopd' missing from input"
+                )
+            if "wellhead_pressure_psia" not in m:
+                raise ValueError(
+                    "ProductionRateNormalizer: required field 'wellhead_pressure_psia' missing from input"
+                )
+            if "wellhead_temp_f" not in m:
+                raise ValueError(
+                    "ProductionRateNormalizer: required field 'wellhead_temp_f' missing from input"
+                )
+            rate = float(m["rate_bopd"])
+            wh_p = float(m["wellhead_pressure_psia"])
+            wh_t = float(m["wellhead_temp_f"])
             wh_t_rankine = wh_t + 459.67
             correction = (wh_p / ref_p) * (ref_t_rankine / wh_t_rankine)
             normalized = rate * correction

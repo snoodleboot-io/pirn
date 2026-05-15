@@ -62,17 +62,28 @@ def _run_psm(
     matching_ratio: int,
     caliper: float,
 ) -> dict[str, Any]:
+    for record_index, record in enumerate(cohort):
+        if "patient_id" not in record:
+            raise ValueError(
+                f"PropensityScoreMatcherPipeline: cohort[{record_index}] missing required "
+                f"field 'patient_id'; got: {list(record)}"
+            )
+        if treatment_col not in record:
+            raise ValueError(
+                f"PropensityScoreMatcherPipeline: cohort[{record_index}] missing required "
+                f"field '{treatment_col}'; got: {list(record)}"
+            )
     treated_idx = [
-        cohort_index for cohort_index, record in enumerate(cohort) if record.get(treatment_col)
+        cohort_index for cohort_index, record in enumerate(cohort) if record[treatment_col]
     ]
     control_idx = [
-        cohort_index for cohort_index, record in enumerate(cohort) if not record.get(treatment_col)
+        cohort_index for cohort_index, record in enumerate(cohort) if not record[treatment_col]
     ]
 
     covariate_matrix = np.array(
         [[_safe_float(record.get(col, 0)) for col in covariates] for record in cohort]
     )
-    treatment_labels = np.array([1 if record.get(treatment_col) else 0 for record in cohort])
+    treatment_labels = np.array([1 if record[treatment_col] else 0 for record in cohort])
 
     ps = np.full(len(cohort), 0.5)
     if len(np.unique(treatment_labels)) > 1:
@@ -101,9 +112,9 @@ def _run_psm(
             continue
         matched_pairs.append(
             {
-                "treated_id": cohort[treated_cohort_index].get("patient_id"),
+                "treated_id": cohort[treated_cohort_index]["patient_id"],
                 "control_ids": [
-                    cohort[ctrl_cohort_index].get("patient_id") for ctrl_cohort_index in chosen
+                    cohort[ctrl_cohort_index]["patient_id"] for ctrl_cohort_index in chosen
                 ],
             }
         )

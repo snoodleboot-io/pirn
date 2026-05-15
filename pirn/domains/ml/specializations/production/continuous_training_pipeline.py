@@ -107,7 +107,11 @@ class ContinuousTrainingPipeline(SubTapestry):
             lineage_record = await lineage.fetch_lineage(name)
         except Exception:
             return False, None
-        events = lineage_record.get("events") if isinstance(lineage_record, Mapping) else None
+        if not isinstance(lineage_record, Mapping) or "events" not in lineage_record:
+            raise ValueError(
+                "ContinuousTrainingPipeline: lineage record missing required field 'events'"
+            )
+        events = lineage_record["events"]
         if not events:
             return False, None
         last_event = events[-1]

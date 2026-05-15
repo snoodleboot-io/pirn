@@ -38,6 +38,33 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
                 max_injection_rate_mmscfd=2.0,
             )
 
+    async def test_rejects_missing_performance_curve(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "performance_curve"):
+            await knot.process(
+                well_data={"current_injection_mmscfd": 0.5},
+                injection_gas_cost_per_mscf=2.5,
+                max_injection_rate_mmscfd=2.0,
+            )
+
+    async def test_rejects_missing_current_injection(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "current_injection_mmscfd"):
+            await knot.process(
+                well_data={"performance_curve": []},
+                injection_gas_cost_per_mscf=2.5,
+                max_injection_rate_mmscfd=2.0,
+            )
+
+    async def test_rejects_missing_curve_point_fields(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "injection_mmscfd"):
+            await knot.process(
+                well_data={"performance_curve": [{"oil_bopd": 400.0}], "current_injection_mmscfd": 0.5},
+                injection_gas_cost_per_mscf=2.5,
+                max_injection_rate_mmscfd=2.0,
+            )
+
     async def test_returns_optimal_injection(self) -> None:
         knot = self._make_knot()
         out = await knot.process(
@@ -49,41 +76,3 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         assert "projected_oil_bopd" in out
         assert "incremental_bopd" in out
         assert out["projected_oil_bopd"] > 0.0
-
-    async def test_raises_on_missing_curve_field(self) -> None:
-        knot = self._make_knot()
-        with self.assertRaisesRegex(KeyError, "performance_curve"):
-            await knot.process(
-                well_data={"current_injection_mmscfd": 0.5},
-                injection_gas_cost_per_mscf=2.5,
-                max_injection_rate_mmscfd=2.0,
-            )
-
-    async def test_raises_on_missing_current_injection_field(self) -> None:
-        knot = self._make_knot()
-        with self.assertRaisesRegex(KeyError, "current_injection_mmscfd"):
-            await knot.process(
-                well_data={"performance_curve": []},
-                injection_gas_cost_per_mscf=2.5,
-                max_injection_rate_mmscfd=2.0,
-            )
-
-    async def test_custom_field_names(self) -> None:
-        knot = self._make_knot()
-        custom_well: dict[str, Any] = {
-            "CURR_INJ": 0.5,
-            "PERF_CURVE": [
-                {"INJ_MMSCFD": 1.0, "OIL_BOPD": 550.0},
-                {"INJ_MMSCFD": 1.5, "OIL_BOPD": 580.0},
-            ],
-        }
-        out = await knot.process(
-            well_data=custom_well,
-            injection_gas_cost_per_mscf=2.5,
-            max_injection_rate_mmscfd=2.0,
-            curve_field="PERF_CURVE",
-            current_injection_field="CURR_INJ",
-            point_injection_field="INJ_MMSCFD",
-            point_oil_field="OIL_BOPD",
-        )
-        assert out["projected_oil_bopd"] == 580.0

@@ -89,9 +89,14 @@ class GeotiffFormat(BatchFileFormat):
                 "GeotiffFormat: width and height must be positive, "
                 f"got width={width} height={height}"
             )
-        transform = self._transform_from_mapping(rasterio, first_record.get("transform"))
-        if not first_record.get("crs"):
-            raise KeyError(
+        if "transform" not in first_record:
+            raise ValueError(
+                "GeotiffFormat: record missing required field 'transform'; "
+                f"got: {list(first_record)}"
+            )
+        transform = self._transform_from_mapping(rasterio, first_record["transform"])
+        if "crs" not in first_record or not first_record["crs"]:
+            raise ValueError(
                 f"GeotiffFormat: record missing required field 'crs'; got: {list(first_record)}"
             )
         crs_value = first_record["crs"]

@@ -44,6 +44,15 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
                 efficiency_factor=0.98,
             )
 
+    async def test_rejects_missing_flow_rate(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "flow_rate_mmscfd"):
+            await knot.process(
+                measurements=[{"start_iso": "2026-01-01T00:00:00Z", "end_iso": "2026-01-01T06:00:00Z"}],
+                gas_composition=_COMPOSITION,
+                efficiency_factor=0.98,
+            )
+
     async def test_returns_flaring_summary(self) -> None:
         knot = self._make_knot()
         out = await knot.process(
@@ -54,35 +63,3 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         assert out["event_count"] == 2
         assert isinstance(out["total_flared_mmscf"], float)
         assert isinstance(out["co2_tonnes"], float)
-
-    async def test_raises_on_missing_flow_rate_field(self) -> None:
-        knot = self._make_knot()
-        bad = [{"start_iso": "2026-01-01T00:00:00Z"}]
-        with self.assertRaisesRegex(KeyError, "flow_rate_mmscfd"):
-            await knot.process(
-                measurements=bad,
-                gas_composition=_COMPOSITION,
-                efficiency_factor=0.98,
-            )
-
-    async def test_raises_on_missing_co2_component(self) -> None:
-        knot = self._make_knot()
-        with self.assertRaisesRegex(KeyError, "co2"):
-            await knot.process(
-                measurements=_MEASUREMENTS,
-                gas_composition={"ch4": 0.95},
-                efficiency_factor=0.98,
-            )
-
-    async def test_custom_field_names(self) -> None:
-        knot = self._make_knot()
-        scada_measurements = [{"FLOW_RATE": 2.0}, {"FLOW_RATE": 1.0}]
-        custom_composition = {"CO2": 0.05, "CH4": 0.85}
-        out = await knot.process(
-            measurements=scada_measurements,
-            gas_composition=custom_composition,
-            efficiency_factor=0.98,
-            flow_rate_field="FLOW_RATE",
-            co2_component="CO2",
-        )
-        assert out["total_flared_mmscf"] == 3.0

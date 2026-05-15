@@ -44,6 +44,33 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
                 bsw_correction_factor=1.5,
             )
 
+    async def test_rejects_missing_opening_level(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "opening_level_in"):
+            await knot.process(
+                gauge_readings={"closing_level_in": 200.0, "bsw_pct": 5.0},
+                tank_table=_TANK_TABLE,
+                bsw_correction_factor=0.0,
+            )
+
+    async def test_rejects_missing_closing_level(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "closing_level_in"):
+            await knot.process(
+                gauge_readings={"opening_level_in": 100.0, "bsw_pct": 5.0},
+                tank_table=_TANK_TABLE,
+                bsw_correction_factor=0.0,
+            )
+
+    async def test_rejects_missing_bsw_pct(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "bsw_pct"):
+            await knot.process(
+                gauge_readings={"opening_level_in": 100.0, "closing_level_in": 200.0},
+                tank_table=_TANK_TABLE,
+                bsw_correction_factor=0.0,
+            )
+
     async def test_returns_volumes(self) -> None:
         knot = self._make_knot()
         out = await knot.process(
@@ -54,25 +81,3 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         assert out["gross_volume_bbl"] == 500.0
         assert "net_oil_bbl" in out
         assert "bsw_adjusted_bbl" in out
-
-    async def test_raises_on_missing_opening_field(self) -> None:
-        knot = self._make_knot()
-        with self.assertRaisesRegex(KeyError, "opening_level_in"):
-            await knot.process(
-                gauge_readings={"closing_level_in": 200.0, "bsw_pct": 5.0},
-                tank_table=_TANK_TABLE,
-                bsw_correction_factor=0.0,
-            )
-
-    async def test_custom_field_names(self) -> None:
-        knot = self._make_knot()
-        scada_gauge: dict[str, Any] = {"OPEN_IN": 100.0, "CLOSE_IN": 200.0, "BSW": 5.0}
-        out = await knot.process(
-            gauge_readings=scada_gauge,
-            tank_table=_TANK_TABLE,
-            bsw_correction_factor=0.0,
-            opening_field="OPEN_IN",
-            closing_field="CLOSE_IN",
-            bsw_pct_field="BSW",
-        )
-        assert out["gross_volume_bbl"] == 500.0

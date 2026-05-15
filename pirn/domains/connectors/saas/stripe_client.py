@@ -108,8 +108,13 @@ class StripeClient(ApiClient, TableSource):
         if limit is not None:
             params["limit"] = limit
         response = await self.request("GET", f"/v1/{object_type}", params=params or None)
-        rows: list[Mapping[str, Any]] = list(response.get("data") or [])
-        has_more = bool(response.get("has_more"))
+        if "data" not in response:
+            raise ValueError(
+                f"StripeClient: response missing required field 'data'; got: {list(response)}"
+            )
+        rows: list[Mapping[str, Any]] = list(response["data"])
+        # has_more is an optional pagination flag; absent means no more pages
+        has_more = bool(response.get("has_more", False))
         next_cursor = rows[-1].get("id") if has_more and rows else None
         return rows, next_cursor
 

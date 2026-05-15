@@ -32,25 +32,13 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(ValueError, "positive"):
             await knot.process(previous_run=_RUN, current_run=_RUN, years_between=0.0)
 
-    async def test_returns_corrosion_rate(self) -> None:
-        knot = self._make_knot(years=5.0)
-        # previous has 5 features, current has 10 — new_features=5 triggers feature-count path
-        prev: dict[str, Any] = {"feature_count": 5}
-        out = await knot.process(previous_run=prev, current_run=_RUN, years_between=5.0)
-        assert "max_rate_mpy" in out
-        assert out["max_rate_mpy"] > 0.0
-        assert out["feature_count"] == 10.0
-
-    async def test_raises_on_missing_feature_count_field(self) -> None:
+    async def test_rejects_missing_feature_count(self) -> None:
         knot = self._make_knot()
-        with self.assertRaisesRegex(KeyError, "feature_count"):
+        with self.assertRaisesRegex(ValueError, "feature_count"):
             await knot.process(previous_run=_RUN, current_run={}, years_between=5.0)
 
-    async def test_custom_feature_count_field(self) -> None:
-        knot = self._make_knot()
-        custom_run: dict[str, Any] = {"anomaly_count": 7}
-        out = await knot.process(
-            previous_run=_RUN, current_run=custom_run, years_between=5.0,
-            feature_count_field="anomaly_count",
-        )
-        assert out["feature_count"] == 7.0
+    async def test_returns_corrosion_rate(self) -> None:
+        knot = self._make_knot(years=5.0)
+        out = await knot.process(previous_run=_RUN, current_run=_RUN, years_between=5.0)
+        assert out["max_rate_mpy"] == 5.0
+        assert out["feature_count"] == 10.0

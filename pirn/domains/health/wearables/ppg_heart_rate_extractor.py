@@ -112,7 +112,17 @@ class PPGHeartRateExtractor(Knot):
             raise ValueError("PPGHeartRateExtractor: sample_rate_hz must be > 0")
         if not isinstance(window_sec, (int, float)) or window_sec <= 0:
             raise ValueError("PPGHeartRateExtractor: window_sec must be > 0")
+        if "timestamps_iso" not in ppg_data:
+            raise ValueError(
+                "PPGHeartRateExtractor: required field 'timestamps_iso' missing from ppg_data; "
+                f"got: {list(ppg_data)}"
+            )
         channel = wavelengths[0] if wavelengths else "red"
-        raw = ppg_data.get(channel, ppg_data.get("red", []))
+        if channel not in ppg_data:
+            raise ValueError(
+                f"PPGHeartRateExtractor: required field '{channel}' missing from ppg_data; "
+                f"got: {list(ppg_data)}"
+            )
+        raw = ppg_data[channel]
         ppg_array = np.asarray(raw, dtype=float)
         return await asyncio.to_thread(_ppg_peaks, ppg_array, float(sample_rate_hz))

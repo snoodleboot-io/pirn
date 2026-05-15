@@ -122,7 +122,9 @@ class KmlFormat(BatchFileFormat):
         cls._validate_record(record)
         geometry_type = record["geometry_type"]
         coordinates = record["coordinates"]
-        name = record.get("name", "")
+        if "name" not in record:
+            raise ValueError("KmlFormat: record missing required field 'name'")
+        name = record["name"]
         description = record.get("description", "")
         extended_data = record.get("extended_data") or {}
         if geometry_type == "Point":

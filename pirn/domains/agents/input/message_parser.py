@@ -87,7 +87,9 @@ class MessageParser(Knot):
                 raise ValueError(f"MessageParser: item[{index}] string must be non-empty")
             return AgentMessage(role="user", content=item)
         if isinstance(item, Mapping):
-            role = item.get("role", "user")
+            if "role" not in item:
+                raise ValueError(f"MessageParser: item[{index}] missing required field 'role'")
+            role = item["role"]
             if not isinstance(role, str) or not role:
                 raise ValueError(
                     f"MessageParser: item[{index}].role must be a non-empty string, got {role!r}"
