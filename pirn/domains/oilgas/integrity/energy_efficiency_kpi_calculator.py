@@ -86,15 +86,15 @@ class EnergyEfficiencyKpiCalculator(Knot):
 
     @staticmethod
     def _compute(energy_consumption: ScadaPayload, production: ScadaPayload) -> dict[str, float]:
-        n = min(len(energy_consumption.values), len(production.values))
+        aligned_count = min(len(energy_consumption.values), len(production.values))
 
         # Sample values are instantaneous readings (kW and bbl/day respectively);
         # multiply by interval duration to convert to energy (kWh) and volume (boe).
         e_interval_hr = energy_consumption.series.sample_interval_sec / 3600.0
         p_interval_day = production.series.sample_interval_sec / 86400.0
 
-        total_kwh = float(np.sum(energy_consumption.values[:n]) * e_interval_hr)
-        total_boe = float(np.sum(production.values[:n]) * p_interval_day)
+        total_kwh = float(np.sum(energy_consumption.values[:aligned_count]) * e_interval_hr)
+        total_boe = float(np.sum(production.values[:aligned_count]) * p_interval_day)
 
         kwh_per_boe = total_kwh / (total_boe + 1e-9)
         eii = kwh_per_boe / _baseline_kwh_per_boe

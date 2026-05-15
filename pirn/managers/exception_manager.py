@@ -5,7 +5,7 @@ from collections.abc import Callable
 from threading import Lock
 
 from pirn.managers.exception_record import ExceptionRecord
-from pirn.managers.rebindable_exception import RebindableException
+from pirn.managers.rebindable_exception import RebindableError
 
 
 class ExceptionManager:
@@ -25,12 +25,12 @@ class ExceptionManager:
     def record(self, knot_id: str, exc: BaseException) -> ExceptionRecord:
         """Capture an exception and return the registered record.
 
-        RebindableException instances surface their carried original_exc_type
+        RebindableError instances surface their carried original_exc_type
         and original_traceback_text rather than the wrapper's own type and
         frames, preserving fidelity when an Err from a knot is upgraded to a
         manager-registered record.
         """
-        if isinstance(exc, RebindableException):
+        if isinstance(exc, RebindableError):
             exc_type = exc.original_exc_type
             traceback_text = exc.original_traceback_text
         else:

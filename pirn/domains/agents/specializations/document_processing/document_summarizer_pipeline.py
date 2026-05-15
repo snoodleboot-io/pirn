@@ -41,7 +41,6 @@ from pirn.domains.agents.specializations.document_processing._map_reduce_summari
     _MapReduceSummariser,
 )
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class DocumentSummarizerPipeline(SubTapestry):
@@ -58,7 +57,7 @@ class DocumentSummarizerPipeline(SubTapestry):
     ) -> None:
         super().__init__(source=source, llm=llm, chunk_size=chunk_size, _config=_config, **kwargs)
 
-    async def process(self, source: str, llm: LLMProvider, chunk_size: int = 2000, **_: Any) -> str:
+    async def process(self, source: str, llm: LLMProvider, chunk_size: int = 2000, **_: Any) -> Any:
         """Load the document, map-reduce summarise each chunk, and return the combined summary.
 
         Args:
@@ -81,19 +80,13 @@ class DocumentSummarizerPipeline(SubTapestry):
             raise TypeError(
                 f"DocumentSummarizerPipeline: source must be a non-empty string, got {source!r}"
             )
-        with Tapestry() as inner:
-            chunks = _LoadAndChunk(
-                source=source,
-                chunk_size=chunk_size,
-                _config=KnotConfig(id="chunk"),
-            )
-            _MapReduceSummariser(
-                chunks=chunks,
-                llm=llm,
-                _config=KnotConfig(id="summarise"),
-            )
-        inner_result = await self._run_inner(inner)
-        summary = inner_result.outputs.get("summarise")
-        if not isinstance(summary, str):
-            return ""
-        return summary
+        chunks = _LoadAndChunk(
+            source=source,
+            chunk_size=chunk_size,
+            _config=KnotConfig(id="chunk"),
+        )
+        return _MapReduceSummariser(
+            chunks=chunks,
+            llm=llm,
+            _config=KnotConfig(id="summarise"),
+        )

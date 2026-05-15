@@ -32,12 +32,20 @@ from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.domains.ml.types.model_manifest import ModelManifest
 from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
 async def _emit_value(value: Any) -> Any:
     return value
+
+
+@knot
+async def _combine_semi_supervised_result(
+    model: ModelManifest,
+    eval_report: EvalReportPayload,
+    pseudo_labeled_rows: int,
+) -> dict[str, Any]:
+    return {"model": model, "eval_report": eval_report, "pseudo_labeled_rows": pseudo_labeled_rows}
 
 
 class SemiSupervisedTrainer(SubTapestry):
@@ -72,7 +80,7 @@ class SemiSupervisedTrainer(SubTapestry):
         metrics: Sequence[str] = (),
         hyperparameters: Mapping[str, Any] | None = None,
         **_: Any,
-    ) -> dict[str, Any]:
+    ) -> Any:
         """Train on labeled data, generate pseudo-labels, and retrain on combined set.
 
         Args:
@@ -117,29 +125,25 @@ class SemiSupervisedTrainer(SubTapestry):
         )
         combined_split = SplitManifest(train=combined_ds, test=split.test)
 
-        with Tapestry() as inner:
-            split_node = _emit_value(value=combined_split, _config=KnotConfig(id="split"))
-            model = Trainer(
-                split=split_node,
-                algorithm=algorithm,
-                hyperparameters={**hp, "semi_supervised": True},
-                _config=KnotConfig(id="train"),
-            )
-            Evaluator(
-                model=model,
-                split=split_node,
-                metrics=metric_tuple,
-                _config=KnotConfig(id="evaluate"),
-            )
-        result = await self._run_inner(inner)
-        trained_model = result.outputs["train"]
-        report = result.outputs["evaluate"]
-        if not isinstance(trained_model, ModelManifest):
-            raise TypeError("SemiSupervisedTrainer: trainer did not return a ModelManifest")
-        if not isinstance(report, EvalReportPayload):
-            raise TypeError("SemiSupervisedTrainer: evaluator did not return an EvalReportPayload")
-        return {
-            "model": trained_model,
-            "eval_report": report,
-            "pseudo_labeled_rows": unlabeled_row_count,
-        }
+        split_node = _emit_value(value=combined_split, _config=KnotConfig(id="split"))
+        model = Trainer(
+            split=split_node,
+            algorithm=algorithm,
+            hyperparameters={**hp, "semi_supervised": True},
+            _config=KnotConfig(id="train"),
+        )
+        evaluated = Evaluator(
+            model=model,
+            split=split_node,
+            metrics=metric_tuple,
+            _config=KnotConfig(id="evaluate"),
+        )
+        pseudo_rows_node = _emit_value(
+            value=unlabeled_row_count, _config=KnotConfig(id="pseudo_labeled_rows")
+        )
+        return _combine_semi_supervised_result(
+            model=model,
+            eval_report=evaluated,
+            pseudo_labeled_rows=pseudo_rows_node,
+            _config=KnotConfig(id="combine"),
+        )

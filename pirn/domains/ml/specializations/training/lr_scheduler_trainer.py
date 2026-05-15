@@ -31,12 +31,20 @@ from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.domains.ml.types.model_manifest import ModelManifest
 from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
 async def _emit_value(value: Any) -> Any:
     return value
+
+
+@knot
+async def _combine_lr_scheduler_result(
+    model: ModelManifest,
+    eval_report: EvalReportPayload,
+    scheduler: str,
+) -> dict[str, Any]:
+    return {"model": model, "eval_report": eval_report, "scheduler": scheduler}
 
 
 class LRSchedulerTrainer(SubTapestry):
@@ -73,7 +81,7 @@ class LRSchedulerTrainer(SubTapestry):
         metrics: Sequence[str] = (),
         hyperparameters: Mapping[str, Any] | None = None,
         **_: Any,
-    ) -> dict[str, Any]:
+    ) -> Any:
         """Train the model with a learning-rate scheduler and return the model, evaluation, and scheduler info.
 
         Args:
@@ -109,29 +117,23 @@ class LRSchedulerTrainer(SubTapestry):
             **(dict(hyperparameters) if hyperparameters is not None else {}),
             "lr_scheduler": scheduler,
         }
-        with Tapestry() as inner:
-            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
-            model = Trainer(
-                split=split_node,
-                algorithm=algorithm,
-                hyperparameters=hp,
-                _config=KnotConfig(id="train"),
-            )
-            Evaluator(
-                model=model,
-                split=split_node,
-                metrics=metric_tuple,
-                _config=KnotConfig(id="evaluate"),
-            )
-        result = await self._run_inner(inner)
-        trained_model = result.outputs["train"]
-        report = result.outputs["evaluate"]
-        if not isinstance(trained_model, ModelManifest):
-            raise TypeError("LRSchedulerTrainer: trainer did not return a ModelManifest")
-        if not isinstance(report, EvalReportPayload):
-            raise TypeError("LRSchedulerTrainer: evaluator did not return an EvalReportPayload")
-        return {
-            "model": trained_model,
-            "eval_report": report,
-            "scheduler": scheduler,
-        }
+        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        model = Trainer(
+            split=split_node,
+            algorithm=algorithm,
+            hyperparameters=hp,
+            _config=KnotConfig(id="train"),
+        )
+        evaluated = Evaluator(
+            model=model,
+            split=split_node,
+            metrics=metric_tuple,
+            _config=KnotConfig(id="evaluate"),
+        )
+        scheduler_node = _emit_value(value=scheduler, _config=KnotConfig(id="scheduler"))
+        return _combine_lr_scheduler_result(
+            model=model,
+            eval_report=evaluated,
+            scheduler=scheduler_node,
+            _config=KnotConfig(id="combine"),
+        )

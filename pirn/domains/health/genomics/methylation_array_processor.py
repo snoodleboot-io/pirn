@@ -34,18 +34,18 @@ def _compute_methylation(idat_data: dict[str, Any], alpha: float = 100.0) -> dic
     """Compute beta values and M values from red/green IDAT channel data."""
     red = np.array(idat_data.get("red_channel", []), dtype=float)
     green = np.array(idat_data.get("green_channel", []), dtype=float)
-    n = min(len(red), len(green))
-    M = red[:n]
-    U = green[:n]
+    probe_count = min(len(red), len(green))
+    methylated = red[:probe_count]
+    unmethylated = green[:probe_count]
 
-    beta = np.clip(M / (M + U + alpha), 0.0, 1.0)
-    m_val = np.log2(np.maximum(M, 1e-6)) - np.log2(np.maximum(U, 1e-6))
-    detection_p = np.where((M + U) > 100.0, 0.01, 1.0).tolist()
-    probe_ids = [f"cg{i:08d}" for i in range(n)]
+    beta = np.clip(methylated / (methylated + unmethylated + alpha), 0.0, 1.0)
+    m_val = np.log2(np.maximum(methylated, 1e-6)) - np.log2(np.maximum(unmethylated, 1e-6))
+    detection_p = np.where((methylated + unmethylated) > 100.0, 0.01, 1.0).tolist()
+    probe_ids = [f"cg{probe_index:08d}" for probe_index in range(probe_count)]
 
     return {
         "sample_id": idat_data.get("sample_id", ""),
-        "n_probes": n,
+        "n_probes": probe_count,
         "beta_values": dict(zip(probe_ids, beta.tolist(), strict=False)),
         "m_values": dict(zip(probe_ids, m_val.tolist(), strict=False)),
         "detection_p_values": dict(zip(probe_ids, detection_p, strict=False)),

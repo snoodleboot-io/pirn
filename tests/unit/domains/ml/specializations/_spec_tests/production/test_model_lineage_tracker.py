@@ -12,6 +12,7 @@ from pirn.domains.ml.specializations.production.model_lineage_tracker import (
 )
 from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.domains.ml.types.eval_metadata import EvalMetadata
+from pirn.domains.ml.types.eval_metrics import EvalMetrics
 from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 from pirn.domains.ml.types.model_manifest import ModelManifest
@@ -44,10 +45,9 @@ async def emit_model() -> ModelManifest:
 
 @knot
 async def emit_report() -> EvalReportPayload:
-    return EvalMetadata(
-        model_id="m1",
-        dataset_name="ds:test",
-        metrics={"accuracy": 0.9},
+    return EvalReportPayload(
+        metadata=EvalMetadata(model_id="m1", dataset_name="ds:test"),
+        data=EvalMetrics(scores={"accuracy": 0.9}),
     )
 
 

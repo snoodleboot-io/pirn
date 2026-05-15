@@ -28,7 +28,6 @@ from pirn.domains.ml.embedding_provider import EmbeddingProvider
 from pirn.domains.ml.features.embedding_extractor import EmbeddingExtractor
 from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
@@ -62,7 +61,7 @@ class TextEmbeddingExtractor(SubTapestry):
         text_column: str = "",
         embedding_provider: EmbeddingProvider | None = None,
         **_: Any,
-    ) -> SplitManifest:
+    ) -> Any:
         """Embed the text column via the embedding provider, append the feature to each partition, and return the updated SplitManifest.
 
         Args:
@@ -83,18 +82,10 @@ class TextEmbeddingExtractor(SubTapestry):
             raise TypeError(
                 "TextEmbeddingExtractor: embedding_provider must be an EmbeddingProvider"
             )
-        with Tapestry() as inner:
-            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
-            EmbeddingExtractor(
-                split=split_node,
-                text_column=text_column,
-                embedding_provider=embedding_provider,
-                _config=KnotConfig(id="embed"),
-            )
-        result = await self._run_inner(inner)
-        embedded = result.outputs["embed"]
-        if not isinstance(embedded, SplitManifest):
-            raise TypeError(
-                "TextEmbeddingExtractor: inner extractor did not return a SplitManifest"
-            )
-        return embedded
+        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        return EmbeddingExtractor(
+            split=split_node,
+            text_column=text_column,
+            embedding_provider=embedding_provider,
+            _config=KnotConfig(id="embed"),
+        )

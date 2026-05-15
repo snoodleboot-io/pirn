@@ -30,7 +30,6 @@ from pirn.domains.ml.specializations.feature_engineering._image_encoder_extracto
 )
 from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
@@ -64,7 +63,7 @@ class ImageEmbeddingExtractor(SubTapestry):
         image_column: str = "",
         image_encoder: ImageEncoderProvider | None = None,
         **_: Any,
-    ) -> SplitManifest:
+    ) -> Any:
         """Encode the image column via the image encoder, append the embedding feature to each partition, and return the updated SplitManifest.
 
         Args:
@@ -85,16 +84,10 @@ class ImageEmbeddingExtractor(SubTapestry):
             raise TypeError(
                 "ImageEmbeddingExtractor: image_encoder must be an ImageEncoderProvider"
             )
-        with Tapestry() as inner:
-            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
-            _ImageEncoderExtractor(
-                split=split_node,
-                image_column=image_column,
-                image_encoder=image_encoder,
-                _config=KnotConfig(id="encode"),
-            )
-        result = await self._run_inner(inner)
-        encoded = result.outputs["encode"]
-        if not isinstance(encoded, SplitManifest):
-            raise TypeError("ImageEmbeddingExtractor: inner encoder did not return a SplitManifest")
-        return encoded
+        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        return _ImageEncoderExtractor(
+            split=split_node,
+            image_column=image_column,
+            image_encoder=image_encoder,
+            _config=KnotConfig(id="encode"),
+        )

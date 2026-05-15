@@ -41,10 +41,9 @@ from pirn.domains.ml.deployment.predictor import Predictor
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.lineage_store import LineageStore
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.eval_metadata import EvalMetadata
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
@@ -58,6 +57,14 @@ async def _holdout_features(split: SplitManifest) -> list[Mapping[str, Any]]:
         row: dict[str, Any] = {feature: float(index) for feature in split.test.feature_names}
         rows.append(row)
     return rows
+
+
+@knot
+async def _combine_full_train_deploy(
+    model_id: str,
+    eval_report: EvalReportPayload,
+) -> Mapping[str, Any]:
+    return {"model_id": model_id, "eval_report": eval_report}
 
 
 class FullTrainDeployPipeline(SubTapestry):
@@ -104,7 +111,7 @@ class FullTrainDeployPipeline(SubTapestry):
         store: ObjectStore | None = None,
         metrics: Sequence[str] = (),
         **_: Any,
-    ) -> Mapping[str, Any]:
+    ) -> Any:
         """Load data, split, train, evaluate, serialise, and register the model; return a summary mapping with model_id and eval report.
 
         Args:
@@ -146,55 +153,53 @@ class FullTrainDeployPipeline(SubTapestry):
         metric_tuple = tuple(metrics)
         if not metric_tuple:
             raise ValueError("FullTrainDeployPipeline: metrics must be non-empty")
-        with Tapestry() as inner:
-            dataset = DatasetLoader(
-                name=name,
-                feature_names=feature_tuple,
-                target_name=target_name,
-                pool=pool,
-                query=query,
-                _config=KnotConfig(id="load"),
-            )
-            split = TrainTestSplit(
-                dataset=dataset,
-                _config=KnotConfig(id="split"),
-            )
-            trained = Trainer(
-                split=split,
-                algorithm=algorithm,
-                _config=KnotConfig(id="train"),
-            )
-            Evaluator(
-                model=trained,
-                split=split,
-                metrics=metric_tuple,
-                _config=KnotConfig(id="evaluate"),
-            )
-            serialized = ModelSerializer(
-                model=trained,
-                _config=KnotConfig(id="serialize"),
-            )
-            registered = ModelRegistrar(
-                serialized=serialized,
-                model=trained,
-                lineage=lineage,
-                store=store,
-                _config=KnotConfig(id="register"),
-            )
-            features = _holdout_features(
-                split=split,
-                _config=KnotConfig(id="holdout-features"),
-            )
-            Predictor(
-                model_id=registered,
-                features=features,
-                lineage=lineage,
-                store=store,
-                _config=KnotConfig(id="predict"),
-            )
-        inner_result = await self._run_inner(inner)
-        report: EvalMetadata = inner_result.outputs["evaluate"]
-        return {
-            "model_id": inner_result.outputs["register"],
-            "eval_report": report,
-        }
+        dataset = DatasetLoader(
+            name=name,
+            feature_names=feature_tuple,
+            target_name=target_name,
+            pool=pool,
+            query=query,
+            _config=KnotConfig(id="load"),
+        )
+        split = TrainTestSplit(
+            dataset=dataset,
+            _config=KnotConfig(id="split"),
+        )
+        trained = Trainer(
+            split=split,
+            algorithm=algorithm,
+            _config=KnotConfig(id="train"),
+        )
+        evaluated = Evaluator(
+            model=trained,
+            split=split,
+            metrics=metric_tuple,
+            _config=KnotConfig(id="evaluate"),
+        )
+        serialized = ModelSerializer(
+            model=trained,
+            _config=KnotConfig(id="serialize"),
+        )
+        registered = ModelRegistrar(
+            serialized=serialized,
+            model=trained,
+            lineage=lineage,
+            store=store,
+            _config=KnotConfig(id="register"),
+        )
+        features = _holdout_features(
+            split=split,
+            _config=KnotConfig(id="holdout-features"),
+        )
+        Predictor(
+            model_id=registered,
+            features=features,
+            lineage=lineage,
+            store=store,
+            _config=KnotConfig(id="predict"),
+        )
+        return _combine_full_train_deploy(
+            model_id=registered,
+            eval_report=evaluated,
+            _config=KnotConfig(id="combine"),
+        )

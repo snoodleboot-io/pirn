@@ -43,7 +43,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_runs_full_training_when_no_lineage(self) -> None:
-        rows = [(1.0, 0), (2.0, 1)] * 10
+        rows = [{"a": 1.0, "y": 0}, {"a": 2.0, "y": 1}] * 10
         lineage = RecordingLineageStore()
         store = RecordingObjectStore()
         with Tapestry() as t:

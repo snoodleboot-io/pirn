@@ -39,18 +39,23 @@ from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_payload import SignalPayload
 
 
-def _delay_embed(x: np.ndarray, m: int, tau: int = 1) -> np.ndarray:
-    """Build Takens delay embedding matrix of shape (N - (m-1)*tau, m)."""
-    n = len(x)
-    length = n - (m - 1) * tau
+def _delay_embed(signal_array: np.ndarray, embedding_dim: int, tau: int = 1) -> np.ndarray:
+    """Build Takens delay embedding matrix of shape (N - (embedding_dim-1)*tau, embedding_dim)."""
+    signal_length = len(signal_array)
+    length = signal_length - (embedding_dim - 1) * tau
     if length <= 0:
-        return np.empty((0, m))
-    return np.array([x[i : i + m * tau : tau] for i in range(length)])
+        return np.empty((0, embedding_dim))
+    return np.array(
+        [
+            signal_array[start_idx : start_idx + embedding_dim * tau : tau]
+            for start_idx in range(length)
+        ]
+    )
 
 
-def _corr_dim(x: np.ndarray, m: int, r_max: float) -> float:
+def _corr_dim(signal_array: np.ndarray, embedding_dim: int, r_max: float) -> float:
     """Correlation dimension via Grassberger-Procaccia algorithm."""
-    embedded = _delay_embed(x, m)
+    embedded = _delay_embed(signal_array, embedding_dim)
     n_pts = len(embedded)
     if n_pts < 4:
         return 0.0
@@ -67,11 +72,11 @@ def _corr_dim(x: np.ndarray, m: int, r_max: float) -> float:
     radii = np.logspace(np.log10(r_min), np.log10(r_max), 20)
     log_r = []
     log_c = []
-    for r in radii:
-        c = float(np.sum(dists_arr < r)) / n_pairs
-        if c > 0:
-            log_r.append(float(np.log(r)))
-            log_c.append(float(np.log(c)))
+    for radius in radii:
+        correlation_integral = float(np.sum(dists_arr < radius)) / n_pairs
+        if correlation_integral > 0:
+            log_r.append(float(np.log(radius)))
+            log_c.append(float(np.log(correlation_integral)))
     if len(log_r) < 2:
         return 0.0
     coeffs = np.polyfit(log_r, log_c, 1)
@@ -130,8 +135,10 @@ class CorrelationDimensionEstimator(Knot):
             raise ValueError("CorrelationDimensionEstimator: radius_min must be positive")
         if not isinstance(radius_max, (int, float)) or radius_max <= radius_min:
             raise ValueError("CorrelationDimensionEstimator: radius_max must exceed radius_min")
-        x = signal.data[0] if signal.data.ndim > 1 else signal.data
-        dim = await asyncio.to_thread(_corr_dim, x.astype(float), embedding_dim, float(radius_max))
+        signal_array = signal.data[0] if signal.data.ndim > 1 else signal.data
+        dim = await asyncio.to_thread(
+            _corr_dim, signal_array.astype(float), embedding_dim, float(radius_max)
+        )
         return {
             "correlation_dimension": dim,
             "embedding_dim": embedding_dim,

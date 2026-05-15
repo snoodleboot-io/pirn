@@ -32,10 +32,8 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
@@ -69,7 +67,7 @@ class BaselineEstablisher(SubTapestry):
         algorithm: str = "linear",
         metrics: Sequence[str] = ("accuracy",),
         **_: Any,
-    ) -> EvalReportPayload:
+    ) -> Any:
         """Train the baseline algorithm on the split and return the evaluated EvalMetadata as a reference point.
 
         Args:
@@ -94,23 +92,15 @@ class BaselineEstablisher(SubTapestry):
                 raise ValueError(
                     "BaselineEstablisher: every metric name must be a non-empty string"
                 )
-        with Tapestry() as inner:
-            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
-            model = Trainer(
-                split=split_node,
-                algorithm=algorithm,
-                _config=KnotConfig(id="train"),
-            )
-            Evaluator(
-                model=model,
-                split=split_node,
-                metrics=metric_tuple,
-                _config=KnotConfig(id="evaluate"),
-            )
-        inner_result = await self._run_inner(inner)
-        report = inner_result.outputs["evaluate"]
-        if not isinstance(report, EvalReportPayload):
-            raise TypeError(
-                "BaselineEstablisher: inner evaluator did not return an EvalReportPayload"
-            )
-        return report
+        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        model = Trainer(
+            split=split_node,
+            algorithm=algorithm,
+            _config=KnotConfig(id="train"),
+        )
+        return Evaluator(
+            model=model,
+            split=split_node,
+            metrics=metric_tuple,
+            _config=KnotConfig(id="evaluate"),
+        )

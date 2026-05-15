@@ -37,6 +37,7 @@ from pirn.domains.agents.specializations.multi_agent.orchestrator_router import 
     OrchestratorRouter,
 )
 from pirn.domains.agents.types.agent_response import AgentResponse
+from pirn.nodes.source import Source
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -61,7 +62,7 @@ class OrchestratorAgent(SubTapestry):
         llm: LLMProvider,
         specialists: Any,
         **_: Any,
-    ) -> AgentResponse:
+    ) -> Any:
         """Route the task to the LLM-selected specialist and return its AgentResponse.
 
         Args:
@@ -82,19 +83,29 @@ class OrchestratorAgent(SubTapestry):
         if not isinstance(task, str):
             raise TypeError(f"OrchestratorAgent: task must be a string, got {type(task).__name__}")
         specialists_dict: dict[str, SubTapestry] = dict(specialists)  # type: ignore[arg-type]
-        with Tapestry() as inner:
+        with Tapestry() as route_inner:
             OrchestratorRouter(
                 task=task,
                 llm=llm,
                 specialist_names=tuple(specialists_dict.keys()),
                 _config=KnotConfig(id="route"),
             )
-        inner_result = await self._run_inner(inner)
-        chosen_name = inner_result.outputs.get("route")
+        route_result = await self._run_inner(route_inner)
+        chosen_name = route_result.outputs.get("route")
         if not isinstance(chosen_name, str):
             chosen_name = next(iter(specialists_dict))
         specialist = specialists_dict[chosen_name]
-        result = await specialist.process(task=task)
-        if not isinstance(result, AgentResponse):
-            return AgentResponse(content=str(result), finish_reason="stop")
-        return result
+        raw = await specialist.process(task=task)
+        final: AgentResponse = (
+            raw
+            if isinstance(raw, AgentResponse)
+            else AgentResponse(content=str(raw), finish_reason="stop")
+        )
+
+        _final = final
+
+        class _ResultSource(Source):
+            async def process(self, **_: Any) -> AgentResponse:
+                return _final
+
+        return _ResultSource(_config=KnotConfig(id="result"))

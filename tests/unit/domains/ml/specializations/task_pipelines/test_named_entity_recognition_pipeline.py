@@ -37,7 +37,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_ner_report(self) -> None:
-        rows = [(f"token {i}", "O" if i % 3 != 0 else "B-PER") for i in range(40)]
+        rows = [{"token": f"token {i}", "label": "O" if i % 3 != 0 else "B-PER"} for i in range(40)]
         with Tapestry() as t:
             NamedEntityRecognitionPipeline(
                 pool=RecordingDatabasePool(rows=rows),

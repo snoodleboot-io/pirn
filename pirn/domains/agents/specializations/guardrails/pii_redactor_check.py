@@ -35,7 +35,6 @@ from pirn.domains.agents.specializations.guardrails.pii_response_redactor import
 )
 from pirn.domains.agents.types.agent_response import AgentResponse
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class PiiRedactorCheck(SubTapestry):
@@ -62,7 +61,7 @@ class PiiRedactorCheck(SubTapestry):
         response: AgentResponse,
         patterns: Sequence[str] | None = None,
         **_: Any,
-    ) -> AgentResponse:
+    ) -> Any:
         """Redact PII matches from the response content using the configured patterns.
 
         Args:
@@ -77,14 +76,8 @@ class PiiRedactorCheck(SubTapestry):
             RuntimeError: If the inner redactor does not return an AgentResponse.
         """
         effective = self._default_patterns if patterns is None else tuple(patterns)
-        with Tapestry() as inner:
-            PIIResponseRedactor(
-                response=response,
-                patterns=effective,
-                _config=KnotConfig(id="redact"),
-            )
-        inner_result = await self._run_inner(inner)
-        redacted = inner_result.outputs.get("redact")
-        if not isinstance(redacted, AgentResponse):
-            raise RuntimeError("PiiRedactorCheck: inner redactor did not return an AgentResponse")
-        return redacted
+        return PIIResponseRedactor(
+            response=response,
+            patterns=effective,
+            _config=KnotConfig(id="redact"),
+        )

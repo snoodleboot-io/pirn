@@ -29,9 +29,7 @@ from pirn.domains.ml.data_prep.train_test_split import TrainTestSplit
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.features.scaler import Scaler
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class DimensionalityReductionPipeline(SubTapestry):
@@ -73,7 +71,7 @@ class DimensionalityReductionPipeline(SubTapestry):
         algorithm: str = "pca",
         n_components: int = 2,
         **_: Any,
-    ) -> EvalReportPayload:
+    ) -> Any:
         """Scale, reduce dimensionality, and return an EvalMetadata with reconstruction quality metrics.
 
         Args:
@@ -105,36 +103,33 @@ class DimensionalityReductionPipeline(SubTapestry):
             )
         if not isinstance(n_components, int) or n_components < 1:
             raise ValueError("DimensionalityReductionPipeline: n_components must be an int >= 1")
-        with Tapestry() as inner:
-            dataset = DatasetLoader(
-                name="dim-reduction",
-                feature_names=feature_tuple,
-                target_name=None,
-                pool=pool,
-                query=query,
-                _config=KnotConfig(id="load"),
-            )
-            split = TrainTestSplit(
-                dataset=dataset,
-                _config=KnotConfig(id="split"),
-            )
-            preprocessed = Scaler(
-                split=split,
-                columns=feature_tuple,
-                method="standardise",
-                _config=KnotConfig(id="preprocess"),
-            )
-            trained = Trainer(
-                split=preprocessed,
-                algorithm=algorithm,
-                hyperparameters={"n_components": n_components},
-                _config=KnotConfig(id="train"),
-            )
-            Evaluator(
-                model=trained,
-                split=preprocessed,
-                metrics=self._reduction_metrics,
-                _config=KnotConfig(id="evaluate"),
-            )
-        inner_result = await self._run_inner(inner)
-        return inner_result.outputs["evaluate"]
+        dataset = DatasetLoader(
+            name="dim-reduction",
+            feature_names=feature_tuple,
+            target_name=None,
+            pool=pool,
+            query=query,
+            _config=KnotConfig(id="load"),
+        )
+        split = TrainTestSplit(
+            dataset=dataset,
+            _config=KnotConfig(id="split"),
+        )
+        preprocessed = Scaler(
+            split=split,
+            columns=feature_tuple,
+            method="standardise",
+            _config=KnotConfig(id="preprocess"),
+        )
+        trained = Trainer(
+            split=preprocessed,
+            algorithm=algorithm,
+            hyperparameters={"n_components": n_components},
+            _config=KnotConfig(id="train"),
+        )
+        return Evaluator(
+            model=trained,
+            split=preprocessed,
+            metrics=self._reduction_metrics,
+            _config=KnotConfig(id="evaluate"),
+        )

@@ -36,7 +36,7 @@ class TestConstruction(unittest.TestCase):
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_classification_report(self) -> None:
-        rows = [("text " + str(i), i % 2) for i in range(40)]
+        rows = [{"text": "text " + str(i), "y": i % 2} for i in range(40)]
         provider = RecordingEmbeddingProvider()
         with Tapestry() as t:
             NLPPipeline(

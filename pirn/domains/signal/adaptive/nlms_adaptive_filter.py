@@ -48,14 +48,14 @@ def _nlms(
     """Run the NLMS adaptive filter loop and return the error signal."""
     n_samples = len(signal_data)
     output = np.zeros(n_samples)
-    w = np.zeros(filter_length)
-    for n in range(filter_length, n_samples):
-        x = signal_data[n - filter_length : n][::-1]
-        y = w @ x
-        e = reference_data[n] - y
-        mu_n = step_size / (regularization + x @ x)
-        w = w + mu_n * e * x
-        output[n] = e
+    filter_weights = np.zeros(filter_length)
+    for sample_index in range(filter_length, n_samples):
+        input_buffer = signal_data[sample_index - filter_length : sample_index][::-1]
+        filter_output = filter_weights @ input_buffer
+        error = reference_data[sample_index] - filter_output
+        mu_n = step_size / (regularization + input_buffer @ input_buffer)
+        filter_weights = filter_weights + mu_n * error * input_buffer
+        output[sample_index] = error
     return output
 
 

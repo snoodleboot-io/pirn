@@ -40,43 +40,48 @@ from pirn.domains.signal.types.signal_frame import SignalFrame
 from pirn.domains.signal.types.signal_payload import SignalPayload
 
 
-def _systematic_resample(weights: np.ndarray, n: int) -> np.ndarray:
+def _systematic_resample(weights: np.ndarray, particle_count: int) -> np.ndarray:
     """Systematic resampling; returns array of indices."""
-    positions = (np.arange(n) + np.random.uniform()) / n
+    positions = (np.arange(particle_count) + np.random.uniform()) / particle_count
     cumsum = np.cumsum(weights)
-    indices = np.zeros(n, dtype=int)
-    i, j = 0, 0
-    while i < n:
-        if positions[i] < cumsum[j]:
-            indices[i] = j
-            i += 1
+    indices = np.zeros(particle_count, dtype=int)
+    particle_idx, cumsum_idx = 0, 0
+    while particle_idx < particle_count:
+        if positions[particle_idx] < cumsum[cumsum_idx]:
+            indices[particle_idx] = cumsum_idx
+            particle_idx += 1
         else:
-            j += 1
+            cumsum_idx += 1
     return indices
 
 
-def _particle_filter(y: np.ndarray, num_particles: int, q: float, r: float) -> np.ndarray:
+def _particle_filter(
+    observations: np.ndarray,
+    num_particles: int,
+    process_noise_var: float,
+    measurement_noise_var: float,
+) -> np.ndarray:
     """Bootstrap particle filter with systematic resampling.
 
-    Returns weighted-mean state estimates shaped (len(y),).
+    Returns weighted-mean state estimates shaped (len(observations),).
     """
-    n = len(y)
+    obs_count = len(observations)
     particles = np.random.randn(num_particles)
     weights = np.ones(num_particles) / num_particles
-    estimates = np.zeros(n)
-    for k in range(n):
+    estimates = np.zeros(obs_count)
+    for obs_index in range(obs_count):
         # Propagate
-        particles = particles + np.sqrt(q) * np.random.randn(num_particles)
+        particles = particles + np.sqrt(process_noise_var) * np.random.randn(num_particles)
         # Weight: Gaussian likelihood
-        log_w = -0.5 * (y[k] - particles) ** 2 / r
+        log_w = -0.5 * (observations[obs_index] - particles) ** 2 / measurement_noise_var
         log_w -= np.max(log_w)
         weights = np.exp(log_w)
         weights /= weights.sum()
         # MMSE estimate
-        estimates[k] = float(weights @ particles)
+        estimates[obs_index] = float(weights @ particles)
         # Effective sample size — resample if needed
-        n_eff = 1.0 / float(np.sum(weights**2))
-        if n_eff < num_particles / 2:
+        effective_sample_size = 1.0 / float(np.sum(weights**2))
+        if effective_sample_size < num_particles / 2:
             indices = _systematic_resample(weights, num_particles)
             particles = particles[indices]
             weights = np.ones(num_particles) / num_particles
@@ -141,11 +146,15 @@ class ParticleFilter(Knot):
                 "ParticleFilter: resampling_strategy must be 'multinomial', "
                 "'stratified', 'systematic', or 'residual'"
             )
-        x = signal.data[0] if signal.data.ndim > 1 else signal.data
+        signal_array = signal.data[0] if signal.data.ndim > 1 else signal.data
         process_noise = 1e-2
         measurement_noise = 1e-1
         filtered = await asyncio.to_thread(
-            _particle_filter, x.astype(float), particle_count, process_noise, measurement_noise
+            _particle_filter,
+            signal_array.astype(float),
+            particle_count,
+            process_noise,
+            measurement_noise,
         )
         frame = SignalFrame(
             signal_id=f"{signal.frame.signal_id}:particle",

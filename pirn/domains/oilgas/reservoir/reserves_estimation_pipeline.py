@@ -116,10 +116,10 @@ class ReservesEstimationPipeline(Knot):
 
     @staticmethod
     def _arps_integrate(rates: list[float], q_el: float, royalty: float) -> dict[str, Any]:
-        t = np.arange(len(rates), dtype=np.float64)
+        time_steps = np.arange(len(rates), dtype=np.float64)
         log_q = np.log(np.array(rates, dtype=np.float64) + 1e-9)
 
-        slope, intercept = np.polyfit(t, log_q, 1)
+        slope, intercept = np.polyfit(time_steps, log_q, 1)
         di_day = float(-slope)  # positive decline rate per time step (daily)
         qi = float(np.exp(intercept))
 

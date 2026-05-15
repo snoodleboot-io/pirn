@@ -118,9 +118,9 @@ class CorrosionRateEstimator(Knot):
             prev_arr = np.array(prev_loss, dtype=np.float64)
             curr_arr = np.array(curr_loss, dtype=np.float64)
             # Pad shorter array with zeros to align feature indices
-            n = max(len(prev_arr), len(curr_arr))
-            prev_pad = np.pad(prev_arr, (0, n - len(prev_arr)))
-            curr_pad = np.pad(curr_arr, (0, n - len(curr_arr)))
+            max_feature_count = max(len(prev_arr), len(curr_arr))
+            prev_pad = np.pad(prev_arr, (0, max_feature_count - len(prev_arr)))
+            curr_pad = np.pad(curr_arr, (0, max_feature_count - len(curr_arr)))
             loss_delta = np.maximum(curr_pad - prev_pad, 0.0)
             # Wall loss in inches → mpy (mils/year): 1 inch = 1000 mils
             max_rate = float(np.max(loss_delta) * 1000.0 / years)

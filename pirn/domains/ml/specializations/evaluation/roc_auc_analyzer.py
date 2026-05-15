@@ -61,15 +61,15 @@ class ROCAUCAnalyzer(Knot):
         fpr: list[float] = []
         tpr: list[float] = []
         thresholds: list[float] = []
-        for i in range(n_points):
-            t = round(i / (n_points - 1), 2)
-            thresholds.append(t)
-            fpr.append(self._curve_value(model, split, t, "fpr"))
-            tpr.append(self._curve_value(model, split, t, "tpr"))
+        for point_idx in range(n_points):
+            threshold_val = round(point_idx / (n_points - 1), 2)
+            thresholds.append(threshold_val)
+            fpr.append(self._curve_value(model, split, threshold_val, "fpr"))
+            tpr.append(self._curve_value(model, split, threshold_val, "tpr"))
         fpr[0], tpr[0] = 1.0, 1.0
         fpr[-1], tpr[-1] = 0.0, 0.0
         auc = self._auc_value(model, split)
-        j_scores = [tpr[i] - fpr[i] for i in range(n_points)]
+        j_scores = [tpr[point_idx] - fpr[point_idx] for point_idx in range(n_points)]
         best_idx = j_scores.index(max(j_scores))
         return {
             "fpr": fpr,

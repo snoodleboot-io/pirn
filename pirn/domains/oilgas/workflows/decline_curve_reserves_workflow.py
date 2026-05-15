@@ -1,19 +1,19 @@
-"""``DeclineCurveReservesWorkflow`` — SCADA -> DCA -> type curve -> reserves.
+"""``DeclineCurveReservesWorkflow`` — SCADA rows -> DCA -> type curve -> reserves.
 
 Composition:
-    SCADA ingest -> decline-curve analyse -> type-curve fit ->
+    SCADA assemble -> decline-curve analyse -> type-curve fit ->
     Monte-Carlo reserves estimate.
 
 Algorithm:
-    1. Receive a live ``HistorianConnection``, SCADA tag and time parameters,
+    1. Receive ``rows`` (historian query result), SCADA tag and time parameters,
        volumetric parameters, and trial count.
     2. Validate all string, numeric, and count inputs in ``process()``.
-    3. Build and wire an inner ``Tapestry`` with:
-       - ``ScadaHistorianIngester`` for rate history,
+    3. Build the inner pipeline inside ``process()``:
+       - ``ScadaDatabaseAssembler`` for rate history,
        - ``DeclineCurveAnalyzer`` and ``TypeCurveFitter`` for DCA,
        - ``VolumetricEstimator`` for OOIP,
        - ``MonteCarloSimulator`` for P10/P50/P90 reserves.
-    4. Execute the inner tapestry and return the ``RunResult``.
+    4. Return the terminal knot; the base class runs the inner tapestry.
 
 
 References:
@@ -30,17 +30,13 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_result import RunResult
-from pirn.domains.oilgas.production.scada_historian_ingester import (
-    ScadaHistorianIngester,
-)
-from pirn.domains.oilgas.protocols.historian_connection import HistorianConnection
+from pirn.core.parameter import Parameter
+from pirn.domains.oilgas.assemblers.scada_database_assembler import ScadaDatabaseAssembler
 from pirn.domains.oilgas.reservoir.decline_curve_analyzer import DeclineCurveAnalyzer
 from pirn.domains.oilgas.reservoir.monte_carlo_simulator import MonteCarloSimulator
 from pirn.domains.oilgas.reservoir.type_curve_fitter import TypeCurveFitter
 from pirn.domains.oilgas.reservoir.volumetric_estimator import VolumetricEstimator
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class DeclineCurveReservesWorkflow(SubTapestry):
@@ -49,7 +45,7 @@ class DeclineCurveReservesWorkflow(SubTapestry):
     def __init__(
         self,
         *,
-        connection: HistorianConnection,
+        rows: Knot,
         oil_tag: Knot | str,
         since: Knot | datetime,
         sample_interval_sec: Knot | float,
@@ -63,7 +59,7 @@ class DeclineCurveReservesWorkflow(SubTapestry):
         **kwargs: Any,
     ) -> None:
         super().__init__(
-            connection=connection,
+            rows=rows,
             oil_tag=oil_tag,
             since=since,
             sample_interval_sec=sample_interval_sec,
@@ -79,7 +75,7 @@ class DeclineCurveReservesWorkflow(SubTapestry):
 
     async def process(
         self,
-        connection: HistorianConnection,
+        rows: list[tuple[Any, ...]],
         oil_tag: str,
         since: datetime,
         sample_interval_sec: float,
@@ -90,10 +86,11 @@ class DeclineCurveReservesWorkflow(SubTapestry):
         formation_volume_factor: float,
         trial_count: int,
         **_: Any,
-    ) -> RunResult:
-        """Build and execute the SCADA-to-reserves inner tapestry and return its RunResult.
+    ) -> Any:
+        """Build the SCADA-to-reserves inner pipeline and return its terminal knot.
 
         Args:
+            rows: List of ``(timestamp, value)`` tuples from a historian query.
             oil_tag: Non-empty SCADA tag name for oil rate.
             since: Start datetime for SCADA history pull.
             sample_interval_sec: Positive sample interval in seconds.
@@ -105,40 +102,39 @@ class DeclineCurveReservesWorkflow(SubTapestry):
             trial_count: Positive integer number of Monte-Carlo trials.
 
         Returns:
-            RunResult from the inner pipeline spanning SCADA ingest through Monte-Carlo reserves estimation.
+            Terminal knot of the inner pipeline (``MonteCarloSimulator``).
         """
         if not isinstance(oil_tag, str) or not oil_tag:
             raise ValueError("DeclineCurveReservesWorkflow: oil_tag must be a non-empty string")
         if not isinstance(trial_count, int) or trial_count <= 0:
             raise ValueError("DeclineCurveReservesWorkflow: trial_count must be a positive integer")
-        with Tapestry() as inner:
-            rate = ScadaHistorianIngester(
-                connection=connection,
-                tag=oil_tag,
-                since=since,
-                sample_interval_sec=sample_interval_sec,
-                _config=KnotConfig(id="ingest"),
-            )
-            DeclineCurveAnalyzer(
-                rate_series=rate,
-                method="hyperbolic",
-                _config=KnotConfig(id="decline"),
-            )
-            TypeCurveFitter(
-                rate_series=rate,
-                _config=KnotConfig(id="type_curve"),
-            )
-            volumetric = VolumetricEstimator(
-                area_acres=area_acres,
-                net_thickness_ft=net_thickness_ft,
-                porosity_fraction=porosity_fraction,
-                water_saturation_fraction=water_saturation_fraction,
-                formation_volume_factor=formation_volume_factor,
-                _config=KnotConfig(id="volumetric"),
-            )
-            MonteCarloSimulator(
-                deterministic_estimate=volumetric,
-                trial_count=trial_count,
-                _config=KnotConfig(id="monte_carlo"),
-            )
-        return await self._run_inner(inner)
+        rows_param = Parameter("rows", list, default=rows, _config=KnotConfig(id="rows"))
+        rate = ScadaDatabaseAssembler(
+            rows=rows_param,
+            tag=oil_tag,
+            since=since,
+            sample_interval_sec=sample_interval_sec,
+            _config=KnotConfig(id="assemble"),
+        )
+        DeclineCurveAnalyzer(
+            rate_series=rate,
+            method="hyperbolic",
+            _config=KnotConfig(id="decline"),
+        )
+        TypeCurveFitter(
+            rate_series=rate,
+            _config=KnotConfig(id="type_curve"),
+        )
+        volumetric = VolumetricEstimator(
+            area_acres=area_acres,
+            net_thickness_ft=net_thickness_ft,
+            porosity_fraction=porosity_fraction,
+            water_saturation_fraction=water_saturation_fraction,
+            formation_volume_factor=formation_volume_factor,
+            _config=KnotConfig(id="volumetric"),
+        )
+        return MonteCarloSimulator(
+            deterministic_estimate=volumetric,
+            trial_count=trial_count,
+            _config=KnotConfig(id="monte_carlo"),
+        )

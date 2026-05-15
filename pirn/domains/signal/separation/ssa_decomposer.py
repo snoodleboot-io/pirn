@@ -40,22 +40,24 @@ from pirn.domains.signal.types.source_frame import SourceFrame
 from pirn.domains.signal.types.source_payload import SourcePayload
 
 
-def _ssa(x: np.ndarray, window_length: int, source_count: int) -> np.ndarray:
-    n = len(x)
-    k = n - window_length + 1
-    trajectory = np.array([x[i : i + window_length] for i in range(k)]).T
-    u, s, vt = np.linalg.svd(trajectory, full_matrices=False)
-    count = min(source_count, len(s))
-    components = np.zeros((count, n))
-    for i in range(count):
-        rank1 = s[i] * np.outer(u[:, i], vt[i])
-        reconstructed = np.zeros(n)
-        counts = np.zeros(n)
-        for col in range(k):
+def _ssa(signal_array: np.ndarray, window_length: int, source_count: int) -> np.ndarray:
+    signal_length = len(signal_array)
+    column_count = signal_length - window_length + 1
+    trajectory = np.array(
+        [signal_array[col_idx : col_idx + window_length] for col_idx in range(column_count)]
+    ).T
+    sv_u, sv_s, sv_vt = np.linalg.svd(trajectory, full_matrices=False)
+    count = min(source_count, len(sv_s))
+    components = np.zeros((count, signal_length))
+    for component_idx in range(count):
+        rank1 = sv_s[component_idx] * np.outer(sv_u[:, component_idx], sv_vt[component_idx])
+        reconstructed = np.zeros(signal_length)
+        antidiag_counts = np.zeros(signal_length)
+        for col in range(column_count):
             for row in range(window_length):
                 reconstructed[row + col] += rank1[row, col]
-                counts[row + col] += 1
-        components[i] = reconstructed / counts
+                antidiag_counts[row + col] += 1
+        components[component_idx] = reconstructed / antidiag_counts
     return components
 
 

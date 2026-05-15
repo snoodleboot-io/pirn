@@ -83,10 +83,12 @@ class FIRWindowFilter(Knot):
                 f"FIRWindowFilter: window must be one of {sorted(self._valid_windows)}"
             )
 
-        h = await asyncio.to_thread(
+        tap_weights = await asyncio.to_thread(
             ss.firwin, num_taps, cutoff_hz, window=window, fs=signal.frame.sample_rate_hz
         )
-        filtered = await asyncio.to_thread(ss.lfilter, h, np.array([1.0]), signal.data, axis=-1)
+        filtered = await asyncio.to_thread(
+            ss.lfilter, tap_weights, np.array([1.0]), signal.data, axis=-1
+        )
 
         return SignalPayload(
             metadata=SignalFrame(

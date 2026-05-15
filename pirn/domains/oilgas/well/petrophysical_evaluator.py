@@ -65,12 +65,12 @@ def _compute_curves(
             raise ValueError("PetrophysicalEvaluator: need GR and either RHOB or a PHI curve")
         phie = phi_curve * (1.0 - vsh)
 
-    n = len(gr)
+    depth_count = len(gr)
     if "RT" in curve_data:
         rt = curve_data["RT"]
         sw = np.clip((1.0 * 0.1 / (phie**2 * rt + _eps)) ** 0.5, 0.0, 1.0)
     else:
-        sw = np.ones(n, dtype=np.float64)
+        sw = np.ones(depth_count, dtype=np.float64)
 
     return vsh, phie, sw
 

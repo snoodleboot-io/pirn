@@ -38,14 +38,13 @@ from pirn.domains.signal.types.signal_payload import SignalPayload
 
 def _mvdr(data: np.ndarray, steering_vec: np.ndarray) -> np.ndarray:
     n_samples = data.shape[1]
-    r = (data @ data.conj().T) / n_samples
-    r_inv = np.linalg.inv(r)
-    a = steering_vec
-    numerator = r_inv @ a
-    denominator = a.conj() @ numerator
-    w = numerator / denominator
-    y = w.conj() @ data
-    return np.real(y)
+    covariance_matrix = (data @ data.conj().T) / n_samples
+    r_inv = np.linalg.inv(covariance_matrix)
+    numerator = r_inv @ steering_vec
+    denominator = steering_vec.conj() @ numerator
+    beamform_weights = numerator / denominator
+    beamformed = beamform_weights.conj() @ data
+    return np.real(beamformed)
 
 
 class BeamformerMVDR(Knot):
@@ -105,27 +104,39 @@ class BeamformerMVDR(Knot):
 
         import asyncio
 
-        c = 343.0
+        speed_of_sound = 343.0
         sample_rate_hz = signal.frame.sample_rate_hz
         f0 = sample_rate_hz / 4.0
         theta = radians(steering_angle_deg)
-        d = float(element_spacing_m)
-        a = np.array(
-            [np.exp(-1j * 2 * np.pi * f0 * i * d * sin(theta) / c) for i in range(num_elements)],
+        element_spacing = float(element_spacing_m)
+        steering_vec = np.array(
+            [
+                np.exp(
+                    -1j
+                    * 2
+                    * np.pi
+                    * f0
+                    * element_index
+                    * element_spacing
+                    * sin(theta)
+                    / speed_of_sound
+                )
+                for element_index in range(num_elements)
+            ],
             dtype=complex,
         )
         data = signal.data.astype(complex)
         if diagonal_loading > 0.0:
             n_samples = data.shape[1]
-            r = (data @ data.conj().T) / n_samples
-            r = r + diagonal_loading * np.eye(num_elements)
-            r_inv = np.linalg.inv(r)
-            numerator = r_inv @ a
-            denominator = a.conj() @ numerator
-            w = numerator / denominator
-            beamformed = np.real(w.conj() @ data)
+            covariance_matrix = (data @ data.conj().T) / n_samples
+            covariance_matrix = covariance_matrix + diagonal_loading * np.eye(num_elements)
+            r_inv = np.linalg.inv(covariance_matrix)
+            numerator = r_inv @ steering_vec
+            denominator = steering_vec.conj() @ numerator
+            beamform_weights = numerator / denominator
+            beamformed = np.real(beamform_weights.conj() @ data)
         else:
-            beamformed = await asyncio.to_thread(_mvdr, data, a)
+            beamformed = await asyncio.to_thread(_mvdr, data, steering_vec)
         return SignalPayload(
             metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:mvdr",

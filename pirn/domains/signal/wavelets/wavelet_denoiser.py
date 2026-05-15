@@ -46,8 +46,8 @@ def _run_denoising(data: np.ndarray, wavelet: str, level: int, threshold_mode: s
     coeffs = pywt.wavedec(data, wavelet, level=level, axis=-1)
     finest_detail = coeffs[-1]
     sigma = np.median(np.abs(finest_detail)) / 0.6745
-    n = data.shape[-1]
-    threshold = sigma * np.sqrt(2 * np.log(n))
+    sample_count = data.shape[-1]
+    threshold = sigma * np.sqrt(2 * np.log(sample_count))
     coeffs_thresh = [pywt.threshold(c, threshold, mode=threshold_mode) for c in coeffs]
     return pywt.waverec(coeffs_thresh, wavelet, axis=-1)
 

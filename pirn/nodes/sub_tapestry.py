@@ -58,9 +58,9 @@ class SubTapestryError(Exception):
 
     def __init__(self, inner_result: RunResult) -> None:
         self.inner_result = inner_result
-        n = len(inner_result.exceptions)
+        exception_count = len(inner_result.exceptions)
         super().__init__(
-            f"inner pipeline failed with {n} exception(s); run_id={inner_result.run_id!r}"
+            f"inner pipeline failed with {exception_count} exception(s); run_id={inner_result.run_id!r}"
         )
 
 

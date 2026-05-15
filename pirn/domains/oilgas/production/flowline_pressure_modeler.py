@@ -50,10 +50,10 @@ def _darcy_weisbach(
     D_ft = pipe_inner_diameter_in / 12.0
     A_ft2 = math.pi * (D_ft / 2) ** 2
     Q_ft3s = values * 5.615 / 86400
-    v = Q_ft3s / (A_ft2 + 1e-12)
-    Re = rho * v * D_ft / (1.0 * 6.72e-4)
-    f = np.where(Re < 2300, 64 / (Re + 1e-9), 0.316 / (Re**0.25 + 1e-9))
-    return f * (pipe_length_ft / D_ft) * (rho * v**2 / 2) / 144
+    velocity = Q_ft3s / (A_ft2 + 1e-12)
+    Re = rho * velocity * D_ft / (1.0 * 6.72e-4)
+    friction_factor = np.where(Re < 2300, 64 / (Re + 1e-9), 0.316 / (Re**0.25 + 1e-9))
+    return friction_factor * (pipe_length_ft / D_ft) * (rho * velocity**2 / 2) / 144
 
 
 class FlowlinePressureModeler(Knot):
@@ -116,11 +116,11 @@ class FlowlinePressureModeler(Knot):
             pipe_inner_diameter_in,
             pipe_length_ft,
         )
-        n = len(dP_psi)
+        sample_count = len(dP_psi)
         return ScadaPayload(
             metadata=ScadaTimeSeries(
                 sensor_id=f"dp:{rate_series.series.sensor_id}",
-                sample_count=n,
+                sample_count=sample_count,
                 sample_interval_sec=rate_series.series.sample_interval_sec,
             ),
             data=dP_psi,

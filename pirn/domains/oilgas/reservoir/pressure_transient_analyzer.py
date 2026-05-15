@@ -142,18 +142,18 @@ class PressureTransientAnalyzer(Knot):
         h: float,
         mu: float,
     ) -> dict[str, Any]:
-        q = float(test_data.get("flow_rate_bopd", _default_q_bopd))
-        tp = float(test_data.get("tp_hr", _default_tp_hr))
-        bo = float(test_data.get("bo", _default_bo))
-        phi = float(test_data.get("porosity", _default_phi))
-        ct = float(test_data.get("total_compressibility_psi", _default_ct))
+        flow_rate_bopd = float(test_data.get("flow_rate_bopd", _default_q_bopd))
+        producing_time_hr = float(test_data.get("tp_hr", _default_tp_hr))
+        oil_fvf = float(test_data.get("bo", _default_bo))
+        porosity = float(test_data.get("porosity", _default_phi))
+        total_compressibility = float(test_data.get("total_compressibility_psi", _default_ct))
 
         p_ws = np.array(pressure_psi, dtype=np.float64)
         dt = np.array(delta_t_hr, dtype=np.float64)
 
         # Horner time ratio: (tp + dt) / dt; avoid division by zero at dt=0
         dt_safe = np.where(dt > 0.0, dt, 1e-9)
-        horner_time = (tp + dt_safe) / dt_safe
+        horner_time = (producing_time_hr + dt_safe) / dt_safe
 
         log_ht = np.log10(horner_time)
 
@@ -161,30 +161,32 @@ class PressureTransientAnalyzer(Knot):
         # Buildup pressure rises with decreasing Horner time (Pws vs log((tp+dt)/dt)
         # yields a negative slope on the Horner plot; m is taken as absolute slope).
         coeffs = np.polyfit(log_ht, p_ws, 1)
-        m = float(coeffs[0])  # psia / log-cycle (may be negative — pressure rises)
+        horner_slope = float(coeffs[0])  # psia / log-cycle (may be negative — pressure rises)
 
-        m_abs = abs(m) if abs(m) > 1e-6 else 1e-6
+        horner_slope_abs = abs(horner_slope) if abs(horner_slope) > 1e-6 else 1e-6
 
         # Permeability from Darcy radial flow (field units).
-        k = 162.6 * q * mu * bo / (m_abs * h)
+        permeability = 162.6 * flow_rate_bopd * mu * oil_fvf / (horner_slope_abs * h)
 
         # P at 1 hr shut-in: interpolate on Horner line where log((tp+1)/1) = log(tp+1)
-        p1hr = float(coeffs[0] * np.log10(tp + 1.0) + coeffs[1])
+        p1hr = float(coeffs[0] * np.log10(producing_time_hr + 1.0) + coeffs[1])
 
         # Flowing pressure at start of shut-in (last flowing pressure before buildup)
         pwf_start = float(p_ws[0]) if len(p_ws) > 0 else float(np.min(p_ws))
 
         skin = 1.151 * (
-            (p1hr - pwf_start) / m_abs - np.log10(k / (phi * mu * ct * rw**2)) + _skin_log_constant
+            (p1hr - pwf_start) / horner_slope_abs
+            - np.log10(permeability / (porosity * mu * total_compressibility * rw**2))
+            + _skin_log_constant
         )
 
         # Productivity index from rate and total drawdown observed
         pressure_diff = float(np.max(p_ws)) - float(np.min(p_ws))
-        pi = q / max(pressure_diff, 1.0)
+        productivity_index = flow_rate_bopd / max(pressure_diff, 1.0)
 
         return {
-            "permeability_md": float(k),
+            "permeability_md": float(permeability),
             "skin_factor": float(skin),
             "wellbore_storage": 0.01,  # early-time unit-slope not resolvable without log-log plot
-            "pi_bopd_psi": float(pi),
+            "pi_bopd_psi": float(productivity_index),
         }

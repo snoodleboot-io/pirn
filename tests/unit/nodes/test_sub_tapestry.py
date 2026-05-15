@@ -15,6 +15,8 @@ from pirn.nodes.sub_tapestry import SubTapestry, SubTapestryError
 from pirn.tapestry import Tapestry
 
 
+
+
 def _make_failed_result() -> RunResult:
     exc = ExceptionRecord(
         run_id="r", knot_id="fail", exc_type="RuntimeError",
@@ -46,16 +48,14 @@ class _DoubleSource(Source):
 
 
 class _InnerPipeline(SubTapestry):
-    async def process(self, upstream: Any, **_: Any) -> RunResult:
-        with Tapestry() as inner:
-            from pirn.nodes.source import Source as _Source
+    async def process(self, upstream: Any, **_: Any) -> Any:
+        from pirn.nodes.source import Source as _Source
 
-            class _PassThrough(_Source):
-                async def process(self, **_: Any) -> Any:
-                    return upstream * 2
+        class _PassThrough(_Source):
+            async def process(self, **_kw: Any) -> Any:
+                return upstream * 2
 
-            _PassThrough(_config=KnotConfig(id="pt"))
-        return await self._run_inner(inner)
+        return _PassThrough(_config=KnotConfig(id="pt"))
 
 
 class TestSubTapestryProcess(unittest.IsolatedAsyncioTestCase):
@@ -64,10 +64,8 @@ class TestSubTapestryProcess(unittest.IsolatedAsyncioTestCase):
             src = _DoubleSource(_config=KnotConfig(id="src"))
             _InnerPipeline(upstream=src, _config=KnotConfig(id="pipeline"))
         result = await t.run(RunRequest())
-        inner_result = result.outputs["pipeline"]
-        self.assertIsInstance(inner_result, RunResult)
-        self.assertTrue(inner_result.succeeded)
-        self.assertEqual(inner_result.outputs["pt"], 42)
+        self.assertTrue(result.succeeded)
+        self.assertEqual(result.outputs["pipeline"], 42)
 
     async def test_base_process_raises_not_implemented(self) -> None:
         class _Bare(SubTapestry):

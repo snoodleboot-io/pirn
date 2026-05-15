@@ -46,8 +46,17 @@ class TestDebateFrameworkProcess(unittest.IsolatedAsyncioTestCase):
         with Tapestry():
             pro = StubDebater(_config=KnotConfig(id="pro"))
             con = StubDebater(_config=KnotConfig(id="con"))
-        k = _make_knot((pro, con), judge)
-        winner = await k.process(topic="should we ship", debaters=(pro, con), judge_llm=judge, rounds=2)
+        with Tapestry() as t:
+            DebateFramework(
+                topic="should we ship",
+                debaters=(pro, con),
+                judge_llm=judge,
+                rounds=2,
+                _config=KnotConfig(id="debate"),
+            )
+        run = await t.run(RunRequest())
+        assert run.succeeded
+        winner = run.outputs["debate"]
         assert isinstance(winner, AgentResponse)
         assert winner.content == "against the motion"
 

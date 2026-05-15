@@ -30,9 +30,7 @@ from pirn.domains.ml.data_prep.train_test_split import TrainTestSplit
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.features.scaler import Scaler
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class AnomalyDetectionPipeline(SubTapestry):
@@ -72,7 +70,7 @@ class AnomalyDetectionPipeline(SubTapestry):
         algorithm: str = "isolation_forest",
         contamination: float = 0.1,
         **_: Any,
-    ) -> EvalReportPayload:
+    ) -> Any:
         """Load data, scale, train anomaly detector, and return an EvalMetadata with anomaly metrics.
 
         Args:
@@ -103,36 +101,33 @@ class AnomalyDetectionPipeline(SubTapestry):
         if not isinstance(contamination, (int, float)) or not 0.0 < contamination < 0.5:
             raise ValueError("AnomalyDetectionPipeline: contamination must be in (0, 0.5)")
         contamination_f = float(contamination)
-        with Tapestry() as inner:
-            dataset = DatasetLoader(
-                name="anomaly-detection",
-                feature_names=feature_tuple,
-                target_name=None,
-                pool=pool,
-                query=query,
-                _config=KnotConfig(id="load"),
-            )
-            split = TrainTestSplit(
-                dataset=dataset,
-                _config=KnotConfig(id="split"),
-            )
-            preprocessed = Scaler(
-                split=split,
-                columns=feature_tuple,
-                method="standardise",
-                _config=KnotConfig(id="preprocess"),
-            )
-            trained = Trainer(
-                split=preprocessed,
-                algorithm=algorithm,
-                hyperparameters={"contamination": contamination_f},
-                _config=KnotConfig(id="train"),
-            )
-            Evaluator(
-                model=trained,
-                split=preprocessed,
-                metrics=self._anomaly_metrics,
-                _config=KnotConfig(id="evaluate"),
-            )
-        inner_result = await self._run_inner(inner)
-        return inner_result.outputs["evaluate"]
+        dataset = DatasetLoader(
+            name="anomaly-detection",
+            feature_names=feature_tuple,
+            target_name=None,
+            pool=pool,
+            query=query,
+            _config=KnotConfig(id="load"),
+        )
+        split = TrainTestSplit(
+            dataset=dataset,
+            _config=KnotConfig(id="split"),
+        )
+        preprocessed = Scaler(
+            split=split,
+            columns=feature_tuple,
+            method="standardise",
+            _config=KnotConfig(id="preprocess"),
+        )
+        trained = Trainer(
+            split=preprocessed,
+            algorithm=algorithm,
+            hyperparameters={"contamination": contamination_f},
+            _config=KnotConfig(id="train"),
+        )
+        return Evaluator(
+            model=trained,
+            split=preprocessed,
+            metrics=self._anomaly_metrics,
+            _config=KnotConfig(id="evaluate"),
+        )

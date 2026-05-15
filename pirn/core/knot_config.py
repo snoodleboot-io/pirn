@@ -34,14 +34,14 @@ class KnotConfig(BaseModel):
 
     @field_validator("id")
     @classmethod
-    def validate_id_characters(cls, v: str) -> str:
-        if not cls._knot_id_re.match(v):
+    def validate_id_characters(cls, id_value: str) -> str:
+        if not cls._knot_id_re.match(id_value):
             raise ValueError(
-                f"knot id {v!r} contains invalid characters. "
+                f"knot id {id_value!r} contains invalid characters. "
                 "Allowed: alphanumeric, underscore, hyphen, dot, colon. Max length: 256. "
                 "Null bytes, path separators, whitespace, and control characters are not permitted."
             )
-        return v
+        return id_value
 
     validate_io: bool = Field(
         default=True,

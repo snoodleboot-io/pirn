@@ -77,7 +77,7 @@ class InstantaneousAttributeExtractor(Knot):
         valid_attributes: frozenset[str] = frozenset(
             {"amplitude", "phase", "frequency", "bandwidth", "q_factor"}
         )
-        invalid = [a for a in attributes if a not in valid_attributes]
+        invalid = [attr_name for attr_name in attributes if attr_name not in valid_attributes]
         if invalid:
             raise ValueError(
                 f"InstantaneousAttributeExtractor: unknown attributes {invalid}; "
@@ -108,6 +108,6 @@ class InstantaneousAttributeExtractor(Knot):
                 result[attr] = bw.tolist()
             elif attr == "q_factor":
                 bw_val = np.abs(np.diff(amp, prepend=amp[0])) / (amp + 1e-12) / (2.0 * np.pi * dt)
-                q = np.abs(inst_freq) / (bw_val + 1e-12)
-                result[attr] = q.tolist()
+                quality_factor = np.abs(inst_freq) / (bw_val + 1e-12)
+                result[attr] = quality_factor.tolist()
         return result

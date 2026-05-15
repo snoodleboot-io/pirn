@@ -45,7 +45,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_anomaly_report(self) -> None:
-        rows = [(float(i), float(i)) for i in range(40)]
+        rows = [{"a": float(i), "b": float(i)} for i in range(40)]
         with Tapestry() as t:
             AnomalyDetectionPipeline(
                 pool=RecordingDatabasePool(rows=rows),

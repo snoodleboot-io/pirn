@@ -65,9 +65,7 @@ from pirn.domains.agents.specializations.react.react_termination_check import (
 )
 from pirn.domains.agents.tool import Tool
 from pirn.domains.agents.types.agent_message import AgentMessage
-from pirn.domains.agents.types.agent_response import AgentResponse
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class ReActLoop(SubTapestry):
@@ -99,7 +97,7 @@ class ReActLoop(SubTapestry):
         tools: Sequence[Tool],
         max_iterations: int = 10,
         **_: Any,
-    ) -> AgentResponse:
+    ) -> Any:
         """Run the unrolled ReAct loop over the seed messages and return the final AgentResponse.
 
         Args:
@@ -128,46 +126,40 @@ class ReActLoop(SubTapestry):
                     f"ReActLoop: tools[{index}] must be a Tool, got {type(candidate).__name__}"
                 )
         seed_messages = tuple(messages)
-        with Tapestry() as inner:
-            seed = MessagesPassthrough(
-                messages=seed_messages,
-                _config=KnotConfig(id="seed"),
-            )
-            ContextBuilder(
-                messages=seed,
-                _config=KnotConfig(id="initial_context"),
-            )
-            running_messages: Knot = seed
-            already_terminated: Knot | bool = False
-            for index in range(max_iterations):
-                context_knot = ContextBuilder(
-                    messages=running_messages,
-                    _config=KnotConfig(id=f"context_{index}"),
-                )
-                step = ReActStepExecutor(
-                    context=context_knot,
-                    llm=llm,
-                    tools=tool_tuple,
-                    _config=KnotConfig(id=f"step_{index}"),
-                )
-                running_messages = ReActStepAccumulator(
-                    prior=running_messages,
-                    step_output=step,
-                    already_terminated=already_terminated,
-                    _config=KnotConfig(id=f"accum_{index}"),
-                )
-                already_terminated = ReActTerminationCheck(
-                    latest_response=step,
-                    max_iterations=max_iterations,
-                    current_iteration=index + 1,
-                    _config=KnotConfig(id=f"gate_{index}"),
-                )
-            ReActResponseExtractor(
+        seed = MessagesPassthrough(
+            messages=seed_messages,
+            _config=KnotConfig(id="seed"),
+        )
+        ContextBuilder(
+            messages=seed,
+            _config=KnotConfig(id="initial_context"),
+        )
+        running_messages: Knot = seed
+        already_terminated: Knot | bool = False
+        for index in range(max_iterations):
+            context_knot = ContextBuilder(
                 messages=running_messages,
-                _config=KnotConfig(id="response"),
+                _config=KnotConfig(id=f"context_{index}"),
             )
-        inner_result = await self._run_inner(inner)
-        response = inner_result.outputs.get("response")
-        if not isinstance(response, AgentResponse):
-            return AgentResponse(content="", finish_reason="length")
-        return response
+            step = ReActStepExecutor(
+                context=context_knot,
+                llm=llm,
+                tools=tool_tuple,
+                _config=KnotConfig(id=f"step_{index}"),
+            )
+            running_messages = ReActStepAccumulator(
+                prior=running_messages,
+                step_output=step,
+                already_terminated=already_terminated,
+                _config=KnotConfig(id=f"accum_{index}"),
+            )
+            already_terminated = ReActTerminationCheck(
+                latest_response=step,
+                max_iterations=max_iterations,
+                current_iteration=index + 1,
+                _config=KnotConfig(id=f"gate_{index}"),
+            )
+        return ReActResponseExtractor(
+            messages=running_messages,
+            _config=KnotConfig(id="response"),
+        )

@@ -68,46 +68,50 @@ class TypeCurveFitter(Knot):
         if not isinstance(rate_series, ScadaPayload):
             raise TypeError("TypeCurveFitter: rate_series must be a ScadaPayload")
 
-        q = rate_series.values.astype(np.float64)
-        if len(q) < 2:
+        rate_array = rate_series.values.astype(np.float64)
+        if len(rate_array) < 2:
             return {
-                "qi": float(q[0]) if len(q) == 1 else 0.0,
+                "qi": float(rate_array[0]) if len(rate_array) == 1 else 0.0,
                 "di_per_year": 0.0,
                 "b": 0.0,
                 "eur_stb": 0.0,
             }
 
-        t = np.arange(len(q), dtype=np.float64) * rate_series.series.sample_interval_sec / 86400.0
+        time_days = (
+            np.arange(len(rate_array), dtype=np.float64)
+            * rate_series.series.sample_interval_sec
+            / 86400.0
+        )
 
-        return await asyncio.to_thread(self._fit_and_integrate, q, t)
+        return await asyncio.to_thread(self._fit_and_integrate, rate_array, time_days)
 
     @staticmethod
-    def _fit_and_integrate(q: np.ndarray, t: np.ndarray) -> dict[str, float]:
-        def hyperbolic(t_: np.ndarray, qi_: float, di_: float, b_: float) -> np.ndarray:
-            return qi_ * (1.0 + b_ * di_ * t_) ** (-1.0 / b_)
+    def _fit_and_integrate(rate_array: np.ndarray, time_days: np.ndarray) -> dict[str, float]:
+        def hyperbolic(time_arr: np.ndarray, qi_: float, di_: float, arps_b: float) -> np.ndarray:
+            return qi_ * (1.0 + arps_b * di_ * time_arr) ** (-1.0 / arps_b)
 
-        qi0 = float(q[0]) if q[0] > 0 else 1.0
+        qi0 = float(rate_array[0]) if rate_array[0] > 0 else 1.0
         try:
             popt, _ = curve_fit(
                 hyperbolic,
-                t,
-                q,
+                time_days,
+                rate_array,
                 p0=[qi0, _di_init_day, _b_init],
                 bounds=([0.0, 1e-9, 1e-6], [np.inf, np.inf, 0.9999]),
                 maxfev=5000,
             )
-            qi, di_day, b = float(popt[0]), float(popt[1]), float(popt[2])
+            qi, di_day, arps_b = float(popt[0]), float(popt[1]), float(popt[2])
         except Exception:
             # Exponential fallback
-            log_q = np.log(q + 1e-9)
-            slope, intercept = np.polyfit(t, log_q, 1)
+            log_q = np.log(rate_array + 1e-9)
+            slope, intercept = np.polyfit(time_days, log_q, 1)
             qi = float(np.exp(intercept))
             di_day = float(-slope)
-            b = 0.0
+            arps_b = 0.0
 
         di_annual = di_day * 365.0
 
-        if b < 1e-6:
+        if arps_b < 1e-6:
             # Exponential EUR: qi / di (days) integrated to abandonment
             eur = (
                 qi
@@ -115,10 +119,12 @@ class TypeCurveFitter(Knot):
                 * (1.0 - np.exp(-di_day * np.log(qi / max(_q_aban, 1e-9)) / max(di_day, 1e-9)))
             )
         else:
-            # Hyperbolic EUR: qi^b / (di*(1-b)) * (qi^(1-b) - q_aban^(1-b))
+            # Hyperbolic EUR: qi^arps_b / (di*(1-arps_b)) * (qi^(1-arps_b) - q_aban^(1-arps_b))
             # Robertson (1988) integrated Arps formula.
-            eur = (qi**b / (di_day * (1.0 - b))) * (qi ** (1.0 - b) - _q_aban ** (1.0 - b))
+            eur = (qi**arps_b / (di_day * (1.0 - arps_b))) * (
+                qi ** (1.0 - arps_b) - _q_aban ** (1.0 - arps_b)
+            )
 
         eur = max(float(eur), 0.0)
 
-        return {"qi": qi, "di_per_year": di_annual, "b": b, "eur_stb": eur}
+        return {"qi": qi, "di_per_year": di_annual, "b": arps_b, "eur_stb": eur}

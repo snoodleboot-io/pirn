@@ -29,9 +29,7 @@ from pirn.domains.ml.specializations.evaluation.ranking_eval_pipeline import (
     RankingEvalPipeline,
 )
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class CollaborativeFilteringPipeline(SubTapestry):
@@ -74,7 +72,7 @@ class CollaborativeFilteringPipeline(SubTapestry):
         algorithm: str = "als",
         top_k: int = 10,
         **_: Any,
-    ) -> EvalReportPayload:
+    ) -> Any:
         """Train a matrix factorisation model and evaluate with ranking metrics.
 
         Args:
@@ -116,30 +114,27 @@ class CollaborativeFilteringPipeline(SubTapestry):
         if not isinstance(top_k, int) or top_k < 1:
             raise ValueError("CollaborativeFilteringPipeline: top_k must be an int >= 1")
         feature_names = (user_column, item_column)
-        with Tapestry() as inner:
-            dataset = DatasetLoader(
-                name="collaborative-filtering",
-                feature_names=feature_names,
-                target_name=rating_column,
-                pool=pool,
-                query=query,
-                _config=KnotConfig(id="load"),
-            )
-            split = TrainTestSplit(
-                dataset=dataset,
-                _config=KnotConfig(id="split"),
-            )
-            trained = Trainer(
-                split=split,
-                algorithm=algorithm,
-                hyperparameters={"top_k": top_k},
-                _config=KnotConfig(id="train"),
-            )
-            RankingEvalPipeline(
-                model=trained,
-                split=split,
-                k=top_k,
-                _config=KnotConfig(id="evaluate"),
-            )
-        inner_result = await self._run_inner(inner)
-        return inner_result.outputs["evaluate"]
+        dataset = DatasetLoader(
+            name="collaborative-filtering",
+            feature_names=feature_names,
+            target_name=rating_column,
+            pool=pool,
+            query=query,
+            _config=KnotConfig(id="load"),
+        )
+        split = TrainTestSplit(
+            dataset=dataset,
+            _config=KnotConfig(id="split"),
+        )
+        trained = Trainer(
+            split=split,
+            algorithm=algorithm,
+            hyperparameters={"top_k": top_k},
+            _config=KnotConfig(id="train"),
+        )
+        return RankingEvalPipeline(
+            model=trained,
+            split=split,
+            k=top_k,
+            _config=KnotConfig(id="evaluate"),
+        )

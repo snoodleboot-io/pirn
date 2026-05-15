@@ -32,9 +32,9 @@ class TapestryGraphScanner:
         for path in yaml_paths:
             if self._is_ignored(path):
                 continue
-            g = self._scan_yaml(path, folder)
-            if g is not None:
-                graphs.append(g)
+            graph = self._scan_yaml(path, folder)
+            if graph is not None:
+                graphs.append(graph)
         for path in sorted(folder.rglob("*.py")):
             if self._is_ignored(path) or path.name.startswith("_"):
                 continue
@@ -50,11 +50,11 @@ class TapestryGraphScanner:
         # Deduplicate by run_id (same db may appear via multiple rglob hits).
         seen: set[str] = set()
         unique: list[dict[str, Any]] = []
-        for r in runs:
-            if r["run_id"] not in seen:
-                seen.add(r["run_id"])
-                unique.append(r)
-        unique.sort(key=lambda r: r["started_at"], reverse=True)
+        for run in runs:
+            if run["run_id"] not in seen:
+                seen.add(run["run_id"])
+                unique.append(run)
+        unique.sort(key=lambda run: run["started_at"], reverse=True)
         return unique
 
     def _load_runs_from_db(self, db_path: Path, limit: int = 200) -> list[dict[str, Any]]:
@@ -242,11 +242,11 @@ class TapestryGraphScanner:
             return 0
 
     @staticmethod
-    def _parse_iso(s: Any) -> datetime:
-        s = str(s).replace(" ", "T")
-        if s.endswith("+00:00") or s.endswith("Z"):
-            s = s.removesuffix("Z").removesuffix("+00:00")
-        return datetime.fromisoformat(s).replace(tzinfo=UTC)
+    def _parse_iso(iso_value: Any) -> datetime:
+        iso_str = str(iso_value).replace(" ", "T")
+        if iso_str.endswith("+00:00") or iso_str.endswith("Z"):
+            iso_str = iso_str.removesuffix("Z").removesuffix("+00:00")
+        return datetime.fromisoformat(iso_str).replace(tzinfo=UTC)
 
     @staticmethod
     def _is_ignored(path: Path) -> bool:

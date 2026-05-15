@@ -29,11 +29,9 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.domains.ml.evaluation.evaluator import Evaluator
-from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.domains.ml.types.model_manifest import ModelManifest
 from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
@@ -63,9 +61,7 @@ class ClassificationEvalPipeline(SubTapestry):
     ) -> None:
         super().__init__(model=model, split=split, _config=_config, **kwargs)
 
-    async def process(
-        self, model: ModelManifest, split: SplitManifest, **_: Any
-    ) -> EvalReportPayload:
+    async def process(self, model: ModelManifest, split: SplitManifest, **_: Any) -> Any:
         """Evaluate the model using the canonical classification metric set and return the resulting EvalMetadata.
 
         Args:
@@ -75,14 +71,11 @@ class ClassificationEvalPipeline(SubTapestry):
         Returns:
             EvalReportPayload containing accuracy, precision, recall, f1, roc_auc, and confusion_matrix.
         """
-        with Tapestry() as inner:
-            model_node = _emit_value(value=model, _config=KnotConfig(id="model"))
-            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
-            Evaluator(
-                model=model_node,
-                split=split_node,
-                metrics=self._classification_metrics,
-                _config=KnotConfig(id="evaluate"),
-            )
-        inner_result = await self._run_inner(inner)
-        return inner_result.outputs["evaluate"]
+        model_node = _emit_value(value=model, _config=KnotConfig(id="model"))
+        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        return Evaluator(
+            model=model_node,
+            split=split_node,
+            metrics=self._classification_metrics,
+            _config=KnotConfig(id="evaluate"),
+        )

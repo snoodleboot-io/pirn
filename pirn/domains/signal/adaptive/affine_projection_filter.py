@@ -51,20 +51,25 @@ def _apf(
 ) -> np.ndarray:
     """Run the affine projection adaptive filter loop and return the error signal."""
     n_samples = len(signal_data)
-    w = np.zeros(filter_length)
+    filter_weights = np.zeros(filter_length)
     e_out = np.zeros(n_samples)
     start = filter_length + projection_order - 1
-    for n in range(start, n_samples):
-        X = np.stack(
-            [signal_data[n - p - filter_length : n - p][::-1] for p in range(projection_order)],
+    for sample_index in range(start, n_samples):
+        input_matrix = np.stack(
+            [
+                signal_data[sample_index - p - filter_length : sample_index - p][::-1]
+                for p in range(projection_order)
+            ],
             axis=0,
         )
-        d = reference_data[n - projection_order + 1 : n + 1][::-1]
-        y = X @ w
-        e_vec = d - y
-        gram = X @ X.T + _apf_delta * np.eye(projection_order)
-        w = w + step_size * X.T @ np.linalg.solve(gram, e_vec)
-        e_out[n] = e_vec[0]
+        desired_vector = reference_data[sample_index - projection_order + 1 : sample_index + 1][
+            ::-1
+        ]
+        output_vector = input_matrix @ filter_weights
+        e_vec = desired_vector - output_vector
+        gram = input_matrix @ input_matrix.T + _apf_delta * np.eye(projection_order)
+        filter_weights = filter_weights + step_size * input_matrix.T @ np.linalg.solve(gram, e_vec)
+        e_out[sample_index] = e_vec[0]
     return e_out
 
 

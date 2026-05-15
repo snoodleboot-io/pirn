@@ -39,7 +39,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_classification_report(self) -> None:
-        rows = [(float(i), i % 3) for i in range(40)]
+        rows = [{"img": float(i), "label": i % 3} for i in range(40)]
         with Tapestry() as t:
             ImageClassificationPipeline(
                 pool=RecordingDatabasePool(rows=rows),

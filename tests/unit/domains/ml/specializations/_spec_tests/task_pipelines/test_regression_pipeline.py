@@ -33,7 +33,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_regression_report(self) -> None:
-        rows = [(float(i), float(i) * 0.5) for i in range(40)]
+        rows = [{"a": float(i), "y": float(i) * 0.5} for i in range(40)]
         with Tapestry() as t:
             RegressionPipeline(
                 pool=RecordingDatabasePool(rows=rows),

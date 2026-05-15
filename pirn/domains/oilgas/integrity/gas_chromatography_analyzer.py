@@ -65,7 +65,7 @@ _mw: dict[str, float] = {
 }
 
 # Molecular weight of dry air (used as denominator for specific gravity).
-_mw_AIR = 28.97
+_mw_air = 28.97
 
 
 class GasChromatographyAnalyzer(Knot):
@@ -140,7 +140,7 @@ class GasChromatographyAnalyzer(Knot):
         ghv = sum(yi * _hhv_btu_scf.get(name, 0.0) for name, yi in mole_fractions.items())
 
         # Specific gravity: mixture MW / air MW (Kay's mixing rule for ideal gas).
-        sg = sum(yi * _mw.get(name, 0.0) for name, yi in mole_fractions.items()) / _mw_AIR
+        sg = sum(yi * _mw.get(name, 0.0) for name, yi in mole_fractions.items()) / _mw_air
 
         return {
             "mole_fractions": mole_fractions,

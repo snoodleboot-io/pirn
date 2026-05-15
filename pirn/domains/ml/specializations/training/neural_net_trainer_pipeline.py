@@ -36,12 +36,24 @@ from pirn.domains.ml.training.trainer import Trainer
 from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
 async def _emit_value(value: Any) -> Any:
     return value
+
+
+@knot
+async def _combine_neural_net_pipeline_result(
+    model_id: str,
+    eval_report: EvalReportPayload,
+    serialized: Any,
+) -> dict[str, Any]:
+    return {
+        "model_id": model_id,
+        "eval_report": eval_report,
+        "serialized_size": len(bytes(serialized)),
+    }
 
 
 class NeuralNetTrainerPipeline(SubTapestry):
@@ -84,7 +96,7 @@ class NeuralNetTrainerPipeline(SubTapestry):
         hyperparameters: Mapping[str, Any] | None = None,
         format: str = "onnx",
         **_: Any,
-    ) -> dict[str, Any]:
+    ) -> Any:
         """Train the neural-net model, evaluate it, serialise in the configured format, register it, and return a summary dict.
 
         Args:
@@ -125,46 +137,34 @@ class NeuralNetTrainerPipeline(SubTapestry):
                 f"NeuralNetTrainerPipeline: format must be one of {sorted(self.valid_formats)}"
             )
         hp = dict(hyperparameters) if hyperparameters is not None else {}
-        with Tapestry() as inner:
-            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
-            model = Trainer(
-                split=split_node,
-                algorithm=algorithm,
-                hyperparameters=hp,
-                _config=KnotConfig(id="train"),
-            )
-            Evaluator(
-                model=model,
-                split=split_node,
-                metrics=metric_tuple,
-                _config=KnotConfig(id="evaluate"),
-            )
-            serialized = ModelSerializer(
-                model=model,
-                format=format,
-                _config=KnotConfig(id="serialize"),
-            )
-            ModelRegistrar(
-                serialized=serialized,
-                model=model,
-                lineage=lineage,
-                store=store,
-                _config=KnotConfig(id="register"),
-            )
-        result = await self._run_inner(inner)
-        report = result.outputs["evaluate"]
-        serialized_bytes = result.outputs["serialize"]
-        model_id = result.outputs["register"]
-        if not isinstance(report, EvalReportPayload):
-            raise TypeError(
-                "NeuralNetTrainerPipeline: evaluator did not return an EvalReportPayload"
-            )
-        if not isinstance(serialized_bytes, (bytes, bytearray)):
-            raise TypeError("NeuralNetTrainerPipeline: serializer did not return bytes")
-        if not isinstance(model_id, str):
-            raise TypeError("NeuralNetTrainerPipeline: registrar did not return a string id")
-        return {
-            "model_id": model_id,
-            "eval_report": report,
-            "serialized_size": len(bytes(serialized_bytes)),
-        }
+        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        model = Trainer(
+            split=split_node,
+            algorithm=algorithm,
+            hyperparameters=hp,
+            _config=KnotConfig(id="train"),
+        )
+        evaluated = Evaluator(
+            model=model,
+            split=split_node,
+            metrics=metric_tuple,
+            _config=KnotConfig(id="evaluate"),
+        )
+        serialized = ModelSerializer(
+            model=model,
+            format=format,
+            _config=KnotConfig(id="serialize"),
+        )
+        registered = ModelRegistrar(
+            serialized=serialized,
+            model=model,
+            lineage=lineage,
+            store=store,
+            _config=KnotConfig(id="register"),
+        )
+        return _combine_neural_net_pipeline_result(
+            model_id=registered,
+            eval_report=evaluated,
+            serialized=serialized,
+            _config=KnotConfig(id="combine"),
+        )

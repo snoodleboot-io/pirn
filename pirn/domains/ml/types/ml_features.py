@@ -11,10 +11,13 @@ from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 @dataclass
 class MLFeatures(PirnOpaqueValue):
-    """Feature matrix X and optional target vector y."""
+    """Feature matrix and optional target vector."""
 
-    X: np.ndarray
-    y: np.ndarray | None = None
+    feature_matrix: np.ndarray
+    target_vector: np.ndarray | None = None
 
     def _pirn_audit_dict(self) -> dict:
-        return {"n_rows": int(self.X.shape[0]), "n_features": int(self.X.shape[1])}
+        return {
+            "n_rows": int(self.feature_matrix.shape[0]),
+            "n_features": int(self.feature_matrix.shape[1]),
+        }

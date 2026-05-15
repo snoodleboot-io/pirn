@@ -92,8 +92,10 @@ class FIRParksMcClellanFilter(Knot):
             raise ValueError("FIRParksMcClellanFilter: desired must have one value per band")
 
         fs = signal.frame.sample_rate_hz
-        h = await asyncio.to_thread(ss.remez, num_taps, list(bands), list(desired), fs=fs)
-        filtered = await asyncio.to_thread(ss.lfilter, h, np.array([1.0]), signal.data, axis=-1)
+        tap_weights = await asyncio.to_thread(ss.remez, num_taps, list(bands), list(desired), fs=fs)
+        filtered = await asyncio.to_thread(
+            ss.lfilter, tap_weights, np.array([1.0]), signal.data, axis=-1
+        )
         return SignalPayload(
             metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:fir-pm",

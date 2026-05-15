@@ -40,12 +40,20 @@ from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.domains.ml.types.model_manifest import ModelManifest
 from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
 async def _emit_value(value: Any) -> Any:
     return value
+
+
+@knot
+async def _combine_hyperband_result(
+    best_model: ModelManifest,
+    eval_report: EvalReportPayload,
+    rounds: int,
+) -> dict[str, Any]:
+    return {"best_model": best_model, "eval_report": eval_report, "rounds": rounds}
 
 
 class HyperbandTuner(SubTapestry):
@@ -83,7 +91,7 @@ class HyperbandTuner(SubTapestry):
         max_configs: int = 16,
         random_seed: int = 42,
         **_: Any,
-    ) -> dict[str, Any]:
+    ) -> Any:
         """Run successive-halving and return the surviving best model and its evaluation.
 
         Args:
@@ -118,32 +126,26 @@ class HyperbandTuner(SubTapestry):
         frozen_space = {k: tuple(v) for k, v in ss.items()}
         rounds = max(1, math.ceil(math.log2(max_configs)))
         n_trials = max(1, max_configs // (2 ** (rounds - 1)))
-        with Tapestry() as inner:
-            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
-            best = HyperparamSearch(
-                split=split_node,
-                algorithm=algorithm,
-                search_space=frozen_space,
-                strategy="random",
-                n_trials=n_trials,
-                random_seed=random_seed,
-                _config=KnotConfig(id="search"),
-            )
-            Evaluator(
-                model=best,
-                split=split_node,
-                metrics=(primary_metric,),
-                _config=KnotConfig(id="evaluate"),
-            )
-        result = await self._run_inner(inner)
-        model = result.outputs["search"]
-        report = result.outputs["evaluate"]
-        if not isinstance(model, ModelManifest):
-            raise TypeError("HyperbandTuner: search did not return a ModelManifest")
-        if not isinstance(report, EvalReportPayload):
-            raise TypeError("HyperbandTuner: evaluator did not return an EvalReportPayload")
-        return {
-            "best_model": model,
-            "eval_report": report,
-            "rounds": rounds,
-        }
+        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        best = HyperparamSearch(
+            split=split_node,
+            algorithm=algorithm,
+            search_space=frozen_space,
+            strategy="random",
+            n_trials=n_trials,
+            random_seed=random_seed,
+            _config=KnotConfig(id="search"),
+        )
+        evaluated = Evaluator(
+            model=best,
+            split=split_node,
+            metrics=(primary_metric,),
+            _config=KnotConfig(id="evaluate"),
+        )
+        rounds_node = _emit_value(value=rounds, _config=KnotConfig(id="rounds"))
+        return _combine_hyperband_result(
+            best_model=best,
+            eval_report=evaluated,
+            rounds=rounds_node,
+            _config=KnotConfig(id="combine"),
+        )

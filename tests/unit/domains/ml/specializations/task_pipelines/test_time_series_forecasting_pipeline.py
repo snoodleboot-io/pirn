@@ -59,7 +59,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_eval_report(self) -> None:
-        rows = [(i, float(i), float(i)) for i in range(40)]
+        rows = [{"ts": i, "a": float(i), "y": float(i)} for i in range(40)]
         with Tapestry() as t:
             TimeSeriesForecastingPipeline(
                 pool=RecordingDatabasePool(rows=rows),

@@ -44,15 +44,15 @@ def _lms_band(
     step_size: float,
 ) -> np.ndarray:
     """Run LMS adaptive filter on a single subband and return the error signal."""
-    n = len(x)
-    w = np.zeros(filter_length)
-    e_out = np.zeros(n)
-    for i in range(filter_length, n):
-        x_buf = x[i - filter_length : i][::-1]
-        y = w @ x_buf
-        e = d[i] - y
-        w = w + step_size * e * x_buf
-        e_out[i] = e
+    band_length = len(x)
+    filter_weights = np.zeros(filter_length)
+    e_out = np.zeros(band_length)
+    for sample_index in range(filter_length, band_length):
+        x_buf = x[sample_index - filter_length : sample_index][::-1]
+        filter_output = filter_weights @ x_buf
+        error = d[sample_index] - filter_output
+        filter_weights = filter_weights + step_size * error * x_buf
+        e_out[sample_index] = error
     return e_out
 
 

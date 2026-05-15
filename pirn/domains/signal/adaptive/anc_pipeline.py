@@ -45,14 +45,14 @@ def _lms_anc(
 ) -> np.ndarray:
     """Run LMS-based active noise control and return the residual error signal."""
     n_samples = len(reference_data)
-    w = np.zeros(filter_length)
+    filter_weights = np.zeros(filter_length)
     e_out = np.zeros(n_samples)
-    for n in range(filter_length, n_samples):
-        x = reference_data[n - filter_length : n][::-1]
-        y = w @ x
-        e = error_data[n] - y
-        w = w + step_size * e * x
-        e_out[n] = e
+    for sample_index in range(filter_length, n_samples):
+        input_buffer = reference_data[sample_index - filter_length : sample_index][::-1]
+        anti_noise_output = filter_weights @ input_buffer
+        residual = error_data[sample_index] - anti_noise_output
+        filter_weights = filter_weights + step_size * residual * input_buffer
+        e_out[sample_index] = residual
     return e_out
 
 

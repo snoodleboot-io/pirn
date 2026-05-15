@@ -29,12 +29,26 @@ from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.domains.ml.types.model_manifest import ModelManifest
 from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
 async def _emit_value(value: Any) -> Any:
     return value
+
+
+@knot
+async def _combine_finetune_eval(
+    model: ModelManifest,
+    eval_report: EvalReportPayload,
+    pretrained_model_id: str,
+    frozen_layers: int,
+) -> dict[str, Any]:
+    return {
+        "model": model,
+        "eval_report": eval_report,
+        "pretrained_model_id": pretrained_model_id,
+        "frozen_layers": frozen_layers,
+    }
 
 
 class FineTuningTrainer(SubTapestry):
@@ -72,7 +86,7 @@ class FineTuningTrainer(SubTapestry):
         frozen_layers: int = 0,
         hyperparameters: Mapping[str, Any] | None = None,
         **_: Any,
-    ) -> dict[str, Any]:
+    ) -> Any:
         """Fine-tune the pretrained model and return the resulting model and its evaluation.
 
         Args:
@@ -110,30 +124,27 @@ class FineTuningTrainer(SubTapestry):
         hp = dict(hyperparameters) if hyperparameters is not None else {}
         hp["pretrained_model_id"] = pretrained_model_id
         hp["frozen_layers"] = frozen_layers
-        with Tapestry() as inner:
-            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
-            model = Trainer(
-                split=split_node,
-                algorithm=algorithm,
-                hyperparameters=hp,
-                _config=KnotConfig(id="train"),
-            )
-            Evaluator(
-                model=model,
-                split=split_node,
-                metrics=metric_tuple,
-                _config=KnotConfig(id="evaluate"),
-            )
-        result = await self._run_inner(inner)
-        trained_model = result.outputs["train"]
-        report = result.outputs["evaluate"]
-        if not isinstance(trained_model, ModelManifest):
-            raise TypeError("FineTuningTrainer: trainer did not return a ModelManifest")
-        if not isinstance(report, EvalReportPayload):
-            raise TypeError("FineTuningTrainer: evaluator did not return an EvalReportPayload")
-        return {
-            "model": trained_model,
-            "eval_report": report,
-            "pretrained_model_id": pretrained_model_id,
-            "frozen_layers": frozen_layers,
-        }
+        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        trained = Trainer(
+            split=split_node,
+            algorithm=algorithm,
+            hyperparameters=hp,
+            _config=KnotConfig(id="train"),
+        )
+        evaluated = Evaluator(
+            model=trained,
+            split=split_node,
+            metrics=metric_tuple,
+            _config=KnotConfig(id="evaluate"),
+        )
+        pmid_node = _emit_value(
+            value=pretrained_model_id, _config=KnotConfig(id="pretrained_model_id")
+        )
+        fl_node = _emit_value(value=frozen_layers, _config=KnotConfig(id="frozen_layers"))
+        return _combine_finetune_eval(
+            model=trained,
+            eval_report=evaluated,
+            pretrained_model_id=pmid_node,
+            frozen_layers=fl_node,
+            _config=KnotConfig(id="combine"),
+        )

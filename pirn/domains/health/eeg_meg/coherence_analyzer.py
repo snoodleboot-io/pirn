@@ -28,8 +28,10 @@ from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.types.signal_payload import SignalPayload
 
 
-def _band_coherence(x: np.ndarray, y: np.ndarray, fs: float, low: float, high: float) -> float:
-    freqs, cxy = ss.coherence(x, y, fs=fs)
+def _band_coherence(
+    channel_x: np.ndarray, channel_y: np.ndarray, fs: float, low: float, high: float
+) -> float:
+    freqs, cxy = ss.coherence(channel_x, channel_y, fs=fs)
     mask = (freqs >= low) & (freqs <= high)
     return float(np.mean(cxy[mask])) if mask.any() else 0.0
 
@@ -57,12 +59,12 @@ def _compute_coherence(
         idx_a = _channel_index(pair[0], n_channels)
         idx_b = _channel_index(pair[1], n_channels)
         if data.ndim > 1:
-            x = data[idx_a]
-            y = data[idx_b]
+            channel_a = data[idx_a]
+            channel_b = data[idx_b]
         else:
-            x = data
-            y = data
-        result[pair] = _band_coherence(x, y, fs, low, high)
+            channel_a = data
+            channel_b = data
+        result[pair] = _band_coherence(channel_a, channel_b, fs, low, high)
     return result
 
 

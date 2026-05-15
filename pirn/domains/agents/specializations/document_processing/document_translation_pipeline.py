@@ -38,7 +38,6 @@ from pirn.domains.agents.specializations.document_processing._translation_load_a
     _TranslationLoadAndChunk,
 )
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class DocumentTranslationPipeline(SubTapestry):
@@ -70,7 +69,7 @@ class DocumentTranslationPipeline(SubTapestry):
         llm: LLMProvider,
         chunk_size: int = 2000,
         **_: Any,
-    ) -> str:
+    ) -> Any:
         """Load, chunk, and translate each chunk into the target language, returning the joined text.
 
         Args:
@@ -100,20 +99,14 @@ class DocumentTranslationPipeline(SubTapestry):
             raise TypeError(
                 f"DocumentTranslationPipeline: source must be a non-empty string, got {source!r}"
             )
-        with Tapestry() as inner:
-            chunks = _TranslationLoadAndChunk(
-                source=source,
-                chunk_size=chunk_size,
-                _config=KnotConfig(id="chunk"),
-            )
-            _ChunkTranslator(
-                chunks=chunks,
-                target_language=target_language,
-                llm=llm,
-                _config=KnotConfig(id="translate"),
-            )
-        inner_result = await self._run_inner(inner)
-        translation = inner_result.outputs.get("translate")
-        if not isinstance(translation, str):
-            return ""
-        return translation
+        chunks = _TranslationLoadAndChunk(
+            source=source,
+            chunk_size=chunk_size,
+            _config=KnotConfig(id="chunk"),
+        )
+        return _ChunkTranslator(
+            chunks=chunks,
+            target_language=target_language,
+            llm=llm,
+            _config=KnotConfig(id="translate"),
+        )

@@ -51,42 +51,42 @@ def _ukf(
 
     Returns filtered state estimates shaped (len(y),).
     """
-    n = len(y)
+    obs_count = len(y)
     lam = alpha**2 * (dim + kappa) - dim
     # Weights for mean and covariance
     Wm = np.full(2 * dim + 1, 0.5 / (dim + lam))
     Wc = Wm.copy()
     Wm[0] = lam / (dim + lam)
     Wc[0] = lam / (dim + lam) + (1.0 - alpha**2 + beta)
-    Q = q * np.eye(dim)
+    process_noise_matrix = q * np.eye(dim)
     R_scalar = r
-    x = np.zeros(dim)
-    P = np.eye(dim)
-    estimates = np.zeros(n)
-    for k in range(n):
+    state_estimate = np.zeros(dim)
+    error_covariance = np.eye(dim)
+    estimates = np.zeros(obs_count)
+    for obs_index in range(obs_count):
         # Sigma points
         try:
-            L = np.linalg.cholesky((dim + lam) * P)
+            chol_matrix = np.linalg.cholesky((dim + lam) * error_covariance)
         except np.linalg.LinAlgError:
-            L = np.eye(dim) * np.sqrt(dim + lam)
+            chol_matrix = np.eye(dim) * np.sqrt(dim + lam)
         sigma = np.zeros((2 * dim + 1, dim))
-        sigma[0] = x
-        for i in range(dim):
-            sigma[i + 1] = x + L[:, i]
-            sigma[dim + i + 1] = x - L[:, i]
+        sigma[0] = state_estimate
+        for state_idx in range(dim):
+            sigma[state_idx + 1] = state_estimate + chol_matrix[:, state_idx]
+            sigma[dim + state_idx + 1] = state_estimate - chol_matrix[:, state_idx]
         # Predict (identity transition)
         x_pred = Wm @ sigma
         diff = sigma - x_pred
-        P_pred = diff.T @ np.diag(Wc) @ diff + Q
+        P_pred = diff.T @ np.diag(Wc) @ diff + process_noise_matrix
         # Observation sigma points (H maps first state component to observation)
         z_sigma = sigma[:, 0]
         z_pred = float(Wm @ z_sigma)
         Pzz = float(Wc @ (z_sigma - z_pred) ** 2) + R_scalar
         Pxz = diff.T @ np.diag(Wc) @ (z_sigma - z_pred)
-        K = Pxz / Pzz
-        x = x_pred + K * (y[k] - z_pred)
-        P = P_pred - np.outer(K, K) * Pzz
-        estimates[k] = float(x[0])
+        kalman_gain = Pxz / Pzz
+        state_estimate = x_pred + kalman_gain * (y[obs_index] - z_pred)
+        error_covariance = P_pred - np.outer(kalman_gain, kalman_gain) * Pzz
+        estimates[obs_index] = float(state_estimate[0])
     return estimates
 
 
@@ -153,11 +153,18 @@ class UnscentedKalmanFilter(Knot):
             raise TypeError("UnscentedKalmanFilter: beta must be a real number")
         if not isinstance(kappa, (int, float)):
             raise TypeError("UnscentedKalmanFilter: kappa must be a real number")
-        x = signal.data[0] if signal.data.ndim > 1 else signal.data
+        signal_array = signal.data[0] if signal.data.ndim > 1 else signal.data
         process_noise = 1e-3
         measurement_noise = 1e-1
         filtered = await asyncio.to_thread(
-            _ukf, x.astype(float), process_noise, measurement_noise, state_dim, alpha, beta, kappa
+            _ukf,
+            signal_array.astype(float),
+            process_noise,
+            measurement_noise,
+            state_dim,
+            alpha,
+            beta,
+            kappa,
         )
         frame = SignalFrame(
             signal_id=f"{signal.frame.signal_id}:ukf",

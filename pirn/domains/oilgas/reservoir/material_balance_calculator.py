@@ -125,12 +125,12 @@ class MaterialBalanceCalculator(Knot):
         boi = 1.0  # unit initial volume
 
         # Underground voidage (reservoir barrels)
-        f = np_stb * bo + wp_stb
+        underground_voidage = np_stb * bo + wp_stb
 
         # Oil expansion term (Eo = Bo - Boi)
         eo = bo - boi
 
-        ooip = f / (eo + 1e-9) if eo > 1e-6 else np_stb * 5.0
+        ooip = underground_voidage / (eo + 1e-9) if eo > 1e-6 else np_stb * 5.0
 
         # Gas OGIP via volumetric expansion; _default_gas_expansion_factor
         # represents Bg - Bgi in Mcf/scf for a typical mid-pressure reservoir.

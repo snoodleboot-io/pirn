@@ -27,9 +27,7 @@ from pirn.domains.ml.data_prep.dataset_loader import DatasetLoader
 from pirn.domains.ml.data_prep.train_test_split import TrainTestSplit
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class NamedEntityRecognitionPipeline(SubTapestry):
@@ -66,7 +64,7 @@ class NamedEntityRecognitionPipeline(SubTapestry):
         label_column: str = "",
         algorithm: str = "crf",
         **_: Any,
-    ) -> EvalReportPayload:
+    ) -> Any:
         """Tokenise, train NER model, and return an EvalMetadata with entity-level precision/recall/F1.
 
         Args:
@@ -97,29 +95,26 @@ class NamedEntityRecognitionPipeline(SubTapestry):
             )
         if not isinstance(algorithm, str) or not algorithm:
             raise ValueError("NamedEntityRecognitionPipeline: algorithm must be a non-empty string")
-        with Tapestry() as inner:
-            dataset = DatasetLoader(
-                name="ner",
-                feature_names=(text_column,),
-                target_name=label_column,
-                pool=pool,
-                query=query,
-                _config=KnotConfig(id="load"),
-            )
-            split = TrainTestSplit(
-                dataset=dataset,
-                _config=KnotConfig(id="split"),
-            )
-            trained = Trainer(
-                split=split,
-                algorithm=algorithm,
-                _config=KnotConfig(id="train"),
-            )
-            Evaluator(
-                model=trained,
-                split=split,
-                metrics=self._ner_metrics,
-                _config=KnotConfig(id="evaluate"),
-            )
-        inner_result = await self._run_inner(inner)
-        return inner_result.outputs["evaluate"]
+        dataset = DatasetLoader(
+            name="ner",
+            feature_names=(text_column,),
+            target_name=label_column,
+            pool=pool,
+            query=query,
+            _config=KnotConfig(id="load"),
+        )
+        split = TrainTestSplit(
+            dataset=dataset,
+            _config=KnotConfig(id="split"),
+        )
+        trained = Trainer(
+            split=split,
+            algorithm=algorithm,
+            _config=KnotConfig(id="train"),
+        )
+        return Evaluator(
+            model=trained,
+            split=split,
+            metrics=self._ner_metrics,
+            _config=KnotConfig(id="evaluate"),
+        )

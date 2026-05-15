@@ -92,24 +92,24 @@ class AccelerometerActivityClassifier(Knot):
                     f"AccelerometerActivityClassifier: accel_data missing required field '{field}'; "
                     f"got: {list(accel_data)}"
                 )
-        x = accel_data["x"]
-        y = accel_data["y"]
-        z = accel_data["z"]
+        accel_x = accel_data["x"]
+        accel_y = accel_data["y"]
+        accel_z = accel_data["z"]
         timestamps = accel_data["timestamps_iso"]
         window_samples = max(1, int(sample_rate_hz * window_sec))
-        n = len(timestamps)
+        timestamp_count = len(timestamps)
 
         # First pass: compute per-window VM to establish the activity range.
         window_vms: list[float] = []
-        for start_idx in range(0, n, window_samples):
-            end_idx = min(start_idx + window_samples, n)
-            wx = x[start_idx:end_idx]
-            wy = y[start_idx:end_idx]
-            wz = z[start_idx:end_idx]
-            if wx and wy and wz:
-                mean_x = sum(wx) / len(wx)
-                mean_y = sum(wy) / len(wy)
-                mean_z = sum(wz) / len(wz)
+        for start_idx in range(0, timestamp_count, window_samples):
+            end_idx = min(start_idx + window_samples, timestamp_count)
+            window_x = accel_x[start_idx:end_idx]
+            window_y = accel_y[start_idx:end_idx]
+            window_z = accel_z[start_idx:end_idx]
+            if window_x and window_y and window_z:
+                mean_x = sum(window_x) / len(window_x)
+                mean_y = sum(window_y) / len(window_y)
+                mean_z = sum(window_z) / len(window_z)
                 vm = math.sqrt(mean_x**2 + mean_y**2 + mean_z**2)
             else:
                 vm = 0.0
@@ -128,17 +128,17 @@ class AccelerometerActivityClassifier(Knot):
             return activity_classes[idx]
 
         results: list[dict[str, Any]] = []
-        for i, (start_idx, vm) in enumerate(
-            zip(range(0, n, window_samples), window_vms, strict=False)
+        for window_index, (start_idx, vm) in enumerate(
+            zip(range(0, timestamp_count, window_samples), window_vms, strict=False)
         ):
-            end_idx = min(start_idx + window_samples, n)
+            end_idx = min(start_idx + window_samples, timestamp_count)
             start_iso = timestamps[start_idx] if start_idx < len(timestamps) else ""
             end_iso = timestamps[end_idx - 1] if end_idx - 1 < len(timestamps) else ""
             results.append(
                 {
                     "start_iso": start_iso,
                     "end_iso": end_iso,
-                    "activity_class": _classify(enmo_vals[i]),
+                    "activity_class": _classify(enmo_vals[window_index]),
                     "vector_magnitude": vm,
                 }
             )

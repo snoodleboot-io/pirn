@@ -55,11 +55,11 @@ def _find_porosity_curve(curve_data: dict[str, np.ndarray]) -> np.ndarray:
     )
 
 
-def _find_swi(curve_data: dict[str, np.ndarray], n: int) -> np.ndarray:
+def _find_swi(curve_data: dict[str, np.ndarray], depth_count: int) -> np.ndarray:
     for name in _sw_curve_priority:
         if name in curve_data:
             return curve_data[name]
-    return np.full(n, 0.25, dtype=np.float64)
+    return np.full(depth_count, 0.25, dtype=np.float64)
 
 
 class PermeabilityEstimator(Knot):
@@ -97,15 +97,17 @@ class PermeabilityEstimator(Knot):
         swi = _find_swi(curve_data, len(phi))
 
         if method == "timur":
-            k = np.maximum(0.136 * phi**4.4 / (swi**2 + _eps), 0.0)
+            permeability_curve = np.maximum(0.136 * phi**4.4 / (swi**2 + _eps), 0.0)
         elif method == "coates":
-            c = 0.0314
-            k = np.maximum((phi**2 / c) ** 2 * ((phi - swi) / (swi + _eps)) ** 2, 0.0)
+            coates_constant = 0.0314
+            permeability_curve = np.maximum(
+                (phi**2 / coates_constant) ** 2 * ((phi - swi) / (swi + _eps)) ** 2, 0.0
+            )
         else:
-            k = np.maximum(250.0 * phi**3 / (swi + _eps) ** 2, 0.0)
+            permeability_curve = np.maximum(250.0 * phi**3 / (swi + _eps) ** 2, 0.0)
 
         mnemonic = f"K_{method}"
-        new_curve_data = {**curve_data, mnemonic: k}
+        new_curve_data = {**curve_data, mnemonic: permeability_curve}
         return LASPayload(
             metadata=LASFile(
                 well_id=payload.las.well_id,

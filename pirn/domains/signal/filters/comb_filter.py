@@ -79,10 +79,12 @@ class CombFilter(Knot):
         if not isinstance(gain, (int, float)) or not (0.0 <= gain <= 1.0):
             raise ValueError("CombFilter: gain must be a float in [0.0, 1.0]")
 
-        b = np.zeros(delay_samples + 1)
-        b[0] = 1.0
-        b[-1] = gain
-        filtered = await asyncio.to_thread(ss.lfilter, b, np.array([1.0]), signal.data, axis=-1)
+        numerator_coeffs = np.zeros(delay_samples + 1)
+        numerator_coeffs[0] = 1.0
+        numerator_coeffs[-1] = gain
+        filtered = await asyncio.to_thread(
+            ss.lfilter, numerator_coeffs, np.array([1.0]), signal.data, axis=-1
+        )
         return SignalPayload(
             metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:comb",

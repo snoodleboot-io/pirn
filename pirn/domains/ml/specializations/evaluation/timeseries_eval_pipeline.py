@@ -32,12 +32,31 @@ from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.domains.ml.types.model_manifest import ModelManifest
 from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
 async def _emit_value(value: Any) -> Any:
     return value
+
+
+@knot
+async def _decorate_time_column(
+    report: EvalReportPayload,
+    time_column: str,
+) -> EvalReportPayload:
+    decorated_details: dict[str, Any] = dict(report.metrics.details)
+    decorated_details["time_column"] = time_column
+    return EvalReportPayload(
+        metadata=EvalMetadata(
+            model_id=report.report.model_id,
+            dataset_name=report.report.dataset_name,
+            evaluated_at=report.report.evaluated_at,
+        ),
+        data=EvalMetrics(
+            scores=report.metrics.scores,
+            details=MappingProxyType(decorated_details),
+        ),
+    )
 
 
 class TimeSeriesEvalPipeline(SubTapestry):
@@ -68,7 +87,7 @@ class TimeSeriesEvalPipeline(SubTapestry):
         split: SplitManifest,
         time_column: str = "",
         **_: Any,
-    ) -> EvalReportPayload:
+    ) -> Any:
         """Evaluate the forecasting model with MAPE, sMAPE, and MASE and return an EvalReportPayload decorated with the time column.
 
         Args:
@@ -84,27 +103,17 @@ class TimeSeriesEvalPipeline(SubTapestry):
         """
         if not isinstance(time_column, str) or not time_column:
             raise ValueError("TimeSeriesEvalPipeline: time_column must be a non-empty string")
-        with Tapestry() as inner:
-            model_node = _emit_value(value=model, _config=KnotConfig(id="model"))
-            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
-            Evaluator(
-                model=model_node,
-                split=split_node,
-                metrics=self._forecasting_metrics,
-                _config=KnotConfig(id="evaluate"),
-            )
-        inner_result = await self._run_inner(inner)
-        report: EvalReportPayload = inner_result.outputs["evaluate"]
-        decorated_details: dict[str, Any] = dict(report.metrics.details)
-        decorated_details["time_column"] = time_column
-        return EvalReportPayload(
-            metadata=EvalMetadata(
-                model_id=report.report.model_id,
-                dataset_name=report.report.dataset_name,
-                evaluated_at=report.report.evaluated_at,
-            ),
-            data=EvalMetrics(
-                scores=report.metrics.scores,
-                details=MappingProxyType(decorated_details),
-            ),
+        model_node = _emit_value(value=model, _config=KnotConfig(id="model"))
+        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        evaluated = Evaluator(
+            model=model_node,
+            split=split_node,
+            metrics=self._forecasting_metrics,
+            _config=KnotConfig(id="evaluate"),
+        )
+        time_col_node = _emit_value(value=time_column, _config=KnotConfig(id="time_column"))
+        return _decorate_time_column(
+            report=evaluated,
+            time_column=time_col_node,
+            _config=KnotConfig(id="decorate"),
         )

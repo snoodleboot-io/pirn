@@ -47,14 +47,14 @@ def _km_median(times: np.ndarray, events: np.ndarray) -> float | None:
     order = np.argsort(times)
     times = times[order]
     events = events[order]
-    n = len(times)
-    s = 1.0
-    for i in range(n):
-        at_risk = n - i
-        d = events[i]
-        s *= 1.0 - d / at_risk
-        if s <= 0.5:
-            return float(times[i])
+    patient_count = len(times)
+    survival_prob = 1.0
+    for time_index in range(patient_count):
+        at_risk = patient_count - time_index
+        events_at_time = events[time_index]
+        survival_prob *= 1.0 - events_at_time / at_risk
+        if survival_prob <= 0.5:
+            return float(times[time_index])
     return None
 
 
@@ -66,53 +66,61 @@ def _log_rank(
 ) -> float:
     """Log-rank test p-value (two-group)."""
     all_times = np.unique(np.concatenate([times_a[events_a == 1], times_b[events_b == 1]]))
-    obs_a = exp_a = var = 0.0
-    for t in all_times:
-        n_a = float(np.sum(times_a >= t))
-        n_b = float(np.sum(times_b >= t))
-        n = n_a + n_b
-        if n == 0:
+    obs_a = exp_a = log_rank_var = 0.0
+    for event_time in all_times:
+        at_risk_a = float(np.sum(times_a >= event_time))
+        at_risk_b = float(np.sum(times_b >= event_time))
+        at_risk_total = at_risk_a + at_risk_b
+        if at_risk_total == 0:
             continue
-        d_a = float(np.sum((times_a == t) & (events_a == 1)))
-        d_b = float(np.sum((times_b == t) & (events_b == 1)))
-        d = d_a + d_b
-        e_a = n_a * d / n
-        obs_a += d_a
-        exp_a += e_a
-        if n > 1:
-            var += n_a * n_b * d * (n - d) / (n * n * (n - 1))
-    if var == 0.0:
+        events_a_at_t = float(np.sum((times_a == event_time) & (events_a == 1)))
+        events_b_at_t = float(np.sum((times_b == event_time) & (events_b == 1)))
+        events_total = events_a_at_t + events_b_at_t
+        expected_a = at_risk_a * events_total / at_risk_total
+        obs_a += events_a_at_t
+        exp_a += expected_a
+        if at_risk_total > 1:
+            log_rank_var += (
+                at_risk_a
+                * at_risk_b
+                * events_total
+                * (at_risk_total - events_total)
+                / (at_risk_total * at_risk_total * (at_risk_total - 1))
+            )
+    if log_rank_var == 0.0:
         return 1.0
-    z = (obs_a - exp_a) ** 2 / var
-    return float(ss.chi2.sf(z, df=1))
+    chi2_stat = (obs_a - exp_a) ** 2 / log_rank_var
+    return float(ss.chi2.sf(chi2_stat, df=1))
 
 
 def _cox_hr(
     times: np.ndarray,
     events: np.ndarray,
-    x: np.ndarray,
+    covariate_matrix: np.ndarray,
     n_iter: int = 20,
 ) -> np.ndarray:
     """Newton-Raphson Cox partial likelihood gradient for single iteration."""
-    n, p = x.shape
-    beta = np.zeros(p)
+    n_patients, n_covariates = covariate_matrix.shape
+    beta = np.zeros(n_covariates)
     for _ in range(n_iter):
         order = np.argsort(times)
-        e_sorted = events[order]
-        x_sorted = x[order]
-        exp_xb = np.exp(x_sorted @ beta)
-        grad = np.zeros(p)
-        hess = np.zeros((p, p))
-        for i in range(n):
-            if e_sorted[i] == 0:
+        events_sorted = events[order]
+        covariates_sorted = covariate_matrix[order]
+        exp_xb = np.exp(covariates_sorted @ beta)
+        grad = np.zeros(n_covariates)
+        hess = np.zeros((n_covariates, n_covariates))
+        for patient_index in range(n_patients):
+            if events_sorted[patient_index] == 0:
                 continue
-            risk_set = np.arange(i, n)
+            risk_set = np.arange(patient_index, n_patients)
             denom = exp_xb[risk_set].sum()
-            w = exp_xb[risk_set] / denom
-            xw = (x_sorted[risk_set] * w[:, None]).sum(axis=0)
-            grad += x_sorted[i] - xw
-            xwx = (x_sorted[risk_set] * w[:, None]).T @ x_sorted[risk_set]
-            hess -= xwx - np.outer(xw, xw)
+            risk_weights = exp_xb[risk_set] / denom
+            weighted_covariates = (covariates_sorted[risk_set] * risk_weights[:, None]).sum(axis=0)
+            grad += covariates_sorted[patient_index] - weighted_covariates
+            xwx = (covariates_sorted[risk_set] * risk_weights[:, None]).T @ covariates_sorted[
+                risk_set
+            ]
+            hess -= xwx - np.outer(weighted_covariates, weighted_covariates)
         try:
             beta -= np.linalg.solve(hess, grad)
         except np.linalg.LinAlgError:
@@ -145,9 +153,13 @@ def _run_survival(
     cox_hazard_ratios: dict[str, float] = {}
     if covariates:
         try:
-            x = np.array([[float(r.get(col, 0)) for col in covariates] for r in survival_data])
-            hrs = _cox_hr(times, events, x)
-            cox_hazard_ratios = {col: float(hrs[i]) for i, col in enumerate(covariates)}
+            covariate_matrix = np.array(
+                [[float(r.get(col, 0)) for col in covariates] for r in survival_data]
+            )
+            hrs = _cox_hr(times, events, covariate_matrix)
+            cox_hazard_ratios = {
+                col: float(hrs[covariate_index]) for covariate_index, col in enumerate(covariates)
+            }
         except Exception:
             cox_hazard_ratios = {col: 1.0 for col in covariates}
 

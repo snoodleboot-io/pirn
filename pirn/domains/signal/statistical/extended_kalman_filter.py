@@ -38,31 +38,35 @@ from pirn.domains.signal.types.signal_frame import SignalFrame
 from pirn.domains.signal.types.signal_payload import SignalPayload
 
 
-def _ekf(y: np.ndarray, q: float, r: float, dim: int) -> np.ndarray:
+def _ekf(
+    observations: np.ndarray, process_noise_var: float, measurement_noise_var: float, state_dim: int
+) -> np.ndarray:
     """Linearised EKF with identity state transition, scalar observation per step.
 
-    Returns filtered state estimates shaped (len(y),).
+    Returns filtered state estimates shaped (len(observations),).
     """
-    n = len(y)
-    F = np.eye(dim)
-    H = np.zeros((1, dim))
-    H[0, 0] = 1.0
-    Q = q * np.eye(dim)
-    R_mat = np.array([[r]])
-    x = np.zeros(dim)
-    P = np.eye(dim)
-    estimates = np.zeros(n)
-    for k in range(n):
+    obs_count = len(observations)
+    transition_matrix = np.eye(state_dim)
+    observation_matrix = np.zeros((1, state_dim))
+    observation_matrix[0, 0] = 1.0
+    process_noise_matrix = process_noise_var * np.eye(state_dim)
+    measurement_noise_matrix = np.array([[measurement_noise_var]])
+    state_estimate = np.zeros(state_dim)
+    error_covariance = np.eye(state_dim)
+    estimates = np.zeros(obs_count)
+    for obs_index in range(obs_count):
         # Predict
-        x_pred = F @ x
-        P_pred = F @ P @ F.T + Q
+        x_pred = transition_matrix @ state_estimate
+        P_pred = transition_matrix @ error_covariance @ transition_matrix.T + process_noise_matrix
         # Update
-        S = H @ P_pred @ H.T + R_mat
-        K = P_pred @ H.T @ np.linalg.inv(S)
-        innov = y[k] - float(H @ x_pred)
-        x = x_pred + K[:, 0] * innov
-        P = (np.eye(dim) - K @ H) @ P_pred
-        estimates[k] = float(x[0])
+        innovation_covariance = (
+            observation_matrix @ P_pred @ observation_matrix.T + measurement_noise_matrix
+        )
+        kalman_gain_matrix = P_pred @ observation_matrix.T @ np.linalg.inv(innovation_covariance)
+        innov = observations[obs_index] - float(observation_matrix @ x_pred)
+        state_estimate = x_pred + kalman_gain_matrix[:, 0] * innov
+        error_covariance = (np.eye(state_dim) - kalman_gain_matrix @ observation_matrix) @ P_pred
+        estimates[obs_index] = float(state_estimate[0])
     return estimates
 
 
@@ -110,11 +114,11 @@ class ExtendedKalmanFilter(Knot):
             raise ValueError("ExtendedKalmanFilter: state_dim must be a positive integer")
         if not isinstance(observation_dim, int) or observation_dim <= 0:
             raise ValueError("ExtendedKalmanFilter: observation_dim must be a positive integer")
-        x = signal.data[0] if signal.data.ndim > 1 else signal.data
+        signal_array = signal.data[0] if signal.data.ndim > 1 else signal.data
         process_noise = 1e-3
         measurement_noise = 1e-1
         filtered = await asyncio.to_thread(
-            _ekf, x.astype(float), process_noise, measurement_noise, state_dim
+            _ekf, signal_array.astype(float), process_noise, measurement_noise, state_dim
         )
         frame = SignalFrame(
             signal_id=f"{signal.frame.signal_id}:ekf",

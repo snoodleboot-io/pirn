@@ -106,8 +106,8 @@ class SpirometryAnalyzer(Knot):
         """
         if not isinstance(flow_l_per_sec, (list, tuple)):
             raise TypeError("SpirometryAnalyzer: flow_l_per_sec must be list/tuple")
-        for f in flow_l_per_sec:
-            if not isinstance(f, (int, float)):
+        for flow_value in flow_l_per_sec:
+            if not isinstance(flow_value, (int, float)):
                 raise TypeError("SpirometryAnalyzer: every flow value must be numeric")
         if not isinstance(sample_rate_hz, (int, float)) or float(sample_rate_hz) <= 0:
             raise ValueError("SpirometryAnalyzer: sample_rate_hz must be a positive number")

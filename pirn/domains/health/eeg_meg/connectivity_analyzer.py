@@ -26,31 +26,29 @@ from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.types.signal_payload import SignalPayload
 
 
-def _plv(x: np.ndarray, y: np.ndarray) -> float:
-    phase_x = np.angle(np.asarray(ss.hilbert(x)))
-    phase_y = np.angle(np.asarray(ss.hilbert(y)))
-    return float(np.abs(np.mean(np.exp(1j * (phase_x - phase_y)))))
+def _plv(signal_a: np.ndarray, signal_b: np.ndarray) -> float:
+    phase_a = np.angle(np.asarray(ss.hilbert(signal_a)))
+    phase_b = np.angle(np.asarray(ss.hilbert(signal_b)))
+    return float(np.abs(np.mean(np.exp(1j * (phase_a - phase_b)))))
 
 
 def _compute_plv_matrix(
     data: np.ndarray,
     channel_names: Sequence[str],
 ) -> dict[str, dict[str, float]]:
-    n = len(channel_names)
     result: dict[str, dict[str, float]] = {ch: {} for ch in channel_names}
-    for i, ch_i in enumerate(channel_names):
-        for j, ch_j in enumerate(channel_names):
-            if i == j:
+    for row_index, ch_i in enumerate(channel_names):
+        for col_index, ch_j in enumerate(channel_names):
+            if row_index == col_index:
                 result[ch_i][ch_j] = 1.0
-            elif j < i:
+            elif col_index < row_index:
                 result[ch_i][ch_j] = result[ch_j][ch_i]
             else:
-                if data.ndim > 1 and i < data.shape[0] and j < data.shape[0]:
-                    plv = _plv(data[i], data[j])
+                if data.ndim > 1 and row_index < data.shape[0] and col_index < data.shape[0]:
+                    plv = _plv(data[row_index], data[col_index])
                 else:
                     plv = 0.0
                 result[ch_i][ch_j] = plv
-    _ = n  # used implicitly via enumerate bounds
     return result
 
 

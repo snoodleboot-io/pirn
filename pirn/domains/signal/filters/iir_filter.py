@@ -79,20 +79,20 @@ class IIRFilter(Knot):
             ValueError: If numerator or denominator are invalid.
             TypeError: If any coefficient is not a real number.
         """
-        b = tuple(numerator)
-        a = tuple(denominator)
-        if not b:
+        numerator_coeffs = tuple(numerator)
+        denominator_coeffs = tuple(denominator)
+        if not numerator_coeffs:
             raise ValueError("IIRFilter: numerator must be non-empty")
-        if not a:
+        if not denominator_coeffs:
             raise ValueError("IIRFilter: denominator must be non-empty")
-        if a[0] == 0:
+        if denominator_coeffs[0] == 0:
             raise ValueError("IIRFilter: denominator[0] must be non-zero")
-        for c in (*b, *a):
-            if not isinstance(c, (int, float)):
+        for coefficient in (*numerator_coeffs, *denominator_coeffs):
+            if not isinstance(coefficient, (int, float)):
                 raise TypeError("IIRFilter: every coefficient must be a real number")
 
-        b_arr = np.array(b)
-        a_arr = np.array(a)
+        b_arr = np.array(numerator_coeffs)
+        a_arr = np.array(denominator_coeffs)
         sos = await asyncio.to_thread(ss.tf2sos, b_arr, a_arr)
         filtered = await asyncio.to_thread(ss.sosfilt, sos, signal.data, axis=-1)
         return SignalPayload(

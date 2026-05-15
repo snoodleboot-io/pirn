@@ -100,15 +100,15 @@ class DowntimeEventClassifier(Knot):
         events: list[dict[str, Any]] = []
         zero_start: str | None = None
         prev_ts: str | None = None
-        for i, entry in enumerate(production_series):
+        for entry_idx, entry in enumerate(production_series):
             if timestamp_field not in entry:
                 raise KeyError(
-                    f"DowntimeEventClassifier: series[{i}] missing required field "
+                    f"DowntimeEventClassifier: series[{entry_idx}] missing required field "
                     f"'{timestamp_field}'; got: {list(entry)}"
                 )
             if rate_field not in entry:
                 raise KeyError(
-                    f"DowntimeEventClassifier: series[{i}] missing required field "
+                    f"DowntimeEventClassifier: series[{entry_idx}] missing required field "
                     f"'{rate_field}'; got: {list(entry)}"
                 )
             ts: str = entry[timestamp_field]

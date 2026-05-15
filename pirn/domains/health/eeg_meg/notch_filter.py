@@ -25,8 +25,8 @@ from pirn.domains.health.types.signal_payload import SignalPayload
 
 
 def _apply_notch(data: np.ndarray, notch_hz: float, fs: float) -> np.ndarray:
-    b, a = ss.iirnotch(notch_hz, Q=30.0, fs=fs)
-    sos = ss.tf2sos(b, a)
+    numerator_coeffs, denominator_coeffs = ss.iirnotch(notch_hz, Q=30.0, fs=fs)
+    sos = ss.tf2sos(numerator_coeffs, denominator_coeffs)
     return ss.sosfiltfilt(sos, data, axis=-1)
 
 

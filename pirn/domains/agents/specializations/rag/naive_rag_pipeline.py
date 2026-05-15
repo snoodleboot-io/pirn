@@ -53,9 +53,7 @@ from pirn.domains.agents.specializations.rag.rag_prompt_builder import (
 from pirn.domains.agents.specializations.rag.rag_response_builder import (
     RAGResponseBuilder,
 )
-from pirn.domains.agents.types.agent_response import AgentResponse
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class NaiveRAGPipeline(SubTapestry):
@@ -87,7 +85,7 @@ class NaiveRAGPipeline(SubTapestry):
         llm: LLMProvider,
         top_k: int = 5,
         **_: Any,
-    ) -> AgentResponse:
+    ) -> Any:
         """Retrieve top-k memories, build a prompt, generate an answer, and return it as an AgentResponse.
 
         Args:
@@ -115,29 +113,23 @@ class NaiveRAGPipeline(SubTapestry):
             )
         if not isinstance(top_k, int) or top_k <= 0:
             raise ValueError(f"NaiveRAGPipeline: top_k must be a positive int, got {top_k!r}")
-        with Tapestry() as inner:
-            retrieved = MemorySearchRetriever(
-                store=memory,
-                query=query,
-                top_k=top_k,
-                _config=KnotConfig(id="retrieve"),
-            )
-            prompt = RAGPromptBuilder(
-                query=query,
-                retrieved=retrieved,
-                _config=KnotConfig(id="prompt"),
-            )
-            answer = LLMChatCall(
-                prompt=prompt,
-                llm=llm,
-                _config=KnotConfig(id="generate"),
-            )
-            RAGResponseBuilder(
-                answer=answer,
-                _config=KnotConfig(id="response"),
-            )
-        inner_result = await self._run_inner(inner)
-        response = inner_result.outputs.get("response")
-        if not isinstance(response, AgentResponse):
-            return AgentResponse(content="", finish_reason="length")
-        return response
+        retrieved = MemorySearchRetriever(
+            store=memory,
+            query=query,
+            top_k=top_k,
+            _config=KnotConfig(id="retrieve"),
+        )
+        prompt = RAGPromptBuilder(
+            query=query,
+            retrieved=retrieved,
+            _config=KnotConfig(id="prompt"),
+        )
+        answer = LLMChatCall(
+            prompt=prompt,
+            llm=llm,
+            _config=KnotConfig(id="generate"),
+        )
+        return RAGResponseBuilder(
+            answer=answer,
+            _config=KnotConfig(id="response"),
+        )

@@ -8,16 +8,16 @@ seam for visualisation.
 
 Example::
 
-    def merge(a: dict, b: dict) -> dict:
-        return {**a, **b}
+    def merge(left: dict, right: dict) -> dict:
+        return {**left, **right}
 
     with Tapestry() as t:
         first_half = ...
         second_half = ...
         merged = Aggregator(
             combine=merge,
-            a=first_half,
-            b=second_half,
+            left=first_half,
+            right=second_half,
             _config=KnotConfig(id="merge"),
         )
 

@@ -131,12 +131,12 @@ class _QARetrieveAndAnswer(Knot):
         )
 
     @staticmethod
-    def _cosine(a: list[float], b: list[float]) -> float:
-        if len(a) != len(b) or not a:
+    def _cosine(vec_a: list[float], vec_b: list[float]) -> float:
+        if len(vec_a) != len(vec_b) or not vec_a:
             return 0.0
-        dot = sum(x * y for x, y in zip(a, b, strict=False))
-        norm_a = math.sqrt(sum(x * x for x in a))
-        norm_b = math.sqrt(sum(y * y for y in b))
+        dot = sum(elem_a * elem_b for elem_a, elem_b in zip(vec_a, vec_b, strict=False))
+        norm_a = math.sqrt(sum(elem_a * elem_a for elem_a in vec_a))
+        norm_b = math.sqrt(sum(elem_b * elem_b for elem_b in vec_b))
         if norm_a == 0.0 or norm_b == 0.0:
             return 0.0
         return dot / (norm_a * norm_b)

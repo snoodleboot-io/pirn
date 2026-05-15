@@ -98,12 +98,16 @@ class DTIPreprocessor(Knot):
                 # MP-PCA denoising: threshold singular values below the
                 # Marchenko-Pastur noise floor estimate.
                 if data.ndim == 2 and data.shape[1] > 1:
-                    u, s, vt = np.linalg.svd(data, full_matrices=False)
-                    m, n = data.shape
-                    sigma_sq = float(np.median(s) ** 2 / n)
-                    mp_threshold = sigma_sq * (1.0 + np.sqrt(m / n)) ** 2
-                    s_denoised = np.where(s**2 > mp_threshold, s, 0.0)
-                    data = u @ np.diag(s_denoised) @ vt
+                    left_singular, singular_values, right_singular = np.linalg.svd(
+                        data, full_matrices=False
+                    )
+                    n_voxels, n_directions_svd = data.shape
+                    sigma_sq = float(np.median(singular_values) ** 2 / n_directions_svd)
+                    mp_threshold = sigma_sq * (1.0 + np.sqrt(n_voxels / n_directions_svd)) ** 2
+                    singular_denoised = np.where(
+                        singular_values**2 > mp_threshold, singular_values, 0.0
+                    )
+                    data = left_singular @ np.diag(singular_denoised) @ right_singular
 
             if eddy_correct and data.shape[1] > 1 if data.ndim == 2 else False:
                 # Flag volumes with variance > 2 std above mean as motion outliers
@@ -111,7 +115,9 @@ class DTIPreprocessor(Knot):
                 mean_var = float(np.mean(vol_vars))
                 std_var = float(np.std(vol_vars))
                 motion_outliers = [
-                    int(i) for i, v in enumerate(vol_vars) if v > mean_var + 2 * std_var
+                    int(vol_index)
+                    for vol_index, vol_variance in enumerate(vol_vars)
+                    if vol_variance > mean_var + 2 * std_var
                 ]
 
         dwi_path = dwi_data.get("path", "preprocessed_dwi.nii.gz")

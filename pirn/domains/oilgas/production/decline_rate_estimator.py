@@ -38,12 +38,12 @@ from pirn.domains.oilgas.types.scada_payload import ScadaPayload
 
 
 def _fit_decline(values: np.ndarray, sample_interval_sec: float) -> float:
-    q = values[values > 0]
-    if len(q) < 2:
+    positive_rates = values[values > 0]
+    if len(positive_rates) < 2:
         return 0.0
-    t = np.arange(len(q)) * sample_interval_sec / 86400
-    log_q = np.log(q + 1e-9)
-    slope, _ = np.polyfit(t, log_q, 1)
+    time_days = np.arange(len(positive_rates)) * sample_interval_sec / 86400
+    log_q = np.log(positive_rates + 1e-9)
+    slope, _ = np.polyfit(time_days, log_q, 1)
     di_per_day = -slope
     di_per_year = di_per_day * 365
     return float(max(di_per_year, 0.0))

@@ -30,22 +30,24 @@ from pirn.domains.health.types.signal_payload import SignalPayload
 _morlet_w = 6.0
 
 
-def _morlet_wavelet(n: int, width: float, w: float = 6.0) -> np.ndarray:
-    """Build a complex Morlet wavelet of length n and scale width."""
-    t = np.arange(-(n // 2), n - n // 2, dtype=float) / width
-    return np.exp(1j * w * t) * np.exp(-0.5 * t**2) * np.pi**-0.25
+def _morlet_wavelet(sample_count: int, width: float, omega: float = 6.0) -> np.ndarray:
+    """Build a complex Morlet wavelet of length sample_count and scale width."""
+    time_array = (
+        np.arange(-(sample_count // 2), sample_count - sample_count // 2, dtype=float) / width
+    )
+    return np.exp(1j * omega * time_array) * np.exp(-0.5 * time_array**2) * np.pi**-0.25
 
 
 def _cwt_power(signal_1d: np.ndarray, fs: float, freq: float) -> float:
     width = fs / freq * _morlet_w / (2 * np.pi)
-    wavelet = _morlet_wavelet(len(signal_1d), width, w=_morlet_w)
+    wavelet = _morlet_wavelet(len(signal_1d), width, omega=_morlet_w)
     coef = np.convolve(signal_1d, wavelet[::-1], mode="same")
     return float(np.mean(np.abs(coef) ** 2))
 
 
 def _compute_tf(data: np.ndarray, frequencies_hz: Sequence[float], fs: float) -> dict[float, float]:
     channel = data[0] if data.ndim > 1 else data
-    return {float(f): _cwt_power(channel, fs, float(f)) for f in frequencies_hz}
+    return {float(freq_hz): _cwt_power(channel, fs, float(freq_hz)) for freq_hz in frequencies_hz}
 
 
 class TimeFrequencyDecomposer(Knot):

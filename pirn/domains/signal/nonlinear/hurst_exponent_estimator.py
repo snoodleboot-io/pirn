@@ -35,28 +35,28 @@ from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_payload import SignalPayload
 
 
-def _hurst_rs(x: np.ndarray) -> float:
+def _hurst_rs(signal_array: np.ndarray) -> float:
     """Hurst exponent via R/S analysis over partitions of increasing length."""
-    n = len(x)
+    signal_length = len(signal_array)
     min_len = 10
-    max_len = n // 2
+    max_len = signal_length // 2
     if max_len <= min_len:
         return 0.5
     lengths = np.unique(np.logspace(np.log10(min_len), np.log10(max_len), 20).astype(int))
     rs_vals = []
     for length in lengths:
-        n_segments = n // length
+        n_segments = signal_length // length
         if n_segments == 0:
             continue
         rs_seg = []
-        for i in range(n_segments):
-            seg = x[i * length : (i + 1) * length].astype(float)
+        for seg_index in range(n_segments):
+            seg = signal_array[seg_index * length : (seg_index + 1) * length].astype(float)
             seg_mean = np.mean(seg)
             deviation = np.cumsum(seg - seg_mean)
-            r = float(np.max(deviation) - np.min(deviation))
-            s = float(np.std(seg, ddof=1))
-            if s > 0:
-                rs_seg.append(r / s)
+            range_value = float(np.max(deviation) - np.min(deviation))
+            std_dev = float(np.std(seg, ddof=1))
+            if std_dev > 0:
+                rs_seg.append(range_value / std_dev)
         if rs_seg:
             rs_vals.append((float(length), float(np.mean(rs_seg))))
     if len(rs_vals) < 2:
@@ -67,26 +67,26 @@ def _hurst_rs(x: np.ndarray) -> float:
     return float(np.clip(coeffs[0], 0.0, 1.0))
 
 
-def _hurst_dfa(x: np.ndarray) -> float:
+def _hurst_dfa(signal_array: np.ndarray) -> float:
     """Hurst exponent via detrended fluctuation analysis."""
-    n = len(x)
-    profile = np.cumsum(x - np.mean(x))
+    signal_length = len(signal_array)
+    profile = np.cumsum(signal_array - np.mean(signal_array))
     min_len = 10
-    max_len = n // 4
+    max_len = signal_length // 4
     if max_len <= min_len:
         return 0.5
     lengths = np.unique(np.logspace(np.log10(min_len), np.log10(max_len), 20).astype(int))
     fluct = []
     for length in lengths:
-        n_seg = n // length
+        n_seg = signal_length // length
         if n_seg == 0:
             continue
         f2 = []
-        for i in range(n_seg):
-            seg = profile[i * length : (i + 1) * length]
+        for seg_index in range(n_seg):
+            seg = profile[seg_index * length : (seg_index + 1) * length]
             idx = np.arange(length)
-            p = np.polyfit(idx, seg, 1)
-            trend = np.polyval(p, idx)
+            poly_coeffs = np.polyfit(idx, seg, 1)
+            trend = np.polyval(poly_coeffs, idx)
             f2.append(np.mean((seg - trend) ** 2))
         fluct.append((float(length), float(np.sqrt(np.mean(f2)))))
     if len(fluct) < 2:
@@ -97,14 +97,14 @@ def _hurst_dfa(x: np.ndarray) -> float:
     return float(np.clip(coeffs[0], 0.0, 1.0))
 
 
-def _hurst_wavelet(x: np.ndarray) -> float:
+def _hurst_wavelet(signal_array: np.ndarray) -> float:
     """Hurst exponent via wavelet energy scaling."""
-    n = len(x)
-    max_level = int(np.log2(n)) - 1
+    signal_length = len(signal_array)
+    max_level = int(np.log2(signal_length)) - 1
     if max_level < 2:
         return 0.5
     energies = []
-    sig = x.astype(float)
+    sig = signal_array.astype(float)
     for level in range(1, max_level + 1):
         # Simple Haar wavelet detail coefficients
         half = len(sig) // 2
@@ -119,17 +119,17 @@ def _hurst_wavelet(x: np.ndarray) -> float:
     log_e = np.array([e[1] for e in energies])
     coeffs = np.polyfit(levels, log_e, 1)
     # Relationship: slope ~ -(2H + 1)
-    h = float(-(coeffs[0] + 1) / 2.0)
-    return float(np.clip(h, 0.0, 1.0))
+    hurst_exponent = float(-(coeffs[0] + 1) / 2.0)
+    return float(np.clip(hurst_exponent, 0.0, 1.0))
 
 
-def _compute_hurst(x: np.ndarray, method: str) -> float:
+def _compute_hurst(signal_array: np.ndarray, method: str) -> float:
     """Dispatch Hurst exponent computation to the selected method."""
     if method == "rs":
-        return _hurst_rs(x)
+        return _hurst_rs(signal_array)
     if method == "dfa":
-        return _hurst_dfa(x)
-    return _hurst_wavelet(x)
+        return _hurst_dfa(signal_array)
+    return _hurst_wavelet(signal_array)
 
 
 class HurstExponentEstimator(Knot):
@@ -173,9 +173,9 @@ class HurstExponentEstimator(Knot):
         """
         if method not in self._valid_methods:
             raise ValueError("HurstExponentEstimator: method must be 'rs', 'dfa', or 'wavelet'")
-        x = signal.data[0] if signal.data.ndim > 1 else signal.data
-        h = await asyncio.to_thread(_compute_hurst, x.astype(float), method)
+        signal_array = signal.data[0] if signal.data.ndim > 1 else signal.data
+        hurst_value = await asyncio.to_thread(_compute_hurst, signal_array.astype(float), method)
         return {
-            "hurst_exponent": h,
+            "hurst_exponent": hurst_value,
             "signal_id": signal.frame.signal_id,
         }

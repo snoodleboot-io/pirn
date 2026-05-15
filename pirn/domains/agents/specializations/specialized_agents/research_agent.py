@@ -35,9 +35,7 @@ from pirn.domains.agents.llm_provider import LLMProvider
 from pirn.domains.agents.specializations.react.react_loop import ReActLoop
 from pirn.domains.agents.tool import Tool
 from pirn.domains.agents.types.agent_message import AgentMessage
-from pirn.domains.agents.types.agent_response import AgentResponse
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class ResearchAgent(SubTapestry):
@@ -69,7 +67,7 @@ class ResearchAgent(SubTapestry):
         search_tool: Tool,
         max_searches: int = 5,
         **_: Any,
-    ) -> AgentResponse:
+    ) -> Any:
         """Run the search-backed ReAct loop on the topic and return a summary AgentResponse.
 
         Args:
@@ -109,16 +107,10 @@ class ResearchAgent(SubTapestry):
             ),
             AgentMessage(role="user", content=f"Research topic: {topic}"),
         )
-        with Tapestry() as inner:
-            ReActLoop(
-                messages=seed_messages,
-                llm=llm,
-                tools=(search_tool,),
-                max_iterations=max_searches,
-                _config=KnotConfig(id="react_loop"),
-            )
-        inner_result = await self._run_inner(inner)
-        response = inner_result.outputs.get("react_loop")
-        if not isinstance(response, AgentResponse):
-            return AgentResponse(content="", finish_reason="length")
-        return response
+        return ReActLoop(
+            messages=seed_messages,
+            llm=llm,
+            tools=(search_tool,),
+            max_iterations=max_searches,
+            _config=KnotConfig(id="react_loop"),
+        )

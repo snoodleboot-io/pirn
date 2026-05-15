@@ -1,20 +1,20 @@
 """``SeismicToWellTieWorkflow`` — SEG-Y -> header parse -> velocity -> correlate.
 
 Composition:
-    SEGY ingest -> header parse -> log ingest (LAS) -> velocity analysis ->
+    SEGY assemble -> header parse -> log assemble (LAS) -> velocity analysis ->
     correlation (stack-extracted trace).
 
 Algorithm:
-    1. Receive SEG-Y and LAS file paths, volume / well IDs, CMP coordinates,
+    1. Receive SEG-Y and LAS bytes, volume / well IDs, CMP coordinates,
        curve list, and initial velocity.
     2. Validate all string and numeric inputs in ``process()``.
-    3. Build and wire an inner ``Tapestry`` with:
-       - ``SegyFileIngester`` and ``SegyHeaderParser`` for volume metadata,
-       - ``LasFileIngester`` for well log context,
+    3. Build the inner pipeline inside ``process()``:
+       - ``SegyObjectStoreAssembler`` and ``SegyHeaderParser`` for volume metadata,
+       - ``LasObjectStoreAssembler`` for well log context,
        - ``CmpGatherExtractor`` to isolate the near-well CMP gather,
        - ``VelocityAnalyzer`` for stacking velocity,
        - ``StackProcessor`` to produce the tie trace.
-    4. Execute the inner tapestry and return the ``RunResult``.
+    4. Return the terminal knot; the base class runs the inner tapestry.
 
 
 References:
@@ -31,15 +31,14 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_result import RunResult
+from pirn.core.parameter import Parameter
+from pirn.domains.oilgas.assemblers.las_object_store_assembler import LasObjectStoreAssembler
+from pirn.domains.oilgas.assemblers.segy_object_store_assembler import SegyObjectStoreAssembler
 from pirn.domains.oilgas.seismic.cmp_gather_extractor import CmpGatherExtractor
-from pirn.domains.oilgas.seismic.segy_file_ingester import SegyFileIngester
 from pirn.domains.oilgas.seismic.segy_header_parser import SegyHeaderParser
 from pirn.domains.oilgas.seismic.stack_processor import StackProcessor
 from pirn.domains.oilgas.seismic.velocity_analyzer import VelocityAnalyzer
-from pirn.domains.oilgas.well.las_file_ingester import LasFileIngester
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class SeismicToWellTieWorkflow(SubTapestry):
@@ -48,9 +47,9 @@ class SeismicToWellTieWorkflow(SubTapestry):
     def __init__(
         self,
         *,
-        segy_path: Knot | str,
+        segy_body: Knot,
         volume_id: Knot | str,
-        las_path: Knot | str,
+        las_body: Knot,
         well_id: Knot | str,
         las_curves: Knot | Sequence[str],
         cmp_inline: Knot | int,
@@ -60,9 +59,9 @@ class SeismicToWellTieWorkflow(SubTapestry):
         **kwargs: Any,
     ) -> None:
         super().__init__(
-            segy_path=segy_path,
+            segy_body=segy_body,
             volume_id=volume_id,
-            las_path=las_path,
+            las_body=las_body,
             well_id=well_id,
             las_curves=las_curves,
             cmp_inline=cmp_inline,
@@ -74,22 +73,22 @@ class SeismicToWellTieWorkflow(SubTapestry):
 
     async def process(
         self,
-        segy_path: str,
+        segy_body: bytes,
         volume_id: str,
-        las_path: str,
+        las_body: bytes,
         well_id: str,
         las_curves: Sequence[str],
         cmp_inline: int,
         cmp_xline: int,
         initial_velocity_m_s: float,
         **_: Any,
-    ) -> RunResult:
-        """Build and execute the SEG-Y-to-well-tie inner tapestry and return its RunResult.
+    ) -> Any:
+        """Build the SEG-Y-to-well-tie inner pipeline and return its terminal knot.
 
         Args:
-            segy_path: Non-empty path to the SEG-Y file on disk.
+            segy_body: Raw SEG-Y file bytes from an object store connector.
             volume_id: Non-empty volume identifier string.
-            las_path: Non-empty path to the LAS file on disk.
+            las_body: Raw LAS file bytes from an object store connector.
             well_id: Non-empty well identifier string.
             las_curves: Non-empty sequence of LAS curve mnemonic strings.
             cmp_inline: Non-negative CMP inline index.
@@ -97,48 +96,55 @@ class SeismicToWellTieWorkflow(SubTapestry):
             initial_velocity_m_s: Positive initial velocity guess in m/s.
 
         Returns:
-            RunResult from the inner pipeline spanning SEG-Y ingest through well-tie correlation.
+            Terminal knot of the inner pipeline (``StackProcessor``).
         """
-        for label, value in (
-            ("segy_path", segy_path),
-            ("las_path", las_path),
-            ("volume_id", volume_id),
-            ("well_id", well_id),
-        ):
+        if not isinstance(segy_body, bytes):
+            raise TypeError(
+                f"SeismicToWellTieWorkflow: segy_body must be bytes, got {type(segy_body).__name__}"
+            )
+        if not isinstance(las_body, bytes):
+            raise TypeError(
+                f"SeismicToWellTieWorkflow: las_body must be bytes, got {type(las_body).__name__}"
+            )
+        for label, value in (("volume_id", volume_id), ("well_id", well_id)):
             if not isinstance(value, str) or not value:
                 raise ValueError(f"SeismicToWellTieWorkflow: {label} must be a non-empty string")
         las_curve_tuple = tuple(las_curves)
         if not las_curve_tuple:
             raise ValueError("SeismicToWellTieWorkflow: las_curves must be non-empty")
-        with Tapestry() as inner:
-            volume = SegyFileIngester(
-                file_path=segy_path,
-                volume_id=volume_id,
-                _config=KnotConfig(id="segy_ingest"),
-            )
-            SegyHeaderParser(
-                volume=volume,
-                _config=KnotConfig(id="header_parse"),
-            )
-            LasFileIngester(
-                file_path=las_path,
-                well_id=well_id,
-                curves=las_curve_tuple,
-                _config=KnotConfig(id="log_ingest"),
-            )
-            gather = CmpGatherExtractor(
-                volume=volume,
-                cmp_inline=cmp_inline,
-                cmp_xline=cmp_xline,
-                _config=KnotConfig(id="cmp_extract"),
-            )
-            VelocityAnalyzer(
-                gather=gather,
-                initial_velocity_m_s=initial_velocity_m_s,
-                _config=KnotConfig(id="velocity"),
-            )
-            StackProcessor(
-                gather=gather,
-                _config=KnotConfig(id="correlate"),
-            )
-        return await self._run_inner(inner)
+        segy_param = Parameter(
+            "segy_body", bytes, default=segy_body, _config=KnotConfig(id="segy_body")
+        )
+        volume = SegyObjectStoreAssembler(
+            body=segy_param,
+            volume_id=volume_id,
+            _config=KnotConfig(id="segy_assemble"),
+        )
+        SegyHeaderParser(
+            volume=volume,
+            _config=KnotConfig(id="header_parse"),
+        )
+        las_param = Parameter(
+            "las_body", bytes, default=las_body, _config=KnotConfig(id="las_body")
+        )
+        LasObjectStoreAssembler(
+            body=las_param,
+            well_id=well_id,
+            curves=las_curve_tuple,
+            _config=KnotConfig(id="log_assemble"),
+        )
+        gather = CmpGatherExtractor(
+            volume=volume,
+            cmp_inline=cmp_inline,
+            cmp_xline=cmp_xline,
+            _config=KnotConfig(id="cmp_extract"),
+        )
+        VelocityAnalyzer(
+            gather=gather,
+            initial_velocity_m_s=initial_velocity_m_s,
+            _config=KnotConfig(id="velocity"),
+        )
+        return StackProcessor(
+            gather=gather,
+            _config=KnotConfig(id="correlate"),
+        )

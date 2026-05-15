@@ -91,25 +91,27 @@ class VCFFilter(Knot):
             raise TypeError("VCFFilter: max_af must be numeric")
         if not 0.0 <= float(max_af) <= 1.0:
             raise ValueError("VCFFilter: max_af must be in [0, 1]")
-        q = float(min_qual)
-        f = float(max_af)
+        qual_threshold = float(min_qual)
+        af_threshold = float(max_af)
         out: list[Mapping[str, Any]] = []
-        for i, row in enumerate(rows):
+        for row_index, row in enumerate(rows):
             if qual_field not in row:
                 raise KeyError(
-                    f"VCFFilter: row[{i}] missing required field '{qual_field}'; "
+                    f"VCFFilter: row[{row_index}] missing required field '{qual_field}'; "
                     f"got keys: {list(row)}"
                 )
             if af_field not in row:
                 raise KeyError(
-                    f"VCFFilter: row[{i}] missing required field '{af_field}'; "
+                    f"VCFFilter: row[{row_index}] missing required field '{af_field}'; "
                     f"got keys: {list(row)}"
                 )
             try:
                 qual = float(row[qual_field])
                 af = float(row[af_field])
             except (TypeError, ValueError) as exc:
-                raise ValueError(f"VCFFilter: row[{i}] field values must be numeric") from exc
-            if qual >= q and af <= f:
+                raise ValueError(
+                    f"VCFFilter: row[{row_index}] field values must be numeric"
+                ) from exc
+            if qual >= qual_threshold and af <= af_threshold:
                 out.append(dict(row))
         return tuple(out)

@@ -48,9 +48,7 @@ from pirn.domains.agents.specializations.rag.rag_prompt_builder import (
 from pirn.domains.agents.specializations.rag.rag_response_builder import (
     RAGResponseBuilder,
 )
-from pirn.domains.agents.types.agent_response import AgentResponse
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class HyDERAGPipeline(SubTapestry):
@@ -72,7 +70,7 @@ class HyDERAGPipeline(SubTapestry):
 
     async def process(
         self, query: str, memory: MemoryStore, llm: LLMProvider, top_k: int, **_: Any
-    ) -> AgentResponse:
+    ) -> Any:
         """Generate a hypothetical answer, retrieve on it, then produce the final answer via the LLM.
 
         Args:
@@ -89,34 +87,28 @@ class HyDERAGPipeline(SubTapestry):
             "Use plausible terminology even if uncertain.\n\n"
             f"Question: {query}\nHypothetical answer:"
         )
-        with Tapestry() as inner:
-            hypothesis = LLMChatCall(
-                prompt=hypothesis_prompt,
-                llm=llm,
-                _config=KnotConfig(id="hypothesis"),
-            )
-            retrieved = MemorySearchRetriever(
-                store=memory,
-                query=hypothesis,
-                top_k=top_k,
-                _config=KnotConfig(id="retrieve"),
-            )
-            prompt = RAGPromptBuilder(
-                query=query,
-                retrieved=retrieved,
-                _config=KnotConfig(id="prompt"),
-            )
-            answer = LLMChatCall(
-                prompt=prompt,
-                llm=llm,
-                _config=KnotConfig(id="generate"),
-            )
-            RAGResponseBuilder(
-                answer=answer,
-                _config=KnotConfig(id="response"),
-            )
-        inner_result = await self._run_inner(inner)
-        response = inner_result.outputs.get("response")
-        if not isinstance(response, AgentResponse):
-            return AgentResponse(content="", finish_reason="length")
-        return response
+        hypothesis = LLMChatCall(
+            prompt=hypothesis_prompt,
+            llm=llm,
+            _config=KnotConfig(id="hypothesis"),
+        )
+        retrieved = MemorySearchRetriever(
+            store=memory,
+            query=hypothesis,
+            top_k=top_k,
+            _config=KnotConfig(id="retrieve"),
+        )
+        prompt = RAGPromptBuilder(
+            query=query,
+            retrieved=retrieved,
+            _config=KnotConfig(id="prompt"),
+        )
+        answer = LLMChatCall(
+            prompt=prompt,
+            llm=llm,
+            _config=KnotConfig(id="generate"),
+        )
+        return RAGResponseBuilder(
+            answer=answer,
+            _config=KnotConfig(id="response"),
+        )

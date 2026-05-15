@@ -32,7 +32,6 @@ from pirn.domains.ml.specializations.feature_engineering._lag_append_knot import
 )
 from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
@@ -69,7 +68,7 @@ class LagFeatureGenerator(SubTapestry):
         columns: Sequence[str] = (),
         lags: Sequence[int] = (1, 7),
         **_: Any,
-    ) -> SplitManifest:
+    ) -> Any:
         """Append lag feature names for each (column, lag) pair to every partition and return the extended SplitManifest.
 
         Args:
@@ -103,17 +102,11 @@ class LagFeatureGenerator(SubTapestry):
                 raise TypeError("LagFeatureGenerator: every lag must be an int")
             if lag < 1:
                 raise ValueError("LagFeatureGenerator: every lag must be >= 1")
-        with Tapestry() as inner:
-            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
-            _LagAppendKnot(
-                split=split_node,
-                time_column=time_column,
-                columns=column_tuple,
-                lags=lag_tuple,
-                _config=KnotConfig(id="append_lags"),
-            )
-        result = await self._run_inner(inner)
-        lagged = result.outputs["append_lags"]
-        if not isinstance(lagged, SplitManifest):
-            raise TypeError("LagFeatureGenerator: inner knot did not return a SplitManifest")
-        return lagged
+        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        return _LagAppendKnot(
+            split=split_node,
+            time_column=time_column,
+            columns=column_tuple,
+            lags=lag_tuple,
+            _config=KnotConfig(id="append_lags"),
+        )

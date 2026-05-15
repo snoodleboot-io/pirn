@@ -86,7 +86,7 @@ class VelocityModelBuilder(Knot):
         ] or [2000.0]
 
         def _idw_interpolate(
-            nodes: list[dict[str, Any]], query_inline: float, query_xline: float, p: float = 2.0
+            nodes: list[dict[str, Any]], query_inline: float, query_xline: float, power: float = 2.0
         ) -> float:
             weights: list[float] = []
             vels: list[float] = []
@@ -98,13 +98,13 @@ class VelocityModelBuilder(Knot):
                 dist = math.sqrt(dx * dx + dy * dy)
                 if dist < 1e-9:
                     return float(nd["velocity_m_s"])
-                weights.append(1.0 / dist**p)
+                weights.append(1.0 / dist**power)
                 vels.append(float(nd["velocity_m_s"]))
             if not weights:
                 return 2000.0
-            w = np.asarray(weights)
-            v = np.asarray(vels)
-            return float(np.dot(w, v) / np.sum(w))
+            weight_arr = np.asarray(weights)
+            vel_arr = np.asarray(vels)
+            return float(np.dot(weight_arr, vel_arr) / np.sum(weight_arr))
 
         if interpolation_method == "idw" and all_nodes:
             inline_vals = [float(n.get("inline", 0)) for n in all_nodes if "velocity_m_s" in n]

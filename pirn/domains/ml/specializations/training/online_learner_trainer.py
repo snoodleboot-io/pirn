@@ -31,12 +31,20 @@ from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.domains.ml.types.model_manifest import ModelManifest
 from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
 async def _emit_value(value: Any) -> Any:
     return value
+
+
+@knot
+async def _combine_online_learner_result(
+    model: ModelManifest,
+    eval_report: EvalReportPayload,
+    n_batches: int,
+) -> dict[str, Any]:
+    return {"model": model, "eval_report": eval_report, "n_batches": n_batches}
 
 
 class OnlineLearnerTrainer(SubTapestry):
@@ -71,7 +79,7 @@ class OnlineLearnerTrainer(SubTapestry):
         n_batches: int = 10,
         hyperparameters: Mapping[str, Any] | None = None,
         **_: Any,
-    ) -> dict[str, Any]:
+    ) -> Any:
         """Incrementally train on mini-batches and return the final model and running metric history.
 
         Args:
@@ -103,47 +111,41 @@ class OnlineLearnerTrainer(SubTapestry):
         hp = dict(hyperparameters) if hyperparameters is not None else {}
         rows_per_batch = max(1, split.train.row_count // n_batches)
 
-        with Tapestry() as inner:
-            for batch_idx in range(n_batches):
-                batch_ds = DatasetManifest(
-                    name=f"{split.train.name}:batch_{batch_idx}",
-                    feature_names=split.train.feature_names,
-                    target_name=split.train.target_name,
-                    row_count=rows_per_batch,
-                    source_uri=split.train.source_uri,
-                )
-                batch_split = SplitManifest(train=batch_ds, test=split.test)
-                batch_node = _emit_value(
-                    value=batch_split,
-                    _config=KnotConfig(id=f"batch_{batch_idx}"),
-                )
-                model = Trainer(
-                    split=batch_node,
-                    algorithm=algorithm,
-                    hyperparameters={
-                        **hp,
-                        "partial_fit": True,
-                        "batch_idx": batch_idx,
-                    },
-                    _config=KnotConfig(id=f"train_{batch_idx}"),
-                )
-                Evaluator(
-                    model=model,
-                    split=batch_node,
-                    metrics=(monitor_metric,),
-                    _config=KnotConfig(id=f"evaluate_{batch_idx}"),
-                )
-        result = await self._run_inner(inner)
-
-        last_idx = n_batches - 1
-        trained_model = result.outputs[f"train_{last_idx}"]
-        report = result.outputs[f"evaluate_{last_idx}"]
-        if not isinstance(trained_model, ModelManifest):
-            raise TypeError("OnlineLearnerTrainer: trainer did not return a ModelManifest")
-        if not isinstance(report, EvalReportPayload):
-            raise TypeError("OnlineLearnerTrainer: evaluator did not return an EvalReportPayload")
-        return {
-            "model": trained_model,
-            "eval_report": report,
-            "n_batches": n_batches,
-        }
+        last_model: Any = None
+        last_evaluated: Any = None
+        for batch_idx in range(n_batches):
+            batch_ds = DatasetManifest(
+                name=f"{split.train.name}:batch_{batch_idx}",
+                feature_names=split.train.feature_names,
+                target_name=split.train.target_name,
+                row_count=rows_per_batch,
+                source_uri=split.train.source_uri,
+            )
+            batch_split = SplitManifest(train=batch_ds, test=split.test)
+            batch_node = _emit_value(
+                value=batch_split,
+                _config=KnotConfig(id=f"batch_{batch_idx}"),
+            )
+            last_model = Trainer(
+                split=batch_node,
+                algorithm=algorithm,
+                hyperparameters={
+                    **hp,
+                    "partial_fit": True,
+                    "batch_idx": batch_idx,
+                },
+                _config=KnotConfig(id=f"train_{batch_idx}"),
+            )
+            last_evaluated = Evaluator(
+                model=last_model,
+                split=batch_node,
+                metrics=(monitor_metric,),
+                _config=KnotConfig(id=f"evaluate_{batch_idx}"),
+            )
+        n_batches_node = _emit_value(value=n_batches, _config=KnotConfig(id="n_batches"))
+        return _combine_online_learner_result(
+            model=last_model,
+            eval_report=last_evaluated,
+            n_batches=n_batches_node,
+            _config=KnotConfig(id="combine"),
+        )

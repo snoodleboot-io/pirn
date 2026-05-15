@@ -32,8 +32,8 @@ from pirn.domains.signal.types.spectrum_payload import SpectrumPayload
 
 
 def _compute_bispectrum(data: np.ndarray, segment_length: int) -> np.ndarray:
-    x = np.fft.rfft(data, n=segment_length, axis=-1)
-    return x[..., :, np.newaxis] * x[..., np.newaxis, :]
+    spectrum = np.fft.rfft(data, n=segment_length, axis=-1)
+    return spectrum[..., :, np.newaxis] * spectrum[..., np.newaxis, :]
 
 
 class BispectrumAnalyzer(Knot):

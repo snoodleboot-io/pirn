@@ -74,10 +74,10 @@ class ThresholdOptimizer(Knot):
         if metric not in allowed:
             raise ValueError(f"ThresholdOptimizer: metric must be one of {allowed}, got {metric!r}")
         scores: dict[float, float] = {}
-        for i in range(1, 100):
-            t = round(i / 100.0, 2)
-            scores[t] = self._threshold_score(model, split, t, metric)
-        optimal_threshold = max(scores, key=lambda k: scores[k])
+        for threshold_step in range(1, 100):
+            threshold_val = round(threshold_step / 100.0, 2)
+            scores[threshold_val] = self._threshold_score(model, split, threshold_val, metric)
+        optimal_threshold = max(scores, key=lambda threshold_key: scores[threshold_key])
         return {
             "optimal_threshold": optimal_threshold,
             "best_score": scores[optimal_threshold],

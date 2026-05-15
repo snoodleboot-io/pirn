@@ -46,19 +46,21 @@ def _rls(
     """Run the RLS adaptive filter loop and return the error signal."""
     n_samples = len(signal_data)
     lam_inv = 1.0 / forgetting_factor
-    w = np.zeros(filter_length)
-    P = np.eye(filter_length) * 1e4
+    filter_weights = np.zeros(filter_length)
+    covariance_matrix = np.eye(filter_length) * 1e4
     e_out = np.zeros(n_samples)
-    for n in range(filter_length, n_samples):
-        x = signal_data[n - filter_length : n][::-1]
-        Px = P @ x
-        denom = 1.0 + lam_inv * (x @ Px)
-        k = (lam_inv * Px) / denom
-        y = w @ x
-        e = reference_data[n] - y
-        w = w + k * e
-        P = lam_inv * (P - np.outer(k, x) @ P)
-        e_out[n] = e
+    for sample_index in range(filter_length, n_samples):
+        input_buffer = signal_data[sample_index - filter_length : sample_index][::-1]
+        Px = covariance_matrix @ input_buffer
+        denom = 1.0 + lam_inv * (input_buffer @ Px)
+        kalman_gain = (lam_inv * Px) / denom
+        filter_output = filter_weights @ input_buffer
+        error = reference_data[sample_index] - filter_output
+        filter_weights = filter_weights + kalman_gain * error
+        covariance_matrix = lam_inv * (
+            covariance_matrix - np.outer(kalman_gain, input_buffer) @ covariance_matrix
+        )
+        e_out[sample_index] = error
     return e_out
 
 

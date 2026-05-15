@@ -39,9 +39,9 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 
-def _safe_float(v: object) -> float:
+def _safe_float(raw_value: object) -> float:
     try:
-        return float(v)  # type: ignore[arg-type]
+        return float(raw_value)  # type: ignore[arg-type]
     except (ValueError, TypeError):
         return 0.0
 
@@ -62,18 +62,24 @@ def _run_psm(
     matching_ratio: int,
     caliper: float,
 ) -> dict[str, Any]:
-    treated_idx = [i for i, r in enumerate(cohort) if r.get(treatment_col)]
-    control_idx = [i for i, r in enumerate(cohort) if not r.get(treatment_col)]
+    treated_idx = [
+        cohort_index for cohort_index, record in enumerate(cohort) if record.get(treatment_col)
+    ]
+    control_idx = [
+        cohort_index for cohort_index, record in enumerate(cohort) if not record.get(treatment_col)
+    ]
 
-    x = np.array([[_safe_float(r.get(col, 0)) for col in covariates] for r in cohort])
-    y = np.array([1 if r.get(treatment_col) else 0 for r in cohort])
+    covariate_matrix = np.array(
+        [[_safe_float(record.get(col, 0)) for col in covariates] for record in cohort]
+    )
+    treatment_labels = np.array([1 if record.get(treatment_col) else 0 for record in cohort])
 
     ps = np.full(len(cohort), 0.5)
-    if len(np.unique(y)) > 1:
+    if len(np.unique(treatment_labels)) > 1:
         try:
             lr = LogisticRegression(max_iter=500, random_state=0)
-            lr.fit(x, y)
-            ps = lr.predict_proba(x)[:, 1]
+            lr.fit(covariate_matrix, treatment_labels)
+            ps = lr.predict_proba(covariate_matrix)[:, 1]
         except Exception:
             pass
 
@@ -81,33 +87,40 @@ def _run_psm(
     matched_pairs: list[dict[str, Any]] = []
     n_matched = 0
 
-    for ti in treated_idx:
-        ps_t = ps[ti]
+    for treated_cohort_index in treated_idx:
+        ps_treated = ps[treated_cohort_index]
         candidates = [
-            ci for ci in control_idx if ci not in used_controls and abs(ps[ci] - ps_t) <= caliper
+            ctrl_cohort_index
+            for ctrl_cohort_index in control_idx
+            if ctrl_cohort_index not in used_controls
+            and abs(ps[ctrl_cohort_index] - ps_treated) <= caliper
         ]
-        candidates.sort(key=lambda ci: abs(ps[ci] - ps_t))
+        candidates.sort(key=lambda ctrl_cohort_index: abs(ps[ctrl_cohort_index] - ps_treated))
         chosen = candidates[:matching_ratio]
         if not chosen:
             continue
         matched_pairs.append(
             {
-                "treated_id": cohort[ti].get("patient_id"),
-                "control_ids": [cohort[ci].get("patient_id") for ci in chosen],
+                "treated_id": cohort[treated_cohort_index].get("patient_id"),
+                "control_ids": [
+                    cohort[ctrl_cohort_index].get("patient_id") for ctrl_cohort_index in chosen
+                ],
             }
         )
         used_controls.update(chosen)
         n_matched += 1
 
-    matched_treated_idx = [treated_idx[i] for i in range(min(n_matched, len(treated_idx)))]
+    matched_treated_idx = [
+        treated_idx[position] for position in range(min(n_matched, len(treated_idx)))
+    ]
     matched_control_idx = list(used_controls)
 
     smd_stats: dict[str, float] = {}
-    for j, col in enumerate(covariates):
+    for covariate_index, col in enumerate(covariates):
         if matched_treated_idx and matched_control_idx:
-            tv = x[matched_treated_idx, j]
-            cv = x[matched_control_idx, j]
-            smd_stats[col] = _smd(tv, cv)
+            treated_vals = covariate_matrix[matched_treated_idx, covariate_index]
+            ctrl_vals = covariate_matrix[matched_control_idx, covariate_index]
+            smd_stats[col] = _smd(treated_vals, ctrl_vals)
         else:
             smd_stats[col] = 0.0
 

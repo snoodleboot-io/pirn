@@ -36,8 +36,8 @@ class M4aFormat(BatchFileFormat):
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         if not payload:
             raise ValueError("M4aFormat: payload is empty — cannot decode M4A")
-        AudioSegment = self._load_pydub()
-        segment = AudioSegment.from_file(io.BytesIO(payload), format="m4a")
+        audio_segment_cls = self._load_pydub()
+        segment = audio_segment_cls.from_file(io.BytesIO(payload), format="m4a")
         record: dict[str, Any] = {
             "sample_rate": segment.frame_rate,
             "n_channels": segment.channels,
@@ -51,9 +51,9 @@ class M4aFormat(BatchFileFormat):
         materialised = [dict(r) for r in records]
         if not materialised:
             raise ValueError("M4aFormat: cannot encode an empty record stream")
-        AudioSegment = self._load_pydub()
+        audio_segment_cls = self._load_pydub()
         record = materialised[0]
-        segment = AudioSegment(
+        segment = audio_segment_cls(
             data=bytes(record["frames"]),
             sample_width=int(record["sample_width"]),
             frame_rate=int(record["sample_rate"]),

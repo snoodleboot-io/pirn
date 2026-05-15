@@ -23,24 +23,24 @@ class TestSampleEntropyCalculator(unittest.IsolatedAsyncioTestCase):
     def _make(self) -> SampleEntropyCalculator:
         return SampleEntropyCalculator(
             signal=_up(),
-            m=2,
-            r=0.2,
+            template_length=2,
+            tolerance=0.2,
             _config=KnotConfig(id="sec"),
         )
 
     async def test_rejects_non_positive_m(self) -> None:
         knot = self._make()
-        with pytest.raises(ValueError, match="m"):
-            await knot.process(_SIGNAL, m=0, r=0.2)
+        with pytest.raises(ValueError, match="template_length"):
+            await knot.process(_SIGNAL, template_length=0, tolerance=0.2)
 
     async def test_rejects_non_positive_r(self) -> None:
         knot = self._make()
-        with pytest.raises(ValueError, match="r"):
-            await knot.process(_SIGNAL, m=2, r=0.0)
+        with pytest.raises(ValueError, match="tolerance"):
+            await knot.process(_SIGNAL, template_length=2, tolerance=0.0)
 
     async def test_emits_dict(self) -> None:
         knot = self._make()
-        out = await knot.process(_SIGNAL, m=2, r=0.2)
+        out = await knot.process(_SIGNAL, template_length=2, tolerance=0.2)
         assert isinstance(out, dict)
         assert "value" in out
         assert "embedding_dim" in out

@@ -30,12 +30,19 @@ from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.domains.ml.types.model_manifest import ModelManifest
 from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
 async def _emit_value(value: Any) -> Any:
     return value
+
+
+@knot
+async def _combine_search_eval(
+    best_model: ModelManifest,
+    eval_report: EvalReportPayload,
+) -> dict[str, Any]:
+    return {"best_model": best_model, "eval_report": eval_report}
 
 
 class RandomSearchTuner(SubTapestry):
@@ -73,7 +80,7 @@ class RandomSearchTuner(SubTapestry):
         n_trials: int = 20,
         random_seed: int = 42,
         **_: Any,
-    ) -> dict[str, Any]:
+    ) -> Any:
         """Sample N random hyperparameter combinations and return the best model and its evaluation.
 
         Args:
@@ -105,28 +112,24 @@ class RandomSearchTuner(SubTapestry):
         if not isinstance(random_seed, int):
             raise TypeError("RandomSearchTuner: random_seed must be an int")
         frozen_space = {k: tuple(v) for k, v in ss.items()}
-        with Tapestry() as inner:
-            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
-            best = HyperparamSearch(
-                split=split_node,
-                algorithm=algorithm,
-                search_space=frozen_space,
-                strategy="random",
-                n_trials=n_trials,
-                random_seed=random_seed,
-                _config=KnotConfig(id="search"),
-            )
-            Evaluator(
-                model=best,
-                split=split_node,
-                metrics=(primary_metric,),
-                _config=KnotConfig(id="evaluate"),
-            )
-        result = await self._run_inner(inner)
-        model = result.outputs["search"]
-        report = result.outputs["evaluate"]
-        if not isinstance(model, ModelManifest):
-            raise TypeError("RandomSearchTuner: search did not return a ModelManifest")
-        if not isinstance(report, EvalReportPayload):
-            raise TypeError("RandomSearchTuner: evaluator did not return an EvalReportPayload")
-        return {"best_model": model, "eval_report": report}
+        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        best = HyperparamSearch(
+            split=split_node,
+            algorithm=algorithm,
+            search_space=frozen_space,
+            strategy="random",
+            n_trials=n_trials,
+            random_seed=random_seed,
+            _config=KnotConfig(id="search"),
+        )
+        evaluated = Evaluator(
+            model=best,
+            split=split_node,
+            metrics=(primary_metric,),
+            _config=KnotConfig(id="evaluate"),
+        )
+        return _combine_search_eval(
+            best_model=best,
+            eval_report=evaluated,
+            _config=KnotConfig(id="combine"),
+        )

@@ -96,9 +96,9 @@ class InputMessageScrubber(Knot):
                 )
             content = message.content
 
-            def _check_deny(c: str = content) -> re.Pattern[str] | None:
+            def _check_deny(content_str: str = content) -> re.Pattern[str] | None:
                 for p in deny_compiled:
-                    if p.search(c):
+                    if p.search(content_str):
                         return p
                 return None
 
@@ -109,10 +109,10 @@ class InputMessageScrubber(Knot):
                     f"deny pattern {denied.pattern!r}"
                 )
 
-            def _apply_pii(c: str = content) -> str:
+            def _apply_pii(content_str: str = content) -> str:
                 for p in pii_compiled:
-                    c = p.sub("<redacted>", c)
-                return c
+                    content_str = p.sub("<redacted>", content_str)
+                return content_str
 
             redacted_content = await asyncio.to_thread(_apply_pii)
             cleaned.append(

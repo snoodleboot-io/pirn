@@ -36,7 +36,7 @@ class TestConstruction(unittest.TestCase):
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_classification_report(self) -> None:
-        rows = [(b"image-bytes-" + str(i).encode(), i % 2) for i in range(40)]
+        rows = [{"img": b"image-bytes-" + str(i).encode(), "y": i % 2} for i in range(40)]
         encoder = RecordingImageEncoderProvider()
         with Tapestry() as t:
             ComputerVisionPipeline(

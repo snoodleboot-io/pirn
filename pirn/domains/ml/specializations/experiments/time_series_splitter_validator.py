@@ -45,13 +45,51 @@ from pirn.domains.ml.types.eval_metadata import EvalMetadata
 from pirn.domains.ml.types.eval_metrics import EvalMetrics
 from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.domains.ml.types.split_manifest import SplitManifest
+from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
 async def _emit_value(value: Any) -> Any:
     return value
+
+
+@knot
+async def _aggregate_tscv_reports(
+    reports: list[EvalReportPayload],
+    algorithm: str,
+    dataset_name: str,
+    n_splits: int,
+    time_column: str,
+) -> EvalReportPayload:
+    per_split = [
+        {name: float(value) for name, value in report.metrics.scores.items()} for report in reports
+    ]
+    if not per_split:
+        aggregated: dict[str, float] = {}
+    else:
+        names = per_split[0].keys()
+        aggregated = {
+            name: sum(s[name] for s in per_split) / float(len(per_split)) for name in names
+        }
+    return EvalReportPayload(
+        metadata=EvalMetadata(
+            model_id=f"{algorithm}:tscv-{n_splits}",
+            dataset_name=dataset_name,
+            evaluated_at=datetime.now(UTC),
+        ),
+        data=EvalMetrics(
+            scores=MappingProxyType(aggregated),
+            details=MappingProxyType(
+                {
+                    "n_splits": n_splits,
+                    "time_column": time_column,
+                    "algorithm": algorithm,
+                    "per_split_metrics": per_split,
+                }
+            ),
+        ),
+    )
 
 
 class TimeSeriesSplitterValidator(SubTapestry):
@@ -86,7 +124,7 @@ class TimeSeriesSplitterValidator(SubTapestry):
         metrics: Sequence[str] = (),
         n_splits: int = 5,
         **_: Any,
-    ) -> EvalReportPayload:
+    ) -> Any:
         """Partition the dataset into chronological expanding-window splits, train and evaluate each, and return an aggregate EvalMetadata.
 
         Args:
@@ -120,53 +158,42 @@ class TimeSeriesSplitterValidator(SubTapestry):
                     "TimeSeriesSplitterValidator: every metric name must be a non-empty string"
                 )
         splits = self._build_splits(dataset, n_splits)
-        per_split_metrics: list[dict[str, float]] = []
-        with Tapestry() as inner:
-            for split_index, split in enumerate(splits):
-                split_node = _emit_value(
-                    value=split,
-                    _config=KnotConfig(id=f"split_{split_index}"),
-                )
-                model = Trainer(
-                    split=split_node,
-                    algorithm=algorithm,
-                    hyperparameters={"split_index": split_index},
-                    _config=KnotConfig(id=f"train_{split_index}"),
-                )
+        eval_nodes = []
+        for split_index, split in enumerate(splits):
+            split_node = _emit_value(
+                value=split,
+                _config=KnotConfig(id=f"split_{split_index}"),
+            )
+            model = Trainer(
+                split=split_node,
+                algorithm=algorithm,
+                hyperparameters={"split_index": split_index},
+                _config=KnotConfig(id=f"train_{split_index}"),
+            )
+            eval_nodes.append(
                 Evaluator(
                     model=model,
                     split=split_node,
                     metrics=metric_tuple,
                     _config=KnotConfig(id=f"evaluate_{split_index}"),
                 )
-        result = await self._run_inner(inner)
-        for split_index in range(len(splits)):
-            report = result.outputs[f"evaluate_{split_index}"]
-            if not isinstance(report, EvalReportPayload):
-                raise TypeError(
-                    f"TimeSeriesSplitterValidator: split {split_index} did not produce an EvalMetadata"
-                )
-            per_split_metrics.append(
-                {name: float(value) for name, value in report.metrics.scores.items()}
             )
-        aggregated = self._aggregate(per_split_metrics)
-        return EvalReportPayload(
-            metadata=EvalMetadata(
-                model_id=f"{algorithm}:tscv-{n_splits}",
-                dataset_name=dataset.name,
-                evaluated_at=datetime.now(UTC),
-            ),
-            data=EvalMetrics(
-                scores=MappingProxyType(aggregated),
-                details=MappingProxyType(
-                    {
-                        "n_splits": n_splits,
-                        "time_column": time_column,
-                        "algorithm": algorithm,
-                        "per_split_metrics": per_split_metrics,
-                    }
-                ),
-            ),
+        algorithm_node = _emit_value(value=algorithm, _config=KnotConfig(id="algorithm"))
+        dataset_name_node = _emit_value(value=dataset.name, _config=KnotConfig(id="dataset_name"))
+        n_splits_node = _emit_value(value=n_splits, _config=KnotConfig(id="n_splits"))
+        time_column_node = _emit_value(value=time_column, _config=KnotConfig(id="time_column"))
+        collected = Aggregator(
+            combine=lambda **kw: list(kw.values()),
+            _config=KnotConfig(id="collect-reports"),
+            **{f"r{i}": eval_nodes[i] for i in range(n_splits)},
+        )
+        return _aggregate_tscv_reports(
+            reports=collected,
+            algorithm=algorithm_node,
+            dataset_name=dataset_name_node,
+            n_splits=n_splits_node,
+            time_column=time_column_node,
+            _config=KnotConfig(id="aggregate"),
         )
 
     def _build_splits(self, dataset: DatasetManifest, n_splits: int) -> list[SplitManifest]:
@@ -199,12 +226,3 @@ class TimeSeriesSplitterValidator(SubTapestry):
             )
             splits.append(SplitManifest(train=train, test=test, validation=None))
         return splits
-
-    def _aggregate(self, per_split_metrics: list[dict[str, float]]) -> dict[str, float]:
-        if not per_split_metrics:
-            return {}
-        names = per_split_metrics[0].keys()
-        return {
-            name: sum(split[name] for split in per_split_metrics) / float(len(per_split_metrics))
-            for name in names
-        }

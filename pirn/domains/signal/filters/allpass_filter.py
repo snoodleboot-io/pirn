@@ -78,9 +78,11 @@ class AllpassFilter(Knot):
             )
 
         a_coeff = -pole_radius
-        b = np.array([a_coeff, 1.0])
-        a = np.array([1.0, a_coeff])
-        filtered = await asyncio.to_thread(ss.lfilter, b, a, signal.data, axis=-1)
+        numerator_coeffs = np.array([a_coeff, 1.0])
+        denominator_coeffs = np.array([1.0, a_coeff])
+        filtered = await asyncio.to_thread(
+            ss.lfilter, numerator_coeffs, denominator_coeffs, signal.data, axis=-1
+        )
         return SignalPayload(
             metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:allpass",

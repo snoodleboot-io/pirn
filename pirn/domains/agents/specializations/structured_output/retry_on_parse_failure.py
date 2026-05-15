@@ -36,6 +36,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.agents.llm_provider import LLMProvider
 from pirn.domains.agents.specializations.structured_output._llm_call_knot import _LLMCallKnot
+from pirn.nodes.source import Source
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -103,25 +104,37 @@ class RetryOnParseFailure(SubTapestry):
             )
         current_prompt = prompt
         last_error: str = "no attempts were made"
+        parsed_value: Any = None
+        succeeded = False
         for attempt_index in range(max_retries):
-            with Tapestry() as inner:
+            with Tapestry() as attempt_tapestry:
                 _LLMCallKnot(
                     prompt=current_prompt,
                     llm=llm,
                     _config=KnotConfig(id=f"call_{attempt_index}"),
                 )
-            inner_result = await self._run_inner(inner)
+            inner_result = await self._run_inner(attempt_tapestry)
             text = inner_result.outputs.get(f"call_{attempt_index}")
             if not isinstance(text, str):
                 text = str(text) if text is not None else ""
             try:
-                return parser(text)
+                parsed_value = parser(text)
+                succeeded = True
+                break
             except Exception as exc:
                 last_error = str(exc)
                 current_prompt = (
                     f"{prompt}\n\nPrevious attempt failed with: {last_error}\n"
                     "Please fix the issue and try again."
                 )
-        raise ValueError(
-            f"RetryOnParseFailure: exhausted {max_retries} attempt(s); last error: {last_error}"
-        )
+        if not succeeded:
+            raise ValueError(
+                f"RetryOnParseFailure: exhausted {max_retries} attempt(s); last error: {last_error}"
+            )
+        _value = parsed_value
+
+        class _ResultSource(Source):
+            async def process(self, **_: Any) -> Any:
+                return _value
+
+        return _ResultSource(_config=KnotConfig(id="result"))

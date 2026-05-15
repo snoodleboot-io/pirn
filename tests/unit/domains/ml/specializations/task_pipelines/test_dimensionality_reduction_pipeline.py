@@ -45,7 +45,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_reduction_report(self) -> None:
-        rows = [(float(i), float(i * 2), float(i * 3)) for i in range(40)]
+        rows = [{"a": float(i), "b": float(i * 2), "c": float(i * 3)} for i in range(40)]
         with Tapestry() as t:
             DimensionalityReductionPipeline(
                 pool=RecordingDatabasePool(rows=rows),

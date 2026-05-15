@@ -73,8 +73,11 @@ class ConfusionMatrixAnalyzer(Knot):
         labels: tuple[str, ...] = (
             tuple(class_labels) if class_labels is not None else ("class_0", "class_1")
         )
-        n = len(labels)
-        matrix = [[self._cell_value(model, split, i, j) for j in range(n)] for i in range(n)]
+        class_count = len(labels)
+        matrix = [
+            [self._cell_value(model, split, row_idx, col_idx) for col_idx in range(class_count)]
+            for row_idx in range(class_count)
+        ]
         per_class: dict[str, dict[str, float]] = {}
         for _idx, label in enumerate(labels):
             per_class[label] = {

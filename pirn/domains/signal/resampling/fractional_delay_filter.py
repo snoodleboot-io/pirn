@@ -35,18 +35,18 @@ from pirn.domains.signal.types.signal_payload import SignalPayload
 
 
 def _lagrange_coeffs(delay: float, order: int) -> np.ndarray:
-    n = order + 1
-    h = np.ones(n)
-    for k in range(n):
-        for m in range(n):
-            if m != k:
-                h[k] *= (delay - m) / (k - m)
-    return h
+    tap_count = order + 1
+    tap_weights = np.ones(tap_count)
+    for tap_index in range(tap_count):
+        for basis_index in range(tap_count):
+            if basis_index != tap_index:
+                tap_weights[tap_index] *= (delay - basis_index) / (tap_index - basis_index)
+    return tap_weights
 
 
 def _apply_fractional_delay(data: np.ndarray, delay: float, order: int) -> np.ndarray:
-    h = _lagrange_coeffs(delay, order)
-    return np.asarray(ss.lfilter(h, [1.0], data, axis=-1))
+    tap_weights = _lagrange_coeffs(delay, order)
+    return np.asarray(ss.lfilter(tap_weights, [1.0], data, axis=-1))
 
 
 class FractionalDelayFilter(Knot):

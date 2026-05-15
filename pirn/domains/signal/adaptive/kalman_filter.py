@@ -39,18 +39,20 @@ from pirn.domains.signal.types.signal_frame import SignalFrame
 from pirn.domains.signal.types.signal_payload import SignalPayload
 
 
-def _kalman_1d(y: np.ndarray, q: float, r: float) -> np.ndarray:
+def _kalman_1d(
+    signal_array: np.ndarray, process_noise_var: float, measurement_noise_var: float
+) -> np.ndarray:
     """Run a scalar 1-D Kalman filter and return the filtered signal."""
-    n = len(y)
-    x_est = np.zeros(n)
-    x_hat = y[0]
-    p = 1.0
-    for i in range(n):
-        p_pred = p + q
-        k = p_pred / (p_pred + r)
-        x_hat = x_hat + k * (y[i] - x_hat)
-        p = (1.0 - k) * p_pred
-        x_est[i] = x_hat
+    sample_count = len(signal_array)
+    x_est = np.zeros(sample_count)
+    x_hat = signal_array[0]
+    error_covariance = 1.0
+    for sample_index in range(sample_count):
+        p_pred = error_covariance + process_noise_var
+        kalman_gain = p_pred / (p_pred + measurement_noise_var)
+        x_hat = x_hat + kalman_gain * (signal_array[sample_index] - x_hat)
+        error_covariance = (1.0 - kalman_gain) * p_pred
+        x_est[sample_index] = x_hat
     return x_est
 
 
@@ -99,10 +101,10 @@ class KalmanFilter(Knot):
         if not isinstance(measurement_noise, (int, float)) or measurement_noise <= 0:
             raise ValueError("KalmanFilter: measurement_noise must be positive")
 
-        y = signal.data[0] if signal.data.ndim > 1 else signal.data
+        signal_array = signal.data[0] if signal.data.ndim > 1 else signal.data
 
         result = await asyncio.to_thread(
-            _kalman_1d, y, float(process_noise), float(measurement_noise)
+            _kalman_1d, signal_array, float(process_noise), float(measurement_noise)
         )
 
         return SignalPayload(

@@ -25,14 +25,12 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_result import RunResult
 from pirn.domains.health.clinical._pass_through import _PassThrough
 from pirn.domains.health.clinical.clinical_trial_eligibility_filter import (
     ClinicalTrialEligibilityFilter,
 )
 from pirn.domains.health.types.clinical_record import ClinicalRecord
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class PatientCohortBuilder(SubTapestry):
@@ -58,8 +56,8 @@ class PatientCohortBuilder(SubTapestry):
         records: Sequence[ClinicalRecord],
         stages: Mapping[str, Mapping[str, Callable[[ClinicalRecord], bool]]],
         **_: Any,
-    ) -> RunResult:
-        """Apply each named eligibility filter stage in order and return the inner RunResult.
+    ) -> Any:
+        """Apply each named eligibility filter stage in order and return the terminal Knot.
 
         Args:
             records: Sequence of ClinicalRecords to filter through each stage.
@@ -83,29 +81,25 @@ class PatientCohortBuilder(SubTapestry):
                 raise TypeError(
                     f"PatientCohortBuilder: stage {stage_name!r} criteria must be a Mapping"
                 )
-        with Tapestry() as inner:
-            current = tuple(records)
-            seed = _PassThrough(
-                records=current,
-                _config=KnotConfig(id="cohort-seed"),
+        current = tuple(records)
+        seed = _PassThrough(
+            records=current,
+            _config=KnotConfig(id="cohort-seed"),
+        )
+        previous: Knot = seed
+        for stage_name, criteria in stages.items():
+            # The filter consumes a sequence directly; tie ordering by
+            # naming the stage with a stable id derived from the user
+            # mapping keys.
+            stage_records = tuple(
+                record
+                for record in current
+                if all(predicate(record) for predicate in criteria.values())
             )
-            previous: Knot = seed
-            for stage_name, criteria in stages.items():
-                # The filter consumes a sequence directly; tie ordering by
-                # naming the stage with a stable id derived from the user
-                # mapping keys.
-                stage_records = tuple(
-                    record
-                    for record in current
-                    if all(predicate(record) for predicate in criteria.values())
-                )
-                current = stage_records
-                previous = ClinicalTrialEligibilityFilter(
-                    records=stage_records,
-                    criteria=criteria,
-                    _config=KnotConfig(id=f"cohort-stage-{stage_name}"),
-                )
-            # Tie the last stage with the seed for graph completeness.
-            _prev = previous
-            _seed = seed
-        return await self._run_inner(inner)
+            current = stage_records
+            previous = ClinicalTrialEligibilityFilter(
+                records=stage_records,
+                criteria=criteria,
+                _config=KnotConfig(id=f"cohort-stage-{stage_name}"),
+            )
+        return previous

@@ -49,7 +49,7 @@ from pirn.engine.dispatchers.dispatcher import Dispatcher
 from pirn.engine.dispatchers.local_dispatcher import LocalDispatcher
 from pirn.engine.shed.shed import Shed
 from pirn.managers.knot_state import KnotState
-from pirn.managers.rebindable_exception import RebindableException
+from pirn.managers.rebindable_exception import RebindableError
 
 _log = logging.getLogger(__name__)
 
@@ -342,8 +342,8 @@ class Engine:
                 continue
             parent_id = name_to_parent.get(name)
             if parent_id is not None and parent_id in handles:
-                t = handle_transports.get(parent_id, default_transport)
-                out[name] = await t.read(handles[parent_id])
+                transport_for_parent = handle_transports.get(parent_id, default_transport)
+                out[name] = await transport_for_parent.read(handles[parent_id])
             else:
                 out[name] = value
         return out
@@ -493,11 +493,11 @@ class Engine:
         any_skipped = False
         any_err = False
         for edge in edges:
-            r = results[edge.parent_id]
-            parent_results[edge.name] = r
-            if isinstance(r, Skipped):
+            parent_result = results[edge.parent_id]
+            parent_results[edge.name] = parent_result
+            if isinstance(parent_result, Skipped):
                 any_skipped = True
-            elif isinstance(r, Err):
+            elif isinstance(parent_result, Err):
                 any_err = True
 
         if policy is ErrorPolicy.REQUIRE_ALL_PARENTS:
@@ -551,7 +551,7 @@ class Engine:
         """Re-register a placeholder ExceptionRecord with the live manager."""
         if isinstance(result, Err):
             placeholder = result.record
-            rebindable = RebindableException(
+            rebindable = RebindableError(
                 exc_type=placeholder.exc_type,
                 message=placeholder.message,
                 traceback_text=placeholder.traceback_text,

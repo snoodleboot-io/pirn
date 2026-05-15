@@ -40,21 +40,25 @@ def _music_pseudospectrum(
     x: np.ndarray, p: int, n_freq: int, sample_rate_hz: float
 ) -> tuple[list[float], list[float]]:
     """Compute MUSIC pseudospectrum and return (pseudospectrum, frequencies_hz)."""
-    n = len(x)
+    signal_length = len(x)
     size = p + 1
-    r = np.array([np.dot(x[: n - k], x[k:]) / n for k in range(size)])
-    R = np.array([[r[abs(i - j)] for j in range(size)] for i in range(size)])
-    _, eigenvectors = np.linalg.eigh(R)
+    autocorr = np.array(
+        [np.dot(x[: signal_length - lag], x[lag:]) / signal_length for lag in range(size)]
+    )
+    autocorr_matrix = np.array(
+        [[autocorr[abs(row_idx - col_idx)] for col_idx in range(size)] for row_idx in range(size)]
+    )
+    _, eigenvectors = np.linalg.eigh(autocorr_matrix)
     # Noise subspace: eigenvectors corresponding to smallest (size - p) eigenvalues
     # eigh returns ascending order; noise subspace is all except the p largest
     noise_vecs = eigenvectors[:, : size - p]
     En = noise_vecs @ noise_vecs.conj().T
     freqs_hz = np.linspace(0.0, sample_rate_hz / 2.0, n_freq)
     pseudo = np.zeros(n_freq)
-    for i, f in enumerate(freqs_hz):
-        a = np.exp(1j * 2.0 * np.pi * f * np.arange(size) / sample_rate_hz)
-        denom = float(np.real(a.conj() @ En @ a))
-        pseudo[i] = 1.0 / denom if denom != 0.0 else np.inf
+    for freq_index, freq_hz in enumerate(freqs_hz):
+        steering_vec = np.exp(1j * 2.0 * np.pi * freq_hz * np.arange(size) / sample_rate_hz)
+        denom = float(np.real(steering_vec.conj() @ En @ steering_vec))
+        pseudo[freq_index] = 1.0 / denom if denom != 0.0 else np.inf
     return list(float(v) for v in pseudo), list(float(f) for f in freqs_hz)
 
 
@@ -102,10 +106,10 @@ class MUSICEstimator(Knot):
             raise ValueError("MUSICEstimator: signal_subspace_dim must be a positive integer")
         if not isinstance(frequency_grid_size, int) or frequency_grid_size <= 0:
             raise ValueError("MUSICEstimator: frequency_grid_size must be a positive integer")
-        x = signal.data[0] if signal.data.ndim > 1 else signal.data
+        signal_array = signal.data[0] if signal.data.ndim > 1 else signal.data
         rate = signal.frame.sample_rate_hz
         pseudo, freqs = await asyncio.to_thread(
-            _music_pseudospectrum, x, signal_subspace_dim, frequency_grid_size, rate
+            _music_pseudospectrum, signal_array, signal_subspace_dim, frequency_grid_size, rate
         )
         return {
             "pseudospectrum": pseudo,

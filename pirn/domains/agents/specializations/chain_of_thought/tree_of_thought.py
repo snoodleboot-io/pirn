@@ -112,7 +112,9 @@ class TreeOfThought(Knot):
         beam: list[tuple[str, float]] = [(prompt, 0.0)]
         for _i in range(depth):
             candidates: list[tuple[str, float]] = []
-            expansion_tasks = [self._expand(path, llm, k_candidates) for path, _s in beam]
+            expansion_tasks = [
+                self._expand(path, llm, num_candidates=k_candidates) for path, _s in beam
+            ]
             expanded_batches = await asyncio.gather(*expansion_tasks)
             for (parent_path, _s), new_thoughts in zip(beam, expanded_batches, strict=False):
                 for thought in new_thoughts:
@@ -127,12 +129,12 @@ class TreeOfThought(Knot):
         best_path = beam[0][0] if beam else prompt
         return AgentResponse(content=best_path)
 
-    async def _expand(self, path: str, llm: LLMProvider, k: int) -> list[str]:
+    async def _expand(self, path: str, llm: LLMProvider, num_candidates: int) -> list[str]:
         messages = [
             {"role": "system", "content": type(self)._expansion_system},
             {"role": "user", "content": path},
         ]
-        tasks = [llm.chat(messages=messages) for _ in range(k)]
+        tasks = [llm.chat(messages=messages) for _ in range(num_candidates)]
         raws = await asyncio.gather(*tasks)
         return [self._extract_text(raw) for raw in raws]
 

@@ -47,14 +47,14 @@ def _lms_echo(
 ) -> np.ndarray:
     """Run LMS-based echo cancellation and return the residual (echo-cancelled) signal."""
     n_samples = len(mic_data)
-    w = np.zeros(filter_length)
+    filter_weights = np.zeros(filter_length)
     e_out = np.zeros(n_samples)
-    for n in range(filter_length, n_samples):
-        x = far_data[n - filter_length : n][::-1]
-        y = w @ x
-        e = mic_data[n] - y
-        w = w + step_size * e * x
-        e_out[n] = e
+    for sample_index in range(filter_length, n_samples):
+        far_buffer = far_data[sample_index - filter_length : sample_index][::-1]
+        echo_estimate = filter_weights @ far_buffer
+        residual = mic_data[sample_index] - echo_estimate
+        filter_weights = filter_weights + step_size * residual * far_buffer
+        e_out[sample_index] = residual
     return e_out
 
 

@@ -49,7 +49,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_eval_report(self) -> None:
-        rows = [(i % 5, i % 10, float(i % 5 + 1)) for i in range(50)]
+        rows = [{"user": i % 5, "item": i % 10, "rating": float(i % 5 + 1)} for i in range(50)]
         with Tapestry() as t:
             CollaborativeFilteringPipeline(
                 pool=RecordingDatabasePool(rows=rows),

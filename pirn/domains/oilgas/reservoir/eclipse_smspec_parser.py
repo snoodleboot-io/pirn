@@ -80,8 +80,10 @@ class EclipseSmspecParser(Knot):
         if not os.path.isfile(smspec_path):
             raise FileNotFoundError(f"EclipseSmspecParser: SMSPEC file not found: {smspec_path}")
 
-        def _decode(v: Any) -> str:
-            return v.decode() if isinstance(v, (bytes, bytearray)) else str(v)
+        def _decode(raw_value: Any) -> str:
+            return (
+                raw_value.decode() if isinstance(raw_value, (bytes, bytearray)) else str(raw_value)
+            )
 
         records: dict[str, Any] = {_decode(kw).strip(): arr for kw, arr in resfo.read(smspec_path)}
 

@@ -25,25 +25,41 @@ def _make_knot() -> ConsensusAggregator:
 
 class TestConsensusAggregatorProcess(unittest.IsolatedAsyncioTestCase):
     async def test_majority_vote_returns_most_common_response(self) -> None:
-        k = _make_knot()
         llm = StubLLMProvider(["unused-by-majority"])
         responses = {
             "a": AgentResponse(content="42", finish_reason="stop"),
             "b": AgentResponse(content="42", finish_reason="stop"),
             "c": AgentResponse(content="-1", finish_reason="stop"),
         }
-        consensus = await k.process(responses=responses, llm=llm, strategy="majority_vote")
+        with Tapestry() as t:
+            ConsensusAggregator(
+                responses=responses,
+                llm=llm,
+                strategy="majority_vote",
+                _config=KnotConfig(id="con"),
+            )
+        run = await t.run(RunRequest())
+        assert run.succeeded
+        consensus = run.outputs["con"]
         assert isinstance(consensus, AgentResponse)
         assert consensus.content == "42"
 
     async def test_llm_synthesis_returns_synthesised_text(self) -> None:
-        k = _make_knot()
         llm = StubLLMProvider(["the synthesis"])
         responses = {
             "a": AgentResponse(content="answer A", finish_reason="stop"),
             "b": AgentResponse(content="answer B", finish_reason="stop"),
         }
-        consensus = await k.process(responses=responses, llm=llm, strategy="llm_synthesis")
+        with Tapestry() as t:
+            ConsensusAggregator(
+                responses=responses,
+                llm=llm,
+                strategy="llm_synthesis",
+                _config=KnotConfig(id="con"),
+            )
+        run = await t.run(RunRequest())
+        assert run.succeeded
+        consensus = run.outputs["con"]
         assert isinstance(consensus, AgentResponse)
         assert consensus.content == "the synthesis"
 

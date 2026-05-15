@@ -12,7 +12,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.gate._gate_closed import _GateClosed
+from pirn.nodes.gate._gate_closed import _GateClosedError
 
 
 class Gate(Knot):
@@ -60,17 +60,17 @@ class Gate(Knot):
             The input value unchanged when the predicate returns truthy.
 
         Raises:
-            _GateClosed: If the predicate returns falsy; converted to Skipped by ``__call__``.
+            _GateClosedError: If the predicate returns falsy; converted to Skipped by ``__call__``.
         """
         if self._mutable_predicate(input):
             return input
-        raise _GateClosed
+        raise _GateClosedError
 
     async def __call__(self, parent_results: Any) -> Any:
         from pirn.core.err import Err as _Err
         from pirn.core.skipped import Skipped as _Skipped
 
         result = await super().__call__(parent_results)
-        if isinstance(result, _Err) and result.record.exc_type == "_GateClosed":
+        if isinstance(result, _Err) and result.record.exc_type == "_GateClosedError":
             return _Skipped(reason="gate_closed")
         return result

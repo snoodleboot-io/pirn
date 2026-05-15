@@ -78,8 +78,10 @@ class FIRFilter(Knot):
             if not isinstance(c, (int, float)):
                 raise TypeError("FIRFilter: every coefficient must be a real number")
 
-        h = np.array(coeffs)
-        filtered = await asyncio.to_thread(ss.lfilter, h, np.array([1.0]), signal.data, axis=-1)
+        tap_weights = np.array(coeffs)
+        filtered = await asyncio.to_thread(
+            ss.lfilter, tap_weights, np.array([1.0]), signal.data, axis=-1
+        )
         return SignalPayload(
             metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:fir",

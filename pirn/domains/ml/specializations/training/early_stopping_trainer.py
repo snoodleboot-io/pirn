@@ -30,12 +30,26 @@ from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.domains.ml.types.model_manifest import ModelManifest
 from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
 async def _emit_value(value: Any) -> Any:
     return value
+
+
+@knot
+async def _combine_early_stopping(
+    model: ModelManifest,
+    eval_report: EvalReportPayload,
+    stopped_epoch: int,
+    patience: int,
+) -> dict[str, Any]:
+    return {
+        "model": model,
+        "eval_report": eval_report,
+        "stopped_epoch": stopped_epoch,
+        "patience": patience,
+    }
 
 
 class EarlyStoppingTrainer(SubTapestry):
@@ -76,7 +90,7 @@ class EarlyStoppingTrainer(SubTapestry):
         hyperparameters: Mapping[str, Any] | None = None,
         metrics: Sequence[str] | None = None,
         **_: Any,
-    ) -> dict[str, Any]:
+    ) -> Any:
         """Train the model with early stopping and return the best model, its evaluation, and training metadata.
 
         Args:
@@ -113,30 +127,25 @@ class EarlyStoppingTrainer(SubTapestry):
         hp = dict(hyperparameters) if hyperparameters is not None else {}
         metric_tuple = tuple(metrics) if metrics else (monitor_metric,)
         hp["max_epochs"] = max_epochs
-        with Tapestry() as inner:
-            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
-            model = Trainer(
-                split=split_node,
-                algorithm=algorithm,
-                hyperparameters=hp,
-                _config=KnotConfig(id="train"),
-            )
-            Evaluator(
-                model=model,
-                split=split_node,
-                metrics=metric_tuple,
-                _config=KnotConfig(id="evaluate"),
-            )
-        result = await self._run_inner(inner)
-        trained_model = result.outputs["train"]
-        report = result.outputs["evaluate"]
-        if not isinstance(trained_model, ModelManifest):
-            raise TypeError("EarlyStoppingTrainer: trainer did not return a ModelManifest")
-        if not isinstance(report, EvalReportPayload):
-            raise TypeError("EarlyStoppingTrainer: evaluator did not return an EvalReportPayload")
-        return {
-            "model": trained_model,
-            "eval_report": report,
-            "stopped_epoch": max_epochs,
-            "patience": patience,
-        }
+        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        trained = Trainer(
+            split=split_node,
+            algorithm=algorithm,
+            hyperparameters=hp,
+            _config=KnotConfig(id="train"),
+        )
+        evaluated = Evaluator(
+            model=trained,
+            split=split_node,
+            metrics=metric_tuple,
+            _config=KnotConfig(id="evaluate"),
+        )
+        stopped_epoch_node = _emit_value(value=max_epochs, _config=KnotConfig(id="stopped_epoch"))
+        patience_node = _emit_value(value=patience, _config=KnotConfig(id="patience"))
+        return _combine_early_stopping(
+            model=trained,
+            eval_report=evaluated,
+            stopped_epoch=stopped_epoch_node,
+            patience=patience_node,
+            _config=KnotConfig(id="combine"),
+        )

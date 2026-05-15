@@ -54,6 +54,7 @@ from pirn.domains.agents.specializations.rag.rag_response_builder import (
     RAGResponseBuilder,
 )
 from pirn.domains.agents.types.agent_response import AgentResponse
+from pirn.nodes.source import Source
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -87,7 +88,7 @@ class SelfRAGPipeline(SubTapestry):
         llm: LLMProvider,
         top_k: int = 5,
         **_: Any,
-    ) -> AgentResponse:
+    ) -> Any:
         """Generate a draft answer, assess retrieval need, optionally retrieve and regenerate.
 
         Args:
@@ -162,11 +163,20 @@ class SelfRAGPipeline(SubTapestry):
                     _config=KnotConfig(id="response"),
                 )
             rag_result = await self._run_inner(inner_rag)
-            response = rag_result.outputs.get("response")
-            if not isinstance(response, AgentResponse):
-                return AgentResponse(content="", finish_reason="length")
-            return response
+            final_response: AgentResponse = rag_result.outputs.get("response") or AgentResponse(
+                content="", finish_reason="length"
+            )
+        else:
+            final_response = (
+                AgentResponse(content=draft_answer, finish_reason="stop")
+                if isinstance(draft_answer, str)
+                else AgentResponse(content="", finish_reason="length")
+            )
 
-        if not isinstance(draft_answer, str):
-            return AgentResponse(content="", finish_reason="length")
-        return AgentResponse(content=draft_answer, finish_reason="stop")
+        _resp = final_response
+
+        class _ResultSource(Source):
+            async def process(self, **_: Any) -> AgentResponse:
+                return _resp
+
+        return _ResultSource(_config=KnotConfig(id="result"))

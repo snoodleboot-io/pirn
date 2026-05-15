@@ -50,8 +50,16 @@ class TestOrchestratorAgentProcess(unittest.IsolatedAsyncioTestCase):
         llm = StubLLMProvider(["pick spec_b please"])
         spec_a = _make_spec("A", "spec_a")
         spec_b = _make_spec("B", "spec_b")
-        k = _make_knot(llm, {"spec_a": spec_a, "spec_b": spec_b})
-        response = await k.process(task="solve riddle", llm=llm, specialists={"spec_a": spec_a, "spec_b": spec_b})
+        with Tapestry() as t:
+            OrchestratorAgent(
+                task="solve riddle",
+                llm=llm,
+                specialists={"spec_a": spec_a, "spec_b": spec_b},
+                _config=KnotConfig(id="orch"),
+            )
+        run = await t.run(RunRequest())
+        assert run.succeeded
+        response = run.outputs["orch"]
         assert isinstance(response, AgentResponse)
         assert response.content == "B:solve riddle"
 

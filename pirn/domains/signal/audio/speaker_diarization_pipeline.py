@@ -46,11 +46,11 @@ def _diarize(
     mfcc = librosa.feature.mfcc(y=mono, sr=sr, n_mfcc=_mfcc_n, hop_length=_mfcc_hop)
     features = mfcc.T
     n_frames = features.shape[0]
-    k = min(num_speakers, n_frames)
-    if k < 2 or n_frames < 2:
+    cluster_count = min(num_speakers, n_frames)
+    if cluster_count < 2 or n_frames < 2:
         labels = [0] * n_frames
     else:
-        kmeans = KMeans(n_clusters=k, random_state=0, n_init="auto")
+        kmeans = KMeans(n_clusters=cluster_count, random_state=0, n_init="auto")
         labels = kmeans.fit_predict(features).tolist()
     return {"speaker_labels": labels, "num_speakers": num_speakers}
 

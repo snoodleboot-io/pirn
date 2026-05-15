@@ -36,28 +36,30 @@ from pirn.domains.signal.types.wavelet_frame import WaveletFrame
 from pirn.domains.signal.types.wavelet_payload import WaveletPayload
 
 try:
-    from vmdpy import VMD as _vmdpy_VMD
+    from vmdpy import VMD as _vmdpy_vmd
 
     _VMDPY_AVAILABLE = True
 except ImportError:
     _VMDPY_AVAILABLE = False
 
 
-def _vmd_numpy(signal: np.ndarray, alpha: float, k: int, max_iter: int = 50) -> np.ndarray:
+def _vmd_numpy(
+    signal_array: np.ndarray, alpha: float, mode_count: int, max_iter: int = 50
+) -> np.ndarray:
     """Simplified frequency-domain VMD via gradient descent (fallback when vmdpy unavailable)."""
-    n = len(signal)
-    f_hat = np.fft.fftshift(np.fft.fft(signal))
-    omega = np.fft.fftshift(np.fft.fftfreq(n))
-    omega_k = np.linspace(0, 0.5, k)
-    u_hat = np.zeros((k, n), dtype=complex)
-    lambda_hat = np.zeros(n, dtype=complex)
+    signal_length = len(signal_array)
+    f_hat = np.fft.fftshift(np.fft.fft(signal_array))
+    omega = np.fft.fftshift(np.fft.fftfreq(signal_length))
+    omega_k = np.linspace(0, 0.5, mode_count)
+    u_hat = np.zeros((mode_count, signal_length), dtype=complex)
+    lambda_hat = np.zeros(signal_length, dtype=complex)
     for _ in range(max_iter):
-        for mode_idx in range(k):
+        for mode_idx in range(mode_count):
             u_hat_sum = np.sum(u_hat, axis=0) - u_hat[mode_idx]
             numerator = f_hat - u_hat_sum - lambda_hat / 2.0
             denominator = 1.0 + 2.0 * alpha * (omega - omega_k[mode_idx]) ** 2
             u_hat[mode_idx] = numerator / denominator
-        for mode_idx in range(k):
+        for mode_idx in range(mode_count):
             positive_mask = omega > 0
             weighted = np.where(positive_mask, omega * np.abs(u_hat[mode_idx]) ** 2, 0.0)
             total = np.sum(np.where(positive_mask, np.abs(u_hat[mode_idx]) ** 2, 0.0))
@@ -67,23 +69,23 @@ def _vmd_numpy(signal: np.ndarray, alpha: float, k: int, max_iter: int = 50) -> 
     return modes
 
 
-def _run_vmd_vmdpy(signal: np.ndarray, alpha: float, k: int) -> np.ndarray:
-    u, _u_hat, _omega = _vmdpy_VMD(signal, alpha, tau=0, K=k, DC=0, init=1, tol=1e-7)  # type: ignore[possibly-unbound]
+def _run_vmd_vmdpy(signal_array: np.ndarray, alpha: float, mode_count: int) -> np.ndarray:
+    u, _u_hat, _omega = _vmdpy_vmd(signal_array, alpha, tau=0, K=mode_count, DC=0, init=1, tol=1e-7)  # type: ignore[possibly-unbound]
     return u
 
 
-def _run_vmd(data: np.ndarray, alpha: float, k: int) -> list[np.ndarray]:
+def _run_vmd(data: np.ndarray, alpha: float, mode_count: int) -> list[np.ndarray]:
     if data.ndim == 2:
         all_modes: list[np.ndarray] = []
         for ch_idx in range(data.shape[0]):
-            modes = _run_vmd(data[ch_idx], alpha, k)
+            modes = _run_vmd(data[ch_idx], alpha, mode_count)
             all_modes.extend(modes)
         return all_modes
     if _VMDPY_AVAILABLE:
-        modes = _run_vmd_vmdpy(data, alpha, k)
+        modes = _run_vmd_vmdpy(data, alpha, mode_count)
     else:
-        modes = _vmd_numpy(data, alpha, k)
-    return [modes[i] for i in range(modes.shape[0])]
+        modes = _vmd_numpy(data, alpha, mode_count)
+    return [modes[mode_idx] for mode_idx in range(modes.shape[0])]
 
 
 class VMDDecomposer(Knot):

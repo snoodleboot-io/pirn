@@ -34,7 +34,6 @@ from pirn.domains.agents.specializations.memory_patterns.episodic_episode_writer
 )
 from pirn.domains.agents.types.agent_message import AgentMessage
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class EpisodicMemoryPipeline(SubTapestry):
@@ -59,7 +58,7 @@ class EpisodicMemoryPipeline(SubTapestry):
         session_id: str,
         store: MemoryStore,
         **_: Any,
-    ) -> str:
+    ) -> Any:
         """Store the conversation messages as a new episode and return the episode storage key.
 
         Args:
@@ -84,15 +83,9 @@ class EpisodicMemoryPipeline(SubTapestry):
                 f"EpisodicMemoryPipeline: session_id must be a non-empty string, got {session_id!r}"
             )
         seed_messages = tuple(messages)
-        with Tapestry() as inner:
-            EpisodicEpisodeWriter(
-                messages=seed_messages,
-                session_id=session_id,
-                store=store,
-                _config=KnotConfig(id="write_episode"),
-            )
-        inner_result = await self._run_inner(inner)
-        key = inner_result.outputs.get("write_episode")
-        if not isinstance(key, str):
-            raise RuntimeError("EpisodicMemoryPipeline: inner write did not return a key")
-        return key
+        return EpisodicEpisodeWriter(
+            messages=seed_messages,
+            session_id=session_id,
+            store=store,
+            _config=KnotConfig(id="write_episode"),
+        )

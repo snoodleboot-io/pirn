@@ -6,6 +6,7 @@ import json
 import unittest
 
 from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
 from pirn.domains.agents.specializations.structured_output.retry_on_parse_failure import (
     RetryOnParseFailure,
 )
@@ -71,25 +72,31 @@ class TestRetryOnParseFailureProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_returns_parsed_on_first_success(self) -> None:
         llm = StubLLMProvider(['{"x": 1}'])
-        knot = _make_knot(llm)
-        result = await knot.process(
-            prompt="extract JSON",
-            llm=llm,
-            parser=json.loads,
-            max_retries=3,
-        )
-        assert result == {"x": 1}
+        with Tapestry() as t:
+            RetryOnParseFailure(
+                prompt="extract JSON",
+                llm=llm,
+                parser=json.loads,
+                max_retries=3,
+                _config=KnotConfig(id="ropf"),
+            )
+        run = await t.run(RunRequest())
+        assert run.succeeded
+        assert run.outputs["ropf"] == {"x": 1}
 
     async def test_retries_on_parse_failure_and_succeeds(self) -> None:
         llm = StubLLMProvider(["not json", '{"x": 2}'])
-        knot = _make_knot(llm)
-        result = await knot.process(
-            prompt="extract JSON",
-            llm=llm,
-            parser=json.loads,
-            max_retries=3,
-        )
-        assert result == {"x": 2}
+        with Tapestry() as t:
+            RetryOnParseFailure(
+                prompt="extract JSON",
+                llm=llm,
+                parser=json.loads,
+                max_retries=3,
+                _config=KnotConfig(id="ropf"),
+            )
+        run = await t.run(RunRequest())
+        assert run.succeeded
+        assert run.outputs["ropf"] == {"x": 2}
 
     async def test_raises_after_exhausting_retries(self) -> None:
         llm = StubLLMProvider(["bad json"] * 5)

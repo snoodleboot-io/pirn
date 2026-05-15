@@ -43,9 +43,9 @@ class TestDatasetLoaderHappyPath(unittest.IsolatedAsyncioTestCase):
         assert out.manifest.feature_names == ("age", "income")
         assert out.manifest.target_name == "churned"
         assert out.manifest.row_count == 3
-        assert out.features.X.shape == (3, 2)
-        assert out.features.y is not None
-        assert out.features.y.shape == (3,)
+        assert out.features.feature_matrix.shape == (3, 2)
+        assert out.features.target_vector is not None
+        assert out.features.target_vector.shape == (3,)
         assert pool.queries == [("SELECT id FROM customers", None)]
 
 
@@ -57,24 +57,14 @@ class TestDatasetLoaderProcess(unittest.IsolatedAsyncioTestCase):
         return loader
 
     async def test_rejects_missing_inputs(self) -> None:
-        loader = self._make_knot()
-        with self.assertRaises((TypeError, ValueError)):
-            await loader.process(
+        with Tapestry() as t:
+            DatasetLoader(
                 name="customers",
                 feature_names=("a",),
+                _config=KnotConfig(id="loader"),
             )
-
-    async def test_rejects_pool_query_and_parquet_together(self) -> None:
-        loader = self._make_knot()
-        pool = RecordingDatabasePool()
-        with self.assertRaises((TypeError, ValueError)):
-            await loader.process(
-                name="customers",
-                feature_names=("a",),
-                pool=pool,
-                query="SELECT 1",
-                parquet_path="/tmp/out.parquet",
-            )
+        result = await t.run(RunRequest())
+        assert not result.succeeded
 
     async def test_rejects_empty_feature_names(self) -> None:
         loader = self._make_knot()

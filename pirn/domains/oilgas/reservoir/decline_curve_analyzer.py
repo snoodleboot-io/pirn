@@ -89,28 +89,36 @@ class DeclineCurveAnalyzer(Knot):
                 f"DeclineCurveAnalyzer: method must be one of {sorted(self.valid_methods)}"
             )
 
-        q = rate_series.values.astype(np.float64)
-        if len(q) < 2:
-            return {"qi": float(q[0]) if len(q) == 1 else 0.0, "di_per_year": 0.0, "b": 0.0}
+        rate_array = rate_series.values.astype(np.float64)
+        if len(rate_array) < 2:
+            return {
+                "qi": float(rate_array[0]) if len(rate_array) == 1 else 0.0,
+                "di_per_year": 0.0,
+                "b": 0.0,
+            }
 
         # Convert sample-index time to days using the SCADA channel interval
-        t = np.arange(len(q), dtype=np.float64) * rate_series.series.sample_interval_sec / 86400.0
+        time_days = (
+            np.arange(len(rate_array), dtype=np.float64)
+            * rate_series.series.sample_interval_sec
+            / 86400.0
+        )
 
-        return await asyncio.to_thread(self._fit, q, t, method)
+        return await asyncio.to_thread(self._fit, rate_array, time_days, method)
 
     @staticmethod
-    def _fit(q: np.ndarray, t: np.ndarray, method: str) -> dict[str, float]:
+    def _fit(rate_array: np.ndarray, time_days: np.ndarray, method: str) -> dict[str, float]:
         if method == "exponential":
-            return DeclineCurveAnalyzer._fit_exponential(q, t)
+            return DeclineCurveAnalyzer._fit_exponential(rate_array, time_days)
         if method == "harmonic":
-            return DeclineCurveAnalyzer._fit_harmonic(q, t)
+            return DeclineCurveAnalyzer._fit_harmonic(rate_array, time_days)
         # hyperbolic: attempt curve_fit, fall back to exponential on failure
-        return DeclineCurveAnalyzer._fit_hyperbolic(q, t)
+        return DeclineCurveAnalyzer._fit_hyperbolic(rate_array, time_days)
 
     @staticmethod
-    def _fit_exponential(q: np.ndarray, t: np.ndarray) -> dict[str, float]:
-        log_q = np.log(q + 1e-9)
-        slope, intercept = np.polyfit(t, log_q, 1)
+    def _fit_exponential(rate_array: np.ndarray, time_days: np.ndarray) -> dict[str, float]:
+        log_q = np.log(rate_array + 1e-9)
+        slope, intercept = np.polyfit(time_days, log_q, 1)
         qi = float(np.exp(intercept))
         di_day = float(-slope)
         # Convert per-day decline to per-year for the return contract
@@ -118,31 +126,31 @@ class DeclineCurveAnalyzer(Knot):
         return {"qi": qi, "di_per_year": di_annual, "b": 0.0}
 
     @staticmethod
-    def _fit_harmonic(q: np.ndarray, t: np.ndarray) -> dict[str, float]:
+    def _fit_harmonic(rate_array: np.ndarray, time_days: np.ndarray) -> dict[str, float]:
         # Harmonic: q(t) = qi / (1 + di*t)  →  1/q = 1/qi + di/qi * t
-        inv_q = 1.0 / (q + 1e-9)
-        slope, intercept = np.polyfit(t, inv_q, 1)
+        inv_q = 1.0 / (rate_array + 1e-9)
+        slope, intercept = np.polyfit(time_days, inv_q, 1)
         qi = 1.0 / max(float(intercept), 1e-9)
         di_day = float(slope) * qi
         return {"qi": qi, "di_per_year": di_day * 365.0, "b": 1.0}
 
     @staticmethod
-    def _fit_hyperbolic(q: np.ndarray, t: np.ndarray) -> dict[str, float]:
-        def hyperbolic(t_: np.ndarray, qi_: float, di_: float, b_: float) -> np.ndarray:
-            return qi_ * (1.0 + b_ * di_ * t_) ** (-1.0 / b_)
+    def _fit_hyperbolic(rate_array: np.ndarray, time_days: np.ndarray) -> dict[str, float]:
+        def hyperbolic(time_arr: np.ndarray, qi_: float, di_: float, arps_b: float) -> np.ndarray:
+            return qi_ * (1.0 + arps_b * di_ * time_arr) ** (-1.0 / arps_b)
 
-        qi0 = float(q[0]) if q[0] > 0 else 1.0
+        qi0 = float(rate_array[0]) if rate_array[0] > 0 else 1.0
         try:
             popt, _ = curve_fit(
                 hyperbolic,
-                t,
-                q,
+                time_days,
+                rate_array,
                 p0=[qi0, _di_init_day, _b_init],
                 bounds=([0.0, 1e-9, 1e-6], [np.inf, np.inf, 0.9999]),
                 maxfev=5000,
             )
-            qi, di_day, b = float(popt[0]), float(popt[1]), float(popt[2])
-            return {"qi": qi, "di_per_year": di_day * 365.0, "b": b}
+            qi, di_day, arps_b = float(popt[0]), float(popt[1]), float(popt[2])
+            return {"qi": qi, "di_per_year": di_day * 365.0, "b": arps_b}
         except Exception:
             # Degrade gracefully to exponential when scipy cannot converge
-            return DeclineCurveAnalyzer._fit_exponential(q, t)
+            return DeclineCurveAnalyzer._fit_exponential(rate_array, time_days)

@@ -35,7 +35,6 @@ from pirn.domains.agents.specializations.multi_agent.debate_judge import (
 )
 from pirn.domains.agents.types.agent_response import AgentResponse
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class DebateFramework(SubTapestry):
@@ -67,7 +66,7 @@ class DebateFramework(SubTapestry):
         judge_llm: LLMProvider,
         rounds: int = 3,
         **_: Any,
-    ) -> AgentResponse:
+    ) -> Any:
         """Run the configured number of debate rounds and return the judge-selected winning response.
 
         Args:
@@ -122,20 +121,12 @@ class DebateFramework(SubTapestry):
                         )
                     )
             history.append(latest_round)
-        with Tapestry() as inner:
-            DebateJudge(
-                topic=topic,
-                final_round=tuple(latest_round),
-                judge_llm=judge_llm,
-                _config=KnotConfig(id="judge"),
-            )
-        inner_result = await self._run_inner(inner)
-        winner = inner_result.outputs.get("judge")
-        if not isinstance(winner, AgentResponse):
-            return (
-                latest_round[0] if latest_round else AgentResponse(content="", finish_reason="stop")
-            )
-        return winner
+        return DebateJudge(
+            topic=topic,
+            final_round=tuple(latest_round),
+            judge_llm=judge_llm,
+            _config=KnotConfig(id="judge"),
+        )
 
     @staticmethod
     def _render_recap(history: list[list[AgentResponse]]) -> str:

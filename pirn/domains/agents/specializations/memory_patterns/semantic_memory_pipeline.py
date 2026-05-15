@@ -42,7 +42,6 @@ from pirn.domains.agents.specializations.memory_patterns.semantic_fact_writer im
 )
 from pirn.domains.agents.types.agent_message import AgentMessage
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class SemanticMemoryPipeline(SubTapestry):
@@ -74,7 +73,7 @@ class SemanticMemoryPipeline(SubTapestry):
         store: MemoryStore,
         fact_extraction_prompt: str = "Extract key facts from the following conversation.",
         **_: Any,
-    ) -> int:
+    ) -> Any:
         """Extract factual claims from messages via the LLM and persist them, returning the count written.
 
         Args:
@@ -104,20 +103,14 @@ class SemanticMemoryPipeline(SubTapestry):
                 "SemanticMemoryPipeline: fact_extraction_prompt must be a non-empty string"
             )
         seed_messages = tuple(messages)
-        with Tapestry() as inner:
-            facts = SemanticFactExtractor(
-                messages=seed_messages,
-                llm=llm,
-                fact_extraction_prompt=fact_extraction_prompt,
-                _config=KnotConfig(id="extract"),
-            )
-            SemanticFactWriter(
-                facts=facts,
-                store=store,
-                _config=KnotConfig(id="write"),
-            )
-        inner_result = await self._run_inner(inner)
-        count = inner_result.outputs.get("write")
-        if not isinstance(count, int):
-            raise RuntimeError("SemanticMemoryPipeline: inner write did not return a count")
-        return count
+        facts = SemanticFactExtractor(
+            messages=seed_messages,
+            llm=llm,
+            fact_extraction_prompt=fact_extraction_prompt,
+            _config=KnotConfig(id="extract"),
+        )
+        return SemanticFactWriter(
+            facts=facts,
+            store=store,
+            _config=KnotConfig(id="write"),
+        )

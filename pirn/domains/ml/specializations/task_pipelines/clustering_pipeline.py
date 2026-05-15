@@ -29,9 +29,7 @@ from pirn.domains.ml.data_prep.train_test_split import TrainTestSplit
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.features.scaler import Scaler
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class ClusteringPipeline(SubTapestry):
@@ -69,7 +67,7 @@ class ClusteringPipeline(SubTapestry):
         algorithm: str = "kmeans",
         n_clusters: int = 8,
         **_: Any,
-    ) -> EvalReportPayload:
+    ) -> Any:
         """Scale features, fit a clustering model, and return an EvalMetadata with silhouette and Davies-Bouldin scores.
 
         Args:
@@ -99,36 +97,33 @@ class ClusteringPipeline(SubTapestry):
             )
         if not isinstance(n_clusters, int) or n_clusters < 2:
             raise ValueError("ClusteringPipeline: n_clusters must be an int >= 2")
-        with Tapestry() as inner:
-            dataset = DatasetLoader(
-                name="clustering",
-                feature_names=feature_tuple,
-                target_name=None,
-                pool=pool,
-                query=query,
-                _config=KnotConfig(id="load"),
-            )
-            split = TrainTestSplit(
-                dataset=dataset,
-                _config=KnotConfig(id="split"),
-            )
-            preprocessed = Scaler(
-                split=split,
-                columns=feature_tuple,
-                method="standardise",
-                _config=KnotConfig(id="preprocess"),
-            )
-            trained = Trainer(
-                split=preprocessed,
-                algorithm=algorithm,
-                hyperparameters={"n_clusters": n_clusters},
-                _config=KnotConfig(id="train"),
-            )
-            Evaluator(
-                model=trained,
-                split=preprocessed,
-                metrics=self._clustering_metrics,
-                _config=KnotConfig(id="evaluate"),
-            )
-        inner_result = await self._run_inner(inner)
-        return inner_result.outputs["evaluate"]
+        dataset = DatasetLoader(
+            name="clustering",
+            feature_names=feature_tuple,
+            target_name=None,
+            pool=pool,
+            query=query,
+            _config=KnotConfig(id="load"),
+        )
+        split = TrainTestSplit(
+            dataset=dataset,
+            _config=KnotConfig(id="split"),
+        )
+        preprocessed = Scaler(
+            split=split,
+            columns=feature_tuple,
+            method="standardise",
+            _config=KnotConfig(id="preprocess"),
+        )
+        trained = Trainer(
+            split=preprocessed,
+            algorithm=algorithm,
+            hyperparameters={"n_clusters": n_clusters},
+            _config=KnotConfig(id="train"),
+        )
+        return Evaluator(
+            model=trained,
+            split=preprocessed,
+            metrics=self._clustering_metrics,
+            _config=KnotConfig(id="evaluate"),
+        )

@@ -30,7 +30,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.ml.lineage_store import LineageStore
 from pirn.domains.ml.types.dataset_manifest import DatasetManifest
-from pirn.domains.ml.types.eval_metadata import EvalMetadata
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.domains.ml.types.model_manifest import ModelManifest
 from pirn.domains.ml.types.split_manifest import SplitManifest
 
@@ -64,7 +64,7 @@ class ModelLineageTracker(Knot):
         dataset: DatasetManifest,
         split: SplitManifest,
         model: ModelManifest,
-        report: EvalMetadata,
+        report: EvalReportPayload,
         lineage: LineageStore | None = None,
         **_: Any,
     ) -> str:
@@ -100,7 +100,7 @@ class ModelLineageTracker(Knot):
             {
                 "dataset_hash": dataset_hash,
                 "model_id": model.model_id,
-                "report_metrics": dict(report.metrics),
+                "report_metrics": dict(report.metrics.scores),
                 "recorded_at": recorded_at,
             }
         )
@@ -138,8 +138,8 @@ class ModelLineageTracker(Knot):
             {
                 "lineage_id": lineage_id,
                 "model_id": model.model_id,
-                "metrics": {k: float(v) for k, v in report.metrics.items()},
-                "dataset_name": report.dataset_name,
+                "metrics": {k: float(v) for k, v in report.metrics.scores.items()},
+                "dataset_name": report.report.dataset_name,
                 "recorded_at": recorded_at,
             },
         )

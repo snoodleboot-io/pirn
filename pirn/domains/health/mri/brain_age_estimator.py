@@ -91,13 +91,24 @@ class BrainAgeEstimator(Knot):
         subcortical_volumes: dict[str, float] = mri_features.get("subcortical_volumes", {})
         morphometric = {**cortical_thickness, **subcortical_volumes}
         if morphometric:
-            features = [morphometric[k] for k in sorted(morphometric)] + [chron_age]
+            features = [morphometric[region_key] for region_key in sorted(morphometric)] + [
+                chron_age
+            ]
         else:
             features = [chron_age]
-        n = len(features)
-        weights = [(-1) ** i * 0.1 / (i + 1) for i in range(n)]
+        feature_count = len(features)
+        weights = [
+            (-1) ** feature_index * 0.1 / (feature_index + 1)
+            for feature_index in range(feature_count)
+        ]
         bias = chron_age * 0.05
-        predicted = chron_age + sum(w * f for w, f in zip(weights, features, strict=False)) + bias
+        predicted = (
+            chron_age
+            + sum(
+                weight * feature_val for weight, feature_val in zip(weights, features, strict=False)
+            )
+            + bias
+        )
         predicted = float(np.clip(predicted, 0.0, 120.0))
         brain_age_gap = predicted - chron_age
         ci_half = max(1.5, abs(brain_age_gap) * 0.3 + 1.5)

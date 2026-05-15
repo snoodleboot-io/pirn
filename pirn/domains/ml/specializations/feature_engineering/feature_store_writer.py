@@ -26,7 +26,6 @@ from pirn.domains.ml.feature_store_provider import FeatureStoreProvider
 from pirn.domains.ml.features.feature_store import FeatureStore
 from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
@@ -57,7 +56,7 @@ class FeatureStoreWriter(SubTapestry):
         split: SplitManifest,
         feature_store: FeatureStoreProvider | None = None,
         **_: Any,
-    ) -> int:
+    ) -> Any:
         """Write the SplitManifest's partition metadata to the feature store and return the count of rows written.
 
         Args:
@@ -74,15 +73,9 @@ class FeatureStoreWriter(SubTapestry):
             raise TypeError("FeatureStoreWriter: split must be a SplitManifest")
         if not isinstance(feature_store, FeatureStoreProvider):
             raise TypeError("FeatureStoreWriter: feature_store must be a FeatureStoreProvider")
-        with Tapestry() as inner:
-            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
-            FeatureStore(
-                split=split_node,
-                provider=feature_store,
-                _config=KnotConfig(id="write"),
-            )
-        result = await self._run_inner(inner)
-        written = result.outputs["write"]
-        if not isinstance(written, int):
-            raise TypeError("FeatureStoreWriter: inner writer did not return an int")
-        return written
+        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        return FeatureStore(
+            split=split_node,
+            provider=feature_store,
+            _config=KnotConfig(id="write"),
+        )

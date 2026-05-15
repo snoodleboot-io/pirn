@@ -31,12 +31,24 @@ from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.domains.ml.types.model_manifest import ModelManifest
 from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
 async def _emit_value(value: Any) -> Any:
     return value
+
+
+@knot
+async def _combine_ensemble_eval(
+    ensemble_model: ModelManifest,
+    eval_report: EvalReportPayload,
+    n_estimators: int,
+) -> dict[str, Any]:
+    return {
+        "ensemble_model": ensemble_model,
+        "eval_report": eval_report,
+        "n_estimators": n_estimators,
+    }
 
 
 class BaggingEnsembleBuilder(SubTapestry):
@@ -76,7 +88,7 @@ class BaggingEnsembleBuilder(SubTapestry):
         metrics: Sequence[str] = (),
         hyperparameters: Mapping[str, Any] | None = None,
         **_: Any,
-    ) -> dict[str, Any]:
+    ) -> Any:
         """Train N base models, build a bagging ensemble, and return the ensemble model and its evaluation.
 
         Args:
@@ -117,37 +129,31 @@ class BaggingEnsembleBuilder(SubTapestry):
             raise TypeError("BaggingEnsembleBuilder: hyperparameters must be a Mapping")
         hp = dict(hyperparameters) if hyperparameters is not None else {}
         strategy = "voting" if task == "classification" else "blending"
-        with Tapestry() as inner:
-            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
-            base_models = []
-            for i in range(n_estimators):
-                model = Trainer(
-                    split=split_node,
-                    algorithm=algorithm,
-                    hyperparameters={**hp, "bootstrap_sample": i},
-                    _config=KnotConfig(id=f"train_{i}"),
-                )
-                base_models.append(model)
-            ensemble = EnsembleBuilder(
-                models=base_models,
-                strategy=strategy,
-                _config=KnotConfig(id="ensemble"),
-            )
-            Evaluator(
-                model=ensemble,
+        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        base_models = []
+        for i in range(n_estimators):
+            model = Trainer(
                 split=split_node,
-                metrics=metric_tuple,
-                _config=KnotConfig(id="evaluate"),
+                algorithm=algorithm,
+                hyperparameters={**hp, "bootstrap_sample": i},
+                _config=KnotConfig(id=f"train_{i}"),
             )
-        result = await self._run_inner(inner)
-        ensemble_model = result.outputs["ensemble"]
-        report = result.outputs["evaluate"]
-        if not isinstance(ensemble_model, ModelManifest):
-            raise TypeError("BaggingEnsembleBuilder: ensemble did not return a ModelManifest")
-        if not isinstance(report, EvalReportPayload):
-            raise TypeError("BaggingEnsembleBuilder: evaluator did not return an EvalReportPayload")
-        return {
-            "ensemble_model": ensemble_model,
-            "eval_report": report,
-            "n_estimators": n_estimators,
-        }
+            base_models.append(model)
+        ensemble = EnsembleBuilder(
+            models=base_models,
+            strategy=strategy,
+            _config=KnotConfig(id="ensemble"),
+        )
+        evaluated = Evaluator(
+            model=ensemble,
+            split=split_node,
+            metrics=metric_tuple,
+            _config=KnotConfig(id="evaluate"),
+        )
+        n_est_node = _emit_value(value=n_estimators, _config=KnotConfig(id="n_estimators"))
+        return _combine_ensemble_eval(
+            ensemble_model=ensemble,
+            eval_report=evaluated,
+            n_estimators=n_est_node,
+            _config=KnotConfig(id="combine"),
+        )

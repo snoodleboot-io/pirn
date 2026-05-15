@@ -114,10 +114,10 @@ class FKDenoisingKnot(Knot):
 
         data_matrix = np.zeros((n_samples, n_traces), dtype=np.float64)
         offsets_m: list[float] = []
-        for j, tr in enumerate(traces):
+        for trace_idx, tr in enumerate(traces):
             samps = tr.get("samples", [])
-            data_matrix[: len(samps), j] = samps
-            offsets_m.append(float(tr.get("offset_m", j * dx)))
+            data_matrix[: len(samps), trace_idx] = samps
+            offsets_m.append(float(tr.get("offset_m", trace_idx * dx)))
 
         fk = np.fft.fft2(data_matrix)
         freqs = np.fft.fftfreq(n_samples, d=dt)
@@ -128,25 +128,25 @@ class FKDenoisingKnot(Knot):
         v_taper_lo = v_thr * (1.0 - taper_frac)
 
         mask = np.ones((n_samples, n_traces), dtype=np.float64)
-        for i, f in enumerate(freqs):
-            for j, kx in enumerate(kxs):
+        for freq_idx, freq in enumerate(freqs):
+            for kx_idx, kx in enumerate(kxs):
                 if abs(kx) < 1e-12:
                     continue
-                v_app = abs(f / kx)
+                v_app = abs(freq / kx)
                 if v_app >= v_thr:
-                    mask[i, j] = 1.0
+                    mask[freq_idx, kx_idx] = 1.0
                 elif v_app <= v_taper_lo:
-                    mask[i, j] = 0.0
+                    mask[freq_idx, kx_idx] = 0.0
                 else:
-                    t = (v_app - v_taper_lo) / (v_thr - v_taper_lo)
-                    mask[i, j] = 0.5 * (1.0 - np.cos(np.pi * t))
+                    taper_pos = (v_app - v_taper_lo) / (v_thr - v_taper_lo)
+                    mask[freq_idx, kx_idx] = 0.5 * (1.0 - np.cos(np.pi * taper_pos))
 
         filtered = np.real(np.fft.ifft2(fk * mask))
 
         denoised_traces: list[dict[str, Any]] = []
-        for j, tr in enumerate(traces):
-            n = len(tr.get("samples", []))
-            denoised_traces.append({**tr, "samples": filtered[:n, j].tolist()})
+        for trace_idx, tr in enumerate(traces):
+            sample_count = len(tr.get("samples", []))
+            denoised_traces.append({**tr, "samples": filtered[:sample_count, trace_idx].tolist()})
 
         return {
             "denoised_traces": denoised_traces,

@@ -95,16 +95,18 @@ class WellTestAnalyzer(Knot):
         log_ht = np.log10(horner_time)
 
         coeffs = np.polyfit(log_ht, p_ws, 1)
-        m = float(coeffs[0])
-        m_abs = abs(m) if abs(m) > 1e-6 else 1e-6
+        horner_slope = float(coeffs[0])
+        horner_slope_abs = abs(horner_slope) if abs(horner_slope) > 1e-6 else 1e-6
 
-        k = (162.6 * _default_q_bopd * _default_mu_cp * _default_bo) / (m_abs * _default_h_ft)
+        permeability = (162.6 * _default_q_bopd * _default_mu_cp * _default_bo) / (
+            horner_slope_abs * _default_h_ft
+        )
 
         # Extrapolated initial reservoir pressure from Horner line at infinite shut-in
         p_initial = float(coeffs[0] * 0.0 + coeffs[1])  # log((tp+inf)/inf) → 0
 
         return {
-            "permeability_md": float(k),
+            "permeability_md": float(permeability),
             "skin": 0.0,
             "p_initial_psi": float(p_ws[-1]) if len(p_ws) > 0 else p_initial,
         }

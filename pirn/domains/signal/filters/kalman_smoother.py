@@ -67,22 +67,22 @@ def _rts_smoother(data: np.ndarray, state_dim: int) -> np.ndarray:
     x_pred = np.zeros((n_samples, state_dim))
     p_pred = np.zeros((n_samples, state_dim, state_dim))
 
-    x = np.zeros(state_dim)
-    p = np.eye(state_dim)
+    state_estimate = np.zeros(state_dim)
+    error_covariance = np.eye(state_dim)
 
     for t in range(n_samples):
-        x_p = f_mat @ x
-        p_p = f_mat @ p @ f_mat.T + q_mat
+        x_p = f_mat @ state_estimate
+        p_p = f_mat @ error_covariance @ f_mat.T + q_mat
         x_pred[t] = x_p
         p_pred[t] = p_p
 
         innov = arr[:, t] - h_mat @ x_p
         s_mat = h_mat @ p_p @ h_mat.T + r_mat
         k_gain = p_p @ h_mat.T @ np.linalg.inv(s_mat)
-        x = x_p + k_gain @ innov
-        p = (np.eye(state_dim) - k_gain @ h_mat) @ p_p
-        x_filt[t] = x
-        p_filt[t] = p
+        state_estimate = x_p + k_gain @ innov
+        error_covariance = (np.eye(state_dim) - k_gain @ h_mat) @ p_p
+        x_filt[t] = state_estimate
+        p_filt[t] = error_covariance
 
     x_smooth = x_filt.copy()
     p_smooth = p_filt.copy()

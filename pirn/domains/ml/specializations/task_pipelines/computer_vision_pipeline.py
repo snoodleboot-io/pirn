@@ -37,9 +37,7 @@ from pirn.domains.ml.features.image_embedding_extractor import (
 )
 from pirn.domains.ml.image_encoder_provider import ImageEncoderProvider
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class ComputerVisionPipeline(SubTapestry):
@@ -84,7 +82,7 @@ class ComputerVisionPipeline(SubTapestry):
         image_encoder: ImageEncoderProvider | None = None,
         algorithm: str = "logistic",
         **_: Any,
-    ) -> EvalReportPayload:
+    ) -> Any:
         """Load data, split, extract image embeddings, train a classifier, and return the resulting EvalMetadata.
 
         Args:
@@ -115,35 +113,32 @@ class ComputerVisionPipeline(SubTapestry):
             raise TypeError("ComputerVisionPipeline: image_encoder must be an ImageEncoderProvider")
         if not isinstance(algorithm, str) or not algorithm:
             raise ValueError("ComputerVisionPipeline: algorithm must be a non-empty string")
-        with Tapestry() as inner:
-            dataset = DatasetLoader(
-                name="computer-vision",
-                feature_names=(image_column,),
-                target_name=target_column,
-                pool=pool,
-                query=query,
-                _config=KnotConfig(id="load"),
-            )
-            split = TrainTestSplit(
-                dataset=dataset,
-                _config=KnotConfig(id="split"),
-            )
-            embedded = ImageEmbeddingExtractor(
-                split=split,
-                image_column=image_column,
-                image_encoder=image_encoder,
-                _config=KnotConfig(id="embed"),
-            )
-            trained = Trainer(
-                split=embedded,
-                algorithm=algorithm,
-                _config=KnotConfig(id="train"),
-            )
-            Evaluator(
-                model=trained,
-                split=embedded,
-                metrics=self._classification_metrics,
-                _config=KnotConfig(id="evaluate"),
-            )
-        inner_result = await self._run_inner(inner)
-        return inner_result.outputs["evaluate"]
+        dataset = DatasetLoader(
+            name="computer-vision",
+            feature_names=(image_column,),
+            target_name=target_column,
+            pool=pool,
+            query=query,
+            _config=KnotConfig(id="load"),
+        )
+        split = TrainTestSplit(
+            dataset=dataset,
+            _config=KnotConfig(id="split"),
+        )
+        embedded = ImageEmbeddingExtractor(
+            split=split,
+            image_column=image_column,
+            image_encoder=image_encoder,
+            _config=KnotConfig(id="embed"),
+        )
+        trained = Trainer(
+            split=embedded,
+            algorithm=algorithm,
+            _config=KnotConfig(id="train"),
+        )
+        return Evaluator(
+            model=trained,
+            split=embedded,
+            metrics=self._classification_metrics,
+            _config=KnotConfig(id="evaluate"),
+        )

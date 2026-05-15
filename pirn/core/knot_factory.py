@@ -90,11 +90,11 @@ def knot(
     call site constructs a Knot instance::
 
         @knot
-        async def double(x: int) -> int:
-            return x * 2
+        async def double(value: int) -> int:
+            return value * 2
 
         # Construct an instance — looks like a normal call.
-        d = double(x=p, _config=KnotConfig(id="double"))
+        d = double(value=p, _config=KnotConfig(id="double"))
 
     Sync functions are auto-wrapped via ``asyncio.to_thread``; the
     function's signature becomes the knot's input contract.

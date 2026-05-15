@@ -93,12 +93,12 @@ class NetcdfFormat(BatchFileFormat):
         return self._field_names
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        netCDF4, np = self._load_netcdf_numpy()
-        # netCDF4 demands a filesystem path; round-trip via a tempfile
+        netcdf4_lib, np = self._load_netcdf_numpy()
+        # netcdf4_lib demands a filesystem path; round-trip via a tempfile
         # (cleaned up in finally so payloads never linger on disk).
         tmp_path = self._write_temp_payload(payload)
         try:
-            dataset = netCDF4.Dataset(tmp_path, "r")
+            dataset = netcdf4_lib.Dataset(tmp_path, "r")
             try:
                 if self._variable_name not in dataset.variables:
                     raise ValueError(
@@ -129,7 +129,7 @@ class NetcdfFormat(BatchFileFormat):
                 os.remove(tmp_path)
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
-        netCDF4, np = self._load_netcdf_numpy()
+        netcdf4_lib, np = self._load_netcdf_numpy()
         materialised = [dict(record) for record in records]
         if not materialised:
             raise ValueError(
@@ -139,7 +139,7 @@ class NetcdfFormat(BatchFileFormat):
         structured = self._records_to_structured_array(materialised, np)
         tmp_path = tempfile.mktemp(suffix=".nc")
         try:
-            dataset = netCDF4.Dataset(tmp_path, "w", format="NETCDF4")
+            dataset = netcdf4_lib.Dataset(tmp_path, "w", format="NETCDF4")
             try:
                 dataset.createDimension(self._dimension_name, len(materialised))
                 compound = dataset.createCompoundType(structured.dtype, self._compound_type_name)
@@ -253,10 +253,10 @@ class NetcdfFormat(BatchFileFormat):
     @staticmethod
     def _load_netcdf_numpy() -> tuple[Any, Any]:
         try:
-            import netCDF4
+            import netCDF4 as netcdf4_lib
             import numpy as np
         except ImportError as exc:
             raise ImportError(
                 "NetcdfFormat requires netCDF4 and numpy. Install with `pip install pirn[netcdf]`."
             ) from exc
-        return netCDF4, np
+        return netcdf4_lib, np

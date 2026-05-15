@@ -29,12 +29,29 @@ from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.domains.ml.types.model_manifest import ModelManifest
 from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
 async def _emit_value(value: Any) -> Any:
     return value
+
+
+@knot
+async def _build_retrainer_result(
+    eval_report: EvalReportPayload,
+    retrained_model: ModelManifest,
+    metric: str,
+    threshold: float,
+) -> Mapping[str, Any]:
+    current_score = float(eval_report.metrics.scores[metric])
+    triggered = current_score < threshold
+    return {
+        "triggered": triggered,
+        "current_score": current_score,
+        "threshold": threshold,
+        "metric": metric,
+        "new_model_id": retrained_model.model_id if triggered else None,
+    }
 
 
 class PerformanceTriggeredRetrainer(SubTapestry):
@@ -69,7 +86,7 @@ class PerformanceTriggeredRetrainer(SubTapestry):
         threshold: float = 0.0,
         algorithm: str = "random_forest",
         **_: Any,
-    ) -> Mapping[str, Any]:
+    ) -> Any:
         """Evaluate the live metric and retrain if it falls below the threshold.
 
         Args:
@@ -94,40 +111,25 @@ class PerformanceTriggeredRetrainer(SubTapestry):
         if not isinstance(algorithm, str) or not algorithm:
             raise ValueError("PerformanceTriggeredRetrainer: algorithm must be a non-empty string")
         threshold_f = float(threshold)
-        with Tapestry() as inner:
-            model_node = _emit_value(value=model, _config=KnotConfig(id="model"))
-            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
-            Evaluator(
-                model=model_node,
-                split=split_node,
-                metrics=(metric,),
-                _config=KnotConfig(id="evaluate"),
-            )
-        inner_result = await self._run_inner(inner)
-        report: EvalReportPayload = inner_result.outputs["evaluate"]
-        current_score = float(report.metrics.scores[metric])
-        triggered = current_score < threshold_f
-        if not triggered:
-            return {
-                "triggered": False,
-                "current_score": current_score,
-                "threshold": threshold_f,
-                "metric": metric,
-                "new_model_id": None,
-            }
-        with Tapestry() as retrain_inner:
-            split_node2 = _emit_value(value=split, _config=KnotConfig(id="split"))
-            Trainer(
-                split=split_node2,
-                algorithm=algorithm,
-                _config=KnotConfig(id="retrain"),
-            )
-        retrain_result = await self._run_inner(retrain_inner)
-        new_model: ModelManifest = retrain_result.outputs["retrain"]
-        return {
-            "triggered": True,
-            "current_score": current_score,
-            "threshold": threshold_f,
-            "metric": metric,
-            "new_model_id": new_model.model_id,
-        }
+        model_node = _emit_value(value=model, _config=KnotConfig(id="model"))
+        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        evaluated = Evaluator(
+            model=model_node,
+            split=split_node,
+            metrics=(metric,),
+            _config=KnotConfig(id="evaluate"),
+        )
+        retrained = Trainer(
+            split=split_node,
+            algorithm=algorithm,
+            _config=KnotConfig(id="retrain"),
+        )
+        metric_node = _emit_value(value=metric, _config=KnotConfig(id="metric"))
+        threshold_node = _emit_value(value=threshold_f, _config=KnotConfig(id="threshold"))
+        return _build_retrainer_result(
+            eval_report=evaluated,
+            retrained_model=retrained,
+            metric=metric_node,
+            threshold=threshold_node,
+            _config=KnotConfig(id="combine"),
+        )

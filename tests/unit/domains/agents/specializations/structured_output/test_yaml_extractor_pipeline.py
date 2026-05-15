@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
 from pirn.domains.agents.specializations.structured_output.yaml_extractor_pipeline import (
     YamlExtractorPipeline,
 )
@@ -48,31 +49,36 @@ class TestYamlExtractorPipelineProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_returns_parsed_mapping(self) -> None:
         llm = StubLLMProvider(["name: Ada\nage: 36\n"])
-        knot = _make_knot(llm)
-        result = await knot.process(
-            prompt="extract a user",
-            llm=llm,
-            schema={"name": "string", "age": "integer"},
-            max_retries=3,
-        )
-        assert result == {"name": "Ada", "age": 36}
+        with Tapestry() as t:
+            YamlExtractorPipeline(
+                prompt="extract a user",
+                llm=llm,
+                schema={"name": "string", "age": "integer"},
+                max_retries=3,
+                _config=KnotConfig(id="yaml"),
+            )
+        run = await t.run(RunRequest())
+        assert run.succeeded
+        assert run.outputs["yaml"] == {"name": "Ada", "age": 36}
 
     async def test_retries_on_invalid_yaml(self) -> None:
-        # First reply is a YAML scalar, not a mapping — pipeline should retry.
         llm = StubLLMProvider(
             [
                 "just a scalar string",
                 "name: Ada\nage: 36\n",
             ]
         )
-        knot = _make_knot(llm, max_retries=3)
-        result = await knot.process(
-            prompt="extract a user",
-            llm=llm,
-            schema={"name": "string"},
-            max_retries=3,
-        )
-        assert result == {"name": "Ada", "age": 36}
+        with Tapestry() as t:
+            YamlExtractorPipeline(
+                prompt="extract a user",
+                llm=llm,
+                schema={"name": "string"},
+                max_retries=3,
+                _config=KnotConfig(id="yaml"),
+            )
+        run = await t.run(RunRequest())
+        assert run.succeeded
+        assert run.outputs["yaml"] == {"name": "Ada", "age": 36}
         assert len(llm.calls) == 2
 
     async def test_raises_after_exhausting_retries(self) -> None:

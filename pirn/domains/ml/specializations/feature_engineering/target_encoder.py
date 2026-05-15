@@ -34,7 +34,6 @@ from pirn.core.knot_factory import knot
 from pirn.domains.ml.features.encoder import Encoder
 from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
@@ -71,7 +70,7 @@ class TargetEncoder(SubTapestry):
         target_column: str = "",
         smoothing: float = 1.0,
         **_: Any,
-    ) -> SplitManifest:
+    ) -> Any:
         """Apply target encoding to the categorical column across all split partitions and return the renamed SplitManifest.
 
         Args:
@@ -95,16 +94,10 @@ class TargetEncoder(SubTapestry):
             raise TypeError("TargetEncoder: smoothing must be a number")
         if float(smoothing) < 0.0:
             raise ValueError("TargetEncoder: smoothing must be >= 0.0")
-        with Tapestry() as inner:
-            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
-            Encoder(
-                split=split_node,
-                columns=(categorical_column,),
-                method="target",
-                _config=KnotConfig(id="encode"),
-            )
-        result = await self._run_inner(inner)
-        encoded = result.outputs["encode"]
-        if not isinstance(encoded, SplitManifest):
-            raise TypeError("TargetEncoder: inner encoder did not return a SplitManifest")
-        return encoded
+        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        return Encoder(
+            split=split_node,
+            columns=(categorical_column,),
+            method="target",
+            _config=KnotConfig(id="encode"),
+        )

@@ -104,24 +104,24 @@ class SeismicBandpassFilter(Knot):
 
         def _ormsby(samples: list[float]) -> list[float]:
             arr = np.asarray(samples, dtype=np.float64)
-            n = len(arr)
-            if n == 0:
+            sample_count = len(arr)
+            if sample_count == 0:
                 return samples
-            freqs = np.fft.rfftfreq(n, d=dt)
+            freqs = np.fft.rfftfreq(sample_count, d=dt)
             spectrum = np.fft.rfft(arr)
-            h = np.zeros_like(freqs)
+            filter_response = np.zeros_like(freqs)
             f_lc, f_lp, f_hp, f_hc = low_cut_hz, low_pass_hz, high_pass_hz, high_cut_hz
-            for i, f in enumerate(freqs):
-                fa = abs(f)
+            for freq_idx, freq_val in enumerate(freqs):
+                fa = abs(freq_val)
                 if fa < f_lc or fa > f_hc:
-                    h[i] = 0.0
+                    filter_response[freq_idx] = 0.0
                 elif fa < f_lp:
-                    h[i] = (fa - f_lc) / (f_lp - f_lc)
+                    filter_response[freq_idx] = (fa - f_lc) / (f_lp - f_lc)
                 elif fa <= f_hp:
-                    h[i] = 1.0
+                    filter_response[freq_idx] = 1.0
                 else:
-                    h[i] = (f_hc - fa) / (f_hc - f_hp)
-            filtered = np.fft.irfft(spectrum * h, n=n)
+                    filter_response[freq_idx] = (f_hc - fa) / (f_hc - f_hp)
+            filtered = np.fft.irfft(spectrum * filter_response, n=sample_count)
             return filtered.tolist()
 
         filtered_traces = [

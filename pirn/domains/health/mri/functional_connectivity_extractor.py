@@ -28,25 +28,25 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 
-def _pearson_matrix(x: np.ndarray) -> np.ndarray:
-    """Compute symmetric Pearson correlation matrix for rows of x."""
-    x_c = x - x.mean(axis=1, keepdims=True)
-    norms = np.linalg.norm(x_c, axis=1, keepdims=True)
+def _pearson_matrix(roi_matrix: np.ndarray) -> np.ndarray:
+    """Compute symmetric Pearson correlation matrix for rows of roi_matrix."""
+    roi_centered = roi_matrix - roi_matrix.mean(axis=1, keepdims=True)
+    norms = np.linalg.norm(roi_centered, axis=1, keepdims=True)
     norms = np.where(norms == 0, 1.0, norms)
-    x_n = x_c / norms
-    return x_n @ x_n.T
+    roi_normalized = roi_centered / norms
+    return roi_normalized @ roi_normalized.T
 
 
-def _partial_corr_matrix(x: np.ndarray) -> np.ndarray:
+def _partial_corr_matrix(roi_matrix: np.ndarray) -> np.ndarray:
     """Partial correlation via precision matrix inversion."""
-    corr = np.corrcoef(x)
+    corr = np.corrcoef(roi_matrix)
     try:
         prec = np.linalg.inv(corr)
     except np.linalg.LinAlgError:
         prec = np.linalg.pinv(corr)
-    d = np.sqrt(np.abs(np.diag(prec)))
-    d = np.where(d == 0, 1.0, d)
-    partial = -prec / np.outer(d, d)
+    diag_sqrt = np.sqrt(np.abs(np.diag(prec)))
+    diag_sqrt = np.where(diag_sqrt == 0, 1.0, diag_sqrt)
+    partial = -prec / np.outer(diag_sqrt, diag_sqrt)
     np.fill_diagonal(partial, 1.0)
     return partial
 
@@ -58,11 +58,11 @@ def _compute_connectivity(
     roi_labels = list(roi_timeseries.keys())
     if not roi_labels:
         return [], roi_labels
-    x = np.array([roi_timeseries[lbl] for lbl in roi_labels], dtype=float)
+    roi_matrix = np.array([roi_timeseries[lbl] for lbl in roi_labels], dtype=float)
     if connectivity_measure == "partial_correlation":
-        mat = _partial_corr_matrix(x)
+        mat = _partial_corr_matrix(roi_matrix)
     else:
-        mat = _pearson_matrix(x)
+        mat = _pearson_matrix(roi_matrix)
     return mat.tolist(), roi_labels
 
 

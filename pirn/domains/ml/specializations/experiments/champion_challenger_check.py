@@ -44,12 +44,52 @@ from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.domains.ml.types.model_manifest import ModelManifest
 from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
 async def _emit_value(value: Any) -> Any:
     return value
+
+
+@knot
+async def _build_champion_challenger_result(
+    champion_report: EvalReportPayload,
+    challenger_report: EvalReportPayload,
+    champion: ModelManifest,
+    challenger: ModelManifest,
+    split: SplitManifest,
+    primary_metric: str,
+    min_imp: float,
+) -> dict[str, Any]:
+    champion_score = float(champion_report.metrics.scores[primary_metric])
+    challenger_score = float(challenger_report.metrics.scores[primary_metric])
+    delta = challenger_score - champion_score
+    challenger_wins = delta >= min_imp
+    comparison_metrics: dict[str, float] = {
+        f"champion_{primary_metric}": champion_score,
+        f"challenger_{primary_metric}": challenger_score,
+        f"delta_{primary_metric}": delta,
+    }
+    comparison = EvalReportPayload(
+        metadata=EvalMetadata(
+            model_id=challenger.model_id,
+            dataset_name=split.test.name,
+            evaluated_at=datetime.now(UTC),
+        ),
+        data=EvalMetrics(
+            scores=MappingProxyType(comparison_metrics),
+            details=MappingProxyType(
+                {
+                    "primary_metric": primary_metric,
+                    "min_improvement": min_imp,
+                    "champion_model_id": champion.model_id,
+                    "challenger_model_id": challenger.model_id,
+                    "challenger_wins": challenger_wins,
+                }
+            ),
+        ),
+    )
+    return {"challenger_wins": challenger_wins, "comparison": comparison}
 
 
 class ChampionChallengerCheck(SubTapestry):
@@ -84,7 +124,7 @@ class ChampionChallengerCheck(SubTapestry):
         primary_metric: str = "",
         min_improvement: float = 0.0,
         **_: Any,
-    ) -> dict[str, Any]:
+    ) -> Any:
         """Evaluate both models on the split and return a comparison dict indicating whether the challenger wins.
 
         Args:
@@ -106,62 +146,32 @@ class ChampionChallengerCheck(SubTapestry):
         if not isinstance(min_improvement, (int, float)):
             raise TypeError("ChampionChallengerCheck: min_improvement must be a number")
         min_imp = float(min_improvement)
-        with Tapestry() as inner:
-            champion_node = _emit_value(value=champion, _config=KnotConfig(id="champion"))
-            challenger_node = _emit_value(value=challenger, _config=KnotConfig(id="challenger"))
-            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
-            Evaluator(
-                model=champion_node,
-                split=split_node,
-                metrics=(primary_metric,),
-                _config=KnotConfig(id="evaluate_champion"),
-            )
-            Evaluator(
-                model=challenger_node,
-                split=split_node,
-                metrics=(primary_metric,),
-                _config=KnotConfig(id="evaluate_challenger"),
-            )
-        inner_result = await self._run_inner(inner)
-        champion_report: EvalReportPayload = inner_result.outputs["evaluate_champion"]
-        challenger_report: EvalReportPayload = inner_result.outputs["evaluate_challenger"]
-        if not isinstance(champion_report, EvalReportPayload):
-            raise TypeError(
-                "ChampionChallengerCheck: champion evaluator did not return an EvalReportPayload"
-            )
-        if not isinstance(challenger_report, EvalReportPayload):
-            raise TypeError(
-                "ChampionChallengerCheck: challenger evaluator did not return an EvalReportPayload"
-            )
-        champion_score = float(champion_report.metrics.scores[primary_metric])
-        challenger_score = float(challenger_report.metrics.scores[primary_metric])
-        delta = challenger_score - champion_score
-        challenger_wins = delta >= min_imp
-        comparison_metrics: dict[str, float] = {
-            f"champion_{primary_metric}": champion_score,
-            f"challenger_{primary_metric}": challenger_score,
-            f"delta_{primary_metric}": delta,
-        }
-        comparison = EvalReportPayload(
-            metadata=EvalMetadata(
-                model_id=challenger.model_id,
-                dataset_name=split.test.name,
-                evaluated_at=datetime.now(UTC),
-            ),
-            data=EvalMetrics(
-                scores=MappingProxyType(comparison_metrics),
-                details=MappingProxyType(
-                    {
-                        "primary_metric": primary_metric,
-                        "min_improvement": min_imp,
-                        "champion_model_id": champion.model_id,
-                        "challenger_model_id": challenger.model_id,
-                        "challenger_wins": challenger_wins,
-                    }
-                ),
-            ),
+        champion_node = _emit_value(value=champion, _config=KnotConfig(id="champion"))
+        challenger_node = _emit_value(value=challenger, _config=KnotConfig(id="challenger"))
+        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        evaluated_champion = Evaluator(
+            model=champion_node,
+            split=split_node,
+            metrics=(primary_metric,),
+            _config=KnotConfig(id="evaluate_champion"),
         )
-        return {
-            "challenger_wins": challenger_wins,
-            "comparison": comparison,
-        }
+        evaluated_challenger = Evaluator(
+            model=challenger_node,
+            split=split_node,
+            metrics=(primary_metric,),
+            _config=KnotConfig(id="evaluate_challenger"),
+        )
+        min_imp_node = _emit_value(value=min_imp, _config=KnotConfig(id="min_imp"))
+        primary_metric_node = _emit_value(
+            value=primary_metric, _config=KnotConfig(id="primary_metric")
+        )
+        return _build_champion_challenger_result(
+            champion_report=evaluated_champion,
+            challenger_report=evaluated_challenger,
+            champion=champion_node,
+            challenger=challenger_node,
+            split=split_node,
+            primary_metric=primary_metric_node,
+            min_imp=min_imp_node,
+            _config=KnotConfig(id="combine"),
+        )

@@ -56,10 +56,10 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 
 
-def _is_knot_cls(a: Any) -> bool:
-    """Return True if *a* is Knot or a subclass of Knot."""
+def _is_knot_cls(candidate: Any) -> bool:
+    """Return True if *candidate* is Knot or a subclass of Knot."""
     try:
-        return isinstance(a, type) and issubclass(a, Knot)
+        return isinstance(candidate, type) and issubclass(candidate, Knot)
     except TypeError:
         return False
 
@@ -491,7 +491,16 @@ class Knot:
             input_adapters[name] = TypeAdapter(ann)
 
         ret = hints.get("return", sig.return_annotation)
-        output_adapter = None if ret is inspect.Signature.empty or ret is None else TypeAdapter(ret)
+        _is_knot_type = (
+            ret is not inspect.Signature.empty
+            and ret is not None
+            and (ret is Knot or (isinstance(ret, type) and issubclass(ret, Knot)))
+        )
+        output_adapter = (
+            None
+            if ret is inspect.Signature.empty or ret is None or _is_knot_type
+            else TypeAdapter(ret)
+        )
         return input_adapters, output_adapter
 
     def _validate_inputs(self, kwargs: dict[str, Any]) -> dict[str, Any]:

@@ -46,7 +46,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_final_round_report(self) -> None:
-        rows = [(float(i), i % 2) for i in range(40)]
+        rows = [{"a": float(i), "y": i % 2} for i in range(40)]
         with Tapestry() as t:
             ActiveLearningLoop(
                 pool=RecordingDatabasePool(rows=rows),

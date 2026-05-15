@@ -55,8 +55,17 @@ def _find_porosity_curve(curve_data: dict[str, np.ndarray]) -> np.ndarray:
     )
 
 
-def _archie(phi: np.ndarray, rt: np.ndarray, a: float, rw: float, m: float, n: float) -> np.ndarray:
-    sw = (a * rw / (phi**m * rt + _sw_epsilon)) ** (1.0 / n)
+def _archie(
+    phi: np.ndarray,
+    rt: np.ndarray,
+    tortuosity_factor: float,
+    rw: float,
+    cementation_exponent: float,
+    saturation_exponent: float,
+) -> np.ndarray:
+    sw = (tortuosity_factor * rw / (phi**cementation_exponent * rt + _sw_epsilon)) ** (
+        1.0 / saturation_exponent
+    )
     return np.clip(sw, 0.0, 1.0)
 
 
@@ -64,16 +73,20 @@ def _simandoux(
     phi: np.ndarray,
     rt: np.ndarray,
     vsh: np.ndarray,
-    a: float,
+    tortuosity_factor: float,
     rw: float,
-    m: float,
-    n: float,
+    cementation_exponent: float,
+    saturation_exponent: float,
 ) -> np.ndarray:
     rsh = 4.0
-    phi_m = phi**m
+    phi_m = phi**cementation_exponent
     term = vsh / (2.0 * rsh)
-    discriminant = np.maximum(term**2 + phi_m / (a * rw * rt + _sw_epsilon), 0.0)
-    sw = phi_m / (a * rw + _sw_epsilon) / (-term + np.sqrt(discriminant) + _sw_epsilon)
+    discriminant = np.maximum(term**2 + phi_m / (tortuosity_factor * rw * rt + _sw_epsilon), 0.0)
+    sw = (
+        phi_m
+        / (tortuosity_factor * rw + _sw_epsilon)
+        / (-term + np.sqrt(discriminant) + _sw_epsilon)
+    )
     return np.clip(sw, 0.0, 1.0)
 
 
@@ -86,9 +99,9 @@ class WaterSaturationCalculator(Knot):
         payload: Knot,
         method: Knot | str,
         rw: Knot | float,
-        a: Knot | float = 1.0,
-        m: Knot | float = 2.0,
-        n: Knot | float = 2.0,
+        tortuosity_factor: Knot | float = 1.0,
+        cementation_exponent: Knot | float = 2.0,
+        saturation_exponent: Knot | float = 2.0,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
@@ -96,9 +109,9 @@ class WaterSaturationCalculator(Knot):
             payload=payload,
             method=method,
             rw=rw,
-            a=a,
-            m=m,
-            n=n,
+            tortuosity_factor=tortuosity_factor,
+            cementation_exponent=cementation_exponent,
+            saturation_exponent=saturation_exponent,
             _config=_config,
             **kwargs,
         )
@@ -108,9 +121,9 @@ class WaterSaturationCalculator(Knot):
         payload: LASPayload,
         method: str,
         rw: float,
-        a: float = 1.0,
-        m: float = 2.0,
-        n: float = 2.0,
+        tortuosity_factor: float = 1.0,
+        cementation_exponent: float = 2.0,
+        saturation_exponent: float = 2.0,
         **_: Any,
     ) -> LASPayload:
         """Compute a water-saturation curve and return an augmented LASPayload.
@@ -120,9 +133,9 @@ class WaterSaturationCalculator(Knot):
             method: Saturation model; must be one of ``archie``,
                 ``simandoux``, ``indonesia``, or ``waxman_smits``.
             rw: Positive formation water resistivity (ohm·m).
-            a: Positive Archie tortuosity factor (default 1.0).
-            m: Positive cementation exponent (default 2.0).
-            n: Positive saturation exponent (default 2.0).
+            tortuosity_factor: Positive Archie tortuosity factor (default 1.0).
+            cementation_exponent: Positive cementation exponent (default 2.0).
+            saturation_exponent: Positive saturation exponent (default 2.0).
 
         Returns:
             LASPayload with a water-saturation curve named ``SW_{method}`` appended.
@@ -132,7 +145,12 @@ class WaterSaturationCalculator(Knot):
             raise ValueError(
                 f"WaterSaturationCalculator: method must be one of {sorted(_valid_methods)}"
             )
-        for label, value in (("rw", rw), ("a", a), ("m", m), ("n", n)):
+        for label, value in (
+            ("rw", rw),
+            ("tortuosity_factor", tortuosity_factor),
+            ("cementation_exponent", cementation_exponent),
+            ("saturation_exponent", saturation_exponent),
+        ):
             if not isinstance(value, (int, float)):
                 raise TypeError(f"WaterSaturationCalculator: {label} must be numeric")
             if value <= 0.0:
@@ -147,9 +165,11 @@ class WaterSaturationCalculator(Knot):
 
         if method == "simandoux":
             vsh = curve_data.get("VSH", np.zeros_like(phi))
-            sw = _simandoux(phi, rt, vsh, a, rw, m, n)
+            sw = _simandoux(
+                phi, rt, vsh, tortuosity_factor, rw, cementation_exponent, saturation_exponent
+            )
         else:
-            sw = _archie(phi, rt, a, rw, m, n)
+            sw = _archie(phi, rt, tortuosity_factor, rw, cementation_exponent, saturation_exponent)
 
         mnemonic = f"SW_{method}"
         new_curve_data = {**curve_data, mnemonic: sw}

@@ -34,19 +34,19 @@ from pirn.core.knot_config import KnotConfig
 
 def _point_in_polygon(px: float, py: float, polygon: list[list[float]]) -> bool:
     """Ray-casting algorithm for point-in-polygon test (Jordan curve theorem)."""
-    n = len(polygon)
+    vertex_count = len(polygon)
     inside = False
-    j = n - 1
-    for i in range(n):
-        xi, yi = polygon[i][0], polygon[i][1]
-        xj, yj = polygon[j][0], polygon[j][1]
+    prev_vertex_idx = vertex_count - 1
+    for curr_vertex_idx in range(vertex_count):
+        xi, yi = polygon[curr_vertex_idx][0], polygon[curr_vertex_idx][1]
+        xj, yj = polygon[prev_vertex_idx][0], polygon[prev_vertex_idx][1]
         # Ray from (px, py) in +x direction crosses edge (xi,yi)-(xj,yj) when
         # the edge straddles py and the intersection is to the right of px.
         if (yi > py) != (yj > py):
             x_intersect = (xj - xi) * (py - yi) / (yj - yi + 1e-15) + xi
             if px < x_intersect:
                 inside = not inside
-        j = i
+        prev_vertex_idx = curr_vertex_idx
     return inside
 
 
@@ -57,8 +57,8 @@ def _dist_to_segment(px: float, py: float, ax: float, ay: float, bx: float, by: 
     len_sq = dx * dx + dy * dy
     if len_sq < 1e-15:
         return math.hypot(px - ax, py - ay)
-    t = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / len_sq))
-    return math.hypot(px - (ax + t * dx), py - (ay + t * dy))
+    segment_param = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / len_sq))
+    return math.hypot(px - (ax + segment_param * dx), py - (ay + segment_param * dy))
 
 
 class BoundaryProximityChecker(Knot):
@@ -116,10 +116,13 @@ class BoundaryProximityChecker(Knot):
             if _point_in_polygon(px, py, polygon):
                 within = True
             elif buffer_distance_m > 0.0:
-                n = len(polygon)
-                for i in range(n):
-                    ax, ay = polygon[i][0], polygon[i][1]
-                    bx, by = polygon[(i + 1) % n][0], polygon[(i + 1) % n][1]
+                vertex_count = len(polygon)
+                for vertex_idx in range(vertex_count):
+                    ax, ay = polygon[vertex_idx][0], polygon[vertex_idx][1]
+                    bx, by = (
+                        polygon[(vertex_idx + 1) % vertex_count][0],
+                        polygon[(vertex_idx + 1) % vertex_count][1],
+                    )
                     if _dist_to_segment(px, py, ax, ay, bx, by) < buffer_distance_m:
                         within = True
                         break

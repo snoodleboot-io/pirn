@@ -5,10 +5,11 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_result import RunResult
+from pirn.core.run_request import RunRequest
 from pirn.domains.health.clinical.medication_reconciliation_pipeline import (
     MedicationReconciliationPipeline,
 )
+from pirn.tapestry import Tapestry
 
 _CFG = KnotConfig(id="m")
 
@@ -25,13 +26,11 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             await knot.process(drug_names=[], mapping=42)  # type: ignore[arg-type]
 
     async def test_runs_inner_pipeline(self) -> None:
-        knot = MedicationReconciliationPipeline(
-            drug_names=["aspirin", "aspirin"],
-            mapping={"aspirin": "1191"},
-            _config=_CFG,
-        )
-        out = await knot.process(
-            drug_names=["aspirin", "aspirin"],
-            mapping={"aspirin": "1191"},
-        )
-        assert isinstance(out, RunResult)
+        with Tapestry() as t:
+            MedicationReconciliationPipeline(
+                drug_names=["aspirin", "aspirin"],
+                mapping={"aspirin": "1191"},
+                _config=_CFG,
+            )
+        result = await t.run(RunRequest())
+        assert result.succeeded

@@ -55,10 +55,10 @@ def _cgm_stats(readings: np.ndarray, low: float, high: float) -> dict[str, float
     mean_g = float(np.mean(readings))
     std_g = float(np.std(readings, ddof=1)) if readings.size > 1 else 0.0
     cv = (std_g / mean_g * 100.0) if mean_g > 0 else 0.0
-    n = readings.size
-    tir = float(np.sum((readings >= low) & (readings <= high)) / n * 100.0)
-    tbr = float(np.sum(readings < low) / n * 100.0)
-    tar = float(np.sum(readings > high) / n * 100.0)
+    reading_count = readings.size
+    tir = float(np.sum((readings >= low) & (readings <= high)) / reading_count * 100.0)
+    tbr = float(np.sum(readings < low) / reading_count * 100.0)
+    tar = float(np.sum(readings > high) / reading_count * 100.0)
     return {
         "mean_glucose": mean_g,
         "std_glucose": std_g,

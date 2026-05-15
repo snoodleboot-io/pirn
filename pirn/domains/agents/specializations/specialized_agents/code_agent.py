@@ -40,9 +40,7 @@ from pirn.domains.agents.specializations.specialized_agents._code_linter import 
 from pirn.domains.agents.specializations.specialized_agents._code_response_formatter import (
     _CodeResponseFormatter,
 )
-from pirn.domains.agents.types.agent_response import AgentResponse
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class CodeAgent(SubTapestry):
@@ -59,9 +57,7 @@ class CodeAgent(SubTapestry):
     ) -> None:
         super().__init__(task=task, llm=llm, language=language, _config=_config, **kwargs)
 
-    async def process(
-        self, task: str, llm: LLMProvider, language: str = "python", **_: Any
-    ) -> AgentResponse:
+    async def process(self, task: str, llm: LLMProvider, language: str = "python", **_: Any) -> Any:
         """Generate code for the task, run a lint pass, and return the formatted AgentResponse.
 
         Args:
@@ -82,25 +78,19 @@ class CodeAgent(SubTapestry):
             raise TypeError(f"CodeAgent: llm must be an LLMProvider, got {type(llm).__name__}")
         if not isinstance(language, str) or not language:
             raise TypeError(f"CodeAgent: language must be a non-empty string, got {language!r}")
-        with Tapestry() as inner:
-            code = _CodeGenerator(
-                task=task,
-                llm=llm,
-                language=language,
-                _config=KnotConfig(id="generate_code"),
-            )
-            warnings = _CodeLinter(
-                code=code,
-                language=language,
-                _config=KnotConfig(id="lint_code"),
-            )
-            _CodeResponseFormatter(
-                code=code,
-                warnings=warnings,
-                _config=KnotConfig(id="format_response"),
-            )
-        inner_result = await self._run_inner(inner)
-        response = inner_result.outputs.get("format_response")
-        if not isinstance(response, AgentResponse):
-            return AgentResponse(content="", finish_reason="length")
-        return response
+        code = _CodeGenerator(
+            task=task,
+            llm=llm,
+            language=language,
+            _config=KnotConfig(id="generate_code"),
+        )
+        warnings = _CodeLinter(
+            code=code,
+            language=language,
+            _config=KnotConfig(id="lint_code"),
+        )
+        return _CodeResponseFormatter(
+            code=code,
+            warnings=warnings,
+            _config=KnotConfig(id="format_response"),
+        )

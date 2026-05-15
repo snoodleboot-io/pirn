@@ -4,7 +4,7 @@ import unittest
 
 from pirn.managers.exception_manager import ExceptionManager
 from pirn.managers.exception_record import ExceptionRecord
-from pirn.managers.rebindable_exception import RebindableException
+from pirn.managers.rebindable_exception import RebindableError
 
 
 class TestExceptionManager(unittest.TestCase):
@@ -54,7 +54,7 @@ class TestExceptionManager(unittest.TestCase):
         self.assertIsNone(self.mgr.get("nonexistent"))
 
     def test_rebindable_preserves_original_type(self):
-        rb = RebindableException("OriginalError", "original msg", "original tb")
+        rb = RebindableError("OriginalError", "original msg", "original tb")
         rec = self.mgr.record("k", rb)
         self.assertEqual(rec.exc_type, "OriginalError")
         self.assertEqual(rec.traceback_text, "original tb")

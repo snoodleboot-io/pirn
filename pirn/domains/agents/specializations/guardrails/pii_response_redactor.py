@@ -78,10 +78,10 @@ class PIIResponseRedactor(Knot):
         )
         content = response.content
 
-        def _apply_pii(c: str = content) -> str:
+        def _apply_pii(content_str: str = content) -> str:
             for p in compiled:
-                c = p.sub("<redacted>", c)
-            return c
+                content_str = p.sub("<redacted>", content_str)
+            return content_str
 
         redacted = await asyncio.to_thread(_apply_pii)
         if redacted == response.content:

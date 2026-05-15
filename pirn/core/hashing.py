@@ -34,7 +34,7 @@ from pydantic import BaseModel, TypeAdapter
 _type_adapter_cache: dict[type, TypeAdapter] = {}
 
 
-class _Unhashable(Exception):
+class _UnhashableError(Exception):
     """Internal sentinel used by ``_canonicalise`` to bail on opaque values."""
 
     sentinel = "unhashable"
@@ -60,8 +60,8 @@ def content_hash(value: Any) -> str:
     """
     try:
         canonical = _canonicalise(value)
-    except _Unhashable:
-        return f"sha256:{_Unhashable.sentinel}:{type(value).__name__}"
+    except _UnhashableError:
+        return f"sha256:{_UnhashableError.sentinel}:{type(value).__name__}"
     payload = json.dumps(canonical, separators=(",", ":"), sort_keys=False).encode("utf-8")
     digest = hashlib.sha256(payload).hexdigest()
     return f"sha256:{digest}"
@@ -90,7 +90,7 @@ def _canonicalise(value: Any) -> Any:
       :class:`PirnOpaqueValue`). ``TypeAdapter.dump_python`` honours the
       type's custom serialiser, producing a JSON-friendly dict that we
       then canonicalise normally. Without this branch the canonicaliser
-      walks dataclass ``type`` fields and hits ``_Unhashable`` for
+      walks dataclass ``type`` fields and hits ``_UnhashableError`` for
       anything containing a ``Mapping[str, type]`` (DataSchema columns).
     """
     # Primitive isinstance check FIRST — common case; avoids the
@@ -113,10 +113,10 @@ def _canonicalise(value: Any) -> Any:
         # alone.  _pirn_audit_dict() is the established contract; repr is the
         # last-resort fallback that _canonicalise itself uses for truly opaque
         # values.
-        def _opaque_fallback(v: Any) -> Any:
-            if hasattr(v, "_pirn_audit_dict"):
-                return v._pirn_audit_dict()
-            return repr(v)
+        def _opaque_fallback(opaque_value: Any) -> Any:
+            if hasattr(opaque_value, "_pirn_audit_dict"):
+                return opaque_value._pirn_audit_dict()
+            return repr(opaque_value)
 
         return {
             "__model__": value.__class__.__name__,
@@ -138,7 +138,7 @@ def _canonicalise(value: Any) -> Any:
             return _canonicalise(adapter.dump_python(value, mode="json"))
         except Exception:
             # Fall through to the container/Mapping/Sequence branches
-            # below; if those also fail we end up at ``_Unhashable``.
+            # below; if those also fail we end up at ``_UnhashableError``.
             pass
     if isinstance(value, Mapping):
         # Sort by str(key) for determinism.  Keys must serialise to strings
@@ -156,4 +156,4 @@ def _canonicalise(value: Any) -> Any:
     if isinstance(value, (list, tuple, Sequence)) and not isinstance(value, (str, bytes)):
         return {"__seq__": [_canonicalise(e) for e in value]}
     # Opaque type — bail.  Caller produces the UNHASHABLE marker.
-    raise _Unhashable
+    raise _UnhashableError

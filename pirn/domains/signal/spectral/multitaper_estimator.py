@@ -90,18 +90,20 @@ class MultitaperEstimator(Knot):
         if not isinstance(taper_count, int) or taper_count <= 0:
             raise ValueError("MultitaperEstimator: taper_count must be a positive integer")
 
-        n = signal.data.shape[-1]
+        sample_count = signal.data.shape[-1]
         pxx = await asyncio.to_thread(
             _compute_multitaper,
             signal.data,
-            n,
+            sample_count,
             float(time_bandwidth),
             taper_count,
         )
 
-        freq_bins = n // 2 + 1
+        freq_bins = sample_count // 2 + 1
         freq_res = (
-            signal.frame.sample_rate_hz / n if signal.frame.sample_rate_hz > 0 and n > 0 else 0.0
+            signal.frame.sample_rate_hz / sample_count
+            if signal.frame.sample_rate_hz > 0 and sample_count > 0
+            else 0.0
         )
 
         return SpectrumPayload(

@@ -28,7 +28,6 @@ from pirn.domains.ml.specializations.feature_engineering._feature_store_reader_k
 )
 from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
@@ -65,7 +64,7 @@ class FeatureStoreReader(SubTapestry):
         entity_keys: Sequence[str] = (),
         feature_names: Sequence[str] = (),
         **_: Any,
-    ) -> SplitManifest:
+    ) -> Any:
         """Fetch features from the store, join them onto each partition of the split, and return the extended SplitManifest.
 
         Args:
@@ -97,17 +96,11 @@ class FeatureStoreReader(SubTapestry):
                 raise ValueError(
                     "FeatureStoreReader: every feature name must be a non-empty string"
                 )
-        with Tapestry() as inner:
-            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
-            _FeatureStoreReaderKnot(
-                split=split_node,
-                feature_store=feature_store,
-                entity_keys=key_tuple,
-                feature_names=name_tuple,
-                _config=KnotConfig(id="read"),
-            )
-        result = await self._run_inner(inner)
-        joined = result.outputs["read"]
-        if not isinstance(joined, SplitManifest):
-            raise TypeError("FeatureStoreReader: inner reader did not return a SplitManifest")
-        return joined
+        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        return _FeatureStoreReaderKnot(
+            split=split_node,
+            feature_store=feature_store,
+            entity_keys=key_tuple,
+            feature_names=name_tuple,
+            _config=KnotConfig(id="read"),
+        )

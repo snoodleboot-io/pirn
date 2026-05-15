@@ -863,3 +863,26 @@ For each subclass:
 | Priority | Files | Rationale |
 |----------|-------|-----------|
 | P0 — Before any SubTapestry is run in production | All ~90 subclasses | Wrong contract; `process()` returning a domain value will raise `TypeError` in `SubTapestry.__call__` |
+
+
+---
+
+## Part V — LoopSubTapestry Design Review
+
+### Status: Open
+
+### Problem
+
+`LoopSubTapestry` (defined in `pirn/nodes/loop_sub_tapestry.py`) is completely unused — no domain specialization extends it and no production code depends on it. The only references are its own definition, a comment in `engine.py`, a comment in an integration test, and its own unit test.
+
+The `step`/`fold` API may not be the right abstraction for pirn's agentic loop patterns. Additionally, `LoopSubTapestry` and its internal `_IterationChainKnot` must override `__call__` to bypass `SubTapestry.__call__` (because their `process()` legitimately returns a plain value, not a `Knot`) — this signals an architectural mismatch with the SubTapestry contract.
+
+### Questions to Answer
+
+1. Is the `step`/`fold` pattern the right API for iterative agentic loops in pirn, or should this be expressed differently (e.g. as a plain knot with explicit recursion, or an agent-level construct)?
+2. Should `LoopSubTapestry` extend `SubTapestry` at all, given that its execution model is fundamentally different?
+3. Is there a cleaner separation between "build a fixed inner graph" (SubTapestry) and "drive a dynamic iterative run" (LoopSubTapestry)?
+
+### Action
+
+Review and redesign before any consumer depends on it. Until resolved, the class carries a `TODO(design-review)` comment at the top of the file.

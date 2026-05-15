@@ -31,9 +31,7 @@ from pirn.domains.ml.data_prep.train_test_split import TrainTestSplit
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.features.scaler import Scaler
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class MulticlassClassificationPipeline(SubTapestry):
@@ -79,7 +77,7 @@ class MulticlassClassificationPipeline(SubTapestry):
         n_classes: int = 3,
         algorithm: str = "logistic",
         **_: Any,
-    ) -> EvalReportPayload:
+    ) -> Any:
         """Load data, split, scale, train a multiclass classifier, and return the macro-averaged EvalMetadata.
 
         Args:
@@ -122,36 +120,33 @@ class MulticlassClassificationPipeline(SubTapestry):
             raise ValueError(
                 "MulticlassClassificationPipeline: algorithm must be a non-empty string"
             )
-        with Tapestry() as inner:
-            dataset = DatasetLoader(
-                name="multiclass-classification",
-                feature_names=feature_tuple,
-                target_name=target_column,
-                pool=pool,
-                query=query,
-                _config=KnotConfig(id="load"),
-            )
-            split = TrainTestSplit(
-                dataset=dataset,
-                _config=KnotConfig(id="split"),
-            )
-            preprocessed = Scaler(
-                split=split,
-                columns=feature_tuple,
-                method="standardise",
-                _config=KnotConfig(id="preprocess"),
-            )
-            trained = Trainer(
-                split=preprocessed,
-                algorithm=algorithm,
-                hyperparameters={"n_classes": n_classes},
-                _config=KnotConfig(id="train"),
-            )
-            Evaluator(
-                model=trained,
-                split=preprocessed,
-                metrics=self._multiclass_metrics,
-                _config=KnotConfig(id="evaluate"),
-            )
-        inner_result = await self._run_inner(inner)
-        return inner_result.outputs["evaluate"]
+        dataset = DatasetLoader(
+            name="multiclass-classification",
+            feature_names=feature_tuple,
+            target_name=target_column,
+            pool=pool,
+            query=query,
+            _config=KnotConfig(id="load"),
+        )
+        split = TrainTestSplit(
+            dataset=dataset,
+            _config=KnotConfig(id="split"),
+        )
+        preprocessed = Scaler(
+            split=split,
+            columns=feature_tuple,
+            method="standardise",
+            _config=KnotConfig(id="preprocess"),
+        )
+        trained = Trainer(
+            split=preprocessed,
+            algorithm=algorithm,
+            hyperparameters={"n_classes": n_classes},
+            _config=KnotConfig(id="train"),
+        )
+        return Evaluator(
+            model=trained,
+            split=preprocessed,
+            metrics=self._multiclass_metrics,
+            _config=KnotConfig(id="evaluate"),
+        )

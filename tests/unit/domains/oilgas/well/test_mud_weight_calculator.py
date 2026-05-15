@@ -2,14 +2,20 @@
 
 from __future__ import annotations
 
+import json
 import unittest
 
 from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
+from pirn.domains.oilgas.assemblers.well_completion_object_store_assembler import (
+    WellCompletionObjectStoreAssembler,
+)
 from pirn.domains.oilgas.types.drilling_parameters import DrillingParameters
 from pirn.domains.oilgas.well.mud_weight_calculator import MudWeightCalculator
-from pirn.domains.oilgas.well.well_completion_ingester import WellCompletionIngester
 from pirn.tapestry import Tapestry
+
+_COMPLETION_BODY = json.dumps({"perforations": [{"top_ft": 8500.0}, {"bottom_ft": 8520.0}]}).encode()
 
 
 class TestConstruction(unittest.IsolatedAsyncioTestCase):
@@ -37,8 +43,11 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_window(self) -> None:
         with Tapestry() as t:
-            drill = WellCompletionIngester(
-                well_id="W", record_path="/x", _config=KnotConfig(id="wc")
+            body = Parameter("body", bytes, _config=KnotConfig(id="body"))
+            drill = WellCompletionObjectStoreAssembler(
+                body=body,
+                well_id="W",
+                _config=KnotConfig(id="wc"),
             )
             MudWeightCalculator(
                 drilling=drill,
@@ -47,7 +56,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
                 safety_margin_ppg=0.5,
                 _config=KnotConfig(id="mw"),
             )
-        result = await t.run(RunRequest())
+        result = await t.run(RunRequest(parameters={"body": _COMPLETION_BODY}))
         out = result.outputs["mw"]
         assert out["min_ppg"] == 10.5
         assert out["max_ppg"] == 14.5

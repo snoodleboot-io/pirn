@@ -31,9 +31,7 @@ from pirn.domains.ml.specializations.evaluation.timeseries_eval_pipeline import 
     TimeSeriesEvalPipeline,
 )
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class ForecastingPipeline(SubTapestry):
@@ -74,7 +72,7 @@ class ForecastingPipeline(SubTapestry):
         horizon: int = 7,
         algorithm: str = "arima",
         **_: Any,
-    ) -> EvalReportPayload:
+    ) -> Any:
         """Load data, split, train a forecasting model with the configured horizon, and return the time-series EvalMetadata.
 
         Args:
@@ -111,30 +109,27 @@ class ForecastingPipeline(SubTapestry):
             raise ValueError("ForecastingPipeline: horizon must be >= 1")
         if not isinstance(algorithm, str) or not algorithm:
             raise ValueError("ForecastingPipeline: algorithm must be a non-empty string")
-        with Tapestry() as inner:
-            dataset = DatasetLoader(
-                name="forecasting",
-                feature_names=feature_tuple,
-                target_name=target_column,
-                pool=pool,
-                query=query,
-                _config=KnotConfig(id="load"),
-            )
-            split = TrainTestSplit(
-                dataset=dataset,
-                _config=KnotConfig(id="split"),
-            )
-            trained = Trainer(
-                split=split,
-                algorithm=algorithm,
-                hyperparameters={"horizon": horizon},
-                _config=KnotConfig(id="train"),
-            )
-            TimeSeriesEvalPipeline(
-                model=trained,
-                split=split,
-                time_column=time_column,
-                _config=KnotConfig(id="evaluate"),
-            )
-        inner_result = await self._run_inner(inner)
-        return inner_result.outputs["evaluate"]
+        dataset = DatasetLoader(
+            name="forecasting",
+            feature_names=feature_tuple,
+            target_name=target_column,
+            pool=pool,
+            query=query,
+            _config=KnotConfig(id="load"),
+        )
+        split = TrainTestSplit(
+            dataset=dataset,
+            _config=KnotConfig(id="split"),
+        )
+        trained = Trainer(
+            split=split,
+            algorithm=algorithm,
+            hyperparameters={"horizon": horizon},
+            _config=KnotConfig(id="train"),
+        )
+        return TimeSeriesEvalPipeline(
+            model=trained,
+            split=split,
+            time_column=time_column,
+            _config=KnotConfig(id="evaluate"),
+        )

@@ -39,8 +39,8 @@ from pirn.domains.signal.types.signal_frame import SignalFrame
 from pirn.domains.signal.types.signal_payload import SignalPayload
 
 
-def _decimate(data: np.ndarray, q: int) -> np.ndarray:
-    return ss.decimate(data, q=q, axis=-1)
+def _decimate(data: np.ndarray, decimation_factor: int) -> np.ndarray:
+    return ss.decimate(data, q=decimation_factor, axis=-1)
 
 
 class Decimator(Knot):

@@ -70,6 +70,8 @@ class TestDocumentIngestionPipelineProcess(unittest.IsolatedAsyncioTestCase):
             )
 
     async def test_chunks_embeds_and_stores(self) -> None:
+        from pirn.core.run_request import RunRequest
+
         _td = tempfile.TemporaryDirectory()
         self.addCleanup(_td.cleanup)
         tmp_path = Path(_td.name)
@@ -77,15 +79,19 @@ class TestDocumentIngestionPipelineProcess(unittest.IsolatedAsyncioTestCase):
         document.write_text("a" * 25, encoding="utf-8")
         embedder = StubEmbeddingProvider(dimension=3)
         store = _RecordingMemoryStore()
-        k = _make_knot(embedder, store)
-        chunks_written = await k.process(
-            source=str(document),
-            embedder=embedder,
-            store=store,
-            chunk_size=10,
-            chunk_overlap=2,
-            allowed_root=str(tmp_path),
-        )
+        with Tapestry() as t:
+            DocumentIngestionPipeline(
+                source=str(document),
+                embedder=embedder,
+                store=store,
+                chunk_size=10,
+                chunk_overlap=2,
+                allowed_root=str(tmp_path),
+                _config=KnotConfig(id="ingest"),
+            )
+        run = await t.run(RunRequest())
+        assert run.succeeded
+        chunks_written = run.outputs["ingest"]
         assert chunks_written == len(store.entries)
         assert chunks_written >= 3
         first_key = sorted(store.entries.keys())[0]

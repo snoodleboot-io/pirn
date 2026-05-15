@@ -40,19 +40,19 @@ def _macenko_normalize(
     tissue = od[od.sum(axis=1) > 0.15]
     if tissue.shape[0] < 2:
         return pixels.tolist(), ([[1.0, 0.0], [0.0, 1.0]] if ref_matrix is None else ref_matrix)
-    _, _, vt = np.linalg.svd(tissue - tissue.mean(axis=0), full_matrices=False)
-    v = vt[:2].T
+    _, _, right_singular = np.linalg.svd(tissue - tissue.mean(axis=0), full_matrices=False)
+    stain_basis = right_singular[:2].T
     if ref_matrix is not None:
-        m = np.array(ref_matrix, dtype=float)
+        stain_matrix = np.array(ref_matrix, dtype=float)
     else:
-        m = v.T[:2]
-    conc = od @ np.linalg.pinv(m)
+        stain_matrix = stain_basis.T[:2]
+    conc = od @ np.linalg.pinv(stain_matrix)
     p99 = np.percentile(conc, 99, axis=0)
     p99 = np.where(p99 == 0, 1.0, p99)
     conc_hat = conc / p99
-    od_hat = conc_hat @ m
+    od_hat = conc_hat @ stain_matrix
     normalized = np.clip(256.0 * np.exp(-od_hat) - 1.0, 0, 255).astype(int)
-    return normalized.tolist(), m.tolist()
+    return normalized.tolist(), stain_matrix.tolist()
 
 
 def _reinhard_normalize(

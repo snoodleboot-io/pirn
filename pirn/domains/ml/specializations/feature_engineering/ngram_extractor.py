@@ -117,7 +117,9 @@ class NGramExtractor(Knot):
         fetched_at: datetime,
     ) -> DatasetManifest:
         existing = [f for f in dataset.feature_names if f != text_column]
-        ngram_features = [f"ngram_{analyzer}_{n}_{i}" for i in range(max_features)]
+        ngram_features = [
+            f"ngram_{analyzer}_{n}_{feature_dim}" for feature_dim in range(max_features)
+        ]
         return DatasetManifest(
             name=f"{dataset.name}:ngram_{analyzer}_{n}",
             feature_names=tuple(existing + ngram_features),

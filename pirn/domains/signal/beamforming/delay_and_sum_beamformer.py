@@ -104,13 +104,16 @@ class DelayAndSumBeamformer(Knot):
 
         import asyncio
 
-        c = 343.0
+        speed_of_sound = 343.0
         sample_rate_hz = signal.frame.sample_rate_hz
         data = signal.data
         delays_samples = np.array(
             [
-                i * element_spacing_m * sin(radians(steering_angle_deg)) / (c / sample_rate_hz)
-                for i in range(num_elements)
+                element_index
+                * element_spacing_m
+                * sin(radians(steering_angle_deg))
+                / (speed_of_sound / sample_rate_hz)
+                for element_index in range(num_elements)
             ]
         )
         beamformed = await asyncio.to_thread(_das_beamform, data, delays_samples)

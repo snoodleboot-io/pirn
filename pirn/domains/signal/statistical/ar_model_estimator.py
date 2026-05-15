@@ -38,51 +38,65 @@ from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_payload import SignalPayload
 
 
-def _burg(x: np.ndarray, order: int) -> tuple[np.ndarray, float]:
+def _burg(signal_array: np.ndarray, order: int) -> tuple[np.ndarray, float]:
     """Burg's recursive lattice method for AR coefficient estimation."""
-    n = len(x)
-    ef = x.astype(float).copy()
-    eb = x.astype(float).copy()
-    a = np.zeros(order)
-    variance = float(np.dot(x, x) / n)
-    for k in range(order):
-        num = -2.0 * np.dot(eb[k : n - 1], ef[k + 1 : n])
-        denom = np.dot(ef[k + 1 : n], ef[k + 1 : n]) + np.dot(eb[k : n - 1], eb[k : n - 1])
+    signal_length = len(signal_array)
+    ef = signal_array.astype(float).copy()
+    eb = signal_array.astype(float).copy()
+    ar_coeffs = np.zeros(order)
+    variance = float(np.dot(signal_array, signal_array) / signal_length)
+    for lattice_stage in range(order):
+        num = -2.0 * np.dot(
+            eb[lattice_stage : signal_length - 1], ef[lattice_stage + 1 : signal_length]
+        )
+        denom = np.dot(
+            ef[lattice_stage + 1 : signal_length], ef[lattice_stage + 1 : signal_length]
+        ) + np.dot(eb[lattice_stage : signal_length - 1], eb[lattice_stage : signal_length - 1])
         km = 0.0 if denom == 0.0 else num / denom
-        ef_new = ef[k + 1 : n] + km * eb[k : n - 1]
-        eb_new = eb[k : n - 1] + km * ef[k + 1 : n]
-        ef[k + 1 : n] = ef_new
-        eb[k : n - 1] = eb_new
-        a_new = np.zeros(k + 1)
-        a_new[k] = km
-        if k > 0:
-            a_new[:k] = a[:k] + km * a[:k][::-1]
-        a = a_new
+        ef_new = ef[lattice_stage + 1 : signal_length] + km * eb[lattice_stage : signal_length - 1]
+        eb_new = eb[lattice_stage : signal_length - 1] + km * ef[lattice_stage + 1 : signal_length]
+        ef[lattice_stage + 1 : signal_length] = ef_new
+        eb[lattice_stage : signal_length - 1] = eb_new
+        coeffs_new = np.zeros(lattice_stage + 1)
+        coeffs_new[lattice_stage] = km
+        if lattice_stage > 0:
+            coeffs_new[:lattice_stage] = (
+                ar_coeffs[:lattice_stage] + km * ar_coeffs[:lattice_stage][::-1]
+            )
+        ar_coeffs = coeffs_new
         variance = variance * (1.0 - km * km)
-    return a, float(variance)
+    return ar_coeffs, float(variance)
 
 
-def _compute_ar(x: np.ndarray, order: int, method: str) -> tuple[list[float], float]:
+def _compute_ar(signal_array: np.ndarray, order: int, method: str) -> tuple[list[float], float]:
     """Dispatch AR estimation to the selected method and return (coefficients, variance)."""
     if method == "burg":
-        coeffs, var = _burg(x, order)
+        coeffs, var = _burg(signal_array, order)
         return list(float(c) for c in coeffs), var
 
     if method == "yule_walker":
-        lpc_coeffs = ss.lpc(x, order)
+        lpc_coeffs = ss.lpc(signal_array, order)
         # ss.lpc returns [1, a1, a2, ...]; negate to get AR coefficients
         ar_coeffs = [-float(c) for c in lpc_coeffs[1:]]
-        residual = x.copy()
-        for i in range(order, len(x)):
-            pred = sum(ar_coeffs[k] * x[i - k - 1] for k in range(order))
-            residual[i] = x[i] - pred
+        residual = signal_array.copy()
+        for sample_idx in range(order, len(signal_array)):
+            pred = sum(
+                ar_coeffs[lag_idx] * signal_array[sample_idx - lag_idx - 1]
+                for lag_idx in range(order)
+            )
+            residual[sample_idx] = signal_array[sample_idx] - pred
         var = float(np.var(residual[order:]))
         return ar_coeffs, var
 
     # ols
-    n = len(x)
-    lag_matrix = np.column_stack([x[order - k - 1 : n - k - 1] for k in range(order)])
-    target = x[order:]
+    signal_length = len(signal_array)
+    lag_matrix = np.column_stack(
+        [
+            signal_array[order - lag_idx - 1 : signal_length - lag_idx - 1]
+            for lag_idx in range(order)
+        ]
+    )
+    target = signal_array[order:]
     result, _, _, _ = np.linalg.lstsq(lag_matrix, target, rcond=None)
     ar_coeffs = [float(c) for c in result]
     pred = lag_matrix @ result
@@ -137,8 +151,8 @@ class ARModelEstimator(Knot):
             raise ValueError("ARModelEstimator: order must be a positive integer")
         if method not in self._valid_methods:
             raise ValueError("ARModelEstimator: method must be one of 'burg', 'yule_walker', 'ols'")
-        x = signal.data[0] if signal.data.ndim > 1 else signal.data
-        coeffs, var = await asyncio.to_thread(_compute_ar, x, order, method)
+        signal_array = signal.data[0] if signal.data.ndim > 1 else signal.data
+        coeffs, var = await asyncio.to_thread(_compute_ar, signal_array, order, method)
         return {
             "coefficients": coeffs,
             "order": order,

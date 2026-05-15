@@ -45,21 +45,23 @@ _hop_size = 256
 _spectral_floor = 0.002
 
 
-def _spectral_gate(x: np.ndarray, noise_estimate_frames: int, alpha: float) -> np.ndarray:
+def _spectral_gate(
+    signal_array: np.ndarray, noise_estimate_frames: int, alpha: float
+) -> np.ndarray:
     """Apply spectral gating via overlap-add STFT frames."""
-    n = len(x)
-    num_frames = max(1, (n - _frame_size) // _hop_size + 1)
+    signal_length = len(signal_array)
+    num_frames = max(1, (signal_length - _frame_size) // _hop_size + 1)
     window = np.hanning(_frame_size)
 
     frames = np.array(
         [
-            x[i * _hop_size : i * _hop_size + _frame_size] * window
+            signal_array[i * _hop_size : i * _hop_size + _frame_size] * window
             for i in range(num_frames)
-            if i * _hop_size + _frame_size <= n
+            if i * _hop_size + _frame_size <= signal_length
         ]
     )
     if frames.ndim == 1 or len(frames) == 0:
-        return x
+        return signal_array
 
     spectra = np.fft.rfft(frames, axis=1)
     magnitudes = np.abs(spectra)
@@ -75,23 +77,25 @@ def _spectral_gate(x: np.ndarray, noise_estimate_frames: int, alpha: float) -> n
     cleaned_spectra = cleaned_mag * np.exp(1j * phases)
     cleaned_frames = np.fft.irfft(cleaned_spectra, n=_frame_size, axis=1)
 
-    out = np.zeros(n, dtype=np.float32)
-    norm = np.zeros(n, dtype=np.float32)
+    output_signal = np.zeros(signal_length, dtype=np.float32)
+    norm = np.zeros(signal_length, dtype=np.float32)
     for i, frame in enumerate(cleaned_frames):
         start = i * _hop_size
         end = start + _frame_size
-        out[start:end] += frame * window
+        output_signal[start:end] += frame * window
         norm[start:end] += window**2
 
     nz = norm > 1e-8
-    out[nz] /= norm[nz]
-    return out
+    output_signal[nz] /= norm[nz]
+    return output_signal
 
 
 def _denoise_signal(data: np.ndarray, noise_estimate_frames: int, alpha: float) -> np.ndarray:
     if data.ndim == 1:
         return _spectral_gate(data, noise_estimate_frames, alpha)
-    return np.stack([_spectral_gate(ch, noise_estimate_frames, alpha) for ch in data])
+    return np.stack(
+        [_spectral_gate(channel_data, noise_estimate_frames, alpha) for channel_data in data]
+    )
 
 
 class AudioDenoiser(Knot):

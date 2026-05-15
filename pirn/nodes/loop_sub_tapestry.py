@@ -43,12 +43,19 @@ Example::
             return state
 """
 
+# TODO(design-review): LoopSubTapestry is unused across the entire codebase — no domain
+# specialization extends it. The step/fold API may not be the right abstraction for
+# pirn's agentic loop patterns. Review whether this should be redesigned, removed, or
+# replaced before any consumer depends on it. See planning/domain-gap-remediation-plan.md.
+
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.result import Result
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import get_current_store
 
@@ -106,6 +113,9 @@ class _IterationChainKnot(SubTapestry):
         # sub-runs are recorded to the same history store.
         if _outer_history is not None:
             object.__setattr__(self, "_mutable_outer_history", _outer_history)
+
+    async def __call__(self, parent_results: Mapping[str, Any]) -> Result[Any]:
+        return await Knot.__call__(self, parent_results)
 
     async def process(self, state: Any, **_: Any) -> Any:  # type: ignore[override]
         """Run this iteration's tapestry, fold the result into state, and register the next iteration or terminal knot.
@@ -185,6 +195,9 @@ class LoopSubTapestry(SubTapestry, Generic[S]):
         ``step()``, with the state as it exists at that point.
         """
         return f"step_{idx}"
+
+    async def __call__(self, parent_results: Mapping[str, Any]) -> Result[Any]:
+        return await Knot.__call__(self, parent_results)
 
     async def process(self, state: Any, **_: Any) -> Any:  # type: ignore[override]
         """Drive the iteration loop from the initial state via step/fold and return the terminal state.

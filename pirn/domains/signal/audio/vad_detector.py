@@ -45,10 +45,10 @@ def _energy_vad(
     x: np.ndarray, threshold_db: float, frame_size: int = _default_frame_size
 ) -> list[bool]:
     """Classify frames as voiced (True) or unvoiced (False) by RMS energy."""
-    n = len(x)
+    signal_length = len(x)
     voiced = []
     threshold_linear = 10.0 ** (threshold_db / 20.0)
-    for start in range(0, n, frame_size):
+    for start in range(0, signal_length, frame_size):
         frame = x[start : start + frame_size]
         rms = float(np.sqrt(np.mean(frame**2)))
         voiced.append(rms >= threshold_linear)

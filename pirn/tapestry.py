@@ -105,7 +105,7 @@ class Tapestry:
         from pirn.backends.in_memory.in_memory_history import InMemoryHistory
         from pirn.backends.in_memory.in_memory_store import InMemoryStore
         from pirn.core.transport.inline_transport import InlineTransport
-        from pirn.emitters.base import EmitterErrorPolicy as _EEP
+        from pirn.emitters.base import EmitterErrorPolicy as _EmitterErrorPolicy
         from pirn.engine.dispatchers.local_dispatcher import LocalDispatcher
 
         self._store = store or InMemoryStore()
@@ -113,7 +113,9 @@ class Tapestry:
         self._data_store = data_store or InMemoryDataStore()
         self._dispatcher = dispatcher or LocalDispatcher()
         self._emitters: list[Any] = list(emitters or [])
-        self._emitter_error_policy: _EEP = emitter_error_policy or _EEP.WARN
+        self._emitter_error_policy: _EmitterErrorPolicy = (
+            emitter_error_policy or _EmitterErrorPolicy.WARN
+        )
         self._traceback_filter: Callable[[str], str] | None = traceback_filter
         self._transport: DataTransport = transport or InlineTransport()
 
@@ -205,10 +207,10 @@ class Tapestry:
         stores do not yet).
         """
         from pirn.core.knot import Knot as _Knot
-        from pirn.core.run_request import RunRequest as _RR
+        from pirn.core.run_request import RunRequest as _RunRequest
         from pirn.engine.engine import Engine
 
-        request = request or _RR()
+        request = request or _RunRequest()
 
         if terminals is None:
             chosen = self.terminals()

@@ -34,9 +34,7 @@ from pirn.domains.ml.embedding_provider import EmbeddingProvider
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.features.embedding_extractor import EmbeddingExtractor
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class NLPPipeline(SubTapestry):
@@ -81,7 +79,7 @@ class NLPPipeline(SubTapestry):
         embedding_provider: EmbeddingProvider | None = None,
         algorithm: str = "logistic",
         **_: Any,
-    ) -> EvalReportPayload:
+    ) -> Any:
         """Load data, split, embed the text column, train a text classifier, and return the resulting EvalMetadata.
 
         Args:
@@ -112,35 +110,32 @@ class NLPPipeline(SubTapestry):
             raise TypeError("NLPPipeline: embedding_provider must be an EmbeddingProvider")
         if not isinstance(algorithm, str) or not algorithm:
             raise ValueError("NLPPipeline: algorithm must be a non-empty string")
-        with Tapestry() as inner:
-            dataset = DatasetLoader(
-                name="nlp",
-                feature_names=(text_column,),
-                target_name=target_column,
-                pool=pool,
-                query=query,
-                _config=KnotConfig(id="load"),
-            )
-            split = TrainTestSplit(
-                dataset=dataset,
-                _config=KnotConfig(id="split"),
-            )
-            embedded = EmbeddingExtractor(
-                split=split,
-                text_column=text_column,
-                embedding_provider=embedding_provider,
-                _config=KnotConfig(id="embed"),
-            )
-            trained = Trainer(
-                split=embedded,
-                algorithm=algorithm,
-                _config=KnotConfig(id="train"),
-            )
-            Evaluator(
-                model=trained,
-                split=embedded,
-                metrics=self._classification_metrics,
-                _config=KnotConfig(id="evaluate"),
-            )
-        inner_result = await self._run_inner(inner)
-        return inner_result.outputs["evaluate"]
+        dataset = DatasetLoader(
+            name="nlp",
+            feature_names=(text_column,),
+            target_name=target_column,
+            pool=pool,
+            query=query,
+            _config=KnotConfig(id="load"),
+        )
+        split = TrainTestSplit(
+            dataset=dataset,
+            _config=KnotConfig(id="split"),
+        )
+        embedded = EmbeddingExtractor(
+            split=split,
+            text_column=text_column,
+            embedding_provider=embedding_provider,
+            _config=KnotConfig(id="embed"),
+        )
+        trained = Trainer(
+            split=embedded,
+            algorithm=algorithm,
+            _config=KnotConfig(id="train"),
+        )
+        return Evaluator(
+            model=trained,
+            split=embedded,
+            metrics=self._classification_metrics,
+            _config=KnotConfig(id="evaluate"),
+        )

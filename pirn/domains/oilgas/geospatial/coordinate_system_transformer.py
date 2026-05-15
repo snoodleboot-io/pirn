@@ -74,20 +74,20 @@ class CoordinateSystemTransformer(Knot):
             raise ValueError("CoordinateSystemTransformer: target_crs must be a non-empty string")
 
         source_crs = location.get("crs", "")
-        x = float(location.get("x", 0.0))
-        y = float(location.get("y", 0.0))
+        x_coord = float(location.get("x", 0.0))
+        y_coord = float(location.get("y", 0.0))
 
         if isinstance(source_crs, str) and source_crs.startswith("EPSG:4326"):
-            # Input is geographic (lat=x, lon=y); project to metres via equirectangular.
-            lat_deg = x
-            lon_deg = y
+            # Input is geographic (lat=x_coord, lon=y_coord); project to metres via equirectangular.
+            lat_deg = x_coord
+            lon_deg = y_coord
             x_m = lon_deg * _meters_per_deg_lon_at_equator * math.cos(math.radians(lat_deg))
             y_m = lat_deg * _meters_per_deg_lat
-            x, y = x_m, y_m
+            x_coord, y_coord = x_m, y_m
 
         return {
             "well_id": location.get("well_id", ""),
-            "x": float(x),
-            "y": float(y),
+            "x": float(x_coord),
+            "y": float(y_coord),
             "crs": target_crs,
         }

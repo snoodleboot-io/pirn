@@ -61,7 +61,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_returns_model_id_and_eval_report(self) -> None:
-        rows = [(1.0, 0), (2.0, 1), (3.0, 0), (4.0, 1), (5.0, 0)] * 4
+        rows = [{"a": 1.0, "y": 0}, {"a": 2.0, "y": 1}, {"a": 3.0, "y": 0}, {"a": 4.0, "y": 1}, {"a": 5.0, "y": 0}] * 4
         lineage = RecordingLineageStore()
         store = RecordingObjectStore()
         with Tapestry() as t:

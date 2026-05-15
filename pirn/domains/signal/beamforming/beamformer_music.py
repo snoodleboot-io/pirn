@@ -39,33 +39,53 @@ from pirn.domains.signal.types.signal_frame import SignalFrame
 from pirn.domains.signal.types.signal_payload import SignalPayload
 
 
-def _steering_vector(n_el: int, d: float, theta: float, c: float, f0: float) -> np.ndarray:
+def _steering_vector(
+    num_elements: int,
+    element_spacing: float,
+    scan_angle: float,
+    wave_speed: float,
+    center_freq: float,
+) -> np.ndarray:
     return np.array(
-        [np.exp(-1j * 2 * np.pi * f0 * i * d * sin(radians(theta)) / c) for i in range(n_el)],
+        [
+            np.exp(
+                -1j
+                * 2
+                * np.pi
+                * center_freq
+                * element_idx
+                * element_spacing
+                * sin(radians(scan_angle))
+                / wave_speed
+            )
+            for element_idx in range(num_elements)
+        ],
         dtype=complex,
     )
 
 
 def _music_spatial(
     data: np.ndarray,
-    n_el: int,
-    d: float,
-    n_src: int,
-    n_grid: int,
-    c: float,
-    f0: float,
+    num_elements: int,
+    element_spacing: float,
+    num_sources: int,
+    angle_grid_size: int,
+    wave_speed: float,
+    center_freq: float,
 ) -> np.ndarray:
     n_samples = data.shape[1]
-    r = (data @ data.conj().T) / n_samples
-    _, evecs = np.linalg.eigh(r)
-    en = evecs[:, : n_el - n_src]
+    covariance_matrix = (data @ data.conj().T) / n_samples
+    _, evecs = np.linalg.eigh(covariance_matrix)
+    en = evecs[:, : num_elements - num_sources]
     en_outer = en @ en.conj().T
-    angles = np.linspace(-90.0, 90.0, n_grid)
-    spectrum = np.zeros(n_grid)
-    for k, theta in enumerate(angles):
-        a = _steering_vector(n_el, d, theta, c, f0)
-        denom = np.real(a.conj() @ en_outer @ a)
-        spectrum[k] = 1.0 / (denom + 1e-30)
+    angles = np.linspace(-90.0, 90.0, angle_grid_size)
+    spectrum = np.zeros(angle_grid_size)
+    for angle_index, scan_angle in enumerate(angles):
+        steering_vec = _steering_vector(
+            num_elements, element_spacing, scan_angle, wave_speed, center_freq
+        )
+        denom = np.real(steering_vec.conj() @ en_outer @ steering_vec)
+        spectrum[angle_index] = 1.0 / (denom + 1e-30)
     return spectrum
 
 
@@ -130,11 +150,18 @@ class BeamformerMUSIC(Knot):
 
         import asyncio
 
-        c = 343.0
-        f0 = signal.frame.sample_rate_hz / 4.0
+        speed_of_sound = 343.0
+        center_freq = signal.frame.sample_rate_hz / 4.0
         data = signal.data.astype(complex)
         spectrum = await asyncio.to_thread(
-            _music_spatial, data, num_elements, float(element_spacing_m), num_sources, n_grid, c, f0
+            _music_spatial,
+            data,
+            num_elements,
+            float(element_spacing_m),
+            num_sources,
+            n_grid,
+            speed_of_sound,
+            center_freq,
         )
         return SignalPayload(
             metadata=SignalFrame(

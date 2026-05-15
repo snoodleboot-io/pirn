@@ -36,13 +36,21 @@ from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.training.trainer import Trainer
 from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.domains.ml.types.split_manifest import SplitManifest
+from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
 async def _emit_value(value: Any) -> Any:
     return value
+
+
+@knot
+async def _combine_ablation_reports(
+    arm_names: list[str],
+    arm_reports: list[EvalReportPayload],
+) -> Mapping[str, EvalReportPayload]:
+    return dict(zip(arm_names, arm_reports, strict=False))
 
 
 class AblationStudyPipeline(SubTapestry):
@@ -76,7 +84,7 @@ class AblationStudyPipeline(SubTapestry):
         feature_groups: Mapping[str, Sequence[str]] | None = None,
         metrics: Sequence[str] = (),
         **_: Any,
-    ) -> Mapping[str, EvalReportPayload]:
+    ) -> Any:
         """Train and evaluate the full model plus each leave-one-group-out arm and return a report mapping keyed by arm name.
 
         Args:
@@ -130,29 +138,31 @@ class AblationStudyPipeline(SubTapestry):
                 )
         frozen_groups = {name: tuple(cols) for name, cols in fg.items()}
         arm_names = [self._full_arm_name, *sorted(frozen_groups.keys())]
-        with Tapestry() as inner:
-            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
-            for arm in arm_names:
-                model = Trainer(
-                    split=split_node,
-                    algorithm=algorithm,
-                    hyperparameters={"ablation_arm": arm},
-                    _config=KnotConfig(id=f"train_{arm}"),
-                )
+        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        arm_report_nodes = []
+        for arm in arm_names:
+            model = Trainer(
+                split=split_node,
+                algorithm=algorithm,
+                hyperparameters={"ablation_arm": arm},
+                _config=KnotConfig(id=f"train_{arm}"),
+            )
+            arm_report_nodes.append(
                 Evaluator(
                     model=model,
                     split=split_node,
                     metrics=metric_tuple,
                     _config=KnotConfig(id=f"evaluate_{arm}"),
                 )
-        inner_result = await self._run_inner(inner)
-        reports: dict[str, EvalReportPayload] = {}
-        for arm in arm_names:
-            report = inner_result.outputs[f"evaluate_{arm}"]
-            if not isinstance(report, EvalReportPayload):
-                raise TypeError(
-                    f"AblationStudyPipeline: inner evaluator for arm "
-                    f"{arm!r} did not return an EvalReportPayload"
-                )
-            reports[arm] = report
-        return reports
+            )
+        arm_names_node = _emit_value(value=arm_names, _config=KnotConfig(id="arm_names"))
+        collected_reports = Aggregator(
+            combine=lambda **kw: list(kw.values()),
+            _config=KnotConfig(id="collect-reports"),
+            **{f"r{i}": arm_report_nodes[i] for i in range(len(arm_report_nodes))},
+        )
+        return _combine_ablation_reports(
+            arm_names=arm_names_node,
+            arm_reports=collected_reports,
+            _config=KnotConfig(id="combine"),
+        )

@@ -26,11 +26,9 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.domains.ml.evaluation.fairness_audit import FairnessAudit
-from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.domains.ml.types.model_manifest import ModelManifest
 from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
@@ -64,7 +62,7 @@ class BiasDetector(SubTapestry):
         split: SplitManifest,
         sensitive_columns: Sequence[str] = (),
         **_: Any,
-    ) -> EvalReportPayload:
+    ) -> Any:
         """Run a FairnessAudit on the model and split for each sensitive column and return the per-group EvalMetadata.
 
         Args:
@@ -86,14 +84,11 @@ class BiasDetector(SubTapestry):
                 raise ValueError(
                     "BiasDetector: every sensitive column name must be a non-empty string"
                 )
-        with Tapestry() as inner:
-            model_node = _emit_value(value=model, _config=KnotConfig(id="model"))
-            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
-            FairnessAudit(
-                model=model_node,
-                split=split_node,
-                sensitive_columns=column_tuple,
-                _config=KnotConfig(id="audit"),
-            )
-        inner_result = await self._run_inner(inner)
-        return inner_result.outputs["audit"]
+        model_node = _emit_value(value=model, _config=KnotConfig(id="model"))
+        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        return FairnessAudit(
+            model=model_node,
+            split=split_node,
+            sensitive_columns=column_tuple,
+            _config=KnotConfig(id="audit"),
+        )

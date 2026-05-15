@@ -33,12 +33,10 @@ from pirn.domains.agents.specializations.specialized_agents._analysis_step impor
 from pirn.domains.agents.specializations.specialized_agents.sql_agent import (
     SQLAgent,
 )
-from pirn.domains.agents.types.agent_response import AgentResponse
 from pirn.domains.connectors.database_connection_pool import (
     DatabaseConnectionPool,
 )
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class DataAnalystAgent(SubTapestry):
@@ -70,7 +68,7 @@ class DataAnalystAgent(SubTapestry):
         pool: DatabaseConnectionPool,
         schema_description: str = "",
         **_: Any,
-    ) -> AgentResponse:
+    ) -> Any:
         """Run the SQL agent on the question, analyse the rows via the LLM, and return the combined response.
 
         Args:
@@ -104,22 +102,16 @@ class DataAnalystAgent(SubTapestry):
                 "DataAnalystAgent: schema_description must be a string, "
                 f"got {type(schema_description).__name__}"
             )
-        with Tapestry() as inner:
-            sql_response = SQLAgent(
-                question=question,
-                llm=llm,
-                pool=pool,
-                schema_description=schema_description,
-                _config=KnotConfig(id="sql_agent"),
-            )
-            _AnalysisStep(
-                question=question,
-                sql_response=sql_response,
-                llm=llm,
-                _config=KnotConfig(id="analyse"),
-            )
-        inner_result = await self._run_inner(inner)
-        response = inner_result.outputs.get("analyse")
-        if not isinstance(response, AgentResponse):
-            return AgentResponse(content="", finish_reason="length")
-        return response
+        sql_response = SQLAgent(
+            question=question,
+            llm=llm,
+            pool=pool,
+            schema_description=schema_description,
+            _config=KnotConfig(id="sql_agent"),
+        )
+        return _AnalysisStep(
+            question=question,
+            sql_response=sql_response,
+            llm=llm,
+            _config=KnotConfig(id="analyse"),
+        )

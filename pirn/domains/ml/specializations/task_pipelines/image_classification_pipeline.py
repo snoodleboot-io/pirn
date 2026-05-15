@@ -27,9 +27,7 @@ from pirn.domains.ml.data_prep.dataset_loader import DatasetLoader
 from pirn.domains.ml.data_prep.train_test_split import TrainTestSplit
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class ImageClassificationPipeline(SubTapestry):
@@ -70,7 +68,7 @@ class ImageClassificationPipeline(SubTapestry):
         architecture: str = "cnn",
         augment: bool = True,
         **_: Any,
-    ) -> EvalReportPayload:
+    ) -> Any:
         """Load images, optionally augment, train the configured architecture, and return the EvalMetadata.
 
         Args:
@@ -100,30 +98,27 @@ class ImageClassificationPipeline(SubTapestry):
             raise ValueError(
                 f"ImageClassificationPipeline: architecture must be one of {sorted(self.valid_architectures)}"
             )
-        with Tapestry() as inner:
-            dataset = DatasetLoader(
-                name="image-classification",
-                feature_names=(image_column,),
-                target_name=label_column,
-                pool=pool,
-                query=query,
-                _config=KnotConfig(id="load"),
-            )
-            split = TrainTestSplit(
-                dataset=dataset,
-                _config=KnotConfig(id="split"),
-            )
-            trained = Trainer(
-                split=split,
-                algorithm=architecture,
-                hyperparameters={"augment": augment},
-                _config=KnotConfig(id="train"),
-            )
-            Evaluator(
-                model=trained,
-                split=split,
-                metrics=self._image_metrics,
-                _config=KnotConfig(id="evaluate"),
-            )
-        inner_result = await self._run_inner(inner)
-        return inner_result.outputs["evaluate"]
+        dataset = DatasetLoader(
+            name="image-classification",
+            feature_names=(image_column,),
+            target_name=label_column,
+            pool=pool,
+            query=query,
+            _config=KnotConfig(id="load"),
+        )
+        split = TrainTestSplit(
+            dataset=dataset,
+            _config=KnotConfig(id="split"),
+        )
+        trained = Trainer(
+            split=split,
+            algorithm=architecture,
+            hyperparameters={"augment": augment},
+            _config=KnotConfig(id="train"),
+        )
+        return Evaluator(
+            model=trained,
+            split=split,
+            metrics=self._image_metrics,
+            _config=KnotConfig(id="evaluate"),
+        )

@@ -33,9 +33,9 @@ from pirn.domains.signal.types.spectrum_payload import SpectrumPayload
 
 
 def _compute_cepstrum(data: np.ndarray) -> np.ndarray:
-    x = np.fft.rfft(data, axis=-1)
-    log_x = np.log(np.abs(x) + 1e-10)
-    return np.fft.irfft(log_x, axis=-1)
+    spectrum = np.fft.rfft(data, axis=-1)
+    log_spectrum = np.log(np.abs(spectrum) + 1e-10)
+    return np.fft.irfft(log_spectrum, axis=-1)
 
 
 class CepstrumAnalyzer(Knot):

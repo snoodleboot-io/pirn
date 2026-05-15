@@ -85,26 +85,30 @@ class ProductionForecaster(Knot):
 
         qi = float(decline_parameters["qi"])
         di_annual = float(decline_parameters["di_per_year"])
-        b = float(decline_parameters["b"])
+        arps_b = float(decline_parameters["b"])
 
-        q = await asyncio.to_thread(self._generate, qi, di_annual, b, forecast_months)
+        rate_forecast = await asyncio.to_thread(
+            self._generate, qi, di_annual, arps_b, forecast_months
+        )
 
         series = ScadaTimeSeries(
             sensor_id="forecast",
             sample_count=forecast_months,
             sample_interval_sec=_month_sec,
         )
-        return ScadaPayload(metadata=series, data=q)
+        return ScadaPayload(metadata=series, data=rate_forecast)
 
     @staticmethod
-    def _generate(qi: float, di_annual: float, b: float, n: int) -> np.ndarray:
+    def _generate(
+        qi: float, di_annual: float, arps_b: float, forecast_step_count: int
+    ) -> np.ndarray:
         # Each step is one month; time in days for Arps formula
-        t_days = np.arange(n, dtype=np.float64) * 30.0
+        time_days = np.arange(forecast_step_count, dtype=np.float64) * 30.0
         di_day = di_annual / 365.0
 
-        if b < 1e-6:
-            q = qi * np.exp(-di_day * t_days)
+        if arps_b < 1e-6:
+            rate_array = qi * np.exp(-di_day * time_days)
         else:
-            q = qi * (1.0 + b * di_day * t_days) ** (-1.0 / b)
+            rate_array = qi * (1.0 + arps_b * di_day * time_days) ** (-1.0 / arps_b)
 
-        return np.maximum(q, 0.0).astype(np.float64)
+        return np.maximum(rate_array, 0.0).astype(np.float64)

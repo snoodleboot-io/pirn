@@ -58,22 +58,22 @@ def _run_de(
                 pval = 1.0
             pvalues.append(pval)
 
-    n = len(gene_ids)
-    if n == 0:
+    gene_count = len(gene_ids)
+    if gene_count == 0:
         return {}
 
     # Benjamini-Hochberg correction
     order = np.argsort(pvalues)
     padjs = np.array(pvalues, dtype=float)
-    for rank_minus1, idx in enumerate(order):
-        r = rank_minus1 + 1
-        padjs[idx] = min(1.0, pvalues[idx] * n / r)
+    for rank_minus1, sorted_index in enumerate(order):
+        rank = rank_minus1 + 1
+        padjs[sorted_index] = min(1.0, pvalues[sorted_index] * gene_count / rank)
 
     # Enforce monotonicity (scan from largest rank to smallest)
-    for rank_minus1 in range(n - 2, -1, -1):
-        idx = order[rank_minus1]
-        idx_next = order[rank_minus1 + 1]
-        padjs[idx] = min(padjs[idx], padjs[idx_next])
+    for rank_minus1 in range(gene_count - 2, -1, -1):
+        sorted_index = order[rank_minus1]
+        next_sorted_index = order[rank_minus1 + 1]
+        padjs[sorted_index] = min(padjs[sorted_index], padjs[next_sorted_index])
 
     return {
         gid: {"log2fc": log2fcs[i], "pvalue": pvalues[i], "padj": float(padjs[i])}

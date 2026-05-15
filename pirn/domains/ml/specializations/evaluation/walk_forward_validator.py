@@ -35,15 +35,22 @@ from pirn.core.knot_factory import knot
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.training.trainer import Trainer
 from pirn.domains.ml.types.dataset_manifest import DatasetManifest
-from pirn.domains.ml.types.eval_metadata import EvalMetadata
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.domains.ml.types.split_manifest import SplitManifest
+from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
 async def _emit_value(value: Any) -> Any:
     return value
+
+
+@knot
+async def _collect_walk_forward_reports(
+    reports: list[EvalReportPayload],
+) -> tuple[EvalReportPayload, ...]:
+    return tuple(reports)
 
 
 class WalkForwardValidator(SubTapestry):
@@ -81,7 +88,7 @@ class WalkForwardValidator(SubTapestry):
         algorithm: str = "",
         n_steps: int = 5,
         **_: Any,
-    ) -> tuple[EvalMetadata, ...]:
+    ) -> Any:
         """Slide a training window across the dataset for each step and return a tuple of per-fold EvalReports.
 
         Args:
@@ -122,8 +129,8 @@ class WalkForwardValidator(SubTapestry):
                 f"{n_steps} steps with train_window={train_window}, "
                 f"test_window={test_window}; need at least {required} rows"
             )
-        reports: list[EvalMetadata] = []
         now = datetime.now(UTC)
+        eval_nodes = []
         for step in range(n_steps):
             train_partition = self._mk(dataset, step, "train", train_window, now)
             test_partition = self._mk(dataset, step, "test", test_window, now)
@@ -132,25 +139,32 @@ class WalkForwardValidator(SubTapestry):
                 test=test_partition,
                 validation=None,
             )
-            with Tapestry() as inner:
-                split_node = _emit_value(
-                    value=split_value,
-                    _config=KnotConfig(id=f"split-step-{step}"),
-                )
-                trainer = Trainer(
-                    split=split_node,
-                    algorithm=algorithm,
-                    _config=KnotConfig(id=f"train-step-{step}"),
-                )
+            split_node = _emit_value(
+                value=split_value,
+                _config=KnotConfig(id=f"split-step-{step}"),
+            )
+            trainer = Trainer(
+                split=split_node,
+                algorithm=algorithm,
+                _config=KnotConfig(id=f"train-step-{step}"),
+            )
+            eval_nodes.append(
                 Evaluator(
                     model=trainer,
                     split=split_node,
                     metrics=("mape", "smape", "mase"),
                     _config=KnotConfig(id=f"evaluate-step-{step}"),
                 )
-            inner_result = await self._run_inner(inner)
-            reports.append(inner_result.outputs[f"evaluate-step-{step}"])
-        return tuple(reports)
+            )
+        collected = Aggregator(
+            combine=lambda **kw: list(kw.values()),
+            _config=KnotConfig(id="collect-reports"),
+            **{f"r{i}": eval_nodes[i] for i in range(n_steps)},
+        )
+        return _collect_walk_forward_reports(
+            reports=collected,
+            _config=KnotConfig(id="collect"),
+        )
 
     def _mk(
         self,

@@ -42,14 +42,14 @@ from pirn.domains.oilgas.types.well_path_3d_payload import WellPath3DPayload
 
 
 def _minimum_curvature(stations: np.ndarray) -> np.ndarray:
-    n = len(stations)
-    points = np.zeros((n, 3), dtype=np.float64)
+    station_count = len(stations)
+    points = np.zeros((station_count, 3), dtype=np.float64)
     inc = np.deg2rad(stations[:, 1])
     azi = np.deg2rad(stations[:, 2])
-    for i in range(1, n):
-        delta_md = stations[i, 0] - stations[i - 1, 0]
-        inc1, inc2 = inc[i - 1], inc[i]
-        azi1, azi2 = azi[i - 1], azi[i]
+    for station_idx in range(1, station_count):
+        delta_md = stations[station_idx, 0] - stations[station_idx - 1, 0]
+        inc1, inc2 = inc[station_idx - 1], inc[station_idx]
+        azi1, azi2 = azi[station_idx - 1], azi[station_idx]
         dl = np.arccos(
             np.cos(inc2 - inc1) - np.sin(inc1) * np.sin(inc2) * (1 - np.cos(azi2 - azi1))
         )
@@ -57,37 +57,37 @@ def _minimum_curvature(stations: np.ndarray) -> np.ndarray:
         dN = (delta_md / 2) * rf * (np.sin(inc1) * np.cos(azi1) + np.sin(inc2) * np.cos(azi2))
         dE = (delta_md / 2) * rf * (np.sin(inc1) * np.sin(azi1) + np.sin(inc2) * np.sin(azi2))
         dTVD = (delta_md / 2) * rf * (np.cos(inc1) + np.cos(inc2))
-        points[i] = points[i - 1] + [dN, dE, dTVD]
+        points[station_idx] = points[station_idx - 1] + [dN, dE, dTVD]
     return points
 
 
 def _tangential(stations: np.ndarray) -> np.ndarray:
-    n = len(stations)
-    points = np.zeros((n, 3), dtype=np.float64)
+    station_count = len(stations)
+    points = np.zeros((station_count, 3), dtype=np.float64)
     inc = np.deg2rad(stations[:, 1])
     azi = np.deg2rad(stations[:, 2])
-    for i in range(1, n):
-        delta_md = stations[i, 0] - stations[i - 1, 0]
-        points[i] = points[i - 1] + delta_md * np.array(
+    for station_idx in range(1, station_count):
+        delta_md = stations[station_idx, 0] - stations[station_idx - 1, 0]
+        points[station_idx] = points[station_idx - 1] + delta_md * np.array(
             [
-                np.sin(inc[i]) * np.cos(azi[i]),
-                np.sin(inc[i]) * np.sin(azi[i]),
-                np.cos(inc[i]),
+                np.sin(inc[station_idx]) * np.cos(azi[station_idx]),
+                np.sin(inc[station_idx]) * np.sin(azi[station_idx]),
+                np.cos(inc[station_idx]),
             ]
         )
     return points
 
 
 def _balanced_tangential(stations: np.ndarray) -> np.ndarray:
-    n = len(stations)
-    points = np.zeros((n, 3), dtype=np.float64)
+    station_count = len(stations)
+    points = np.zeros((station_count, 3), dtype=np.float64)
     inc = np.deg2rad(stations[:, 1])
     azi = np.deg2rad(stations[:, 2])
-    for i in range(1, n):
-        delta_md = stations[i, 0] - stations[i - 1, 0]
-        mid_inc = (inc[i - 1] + inc[i]) / 2
-        mid_azi = (azi[i - 1] + azi[i]) / 2
-        points[i] = points[i - 1] + delta_md * np.array(
+    for station_idx in range(1, station_count):
+        delta_md = stations[station_idx, 0] - stations[station_idx - 1, 0]
+        mid_inc = (inc[station_idx - 1] + inc[station_idx]) / 2
+        mid_azi = (azi[station_idx - 1] + azi[station_idx]) / 2
+        points[station_idx] = points[station_idx - 1] + delta_md * np.array(
             [
                 np.sin(mid_inc) * np.cos(mid_azi),
                 np.sin(mid_inc) * np.sin(mid_azi),

@@ -36,29 +36,33 @@ from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_payload import SignalPayload
 
 
-def _prony(x: np.ndarray, p: int) -> tuple[list[complex], list[complex]]:
-    """Prony's method: fit p complex exponentials to x.
+def _prony(signal_array: np.ndarray, num_modes: int) -> tuple[list[complex], list[complex]]:
+    """Prony's method: fit num_modes complex exponentials to signal_array.
 
     Returns (poles, residues).
     """
-    n = len(x)
+    signal_length = len(signal_array)
     # Build data matrix for linear prediction
-    half = min(2 * p, n - 1)
-    cols = min(p, half)
+    half = min(2 * num_modes, signal_length - 1)
+    cols = min(num_modes, half)
     rows = half - cols
     if rows <= 0 or cols <= 0:
         return [], []
-    X = np.array([[x[i + j] for j in range(cols)] for i in range(rows)])
-    b = np.array([-x[i + cols] for i in range(rows)])
-    coeffs, _, _, _ = np.linalg.lstsq(X, b, rcond=None)
-    # Characteristic polynomial: z^p + a[0]*z^(p-1) + ... + a[p-1]
-    poly = np.concatenate([[1.0], coeffs])
+    data_matrix = np.array(
+        [[signal_array[row_idx + col_idx] for col_idx in range(cols)] for row_idx in range(rows)]
+    )
+    target_vector = np.array([-signal_array[row_idx + cols] for row_idx in range(rows)])
+    pred_coeffs, _, _, _ = np.linalg.lstsq(data_matrix, target_vector, rcond=None)
+    # Characteristic polynomial: z^num_modes + a[0]*z^(num_modes-1) + ... + a[num_modes-1]
+    poly = np.concatenate([[1.0], pred_coeffs])
     poles = np.roots(poly)
     # Vandermonde system to find residues
-    n_pts = min(n, 2 * p)
-    V = np.array([[pole**k for pole in poles] for k in range(n_pts)])
-    residues, _, _, _ = np.linalg.lstsq(V, x[:n_pts], rcond=None)
-    return list(complex(z) for z in poles), list(complex(r) for r in residues)
+    n_pts = min(signal_length, 2 * num_modes)
+    vandermonde = np.array(
+        [[pole**sample_index for pole in poles] for sample_index in range(n_pts)]
+    )
+    residues, _, _, _ = np.linalg.lstsq(vandermonde, signal_array[:n_pts], rcond=None)
+    return list(complex(pole) for pole in poles), list(complex(residue) for residue in residues)
 
 
 class PronyEstimator(Knot):
@@ -99,8 +103,10 @@ class PronyEstimator(Knot):
         """
         if not isinstance(component_count, int) or component_count <= 0:
             raise ValueError("PronyEstimator: component_count must be a positive integer")
-        x = signal.data[0] if signal.data.ndim > 1 else signal.data
-        poles, residues = await asyncio.to_thread(_prony, x.astype(float), component_count)
+        signal_array = signal.data[0] if signal.data.ndim > 1 else signal.data
+        poles, residues = await asyncio.to_thread(
+            _prony, signal_array.astype(float), component_count
+        )
         return {
             "poles": [str(p) for p in poles],
             "residues": [str(r) for r in residues],

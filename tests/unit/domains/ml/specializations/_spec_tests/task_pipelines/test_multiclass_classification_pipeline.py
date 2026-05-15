@@ -34,7 +34,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_macro_metric_report(self) -> None:
-        rows = [(float(i), i % 5) for i in range(40)]
+        rows = [{"a": float(i), "y": i % 5} for i in range(40)]
         with Tapestry() as t:
             MulticlassClassificationPipeline(
                 pool=RecordingDatabasePool(rows=rows),

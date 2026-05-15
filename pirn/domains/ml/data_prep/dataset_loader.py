@@ -77,41 +77,43 @@ class _DatasetAssembler(Knot):
 
         rows = batch.rows
         if not rows:
-            x = np.empty((0, len(feature_names)), dtype=float)
-            y: np.ndarray | None = np.empty(0, dtype=float) if target_name else None
+            feature_matrix = np.empty((0, len(feature_names)), dtype=float)
+            target_vector: np.ndarray | None = np.empty(0, dtype=float) if target_name else None
         else:
             try:
-                x = np.array(
-                    [[row[col] for col in feature_names] for row in rows],
-                    dtype=float,
-                )
-            except (KeyError, TypeError, ValueError) as exc:
+                raw_features = [[row[col] for col in feature_names] for row in rows]
+            except (KeyError, TypeError) as exc:
                 raise ValueError(
                     f"DatasetLoader: could not extract features from batch: {exc}"
                 ) from exc
-            y = None
+            try:
+                feature_matrix = np.array(raw_features, dtype=float)
+            except (TypeError, ValueError):
+                feature_matrix = np.array(raw_features, dtype=object)
+            target_vector = None
             if target_name:
                 try:
-                    y = np.array(
-                        [float(row[target_name]) for row in rows],
-                        dtype=float,
-                    )
-                except (KeyError, TypeError, ValueError) as exc:
+                    raw_targets = [row[target_name] for row in rows]
+                except (KeyError, TypeError) as exc:
                     raise ValueError(
                         f"DatasetLoader: could not extract target '{target_name}': {exc}"
                     ) from exc
+                try:
+                    target_vector = np.array([float(v) for v in raw_targets], dtype=float)
+                except (TypeError, ValueError):
+                    target_vector = np.array(raw_targets, dtype=object)
 
         manifest = DatasetManifest(
             name=name,
             feature_names=tuple(feature_names),
             target_name=target_name,
-            row_count=int(x.shape[0]),
+            row_count=int(feature_matrix.shape[0]),
             source_uri=batch.source_uri,
             fetched_at=datetime.now(UTC),
         )
         return DatasetPayload(
             metadata=manifest,
-            data=MLFeatures(X=x, y=y),
+            data=MLFeatures(feature_matrix=feature_matrix, target_vector=target_vector),
         )
 
 
@@ -180,7 +182,10 @@ class DatasetLoader(SubTapestry):
         pool: DatabaseConnectionPool | None = None,
         query: str | None = None,
         **_: Any,
-    ) -> Knot:
+    ) -> Any:
+        if not feature_names:
+            raise ValueError("DatasetLoader: feature_names must be non-empty")
+
         from pirn.domains.data.lakehouse.lakehouse_table_source import LakehouseTableSource
         from pirn.domains.data.sources.file_source import FileSource
         from pirn.domains.data.sources.sql_source import SqlSource

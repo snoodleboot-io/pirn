@@ -45,7 +45,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_classification_report(self) -> None:
-        rows = [(float(i), i % 2) for i in range(40)]
+        rows = [{"a": float(i), "y": i % 2} for i in range(40)]
         with Tapestry() as t:
             BinaryClassificationPipeline(
                 pool=RecordingDatabasePool(rows=rows),

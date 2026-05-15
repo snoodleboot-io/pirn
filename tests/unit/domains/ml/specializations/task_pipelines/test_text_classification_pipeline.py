@@ -39,7 +39,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_classification_report(self) -> None:
-        rows = [(f"text {i}", i % 2) for i in range(40)]
+        rows = [{"text": f"text {i}", "label": i % 2} for i in range(40)]
         with Tapestry() as t:
             TextClassificationPipeline(
                 pool=RecordingDatabasePool(rows=rows),
