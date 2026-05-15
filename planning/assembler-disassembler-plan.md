@@ -247,9 +247,9 @@ contract is still enforced by `Knot.__init_subclass__`.
 - `pirn/domains/ml/disassemblers/data_split_object_store_disassembler.py`
 - `pirn/domains/ml/disassemblers/eval_report_database_disassembler.py`
 
-**Files to delete:**
-- `pirn/domains/ml/deployment/model_registrar.py`
-- `pirn/domains/ml/deployment/predictor.py`
+**Files to delete:** _(none — `model_registrar.py` and `predictor.py` are legitimate Sink/domain
+knots that own I/O by design; they are not ingestor anti-patterns and were restored after
+an incorrect deletion)_
 
 ---
 
