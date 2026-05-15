@@ -17,7 +17,7 @@
 | Part III | Implicit input schema assumption audit | ✅ Complete (2026-05-15) — 31 files fixed |
 | Part III (payload) | Payload pattern audit — agents, data, connectors | ✅ Complete (2026-05-15) — all PASS |
 | Part IV | SubTapestry contract remediation (~90 subclasses) | ✅ Complete (2026-05-10) |
-| Part V | LoopSubTapestry design review | 🔴 Open — not started |
+| Part V | LoopSubTapestry design review | ✅ Complete (2026-05-15) |
 
 ---
 
@@ -868,20 +868,23 @@ All ~90 subclasses across agents/specializations, ml/specializations, health/cli
 
 ## Part V — LoopSubTapestry Design Review
 
-### Status: Open 🔴 (not started)
+### Status: Complete ✅ (2026-05-15)
 
-### Problem
+### Resolution
 
-`LoopSubTapestry` (defined in `pirn/nodes/loop_sub_tapestry.py`) is completely unused — no domain specialization extends it and no production code depends on it. The only references are its own definition, a comment in `engine.py`, a comment in an integration test, and its own unit test.
+Design review confirmed `step`/`fold` is the right abstraction for iterative agentic loops — it makes each iteration a real, traceable knot in run history rather than an opaque Python `while` loop.
 
-The `step`/`fold` API may not be the right abstraction for pirn's agentic loop patterns. Additionally, `LoopSubTapestry` and its internal `_IterationChainKnot` must override `__call__` to bypass `SubTapestry.__call__` (because their `process()` legitimately returns a plain value, not a `Knot`) — this signals an architectural mismatch with the SubTapestry contract.
+The `__call__` override mismatch was resolved by adding two small extension points to `SubTapestry`:
 
-### Questions to Answer
+- `_extensible_inner_run: ClassVar[bool] = False` — when `True`, skips sink-registration validation and runs the inner tapestry in extensible mode
+- `_resolve_output_key(sink) -> str` — hook to redirect output lookup to a mid-run terminal knot
 
-1. Is the `step`/`fold` pattern the right API for iterative agentic loops in pirn, or should this be expressed differently (e.g. as a plain knot with explicit recursion, or an agent-level construct)?
-2. Should `LoopSubTapestry` extend `SubTapestry` at all, given that its execution model is fundamentally different?
-3. Is there a cleaner separation between "build a fixed inner graph" (SubTapestry) and "drive a dynamic iterative run" (LoopSubTapestry)?
+`LoopSubTapestry` sets `_extensible_inner_run = True` and overrides `_resolve_output_key` to return `"__loop_terminal__"`. `process()` now legitimately returns a `Knot` (either the first `_IterationChainKnot` or a zero-iteration `_LoopTerminal`). All `__call__` overrides removed from both `LoopSubTapestry` and `_IterationChainKnot`.
 
-### Action
+`_IterationChainKnot` was simplified from `SubTapestry` to plain `Knot`; it runs its iteration tapestry directly via `tapestry.run()` with history propagation, then folds and self-registers the next iteration into the extensible store.
 
-Review and redesign before any consumer depends on it. Until resolved, the class carries a `TODO(design-review)` comment at the top of the file.
+The `TODO(design-review)` comment was removed from the module.
+
+Documentation added: `docs/guides/agentic-loops.md` (full guide); `docs/guides/sub-tapestry.md` section 10 (cross-reference).
+
+All 4 unit tests pass.
