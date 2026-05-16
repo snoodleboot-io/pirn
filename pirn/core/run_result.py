@@ -11,7 +11,51 @@ from pirn.managers.status_event import StatusEvent
 
 
 class RunResult(BaseModel):
-    """The outcome of a run — fully self-contained, serialisable."""
+    """The fully self-contained, serialisable outcome of a single tapestry run.
+
+    ``RunResult`` is produced by ``Tapestry.run()`` after the scheduler has
+    finished executing (or failing) every knot in the requested subgraph.  It
+    is intentionally frozen so it can be safely cached, shipped over a
+    message bus, or written to a data store without defensive copying.
+
+    Attributes:
+        run_id: Unique identifier for this run, matching the id in the
+            originating ``RunRequest``.
+        terminals_requested: Knot ids the caller nominated as run terminals,
+            or the tapestry's leaf knots when the caller passed none.
+        outputs: Mapping of ``knot_id`` → output value for every knot that
+            completed with an ``Ok`` result.  Knots that were skipped or
+            raised an error are absent.
+        skipped: Knot ids that were deliberately not executed (e.g. closed
+            gate, non-selected branch arm, or upstream skip propagation).
+        exceptions: ``ExceptionRecord`` entries for every knot that raised,
+            in execution order.
+        lineage: ``KnotLineage`` rows — one per knot invocation — forming the
+            lineage graph for this run.
+        status_events: Ordered stream of ``StatusEvent`` objects emitted by
+            knots and the scheduler during the run.
+        started_at: Wall-clock UTC timestamp recorded just before the
+            scheduler dispatched the first knot.
+        finished_at: Wall-clock UTC timestamp recorded immediately after the
+            scheduler finished (success or failure).
+        dispatcher: Name of the dispatcher class used for this run (e.g.
+            ``'LocalDispatcher'``).
+        run_path: Materialised path identifying this run's position in a
+            nested sub-tapestry hierarchy.  Format: ``/{run_id}`` for root
+            runs, ``/{parent_run_id}/{run_id}`` for nested runs.
+        parent_run_id: ``run_id`` of the outer run that spawned this one via a
+            ``SubTapestry`` knot.  ``None`` for root runs.
+        parent_knot_id: ``knot_id`` of the ``SubTapestry`` knot in the parent
+            run that triggered this run.  ``None`` for root runs.
+        actor: Who initiated the run — user id, service account, or API key
+            label.  ``None`` when not provided by the trigger.
+        environment: Where the run executed — hostname, region, deployment
+            environment, and similar key/value pairs.
+        trigger: Why the run was initiated — trigger type and identifier, e.g.
+            ``'webhook:order-placed'`` or ``'manual'``.
+        runtime_info: By what means — Python version, pirn version, platform,
+            and other runtime metadata.
+    """
 
     model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
 

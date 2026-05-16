@@ -8,7 +8,15 @@ T = TypeVar("T")
 
 
 class Ok(BaseModel, Generic[T]):
-    """Successful knot output."""
+    """Successful knot output wrapping the computed value.
+
+    The ``Ok`` variant of the ``Result`` union indicates that a knot's
+    ``process()`` method completed without raising.  The wrapped ``value`` is
+    the raw output before any downstream consumer receives it.
+
+    Attributes:
+        value: The output produced by the knot.
+    """
 
     model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
 

@@ -40,6 +40,16 @@ class SQLiteStore(TapestryStore):
     _schema_version = 1
 
     def __init__(self, *, path: str = ":memory:", connection: Any = None) -> None:
+        """Initialise the store.
+
+        Args:
+            path: File path for the SQLite database, or ``":memory:"`` for a
+                transient in-process store.  Ignored when ``connection`` is
+                provided.
+            connection: An existing ``sqlite3.Connection`` to reuse.  Useful
+                for sharing a single file between ``SQLiteStore`` and
+                ``SQLiteHistory``.
+        """
         import sqlite3
 
         self._path = path
@@ -48,6 +58,11 @@ class SQLiteStore(TapestryStore):
         self._initialized = False
 
     def _ensure_init(self) -> None:
+        """Create schema tables and apply pending migrations on first call.
+
+        Subsequent calls return immediately because ``_initialized`` is set
+        to ``True`` after the first successful run.
+        """
         if self._initialized:
             return
         self._conn.executescript(self._schema_version_ddl + self._store_ddl)
@@ -56,6 +71,20 @@ class SQLiteStore(TapestryStore):
         self._initialized = True
 
     def register(self, knot: Knot) -> None:
+        """Add a knot to the store.
+
+        Persists the knot's id, class, config, and parent ids to the
+        ``knots`` table.  If the same instance is registered again the row
+        is replaced (idempotent).  Raises if a *different* instance carries
+        the same knot id.
+
+        Args:
+            knot: The knot to register.
+
+        Raises:
+            ValueError: If a different ``Knot`` instance with the same
+                ``knot_id`` is already registered.
+        """
         from datetime import UTC, datetime
 
         self._ensure_init()
@@ -80,15 +109,43 @@ class SQLiteStore(TapestryStore):
         self._conn.commit()
 
     def get(self, knot_id: str) -> Knot | None:
+        """Return the in-process ``Knot`` instance for ``knot_id``, or ``None``.
+
+        Args:
+            knot_id: Identifier of the knot to retrieve.
+
+        Returns:
+            The registered ``Knot`` instance, or ``None`` if not found.
+        """
         return self._live.get(knot_id)
 
     def all(self) -> list[Knot]:
+        """Return all registered knots held in memory.
+
+        Returns:
+            List of ``Knot`` instances in insertion order.
+        """
         return list(self._live.values())
 
     def snapshot(self) -> TapestrySnapshot:
+        """Return a snapshot ordered by ``registered_at`` from the database.
+
+        Queries the ``knots`` table so that the snapshot reflects the
+        persistent registration order rather than the in-process dict order.
+
+        Returns:
+            A frozen ``TapestrySnapshot`` with knot ids ordered by
+            ``registered_at``.
+        """
         self._ensure_init()
         cursor = self._conn.execute("SELECT knot_id FROM knots ORDER BY registered_at")
         return TapestrySnapshot(knot_ids=[row[0] for row in cursor.fetchall()])
 
     def close(self) -> None:
+        """Close the underlying SQLite connection.
+
+        Only call this when the store owns the connection (i.e. it was opened
+        from a file path).  If a shared connection was injected at construction
+        the caller is responsible for closing it.
+        """
         self._conn.close()

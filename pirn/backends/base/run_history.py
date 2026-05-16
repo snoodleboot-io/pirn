@@ -13,27 +13,81 @@ class RunHistory:
     """
 
     async def record_run(self, result: Any) -> None:
+        """Persist a completed run and its per-knot lineage records.
+
+        Args:
+            result: A ``RunResult`` containing run-level metadata and a list
+                of ``KnotLineage`` records for every knot that executed.
+        """
         raise NotImplementedError(f"{type(self).__name__} must implement record_run()")
 
     async def get_run(self, run_id: str) -> Any:
+        """Fetch a single run by its unique identifier.
+
+        Args:
+            run_id: UUID string assigned to the run at dispatch time.
+
+        Returns:
+            A ``RunResult`` instance, or ``None`` if the run is not found.
+        """
         raise NotImplementedError(f"{type(self).__name__} must implement get_run()")
 
     async def query_lineage_by_output_hash(self, output_hash: str) -> list[KnotLineage]:
+        """Return all lineage records whose output matched ``output_hash``.
+
+        Useful for tracing which knots produced a given artifact across all
+        historical runs.
+
+        Args:
+            output_hash: Content hash of the output value to search for.
+
+        Returns:
+            List of ``KnotLineage`` records, possibly empty.
+        """
         raise NotImplementedError(
             f"{type(self).__name__} must implement query_lineage_by_output_hash()"
         )
 
     async def query_lineage_by_input_hash(self, input_hash: str) -> list[KnotLineage]:
+        """Return all lineage records that consumed ``input_hash`` as an input.
+
+        Useful for forward-tracing: given an artifact hash, find every knot
+        that depended on it.
+
+        Args:
+            input_hash: Content hash of the input value to search for.
+
+        Returns:
+            List of ``KnotLineage`` records, possibly empty.
+        """
         raise NotImplementedError(
             f"{type(self).__name__} must implement query_lineage_by_input_hash()"
         )
 
     async def query_lineage_by_knot_id(self, knot_id: str) -> list[KnotLineage]:
+        """Return all lineage records for a specific knot across all runs.
+
+        Args:
+            knot_id: Stable identifier of the knot whose history is requested.
+
+        Returns:
+            List of ``KnotLineage`` records ordered by insertion order,
+            possibly empty.
+        """
         raise NotImplementedError(
             f"{type(self).__name__} must implement query_lineage_by_knot_id()"
         )
 
     async def query_runs_by_actor(self, actor: str) -> list[Any]:
+        """Return all runs triggered by a specific actor.
+
+        Args:
+            actor: Human-readable actor string recorded at dispatch time
+                (e.g. a username or service account name).
+
+        Returns:
+            List of ``RunResult`` objects, possibly empty.
+        """
         raise NotImplementedError(f"{type(self).__name__} must implement query_runs_by_actor()")
 
     async def children_of(self, run_id: str) -> list[Any]:

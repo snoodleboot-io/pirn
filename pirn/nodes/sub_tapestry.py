@@ -84,6 +84,31 @@ class SubTapestry(Knot):
     The outer tapestry's history backend is captured at construction time and
     automatically forwarded to inner runs so they appear in the same history
     store and are reachable by the explorer's drill-down navigation.
+
+    Algorithm:
+        1. Construction — capture the outer tapestry's history backend (if any)
+           so it can be forwarded to the inner run.
+        2. Outer engine invocation — ``__call__`` receives resolved parent values
+           and config constants as ``parent_results``.
+        3. Fan-out short-circuit — if mapped inputs are declared, delegate to
+           ``_fan_out`` and return immediately; no inner tapestry is started.
+        4. Input validation — if ``config.validate_io`` is set, validate all
+           inputs through the knot's Pydantic input model before proceeding.
+        5. Inner tapestry context — open a fresh ``Tapestry`` context manager
+           so that every knot constructed inside ``process()`` auto-registers
+           into the inner graph.
+        6. ``process()`` call — invoke the subclass implementation, which builds
+           the inner pipeline and returns the terminal (sink) knot.
+        7. Sink validation — assert the returned value is a ``Knot`` instance and
+           (for non-extensible runs) that it was registered in the inner tapestry.
+        8. Inner run — call ``_run_inner`` to execute the inner tapestry.  The
+           outer history is injected so inner run records appear in the same store.
+           If the inner run produces any exceptions, ``SubTapestryError`` is raised.
+        9. Output extraction — look up the sink knot's output from
+           ``run_result.outputs`` using the key returned by
+           ``_resolve_output_key(sink)`` and wrap it in ``Ok``.
+        10. Error wrapping — any exception escaping steps 3-9 is caught and
+            wrapped in ``Err`` so the outer engine sees a normal knot failure.
     """
 
     _extensible_inner_run: ClassVar[bool] = False

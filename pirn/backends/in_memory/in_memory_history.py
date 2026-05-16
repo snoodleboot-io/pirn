@@ -26,6 +26,11 @@ class InMemoryHistory(RunHistory):
         self._lock = Lock()
 
     async def record_run(self, result: Any) -> None:
+        """Persist a run result and index its lineage records.
+
+        Args:
+            result: A ``RunResult`` instance to persist.
+        """
         with self._lock:
             self._runs[result.run_id] = result
             if result.actor is not None:
@@ -40,25 +45,73 @@ class InMemoryHistory(RunHistory):
                     self._lineage_by_input.setdefault(input_hash, []).append(rec)
 
     async def get_run(self, run_id: str) -> Any:
+        """Fetch a single run by id.
+
+        Args:
+            run_id: UUID of the run to retrieve.
+
+        Returns:
+            A ``RunResult`` instance, or ``None`` if not found.
+        """
         with self._lock:
             return self._runs.get(run_id)
 
     async def query_lineage_by_output_hash(self, output_hash: str) -> list[KnotLineage]:
+        """Return all lineage records whose output matched ``output_hash``.
+
+        Args:
+            output_hash: Content hash of the output to search for.
+
+        Returns:
+            List of ``KnotLineage`` records, possibly empty.
+        """
         with self._lock:
             return list(self._lineage_by_output.get(output_hash, []))
 
     async def query_lineage_by_input_hash(self, input_hash: str) -> list[KnotLineage]:
+        """Return all lineage records that consumed ``input_hash`` as an input.
+
+        Args:
+            input_hash: Content hash of the input to search for.
+
+        Returns:
+            List of ``KnotLineage`` records, possibly empty.
+        """
         with self._lock:
             return list(self._lineage_by_input.get(input_hash, []))
 
     async def query_lineage_by_knot_id(self, knot_id: str) -> list[KnotLineage]:
+        """Return all lineage records for a specific knot across all runs.
+
+        Args:
+            knot_id: Identifier of the knot whose history is requested.
+
+        Returns:
+            List of ``KnotLineage`` records, possibly empty.
+        """
         with self._lock:
             return list(self._lineage_by_knot.get(knot_id, []))
 
     async def query_runs_by_actor(self, actor: str) -> list[Any]:
+        """Return all runs triggered by ``actor``.
+
+        Args:
+            actor: Actor string to filter by.
+
+        Returns:
+            List of ``RunResult`` objects, possibly empty.
+        """
         with self._lock:
             return list(self._runs_by_actor.get(actor, []))
 
     async def children_of(self, run_id: str) -> list[Any]:
+        """Return all runs whose ``parent_run_id`` matches ``run_id``.
+
+        Args:
+            run_id: UUID of the parent run.
+
+        Returns:
+            List of ``RunResult`` objects for all child runs, possibly empty.
+        """
         with self._lock:
             return list(self._runs_by_parent.get(run_id, []))

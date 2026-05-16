@@ -21,7 +21,48 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class KnotLineage(BaseModel):
-    """One knot, one run.  A row in the lineage ledger."""
+    """Immutable record of a single knot invocation within a single run.
+
+    One ``KnotLineage`` row is written for every knot the scheduler attempts,
+    regardless of outcome.  Together the rows form the lineage graph for a
+    run.  Across runs, rows are joined by their ``output_hash`` /
+    ``parent_input_hashes`` content hashes, enabling cross-run provenance
+    queries without a separate index.
+
+    Values are never stored directly in lineage rows — only their content
+    hashes appear here.  The actual values live in a ``DataStore`` keyed by
+    the same hash.  This separation allows data to be purged after its TTL
+    while the lineage ledger is retained indefinitely; hash references remain
+    valid even after the underlying data is gone.
+
+    Attributes:
+        run_id: Identifies the run this invocation belongs to.
+        knot_id: The ``KnotConfig.id`` of the knot that was invoked.
+        knot_class: Fully-qualified class name of the knot (e.g.
+            ``'my_pkg.knots.EnrichUser'``).  Used for cross-run filtering by
+            knot type.
+        knot_config_hash: Content hash of the knot's serialised
+            ``KnotConfig``.  A change in this hash between runs means the
+            knot's configuration changed.
+        parent_input_hashes: Mapping of ``process()`` parameter name →
+            content hash of the value supplied by that parent.  Empty for
+            source knots (e.g. ``Parameter``).
+        output_hash: Content hash of the knot's output value.  ``None`` when
+            the knot failed or was skipped.
+        outcome: One of ``'ok'``, ``'err'``, or ``'skipped'``.
+        error_record_id: When ``outcome == 'err'``, the run-scoped id of the
+            ``ExceptionRecord`` registered with the run's
+            ``ExceptionManager``.  ``None`` otherwise.
+        skip_reason: Human-readable explanation of why the knot was skipped.
+            ``None`` when ``outcome != 'skipped'``.
+        dispatcher: Name of the dispatcher that executed this knot (e.g.
+            ``'LocalDispatcher'``, ``'ThreadDispatcher'``).
+        started_at: UTC wall-clock time when the knot began executing.
+        finished_at: UTC wall-clock time when the knot finished (or failed).
+        extra: Free-form metadata added by the framework or the knot itself,
+            e.g. element index for knots inside a ``Map`` body, or the branch
+            arm chosen by a ``Branch`` knot.
+    """
 
     model_config = ConfigDict(frozen=True)
 

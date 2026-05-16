@@ -20,10 +20,32 @@ class TapestryStore:
         raise NotImplementedError(f"{type(self).__name__} must implement register()")
 
     def get(self, knot_id: str) -> Knot | None:
+        """Retrieve a registered knot by its identifier.
+
+        Args:
+            knot_id: Stable string identifier assigned to the knot.
+
+        Returns:
+            The ``Knot`` instance, or ``None`` if not registered.
+        """
         raise NotImplementedError(f"{type(self).__name__} must implement get()")
 
     def all(self) -> list[Knot]:
+        """Return all currently registered knots.
+
+        Returns:
+            List of ``Knot`` instances in registration order.
+        """
         raise NotImplementedError(f"{type(self).__name__} must implement all()")
 
     def snapshot(self) -> TapestrySnapshot:
+        """Capture an immutable view of the tapestry at this moment.
+
+        The engine calls this before planning a run so that concurrent
+        registrations during execution do not affect the in-flight plan.
+
+        Returns:
+            A frozen ``TapestrySnapshot`` containing the ordered list of
+            registered knot ids.
+        """
         raise NotImplementedError(f"{type(self).__name__} must implement snapshot()")

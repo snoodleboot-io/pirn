@@ -28,6 +28,26 @@ class ValKeyEmitter(Emitter):
         channel_lineage: str = "pirn:lineage",
         channel_result: str = "pirn:result",
     ) -> None:
+        """Initialise the emitter.
+
+        Either ``client`` or ``config`` must be supplied.
+
+        Args:
+            client: A pre-created ``valkey-glide`` ``GlideClient``
+                instance.  When provided, ``config`` is ignored.
+            config: A ``GlideClientConfiguration`` (or compatible object)
+                used to create a ``GlideClient`` lazily on first use.
+                Requires ``pirn[valkey]``.
+            channel_status: ValKey pub/sub channel for status events.
+                Defaults to ``"pirn:status"``.
+            channel_lineage: ValKey pub/sub channel for lineage records.
+                Defaults to ``"pirn:lineage"``.
+            channel_result: ValKey pub/sub channel for run results.
+                Defaults to ``"pirn:result"``.
+
+        Raises:
+            TypeError: If neither ``client`` nor ``config`` is given.
+        """
         if client is None and config is None:
             raise TypeError("provide either client= or config=")
         self._client = client
@@ -48,14 +68,29 @@ class ValKeyEmitter(Emitter):
         return self._client
 
     async def on_status(self, event: StatusEvent) -> None:
+        """Publishes a JSON-serialised status event to the configured ValKey channel.
+
+        Args:
+            event: The status event to publish.
+        """
         client = await self._ensure_client()
         await client.publish(self._channel_status, event.model_dump_json())
 
     async def on_lineage(self, record: KnotLineage) -> None:
+        """Publishes a JSON-serialised lineage record to the configured ValKey channel.
+
+        Args:
+            record: The knot lineage record to publish.
+        """
         client = await self._ensure_client()
         await client.publish(self._channel_lineage, record.model_dump_json())
 
     async def on_run_result(self, result: RunResult) -> None:
+        """Publishes a JSON-serialised run result to the configured ValKey channel.
+
+        Args:
+            result: The completed run result to publish.
+        """
         client = await self._ensure_client()
         await client.publish(self._channel_result, result.model_dump_json())
 

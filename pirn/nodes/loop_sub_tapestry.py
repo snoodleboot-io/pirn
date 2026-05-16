@@ -180,6 +180,37 @@ class LoopSubTapestry(SubTapestry, Generic[S]):
 
     The base class owns the iteration loop, history injection, and run
     recording.  Subclasses never call ``_run_inner`` directly.
+
+    Algorithm:
+        1. Bootstrap — ``process()`` calls ``step(initial_state)`` to decide
+           whether any iterations are needed.
+        2. Zero-iteration short-circuit — if ``step`` returns ``None`` on the
+           first call, a ``_LoopTerminal`` seeded with the initial state is
+           registered directly in the inner tapestry and returned as the sink.
+           The loop run completes in a single wave.
+        3. First iteration — otherwise, an ``_IterationChainKnot`` for iteration
+           index 1 is created with the iteration tapestry returned by ``step``
+           and registered in the inner tapestry.  The initial state is wired in
+           as a config value (not a parent edge) so no upstream dependency exists.
+        4. Extensible inner run — ``SubTapestry.__call__`` starts the inner
+           tapestry in extensible mode (``_extensible_inner_run = True``).  The
+           engine executes iteration 1 and waits for more knots.
+        5. Fold — when iteration N completes, ``_IterationChainKnot.process``
+           calls ``fold(state, run_result)`` to integrate the iteration's outputs
+           into the accumulated state.
+        6. Plan next — ``step(new_state)`` is called immediately after ``fold``.
+           If it returns a ``(tapestry, state)`` pair, a new ``_IterationChainKnot``
+           for iteration N+1 is registered into the loop's live store via
+           ``get_current_store()``.  The extensible engine picks it up in the
+           next wave, with the previous iteration knot as its parent edge
+           (encoding the data dependency and ordering).
+        7. Terminal registration — when ``step`` returns ``None``, a
+           ``_LoopTerminal`` knot is registered with the last iteration chain
+           knot as its ``state`` parent.  The terminal's ID is the well-known
+           sentinel ``__loop_terminal__``.
+        8. Output extraction — ``_resolve_output_key`` always returns
+           ``_terminal_id`` so the final state surfaced by ``_LoopTerminal``
+           becomes the loop's output, regardless of how many iterations ran.
     """
 
     _extensible_inner_run: ClassVar[bool] = True

@@ -36,9 +36,26 @@ class OpenTelemetryEmitter(Emitter):
     """
 
     def __init__(self, *, tracer: Any = None) -> None:
+        """Initialise the emitter.
+
+        Args:
+            tracer: An ``opentelemetry.trace.Tracer`` instance.  When
+                ``None`` the tracer is obtained lazily from
+                ``opentelemetry.trace.get_tracer("pirn")`` on first use,
+                which requires ``opentelemetry-api`` to be installed
+                (``pip install pirn[otel]``).
+        """
         self._tracer = tracer
 
     def _ensure_tracer(self) -> Any:
+        """Return the tracer, importing ``opentelemetry-api`` lazily if needed.
+
+        Returns:
+            A configured ``opentelemetry.trace.Tracer`` instance.
+
+        Raises:
+            ImportError: If ``opentelemetry-api`` is not installed.
+        """
         if self._tracer is None:
             try:
                 from opentelemetry import trace
@@ -51,12 +68,31 @@ class OpenTelemetryEmitter(Emitter):
         return self._tracer
 
     async def on_status(self, event: StatusEvent) -> None:
+        """No-op for the OTel emitter.
+
+        Status transitions (PENDING → RUNNING → SUCCEEDED) are too
+        fine-grained for individual spans.  Knot execution timing is
+        captured via ``on_lineage`` instead.
+
+        Args:
+            event: Ignored.
+        """
         # Status transitions are too noisy for spans (one knot has
         # PENDING → RUNNING → SUCCEEDED).  We use lineage records
         # instead, which represent the *complete* knot execution.
         return
 
     async def on_lineage(self, record: KnotLineage) -> None:
+        """Emits a completed knot execution as an OTel span.
+
+        The span name is ``knot:<knot_id>``.  Timing is set from the
+        lineage record's ``started_at`` / ``finished_at`` fields.
+        Standard ``pirn.*`` attributes are attached; an error status is
+        set when ``outcome == "err"``.
+
+        Args:
+            record: The knot lineage record to convert into a span.
+        """
         tracer = self._ensure_tracer()
         # start_as_current_span is sync; we open and close the span
         # explicitly to honor the lineage record's exact timing.
@@ -84,6 +120,15 @@ class OpenTelemetryEmitter(Emitter):
             span.end(end_time=int(record.finished_at.timestamp() * 1e9))
 
     async def on_run_result(self, result: RunResult) -> None:
+        """Emits the completed run as a top-level OTel span.
+
+        The span name is ``run:<run_id>``.  Timing is set from the
+        result's ``started_at`` / ``finished_at`` fields.  An error
+        status is set when the run did not succeed.
+
+        Args:
+            result: The completed run result to convert into a span.
+        """
         tracer = self._ensure_tracer()
         span = tracer.start_span(
             f"run:{result.run_id}",

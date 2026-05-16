@@ -30,6 +30,17 @@ class ValKeyStore(TapestryStore, SubscribableStore):
     _registrations_channel = "pirn:tapestry:registrations"
 
     def __init__(self, *, client: Any = None, config: Any = None) -> None:
+        """Initialise the store.
+
+        Args:
+            client: An existing ``GlideClient`` instance to reuse.  Suitable
+                for tests or when sharing a client across components.
+            config: A ``GlideClientConfiguration`` used to create a client
+                lazily on first use.  Mutually exclusive with ``client``.
+
+        Raises:
+            TypeError: If neither ``client`` nor ``config`` is provided.
+        """
         self._client = _LazyClient(client=client, config=config)
         self._live: dict[str, Knot] = {}
         self._pending_register_tasks: list[Any] = []
@@ -38,6 +49,18 @@ class ValKeyStore(TapestryStore, SubscribableStore):
         self._listener_task: asyncio.Task[None] | None = None
 
     async def aregister(self, knot: Knot) -> None:
+        """Async variant of :meth:`register`.
+
+        Persists the knot metadata to ValKey and, if any subscribers are
+        active, publishes the knot id to the registrations pub/sub channel.
+
+        Args:
+            knot: The knot to register.
+
+        Raises:
+            ValueError: If a different ``Knot`` instance with the same
+                ``knot_id`` is already registered.
+        """
         existing = self._live.get(knot.knot_id)
         if existing is not None and existing is not knot:
             raise ValueError(
@@ -64,6 +87,20 @@ class ValKeyStore(TapestryStore, SubscribableStore):
             await client.publish(self._registrations_channel, knot.knot_id)
 
     def register(self, knot: Knot) -> None:
+        """Register a knot, dispatching to the async path appropriately.
+
+        If no event loop is running the registration is executed synchronously
+        via ``asyncio.run``.  If a loop is already running the in-process dict
+        is updated immediately and the ValKey write is scheduled as a
+        background task.
+
+        Args:
+            knot: The knot to register.
+
+        Raises:
+            ValueError: If a different ``Knot`` instance with the same
+                ``knot_id`` is already registered.
+        """
         existing = self._live.get(knot.knot_id)
         if existing is not None and existing is not knot:
             raise ValueError(
@@ -78,15 +115,45 @@ class ValKeyStore(TapestryStore, SubscribableStore):
         self._pending_register_tasks.append(asyncio.ensure_future(self.aregister(knot)))
 
     def get(self, knot_id: str) -> Knot | None:
+        """Return the in-process ``Knot`` for ``knot_id``, or ``None``.
+
+        Args:
+            knot_id: Identifier of the knot to retrieve.
+
+        Returns:
+            The registered ``Knot`` instance, or ``None`` if not found.
+        """
         return self._live.get(knot_id)
 
     def all(self) -> list[Knot]:
+        """Return all registered knots held in memory.
+
+        Returns:
+            List of ``Knot`` instances in insertion order.
+        """
         return list(self._live.values())
 
     def snapshot(self) -> TapestrySnapshot:
+        """Return a snapshot of currently registered knot ids.
+
+        Returns:
+            A frozen ``TapestrySnapshot``.
+        """
         return TapestrySnapshot(knot_ids=list(self._live.keys()))
 
     def subscribe(self, callback: Callable[[Any], None]) -> object:
+        """Register a callback invoked whenever a new knot is registered.
+
+        Starts the background ``_listen_loop`` task if it is not already
+        running.  The loop creates a dedicated pub/sub client subscribed to
+        the registrations channel.
+
+        Args:
+            callback: Callable that accepts a single ``Knot`` argument.
+
+        Returns:
+            An opaque integer token for use with :meth:`unsubscribe`.
+        """
         token = self._next_token
         self._next_token += 1
         self._subscribers[token] = callback
@@ -95,12 +162,30 @@ class ValKeyStore(TapestryStore, SubscribableStore):
         return token
 
     def unsubscribe(self, token: object) -> None:
+        """Cancel a subscription.
+
+        If the last subscriber is removed the background listen task is
+        cancelled.
+
+        Args:
+            token: The token returned by :meth:`subscribe`.
+        """
         self._subscribers.pop(token, None)  # type: ignore[arg-type]
         if not self._subscribers and self._listener_task is not None:
             self._listener_task.cancel()
             self._listener_task = None
 
     def _on_message(self, msg: Any, ctx: Any) -> None:
+        """Pub/sub callback invoked for each message on the registrations channel.
+
+        Decodes the knot id from the message, looks up the knot from the
+        in-process dict, and dispatches to all subscribers.  Exceptions
+        raised by callbacks are logged and suppressed.
+
+        Args:
+            msg: The pub/sub message object received from glide.
+            ctx: Opaque context object passed through by glide (unused).
+        """
         knot_id = msg.message.decode() if isinstance(msg.message, bytes) else msg.message
         knot = self._live.get(knot_id)
         if knot is None:
@@ -116,6 +201,12 @@ class ValKeyStore(TapestryStore, SubscribableStore):
                 )
 
     async def _listen_loop(self) -> None:
+        """Hold a dedicated pub/sub connection until all subscribers cancel.
+
+        Creates a new ``GlideClient`` configured with a pub/sub subscription
+        to the registrations channel.  Falls back silently if ``glide`` is
+        not installed or no config is available.
+        """
         try:
             from glide import GlideClient, GlideClientConfiguration
             from glide.config import PubSubChannelModes, PubSubSubscriptions
@@ -144,6 +235,7 @@ class ValKeyStore(TapestryStore, SubscribableStore):
             await sub_client.close()
 
     async def close(self) -> None:
+        """Drain pending register tasks, cancel the listener, and close the client."""
         if self._pending_register_tasks:
             await asyncio.gather(*self._pending_register_tasks, return_exceptions=True)
             self._pending_register_tasks.clear()

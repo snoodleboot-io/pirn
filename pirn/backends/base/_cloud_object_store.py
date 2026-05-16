@@ -43,6 +43,21 @@ class _CloudObjectStore(DataStore):
         signer: _Signer | None = None,
         allow_unsigned: bool = False,
     ) -> None:
+        """Initialise the mixin with signing configuration.
+
+        Args:
+            signer: An ``_Signer`` instance used to HMAC-sign payloads before
+                writing and verify them after reading.  Required in production.
+            allow_unsigned: If ``True``, the store operates without signing.
+                Requires the ``PIRN_ALLOW_UNSIGNED=1`` environment variable to
+                be set; raises ``ValueError`` otherwise.  Only for
+                single-tenant development or test environments.
+
+        Raises:
+            ValueError: If neither ``signer`` nor ``allow_unsigned=True`` is
+                provided, or if ``allow_unsigned=True`` is set without the
+                ``PIRN_ALLOW_UNSIGNED=1`` environment variable.
+        """
         if signer is None and not allow_unsigned:
             raise ValueError(
                 f"{type(self).__name__}: refusing to construct an unsigned "
@@ -68,6 +83,15 @@ class _CloudObjectStore(DataStore):
         self.__signer = signer
 
     def _serialize(self, value: Any) -> bytes:
+        """Serialize ``value`` with cloudpickle and optionally sign the result.
+
+        Args:
+            value: Arbitrary Python object to serialize.
+
+        Returns:
+            Raw bytes ready for storage.  If a signer is configured the bytes
+            are prefixed with the HMAC signature.
+        """
         import cloudpickle
 
         payload = cloudpickle.dumps(value)
@@ -76,6 +100,18 @@ class _CloudObjectStore(DataStore):
         return payload
 
     def _deserialize(self, payload: bytes) -> Any:
+        """Verify the signature (if any) and deserialize bytes back to a Python object.
+
+        Args:
+            payload: Raw bytes retrieved from storage.
+
+        Returns:
+            The original Python object.
+
+        Raises:
+            ValueError: If a signer is configured and the HMAC signature does
+                not match (possible tampering).
+        """
         import cloudpickle
 
         if self.__signer is not None:
@@ -83,30 +119,108 @@ class _CloudObjectStore(DataStore):
         return cloudpickle.loads(payload)
 
     def _object_key(self, content_hash: str) -> str:
+        """Derive the backend-specific storage key from a content hash.
+
+        Subclasses must override this to map ``content_hash`` to whatever
+        key space the backing store uses (a file path, an S3 object key, etc.).
+
+        Args:
+            content_hash: SHA-256 hex digest, possibly prefixed with
+                ``sha256:``.
+
+        Returns:
+            The storage key string for the backing store.
+        """
         raise NotImplementedError(f"{type(self).__name__} must implement _object_key()")
 
     async def _put_bytes(self, key: str, payload: bytes) -> None:
+        """Write raw bytes to the backing store under ``key``.
+
+        Args:
+            key: Storage key returned by :meth:`_object_key`.
+            payload: Serialized (and optionally signed) bytes to store.
+        """
         raise NotImplementedError(f"{type(self).__name__} must implement _put_bytes()")
 
     async def _get_bytes(self, key: str) -> bytes:
+        """Read raw bytes from the backing store.
+
+        Args:
+            key: Storage key returned by :meth:`_object_key`.
+
+        Returns:
+            The bytes previously written by :meth:`_put_bytes`.
+
+        Raises:
+            KeyError: If no object exists at ``key``.
+        """
         raise NotImplementedError(f"{type(self).__name__} must implement _get_bytes()")
 
     async def _has_key(self, key: str) -> bool:
+        """Return ``True`` if an object exists at ``key`` in the backing store.
+
+        Args:
+            key: Storage key returned by :meth:`_object_key`.
+
+        Returns:
+            ``True`` if the object exists, ``False`` otherwise.
+        """
         raise NotImplementedError(f"{type(self).__name__} must implement _has_key()")
 
     async def _delete_key(self, key: str) -> None:
+        """Delete the object at ``key`` from the backing store.
+
+        Implementations must be idempotent: deleting a non-existent key
+        must not raise.
+
+        Args:
+            key: Storage key returned by :meth:`_object_key`.
+        """
         raise NotImplementedError(f"{type(self).__name__} must implement _delete_key()")
 
     async def put(self, content_hash: str, value: Any) -> None:
+        """Serialize ``value`` and write it to the backing store.
+
+        Args:
+            content_hash: Content-addressable key for the value.
+            value: Arbitrary Python object to persist.
+        """
         payload = self._serialize(value)
         await self._put_bytes(self._object_key(content_hash), payload)
 
     async def get(self, content_hash: str) -> Any:
+        """Read and deserialize the value stored under ``content_hash``.
+
+        Args:
+            content_hash: Hash previously passed to :meth:`put`.
+
+        Returns:
+            The deserialized Python object.
+
+        Raises:
+            KeyError: If no value is stored under ``content_hash``.
+            ValueError: If signature verification fails.
+        """
         payload = await self._get_bytes(self._object_key(content_hash))
         return self._deserialize(payload)
 
     async def has(self, content_hash: str) -> bool:
+        """Return ``True`` if a value is stored under ``content_hash``.
+
+        Args:
+            content_hash: Hash to check.
+
+        Returns:
+            ``True`` if present, ``False`` otherwise.
+        """
         return await self._has_key(self._object_key(content_hash))
 
     async def scrub(self, content_hash: str) -> None:
+        """Remove the value stored under ``content_hash``.
+
+        Lineage records that reference the hash remain intact.
+
+        Args:
+            content_hash: Hash of the value to remove.
+        """
         await self._delete_key(self._object_key(content_hash))

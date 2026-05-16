@@ -68,6 +68,18 @@ CREATE TABLE IF NOT EXISTS lineage_inputs (
 """
 
     def __init__(self, *, path: str = ":memory:", connection: Any = None) -> None:
+        """Initialise the history store.
+
+        Args:
+            path: File path for the DuckDB database, or ``":memory:"`` for a
+                transient in-process store.  Ignored when ``connection`` is
+                provided.
+            connection: An existing ``duckdb.DuckDBPyConnection`` to reuse.
+
+        Raises:
+            ImportError: If the ``duckdb`` package is not installed.  Install
+                with ``pip install pirn[duckdb]``.
+        """
         try:
             import duckdb
         except ImportError as exc:
@@ -80,12 +92,18 @@ CREATE TABLE IF NOT EXISTS lineage_inputs (
         self._initialized = False
 
     def _ensure_init(self) -> None:
+        """Create history tables on first call; subsequent calls are no-ops."""
         if self._initialized:
             return
         self._conn.execute(DuckDBHistory.__ddl)
         self._initialized = True
 
     async def record_run(self, result: Any) -> None:
+        """Persist a run result and all associated lineage records.
+
+        Args:
+            result: A ``RunResult`` instance to persist.
+        """
         import json
 
         self._ensure_init()
@@ -129,6 +147,14 @@ CREATE TABLE IF NOT EXISTS lineage_inputs (
                 )
 
     async def get_run(self, run_id: str) -> Any:
+        """Fetch a single run by id.
+
+        Args:
+            run_id: UUID of the run to retrieve.
+
+        Returns:
+            A ``RunResult`` instance, or ``None`` if not found.
+        """
         self._ensure_init()
         rows = self._conn.execute(
             "SELECT payload_json FROM runs WHERE run_id = ?", (run_id,)
@@ -140,6 +166,14 @@ CREATE TABLE IF NOT EXISTS lineage_inputs (
         return RunResult.model_validate_json(rows[0][0])
 
     async def query_lineage_by_output_hash(self, output_hash: str) -> list[KnotLineage]:
+        """Return all lineage records whose output matched ``output_hash``.
+
+        Args:
+            output_hash: Content hash of the output to search for.
+
+        Returns:
+            List of ``KnotLineage`` records, possibly empty.
+        """
         self._ensure_init()
         rows = self._conn.execute(
             "SELECT payload_json FROM lineage WHERE output_hash = ?",
@@ -148,6 +182,14 @@ CREATE TABLE IF NOT EXISTS lineage_inputs (
         return [KnotLineage.model_validate_json(row[0]) for row in rows]
 
     async def query_lineage_by_input_hash(self, input_hash: str) -> list[KnotLineage]:
+        """Return all lineage records that consumed ``input_hash`` as an input.
+
+        Args:
+            input_hash: Content hash of the input to search for.
+
+        Returns:
+            List of ``KnotLineage`` records, possibly empty.
+        """
         self._ensure_init()
         rows = self._conn.execute(
             """SELECT l.payload_json FROM lineage l
@@ -159,6 +201,14 @@ CREATE TABLE IF NOT EXISTS lineage_inputs (
         return [KnotLineage.model_validate_json(row[0]) for row in rows]
 
     async def query_lineage_by_knot_id(self, knot_id: str) -> list[KnotLineage]:
+        """Return all lineage records for a specific knot across all runs.
+
+        Args:
+            knot_id: Identifier of the knot whose history is requested.
+
+        Returns:
+            List of ``KnotLineage`` records, possibly empty.
+        """
         self._ensure_init()
         rows = self._conn.execute(
             "SELECT payload_json FROM lineage WHERE knot_id = ?", (knot_id,)
@@ -183,6 +233,14 @@ CREATE TABLE IF NOT EXISTS lineage_inputs (
         return [KnotLineage.model_validate_json(row[0]) for row in rows]
 
     async def query_runs_by_actor(self, actor: str) -> list[Any]:
+        """Return all runs triggered by ``actor``.
+
+        Args:
+            actor: Actor string to filter by.
+
+        Returns:
+            List of ``RunResult`` objects, possibly empty.
+        """
         self._ensure_init()
         from pirn.core.run_result import RunResult
 
@@ -198,4 +256,5 @@ CREATE TABLE IF NOT EXISTS lineage_inputs (
         return int(rows[0][0])
 
     def close(self) -> None:
+        """Close the underlying DuckDB connection."""
         self._conn.close()
