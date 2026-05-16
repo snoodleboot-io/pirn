@@ -84,6 +84,15 @@ pirn/domains/ml/
 │   ├── model_registrar.py          # Persist bytes + metadata to LineageStore
 │   ├── predictor.py                # Batch inference from a loaded TrainedModel
 │   └── shadow_deployer.py          # Champion/challenger routing; challenger not surfaced
+├── assemblers/
+│   ├── __init__.py
+│   └── trained_model_object_store_assembler.py — bytes + ModelManifest → TrainedModelPayload
+├── disassemblers/
+│   ├── __init__.py
+│   ├── trained_model_object_store_disassembler.py — TrainedModelPayload → bytes
+│   ├── dataset_object_store_disassembler.py       — DatasetPayload → bytes
+│   ├── data_split_object_store_disassembler.py    — DataSplitPayload → bytes
+│   └── eval_report_database_disassembler.py       — EvalReportPayload → list[tuple]
 └── specializations/                # Pre-built SubTapestry pipelines
     ├── task_pipelines/             # BinaryClassification, Multiclass, Regression, Forecasting, Nlp, ComputerVision,
     │                               # TimeSeriesForecasting, AnomalyDetection, CollaborativeFiltering,
@@ -112,6 +121,38 @@ pirn/domains/ml/
                                     # PerformanceTriggedRetrainer, BatchInferencePipeline,
                                     # SHAPExplainer, LIMEExplainer
 ```
+
+---
+
+## Assembler and Disassembler knots
+
+ML artifacts cross the domain boundary through assembler and disassembler knots.
+
+### Assembler
+
+| Knot | Input | Output |
+|------|-------|--------|
+| `TrainedModelObjectStoreAssembler` | `bytes` + `ModelManifest` | `TrainedModelPayload` |
+
+Receives raw bytes from an `ObjectStoreReadSource` and deserialises via joblib. Does not perform I/O.
+
+### Disassemblers
+
+| Knot | Input | Output | Destination |
+|------|-------|--------|-------------|
+| `TrainedModelObjectStoreDisassembler` | `TrainedModelPayload` | `bytes` | object store |
+| `DatasetObjectStoreDisassembler` | `DatasetPayload` | `bytes` | object store |
+| `DataSplitObjectStoreDisassembler` | `DataSplitPayload` | `bytes` | object store |
+| `EvalReportDatabaseDisassembler` | `EvalReportPayload` | `list[tuple]` | database |
+
+### Note on ModelRegistrar and Predictor
+
+`ModelRegistrar` and `Predictor` are **not** assembler/disassembler knots — they are domain knots that own their I/O by design:
+
+- `ModelRegistrar` — Sink that receives already-serialised bytes from `ModelSerializer` and writes them to an `ObjectStore`, logging lineage. The I/O is intentional and atomic.
+- `Predictor` — Domain knot that loads a model and scores features. Owns its load path by design.
+
+Do not replace these with disassemblers.
 
 ---
 

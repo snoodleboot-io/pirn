@@ -65,6 +65,20 @@ pirn/domains/health/
 ├── protocols/                   ← FhirClient, PacsClient, OmopConnection, LabInstrumentConnection
 └── types/                       ← shared domain value types
 
+├── assemblers/
+│   ├── __init__.py
+│   ├── eeg_object_store_assembler.py         — bytes + metadata → SignalPayload (EEG)
+│   ├── meg_object_store_assembler.py         — bytes + metadata → SignalPayload (MEG)
+│   ├── dicom_pacs_assembler.py               — DICOMSeries + staging_dir → DICOMPayload
+│   ├── wsi_object_store_assembler.py         — bytes + slide_id + metadata → tuple[WSITilePayload, ...]
+│   └── fhir_patient_assembler.py             — list[dict] + metadata → tuple[ClinicalRecord, ...]
+├── disassemblers/
+│   ├── __init__.py
+│   ├── eeg_object_store_disassembler.py      — SignalPayload → bytes
+│   ├── meg_object_store_disassembler.py      — SignalPayload → bytes
+│   ├── dicom_object_store_disassembler.py    — DICOMPayload → bytes
+│   └── wsi_object_store_disassembler.py      — WSITilePayload → bytes
+
 pirn/domains/connectors/file_formats/
 ├── dicom_format.py              ← DicomFormat        (pirn[health])
 ├── fhir_json_format.py          ← FhirJsonFormat     (pirn[health])
@@ -76,6 +90,35 @@ pirn/domains/connectors/file_formats/
 └── ...                          ← BdfFormat, BrainVisionFormat, CdaXmlFormat,
                                     DefineXmlFormat, SdtmXptFormat, OpenSlideFormat, MzmlFormat
 ```
+
+---
+
+## Assembler and Disassembler knots
+
+Domain payloads enter and leave the health domain through assembler/disassembler knots. The ingestor pattern is abolished — no ingestor classes exist.
+
+### Assemblers
+
+| Knot | Input | Output |
+|------|-------|--------|
+| `EegObjectStoreAssembler` | `bytes` + signal metadata | `SignalPayload` |
+| `MegObjectStoreAssembler` | `bytes` + signal metadata | `SignalPayload` |
+| `DicomPacsAssembler` | `DICOMSeries` + `staging_dir` | `DICOMPayload` |
+| `WsiObjectStoreAssembler` | `bytes` + slide metadata | `tuple[WSITilePayload, ...]` |
+| `FhirPatientAssembler` | `list[dict]` + cohort metadata | `tuple[ClinicalRecord, ...]` |
+
+### Disassemblers
+
+| Knot | Input | Output |
+|------|-------|--------|
+| `EegObjectStoreDisassembler` | `SignalPayload` | `bytes` |
+| `MegObjectStoreDisassembler` | `SignalPayload` | `bytes` |
+| `DicomObjectStoreDisassembler` | `DICOMPayload` | `bytes` |
+| `WsiObjectStoreDisassembler` | `WSITilePayload` | `bytes` |
+
+All extend `Assembler` / `Disassembler` from `pirn.core`. None perform I/O — they transform already-materialised values.
+
+PHI note: PHI stripping happens at the **connector** layer (format decoders), not in assemblers. By the time bytes reach an assembler, PHI has already been redacted.
 
 ---
 

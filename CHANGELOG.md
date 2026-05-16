@@ -16,6 +16,42 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `pirn/domains/agents/tool_decorator.py` — `@tool` decorator converts any sync or async function into a `FunctionTool` (a `Tool` subclass). Name is taken from the function name, description from the first docstring paragraph, and `parameters_schema` from type annotations. Both `Optional[T]` and `list[T]` annotations are handled. Import via `from pirn.domains.agents import tool, FunctionTool`.
 - `pirn/core/knot.py` — Framework-level scalar auto-coercion: constructor parameters typed `Knot | T` (or `Union[Knot, T]`) now automatically wrap plain scalars in a `Parameter` node at construction time. The auto-created `Parameter` self-registers in the active `Tapestry` and participates in lineage tracking. Pydantic adapters for those parameters are built against `T` (not `Knot | T`) so validation works correctly at runtime.
 
+#### LoopSubTapestry — iterative, feedback-driven sub-pipelines
+
+`pirn/nodes/loop_sub_tapestry.py` — `LoopSubTapestry[S]` is a `SubTapestry` variant for pipelines where the number of steps is not known ahead of time: LLM agent loops, convergence-driven training, conversational turns. Implement two methods:
+
+- `step(state: S) -> tuple[Tapestry, S] | None` — plan the next iteration or terminate.
+- `fold(state: S, result: RunResult) -> S` — integrate an iteration's result into state.
+
+Each iteration is registered as a real `_IterationChainKnot` in the inner tapestry's extensible run, making every step visible in run history and the explorer's drill-down. Zero-iteration loops (where `step` returns `None` immediately) are handled without exception. See `docs/guides/agentic-loops.md`.
+
+#### Assembler / Disassembler pattern — Phases 1–5
+
+Codifies and implements the bridge between pirn's connector layer (raw bytes / rows) and domain knots (typed `Payload` subclasses).
+
+**Core:**
+- `pirn/core/assembler.py` — thin `Assembler(Knot)` marker base class.
+- `pirn/core/disassembler.py` — thin `Disassembler(Knot)` marker base class.
+- `docs/contributing/assembler-disassembler-pattern.md` — convention reference.
+
+**Signal domain:** `SignalObjectStoreAssembler`; `Signal/Spectrum/WaveletObjectStoreDisassembler`.  
+**Oil & Gas domain:** `Las/Segy/ScadaDatabase/MudLog/WellCompletionObjectStoreAssembler`; `Las/SegyObjectStoreDisassembler`.  
+**Health domain:** `Eeg/Meg/DicomPacs/WsiObjectStore/FhirPatientAssembler`; `Eeg/Meg/Dicom/WsiObjectStoreDisassembler`.  
+**ML domain:** `TrainedModelObjectStoreAssembler`; `TrainedModel/Dataset/DataSplit ObjectStoreDisassembler`, `EvalReportDatabaseDisassembler`.
+
+Eleven ingestor knots deleted (they collapsed I/O and assembly into one step, making them untestable and non-reusable): `AudioFileIngestor`, `LasFileIngester`, `SegyFileIngester`, `ScadaHistorianIngester`, `MudLoggingIngester`, `WellCompletionIngester`, `EEGRawIngestor`, `MegRawIngestor`, `DICOMIngestor`, `WsiTileExtractor`, `FhirPatientIngestor`.
+
+#### Optional-dependency skip guards — 159 test files
+
+All 159 unit test files that exercise optional-dependency code now wrap imports in `try/except ImportError as _e: raise unittest.SkipTest(...)` guards. Tests run against a minimal install (no optional deps) without collection errors; they run fully when deps are installed.
+
+#### lance 1.x API migration
+
+`pirn/domains/data/specialized/lance/` updated to the lance 1.x API:
+- `arrow_to_lance_sink.py`: `from lance.dataset import write_dataset` (replaces `lance.write_dataset`).
+- `lance_source.py`: `from lance.dataset import LanceDataset as _LanceDataset` (replaces `lance.dataset(path)` callable).
+- `pyproject.toml`: `lance` optional extra corrected from `pylance>=0.18` (VS Code extension) to `lance>=1.0` (LanceDB library).
+
 ### Changed
 
 #### Agent control knots renamed
@@ -30,6 +66,14 @@ The four knots in `pirn/domains/agents/control/` were renamed to remove the misl
 | `HandoffGate` | `HandoffCheck` |
 
 Module paths updated accordingly (`safety_gate.py` → `safety_check.py`, etc.). The `ReActLoop`-internal `ReactTerminationGate` is similarly renamed to `ReactTerminationCheck`.
+
+#### SubTapestry contract — `process()` returns `Knot`, not `RunResult`
+
+`SubTapestry.process()` now returns the terminal `Knot` of the inner graph. The base class owns the `Tapestry()` context and calls `_run_inner` — subclasses must not open a `Tapestry()` context or call `_run_inner` directly. All existing SubTapestry subclasses (~90) have been migrated. The old contract raised `SubTapestryError` on inner failure; the new contract surfaces `Err` through the standard result chain.
+
+Two new hooks on `SubTapestry` support specialised subclasses:
+- `_extensible_inner_run: ClassVar[bool]` — when `True`, skips sink-registration validation and runs the inner tapestry in extensible mode.
+- `_resolve_output_key(sink) -> str` — override to select which inner knot's output is surfaced as this SubTapestry's result.
 
 ---
 

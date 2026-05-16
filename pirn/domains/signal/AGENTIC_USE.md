@@ -11,7 +11,7 @@ Every knot in this domain consumes a **`SignalFrame`** and emits either another 
 Sub-areas and their roles in a typical DSP pipeline:
 
 ```
-ingest / decode (connectors)
+Raw audio bytes arrive via an `ObjectStoreReadSource` connector and enter the domain through `SignalObjectStoreAssembler`.
     ↓
 resampling          — normalise sample rate before any processing
     ↓
@@ -64,8 +64,48 @@ pirn/domains/signal/
 ├── separation/                  — ICA, PCA, NMF, SSA, sparse coding, dictionary learning
 ├── statistical/                 — MUSIC, ESPRIT, Prony, EKF, UKF, particle filter
 ├── nonlinear/                   — entropy, Lyapunov, Hurst, correlation dimension, recurrence
-└── audio/                       — librosa-backed MIR knots (MFCC, pitch, beat, onset)
+├── audio/                       — librosa-backed MIR knots (MFCC, pitch, beat, onset)
+├── assemblers/
+│   ├── __init__.py
+│   └── signal_object_store_assembler.py  — bytes + metadata → SignalPayload
+└── disassemblers/
+    ├── __init__.py
+    ├── signal_object_store_disassembler.py  — SignalPayload → WAV bytes
+    ├── spectrum_object_store_disassembler.py — SpectrumPayload → npz bytes
+    └── wavelet_object_store_disassembler.py  — WaveletPayload → npz bytes
 ```
+
+---
+
+## Assembler and Disassembler knots
+
+Raw audio bytes from an object store cross the domain boundary through two knots:
+
+### SignalObjectStoreAssembler
+
+Converts `bytes` (any supported audio format) into a `SignalPayload`. Accepts `body: bytes`, `signal_id: str`, optional `sample_rate_hz: float | None` and `channel_count: int | None` overrides.
+
+```python
+from pirn.domains.signal.assemblers.signal_object_store_assembler import SignalObjectStoreAssembler
+
+with Tapestry() as t:
+    raw = ObjectStoreReadSource(bucket="audio", key="track.wav", _config=KnotConfig(id="raw"))
+    payload = SignalObjectStoreAssembler(body=raw, signal_id="track-001", _config=KnotConfig(id="signal"))
+```
+
+Lives in `pirn/domains/signal/assemblers/signal_object_store_assembler.py`. Extends `Assembler`.
+
+### Disassemblers
+
+Three disassemblers convert domain output frames back to bytes for an object store sink:
+
+| Knot | Input | Output | File |
+|------|-------|--------|------|
+| `SignalObjectStoreDisassembler` | `SignalPayload` | WAV bytes | `disassemblers/signal_object_store_disassembler.py` |
+| `SpectrumObjectStoreDisassembler` | `SpectrumPayload` | npz bytes | `disassemblers/spectrum_object_store_disassembler.py` |
+| `WaveletObjectStoreDisassembler` | `WaveletPayload` | npz bytes | `disassemblers/wavelet_object_store_disassembler.py` |
+
+All extend `Disassembler`. None perform I/O — they receive materialised payloads and emit bytes for a downstream connector sink.
 
 ---
 

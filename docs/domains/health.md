@@ -382,7 +382,7 @@ Clinical data knots for EHR and CDS workflows.
 
 | Knot | Description |
 |---|---|
-| `FhirPatientIngestor` | Decodes FHIR Bundles and emits sanitised patient records |
+| `FhirPatientAssembler` | Assembles sanitised `ClinicalRecord` tuples from `list[dict]` + metadata (replaces removed `FhirPatientIngestor`) |
 | `Hl7v2MessageParser` | Parses HL7 v2 messages from bytes |
 | `PhiRedactor` | Explicit pass-through redaction knot for clinical record streams |
 | `PatientCohortBuilder` | Filters a record stream into a named cohort by inclusion criteria |
@@ -409,7 +409,7 @@ MRI acquisition and analysis knots.
 
 | Knot | Description |
 |---|---|
-| `DicomIngestor` | Reads DICOM series from a directory and emits volume records |
+| `DicomPacsAssembler` | Assembles a `DICOMPayload` from a `DICOMSeries` + staging dir (replaces removed `DicomIngestor`) |
 | `NiftiConverter` | Converts DICOM volumes to NIfTI format |
 | `BiasFieldCorrector` | N4 bias field correction via ANTs/SimpleITK |
 | `BrainMaskExtractor` | Skull-stripping and brain mask extraction |
@@ -432,8 +432,8 @@ EEG and MEG processing knots backed by `mne`.
 
 | Knot | Description |
 |---|---|
-| `EegRawIngestor` | Loads EDF/EDF+/BDF/BrainVision files into MNE Raw objects |
-| `MegRawIngestor` | Loads MEG data (FIF, CTF) into MNE Raw objects |
+| `EegObjectStoreAssembler` | Assembles a `SignalPayload` from `bytes` + metadata (replaces removed `EEGRawIngestor`) |
+| `MegObjectStoreAssembler` | Assembles a `SignalPayload` from `bytes` + metadata (replaces removed `MegRawIngestor`) |
 | `BandpassFilter` | Applies a bandpass filter to raw data |
 | `NotchFilter` | Notch filter for power-line noise removal |
 | `ArtifactRemover` | ICA-based artifact rejection |
@@ -482,7 +482,7 @@ Digital pathology knots for whole-slide image analysis.
 
 | Knot | Description |
 |---|---|
-| `WsiTileExtractor` | Tiles whole-slide images into fixed-size patches |
+| `WsiObjectStoreAssembler` | Assembles a `tuple[WSITilePayload, ...]` from `bytes` + metadata (replaces removed `WsiTileExtractor`) |
 | `TissueSegmenter` | Identifies tissue regions and discards background tiles |
 | `CellDetector` | Nuclear/cell detection from H&E tiles |
 | `MitosisCounter` | Counts mitotic figures in a tile set |
@@ -531,6 +531,33 @@ Connection interfaces for healthcare system backends.
 | `PacsClient` | DICOM PACS client (C-FIND / C-MOVE) |
 | `OmopConnection` | OMOP CDM database connection |
 | `LabInstrumentConnection` | LIS/HL7 lab instrument interface |
+
+---
+
+## Connector boundaries
+
+Domain payloads enter and leave the health domain through assembler/disassembler knots. The ingestor pattern is abolished.
+
+**Assemblers** (raw → Payload, no I/O):
+
+| Assembler | Input | Output |
+|-----------|-------|--------|
+| `EegObjectStoreAssembler` | `bytes` + metadata | `SignalPayload` |
+| `MegObjectStoreAssembler` | `bytes` + metadata | `SignalPayload` |
+| `DicomPacsAssembler` | `DICOMSeries` + staging dir | `DICOMPayload` |
+| `WsiObjectStoreAssembler` | `bytes` + metadata | `tuple[WSITilePayload, ...]` |
+| `FhirPatientAssembler` | `list[dict]` + metadata | `tuple[ClinicalRecord, ...]` |
+
+**Disassemblers** (Payload → raw, no I/O):
+
+| Disassembler | Input | Output |
+|--------------|-------|--------|
+| `EegObjectStoreDisassembler` | `SignalPayload` | `bytes` |
+| `MegObjectStoreDisassembler` | `SignalPayload` | `bytes` |
+| `DicomObjectStoreDisassembler` | `DICOMPayload` | `bytes` |
+| `WsiObjectStoreDisassembler` | `WSITilePayload` | `bytes` |
+
+PHI stripping happens at the connector layer (format decoders), before bytes reach an assembler.
 
 ---
 

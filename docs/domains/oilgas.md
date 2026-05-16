@@ -171,7 +171,7 @@ Seismic acquisition processing knots.
 
 | Knot | Description |
 |---|---|
-| `SegyFileIngester` | Reads SEG-Y files and emits trace records |
+| `SegyFileIngester` | ~~Reads SEG-Y files and emits trace records~~ **Removed** — replaced by `SegyObjectStoreAssembler`. |
 | `SegyHeaderParser` | Parses and validates SEG-Y binary and trace headers |
 | `CmpGatherExtractor` | Extracts Common-Midpoint (CMP) gathers from a sorted SEG-Y |
 | `NmoCorrection` | Normal-moveout (NMO) correction |
@@ -193,7 +193,7 @@ Well log and petrophysics knots.
 
 | Knot | Description |
 |---|---|
-| `LasFileIngester` | Reads LAS files and emits curve records |
+| `LasFileIngester` | ~~Reads LAS files and emits curve records~~ **Removed** — replaced by `LasObjectStoreAssembler`. |
 | `LasCurveValidator` | Validates LAS curve definitions against a reference dictionary |
 | `DeviationSurveyProcessor` | Computes 3D well path from minimum-curvature deviation survey |
 | `WellPathCalculator` | Calculates MD/TVD/THL/NS/EW from survey records |
@@ -206,7 +206,7 @@ Well log and petrophysics knots.
 | `PetrophysicalEvaluator` | Full petrophysical evaluation pipeline |
 | `MudWeightCalculator` | Equivalent circulating density and mud weight optimisation |
 | `CasingDesignEvaluator` | Casing seat selection and design pressure checks |
-| `WellCompletionIngester` | Ingests well completion and perforation records |
+| `WellCompletionIngester` | ~~Ingests well completion and perforation records~~ **Removed** — replaced by `WellCompletionObjectStoreAssembler`. |
 | `DirectionalDrillingPlanner` | Anti-collision and directional plan evaluation |
 
 ---
@@ -235,7 +235,7 @@ Production monitoring and optimisation knots.
 
 | Knot | Description |
 |---|---|
-| `ScadaHistorianIngester` | Ingests time-series data from SCADA/historian systems |
+| `ScadaHistorianIngester` | ~~Ingests time-series data from SCADA/historian systems~~ **Removed** — replaced by `ScadaDatabaseAssembler`. |
 | `ProductionTestValidator` | Validates well test data against regulatory constraints |
 | `GasOilRatioCalculator` | Computes GOR and condensate-gas ratio from production data |
 | `WaterCutTracker` | Tracks water cut trends and breakthrough detection |
@@ -299,6 +299,24 @@ Connection interfaces for oilfield data systems.
 | `HistorianConnection` | SCADA / OPC-DA historian connection interface |
 | `SeismicVolumeStore` | Seismic volume storage interface (SEGY-SAP / in-house stores) |
 | `WellDataService` | Well data service connection (OSDU / PPDM REST API) |
+
+---
+
+## Connector boundaries
+
+All domain payload ingestion uses assembler knots — the ingestor pattern is abolished.
+
+| Assembler | Input | Output |
+|-----------|-------|--------|
+| `LasObjectStoreAssembler` | `bytes` from object store | `LASPayload` |
+| `SegyObjectStoreAssembler` | `bytes` from object store | `SegyVolume` |
+| `ScadaDatabaseAssembler` | `list[tuple]` from database | `ScadaPayload` |
+| `MudLogAssembler` | `bytes` | `dict[str, Any]` |
+| `WellCompletionObjectStoreAssembler` | `bytes` | `DrillingParameters` |
+| `LasObjectStoreDisassembler` | `LASPayload` | `bytes` |
+| `SegyObjectStoreDisassembler` | `SegyVolume` | `bytes` |
+
+All are in `pirn/domains/oilgas/assemblers/` and `pirn/domains/oilgas/disassemblers/`.
 
 ---
 

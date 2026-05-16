@@ -20,7 +20,7 @@ workflows   — Pre-built SubTapestry pipelines that compose the sub-domains abo
 
 File format connectors live in `pirn/domains/connectors/file_formats/` (shared with other domains) and are wired into oilgas knots via their typed record dicts. Formats carry raw data to the knot boundary; knots own all domain logic.
 
-Composition pattern: `FileFormat.decode(bytes)` → ingest knot (`SegyFileIngester` / `LasFileIngester`) → processing knots → optional `SubTapestry` workflow → `Tapestry` root.
+Composition pattern: connector (`ObjectStoreReadSource`) → assembler (`SegyObjectStoreAssembler` / `LasObjectStoreAssembler`) → processing knots → optional `SubTapestry` workflow → `Tapestry` root. The ingestor pattern is abolished — assemblers receive already-materialised bytes and perform no I/O.
 
 ---
 
@@ -49,7 +49,6 @@ Additional opt-in dependencies:
 pirn/domains/oilgas/
 ├── __init__.py                        # empty public surface; import sub-packages directly
 ├── seismic/
-│   ├── segy_file_ingester.py          # entry point: file path → SegyVolume ref
 │   ├── segy_header_parser.py          # validates binary + trace headers
 │   ├── cmp_gather_extractor.py        # CMP gather extraction (sorted SEG-Y required)
 │   ├── nmo_correction.py
@@ -63,7 +62,6 @@ pirn/domains/oilgas/
 │   ├── frequency_decomposer.py        # CWT / STFT spectral decomposition
 │   └── subvolume_extractor.py
 ├── well/
-│   ├── las_file_ingester.py           # entry point: file path + curves → LASFile ref
 │   ├── las_curve_validator.py
 │   ├── deviation_survey_processor.py  # minimum-curvature 3D path
 │   ├── well_path_calculator.py        # MD/TVD/THL/NS/EW
@@ -76,10 +74,8 @@ pirn/domains/oilgas/
 │   ├── petrophysical_evaluator.py     # full evaluation pipeline
 │   ├── mud_weight_calculator.py
 │   ├── casing_design_evaluator.py
-│   ├── well_completion_ingester.py
 │   └── directional_drilling_planner.py
 ├── production/
-│   ├── scada_historian_ingester.py    # entry point: HistorianConnection + tag
 │   ├── production_test_validator.py
 │   ├── gas_oil_ratio_calculator.py
 │   ├── water_cut_tracker.py
@@ -121,6 +117,17 @@ pirn/domains/oilgas/
 │   ├── historian_connection.py        # SCADA / OPC-DA interface
 │   ├── seismic_volume_store.py        # SEGY-SAP / in-house stores
 │   └── well_data_service.py          # OSDU / PPDM REST API
+├── assemblers/
+│   ├── __init__.py
+│   ├── las_object_store_assembler.py         — bytes → LASPayload via lasio
+│   ├── segy_object_store_assembler.py        — bytes → SegyVolume via segyio
+│   ├── scada_database_assembler.py           — list[tuple] → ScadaPayload
+│   ├── mud_log_assembler.py                  — bytes → dict[str, Any]
+│   └── well_completion_object_store_assembler.py — bytes → DrillingParameters
+├── disassemblers/
+│   ├── __init__.py
+│   ├── las_object_store_disassembler.py      — LASPayload → bytes via lasio
+│   └── segy_object_store_disassembler.py     — SegyVolume → bytes via segyio
 └── types/
     ├── segy_trace.py
     ├── segy_volume.py
@@ -144,6 +151,42 @@ pirn/domains/connectors/file_formats/
 ├── prodml_format.py
 ├── resqml_format.py
 └── segd_format.py
+```
+
+---
+
+## Assembler and Disassembler knots
+
+Raw bytes and database rows cross the domain boundary through assembler knots. No ingestor classes exist — the ingestor pattern is abolished.
+
+### Assemblers
+
+| Knot | Input | Output | Library |
+|------|-------|--------|---------|
+| `LasObjectStoreAssembler` | `bytes` + `well_id` | `LASPayload` | lasio |
+| `SegyObjectStoreAssembler` | `bytes` + `volume_id` | `SegyVolume` | segyio |
+| `ScadaDatabaseAssembler` | `list[tuple]` + tag/interval metadata | `ScadaPayload` | stdlib |
+| `MudLogAssembler` | `bytes` | `dict[str, Any]` | stdlib |
+| `WellCompletionObjectStoreAssembler` | `bytes` + `well_id` | `DrillingParameters` | stdlib |
+
+### Disassemblers
+
+| Knot | Input | Output | Library |
+|------|-------|--------|---------|
+| `LasObjectStoreDisassembler` | `LASPayload` | `bytes` | lasio |
+| `SegyObjectStoreDisassembler` | `SegyVolume` | `bytes` | segyio |
+
+All assemblers and disassemblers extend `Assembler` / `Disassembler` from `pirn.core`. None perform I/O.
+
+Example pipeline (LAS):
+
+```python
+from pirn.domains.oilgas.assemblers.las_object_store_assembler import LasObjectStoreAssembler
+
+with Tapestry() as t:
+    raw = ObjectStoreReadSource(bucket="wells", key="GR-01.las", _config=KnotConfig(id="raw"))
+    payload = LasObjectStoreAssembler(body=raw, well_id="GR-01", _config=KnotConfig(id="las"))
+    PorosityKnot(payload=payload, _config=KnotConfig(id="porosity"))
 ```
 
 ---
