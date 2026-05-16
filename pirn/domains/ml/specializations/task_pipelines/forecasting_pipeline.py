@@ -10,6 +10,9 @@ Algorithm:
        in an inner Tapestry.
     4. Run via _run_inner() and return the EvalMetadata.
 
+Math:
+    Horizon-step-ahead forecast: y_hat_{t+h} = f(x_t; theta)  for h in 1..horizon
+    MAPE = (100/n) * sum_i |y_i - y_hat_i| / |y_i|
 
 References:
     N/A — pirn-native implementation.

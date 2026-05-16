@@ -10,6 +10,14 @@ Algorithm:
     3. Wire Trainer + Evaluator in an inner Tapestry.
     4. Run via _run_inner() and return model, eval report, and metadata.
 
+Math:
+    Trainable parameters: theta_head = all parameters excluding the first
+    frozen_layers frozen layers.
+
+    Fine-tuning gradient update (SGD example):
+        theta_head <- theta_head - lr * grad_L(theta_head)
+
+    Frozen layers have zero gradient contribution: grad_L(theta_frozen) = 0.
 
 References:
     N/A — pirn-native implementation.

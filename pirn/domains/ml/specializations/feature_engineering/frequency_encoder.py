@@ -12,6 +12,9 @@ Algorithm:
     3. Apply frequency encoding suffix tag to each partition.
     4. Return updated SplitManifest.
 
+Math:
+    freq(c) = count(c in train) / n_train
+    Unseen category c' (not in train): freq(c') = default_frequency
 
 References:
     N/A — pirn-native implementation.

@@ -8,6 +8,14 @@ Algorithm:
        component identification requires expert labels not available here).
     5. Return a SignalPayload with reconstructed data.
 
+Math:
+    ICA generative model and reconstruction:
+
+    X = A * S,  X_hat = A * W * X
+
+    where A is the mixing matrix, W = A^{-1} is the unmixing matrix,
+    and S are the independent source components.
+
 References:
     - Hyvarinen & Oja (2000) Independent Component Analysis.
     - sklearn FastICA: https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.FastICA.html

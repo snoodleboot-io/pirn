@@ -11,6 +11,12 @@ Algorithm:
     3. For each (column, period) pair, append sin and cos feature names.
     4. Return updated SplitManifest.
 
+Math:
+    For column x and period P:
+        x_sin_P = sin(2 * pi * x / P)
+        x_cos_P = cos(2 * pi * x / P)
+
+    Typical periods: 24 (hour-of-day), 7 (day-of-week), 12 (month-of-year).
 
 References:
     N/A — pirn-native implementation.

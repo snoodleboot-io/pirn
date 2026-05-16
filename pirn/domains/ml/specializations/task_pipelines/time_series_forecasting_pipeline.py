@@ -9,6 +9,10 @@ Algorithm:
        in an inner Tapestry.
     4. Run via _run_inner() and return the EvalMetadata.
 
+Math:
+    MAPE = (100/n) * sum_i |y_i - y_hat_i| / |y_i|
+    sMAPE = (100/n) * sum_i 2*|y_i - y_hat_i| / (|y_i| + |y_hat_i|)
+    MASE = mean|y_t - y_hat_t| / mean|y_t - y_{t-m}|  (m = seasonal period)
 
 References:
     N/A — pirn-native implementation.

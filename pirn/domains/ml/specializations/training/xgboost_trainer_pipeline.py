@@ -15,6 +15,12 @@ Algorithm:
        inner Tapestry.
     4. Run via _run_inner() and return model_id, eval_report, serialized_size.
 
+Math:
+    XGBoost additive model: F_T(x) = sum_{t=1}^{T} f_t(x)
+    Regularised objective:  L = sum_i l(y_i, F_T(x_i)) + sum_t Omega(f_t)
+    where Omega(f) = gamma*|leaves| + 0.5*lambda*||w||^2
+
+    serialized_size = len(model.save_raw())  [bytes, xgboost-json format]
 
 References:
     N/A — pirn-native implementation.

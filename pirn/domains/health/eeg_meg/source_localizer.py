@@ -6,6 +6,13 @@ Algorithm:
     3. Compute per-source activation using a minimum-norm-style estimate.
     4. Return a mapping of source label to estimated activation.
 
+Math:
+    Minimum-norm estimate (simplified):
+
+    J = L^T * (L * L^T + lambda * I)^{-1} * M
+
+    where M is the sensor measurement vector, L is the lead-field matrix,
+    and lambda is a regularisation constant.
 
 References:
     - MNE inverse solutions: https://mne.tools/stable/auto_tutorials/inverse/

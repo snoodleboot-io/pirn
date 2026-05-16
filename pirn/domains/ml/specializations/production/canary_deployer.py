@@ -9,6 +9,11 @@ Algorithm:
     3. Compute deterministic scores for both models.
     4. Return comparison report with recommendation.
 
+Math:
+    Traffic routing: canary_rows = floor(canary_fraction * test_rows)
+                     control_rows = test_rows - canary_rows
+
+    Recommendation: "promote" if candidate_score >= current_score, else "rollback".
 
 References:
     N/A — pirn-native implementation.

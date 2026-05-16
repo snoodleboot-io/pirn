@@ -9,6 +9,12 @@ Algorithm:
        in an inner Tapestry.
     4. Run via _run_inner() and return the EvalMetadata.
 
+Math:
+    PCA: find W = [w_1, ..., w_k] that maximises variance:
+        w_i = argmax_{||w||=1} w^T Sigma w  subject to w perp w_1..w_{i-1}
+        Sigma = (1/n) X^T X  (sample covariance)
+
+    Explained variance ratio for component i: lambda_i / sum_j lambda_j
 
 References:
     N/A — pirn-native implementation.

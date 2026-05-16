@@ -11,6 +11,10 @@ Algorithm:
     3. Remove the original text column and append ngram feature names.
     4. Return updated SplitManifest.
 
+Math:
+    N-gram count vector: x_j = count of n-gram j in document d
+    TF-IDF weighting (optional): tfidf_j = x_j * log(N / df_j)
+    Vocabulary capped at max_features terms by corpus frequency.
 
 References:
     N/A — pirn-native implementation.

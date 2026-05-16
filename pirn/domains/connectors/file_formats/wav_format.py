@@ -28,7 +28,20 @@ from pirn.domains.connectors.file_formats.batch_file_format import (
 
 
 class WavFormat(BatchFileFormat):
-    """Whole-file WAV encoder/decoder backed by stdlib ``wave``."""
+    """Whole-file WAV encoder/decoder backed by stdlib ``wave``.
+
+    One record is emitted per file::
+
+        {
+            "sample_rate":  int,
+            "n_channels":   int,
+            "sampwidth":    int,    # bytes per sample
+            "n_frames":     int,
+            "frames":       bytes,  # raw interleaved PCM frame data
+        }
+
+    Encoding reconstructs the WAV file from the same shape.
+    """
 
     @property
     def name(self) -> str:

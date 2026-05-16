@@ -9,6 +9,12 @@ Algorithm:
        in an inner Tapestry.
     4. Run via _run_inner() and return the EvalMetadata.
 
+Math:
+    Silhouette score for sample i:
+        s(i) = (b(i) - a(i)) / max(a(i), b(i))
+        where a(i) = mean intra-cluster distance, b(i) = mean nearest-cluster distance.
+
+    KMeans objective: minimize sum_{k=1}^{K} sum_{x in C_k} ||x - mu_k||^2
 
 References:
     N/A — pirn-native implementation.

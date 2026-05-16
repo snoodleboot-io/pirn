@@ -11,6 +11,13 @@ Algorithm:
     3. Remove the original text column and append tfidf feature names.
     4. Return updated SplitManifest.
 
+Math:
+    TF-IDF score for term t in document d:
+        tf(t, d)  = count(t in d) / |d|
+        idf(t)    = log((1 + N) / (1 + df(t))) + 1   (smooth IDF)
+        tfidf(t, d) = tf(t, d) * idf(t)
+
+    Vocabulary capped at max_features terms ranked by corpus-wide tf-idf sum.
 
 References:
     N/A — pirn-native implementation.

@@ -13,6 +13,11 @@ Algorithm:
     3. Compute per-column drift scores.
     4. Return scores, drift_detected, and threshold.
 
+Math:
+    Per-column drift score (deterministic stub):
+        score(col) = sha256(baseline_rows || current_rows || col)[0:8] / 2^64
+
+    Drift detected: any(score(col) > threshold for col in columns)
 
 References:
     N/A — pirn-native implementation.

@@ -10,6 +10,9 @@ Algorithm:
     4. If metric < threshold, retrain via a second inner Tapestry.
     5. Return triggered status and new_model_id.
 
+Math:
+    Trigger condition: triggered = (live_metric < threshold)
+    where live_metric = eval(model, split)[metric]
 
 References:
     N/A — pirn-native implementation.

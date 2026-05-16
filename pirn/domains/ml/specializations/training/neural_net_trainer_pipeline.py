@@ -14,6 +14,12 @@ Algorithm:
        inner Tapestry.
     4. Run via _run_inner() and return model_id, eval_report, serialized_size.
 
+Math:
+    Mini-batch gradient descent (each epoch over B batches):
+        theta <- theta - lr * (1/|B|) * sum_{x in B} grad_L(theta; x)
+
+    Cross-entropy loss (classification):
+        L = -(1/n) * sum_i sum_c y_{i,c} * log(p_{i,c})
 
 References:
     N/A — pirn-native implementation.

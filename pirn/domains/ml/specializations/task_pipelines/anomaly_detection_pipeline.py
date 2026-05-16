@@ -10,6 +10,13 @@ Algorithm:
        in an inner Tapestry.
     4. Run via _run_inner() and return the EvalMetadata.
 
+Math:
+    Isolation Forest anomaly score:
+        s(x, n) = 2^(-E[h(x)] / c(n))
+        where h(x) = path length to isolate x, c(n) = 2*H(n-1) - 2*(n-1)/n.
+
+    Anomaly threshold at contamination fraction p:
+        threshold = percentile(scores, 100*(1-p))
 
 References:
     N/A — pirn-native implementation.

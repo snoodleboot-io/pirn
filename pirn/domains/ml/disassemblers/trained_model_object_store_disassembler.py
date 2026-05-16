@@ -10,6 +10,11 @@ Algorithm:
     4. Return the buffer contents as ``bytes``.
     5. Serialisation runs on a thread to avoid blocking the event loop.
 
+Math:
+    No numeric transformation.  Identity mapping on the estimator object:
+        bytes = joblib.dump(estimator)  ≡  serialise(estimator)
+    Output size: |bytes| = f(estimator complexity); no closed-form bound.
+
 References:
     - Joblib contributors (2008-). *joblib*. https://joblib.readthedocs.io/
 """

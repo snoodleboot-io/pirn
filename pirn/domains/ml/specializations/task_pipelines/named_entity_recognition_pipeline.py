@@ -9,6 +9,11 @@ Algorithm:
        inner Tapestry.
     4. Run via _run_inner() and return the EvalMetadata.
 
+Math:
+    CRF sequence labelling: P(y | x) = (1/Z(x)) * exp(sum_{t,k} lambda_k * f_k(y_t, y_{t-1}, x, t))
+    Entity-level F1 (micro):
+        F1 = 2 * P * R / (P + R)
+        where P = TP / (TP + FP), R = TP / (TP + FN)  over all entity spans.
 
 References:
     N/A — pirn-native implementation.

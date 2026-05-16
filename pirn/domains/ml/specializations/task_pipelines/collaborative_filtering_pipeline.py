@@ -9,6 +9,12 @@ Algorithm:
        in an inner Tapestry.
     4. Run via _run_inner() and return the EvalMetadata.
 
+Math:
+    ALS matrix factorisation: minimise
+        sum_{(u,i) in R} (r_ui - p_u^T q_i)^2 + lambda*(||p_u||^2 + ||q_i||^2)
+    Alternating updates: fix Q, solve for P; then fix P, solve for Q.
+
+    SVD low-rank approximation: R ≈ U Sigma V^T  (rank-k truncated SVD)
 
 References:
     N/A — pirn-native implementation.

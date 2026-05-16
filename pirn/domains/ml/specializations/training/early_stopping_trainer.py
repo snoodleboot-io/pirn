@@ -11,6 +11,12 @@ Algorithm:
     3. Wire Trainer + Evaluator in an inner Tapestry.
     4. Run via _run_inner() and return model, eval report, and epoch info.
 
+Math:
+    Stop condition: halt at epoch t if no improvement over patience consecutive epochs.
+        best_score = max(metric(t) for t in 0..T)
+        stopped_epoch = first t where (t - argmax(best_score)) >= patience
+
+    Effective training budget: stopped_epoch <= max_epochs
 
 References:
     N/A — pirn-native implementation.

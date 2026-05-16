@@ -10,6 +10,11 @@ Algorithm:
     4. Return the buffer contents as ``bytes``.
     5. Serialisation runs on a thread to avoid blocking the event loop.
 
+Math:
+    No numeric transformation.  The feature matrix is stored verbatim:
+        bytes = np.savez({feature_matrix: X, target_vector: y})
+    where X has shape (n_samples, n_features) and y has shape (n_samples,).
+
 References:
     - Harris, C.R. et al. (2020). "Array programming with NumPy." *Nature*, 585, 357-362.
 """

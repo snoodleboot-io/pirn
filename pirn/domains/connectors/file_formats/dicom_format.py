@@ -54,6 +54,19 @@ class DicomFormat(BatchFileFormat):
     PHI fields (``PatientName``, ``PatientBirthDate``, ``PatientAddress``
     and known synonyms) are stripped from the emitted ``metadata``
     mapping. ``PatientID`` is hashed with SHA-256 before emission.
+
+    One record is emitted per file::
+
+        {
+            "sop_instance_uid":   str,
+            "patient_id_hash":    str,    # SHA-256 hex digest of PatientID
+            "study_uid":          str,
+            "series_uid":         str,
+            "modality":           str,
+            "pixel_array_shape":  tuple,
+            "pixel_data":         bytes,  # raw PixelData bytes
+            "metadata":           Mapping,  # sanitised non-PHI DICOM tags
+        }
     """
 
     # Keywords that are forbidden from appearing in the emitted metadata

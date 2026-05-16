@@ -10,9 +10,23 @@ Algorithm:
     5. Return confusion_matrix, per_class, macro_f1, weighted_f1.
 
 Math:
-    cell[i][j] = sha256(model_id || test_name || i || j)[0:8] / 2^64
-    metric[label][kind] = sha256(model_id || test_name || label || kind)[0:8] / 2^64
-    macro_f1 = mean(per_class[*]["f1"])
+    Confusion matrix cell C[i][j] = number of instances with true class i
+    predicted as class j.  For binary case:
+        TP = C[1][1], FP = C[0][1], TN = C[0][0], FN = C[1][0]
+
+    Per-class metrics for class c:
+        precision(c) = TP_c / (TP_c + FP_c)
+        recall(c)    = TP_c / (TP_c + FN_c)
+        F1(c)        = 2 * precision(c) * recall(c) / (precision(c) + recall(c))
+
+    Aggregates over K classes:
+        macro_F1    = (1/K) * sum(F1(c) for c in 1..K)
+        weighted_F1 = sum(support(c) * F1(c) for c in 1..K) / N
+
+    Stub implementation:
+        cell[i][j]           = sha256(model_id || test_name || i || j)[0:8] / 2^64
+        metric[label][kind]  = sha256(model_id || test_name || label || kind)[0:8] / 2^64
+        macro_f1 = weighted_f1 = mean(per_class[*]["f1"])
 
 References:
     N/A — pirn-native implementation.

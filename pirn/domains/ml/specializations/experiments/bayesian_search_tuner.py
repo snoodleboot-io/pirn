@@ -13,6 +13,12 @@ Algorithm:
     3. Wire HyperparamSearch (bayesian) + Evaluator in an inner Tapestry.
     4. Run via _run_inner() and return best_model and eval_report.
 
+Math:
+    Gaussian Process surrogate: f(theta) ~ GP(mu(theta), k(theta, theta'))
+    Acquisition function (Expected Improvement):
+        EI(theta) = E[max(0, f(theta) - f*)]  where f* is the current best.
+
+    Best config: theta* = argmax_{theta} EI(theta)  over n_trials evaluations.
 
 References:
     N/A — pirn-native implementation.

@@ -7,6 +7,13 @@ Algorithm:
        PLV = |mean(exp(i * phase_diff))|
     4. Return a symmetric nested mapping of channel-to-channel PLV scores.
 
+Math:
+    Phase Locking Value between channels x and y:
+
+    PLV(x, y) = |1/N * sum_{t=1}^{N} exp(i * (phi_x(t) - phi_y(t)))|
+
+    where phi_x(t) and phi_y(t) are the instantaneous phases obtained via the Hilbert transform.
+
 References:
     - Bastos & Schoffelen (2016) A Tutorial Review of Functional Connectivity Analysis Methods.
     - Lachaux et al. (1999) Measuring Phase Synchrony in Brain Signals.

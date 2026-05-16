@@ -8,6 +8,14 @@ Algorithm:
     3. Compute PSI and KS statistics for each feature.
     4. Return drifted features and drift_detected flag.
 
+Math:
+    Population Stability Index (PSI) for feature f:
+        PSI(f) = sum_b [(actual_b% - expected_b%) * ln(actual_b% / expected_b%)]
+    Drift flagged when PSI(f) >= psi_threshold (common threshold: 0.2).
+
+    Kolmogorov-Smirnov statistic:
+        KS(f) = max_x |F_ref(x) - F_cur(x)|
+    where F_ref and F_cur are empirical CDFs of the reference and current windows.
 
 References:
     N/A — pirn-native implementation.

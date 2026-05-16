@@ -26,7 +26,21 @@ from pirn.domains.connectors.file_formats.edf_format import EdfFormat
 
 
 class EdfPlusFormat(EdfFormat):
-    """EDF+ encoder/decoder — adds TAL annotation handling to EdfFormat."""
+    """EDF+ encoder/decoder — adds TAL annotation handling to EdfFormat.
+
+    Inherits the per-channel signal record shape from ``EdfFormat`` and
+    appends one additional annotation record when TAL data is present::
+
+        {
+            "_edfplus_annotations": [
+                {"onset": float, "duration": float, "text": str},
+                ...
+            ]
+        }
+
+    On encode, if that record is present in the input stream the
+    annotations are written back into the EDF+ file.
+    """
 
     # EDF+ files use the same .edf extension; the "+" is declared in
     # the header, not the filename.

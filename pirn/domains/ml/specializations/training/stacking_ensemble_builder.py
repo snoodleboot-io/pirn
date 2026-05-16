@@ -12,6 +12,10 @@ Algorithm:
        inner Tapestry.
     4. Run via _run_inner() and return ensemble model and eval report.
 
+Math:
+    Level-0 (base models): y_hat_i = f_i(x)  for i in 1..M
+    Level-1 (meta-learner input): Z = [y_hat_1, ..., y_hat_M]  (OOF predictions)
+    Meta prediction: y_hat_meta = g(Z; theta_meta)
 
 References:
     N/A — pirn-native implementation.

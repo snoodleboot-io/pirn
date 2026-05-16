@@ -8,6 +8,12 @@ Algorithm:
     3. Append the ``imputed_<method>`` suffix to each partition's DatasetManifest name.
     4. Return the renamed SplitManifest.
 
+Math:
+    mean imputation:    x_fill = (1/n) * sum(x_i for non-missing x_i)
+    median imputation:  x_fill = middle value of sorted non-missing x_i
+    mode imputation:    x_fill = argmax_v count(x_i == v) over non-missing x_i
+    constant:           x_fill = constant_value (user-supplied scalar)
+    Missing entry j is replaced: x_j = x_fill
 
 References:
     N/A — pirn-native implementation.

@@ -12,6 +12,13 @@ Algorithm:
     3. Append rolling statistic feature names for each (column, window, stat).
     4. Return updated SplitManifest.
 
+Math:
+    Rolling mean:   roll_mean(t, w) = (1/w) * sum_{i=0}^{w-1} x[t - i]
+    Rolling std:    roll_std(t, w)  = sqrt((1/w) * sum_{i=0}^{w-1} (x[t-i] - roll_mean)^2)
+    Rolling min:    roll_min(t, w)  = min(x[t], x[t-1], ..., x[t-w+1])
+    Rolling max:    roll_max(t, w)  = max(x[t], x[t-1], ..., x[t-w+1])
+
+    Total new features: len(columns) * len(windows) * len(statistics).
 
 References:
     N/A — pirn-native implementation.

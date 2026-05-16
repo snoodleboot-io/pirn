@@ -10,6 +10,14 @@ Algorithm:
     4. Compute mean Phred quality score across all bases in all reads.
     5. Return a GenomicsRecord carrying quality_score and sample metadata.
 
+Math:
+    Phred quality score from ASCII character c (Sanger encoding):
+
+    Q = ord(c) - 33
+
+    Mean quality over all bases in all reads:
+
+    Q_mean = (1/N) * sum_{i=1}^{N} Q_i
 
 References:
     - FastQC: https://www.bioinformatics.babraham.ac.uk/projects/fastqc/

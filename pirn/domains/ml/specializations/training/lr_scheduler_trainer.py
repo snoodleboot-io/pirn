@@ -12,6 +12,10 @@ Algorithm:
     3. Wire Trainer + Evaluator in an inner Tapestry.
     4. Run via _run_inner() and return model, eval report, and scheduler.
 
+Math:
+    Step decay:         lr_t = lr_0 * gamma^(floor(t / step_size))
+    Cosine annealing:   lr_t = lr_min + 0.5 * (lr_max - lr_min) * (1 + cos(pi * t / T_max))
+    Reduce on plateau:  lr <- lr * factor  if metric stalls for patience epochs
 
 References:
     N/A — pirn-native implementation.

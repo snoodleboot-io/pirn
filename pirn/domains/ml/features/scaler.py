@@ -12,6 +12,13 @@ Algorithm:
     3. Append the ``scaled_<method>`` suffix to each partition's DatasetManifest name.
     4. Return the renamed SplitManifest.
 
+Math:
+    standardise (z-score): x_scaled = (x - mu) / sigma
+        where mu = mean(x_train), sigma = std(x_train)
+    minmax:   x_scaled = (x - x_min) / (x_max - x_min)
+        where x_min, x_max are computed on x_train
+    robust:   x_scaled = (x - median(x_train)) / IQR(x_train)
+        where IQR = Q3 - Q1 computed on x_train
 
 References:
     N/A — pirn-native implementation.

@@ -9,6 +9,10 @@ Algorithm:
     3. Compute batch count and a deterministic prediction hash.
     4. Return predictions summary.
 
+Math:
+    n_batches = ceil(row_count / batch_size)
+
+    Total predictions = n_batches * batch_size  (last batch may be padded).
 
 References:
     N/A — pirn-native implementation.

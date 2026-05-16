@@ -10,6 +10,12 @@ Algorithm:
        inner Tapestry.
     4. Run via _run_inner() and return the final EvalMetadata.
 
+Math:
+    Query strategy (least confidence):
+        x* = argmin_{x in U} max_c p(y=c | x; theta)
+
+    Pool growth per round: |L_r| = |L_{r-1}| + query_size
+    Total labeled after N rounds: |L_N| = |L_0| + N * query_size
 
 References:
     N/A — pirn-native implementation.

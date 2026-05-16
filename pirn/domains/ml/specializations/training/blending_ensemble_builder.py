@@ -11,6 +11,12 @@ Algorithm:
        Evaluator in an inner Tapestry.
     4. Run via _run_inner() and return ensemble model and eval report.
 
+Math:
+    Holdout split: blend_rows = max(1, floor(train_rows / 5))
+                   base_rows  = train_rows - blend_rows
+
+    Blended prediction (weighted average with uniform weights w_i = 1/M):
+        y_hat = (1/M) * sum_{i=1}^{M} y_hat_i(x)
 
 References:
     N/A — pirn-native implementation.

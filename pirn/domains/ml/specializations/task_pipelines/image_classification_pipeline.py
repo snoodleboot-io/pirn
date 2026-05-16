@@ -9,6 +9,10 @@ Algorithm:
        inner Tapestry.
     4. Run via _run_inner() and return the EvalMetadata.
 
+Math:
+    CNN cross-entropy loss: L = -(1/n) * sum_i sum_c y_{i,c} * log(p_{i,c})
+    Top-1 accuracy = (1/n) * sum_i I(argmax_c p_{i,c} == y_i)
+    Top-5 accuracy = (1/n) * sum_i I(y_i in top-5 predictions)
 
 References:
     N/A — pirn-native implementation.

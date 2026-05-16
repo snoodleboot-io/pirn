@@ -11,6 +11,11 @@ Algorithm:
     3. Wire HyperparamSearch (random) + Evaluator in an inner Tapestry.
     4. Run via _run_inner() and return best_model and eval_report.
 
+Math:
+    Random sampling without replacement from the search space:
+        theta_i ~ Uniform(search_space)  for i in 1..n_trials
+
+    Best config: theta* = argmax_{i in 1..n_trials} metric(eval(model(theta_i), split))
 
 References:
     N/A — pirn-native implementation.

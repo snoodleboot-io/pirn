@@ -49,6 +49,18 @@ class EdfFormat(BatchFileFormat):
     PHI fields (``patientname``, ``patientcode``, ``birthdate``,
     ``admincode``) are stripped from decoded records and redacted on
     encode.
+
+    One record is emitted per signal channel::
+
+        {
+            "signal_index":  int,
+            "label":         str,
+            "sample_rate":   int,
+            "n_samples":     int,
+            "physical_min":  float,
+            "physical_max":  float,
+            "data":          bytes,  # raw float64 array bytes
+        }
     """
 
     _phi_header_fields: ClassVar[frozenset[str]] = frozenset(

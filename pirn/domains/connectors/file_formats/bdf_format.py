@@ -44,6 +44,18 @@ class BdfFormat(BatchFileFormat):
     BDF is a 24-bit extension of EDF; this class mirrors EdfFormat
     but uses the ``.bdf`` file extension so pyedflib selects the
     correct bit-depth.
+
+    One record is emitted per signal channel::
+
+        {
+            "signal_index":  int,
+            "label":         str,
+            "sample_rate":   int,
+            "n_samples":     int,
+            "physical_min":  float,
+            "physical_max":  float,
+            "data":          bytes,  # raw float64 array bytes
+        }
     """
 
     _phi_header_fields: ClassVar[frozenset[str]] = frozenset(

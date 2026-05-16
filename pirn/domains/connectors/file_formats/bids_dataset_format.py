@@ -39,6 +39,15 @@ class BidsDatasetFormat(BatchFileFormat):
     available. If ``pybids`` is not installed, the format silently
     degrades to plain zip extraction. Write always produces a valid
     zip bundle regardless of pybids availability.
+
+    One record is emitted per file in the dataset::
+
+        {
+            "relative_path":  str,    # path within the BIDS zip bundle
+            "content":        bytes,  # raw file bytes
+        }
+
+    Encoding reconstructs the zip bundle from the same shape.
     """
 
     @property

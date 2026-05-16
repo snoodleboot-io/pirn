@@ -13,6 +13,11 @@ Algorithm:
        in an inner Tapestry.
     4. Run via _run_inner() and return the EvalMetadata.
 
+Math:
+    Binary cross-entropy loss:
+        L = -(1/n) * sum_i [y_i * log(p_i) + (1 - y_i) * log(1 - p_i)]
+
+    Sigmoid output: p_i = 1 / (1 + exp(-w^T x_i))
 
 References:
     N/A — pirn-native implementation.

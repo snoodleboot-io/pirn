@@ -34,6 +34,28 @@ class SdtmXptFormat(BatchFileFormat):
     No PHI is present in standard SDTM submissions (data is
     de-identified before submission to FDA). No PHI sanitisation is
     applied.
+
+    One record is emitted per data row. Column values use their native
+    Python types as returned by ``pyreadstat``. The first record
+    additionally carries a ``_metadata`` key::
+
+        # First record only:
+        {
+            "<col1>": <value>,
+            "<col2>": <value>,
+            ...
+            "_metadata": {
+                "column_labels":  dict[str, str],  # column name → label
+                "file_label":     str,
+            },
+        }
+
+        # Subsequent records:
+        {
+            "<col1>": <value>,
+            "<col2>": <value>,
+            ...
+        }
     """
 
     @property

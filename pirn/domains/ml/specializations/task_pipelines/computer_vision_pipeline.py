@@ -15,6 +15,9 @@ Algorithm:
        Trainer → Evaluator in an inner Tapestry.
     4. Run via _run_inner() and return the EvalMetadata.
 
+Math:
+    Image embedding: e = f_enc(img; theta_enc)  where e in R^d
+    Classification loss: L = -(1/n) * sum_i sum_c y_{i,c} * log(softmax(W * e_i)_c)
 
 References:
     N/A — pirn-native implementation.

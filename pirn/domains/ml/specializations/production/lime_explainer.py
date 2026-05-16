@@ -8,6 +8,12 @@ Algorithm:
     3. Compute deterministic per-feature LIME importance scores.
     4. Return feature_importance, n_explained, and n_samples.
 
+Math:
+    LIME locally-weighted linear model around instance x:
+        xi(x') = exp(-D(x, x')^2 / sigma^2)  (kernel weight)
+        w_LIME = argmin_g sum_{z in Z} xi(z) * (f(z) - g(z))^2 + Omega(g)
+
+    Feature importance for i: coefficient w_i of the local linear model g.
 
 References:
     N/A — pirn-native implementation.

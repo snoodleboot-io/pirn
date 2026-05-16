@@ -7,6 +7,12 @@ Algorithm:
     4. Append the ``encoded_<method>`` suffix to the name of each partition's DatasetManifest.
     5. Return the renamed SplitManifest.
 
+Math:
+    onehot:  for column c with categories {v_1, ..., v_k},
+             produce k binary columns: indicator(x == v_j) for j in 1..k
+    ordinal: map each category to its rank index in sorted order:
+             x_encoded = rank(x) where rank(v_j) = j-1 for sorted v_1..v_k
+    target:  x_encoded = mean(y | x == v_j) estimated on the train split
 
 References:
     N/A — pirn-native implementation.

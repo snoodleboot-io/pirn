@@ -36,7 +36,18 @@ from pirn.domains.data.identifier_validator import IdentifierValidator
 
 
 class BinningKnot(Knot):
-    """Append a ``{column}_bin`` column with 1-based bin assignments."""
+    """Append a ``{column}_bin`` column with 1-based bin assignments.
+
+    Math:
+        Equal-width binning computes a uniform bin width and maps each
+        value to a bin index::
+
+            bin_width = (max - min) / n_bins
+            bin_index = floor((x - min) / bin_width)   # 0-based, then +1
+
+        Bin indices are 1-based. Values at the upper boundary are
+        included in the last bin.
+    """
 
     def __init__(
         self,

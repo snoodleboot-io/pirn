@@ -12,6 +12,13 @@ Algorithm:
        in an inner Tapestry.
     4. Run via _run_inner() and return model, eval report, and pseudo_labeled_rows.
 
+Math:
+    Combined training set: n_combined = n_labeled + n_unlabeled
+
+    Pseudo-label assignment: y_pseudo_i = argmax_c p(y = c | x_i; theta_0)
+    where theta_0 is the model trained on labeled data only.
+
+    Final model trained on: {(x_i, y_i) | labeled} union {(x_j, y_pseudo_j) | unlabeled}
 
 References:
     N/A — pirn-native implementation.

@@ -7,6 +7,13 @@ Algorithm:
     4. Apply zero-phase filtering via sosfiltfilt.
     5. Return a SignalPayload with filtered data.
 
+Math:
+    Butterworth bandpass transfer function magnitude:
+
+    |H(jw)|^2 = 1 / (1 + (w / wc)^(2n))
+
+    where wc is the cutoff frequency and n = 4 is the filter order.
+
 References:
     - SciPy butter: https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.butter.html
     - SciPy sosfiltfilt: https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.sosfiltfilt.html

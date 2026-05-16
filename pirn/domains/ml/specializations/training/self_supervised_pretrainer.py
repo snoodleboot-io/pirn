@@ -13,6 +13,13 @@ Algorithm:
     3. Wire pretrain Trainer → finetune Trainer → Evaluator in an inner Tapestry.
     4. Run via _run_inner() and return model, eval report, and algorithm names.
 
+Math:
+    Self-supervised objective (masked prediction example):
+        L_ssl = -(1/|M|) * sum_{i in M} log p(x_i | x_{-M}; theta)
+        where M is the set of masked positions.
+
+    Fine-tuning cross-entropy (after pretraining):
+        L_ft = -(1/n) * sum_i y_i * log p(y_i | x_i; theta_ft)
 
 References:
     N/A — pirn-native implementation.

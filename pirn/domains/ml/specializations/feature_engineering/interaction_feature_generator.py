@@ -10,6 +10,11 @@ Algorithm:
     3. Append interaction feature names to each partition.
     4. Return updated SplitManifest.
 
+Math:
+    Pairwise product interaction:
+        x_{a_x_b} = x_a * x_b
+
+    For M pairs this adds M features to the feature set.
 
 References:
     N/A — pirn-native implementation.

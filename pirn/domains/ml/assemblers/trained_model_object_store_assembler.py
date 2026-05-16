@@ -11,6 +11,11 @@ Algorithm:
     5. Return a :class:`TrainedModelPayload` carrying the manifest and estimator.
     6. Deserialisation runs on a thread to avoid blocking the event loop.
 
+Math:
+    No numeric transformation.  Identity mapping on the byte stream:
+        TrainedModelPayload = deserialise(body)
+    model_id = algorithm + "_" + timestamp (UTC, YYYYmmddTHHMMSS)
+
 References:
     - Joblib contributors (2008-). *joblib*. https://joblib.readthedocs.io/
 """

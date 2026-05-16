@@ -11,7 +11,19 @@ Algorithm:
     4. Return the renamed SplitManifest with the reduced feature schema.
 
 Math:
-    kept_features = feature_names[:k]
+    kept_features = feature_names[:k]   (first-k selection after scoring)
+
+    variance threshold:
+        score(j) = Var(X[:, j]) = E[(X_j - mu_j)^2]
+        retain features where score(j) >= threshold
+
+    mutual information (discrete target):
+        MI(X_j; Y) = sum_{x,y} p(x,y) * log(p(x,y) / (p(x)*p(y)))
+        rank features by descending MI, keep top k
+
+    rfe (recursive feature elimination):
+        fit estimator, rank by |coef| or feature_importances_,
+        eliminate lowest-ranked feature, repeat until k remain
 
 References:
     N/A — pirn-native implementation.

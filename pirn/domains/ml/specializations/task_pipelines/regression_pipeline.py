@@ -11,6 +11,11 @@ Algorithm:
        in an inner Tapestry.
     4. Run via _run_inner() and return the EvalMetadata.
 
+Math:
+    MSE loss: L = (1/n) * sum_i (y_i - y_hat_i)^2
+    RMSE = sqrt(MSE)
+    MAE  = (1/n) * sum_i |y_i - y_hat_i|
+    R^2  = 1 - sum_i(y_i - y_hat_i)^2 / sum_i(y_i - y_bar)^2
 
 References:
     N/A — pirn-native implementation.

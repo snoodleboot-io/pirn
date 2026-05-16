@@ -38,7 +38,18 @@ if TYPE_CHECKING:
 
 
 class JoblibFormat(BatchFileFormat):
-    """Whole-file joblib (pickle) encoder/decoder with mandatory signer."""
+    """Whole-file joblib (pickle) encoder/decoder with mandatory signer.
+
+    One record is emitted per file::
+
+        {
+            "object":       Any,   # the deserialised Python object
+            "object_type":  str,   # type(object).__name__
+        }
+
+    Encoding accepts the same shape and requires exactly one record
+    containing an ``"object"`` key.
+    """
 
     def __init__(
         self,

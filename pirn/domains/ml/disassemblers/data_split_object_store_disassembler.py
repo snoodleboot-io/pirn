@@ -10,6 +10,11 @@ Algorithm:
     4. Return the buffer contents as ``bytes``.
     5. Serialisation runs on a thread to avoid blocking the event loop.
 
+Math:
+    No numeric transformation.  Split arrays are stored verbatim:
+        bytes = np.savez({X_train, X_test, y_train?, y_test?})
+    where X_train has shape (n_train, n_features), X_test (n_test, n_features).
+
 References:
     - Harris, C.R. et al. (2020). "Array programming with NumPy." *Nature*, 585, 357-362.
 """

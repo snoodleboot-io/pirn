@@ -6,6 +6,13 @@ Algorithm:
     3. Design a notch IIR filter via iirnotch, convert to SOS, and apply zero-phase filtering.
     4. Return a SignalPayload with filtered data.
 
+Math:
+    Second-order notch filter transfer function (Q = 30):
+
+    H(z) = (1 - 2*cos(w0)*z^{-1} + z^{-2}) / (1 - 2*r*cos(w0)*z^{-1} + r^2*z^{-2})
+
+    where w0 = 2*pi*f0/fs is the normalized notch frequency and r = 1 - pi*f0 / (Q * fs).
+
 References:
     - SciPy iirnotch: https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.iirnotch.html
 """

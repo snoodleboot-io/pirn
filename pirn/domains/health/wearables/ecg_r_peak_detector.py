@@ -8,6 +8,14 @@ Algorithm:
     5. Threshold at 0.6 * max integrated signal and find peaks.
     6. Return a tuple of sample indices corresponding to R-peak positions.
 
+Math:
+    Pan-Tompkins signal transformation pipeline:
+
+    y[n] = (x[n] - x[n-2]) / 8  (derivative)
+    z[n] = y[n]^2                (squaring)
+    m[n] = (1/N) * sum_{k=0}^{N-1} z[n-k]  (moving-window integration, N = 0.150 * fs)
+
+    R-peak threshold: tau = 0.6 * max(m)
 
 References:
     - Pan, J. & Tompkins, W.J. (1985). A real-time QRS detection algorithm.

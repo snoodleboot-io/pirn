@@ -11,6 +11,11 @@ Algorithm:
     3. Wire N (Trainer + Evaluator) pairs in an inner Tapestry.
     4. Run via _run_inner() and return final model and eval report.
 
+Math:
+    Mini-batch size: rows_per_batch = max(1, floor(train_rows / n_batches))
+
+    Incremental update (partial_fit for batch b):
+        theta_b <- theta_{b-1} - lr * grad_L(theta_{b-1}; X_b, y_b)
 
 References:
     N/A — pirn-native implementation.

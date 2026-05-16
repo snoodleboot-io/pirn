@@ -11,6 +11,11 @@ Algorithm:
     3. Remove the original column and append n_components hash feature names.
     4. Return updated SplitManifest.
 
+Math:
+    Feature hashing (hashing trick):
+        bucket(c) = hash(c) mod n_components
+        x_hash_j = sum_{c : bucket(c) = j} xi(c) * v(c)
+    where xi and v are sign and value functions; for binary encoding xi = 1, v = 1.
 
 References:
     N/A — pirn-native implementation.

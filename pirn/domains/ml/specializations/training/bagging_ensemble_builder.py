@@ -11,6 +11,15 @@ Algorithm:
     3. Wire N Trainer knots + EnsembleBuilder + Evaluator in an inner Tapestry.
     4. Run via _run_inner() and return ensemble model and eval report.
 
+Math:
+    Bootstrap sampling: each base model trains on n_bootstrap samples drawn with
+    replacement from the training set of size n, where n_bootstrap = n by default.
+
+    Classification (majority voting):
+        y_hat = argmax_c sum_{i=1}^{N} I(y_hat_i == c)
+
+    Regression (averaging):
+        y_hat = (1/N) * sum_{i=1}^{N} y_hat_i
 
 References:
     N/A — pirn-native implementation.

@@ -13,6 +13,11 @@ Algorithm:
     3. Wire HyperparamSearch (grid) + Evaluator in an inner Tapestry.
     4. Run via _run_inner() and return best_model and eval_report.
 
+Math:
+    Search space: cartesian product of all parameter value lists.
+        |configs| = product(len(v) for v in search_space.values())
+
+    Best config: theta* = argmax_{theta in configs} metric(eval(model(theta), split))
 
 References:
     N/A — pirn-native implementation.

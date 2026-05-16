@@ -7,6 +7,11 @@ Algorithm:
     4. Mark windows where RMS exceeds threshold as candidate seizures.
     5. Return a sequence of (start_sec, end_sec) interval tuples.
 
+Math:
+    Root-mean-square energy in a window of N samples:
+
+    RMS = sqrt(1/N * sum_{i=1}^{N} x_i^2)
+
 References:
     - Shoeb & Guttag (2010) Application of Machine Learning to Epileptic Seizure Detection.
     - PhysioNet EEG seizure dataset: https://physionet.org/content/chbmit/1.0.0/

@@ -9,6 +9,9 @@ Algorithm:
        inner Tapestry.
     4. Run via _run_inner() and return the EvalMetadata.
 
+Math:
+    TF-IDF vectorisation: tfidf(t, d) = tf(t, d) * log((1 + N) / (1 + df(t))) + 1
+    Classification loss: L = -(1/n) * sum_i sum_c y_{i,c} * log(p_{i,c})
 
 References:
     N/A — pirn-native implementation.

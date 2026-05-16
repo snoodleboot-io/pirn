@@ -7,6 +7,14 @@ Algorithm:
     4. If eddy_correct, apply eddy current and motion correction.
     5. Return the preprocessed DWI metadata dict.
 
+Math:
+    MP-PCA denoising via Marchenko-Pastur noise floor threshold on singular values:
+
+    sigma^2_noise ≈ median(s_i)^2 / n_directions
+
+    threshold = sigma^2_noise * (1 + sqrt(n_voxels / n_directions))^2
+
+    Singular values s_i below the threshold are zeroed to suppress Rician noise.
 
 References:
     - Veraart et al. (2016) Denoising of diffusion MRI using random matrix theory.

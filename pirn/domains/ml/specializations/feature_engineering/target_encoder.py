@@ -19,6 +19,12 @@ Algorithm:
     3. Wire Encoder (method="target") in an inner Tapestry.
     4. Run via _run_inner() and return the encoded SplitManifest.
 
+Math:
+    Smoothed target encoding for category c:
+        mu_global = mean(y)
+        mu_c      = mean(y | X_cat == c)
+        n_c       = count(X_cat == c)
+        encoded_c = (n_c * mu_c + smoothing * mu_global) / (n_c + smoothing)
 
 References:
     N/A — pirn-native implementation.

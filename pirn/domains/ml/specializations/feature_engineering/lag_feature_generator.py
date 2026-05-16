@@ -14,6 +14,11 @@ Algorithm:
     3. Wire _LagAppendKnot in an inner Tapestry.
     4. Run via _run_inner() and return the extended SplitManifest.
 
+Math:
+    Lag feature for column x and lag N, ordered by time_column:
+        x_lag_N[t] = x[t - N]
+
+    Each (column, lag) pair adds one feature; total new features = len(columns) * len(lags).
 
 References:
     N/A — pirn-native implementation.

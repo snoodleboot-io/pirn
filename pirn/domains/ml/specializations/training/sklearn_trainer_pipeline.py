@@ -22,6 +22,11 @@ Algorithm:
        inner Tapestry.
     4. Run via _run_inner() and return model_id, eval_report, serialized_size.
 
+Math:
+    Empirical risk minimisation:
+        theta* = argmin_theta (1/n) * sum_i L(y_i, f(x_i; theta))
+
+    serialized_size = len(joblib.dumps(model))  [bytes]
 
 References:
     N/A — pirn-native implementation.

@@ -9,9 +9,20 @@ Algorithm:
     5. Return fpr, tpr, thresholds, auc, and optimal_threshold.
 
 Math:
-    curve_value(t, kind) = sha256(model_id || test_name || test_row_count || t || kind)[0:8] / 2^64
-    auc = sha256(model_id || test_name || test_row_count || "auc")[0:8] / 2^64
-    J[i] = tpr[i] - fpr[i]; optimal_threshold = thresholds[argmax(J)]
+    ROC curve: at threshold t, classify y_hat = 1 if score >= t, else 0.
+        FPR(t) = FP(t) / (FP(t) + TN(t))
+        TPR(t) = TP(t) / (TP(t) + FN(t))
+
+    AUC (trapezoidal rule over n threshold points):
+        AUC = sum_{i=1}^{n-1} (fpr[i-1] - fpr[i]) * (tpr[i-1] + tpr[i]) / 2
+
+    Youden J statistic (optimal threshold selection):
+        J[i] = tpr[i] - fpr[i]
+        optimal_threshold = thresholds[argmax_i J[i]]
+
+    Stub implementation:
+        curve_value(t, kind) = sha256(model_id || test_name || test_row_count || t || kind)[0:8] / 2^64
+        auc                  = sha256(model_id || test_name || test_row_count || "auc")[0:8] / 2^64
 
 References:
     N/A — pirn-native implementation.

@@ -9,6 +9,11 @@ Algorithm:
     3. Produce one row per metric score: ``(model_id, metric_name, score)``.
     4. Return the list of rows (pure Python — no thread needed).
 
+Math:
+    No numeric transformation.  Structural flattening only:
+        rows = [(model_id, k, float(v)) for k, v in metrics.scores.items()]
+    Output cardinality = |metrics.scores| rows.
+
 References:
     N/A — pirn-native implementation.
 """

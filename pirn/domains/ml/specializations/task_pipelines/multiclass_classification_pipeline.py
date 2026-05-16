@@ -11,6 +11,12 @@ Algorithm:
        in an inner Tapestry.
     4. Run via _run_inner() and return the EvalMetadata.
 
+Math:
+    Softmax output for K classes:
+        p(y=k | x) = exp(w_k^T x) / sum_{j=1}^{K} exp(w_j^T x)
+
+    Macro-averaged F1 over K classes:
+        F1_macro = (1/K) * sum_{k=1}^{K} 2*P_k*R_k / (P_k + R_k)
 
 References:
     N/A — pirn-native implementation.

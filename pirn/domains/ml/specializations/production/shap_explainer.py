@@ -6,6 +6,12 @@ Algorithm:
     2. Compute deterministic per-feature SHAP importance and mean_abs_shap.
     3. Return feature_importance, mean_abs_shap, and model_id.
 
+Math:
+    SHAP value for feature i:
+        phi_i = sum_{S in subsets \ {i}} [|S|! * (n - |S| - 1)! / n!] * [v(S + {i}) - v(S)]
+
+    Mean absolute SHAP (global importance):
+        mean_abs_shap_i = (1/n) * sum_{j=1}^{n} |phi_i(x_j)|
 
 References:
     N/A — pirn-native implementation.
