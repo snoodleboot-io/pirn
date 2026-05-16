@@ -276,6 +276,54 @@ class ProcessBatch(SubTapestry):
         return StoreRows(rows=p, _config=KnotConfig(id="store"))
 ```
 
+### LoopSubTapestry
+
+**Contract:** subclass `LoopSubTapestry[S]`, implement `step(state: S) -> tuple[Tapestry, S] | None` and `fold(state: S, result: RunResult) -> S`. The base class drives the iteration loop as a single extensible inner run — each iteration is a real, traceable knot. Do not override `process()`.
+
+- `step` — given current state, return `(tapestry, updated_state)` to continue, or `None` to terminate.
+- `fold` — integrate the completed iteration's `RunResult` into state; return new state for the next `step`.
+- `step_id(state, idx)` — optional override; returns the knot ID for iteration `idx` (1-based). Default: `step_{idx}`.
+
+```python
+from typing import Any
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_result import RunResult
+from pirn.nodes.loop_sub_tapestry import LoopSubTapestry
+from pirn.tapestry import Tapestry
+
+class RefineLoop(LoopSubTapestry[float]):
+    def __init__(self, *, max_rounds: int = 10, **kwargs: Any) -> None:
+        self._max_rounds = max_rounds
+        super().__init__(**kwargs)
+
+    def step(self, state: float) -> tuple[Tapestry, float] | None:
+        if state >= 1.0 or self._max_rounds <= 0:
+            return None
+        with Tapestry() as t:
+            RefineKnot(value=state, _config=KnotConfig(id="refine"))
+        return t, state
+
+    def fold(self, state: float, result: RunResult) -> float:
+        return result.outputs["refine"]
+
+    def step_id(self, state: float, idx: int) -> str:
+        return f"round_{idx}"
+```
+
+Wire like any other knot — `state` is the initial loop state:
+
+```python
+with Tapestry() as t:
+    RefineLoop(state=0.1, max_rounds=5, _config=KnotConfig(id="loop"))
+
+result = await t.run(RunRequest())
+final_value = result.outputs["loop"]   # final state after all iterations
+```
+
+See [docs/guides/agentic-loops.md](docs/guides/agentic-loops.md) for the full contract, observability details, and a conversational LLM agent example.
+
+---
+
 ### Parameter
 
 **When to use:** any value that varies between runs. Construct it inside the `Tapestry` context and pass it as a kwarg to downstream knots exactly like any other knot. Values are bound at run time from `RunRequest(parameters={"name": value})`.
@@ -490,6 +538,8 @@ asyncio.run(main())
 | Skip on predicate | `Gate(input=knot, predicate=fn, _config=KnotConfig(id="g"))` |
 | Fan over a list | `Map(over=list_knot, each=per_item_factory, bind="item", _config=...)` |
 | Compose sub-pipelines | subclass `SubTapestry`; build inner graph in `process()`; return terminal `Knot` |
+| Iterative / agentic loop | subclass `LoopSubTapestry[S]`; implement `step()` and `fold()`; wire `state=initial` |
+| Custom step IDs in history | override `step_id(state, idx) -> str` on `LoopSubTapestry` subclass |
 | Make Err propagate as Skipped | `class MyKnot(Optional, Knot):` |
 | Add observability | `Tapestry(emitters=[LogEmitter(), OpenTelemetryEmitter()])` |
 | Scale to threads | `Tapestry(dispatcher=ThreadDispatcher(max_workers=8))` |

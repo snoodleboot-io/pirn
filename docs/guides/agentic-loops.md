@@ -92,22 +92,34 @@ initial state
 
 ## Wiring Into a Tapestry
 
-`LoopSubTapestry` is a `Knot`.  Wire it the same way as any other knot:
+`LoopSubTapestry` is a `Knot`.  Wire it the same way as any other knot.
+
+The `state` input is the initial loop state.  Pass it as a plain Python value (treated as a config constant, invisible in lineage) or as an upstream `Knot` (resolved at run time and visible in lineage):
 
 ```python
+# Option A — plain initial state (most common for self-contained loops)
 with Tapestry() as t:
-    user_input = Source(...)
-    loop = MyAgentLoop(
-        state=user_input,          # Knot → resolved value arrives in process()
-        max_turns=10,              # plain value → config constant
+    MyAgentLoop(
+        state=MyState(turns=0, done=False),   # plain value → config constant
+        max_turns=10,
+        _config=KnotConfig(id="agent"),
+    )
+
+result = await t.run(RunRequest())
+final_state = result.outputs["agent"]
+
+# Option B — initial state from an upstream knot
+with Tapestry() as t:
+    context_builder = BuildContext(_config=KnotConfig(id="ctx"))
+    MyAgentLoop(
+        state=context_builder,                 # Knot → resolved value arrives in process()
+        max_turns=10,
         _config=KnotConfig(id="agent"),
     )
 
 result = await t.run(RunRequest())
 final_state = result.outputs["agent"]
 ```
-
-The `state` input is the initial loop state.  It can be a `Knot` (resolved from an upstream output) or a plain Python value.
 
 ## Full Example: Conversational LLM Agent
 
@@ -118,8 +130,11 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
+from pirn.core.run_result import RunResult
 from pirn.nodes.loop_sub_tapestry import LoopSubTapestry
 from pirn.tapestry import Tapestry
+
+# LLMCallKnot is a placeholder — replace with your actual LLM knot implementation.
 
 @dataclass
 class ConvState:
@@ -160,12 +175,8 @@ Wire it up:
 
 ```python
 with Tapestry() as t:
-    initial = Source(
-        value=ConvState(messages=[{"role": "user", "content": "Hello!"}]),
-        _config=KnotConfig(id="init"),
-    )
     ConversationalAgent(
-        state=initial,
+        state=ConvState(messages=[{"role": "user", "content": "Hello!"}]),
         max_turns=10,
         _config=KnotConfig(id="agent"),
     )
