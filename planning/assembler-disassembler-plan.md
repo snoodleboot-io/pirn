@@ -1,8 +1,9 @@
 # Assembler / Disassembler Pattern — Implementation Plan
 
 **Created:** 2026-05-10  
+**Last Updated:** 2026-05-15  
 **Branch:** feat/domain-gap-remediation-plan  
-**Status:** Approved for implementation
+**Status:** ✅ Complete (all 5 phases delivered 2026-05-15)
 
 ---
 
@@ -170,82 +171,82 @@ contract is still enforced by `Knot.__init_subclass__`.
 
 **Files to create:**
 - `docs/contributing/assembler-disassembler-pattern.md` ✅
-- `pirn/core/assembler.py`
-- `pirn/core/disassembler.py`
+- `pirn/core/assembler.py` ✅
+- `pirn/core/disassembler.py` ✅
 
 ---
 
-### Phase 2 — signal domain
+### Phase 2 — signal domain ✅ Complete (2026-05-15)
 
 **Files to create:**
 - `pirn/domains/signal/assemblers/__init__.py` ✅
 - `pirn/domains/signal/assemblers/signal_object_store_assembler.py` ✅
-- `pirn/domains/signal/disassemblers/__init__.py`
-- `pirn/domains/signal/disassemblers/signal_object_store_disassembler.py`
-- `pirn/domains/signal/disassemblers/spectrum_object_store_disassembler.py`
-- `pirn/domains/signal/disassemblers/wavelet_object_store_disassembler.py`
+- `pirn/domains/signal/disassemblers/__init__.py` ✅
+- `pirn/domains/signal/disassemblers/signal_object_store_disassembler.py` ✅
+- `pirn/domains/signal/disassemblers/spectrum_object_store_disassembler.py` ✅
+- `pirn/domains/signal/disassemblers/wavelet_object_store_disassembler.py` ✅
 
 **Files to delete:**
 - `pirn/domains/signal/audio/audio_file_ingestor.py` ✅
 
 ---
 
-### Phase 3 — oilgas domain
+### Phase 3 — oilgas domain ✅ Complete (2026-05-15)
 
 **Files to create:**
-- `pirn/domains/oilgas/assemblers/__init__.py`
-- `pirn/domains/oilgas/assemblers/las_object_store_assembler.py`
-- `pirn/domains/oilgas/assemblers/segy_object_store_assembler.py`
-- `pirn/domains/oilgas/assemblers/scada_database_assembler.py`
-- `pirn/domains/oilgas/assemblers/mud_log_assembler.py`
-- `pirn/domains/oilgas/assemblers/well_completion_object_store_assembler.py`
-- `pirn/domains/oilgas/disassemblers/__init__.py`
-- `pirn/domains/oilgas/disassemblers/las_object_store_disassembler.py`
-- `pirn/domains/oilgas/disassemblers/segy_object_store_disassembler.py`
+- `pirn/domains/oilgas/assemblers/__init__.py` ✅
+- `pirn/domains/oilgas/assemblers/las_object_store_assembler.py` ✅
+- `pirn/domains/oilgas/assemblers/segy_object_store_assembler.py` ✅
+- `pirn/domains/oilgas/assemblers/scada_database_assembler.py` ✅
+- `pirn/domains/oilgas/assemblers/mud_log_assembler.py` ✅
+- `pirn/domains/oilgas/assemblers/well_completion_object_store_assembler.py` ✅
+- `pirn/domains/oilgas/disassemblers/__init__.py` ✅
+- `pirn/domains/oilgas/disassemblers/las_object_store_disassembler.py` ✅
+- `pirn/domains/oilgas/disassemblers/segy_object_store_disassembler.py` ✅
 
 **Files to delete:**
-- `pirn/domains/oilgas/well/las_file_ingester.py`
-- `pirn/domains/oilgas/seismic/segy_file_ingester.py`
-- `pirn/domains/oilgas/production/scada_historian_ingester.py`
-- `pirn/domains/oilgas/well/mud_logging_ingester.py`
-- `pirn/domains/oilgas/well/well_completion_ingester.py`
+- `pirn/domains/oilgas/well/las_file_ingester.py` ✅
+- `pirn/domains/oilgas/seismic/segy_file_ingester.py` ✅
+- `pirn/domains/oilgas/production/scada_historian_ingester.py` ✅
+- `pirn/domains/oilgas/well/mud_logging_ingester.py` ✅
+- `pirn/domains/oilgas/well/well_completion_ingester.py` ✅
 
 ---
 
-### Phase 4 — health domain
+### Phase 4 — health domain ✅ Complete (2026-05-15)
 
 **Files to create:**
-- `pirn/domains/health/assemblers/__init__.py`
-- `pirn/domains/health/assemblers/eeg_object_store_assembler.py`
-- `pirn/domains/health/assemblers/meg_object_store_assembler.py`
-- `pirn/domains/health/assemblers/dicom_pacs_assembler.py`
-- `pirn/domains/health/assemblers/wsi_object_store_assembler.py`
-- `pirn/domains/health/assemblers/fhir_patient_assembler.py`
-- `pirn/domains/health/disassemblers/__init__.py`
-- `pirn/domains/health/disassemblers/eeg_object_store_disassembler.py`
-- `pirn/domains/health/disassemblers/meg_object_store_disassembler.py`
-- `pirn/domains/health/disassemblers/dicom_object_store_disassembler.py`
-- `pirn/domains/health/disassemblers/wsi_object_store_disassembler.py`
+- `pirn/domains/health/assemblers/__init__.py` ✅
+- `pirn/domains/health/assemblers/eeg_object_store_assembler.py` ✅
+- `pirn/domains/health/assemblers/meg_object_store_assembler.py` ✅
+- `pirn/domains/health/assemblers/dicom_pacs_assembler.py` ✅
+- `pirn/domains/health/assemblers/wsi_object_store_assembler.py` ✅
+- `pirn/domains/health/assemblers/fhir_patient_assembler.py` ✅
+- `pirn/domains/health/disassemblers/__init__.py` ✅
+- `pirn/domains/health/disassemblers/eeg_object_store_disassembler.py` ✅
+- `pirn/domains/health/disassemblers/meg_object_store_disassembler.py` ✅
+- `pirn/domains/health/disassemblers/dicom_object_store_disassembler.py` ✅
+- `pirn/domains/health/disassemblers/wsi_object_store_disassembler.py` ✅
 
 **Files to delete:**
-- `pirn/domains/health/eeg_meg/eeg_raw_ingestor.py`
-- `pirn/domains/health/eeg_meg/meg_raw_ingestor.py`
-- `pirn/domains/health/mri/dicom_ingestor.py`
-- `pirn/domains/health/pathology/wsi_tile_extractor.py`
-- `pirn/domains/health/clinical/fhir_patient_ingestor.py`
+- `pirn/domains/health/eeg_meg/eeg_raw_ingestor.py` ✅
+- `pirn/domains/health/eeg_meg/meg_raw_ingestor.py` ✅
+- `pirn/domains/health/mri/dicom_ingestor.py` ✅
+- `pirn/domains/health/pathology/wsi_tile_extractor.py` ✅
+- `pirn/domains/health/clinical/fhir_patient_ingestor.py` ✅
 
 ---
 
-### Phase 5 — ml domain
+### Phase 5 — ml domain ✅ Complete (2026-05-15)
 
 **Files to create:**
-- `pirn/domains/ml/assemblers/__init__.py`
-- `pirn/domains/ml/assemblers/trained_model_object_store_assembler.py`
-- `pirn/domains/ml/disassemblers/__init__.py`
-- `pirn/domains/ml/disassemblers/trained_model_object_store_disassembler.py`
-- `pirn/domains/ml/disassemblers/dataset_object_store_disassembler.py`
-- `pirn/domains/ml/disassemblers/data_split_object_store_disassembler.py`
-- `pirn/domains/ml/disassemblers/eval_report_database_disassembler.py`
+- `pirn/domains/ml/assemblers/__init__.py` ✅
+- `pirn/domains/ml/assemblers/trained_model_object_store_assembler.py` ✅
+- `pirn/domains/ml/disassemblers/__init__.py` ✅
+- `pirn/domains/ml/disassemblers/trained_model_object_store_disassembler.py` ✅
+- `pirn/domains/ml/disassemblers/dataset_object_store_disassembler.py` ✅
+- `pirn/domains/ml/disassemblers/data_split_object_store_disassembler.py` ✅
+- `pirn/domains/ml/disassemblers/eval_report_database_disassembler.py` ✅
 
 **Files to delete:** _(none — `model_registrar.py` and `predictor.py` are legitimate Sink/domain
 knots that own I/O by design; they are not ingestor anti-patterns and were restored after

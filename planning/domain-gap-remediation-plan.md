@@ -1,7 +1,7 @@
 # Domain Implementation Gap — Remediation Plan (Revised)
 
 **Audited:** 2026-05-07 (revised after initial incorrect assessment)  
-**Last Updated:** 2026-05-15 — Part III complete (all domains); payload pattern audits closed; naming sweep complete  
+**Last Updated:** 2026-05-15 — Assembler/Disassembler Phases 1-5 complete; lance 1.x migration; transport audit passed  
 **Branch:** feat/domain-gap-remediation-plan  
 **Scope:** All Python files under `pirn/domains/` (1,195 files across 7 top-level domains)  
 **Method:** Per-file strict read — validation and correct return type alone do NOT constitute implementation. "Real Implementation" = YES only when `process()` calls a computation library, external SDK, non-trivial algorithm, or real I/O.
@@ -18,6 +18,9 @@
 | Part III (payload) | Payload pattern audit — agents, data, connectors | ✅ Complete (2026-05-15) — all PASS |
 | Part IV | SubTapestry contract remediation (~90 subclasses) | ✅ Complete (2026-05-10) |
 | Part V | LoopSubTapestry design review | ✅ Complete (2026-05-15) |
+| Assembler/Disassembler | Phases 1-5 — all domains; ingestors deleted | ✅ Complete (2026-05-15) |
+| lance migration | lance 1.x API; correct extras; test rewrites | ✅ Complete (2026-05-15) |
+| Transport audit | Core + connector transports — correctness verified | ✅ Complete (2026-05-15) — no gaps |
 
 ---
 
