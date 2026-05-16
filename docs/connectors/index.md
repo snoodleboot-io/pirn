@@ -139,7 +139,7 @@ Complete reference for every file format, codec, archive wrapper, and lakehouse 
 | FHIR XML | `FhirXmlFormat` | ✓ | ✓ | — | `pirn[health]` | PHI identifiers sanitised per HIPAA safe-harbour. |
 | CDA XML (HL7 CDA R2) | `CdaXmlFormat` | ✓ | ✓ | — | `pirn[health]` | PHI stripped before emission. |
 | Define-XML (CDISC) | `DefineXmlFormat` | ✓ | ✓ | — | `pirn[health]` | Metadata/study-design format; no patient PHI in structure. |
-| SDTM XPT (SAS transport) | `SdtmXptFormat` | ✓ | ✓ | — | `pirn[health]` | Clinical trial submission format; backed by `xport`. |
+| SDTM XPT (SAS transport) | `SdtmXptFormat` | ✓ | ✓ | — | `pirn[health]` | Clinical trial submission format; backed by `pyreadstat`. |
 
 ---
 
@@ -149,9 +149,9 @@ Complete reference for every file format, codec, archive wrapper, and lakehouse 
 |--------|-------|------|-------|-----------|----------------|-------|
 | EDF | `EdfFormat` | ✓ | ✓ | — | `pirn[health]` | European Data Format physiological signals; backed by `pyedflib`. |
 | EDF+ | `EdfPlusFormat` | ✓ | ✓ | — | `pirn[health]` | EDF+ with annotations; backed by `pyedflib`. |
-| BDF | `BdfFormat` | ✓ | ✓ | — | `pirn[health]` | 24-bit BioSemi Data Format; backed by `mne`. |
+| BDF | `BdfFormat` | ✓ | ✓ | — | `pirn[health]` | 24-bit BioSemi Data Format; backed by `pyedflib` (`FILETYPE_BDF`). |
 | BrainVision | `BrainvisionFormat` | ✓ | ✓ | — | `pirn[health]` | BrainProducts BrainVision format; backed by `mne`. |
-| BIDS dataset | `BidsDatasetFormat` | ✓ | ✓ | — | `pirn[health]` | Brain Imaging Data Structure; backed by `mne`. |
+| BIDS dataset | `BidsDatasetFormat` | ✓ | ✓ | — | `pirn[health]` | Brain Imaging Data Structure (zip bundle); `pybids` used for layout validation when installed. |
 
 ---
 
@@ -159,11 +159,11 @@ Complete reference for every file format, codec, archive wrapper, and lakehouse 
 
 | Format | Class | Read | Write | Streaming | Optional Extra | Notes |
 |--------|-------|------|-------|-----------|----------------|-------|
-| WAV | `WavFormat` | ✓ | ✓ | — | `pirn[audio]` | Backed by `scipy.io.wavfile`. |
+| WAV | `WavFormat` | ✓ | ✓ | — | `pirn[audio]` | Backed by stdlib `wave`; no optional dependencies. |
 | MP3 | `Mp3Format` | ✓ | ✓ | — | `pirn[audio]` + ffmpeg | Decode via `pydub`; ffmpeg required for encode. |
 | AAC | `AacFormat` | ✓ | ✓ | — | `pirn[audio]` + ffmpeg | Decode via `pydub`; ffmpeg required. |
-| OGG | `OggFormat` | ✓ | ✓ | — | `pirn[audio]` | Vorbis streams via `mutagen`. |
-| FLAC | `FlacFormat` | ✓ | ✓ | — | `pirn[audio]` | Backed by `mutagen`. |
+| OGG | `OggFormat` | ✓ | ✓ | — | `pirn[audio]` | Vorbis streams via `soundfile`. |
+| FLAC | `FlacFormat` | ✓ | ✓ | — | `pirn[audio]` | Backed by `soundfile`. |
 | M4A | `M4aFormat` | ✓ | ✓ | — | `pirn[audio]` + ffmpeg | AAC in MPEG-4 container; ffmpeg required. |
 
 ---
