@@ -214,7 +214,8 @@ await run_forever(trigger, tapestry, on_result=handle_result)
 ### Streaming ETL
 
 ```python
-from pirn.streaming import FileTailSource, run_stream
+from pirn.streaming.file_tail import FileTailSource
+from pirn.streaming.base import run_stream
 
 source = FileTailSource("/var/log/app.log", parameter_name="line")
 await run_stream(source, tapestry, on_result=handle)

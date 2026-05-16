@@ -195,9 +195,9 @@ with Tapestry() as t:
 
 | Sub-domain | Purpose | Representative knots |
 |------------|---------|---------------------|
-| `seismic` | Seismic acquisition and processing, from raw SEG-Y to interpreted attributes | `SegyFileIngester`, `CmpGatherExtractor`, `NmoCorrection`, `MigrationProcessor`, `SeismicAttributeCalculator` |
-| `well` | Well log ingestion and full petrophysical evaluation | `LasFileIngester`, `PorosityCalculator`, `WaterSaturationCalculator`, `PetrophysicalEvaluator`, `DeviationSurveyProcessor` |
-| `production` | Real-time and historical production monitoring and optimisation | `ScadaHistorianIngester`, `GasOilRatioCalculator`, `WaterCutTracker`, `ArtificialLiftOptimizer`, `WellTestAnalyzer` |
+| `seismic` | Seismic acquisition and processing, from raw SEG-Y to interpreted attributes | `SegyObjectStoreAssembler`, `CmpGatherExtractor`, `NmoCorrection`, `MigrationProcessor`, `SeismicAttributeCalculator` |
+| `well` | Well log ingestion and full petrophysical evaluation | `LasObjectStoreAssembler`, `PorosityCalculator`, `WaterSaturationCalculator`, `PetrophysicalEvaluator`, `DeviationSurveyProcessor`, `WellCompletionObjectStoreAssembler`, `MudLogAssembler` |
+| `production` | Real-time and historical production monitoring and optimisation | `ScadaDatabaseAssembler`, `GasOilRatioCalculator`, `WaterCutTracker`, `ArtificialLiftOptimizer`, `WellTestAnalyzer` |
 | `reservoir` | Reservoir engineering, simulation output parsing, probabilistic reserves | `DeclineCurveAnalyzer`, `VolumetricEstimator`, `MaterialBalanceCalculator`, `MonteCarloSimulator`, `EclipseSmspecParser` |
 | `integrity` | Asset integrity, inspection scoring, corrosion, GHG KPIs | `PigRunDataProcessor`, `RiskBasedInspectionScorer`, `CorrosionRateEstimator`, `EnergyEfficiencyKpiCalculator` |
 | `geospatial` | CRS transforms, lease grouping, boundary proximity checks | `CoordinateSystemTransformer`, `LeaseBlockGrouper`, `BoundaryProximityChecker` |
@@ -231,60 +231,24 @@ from pirn.domains.connectors.file_formats.witsml_format import WitsmlFormat
 SEG-Y ingest → trace normalisation → attribute extraction in a single Tapestry:
 
 ```python
-import asyncio
-import struct
-from pirn.backends.sqlite.sqlite_history import SQLiteHistory
-from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
+from pirn.domains.connectors.knots.object_store_read_source import ObjectStoreReadSource
+from pirn.domains.oilgas.assemblers.segy_object_store_assembler import SegyObjectStoreAssembler
 from pirn.tapestry import Tapestry
-from pirn.domains.connectors.file_formats.segy_format import SegyFormat
-from pirn.domains.oilgas.seismic.segy_file_ingester import SegyFileIngester
-from pirn.domains.oilgas.seismic.segy_header_parser import SegyHeaderParser
-from pirn.domains.oilgas.seismic.seismic_attribute_calculator import SeismicAttributeCalculator
 
-
-async def run_pipeline(segy_bytes: bytes) -> None:
-    # 1. Decode raw bytes into one dict per trace
-    fmt = SegyFormat(sample_rate=2000)
-    traces = await fmt.decode(segy_bytes)
-    # traces[i] = {"trace_index": int, "header": dict, "data": bytes}
-
-    history = SQLiteHistory(path="oilgas.db")
-
-    with Tapestry(history=history) as t:
-        raw = Parameter("traces", list, _config=KnotConfig(id="raw"))
-
-        # 2. Ingest — resolve file path → typed SegyVolume reference
-        ingester = SegyFileIngester(
-            file_path="/data/survey.segy",
-            volume_id="block-42a",
-            _config=KnotConfig(id="ingester"),
-        )
-
-        # 3. Header QC — validate binary + trace headers
-        headers = SegyHeaderParser(
-            volume=ingester,
-            traces=raw,
-            _config=KnotConfig(id="headers"),
-        )
-
-        # 4. Attribute extraction — instantaneous amplitude, phase, frequency
-        SeismicAttributeCalculator(
-            headers=headers,
-            traces=raw,
-            _config=KnotConfig(id="attributes"),
-        )
-
-    result = await t.run(RunRequest(parameters={"traces": traces}))
-    if result.succeeded:
-        attrs = result.outputs["attributes"]
-    else:
-        raise RuntimeError(result.exceptions[0].message)
-
-
-asyncio.run(run_pipeline(open("survey.segy", "rb").read()))
+with Tapestry() as t:
+    raw = ObjectStoreReadSource(
+        bucket="seismic-data",
+        key="survey.segy",
+        _config=KnotConfig(id="raw"),
+    )
+    volume = SegyObjectStoreAssembler(
+        body=raw,
+        volume_id="block-42a",
+        _config=KnotConfig(id="volume"),
+    )
+    # downstream processing knots wire off volume...
 ```
 
 For well petrophysics, use the pre-built workflow instead of wiring knots manually:
@@ -297,7 +261,7 @@ from pirn.domains.oilgas.workflows.wellbore_petrophysics_workflow import Wellbor
 
 ## Anti-patterns
 
-**Passing raw bytes to domain knots.** Knots accept typed domain objects (`SegyVolume`, `LASFile`, `ScadaTimeSeries`). Always decode bytes through the appropriate `FileFormat` first, then pass the resulting records through an ingester knot.
+**Passing raw bytes to domain knots.** Knots accept typed domain objects (`SegyVolume`, `LASFile`, `ScadaTimeSeries`). Always decode bytes through the appropriate `FileFormat` first, then pass the resulting records through an assembler knot.
 
 **Reusing `SegyFormat` across large 3D volumes without splitting.** `BatchFileFormat` buffers the entire file before decoding. For large surveys, split into inline sub-ranges before calling `decode()`.
 
@@ -316,11 +280,11 @@ from pirn.domains.oilgas.workflows.wellbore_petrophysics_workflow import Wellbor
 ## Constraints and gotchas
 
 - **Knots are slim stubs.** All oilgas knots validate inputs and return typed result references. The real computation (segyio, lasio, scipy) is invoked at runtime inside `process()`. The graph imports and type-checks without the extras installed; only `process()` calls fail.
-- **`LasFileIngester` depth unit.** Accepted values are `"m"` and `"ft"` only. Anything else raises `ValueError` at construction time.
+- **`LasObjectStoreAssembler` depth unit.** Accepted values are `"m"` and `"ft"` only. Anything else raises `ValueError` at construction time.
 - **SEG-D without `segpy`.** The pure-Python fallback reads only the 32-byte General Header Block 1. Vendor-specific Extended Header Blocks are silently skipped. Install `segpy` for fuller decode.
 - **DLIS corrupt channels.** A channel that cannot be read emits `data=b""` rather than raising. Downstream QC knots must check for empty `data` bytes explicitly.
 - **SEG-Y encode geometry.** Encoded files have `sorting=None` (unsorted). If a downstream consumer requires sorted geometry, call `segyio` directly after pirn writes the file.
-- **`ScadaHistorianIngester` requires a live connection.** Pass a concrete `HistorianConnection` implementation. There is no built-in mock; create a test double that implements the `HistorianConnection` interface.
+- **`ScadaDatabaseAssembler` receives already-fetched rows.** Pass pre-fetched `list[tuple]` rows plus tag and interval metadata. The assembler performs no I/O and does not require a live connection.
 - **`MonteCarloSimulator` is probabilistic.** Results differ across runs unless the seed is fixed via the knot's configuration. Fix the seed in tests.
 - **`EclipseSmspecParser` / `CmgSsfileParser` are parse-only.** They produce Python dicts from simulator summary files; they do not drive or control the simulators.
 
@@ -330,18 +294,18 @@ from pirn.domains.oilgas.workflows.wellbore_petrophysics_workflow import Wellbor
 
 | Task | Knot / Format |
 |------|--------------|
-| Ingest SEG-Y file | `SegyFormat` → `SegyFileIngester` |
+| Ingest SEG-Y file | `ObjectStoreReadSource` → `SegyObjectStoreAssembler` |
 | Validate trace headers | `SegyHeaderParser` |
 | Extract CMP gathers | `CmpGatherExtractor` (sorted SEG-Y required) |
 | NMO + stack | `NmoCorrection` → `StackProcessor` |
 | Post-stack migration | `MigrationProcessor` |
 | Seismic attributes | `SeismicAttributeCalculator` |
 | Spectral decomposition | `FrequencyDecomposer` |
-| Ingest LAS well log | `LasFormat` → `LasFileIngester` |
+| Ingest LAS well log | `ObjectStoreReadSource` → `LasObjectStoreAssembler` |
 | Full petrophysical eval | `PetrophysicalEvaluator` (or `WellborePetrophysicsWorkflow`) |
 | 3D well path from survey | `DeviationSurveyProcessor` → `WellPathCalculator` |
 | Lithology classification | `LithologyClassifier` |
-| Ingest SCADA tag | `ScadaHistorianIngester` (requires `HistorianConnection`) |
+| Ingest SCADA rows | `ScadaDatabaseAssembler` (rows from `DatabaseQuerySource`) |
 | Water cut tracking | `WaterCutTracker` |
 | Decline curve fit | `DeclineCurveAnalyzer` (Arps) |
 | Probabilistic reserves | `MonteCarloSimulator` |

@@ -131,6 +131,7 @@ Key points:
 Constructing a frame at pipeline entry (after decoding an audio record):
 
 ```python
+from datetime import datetime, timezone
 from pirn.domains.signal.types.signal_frame import SignalFrame
 
 frame = SignalFrame(
@@ -138,6 +139,7 @@ frame = SignalFrame(
     channel_count=1,
     sample_rate_hz=1000.0,
     samples_per_channel=10_000,
+    fetched_at=datetime.now(tz=timezone.utc),
 )
 ```
 
@@ -243,7 +245,7 @@ Placing a filter upstream of a resampler means the filter was designed for the w
 - **pydub unavailable on Python 3.13+.** `Mp3Format`, `AacFormat`, and `M4aFormat` connectors will raise `ImportError` on Python 3.13+. Use `WavFormat` or `FlacFormat` instead.
 - **WelchEstimator: `overlap` must be strictly less than `segment_length`.** Validated at construction; a `ValueError` is raised immediately rather than at run time.
 - **ButterworthFilter `band_type` spelling.** The parameter is `band_type`, not `btype`. Accepted values: `"lowpass"`, `"highpass"`, `"bandpass"`, `"bandstop"`.
-- **DWTDecomposer parameter is `wavelet_name`, not `wavelet`.** The docs example in `signal.md` uses `wavelet=` — the actual constructor argument is `wavelet_name=`.
+- **DWTDecomposer parameter is `wavelet_name`, not `wavelet`.** Note: the correct constructor argument is `wavelet_name=`, not `wavelet=`.
 - **`SignalFrame` is immutable.** Each knot returns a new frame. Do not attempt to mutate `signal_id` or metadata in-place.
 - **`fetched_at` is set at construction.** Do not override it in intermediate knots; it records the original ingest time.
 

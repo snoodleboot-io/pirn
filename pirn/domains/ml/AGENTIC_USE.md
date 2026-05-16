@@ -223,6 +223,7 @@ async def main():
         model = Trainer(split=scaled, estimator=LogisticRegression(max_iter=500), _config=KnotConfig(id="train"))
         report = Evaluator(model=model, split=scaled, _config=KnotConfig(id="eval"))
         gate = MetricGate(report=report, metric="f1", min_value=0.80, raise_on_fail=True, _config=KnotConfig(id="gate"))
+        # `ModelSerializer` serialises metadata only. Wire a format connector (e.g. `JoblibFormat`) upstream to produce serialised bytes if you need to persist the estimator itself.
         serialized = ModelSerializer(model=model, format="joblib", _config=KnotConfig(id="serialize"))
         ModelRegistrar(serialized=serialized, lineage_store=my_mlflow_store, model_name="fraud-clf", _config=KnotConfig(id="register"))
 
@@ -262,6 +263,8 @@ For dynamic registry sweeps (e.g. evaluating N models in sequence without knowin
 ### Using `ModelSerializer` expecting actual fitted-model bytes
 
 The default `ModelSerializer.process()` serialises only the `TrainedModel` metadata fields (algorithm, hyperparameters, feature names) to JSON — it does not serialise the fitted estimator object. Subclass `ModelSerializer` and override `process()`, or use a format connector directly (`JoblibFormat`, `OnnxFormat`, etc.) alongside your own persistence logic.
+
+To persist the fitted estimator itself, use a format connector (`JoblibFormat`, `SafetensorsFormat`, etc.) to serialise to bytes first, then pass the bytes to `ModelSerializer` or directly to `ModelRegistrar`.
 
 ### Using `TfSavedModelFormat` expecting a plain file path
 

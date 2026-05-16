@@ -76,6 +76,8 @@ pirn/domains/agents/
     ├── memory_patterns/         Working / Semantic / Episodic / Procedural memory pipelines
     │                            EpisodicMemoryRetriever, SemanticMemoryUpsert, SessionSummarizer
     ├── guardrails/              Input/OutputGuardrailGate, PiiRedactorGate, FactCheckGate
+    │                            Note: these specialisation knots predate the *Check convention;
+    │                            they use the *Gate suffix and have not been renamed.
     │                            HallucinationDetector, CitationGrounder
     ├── structured_output/       JsonExtractor, YamlExtractor, PydanticValidator, EnumClassifier
     │                            SchemaEnforcer, RetryOnParseFailure, FormatCoercer
@@ -242,7 +244,7 @@ from pirn.domains.agents.generation.output_parser import OutputParser
 from pirn.domains.agents.generation.response_formatter import ResponseFormatter
 from pirn.domains.agents.control.safety_check import SafetyCheck
 
-provider = AnthropicProvider(api_key="...", default_model="claude-sonnet-4-5")
+provider = AnthropicProvider(api_key="...", default_model="claude-sonnet-4-6")
 
 async def main():
     with Tapestry() as t:

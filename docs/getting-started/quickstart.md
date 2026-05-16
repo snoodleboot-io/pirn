@@ -234,14 +234,18 @@ Every knot produces one of three results:
 By default, a knot whose parent failed is skipped (`SKIP_IF_PARENT_FAILED`). You can change this per knot:
 
 ```python
-from pirn import ErrorPolicy
+from pirn import Tapestry, knot, KnotConfig, RunRequest
+from pirn.core.error_policy import ErrorPolicy
 
 # This knot receives Result objects directly — it handles failures itself
 @knot
-async def summarise(left: int, right: int) -> str:
+async def summarise(left: int, right: int, **_) -> str:
     return f"{left} + {right}"
 
-KnotConfig(id="s", error_policy=ErrorPolicy.RECEIVE_ERRORS)
+with Tapestry() as t:
+    a = ...  # upstream knot producing int
+    b = ...  # upstream knot producing int
+    summarise(left=a, right=b, _config=KnotConfig(id="s", error_policy=ErrorPolicy.RECEIVE_ERRORS))
 ```
 
 See [Error Handling](../guides/error-handling.md) for the full reference.

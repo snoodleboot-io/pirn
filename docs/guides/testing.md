@@ -253,7 +253,7 @@ Use `EmitterErrorPolicy.RAISE` and a recording emitter to assert events:
 ```python
 from pirn.emitters.base import Emitter
 from pirn.core.lineage import KnotLineage
-from pirn.core.context import RunResult
+from pirn.core.run_result import RunResult
 from pirn import EmitterErrorPolicy
 
 

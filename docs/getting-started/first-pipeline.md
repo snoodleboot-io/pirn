@@ -120,8 +120,9 @@ nodes:
     type: sink
     callable: AuditLog
     parents:
-      decision: handle_clean    # connected to handle_clean by default;
-                                # handle_toxic is wired via the branch mechanism
+      decision: handle_clean    # audit only receives from handle_clean;
+                                # when the toxic branch fires, handle_clean is
+                                # skipped, so audit is skipped too
 ```
 
 !!! note "Branch wiring"

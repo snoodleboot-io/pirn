@@ -202,7 +202,7 @@ Subclass `Emitter` and override whichever hooks you need:
 ```python
 from pirn.emitters.base import Emitter
 from pirn.core.lineage import KnotLineage
-from pirn.core.context import RunResult
+from pirn.core.run_result import RunResult
 
 class PrometheusEmitter(Emitter):
     def __init__(self, registry):

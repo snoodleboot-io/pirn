@@ -31,11 +31,10 @@ pirn/domains/agents/
 │   └── response_formatter.py ResponseFormatter
 ├── planning/
 │   ├── planner.py           Planner          — context → Plan
-│   ├── tool_router.py       ToolRouter       — Plan → ToolCall list
+│   ├── tool_router.py       ToolRouter       — step string → ToolCall list
 │   ├── tool_executor.py     ToolExecutor     — executes one ToolCall
 │   └── tool_result_aggregator.py ToolResultAggregator
 ├── memory/
-│   ├── context_builder.py   (see input/)
 │   ├── memory_retriever.py  MemoryRetriever  — MemoryStore.search
 │   ├── memory_writer.py     MemoryWriter     — MemoryStore.store
 │   └── conversation_buffer.py ConversationBuffer
@@ -174,7 +173,9 @@ from pirn.domains.agents.planning.tool_result_aggregator import ToolResultAggreg
 # that each executor reads.
 ctx      = ContextBuilder(messages=parsed, _config=KnotConfig(id="ctx"))
 plan     = Planner(context=ctx, llm=llm,   _config=KnotConfig(id="plan"))
-router   = ToolRouter(plan=plan, tools=tools, llm=llm, _config=KnotConfig(id="route"))
+# Extract step string from plan, then route
+step     = PlanFirstStep(plan=plan, _config=KnotConfig(id="step"))
+router   = ToolRouter(step=step, tools=tools, llm=llm, _config=KnotConfig(id="route"))
 executor = ToolExecutor(tool_call=router,  _config=KnotConfig(id="exec"))
 agg      = ToolResultAggregator(results=executor, _config=KnotConfig(id="agg"))
 ```
@@ -198,8 +199,10 @@ from pirn.domains.agents.control.reflection_check import ReflectionCheck
 
 draft    = LLMCall(context=ctx, llm=llm,            _config=KnotConfig(id="draft"))
 gate     = ReflectionCheck(response=draft, threshold=0.8, _config=KnotConfig(id="gate"))
-critique = LLMCall(context=gate, llm=critic_llm,    _config=KnotConfig(id="critique"))
-# Gate passes through when quality score >= threshold; otherwise re-routes.
+# gate outputs bool — use it to gate whether critique runs; pass the original ctx to LLMCall
+critique = LLMCall(context=ctx, llm=critic_llm,    _config=KnotConfig(id="critique"))
+# Wire gate's bool output into a Gate primitive or ErrorPolicy to conditionally run critique.
+# Do NOT pass gate (bool) as context to LLMCall — LLMCall expects AgentContext.
 ```
 
 For a dynamic loop (unknown number of iterations), use an extensible Tapestry
@@ -574,7 +577,7 @@ class ResearchAgentTool(Tool):
     def __init__(self, llm):
         self._llm = llm
 
-    async def call(self, *, topic: str, **_) -> str:
+    async def invoke(self, *, topic: str, **_) -> str:
         from pirn.domains.agents.specializations.specialized_agents.research_agent import (
             ResearchAgent,
         )
@@ -618,7 +621,7 @@ class McpTool(Tool):
         self.description = description
         self._client = mcp_client
 
-    async def call(self, **kwargs) -> str:
+    async def invoke(self, **kwargs) -> str:
         result = await self._client.call_tool(self.name, kwargs)
         return str(result.content)
 
