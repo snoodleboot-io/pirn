@@ -49,7 +49,7 @@ pirn is an async Python pipeline framework for defining, executing, and observin
 User Code
     │
     ├── @knot decorator / Knot subclasses   ← pirn/core/knot.py
-    ├── KnotConfig / ErrorPolicy            ← pirn/core/config.py
+    ├── KnotConfig / ErrorPolicy            ← pirn/core/knot_config.py + pirn/core/error_policy.py
     ├── Tapestry context manager            ← pirn/tapestry.py
     │       │
     │       └── tapestry.run(RunRequest)
@@ -80,7 +80,7 @@ User Code
     │
     └── Tooling
             ├── YAML Loader    ← pirn/yaml_loader/
-            ├── tapestry-check ← pirn/check.py
+            ├── tapestry-check ← pirn/check/
             └── replay / diff  ← pirn/replay.py
 ```
 
@@ -175,7 +175,7 @@ All three are frozen Pydantic models. The engine produces one per knot per run.
 
 ### 2.3 ErrorPolicy
 
-**File:** `pirn/core/config.py:ErrorPolicy` (StrEnum)
+**File:** `pirn/core/error_policy.py:ErrorPolicy` (StrEnum)
 
 Applied per knot in `Engine._decide()` (`pirn/engine/engine.py:384`):
 
@@ -265,7 +265,7 @@ Type tags (`__model__`, `__map__`, `__seq__`, `__set__`, `__bytes__`) prevent cr
 
 ### 3.1 User API Layer
 
-**Files:** `pirn/core/knot.py`, `pirn/core/config.py`, `pirn/tapestry.py`
+**Files:** `pirn/core/knot.py`, `pirn/core/knot_config.py`, `pirn/core/error_policy.py`, `pirn/tapestry.py`
 
 **Knot subclassing:**
 
@@ -1087,7 +1087,7 @@ graph TD
         KnotCls["Knot (ABC)\npirn/core/knot.py"]
         KnotDec["@knot decorator\nKnotFactory"]
         Tap["Tapestry\npirn/tapestry.py"]
-        KnotCfg["KnotConfig / ErrorPolicy\npirn/core/config.py"]
+        KnotCfg["KnotConfig / ErrorPolicy\npirn/core/knot_config.py\npirn/core/error_policy.py"]
     end
 
     subgraph Graph["Pipeline Graph"]
@@ -1307,7 +1307,8 @@ flowchart TD
 | File | Role |
 |------|------|
 | `pirn/core/knot.py` | `Knot` ABC, `Optional` mixin, `@knot` decorator, `KnotFactory`, `_pending_record` |
-| `pirn/core/config.py` | `KnotConfig`, `ErrorPolicy` enum |
+| `pirn/core/knot_config.py` | `KnotConfig` |
+| `pirn/core/error_policy.py` | `ErrorPolicy` enum |
 | `pirn/core/context.py` | `RunRequest`, `RunResult`, `RunContext` |
 | `pirn/core/hashing.py` | `content_hash()`, `_canonicalise()` |
 | `pirn/core/lineage.py` | `KnotLineage` Pydantic model |
@@ -1333,7 +1334,7 @@ flowchart TD
 | `pirn/triggers/base.py` | `Trigger` protocol, `run_forever()` |
 | `pirn/streaming/base.py` | `StreamingSource` protocol, `run_stream()` |
 | `pirn/streaming/trigger_adapter.py` | `StreamingSourceTrigger` |
-| `pirn/nodes/map_.py` | `Map` knot — per-element fan-out |
+| `pirn/nodes/map_markers.py` | `Map`, `ZipMap`, `DictMap` — fan-out markers |
 | `pirn/nodes/branch.py` | `Branch`, `BranchOutput` — selector routing |
 | `pirn/nodes/gate.py` | `Gate` — predicate-based pass/skip |
 | `pirn/nodes/reduce_.py` | `Reduce` — sequential fold over a collection |
@@ -1343,6 +1344,6 @@ flowchart TD
 | `pirn/yaml_loader/loader.py` | `load_pipeline()`, `_topo_order_specs`, `_resolve_callable` |
 | `pirn/yaml_loader/spec.py` | `PipelineSpec`, all `*Spec` models |
 | `pirn/replay.py` | `replay_run()`, `compare_runs()`, `KnotDiff` |
-| `pirn/check.py` | `validate_tapestry()`, `tapestry-check` CLI |
+| `pirn/check/` | `validate_tapestry()`, `tapestry-check` CLI, `ValidationResult`, `ValidationIssue` |
 | `pirn/managers/exceptions.py` | `ExceptionRecord`, `ExceptionManager`, `RebindableException` |
 | `pirn/managers/status.py` | `StatusManager`, `KnotState`, `StatusEvent` |

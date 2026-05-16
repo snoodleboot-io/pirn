@@ -45,7 +45,7 @@ Called before each iteration.  Given the current state, decide:
 - **Continue**: build the iteration's tapestry, return `(tapestry, updated_state)`.
 - **Terminate**: return `None`.
 
-The `updated_state` you return alongside the tapestry is passed to `fold` once the iteration completes — it represents your prediction or bookmark, not the iteration's output.
+The second element of the return tuple is ignored by the framework. `fold` always receives the same state that was passed into `step` for that iteration, not the state returned here. Return `state` unchanged as a convention.
 
 Build the iteration tapestry with a plain `Tapestry()` context manager:
 

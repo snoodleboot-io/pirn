@@ -41,3 +41,38 @@ pirn's built-ins. To restrict resolution to your library only, look up via
 from sweet_tea.registry import Registry
 
 Registry.fill_registry()
+
+# Public API re-exports — users may import from pirn directly.
+# Registry.fill_registry() above must run first; noqa: E402 suppresses the
+# "import not at top of file" warnings that follow from that ordering.
+from pirn.core.assembler import Assembler  # noqa: E402
+from pirn.core.disassembler import Disassembler  # noqa: E402
+from pirn.core.error_policy import ErrorPolicy  # noqa: E402
+from pirn.core.knot import Knot  # noqa: E402
+from pirn.core.knot_config import KnotConfig  # noqa: E402
+from pirn.core.knot_factory import knot  # noqa: E402
+from pirn.core.parameter import Parameter  # noqa: E402
+from pirn.core.run_request import RunRequest  # noqa: E402
+from pirn.core.run_result import RunResult  # noqa: E402
+from pirn.nodes.loop_sub_tapestry import LoopSubTapestry  # noqa: E402
+from pirn.nodes.sink import Sink  # noqa: E402
+from pirn.nodes.source import Source  # noqa: E402
+from pirn.nodes.sub_tapestry import SubTapestry  # noqa: E402
+from pirn.tapestry import Tapestry  # noqa: E402
+
+__all__ = [
+    "Tapestry",
+    "Knot",
+    "KnotConfig",
+    "knot",
+    "Parameter",
+    "RunRequest",
+    "RunResult",
+    "ErrorPolicy",
+    "Assembler",
+    "Disassembler",
+    "Sink",
+    "Source",
+    "SubTapestry",
+    "LoopSubTapestry",
+]

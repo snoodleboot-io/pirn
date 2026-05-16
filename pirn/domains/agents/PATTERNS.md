@@ -48,7 +48,7 @@ pirn/domains/agents/
     ├── rag/                 NaiveRagPipeline, CorrectiveRagPipeline, HyDeRagPipeline, GraphRagPipeline
     ├── multi_agent/         OrchestratorAgent, ParallelSpecialistFanOut, ConsensusAggregator, DebateFramework
     ├── memory_patterns/     SemanticMemoryPipeline, EpisodicMemoryPipeline, ProceduralMemoryPipeline, WorkingMemoryPipeline
-    ├── guardrails/          InputGuardrailGate, OutputGuardrailGate, PiiRedactorGate, FactCheckGate
+    ├── guardrails/          InputGuardrailGate, OutputGuardrailGate, PiiRedactorCheck, FactCheckGate
     ├── structured_output/   JsonExtractorPipeline, YamlExtractorPipeline, PydanticValidatorPipeline, EnumClassifierPipeline
     ├── specialized_agents/  ReActLoop-based: BrowserAgent, CodeAgent, SqlAgent, ResearchAgent, DataAnalystAgent
     └── document_processing/ DocumentIngestionPipeline, DocumentQaPipeline, DocumentSummarizerPipeline, DocumentTranslationPipeline
@@ -391,7 +391,7 @@ controller = ReviewController(board=blackboard, _config=KnotConfig(id="ctrl"))
 being returned to the caller.
 
 **Knots:** `SafetyCheck`, `InputGuardrailGate`, `OutputGuardrailGate`,
-`PiiRedactorGate`, `FactCheckGate`.
+`PiiRedactorCheck`, `FactCheckGate`.
 
 Gates follow a common interface: they accept the upstream response and either
 pass it through, redact it, or raise to abort the run.
@@ -402,12 +402,12 @@ from pirn.domains.agents.specializations.guardrails.output_guardrail_gate import
     OutputGuardrailGate,
 )
 from pirn.domains.agents.specializations.guardrails.pii_redactor_gate import (
-    PiiRedactorGate,
+    PiiRedactorCheck,
 )
 
 raw_response = LLMCall(context=ctx, llm=llm, _config=KnotConfig(id="llm"))
 safety       = SafetyCheck(response=raw_response, _config=KnotConfig(id="safety"))
-pii          = PiiRedactorGate(response=safety,  _config=KnotConfig(id="pii"))
+pii          = PiiRedactorCheck(response=safety,  _config=KnotConfig(id="pii"))
 output_gate  = OutputGuardrailGate(response=pii, llm=llm, _config=KnotConfig(id="oguard"))
 ```
 
@@ -691,7 +691,7 @@ Patterns compose — pick the pieces you need:
        ├── [CorrectiveRagPipeline]          ← RAG (document leg)
        └── [CodeAgent]                      ← specialised agent (code leg)
    → [ConsensusAggregator]                  ← synthesiser
-   → [PiiRedactorGate → OutputGuardrailGate] ← supervision (output)
+   → [PiiRedactorCheck → OutputGuardrailGate] ← supervision (output)
 ```
 
 All of the above are real knots in this library. The only things you supply

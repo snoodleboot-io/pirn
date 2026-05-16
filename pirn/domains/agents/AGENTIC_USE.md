@@ -75,7 +75,7 @@ pirn/domains/agents/
     │                            ConsensusAggregator, RoundRobinReview
     ├── memory_patterns/         Working / Semantic / Episodic / Procedural memory pipelines
     │                            EpisodicMemoryRetriever, SemanticMemoryUpsert, SessionSummarizer
-    ├── guardrails/              Input/OutputGuardrailGate, PiiRedactorGate, FactCheckGate
+    ├── guardrails/              Input/OutputGuardrailGate, PiiRedactorCheck, FactCheckGate
     │                            Note: these specialisation knots predate the *Check convention;
     │                            they use the *Gate suffix and have not been renamed.
     │                            HallucinationDetector, CitationGrounder

@@ -296,6 +296,12 @@ continues(search, fn=router, pool=POOL)
 
 ## LoopSubTapestry
 
+::: pirn.nodes.loop_sub_tapestry.LoopSubTapestry
+    options:
+      show_source: false
+      members_order: source
+      heading_level: 3
+
 An iterative `SubTapestry` where all iterations execute as knots within a single extensible inner run, connected by real data edges. Use when the number of iterations is unknown until runtime and each iteration's structure may depend on the previous result.
 
 Subclass and implement:
