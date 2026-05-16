@@ -3,14 +3,14 @@
 Calls :func:`lance.dataset` against the configured path at run time and
 emits a :class:`LanceDataset` adapter. The actual ``lance`` package
 import happens inside :meth:`process` so this module imports cleanly
-when ``pylance`` is not installed.
+when ``lance`` is not installed.
 
 Algorithm:
     1. Receive the resolved ``path`` string in ``process()``.
     2. Validate that ``path`` is a non-empty string.
     3. Import ``lance`` lazily (raises ``ImportError`` with install
        instructions if not available).
-    4. Call ``lance.dataset(path)`` to open the dataset on disk.
+    4. Open the dataset via ``lance.dataset.LanceDataset(path)``.
     5. Wrap the result in a :class:`LanceDataset` and return it.
 
 References:
@@ -56,7 +56,7 @@ class LanceSource(Source):
         if not isinstance(path, str) or not path:
             raise ValueError("LanceSource: path must be a non-empty string")
 
-        import lance
+        from lance.dataset import LanceDataset as _LanceDataset
 
-        dataset = lance.dataset(path)
+        dataset = _LanceDataset(path)
         return LanceDataset(dataset=dataset, source_uri=path)

@@ -1,17 +1,26 @@
-"""Tests for :class:`LanceSource`.
-
-End-to-end tests skip unless the actual ``lance.dataset`` /
-``lance.write_dataset`` API is available — the PyPI ``lance`` placeholder
-package does not provide it.
-"""
+"""Tests for :class:`LanceSource`."""
 
 from __future__ import annotations
 
-import tempfile
 import unittest
+
+try:
+    import pyarrow  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("pyarrow not installed") from _e
+
+try:
+    from lance.dataset import LanceDataset as _LanceDataset  # noqa: F401
+    from lance.dataset import write_dataset as _lance_write_dataset  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("lance not installed") from _e
+
+import tempfile
 from pathlib import Path
 
-import pytest
+import pyarrow as pa
+from lance.dataset import LanceDataset as _LanceDataset
+from lance.dataset import write_dataset
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -38,26 +47,12 @@ class TestLanceSourceProcess(unittest.IsolatedAsyncioTestCase):
             await src.process(path=123)  # type: ignore[arg-type]
 
     async def test_reads_lance_dataset_from_disk(self) -> None:
-        _td_test_reads_lance_dataset_from_disk = tempfile.TemporaryDirectory()
-        self.addCleanup(_td_test_reads_lance_dataset_from_disk.cleanup)
-        tmp_path = Path(_td_test_reads_lance_dataset_from_disk.name)
-        try:
-            import lance
-        except ImportError as _e:
-            self.skipTest("lance not installed")
-        if not hasattr(lance, "write_dataset") or not hasattr(lance, "dataset"):
-            pytest.skip(
-                "Installed 'lance' package is the unrelated codegen "
-                "package, not pylance"
-            )
-        try:
-            import pyarrow
-        except ImportError as _e:
-            self.skipTest("pyarrow not installed")
+        tmp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp_dir.cleanup)
+        path = str(Path(tmp_dir.name) / "ds.lance")
 
-        table = pyarrow.table({"id": [1, 2, 3], "name": ["a", "b", "c"]})
-        path = str(tmp_path / "ds.lance")
-        lance.write_dataset(table, path)
+        table = pa.table({"id": [1, 2, 3], "name": ["a", "b", "c"]})
+        write_dataset(table, path)
 
         with Tapestry() as t:
             LanceSource(path=path, _config=KnotConfig(id="src"))
@@ -66,5 +61,4 @@ class TestLanceSourceProcess(unittest.IsolatedAsyncioTestCase):
         emitted = result.outputs["src"]
         assert isinstance(emitted, LanceDataset)
         assert emitted.source_uri == path
-        # Round-trip through ``to_table`` to confirm the dataset is real.
         assert emitted.dataset.to_table().num_rows == 3

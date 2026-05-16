@@ -140,7 +140,7 @@ pathway = ["pathway>=0.13; python_version<'3.11'"]
 bytewax = ["bytewax>=0.21; python_version<'3.13'"]
 
 # Tier 4 — specialized
-lance = ["pylance>=0.18"]
+lance = ["lance>=1.0"]
 eland = ["eland>=8.13"]
 
 # Lakehouse table formats — see pirn/domains/data/lakehouse/.

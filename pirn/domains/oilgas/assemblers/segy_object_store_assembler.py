@@ -21,7 +21,7 @@ from __future__ import annotations
 import asyncio
 import tempfile
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 from pirn.core.assembler import Assembler
 from pirn.core.knot import Knot
@@ -46,7 +46,7 @@ def _decode(body: bytes, volume_id: str) -> SegyVolume:
                 if hasattr(segy_file, "xlines") and segy_file.xlines is not None
                 else 0
             )
-            sample_count = segy_file.bin[segyio.BinField.Samples]
+            sample_count = cast(int, segy_file.bin[segyio.BinField.Samples])
     return SegyVolume(
         volume_id=volume_id,
         inline_count=inline_count,
