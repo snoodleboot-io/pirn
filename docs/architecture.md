@@ -486,7 +486,7 @@ The engine wires emitters to `RunContext.status` (a `StatusManager`) at the star
 | `LogEmitter` | Python `logging` | 2 |
 | `KafkaEmitter` | `aiokafka` producer | 3 |
 | `OpenTelemetryEmitter` | OTLP spans | 3 |
-| `ValkeyEmitter` | ValKey pubsub | 3 |
+| `ValKeyEmitter` | ValKey pubsub | 3 |
 | `WebhookEmitter` | HTTP POST | 3 |
 
 ### 3.6 Trigger Layer
@@ -662,7 +662,7 @@ See [Section 6](#6-distributed-execution) for serialization details.
 | `DuckDBHistory` | — | Y | — | N | OLAP queries on lineage. Best as a read-replica target. |
 | `LocalDiskDataStore` | — | — | Y | N | Single-host file-per-value storage. |
 | `S3DataStore` | — | — | Y | N | Distributed object storage. Requires `aioboto3`. |
-| `ValkeyStore` / `ValkeyDataStore` | Y | — | Y | Y | Low-latency. Requires `valkey-glide`. TTL support on DataStore. |
+| `ValKeyStore` / `ValKeyDataStore` | Y | — | Y | Y | Low-latency. Requires `valkey-glide`. TTL support on DataStore. |
 
 ### Deployment Guidance
 
@@ -723,11 +723,11 @@ analytics_history = DuckDBHistory("analytics.duckdb")
 **Low-latency streaming:**
 
 ```python
-from pirn.backends.valkey import ValkeyStore, ValkeyDataStore
+from pirn.backends.valkey import ValKeyStore, ValKeyDataStore
 
 t = Tapestry(
-    store=ValkeyStore(host="localhost", port=6379),
-    data_store=ValkeyDataStore(host="localhost", port=6379, ttl_seconds=3600),
+    store=ValKeyStore(host="localhost", port=6379),
+    data_store=ValKeyDataStore(host="localhost", port=6379, ttl_seconds=3600),
 )
 ```
 
@@ -1325,7 +1325,7 @@ flowchart TD
 | `pirn/backends/sqlite.py` | `SQLiteStore`, `SQLiteHistory` |
 | `pirn/backends/postgres.py` | `PostgresStore`, `PostgresHistory` |
 | `pirn/backends/duckdb.py` | `DuckDBHistory` |
-| `pirn/backends/valkey.py` | `ValkeyStore`, `ValkeyDataStore` |
+| `pirn/backends/valkey.py` | `ValKeyStore`, `ValKeyDataStore` |
 | `pirn/backends/s3.py` | `S3DataStore` |
 | `pirn/backends/disk.py` | `LocalDiskDataStore` |
 | `pirn/backends/subscribe.py` | `SubscribableStore` protocol |
