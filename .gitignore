@@ -43,3 +43,4 @@ site/
 *.db-shm
 _later_designs/
 _pheenyx_charts/
+.claude/worktrees/
