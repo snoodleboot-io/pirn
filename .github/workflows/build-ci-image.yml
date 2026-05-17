@@ -11,6 +11,10 @@ on:
       - '.github/workflows/build-ci-image.yml'
   workflow_dispatch:
 
+permissions:
+  contents: read
+  packages: write
+
 env:
   REGISTRY: ghcr.io/${{ github.repository_owner }}
 
