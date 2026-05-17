@@ -41,7 +41,7 @@ jobs:
         uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772  # v3.4.0
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
+          username: ${{ steps.app-token.outputs.app-slug }}
           password: ${{ steps.app-token.outputs.token }}
 
       - name: Set up Docker Buildx
