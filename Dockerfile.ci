@@ -6,6 +6,10 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update -qq && \
     apt-get install -y --no-install-recommends \
       build-essential \
+      gfortran \
+      libopenblas-dev \
+      liblapack-dev \
+      pkg-config \
       gdal-bin \
       libgdal-dev \
       libsndfile1 \
