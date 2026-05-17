@@ -29,7 +29,7 @@ def _is_all_caps(name: str) -> bool:
         return False
     if len(name) < _CAPS_RE_MIN_LEN:
         return False
-    return name == name.upper() and "_" in name or (name.isupper() and len(name) >= _CAPS_RE_MIN_LEN)
+    return (name == name.upper() and "_" in name) or (name.isupper() and len(name) >= _CAPS_RE_MIN_LEN)
 
 
 def _base_names(bases: list[ast.expr]) -> list[str]:
