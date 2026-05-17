@@ -76,15 +76,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
       - name: Install pirn
-        # scipy has no pre-built wheels for Python 3.14 yet; skip extras that
-        # depend on it (signal, health, matlab) to avoid a source build that
-        # requires gfortran. All other extras are installed on every version.
-        run: |
-          if [ "${{ matrix.python-version }}" = "3.14" ]; then
-            uv sync --all-extras --no-extra signal --no-extra health --no-extra matlab
-          else
-            uv sync --all-extras
-          fi
+        run: uv sync --all-extras
 
       - name: Run unit tests
         run: |
