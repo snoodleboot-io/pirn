@@ -16,6 +16,7 @@ permissions:
 env:
   UV_PROJECT_ENVIRONMENT: /opt/pirn-deps/.venv
   UV_PYTHON_PREFERENCE: only-system
+  UV_FROZEN: "1"
 
 jobs:
   approve:
@@ -39,7 +40,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
       - name: Install pirn + heavy extras (torch, tensorflow)
-        run: uv sync --all-extras
+        run: uv sync --all-extras --frozen
 
       - name: Run heavy tests
         run: |
