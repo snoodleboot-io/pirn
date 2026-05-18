@@ -16,7 +16,6 @@ permissions:
 env:
   UV_PROJECT_ENVIRONMENT: /opt/pirn-deps/.venv
   UV_PYTHON_PREFERENCE: only-system
-  UV_FROZEN: ""
 
 jobs:
   approve:
