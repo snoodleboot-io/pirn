@@ -33,24 +33,6 @@ COPY pyproject.toml ./
 ENV UV_PYTHON_PREFERENCE=only-system \
     UV_PROJECT_ENVIRONMENT=/opt/pirn-deps/.venv
 
-# Exclude torch and tensorflow — they're large GPU packages only needed for
-# heavy tests, which install them at runtime via the heavy-tests workflow.
 RUN uv sync --all-extras --no-install-project \
-    --no-install-package torch \
-    --no-install-package tensorflow \
-    --no-install-package nvidia-cublas-cu13 \
-    --no-install-package nvidia-cuda-cupti-cu13 \
-    --no-install-package nvidia-cuda-nvrtc-cu13 \
-    --no-install-package nvidia-cuda-runtime-cu13 \
-    --no-install-package nvidia-cudnn-cu13 \
-    --no-install-package nvidia-cufft-cu13 \
-    --no-install-package nvidia-curand-cu13 \
-    --no-install-package nvidia-cusolver-cu13 \
-    --no-install-package nvidia-cusparse-cu13 \
-    --no-install-package nvidia-nccl-cu13 \
-    --no-install-package nvidia-nvjitlink-cu13 \
-    --no-install-package nvidia-cufile-cu13 \
-    --no-install-package nvidia-cusparselt-cu13 \
-    --no-install-package nvidia-nvshmem-cu13 \
-    --no-install-package triton \
-    --no-install-package ai-edge-litert
+    --no-extra gpu --no-extra pytorch --no-extra tensorflow --no-extra tflite && \
+    rm -f uv.lock
