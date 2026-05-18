@@ -75,12 +75,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
       - name: Install pirn
-        run: |
-          if [ "${{ matrix.python-version }}" = "3.14" ]; then
-            uv sync --extra kafka --extra http --extra otel --extra celery --extra sqlite --extra postgres --extra agents
-          else
-            uv sync --all-extras
-          fi
+        run: uv sync --all-extras
 
       - name: Run unit tests
         run: |
