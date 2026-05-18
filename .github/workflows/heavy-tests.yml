@@ -16,7 +16,6 @@ permissions:
 env:
   UV_PROJECT_ENVIRONMENT: /opt/pirn-deps/.venv
   UV_PYTHON_PREFERENCE: only-system
-  UV_FROZEN: "1"
 
 jobs:
   approve:
@@ -31,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [approve]
     container:
-      image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py${{ matrix.python-version }}
+      image: ghcr.io/${{ github.repository_owner }}/pirn-ci-heavy:py${{ matrix.python-version }}
     strategy:
       fail-fast: false
       matrix:
@@ -39,8 +38,8 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
-      - name: Install pirn + heavy extras (torch, tensorflow)
-        run: uv sync --all-extras --frozen
+      - name: Install pirn
+        run: uv pip install --system -e .
 
       - name: Run heavy tests
         run: |
