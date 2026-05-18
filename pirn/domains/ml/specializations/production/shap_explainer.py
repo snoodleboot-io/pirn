@@ -8,7 +8,7 @@ Algorithm:
 
 Math:
     SHAP value for feature i:
-        phi_i = sum_{S in subsets \ {i}} [|S|! * (n - |S| - 1)! / n!] * [v(S + {i}) - v(S)]
+        phi_i = sum_{S in subsets \\ {i}} [|S|! * (n - |S| - 1)! / n!] * [v(S + {i}) - v(S)]
 
     Mean absolute SHAP (global importance):
         mean_abs_shap_i = (1/n) * sum_{j=1}^{n} |phi_i(x_j)|

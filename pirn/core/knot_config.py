@@ -28,7 +28,7 @@ class KnotConfig(BaseModel):
             Required; no default is generated.
         validate_io: When ``True`` (default), inputs and outputs are validated
             against the ``process()`` signature using Pydantic
-            ``TypeAdapter``\s at each invocation.  Set ``False`` only in
+            ``TypeAdapter``\\s at each invocation.  Set ``False`` only in
             performance-critical hot paths where types are already guaranteed.
         error_policy: Controls how the scheduler reacts when this knot's
             upstream parents fail or are skipped.  Defaults to

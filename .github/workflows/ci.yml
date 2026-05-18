@@ -343,6 +343,7 @@ jobs:
             --ignore=tests/integration/test_valkey_real.py \
             --junitxml=test-results/integration-mock.xml \
             --timeout=60 \
+            --tb=short \
             -v
 
       - name: Run Dask / Ray integration tests

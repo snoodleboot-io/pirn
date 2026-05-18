@@ -208,7 +208,6 @@ class SubTapestry(Knot):
         are recorded to the same store.  Pass ``parent_run_id`` to explicitly
         link this inner run to a known outer run_id.
         """
-        from pirn.backends.in_memory.in_memory_history import InMemoryHistory
         from pirn.core.run_request import RunRequest
         from pirn.tapestry import _current_history, _current_run_id
 
@@ -220,7 +219,7 @@ class SubTapestry(Knot):
             outer_history = _current_history.get(None)
         # Inject the outer history into the inner tapestry so inner runs are
         # recorded to the same store and appear in the explorer.
-        if outer_history is not None and not isinstance(outer_history, InMemoryHistory):
+        if outer_history is not None:
             tapestry._history = outer_history
 
         # If no explicit parent_run_id was supplied, inherit from the context

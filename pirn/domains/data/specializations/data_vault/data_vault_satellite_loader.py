@@ -35,7 +35,7 @@ References:
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -179,7 +179,7 @@ class DataVaultSatelliteLoader(Knot):
                 f"DataVaultSatelliteLoader: attribute_columns clash with envelope "
                 f"columns: {sorted(clash)!r}"
             )
-        source_columns = (hub_hash_key_column, hash_diff_column, *attr_tuple)
+        source_columns = cast(tuple[str, ...], (hub_hash_key_column, hash_diff_column, *attr_tuple))
         source_rows = await source_pool.fetch_all(source_query)
         load_date = datetime.now(UTC).isoformat()
         rows_inserted = 0
