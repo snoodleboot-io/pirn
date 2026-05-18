@@ -73,7 +73,14 @@ def _correct_motion(nifti_path: str, output_nifti_path: str) -> None:
 
     for vol in range(1, data.shape[-1]):
         moving = data[..., vol]
-        mapping = affreg.optimize(reference, moving, transform, None, affine, affine)
+        mapping = affreg.optimize(
+            reference,
+            moving,
+            transform,
+            None,
+            static_grid2world=affine,
+            moving_grid2world=affine,
+        )
         corrected[..., vol] = mapping.transform(moving)
 
     out_img = nib.Nifti1Image(corrected, affine, img.header)
