@@ -38,7 +38,7 @@ def test_source_has_no_parents():
 
 
 def test_source_rejects_kwargs():
-    with pytest.raises(TypeError, match="takes no inputs"):
+    with pytest.raises(TypeError, match="unknown non-Knot kwarg"):
         StaticSource(extra="nope", _config=KnotConfig(id="s"))
 
 

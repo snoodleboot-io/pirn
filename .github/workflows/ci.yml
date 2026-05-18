@@ -136,32 +136,32 @@ jobs:
 
       - name: "[data] install + import"
         run: |
-          uv pip install -e ".[data]"
+          uv pip install --system -e ".[data]"
           uv run python -c "import pirn.domains.data; print('OK: data')"
 
       - name: "[agents] install + import"
         run: |
-          uv pip install -e ".[agents]"
+          uv pip install --system -e ".[agents]"
           uv run python -c "import pirn.domains.agents; print('OK: agents')"
 
       - name: "[ml] install + import"
         run: |
-          uv pip install -e ".[ml]"
+          uv pip install --system -e ".[ml]"
           uv run python -c "import pirn.domains.ml; print('OK: ml')"
 
       - name: "[health] install + import"
         run: |
-          uv pip install -e ".[health]"
+          uv pip install --system -e ".[health]"
           uv run python -c "import pirn.domains.health; print('OK: health')"
 
       - name: "[signal] install + import"
         run: |
-          uv pip install -e ".[signal]"
+          uv pip install --system -e ".[signal]"
           uv run python -c "import pirn.domains.signal; print('OK: signal')"
 
       - name: "[oilgas] install + import"
         run: |
-          uv pip install -e ".[oilgas]"
+          uv pip install --system -e ".[oilgas]"
           uv run python -c "import pirn.domains.oilgas; print('OK: oilgas')"
 
       - name: "domains namespace — no cross-coupling"
@@ -177,132 +177,132 @@ jobs:
 
       - name: "[postgres] install + import"
         run: |
-          uv pip install -e ".[postgres]"
+          uv pip install --system -e ".[postgres]"
           uv run python -c "import pirn.domains.connectors; print('OK: postgres')"
 
       - name: "[sqlite] install + import"
         run: |
-          uv pip install -e ".[sqlite]"
+          uv pip install --system -e ".[sqlite]"
           uv run python -c "import pirn.domains.connectors; print('OK: sqlite')"
 
       - name: "[duckdb] install + import"
         run: |
-          uv pip install -e ".[duckdb]"
+          uv pip install --system -e ".[duckdb]"
           uv run python -c "import pirn.domains.connectors; print('OK: duckdb')"
 
       - name: "[mysql] install + import"
         run: |
-          uv pip install -e ".[mysql]"
+          uv pip install --system -e ".[mysql]"
           uv run python -c "import pirn.domains.connectors; print('OK: mysql')"
 
       - name: "[bigquery] install + import"
         run: |
-          uv pip install -e ".[bigquery]"
+          uv pip install --system -e ".[bigquery]"
           uv run python -c "import pirn.domains.connectors; print('OK: bigquery')"
 
       - name: "[snowflake] install + import"
         run: |
-          uv pip install -e ".[snowflake]"
+          uv pip install --system -e ".[snowflake]"
           uv run python -c "import pirn.domains.connectors; print('OK: snowflake')"
 
       - name: "[clickhouse] install + import"
         run: |
-          uv pip install -e ".[clickhouse]"
+          uv pip install --system -e ".[clickhouse]"
           uv run python -c "import pirn.domains.connectors; print('OK: clickhouse')"
 
       - name: "[mssql] install + import"
         run: |
-          uv pip install -e ".[mssql]"
+          uv pip install --system -e ".[mssql]"
           uv run python -c "import pirn.domains.connectors; print('OK: mssql')"
 
       - name: "[oracle] install + import"
         run: |
-          uv pip install -e ".[oracle]"
+          uv pip install --system -e ".[oracle]"
           uv run python -c "import pirn.domains.connectors; print('OK: oracle')"
 
       - name: "[s3] install + import"
         run: |
-          uv pip install -e ".[s3]"
+          uv pip install --system -e ".[s3]"
           uv run python -c "import pirn.domains.connectors; print('OK: s3')"
 
       - name: "[gcs] install + import"
         run: |
-          uv pip install -e ".[gcs]"
+          uv pip install --system -e ".[gcs]"
           uv run python -c "import pirn.domains.connectors; print('OK: gcs')"
 
       - name: "[azure] install + import"
         run: |
-          uv pip install -e ".[azure]"
+          uv pip install --system -e ".[azure]"
           uv run python -c "import pirn.domains.connectors; print('OK: azure')"
 
       - name: "[kafka] install + import"
         run: |
-          uv pip install -e ".[kafka]"
+          uv pip install --system -e ".[kafka]"
           uv run python -c "import pirn.domains.connectors; print('OK: kafka')"
 
       - name: "[kinesis] install + import"
         run: |
-          uv pip install -e ".[kinesis]"
+          uv pip install --system -e ".[kinesis]"
           uv run python -c "import pirn.domains.connectors; print('OK: kinesis')"
 
       - name: "[pubsub] install + import"
         run: |
-          uv pip install -e ".[pubsub]"
+          uv pip install --system -e ".[pubsub]"
           uv run python -c "import pirn.domains.connectors; print('OK: pubsub')"
 
       - name: "[rabbitmq] install + import"
         run: |
-          uv pip install -e ".[rabbitmq]"
+          uv pip install --system -e ".[rabbitmq]"
           uv run python -c "import pirn.domains.connectors; print('OK: rabbitmq')"
 
       - name: "[azure-servicebus] install + import"
         run: |
-          uv pip install -e ".[azure-servicebus]"
+          uv pip install --system -e ".[azure-servicebus]"
           uv run python -c "import pirn.domains.connectors; print('OK: azure-servicebus')"
 
       - name: "[salesforce] install + import"
         run: |
-          uv pip install -e ".[salesforce]"
+          uv pip install --system -e ".[salesforce]"
           uv run python -c "import pirn.domains.connectors; print('OK: salesforce')"
 
       - name: "[hubspot] install + import"
         run: |
-          uv pip install -e ".[hubspot]"
+          uv pip install --system -e ".[hubspot]"
           uv run python -c "import pirn.domains.connectors; print('OK: hubspot')"
 
       - name: "[stripe] install + import"
         run: |
-          uv pip install -e ".[stripe]"
+          uv pip install --system -e ".[stripe]"
           uv run python -c "import pirn.domains.connectors; print('OK: stripe')"
 
       - name: "[github] install + import"
         run: |
-          uv pip install -e ".[github]"
+          uv pip install --system -e ".[github]"
           uv run python -c "import pirn.domains.connectors; print('OK: github')"
 
       - name: "[jira] install + import"
         run: |
-          uv pip install -e ".[jira]"
+          uv pip install --system -e ".[jira]"
           uv run python -c "import pirn.domains.connectors; print('OK: jira')"
 
       - name: "[shopify] install + import"
         run: |
-          uv pip install -e ".[shopify]"
+          uv pip install --system -e ".[shopify]"
           uv run python -c "import pirn.domains.connectors; print('OK: shopify')"
 
       - name: "[datadog] install + import"
         run: |
-          uv pip install -e ".[datadog]"
+          uv pip install --system -e ".[datadog]"
           uv run python -c "import pirn.domains.connectors; print('OK: datadog')"
 
       - name: "[prometheus] install + import"
         run: |
-          uv pip install -e ".[prometheus]"
+          uv pip install --system -e ".[prometheus]"
           uv run python -c "import pirn.domains.connectors; print('OK: prometheus')"
 
       - name: "[otel] install + import"
         run: |
-          uv pip install -e ".[otel]"
+          uv pip install --system -e ".[otel]"
           uv run python -c "import pirn.domains.connectors; print('OK: otel')"
 
   mock-integration-tests:

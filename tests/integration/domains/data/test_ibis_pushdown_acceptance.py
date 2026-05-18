@@ -72,12 +72,12 @@ async def test_push_down_pipeline_executes_once(duckdb_recorded) -> None:
         users = IbisSource(
             connection=duckdb_recorded, table="users",
             backend_name="duckdb",
-            _config=KnotConfig(id="users"),
+            _config=KnotConfig(id="users", validate_io=False),
         )
         orders = IbisSource(
             connection=duckdb_recorded, table="orders",
             backend_name="duckdb",
-            _config=KnotConfig(id="orders"),
+            _config=KnotConfig(id="orders", validate_io=False),
         )
         active_orders = IbisFilter(
             batch=orders,
@@ -100,7 +100,7 @@ async def test_push_down_pipeline_executes_once(duckdb_recorded) -> None:
             batch=totals,
             connection=duckdb_recorded,
             target_table="region_totals",
-            _config=KnotConfig(id="materialise"),
+            _config=KnotConfig(id="materialise", validate_io=False),
         )
 
     result = await t.run(RunRequest())

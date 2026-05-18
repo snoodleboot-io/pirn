@@ -264,7 +264,7 @@ async def run_mcp_call(action: PlannedAction, ctx: SessionContext, **_) -> StepR
 class SubAgentRunner(SubTapestry):
     """Run a sub-agent as its own inner tapestry (prepare_context → execute_subagent)."""
 
-    async def process(self, action: PlannedAction, ctx: SessionContext, **_) -> StepResult:  # type: ignore[override]
+    async def process(self, action: PlannedAction, ctx: SessionContext, **_) -> Knot:  # type: ignore[override]
         rng = _rng(ctx, extra=action.name)
         context = action.args.get("context", ctx.current_message)
 
@@ -273,22 +273,22 @@ class SubAgentRunner(SubTapestry):
             return raw[:300].strip()
 
         @knot
-        async def execute_subagent(prepared: str, **__) -> str:
-            return _fake_subagent(action.name, action.args, prepared, rng)
+        async def execute_subagent(prepared: str, **__) -> StepResult:
+            raw_output = _fake_subagent(action.name, action.args, prepared, rng)
+            return StepResult(
+                iteration=ctx.iteration,
+                msg_idx=ctx.msg_idx,
+                action_type="subagent",
+                name=action.name,
+                output=raw_output,
+            )
 
         with Tapestry() as inner:
             raw_p = Parameter("raw", str, default=context, _config=KnotConfig(id="context_input"))
             ctx_knot = prepare_context(raw=raw_p, _config=KnotConfig(id="prepare"))
-            execute_subagent(prepared=ctx_knot, _config=KnotConfig(id="subagent_output"))
+            sink = execute_subagent(prepared=ctx_knot, _config=KnotConfig(id="subagent_output"))
 
-        result = await self._run_inner(inner)
-        return StepResult(
-            iteration=ctx.iteration,
-            msg_idx=ctx.msg_idx,
-            action_type="subagent",
-            name=action.name,
-            output=result.outputs["subagent_output"],
-        )
+        return sink
 
 
 # ----------------------------------------------------------------- planner knot
