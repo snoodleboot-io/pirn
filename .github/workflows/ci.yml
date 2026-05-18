@@ -337,6 +337,10 @@ jobs:
             --ignore=tests/integration/test_dask_real.py \
             --ignore=tests/integration/test_ray_real.py \
             --ignore=tests/integration/test_celery_real.py \
+            --ignore=tests/integration/test_kafka_real.py \
+            --ignore=tests/integration/test_postgres_real.py \
+            --ignore=tests/integration/test_s3_real.py \
+            --ignore=tests/integration/test_valkey_real.py \
             --junitxml=test-results/integration-mock.xml \
             --timeout=60 \
             -v
