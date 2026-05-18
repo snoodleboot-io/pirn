@@ -88,6 +88,9 @@ mri = [
     "nibabel>=5.2",
 ]
 signal  = ["scipy>=1.12", "pywavelets>=1.5", "librosa>=0.10"]
+emd     = ["EMD-signal>=1.6", "scipy>=1.12"]
+pyteomics = ["pyteomics>=4.7"]
+bids    = ["pybids>=0.17"]
 oilgas  = ["segyio>=1.9.14", "lasio>=0.32", "resfo>=1.3"]
 # Genomics extra — subset of `health` for callers that only need the
 # genomics file formats (FASTA, FASTQ, VCF, BCF).
@@ -328,6 +331,11 @@ all-domains = [
     "SimpleITK>=2.3", "antspyx>=0.5", "dipy>=1.9",
     # signal
     "scipy>=1.12", "pywavelets>=1.5", "librosa>=0.10",
+    "EMD-signal>=1.6",
+    # proteomics / mass-spec
+    "pyteomics>=4.7",
+    # neuroimaging BIDS
+    "pybids>=0.17",
     # oilgas
     "segyio>=1.9", "lasio>=0.31", "resfo>=1.3",
 ]
@@ -387,6 +395,9 @@ all = [
     "scipy>=1.12",
     "pywavelets>=1.5",
     "librosa>=0.10",
+    "EMD-signal>=1.6",
+    "pyteomics>=4.7",
+    "pybids>=0.17",
     "segyio>=1.9.14",
     "lasio>=0.32",
     "resfo>=1.3",
