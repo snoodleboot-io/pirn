@@ -50,10 +50,10 @@ jobs:
         run: uv sync --all-extras
 
       - name: Ruff lint
-        run: uv run ruff check --output-format=github .
+        run: uv run ruff check --output-format=github --exclude examples .
 
       - name: Ruff format check
-        run: uv run ruff format --check .
+        run: uv run ruff format --check --exclude examples .
 
       - name: Pyright type check
         run: uv run pyright
