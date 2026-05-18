@@ -255,6 +255,7 @@ safetensors = ["safetensors>=0.4", "numpy>=1.26"]
 joblib      = ["joblib>=1.4"]
 pytorch     = ["torch>=2.0"]
 tensorflow  = ["tensorflow>=2.21; python_version<'3.14'"]
+gpu         = ["torch>=2.0", "tensorflow>=2.21; python_version<'3.14'"]
 gguf        = ["gguf>=0.10"]
 tflite      = ["ai-edge-litert>=2.1; python_version<'3.14'"]
 
