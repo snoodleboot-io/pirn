@@ -34,9 +34,24 @@ env:
   UV_PYTHON_PREFERENCE: only-system
 
 # =============================================================================
-# PHASE 1: LINT (fast gate — must pass before anything else runs)
+# PHASE 0: DEBUG (py3.14 image inspection)
 # =============================================================================
 jobs:
+  debug-image:
+    name: Debug py3.14 pre-baked venv
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py3.14
+    steps:
+      - name: Inspect venv
+        run: |
+          echo "=== uv.lock presence ===" && ls -la /opt/pirn-deps/uv.lock 2>/dev/null || echo "no uv.lock"
+          echo "=== scipy in venv ===" && /opt/pirn-deps/.venv/bin/pip show scipy 2>/dev/null || echo "scipy not installed"
+          echo "=== venv package count ===" && ls /opt/pirn-deps/.venv/lib/*/site-packages | wc -l
+
+# =============================================================================
+# PHASE 1: LINT (fast gate — must pass before anything else runs)
+# =============================================================================
   lint:
     name: Lint & Type Check
     runs-on: ubuntu-latest
@@ -73,12 +88,6 @@ jobs:
         python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
-
-      - name: Debug pre-baked venv
-        run: |
-          echo "=== uv.lock presence ===" && ls -la /opt/pirn-deps/uv.lock 2>/dev/null || echo "no uv.lock"
-          echo "=== scipy in venv ===" && /opt/pirn-deps/.venv/bin/pip show scipy 2>/dev/null || echo "scipy not installed"
-          echo "=== venv package count ===" && ls /opt/pirn-deps/.venv/lib/*/site-packages | wc -l
 
       - name: Install pirn
         run: uv sync --all-extras
