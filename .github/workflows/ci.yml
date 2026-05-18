@@ -46,7 +46,7 @@ jobs:
       - name: Inspect venv
         run: |
           echo "=== uv.lock presence ===" && ls -la /opt/pirn-deps/uv.lock 2>/dev/null || echo "no uv.lock"
-          echo "=== scipy in venv ===" && /opt/pirn-deps/.venv/bin/pip show scipy 2>/dev/null || echo "scipy not installed"
+          echo "=== scipy in venv ===" && ls /opt/pirn-deps/.venv/lib/*/site-packages/scipy 2>/dev/null && echo "scipy found" || echo "scipy not installed"
           echo "=== venv package count ===" && ls /opt/pirn-deps/.venv/lib/*/site-packages | wc -l
 
 # =============================================================================
