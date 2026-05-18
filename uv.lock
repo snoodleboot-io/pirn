@@ -3425,30 +3425,12 @@ wheels = [
 ]
 
 [[package]]
-name = "lance-namespace"
-version = "0.6.1"
+name = "lance"
+version = "1.2.1"
 source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "lance-namespace-urllib3-client" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/28/9f/7906ba4117df8d965510285eaf07264a77de2fd283b9d44ec7fc63a4a57a/lance_namespace-0.6.1.tar.gz", hash = "sha256:f0deea442bd3f1056a8e2fed056ae2778e3356517ec2e680db049058b824d131", size = 10666, upload-time = "2026-03-17T17:55:44.977Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6d/2f/19bab0b1d8d5a4917581db6a7d2e132cca11323192f476cd27ed996192bc/lance-1.2.1.tar.gz", hash = "sha256:2849817a5eb7f5e610a4cf766bc3bd096d7f9e230bcc5a60c8dd3986510705e4", size = 16240, upload-time = "2020-11-04T17:18:10.806Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d1/91/aee1c0a04d17f2810173bd304bd444eb78332045df1b0c1b07cebd01f530/lance_namespace-0.6.1-py3-none-any.whl", hash = "sha256:9699c9e3f12236e5e08ea979cc4e036a8e3c67ed2f37ae6f25c5353ab908e1be", size = 12498, upload-time = "2026-03-17T17:55:44.062Z" },
-]
-
-[[package]]
-name = "lance-namespace-urllib3-client"
-version = "0.6.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "pydantic" },
-    { name = "python-dateutil" },
-    { name = "typing-extensions" },
-    { name = "urllib3" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/63/a1/8706a2be25bd184acccc411e48f1a42a4cbf3b6556cba15b9fcf4c15cfcc/lance_namespace_urllib3_client-0.6.1.tar.gz", hash = "sha256:31fbd058ce1ea0bf49045cdeaa756360ece0bc61e9e10276f41af6d217debe87", size = 182567, upload-time = "2026-03-17T17:55:46.87Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/cd/c7/cb9580602dec25f0fdd6005c1c9ba1d4c8c0c3dc8d543107e5a9f248bba8/lance_namespace_urllib3_client-0.6.1-py3-none-any.whl", hash = "sha256:b9c103e1377ad46d2bd70eec894bfec0b1e2133dae0964d7e4de543c6e16293b", size = 317111, upload-time = "2026-03-17T17:55:45.546Z" },
+    { url = "https://files.pythonhosted.org/packages/98/1e/d47c5ff992a79d3987b4ac0a4d8a905457099f7def942dc6e1bd9c2216e2/lance-1.2.1-py3-none-any.whl", hash = "sha256:f9ac09055c7935c8d351bccd5f0deda9ecfce6b31fb1acdf650ef97140114137", size = 22548, upload-time = "2020-11-04T17:18:09.354Z" },
 ]
 
 [[package]]
@@ -5612,6 +5594,7 @@ bytewax = [
 ]
 celery = [
     { name = "celery" },
+    { name = "redis" },
 ]
 clickhouse = [
     { name = "clickhouse-connect" },
@@ -5768,7 +5751,7 @@ kml = [
     { name = "simplekml" },
 ]
 lance = [
-    { name = "pylance" },
+    { name = "lance" },
 ]
 lz4 = [
     { name = "lz4" },
@@ -6073,6 +6056,7 @@ requires-dist = [
     { name = "ibis-framework", marker = "extra == 'ibis'", specifier = ">=9.0" },
     { name = "imagecodecs", marker = "extra == 'tiff'", specifier = ">=2026.3.6" },
     { name = "joblib", marker = "extra == 'joblib'", specifier = ">=1.4" },
+    { name = "lance", marker = "extra == 'lance'", specifier = ">=1.0" },
     { name = "lasio", marker = "extra == 'all'", specifier = ">=0.32" },
     { name = "lasio", marker = "extra == 'all-domains'", specifier = ">=0.31" },
     { name = "lasio", marker = "extra == 'oilgas'", specifier = ">=0.32" },
@@ -6153,7 +6137,6 @@ requires-dist = [
     { name = "pygithub", marker = "extra == 'all-saas'", specifier = ">=2.0" },
     { name = "pygithub", marker = "extra == 'github'", specifier = ">=2.0" },
     { name = "pyiceberg", marker = "extra == 'iceberg'", specifier = ">=0.6" },
-    { name = "pylance", marker = "extra == 'lance'", specifier = ">=0.18" },
     { name = "pymdown-extensions", marker = "extra == 'docs'", specifier = ">=10.0" },
     { name = "pypdf", marker = "extra == 'pdf'", specifier = ">=4.0" },
     { name = "pyreadstat", marker = "extra == 'all'", specifier = ">=1.3.4" },
@@ -6181,6 +6164,7 @@ requires-dist = [
     { name = "ray", marker = "extra == 'ray'", specifier = ">=2.9" },
     { name = "ray", extras = ["data"], marker = "extra == 'all-lazy'", specifier = ">=2.10" },
     { name = "ray", extras = ["data"], marker = "extra == 'ray-data'", specifier = ">=2.10" },
+    { name = "redis", marker = "extra == 'celery'", specifier = ">=5.0" },
     { name = "reportlab", marker = "extra == 'pdf'", specifier = ">=4.0" },
     { name = "resfo", marker = "extra == 'all'", specifier = ">=1.3" },
     { name = "resfo", marker = "extra == 'all-domains'", specifier = ">=1.3" },
@@ -6926,24 +6910,6 @@ wheels = [
 [package.optional-dependencies]
 crypto = [
     { name = "cryptography" },
-]
-
-[[package]]
-name = "pylance"
-version = "4.0.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "lance-namespace" },
-    { name = "numpy" },
-    { name = "pyarrow" },
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/be/85/bb068389faa6cd51fe64f7451b4d455f92551086a6615856bdc552206823/pylance-4.0.1-cp39-abi3-macosx_11_0_arm64.whl", hash = "sha256:9887930ff174851ef2b0471ad89675cb27b40f20ba048ceb4c09664eea778076", size = 54447317, upload-time = "2026-04-24T18:01:38.839Z" },
-    { url = "https://files.pythonhosted.org/packages/57/46/2c823b6910cc1977905f8c8ea83827f1c2abf1024453ddb2242f1a565b8c/pylance-4.0.1-cp39-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:400aa25ee82efd09ed8184f669f1150073c701330c614c63c4ed377b076a79e7", size = 56732089, upload-time = "2026-04-24T18:07:39.1Z" },
-    { url = "https://files.pythonhosted.org/packages/ed/d8/a09f1640c1192d63ce5e85ad6226948fdb7ff43d2ddcd0db8e270df7aa5c/pylance-4.0.1-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:53b64cee1970d273642b70b0a5d337e2421402730dd1d15cbf488924fbcda0c7", size = 60288807, upload-time = "2026-04-24T18:18:57.672Z" },
-    { url = "https://files.pythonhosted.org/packages/ff/a0/6fee0460309af73d46a22488dbff8f341f6463afd520f70afd59c16adeb8/pylance-4.0.1-cp39-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:c8459ffedae783941c73ae0e8cb2d453316b91b2b100c74c3825c44b6f7bd75c", size = 56768062, upload-time = "2026-04-24T18:07:54.339Z" },
-    { url = "https://files.pythonhosted.org/packages/13/e1/80bfb3d7024ac8e904fc0cab2d3338393bf5caa81041fd7cbe80f5c32499/pylance-4.0.1-cp39-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:b467f096079a805f568738548ed72f0951bc9c07a6786c76e1c3052b73e5ae69", size = 60269797, upload-time = "2026-04-24T18:18:11.477Z" },
-    { url = "https://files.pythonhosted.org/packages/30/7c/698a3b1f4f8c8a3a54ec4164762f6d8eb2119416281ffc34744b08d8e596/pylance-4.0.1-cp39-abi3-win_amd64.whl", hash = "sha256:15c1b9d215d9a4cc15538faca192497f97c807128c759a37d28ea0a6780cce1c", size = 65115322, upload-time = "2026-04-24T18:21:24.544Z" },
 ]
 
 [[package]]
@@ -7700,6 +7666,18 @@ data = [
     { name = "numpy" },
     { name = "pandas" },
     { name = "pyarrow" },
+]
+
+[[package]]
+name = "redis"
+version = "7.4.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "async-timeout", marker = "python_full_version < '3.11.3'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/7b/7f/3759b1d0d72b7c92f0d70ffd9dc962b7b7b5ee74e135f9d7d8ab06b8a318/redis-7.4.0.tar.gz", hash = "sha256:64a6ea7bf567ad43c964d2c30d82853f8df927c5c9017766c55a1d1ed95d18ad", size = 4943913, upload-time = "2026-03-24T09:14:37.53Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/74/3a/95deec7db1eb53979973ebd156f3369a72732208d1391cd2e5d127062a32/redis-7.4.0-py3-none-any.whl", hash = "sha256:a9c74a5c893a5ef8455a5adb793a31bb70feb821c86eccb62eebef5a19c429ec", size = 409772, upload-time = "2026-03-24T09:14:35.968Z" },
 ]
 
 [[package]]

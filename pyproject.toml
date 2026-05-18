@@ -59,7 +59,7 @@ azure = ["azure-storage-blob>=12.0"]
 dask = ["dask[distributed]>=2024.1"]
 docs = ["mkdocs>=1.6", "mkdocstrings[python]>=0.25", "pymdown-extensions>=10.0", "mkdocs-section-index>=0.3"]
 ray = ["ray>=2.9"]
-celery = ["celery>=5.3"]
+celery = ["celery>=5.3", "redis>=5.0"]
 
 # Triggers / emitters.
 kafka = ["aiokafka>=0.13.0"]

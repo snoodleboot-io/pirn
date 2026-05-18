@@ -81,6 +81,12 @@ jobs:
       - name: Install pirn
         run: uv sync --all-extras
 
+      - name: Enable Redpanda auto-create topics
+        run: |
+          curl -sf -X PUT http://redpanda:9644/v1/cluster/config \
+            -H "Content-Type: application/json" \
+            -d '{"auto_create_topics_enabled": true}'
+
       - name: Start MinIO
         run: |
           curl -fsSL https://dl.min.io/server/minio/release/linux-amd64/minio -o /tmp/minio
