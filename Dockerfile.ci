@@ -34,5 +34,5 @@ ENV UV_PYTHON_PREFERENCE=only-system \
     UV_PROJECT_ENVIRONMENT=/opt/pirn-deps/.venv
 
 RUN uv sync --all-extras --no-install-project \
-    --no-extra gpu --no-extra pytorch --no-extra tensorflow --no-extra tflite && \
+    --no-extra pytorch --no-extra tensorflow --no-extra tflite && \
     rm -f uv.lock
