@@ -63,7 +63,6 @@ jobs:
           --health-interval 2s
           --health-timeout 2s
           --health-retries 30
-          --hostname redpanda
 
     env:
       PIRN_TEST_POSTGRES_URL: postgresql://pirn:pirn@postgres:5432/pirn_test
@@ -79,15 +78,14 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
       - name: Install pirn
-        run: uv sync --all-extras --no-extra pytorch --no-extra tensorflow --no-extra tflite
+        run: uv sync --all-extras
 
-      - name: Configure Redpanda
+      - name: Enable Redpanda auto-create topics
         run: |
           curl -fsSL https://github.com/redpanda-data/redpanda/releases/latest/download/rpk-linux-amd64.zip -o /tmp/rpk.zip
           python3 -c "import zipfile; zipfile.ZipFile('/tmp/rpk.zip').extract('rpk', '/tmp')"
           chmod +x /tmp/rpk
           /tmp/rpk cluster config set auto_create_topics_enabled true -X brokers=redpanda:9092
-          /tmp/rpk cluster config set advertised_kafka_api '[{"name":"external","address":"redpanda","port":9092}]' -X brokers=redpanda:9092
 
       - name: Start MinIO
         run: |
