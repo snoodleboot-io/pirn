@@ -83,9 +83,10 @@ jobs:
 
       - name: Enable Redpanda auto-create topics
         run: |
-          curl -sf -X PUT http://redpanda:9644/v1/cluster/config \
-            -H "Content-Type: application/json" \
-            -d '{"auto_create_topics_enabled": true}'
+          curl -fsSL https://github.com/redpanda-data/redpanda/releases/latest/download/rpk-linux-amd64.zip -o /tmp/rpk.zip
+          unzip -q /tmp/rpk.zip -d /tmp
+          chmod +x /tmp/rpk
+          /tmp/rpk cluster config set auto_create_topics_enabled true --brokers redpanda:9092
 
       - name: Start MinIO
         run: |
@@ -104,6 +105,7 @@ jobs:
 
       - name: Run real-backend tests
         run: |
+          mkdir -p test-results
           uv run python -m pytest tests/integration \
             --real \
             -m "needs_postgres or needs_valkey or needs_kafka or needs_s3 or needs_celery" \
