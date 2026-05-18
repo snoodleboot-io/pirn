@@ -1,4 +1,4 @@
-name: CI/CD Pipeline  # wso2
+name: CI/CD Pipeline  # wso3
 
 on:
   push:
