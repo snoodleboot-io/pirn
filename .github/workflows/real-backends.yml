@@ -56,6 +56,27 @@ jobs:
           --health-timeout 1s
           --health-retries 30
 
+      minio:
+        image: bitnami/minio:latest
+        ports: ["9000:9000"]
+        env:
+          MINIO_ROOT_USER: pirn
+          MINIO_ROOT_PASSWORD: pirntestpassword
+        options: >-
+          --health-cmd "curl -sf http://localhost:9000/minio/health/live"
+          --health-interval 2s
+          --health-timeout 2s
+          --health-retries 30
+
+      redpanda:
+        image: redpandadata/redpanda:latest
+        ports: ["9092:9092"]
+        options: >-
+          --health-cmd "rpk cluster info"
+          --health-interval 2s
+          --health-timeout 2s
+          --health-retries 30
+
     env:
       PIRN_TEST_POSTGRES_URL: postgresql://pirn:pirn@localhost:5432/pirn_test
       PIRN_TEST_VALKEY_URL: redis://localhost:6379/0
@@ -71,36 +92,6 @@ jobs:
 
       - name: Install pirn
         run: uv sync --all-extras
-
-      - name: Start MinIO
-        run: |
-          docker run -d --name minio \
-            -p 9000:9000 \
-            -e MINIO_ROOT_USER=pirn \
-            -e MINIO_ROOT_PASSWORD=pirntestpassword \
-            minio/minio:latest server /data
-          for i in $(seq 1 30); do
-            curl -sf http://localhost:9000/minio/health/live > /dev/null 2>&1 && break
-            sleep 1
-          done
-
-      - name: Start Redpanda
-        run: |
-          docker run -d --name redpanda \
-            -p 9092:9092 \
-            redpandadata/redpanda:latest redpanda start \
-              --overprovisioned \
-              --smp=1 \
-              --memory=512M \
-              --reserve-memory=0M \
-              --check=false \
-              --node-id=0 \
-              --kafka-addr=PLAINTEXT://0.0.0.0:9092 \
-              --advertise-kafka-addr=PLAINTEXT://localhost:9092
-          for i in $(seq 1 30); do
-            docker exec redpanda rpk cluster info > /dev/null 2>&1 && break
-            sleep 1
-          done
 
       - name: Create MinIO bucket
         run: |
