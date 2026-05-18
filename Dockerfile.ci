@@ -53,4 +53,5 @@ RUN uv sync --all-extras --no-install-project \
     --no-install-package nvidia-cusparselt-cu13 \
     --no-install-package nvidia-nvshmem-cu13 \
     --no-install-package triton \
-    --no-install-package ai-edge-litert
+    --no-install-package ai-edge-litert && \
+    rm -f uv.lock
