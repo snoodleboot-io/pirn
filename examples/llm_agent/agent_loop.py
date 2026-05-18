@@ -283,10 +283,9 @@ class SubAgentRunner(SubTapestry):
                 output=raw_output,
             )
 
-        with Tapestry():
-            raw_p = Parameter("raw", str, default=context, _config=KnotConfig(id="context_input"))
-            ctx_knot = prepare_context(raw=raw_p, _config=KnotConfig(id="prepare"))
-            sink = execute_subagent(prepared=ctx_knot, _config=KnotConfig(id="subagent_output"))
+        raw_p = Parameter("raw", str, default=context, _config=KnotConfig(id="context_input"))
+        ctx_knot = prepare_context(raw=raw_p, _config=KnotConfig(id="prepare"))
+        sink = execute_subagent(prepared=ctx_knot, _config=KnotConfig(id="subagent_output"))
 
         return sink
 
