@@ -5,8 +5,10 @@ repos:
       - id: ruff
         args: [--fix]
         files: ^pirn/
+        exclude: ^(tests|examples)/
       - id: ruff-format
         files: ^pirn/
+        exclude: ^(tests|examples)/
 
   - repo: local
     hooks:
@@ -17,6 +19,7 @@ repos:
         types: [python]
         pass_filenames: false
         files: ^pirn/
+        exclude: ^(tests|examples)/
 
       - id: no-caps-constants
         name: no UPPER_SNAKE constants
@@ -24,3 +27,4 @@ repos:
         language: system
         types: [python]
         files: ^pirn/
+        exclude: ^(tests|examples)/
