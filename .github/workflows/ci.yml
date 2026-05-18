@@ -61,7 +61,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
       - name: Install pirn
-        run: uv sync --all-extras
+        run: uv sync --all-extras --no-extra pytorch --no-extra tensorflow --no-extra tflite
 
       - name: Ruff lint
         run: uv run ruff check --output-format=github pirn/
@@ -90,7 +90,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
       - name: Install pirn
-        run: uv sync --all-extras
+        run: uv sync --all-extras --no-extra pytorch --no-extra tensorflow --no-extra tflite
 
       - name: Run unit tests
         run: |
@@ -329,7 +329,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
       - name: Install pirn
-        run: uv sync --all-extras
+        run: uv sync --all-extras --no-extra pytorch --no-extra tensorflow --no-extra tflite
 
       - name: Run mock integration tests
         run: |
@@ -366,7 +366,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
       - name: Install pirn
-        run: uv sync --all-extras
+        run: uv sync --all-extras --no-extra pytorch --no-extra tensorflow --no-extra tflite
 
       - name: Run smoke tests
         run: |
@@ -394,7 +394,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
       - name: Install pirn
-        run: uv sync --all-extras
+        run: uv sync --all-extras --no-extra pytorch --no-extra tensorflow --no-extra tflite
 
       - name: Run end-to-end tests
         run: |
@@ -426,7 +426,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: uv sync --all-extras
+        run: uv sync --all-extras --no-extra pytorch --no-extra tensorflow --no-extra tflite
 
       - name: Run benchmarks
         run: |
