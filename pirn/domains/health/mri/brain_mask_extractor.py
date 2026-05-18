@@ -1,19 +1,18 @@
 """``BrainMaskExtractor`` — skull-strip a brain MRI.
 
-Production version uses FSL BET, HD-BET, or SynthStrip. This stub
-returns the requested mask output path.
+Uses dipy ``median_otsu`` for robust brain extraction without antspyx.
 
 Algorithm:
     1. Receive nifti_path and output_mask_path strings.
     2. Validate that both are non-empty strings.
-    3. Apply a skull-stripping algorithm to isolate brain tissue.
+    3. Apply median_otsu to isolate brain tissue.
     4. Write the binary brain mask to output_mask_path.
     5. Return the output mask path.
 
 
 References:
-    - Smith (2002) Fast robust automated brain extraction. FSL BET.
-    - HD-BET: https://github.com/MIC-DKFZ/HD-BET
+    - Garyfallidis et al. (2014) Dipy, a library for the analysis of diffusion MRI data.
+    - Descoteaux et al. (2008) Automatic human brain extraction.
 """
 
 from __future__ import annotations
@@ -21,26 +20,32 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+import numpy as np
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 try:
-    import ants
+    import nibabel as nib
+    from dipy.segment.mask import median_otsu
 
-    _HAS_ANTS: bool = True
+    _HAS_DIPY: bool = True
 except ImportError:
-    ants = None  # type: ignore[assignment]
-    _HAS_ANTS = False
+    nib = None  # type: ignore[assignment]
+    median_otsu = None  # type: ignore[assignment]
+    _HAS_DIPY = False
 
 
 def _extract_mask(nifti_path: str, output_mask_path: str) -> None:
-    if not _HAS_ANTS or ants is None:
+    if not _HAS_DIPY or nib is None or median_otsu is None:
         raise ImportError(
-            "antspyx is required for BrainMaskExtractor — install with: pip install 'pirn[mri]'"
+            "nibabel and dipy are required for BrainMaskExtractor — install with: pip install 'pirn[mri]'"
         )
-    img = ants.image_read(nifti_path)
-    mask = ants.get_mask(img)
-    ants.image_write(mask, output_mask_path)
+    img = nib.load(nifti_path)
+    data = np.asarray(img.dataobj)
+    _, mask = median_otsu(data)
+    mask_img = nib.Nifti1Image(mask.astype(np.uint8), img.affine, img.header)
+    nib.save(mask_img, output_mask_path)
 
 
 class BrainMaskExtractor(Knot):

@@ -5,6 +5,8 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock, patch
 
+import numpy as np
+
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.mri.brain_mask_extractor import BrainMaskExtractor
 
@@ -22,10 +24,25 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_returns_mask_path(self) -> None:
         knot = self._make_knot()
-        mock_ants = MagicMock()
-        mock_ants.image_read.return_value = MagicMock()
-        mock_ants.get_mask.return_value = MagicMock()
-        with patch("pirn.domains.health.mri.brain_mask_extractor.ants", mock_ants), \
-             patch("pirn.domains.health.mri.brain_mask_extractor._HAS_ANTS", True):
+        mock_img = MagicMock()
+        mock_img.dataobj = np.zeros((4, 4, 4))
+        mock_img.affine = np.eye(4)
+        mock_img.header = MagicMock()
+
+        mock_nib = MagicMock()
+        mock_nib.load.return_value = mock_img
+
+        mock_median_otsu = MagicMock(return_value=(np.zeros((4, 4, 4)), np.zeros((4, 4, 4), dtype=bool)))
+
+        with patch("pirn.domains.health.mri.brain_mask_extractor.nib", mock_nib), \
+             patch("pirn.domains.health.mri.brain_mask_extractor.median_otsu", mock_median_otsu), \
+             patch("pirn.domains.health.mri.brain_mask_extractor._HAS_DIPY", True):
             out = await knot.process(nifti_path="in.nii.gz", output_mask_path="mask.nii.gz")
         assert out == "mask.nii.gz"
+
+    async def test_raises_without_dipy(self) -> None:
+        knot = self._make_knot()
+        with patch("pirn.domains.health.mri.brain_mask_extractor._HAS_DIPY", False), \
+             patch("pirn.domains.health.mri.brain_mask_extractor.nib", None):
+            with self.assertRaises(ImportError):
+                await knot.process(nifti_path="in.nii.gz", output_mask_path="mask.nii.gz")
