@@ -7,7 +7,6 @@ on:
     paths:
       - 'Dockerfile.ci'
       - 'pyproject.toml'
-      - 'uv.lock'
       - '.github/workflows/build-ci-image.yml'
   workflow_dispatch:
 
