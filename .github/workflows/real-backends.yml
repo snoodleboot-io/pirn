@@ -56,18 +56,6 @@ jobs:
           --health-timeout 1s
           --health-retries 30
 
-      minio:
-        image: bitnami/minio:latest
-        ports: ["9000:9000"]
-        env:
-          MINIO_ROOT_USER: pirn
-          MINIO_ROOT_PASSWORD: pirntestpassword
-        options: >-
-          --health-cmd "curl -sf http://localhost:9000/minio/health/live"
-          --health-interval 2s
-          --health-timeout 2s
-          --health-retries 30
-
       redpanda:
         image: redpandadata/redpanda:latest
         ports: ["9092:9092"]
@@ -92,6 +80,14 @@ jobs:
 
       - name: Install pirn
         run: uv sync --all-extras
+
+      - name: Start MinIO
+        run: |
+          curl -fsSL https://dl.min.io/server/minio/release/linux-amd64/minio -o /tmp/minio
+          chmod +x /tmp/minio
+          mkdir -p /tmp/minio-data
+          MINIO_ROOT_USER=pirn MINIO_ROOT_PASSWORD=pirntestpassword /tmp/minio server /tmp/minio-data &
+          until curl -sf http://localhost:9000/minio/health/live; do sleep 1; done
 
       - name: Create MinIO bucket
         run: |
