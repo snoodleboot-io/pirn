@@ -1,3 +1,6 @@
+# Lock file — pirn is a library; lock is not committed
+uv.lock
+
 # Python
 __pycache__/
 *.py[cod]
