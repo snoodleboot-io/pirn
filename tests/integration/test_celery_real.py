@@ -46,7 +46,7 @@ broker = sys.argv[1]
 app = Celery("pirn_test", broker=broker, backend=broker)
 app.conf.update(
     task_serializer="pickle",
-    accept_content=["pickle"],
+    accept_content=["pickle", "json"],
     result_serializer="pickle",
 )
 register_celery_worker_task(app)
@@ -107,7 +107,7 @@ async def test_celery_dispatcher_runs_pipeline(celery_worker):
     app = Celery("pirn_test", broker=_BROKER, backend=_BROKER)
     app.conf.update(
         task_serializer="pickle",
-        accept_content=["pickle"],
+        accept_content=["pickle", "json"],
         result_serializer="pickle",
     )
     register_celery_worker_task(app)
@@ -135,7 +135,7 @@ async def test_celery_dispatcher_result_has_correct_dispatcher_name(celery_worke
     app = Celery("pirn_test", broker=_BROKER, backend=_BROKER)
     app.conf.update(
         task_serializer="pickle",
-        accept_content=["pickle"],
+        accept_content=["pickle", "json"],
         result_serializer="pickle",
     )
     register_celery_worker_task(app)
