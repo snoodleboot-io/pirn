@@ -56,10 +56,13 @@ worker.start()
     worker_log = tempfile.NamedTemporaryFile(
         mode="w", suffix=".log", prefix="celery_worker_", delete=False
     )
+    import os
+    worker_env = {**os.environ, "C_FORCE_ROOT": "1"}
     proc = subprocess.Popen(
         [sys.executable, "-c", worker_script, _BROKER],
         stdout=worker_log,
         stderr=worker_log,
+        env=worker_env,
     )
 
     # Poll until the worker responds to a ping rather than sleeping blindly.
