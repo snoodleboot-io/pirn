@@ -33,7 +33,7 @@ _BROKER = os.environ.get("PIRN_TEST_CELERY_BROKER", "redis://localhost:6379/1")
 @pytest.fixture(scope="module")
 def celery_worker():
     """Spawn a Celery worker subprocess and tear it down after the module."""
-    celery = pytest.importorskip("celery")
+    pytest.importorskip("celery")
     pytest.importorskip("redis")
 
     # Worker script: registers the pirn task and starts the worker.
@@ -65,19 +65,18 @@ worker.start()
         env=worker_env,
     )
 
-    # Poll until the worker responds to a ping rather than sleeping blindly.
-    app = celery.Celery("pirn_test_check", broker=_BROKER, backend=_BROKER)
-    deadline = time.monotonic() + 60
+    # Wait for the worker to print "ready." in its log, polling the log file.
+    deadline = time.monotonic() + 90
     ready = False
     while time.monotonic() < deadline:
-        try:
-            pong = app.control.inspect(timeout=2).ping()
-            if pong:
+        if proc.poll() is not None:
+            break  # worker exited unexpectedly
+        worker_log.flush()
+        with open(worker_log.name) as f:
+            if "ready." in f.read():
                 ready = True
                 break
-        except Exception:
-            pass
-        time.sleep(1)
+        time.sleep(2)
 
     if not ready:
         proc.terminate()
@@ -85,7 +84,7 @@ worker.start()
         worker_log.flush()
         with open(worker_log.name) as f:
             log_contents = f.read()
-        pytest.fail(f"Celery worker did not become ready within 30s.\nWorker log:\n{log_contents}")
+        pytest.fail(f"Celery worker did not become ready within 90s.\nWorker log:\n{log_contents}")
 
     yield proc
 
