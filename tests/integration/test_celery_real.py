@@ -19,8 +19,10 @@ import time
 import pytest
 
 
+from typing import Any
+
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -93,9 +95,9 @@ worker.start()
     worker_log.close()
 
 
-@knot
-async def _double(x: int) -> int:
-    return x * 2
+class _Double(Knot):
+    async def process(self, *, x: int, **_: Any) -> int:
+        return x * 2
 
 
 async def test_celery_dispatcher_runs_pipeline(celery_worker):
@@ -116,7 +118,7 @@ async def test_celery_dispatcher_runs_pipeline(celery_worker):
     dispatcher = CeleryDispatcher(app=app)
     with Tapestry(dispatcher=dispatcher) as t:
         p = Parameter("x", int, _config=KnotConfig(id="x"))
-        _double(x=p, _config=KnotConfig(id="d"))
+        _Double(x=p, _config=KnotConfig(id="d"))
 
     result = await t.run(RunRequest(parameters={"x": 4}))
     assert result.succeeded
@@ -142,7 +144,7 @@ async def test_celery_dispatcher_result_has_correct_dispatcher_name(celery_worke
     dispatcher = CeleryDispatcher(app=app)
     with Tapestry(dispatcher=dispatcher) as t:
         p = Parameter("x", int, _config=KnotConfig(id="x"))
-        _double(x=p, _config=KnotConfig(id="d"))
+        _Double(x=p, _config=KnotConfig(id="d"))
 
     result = await t.run(RunRequest(parameters={"x": 1}))
     dispatchers = {rec.dispatcher for rec in result.lineage}
