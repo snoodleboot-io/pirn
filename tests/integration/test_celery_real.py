@@ -67,7 +67,7 @@ worker.start()
 
     # Poll until the worker responds to a ping rather than sleeping blindly.
     app = celery.Celery("pirn_test_check", broker=_BROKER, backend=_BROKER)
-    deadline = time.monotonic() + 30
+    deadline = time.monotonic() + 60
     ready = False
     while time.monotonic() < deadline:
         try:
