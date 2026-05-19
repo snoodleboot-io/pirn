@@ -18,6 +18,7 @@ import time
 
 import pytest
 
+
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
@@ -34,15 +35,6 @@ def celery_worker():
     """Spawn a Celery worker subprocess and tear it down after the module."""
     celery = pytest.importorskip("celery")
     pytest.importorskip("redis")
-
-    # Verify the Python used to spawn the worker has pirn available.
-    check = subprocess.run(
-        [sys.executable, "-c", "import pirn"],
-        capture_output=True,
-        timeout=10,
-    )
-    if check.returncode != 0:
-        pytest.skip(f"Worker Python {sys.executable} cannot import pirn: {check.stderr.decode()}")
 
     # Worker script: registers the pirn task and starts the worker.
     worker_script = """
