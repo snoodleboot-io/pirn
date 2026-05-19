@@ -70,10 +70,10 @@ jobs:
           KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
           KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
         options: >-
-          --health-cmd "kafka-topics.sh --bootstrap-server localhost:9092 --list"
+          --health-cmd "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list"
           --health-interval 5s
-          --health-timeout 5s
-          --health-retries 15
+          --health-timeout 10s
+          --health-retries 20
 
     env:
       PIRN_TEST_POSTGRES_URL: postgresql://pirn:pirn@postgres:5432/pirn_test
