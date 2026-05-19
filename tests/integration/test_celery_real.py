@@ -13,6 +13,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import tempfile
 import time
 
 import pytest
@@ -31,8 +32,17 @@ _BROKER = os.environ.get("PIRN_TEST_CELERY_BROKER", "redis://localhost:6379/1")
 @pytest.fixture(scope="module")
 def celery_worker():
     """Spawn a Celery worker subprocess and tear it down after the module."""
-    pytest.importorskip("celery")
+    celery = pytest.importorskip("celery")
     pytest.importorskip("redis")
+
+    # Verify the Python used to spawn the worker has pirn available.
+    check = subprocess.run(
+        [sys.executable, "-c", "import pirn"],
+        capture_output=True,
+        timeout=10,
+    )
+    if check.returncode != 0:
+        pytest.skip(f"Worker Python {sys.executable} cannot import pirn: {check.stderr.decode()}")
 
     # Worker script: registers the pirn task and starts the worker.
     worker_script = """
@@ -48,19 +58,45 @@ app.conf.update(
     result_serializer="pickle",
 )
 register_celery_worker_task(app)
-worker = app.Worker(concurrency=2, loglevel="error")
+worker = app.Worker(concurrency=2, loglevel="info")
 worker.start()
 """
+    worker_log = tempfile.NamedTemporaryFile(
+        mode="w", suffix=".log", prefix="celery_worker_", delete=False
+    )
     proc = subprocess.Popen(
         [sys.executable, "-c", worker_script, _BROKER],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        stdout=worker_log,
+        stderr=worker_log,
     )
-    # Give the worker time to connect to the broker.
-    time.sleep(3)
+
+    # Poll until the worker responds to a ping rather than sleeping blindly.
+    app = celery.Celery("pirn_test_check", broker=_BROKER, backend=_BROKER)
+    deadline = time.monotonic() + 30
+    ready = False
+    while time.monotonic() < deadline:
+        try:
+            pong = app.control.inspect(timeout=2).ping()
+            if pong:
+                ready = True
+                break
+        except Exception:
+            pass
+        time.sleep(1)
+
+    if not ready:
+        proc.terminate()
+        proc.wait(timeout=10)
+        worker_log.flush()
+        with open(worker_log.name) as f:
+            log_contents = f.read()
+        pytest.fail(f"Celery worker did not become ready within 30s.\nWorker log:\n{log_contents}")
+
     yield proc
+
     proc.terminate()
     proc.wait(timeout=10)
+    worker_log.close()
 
 
 @knot
