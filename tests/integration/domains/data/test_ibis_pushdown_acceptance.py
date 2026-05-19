@@ -107,10 +107,11 @@ async def test_push_down_pipeline_executes_once(duckdb_recorded) -> None:
 
     # Every knot in the pipeline reports `ok` in lineage.
     outcomes = {rec.knot_id: rec.outcome for rec in result.lineage}
+    errors = {r.knot_id: f"{r.exc_type}: {r.message}" for r in result.exceptions}
     assert all(
         outcomes[k] == "ok"
         for k in ("users", "orders", "active", "joined", "totals", "materialise")
-    ), outcomes
+    ), f"outcomes={outcomes} errors={errors}"
 
     receipt: IbisExecutionReceipt = result.outputs["materialise"]
     assert receipt.target_table == "region_totals"
