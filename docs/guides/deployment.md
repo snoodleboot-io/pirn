@@ -189,13 +189,13 @@ from pirn.triggers import WebhookTrigger
 trigger = WebhookTrigger(path="/run")
 # trigger.app is a Starlette ASGI app
 
-# Mount behind an authenticating proxy (nginx, Caddy, API gateway)
-# before exposing to any network. WebhookTrigger has no built-in auth.
+# WebhookTrigger's built-in auth is opt-in (auth_token= parameter).
+# For defence-in-depth, also place an authenticating proxy in front.
 uvicorn.run(trigger.app, host="127.0.0.1", port=8080)
 ```
 
-!!! warning "WebhookTrigger has no built-in authentication"
-    Always place an authenticating reverse proxy in front of `WebhookTrigger` before exposing it to any network.
+!!! warning "Enable WebhookTrigger authentication"
+    Pass `auth_token=` to `WebhookTrigger` to enable built-in HMAC token verification. For defence-in-depth, also place an authenticating reverse proxy in front before exposing it to any network. See [docs/webhook-trigger-auth.md](../webhook-trigger-auth.md) for full details.
 
 ### Event-driven (Kafka trigger)
 

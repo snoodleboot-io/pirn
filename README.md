@@ -427,11 +427,10 @@ the top level to opt into dotted-path imports (loose mode).
 
 pirn uses **pickle** to serialize intermediate values in the `S3DataStore`, `ValKeyDataStore`, and `LocalDiskDataStore` backends. Pickle is an arbitrary-code-execution primitive: only use these backends when the backing store is not writable by adversaries.
 
-The `WebhookTrigger` has **no built-in authentication**. Always place an authenticating reverse proxy or middleware in front of it before exposing it to any network.
+The `WebhookTrigger`'s built-in authentication is opt-in via the `auth_token=` constructor parameter. For defence-in-depth, also place an authenticating reverse proxy or middleware in front of it before exposing it to any network. See [docs/webhook-trigger-auth.md](docs/webhook-trigger-auth.md) for details.
 
 Setting `allow_callable_refs: true` in a YAML pipeline **enables dynamic Python imports** from YAML content. Only use this with YAML authored by trusted developers — never with user-supplied YAML.
 
-For a full security analysis, findings, and deployment hardening checklist, see [planning/security-analysis.md](planning/security-analysis.md).  
 To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
 ## Documentation
@@ -439,7 +438,6 @@ To report a vulnerability, see [SECURITY.md](SECURITY.md).
 | Document | Contents |
 |----------|----------|
 | [docs/architecture.md](docs/architecture.md) | Full architecture and design reference: execution model, backend matrix, extension points, Mermaid diagrams |
-| [planning/security-analysis.md](planning/security-analysis.md) | Security findings, threat model, deployment hardening checklist |
 | [docs/choosing-backends.md](docs/choosing-backends.md) | When to use each storage backend |
 | [docs/deployment-sizing.md](docs/deployment-sizing.md) | Sizing guidance for different deployment scales |
 | [docs/observability.md](docs/observability.md) | Emitters, OTel, Kafka, log structure |
@@ -493,6 +491,6 @@ event-driven triggers and emitters, streaming sources, mid-run
 extension, and visualization on top.
 
 For testing real backends (Postgres, ValKey, Kafka, S3) end-to-end, see
-`planning/real-backend-testing-plan.md`.
+[docs/guides/testing.md](docs/guides/testing.md).
 
 Apache-2.0.

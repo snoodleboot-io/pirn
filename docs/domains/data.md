@@ -341,7 +341,7 @@ All ~98 formats grouped by category. Read (R) and Write (W) indicate supported o
 
 | Format | Class | R | W | Streaming | PHI Safety | Extra |
 |--------|-------|---|---|-----------|-----------|-------|
-| HL7 v2 | `Hl7v2Format` | ✓ | ✓ | — | PID.5/7/11 redacted | `pirn[health]` |
+| HL7 v2 | `Hl7v2Format` | ✓ | ✓ | — | PID.3/5/7/11/18/19/20 redacted | `pirn[health]` |
 | FHIR JSON | `FhirJsonFormat` | ✓ | ✓ | — | PHI fields sanitised | `pirn[health]` |
 | FHIR XML | `FhirXmlFormat` | ✓ | ✓ | — | PHI fields sanitised | `pirn[health]` |
 | CDA XML | `CdaXmlFormat` | ✓ | ✓ | — | PHI stripped | `pirn[health]` |
