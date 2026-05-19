@@ -35,3 +35,13 @@ class RunRequest(BaseModel):
     run_id: str = Field(default_factory=lambda: f"run-{uuid.uuid4().hex}")
     parameters: dict[str, Any] = Field(default_factory=dict)
     submitted_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+    # WHO + WHY — explicit identity; takes priority over any resolver
+    actor: str | None = Field(
+        default=None,
+        description="Who initiated the run. When set, overrides any identity resolver on the Tapestry.",
+    )
+    trigger: str | None = Field(
+        default=None,
+        description="Why the run was initiated — trigger type and identifier, e.g. 'webhook:order-placed' or 'manual'.",
+    )

@@ -324,6 +324,9 @@ class Knot:
         self._mutable_input_adapters = input_adapters
         self._mutable_output_adapter = output_adapter
         self._mutable_mapped_inputs: dict[str, type] = mapped_inputs
+        # Populated by _fan_out when this knot executes a map operation;
+        # surfaced via lineage_extra() for lineage enrichment.
+        self._mutable_fan_out_extra: dict[str, Any] = {}
 
         # Self-register with the active tapestry (if any) or with the
         # explicitly passed one.  Done last so the knot is fully built
@@ -335,6 +338,21 @@ class Knot:
             target_tapestry.register(self)
 
         self._frozen = True
+
+    # ----------------------------------------------------------- lineage
+
+    def lineage_extra(self) -> dict[str, Any]:
+        """Return structured metadata to merge into this knot's lineage record.
+
+        Override in subclasses to surface execution-time context (e.g. which
+        branch was selected, predicate outcome, inner run id).  The base
+        implementation returns fan-out metadata when a map operation ran,
+        otherwise an empty dict.
+
+        Called by the engine after ``__call__`` returns; the returned dict is
+        merged into ``KnotLineage.extra``.
+        """
+        return dict(self._mutable_fan_out_extra)
 
     # ----------------------------------------------------------- properties
 
@@ -519,6 +537,8 @@ class Knot:
         mapped = self._mutable_mapped_inputs
         sole_type = next(iter(mapped.values()))
 
+        dict_keys: list[str] | None = None
+
         if sole_type is Map:
             (input_name,) = mapped.keys()
             collection = kwargs[input_name]
@@ -529,6 +549,8 @@ class Knot:
                     "To use a set, sort it into a list upstream."
                 )
             coros = [self.process(**{**kwargs, input_name: element}) for element in collection]
+            map_type = "map"
+            element_count = len(collection)
 
         elif sole_type is ZipMap:
             names = list(mapped.keys())
@@ -543,6 +565,8 @@ class Knot:
                 self.process(**{**kwargs, **dict(zip(names, elements, strict=False))})
                 for elements in zip(*collections, strict=False)
             ]
+            map_type = "zip_map"
+            element_count = len(coros)
 
         else:  # DictMap
             (key_name, val_name) = mapped.keys()
@@ -552,11 +576,18 @@ class Knot:
                     f"{type(self).__name__}({self.knot_id!r}): DictMap requires a "
                     f"dict, got {type(the_dict).__name__!r}"
                 )
+            dict_keys = list(the_dict.keys())
             coros = [
                 self.process(**{**kwargs, key_name: k, val_name: v}) for k, v in the_dict.items()
             ]
+            map_type = "dict_map"
+            element_count = len(the_dict)
 
         results = await asyncio.gather(*coros)
+        fan_out_extra: dict[str, Any] = {"map_type": map_type, "element_count": element_count}
+        if dict_keys is not None:
+            fan_out_extra["dict_keys"] = dict_keys
+        self._mutable_fan_out_extra = fan_out_extra
         return list(results)
 
     # ------------------------------------------------------------- mutation

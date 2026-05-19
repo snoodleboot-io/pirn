@@ -60,15 +60,15 @@ Click any node in the graph to open the knot detail panel. This implements **7W 
 
 ![Knot detail panel](../assets/screenshots/explorer-knot-detail.png)
 
-| W | Field | Description |
-|---|-------|-------------|
-| **WHO** | `knot_class` | Fully-qualified Python class name that ran this knot |
-| **WHEN** | `started_at` / `finished_at` | UTC timestamps + wall-clock duration |
-| **WHERE** | `dispatcher` | Which dispatcher executed this knot (Local, Thread, Celery, etc.) |
-| **HOW** | `knot_config_hash` | Content hash of the knot's config at run time |
-| **WHY** | `parent_input_hashes` | Content hashes of all inputs — traceability to upstream values |
-| **WHAT** | `output_hash` | Content hash of the output value |
-| **WHICH** | `run_id` | Which run this record belongs to |
+| W | Source | Description |
+|---|--------|-------------|
+| **WHO** | `RunResult.actor` | Identity that initiated the run — OS user, CI actor, or service account. Auto-resolved from env vars (`GITHUB_ACTOR`, `GITLAB_USER_LOGIN`, etc.) then OS user. Override via `RunRequest(actor=...)` or `Tapestry(identity_resolver=...)`. |
+| **WHAT** | tapestry graph + `KnotLineage` + knot source code | The pipeline definition, per-knot execution records, and source snapshots. |
+| **WHEN** | `RunResult.started_at` / `finished_at`; `KnotLineage.started_at` / `finished_at` | Run-level and knot-level UTC timestamps with wall-clock duration. |
+| **WHERE** | `RunResult.environment` (`hostname`, etc.) | Host and deployment environment where the run executed. |
+| **WHY** | `RunResult.trigger` | What caused the run — e.g. `webhook:order-placed`, `schedule`, `manual`. Set via `RunRequest(trigger=...)`. |
+| **HOW** | `RunResult.dispatcher` + `RunResult.runtime_info` + knot source code | Which dispatcher ran it, Python/pirn versions, and the actual code that executed. |
+| **WHICH** | `RunResult.runtime_info` (`pirn_version`, `vcs_commit`) + `KnotLineage.knot_config_hash` | Which version of the code and config ran — pirn version, git SHA of the calling project, and per-knot config hash. |
 
 ### Error details
 

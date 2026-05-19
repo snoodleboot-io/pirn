@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from pirn.backends.base.run_history import RunHistory
     from pirn.backends.base.tapestry_store import TapestryStore
+    from pirn.core.identity.identity_resolver import IdentityResolver
     from pirn.core.knot import Knot
     from pirn.core.run_request import RunRequest
     from pirn.core.run_result import RunResult
@@ -99,11 +100,15 @@ class Tapestry:
         emitter_error_policy: EmitterErrorPolicy | None = None,
         traceback_filter: Callable[[str], str] | None = None,
         transport: DataTransport | None = None,
+        identity_resolver: IdentityResolver | None = None,
     ) -> None:
         # Defer imports to avoid a circular at module load time.
         from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
         from pirn.backends.in_memory.in_memory_history import InMemoryHistory
         from pirn.backends.in_memory.in_memory_store import InMemoryStore
+        from pirn.core.identity.chained_identity_resolver import ChainedIdentityResolver
+        from pirn.core.identity.env_identity_resolver import EnvIdentityResolver
+        from pirn.core.identity.os_identity_resolver import OsIdentityResolver
         from pirn.core.transport.inline_transport import InlineTransport
         from pirn.emitters.base import EmitterErrorPolicy as _EmitterErrorPolicy
         from pirn.engine.dispatchers.local_dispatcher import LocalDispatcher
@@ -118,6 +123,9 @@ class Tapestry:
         )
         self._traceback_filter: Callable[[str], str] | None = traceback_filter
         self._transport: DataTransport = transport or InlineTransport()
+        self._identity_resolver = identity_resolver or ChainedIdentityResolver(
+            [EnvIdentityResolver(), OsIdentityResolver()]
+        )
 
         # Token returned by ContextVar.set, used to reset on __exit__.
         self._token: Any = None
@@ -143,6 +151,10 @@ class Tapestry:
     @property
     def transport(self) -> DataTransport:
         return self._transport
+
+    @property
+    def identity_resolver(self) -> IdentityResolver:
+        return self._identity_resolver
 
     # ------------------------------------------------------------- knot ops
 
@@ -212,6 +224,11 @@ class Tapestry:
 
         request = request or _RunRequest()
 
+        # WHO resolution: explicit RunRequest.actor wins; fall back to resolver.
+        resolved_actor = (
+            request.actor if request.actor is not None else self._identity_resolver.resolve()
+        )
+
         if terminals is None:
             chosen = self.terminals()
         elif isinstance(terminals, _Knot):
@@ -248,6 +265,7 @@ class Tapestry:
                 parent_run_id=_parent_run_id,
                 parent_knot_id=_parent_knot_id,
                 transport=self._transport,
+                actor=resolved_actor,
             )
         finally:
             _current_run_id.reset(token_run_id)

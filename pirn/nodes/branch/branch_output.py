@@ -26,6 +26,7 @@ class BranchOutput(Knot):
         tapestry: Any = None,
     ) -> None:
         self._mutable_branch_name = branch_name
+        self._mutable_fan_out_extra: dict[str, Any] = {}
 
         self._mutable_config = _config
         original_input = source.parents["input"]

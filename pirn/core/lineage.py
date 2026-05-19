@@ -119,6 +119,11 @@ class KnotLineage(BaseModel):
     # branch name chosen for Branch outputs, etc.
     extra: dict[str, Any] = Field(default_factory=dict)
 
+    # Content-addressed reference to the knot's source code snapshot.
+    # None when source was unavailable at capture time (compiled extensions,
+    # dynamically exec-created classes, etc.).
+    source_hash: str | None = None
+
     @property
     def duration_ms(self) -> float:
         return (self.finished_at - self.started_at).total_seconds() * 1000.0

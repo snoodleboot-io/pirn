@@ -49,6 +49,9 @@ class ExplorerHtmlGenerator:
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>pirn explorer</title>
 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11/styles/atom-one-dark.min.css">
+<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/core.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/python.min.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -311,6 +314,80 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .kd-iter-label { font-size: 10px; color: var(--fg-dim); margin-top: 10px; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.05em; }
 .kd-iter-btn { margin-top: 4px; }
 
+/* Extra metadata section in knot detail */
+.kd-extra { margin-top: 8px; }
+.kd-extra-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 6px; margin-top: 3px;
+}
+.kd-extra-key {
+  font-size: 9px; color: var(--text-dim); text-transform: uppercase;
+  letter-spacing: 0.06em; white-space: nowrap; flex-shrink: 0;
+}
+.kd-extra-val {
+  font-size: 10px; color: var(--text); text-align: right;
+  word-break: break-all; font-family: monospace;
+}
+.kd-extra-val.ev-ok    { color: var(--ok); }
+.kd-extra-val.ev-err   { color: var(--err); }
+.kd-extra-val.ev-skip  { color: var(--skip); }
+.kd-extra-val.ev-dim   { color: var(--text-dim); }
+
+/* Code button in knot detail */
+.kd-code-btn {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  margin-top: 8px; padding: 7px 12px;
+  background: rgba(100,80,220,0.12); border: 1px solid #6450dc;
+  color: #a899ff; border-radius: 20px; cursor: pointer;
+  font-size: 11px; font-weight: 600; font-family: inherit; width: 100%;
+}
+.kd-code-btn:hover { background: rgba(100,80,220,0.24); }
+
+/* ── Code source modal ────────────────────────────────────────────────── */
+#code-modal-backdrop {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.72); z-index: 500;
+  backdrop-filter: blur(3px);
+  align-items: center; justify-content: center;
+}
+#code-modal-backdrop.visible { display: flex; }
+#code-modal {
+  background: #0e0e1e; border: 1px solid #2a2a4a;
+  border-radius: 8px; width: min(860px, 94vw);
+  max-height: 82vh; display: flex; flex-direction: column;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.7);
+}
+#code-modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px; border-bottom: 1px solid #1e1e3a; flex-shrink: 0;
+}
+#code-modal-title {
+  font-size: 11px; font-weight: 700; color: #a899ff;
+  font-family: monospace; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; max-width: calc(100% - 40px);
+}
+#code-modal-meta {
+  font-size: 9px; color: var(--text-dim); margin-top: 2px; font-family: monospace;
+}
+#code-modal-close {
+  background: none; border: none; color: var(--text-dim);
+  font-size: 16px; cursor: pointer; padding: 2px 6px; flex-shrink: 0;
+}
+#code-modal-close:hover { color: var(--text); }
+#code-modal-body {
+  overflow-y: auto; padding: 14px 16px; flex: 1;
+}
+#code-modal-body::-webkit-scrollbar { width: 4px; }
+#code-modal-body::-webkit-scrollbar-thumb { background: #2a2a4a; border-radius: 2px; }
+#code-modal-pre {
+  font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+  font-size: 12px; line-height: 1.6; color: #cdd6f4;
+  white-space: pre; tab-size: 4; margin: 0;
+  background: transparent !important;
+}
+/* Strip highlight.js wrapper background so our modal bg shows through */
+#code-modal-pre.hljs { background: transparent !important; padding: 0; }
+
 /* Back button in topbar */
 #btn-back {
   display: none;
@@ -393,6 +470,20 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 <!-- Overlay backdrops (mobile) -->
 <div id="sidebar-overlay"  onclick="closeMobileSidebar()"></div>
 <div id="history-overlay"  onclick="closeMobileHistory()"></div>
+<div id="code-modal-backdrop" onclick="closeCodeModal(event)">
+  <div id="code-modal">
+    <div id="code-modal-header">
+      <div>
+        <div id="code-modal-title"></div>
+        <div id="code-modal-meta"></div>
+      </div>
+      <button id="code-modal-close" onclick="closeCodeModal()">&#x2715;</button>
+    </div>
+    <div id="code-modal-body">
+      <pre id="code-modal-pre"></pre>
+    </div>
+  </div>
+</div>
 
 <div id="app">
   <!-- Left sidebar -->
@@ -906,12 +997,13 @@ function showKnotDetail(node) {
     const why = [r.trigger, k && k.skip_reason ? `cached: ${k.skip_reason}` : ''].filter(Boolean).join(' · ');
     html += w('WHY', why ? esc(why) : '');
 
-    // WHICH — versions + config hash
+    // WHICH — versions + git SHA + config hash
     const rt = r.runtime_info || {};
     const pyVer = rt.python_version ? rt.python_version.split(' ').slice(0,2).join(' ') : '';
     const pirnVer = rt.pirn_version ? `pirn ${rt.pirn_version}` : '';
+    const gitSha = rt.vcs_commit ? `git ${rt.vcs_commit}` : '';
     const cfgHash = k && k.knot_config_hash ? `cfg ${k.knot_config_hash.slice(0,10)}…` : '';
-    const which = [pyVer, pirnVer, cfgHash].filter(Boolean).join('<br>');
+    const which = [pyVer, pirnVer, gitSha, cfgHash].filter(Boolean).join('<br>');
     if (which) html += `<div class="kd-w-row"><span class="kd-w-label">WHICH</span><div class="kd-w-value kd-w-dim">${which}</div></div>`;
 
     html += `<hr class="kd-divider">`;
@@ -932,6 +1024,58 @@ function showKnotDetail(node) {
         html += `<div class="kd-hash w-err">err&nbsp;${esc(k.error_record_id.slice(0,22))}…</div>`;
       }
     }
+
+    // Extra metadata rows — structured context from the knot's execution.
+    if (k && k.extra && Object.keys(k.extra).length) {
+      const x = k.extra;
+      html += `<div class="kd-extra">`;
+
+      function xrow(label, value, cls) {
+        if (value === undefined || value === null || value === '') return;
+        html += `<div class="kd-extra-row">
+          <span class="kd-extra-key">${label}</span>
+          <span class="kd-extra-val${cls ? ' ' + cls : ''}">${value}</span>
+        </div>`;
+      }
+
+      // Applied error policy — always present when extra is set.
+      if (x.error_policy) xrow('policy', esc(x.error_policy), 'ev-dim');
+
+      // Gate — predicate outcome.
+      if (x.predicate_passed !== undefined)
+        xrow('predicate', x.predicate_passed ? '✓ passed' : '✗ closed',
+             x.predicate_passed ? 'ev-ok' : 'ev-skip');
+
+      // Branch — which path was selected.
+      if (x.selected_branch !== undefined)
+        xrow('branch', esc(String(x.selected_branch)));
+
+      // Map / ZipMap / DictMap — fan-out stats.
+      if (x.map_type) {
+        xrow('map type', esc(x.map_type), 'ev-dim');
+        xrow('elements', String(x.element_count));
+        if (x.dict_keys && x.dict_keys.length)
+          xrow('keys', esc(x.dict_keys.slice(0, 6).join(', ') + (x.dict_keys.length > 6 ? '…' : '')), 'ev-dim');
+      }
+
+      // SubTapestry — inner run summary.
+      if (x.inner_run_id) {
+        xrow('inner run', esc(x.inner_run_id.slice(0, 18) + '…'), 'ev-dim');
+        xrow('inner knots', String(x.inner_knot_count));
+        if (x.inner_failures)
+          xrow('inner failures', String(x.inner_failures), 'ev-err');
+      }
+
+      // Optional knot that produced Ok(Skipped).
+      if (x.optional_skip) {
+        xrow('skip reason', esc(x.optional_skip.reason || ''), 'ev-skip');
+        if (x.optional_skip.phase)   xrow('skip phase', esc(x.optional_skip.phase), 'ev-dim');
+        if (x.optional_skip.error)   xrow('skip error', esc(x.optional_skip.error), 'ev-err');
+        if (x.optional_skip.message) xrow('skip msg',   esc(x.optional_skip.message), 'ev-dim');
+      }
+
+      html += `</div>`;
+    }
   }
 
   // Drill-in button(s) for SubTapestry nodes
@@ -950,9 +1094,38 @@ function showKnotDetail(node) {
     }
   }
 
+  // Code button — visible when a source snapshot exists for this knot.
+  if (k && k.source_hash && selectedRun && selectedRun.knot_sources && selectedRun.knot_sources[k.source_hash]) {
+    html += `<button class="kd-code-btn" onclick="showCodeModal('${esc(k.source_hash)}')">&#60;/&#62; View source</button>`;
+  }
+
   html += `</div>`;
   el.innerHTML = html;
   el.classList.add('visible');
+}
+
+function showCodeModal(sourceHash) {
+  const sources = selectedRun && selectedRun.knot_sources;
+  if (!sources || !sources[sourceHash]) return;
+  const entry = sources[sourceHash];
+  document.getElementById('code-modal-title').textContent = entry.knot_class || sourceHash;
+  document.getElementById('code-modal-meta').textContent =
+    `pirn ${entry.pirn_version || '?'}  ·  sha256:${sourceHash.slice(0, 16)}…`;
+  const pre = document.getElementById('code-modal-pre');
+  pre.removeAttribute('data-highlighted');
+  pre.className = 'language-python';
+  pre.textContent = entry.source_text || '';
+  if (window.hljs) {
+    hljs.registerLanguage('python', window.hljsPython || (window.hljsPython = hljs.getLanguage('python')));
+    hljs.highlightElement(pre);
+  }
+  document.getElementById('code-modal-body').scrollTop = 0;
+  document.getElementById('code-modal-backdrop').classList.add('visible');
+}
+
+function closeCodeModal(event) {
+  if (event && event.target !== document.getElementById('code-modal-backdrop')) return;
+  document.getElementById('code-modal-backdrop').classList.remove('visible');
 }
 
 function hideKnotDetail() {
@@ -974,6 +1147,8 @@ function hideTooltip() { ttEl.classList.remove('visible'); }
 document.addEventListener('mousemove', e => { if (ttEl.classList.contains('visible')) positionTooltip(e); });
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
+    const codeModal = document.getElementById('code-modal-backdrop');
+    if (codeModal.classList.contains('visible')) { codeModal.classList.remove('visible'); return; }
     if (navStack.length) { drillBack(); }
     else { hideKnotDetail(); hideTooltip(); }
   }

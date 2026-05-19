@@ -129,9 +129,13 @@ class TapestryGraphScanner:
                         payload_json,
                     ) = lr
                     parent_knot_ids: dict[str, str] = {}
+                    extra: dict = {}
+                    source_hash: str = ""
                     try:
                         payload = _json.loads(payload_json) if payload_json else {}
-                        parent_knot_ids = payload.get("extra", {}).get("parent_knot_ids", {})
+                        extra = payload.get("extra", {})
+                        parent_knot_ids = extra.get("parent_knot_ids", {})
+                        source_hash = payload.get("source_hash") or ""
                     except Exception:
                         pass
                     knots[kid] = {
@@ -145,6 +149,8 @@ class TapestryGraphScanner:
                         "error_record_id": err_id or "",
                         "skip_reason": skip_reason or "",
                         "parent_knot_ids": parent_knot_ids,
+                        "source_hash": source_hash,
+                        "extra": {k: v for k, v in extra.items() if k != "parent_knot_ids"},
                     }
 
                 # Load exceptions keyed by id from the run payload_json, and
@@ -200,6 +206,28 @@ class TapestryGraphScanner:
                     except Exception:
                         pass
 
+                # Collect knot_sources for every source_hash referenced in
+                # this run's knots so the UI can render source code modals.
+                knot_sources: dict[str, dict] = {}
+                if "knot_sources" in tables:
+                    hashes = [k["source_hash"] for k in knots.values() if k.get("source_hash")]
+                    if hashes:
+                        placeholders = ",".join("?" * len(hashes))
+                        try:
+                            ks_rows = conn.execute(
+                                f"SELECT source_hash, source_text, knot_class, pirn_version"
+                                f" FROM knot_sources WHERE source_hash IN ({placeholders})",
+                                hashes,
+                            ).fetchall()
+                            for sh, st, kc, pv in ks_rows:
+                                knot_sources[sh] = {
+                                    "source_text": st,
+                                    "knot_class": kc,
+                                    "pirn_version": pv,
+                                }
+                        except Exception:
+                            pass
+
                 result.append(
                     {
                         "run_id": run_id,
@@ -217,6 +245,7 @@ class TapestryGraphScanner:
                         "parent_run_id": parent_run_id or None,
                         "parent_knot_id": parent_knot_id or None,
                         "child_run_ids": child_run_ids,
+                        "knot_sources": knot_sources,
                     }
                 )
 
