@@ -55,7 +55,7 @@ class TestIdentityEngineWiring(unittest.TestCase):
 
     def test_default_resolver_uses_os_user(self) -> None:
         t = _make_simple_tapestry()
-        with patch("getpass.getuser", return_value="test-os-user"):
+        with patch("pirn.core.identity.os_identity_resolver.getpass.getuser", return_value="test-os-user"):
             result = asyncio.run(t.run(RunRequest()))
         self.assertEqual(result.actor, "test-os-user")
 
