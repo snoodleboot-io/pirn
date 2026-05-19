@@ -102,16 +102,29 @@ def _click_first_node(page: Page) -> None:
 
 
 def _drill_into_sub_tapestry(page: Page) -> None:
-    """Call drillIn() on the first SubTapestry node via JavaScript."""
-    # Find the first node whose is_sub_tapestry flag is true in the current tapestry.
-    node_id = page.evaluate("""() => {
-        if (!current) return null;
-        const node = current.nodes.find(n => n.is_sub_tapestry);
-        return node ? node.id : null;
+    """Find a run with child_run_ids in RUNS_BY_ID, select it, then drillIn()."""
+    result = page.evaluate("""() => {
+        // Find any run that has a non-empty child_run_ids map.
+        for (const run of Object.values(RUNS_BY_ID)) {
+            if (run.child_run_ids && Object.keys(run.child_run_ids).length > 0) {
+                const nodeId = Object.keys(run.child_run_ids)[0];
+                // Make sure there's a tapestry that contains this node.
+                const tapestry = TAPESTRIES.find(t => t.nodes.some(n => n.is_sub_tapestry));
+                if (!tapestry) continue;
+                // Set state directly and render.
+                current = tapestry;
+                selectedRun = run;
+                renderGraph();
+                updateRunBar();
+                return nodeId;
+            }
+        }
+        return null;
     }""")
-    if not node_id:
-        raise RuntimeError("No sub-tapestry node found in current tapestry")
-    page.evaluate(f"drillIn({node_id!r}, 0)")
+    if not result:
+        raise RuntimeError("No run with child_run_ids found in RUNS_BY_ID")
+    time.sleep(0.4)
+    page.evaluate(f"drillIn({result!r}, 0)")
     _wait_for_graph(page)
 
 
@@ -195,9 +208,13 @@ def capture_all(page: Page, base_url: str) -> None:
     _save(page, "explorer-pipeline-sub-tapestry")
 
     # ------------------------------------------------------------------
-    # explorer-knot-detail  — sub_tapestry with node detail + run overlay
+    # explorer-knot-detail  — content_moderation with run overlay + detail panel
     # ------------------------------------------------------------------
+    page.goto(base_url, wait_until="networkidle")
+    _wait_for_graph(page)
+    _select_pipeline(page, "content_moderation")
     _select_first_run(page)
+    _close_history(page)   # close history so graph has full width
     _click_first_node(page)
     _save(page, "explorer-knot-detail")
 
@@ -211,7 +228,7 @@ def capture_all(page: Page, base_url: str) -> None:
     _save(page, "explorer-sub-tapestry-drilled")
 
     # ------------------------------------------------------------------
-    # explorer-history  — history panel open, run selected
+    # explorer-history  — history panel open alongside the graph, run selected
     # ------------------------------------------------------------------
     page.goto(base_url, wait_until="networkidle")
     _wait_for_graph(page)
@@ -220,8 +237,13 @@ def capture_all(page: Page, base_url: str) -> None:
     _save(page, "explorer-history")
 
     # ------------------------------------------------------------------
-    # explorer-history-panel  — close-up of history panel
+    # explorer-history-panel  — same but with the LLM agent pipeline
+    #                            (more runs, richer history list)
     # ------------------------------------------------------------------
+    page.goto(base_url, wait_until="networkidle")
+    _wait_for_graph(page)
+    _select_pipeline(page, "chatbot_pipeline")
+    _select_first_run(page)
     _save(page, "explorer-history-panel")
 
     # ------------------------------------------------------------------
