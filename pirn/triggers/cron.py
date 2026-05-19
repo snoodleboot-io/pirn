@@ -27,7 +27,20 @@ from pirn.triggers.base import Trigger
 
 
 class CronTrigger(Trigger):
-    """Time-based trigger."""
+    """Time-based trigger that fires on a fixed interval or at specific times of day.
+
+    Two construction modes are supported:
+
+    * **Interval mode** — ``CronTrigger(every_seconds=300)`` yields a
+      ``RunRequest`` immediately on first iteration, then once every
+      *N* seconds.
+    * **At-times mode** — ``CronTrigger(at_times=[time(9, 0), time(17, 0)])``
+      waits until the next matching wall-clock time (UTC) and yields then,
+      repeating daily.
+
+    For full crontab expressions, wrap ``croniter`` or ``apscheduler``
+    and yield through this trigger's interface.
+    """
 
     def __init__(
         self,
@@ -37,6 +50,24 @@ class CronTrigger(Trigger):
         parameters_factory: Callable[[], dict[str, Any]] | None = None,
         max_runs: int | None = None,
     ) -> None:
+        """Initialise the trigger.
+
+        Args:
+            every_seconds: Interval between runs in seconds (interval
+                mode).  Mutually exclusive with ``at_times``.
+            at_times: List of UTC ``datetime.time`` values at which to
+                fire each day (at-times mode).  Mutually exclusive with
+                ``every_seconds``.
+            parameters_factory: Zero-argument callable returning a
+                ``dict`` of run parameters.  Called once per emitted
+                ``RunRequest``.  Defaults to an empty dict when ``None``.
+            max_runs: Stop after this many ``RunRequest``s.  Runs
+                indefinitely when ``None``.
+
+        Raises:
+            TypeError: If neither or both of ``every_seconds`` and
+                ``at_times`` are supplied.
+        """
         if every_seconds is None and at_times is None:
             raise TypeError("CronTrigger requires either every_seconds= or at_times=")
         if every_seconds is not None and at_times is not None:
@@ -53,6 +84,16 @@ class CronTrigger(Trigger):
         return "CronTrigger"
 
     async def stream(self) -> AsyncIterator[RunRequest]:
+        """Yield ``RunRequest`` objects according to the configured schedule.
+
+        In interval mode the first request is yielded immediately; in
+        at-times mode the generator waits until the next scheduled wall-
+        clock time before yielding.  Stops after ``max_runs`` requests
+        when set, or when ``close()`` is called.
+
+        Yields:
+            One ``RunRequest`` per scheduled fire time.
+        """
         emitted = 0
         if self._every_seconds is not None:
             while not self._closed:
@@ -72,12 +113,27 @@ class CronTrigger(Trigger):
                 emitted += 1
 
     def _build_request(self) -> RunRequest:
+        """Construct a ``RunRequest`` using the configured parameters factory.
+
+        Returns:
+            A new ``RunRequest`` whose ``parameters`` dict is produced by
+            ``parameters_factory()``, or an empty dict if no factory was
+            configured.
+        """
         params: dict[str, Any] = (
             self._parameters_factory() if self._parameters_factory is not None else {}
         )
         return RunRequest(parameters=params)
 
     def _seconds_until_next_at_time(self) -> float:
+        """Return the number of seconds until the next scheduled at-time fires.
+
+        Considers all configured times for today (UTC); if all have
+        passed, returns the wait until the first time tomorrow.
+
+        Returns:
+            Seconds to sleep before the next fire time.
+        """
         now = datetime.now(UTC)
         today = now.date()
         for t in self._at_times:
@@ -90,4 +146,5 @@ class CronTrigger(Trigger):
         return (candidate - now).total_seconds()
 
     async def close(self) -> None:
+        """Signal the trigger to stop after the current sleep completes."""
         self._closed = True

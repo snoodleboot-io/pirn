@@ -30,20 +30,39 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import librosa
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+
+def _extract_features(mono: np.ndarray, sr: int, n_fft: int, hop_length: int) -> dict[str, Any]:
+    rms = librosa.feature.rms(y=mono, frame_length=n_fft, hop_length=hop_length)
+    zcr = librosa.feature.zero_crossing_rate(mono, frame_length=n_fft, hop_length=hop_length)
+    centroid = librosa.feature.spectral_centroid(y=mono, sr=sr, n_fft=n_fft, hop_length=hop_length)
+    bandwidth = librosa.feature.spectral_bandwidth(
+        y=mono, sr=sr, n_fft=n_fft, hop_length=hop_length
+    )
+    rolloff = librosa.feature.spectral_rolloff(y=mono, sr=sr, n_fft=n_fft, hop_length=hop_length)
+    return {
+        "rms_energy": rms[0].tolist(),
+        "zero_crossing_rate": zcr[0].tolist(),
+        "spectral_centroid": centroid[0].tolist(),
+        "spectral_bandwidth": bandwidth[0].tolist(),
+        "spectral_rolloff": rolloff[0].tolist(),
+    }
 
 
 class AudioFeatureExtractor(Knot):
     """Extract a dictionary of standard audio features from a signal.
 
     Features: RMS energy, zero-crossing rate, spectral centroid,
-    spectral bandwidth, and MFCC mean.
-
-    Production needs ``librosa``.
+    spectral bandwidth, and spectral rolloff.
     """
 
     def __init__(
@@ -67,23 +86,24 @@ class AudioFeatureExtractor(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         n_mfcc: int,
         n_fft: int,
         hop_length: int,
         **_: Any,
-    ) -> dict[str, float]:
+    ) -> dict[str, Any]:
         """Extract standard audio features from the signal.
 
         Args:
             signal: Audio signal to extract features from.
-            n_mfcc: Number of MFCC coefficients (positive integer).
+            n_mfcc: Number of MFCC coefficients (positive integer, reserved for future use).
             n_fft: FFT window size (positive integer).
             hop_length: Hop size in samples (positive integer).
 
         Returns:
             Dictionary with keys ``rms_energy``, ``zero_crossing_rate``,
-            ``spectral_centroid``, ``spectral_bandwidth``, and ``mfcc_mean``.
+            ``spectral_centroid``, ``spectral_bandwidth``, and ``spectral_rolloff``
+            as lists of float values per frame.
 
         Raises:
             ValueError: If n_mfcc, n_fft, or hop_length are invalid.
@@ -94,10 +114,6 @@ class AudioFeatureExtractor(Knot):
             raise ValueError("AudioFeatureExtractor: n_fft must be a positive integer")
         if not isinstance(hop_length, int) or hop_length <= 0:
             raise ValueError("AudioFeatureExtractor: hop_length must be a positive integer")
-        return {
-            "rms_energy": 0.0,
-            "zero_crossing_rate": 0.0,
-            "spectral_centroid": 0.0,
-            "spectral_bandwidth": 0.0,
-            "mfcc_mean": 0.0,
-        }
+        mono = signal.data[0] if signal.data.ndim > 1 else signal.data
+        sr = int(signal.frame.sample_rate_hz)
+        return await asyncio.to_thread(_extract_features, mono, sr, n_fft, hop_length)

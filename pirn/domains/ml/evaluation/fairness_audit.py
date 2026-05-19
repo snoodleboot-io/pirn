@@ -2,17 +2,17 @@
 opportunity).
 
 The base implementation produces a deterministic
-:class:`EvalReport` whose ``metrics`` map carries one entry per
+:class:`EvalMetadata` whose ``metrics`` map carries one entry per
 sensitive column (the ``parity_<column>`` value) and whose ``details``
 map records per-group placeholder counts. Concrete subclasses override
 :meth:`process` to plug in a real per-group fit/predict/score loop.
 
 Algorithm:
-    1. Receive ``model`` (TrainedModel), ``split`` (DataSplit), and
+    1. Receive ``model`` (ModelManifest), ``split`` (SplitManifest), and
        ``sensitive_columns`` (sequence of str) via process().
     2. Validate that sensitive_columns is non-empty and all elements are non-empty strings.
     3. For each sensitive column, compute a deterministic parity score.
-    4. Return an EvalReport with ``parity_<column>`` metrics.
+    4. Return an EvalMetadata with ``parity_<column>`` metrics.
 
 Math:
     parity[col] = sha256(model_id || col || test_name || test_row_count)[0:8] as uint64 / 2^64
@@ -32,9 +32,11 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.eval_metadata import EvalMetadata
+from pirn.domains.ml.types.eval_metrics import EvalMetrics
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class FairnessAudit(Knot):
@@ -58,17 +60,21 @@ class FairnessAudit(Knot):
         )
 
     async def process(
-        self, model: TrainedModel, split: DataSplit, sensitive_columns: Sequence[str] = (), **_: Any
-    ) -> EvalReport:
-        """Compute per-group parity scores for each sensitive column and return an EvalReport.
+        self,
+        model: ModelManifest,
+        split: SplitManifest,
+        sensitive_columns: Sequence[str] = (),
+        **_: Any,
+    ) -> EvalReportPayload:
+        """Compute per-group parity scores for each sensitive column and return an EvalReportPayload.
 
         Args:
-            model: TrainedModel reference to audit.
-            split: DataSplit whose test partition is used for per-group scoring.
+            model: ModelManifest reference to audit.
+            split: SplitManifest whose test partition is used for per-group scoring.
             sensitive_columns: Non-empty sequence of sensitive column name strings.
 
         Returns:
-            EvalReport with parity_<column> metrics for every sensitive column.
+            EvalReportPayload with parity_<column> metrics for every sensitive column.
 
         Raises:
             ValueError: If sensitive_columns is empty or any element is not a non-empty string.
@@ -81,23 +87,27 @@ class FairnessAudit(Knot):
                 raise ValueError(
                     "FairnessAudit: every sensitive column name must be a non-empty string"
                 )
-        metrics: dict[str, float] = {}
+        parity_scores: dict[str, float] = {}
         details: dict[str, Any] = {
             "model_id": model.model_id,
             "test_row_count": split.test.row_count,
             "sensitive_columns": list(column_tuple),
         }
         for column in column_tuple:
-            metrics[f"parity_{column}"] = self._parity_score(model, split, column)
-        return EvalReport(
-            model_id=model.model_id,
-            metrics=MappingProxyType(metrics),
-            dataset_name=split.test.name,
-            evaluated_at=datetime.now(UTC),
-            details=MappingProxyType(details),
+            parity_scores[f"parity_{column}"] = self._parity_score(model, split, column)
+        return EvalReportPayload(
+            metadata=EvalMetadata(
+                model_id=model.model_id,
+                dataset_name=split.test.name,
+                evaluated_at=datetime.now(UTC),
+            ),
+            data=EvalMetrics(
+                scores=MappingProxyType(parity_scores),
+                details=MappingProxyType(details),
+            ),
         )
 
-    def _parity_score(self, model: TrainedModel, split: DataSplit, column: str) -> float:
+    def _parity_score(self, model: ModelManifest, split: SplitManifest, column: str) -> float:
         payload = json.dumps(
             {
                 "model_id": model.model_id,

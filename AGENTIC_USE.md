@@ -31,11 +31,13 @@ pirn/
 │   ├── err.py               ← Err result wrapper
 │   ├── skipped.py           ← Skipped result wrapper
 │   ├── optional.py          ← Optional mixin: makes Err from this knot propagate as Skipped to downstream
-│   └── result.py            ← Result union type (Ok | Err | Skipped)
+│   ├── result.py            ← Result union type (Ok | Err | Skipped)
+│   ├── assembler.py         ← Assembler marker base: thin Knot subclass identifying raw→Payload boundary knots
+│   └── disassembler.py      ← Disassembler marker base: thin Knot subclass identifying Payload→raw boundary knots
 ├── nodes/
 │   ├── source.py            ← Source base: zero-parent knot; subclass and implement process() with no named params
 │   ├── sink.py              ← Sink base: terminal consumer; output is conventionally None; taxonomic, not enforced
-│   ├── sub_tapestry.py      ← SubTapestry base: knot whose body is a complete inner tapestry; implement process() and call _run_inner(inner)
+│   ├── sub_tapestry.py      ← SubTapestry base: knot whose body is a complete inner tapestry; implement process() returning the terminal Knot
 │   ├── gate/gate.py         ← Gate: one parent + predicate callable → Ok(value) if truthy, Skipped if falsy
 │   ├── aggregator.py        ← Aggregator: N parents merged via a combine callable
 │   ├── branch.py            ← Branch: one parent + selector → tagged paths; non-selected paths are Skipped
@@ -220,25 +222,107 @@ with Tapestry() as t:
     WriteOutput(data=rows, path="/tmp/out.json", _config=KnotConfig(id="write"))
 ```
 
+### Assembler
+
+**Contract:** subclass `Assembler` (from `pirn.core.assembler`), implement `async def process(self, ..., **_: Any) -> Payload`. Receives raw connector output (bytes, list[tuple], list[dict]) and converts it to a domain `Payload` subclass. Must not perform I/O — values arrive already materialised from a connector parent knot.
+
+```python
+from typing import Any
+from pirn.core.assembler import Assembler
+from pirn.core.knot_config import KnotConfig
+
+class SignalObjectStoreAssembler(Assembler):
+    async def process(self, body: bytes, signal_id: str, **_: Any) -> SignalPayload:
+        if not isinstance(body, bytes) or not body:
+            raise TypeError("body must be non-empty bytes")
+        # decode bytes → SignalPayload via domain library
+        return _decode(body, signal_id)
+```
+
+Lives in `pirn/domains/{domain}/assemblers/`. Named `{Subject}{Source}Assembler`.
+
+### Disassembler
+
+**Contract:** subclass `Disassembler` (from `pirn.core.disassembler`), implement `async def process(self, ..., **_: Any) -> bytes | list[tuple] | ...`. Receives a domain `Payload` subclass and converts it to raw types for a connector sink. Must not perform I/O.
+
+```python
+from typing import Any
+from pirn.core.disassembler import Disassembler
+
+class SignalObjectStoreDisassembler(Disassembler):
+    async def process(self, payload: SignalPayload, **_: Any) -> bytes:
+        if not isinstance(payload, SignalPayload):
+            raise TypeError("payload must be SignalPayload")
+        return _encode(payload)
+```
+
+Lives in `pirn/domains/{domain}/disassemblers/`. Named `{Subject}{Sink}Disassembler`.
+
 ### SubTapestry
 
-**Contract:** subclass `SubTapestry`, implement `async def process(self, ..., **_: Any) -> RunResult`. Inside `process`, build a complete inner `Tapestry` and return `await self._run_inner(inner)`. Outer parent values arrive as resolved Python values in `**kwargs`. If the inner run has any exceptions, `_run_inner` raises `SubTapestryError`, which the engine catches and converts to `Err`.
+**Contract:** subclass `SubTapestry`, implement `async def process(self, ..., **_: Any) -> Knot`. Inside `process`, build the inner graph by constructing knots (they auto-register in the framework-managed inner tapestry) and return the terminal `Knot`. The base class owns the `Tapestry()` context — do not open one yourself, and do not call `_run_inner` directly. Outer parent values arrive as resolved Python values in `**kwargs`. If the inner run has any exceptions, the base class converts them to `Err`.
 
 ```python
 from typing import Any
 from pirn import KnotConfig, Parameter
-from pirn.core.run_result import RunResult
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 class ProcessBatch(SubTapestry):
-    async def process(self, batch: list[dict], **_: Any) -> RunResult:
-        with Tapestry() as inner:
-            p = Parameter("batch", list, default=batch, _config=KnotConfig(id="batch"))
-            ValidateRows(rows=p, _config=KnotConfig(id="validate"))
-            StoreRows(rows=p,    _config=KnotConfig(id="store"))
-        return await self._run_inner(inner)
+    """Inner tapestry: validate and store must both succeed."""
+
+    async def process(self, batch: list[dict], **_: Any) -> Knot:
+        p = Parameter("batch", list, default=batch, _config=KnotConfig(id="batch"))
+        ValidateRows(rows=p, _config=KnotConfig(id="validate"))
+        return StoreRows(rows=p, _config=KnotConfig(id="store"))
 ```
+
+### LoopSubTapestry
+
+**Contract:** subclass `LoopSubTapestry[S]`, implement `step(state: S) -> tuple[Tapestry, S] | None` and `fold(state: S, result: RunResult) -> S`. The base class drives the iteration loop as a single extensible inner run — each iteration is a real, traceable knot. Do not override `process()`.
+
+- `step` — given current state, return `(tapestry, updated_state)` to continue, or `None` to terminate.
+- `fold` — integrate the completed iteration's `RunResult` into state; return new state for the next `step`.
+- `step_id(state, idx)` — optional override; returns the knot ID for iteration `idx` (1-based). Default: `step_{idx}`.
+
+```python
+from typing import Any
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_result import RunResult
+from pirn.nodes.loop_sub_tapestry import LoopSubTapestry
+from pirn.tapestry import Tapestry
+
+class RefineLoop(LoopSubTapestry[float]):
+    def __init__(self, *, max_rounds: int = 10, **kwargs: Any) -> None:
+        self._max_rounds = max_rounds
+        super().__init__(**kwargs)
+
+    def step(self, state: float) -> tuple[Tapestry, float] | None:
+        if state >= 1.0 or self._max_rounds <= 0:
+            return None
+        with Tapestry() as t:
+            RefineKnot(value=state, _config=KnotConfig(id="refine"))
+        return t, state
+
+    def fold(self, state: float, result: RunResult) -> float:
+        return result.outputs["refine"]
+
+    def step_id(self, state: float, idx: int) -> str:
+        return f"round_{idx}"
+```
+
+Wire like any other knot — `state` is the initial loop state:
+
+```python
+with Tapestry() as t:
+    RefineLoop(state=0.1, max_rounds=5, _config=KnotConfig(id="loop"))
+
+result = await t.run(RunRequest())
+final_value = result.outputs["loop"]   # final state after all iterations
+```
+
+See [docs/guides/agentic-loops.md](docs/guides/agentic-loops.md) for the full contract, observability details, and a conversational LLM agent example.
+
+---
 
 ### Parameter
 
@@ -453,7 +537,9 @@ asyncio.run(main())
 | Handle upstream errors | `KnotConfig(error_policy=ErrorPolicy.RECEIVE_ERRORS)` — `process()` receives `Result` |
 | Skip on predicate | `Gate(input=knot, predicate=fn, _config=KnotConfig(id="g"))` |
 | Fan over a list | `Map(over=list_knot, each=per_item_factory, bind="item", _config=...)` |
-| Compose sub-pipelines | subclass `SubTapestry`; build inner tapestry in `process()`; call `_run_inner(inner)` |
+| Compose sub-pipelines | subclass `SubTapestry`; build inner graph in `process()`; return terminal `Knot` |
+| Iterative / agentic loop | subclass `LoopSubTapestry[S]`; implement `step()` and `fold()`; wire `state=initial` |
+| Custom step IDs in history | override `step_id(state, idx) -> str` on `LoopSubTapestry` subclass |
 | Make Err propagate as Skipped | `class MyKnot(Optional, Knot):` |
 | Add observability | `Tapestry(emitters=[LogEmitter(), OpenTelemetryEmitter()])` |
 | Scale to threads | `Tapestry(dispatcher=ThreadDispatcher(max_workers=8))` |
@@ -480,4 +566,4 @@ domain guide alongside this file before writing domain code.
 
 ---
 
-*Generated for agent use. Covers pirn 0.3.0 on branch feat/domain-knot-libraries.*
+*Generated for agent use. Covers pirn 0.3.0 on branch feat/domain-gap-remediation-plan.*

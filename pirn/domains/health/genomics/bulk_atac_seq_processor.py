@@ -7,6 +7,14 @@ Algorithm:
     4. Call peaks using MACS2 or HMMRATAC.
     5. Compute TSS enrichment score and FRiP score.
 
+Math:
+    Fraction of reads in peaks (FRiP):
+
+    FRiP = reads_in_peaks / total_reads
+
+    TSS enrichment score (normalized cut-site pileup at TSSs vs. flanking regions):
+
+    TSS_score = mean_signal_at_TSS / mean_signal_in_flanks
 
 References:
     - ENCODE ATAC-seq pipeline: https://www.encodeproject.org/atac-seq/

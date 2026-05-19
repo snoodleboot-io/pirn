@@ -4,26 +4,31 @@ from __future__ import annotations
 
 import unittest
 
+try:
+    import scipy  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("scipy not installed") from _e
+
 import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.domains.signal.filters.low_pass_filter import LowPassFilter
-from pirn.domains.signal.types.signal_frame import SignalFrame
-from tests.unit.domains.signal.conftest import make_signal_frame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+from tests.unit.domains.signal.conftest import make_signal_payload
 
-_SIGNAL = make_signal_frame()
+_SIGNAL = make_signal_payload()
 
 
 def _up(name: str = "signal") -> Parameter:
-    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
+    return Parameter(name, SignalPayload, _config=KnotConfig(id=name))
 
 
 class TestLowPassFilter(unittest.IsolatedAsyncioTestCase):
     def _make(self) -> LowPassFilter:
         return LowPassFilter(
             signal=_up(),
-            cutoff_hz=500.0,
+            cutoff_hz=400.0,
             _config=KnotConfig(id="lp"),
         )
 
@@ -34,6 +39,6 @@ class TestLowPassFilter(unittest.IsolatedAsyncioTestCase):
 
     async def test_emits_signal_frame(self) -> None:
         knot = self._make()
-        out = await knot.process(_SIGNAL, cutoff_hz=500.0)
-        assert isinstance(out, SignalFrame)
-        assert out.signal_id == "test:lowpass"
+        out = await knot.process(_SIGNAL, cutoff_hz=400.0)
+        assert isinstance(out, SignalPayload)
+        assert out.frame.signal_id == "test:lowpass"

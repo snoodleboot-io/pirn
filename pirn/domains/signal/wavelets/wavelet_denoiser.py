@@ -30,11 +30,26 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
+import pywt
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+
+def _run_denoising(data: np.ndarray, wavelet: str, level: int, threshold_mode: str) -> np.ndarray:
+    coeffs = pywt.wavedec(data, wavelet, level=level, axis=-1)
+    finest_detail = coeffs[-1]
+    sigma = np.median(np.abs(finest_detail)) / 0.6745
+    sample_count = data.shape[-1]
+    threshold = sigma * np.sqrt(2 * np.log(sample_count))
+    coeffs_thresh = [pywt.threshold(c, threshold, mode=threshold_mode) for c in coeffs]
+    return pywt.waverec(coeffs_thresh, wavelet, axis=-1)
 
 
 class WaveletDenoiser(Knot):
@@ -61,22 +76,22 @@ class WaveletDenoiser(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         wavelet: str,
         level: int,
         threshold_mode: str,
         **_: Any,
-    ) -> SignalFrame:
-        """Denoise the signal via wavelet thresholding and return the cleaned SignalFrame.
+    ) -> SignalPayload:
+        """Denoise the signal via wavelet thresholding and return the cleaned SignalPayload.
 
         Args:
-            signal: The noisy input signal frame.
+            signal: The noisy input signal payload.
             wavelet: Wavelet name (non-empty string).
             level: Decomposition level for DWT (positive integer).
             threshold_mode: Thresholding strategy — ``soft`` or ``hard``.
 
         Returns:
-            Denoised SignalFrame with the same shape as the input.
+            Denoised SignalPayload with the same frame metadata and denoised data.
 
         Raises:
             ValueError: If wavelet, level, or threshold_mode are invalid.
@@ -87,9 +102,13 @@ class WaveletDenoiser(Knot):
             raise ValueError("WaveletDenoiser: level must be a positive integer")
         if threshold_mode not in {"soft", "hard"}:
             raise ValueError("WaveletDenoiser: threshold_mode must be one of 'soft', 'hard'")
-        return SignalFrame(
-            signal_id=f"{signal.signal_id}:denoised-{threshold_mode}",
-            channel_count=signal.channel_count,
-            sample_rate_hz=signal.sample_rate_hz,
-            samples_per_channel=signal.samples_per_channel,
+        denoised = await asyncio.to_thread(
+            _run_denoising, signal.data, wavelet, level, threshold_mode
         )
+        out_frame = SignalFrame(
+            signal_id=f"{signal.frame.signal_id}:denoised-{threshold_mode}",
+            channel_count=signal.frame.channel_count,
+            sample_rate_hz=signal.frame.sample_rate_hz,
+            samples_per_channel=denoised.shape[-1],
+        )
+        return SignalPayload(metadata=out_frame, data=denoised)

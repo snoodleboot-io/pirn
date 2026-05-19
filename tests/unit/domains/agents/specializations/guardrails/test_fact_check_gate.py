@@ -66,8 +66,11 @@ class TestFactCheckGateProcess(unittest.IsolatedAsyncioTestCase):
             content="Earth orbits the sun. The moon is made of cheese.",
             finish_reason="stop",
         )
-        k = _make_knot(llm, store)
-        result = await k.process(response=response, store=store, llm=llm)
+        with Tapestry() as t:
+            FactCheckGate(response=response, store=store, llm=llm, _config=KnotConfig(id="fc"))
+        run = await t.run(RunRequest())
+        assert run.succeeded
+        result = run.outputs["fc"]
         assert isinstance(result, AgentResponse)
         assert "Unverified claims" in result.content
         assert "moon is made of cheese" in result.content
@@ -76,8 +79,11 @@ class TestFactCheckGateProcess(unittest.IsolatedAsyncioTestCase):
         llm = StubLLMProvider(["- earth orbits sun"])
         store = ScriptedSearchStore(supported_substrings=("earth orbits sun",))
         response = AgentResponse(content="Earth orbits the sun.", finish_reason="stop")
-        k = _make_knot(llm, store)
-        result = await k.process(response=response, store=store, llm=llm)
+        with Tapestry() as t:
+            FactCheckGate(response=response, store=store, llm=llm, _config=KnotConfig(id="fc"))
+        run = await t.run(RunRequest())
+        assert run.succeeded
+        result = run.outputs["fc"]
         assert "Unverified" not in result.content
 
 

@@ -22,6 +22,11 @@ Algorithm:
        inner Tapestry.
     4. Run via _run_inner() and return model_id, eval_report, serialized_size.
 
+Math:
+    Empirical risk minimisation:
+        theta* = argmin_theta (1/n) * sum_i L(y_i, f(x_i; theta))
+
+    serialized_size = len(joblib.dumps(model))  [bytes]
 
 References:
     N/A — pirn-native implementation.
@@ -41,15 +46,27 @@ from pirn.domains.ml.deployment.model_serializer import ModelSerializer
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.lineage_store import LineageStore
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
 async def _emit_value(value: Any) -> Any:
     return value
+
+
+@knot
+async def _combine_sklearn_pipeline_result(
+    model_id: str,
+    eval_report: EvalReportPayload,
+    serialized: Any,
+) -> dict[str, Any]:
+    return {
+        "model_id": model_id,
+        "eval_report": eval_report,
+        "serialized_size": len(bytes(serialized)),
+    }
 
 
 class SklearnTrainerPipeline(SubTapestry):
@@ -80,18 +97,18 @@ class SklearnTrainerPipeline(SubTapestry):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         algorithm: str = "",
         lineage: LineageStore | None = None,
         store: ObjectStore | None = None,
         metrics: Sequence[str] = (),
         hyperparameters: Mapping[str, Any] | None = None,
         **_: Any,
-    ) -> dict[str, Any]:
+    ) -> Any:
         """Train the sklearn model, evaluate it, serialise with joblib, register it, and return a summary dict.
 
         Args:
-            split: DataSplit used for training and evaluation.
+            split: SplitManifest used for training and evaluation.
             algorithm: Non-empty algorithm identifier.
             lineage: LineageStore for model registration.
             store: ObjectStore for artifact storage.
@@ -99,7 +116,7 @@ class SklearnTrainerPipeline(SubTapestry):
             hyperparameters: Optional mapping of additional hyperparameters.
 
         Returns:
-            Dict with ``model_id`` (str), ``eval_report`` (:class:`EvalReport`),
+            Dict with ``model_id`` (str), ``eval_report`` (:class:`EvalMetadata`),
             and ``serialized_size`` (int byte count of the joblib artifact).
 
         Raises:
@@ -123,44 +140,34 @@ class SklearnTrainerPipeline(SubTapestry):
         if hyperparameters is not None and not isinstance(hyperparameters, Mapping):
             raise TypeError("SklearnTrainerPipeline: hyperparameters must be a Mapping")
         hp = dict(hyperparameters) if hyperparameters is not None else {}
-        with Tapestry() as inner:
-            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
-            model = Trainer(
-                split=split_node,
-                algorithm=algorithm,
-                hyperparameters=hp,
-                _config=KnotConfig(id="train"),
-            )
-            Evaluator(
-                model=model,
-                split=split_node,
-                metrics=metric_tuple,
-                _config=KnotConfig(id="evaluate"),
-            )
-            serialized = ModelSerializer(
-                model=model,
-                format="joblib",
-                _config=KnotConfig(id="serialize"),
-            )
-            ModelRegistrar(
-                serialized=serialized,
-                model=model,
-                lineage=lineage,
-                store=store,
-                _config=KnotConfig(id="register"),
-            )
-        result = await self._run_inner(inner)
-        report = result.outputs["evaluate"]
-        serialized_bytes = result.outputs["serialize"]
-        model_id = result.outputs["register"]
-        if not isinstance(report, EvalReport):
-            raise TypeError("SklearnTrainerPipeline: evaluator did not return an EvalReport")
-        if not isinstance(serialized_bytes, (bytes, bytearray)):
-            raise TypeError("SklearnTrainerPipeline: serializer did not return bytes")
-        if not isinstance(model_id, str):
-            raise TypeError("SklearnTrainerPipeline: registrar did not return a string id")
-        return {
-            "model_id": model_id,
-            "eval_report": report,
-            "serialized_size": len(bytes(serialized_bytes)),
-        }
+        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        model = Trainer(
+            split=split_node,
+            algorithm=algorithm,
+            hyperparameters=hp,
+            _config=KnotConfig(id="train"),
+        )
+        evaluated = Evaluator(
+            model=model,
+            split=split_node,
+            metrics=metric_tuple,
+            _config=KnotConfig(id="evaluate"),
+        )
+        serialized = ModelSerializer(
+            model=model,
+            format="joblib",
+            _config=KnotConfig(id="serialize"),
+        )
+        registered = ModelRegistrar(
+            serialized=serialized,
+            model=model,
+            lineage=lineage,
+            store=store,
+            _config=KnotConfig(id="register"),
+        )
+        return _combine_sklearn_pipeline_result(
+            model_id=registered,
+            eval_report=evaluated,
+            serialized=serialized,
+            _config=KnotConfig(id="combine"),
+        )

@@ -35,6 +35,24 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(ValueError, "max_spm"):
             await knot.process(dynagraph_card=_CARD, target_fillage_pct=80.0, max_spm=0.0)
 
+    async def test_rejects_missing_current_spm(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "current_spm"):
+            await knot.process(
+                dynagraph_card={"stroke_length_in": 144.0},
+                target_fillage_pct=80.0,
+                max_spm=10.0,
+            )
+
+    async def test_rejects_missing_stroke_length(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "stroke_length_in"):
+            await knot.process(
+                dynagraph_card={"current_spm": 8.0},
+                target_fillage_pct=80.0,
+                max_spm=10.0,
+            )
+
     async def test_returns_recommendation(self) -> None:
         knot = self._make_knot()
         out = await knot.process(dynagraph_card=_CARD, target_fillage_pct=80.0, max_spm=10.0)

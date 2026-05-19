@@ -2,7 +2,7 @@
 aggregate predictions.
 
 Classification uses majority voting; regression uses averaging. Returns
-the ensemble :class:`TrainedModel` reference and its evaluation report.
+the ensemble :class:`ModelManifest` reference and its evaluation report.
 
 Algorithm:
     1. Receive ``split``, ``algorithm``, ``n_estimators``, ``task``,
@@ -11,6 +11,15 @@ Algorithm:
     3. Wire N Trainer knots + EnsembleBuilder + Evaluator in an inner Tapestry.
     4. Run via _run_inner() and return ensemble model and eval report.
 
+Math:
+    Bootstrap sampling: each base model trains on n_bootstrap samples drawn with
+    replacement from the training set of size n, where n_bootstrap = n by default.
+
+    Classification (majority voting):
+        y_hat = argmax_c sum_{i=1}^{N} I(y_hat_i == c)
+
+    Regression (averaging):
+        y_hat = (1/N) * sum_{i=1}^{N} y_hat_i
 
 References:
     N/A — pirn-native implementation.
@@ -27,16 +36,28 @@ from pirn.core.knot_factory import knot
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.training.ensemble_builder import EnsembleBuilder
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
 async def _emit_value(value: Any) -> Any:
     return value
+
+
+@knot
+async def _combine_ensemble_eval(
+    ensemble_model: ModelManifest,
+    eval_report: EvalReportPayload,
+    n_estimators: int,
+) -> dict[str, Any]:
+    return {
+        "ensemble_model": ensemble_model,
+        "eval_report": eval_report,
+        "n_estimators": n_estimators,
+    }
 
 
 class BaggingEnsembleBuilder(SubTapestry):
@@ -69,18 +90,18 @@ class BaggingEnsembleBuilder(SubTapestry):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         algorithm: str = "",
         n_estimators: int = 10,
         task: str = "classification",
         metrics: Sequence[str] = (),
         hyperparameters: Mapping[str, Any] | None = None,
         **_: Any,
-    ) -> dict[str, Any]:
+    ) -> Any:
         """Train N base models, build a bagging ensemble, and return the ensemble model and its evaluation.
 
         Args:
-            split: DataSplit used for base model training and ensemble evaluation.
+            split: SplitManifest used for base model training and ensemble evaluation.
             algorithm: Non-empty algorithm identifier for base models.
             n_estimators: Number of base models; must be an int >= 2.
             task: Task type; must be one of {"classification", "regression"}.
@@ -88,7 +109,7 @@ class BaggingEnsembleBuilder(SubTapestry):
             hyperparameters: Optional mapping of hyperparameters.
 
         Returns:
-            Dict with ``ensemble_model`` (TrainedModel), ``eval_report`` (EvalReport),
+            Dict with ``ensemble_model`` (ModelManifest), ``eval_report`` (EvalMetadata),
             and ``n_estimators`` (int).
 
         Raises:
@@ -117,37 +138,31 @@ class BaggingEnsembleBuilder(SubTapestry):
             raise TypeError("BaggingEnsembleBuilder: hyperparameters must be a Mapping")
         hp = dict(hyperparameters) if hyperparameters is not None else {}
         strategy = "voting" if task == "classification" else "blending"
-        with Tapestry() as inner:
-            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
-            base_models = []
-            for i in range(n_estimators):
-                model = Trainer(
-                    split=split_node,
-                    algorithm=algorithm,
-                    hyperparameters={**hp, "bootstrap_sample": i},
-                    _config=KnotConfig(id=f"train_{i}"),
-                )
-                base_models.append(model)
-            ensemble = EnsembleBuilder(
-                models=base_models,
-                strategy=strategy,
-                _config=KnotConfig(id="ensemble"),
-            )
-            Evaluator(
-                model=ensemble,
+        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        base_models = []
+        for i in range(n_estimators):
+            model = Trainer(
                 split=split_node,
-                metrics=metric_tuple,
-                _config=KnotConfig(id="evaluate"),
+                algorithm=algorithm,
+                hyperparameters={**hp, "bootstrap_sample": i},
+                _config=KnotConfig(id=f"train_{i}"),
             )
-        result = await self._run_inner(inner)
-        ensemble_model = result.outputs["ensemble"]
-        report = result.outputs["evaluate"]
-        if not isinstance(ensemble_model, TrainedModel):
-            raise TypeError("BaggingEnsembleBuilder: ensemble did not return a TrainedModel")
-        if not isinstance(report, EvalReport):
-            raise TypeError("BaggingEnsembleBuilder: evaluator did not return an EvalReport")
-        return {
-            "ensemble_model": ensemble_model,
-            "eval_report": report,
-            "n_estimators": n_estimators,
-        }
+            base_models.append(model)
+        ensemble = EnsembleBuilder(
+            models=base_models,
+            strategy=strategy,
+            _config=KnotConfig(id="ensemble"),
+        )
+        evaluated = Evaluator(
+            model=ensemble,
+            split=split_node,
+            metrics=metric_tuple,
+            _config=KnotConfig(id="evaluate"),
+        )
+        n_est_node = _emit_value(value=n_estimators, _config=KnotConfig(id="n_estimators"))
+        return _combine_ensemble_eval(
+            ensemble_model=ensemble,
+            eval_report=evaluated,
+            n_estimators=n_est_node,
+            _config=KnotConfig(id="combine"),
+        )

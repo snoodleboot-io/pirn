@@ -72,6 +72,24 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
                 activity_classes=(),
             )
 
+    async def test_raises_on_missing_axis_field(self) -> None:
+        inst = object.__new__(AccelerometerActivityClassifier)
+        for missing in ("x", "y", "z", "timestamps_iso"):
+            data = {
+                "x": [1.0],
+                "y": [1.0],
+                "z": [1.0],
+                "timestamps_iso": ["2024-01-01T00:00:00Z"],
+            }
+            del data[missing]
+            with self.assertRaisesRegex(KeyError, missing):
+                await AccelerometerActivityClassifier.process(
+                    inst,
+                    accel_data=data,
+                    sample_rate_hz=1.0,
+                    window_sec=1.0,
+                )
+
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_list(self) -> None:

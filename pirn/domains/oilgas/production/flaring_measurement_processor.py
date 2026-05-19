@@ -67,7 +67,11 @@ class FlaringMeasurementProcessor(Knot):
             raise ValueError("FlaringMeasurementProcessor: efficiency_factor must be in (0, 1]")
         total_flared = 0.0
         for m in measurements:
-            rate = float(m.get("flow_rate_mmscfd", 0.0))
+            if "flow_rate_mmscfd" not in m:
+                raise ValueError(
+                    "FlaringMeasurementProcessor: required field 'flow_rate_mmscfd' missing from input"
+                )
+            rate = float(m["flow_rate_mmscfd"])
             total_flared += rate
         co2_fraction = gas_composition.get("co2", 0.05)
         co2_tonnes = total_flared * co2_fraction * efficiency_factor * 53.07

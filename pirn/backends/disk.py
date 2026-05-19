@@ -41,11 +41,45 @@ class LocalDiskDataStore(_CloudObjectStore):
         signer: _Signer | None = None,
         allow_unsigned: bool = False,
     ) -> None:
+        """Initialise the store.
+
+        Creates ``root`` (and all intermediate directories) if it does not
+        already exist.
+
+        Args:
+            root: Root directory for the store.  All value files are written
+                inside this tree.
+            signer: An ``_Signer`` for HMAC payload signing.  Required unless
+                ``allow_unsigned=True`` is set.
+            allow_unsigned: If ``True``, the store operates without signing.
+                Requires ``PIRN_ALLOW_UNSIGNED=1`` in the environment.
+
+        Raises:
+            ValueError: If signing is not configured correctly.
+        """
         super().__init__(signer=signer, allow_unsigned=allow_unsigned)
         self._root = Path(root)
         self._root.mkdir(parents=True, exist_ok=True)
 
     def _object_key(self, content_hash: str) -> str:
+        """Derive an absolute file path from a content hash.
+
+        The first two hex chars of the hash form a prefix directory so that
+        a busy store does not accumulate millions of entries in a single
+        directory.  Path traversal is blocked by a ``is_relative_to`` check.
+
+        Args:
+            content_hash: SHA-256 hex digest, possibly prefixed with
+                ``sha256:``.
+
+        Returns:
+            Absolute path string of the form
+            ``{root}/{prefix}/{rest_of_hash}.pkl``.
+
+        Raises:
+            ValueError: If the resolved path escapes the store root
+                (path traversal attempt).
+        """
         clean = content_hash.removeprefix("sha256:")
         prefix = clean[:2] if len(clean) >= 2 else "_"
         resolved = (self._root / prefix / f"{clean}.pkl").resolve()
@@ -56,15 +90,45 @@ class LocalDiskDataStore(_CloudObjectStore):
         return str(resolved)
 
     async def _put_bytes(self, key: str, payload: bytes) -> None:
+        """Write raw bytes to a file, creating parent directories as needed.
+
+        Args:
+            key: Absolute file path returned by :meth:`_object_key`.
+            payload: Bytes to write.
+        """
         await asyncio.to_thread(self.__write, Path(key), payload)
 
     async def _get_bytes(self, key: str) -> bytes:
+        """Read raw bytes from a file.
+
+        Args:
+            key: Absolute file path returned by :meth:`_object_key`.
+
+        Returns:
+            File contents as bytes.
+
+        Raises:
+            KeyError: If the file does not exist.
+        """
         return await asyncio.to_thread(self.__read, Path(key), key)
 
     async def _has_key(self, key: str) -> bool:
+        """Return ``True`` if the file at ``key`` exists.
+
+        Args:
+            key: Absolute file path returned by :meth:`_object_key`.
+
+        Returns:
+            ``True`` if the file exists, ``False`` otherwise.
+        """
         return await asyncio.to_thread(Path(key).exists)
 
     async def _delete_key(self, key: str) -> None:
+        """Delete the file at ``key`` if it exists; no-op otherwise.
+
+        Args:
+            key: Absolute file path returned by :meth:`_object_key`.
+        """
         await asyncio.to_thread(self.__unlink, Path(key))
 
     def __write(self, path: Path, payload: bytes) -> None:

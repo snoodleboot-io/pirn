@@ -9,7 +9,8 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.task_pipelines.computer_vision_pipeline import (
     ComputerVisionPipeline,
 )
-from pirn.domains.ml.types.eval_report import EvalReport
+from pirn.domains.ml.types.eval_metadata import EvalMetadata
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.tapestry import Tapestry
 from tests.unit.domains.ml._stubs.recording_database_pool import (
     RecordingDatabasePool,
@@ -35,7 +36,7 @@ class TestConstruction(unittest.TestCase):
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_classification_report(self) -> None:
-        rows = [(b"image-bytes-" + str(i).encode(), i % 2) for i in range(40)]
+        rows = [{"img": b"image-bytes-" + str(i).encode(), "y": i % 2} for i in range(40)]
         encoder = RecordingImageEncoderProvider()
         with Tapestry() as t:
             ComputerVisionPipeline(
@@ -49,8 +50,8 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert result.succeeded
-        report: EvalReport = result.outputs["cv"]
-        assert isinstance(report, EvalReport)
-        assert "f1" in report.metrics
+        report: EvalReportPayload = result.outputs["cv"]
+        assert isinstance(report, EvalReportPayload)
+        assert "f1" in report.metrics.scores
         # Image encoder was probed.
         assert encoder.calls

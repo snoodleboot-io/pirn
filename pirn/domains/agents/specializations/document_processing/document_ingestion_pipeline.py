@@ -47,7 +47,6 @@ from pirn.domains.agents.specializations.document_processing._document_loader im
 )
 from pirn.domains.ml.embedding_provider import EmbeddingProvider
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class DocumentIngestionPipeline(SubTapestry):
@@ -91,7 +90,7 @@ class DocumentIngestionPipeline(SubTapestry):
         allowed_hosts: tuple[str, ...] | None = None,
         max_bytes: int = 100 * 1024 * 1024,
         **_: Any,
-    ) -> int:
+    ) -> Any:
         """Load, chunk, embed, and store a document; return the number of chunks stored.
 
         Args:
@@ -125,29 +124,23 @@ class DocumentIngestionPipeline(SubTapestry):
                 "negative int strictly less than chunk_size, "
                 f"got {chunk_overlap!r}"
             )
-        with Tapestry() as inner:
-            loaded = _DocumentLoader(
-                source=source,
-                allowed_root=allowed_root,
-                allowed_hosts=allowed_hosts,
-                max_bytes=max_bytes,
-                _config=KnotConfig(id="load"),
-            )
-            chunks = _DocumentChunker(
-                text=loaded,
-                chunk_size=chunk_size,
-                chunk_overlap=chunk_overlap,
-                _config=KnotConfig(id="chunk"),
-            )
-            _ChunkEmbedderStore(
-                chunks=chunks,
-                source=source,
-                embedder=embedder,
-                store=store,
-                _config=KnotConfig(id="store"),
-            )
-        inner_result = await self._run_inner(inner)
-        count = inner_result.outputs.get("store")
-        if not isinstance(count, int):
-            return 0
-        return count
+        loaded = _DocumentLoader(
+            source=source,
+            allowed_root=allowed_root,
+            allowed_hosts=allowed_hosts,
+            max_bytes=max_bytes,
+            _config=KnotConfig(id="load"),
+        )
+        chunks = _DocumentChunker(
+            text=loaded,
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+            _config=KnotConfig(id="chunk"),
+        )
+        return _ChunkEmbedderStore(
+            chunks=chunks,
+            source=source,
+            embedder=embedder,
+            store=store,
+            _config=KnotConfig(id="store"),
+        )

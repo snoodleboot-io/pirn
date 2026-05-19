@@ -4,7 +4,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.branch._branch_not_selected import _BranchNotSelected
+from pirn.nodes.branch._branch_not_selected import _BranchNotSelectedError
 
 
 class BranchOutput(Knot):
@@ -57,18 +57,18 @@ class BranchOutput(Knot):
             The passthrough value when this branch's name matches the chosen branch.
 
         Raises:
-            _BranchNotSelected: If this branch was not the one selected; converted to Skipped by ``__call__``.
+            _BranchNotSelectedError: If this branch was not the one selected; converted to Skipped by ``__call__``.
         """
         if chosen == self._mutable_branch_name:
             return passthrough
-        raise _BranchNotSelected(self._mutable_branch_name)
+        raise _BranchNotSelectedError(self._mutable_branch_name)
 
     async def __call__(self, parent_results: Any) -> Any:
         from pirn.core.err import Err as _Err
         from pirn.core.skipped import Skipped as _Skipped
 
         result = await super().__call__(parent_results)
-        if isinstance(result, _Err) and result.record.exc_type == "_BranchNotSelected":
+        if isinstance(result, _Err) and result.record.exc_type == "_BranchNotSelectedError":
             return _Skipped(
                 reason="branch_not_selected",
                 detail={"branch_name": self._mutable_branch_name},

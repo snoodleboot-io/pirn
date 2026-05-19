@@ -72,7 +72,11 @@ class CdaXmlFormat(BatchFileFormat):
         root = lxml_etree.Element(f"{{{CdaXmlFormat._cda_ns}}}ClinicalDocument", nsmap=nsmap)
         # document id
         id_el = lxml_etree.SubElement(root, f"{{{CdaXmlFormat._cda_ns}}}id")
-        id_el.set("extension", record.get("document_id") or "")
+        if not record.get("document_id"):
+            raise KeyError(
+                f"CdaXmlFormat: record missing required field 'document_id'; got: {list(record)}"
+            )
+        id_el.set("extension", record["document_id"])
         # template id
         tmpl_el = lxml_etree.SubElement(root, f"{{{CdaXmlFormat._cda_ns}}}templateId")
         tmpl_el.set("root", record.get("template_id") or "")
@@ -81,7 +85,11 @@ class CdaXmlFormat(BatchFileFormat):
         title_el.text = record.get("title") or ""
         # effectiveTime
         et_el = lxml_etree.SubElement(root, f"{{{CdaXmlFormat._cda_ns}}}effectiveTime")
-        et_el.set("value", record.get("effective_time") or "")
+        if not record.get("effective_time"):
+            raise KeyError(
+                f"CdaXmlFormat: record missing required field 'effective_time'; got: {list(record)}"
+            )
+        et_el.set("value", record["effective_time"])
         # body sections
         body_el = lxml_etree.SubElement(root, f"{{{CdaXmlFormat._cda_ns}}}component")
         structured_body = lxml_etree.SubElement(

@@ -1,16 +1,16 @@
 """``ImageEmbeddingExtractor`` — append an image-column embedding feature
-to every partition of a :class:`DataSplit` via an
+to every partition of a :class:`SplitManifest` via an
 :class:`ImageEncoderProvider`.
 
 Mirrors :class:`TextEmbeddingExtractor` but operates over image bytes
 through an :class:`ImageEncoderProvider`.
 
 Algorithm:
-    1. Receive ``split`` (DataSplit), ``image_column`` (str), and
+    1. Receive ``split`` (SplitManifest), ``image_column`` (str), and
        ``image_encoder`` (ImageEncoderProvider) via process().
     2. Validate image_column and image_encoder.
     3. Wire _ImageEncoderExtractor in an inner Tapestry.
-    4. Run via _run_inner() and return the extended DataSplit.
+    4. Run via _run_inner() and return the extended SplitManifest.
 
 
 References:
@@ -28,9 +28,8 @@ from pirn.domains.ml.image_encoder_provider import ImageEncoderProvider
 from pirn.domains.ml.specializations.feature_engineering._image_encoder_extractor import (
     _ImageEncoderExtractor,
 )
-from pirn.domains.ml.types.data_split import DataSplit
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
@@ -60,20 +59,20 @@ class ImageEmbeddingExtractor(SubTapestry):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         image_column: str = "",
         image_encoder: ImageEncoderProvider | None = None,
         **_: Any,
-    ) -> DataSplit:
-        """Encode the image column via the image encoder, append the embedding feature to each partition, and return the updated DataSplit.
+    ) -> Any:
+        """Encode the image column via the image encoder, append the embedding feature to each partition, and return the updated SplitManifest.
 
         Args:
-            split: DataSplit whose partitions receive the new image embedding feature.
+            split: SplitManifest whose partitions receive the new image embedding feature.
             image_column: Non-empty name of the image column.
             image_encoder: ImageEncoderProvider to encode image bytes.
 
         Returns:
-            DataSplit with ``<image_column>_embedding`` appended to every partition's feature list.
+            SplitManifest with ``<image_column>_embedding`` appended to every partition's feature list.
 
         Raises:
             ValueError: If image_column is empty.
@@ -85,16 +84,10 @@ class ImageEmbeddingExtractor(SubTapestry):
             raise TypeError(
                 "ImageEmbeddingExtractor: image_encoder must be an ImageEncoderProvider"
             )
-        with Tapestry() as inner:
-            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
-            _ImageEncoderExtractor(
-                split=split_node,
-                image_column=image_column,
-                image_encoder=image_encoder,
-                _config=KnotConfig(id="encode"),
-            )
-        result = await self._run_inner(inner)
-        encoded = result.outputs["encode"]
-        if not isinstance(encoded, DataSplit):
-            raise TypeError("ImageEmbeddingExtractor: inner encoder did not return a DataSplit")
-        return encoded
+        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        return _ImageEncoderExtractor(
+            split=split_node,
+            image_column=image_column,
+            image_encoder=image_encoder,
+            _config=KnotConfig(id="encode"),
+        )

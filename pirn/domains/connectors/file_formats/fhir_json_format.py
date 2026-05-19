@@ -72,8 +72,13 @@ class FhirJsonFormat(BatchFileFormat):
         materialised = [dict(r) for r in records]
         entries = []
         for record in materialised:
+            if "resource_type" not in record:
+                raise KeyError(
+                    "FhirJsonFormat: record missing required field 'resource_type'; "
+                    f"got: {list(record)}"
+                )
             resource = dict(record.get("data", {}))
-            resource["resourceType"] = record.get("resource_type", "Resource")
+            resource["resourceType"] = record["resource_type"]
             if record.get("resource_id"):
                 resource["id"] = record["resource_id"]
             if record.get("status"):

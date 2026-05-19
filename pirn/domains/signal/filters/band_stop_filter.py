@@ -1,11 +1,11 @@
 """``BandStopFilter`` — reject a frequency band, pass elsewhere.
 
 Algorithm:
-    1. Receive the input signal frame, low_cutoff_hz, and high_cutoff_hz.
+    1. Receive the input signal payload, low_cutoff_hz, and high_cutoff_hz.
     2. Validate that both cutoffs are positive and low_cutoff_hz < high_cutoff_hz.
-    3. Design a bandstop (notch) IIR or FIR filter with the given edge frequencies.
-    4. Apply the filter to the signal.
-    5. Return a filtered SignalFrame.
+    3. Design a bandstop Butterworth IIR filter with the given edge frequencies.
+    4. Apply the filter to the signal data.
+    5. Return a filtered SignalPayload.
 
 Math:
     Ideal bandstop frequency response:
@@ -22,18 +22,20 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
+from scipy import signal as ss
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
 
 
 class BandStopFilter(Knot):
-    """Band-stop filter wrapper.
-
-    Production needs ``scipy.signal``.
-    """
+    """Band-stop Butterworth filter."""
 
     def __init__(
         self,
@@ -54,20 +56,20 @@ class BandStopFilter(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         low_cutoff_hz: float,
         high_cutoff_hz: float,
         **_: Any,
-    ) -> SignalFrame:
+    ) -> SignalPayload:
         """Apply the band-stop filter to the input signal.
 
         Args:
-            signal: Signal to band-stop filter.
+            signal: Signal payload to band-stop filter.
             low_cutoff_hz: Lower edge of the stop band in Hz (positive float).
             high_cutoff_hz: Upper edge of the stop band in Hz (must exceed low_cutoff_hz).
 
         Returns:
-            SignalFrame with the configured frequency band attenuated.
+            SignalPayload with the configured frequency band attenuated.
 
         Raises:
             ValueError: If cutoff frequencies are invalid.
@@ -78,9 +80,18 @@ class BandStopFilter(Knot):
             raise ValueError("BandStopFilter: high_cutoff_hz must be positive")
         if low_cutoff_hz >= high_cutoff_hz:
             raise ValueError("BandStopFilter: low_cutoff_hz must be < high_cutoff_hz")
-        return SignalFrame(
-            signal_id=f"{signal.signal_id}:bandstop",
-            channel_count=signal.channel_count,
-            sample_rate_hz=signal.sample_rate_hz,
-            samples_per_channel=signal.samples_per_channel,
+
+        fs = signal.frame.sample_rate_hz
+        sos = await asyncio.to_thread(
+            ss.butter, 4, [low_cutoff_hz, high_cutoff_hz], btype="bandstop", fs=fs, output="sos"
+        )
+        filtered = await asyncio.to_thread(ss.sosfilt, sos, signal.data, axis=-1)
+        return SignalPayload(
+            metadata=SignalFrame(
+                signal_id=f"{signal.frame.signal_id}:bandstop",
+                channel_count=signal.frame.channel_count,
+                sample_rate_hz=signal.frame.sample_rate_hz,
+                samples_per_channel=signal.data.shape[-1],
+            ),
+            data=np.asarray(filtered),
         )

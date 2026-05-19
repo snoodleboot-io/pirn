@@ -1,45 +1,43 @@
-"""``BispectrumAnalyzer`` — third-order spectral analysis.
+"""``BispectrumAnalyzer`` — third-order spectral analysis via FFT outer product.
 
 Algorithm:
-    1. Receive the input signal frame and segment_length.
+    1. Receive the input signal payload and segment_length.
     2. Validate segment_length (positive integer).
-    3. Compute the third-order cumulant matrix from the signal using
-       overlapping segments of length segment_length.
-    4. Apply 2-D FFT to the cumulant matrix to obtain the bispectrum B(f1, f2).
-    5. Return a SpectrumFrame with bins equal to half the segment length plus one.
+    3. Compute X = np.fft.rfft(signal.data, n=segment_length, axis=-1).
+    4. Compute bispectrum B = X[..., :, np.newaxis] * X[..., np.newaxis, :].
+    5. Return a SpectrumPayload with 2D bispectrum and frequency_bins = segment_length // 2 + 1.
 
 Math:
-    Third-order cumulant:
-
-    $$c_3(\\tau_1, \\tau_2) = E[x(n) x(n+\\tau_1) x(n+\\tau_2)]$$
-
     Bispectrum:
 
-    $$B(f_1, f_2) = \\sum_{\\tau_1} \\sum_{\\tau_2} c_3(\\tau_1, \\tau_2)
-      e^{-j 2\\pi (f_1 \\tau_1 + f_2 \\tau_2)}$$
+    $$B(f_1, f_2) = X(f_1) \\cdot X(f_2)$$
 
 References:
     - Nikias, C.L. & Raghuveer, M.R. (1987). "Bispectrum estimation: A digital signal processing
       framework." Proc. IEEE, 75(7), 869-891.
-    - scipy.signal: https://docs.scipy.org/doc/scipy/reference/signal.html
 """
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
 from pirn.domains.signal.types.spectrum_frame import SpectrumFrame
+from pirn.domains.signal.types.spectrum_payload import SpectrumPayload
+
+
+def _compute_bispectrum(data: np.ndarray, segment_length: int) -> np.ndarray:
+    spectrum = np.fft.rfft(data, n=segment_length, axis=-1)
+    return spectrum[..., :, np.newaxis] * spectrum[..., np.newaxis, :]
 
 
 class BispectrumAnalyzer(Knot):
-    """Estimate the bispectrum (third-order cumulant spectrum).
-
-    Production needs ``scipy`` plus a higher-order-statistics
-    implementation; the standard library does not ship one.
-    """
+    """Estimate the bispectrum via FFT outer product."""
 
     def __init__(
         self,
@@ -58,27 +56,36 @@ class BispectrumAnalyzer(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         segment_length: int,
         **_: Any,
-    ) -> SpectrumFrame:
-        """Estimate the bispectrum from the signal and return a SpectrumFrame of third-order spectral coefficients.
+    ) -> SpectrumPayload:
+        """Estimate the bispectrum from the signal and return a SpectrumPayload.
 
         Args:
-            signal: Signal to compute the third-order cumulant spectrum from.
-            segment_length: Segment length for cumulant estimation (positive integer).
+            signal: Signal payload to compute the bispectrum from.
+            segment_length: FFT size for bispectrum estimation (positive integer).
 
         Returns:
-            SpectrumFrame with bins equal to half the segment length plus one.
+            SpectrumPayload with 2D bispectrum data and frequency_bins = segment_length // 2 + 1.
 
         Raises:
             ValueError: If segment_length is not a positive integer.
         """
         if not isinstance(segment_length, int) or segment_length <= 0:
             raise ValueError("BispectrumAnalyzer: segment_length must be a positive integer")
-        resolution = signal.sample_rate_hz / segment_length if signal.sample_rate_hz > 0 else 0.0
-        return SpectrumFrame(
-            signal_id=signal.signal_id,
-            frequency_bins=segment_length // 2 + 1,
-            frequency_resolution_hz=resolution,
+
+        bispectrum = await asyncio.to_thread(_compute_bispectrum, signal.data, segment_length)
+        freq_bins = segment_length // 2 + 1
+        freq_res = (
+            signal.frame.sample_rate_hz / segment_length if signal.frame.sample_rate_hz > 0 else 0.0
+        )
+
+        return SpectrumPayload(
+            metadata=SpectrumFrame(
+                signal_id=signal.frame.signal_id,
+                frequency_bins=freq_bins,
+                frequency_resolution_hz=freq_res,
+            ),
+            data=bispectrum,
         )

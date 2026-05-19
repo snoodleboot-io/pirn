@@ -26,16 +26,47 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.domains.ml.evaluation.evaluator import Evaluator
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
 async def _emit_value(value: Any) -> Any:
     return value
+
+
+@knot
+async def _build_ab_test_result(
+    report_a: EvalReportPayload,
+    report_b: EvalReportPayload,
+    split: SplitManifest,
+    primary_metric: str,
+    alpha: float,
+) -> Mapping[str, Any]:
+    score_a = float(report_a.metrics.scores[primary_metric])
+    score_b = float(report_b.metrics.scores[primary_metric])
+    effect = score_a - score_b
+    sample_count = max(2, int(split.test.row_count))
+    pooled_var = max(1e-9, (abs(score_a) + abs(score_b)) / float(sample_count))
+    t_stat = effect / math.sqrt(pooled_var * 2.0 / float(sample_count))
+    p_value = math.erfc(abs(t_stat) / math.sqrt(2.0))
+    significant = p_value < alpha
+    if not significant:
+        winner = "tie"
+    elif effect > 0.0:
+        winner = "a"
+    else:
+        winner = "b"
+    return {
+        "winner": winner,
+        "score_a": score_a,
+        "score_b": score_b,
+        "p_value": p_value,
+        "significant": significant,
+        "primary_metric": primary_metric,
+    }
 
 
 class ABTestDeployer(SubTapestry):
@@ -64,19 +95,19 @@ class ABTestDeployer(SubTapestry):
 
     async def process(
         self,
-        model_a: TrainedModel,
-        model_b: TrainedModel,
-        split: DataSplit,
+        model_a: ModelManifest,
+        model_b: ModelManifest,
+        split: SplitManifest,
         primary_metric: str = "",
         alpha: float = 0.05,
         **_: Any,
-    ) -> Mapping[str, Any]:
+    ) -> Any:
         """Evaluate both models on equal 50/50 traffic, run a significance test, and return the winner.
 
         Args:
-            model_a: First TrainedModel in the A/B experiment.
-            model_b: Second TrainedModel in the A/B experiment.
-            split: DataSplit used to simulate traffic and evaluate both variants.
+            model_a: First ModelManifest in the A/B experiment.
+            model_b: Second ModelManifest in the A/B experiment.
+            split: SplitManifest used to simulate traffic and evaluate both variants.
             primary_metric: Non-empty metric name to compare.
             alpha: Significance level; must be in (0, 1).
 
@@ -93,44 +124,30 @@ class ABTestDeployer(SubTapestry):
         if not isinstance(alpha, (int, float)) or alpha <= 0.0 or alpha >= 1.0:
             raise ValueError("ABTestDeployer: alpha must be in (0, 1)")
         alpha_f = float(alpha)
-        with Tapestry() as inner:
-            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
-            model_a_node = _emit_value(value=model_a, _config=KnotConfig(id="model-a"))
-            model_b_node = _emit_value(value=model_b, _config=KnotConfig(id="model-b"))
-            Evaluator(
-                model=model_a_node,
-                split=split_node,
-                metrics=(primary_metric,),
-                _config=KnotConfig(id="eval-a"),
-            )
-            Evaluator(
-                model=model_b_node,
-                split=split_node,
-                metrics=(primary_metric,),
-                _config=KnotConfig(id="eval-b"),
-            )
-        inner_result = await self._run_inner(inner)
-        report_a: EvalReport = inner_result.outputs["eval-a"]
-        report_b: EvalReport = inner_result.outputs["eval-b"]
-        score_a = float(report_a.metrics[primary_metric])
-        score_b = float(report_b.metrics[primary_metric])
-        effect = score_a - score_b
-        n = max(2, int(split.test.row_count))
-        pooled_var = max(1e-9, (abs(score_a) + abs(score_b)) / float(n))
-        t_stat = effect / math.sqrt(pooled_var * 2.0 / float(n))
-        p_value = math.erfc(abs(t_stat) / math.sqrt(2.0))
-        significant = p_value < alpha_f
-        if not significant:
-            winner = "tie"
-        elif effect > 0.0:
-            winner = "a"
-        else:
-            winner = "b"
-        return {
-            "winner": winner,
-            "score_a": score_a,
-            "score_b": score_b,
-            "p_value": p_value,
-            "significant": significant,
-            "primary_metric": primary_metric,
-        }
+        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        model_a_node = _emit_value(value=model_a, _config=KnotConfig(id="model-a"))
+        model_b_node = _emit_value(value=model_b, _config=KnotConfig(id="model-b"))
+        eval_a = Evaluator(
+            model=model_a_node,
+            split=split_node,
+            metrics=(primary_metric,),
+            _config=KnotConfig(id="eval-a"),
+        )
+        eval_b = Evaluator(
+            model=model_b_node,
+            split=split_node,
+            metrics=(primary_metric,),
+            _config=KnotConfig(id="eval-b"),
+        )
+        primary_metric_node = _emit_value(
+            value=primary_metric, _config=KnotConfig(id="primary_metric")
+        )
+        alpha_node = _emit_value(value=alpha_f, _config=KnotConfig(id="alpha"))
+        return _build_ab_test_result(
+            report_a=eval_a,
+            report_b=eval_b,
+            split=split_node,
+            primary_metric=primary_metric_node,
+            alpha=alpha_node,
+            _config=KnotConfig(id="combine"),
+        )

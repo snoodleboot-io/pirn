@@ -31,6 +31,9 @@ from __future__ import annotations
 
 from typing import Any
 
+import numpy as np
+from scipy.signal import hilbert
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -74,7 +77,7 @@ class InstantaneousAttributeExtractor(Knot):
         valid_attributes: frozenset[str] = frozenset(
             {"amplitude", "phase", "frequency", "bandwidth", "q_factor"}
         )
-        invalid = [a for a in attributes if a not in valid_attributes]
+        invalid = [attr_name for attr_name in attributes if attr_name not in valid_attributes]
         if invalid:
             raise ValueError(
                 f"InstantaneousAttributeExtractor: unknown attributes {invalid}; "
@@ -83,4 +86,28 @@ class InstantaneousAttributeExtractor(Knot):
         if not isinstance(trace, dict):
             raise TypeError("InstantaneousAttributeExtractor: trace must be a dict")
         samples: list[float] = trace.get("samples", [])
-        return {attr: [0.0] * len(samples) for attr in attributes}
+        dt: float = float(trace.get("sample_interval_ms", 4.0)) * 1e-3
+        arr = np.asarray(samples, dtype=np.float64)
+        result: dict[str, list[float]] = {}
+        if len(arr) == 0:
+            return {attr: [] for attr in attributes}
+        analytic: np.ndarray = np.asarray(hilbert(arr))
+        amp = np.abs(analytic)
+        phase = np.unwrap(np.angle(analytic))
+        inst_freq = np.diff(phase, prepend=phase[0]) / (2.0 * np.pi * dt)
+        for attr in attributes:
+            if attr == "amplitude":
+                result[attr] = amp.tolist()
+            elif attr == "phase":
+                result[attr] = phase.tolist()
+            elif attr == "frequency":
+                result[attr] = inst_freq.tolist()
+            elif attr == "bandwidth":
+                d_amp = np.diff(amp, prepend=amp[0])
+                bw = np.abs(d_amp) / (amp + 1e-12) / (2.0 * np.pi * dt)
+                result[attr] = bw.tolist()
+            elif attr == "q_factor":
+                bw_val = np.abs(np.diff(amp, prepend=amp[0])) / (amp + 1e-12) / (2.0 * np.pi * dt)
+                quality_factor = np.abs(inst_freq) / (bw_val + 1e-12)
+                result[attr] = quality_factor.tolist()
+        return result

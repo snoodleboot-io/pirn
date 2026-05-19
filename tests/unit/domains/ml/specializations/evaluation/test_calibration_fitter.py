@@ -10,22 +10,22 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.evaluation.calibration_fitter import (
     CalibrationFitter,
 )
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.split_manifest import SplitManifest
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.model_manifest import ModelManifest
 from pirn.tapestry import Tapestry
 
 
 @knot
-async def emit_split() -> DataSplit:
-    train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
-    test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
-    return DataSplit(train=train, test=test)
+async def emit_split() -> SplitManifest:
+    train = DatasetManifest(name="d:train", feature_names=("a",), row_count=80)
+    test = DatasetManifest(name="d:test", feature_names=("a",), row_count=20)
+    return SplitManifest(train=train, test=test)
 
 
 @knot
-async def emit_model() -> TrainedModel:
-    return TrainedModel(model_id="m1", algorithm="logistic", feature_names=("a",))
+async def emit_model() -> ModelManifest:
+    return ModelManifest(model_id="m1", algorithm="logistic", feature_names=("a",))
 
 
 def _make_knot() -> CalibrationFitter:
@@ -54,10 +54,10 @@ class TestConstruction(unittest.TestCase):
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_invalid_method(self) -> None:
         k = _make_knot()
-        train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
-        test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
-        model = TrainedModel(model_id="m1", algorithm="logistic", feature_names=("a",))
-        split = DataSplit(train=train, test=test)
+        train = DatasetManifest(name="d:train", feature_names=("a",), row_count=80)
+        test = DatasetManifest(name="d:test", feature_names=("a",), row_count=20)
+        model = ModelManifest(model_id="m1", algorithm="logistic", feature_names=("a",))
+        split = SplitManifest(train=train, test=test)
         with self.assertRaises((TypeError, ValueError)):
             await k.process(model=model, split=split, method="sigmoid")
 
@@ -75,7 +75,7 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert result.succeeded
-        calibrated: TrainedModel = result.outputs["cal"]
-        assert isinstance(calibrated, TrainedModel)
+        calibrated: ModelManifest = result.outputs["cal"]
+        assert isinstance(calibrated, ModelManifest)
         assert calibrated.algorithm == "calibrated_platt"
         assert calibrated.hyperparameters["base_model_id"] == "m1"

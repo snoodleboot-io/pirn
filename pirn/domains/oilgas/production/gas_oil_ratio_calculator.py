@@ -1,9 +1,9 @@
 """``GasOilRatioCalculator`` — compute GOR from oil- and gas-rate series.
 
 Algorithm:
-    1. Receive aligned oil-rate and gas-rate ScadaTimeSeries.
+    1. Receive aligned oil-rate and gas-rate ScadaPayloads.
     2. For each aligned sample, divide the gas rate by the oil rate.
-    3. Return a ScadaTimeSeries of GOR values.
+    3. Return a ScadaPayload of GOR values.
 
 Math:
     Gas-oil ratio at time :math:`t`:
@@ -20,11 +20,19 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.domains.oilgas.types.scada_payload import ScadaPayload
 from pirn.domains.oilgas.types.scada_time_series import ScadaTimeSeries
+
+
+def _compute_gor(oil_values: np.ndarray, gas_values: np.ndarray, aligned_count: int) -> np.ndarray:
+    return gas_values[:aligned_count] / (oil_values[:aligned_count] + 1e-6)
 
 
 class GasOilRatioCalculator(Knot):
@@ -42,22 +50,33 @@ class GasOilRatioCalculator(Knot):
 
     async def process(
         self,
-        oil_rate: ScadaTimeSeries,
-        gas_rate: ScadaTimeSeries,
+        oil_rate: ScadaPayload,
+        gas_rate: ScadaPayload,
         **_: Any,
-    ) -> ScadaTimeSeries:
-        """Accept oil and gas rate series and return the computed gas-oil ratio time series.
+    ) -> ScadaPayload:
+        """Accept oil and gas rate payloads and return the computed gas-oil ratio time series.
 
         Args:
-            oil_rate: ScadaTimeSeries of oil production rates.
-            gas_rate: ScadaTimeSeries of gas production rates aligned to the
+            oil_rate: ScadaPayload of oil production rates.
+            gas_rate: ScadaPayload of gas production rates aligned to the
                 same timestamps as oil_rate.
 
         Returns:
-            ScadaTimeSeries of gas-oil ratio values with sensor_id
+            ScadaPayload of gas-oil ratio values with sensor_id
             ``gor:<oil_sensor_id>:<gas_sensor_id>``.
         """
-        return ScadaTimeSeries(
-            sensor_id=f"gor:{oil_rate.sensor_id}:{gas_rate.sensor_id}",
-            sample_interval_sec=oil_rate.sample_interval_sec,
+        if not isinstance(oil_rate, ScadaPayload):
+            raise TypeError("GasOilRatioCalculator: oil_rate must be a ScadaPayload")
+        if not isinstance(gas_rate, ScadaPayload):
+            raise TypeError("GasOilRatioCalculator: gas_rate must be a ScadaPayload")
+        aligned_count = min(len(oil_rate.values), len(gas_rate.values))
+        gor = await asyncio.to_thread(_compute_gor, oil_rate.values, gas_rate.values, aligned_count)
+        sensor_id = f"gor:{oil_rate.series.sensor_id}:{gas_rate.series.sensor_id}"
+        return ScadaPayload(
+            metadata=ScadaTimeSeries(
+                sensor_id=sensor_id,
+                sample_count=aligned_count,
+                sample_interval_sec=oil_rate.series.sample_interval_sec,
+            ),
+            data=gor,
         )

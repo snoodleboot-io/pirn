@@ -29,6 +29,25 @@ class ValKeyDataStore(DataStore):
         signer: _Signer | None = None,
         allow_unsigned: bool = False,
     ) -> None:
+        """Initialise the data store.
+
+        Args:
+            client: An existing ``GlideClient`` instance to reuse.
+            config: A ``GlideClientConfiguration`` used to create a client
+                lazily on first use.  Mutually exclusive with ``client``.
+            ttl_seconds: Optional TTL applied to every key on write.  If
+                ``None``, keys do not expire automatically.
+            signer: An ``_Signer`` instance for HMAC payload signing.
+                Required unless ``allow_unsigned=True`` is set.
+            allow_unsigned: If ``True``, the store operates without signing.
+                Requires ``PIRN_ALLOW_UNSIGNED=1`` in the environment.
+
+        Raises:
+            ValueError: If neither ``signer`` nor ``allow_unsigned=True`` is
+                provided, or if ``allow_unsigned=True`` is set without the
+                required environment variable.
+            TypeError: If neither ``client`` nor ``config`` is provided.
+        """
         if signer is None and not allow_unsigned:
             raise ValueError(
                 "ValKeyDataStore: refusing to construct an unsigned store. "
@@ -55,9 +74,26 @@ class ValKeyDataStore(DataStore):
         self.__signer = signer
 
     def _key(self, content_hash: str) -> str:
+        """Build the full ValKey key for a content hash.
+
+        Args:
+            content_hash: SHA-256 hex digest.
+
+        Returns:
+            Key string with the ``pirn:data:`` prefix.
+        """
         return f"{self._prefix}{content_hash}"
 
     async def put(self, content_hash: str, value: Any) -> None:
+        """Serialize and store a value under its content hash.
+
+        If a TTL was configured at construction the key is written with
+        that expiry.
+
+        Args:
+            content_hash: Content-addressable key for the value.
+            value: Arbitrary Python object to persist.
+        """
         import cloudpickle
 
         client = await self._client.get()
@@ -73,6 +109,18 @@ class ValKeyDataStore(DataStore):
             await client.set(self._key(content_hash), payload)
 
     async def get(self, content_hash: str) -> Any:
+        """Retrieve and deserialize the value stored under ``content_hash``.
+
+        Args:
+            content_hash: Hash previously passed to :meth:`put`.
+
+        Returns:
+            The deserialized Python object.
+
+        Raises:
+            KeyError: If no value is stored under ``content_hash``.
+            ValueError: If signature verification fails.
+        """
         import cloudpickle
 
         client = await self._client.get()
@@ -84,12 +132,28 @@ class ValKeyDataStore(DataStore):
         return cloudpickle.loads(payload)
 
     async def has(self, content_hash: str) -> bool:
+        """Return ``True`` if a value is stored under ``content_hash``.
+
+        Args:
+            content_hash: Hash to check.
+
+        Returns:
+            ``True`` if present, ``False`` otherwise.
+        """
         client = await self._client.get()
         return bool(await client.exists([self._key(content_hash)]))
 
     async def scrub(self, content_hash: str) -> None:
+        """Delete the value stored under ``content_hash``.
+
+        Lineage records that reference the hash remain intact.
+
+        Args:
+            content_hash: Hash of the value to remove.
+        """
         client = await self._client.get()
         await client.delete([self._key(content_hash)])
 
     async def close(self) -> None:
+        """Close the underlying ValKey client if it was created internally."""
         await self._client.close()

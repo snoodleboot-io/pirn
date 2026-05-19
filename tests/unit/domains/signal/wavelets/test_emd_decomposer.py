@@ -4,12 +4,35 @@ from __future__ import annotations
 
 import unittest
 
+try:
+    import scipy  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("scipy not installed") from _e
+
+try:
+    import PyEMD  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("PyEMD not installed") from _e
+
+import numpy as np
+
 from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.signal.types.wavelet_frame import WaveletFrame
+from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+from pirn.domains.signal.types.wavelet_payload import WaveletPayload
 from pirn.domains.signal.wavelets.emd_decomposer import EMDDecomposer
 from pirn.tapestry import Tapestry
-from tests.unit.domains.signal.conftest import emit_signal_frame
+
+
+@knot
+async def emit_sine_payload() -> SignalPayload:
+    """Upstream knot emitting a sinusoidal :class:`SignalPayload` for EMD testing."""
+    t = np.linspace(0, 1, 1024)
+    data = np.sin(2 * np.pi * 5 * t) + 0.5 * np.sin(2 * np.pi * 20 * t)
+    frame = SignalFrame(signal_id="test", channel_count=1, sample_rate_hz=1024.0, samples_per_channel=1024)
+    return SignalPayload(metadata=frame, data=data)
 
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
@@ -26,9 +49,9 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
-    async def test_emits_wavelet_frame(self) -> None:
+    async def test_emits_wavelet_payload(self) -> None:
         with Tapestry() as t:
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
+            sig = emit_sine_payload(_config=KnotConfig(id="sig"))
             EMDDecomposer(
                 signal=sig,
                 max_imf_count=5,
@@ -36,6 +59,6 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         out = result.outputs["w"]
-        assert isinstance(out, WaveletFrame)
-        assert out.wavelet_name == "emd"
-        assert out.scale_count == 5
+        assert isinstance(out, WaveletPayload)
+        assert out.frame.wavelet_name == "emd"
+        assert out.frame.scale_count >= 1

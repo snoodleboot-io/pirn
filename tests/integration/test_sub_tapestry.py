@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from typing import Any
 
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
-from pirn.core.run_result import RunResult
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -31,37 +31,32 @@ async def always_fail(x: int) -> int:
 
 
 # -------------------------------------------------------- pipeline definitions
+# New contract: process() builds knots into the base's context and returns the sink Knot.
 
 
 class DoublesPipeline(SubTapestry):
     """Doubles its input using an inner tapestry."""
 
-    async def process(self, value: int, **_: Any) -> RunResult:
-        with Tapestry() as inner:
-            p = Parameter("v", int, default=value)
-            double(x=p, _config=KnotConfig(id="out"))
-        return await self._run_inner(inner)
+    async def process(self, value: int, **_: Any) -> Knot:
+        p = Parameter("v", int, default=value)
+        return double(x=p, _config=KnotConfig(id="out"))
 
 
 class FailingPipeline(SubTapestry):
     """Inner pipeline that always errors."""
 
-    async def process(self, value: int, **_: Any) -> RunResult:
-        with Tapestry() as inner:
-            p = Parameter("v", int, default=value)
-            always_fail(x=p, _config=KnotConfig(id="fail"))
-        return await self._run_inner(inner)
+    async def process(self, value: int, **_: Any) -> Knot:
+        p = Parameter("v", int, default=value)
+        return always_fail(x=p, _config=KnotConfig(id="fail"))
 
 
 class SumPipeline(SubTapestry):
     """Inner pipeline summing two integers."""
 
-    async def process(self, a: int, b: int, **_: Any) -> RunResult:
-        with Tapestry() as inner:
-            pa = Parameter("a", int, default=a)
-            pb = Parameter("b", int, default=b)
-            add(a=pa, b=pb, _config=KnotConfig(id="sum"))
-        return await self._run_inner(inner)
+    async def process(self, a: int, b: int, **_: Any) -> Knot:
+        pa = Parameter("a", int, default=a)
+        pb = Parameter("b", int, default=b)
+        return add(a=pa, b=pb, _config=KnotConfig(id="sum"))
 
 
 # -------------------------------------------------------- execution
@@ -84,9 +79,7 @@ async def test_inner_run_result_in_outputs():
 
     result = await outer.run(RunRequest())
 
-    inner = result.outputs["sub"]
-    assert isinstance(inner, RunResult)
-    assert inner.outputs["out"] == 10
+    assert result.outputs["sub"] == 10
 
 
 async def test_parent_knot_value_flows_into_inner_pipeline():
@@ -97,8 +90,7 @@ async def test_parent_knot_value_flows_into_inner_pipeline():
 
     result = await outer.run(RunRequest())
 
-    inner = result.outputs["chain"]
-    assert inner.outputs["sum"] == 7
+    assert result.outputs["chain"] == 7
 
 
 async def test_config_value_flows_into_inner_pipeline():
@@ -107,8 +99,7 @@ async def test_config_value_flows_into_inner_pipeline():
 
     result = await outer.run(RunRequest())
 
-    inner = result.outputs["sub"]
-    assert inner.outputs["out"] == 12
+    assert result.outputs["sub"] == 12
 
 
 async def test_inner_failure_makes_outer_err():
@@ -134,21 +125,21 @@ async def test_inner_failure_wraps_sub_tapestry_error():
     assert "SubTapestryError" in exc_rec.exc_type
 
 
-async def test_downstream_knot_receives_inner_run_result():
-    """A knot downstream of SubTapestry receives the inner RunResult as input."""
+async def test_downstream_knot_receives_inner_value():
+    """A knot downstream of SubTapestry receives the terminal value directly."""
 
     @knot
-    async def extract(run: RunResult) -> int:
-        return run.outputs["out"]
+    async def negate(x: int) -> int:
+        return -x
 
     with Tapestry() as outer:
         src = Parameter("v", int, default=7)
         sub = DoublesPipeline(value=src, _config=KnotConfig(id="sub"))
-        extract(run=sub, _config=KnotConfig(id="extracted"))
+        negate(x=sub, _config=KnotConfig(id="negated"))
 
     result = await outer.run(RunRequest())
 
-    assert result.outputs["extracted"] == 14
+    assert result.outputs["negated"] == -14
 
 
 # -------------------------------------------------------- run metadata
@@ -164,43 +155,25 @@ async def test_run_path_set_on_outer_run():
     assert result.run_path == f"/{result.run_id}"
 
 
-async def test_inner_run_has_parent_knot_id():
-    with Tapestry() as outer:
+async def test_inner_run_recorded_in_history():
+    from pirn.backends.in_memory.in_memory_history import InMemoryHistory
+
+    history = InMemoryHistory()
+    with Tapestry(history=history) as outer:
         src = Parameter("v", int, default=1)
-        DoublesPipeline(value=src, _config=KnotConfig(id="sub"))
-
-    result = await outer.run(RunRequest())
-    inner = result.outputs["sub"]
-
-    assert inner.parent_knot_id == "sub"
-
-
-async def test_inner_run_has_own_run_id():
-    with Tapestry() as outer:
-        src = Parameter("v", int, default=1)
-        DoublesPipeline(value=src, _config=KnotConfig(id="sub"))
-
-    result = await outer.run(RunRequest())
-    inner = result.outputs["sub"]
-
-    assert inner.run_id != result.run_id
-
-
-# -------------------------------------------------------- children_of
-
-
-async def test_inner_run_parent_knot_id_set_automatically():
-    """_run_inner always sets parent_knot_id to self.knot_id on the inner result."""
-    with Tapestry() as outer:
-        src = Parameter("v", int, default=2)
         DoublesPipeline(value=src, _config=KnotConfig(id="sub"))
 
     outer_result = await outer.run(RunRequest())
-    inner_result = outer_result.outputs["sub"]
 
-    assert inner_result.parent_knot_id == "sub"
-    # parent_run_id is inherited from the outer run via context variable
-    assert inner_result.parent_run_id == outer_result.run_id
+    children = await history.children_of(outer_result.run_id)
+    assert len(children) == 1
+    inner = children[0]
+    assert inner.parent_knot_id == "sub"
+    assert inner.run_id != outer_result.run_id
+    assert inner.parent_run_id == outer_result.run_id
+
+
+# -------------------------------------------------------- children_of
 
 
 async def test_children_of_empty_when_no_inner_runs():
@@ -251,18 +224,14 @@ async def test_arbitrarily_nested_sub_tapestry():
     """Three levels of SubTapestry all succeed."""
 
     class Level2(SubTapestry):
-        async def process(self, x: int, **_: Any) -> RunResult:
-            with Tapestry() as inner:
-                p = Parameter("x", int, default=x)
-                double(x=p, _config=KnotConfig(id="doubled"))
-            return await self._run_inner(inner)
+        async def process(self, x: int, **_: Any) -> Knot:
+            p = Parameter("x", int, default=x)
+            return double(x=p, _config=KnotConfig(id="doubled"))
 
     class Level1(SubTapestry):
-        async def process(self, x: int, **_: Any) -> RunResult:
-            with Tapestry() as inner:
-                p = Parameter("x", int, default=x)
-                Level2(x=p, _config=KnotConfig(id="l2"))
-            return await self._run_inner(inner)
+        async def process(self, x: int, **_: Any) -> Knot:
+            p = Parameter("x", int, default=x)
+            return Level2(x=p, _config=KnotConfig(id="l2"))
 
     with Tapestry() as outer:
         src = Parameter("x", int, default=3)
@@ -271,9 +240,7 @@ async def test_arbitrarily_nested_sub_tapestry():
     result = await outer.run(RunRequest())
 
     assert result.succeeded
-    l1_result = result.outputs["l1"]
-    l2_result = l1_result.outputs["l2"]
-    assert l2_result.outputs["doubled"] == 6
+    assert result.outputs["l1"] == 6
 
 
 # -------------------------------------------------------- SubTapestry in outer pipeline
@@ -291,24 +258,18 @@ async def test_sub_tapestry_as_intermediate_node():
         return -x
 
     class DoublePipeline(SubTapestry):
-        async def process(self, x: int, **_: Any) -> RunResult:
-            with Tapestry() as inner:
-                p = Parameter("x", int, default=x)
-                double(x=p, _config=KnotConfig(id="doubled"))
-            return await self._run_inner(inner)
-
-    @knot
-    async def extract_doubled(run: RunResult) -> int:
-        return run.outputs["doubled"]
+        async def process(self, x: int, **_: Any) -> Knot:
+            p = Parameter("x", int, default=x)
+            return double(x=p, _config=KnotConfig(id="doubled"))
 
     with Tapestry() as outer:
         raw = Parameter("x", int, default=4)
         squared = square(x=raw, _config=KnotConfig(id="sq"))
         sub = DoublePipeline(x=squared, _config=KnotConfig(id="sub"))
-        result_knot = extract_doubled(run=sub, _config=KnotConfig(id="final"))
+        negate(x=sub, _config=KnotConfig(id="final"))
 
     result = await outer.run(RunRequest())
 
     assert result.succeeded
-    # 4 ** 2 = 16, doubled = 32
-    assert result.outputs["final"] == 32
+    # 4 ** 2 = 16, doubled = 32, negated = -32
+    assert result.outputs["final"] == -32

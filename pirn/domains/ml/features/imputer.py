@@ -1,13 +1,19 @@
-"""``Imputer`` — missing-value imputation over a :class:`DataSplit`.
+"""``Imputer`` — missing-value imputation over a :class:`SplitManifest`.
 
 Algorithm:
-    1. Receive ``split`` (DataSplit), ``columns`` (sequence of str), ``method`` (str),
+    1. Receive ``split`` (SplitManifest), ``columns`` (sequence of str), ``method`` (str),
        and ``constant_value`` (Any) via process().
     2. Validate columns is non-empty, method is valid, and constant_value is set when
        method is ``"constant"``.
-    3. Append the ``imputed_<method>`` suffix to each partition's MLDataset name.
-    4. Return the renamed DataSplit.
+    3. Append the ``imputed_<method>`` suffix to each partition's DatasetManifest name.
+    4. Return the renamed SplitManifest.
 
+Math:
+    mean imputation:    x_fill = (1/n) * sum(x_i for non-missing x_i)
+    median imputation:  x_fill = middle value of sorted non-missing x_i
+    mode imputation:    x_fill = argmax_v count(x_i == v) over non-missing x_i
+    constant:           x_fill = constant_value (user-supplied scalar)
+    Missing entry j is replaced: x_j = x_fill
 
 References:
     N/A — pirn-native implementation.
@@ -21,8 +27,8 @@ from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class Imputer(Knot):
@@ -51,22 +57,22 @@ class Imputer(Knot):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         columns: Sequence[str] = (),
         method: str = "median",
         constant_value: Any = None,
         **_: Any,
-    ) -> DataSplit:
-        """Apply the configured imputation method to the split's feature columns and return an updated DataSplit.
+    ) -> SplitManifest:
+        """Apply the configured imputation method to the split's feature columns and return an updated SplitManifest.
 
         Args:
-            split: DataSplit whose partitions are logically tagged with the imputation suffix.
+            split: SplitManifest whose partitions are logically tagged with the imputation suffix.
             columns: Non-empty sequence of column names to impute.
             method: Imputation method; must be one of ``valid_methods``.
             constant_value: Required when method is ``"constant"``; the fill value.
 
         Returns:
-            DataSplit with each partition renamed to include the ``imputed_<method>`` suffix.
+            SplitManifest with each partition renamed to include the ``imputed_<method>`` suffix.
 
         Raises:
             ValueError: If columns is empty, method is invalid, or constant method has no value.
@@ -83,7 +89,7 @@ class Imputer(Knot):
             raise ValueError("Imputer: constant method requires constant_value")
         suffix = f"imputed_{method}"
         now = datetime.now(UTC)
-        return DataSplit(
+        return SplitManifest(
             train=self._mark(split.train, suffix, now),
             test=self._mark(split.test, suffix, now),
             validation=(
@@ -91,8 +97,8 @@ class Imputer(Knot):
             ),
         )
 
-    def _mark(self, dataset: MLDataset, suffix: str, fetched_at: datetime) -> MLDataset:
-        return MLDataset(
+    def _mark(self, dataset: DatasetManifest, suffix: str, fetched_at: datetime) -> DatasetManifest:
+        return DatasetManifest(
             name=f"{dataset.name}:{suffix}",
             feature_names=dataset.feature_names,
             target_name=dataset.target_name,

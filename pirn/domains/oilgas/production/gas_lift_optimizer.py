@@ -70,13 +70,27 @@ class GasLiftOptimizer(Knot):
                 raise ValueError(f"GasLiftOptimizer: {label} must be positive")
         if not isinstance(well_data, dict):
             raise TypeError("GasLiftOptimizer: well_data must be a dict")
-        curve: list[dict[str, Any]] = well_data.get("performance_curve", [])
-        current_injection = float(well_data.get("current_injection_mmscfd", 0.0))
+        if "performance_curve" not in well_data:
+            raise ValueError(
+                "GasLiftOptimizer: required field 'performance_curve' missing from input"
+            )
+        if "current_injection_mmscfd" not in well_data:
+            raise ValueError(
+                "GasLiftOptimizer: required field 'current_injection_mmscfd' missing from input"
+            )
+        curve: list[dict[str, Any]] = well_data["performance_curve"]
+        current_injection = float(well_data["current_injection_mmscfd"])
         best_injection = current_injection
         best_oil = 0.0
         for point in curve:
-            inj = float(point.get("injection_mmscfd", 0.0))
-            oil = float(point.get("oil_bopd", 0.0))
+            if "injection_mmscfd" not in point:
+                raise ValueError(
+                    "GasLiftOptimizer: required field 'injection_mmscfd' missing from input"
+                )
+            if "oil_bopd" not in point:
+                raise ValueError("GasLiftOptimizer: required field 'oil_bopd' missing from input")
+            inj = float(point["injection_mmscfd"])
+            oil = float(point["oil_bopd"])
             if inj <= max_injection_rate_mmscfd and oil > best_oil:
                 best_oil = oil
                 best_injection = inj
@@ -84,7 +98,7 @@ class GasLiftOptimizer(Knot):
             (
                 float(p["oil_bopd"])
                 for p in curve
-                if float(p.get("injection_mmscfd", -1)) == current_injection
+                if float(p["injection_mmscfd"]) == current_injection
             ),
             0.0,
         )

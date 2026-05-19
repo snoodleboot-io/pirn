@@ -10,14 +10,15 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.experiments.group_kfold_cross_validator import (
     GroupKFoldCrossValidator,
 )
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.eval_metadata import EvalMetadata
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 from pirn.tapestry import Tapestry
 
 
 @knot
-async def emit_dataset() -> MLDataset:
-    return MLDataset(
+async def emit_dataset() -> DatasetManifest:
+    return DatasetManifest(
         name="g", feature_names=("x",), target_name="y", row_count=80
     )
 
@@ -36,8 +37,8 @@ def _make_validator() -> GroupKFoldCrossValidator:
     return validator
 
 
-def _dataset_fixture() -> MLDataset:
-    return MLDataset(name="g", feature_names=("x",), target_name="y", row_count=80)
+def _dataset_fixture() -> DatasetManifest:
+    return DatasetManifest(name="g", feature_names=("x",), target_name="y", row_count=80)
 
 
 class TestConstruction(unittest.IsolatedAsyncioTestCase):
@@ -93,7 +94,7 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         assert result.succeeded
         report = result.outputs["gcv"]
-        assert isinstance(report, EvalReport)
-        assert report.details["group_column"] == "patient_id"
-        assert report.details["k"] == 3
-        assert len(report.details["per_fold_metrics"]) == 3
+        assert isinstance(report, EvalReportPayload)
+        assert report.metrics.details["group_column"] == "patient_id"
+        assert report.metrics.details["k"] == 3
+        assert len(report.metrics.details["per_fold_metrics"]) == 3

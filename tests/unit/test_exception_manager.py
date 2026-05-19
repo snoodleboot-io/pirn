@@ -54,15 +54,15 @@ class _StandaloneTests(unittest.TestCase):
     
     
     def test_rebindable_exception_carries_original_type_and_traceback(self):
-        """A ``RebindableException`` (used by the engine when rebinding a
+        """A ``RebindableError`` (used by the engine when rebinding a
         placeholder record produced by a knot in isolation) is recognised by
         the manager: the carried ``original_exc_type`` and
         ``original_traceback_text`` surface on the new record rather than
         the wrapper's own type and frames."""
-        from pirn.managers.rebindable_exception import RebindableException
+        from pirn.managers.rebindable_exception import RebindableError
     
         em = ExceptionManager(run_id="r1")
-        exc = RebindableException(
+        exc = RebindableError(
             exc_type="OriginalErrorType",
             message="rebound message",
             traceback_text="<original traceback text>",
@@ -74,7 +74,7 @@ class _StandaloneTests(unittest.TestCase):
     
     
     def test_ordinary_exception_uses_its_own_type_and_traceback(self):
-        """Non-RebindableException exceptions surface ``type(exc).__name__``
+        """Non-RebindableError exceptions surface ``type(exc).__name__``
         and the live traceback rather than any carried metadata."""
         em = ExceptionManager(run_id="r1")
         try:

@@ -1,11 +1,11 @@
 """``BesselFilter`` — IIR with maximally-linear phase response.
 
 Algorithm:
-    1. Receive the input signal frame, order, and cutoff_hz.
+    1. Receive the input signal payload, order, and cutoff_hz.
     2. Validate order (positive integer) and cutoff_hz (positive float).
     3. Design a Bessel/Thomson IIR filter of the given order with the given cutoff.
     4. Apply the filter using second-order sections (SOS) for numerical stability.
-    5. Return a filtered SignalFrame.
+    5. Return a filtered SignalPayload.
 
 Math:
     The Bessel filter maximises group-delay flatness. The Bessel polynomial $B_n(s)$
@@ -26,18 +26,20 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
+from scipy import signal as ss
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
 
 
 class BesselFilter(Knot):
-    """Bessel / Thomson IIR filter.
-
-    Production needs ``scipy.signal.bessel``.
-    """
+    """Bessel / Thomson IIR filter."""
 
     def __init__(
         self,
@@ -58,20 +60,20 @@ class BesselFilter(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         order: int,
         cutoff_hz: float,
         **_: Any,
-    ) -> SignalFrame:
+    ) -> SignalPayload:
         """Apply the Bessel IIR filter to the input signal.
 
         Args:
-            signal: Signal to filter with maximally-linear phase response.
+            signal: Signal payload to filter with maximally-linear phase response.
             order: Filter order (positive integer).
             cutoff_hz: Cutoff frequency in Hz (positive float).
 
         Returns:
-            SignalFrame filtered by the configured Bessel IIR design.
+            SignalPayload filtered by the configured Bessel IIR design.
 
         Raises:
             ValueError: If order or cutoff_hz are invalid.
@@ -80,9 +82,16 @@ class BesselFilter(Knot):
             raise ValueError("BesselFilter: order must be a positive integer")
         if not isinstance(cutoff_hz, (int, float)) or cutoff_hz <= 0:
             raise ValueError("BesselFilter: cutoff_hz must be positive")
-        return SignalFrame(
-            signal_id=f"{signal.signal_id}:bessel",
-            channel_count=signal.channel_count,
-            sample_rate_hz=signal.sample_rate_hz,
-            samples_per_channel=signal.samples_per_channel,
+
+        fs = signal.frame.sample_rate_hz
+        sos = await asyncio.to_thread(ss.bessel, order, cutoff_hz, "low", fs=fs, output="sos")
+        filtered = await asyncio.to_thread(ss.sosfilt, sos, signal.data, axis=-1)
+        return SignalPayload(
+            metadata=SignalFrame(
+                signal_id=f"{signal.frame.signal_id}:bessel",
+                channel_count=signal.frame.channel_count,
+                sample_rate_hz=signal.frame.sample_rate_hz,
+                samples_per_channel=signal.data.shape[-1],
+            ),
+            data=np.asarray(filtered),
         )

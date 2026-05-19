@@ -10,8 +10,8 @@ from pirn.core.knot_config import KnotConfig
 from pirn.domains.ml.specializations.feature_engineering.lag_feature_generator import (
     LagFeatureGenerator,
 )
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.split_manifest import SplitManifest
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 from pirn.tapestry import Tapestry
 
 
@@ -42,9 +42,9 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         object.__setattr__(k, "_config", KnotConfig(id="lfg"))
         return k
 
-    def _make_split(self) -> DataSplit:
-        ds = MLDataset(name="ds", feature_names=("sales",), row_count=30)
-        return DataSplit(train=ds, test=ds)
+    def _make_split(self) -> SplitManifest:
+        ds = DatasetManifest(name="ds", feature_names=("sales",), row_count=30)
+        return SplitManifest(train=ds, test=ds)
 
     async def test_rejects_empty_columns(self) -> None:
         k = self._make_knot()

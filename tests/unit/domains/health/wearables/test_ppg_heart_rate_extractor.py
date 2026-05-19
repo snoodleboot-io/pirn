@@ -3,6 +3,13 @@
 from __future__ import annotations
 
 import unittest
+
+try:
+    import scipy  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("scipy not installed") from _e
+
+import math
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
@@ -11,19 +18,18 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.health.wearables.ppg_heart_rate_extractor import PPGHeartRateExtractor
 from pirn.tapestry import Tapestry
 
+_FS = 25.0  # Hz
+_N = 250    # samples — 10 seconds of data, enough for multiple peaks at 1 Hz
+# Synthetic PPG: 1 Hz sine (one peak per second) at 25 Hz sample rate
+_PPG_WAVE = [math.sin(2 * math.pi * 1.0 * i / _FS) for i in range(_N)]
+
 
 @knot
 async def emit_ppg_data() -> dict[str, Any]:
     return {
-        "red": [0.8, 0.7, 0.9, 0.8, 0.7],
-        "ir": [0.9, 0.8, 1.0, 0.9, 0.8],
-        "timestamps_iso": [
-            "2024-01-01T00:00:00Z",
-            "2024-01-01T00:00:01Z",
-            "2024-01-01T00:00:02Z",
-            "2024-01-01T00:00:03Z",
-            "2024-01-01T00:00:04Z",
-        ],
+        "red": _PPG_WAVE,
+        "ir": _PPG_WAVE,
+        "timestamps_iso": [f"2024-01-01T00:00:{i // int(_FS):02d}Z" for i in range(_N)],
     }
 
 
@@ -65,8 +71,8 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             p = emit_ppg_data(_config=KnotConfig(id="p"))
             PPGHeartRateExtractor(
                 ppg_data=p,
-                sample_rate_hz=1.0,
-                window_sec=2.0,
+                sample_rate_hz=_FS,
+                window_sec=5.0,
                 _config=KnotConfig(id="ppg"),
             )
         result = await t.run(RunRequest())
@@ -78,15 +84,13 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             p = emit_ppg_data(_config=KnotConfig(id="p"))
             PPGHeartRateExtractor(
                 ppg_data=p,
-                sample_rate_hz=1.0,
-                window_sec=2.0,
+                sample_rate_hz=_FS,
+                window_sec=5.0,
                 _config=KnotConfig(id="ppg"),
             )
         result = await t.run(RunRequest())
         out = result.outputs["ppg"]
         assert len(out) > 0
         for window in out:
-            assert "start_iso" in window
-            assert "end_iso" in window
-            assert "heart_rate_bpm" in window
-            assert "spo2_pct" in window
+            assert "hr_bpm" in window
+            assert "timestamp_sec" in window

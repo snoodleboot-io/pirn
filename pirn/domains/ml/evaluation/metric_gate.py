@@ -1,7 +1,7 @@
 """``MetricCheck`` — check downstream knots by a metric threshold.
 
 Algorithm:
-    1. Receive ``report`` (EvalReport), ``metric`` (str), ``min_value`` (float),
+    1. Receive ``report`` (EvalMetadata), ``metric`` (str), ``min_value`` (float),
        and ``raise_on_fail`` (bool) via process().
     2. Validate metric is a non-empty string, min_value is numeric, raise_on_fail is bool.
     3. Check that the metric key exists in the report's metrics mapping.
@@ -22,7 +22,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.eval_report import EvalReport
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 
 
 class MetricCheck(Knot):
@@ -49,7 +49,7 @@ class MetricCheck(Knot):
 
     async def process(
         self,
-        report: EvalReport,
+        report: EvalReportPayload,
         metric: str,
         min_value: float,
         raise_on_fail: bool = False,
@@ -58,7 +58,7 @@ class MetricCheck(Knot):
         """Check that the configured metric in the report meets the minimum threshold and return True if it does.
 
         Args:
-            report: EvalReport whose metrics mapping is checked.
+            report: EvalReportPayload whose metrics scores mapping is checked.
             metric: Non-empty metric name to look up in the report.
             min_value: Minimum acceptable value; report metric must be >= this.
             raise_on_fail: When True, raise ValueError if the metric fails the threshold.
@@ -77,12 +77,13 @@ class MetricCheck(Knot):
             raise TypeError("MetricCheck: min_value must be numeric")
         if not isinstance(raise_on_fail, bool):
             raise TypeError("MetricCheck: raise_on_fail must be a bool")
-        if metric not in report.metrics:
+        scores = report.metrics.scores
+        if metric not in scores:
             raise KeyError(
                 f"MetricCheck: report has no metric named {metric!r}; "
-                f"available metrics: {sorted(report.metrics)}"
+                f"available metrics: {sorted(scores)}"
             )
-        observed = float(report.metrics[metric])
+        observed = float(scores[metric])
         passed = observed >= float(min_value)
         if not passed and raise_on_fail:
             raise ValueError(

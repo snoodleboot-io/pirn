@@ -56,7 +56,20 @@ from pirn.triggers.base import Trigger
 
 
 class WebhookTrigger(Trigger):
-    """HTTP-driven trigger; exposes a Starlette app for serving."""
+    """HTTP-driven trigger that exposes a Starlette ASGI app.
+
+    Each POST to the configured path enqueues a ``RunRequest``.
+    ``stream()`` yields requests as they arrive from the queue.
+
+    Mount ``trigger.app`` on any ASGI server::
+
+        import uvicorn
+        trigger = WebhookTrigger(path="/run", auth_token=os.environ["TOKEN"])
+        uvicorn.run(trigger.app, host="0.0.0.0", port=8080)
+
+    See the module docstring for the full set of construction options
+    including Bearer-token auth and per-IP rate limiting.
+    """
 
     def __init__(
         self,
@@ -66,6 +79,24 @@ class WebhookTrigger(Trigger):
         auth_token: str | None = None,
         rate_limit_rpm: int | None = None,
     ) -> None:
+        """Initialise the trigger.
+
+        Args:
+            path: URL path for the POST endpoint.  Defaults to
+                ``"/run"``.
+            request_builder: Callable ``(payload: dict, request) ->
+                RunRequest`` for extracting run parameters from the
+                inbound request.  Defaults to treating the JSON body
+                as the ``RunRequest`` parameters dict.
+            auth_token: Optional Bearer token.  When set, every
+                inbound request must supply ``Authorization: Bearer
+                <token>``; mismatches return HTTP 401.  The comparison
+                uses ``hmac.compare_digest`` to prevent timing-based
+                token enumeration.
+            rate_limit_rpm: Optional per-IP request-per-minute cap
+                enforced via a 60-second sliding window.  Excess
+                requests return HTTP 429.
+        """
         self._path = path
         self._builder = request_builder or WebhookTrigger.__default_request_builder
         self._auth_token = auth_token
@@ -96,6 +127,20 @@ class WebhookTrigger(Trigger):
         return self._app
 
     async def _handle_request(self, request: Any) -> Any:
+        """Handle an inbound POST request and enqueue a ``RunRequest``.
+
+        Validates the Bearer token and rate limit (if configured),
+        parses the JSON body, builds a ``RunRequest`` via the configured
+        builder, and enqueues it for ``stream()`` to yield.
+
+        Args:
+            request: A Starlette ``Request`` object.
+
+        Returns:
+            A ``JSONResponse`` with the new ``run_id`` and ``queued:
+            true`` on success, or an error response (401, 429, 400) on
+            failure.
+        """
         try:
             from starlette.responses import JSONResponse
         except ImportError as exc:
@@ -134,6 +179,15 @@ class WebhookTrigger(Trigger):
         return JSONResponse({"run_id": run_request.run_id, "queued": True})
 
     def _build_app(self) -> Any:
+        """Build and return the Starlette ASGI application.
+
+        Returns:
+            A ``starlette.applications.Starlette`` instance with one
+            POST route registered at ``self._path``.
+
+        Raises:
+            ImportError: If ``starlette`` is not installed.
+        """
         try:
             from starlette.applications import Starlette
             from starlette.routing import Route
@@ -145,6 +199,14 @@ class WebhookTrigger(Trigger):
         return Starlette(routes=[Route(self._path, self._handle_request, methods=["POST"])])
 
     async def stream(self) -> AsyncIterator[RunRequest]:
+        """Yield ``RunRequest`` objects as they arrive from the HTTP queue.
+
+        Blocks until a request is available, then yields it.  Exits when
+        ``close()`` is called (a sentinel value wakes the consumer).
+
+        Yields:
+            One ``RunRequest`` per inbound POST that passed validation.
+        """
         while not self._closed:
             item = await self._queue.get()
             if item is self._sentinel:
@@ -152,11 +214,18 @@ class WebhookTrigger(Trigger):
             yield item
 
     async def submit(self, request: RunRequest) -> None:
-        """Push a request onto the queue programmatically (tests / direct
-        use without HTTP)."""
+        """Push a ``RunRequest`` directly onto the internal queue.
+
+        Useful for tests or non-HTTP usage where callers want to drive
+        the trigger without standing up an HTTP server.
+
+        Args:
+            request: The request to enqueue.
+        """
         await self._queue.put(request)
 
     async def close(self) -> None:
+        """Signal the trigger to stop and unblock any waiting ``stream()`` consumer."""
         self._closed = True
         await self._queue.put(self._sentinel)
 

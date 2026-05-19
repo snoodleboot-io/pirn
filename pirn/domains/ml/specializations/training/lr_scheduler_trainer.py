@@ -12,6 +12,10 @@ Algorithm:
     3. Wire Trainer + Evaluator in an inner Tapestry.
     4. Run via _run_inner() and return model, eval report, and scheduler.
 
+Math:
+    Step decay:         lr_t = lr_0 * gamma^(floor(t / step_size))
+    Cosine annealing:   lr_t = lr_min + 0.5 * (lr_max - lr_min) * (1 + cos(pi * t / T_max))
+    Reduce on plateau:  lr <- lr * factor  if metric stalls for patience epochs
 
 References:
     N/A — pirn-native implementation.
@@ -27,16 +31,24 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
 async def _emit_value(value: Any) -> Any:
     return value
+
+
+@knot
+async def _combine_lr_scheduler_result(
+    model: ModelManifest,
+    eval_report: EvalReportPayload,
+    scheduler: str,
+) -> dict[str, Any]:
+    return {"model": model, "eval_report": eval_report, "scheduler": scheduler}
 
 
 class LRSchedulerTrainer(SubTapestry):
@@ -67,24 +79,24 @@ class LRSchedulerTrainer(SubTapestry):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         algorithm: str = "",
         scheduler: str = "cosine",
         metrics: Sequence[str] = (),
         hyperparameters: Mapping[str, Any] | None = None,
         **_: Any,
-    ) -> dict[str, Any]:
+    ) -> Any:
         """Train the model with a learning-rate scheduler and return the model, evaluation, and scheduler info.
 
         Args:
-            split: DataSplit used for training and evaluation.
+            split: SplitManifest used for training and evaluation.
             algorithm: Non-empty algorithm identifier.
             scheduler: LR scheduler strategy; must be one of {"step", "cosine", "reduce_on_plateau"}.
             metrics: Non-empty sequence of metric names.
             hyperparameters: Optional mapping of additional hyperparameters.
 
         Returns:
-            Dict with ``model`` (TrainedModel), ``eval_report`` (EvalReport),
+            Dict with ``model`` (ModelManifest), ``eval_report`` (EvalMetadata),
             and ``scheduler`` (str name of the scheduler used).
 
         Raises:
@@ -109,29 +121,23 @@ class LRSchedulerTrainer(SubTapestry):
             **(dict(hyperparameters) if hyperparameters is not None else {}),
             "lr_scheduler": scheduler,
         }
-        with Tapestry() as inner:
-            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
-            model = Trainer(
-                split=split_node,
-                algorithm=algorithm,
-                hyperparameters=hp,
-                _config=KnotConfig(id="train"),
-            )
-            Evaluator(
-                model=model,
-                split=split_node,
-                metrics=metric_tuple,
-                _config=KnotConfig(id="evaluate"),
-            )
-        result = await self._run_inner(inner)
-        trained_model = result.outputs["train"]
-        report = result.outputs["evaluate"]
-        if not isinstance(trained_model, TrainedModel):
-            raise TypeError("LRSchedulerTrainer: trainer did not return a TrainedModel")
-        if not isinstance(report, EvalReport):
-            raise TypeError("LRSchedulerTrainer: evaluator did not return an EvalReport")
-        return {
-            "model": trained_model,
-            "eval_report": report,
-            "scheduler": scheduler,
-        }
+        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        model = Trainer(
+            split=split_node,
+            algorithm=algorithm,
+            hyperparameters=hp,
+            _config=KnotConfig(id="train"),
+        )
+        evaluated = Evaluator(
+            model=model,
+            split=split_node,
+            metrics=metric_tuple,
+            _config=KnotConfig(id="evaluate"),
+        )
+        scheduler_node = _emit_value(value=scheduler, _config=KnotConfig(id="scheduler"))
+        return _combine_lr_scheduler_result(
+            model=model,
+            eval_report=evaluated,
+            scheduler=scheduler_node,
+            _config=KnotConfig(id="combine"),
+        )

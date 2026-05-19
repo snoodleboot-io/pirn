@@ -74,7 +74,7 @@ class _LoopTerminal(Knot):
         return state
 
 
-class _IterationChainKnot(SubTapestry):
+class _IterationChainKnot(Knot):
     """One link in a LoopSubTapestry chain.
 
     Runs its pre-planned iteration tapestry, folds the result into state,
@@ -100,12 +100,7 @@ class _IterationChainKnot(SubTapestry):
         object.__setattr__(self, "_mutable_loop_sub", _loop_sub)
         object.__setattr__(self, "_mutable_iter_tapestry", _iter_tapestry)
         object.__setattr__(self, "_mutable_iteration_idx", _iteration_idx)
-        # Override the history captured by SubTapestry.__init__ (which sees no
-        # _current_tapestry since we're constructed mid-run, not inside a
-        # `with Tapestry():` block).  Explicit propagation ensures iteration
-        # sub-runs are recorded to the same history store.
-        if _outer_history is not None:
-            object.__setattr__(self, "_mutable_outer_history", _outer_history)
+        object.__setattr__(self, "_mutable_outer_history", _outer_history)
 
     async def process(self, state: Any, **_: Any) -> Any:  # type: ignore[override]
         """Run this iteration's tapestry, fold the result into state, and register the next iteration or terminal knot.
@@ -116,12 +111,31 @@ class _IterationChainKnot(SubTapestry):
         Returns:
             Updated state value produced by folding this iteration's RunResult.
         """
+        from pirn.backends.in_memory.in_memory_history import InMemoryHistory
+        from pirn.core.run_request import RunRequest
+        from pirn.tapestry import _current_history, _current_run_id
+
         loop: LoopSubTapestry = object.__getattribute__(self, "_mutable_loop_sub")  # type: ignore[type-arg]
         iter_tapestry: Tapestry = object.__getattribute__(self, "_mutable_iter_tapestry")
         iteration_idx: int = object.__getattribute__(self, "_mutable_iteration_idx")
         outer_history: Any = object.__getattribute__(self, "_mutable_outer_history")
 
-        result = await self._run_inner(iter_tapestry)
+        if outer_history is None:
+            outer_history = _current_history.get(None)
+        if outer_history is not None and not isinstance(outer_history, InMemoryHistory):
+            iter_tapestry._history = outer_history
+
+        parent_run_id = _current_run_id.get(None)
+        result = await iter_tapestry.run(
+            RunRequest(),
+            _parent_run_id=parent_run_id,
+            _parent_knot_id=self.knot_id,
+        )
+        if not result.succeeded:
+            from pirn.nodes.sub_tapestry import SubTapestryError
+
+            raise SubTapestryError(result)
+
         new_state = loop.fold(state, result)
 
         store = get_current_store()
@@ -154,20 +168,56 @@ class _IterationChainKnot(SubTapestry):
 class LoopSubTapestry(SubTapestry, Generic[S]):
     """Iterative SubTapestry driven by ``step`` / ``fold``.
 
+    Each iteration executes as a traceable knot in a single extensible inner
+    run.  The loop is fully observable: every iteration appears in run history,
+    with its own inputs, outputs, and timing.  Sub-tapestries spawned inside
+    an iteration become child runs of the loop run.
+
     Subclasses implement:
 
     - ``step(state: S) -> tuple[Tapestry, S] | None``
     - ``fold(state: S, result: RunResult) -> S``
 
-    All iterations execute as knots within a single extensible inner run,
-    connected by edges that encode their sequential (or parallel) data
-    dependencies.  Sub-tapestries spawned inside an iteration become child
-    runs of the loop run.  The base class owns the iteration loop, history
-    injection, and run recording.  Subclasses never call ``_run_inner``
-    directly.
+    The base class owns the iteration loop, history injection, and run
+    recording.  Subclasses never call ``_run_inner`` directly.
+
+    Algorithm:
+        1. Bootstrap — ``process()`` calls ``step(initial_state)`` to decide
+           whether any iterations are needed.
+        2. Zero-iteration short-circuit — if ``step`` returns ``None`` on the
+           first call, a ``_LoopTerminal`` seeded with the initial state is
+           registered directly in the inner tapestry and returned as the sink.
+           The loop run completes in a single wave.
+        3. First iteration — otherwise, an ``_IterationChainKnot`` for iteration
+           index 1 is created with the iteration tapestry returned by ``step``
+           and registered in the inner tapestry.  The initial state is wired in
+           as a config value (not a parent edge) so no upstream dependency exists.
+        4. Extensible inner run — ``SubTapestry.__call__`` starts the inner
+           tapestry in extensible mode (``_extensible_inner_run = True``).  The
+           engine executes iteration 1 and waits for more knots.
+        5. Fold — when iteration N completes, ``_IterationChainKnot.process``
+           calls ``fold(state, run_result)`` to integrate the iteration's outputs
+           into the accumulated state.
+        6. Plan next — ``step(new_state)`` is called immediately after ``fold``.
+           If it returns a ``(tapestry, state)`` pair, a new ``_IterationChainKnot``
+           for iteration N+1 is registered into the loop's live store via
+           ``get_current_store()``.  The extensible engine picks it up in the
+           next wave, with the previous iteration knot as its parent edge
+           (encoding the data dependency and ordering).
+        7. Terminal registration — when ``step`` returns ``None``, a
+           ``_LoopTerminal`` knot is registered with the last iteration chain
+           knot as its ``state`` parent.  The terminal's ID is the well-known
+           sentinel ``__loop_terminal__``.
+        8. Output extraction — ``_resolve_output_key`` always returns
+           ``_terminal_id`` so the final state surfaced by ``_LoopTerminal``
+           becomes the loop's output, regardless of how many iterations ran.
     """
 
+    _extensible_inner_run: ClassVar[bool] = True
     _terminal_id: ClassVar[str] = "__loop_terminal__"
+
+    def _resolve_output_key(self, sink: Knot) -> str:
+        return self._terminal_id
 
     def step(self, state: S) -> tuple[Tapestry, S] | None:
         """Build the next iteration's graph, or return None to terminate."""
@@ -186,29 +236,37 @@ class LoopSubTapestry(SubTapestry, Generic[S]):
         """
         return f"step_{idx}"
 
-    async def process(self, state: Any, **_: Any) -> Any:  # type: ignore[override]
-        """Drive the iteration loop from the initial state via step/fold and return the terminal state.
+    async def process(self, state: Any, **_: Any) -> Knot:  # type: ignore[override]
+        """Wire the iteration chain into the inner tapestry and return the sink knot.
+
+        For a zero-iteration loop (``step`` returns ``None`` immediately),
+        creates and returns a ``_LoopTerminal`` seeded with the initial state.
+        For a normal loop, creates the first ``_IterationChainKnot`` — subsequent
+        iterations self-register mid-run via the extensible engine.  The last
+        iteration registers the ``_LoopTerminal``; ``_resolve_output_key`` always
+        directs the output lookup to that terminal regardless of which knot is
+        returned here.
 
         Args:
             state: Initial loop state passed to the first ``step`` call.
 
         Returns:
-            Final state value surfaced by the ``_LoopTerminal`` knot after the last iteration completes.
+            The first knot registered in the inner tapestry — either a
+            ``_LoopTerminal`` (zero iterations) or the first
+            ``_IterationChainKnot``.
         """
-        from pirn.tapestry import Tapestry
+        outer_history: Any = object.__getattribute__(self, "_mutable_outer_history")
 
         first_outcome = self.step(state)
         if first_outcome is None:
-            return state
+            return _LoopTerminal(
+                state=state,
+                _config=KnotConfig(id=self._terminal_id),
+            )
 
         first_tapestry, first_state = first_outcome
         first_knot_id = self.step_id(first_state, 1)
-
-        loop_t = Tapestry()
-
-        outer_history: Any = object.__getattribute__(self, "_mutable_outer_history")
-
-        first_knot = _IterationChainKnot(
+        return _IterationChainKnot(
             _loop_sub=self,
             _iter_tapestry=first_tapestry,
             _iteration_idx=1,
@@ -216,7 +274,3 @@ class LoopSubTapestry(SubTapestry, Generic[S]):
             state=first_state,
             _config=KnotConfig(id=first_knot_id),
         )
-        loop_t._store.register(first_knot)
-
-        loop_result = await self._run_inner(loop_t, extensible=True)
-        return loop_result.outputs[LoopSubTapestry._terminal_id]

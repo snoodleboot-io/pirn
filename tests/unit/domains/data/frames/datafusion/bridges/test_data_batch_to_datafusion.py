@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import unittest
 
-import datafusion as df
+try:
+    import datafusion as df
+except ImportError:
+    raise unittest.SkipTest("datafusion not installed")
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot

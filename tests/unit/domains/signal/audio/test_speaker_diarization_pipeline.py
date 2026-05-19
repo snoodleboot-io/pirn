@@ -4,19 +4,24 @@ from __future__ import annotations
 
 import unittest
 
+try:
+    import librosa  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("librosa not installed") from _e
+
 import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.domains.signal.audio.speaker_diarization_pipeline import SpeakerDiarizationPipeline
-from pirn.domains.signal.types.signal_frame import SignalFrame
-from tests.unit.domains.signal.conftest import make_signal_frame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+from tests.unit.domains.signal.conftest import make_signal_payload
 
-_SIGNAL = make_signal_frame()
+_SIGNAL = make_signal_payload()
 
 
 def _up(name: str = "signal") -> Parameter:
-    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
+    return Parameter(name, SignalPayload, _config=KnotConfig(id=name))
 
 
 class TestSpeakerDiarizationPipeline(unittest.IsolatedAsyncioTestCase):
@@ -47,6 +52,6 @@ class TestSpeakerDiarizationPipeline(unittest.IsolatedAsyncioTestCase):
     async def test_emits_segment_list(self) -> None:
         knot = self._make()
         out = await knot.process(_SIGNAL, min_speakers=1, max_speakers=4, embedding_model="ecapa")
-        assert isinstance(out, list)
-        assert len(out) > 0
-        assert "speaker_id" in out[0]
+        assert isinstance(out, dict)
+        assert "speaker_labels" in out
+        assert "num_speakers" in out

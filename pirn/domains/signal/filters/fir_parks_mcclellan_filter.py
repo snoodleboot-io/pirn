@@ -1,14 +1,14 @@
 """``FIRParksMcClellanFilter`` — equiripple FIR via Parks-McClellan algorithm.
 
 Algorithm:
-    1. Receive the input signal frame, num_taps, bands, and desired.
-    2. Validate num_taps (positive odd integer), bands (even-length tuple of normalised
+    1. Receive the input signal payload, num_taps, bands, and desired.
+    2. Validate num_taps (positive odd integer), bands (even-length tuple of
        frequency edges), and desired (one value per band pair).
     3. Call the Remez exchange algorithm (``scipy.signal.remez``) to compute the
        num_taps-length FIR coefficients that minimise the weighted Chebyshev error
        across the specified frequency bands.
     4. Apply the resulting FIR filter to the input signal.
-    5. Return a filtered SignalFrame.
+    5. Return a filtered SignalPayload.
 
 Math:
     Parks-McClellan (Remez) minimax optimisation:
@@ -26,11 +26,16 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
+from scipy import signal as ss
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
 
 
 class FIRParksMcClellanFilter(Knot):
@@ -57,22 +62,22 @@ class FIRParksMcClellanFilter(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         num_taps: int,
         bands: tuple[float, ...],
         desired: tuple[float, ...],
         **_: Any,
-    ) -> SignalFrame:
-        """Apply the Parks-McClellan equiripple FIR filter and return the filtered SignalFrame.
+    ) -> SignalPayload:
+        """Apply the Parks-McClellan equiripple FIR filter and return the filtered SignalPayload.
 
         Args:
-            signal: The input signal frame.
+            signal: The input signal payload.
             num_taps: Number of filter taps (positive odd integer).
-            bands: Even-length tuple of normalised frequency band edges.
+            bands: Even-length tuple of frequency band edges in Hz.
             desired: Tuple with one desired gain value per band pair.
 
         Returns:
-            Filtered SignalFrame with the same shape as the input.
+            Filtered SignalPayload with the same shape as the input.
 
         Raises:
             ValueError: If num_taps, bands, or desired are invalid.
@@ -85,9 +90,18 @@ class FIRParksMcClellanFilter(Knot):
             )
         if not isinstance(desired, tuple) or len(desired) != len(bands) // 2:
             raise ValueError("FIRParksMcClellanFilter: desired must have one value per band")
-        return SignalFrame(
-            signal_id=f"{signal.signal_id}:fir-pm",
-            channel_count=signal.channel_count,
-            sample_rate_hz=signal.sample_rate_hz,
-            samples_per_channel=signal.samples_per_channel,
+
+        fs = signal.frame.sample_rate_hz
+        tap_weights = await asyncio.to_thread(ss.remez, num_taps, list(bands), list(desired), fs=fs)
+        filtered = await asyncio.to_thread(
+            ss.lfilter, tap_weights, np.array([1.0]), signal.data, axis=-1
+        )
+        return SignalPayload(
+            metadata=SignalFrame(
+                signal_id=f"{signal.frame.signal_id}:fir-pm",
+                channel_count=signal.frame.channel_count,
+                sample_rate_hz=signal.frame.sample_rate_hz,
+                samples_per_channel=signal.data.shape[-1],
+            ),
+            data=np.asarray(filtered),
         )

@@ -4,7 +4,7 @@ SubTapestry.
 Composes data load → split → image-embedding extraction → train →
 evaluate. The :class:`ImageEmbeddingExtractor` knot fans the configured
 :class:`ImageEncoderProvider` over the named image column so the
-downstream trainer sees an :class:`MLDataset` whose ``feature_names``
+downstream trainer sees an :class:`DatasetManifest` whose ``feature_names``
 carry the augmented embedding feature.
 
 Algorithm:
@@ -13,8 +13,11 @@ Algorithm:
     2. Validate all inputs.
     3. Wire DatasetLoader → TrainTestSplit → ImageEmbeddingExtractor →
        Trainer → Evaluator in an inner Tapestry.
-    4. Run via _run_inner() and return the EvalReport.
+    4. Run via _run_inner() and return the EvalMetadata.
 
+Math:
+    Image embedding: e = f_enc(img; theta_enc)  where e in R^d
+    Classification loss: L = -(1/n) * sum_i sum_c y_{i,c} * log(softmax(W * e_i)_c)
 
 References:
     N/A — pirn-native implementation.
@@ -37,9 +40,7 @@ from pirn.domains.ml.features.image_embedding_extractor import (
 )
 from pirn.domains.ml.image_encoder_provider import ImageEncoderProvider
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.eval_report import EvalReport
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class ComputerVisionPipeline(SubTapestry):
@@ -84,8 +85,8 @@ class ComputerVisionPipeline(SubTapestry):
         image_encoder: ImageEncoderProvider | None = None,
         algorithm: str = "logistic",
         **_: Any,
-    ) -> EvalReport:
-        """Load data, split, extract image embeddings, train a classifier, and return the resulting EvalReport.
+    ) -> Any:
+        """Load data, split, extract image embeddings, train a classifier, and return the resulting EvalMetadata.
 
         Args:
             pool: DatabaseConnectionPool for loading the dataset.
@@ -96,7 +97,7 @@ class ComputerVisionPipeline(SubTapestry):
             algorithm: Non-empty algorithm identifier.
 
         Returns:
-            EvalReport containing accuracy, precision, recall, and f1 metrics
+            EvalReportPayload containing accuracy, precision, recall, and f1 metrics
             from the image-classification evaluation stage.
 
         Raises:
@@ -115,35 +116,32 @@ class ComputerVisionPipeline(SubTapestry):
             raise TypeError("ComputerVisionPipeline: image_encoder must be an ImageEncoderProvider")
         if not isinstance(algorithm, str) or not algorithm:
             raise ValueError("ComputerVisionPipeline: algorithm must be a non-empty string")
-        with Tapestry() as inner:
-            dataset = DatasetLoader(
-                name="computer-vision",
-                feature_names=(image_column,),
-                target_name=target_column,
-                pool=pool,
-                query=query,
-                _config=KnotConfig(id="load"),
-            )
-            split = TrainTestSplit(
-                dataset=dataset,
-                _config=KnotConfig(id="split"),
-            )
-            embedded = ImageEmbeddingExtractor(
-                split=split,
-                image_column=image_column,
-                image_encoder=image_encoder,
-                _config=KnotConfig(id="embed"),
-            )
-            trained = Trainer(
-                split=embedded,
-                algorithm=algorithm,
-                _config=KnotConfig(id="train"),
-            )
-            Evaluator(
-                model=trained,
-                split=embedded,
-                metrics=self._classification_metrics,
-                _config=KnotConfig(id="evaluate"),
-            )
-        inner_result = await self._run_inner(inner)
-        return inner_result.outputs["evaluate"]
+        dataset = DatasetLoader(
+            name="computer-vision",
+            feature_names=(image_column,),
+            target_name=target_column,
+            pool=pool,
+            query=query,
+            _config=KnotConfig(id="load"),
+        )
+        split = TrainTestSplit(
+            dataset=dataset,
+            _config=KnotConfig(id="split"),
+        )
+        embedded = ImageEmbeddingExtractor(
+            split=split,
+            image_column=image_column,
+            image_encoder=image_encoder,
+            _config=KnotConfig(id="embed"),
+        )
+        trained = Trainer(
+            split=embedded,
+            algorithm=algorithm,
+            _config=KnotConfig(id="train"),
+        )
+        return Evaluator(
+            model=trained,
+            split=embedded,
+            metrics=self._classification_metrics,
+            _config=KnotConfig(id="evaluate"),
+        )

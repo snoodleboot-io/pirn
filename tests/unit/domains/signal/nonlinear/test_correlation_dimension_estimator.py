@@ -11,14 +11,14 @@ from pirn.core.parameter import Parameter
 from pirn.domains.signal.nonlinear.correlation_dimension_estimator import (
     CorrelationDimensionEstimator,
 )
-from pirn.domains.signal.types.signal_frame import SignalFrame
-from tests.unit.domains.signal.conftest import make_signal_frame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+from tests.unit.domains.signal.conftest import make_signal_payload
 
-_SIGNAL = make_signal_frame()
+_SIGNAL = make_signal_payload()
 
 
 def _up(name: str = "signal") -> Parameter:
-    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
+    return Parameter(name, SignalPayload, _config=KnotConfig(id=name))
 
 
 class TestCorrelationDimensionEstimator(unittest.IsolatedAsyncioTestCase):
@@ -50,4 +50,4 @@ class TestCorrelationDimensionEstimator(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, embedding_dim=3, radius_min=0.1, radius_max=1.0)
         assert isinstance(out, dict)
-        assert out["estimator"] == "correlation_dimension"
+        assert "correlation_dimension" in out

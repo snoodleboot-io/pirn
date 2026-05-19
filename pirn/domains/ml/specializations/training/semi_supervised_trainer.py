@@ -1,7 +1,7 @@
 """``SemiSupervisedTrainer`` — train on labeled data, predict pseudo-labels
 for unlabeled data, then retrain on the combined set.
 
-Returns the final :class:`TrainedModel` and its evaluation report after
+Returns the final :class:`ModelManifest` and its evaluation report after
 the pseudo-labeling iteration.
 
 Algorithm:
@@ -12,6 +12,13 @@ Algorithm:
        in an inner Tapestry.
     4. Run via _run_inner() and return model, eval report, and pseudo_labeled_rows.
 
+Math:
+    Combined training set: n_combined = n_labeled + n_unlabeled
+
+    Pseudo-label assignment: y_pseudo_i = argmax_c p(y = c | x_i; theta_0)
+    where theta_0 is the model trained on labeled data only.
+
+    Final model trained on: {(x_i, y_i) | labeled} union {(x_j, y_pseudo_j) | unlabeled}
 
 References:
     N/A — pirn-native implementation.
@@ -27,17 +34,25 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.ml_dataset import MLDataset
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
 async def _emit_value(value: Any) -> Any:
     return value
+
+
+@knot
+async def _combine_semi_supervised_result(
+    model: ModelManifest,
+    eval_report: EvalReportPayload,
+    pseudo_labeled_rows: int,
+) -> dict[str, Any]:
+    return {"model": model, "eval_report": eval_report, "pseudo_labeled_rows": pseudo_labeled_rows}
 
 
 class SemiSupervisedTrainer(SubTapestry):
@@ -66,24 +81,24 @@ class SemiSupervisedTrainer(SubTapestry):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         algorithm: str = "",
         unlabeled_row_count: int = 0,
         metrics: Sequence[str] = (),
         hyperparameters: Mapping[str, Any] | None = None,
         **_: Any,
-    ) -> dict[str, Any]:
+    ) -> Any:
         """Train on labeled data, generate pseudo-labels, and retrain on combined set.
 
         Args:
-            split: DataSplit with labeled train and test partitions.
+            split: SplitManifest with labeled train and test partitions.
             algorithm: Non-empty algorithm identifier.
             unlabeled_row_count: Number of pseudo-labeled rows to add; must be int >= 0.
             metrics: Non-empty sequence of metric names.
             hyperparameters: Optional mapping of additional hyperparameters.
 
         Returns:
-            Dict with ``model`` (TrainedModel), ``eval_report`` (EvalReport),
+            Dict with ``model`` (ModelManifest), ``eval_report`` (EvalMetadata),
             and ``pseudo_labeled_rows`` (int rows added from unlabeled set).
 
         Raises:
@@ -108,38 +123,34 @@ class SemiSupervisedTrainer(SubTapestry):
             raise TypeError("SemiSupervisedTrainer: hyperparameters must be a Mapping")
         hp = dict(hyperparameters) if hyperparameters is not None else {}
         combined_rows = split.train.row_count + unlabeled_row_count
-        combined_ds = MLDataset(
+        combined_ds = DatasetManifest(
             name=f"{split.train.name}:semi_supervised",
             feature_names=split.train.feature_names,
             target_name=split.train.target_name,
             row_count=combined_rows,
             source_uri=split.train.source_uri,
         )
-        combined_split = DataSplit(train=combined_ds, test=split.test)
+        combined_split = SplitManifest(train=combined_ds, test=split.test)
 
-        with Tapestry() as inner:
-            split_node = _emit_value(value=combined_split, _config=KnotConfig(id="split"))
-            model = Trainer(
-                split=split_node,
-                algorithm=algorithm,
-                hyperparameters={**hp, "semi_supervised": True},
-                _config=KnotConfig(id="train"),
-            )
-            Evaluator(
-                model=model,
-                split=split_node,
-                metrics=metric_tuple,
-                _config=KnotConfig(id="evaluate"),
-            )
-        result = await self._run_inner(inner)
-        trained_model = result.outputs["train"]
-        report = result.outputs["evaluate"]
-        if not isinstance(trained_model, TrainedModel):
-            raise TypeError("SemiSupervisedTrainer: trainer did not return a TrainedModel")
-        if not isinstance(report, EvalReport):
-            raise TypeError("SemiSupervisedTrainer: evaluator did not return an EvalReport")
-        return {
-            "model": trained_model,
-            "eval_report": report,
-            "pseudo_labeled_rows": unlabeled_row_count,
-        }
+        split_node = _emit_value(value=combined_split, _config=KnotConfig(id="split"))
+        model = Trainer(
+            split=split_node,
+            algorithm=algorithm,
+            hyperparameters={**hp, "semi_supervised": True},
+            _config=KnotConfig(id="train"),
+        )
+        evaluated = Evaluator(
+            model=model,
+            split=split_node,
+            metrics=metric_tuple,
+            _config=KnotConfig(id="evaluate"),
+        )
+        pseudo_rows_node = _emit_value(
+            value=unlabeled_row_count, _config=KnotConfig(id="pseudo_labeled_rows")
+        )
+        return _combine_semi_supervised_result(
+            model=model,
+            eval_report=evaluated,
+            pseudo_labeled_rows=pseudo_rows_node,
+            _config=KnotConfig(id="combine"),
+        )

@@ -65,9 +65,21 @@ class SeparatorTestProcessor(Knot):
             raise ValueError("SeparatorTestProcessor: separator_stages must be 1, 2, or 3")
         if not isinstance(test_data, dict):
             raise TypeError("SeparatorTestProcessor: test_data must be a dict")
-        oil = float(test_data.get("oil_rate_bopd", 1.0) or 1.0)
-        gas_mmscfd = float(test_data.get("gas_rate_mmscfd", 0.0))
-        water = float(test_data.get("water_rate_bwpd", 0.0))
+        if "oil_rate_bopd" not in test_data:
+            raise ValueError(
+                "SeparatorTestProcessor: required field 'oil_rate_bopd' missing from input"
+            )
+        if "gas_rate_mmscfd" not in test_data:
+            raise ValueError(
+                "SeparatorTestProcessor: required field 'gas_rate_mmscfd' missing from input"
+            )
+        if "water_rate_bwpd" not in test_data:
+            raise ValueError(
+                "SeparatorTestProcessor: required field 'water_rate_bwpd' missing from input"
+            )
+        oil = float(test_data["oil_rate_bopd"]) or 1.0
+        gas_mmscfd = float(test_data["gas_rate_mmscfd"])
+        water = float(test_data["water_rate_bwpd"])
         gas_scfd = gas_mmscfd * 1_000_000.0
         gor = gas_scfd / oil if oil else 0.0
         wor = water / oil if oil else 0.0

@@ -23,7 +23,10 @@ References:
 
 from __future__ import annotations
 
+import math
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -84,14 +87,36 @@ class RMSAmplitudeWindowExtractor(Knot):
             raise TypeError("RMSAmplitudeWindowExtractor: volume must be a dict")
         if not isinstance(horizon, dict):
             raise TypeError("RMSAmplitudeWindowExtractor: horizon must be a dict")
+        traces: list[dict[str, Any]] = volume.get("traces", [])
+        sample_interval_ms: float = float(volume.get("sample_interval_ms", 4.0))
         picks: list[dict[str, Any]] = horizon.get("picks", [])
+
+        trace_index: dict[tuple[int, int], np.ndarray] = {}
+        for tr in traces:
+            key = (int(tr.get("inline", 0)), int(tr.get("crossline", 0)))
+            trace_index[key] = np.asarray(tr.get("samples", []), dtype=np.float64)
+
+        def _rms_at_pick(pick: dict[str, Any]) -> float:
+            key = (int(pick.get("inline", 0)), int(pick.get("crossline", 0)))
+            arr = trace_index.get(key)
+            if arr is None or len(arr) == 0:
+                return 0.0
+            t_center_ms = float(pick.get("time_ms", 0.0))
+            i_center = round(t_center_ms / sample_interval_ms)
+            i_above = max(0, i_center - math.ceil(window_ms_above / sample_interval_ms))
+            i_below = min(len(arr), i_center + math.ceil(window_ms_below / sample_interval_ms) + 1)
+            window = arr[i_above:i_below]
+            if len(window) == 0:
+                return 0.0
+            return float(np.sqrt(np.mean(window**2)))
+
         rms_map = [
             {
-                "inline": p.get("inline"),
-                "crossline": p.get("crossline"),
-                "rms_amplitude": 0.0,
+                "inline": pick.get("inline"),
+                "crossline": pick.get("crossline"),
+                "rms_amplitude": _rms_at_pick(pick),
             }
-            for p in picks
+            for pick in picks
         ]
         return {
             "rms_map": rms_map,

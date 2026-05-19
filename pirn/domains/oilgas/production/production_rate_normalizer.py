@@ -78,9 +78,21 @@ class ProductionRateNormalizer(Knot):
         ref_p = float(reference_pressure_psia)
         results: list[dict[str, Any]] = []
         for m in measurements:
-            rate = float(m.get("rate_bopd", 0.0))
-            wh_p = float(m.get("wellhead_pressure_psia", ref_p))
-            wh_t = float(m.get("wellhead_temp_f", reference_temp_f))
+            if "rate_bopd" not in m:
+                raise ValueError(
+                    "ProductionRateNormalizer: required field 'rate_bopd' missing from input"
+                )
+            if "wellhead_pressure_psia" not in m:
+                raise ValueError(
+                    "ProductionRateNormalizer: required field 'wellhead_pressure_psia' missing from input"
+                )
+            if "wellhead_temp_f" not in m:
+                raise ValueError(
+                    "ProductionRateNormalizer: required field 'wellhead_temp_f' missing from input"
+                )
+            rate = float(m["rate_bopd"])
+            wh_p = float(m["wellhead_pressure_psia"])
+            wh_t = float(m["wellhead_temp_f"])
             wh_t_rankine = wh_t + 459.67
             correction = (wh_p / ref_p) * (ref_t_rankine / wh_t_rankine)
             normalized = rate * correction

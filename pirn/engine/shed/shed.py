@@ -77,7 +77,7 @@ class Shed:
         if isinstance(terminals, _Knot):
             terminals = [terminals]
 
-        s = cls()
+        shed = cls()
         seen: set[int] = set()
         queue: deque[Knot] = deque(terminals)
         while queue:
@@ -86,22 +86,22 @@ class Shed:
                 continue
             seen.add(id(knot))
 
-            if knot.knot_id in s.knots and s.knots[knot.knot_id] is not knot:
+            if knot.knot_id in shed.knots and shed.knots[knot.knot_id] is not knot:
                 raise ShedError(f"two distinct knots share id {knot.knot_id!r}")
-            s.knots[knot.knot_id] = knot
-            s.children_by_parent.setdefault(knot.knot_id, [])
+            shed.knots[knot.knot_id] = knot
+            shed.children_by_parent.setdefault(knot.knot_id, [])
 
             edges: list[Edge] = []
             for input_name, parent in knot.parents.items():
                 edges.append(Edge(child_id=knot.knot_id, parent_id=parent.knot_id, name=input_name))
-                s.children_by_parent.setdefault(parent.knot_id, []).append(knot.knot_id)
+                shed.children_by_parent.setdefault(parent.knot_id, []).append(knot.knot_id)
                 queue.append(parent)
-            s.edges_by_child[knot.knot_id] = edges
+            shed.edges_by_child[knot.knot_id] = edges
 
-        if CycleDetector.detect(list(s.knots.keys()), s.children_by_parent):
+        if CycleDetector.detect(list(shed.knots.keys()), shed.children_by_parent):
             raise ShedError("cycle detected in shed")
 
-        return s
+        return shed
 
     def __contains__(self, knot_id: str) -> bool:
         return knot_id in self.knots
@@ -136,13 +136,13 @@ class Shed:
         for edges in self.edges_by_child.values():
             for e in edges:
                 in_degree[e.child_id] += 1
-        ready = sorted(kid for kid, d in in_degree.items() if d == 0)
+        ready = sorted(kid for kid, in_deg in in_degree.items() if in_deg == 0)
         order: list[str] = []
         while ready:
-            kid = ready.pop(0)
-            order.append(kid)
+            knot_id = ready.pop(0)
+            order.append(knot_id)
             new_ready: list[str] = []
-            for child_id in self.children_by_parent.get(kid, []):
+            for child_id in self.children_by_parent.get(knot_id, []):
                 in_degree[child_id] -= 1
                 if in_degree[child_id] == 0:
                     new_ready.append(child_id)
@@ -164,21 +164,23 @@ class Shed:
         added: set[str] = set()
         queue: deque[Knot] = deque([knot])
         while queue:
-            k = queue.popleft()
-            if k.knot_id in self.knots:
-                if self.knots[k.knot_id] is not k:
-                    raise ShedError(f"two distinct knots share id {k.knot_id!r}")
+            candidate = queue.popleft()
+            if candidate.knot_id in self.knots:
+                if self.knots[candidate.knot_id] is not candidate:
+                    raise ShedError(f"two distinct knots share id {candidate.knot_id!r}")
                 continue
-            assert isinstance(k, _Knot)
-            self.knots[k.knot_id] = k
-            self.children_by_parent.setdefault(k.knot_id, [])
+            assert isinstance(candidate, _Knot)
+            self.knots[candidate.knot_id] = candidate
+            self.children_by_parent.setdefault(candidate.knot_id, [])
             edges: list[Edge] = []
-            for input_name, parent in k.parents.items():
-                edges.append(Edge(child_id=k.knot_id, parent_id=parent.knot_id, name=input_name))
-                self.children_by_parent.setdefault(parent.knot_id, []).append(k.knot_id)
+            for input_name, parent in candidate.parents.items():
+                edges.append(
+                    Edge(child_id=candidate.knot_id, parent_id=parent.knot_id, name=input_name)
+                )
+                self.children_by_parent.setdefault(parent.knot_id, []).append(candidate.knot_id)
                 queue.append(parent)
-            self.edges_by_child[k.knot_id] = edges
-            added.add(k.knot_id)
+            self.edges_by_child[candidate.knot_id] = edges
+            added.add(candidate.knot_id)
 
         if CycleDetector.detect(list(self.knots.keys()), self.children_by_parent):
             for kid in added:

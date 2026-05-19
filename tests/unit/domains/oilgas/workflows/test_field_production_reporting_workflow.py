@@ -3,25 +3,33 @@
 from __future__ import annotations
 
 import unittest
+
+try:
+    import scipy  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("scipy not installed") from _e
+
 from datetime import UTC, datetime
 
 from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
-from pirn.core.run_result import RunResult
 from pirn.domains.oilgas.workflows.field_production_reporting_workflow import (
     FieldProductionReportingWorkflow,
 )
 from pirn.tapestry import Tapestry
 
 _SINCE = datetime(2026, 1, 1, tzinfo=UTC)
+_ROWS = [(datetime(2026, 1, 1, 0, 0, i, tzinfo=UTC), float(100 + i)) for i in range(10)]
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
 
     def _make_knot(self) -> FieldProductionReportingWorkflow:
-        from tests.unit.domains.oilgas.conftest import StubHistorianConnection
         return FieldProductionReportingWorkflow(
-            connection=StubHistorianConnection(),  # type: ignore[arg-type]
+            oil_rows=Parameter("oil_rows", list, default=_ROWS),
+            gas_rows=Parameter("gas_rows", list, default=_ROWS),
+            water_rows=Parameter("water_rows", list, default=_ROWS),
             oil_tag="oil",
             gas_tag="gas",
             water_tag="water",
@@ -36,11 +44,12 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_rejects_empty_oil_tag(self) -> None:
-        from tests.unit.domains.oilgas.conftest import StubHistorianConnection
         knot = self._make_knot()
         with self.assertRaisesRegex(ValueError, "oil_tag"):
             await knot.process(
-                connection=StubHistorianConnection(),
+                oil_rows=_ROWS,
+                gas_rows=_ROWS,
+                water_rows=_ROWS,
                 oil_tag="",
                 gas_tag="gas",
                 water_tag="water",
@@ -54,11 +63,12 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             )
 
     async def test_rejects_empty_gas_tag(self) -> None:
-        from tests.unit.domains.oilgas.conftest import StubHistorianConnection
         knot = self._make_knot()
         with self.assertRaisesRegex(ValueError, "gas_tag"):
             await knot.process(
-                connection=StubHistorianConnection(),
+                oil_rows=_ROWS,
+                gas_rows=_ROWS,
+                water_rows=_ROWS,
                 oil_tag="oil",
                 gas_tag="",
                 water_tag="water",
@@ -72,11 +82,12 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             )
 
     async def test_rejects_empty_water_tag(self) -> None:
-        from tests.unit.domains.oilgas.conftest import StubHistorianConnection
         knot = self._make_knot()
         with self.assertRaisesRegex(ValueError, "water_tag"):
             await knot.process(
-                connection=StubHistorianConnection(),
+                oil_rows=_ROWS,
+                gas_rows=_ROWS,
+                water_rows=_ROWS,
                 oil_tag="oil",
                 gas_tag="gas",
                 water_tag="",
@@ -93,7 +104,5 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             self._make_knot()
         result = await t.run(RunRequest())
-        inner = result.outputs["wf"]
-        assert isinstance(inner, RunResult)
-        assert inner.succeeded
-        assert "forecast" in inner.outputs
+        assert result.succeeded
+        assert "wf" in result.outputs

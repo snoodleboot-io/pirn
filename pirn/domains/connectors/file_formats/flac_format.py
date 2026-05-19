@@ -27,7 +27,19 @@ from pirn.domains.connectors.file_formats.batch_file_format import (
 
 
 class FlacFormat(BatchFileFormat):
-    """Whole-file FLAC encoder/decoder backed by ``soundfile``."""
+    """Whole-file FLAC encoder/decoder backed by ``soundfile``.
+
+    One record is emitted per file::
+
+        {
+            "sample_rate":  int,
+            "n_channels":   int,
+            "n_frames":     int,
+            "frames":       bytes,  # raw float32 interleaved PCM bytes
+        }
+
+    Encoding reconstructs the FLAC file from the same shape.
+    """
 
     @property
     def name(self) -> str:

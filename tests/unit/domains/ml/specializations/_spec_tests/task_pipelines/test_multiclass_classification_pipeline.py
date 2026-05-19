@@ -9,7 +9,8 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.task_pipelines.multiclass_classification_pipeline import (
     MulticlassClassificationPipeline,
 )
-from pirn.domains.ml.types.eval_report import EvalReport
+from pirn.domains.ml.types.eval_metadata import EvalMetadata
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.tapestry import Tapestry
 from tests.unit.domains.ml._stubs.recording_database_pool import (
     RecordingDatabasePool,
@@ -33,7 +34,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_macro_metric_report(self) -> None:
-        rows = [(float(i), i % 5) for i in range(40)]
+        rows = [{"a": float(i), "y": i % 5} for i in range(40)]
         with Tapestry() as t:
             MulticlassClassificationPipeline(
                 pool=RecordingDatabasePool(rows=rows),
@@ -45,7 +46,7 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert result.succeeded
-        report: EvalReport = result.outputs["mc"]
-        assert isinstance(report, EvalReport)
-        assert "f1_macro" in report.metrics
-        assert "precision_macro" in report.metrics
+        report: EvalReportPayload = result.outputs["mc"]
+        assert isinstance(report, EvalReportPayload)
+        assert "f1_macro" in report.metrics.scores
+        assert "precision_macro" in report.metrics.scores

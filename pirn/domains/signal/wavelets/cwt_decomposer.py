@@ -23,19 +23,30 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
+import pywt
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
 from pirn.domains.signal.types.wavelet_frame import WaveletFrame
+from pirn.domains.signal.types.wavelet_payload import WaveletPayload
+
+
+def _run_cwt(
+    data: np.ndarray, wavelet_name: str, scale_count: int, sample_rate_hz: float
+) -> list[np.ndarray]:
+    scales = np.arange(1, scale_count + 1)
+    sampling_period = 1.0 / sample_rate_hz if sample_rate_hz > 0 else 1.0
+    coeffs, _freqs = pywt.cwt(data, scales, wavelet_name, sampling_period=sampling_period, axis=-1)
+    return [coeffs[i] for i in range(len(scales))]
 
 
 class CWTDecomposer(Knot):
-    """Continuous wavelet transform.
-
-    Production needs ``pywt.cwt`` or ``scipy.signal.cwt``.
-    """
+    """Continuous wavelet transform."""
 
     def __init__(
         self,
@@ -56,20 +67,20 @@ class CWTDecomposer(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         wavelet_name: str,
         scale_count: int,
         **_: Any,
-    ) -> WaveletFrame:
-        """Compute the continuous wavelet transform of the signal and return a WaveletFrame.
+    ) -> WaveletPayload:
+        """Compute the continuous wavelet transform and return a WaveletPayload.
 
         Args:
-            signal: Signal to decompose using the configured wavelet at the configured scale count.
+            signal: Signal payload to decompose.
             wavelet_name: Name of the wavelet (non-empty string, e.g., ``cmor``, ``morl``).
             scale_count: Number of CWT scales (positive integer).
 
         Returns:
-            WaveletFrame of CWT coefficients with ``scale_count`` scales.
+            WaveletPayload of CWT coefficient arrays, one per scale.
 
         Raises:
             ValueError: If wavelet_name or scale_count are invalid.
@@ -78,8 +89,12 @@ class CWTDecomposer(Knot):
             raise ValueError("CWTDecomposer: wavelet_name must be a non-empty string")
         if not isinstance(scale_count, int) or scale_count <= 0:
             raise ValueError("CWTDecomposer: scale_count must be a positive integer")
-        return WaveletFrame(
-            signal_id=signal.signal_id,
-            wavelet_name=wavelet_name,
-            scale_count=scale_count,
+        coeff_arrays = await asyncio.to_thread(
+            _run_cwt, signal.data, wavelet_name, scale_count, signal.frame.sample_rate_hz
         )
+        frame = WaveletFrame(
+            signal_id=signal.frame.signal_id,
+            wavelet_name=wavelet_name,
+            scale_count=len(coeff_arrays),
+        )
+        return WaveletPayload(metadata=frame, data=coeff_arrays)

@@ -9,14 +9,14 @@ import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.domains.signal.audio.vad_detector import VADDetector
-from pirn.domains.signal.types.signal_frame import SignalFrame
-from tests.unit.domains.signal.conftest import make_signal_frame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+from tests.unit.domains.signal.conftest import make_signal_payload
 
-_SIGNAL = make_signal_frame()
+_SIGNAL = make_signal_payload()
 
 
 def _up(name: str = "signal") -> Parameter:
-    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
+    return Parameter(name, SignalPayload, _config=KnotConfig(id=name))
 
 
 class TestVADDetector(unittest.IsolatedAsyncioTestCase):
@@ -46,5 +46,5 @@ class TestVADDetector(unittest.IsolatedAsyncioTestCase):
     async def test_emits_segment_list(self) -> None:
         knot = self._make()
         out = await knot.process(_SIGNAL, frame_duration_ms=20, aggressiveness=2)
-        assert isinstance(out, list)
-        assert all("is_speech" in seg for seg in out)
+        assert isinstance(out, dict)
+        assert "voiced_frames" in out

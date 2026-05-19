@@ -1,7 +1,11 @@
-"""``TrainedModel`` — a reference to a trained model artifact.
+"""``TrainedModelPayload`` — a reference to a trained model artifact.
 
 The artifact bytes are not embedded; the value is a logical reference
 that downstream knots resolve via the registered model id.
+
+.. deprecated::
+    Import :class:`pirn.domains.ml.types.model_manifest.ModelManifest` instead.
+    This module is retained for backwards compatibility only.
 """
 
 from __future__ import annotations
@@ -16,7 +20,7 @@ from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 
 @dataclass(frozen=True)
-class TrainedModel(PirnOpaqueValue):
+class TrainedModelPayload(PirnOpaqueValue):
     """Reference to a trained model artifact."""
 
     model_id: str = ""

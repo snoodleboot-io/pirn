@@ -5,7 +5,7 @@ Wraps the core :class:`FeatureStore` knot. Returns the count of rows
 written by the underlying provider.
 
 Algorithm:
-    1. Receive ``split`` (DataSplit) and ``feature_store`` (FeatureStoreProvider) via process().
+    1. Receive ``split`` (SplitManifest) and ``feature_store`` (FeatureStoreProvider) via process().
     2. Validate feature_store type.
     3. Wire FeatureStore in an inner Tapestry.
     4. Run via _run_inner() and return the count of rows written.
@@ -24,9 +24,8 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.domains.ml.feature_store_provider import FeatureStoreProvider
 from pirn.domains.ml.features.feature_store import FeatureStore
-from pirn.domains.ml.types.data_split import DataSplit
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
@@ -35,7 +34,7 @@ async def _emit_value(value: Any) -> Any:
 
 
 class FeatureStoreWriter(SubTapestry):
-    """Persist a :class:`DataSplit`'s feature metadata to a feature store."""
+    """Persist a :class:`SplitManifest`'s feature metadata to a feature store."""
 
     def __init__(
         self,
@@ -54,14 +53,14 @@ class FeatureStoreWriter(SubTapestry):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         feature_store: FeatureStoreProvider | None = None,
         **_: Any,
-    ) -> int:
-        """Write the DataSplit's partition metadata to the feature store and return the count of rows written.
+    ) -> Any:
+        """Write the SplitManifest's partition metadata to the feature store and return the count of rows written.
 
         Args:
-            split: DataSplit whose train, test, and optional validation partitions are written.
+            split: SplitManifest whose train, test, and optional validation partitions are written.
             feature_store: FeatureStoreProvider to write to.
 
         Returns:
@@ -70,19 +69,13 @@ class FeatureStoreWriter(SubTapestry):
         Raises:
             TypeError: If feature_store is not a FeatureStoreProvider or inner writer fails.
         """
-        if not isinstance(split, DataSplit):
-            raise TypeError("FeatureStoreWriter: split must be a DataSplit")
+        if not isinstance(split, SplitManifest):
+            raise TypeError("FeatureStoreWriter: split must be a SplitManifest")
         if not isinstance(feature_store, FeatureStoreProvider):
             raise TypeError("FeatureStoreWriter: feature_store must be a FeatureStoreProvider")
-        with Tapestry() as inner:
-            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
-            FeatureStore(
-                split=split_node,
-                provider=feature_store,
-                _config=KnotConfig(id="write"),
-            )
-        result = await self._run_inner(inner)
-        written = result.outputs["write"]
-        if not isinstance(written, int):
-            raise TypeError("FeatureStoreWriter: inner writer did not return an int")
-        return written
+        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        return FeatureStore(
+            split=split_node,
+            provider=feature_store,
+            _config=KnotConfig(id="write"),
+        )

@@ -36,6 +36,30 @@ class KafkaEmitter(Emitter):
         topic_lineage: str | None = None,
         topic_result: str | None = None,
     ) -> None:
+        """Initialise the emitter.
+
+        Either ``producer`` or ``topic`` must be supplied.
+
+        Args:
+            producer: A pre-started ``aiokafka.AIOKafkaProducer``.
+                When provided, ``bootstrap_servers`` is ignored.
+            topic: Default topic for all three event types.  Used as the
+                fallback when per-type topics are not specified.  Also
+                triggers lazy producer construction using
+                ``bootstrap_servers``.
+            bootstrap_servers: Kafka bootstrap server string (e.g.
+                ``"localhost:9092"``).  Required when ``producer`` is
+                ``None``.
+            topic_status: Override topic for status events.  Falls back
+                to ``topic`` when ``None``.
+            topic_lineage: Override topic for lineage events.  Falls back
+                to ``topic`` when ``None``.
+            topic_result: Override topic for run-result events.  Falls
+                back to ``topic`` when ``None``.
+
+        Raises:
+            TypeError: If neither ``producer`` nor ``topic`` is given.
+        """
         if producer is None and topic is None:
             raise TypeError("provide either producer= or topic=")
         self._producer = producer
@@ -65,6 +89,13 @@ class KafkaEmitter(Emitter):
         await producer.send_and_wait(topic, payload, key=key)
 
     async def on_status(self, event: StatusEvent) -> None:
+        """Publishes a JSON-serialised status event to the configured Kafka topic.
+
+        Does nothing when no status topic was configured.
+
+        Args:
+            event: The status event to publish.
+        """
         if self._topic_status is None:
             return
         await self._send(
@@ -74,6 +105,15 @@ class KafkaEmitter(Emitter):
         )
 
     async def on_lineage(self, record: KnotLineage) -> None:
+        """Publishes a JSON-serialised lineage record to the configured Kafka topic.
+
+        The run id is used as the Kafka message key to co-locate all
+        records for a given run on the same partition.  Does nothing when
+        no lineage topic was configured.
+
+        Args:
+            record: The knot lineage record to publish.
+        """
         if self._topic_lineage is None:
             return
         await self._send(
@@ -83,6 +123,14 @@ class KafkaEmitter(Emitter):
         )
 
     async def on_run_result(self, result: RunResult) -> None:
+        """Publishes a JSON-serialised run result to the configured Kafka topic.
+
+        The run id is used as the Kafka message key.  Does nothing when
+        no result topic was configured.
+
+        Args:
+            result: The completed run result to publish.
+        """
         if self._topic_result is None:
             return
         await self._send(

@@ -2,7 +2,7 @@
 
 Monitors a validation metric and stops training when no improvement has
 been observed for ``patience`` consecutive epochs. Returns the best
-:class:`TrainedModel` found before early stopping triggered.
+:class:`ModelManifest` found before early stopping triggered.
 
 Algorithm:
     1. Receive ``split``, ``algorithm``, ``monitor_metric``, ``patience``,
@@ -11,6 +11,12 @@ Algorithm:
     3. Wire Trainer + Evaluator in an inner Tapestry.
     4. Run via _run_inner() and return model, eval report, and epoch info.
 
+Math:
+    Stop condition: halt at epoch t if no improvement over patience consecutive epochs.
+        best_score = max(metric(t) for t in 0..T)
+        stopped_epoch = first t where (t - argmax(best_score)) >= patience
+
+    Effective training budget: stopped_epoch <= max_epochs
 
 References:
     N/A — pirn-native implementation.
@@ -26,16 +32,30 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
 async def _emit_value(value: Any) -> Any:
     return value
+
+
+@knot
+async def _combine_early_stopping(
+    model: ModelManifest,
+    eval_report: EvalReportPayload,
+    stopped_epoch: int,
+    patience: int,
+) -> dict[str, Any]:
+    return {
+        "model": model,
+        "eval_report": eval_report,
+        "stopped_epoch": stopped_epoch,
+        "patience": patience,
+    }
 
 
 class EarlyStoppingTrainer(SubTapestry):
@@ -68,7 +88,7 @@ class EarlyStoppingTrainer(SubTapestry):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         algorithm: str = "",
         monitor_metric: str = "",
         patience: int = 5,
@@ -76,11 +96,11 @@ class EarlyStoppingTrainer(SubTapestry):
         hyperparameters: Mapping[str, Any] | None = None,
         metrics: Sequence[str] | None = None,
         **_: Any,
-    ) -> dict[str, Any]:
+    ) -> Any:
         """Train the model with early stopping and return the best model, its evaluation, and training metadata.
 
         Args:
-            split: DataSplit used for training and validation metric monitoring.
+            split: SplitManifest used for training and validation metric monitoring.
             algorithm: Non-empty algorithm identifier.
             monitor_metric: Non-empty name of the metric to monitor for early stopping.
             patience: Consecutive epochs without improvement before stopping; must be >= 1.
@@ -89,7 +109,7 @@ class EarlyStoppingTrainer(SubTapestry):
             metrics: Optional sequence of metrics to evaluate; defaults to monitor_metric.
 
         Returns:
-            Dict with ``model`` (TrainedModel), ``eval_report`` (EvalReport),
+            Dict with ``model`` (ModelManifest), ``eval_report`` (EvalMetadata),
             ``stopped_epoch`` (int), and ``patience`` (int).
 
         Raises:
@@ -113,30 +133,25 @@ class EarlyStoppingTrainer(SubTapestry):
         hp = dict(hyperparameters) if hyperparameters is not None else {}
         metric_tuple = tuple(metrics) if metrics else (monitor_metric,)
         hp["max_epochs"] = max_epochs
-        with Tapestry() as inner:
-            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
-            model = Trainer(
-                split=split_node,
-                algorithm=algorithm,
-                hyperparameters=hp,
-                _config=KnotConfig(id="train"),
-            )
-            Evaluator(
-                model=model,
-                split=split_node,
-                metrics=metric_tuple,
-                _config=KnotConfig(id="evaluate"),
-            )
-        result = await self._run_inner(inner)
-        trained_model = result.outputs["train"]
-        report = result.outputs["evaluate"]
-        if not isinstance(trained_model, TrainedModel):
-            raise TypeError("EarlyStoppingTrainer: trainer did not return a TrainedModel")
-        if not isinstance(report, EvalReport):
-            raise TypeError("EarlyStoppingTrainer: evaluator did not return an EvalReport")
-        return {
-            "model": trained_model,
-            "eval_report": report,
-            "stopped_epoch": max_epochs,
-            "patience": patience,
-        }
+        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        trained = Trainer(
+            split=split_node,
+            algorithm=algorithm,
+            hyperparameters=hp,
+            _config=KnotConfig(id="train"),
+        )
+        evaluated = Evaluator(
+            model=trained,
+            split=split_node,
+            metrics=metric_tuple,
+            _config=KnotConfig(id="evaluate"),
+        )
+        stopped_epoch_node = _emit_value(value=max_epochs, _config=KnotConfig(id="stopped_epoch"))
+        patience_node = _emit_value(value=patience, _config=KnotConfig(id="patience"))
+        return _combine_early_stopping(
+            model=trained,
+            eval_report=evaluated,
+            stopped_epoch=stopped_epoch_node,
+            patience=patience_node,
+            _config=KnotConfig(id="combine"),
+        )

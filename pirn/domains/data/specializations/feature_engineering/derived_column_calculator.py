@@ -131,9 +131,15 @@ class DerivedColumnCalculator(Knot):
     ) -> list[dict[str, Any]]:
         compiled: list[tuple[str, ast.Expression]] = []
         for spec in expressions:
-            col = spec.get("column", "")
+            if "column" not in spec:
+                raise ValueError("DerivedColumnCalculator: spec missing required field 'column'")
+            col = spec["column"]
             IdentifierValidator.validate_column("expressions[column]", col)
-            expr_str = spec.get("expression", "")
+            if "expression" not in spec:
+                raise ValueError(
+                    "DerivedColumnCalculator: spec missing required field 'expression'"
+                )
+            expr_str = spec["expression"]
             if not isinstance(expr_str, str) or not expr_str:
                 raise ValueError("DerivedColumnCalculator: expression must be a non-empty string")
             try:

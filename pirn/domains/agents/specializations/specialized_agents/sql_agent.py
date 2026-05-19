@@ -41,12 +41,10 @@ from pirn.domains.agents.specializations.specialized_agents._sql_generator impor
 from pirn.domains.agents.specializations.specialized_agents._sql_response_formatter import (
     _SQLResponseFormatter,
 )
-from pirn.domains.agents.types.agent_response import AgentResponse
 from pirn.domains.connectors.database_connection_pool import (
     DatabaseConnectionPool,
 )
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class SQLAgent(SubTapestry):
@@ -78,7 +76,7 @@ class SQLAgent(SubTapestry):
         pool: DatabaseConnectionPool,
         schema_description: str = "",
         **_: Any,
-    ) -> AgentResponse:
+    ) -> Any:
         """Translate the question to SQL, execute it, and return the result as an AgentResponse.
 
         Args:
@@ -107,25 +105,19 @@ class SQLAgent(SubTapestry):
                 "SQLAgent: schema_description must be a string, "
                 f"got {type(schema_description).__name__}"
             )
-        with Tapestry() as inner:
-            sql = _SQLGenerator(
-                question=question,
-                llm=llm,
-                schema_description=schema_description,
-                _config=KnotConfig(id="generate_sql"),
-            )
-            rows = _SQLExecutor(
-                sql=sql,
-                pool=pool,
-                _config=KnotConfig(id="execute_sql"),
-            )
-            _SQLResponseFormatter(
-                sql=sql,
-                rows=rows,
-                _config=KnotConfig(id="format_response"),
-            )
-        inner_result = await self._run_inner(inner)
-        response = inner_result.outputs.get("format_response")
-        if not isinstance(response, AgentResponse):
-            return AgentResponse(content="", finish_reason="length")
-        return response
+        sql = _SQLGenerator(
+            question=question,
+            llm=llm,
+            schema_description=schema_description,
+            _config=KnotConfig(id="generate_sql"),
+        )
+        rows = _SQLExecutor(
+            sql=sql,
+            pool=pool,
+            _config=KnotConfig(id="execute_sql"),
+        )
+        return _SQLResponseFormatter(
+            sql=sql,
+            rows=rows,
+            _config=KnotConfig(id="format_response"),
+        )

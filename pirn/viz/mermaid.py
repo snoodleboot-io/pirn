@@ -118,12 +118,12 @@ class MermaidRenderer:
                 safe.append(ch)
             else:
                 safe.append("_")
-        s = "".join(safe)
-        if not s:
-            s = "_"
-        if s[0].isdigit():
-            s = "n_" + s
-        return s
+        sanitized = "".join(safe)
+        if not sanitized:
+            sanitized = "_"
+        if sanitized[0].isdigit():
+            sanitized = "n_" + sanitized
+        return sanitized
 
     @staticmethod
     def _node_label(knot_id: str, class_name: str) -> str:

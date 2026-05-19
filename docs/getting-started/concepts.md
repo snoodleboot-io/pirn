@@ -145,7 +145,7 @@ A source of `RunRequest` objects that starts a new pipeline run for each externa
 
 Drive a trigger with `run_forever(trigger, tapestry)`.
 
-Built-in triggers: `CronTrigger`, `WebhookTrigger` (HTTP), `KafkaTrigger`, `ValkeyTrigger`.
+Built-in triggers: `CronTrigger`, `WebhookTrigger` (HTTP), `KafkaTrigger`, `ValKeyTrigger`.
 
 **See also:** [API — Triggers](../api/triggers.md), [Observability](../guides/observability.md)
 
@@ -220,18 +220,19 @@ The `DataStore` keys values by their hash. The `RunHistory` stores hashes in lin
 
 A knot whose execution body is a complete inner tapestry pipeline. Where a regular knot calls a function, a `SubTapestry` knot constructs and runs an entire multi-step inner pipeline. The outer tapestry stays clean — it sees a single node — while each inner pipeline is independently versioned, cached, and visualisable.
 
-Inputs from the outer pipeline arrive in `process(**kwargs)` as plain resolved values. Build the inner pipeline using those values as constants or `Parameter` defaults, then execute it with `_run_inner(inner_tapestry)`.
+Inputs from the outer pipeline arrive in `process(**kwargs)` as plain resolved values. Build the inner pipeline using those values as constants or `Parameter` defaults, then return the terminal (sink) knot. The base class owns the `Tapestry()` context — do not open one yourself and do not call `_run_inner` directly.
 
 ```python
+from typing import Any
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
 from pirn.nodes.sub_tapestry import SubTapestry
 
 class ScoreAndRank(SubTapestry):
-    async def process(self, documents: list, threshold: float, **_):
-        with Tapestry() as inner:
-            p = Parameter("docs", list, default=documents, _config=KnotConfig(id="docs"))
-            scored = score_knot(docs=p, _config=KnotConfig(id="score"))
-            rank_knot(scores=scored, threshold=threshold, _config=KnotConfig(id="rank"))
-        return await self._run_inner(inner)
+    async def process(self, documents: list, threshold: float, **_: Any) -> Knot:
+        p = Parameter("docs", list, default=documents, _config=KnotConfig(id="docs"))
+        scored = score_knot(docs=p, _config=KnotConfig(id="score"))
+        return rank_knot(scores=scored, threshold=threshold, _config=KnotConfig(id="rank"))
 ```
 
 The outer history backend is automatically propagated to inner runs, so inner lineage appears in the same SQLite store and is drill-down navigable in the explorer.

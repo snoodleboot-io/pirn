@@ -22,12 +22,33 @@ from pirn.core.knot import Knot
 
 
 class Source(Knot):
-    """Base class for one-shot sources.
+    """Base class for one-shot sources that produce a value from outside the pipeline.
+
+    A ``Source`` has no computation parents.  Its value is produced entirely by
+    its own ``process()`` implementation, which may read files, query databases,
+    fetch URLs, or perform any other I/O.  Configuration knots (e.g. a
+    ``Parameter`` carrying a file path) may still be declared as inputs and are
+    wired as parents in the DAG so the engine resolves them before calling
+    ``process()``.
 
     Subclass and implement ``async def process(self, ...) -> T``.  All
     configuration inputs are declared as ``Knot | scalar_type`` in
     ``__init__`` and as resolved plain types in ``process()``, following
     the standard two-layer knot pattern.
+
+    Algorithm:
+        1. Declaration — subclass declares configuration inputs as
+           ``Knot | scalar_type`` in ``__init__``.  Plain scalars are
+           auto-coerced to ``Parameter`` nodes by the base ``Knot.__init__``
+           so they participate in the DAG with full lineage.
+        2. Scheduling — the engine resolves all declared parent knots (config
+           inputs and any explicit parents) concurrently before calling
+           ``process()``.
+        3. Execution — ``process()`` receives resolved plain-Python values for
+           all declared inputs and performs the I/O or computation needed to
+           produce the source's output value.
+        4. Output — the value returned by ``process()`` is wrapped in ``Ok``
+           by the engine and made available to downstream knots.
 
     Example::
 

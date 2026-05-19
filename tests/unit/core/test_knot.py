@@ -101,9 +101,10 @@ class TestKnotConstruction(unittest.TestCase):
         self.assertIn("a", node.input_names)
         self.assertIn("b", node.input_names)
 
-    def test_is_optional_false(self) -> None:
+    def test_plain_knot_is_not_optional(self) -> None:
+        from pirn.core.optional import Optional
         node = Add(a=self._p("a"), b=self._p("b"), _config=KnotConfig(id="add"))
-        self.assertFalse(node.is_optional)
+        self.assertNotIsInstance(node, Optional)
 
     def test_immutability_after_construction(self) -> None:
         node = Add(a=self._p("a"), b=self._p("b"), _config=KnotConfig(id="add"))

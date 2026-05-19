@@ -26,11 +26,36 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
+from scipy import signal as ss
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+
+def _synchronize(
+    ref_data: np.ndarray,
+    tgt_data: np.ndarray,
+    max_lag: int,
+) -> np.ndarray:
+    ref_ch = ref_data[0] if ref_data.ndim > 1 else ref_data
+    tgt_ch = tgt_data[0] if tgt_data.ndim > 1 else tgt_data
+    corr = ss.correlate(ref_ch, tgt_ch, mode="full")
+    center = len(corr) // 2
+    search = corr[center - max_lag : center + max_lag + 1]
+    lag = int(np.argmax(search)) - max_lag
+    if lag >= 0:
+        shifted = np.roll(tgt_data, lag, axis=-1)
+        shifted[..., :lag] = 0.0
+    else:
+        shifted = np.roll(tgt_data, lag, axis=-1)
+        shifted[..., lag:] = 0.0
+    return np.asarray(shifted)
 
 
 class TimeSynchronizer(Knot):
@@ -58,11 +83,11 @@ class TimeSynchronizer(Knot):
 
     async def process(
         self,
-        reference: SignalFrame,
-        target: SignalFrame,
+        reference: SignalPayload,
+        target: SignalPayload,
         max_lag_samples: int,
         **_: Any,
-    ) -> SignalFrame:
+    ) -> SignalPayload:
         """Estimate the time offset between reference and target via cross-correlation and return the aligned target.
 
         Args:
@@ -71,16 +96,22 @@ class TimeSynchronizer(Knot):
             max_lag_samples: Maximum search lag in samples (positive integer).
 
         Returns:
-            SignalFrame of the target signal shifted to align with the reference.
+            SignalPayload of the target signal shifted to align with the reference.
 
         Raises:
             ValueError: If max_lag_samples is not a positive integer.
         """
         if not isinstance(max_lag_samples, int) or max_lag_samples <= 0:
             raise ValueError("TimeSynchronizer: max_lag_samples must be a positive integer")
-        return SignalFrame(
-            signal_id=f"{target.signal_id}:synced",
-            channel_count=target.channel_count,
-            sample_rate_hz=target.sample_rate_hz,
-            samples_per_channel=target.samples_per_channel,
+
+        result = await asyncio.to_thread(_synchronize, reference.data, target.data, max_lag_samples)
+
+        return SignalPayload(
+            metadata=SignalFrame(
+                signal_id=f"{target.frame.signal_id}:synced",
+                channel_count=target.frame.channel_count,
+                sample_rate_hz=target.frame.sample_rate_hz,
+                samples_per_channel=target.frame.samples_per_channel,
+            ),
+            data=result,
         )

@@ -15,10 +15,22 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+
+
+async def _run_subprocess(cmd: list[str]) -> None:
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    _, stderr = await proc.communicate()
+    if proc.returncode != 0:
+        raise RuntimeError(f"{cmd[0]} failed: {stderr.decode()}")
 
 
 class SpatialNormalizer(Knot):
@@ -89,8 +101,19 @@ class SpatialNormalizer(Knot):
             )
         nifti_path: str = image.get("nifti_path", "image.nii.gz")
         base = nifti_path.removesuffix(".nii.gz")
+        warped_path = f"{base}_warped_{template}.nii.gz"
+        cmd = [
+            "flirt",
+            "-in",
+            nifti_path,
+            "-ref",
+            "MNI152_T1_2mm_brain.nii.gz",
+            "-out",
+            warped_path,
+        ]
+        await _run_subprocess(cmd)
         return {
-            "warped_image_path": f"{base}_warped_{template}.nii.gz",
+            "warped_image_path": warped_path,
             "warp_field_path": f"{base}_warp_{template}.nii.gz",
             "template": template,
             "final_cost": 0.0,

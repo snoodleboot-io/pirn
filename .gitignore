@@ -1,3 +1,6 @@
+# Lock file — pirn is a library; lock is not committed
+uv.lock
+
 # Python
 __pycache__/
 *.py[cod]
@@ -41,3 +44,6 @@ site/
 *.db-journal
 *.db-wal
 *.db-shm
+_later_designs/
+_pheenyx_charts/
+.claude/worktrees/

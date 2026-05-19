@@ -9,15 +9,15 @@ import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.domains.signal.adaptive.echo_canceller import EchoCanceller
-from pirn.domains.signal.types.signal_frame import SignalFrame
-from tests.unit.domains.signal.conftest import make_signal_frame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+from tests.unit.domains.signal.conftest import make_signal_payload
 
-_MIC = make_signal_frame(signal_id="test")
-_FAR = make_signal_frame(signal_id="reference")
+_MIC = make_signal_payload(signal_id="test")
+_FAR = make_signal_payload(signal_id="reference")
 
 
 def _up(name: str) -> Parameter:
-    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
+    return Parameter(name, SignalPayload, _config=KnotConfig(id=name))
 
 
 class TestEchoCanceller(unittest.IsolatedAsyncioTestCase):
@@ -48,5 +48,5 @@ class TestEchoCanceller(unittest.IsolatedAsyncioTestCase):
     async def test_emits_signal_frame(self) -> None:
         knot = self._make()
         out = await knot.process(_MIC, _FAR, filter_length=64, step_size=0.05)
-        assert isinstance(out, SignalFrame)
-        assert out.sample_rate_hz == 1000.0
+        assert isinstance(out, SignalPayload)
+        assert out.frame.sample_rate_hz == 1000.0

@@ -10,35 +10,35 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.production.data_drift_detector import (
     DataDriftDetector,
 )
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.split_manifest import SplitManifest
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 from pirn.tapestry import Tapestry
 
 
 @knot
-async def emit_reference() -> DataSplit:
-    train = MLDataset(name="r:train", feature_names=("a", "b"), row_count=800)
-    test = MLDataset(name="r:test", feature_names=("a", "b"), row_count=200)
-    return DataSplit(train=train, test=test)
+async def emit_reference() -> SplitManifest:
+    train = DatasetManifest(name="r:train", feature_names=("a", "b"), row_count=800)
+    test = DatasetManifest(name="r:test", feature_names=("a", "b"), row_count=200)
+    return SplitManifest(train=train, test=test)
 
 
 @knot
-async def emit_current() -> DataSplit:
-    train = MLDataset(name="c:train", feature_names=("a", "b"), row_count=900)
-    test = MLDataset(name="c:test", feature_names=("a", "b"), row_count=100)
-    return DataSplit(train=train, test=test)
+async def emit_current() -> SplitManifest:
+    train = DatasetManifest(name="c:train", feature_names=("a", "b"), row_count=900)
+    test = DatasetManifest(name="c:test", feature_names=("a", "b"), row_count=100)
+    return SplitManifest(train=train, test=test)
 
 
-def _make_reference() -> DataSplit:
-    train = MLDataset(name="r:train", feature_names=("a", "b"), row_count=800)
-    test = MLDataset(name="r:test", feature_names=("a", "b"), row_count=200)
-    return DataSplit(train=train, test=test)
+def _make_reference() -> SplitManifest:
+    train = DatasetManifest(name="r:train", feature_names=("a", "b"), row_count=800)
+    test = DatasetManifest(name="r:test", feature_names=("a", "b"), row_count=200)
+    return SplitManifest(train=train, test=test)
 
 
-def _make_current() -> DataSplit:
-    train = MLDataset(name="c:train", feature_names=("a", "b"), row_count=900)
-    test = MLDataset(name="c:test", feature_names=("a", "b"), row_count=100)
-    return DataSplit(train=train, test=test)
+def _make_current() -> SplitManifest:
+    train = DatasetManifest(name="c:train", feature_names=("a", "b"), row_count=900)
+    test = DatasetManifest(name="c:test", feature_names=("a", "b"), row_count=100)
+    return SplitManifest(train=train, test=test)
 
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):

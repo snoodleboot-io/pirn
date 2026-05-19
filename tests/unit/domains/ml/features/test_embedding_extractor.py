@@ -8,8 +8,8 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.domains.ml.features.embedding_extractor import EmbeddingExtractor
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.split_manifest import SplitManifest
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 from pirn.tapestry import Tapestry
 from tests.unit.domains.ml._stubs.recording_embedding_provider import (
     RecordingEmbeddingProvider,
@@ -17,14 +17,14 @@ from tests.unit.domains.ml._stubs.recording_embedding_provider import (
 
 
 @knot
-async def emit_split() -> DataSplit:
-    train = MLDataset(
+async def emit_split() -> SplitManifest:
+    train = DatasetManifest(
         name="d:train", feature_names=("a",), row_count=10
     )
-    test = MLDataset(
+    test = DatasetManifest(
         name="d:test", feature_names=("a",), row_count=5
     )
-    return DataSplit(train=train, test=test)
+    return SplitManifest(train=train, test=test)
 
 
 class TestEmbeddingExtractorHappyPath(unittest.IsolatedAsyncioTestCase):
@@ -40,7 +40,7 @@ class TestEmbeddingExtractorHappyPath(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert result.succeeded
-        out: DataSplit = result.outputs["emb"]
+        out: SplitManifest = result.outputs["emb"]
         assert "review_embedding" in out.train.feature_names
         assert "review_embedding" in out.test.feature_names
         assert provider.calls and provider.calls[0][0] == ["review"]
@@ -50,9 +50,9 @@ class TestEmbeddingExtractorProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_provider(self) -> None:
         extractor = EmbeddingExtractor.__new__(EmbeddingExtractor)
         object.__setattr__(extractor, "_config", KnotConfig(id="x"))
-        train = MLDataset(name="d:train", feature_names=("a",), row_count=10)
-        test = MLDataset(name="d:test", feature_names=("a",), row_count=5)
-        split = DataSplit(train=train, test=test)
+        train = DatasetManifest(name="d:train", feature_names=("a",), row_count=10)
+        test = DatasetManifest(name="d:test", feature_names=("a",), row_count=5)
+        split = SplitManifest(train=train, test=test)
         with self.assertRaisesRegex(TypeError, "EmbeddingProvider"):
             await extractor.process(
                 split=split,

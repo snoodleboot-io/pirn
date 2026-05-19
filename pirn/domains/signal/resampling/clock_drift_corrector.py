@@ -24,11 +24,21 @@ References:
 
 from __future__ import annotations
 
+import asyncio
+from math import gcd
 from typing import Any
+
+import numpy as np
+from scipy import signal as ss
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+
+def _resample_poly(data: np.ndarray, up: int, down: int) -> np.ndarray:
+    return np.asarray(ss.resample_poly(data, up, down, axis=-1))
 
 
 class ClockDriftCorrector(Knot):
@@ -56,11 +66,11 @@ class ClockDriftCorrector(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         reference_rate_hz: float,
         measured_rate_hz: float,
         **_: Any,
-    ) -> SignalFrame:
+    ) -> SignalPayload:
         """Correct clock drift by resampling from the measured rate to the reference rate.
 
         Args:
@@ -69,7 +79,7 @@ class ClockDriftCorrector(Knot):
             measured_rate_hz: Observed (drifted) sample rate in Hz (positive float).
 
         Returns:
-            SignalFrame resampled to the reference rate with drift corrected.
+            SignalPayload resampled to the reference rate with drift corrected.
 
         Raises:
             ValueError: If reference_rate_hz or measured_rate_hz are not positive.
@@ -78,11 +88,19 @@ class ClockDriftCorrector(Knot):
             raise ValueError("ClockDriftCorrector: reference_rate_hz must be positive")
         if not isinstance(measured_rate_hz, (int, float)) or measured_rate_hz <= 0:
             raise ValueError("ClockDriftCorrector: measured_rate_hz must be positive")
-        ratio = reference_rate_hz / measured_rate_hz
-        new_samples = int(signal.samples_per_channel * ratio)
-        return SignalFrame(
-            signal_id=f"{signal.signal_id}:drift_corrected",
-            channel_count=signal.channel_count,
-            sample_rate_hz=float(reference_rate_hz),
-            samples_per_channel=new_samples,
+
+        common = gcd(int(reference_rate_hz), int(measured_rate_hz))
+        up = int(reference_rate_hz) // common
+        down = int(measured_rate_hz) // common
+
+        result = await asyncio.to_thread(_resample_poly, signal.data, up, down)
+
+        return SignalPayload(
+            metadata=SignalFrame(
+                signal_id=f"{signal.frame.signal_id}:drift_corrected",
+                channel_count=signal.frame.channel_count,
+                sample_rate_hz=float(reference_rate_hz),
+                samples_per_channel=result.shape[-1],
+            ),
+            data=result,
         )

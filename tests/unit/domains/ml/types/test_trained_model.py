@@ -1,17 +1,17 @@
-"""Tests for :class:`TrainedModel`."""
+"""Tests for :class:`ModelManifest`."""
 
 from __future__ import annotations
 
 import unittest
 from datetime import UTC, datetime
 
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.model_manifest import ModelManifest
 
 
 class TestTrainedModel(unittest.TestCase):
     def test_construction_and_audit_dict(self) -> None:
         created_at = datetime(2026, 4, 29, 9, 0, tzinfo=UTC)
-        model = TrainedModel(
+        model = ModelManifest(
             model_id="rf:abc",
             algorithm="random_forest",
             hyperparameters={"n_estimators": 100},

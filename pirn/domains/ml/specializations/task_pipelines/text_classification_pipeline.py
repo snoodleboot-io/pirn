@@ -7,8 +7,11 @@ Algorithm:
     2. Validate all inputs.
     3. Wire DatasetLoader → TrainTestSplit → Trainer → Evaluator in an
        inner Tapestry.
-    4. Run via _run_inner() and return the EvalReport.
+    4. Run via _run_inner() and return the EvalMetadata.
 
+Math:
+    TF-IDF vectorisation: tfidf(t, d) = tf(t, d) * log((1 + N) / (1 + df(t))) + 1
+    Classification loss: L = -(1/n) * sum_i sum_c y_{i,c} * log(p_{i,c})
 
 References:
     N/A — pirn-native implementation.
@@ -27,9 +30,7 @@ from pirn.domains.ml.data_prep.dataset_loader import DatasetLoader
 from pirn.domains.ml.data_prep.train_test_split import TrainTestSplit
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.eval_report import EvalReport
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class TextClassificationPipeline(SubTapestry):
@@ -75,8 +76,8 @@ class TextClassificationPipeline(SubTapestry):
         vectorizer: str = "tfidf",
         algorithm: str = "logistic",
         **_: Any,
-    ) -> EvalReport:
-        """Load text data, vectorize, train a classifier, and return the classification EvalReport.
+    ) -> Any:
+        """Load text data, vectorize, train a classifier, and return the classification EvalMetadata.
 
         Args:
             pool: DatabaseConnectionPool for loading the dataset.
@@ -87,7 +88,7 @@ class TextClassificationPipeline(SubTapestry):
             algorithm: Non-empty algorithm identifier.
 
         Returns:
-            EvalReport containing accuracy, precision, recall, and f1 metrics.
+            EvalReportPayload containing accuracy, precision, recall, and f1 metrics.
 
         Raises:
             ValueError: If any input fails validation.
@@ -107,30 +108,27 @@ class TextClassificationPipeline(SubTapestry):
             )
         if not isinstance(algorithm, str) or not algorithm:
             raise ValueError("TextClassificationPipeline: algorithm must be a non-empty string")
-        with Tapestry() as inner:
-            dataset = DatasetLoader(
-                name="text-classification",
-                feature_names=(text_column,),
-                target_name=target_column,
-                pool=pool,
-                query=query,
-                _config=KnotConfig(id="load"),
-            )
-            split = TrainTestSplit(
-                dataset=dataset,
-                _config=KnotConfig(id="split"),
-            )
-            trained = Trainer(
-                split=split,
-                algorithm=algorithm,
-                hyperparameters={"vectorizer": vectorizer},
-                _config=KnotConfig(id="train"),
-            )
-            Evaluator(
-                model=trained,
-                split=split,
-                metrics=self._classification_metrics,
-                _config=KnotConfig(id="evaluate"),
-            )
-        inner_result = await self._run_inner(inner)
-        return inner_result.outputs["evaluate"]
+        dataset = DatasetLoader(
+            name="text-classification",
+            feature_names=(text_column,),
+            target_name=target_column,
+            pool=pool,
+            query=query,
+            _config=KnotConfig(id="load"),
+        )
+        split = TrainTestSplit(
+            dataset=dataset,
+            _config=KnotConfig(id="split"),
+        )
+        trained = Trainer(
+            split=split,
+            algorithm=algorithm,
+            hyperparameters={"vectorizer": vectorizer},
+            _config=KnotConfig(id="train"),
+        )
+        return Evaluator(
+            model=trained,
+            split=split,
+            metrics=self._classification_metrics,
+            _config=KnotConfig(id="evaluate"),
+        )

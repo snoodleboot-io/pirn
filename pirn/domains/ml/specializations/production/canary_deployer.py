@@ -9,6 +9,11 @@ Algorithm:
     3. Compute deterministic scores for both models.
     4. Return comparison report with recommendation.
 
+Math:
+    Traffic routing: canary_rows = floor(canary_fraction * test_rows)
+                     control_rows = test_rows - canary_rows
+
+    Recommendation: "promote" if candidate_score >= current_score, else "rollback".
 
 References:
     N/A — pirn-native implementation.
@@ -23,8 +28,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class CanaryDeployer(Knot):
@@ -53,9 +58,9 @@ class CanaryDeployer(Knot):
 
     async def process(
         self,
-        current: TrainedModel,
-        candidate: TrainedModel,
-        split: DataSplit,
+        current: ModelManifest,
+        candidate: ModelManifest,
+        split: SplitManifest,
         canary_fraction: float = 0.1,
         primary_metric: str = "accuracy",
         **_: Any,
@@ -63,9 +68,9 @@ class CanaryDeployer(Knot):
         """Route canary traffic to candidate model, collect metrics from both, and return comparison report.
 
         Args:
-            current: Current production TrainedModel receiving the majority of traffic.
-            candidate: New TrainedModel receiving the canary fraction of traffic.
-            split: DataSplit used to simulate traffic and evaluate both models.
+            current: Current production ModelManifest receiving the majority of traffic.
+            candidate: New ModelManifest receiving the canary fraction of traffic.
+            split: SplitManifest used to simulate traffic and evaluate both models.
             canary_fraction: Fraction of traffic to route to the candidate; must be in (0, 1).
             primary_metric: Non-empty metric name to compare.
 
@@ -95,7 +100,7 @@ class CanaryDeployer(Knot):
         }
 
     def _model_score(
-        self, model: TrainedModel, split: DataSplit, role: str, primary_metric: str
+        self, model: ModelManifest, split: SplitManifest, role: str, primary_metric: str
     ) -> float:
         payload = json.dumps(
             {

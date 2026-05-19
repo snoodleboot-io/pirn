@@ -38,6 +38,52 @@ pirn's built-ins. To restrict resolution to your library only, look up via
 ``AbstractInverterFactory[Knot].create(name, library="my_company")``.
 """
 
-from sweet_tea.registry import Registry
+import warnings
+from importlib.metadata import PackageNotFoundError, version
 
-Registry.fill_registry()
+from sweet_tea.registry import Registry
+from sweet_tea.sweet_tea_warning import SweetTeaWarning
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", SweetTeaWarning)
+    Registry.fill_registry()
+
+try:
+    __version__ = version("pirn")
+except PackageNotFoundError:
+    __version__ = "unknown"
+
+# Public API re-exports — users may import from pirn directly.
+# Registry.fill_registry() above must run first; noqa: E402 suppresses the
+# "import not at top of file" warnings that follow from that ordering.
+from pirn.core.assembler import Assembler
+from pirn.core.disassembler import Disassembler
+from pirn.core.error_policy import ErrorPolicy
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.core.run_result import RunResult
+from pirn.nodes.loop_sub_tapestry import LoopSubTapestry
+from pirn.nodes.sink import Sink
+from pirn.nodes.source import Source
+from pirn.nodes.sub_tapestry import SubTapestry
+from pirn.tapestry import Tapestry
+
+__all__ = [
+    "Tapestry",
+    "Knot",
+    "KnotConfig",
+    "knot",
+    "Parameter",
+    "RunRequest",
+    "RunResult",
+    "ErrorPolicy",
+    "Assembler",
+    "Disassembler",
+    "Sink",
+    "Source",
+    "SubTapestry",
+    "LoopSubTapestry",
+]

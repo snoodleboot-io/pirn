@@ -40,7 +40,37 @@ from pirn.core.knot_config import KnotConfig
 
 
 class Reduce(Knot):
-    """Fold a list parent into a single value."""
+    """Fold a list parent into a single value.
+
+    A ``Reduce`` takes one parent knot whose output is a list and a ``combine``
+    callable.  Two calling conventions are supported and selected automatically
+    by inspecting ``combine``'s required parameter count.
+
+    Algorithm:
+        1. Signature inspection — at construction time, ``inspect.signature`` is
+           used to count required positional parameters in ``combine``.  One
+           required parameter selects the whole-list form; two required
+           parameters select the pairwise form.  Any other count raises
+           ``TypeError``.
+        2. Pairwise validation — if the pairwise form is selected and no
+           ``initial`` value is given, ``TypeError`` is raised immediately.
+        3. Resolution — the engine resolves the single ``of`` parent and passes
+           its output as the ``of`` argument to ``process()``.
+        4. Whole-list reduction — ``combine(of)`` is called once with the entire
+           list and its return value is the output.
+        5. Pairwise reduction — starting from ``initial``, ``combine(acc, item)``
+           is called for each element in ``of`` in order, accumulating into
+           ``acc``.  The final ``acc`` is the output.
+
+    Math:
+        Whole-list form: ``output = combine(items)``
+
+        Pairwise form: ``output = combine(... combine(combine(initial, items[0]),
+        items[1]) ..., items[n-1])``
+
+        Equivalent to Python's ``functools.reduce(combine, items, initial)`` but
+        without the dependency on ``functools``.
+    """
 
     _unset: ClassVar[object] = object()
 

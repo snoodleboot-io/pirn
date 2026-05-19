@@ -64,8 +64,13 @@ class LasFormat(BatchFileFormat):
         if not materialised:
             raise ValueError("LasFormat: cannot encode an empty record stream")
         record = materialised[0]
-        curves: list[str] = list(record.get("curves", []))
-        data: list[list[float]] = list(record.get("data", []))
+        for field in ("curves", "data"):
+            if field not in record:
+                raise KeyError(
+                    f"LasFormat: record missing required field '{field}'; got: {list(record)}"
+                )
+        curves: list[str] = list(record["curves"])
+        data: list[list[float]] = list(record["data"])
         import numpy as np
 
         las = lasio.LASFile()

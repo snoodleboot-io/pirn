@@ -24,19 +24,26 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
+import pywt
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
 from pirn.domains.signal.types.wavelet_frame import WaveletFrame
+from pirn.domains.signal.types.wavelet_payload import WaveletPayload
+
+
+def _run_dwpt(data: np.ndarray, wavelet_name: str, level: int) -> list[np.ndarray]:
+    wp = pywt.WaveletPacket(data, wavelet_name, maxlevel=level)
+    return [node.data for node in wp.get_level(level, "freq")]
 
 
 class DWPTDecomposer(Knot):
-    """Dual-tree wavelet packet transform.
-
-    Production needs a dual-tree wavelet implementation.
-    """
+    """Discrete wavelet packet transform."""
 
     def __init__(
         self,
@@ -57,20 +64,20 @@ class DWPTDecomposer(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         wavelet_name: str,
         level_count: int,
         **_: Any,
-    ) -> WaveletFrame:
-        """Compute the dual-tree wavelet packet transform of the signal and return a WaveletFrame.
+    ) -> WaveletPayload:
+        """Compute the wavelet packet transform and return a WaveletPayload.
 
         Args:
-            signal: Signal to decompose using the configured dual-tree wavelet at the configured level count.
+            signal: Signal payload to decompose.
             wavelet_name: Name of the wavelet (non-empty string).
             level_count: Number of decomposition levels (positive integer).
 
         Returns:
-            WaveletFrame of DWPT coefficients with ``2 ** level_count`` subbands.
+            WaveletPayload of DWPT node coefficients at the given level.
 
         Raises:
             ValueError: If wavelet_name or level_count are invalid.
@@ -79,8 +86,10 @@ class DWPTDecomposer(Knot):
             raise ValueError("DWPTDecomposer: wavelet_name must be a non-empty string")
         if not isinstance(level_count, int) or level_count <= 0:
             raise ValueError("DWPTDecomposer: level_count must be a positive integer")
-        return WaveletFrame(
-            signal_id=signal.signal_id,
+        nodes = await asyncio.to_thread(_run_dwpt, signal.data, wavelet_name, level_count)
+        frame = WaveletFrame(
+            signal_id=signal.frame.signal_id,
             wavelet_name=wavelet_name,
-            scale_count=2**level_count,
+            scale_count=len(nodes),
         )
+        return WaveletPayload(metadata=frame, data=nodes)

@@ -1,19 +1,26 @@
-"""Tests for :class:`ArrowToLanceSink`.
-
-Construction-time guards do not require the lance dependency. The
-end-to-end write test skips when the actual ``lance.write_dataset`` API
-is missing (the PyPI ``lance`` placeholder package does not provide it).
-"""
+"""Tests for :class:`ArrowToLanceSink`."""
 
 from __future__ import annotations
 
-import tempfile
 import unittest
+
+try:
+    import pyarrow  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("pyarrow not installed") from _e
+
+try:
+    from lance.dataset import write_dataset as _lance_write_dataset  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("lance not installed") from _e
+
+import tempfile
 from pathlib import Path
 from typing import Any
 
 import pyarrow as pa
-import pytest
+from lance.dataset import LanceDataset as _LanceDataset
+from lance.dataset import write_dataset
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -33,23 +40,13 @@ class TestArrowToLanceSink(unittest.IsolatedAsyncioTestCase):
     async def test_writes_dataset_to_disk(self) -> None:
         tmp_dir = tempfile.TemporaryDirectory()
         self.addCleanup(tmp_dir.cleanup)
-        try:
-            import lance
-        except ImportError:
-            self.skipTest("lance not installed")
-        if not hasattr(lance, "write_dataset") or not hasattr(lance, "dataset"):
-            pytest.skip(
-                "Installed 'lance' package is the unrelated codegen "
-                "package, not pylance"
-            )
-
         path = str(Path(tmp_dir.name) / "out.lance")
         with Tapestry() as t:
             tbl = _emit_table(_config=KnotConfig(id="t"))
             ArrowToLanceSink(table=tbl, path=path, _config=KnotConfig(id="sink"))
         result = await t.run(RunRequest())
         assert result.outputs["sink"] == path
-        ds = lance.dataset(path)
+        ds = _LanceDataset(path)
         assert ds.to_table().num_rows == 3
 
 
@@ -57,13 +54,6 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_path_from_upstream_knot(self) -> None:
         tmp_dir = tempfile.TemporaryDirectory()
         self.addCleanup(tmp_dir.cleanup)
-        try:
-            import lance
-        except ImportError:
-            self.skipTest("lance not installed")
-        if not hasattr(lance, "write_dataset"):
-            pytest.skip("lance package does not provide write_dataset")
-
         expected_path = str(Path(tmp_dir.name) / "wired.lance")
 
         @knot
@@ -101,13 +91,6 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def test_accepts_known_modes(self) -> None:
         tmp_dir = tempfile.TemporaryDirectory()
         self.addCleanup(tmp_dir.cleanup)
-        try:
-            import lance
-        except ImportError:
-            self.skipTest("lance not installed")
-        if not hasattr(lance, "write_dataset"):
-            pytest.skip("lance package does not provide write_dataset")
-
         path = str(Path(tmp_dir.name) / "x.lance")
         k = self._make_sink(path=path, mode="overwrite")
         result = await k.process(

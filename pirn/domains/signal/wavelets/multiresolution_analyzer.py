@@ -25,19 +25,25 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
+import pywt
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
 from pirn.domains.signal.types.wavelet_frame import WaveletFrame
+from pirn.domains.signal.types.wavelet_payload import WaveletPayload
+
+
+def _run_mra(data: np.ndarray, wavelet_name: str, level: int) -> list[np.ndarray]:
+    return list(pywt.wavedec(data, wavelet_name, level=level, axis=-1))
 
 
 class MultiresolutionAnalyzer(Knot):
-    """Mallat multiresolution decomposition.
-
-    Production needs ``pywt.mra`` or equivalent.
-    """
+    """Mallat multiresolution decomposition."""
 
     def __init__(
         self,
@@ -58,20 +64,20 @@ class MultiresolutionAnalyzer(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         wavelet_name: str,
         level_count: int,
         **_: Any,
-    ) -> WaveletFrame:
-        """Decompose the signal via Mallat multiresolution analysis and return a WaveletFrame.
+    ) -> WaveletPayload:
+        """Decompose the signal via Mallat multiresolution analysis and return a WaveletPayload.
 
         Args:
-            signal: Signal to decompose through the configured wavelet filter bank.
+            signal: Signal payload to decompose.
             wavelet_name: Name of the wavelet (non-empty string).
             level_count: Number of decomposition levels (positive integer).
 
         Returns:
-            WaveletFrame of multiresolution decomposition levels with ``level_count`` scales.
+            WaveletPayload of multiresolution decomposition coefficient arrays.
 
         Raises:
             ValueError: If wavelet_name or level_count are invalid.
@@ -80,8 +86,10 @@ class MultiresolutionAnalyzer(Knot):
             raise ValueError("MultiresolutionAnalyzer: wavelet_name must be a non-empty string")
         if not isinstance(level_count, int) or level_count <= 0:
             raise ValueError("MultiresolutionAnalyzer: level_count must be a positive integer")
-        return WaveletFrame(
-            signal_id=signal.signal_id,
+        coeffs = await asyncio.to_thread(_run_mra, signal.data, wavelet_name, level_count)
+        frame = WaveletFrame(
+            signal_id=signal.frame.signal_id,
             wavelet_name=wavelet_name,
-            scale_count=level_count,
+            scale_count=len(coeffs),
         )
+        return WaveletPayload(metadata=frame, data=coeffs)

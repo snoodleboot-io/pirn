@@ -1,5 +1,5 @@
 from __future__ import annotations
 
 
-class _GateClosed(Exception):
+class _GateClosedError(Exception):
     """Internal signal: the gate predicate returned False."""

@@ -59,7 +59,7 @@ pip install pirn[sqlite]    # SQLiteStore + SQLiteHistory
 pip install pirn[postgres]  # PostgresStore + PostgresHistory
 pip install pirn[duckdb]    # DuckDBHistory — OLAP lineage queries
 pip install pirn[s3]        # S3DataStore
-pip install pirn[valkey]    # ValkeyStore + ValkeyDataStore
+pip install pirn[valkey]    # ValKeyStore + ValKeyDataStore
 pip install pirn[otel]      # OpenTelemetry emitter
 pip install pirn[all]       # everything
 ```

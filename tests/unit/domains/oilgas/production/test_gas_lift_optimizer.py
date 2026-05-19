@@ -38,6 +38,33 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
                 max_injection_rate_mmscfd=2.0,
             )
 
+    async def test_rejects_missing_performance_curve(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "performance_curve"):
+            await knot.process(
+                well_data={"current_injection_mmscfd": 0.5},
+                injection_gas_cost_per_mscf=2.5,
+                max_injection_rate_mmscfd=2.0,
+            )
+
+    async def test_rejects_missing_current_injection(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "current_injection_mmscfd"):
+            await knot.process(
+                well_data={"performance_curve": []},
+                injection_gas_cost_per_mscf=2.5,
+                max_injection_rate_mmscfd=2.0,
+            )
+
+    async def test_rejects_missing_curve_point_fields(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "injection_mmscfd"):
+            await knot.process(
+                well_data={"performance_curve": [{"oil_bopd": 400.0}], "current_injection_mmscfd": 0.5},
+                injection_gas_cost_per_mscf=2.5,
+                max_injection_rate_mmscfd=2.0,
+            )
+
     async def test_returns_optimal_injection(self) -> None:
         knot = self._make_knot()
         out = await knot.process(

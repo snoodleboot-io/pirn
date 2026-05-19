@@ -26,39 +26,47 @@ def _make_knot() -> OutputGuardrailGate:
 
 class TestOutputGuardrailGateProcessDirect(unittest.IsolatedAsyncioTestCase):
     async def test_process_passes_clean_response(self) -> None:
-        k = _make_knot()
         response = AgentResponse(content="all good", finish_reason="stop")
-        result = await k.process(
-            response=response,
-            deny_patterns=(),
-            allowed_tool_names=(),
-        )
+        with Tapestry() as t:
+            OutputGuardrailGate(
+                response=response,
+                deny_patterns=(),
+                allowed_tool_names=(),
+                _config=KnotConfig(id="gate"),
+            )
+        run = await t.run(RunRequest())
+        assert run.succeeded
+        result = run.outputs["gate"]
         assert isinstance(result, AgentResponse)
         assert result.content == "all good"
 
     async def test_process_raises_for_deny_pattern_match(self) -> None:
-        k = _make_knot()
         response = AgentResponse(content="this is BAD content", finish_reason="stop")
-        with self.assertRaises((TypeError, ValueError)):
-            await k.process(
+        with Tapestry() as t:
+            OutputGuardrailGate(
                 response=response,
                 deny_patterns=(r"BAD",),
                 allowed_tool_names=(),
+                _config=KnotConfig(id="gate"),
             )
+        run = await t.run(RunRequest())
+        assert not run.succeeded
 
     async def test_process_raises_for_disallowed_tool(self) -> None:
-        k = _make_knot()
         response = AgentResponse(
             content="ok",
             tool_calls=(ToolCall(tool_name="rogue", arguments={}, call_id="c1"),),
             finish_reason="stop",
         )
-        with self.assertRaises((TypeError, ValueError)):
-            await k.process(
+        with Tapestry() as t:
+            OutputGuardrailGate(
                 response=response,
                 deny_patterns=(),
                 allowed_tool_names=("search",),
+                _config=KnotConfig(id="gate"),
             )
+        run = await t.run(RunRequest())
+        assert not run.succeeded
 
 
 class TestOutputGuardrailGateProcess(unittest.IsolatedAsyncioTestCase):

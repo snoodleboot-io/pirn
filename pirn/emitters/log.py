@@ -29,10 +29,25 @@ class LogEmitter(Emitter):
         logger: logging.Logger | None = None,
         with_payload: bool = False,
     ) -> None:
+        """Initialise the emitter.
+
+        Args:
+            logger: Logger to write to.  Defaults to the ``pirn``
+                root logger when ``None``.
+            with_payload: When ``True``, the full JSON-serialised
+                ``RunResult`` or ``KnotLineage`` is included in each
+                log record under the ``pirn_payload`` extra key.
+                Useful for debugging; may be verbose in production.
+        """
         self._log = logger or logging.getLogger("pirn")
         self._with_payload = with_payload
 
     async def on_status(self, event: StatusEvent) -> None:
+        """Logs a knot state-transition event at INFO level.
+
+        Args:
+            event: The status event to log.
+        """
         self._log.info(
             "knot %s: %s",
             event.knot_id,
@@ -47,6 +62,14 @@ class LogEmitter(Emitter):
         )
 
     async def on_lineage(self, record: KnotLineage) -> None:
+        """Logs a lineage record at INFO level with structured extra fields.
+
+        When ``with_payload=True`` the full JSON is included under the
+        ``pirn_payload`` key.
+
+        Args:
+            record: The knot lineage record to log.
+        """
         extra = {
             "pirn_event": "lineage",
             "pirn_run_id": record.run_id,
@@ -67,6 +90,14 @@ class LogEmitter(Emitter):
         )
 
     async def on_run_result(self, result: RunResult) -> None:
+        """Logs the final run result at INFO (success) or ERROR (failure) level.
+
+        When ``with_payload=True`` the full JSON is included under the
+        ``pirn_payload`` key.
+
+        Args:
+            result: The completed run result to log.
+        """
         extra = {
             "pirn_event": "run_result",
             "pirn_run_id": result.run_id,

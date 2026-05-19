@@ -33,6 +33,33 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
                 reference_temp_f=60.0,
             )
 
+    async def test_rejects_missing_rate_bopd(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "rate_bopd"):
+            await knot.process(
+                measurements=[{"wellhead_pressure_psia": 100.0, "wellhead_temp_f": 120.0}],
+                reference_pressure_psia=14.7,
+                reference_temp_f=60.0,
+            )
+
+    async def test_rejects_missing_wellhead_pressure(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "wellhead_pressure_psia"):
+            await knot.process(
+                measurements=[{"rate_bopd": 500.0, "wellhead_temp_f": 120.0}],
+                reference_pressure_psia=14.7,
+                reference_temp_f=60.0,
+            )
+
+    async def test_rejects_missing_wellhead_temp(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "wellhead_temp_f"):
+            await knot.process(
+                measurements=[{"rate_bopd": 500.0, "wellhead_pressure_psia": 100.0}],
+                reference_pressure_psia=14.7,
+                reference_temp_f=60.0,
+            )
+
     async def test_returns_normalized_rates(self) -> None:
         knot = self._make_knot()
         out = await knot.process(

@@ -62,13 +62,21 @@ class VitalSignsAggregator(Knot):
             if not isinstance(row, Mapping):
                 raise TypeError("VitalSignsAggregator: every row must be a Mapping")
         out: dict[str, dict[str, dict[str, float]]] = {}
-        for row in rows:
-            patient_id = str(row.get("patient_id", ""))
-            vital_name = str(row.get("vital_name", ""))
+        for i, row in enumerate(rows):
+            for field in ("patient_id", "vital_name", "value"):
+                if field not in row:
+                    raise KeyError(
+                        f"VitalSignsAggregator: row[{i}] missing required field '{field}'; "
+                        f"got: {list(row)}"
+                    )
+            patient_id = str(row["patient_id"])
+            vital_name = str(row["vital_name"])
             try:
-                value = float(row.get("value", 0.0))
-            except (TypeError, ValueError):
-                value = 0.0
+                value = float(row["value"])
+            except (TypeError, ValueError) as exc:
+                raise ValueError(
+                    f"VitalSignsAggregator: row[{i}] field 'value' must be numeric"
+                ) from exc
             patient_bucket = out.setdefault(patient_id, {})
             current = patient_bucket.get(vital_name)
             if current is None:

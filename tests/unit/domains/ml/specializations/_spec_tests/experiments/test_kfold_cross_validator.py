@@ -10,14 +10,15 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.experiments.kfold_cross_validator import (
     KFoldCrossValidator,
 )
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.eval_metadata import EvalMetadata
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 from pirn.tapestry import Tapestry
 
 
 @knot
-async def emit_dataset() -> MLDataset:
-    return MLDataset(
+async def emit_dataset() -> DatasetManifest:
+    return DatasetManifest(
         name="d", feature_names=("a", "b"), target_name="y", row_count=100
     )
 
@@ -35,8 +36,8 @@ def _make_validator() -> KFoldCrossValidator:
     return validator
 
 
-def _dataset_fixture() -> MLDataset:
-    return MLDataset(
+def _dataset_fixture() -> DatasetManifest:
+    return DatasetManifest(
         name="d", feature_names=("a", "b"), target_name="y", row_count=100
     )
 
@@ -75,11 +76,11 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         assert result.succeeded
         report = result.outputs["cv"]
-        assert isinstance(report, EvalReport)
-        assert "accuracy_mean" in report.metrics
-        assert "accuracy_std" in report.metrics
-        assert report.details["k"] == 3
-        per_fold = report.details["per_fold_metrics"]
+        assert isinstance(report, EvalReportPayload)
+        assert "accuracy_mean" in report.metrics.scores
+        assert "accuracy_std" in report.metrics.scores
+        assert report.metrics.details["k"] == 3
+        per_fold = report.metrics.details["per_fold_metrics"]
         assert isinstance(per_fold, list) and len(per_fold) == 3
 
     async def test_default_k_is_five(self) -> None:
@@ -94,5 +95,5 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         assert result.succeeded
         report = result.outputs["cv"]
-        assert report.details["k"] == 5
-        assert len(report.details["per_fold_metrics"]) == 5
+        assert report.metrics.details["k"] == 5
+        assert len(report.metrics.details["per_fold_metrics"]) == 5

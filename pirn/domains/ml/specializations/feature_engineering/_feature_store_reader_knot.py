@@ -1,19 +1,19 @@
 """``_FeatureStoreReaderKnot`` — internal core knot that pulls feature
 rows from a :class:`FeatureStoreProvider` keyed by entity primary keys
 and joins the resulting feature names onto every partition of a
-:class:`DataSplit`.
+:class:`SplitManifest`.
 
 The orchestration layer issues a single ``get_features`` probe to the
 provider so misconfigured stores fail loudly. Concrete subclasses
 materialise the row-level join using the keys + feature names recorded
-on the upstream :class:`MLDataset`.
+on the upstream :class:`DatasetManifest`.
 
 Algorithm:
     1. Receive ``split``, ``feature_store``, ``entity_keys``, and
        ``feature_names`` via process().
     2. Validate inputs.
     3. Probe the feature store with a synthetic request.
-    4. Append feature names to every partition and return the extended DataSplit.
+    4. Append feature names to every partition and return the extended SplitManifest.
 
 
 References:
@@ -29,8 +29,8 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.ml.feature_store_provider import FeatureStoreProvider
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class _FeatureStoreReaderKnot(Knot):
@@ -57,22 +57,22 @@ class _FeatureStoreReaderKnot(Knot):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         feature_store: FeatureStoreProvider | None = None,
         entity_keys: Sequence[str] = (),
         feature_names: Sequence[str] = (),
         **_: Any,
-    ) -> DataSplit:
-        """Probe the feature store, join the configured feature names onto each partition, and return the extended DataSplit.
+    ) -> SplitManifest:
+        """Probe the feature store, join the configured feature names onto each partition, and return the extended SplitManifest.
 
         Args:
-            split: DataSplit whose partitions receive the joined feature names.
+            split: SplitManifest whose partitions receive the joined feature names.
             feature_store: FeatureStoreProvider to probe.
             entity_keys: Non-empty sequence of entity key names.
             feature_names: Non-empty sequence of feature names to join.
 
         Returns:
-            DataSplit with the configured feature names appended to every partition's feature list.
+            SplitManifest with the configured feature names appended to every partition's feature list.
 
         Raises:
             TypeError: If feature_store is not a FeatureStoreProvider.
@@ -91,7 +91,7 @@ class _FeatureStoreReaderKnot(Knot):
         probe_keys = [{key: "" for key in entity_key_tuple}]
         await feature_store.get_features(probe_keys, feature_name_tuple)
         now = datetime.now(UTC)
-        return DataSplit(
+        return SplitManifest(
             train=self._extend(split.train, feature_name_tuple, now),
             test=self._extend(split.test, feature_name_tuple, now),
             validation=(
@@ -103,15 +103,15 @@ class _FeatureStoreReaderKnot(Knot):
 
     def _extend(
         self,
-        dataset: MLDataset,
+        dataset: DatasetManifest,
         feature_names: tuple[str, ...],
         fetched_at: datetime,
-    ) -> MLDataset:
+    ) -> DatasetManifest:
         existing = list(dataset.feature_names)
         for name in feature_names:
             if name not in existing:
                 existing.append(name)
-        return MLDataset(
+        return DatasetManifest(
             name=f"{dataset.name}:fs_joined",
             feature_names=tuple(existing),
             target_name=dataset.target_name,

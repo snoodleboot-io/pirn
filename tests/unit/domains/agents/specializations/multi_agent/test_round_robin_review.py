@@ -50,9 +50,16 @@ class TestRoundRobinReviewProcess(unittest.IsolatedAsyncioTestCase):
     async def test_passes_response_through_each_reviewer(self) -> None:
         r1 = _make_reviewer("-r1", "r1")
         r2 = _make_reviewer("-r2", "r2")
-        k = _make_knot([r1, r2])
         response = AgentResponse(content="draft", finish_reason="stop")
-        result = await k.process(response=response, reviewers=[r1, r2])
+        with Tapestry() as t:
+            RoundRobinReview(
+                response=response,
+                reviewers=[r1, r2],
+                _config=KnotConfig(id="rrr"),
+            )
+        run = await t.run(RunRequest())
+        assert run.succeeded
+        result = run.outputs["rrr"]
         assert result.content == "draft-r1-r2"
 
     async def test_rejects_non_agent_response(self) -> None:

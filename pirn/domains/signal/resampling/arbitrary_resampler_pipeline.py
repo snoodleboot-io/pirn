@@ -27,11 +27,21 @@ References:
 
 from __future__ import annotations
 
+import asyncio
+from math import gcd
 from typing import Any
+
+import numpy as np
+from scipy import signal as ss
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+
+def _resample_poly(data: np.ndarray, up: int, down: int) -> np.ndarray:
+    return np.asarray(ss.resample_poly(data, up, down, axis=-1))
 
 
 class ArbitraryResamplerPipeline(Knot):
@@ -59,11 +69,11 @@ class ArbitraryResamplerPipeline(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         input_rate_hz: float,
         output_rate_hz: float,
         **_: Any,
-    ) -> SignalFrame:
+    ) -> SignalPayload:
         """Resample the signal from the input rate to the output rate.
 
         Args:
@@ -72,7 +82,7 @@ class ArbitraryResamplerPipeline(Knot):
             output_rate_hz: Target sample rate in Hz (positive float).
 
         Returns:
-            SignalFrame at ``output_rate_hz`` with sample count scaled proportionally.
+            SignalPayload at ``output_rate_hz`` with sample count scaled proportionally.
 
         Raises:
             ValueError: If input_rate_hz or output_rate_hz are not positive.
@@ -81,11 +91,19 @@ class ArbitraryResamplerPipeline(Knot):
             raise ValueError("ArbitraryResamplerPipeline: input_rate_hz must be positive")
         if not isinstance(output_rate_hz, (int, float)) or output_rate_hz <= 0:
             raise ValueError("ArbitraryResamplerPipeline: output_rate_hz must be positive")
-        ratio = output_rate_hz / input_rate_hz
-        new_samples = int(signal.samples_per_channel * ratio)
-        return SignalFrame(
-            signal_id=f"{signal.signal_id}:resampled",
-            channel_count=signal.channel_count,
-            sample_rate_hz=float(output_rate_hz),
-            samples_per_channel=new_samples,
+
+        common = gcd(int(input_rate_hz), int(output_rate_hz))
+        up = int(output_rate_hz) // common
+        down = int(input_rate_hz) // common
+
+        result = await asyncio.to_thread(_resample_poly, signal.data, up, down)
+
+        return SignalPayload(
+            metadata=SignalFrame(
+                signal_id=f"{signal.frame.signal_id}:resampled",
+                channel_count=signal.frame.channel_count,
+                sample_rate_hz=float(output_rate_hz),
+                samples_per_channel=result.shape[-1],
+            ),
+            data=result,
         )

@@ -25,11 +25,9 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_result import RunResult
 from pirn.domains.health.clinical._dedup_rx_cuis import _DedupRxCUIs
 from pirn.domains.health.clinical.rxnorm_normalizer import RxNormNormalizer
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class MedicationReconciliationPipeline(SubTapestry):
@@ -55,8 +53,8 @@ class MedicationReconciliationPipeline(SubTapestry):
         drug_names: Sequence[str],
         mapping: Mapping[str, str],
         **_: Any,
-    ) -> RunResult:
-        """Normalise drug names to RxCUI codes, deduplicate them, and return the inner RunResult.
+    ) -> Any:
+        """Normalise drug names to RxCUI codes, deduplicate them, and return the terminal Knot.
 
         Args:
             drug_names: Sequence of drug name strings to normalise.
@@ -72,14 +70,12 @@ class MedicationReconciliationPipeline(SubTapestry):
             raise TypeError("MedicationReconciliationPipeline: drug_names must be list/tuple")
         if not isinstance(mapping, Mapping):
             raise TypeError("MedicationReconciliationPipeline: mapping must be a Mapping")
-        with Tapestry() as inner:
-            normalised = RxNormNormalizer(
-                drug_names=tuple(drug_names),
-                mapping=mapping,
-                _config=KnotConfig(id="rxnorm-normalize"),
-            )
-            _DedupRxCUIs(
-                rxcuis=normalised,
-                _config=KnotConfig(id="rxnorm-dedup"),
-            )
-        return await self._run_inner(inner)
+        normalised = RxNormNormalizer(
+            drug_names=tuple(drug_names),
+            mapping=mapping,
+            _config=KnotConfig(id="rxnorm-normalize"),
+        )
+        return _DedupRxCUIs(
+            rxcuis=normalised,
+            _config=KnotConfig(id="rxnorm-dedup"),
+        )

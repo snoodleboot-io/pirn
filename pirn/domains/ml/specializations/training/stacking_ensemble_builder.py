@@ -1,7 +1,7 @@
 """``StackingEnsembleBuilder`` — train base models, use their OOF predictions
 as features for a meta-learner.
 
-Returns the stacked ensemble :class:`TrainedModel` and its evaluation
+Returns the stacked ensemble :class:`ModelManifest` and its evaluation
 report.
 
 Algorithm:
@@ -12,6 +12,10 @@ Algorithm:
        inner Tapestry.
     4. Run via _run_inner() and return ensemble model and eval report.
 
+Math:
+    Level-0 (base models): y_hat_i = f_i(x)  for i in 1..M
+    Level-1 (meta-learner input): Z = [y_hat_1, ..., y_hat_M]  (OOF predictions)
+    Meta prediction: y_hat_meta = g(Z; theta_meta)
 
 References:
     N/A — pirn-native implementation.
@@ -28,16 +32,28 @@ from pirn.core.knot_factory import knot
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.training.ensemble_builder import EnsembleBuilder
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
 async def _emit_value(value: Any) -> Any:
     return value
+
+
+@knot
+async def _combine_stacking_result(
+    ensemble_model: ModelManifest,
+    eval_report: EvalReportPayload,
+    n_base_models: int,
+) -> dict[str, Any]:
+    return {
+        "ensemble_model": ensemble_model,
+        "eval_report": eval_report,
+        "n_base_models": n_base_models,
+    }
 
 
 class StackingEnsembleBuilder(SubTapestry):
@@ -64,22 +80,22 @@ class StackingEnsembleBuilder(SubTapestry):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         base_algorithms: Sequence[str] = (),
         meta_algorithm: str = "",
         metrics: Sequence[str] = (),
         **_: Any,
-    ) -> dict[str, Any]:
+    ) -> Any:
         """Train base models and a stacking meta-learner, return the ensemble and its evaluation.
 
         Args:
-            split: DataSplit used for base model training and meta-learner evaluation.
+            split: SplitManifest used for base model training and meta-learner evaluation.
             base_algorithms: At least two non-empty algorithm identifiers.
             meta_algorithm: Non-empty algorithm identifier for the meta-learner.
             metrics: Non-empty sequence of metric names.
 
         Returns:
-            Dict with ``ensemble_model`` (TrainedModel), ``eval_report`` (EvalReport),
+            Dict with ``ensemble_model`` (ModelManifest), ``eval_report`` (EvalMetadata),
             and ``n_base_models`` (int).
 
         Raises:
@@ -104,36 +120,30 @@ class StackingEnsembleBuilder(SubTapestry):
                 raise ValueError(
                     "StackingEnsembleBuilder: every metric name must be a non-empty string"
                 )
-        with Tapestry() as inner:
-            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
-            base_models = []
-            for i, alg in enumerate(base_tuple):
-                model = Trainer(
-                    split=split_node,
-                    algorithm=alg,
-                    _config=KnotConfig(id=f"base_{i}"),
-                )
-                base_models.append(model)
-            ensemble = EnsembleBuilder(
-                models=base_models,
-                strategy="stacking",
-                _config=KnotConfig(id="ensemble"),
-            )
-            Evaluator(
-                model=ensemble,
+        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        base_models = []
+        for i, alg in enumerate(base_tuple):
+            model = Trainer(
                 split=split_node,
-                metrics=metric_tuple,
-                _config=KnotConfig(id="evaluate"),
+                algorithm=alg,
+                _config=KnotConfig(id=f"base_{i}"),
             )
-        result = await self._run_inner(inner)
-        ensemble_model = result.outputs["ensemble"]
-        report = result.outputs["evaluate"]
-        if not isinstance(ensemble_model, TrainedModel):
-            raise TypeError("StackingEnsembleBuilder: ensemble did not return a TrainedModel")
-        if not isinstance(report, EvalReport):
-            raise TypeError("StackingEnsembleBuilder: evaluator did not return an EvalReport")
-        return {
-            "ensemble_model": ensemble_model,
-            "eval_report": report,
-            "n_base_models": len(base_tuple),
-        }
+            base_models.append(model)
+        ensemble = EnsembleBuilder(
+            models=base_models,
+            strategy="stacking",
+            _config=KnotConfig(id="ensemble"),
+        )
+        evaluated = Evaluator(
+            model=ensemble,
+            split=split_node,
+            metrics=metric_tuple,
+            _config=KnotConfig(id="evaluate"),
+        )
+        n_base_node = _emit_value(value=len(base_tuple), _config=KnotConfig(id="n_base_models"))
+        return _combine_stacking_result(
+            ensemble_model=ensemble,
+            eval_report=evaluated,
+            n_base_models=n_base_node,
+            _config=KnotConfig(id="combine"),
+        )

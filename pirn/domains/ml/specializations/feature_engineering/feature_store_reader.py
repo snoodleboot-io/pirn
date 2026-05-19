@@ -1,13 +1,13 @@
 """``FeatureStoreReader`` — fetch features from a
 :class:`FeatureStoreProvider` and join the feature names onto every
-partition of a :class:`DataSplit`.
+partition of a :class:`SplitManifest`.
 
 Algorithm:
-    1. Receive ``split`` (DataSplit), ``feature_store`` (FeatureStoreProvider),
+    1. Receive ``split`` (SplitManifest), ``feature_store`` (FeatureStoreProvider),
        ``entity_keys`` (Sequence[str]), and ``feature_names`` (Sequence[str]) via process().
     2. Validate all sequence inputs.
     3. Wire _FeatureStoreReaderKnot in an inner Tapestry.
-    4. Run via _run_inner() and return the extended DataSplit.
+    4. Run via _run_inner() and return the extended SplitManifest.
 
 
 References:
@@ -26,9 +26,8 @@ from pirn.domains.ml.feature_store_provider import FeatureStoreProvider
 from pirn.domains.ml.specializations.feature_engineering._feature_store_reader_knot import (
     _FeatureStoreReaderKnot,
 )
-from pirn.domains.ml.types.data_split import DataSplit
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
@@ -60,22 +59,22 @@ class FeatureStoreReader(SubTapestry):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         feature_store: FeatureStoreProvider | None = None,
         entity_keys: Sequence[str] = (),
         feature_names: Sequence[str] = (),
         **_: Any,
-    ) -> DataSplit:
-        """Fetch features from the store, join them onto each partition of the split, and return the extended DataSplit.
+    ) -> Any:
+        """Fetch features from the store, join them onto each partition of the split, and return the extended SplitManifest.
 
         Args:
-            split: DataSplit whose partitions receive the joined feature names.
+            split: SplitManifest whose partitions receive the joined feature names.
             feature_store: FeatureStoreProvider to read from.
             entity_keys: Non-empty sequence of entity key column names.
             feature_names: Non-empty sequence of feature names to fetch.
 
         Returns:
-            DataSplit with the configured feature names appended to every partition.
+            SplitManifest with the configured feature names appended to every partition.
 
         Raises:
             TypeError: If feature_store is not a FeatureStoreProvider or inner reader fails.
@@ -97,17 +96,11 @@ class FeatureStoreReader(SubTapestry):
                 raise ValueError(
                     "FeatureStoreReader: every feature name must be a non-empty string"
                 )
-        with Tapestry() as inner:
-            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
-            _FeatureStoreReaderKnot(
-                split=split_node,
-                feature_store=feature_store,
-                entity_keys=key_tuple,
-                feature_names=name_tuple,
-                _config=KnotConfig(id="read"),
-            )
-        result = await self._run_inner(inner)
-        joined = result.outputs["read"]
-        if not isinstance(joined, DataSplit):
-            raise TypeError("FeatureStoreReader: inner reader did not return a DataSplit")
-        return joined
+        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        return _FeatureStoreReaderKnot(
+            split=split_node,
+            feature_store=feature_store,
+            entity_keys=key_tuple,
+            feature_names=name_tuple,
+            _config=KnotConfig(id="read"),
+        )

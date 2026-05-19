@@ -2,15 +2,20 @@
 
 Samples N random hyperparameter combinations from the search space,
 trains and evaluates each, returns the best params + score wrapped in
-a :class:`TrainedModel` / :class:`EvalReport` pair.
+a :class:`ModelManifest` / :class:`EvalMetadata` pair.
 
 Algorithm:
-    1. Receive ``split`` (DataSplit), ``algorithm``, ``search_space``,
+    1. Receive ``split`` (SplitManifest), ``algorithm``, ``search_space``,
        ``primary_metric``, ``n_trials``, and ``random_seed`` via process().
     2. Validate all inputs.
     3. Wire HyperparamSearch (random) + Evaluator in an inner Tapestry.
     4. Run via _run_inner() and return best_model and eval_report.
 
+Math:
+    Random sampling without replacement from the search space:
+        theta_i ~ Uniform(search_space)  for i in 1..n_trials
+
+    Best config: theta* = argmax_{i in 1..n_trials} metric(eval(model(theta_i), split))
 
 References:
     N/A — pirn-native implementation.
@@ -26,16 +31,23 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.training.hyperparam_search import HyperparamSearch
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
 async def _emit_value(value: Any) -> Any:
     return value
+
+
+@knot
+async def _combine_search_eval(
+    best_model: ModelManifest,
+    eval_report: EvalReportPayload,
+) -> dict[str, Any]:
+    return {"best_model": best_model, "eval_report": eval_report}
 
 
 class RandomSearchTuner(SubTapestry):
@@ -66,18 +78,18 @@ class RandomSearchTuner(SubTapestry):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         algorithm: str = "",
         search_space: Mapping[str, Sequence[Any]] | None = None,
         primary_metric: str = "",
         n_trials: int = 20,
         random_seed: int = 42,
         **_: Any,
-    ) -> dict[str, Any]:
+    ) -> Any:
         """Sample N random hyperparameter combinations and return the best model and its evaluation.
 
         Args:
-            split: DataSplit used for candidate training and evaluation.
+            split: SplitManifest used for candidate training and evaluation.
             algorithm: Non-empty algorithm name string.
             search_space: Non-empty mapping of hyperparameter name to candidate values.
             primary_metric: Non-empty metric name to report.
@@ -85,7 +97,7 @@ class RandomSearchTuner(SubTapestry):
             random_seed: Seed for deterministic sampling.
 
         Returns:
-            Dict with ``best_model`` (TrainedModel) and ``eval_report`` (EvalReport).
+            Dict with ``best_model`` (ModelManifest) and ``eval_report`` (EvalMetadata).
 
         Raises:
             ValueError: If any input fails validation.
@@ -105,28 +117,24 @@ class RandomSearchTuner(SubTapestry):
         if not isinstance(random_seed, int):
             raise TypeError("RandomSearchTuner: random_seed must be an int")
         frozen_space = {k: tuple(v) for k, v in ss.items()}
-        with Tapestry() as inner:
-            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
-            best = HyperparamSearch(
-                split=split_node,
-                algorithm=algorithm,
-                search_space=frozen_space,
-                strategy="random",
-                n_trials=n_trials,
-                random_seed=random_seed,
-                _config=KnotConfig(id="search"),
-            )
-            Evaluator(
-                model=best,
-                split=split_node,
-                metrics=(primary_metric,),
-                _config=KnotConfig(id="evaluate"),
-            )
-        result = await self._run_inner(inner)
-        model = result.outputs["search"]
-        report = result.outputs["evaluate"]
-        if not isinstance(model, TrainedModel):
-            raise TypeError("RandomSearchTuner: search did not return a TrainedModel")
-        if not isinstance(report, EvalReport):
-            raise TypeError("RandomSearchTuner: evaluator did not return an EvalReport")
-        return {"best_model": model, "eval_report": report}
+        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        best = HyperparamSearch(
+            split=split_node,
+            algorithm=algorithm,
+            search_space=frozen_space,
+            strategy="random",
+            n_trials=n_trials,
+            random_seed=random_seed,
+            _config=KnotConfig(id="search"),
+        )
+        evaluated = Evaluator(
+            model=best,
+            split=split_node,
+            metrics=(primary_metric,),
+            _config=KnotConfig(id="evaluate"),
+        )
+        return _combine_search_eval(
+            best_model=best,
+            eval_report=evaluated,
+            _config=KnotConfig(id="combine"),
+        )

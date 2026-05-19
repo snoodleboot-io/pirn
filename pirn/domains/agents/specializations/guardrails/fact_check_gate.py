@@ -46,7 +46,6 @@ from pirn.domains.agents.specializations.guardrails.fact_claim_verifier import (
 )
 from pirn.domains.agents.types.agent_response import AgentResponse
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class FactCheckGate(SubTapestry):
@@ -69,7 +68,7 @@ class FactCheckGate(SubTapestry):
         store: MemoryStore,
         llm: LLMProvider,
         **_: Any,
-    ) -> AgentResponse:
+    ) -> Any:
         """Extract factual claims from the response and return it annotated with any unverified claims.
 
         Args:
@@ -81,20 +80,14 @@ class FactCheckGate(SubTapestry):
         Raises:
             RuntimeError: If the inner verifier does not return an AgentResponse.
         """
-        with Tapestry() as inner:
-            claims = FactClaimExtractor(
-                response=response,
-                llm=llm,
-                _config=KnotConfig(id="claims"),
-            )
-            FactClaimVerifier(
-                response=response,
-                claims=claims,
-                store=store,
-                _config=KnotConfig(id="verify"),
-            )
-        inner_result = await self._run_inner(inner)
-        verified = inner_result.outputs.get("verify")
-        if not isinstance(verified, AgentResponse):
-            raise RuntimeError("FactCheckGate: inner verifier did not return an AgentResponse")
-        return verified
+        claims = FactClaimExtractor(
+            response=response,
+            llm=llm,
+            _config=KnotConfig(id="claims"),
+        )
+        return FactClaimVerifier(
+            response=response,
+            claims=claims,
+            store=store,
+            _config=KnotConfig(id="verify"),
+        )

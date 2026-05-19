@@ -12,8 +12,8 @@ from pirn.domains.ml.feature_store_provider import FeatureStoreProvider
 from pirn.domains.ml.specializations.feature_engineering._feature_store_reader_knot import (
     _FeatureStoreReaderKnot,
 )
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.split_manifest import SplitManifest
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 from pirn.tapestry import Tapestry
 
 
@@ -32,9 +32,9 @@ class _SplitSource(Knot):
     def __init__(self, *, _config: KnotConfig, **kwargs: Any) -> None:
         super().__init__(_config=_config, **kwargs)
 
-    async def process(self, **_: Any) -> DataSplit:
-        ds = MLDataset(name="ds", feature_names=("x",), row_count=5)
-        return DataSplit(train=ds, test=ds)
+    async def process(self, **_: Any) -> SplitManifest:
+        ds = DatasetManifest(name="ds", feature_names=("x",), row_count=5)
+        return SplitManifest(train=ds, test=ds)
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
@@ -50,6 +50,6 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         split = result.outputs["fsr"]
-        self.assertIsInstance(split, DataSplit)
+        self.assertIsInstance(split, SplitManifest)
         self.assertIn("f1", split.train.feature_names)
         self.assertIn("f2", split.train.feature_names)

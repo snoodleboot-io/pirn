@@ -4,19 +4,36 @@ from __future__ import annotations
 
 import unittest
 
+try:
+    import scipy  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("scipy not installed") from _e
+
+try:
+    import pywt  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("pywt not installed") from _e
+
+import numpy as np
+import pywt
+
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
 from pirn.domains.signal.types.wavelet_frame import WaveletFrame
+from pirn.domains.signal.types.wavelet_payload import WaveletPayload
 from pirn.domains.signal.wavelets.idwt_reconstructor import IDWTReconstructor
 from pirn.tapestry import Tapestry
 
 
 @knot
-async def emit_wavelet_frame() -> WaveletFrame:
-    """Upstream knot emitting a deterministic WaveletFrame."""
-    return WaveletFrame(signal_id="wt", wavelet_name="db4", scale_count=4)
+async def emit_wavelet_payload() -> WaveletPayload:
+    """Upstream knot emitting a deterministic WaveletPayload."""
+    data = np.zeros(1024)
+    coeffs = list(pywt.wavedec(data, "db4", level=4, axis=-1))
+    frame = WaveletFrame(signal_id="wt", wavelet_name="db4", scale_count=len(coeffs))
+    return WaveletPayload(metadata=frame, data=coeffs)
 
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
@@ -38,13 +55,13 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
-    async def test_emits_signal_frame(self) -> None:
+    async def test_emits_signal_payload(self) -> None:
         with Tapestry() as t:
-            wf = emit_wavelet_frame(_config=KnotConfig(id="wf"))
+            wf = emit_wavelet_payload(_config=KnotConfig(id="wf"))
             IDWTReconstructor(
                 wavelet_frame=wf, wavelet="db4", level=4, _config=KnotConfig(id="i")
             )
         result = await t.run(RunRequest())
         out = result.outputs["i"]
-        assert isinstance(out, SignalFrame)
-        assert out.signal_id == "wt:idwt"
+        assert isinstance(out, SignalPayload)
+        assert out.frame.signal_id == "wt:idwt"

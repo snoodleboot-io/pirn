@@ -54,6 +54,19 @@ class DicomFormat(BatchFileFormat):
     PHI fields (``PatientName``, ``PatientBirthDate``, ``PatientAddress``
     and known synonyms) are stripped from the emitted ``metadata``
     mapping. ``PatientID`` is hashed with SHA-256 before emission.
+
+    One record is emitted per file::
+
+        {
+            "sop_instance_uid":   str,
+            "patient_id_hash":    str,    # SHA-256 hex digest of PatientID
+            "study_uid":          str,
+            "series_uid":         str,
+            "modality":           str,
+            "pixel_array_shape":  tuple,
+            "pixel_data":         bytes,  # raw PixelData bytes
+            "metadata":           Mapping,  # sanitised non-PHI DICOM tags
+        }
     """
 
     # Keywords that are forbidden from appearing in the emitted metadata
@@ -157,7 +170,11 @@ class DicomFormat(BatchFileFormat):
         dataset.SOPClassUID = "1.2.840.10008.5.1.4.1.1.7"
         dataset.StudyInstanceUID = cls._safe_text(record.get("study_uid", "")) or generate_uid()
         dataset.SeriesInstanceUID = cls._safe_text(record.get("series_uid", "")) or generate_uid()
-        dataset.Modality = cls._safe_text(record.get("modality", "OT"))
+        if "modality" not in record:
+            raise KeyError(
+                f"DicomFormat: record missing required field 'modality'; got: {list(record)}"
+            )
+        dataset.Modality = cls._safe_text(record["modality"])
 
         pixel_data = record.get("pixel_data", b"")
         if not isinstance(pixel_data, (bytes, bytearray)):

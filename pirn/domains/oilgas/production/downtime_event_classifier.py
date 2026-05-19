@@ -91,8 +91,16 @@ class DowntimeEventClassifier(Knot):
         zero_start: str | None = None
         prev_ts: str | None = None
         for entry in production_series:
+            if "timestamp_iso" not in entry:
+                raise ValueError(
+                    "DowntimeEventClassifier: required field 'timestamp_iso' missing from input"
+                )
+            if "rate_bopd" not in entry:
+                raise ValueError(
+                    "DowntimeEventClassifier: required field 'rate_bopd' missing from input"
+                )
             ts: str = entry["timestamp_iso"]
-            rate: float = float(entry.get("rate_bopd", 0.0))
+            rate: float = float(entry["rate_bopd"])
             if rate == 0.0 and zero_start is None:
                 zero_start = ts
             elif rate > 0.0 and zero_start is not None:

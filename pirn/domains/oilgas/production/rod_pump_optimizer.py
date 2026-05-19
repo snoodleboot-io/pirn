@@ -68,8 +68,14 @@ class RodPumpOptimizer(Knot):
             raise ValueError("RodPumpOptimizer: max_spm must be positive")
         if not isinstance(dynagraph_card, dict):
             raise TypeError("RodPumpOptimizer: dynagraph_card must be a dict")
-        current_spm = float(dynagraph_card.get("current_spm", max_spm))
-        stroke_length_in = float(dynagraph_card.get("stroke_length_in", 144.0))
+        if "current_spm" not in dynagraph_card:
+            raise ValueError("RodPumpOptimizer: required field 'current_spm' missing from input")
+        if "stroke_length_in" not in dynagraph_card:
+            raise ValueError(
+                "RodPumpOptimizer: required field 'stroke_length_in' missing from input"
+            )
+        current_spm = float(dynagraph_card["current_spm"])
+        stroke_length_in = float(dynagraph_card["stroke_length_in"])
         recommended_spm = min(current_spm * (target_fillage_pct / 100.0), max_spm)
         return {
             "recommended_spm": recommended_spm,

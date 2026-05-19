@@ -8,6 +8,17 @@ offline.
 from __future__ import annotations
 
 import unittest
+
+try:
+    import pandas  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("pandas not installed") from _e
+
+try:
+    import eland  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("eland not installed") from _e
+
 from typing import Any
 
 import pandas as pd

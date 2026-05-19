@@ -7,8 +7,12 @@ Algorithm:
     2. Validate all inputs.
     3. Wire DatasetLoader → TrainTestSplit → Trainer → TimeSeriesEvalPipeline
        in an inner Tapestry.
-    4. Run via _run_inner() and return the EvalReport.
+    4. Run via _run_inner() and return the EvalMetadata.
 
+Math:
+    MAPE = (100/n) * sum_i |y_i - y_hat_i| / |y_i|
+    sMAPE = (100/n) * sum_i 2*|y_i - y_hat_i| / (|y_i| + |y_hat_i|)
+    MASE = mean|y_t - y_hat_t| / mean|y_t - y_{t-m}|  (m = seasonal period)
 
 References:
     N/A — pirn-native implementation.
@@ -30,9 +34,7 @@ from pirn.domains.ml.specializations.evaluation.timeseries_eval_pipeline import 
     TimeSeriesEvalPipeline,
 )
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.eval_report import EvalReport
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class TimeSeriesForecastingPipeline(SubTapestry):
@@ -73,7 +75,7 @@ class TimeSeriesForecastingPipeline(SubTapestry):
         horizon: int = 7,
         algorithm: str = "arima",
         **_: Any,
-    ) -> EvalReport:
+    ) -> Any:
         """Run the full time-series pipeline: load → split → train → evaluate with temporal metrics.
 
         Args:
@@ -86,7 +88,7 @@ class TimeSeriesForecastingPipeline(SubTapestry):
             algorithm: Non-empty algorithm identifier.
 
         Returns:
-            EvalReport containing mape, smape, and mase metrics from the evaluation stage.
+            EvalReportPayload containing mape, smape, and mase metrics from the evaluation stage.
 
         Raises:
             ValueError: If any input fails validation.
@@ -111,30 +113,27 @@ class TimeSeriesForecastingPipeline(SubTapestry):
             raise ValueError("TimeSeriesForecastingPipeline: horizon must be an int >= 1")
         if not isinstance(algorithm, str) or not algorithm:
             raise ValueError("TimeSeriesForecastingPipeline: algorithm must be a non-empty string")
-        with Tapestry() as inner:
-            dataset = DatasetLoader(
-                name="ts-forecasting",
-                feature_names=feature_tuple,
-                target_name=target_column,
-                pool=pool,
-                query=query,
-                _config=KnotConfig(id="load"),
-            )
-            split = TrainTestSplit(
-                dataset=dataset,
-                _config=KnotConfig(id="split"),
-            )
-            trained = Trainer(
-                split=split,
-                algorithm=algorithm,
-                hyperparameters={"horizon": horizon},
-                _config=KnotConfig(id="train"),
-            )
-            TimeSeriesEvalPipeline(
-                model=trained,
-                split=split,
-                time_column=time_column,
-                _config=KnotConfig(id="evaluate"),
-            )
-        inner_result = await self._run_inner(inner)
-        return inner_result.outputs["evaluate"]
+        dataset = DatasetLoader(
+            name="ts-forecasting",
+            feature_names=feature_tuple,
+            target_name=target_column,
+            pool=pool,
+            query=query,
+            _config=KnotConfig(id="load"),
+        )
+        split = TrainTestSplit(
+            dataset=dataset,
+            _config=KnotConfig(id="split"),
+        )
+        trained = Trainer(
+            split=split,
+            algorithm=algorithm,
+            hyperparameters={"horizon": horizon},
+            _config=KnotConfig(id="train"),
+        )
+        return TimeSeriesEvalPipeline(
+            model=trained,
+            split=split,
+            time_column=time_column,
+            _config=KnotConfig(id="evaluate"),
+        )

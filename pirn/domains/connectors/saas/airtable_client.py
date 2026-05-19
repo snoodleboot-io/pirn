@@ -76,7 +76,12 @@ class AirtableClient(ApiClient, TableSource):
         path = self._table_path()
         self._logger.debug("airtable.list_records path=%s", path)
         response = await self.request("GET", path, params=params or None)
-        records: list[Mapping[str, Any]] = list(response.get("records") or [])
+        if "records" not in response:
+            raise ValueError(
+                f"AirtableClient: response missing required field 'records'; got: {list(response)}"
+            )
+        records: list[Mapping[str, Any]] = list(response["records"])
+        # offset is an optional pagination cursor; absent means last page
         next_offset = response.get("offset") or None
         return records, next_offset
 

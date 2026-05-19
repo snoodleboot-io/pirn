@@ -39,19 +39,31 @@ from pirn.domains.ml.deployment.predictor import Predictor
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.lineage_store import LineageStore
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
-async def _holdout_features(split: DataSplit) -> list[Mapping[str, Any]]:
+async def _holdout_features(split: SplitManifest) -> list[Mapping[str, Any]]:
     rows = []
     for index in range(int(split.test.row_count)):
         row: dict[str, Any] = {feature: float(index) for feature in split.test.feature_names}
         rows.append(row)
     return rows
+
+
+@knot
+async def _emit_value(value: Any) -> Any:
+    return value
+
+
+@knot
+async def _combine_continuous_training(
+    model_id: str,
+    eval_report: EvalReportPayload,
+) -> Mapping[str, Any]:
+    return {"model_id": model_id, "eval_report": eval_report, "skipped": False}
 
 
 class ContinuousTrainingPipeline(SubTapestry):
@@ -95,7 +107,11 @@ class ContinuousTrainingPipeline(SubTapestry):
             lineage_record = await lineage.fetch_lineage(name)
         except Exception:
             return False, None
-        events = lineage_record.get("events") if isinstance(lineage_record, Mapping) else None
+        if not isinstance(lineage_record, Mapping) or "events" not in lineage_record:
+            raise ValueError(
+                "ContinuousTrainingPipeline: lineage record missing required field 'events'"
+            )
+        events = lineage_record["events"]
         if not events:
             return False, None
         last_event = events[-1]
@@ -129,7 +145,7 @@ class ContinuousTrainingPipeline(SubTapestry):
         metrics: Sequence[str] = (),
         freshness_window_days: int = 1,
         **_: Any,
-    ) -> Mapping[str, Any]:
+    ) -> Any:
         """Check freshness against the lineage store and, if stale, retrain and deploy the model; return a summary with the model_id and eval report.
 
         Args:
@@ -146,7 +162,7 @@ class ContinuousTrainingPipeline(SubTapestry):
 
         Returns:
             Mapping with ``model_id`` (str), ``eval_report``
-            (:class:`EvalReport` or ``None`` if skipped), and ``skipped``
+            (:class:`EvalMetadata` or ``None`` if skipped), and ``skipped``
             (bool indicating whether retraining was bypassed due to freshness).
 
         Raises:
@@ -179,61 +195,57 @@ class ContinuousTrainingPipeline(SubTapestry):
             raise ValueError("ContinuousTrainingPipeline: freshness_window_days must be >= 0")
         is_fresh, cached_model_id = await self._is_fresh(lineage, name, freshness_window_days)
         if is_fresh and cached_model_id is not None:
-            return {
-                "model_id": cached_model_id,
-                "eval_report": None,
-                "skipped": True,
-            }
-        with Tapestry() as inner:
-            dataset = DatasetLoader(
-                name=name,
-                feature_names=feature_tuple,
-                target_name=target_name,
-                pool=pool,
-                query=query,
-                _config=KnotConfig(id="load"),
+            return _emit_value(
+                value={"model_id": cached_model_id, "eval_report": None, "skipped": True},
+                _config=KnotConfig(id="skipped"),
             )
-            split = TrainTestSplit(
-                dataset=dataset,
-                _config=KnotConfig(id="split"),
-            )
-            trained = Trainer(
-                split=split,
-                algorithm=algorithm,
-                _config=KnotConfig(id="train"),
-            )
-            Evaluator(
-                model=trained,
-                split=split,
-                metrics=metric_tuple,
-                _config=KnotConfig(id="evaluate"),
-            )
-            serialized = ModelSerializer(
-                model=trained,
-                _config=KnotConfig(id="serialize"),
-            )
-            registered = ModelRegistrar(
-                serialized=serialized,
-                model=trained,
-                lineage=lineage,
-                store=store,
-                _config=KnotConfig(id="register"),
-            )
-            features = _holdout_features(
-                split=split,
-                _config=KnotConfig(id="holdout-features"),
-            )
-            Predictor(
-                model_id=registered,
-                features=features,
-                lineage=lineage,
-                store=store,
-                _config=KnotConfig(id="predict"),
-            )
-        inner_result = await self._run_inner(inner)
-        report: EvalReport = inner_result.outputs["evaluate"]
-        return {
-            "model_id": inner_result.outputs["register"],
-            "eval_report": report,
-            "skipped": False,
-        }
+        dataset = DatasetLoader(
+            name=name,
+            feature_names=feature_tuple,
+            target_name=target_name,
+            pool=pool,
+            query=query,
+            _config=KnotConfig(id="load"),
+        )
+        split = TrainTestSplit(
+            dataset=dataset,
+            _config=KnotConfig(id="split"),
+        )
+        trained = Trainer(
+            split=split,
+            algorithm=algorithm,
+            _config=KnotConfig(id="train"),
+        )
+        evaluated = Evaluator(
+            model=trained,
+            split=split,
+            metrics=metric_tuple,
+            _config=KnotConfig(id="evaluate"),
+        )
+        serialized = ModelSerializer(
+            model=trained,
+            _config=KnotConfig(id="serialize"),
+        )
+        registered = ModelRegistrar(
+            serialized=serialized,
+            model=trained,
+            lineage=lineage,
+            store=store,
+            _config=KnotConfig(id="register"),
+        )
+        features = _holdout_features(
+            split=split,
+            _config=KnotConfig(id="holdout-features"),
+        )
+        Predictor(
+            model_id=registered,
+            features=features,
+            lineage=lineage,
+            store=store,
+            _config=KnotConfig(id="predict"),
+        )
+        return _combine_continuous_training(
+            model_id=registered,
+            eval_report=evaluated,
+            _config=KnotConfig(id="combine"),
+        )

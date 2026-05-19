@@ -5,11 +5,12 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_result import RunResult
+from pirn.core.run_request import RunRequest
 from pirn.domains.health.clinical.patient_cohort_builder import (
     PatientCohortBuilder,
 )
 from pirn.domains.health.types.clinical_record import ClinicalRecord
+from pirn.tapestry import Tapestry
 
 _CFG = KnotConfig(id="b")
 _RECORDS: tuple[ClinicalRecord, ...] = ()
@@ -41,13 +42,11 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             ClinicalRecord(patient_id="A"),
             ClinicalRecord(patient_id="B"),
         )
-        knot = PatientCohortBuilder(
-            records=records,
-            stages={"keep_a": {"is_a": lambda r: r.patient_id == "A"}},
-            _config=_CFG,
-        )
-        out = await knot.process(
-            records=records,
-            stages={"keep_a": {"is_a": lambda r: r.patient_id == "A"}},
-        )
-        assert isinstance(out, RunResult)
+        with Tapestry() as t:
+            PatientCohortBuilder(
+                records=records,
+                stages={"keep_a": {"is_a": lambda r: r.patient_id == "A"}},
+                _config=_CFG,
+            )
+        result = await t.run(RunRequest())
+        assert result.succeeded

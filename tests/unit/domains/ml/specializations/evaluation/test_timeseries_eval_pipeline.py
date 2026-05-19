@@ -10,9 +10,9 @@ from pirn.core.knot_config import KnotConfig
 from pirn.domains.ml.specializations.evaluation.timeseries_eval_pipeline import (
     TimeSeriesEvalPipeline,
 )
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.split_manifest import SplitManifest
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.model_manifest import ModelManifest
 from pirn.tapestry import Tapestry
 
 
@@ -35,11 +35,11 @@ def _make_knot() -> TimeSeriesEvalPipeline:
     return ts
 
 
-def _fixtures() -> tuple[TrainedModel, DataSplit]:
-    train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
-    test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
-    split = DataSplit(train=train, test=test)
-    model = TrainedModel(model_id="m1", algorithm="arima", feature_names=("a",))
+def _fixtures() -> tuple[ModelManifest, SplitManifest]:
+    train = DatasetManifest(name="d:train", feature_names=("a",), row_count=80)
+    test = DatasetManifest(name="d:test", feature_names=("a",), row_count=20)
+    split = SplitManifest(train=train, test=test)
+    model = ModelManifest(model_id="m1", algorithm="arima", feature_names=("a",))
     return model, split
 
 

@@ -1,7 +1,7 @@
 """``DeclineRateEstimator`` — short-window decline rate from a rate series.
 
 Algorithm:
-    1. Receive a production ScadaTimeSeries and a positive integer ``window_days``.
+    1. Receive a production ScadaPayload and a positive integer ``window_days``.
     2. Validate that ``window_days`` is a positive integer.
     3. Extract the trailing ``window_days`` samples from the rate series.
     4. Fit a linear log-rate regression to estimate the instantaneous decline rate.
@@ -27,11 +27,26 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.types.scada_time_series import ScadaTimeSeries
+from pirn.domains.oilgas.types.scada_payload import ScadaPayload
+
+
+def _fit_decline(values: np.ndarray, sample_interval_sec: float) -> float:
+    positive_rates = values[values > 0]
+    if len(positive_rates) < 2:
+        return 0.0
+    time_days = np.arange(len(positive_rates)) * sample_interval_sec / 86400
+    log_q = np.log(positive_rates + 1e-9)
+    slope, _ = np.polyfit(time_days, log_q, 1)
+    di_per_day = -slope
+    di_per_year = di_per_day * 365
+    return float(max(di_per_year, 0.0))
 
 
 class DeclineRateEstimator(Knot):
@@ -54,14 +69,14 @@ class DeclineRateEstimator(Knot):
 
     async def process(
         self,
-        rate_series: ScadaTimeSeries,
+        rate_series: ScadaPayload,
         window_days: int,
         **_: Any,
     ) -> float:
-        """Accept a rate time series and return the estimated decline rate per year over the window.
+        """Accept a rate payload and return the estimated decline rate per year over the window.
 
         Args:
-            rate_series: ScadaTimeSeries of production rates from which the
+            rate_series: ScadaPayload of production rates from which the
                 decline is estimated over the configured window.
             window_days: Positive integer number of days for the trailing window.
 
@@ -69,6 +84,12 @@ class DeclineRateEstimator(Knot):
             Estimated decline rate as a fractional value per year (e.g. 0.15
             represents 15 % annual decline).
         """
+        if not isinstance(rate_series, ScadaPayload):
+            raise TypeError("DeclineRateEstimator: rate_series must be a ScadaPayload")
         if not isinstance(window_days, int) or window_days <= 0:
             raise ValueError("DeclineRateEstimator: window_days must be a positive integer")
-        return 0.15
+        return await asyncio.to_thread(
+            _fit_decline,
+            rate_series.values,
+            rate_series.series.sample_interval_sec,
+        )

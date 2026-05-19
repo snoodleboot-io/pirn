@@ -4,16 +4,16 @@ cross-validation for time-series models.
 The window slides forward in fixed-size steps. At each step the
 validator carves an in-sample partition of ``train_window`` rows and an
 out-of-sample partition of ``test_window`` rows from the upstream
-:class:`MLDataset`, trains a model on the in-sample partition, and
+:class:`DatasetManifest`, trains a model on the in-sample partition, and
 evaluates on the out-of-sample partition.
 
-The output is the per-step list of :class:`EvalReport`s, one per fold.
+The output is the per-step list of :class:`EvalMetadata`s, one per fold.
 
 Algorithm:
-    1. Receive ``dataset`` (MLDataset), ``time_column``, ``train_window``,
+    1. Receive ``dataset`` (DatasetManifest), ``time_column``, ``train_window``,
        ``test_window``, ``algorithm``, and ``n_steps`` via process().
     2. Validate all window parameters; verify dataset has enough rows.
-    3. For each step, create train/test partitions as MLDataset slices.
+    3. For each step, create train/test partitions as DatasetManifest slices.
     4. Wire an inner Tapestry with Trainer + Evaluator for each step.
     5. Run each inner Tapestry via _run_inner() and collect EvalReports.
 
@@ -34,16 +34,23 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.split_manifest import SplitManifest
+from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
 async def _emit_value(value: Any) -> Any:
     return value
+
+
+@knot
+async def _collect_walk_forward_reports(
+    reports: list[EvalReportPayload],
+) -> tuple[EvalReportPayload, ...]:
+    return tuple(reports)
 
 
 class WalkForwardValidator(SubTapestry):
@@ -74,18 +81,18 @@ class WalkForwardValidator(SubTapestry):
 
     async def process(
         self,
-        dataset: MLDataset,
+        dataset: DatasetManifest,
         time_column: str = "",
         train_window: int = 1,
         test_window: int = 1,
         algorithm: str = "",
         n_steps: int = 5,
         **_: Any,
-    ) -> tuple[EvalReport, ...]:
+    ) -> Any:
         """Slide a training window across the dataset for each step and return a tuple of per-fold EvalReports.
 
         Args:
-            dataset: MLDataset reference providing row_count for window partitioning.
+            dataset: DatasetManifest reference providing row_count for window partitioning.
             time_column: Non-empty time column name string.
             train_window: Number of rows in each training window; must be >= 1.
             test_window: Number of rows in each test window; must be >= 1.
@@ -93,7 +100,7 @@ class WalkForwardValidator(SubTapestry):
             n_steps: Number of walk-forward steps; must be >= 1.
 
         Returns:
-            Tuple of EvalReport objects, one per walk-forward step.
+            Tuple of EvalMetadata objects, one per walk-forward step.
 
         Raises:
             ValueError: If any window parameter is invalid or dataset has insufficient rows.
@@ -122,45 +129,52 @@ class WalkForwardValidator(SubTapestry):
                 f"{n_steps} steps with train_window={train_window}, "
                 f"test_window={test_window}; need at least {required} rows"
             )
-        reports: list[EvalReport] = []
         now = datetime.now(UTC)
+        eval_nodes = []
         for step in range(n_steps):
             train_partition = self._mk(dataset, step, "train", train_window, now)
             test_partition = self._mk(dataset, step, "test", test_window, now)
-            split_value = DataSplit(
+            split_value = SplitManifest(
                 train=train_partition,
                 test=test_partition,
                 validation=None,
             )
-            with Tapestry() as inner:
-                split_node = _emit_value(
-                    value=split_value,
-                    _config=KnotConfig(id=f"split-step-{step}"),
-                )
-                trainer = Trainer(
-                    split=split_node,
-                    algorithm=algorithm,
-                    _config=KnotConfig(id=f"train-step-{step}"),
-                )
+            split_node = _emit_value(
+                value=split_value,
+                _config=KnotConfig(id=f"split-step-{step}"),
+            )
+            trainer = Trainer(
+                split=split_node,
+                algorithm=algorithm,
+                _config=KnotConfig(id=f"train-step-{step}"),
+            )
+            eval_nodes.append(
                 Evaluator(
                     model=trainer,
                     split=split_node,
                     metrics=("mape", "smape", "mase"),
                     _config=KnotConfig(id=f"evaluate-step-{step}"),
                 )
-            inner_result = await self._run_inner(inner)
-            reports.append(inner_result.outputs[f"evaluate-step-{step}"])
-        return tuple(reports)
+            )
+        collected = Aggregator(
+            combine=lambda **kw: list(kw.values()),
+            _config=KnotConfig(id="collect-reports"),
+            **{f"r{i}": eval_nodes[i] for i in range(n_steps)},
+        )
+        return _collect_walk_forward_reports(
+            reports=collected,
+            _config=KnotConfig(id="collect"),
+        )
 
     def _mk(
         self,
-        source: MLDataset,
+        source: DatasetManifest,
         step: int,
         partition: str,
         count: int,
         fetched_at: datetime,
-    ) -> MLDataset:
-        return MLDataset(
+    ) -> DatasetManifest:
+        return DatasetManifest(
             name=f"{source.name}:walk{step}:{partition}",
             feature_names=source.feature_names,
             target_name=source.target_name,

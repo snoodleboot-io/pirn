@@ -10,37 +10,37 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.production.ab_test_deployer import (
     ABTestDeployer,
 )
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.split_manifest import SplitManifest
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.model_manifest import ModelManifest
 from pirn.tapestry import Tapestry
 
 
 @knot
-async def emit_split() -> DataSplit:
-    train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
-    test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
-    return DataSplit(train=train, test=test)
+async def emit_split() -> SplitManifest:
+    train = DatasetManifest(name="d:train", feature_names=("a",), row_count=80)
+    test = DatasetManifest(name="d:test", feature_names=("a",), row_count=20)
+    return SplitManifest(train=train, test=test)
 
 
 @knot
-async def emit_model_a() -> TrainedModel:
-    return TrainedModel(model_id="model-a", algorithm="logistic", feature_names=("a",))
+async def emit_model_a() -> ModelManifest:
+    return ModelManifest(model_id="model-a", algorithm="logistic", feature_names=("a",))
 
 
 @knot
-async def emit_model_b() -> TrainedModel:
-    return TrainedModel(model_id="model-b", algorithm="svm", feature_names=("a",))
+async def emit_model_b() -> ModelManifest:
+    return ModelManifest(model_id="model-b", algorithm="svm", feature_names=("a",))
 
 
-def _make_split() -> DataSplit:
-    train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
-    test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
-    return DataSplit(train=train, test=test)
+def _make_split() -> SplitManifest:
+    train = DatasetManifest(name="d:train", feature_names=("a",), row_count=80)
+    test = DatasetManifest(name="d:test", feature_names=("a",), row_count=20)
+    return SplitManifest(train=train, test=test)
 
 
-def _make_model(model_id: str) -> TrainedModel:
-    return TrainedModel(model_id=model_id, algorithm="logistic", feature_names=("a",))
+def _make_model(model_id: str) -> ModelManifest:
+    return ModelManifest(model_id=model_id, algorithm="logistic", feature_names=("a",))
 
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):

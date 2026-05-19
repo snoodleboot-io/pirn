@@ -8,6 +8,14 @@ Algorithm:
     3. Compute PSI and KS statistics for each feature.
     4. Return drifted features and drift_detected flag.
 
+Math:
+    Population Stability Index (PSI) for feature f:
+        PSI(f) = sum_b [(actual_b% - expected_b%) * ln(actual_b% / expected_b%)]
+    Drift flagged when PSI(f) >= psi_threshold (common threshold: 0.2).
+
+    Kolmogorov-Smirnov statistic:
+        KS(f) = max_x |F_ref(x) - F_cur(x)|
+    where F_ref and F_cur are empirical CDFs of the reference and current windows.
 
 References:
     N/A — pirn-native implementation.
@@ -22,7 +30,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class DataDriftDetector(Knot):
@@ -49,8 +57,8 @@ class DataDriftDetector(Knot):
 
     async def process(
         self,
-        reference: DataSplit,
-        current: DataSplit,
+        reference: SplitManifest,
+        current: SplitManifest,
         features: Sequence[str] = (),
         psi_threshold: float = 0.2,
         **_: Any,
@@ -58,8 +66,8 @@ class DataDriftDetector(Knot):
         """Compute PSI and KS statistics for each feature and flag drifted features.
 
         Args:
-            reference: DataSplit representing the baseline feature distribution.
-            current: DataSplit representing the live or recent feature distribution.
+            reference: SplitManifest representing the baseline feature distribution.
+            current: SplitManifest representing the live or recent feature distribution.
             features: Non-empty sequence of feature names to check.
             psi_threshold: PSI threshold for drift detection; must be >= 0.
 
@@ -94,8 +102,8 @@ class DataDriftDetector(Knot):
 
     def _stat_value(
         self,
-        reference: DataSplit,
-        current: DataSplit,
+        reference: SplitManifest,
+        current: SplitManifest,
         feature: str,
         stat: str,
     ) -> float:

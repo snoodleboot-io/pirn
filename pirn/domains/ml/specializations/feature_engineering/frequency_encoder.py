@@ -2,16 +2,19 @@
 training set.
 
 The encoding is fit on the train partition and applied identically to
-all partitions of the :class:`DataSplit`. Unseen categories in
+all partitions of the :class:`SplitManifest`. Unseen categories in
 the test/validation partitions receive ``default_frequency``.
 
 Algorithm:
-    1. Receive ``split`` (DataSplit), ``categorical_column`` (str), and
+    1. Receive ``split`` (SplitManifest), ``categorical_column`` (str), and
        ``default_frequency`` (float) via process().
     2. Validate categorical_column and default_frequency.
     3. Apply frequency encoding suffix tag to each partition.
-    4. Return updated DataSplit.
+    4. Return updated SplitManifest.
 
+Math:
+    freq(c) = count(c in train) / n_train
+    Unseen category c' (not in train): freq(c') = default_frequency
 
 References:
     N/A — pirn-native implementation.
@@ -24,8 +27,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class FrequencyEncoder(Knot):
@@ -50,20 +53,20 @@ class FrequencyEncoder(Knot):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         categorical_column: str = "",
         default_frequency: float = 0.0,
         **_: Any,
-    ) -> DataSplit:
-        """Apply frequency encoding to the categorical column and return a renamed DataSplit.
+    ) -> SplitManifest:
+        """Apply frequency encoding to the categorical column and return a renamed SplitManifest.
 
         Args:
-            split: DataSplit whose partitions receive the frequency-encoded suffix.
+            split: SplitManifest whose partitions receive the frequency-encoded suffix.
             categorical_column: Non-empty name of the categorical column.
             default_frequency: Frequency value for unseen categories; must be >= 0.
 
         Returns:
-            DataSplit with each partition renamed to include the ``freq_encoded`` suffix.
+            SplitManifest with each partition renamed to include the ``freq_encoded`` suffix.
 
         Raises:
             ValueError: If categorical_column is empty or default_frequency is negative.
@@ -77,7 +80,7 @@ class FrequencyEncoder(Knot):
             raise ValueError("FrequencyEncoder: default_frequency must be >= 0.0")
         now = datetime.now(UTC)
         suffix = "freq_encoded"
-        return DataSplit(
+        return SplitManifest(
             train=self._mark(split.train, suffix, now),
             test=self._mark(split.test, suffix, now),
             validation=(
@@ -85,8 +88,8 @@ class FrequencyEncoder(Knot):
             ),
         )
 
-    def _mark(self, dataset: MLDataset, suffix: str, fetched_at: datetime) -> MLDataset:
-        return MLDataset(
+    def _mark(self, dataset: DatasetManifest, suffix: str, fetched_at: datetime) -> DatasetManifest:
+        return DatasetManifest(
             name=f"{dataset.name}:{suffix}",
             feature_names=dataset.feature_names,
             target_name=dataset.target_name,

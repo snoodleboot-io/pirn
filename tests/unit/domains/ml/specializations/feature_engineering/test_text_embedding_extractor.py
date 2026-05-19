@@ -11,8 +11,8 @@ from pirn.domains.ml.embedding_provider import EmbeddingProvider
 from pirn.domains.ml.specializations.feature_engineering.text_embedding_extractor import (
     TextEmbeddingExtractor,
 )
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.split_manifest import SplitManifest
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 from pirn.tapestry import Tapestry
 
 
@@ -50,9 +50,9 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         object.__setattr__(k, "_config", KnotConfig(id="tee"))
         return k
 
-    def _make_split(self) -> DataSplit:
-        ds = MLDataset(name="ds", feature_names=("text",), row_count=5)
-        return DataSplit(train=ds, test=ds)
+    def _make_split(self) -> SplitManifest:
+        ds = DatasetManifest(name="ds", feature_names=("text",), row_count=5)
+        return SplitManifest(train=ds, test=ds)
 
     async def test_rejects_empty_text_column(self) -> None:
         k = self._make_knot()

@@ -38,7 +38,21 @@ from pirn.domains.connectors.file_formats.batch_file_format import (
 
 
 class PytorchFormat(BatchFileFormat):
-    """Whole-file PyTorch encoder/decoder."""
+    """Whole-file PyTorch encoder/decoder.
+
+    One record is emitted per file::
+
+        {
+            "state_dict":  Any,   # the object returned by torch.load
+            "metadata": {
+                "weights_only":  bool,  # whether safe-mode loading was used
+                "signed":        bool,  # whether the payload was HMAC-verified
+            },
+        }
+
+    Encoding accepts the same shape and requires exactly one record
+    containing a ``"state_dict"`` key.
+    """
 
     def __init__(
         self,

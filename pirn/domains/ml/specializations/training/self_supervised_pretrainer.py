@@ -3,7 +3,7 @@ then fine-tune on a labeled dataset.
 
 The pretraining objective (e.g. masked feature prediction) is encoded
 in the ``pretrain_algorithm`` parameter. Fine-tuning uses the configured
-``finetune_algorithm`` on the labeled :class:`DataSplit`.
+``finetune_algorithm`` on the labeled :class:`SplitManifest`.
 
 Algorithm:
     1. Receive ``split``, ``pretrain_algorithm``, ``finetune_algorithm``,
@@ -13,6 +13,13 @@ Algorithm:
     3. Wire pretrain Trainer → finetune Trainer → Evaluator in an inner Tapestry.
     4. Run via _run_inner() and return model, eval report, and algorithm names.
 
+Math:
+    Self-supervised objective (masked prediction example):
+        L_ssl = -(1/|M|) * sum_{i in M} log p(x_i | x_{-M}; theta)
+        where M is the set of masked positions.
+
+    Fine-tuning cross-entropy (after pretraining):
+        L_ft = -(1/n) * sum_i y_i * log p(y_i | x_i; theta_ft)
 
 References:
     N/A — pirn-native implementation.
@@ -28,16 +35,30 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
 async def _emit_value(value: Any) -> Any:
     return value
+
+
+@knot
+async def _combine_self_supervised_result(
+    model: ModelManifest,
+    eval_report: EvalReportPayload,
+    pretrain_algorithm: str,
+    finetune_algorithm: str,
+) -> dict[str, Any]:
+    return {
+        "model": model,
+        "eval_report": eval_report,
+        "pretrain_algorithm": pretrain_algorithm,
+        "finetune_algorithm": finetune_algorithm,
+    }
 
 
 class SelfSupervisedPretrainer(SubTapestry):
@@ -68,18 +89,18 @@ class SelfSupervisedPretrainer(SubTapestry):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         pretrain_algorithm: str = "",
         finetune_algorithm: str = "",
         metrics: Sequence[str] = (),
         pretrain_hyperparameters: Mapping[str, Any] | None = None,
         finetune_hyperparameters: Mapping[str, Any] | None = None,
         **_: Any,
-    ) -> dict[str, Any]:
+    ) -> Any:
         """Pretrain via a self-supervised objective then fine-tune on labeled data.
 
         Args:
-            split: DataSplit used for both the self-supervised pretraining and
+            split: SplitManifest used for both the self-supervised pretraining and
                 the supervised fine-tuning pass.
             pretrain_algorithm: Non-empty algorithm identifier for pretraining.
             finetune_algorithm: Non-empty algorithm identifier for fine-tuning.
@@ -88,7 +109,7 @@ class SelfSupervisedPretrainer(SubTapestry):
             finetune_hyperparameters: Optional mapping of fine-tuning hyperparameters.
 
         Returns:
-            Dict with ``model`` (TrainedModel), ``eval_report`` (EvalReport),
+            Dict with ``model`` (ModelManifest), ``eval_report`` (EvalMetadata),
             ``pretrain_algorithm`` (str), and ``finetune_algorithm`` (str).
 
         Raises:
@@ -121,38 +142,35 @@ class SelfSupervisedPretrainer(SubTapestry):
             raise TypeError("SelfSupervisedPretrainer: finetune_hyperparameters must be a Mapping")
         pretrain_hp = dict(pretrain_hyperparameters) if pretrain_hyperparameters is not None else {}
         finetune_hp = dict(finetune_hyperparameters) if finetune_hyperparameters is not None else {}
-        with Tapestry() as inner:
-            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
-            pretrained = Trainer(
-                split=split_node,
-                algorithm=pretrain_algorithm,
-                hyperparameters={**pretrain_hp, "self_supervised": True},
-                _config=KnotConfig(id="pretrain"),
-            )
-            finetuned = Trainer(
-                split=split_node,
-                algorithm=finetune_algorithm,
-                hyperparameters={**finetune_hp, "pretrained_from": pretrained.knot_id},
-                _config=KnotConfig(id="finetune"),
-            )
-            Evaluator(
-                model=finetuned,
-                split=split_node,
-                metrics=metric_tuple,
-                _config=KnotConfig(id="evaluate"),
-            )
-        result = await self._run_inner(inner)
-        trained_model = result.outputs["finetune"]
-        report = result.outputs["evaluate"]
-        if not isinstance(trained_model, TrainedModel):
-            raise TypeError(
-                "SelfSupervisedPretrainer: fine-tune trainer did not return a TrainedModel"
-            )
-        if not isinstance(report, EvalReport):
-            raise TypeError("SelfSupervisedPretrainer: evaluator did not return an EvalReport")
-        return {
-            "model": trained_model,
-            "eval_report": report,
-            "pretrain_algorithm": pretrain_algorithm,
-            "finetune_algorithm": finetune_algorithm,
-        }
+        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        pretrained = Trainer(
+            split=split_node,
+            algorithm=pretrain_algorithm,
+            hyperparameters={**pretrain_hp, "self_supervised": True},
+            _config=KnotConfig(id="pretrain"),
+        )
+        finetuned = Trainer(
+            split=split_node,
+            algorithm=finetune_algorithm,
+            hyperparameters={**finetune_hp, "pretrained_from": pretrained.knot_id},
+            _config=KnotConfig(id="finetune"),
+        )
+        evaluated = Evaluator(
+            model=finetuned,
+            split=split_node,
+            metrics=metric_tuple,
+            _config=KnotConfig(id="evaluate"),
+        )
+        pretrain_alg_node = _emit_value(
+            value=pretrain_algorithm, _config=KnotConfig(id="pretrain_algorithm")
+        )
+        finetune_alg_node = _emit_value(
+            value=finetune_algorithm, _config=KnotConfig(id="finetune_algorithm")
+        )
+        return _combine_self_supervised_result(
+            model=finetuned,
+            eval_report=evaluated,
+            pretrain_algorithm=pretrain_alg_node,
+            finetune_algorithm=finetune_alg_node,
+            _config=KnotConfig(id="combine"),
+        )

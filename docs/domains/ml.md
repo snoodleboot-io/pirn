@@ -313,6 +313,31 @@ pipeline = BinaryClassificationPipeline(
 
 ---
 
+## Connector boundaries
+
+Domain payloads enter and leave the ML domain through assembler/disassembler knots.
+
+**Assembler** (raw → Payload, no I/O):
+
+| Assembler | Input | Output |
+|-----------|-------|--------|
+| `TrainedModelObjectStoreAssembler` | `bytes` from object store | `TrainedModelPayload` |
+
+**Disassemblers** (Payload → raw, no I/O):
+
+| Disassembler | Input | Output |
+|--------------|-------|--------|
+| `TrainedModelObjectStoreDisassembler` | `TrainedModelPayload` | `bytes` |
+| `DatasetObjectStoreDisassembler` | `MLDataset` | `bytes` |
+| `DataSplitObjectStoreDisassembler` | `DataSplit` | `bytes` |
+| `EvalReportDatabaseDisassembler` | `EvalReport` | `list[tuple]` |
+
+All assemblers and disassemblers live under `pirn/domains/ml/assemblers/` and `pirn/domains/ml/disassemblers/` respectively.
+
+**Note:** `ModelRegistrar` and `Predictor` are kept as-is — they own I/O by design. `ModelRegistrar` persists model bytes and metadata to a `LineageStore`; `Predictor` runs inference. These are not assembler/disassembler knots.
+
+---
+
 ## Install
 
 ```bash

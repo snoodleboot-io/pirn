@@ -8,16 +8,16 @@ seam for visualisation.
 
 Example::
 
-    def merge(a: dict, b: dict) -> dict:
-        return {**a, **b}
+    def merge(left: dict, right: dict) -> dict:
+        return {**left, **right}
 
     with Tapestry() as t:
         first_half = ...
         second_half = ...
         merged = Aggregator(
             combine=merge,
-            a=first_half,
-            b=second_half,
+            left=first_half,
+            right=second_half,
             _config=KnotConfig(id="merge"),
         )
 
@@ -36,7 +36,31 @@ from pirn.core.knot_config import KnotConfig
 
 
 class Aggregator(Knot):
-    """Combine N parent outputs via a user callable."""
+    """Combine N parent outputs via a user callable.
+
+    An ``Aggregator`` waits for all declared parent knots to produce values,
+    then invokes ``combine`` with those values as keyword arguments.  The
+    return value of ``combine`` becomes the aggregator's output.
+
+    Parents are wired positionally by kwarg name: the key used when passing
+    the parent to ``Aggregator(...)`` is the key under which its resolved
+    value is passed to ``combine``.
+
+    Algorithm:
+        1. Validation — all ``**parents`` kwargs must be ``Knot`` instances;
+           ``combine`` must be callable; at least one parent must be given.
+        2. DAG registration — all parents are stored as graph edges; the engine
+           schedules this knot only after all parents have completed.
+        3. Resolution — the engine resolves every parent concurrently (the
+           scheduler handles ordering) and passes their outputs as keyword
+           arguments to ``process()``.
+        4. Combine invocation — ``process()`` calls ``combine(**inputs)`` where
+           each key is the parent kwarg name and each value is that parent's
+           resolved output.  Both sync and async ``combine`` callables are
+           supported; async callables are awaited directly.
+        5. Output — the value returned by ``combine`` is returned from
+           ``process()`` and wrapped in ``Ok`` by the engine.
+    """
 
     def __init__(
         self,

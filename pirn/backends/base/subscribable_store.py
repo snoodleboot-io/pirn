@@ -20,7 +20,25 @@ class SubscribableStore:
     """
 
     def subscribe(self, callback: KnotSubscriber) -> object:
+        """Register a callback to be called whenever a new knot is registered.
+
+        The callback is invoked synchronously (or scheduled, depending on the
+        implementation) with the newly-registered ``Knot`` instance.
+
+        Args:
+            callback: Callable that accepts a single ``Knot`` argument.
+
+        Returns:
+            An opaque subscription token.  Pass it to :meth:`unsubscribe`
+            to cancel the subscription.
+        """
         raise NotImplementedError(f"{type(self).__name__} must implement subscribe()")
 
     def unsubscribe(self, token: object) -> None:
+        """Cancel a subscription previously created by :meth:`subscribe`.
+
+        Args:
+            token: The opaque token returned by :meth:`subscribe`.  A token
+                that has already been unsubscribed is silently ignored.
+        """
         raise NotImplementedError(f"{type(self).__name__} must implement unsubscribe()")

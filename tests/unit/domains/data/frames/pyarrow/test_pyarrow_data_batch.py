@@ -3,6 +3,11 @@
 from __future__ import annotations
 
 import unittest
+
+try:
+    import pyarrow  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("pyarrow not installed") from _e
 from datetime import UTC
 
 import pyarrow as pa

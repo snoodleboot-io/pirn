@@ -19,11 +19,23 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Sequence
 from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+
+
+async def _run_subprocess(cmd: list[str]) -> None:
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    _, stderr = await proc.communicate()
+    if proc.returncode != 0:
+        raise RuntimeError(f"{cmd[0]} failed: {stderr.decode()}")
 
 
 class VCFMerger(Knot):
@@ -72,4 +84,6 @@ class VCFMerger(Knot):
                 raise ValueError("VCFMerger: every vcf path must be a non-empty string")
         if not isinstance(output_vcf_path, str) or not output_vcf_path:
             raise ValueError("VCFMerger: output_vcf_path must be a non-empty string")
+        cmd = ["bcftools", "merge", *list(vcf_paths), "-o", output_vcf_path]
+        await _run_subprocess(cmd)
         return output_vcf_path

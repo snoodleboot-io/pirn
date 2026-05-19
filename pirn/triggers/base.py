@@ -30,12 +30,29 @@ class Trigger:
 
     @property
     def name(self) -> str:
+        """Human-readable identifier for this trigger, used in logs and error messages."""
         raise NotImplementedError(f"{type(self).__name__} must implement name")
 
     def stream(self) -> AsyncIterator[RunRequest]:
+        """Yield ``RunRequest`` objects as external events arrive.
+
+        Implementations are async generators that open their underlying
+        connection (Kafka consumer, HTTP server, cron schedule) and yield
+        one ``RunRequest`` per event.  The generator should respect
+        cancellation by exiting cleanly when the enclosing task is
+        cancelled.
+
+        Returns:
+            An async iterator of ``RunRequest`` objects.
+        """
         raise NotImplementedError(f"{type(self).__name__} must implement stream()")
 
     async def close(self) -> None:
+        """Release resources and stop the trigger.
+
+        Called by ``run_forever`` on exit (cancellation, error, or
+        normal stream end).  Implementations must be idempotent.
+        """
         raise NotImplementedError(f"{type(self).__name__} must implement close()")
 
 

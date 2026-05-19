@@ -26,8 +26,27 @@ from pirn.exceptions.unbound_parameter_error import UnboundParameterError
 class Parameter(Knot):
     """A knot that produces a parameter's value at run start.
 
-    Constructed with a name, type, and optional default.  Bound from
-    ``RunRequest.parameters[name]`` (or default) before the run begins.
+    ``Parameter`` is a source knot — it has no parents and is the canonical
+    entry point for injecting caller-supplied data into a pipeline.  Values
+    are bound from ``RunRequest.parameters[name]`` before the scheduler
+    dispatches any work; a declared default is used when the caller omits the
+    binding.
+
+    Unlike ordinary knots, ``Parameter`` bypasses the standard Knot
+    constructor introspection because its ``process()`` signature is entirely
+    framework-managed.  Construction is therefore direct: state is populated
+    without calling ``Knot.__init__``.
+
+    Attributes:
+        name: The parameter name.  Must match the key used in
+            ``RunRequest.parameters``.
+        type_: The expected Python type.  Values are validated with a Pydantic
+            ``TypeAdapter`` at bind time.
+        has_default: ``True`` when a default was supplied at construction.
+        default: The fallback value when no binding is present.  Raises
+            ``AttributeError`` when accessed on a parameter with no default.
+        spec: The ``ParameterSpec`` describing this parameter for schema
+            export and documentation.
     """
 
     def __init__(
@@ -40,6 +59,26 @@ class Parameter(Knot):
         _config: KnotConfig | None = None,
         tapestry: Any = None,
     ) -> None:
+        """Construct a ``Parameter`` knot.
+
+        Args:
+            name: Identifier for this parameter.  Must be unique within the
+                tapestry and must match the key callers use in
+                ``RunRequest.parameters``.
+            type_: The Python type the bound value must conform to.  Any type
+                accepted by ``pydantic.TypeAdapter`` is valid.
+            default: Optional fallback value used when the caller does not
+                supply a binding.  Omit (or pass ``_Unset``) to require the
+                caller to always supply a value.
+            description: Human-readable description surfaced in schema exports
+                and visualisations.
+            _config: Framework configuration override.  When ``None``, a
+                stable default ``KnotConfig`` keyed as ``param:<name>`` is
+                created automatically.
+            tapestry: Explicit tapestry to register with.  When ``None``, the
+                current context-var tapestry is used (standard pipeline
+                construction idiom).
+        """
         # Parameter has no `process` parameters, so the standard Knot
         # introspection would find nothing to validate.  We bypass most of
         # it and set up our own state.

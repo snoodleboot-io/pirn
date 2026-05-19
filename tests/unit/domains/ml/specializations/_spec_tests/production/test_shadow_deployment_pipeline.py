@@ -10,7 +10,7 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.production.shadow_deployment_pipeline import (
     ShadowDeploymentPipeline,
 )
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.model_manifest import ModelManifest
 from pirn.tapestry import Tapestry
 from tests.unit.domains.ml._stubs.recording_lineage_store import (
     RecordingLineageStore,
@@ -18,8 +18,8 @@ from tests.unit.domains.ml._stubs.recording_lineage_store import (
 
 
 @knot
-async def emit_champion() -> TrainedModel:
-    return TrainedModel(
+async def emit_champion() -> ModelManifest:
+    return ModelManifest(
         model_id="champ",
         algorithm="rf",
         feature_names=("a",),
@@ -28,8 +28,8 @@ async def emit_champion() -> TrainedModel:
 
 
 @knot
-async def emit_challenger() -> TrainedModel:
-    return TrainedModel(
+async def emit_challenger() -> ModelManifest:
+    return ModelManifest(
         model_id="chall",
         algorithm="gbdt",
         feature_names=("a",),

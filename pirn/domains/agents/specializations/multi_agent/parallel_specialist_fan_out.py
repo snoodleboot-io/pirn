@@ -31,7 +31,6 @@ from pirn.domains.agents.specializations.multi_agent.specialist_fan_out_collecto
 )
 from pirn.domains.agents.types.agent_response import AgentResponse
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class ParallelSpecialistFanOut(SubTapestry):
@@ -52,7 +51,7 @@ class ParallelSpecialistFanOut(SubTapestry):
         task: str,
         specialists: Any,
         **_: Any,
-    ) -> Mapping[str, AgentResponse]:
+    ) -> Any:
         """Fan out the task to all specialists concurrently and return a name-to-response mapping.
 
         Args:
@@ -83,13 +82,7 @@ class ParallelSpecialistFanOut(SubTapestry):
                     content=str(raw),
                     finish_reason="stop",
                 )
-        with Tapestry() as inner:
-            SpecialistFanOutCollector(
-                responses=materialised,
-                _config=KnotConfig(id="collect"),
-            )
-        inner_result = await self._run_inner(inner)
-        collected = inner_result.outputs.get("collect")
-        if not isinstance(collected, Mapping):
-            return materialised
-        return collected
+        return SpecialistFanOutCollector(
+            responses=materialised,
+            _config=KnotConfig(id="collect"),
+        )

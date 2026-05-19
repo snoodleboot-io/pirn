@@ -28,19 +28,39 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
+from PyEMD import EEMD
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
 from pirn.domains.signal.types.wavelet_frame import WaveletFrame
+from pirn.domains.signal.types.wavelet_payload import WaveletPayload
+
+
+def _eemd_1d(channel: np.ndarray, trials: int, noise_width: float, max_imf: int) -> np.ndarray:
+    eemd = EEMD(trials=trials, noise_width=noise_width)
+    return eemd.eemd(channel, max_imf=max_imf)
+
+
+def _run_eemd(
+    data: np.ndarray, ensemble_size: int, noise_amplitude: float, max_imf: int
+) -> list[np.ndarray]:
+    if data.ndim == 1:
+        imfs = _eemd_1d(data, ensemble_size, noise_amplitude, max_imf)
+        return [imfs[i] for i in range(len(imfs))]
+    results: list[np.ndarray] = []
+    for ch_idx in range(data.shape[0]):
+        imfs = _eemd_1d(data[ch_idx], ensemble_size, noise_amplitude, max_imf)
+        results.extend(imfs[i] for i in range(len(imfs)))
+    return results
 
 
 class EEMDDecomposer(Knot):
-    """Ensemble EMD with white-noise-assisted realisations.
-
-    Production needs ``EMD-signal`` (PyEMD).
-    """
+    """Ensemble EMD with white-noise-assisted realisations."""
 
     def __init__(
         self,
@@ -63,22 +83,22 @@ class EEMDDecomposer(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         ensemble_size: int,
         noise_amplitude: float,
         max_imf_count: int,
         **_: Any,
-    ) -> WaveletFrame:
-        """Decompose the signal into intrinsic mode functions via ensemble EMD and return a WaveletFrame.
+    ) -> WaveletPayload:
+        """Decompose the signal into intrinsic mode functions via ensemble EMD.
 
         Args:
-            signal: Signal to decompose into IMFs using ensemble empirical mode decomposition.
+            signal: Signal payload to decompose.
             ensemble_size: Number of noise-assisted realisations to average (positive integer).
             noise_amplitude: Standard deviation of added white noise (positive float).
             max_imf_count: Maximum number of IMFs to extract (positive integer).
 
         Returns:
-            WaveletFrame of EEMD intrinsic mode functions with up to ``max_imf_count`` scales.
+            WaveletPayload of EEMD intrinsic mode functions.
 
         Raises:
             ValueError: If ensemble_size, noise_amplitude, or max_imf_count are invalid.
@@ -89,8 +109,12 @@ class EEMDDecomposer(Knot):
             raise ValueError("EEMDDecomposer: noise_amplitude must be positive")
         if not isinstance(max_imf_count, int) or max_imf_count <= 0:
             raise ValueError("EEMDDecomposer: max_imf_count must be a positive integer")
-        return WaveletFrame(
-            signal_id=signal.signal_id,
-            wavelet_name="eemd",
-            scale_count=max_imf_count,
+        imfs = await asyncio.to_thread(
+            _run_eemd, signal.data, ensemble_size, noise_amplitude, max_imf_count
         )
+        frame = WaveletFrame(
+            signal_id=signal.frame.signal_id,
+            wavelet_name="eemd",
+            scale_count=len(imfs),
+        )
+        return WaveletPayload(metadata=frame, data=imfs)

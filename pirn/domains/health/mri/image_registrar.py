@@ -1,7 +1,6 @@
 """``ImageRegistrar`` — rigid / affine / nonlinear image registration.
 
-Production version uses ANTs / FSL FLIRT-FNIRT / Elastix. This stub
-returns the requested registered-image path.
+Uses SimpleITK for robust image registration without antspyx.
 
 Algorithm:
     1. Receive moving_path, fixed_path, transform, and output_registered_path strings.
@@ -12,16 +11,79 @@ Algorithm:
 
 
 References:
-    - Avants et al. (2011) A reproducible evaluation of ANTs similarity metric performance.
-    - FSL FLIRT: https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/FLIRT
+    - Lowekamp et al. (2013) The Design of SimpleITK.
+    - Yaniv et al. (2018) SimpleITK Image-Analysis Notebooks.
 """
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+
+try:
+    import SimpleITK as sitk
+
+    _HAS_SITK: bool = True
+except ImportError:
+    sitk = None  # type: ignore[assignment]
+    _HAS_SITK = False
+
+
+def _register(moving_path: str, fixed_path: str, transform: str, output_path: str) -> None:
+    if not _HAS_SITK or sitk is None:
+        raise ImportError(
+            "SimpleITK is required for ImageRegistrar — install with: pip install 'pirn[mri]'"
+        )
+    fixed = sitk.ReadImage(fixed_path, sitk.sitkFloat32)
+    moving = sitk.ReadImage(moving_path, sitk.sitkFloat32)
+
+    registration = sitk.ImageRegistrationMethod()
+    registration.SetMetricAsMattesMutualInformation(numberOfHistogramBins=50)
+    registration.SetOptimizerAsGradientDescent(
+        learningRate=1.0,
+        numberOfIterations=100,
+        convergenceMinimumValue=1e-6,
+        convergenceWindowSize=10,
+    )
+    registration.SetOptimizerScalesFromPhysicalShift()
+    registration.SetShrinkFactorsPerLevel(shrinkFactors=[4, 2, 1])
+    registration.SetSmoothingSigmasPerLevel(smoothingSigmas=[2, 1, 0])
+    registration.SmoothingSigmasAreSpecifiedInPhysicalUnitsOn()
+    registration.SetInterpolator(sitk.sitkLinear)
+
+    if transform == "syn":
+        initial_tx = sitk.CenteredTransformInitializer(
+            fixed, moving, sitk.Euler3DTransform(), sitk.CenteredTransformInitializerFilter.GEOMETRY
+        )
+        registration.SetInitialTransform(
+            sitk.BSplineTransformInitializer(
+                fixed, transformDomainMeshSize=[8] * fixed.GetDimension()
+            )
+        )
+    else:
+        tx_cls = (
+            sitk.Euler3DTransform()
+            if transform == "rigid"
+            else sitk.AffineTransform(fixed.GetDimension())
+        )
+        initial_tx = sitk.CenteredTransformInitializer(
+            fixed, moving, tx_cls, sitk.CenteredTransformInitializerFilter.GEOMETRY
+        )
+        registration.SetInitialTransform(initial_tx, inPlace=False)
+
+    final_tx = registration.Execute(fixed, moving)
+    resampled = sitk.Resample(
+        moving,
+        fixed,
+        final_tx,
+        sitk.sitkLinear,
+        0.0,
+        moving.GetPixelID(),
+    )
+    sitk.WriteImage(resampled, output_path)
 
 
 class ImageRegistrar(Knot):
@@ -77,4 +139,7 @@ class ImageRegistrar(Knot):
                 raise ValueError(f"ImageRegistrar: {label} must be a non-empty string")
         if transform not in ("rigid", "affine", "syn"):
             raise ValueError("ImageRegistrar: transform must be one of rigid/affine/syn")
+        await asyncio.to_thread(
+            _register, moving_path, fixed_path, transform, output_registered_path
+        )
         return output_registered_path

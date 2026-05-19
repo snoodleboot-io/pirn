@@ -9,7 +9,8 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.task_pipelines.text_classification_pipeline import (
     TextClassificationPipeline,
 )
-from pirn.domains.ml.types.eval_report import EvalReport
+from pirn.domains.ml.types.eval_metadata import EvalMetadata
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.tapestry import Tapestry
 from tests.unit.domains.ml._stubs.recording_database_pool import (
     RecordingDatabasePool,
@@ -38,7 +39,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_classification_report(self) -> None:
-        rows = [(f"text {i}", i % 2) for i in range(40)]
+        rows = [{"text": f"text {i}", "label": i % 2} for i in range(40)]
         with Tapestry() as t:
             TextClassificationPipeline(
                 pool=RecordingDatabasePool(rows=rows),
@@ -50,6 +51,6 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert result.succeeded
-        report: EvalReport = result.outputs["tc"]
-        assert isinstance(report, EvalReport)
-        assert {"accuracy", "f1"}.issubset(report.metrics.keys())
+        report: EvalReportPayload = result.outputs["tc"]
+        assert isinstance(report, EvalReportPayload)
+        assert {"accuracy", "f1"}.issubset(report.metrics.scores.keys())

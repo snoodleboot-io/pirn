@@ -48,6 +48,7 @@ from pirn.domains.agents.specializations.rag.rag_response_builder import (
     RAGResponseBuilder,
 )
 from pirn.domains.agents.types.agent_response import AgentResponse
+from pirn.nodes.source import Source
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -78,7 +79,7 @@ class MultiHopRAGPipeline(SubTapestry):
 
     async def process(
         self, query: str, memory: MemoryStore, llm: LLMProvider, top_k: int, num_hops: int, **_: Any
-    ) -> AgentResponse:
+    ) -> Any:
         """Decompose the query, retrieve context per sub-question, and synthesize a final answer.
 
         Args:
@@ -139,7 +140,15 @@ class MultiHopRAGPipeline(SubTapestry):
                 _config=KnotConfig(id="response"),
             )
         synth_result = await self._run_inner(inner_synth)
-        response = synth_result.outputs.get("response")
-        if not isinstance(response, AgentResponse):
-            return AgentResponse(content="", finish_reason="length")
-        return response
+        raw = synth_result.outputs.get("response")
+        _resp: AgentResponse = (
+            raw
+            if isinstance(raw, AgentResponse)
+            else AgentResponse(content="", finish_reason="length")
+        )
+
+        class _ResultSource(Source):
+            async def process(self, **_: Any) -> AgentResponse:
+                return _resp
+
+        return _ResultSource(_config=KnotConfig(id="result"))

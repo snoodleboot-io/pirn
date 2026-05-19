@@ -44,6 +44,15 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
                 efficiency_factor=0.98,
             )
 
+    async def test_rejects_missing_flow_rate(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "flow_rate_mmscfd"):
+            await knot.process(
+                measurements=[{"start_iso": "2026-01-01T00:00:00Z", "end_iso": "2026-01-01T06:00:00Z"}],
+                gas_composition=_COMPOSITION,
+                efficiency_factor=0.98,
+            )
+
     async def test_returns_flaring_summary(self) -> None:
         knot = self._make_knot()
         out = await knot.process(

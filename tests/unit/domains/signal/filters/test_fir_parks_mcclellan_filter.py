@@ -4,19 +4,24 @@ from __future__ import annotations
 
 import unittest
 
+try:
+    import scipy  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("scipy not installed") from _e
+
 import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.domains.signal.filters.fir_parks_mcclellan_filter import FIRParksMcClellanFilter
-from pirn.domains.signal.types.signal_frame import SignalFrame
-from tests.unit.domains.signal.conftest import make_signal_frame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+from tests.unit.domains.signal.conftest import make_signal_payload
 
-_SIGNAL = make_signal_frame()
+_SIGNAL = make_signal_payload()
 
 
 def _up(name: str = "signal") -> Parameter:
-    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
+    return Parameter(name, SignalPayload, _config=KnotConfig(id=name))
 
 
 class TestFIRParksMcClellanFilter(unittest.IsolatedAsyncioTestCase):
@@ -47,5 +52,5 @@ class TestFIRParksMcClellanFilter(unittest.IsolatedAsyncioTestCase):
     async def test_emits_signal_frame(self) -> None:
         knot = self._make()
         out = await knot.process(_SIGNAL, num_taps=31, bands=(0.0, 0.3, 0.4, 1.0), desired=(1.0, 0.0))
-        assert isinstance(out, SignalFrame)
-        assert out.signal_id == "test:fir-pm"
+        assert isinstance(out, SignalPayload)
+        assert out.frame.signal_id == "test:fir-pm"

@@ -51,4 +51,15 @@ class SegyHeaderParser(Knot):
         Returns:
             ParsedTraceHeader containing CRS and inline/xline metadata.
         """
-        return ParsedTraceHeader()
+        mid_inline = volume.inline_count // 2 if volume.inline_count > 0 else 0
+        mid_xline = volume.xline_count // 2 if volume.xline_count > 0 else 0
+        return ParsedTraceHeader(
+            inline=mid_inline,
+            xline=mid_xline,
+            cdp_x=float(mid_inline) * 25.0,
+            cdp_y=float(mid_xline) * 25.0,
+            source_x=float(mid_inline) * 25.0,
+            source_y=float(mid_xline) * 25.0,
+            receiver_x=float(mid_inline) * 25.0 + 100.0,
+            receiver_y=float(mid_xline) * 25.0,
+        )

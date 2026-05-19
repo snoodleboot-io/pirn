@@ -1,12 +1,12 @@
 """``ZeroPhaseFilter`` — zero-phase forward-backward IIR filter.
 
 Algorithm:
-    1. Receive the input signal frame, filter_type, cutoff_hz, and order.
+    1. Receive the input signal payload, filter_type, cutoff_hz, and order.
     2. Validate filter_type, order, and cutoff_hz (same rules as CausalRealtimeFilter).
-    3. Design an IIR filter (e.g., Butterworth) of the given order and type.
-    4. Apply the filter forward, then backward (filtfilt), producing exactly zero
+    3. Design a Butterworth IIR filter of the given order and type.
+    4. Apply the filter forward, then backward (sosfiltfilt), producing exactly zero
        phase shift and doubling the effective filter order.
-    5. Return a filtered SignalFrame.
+    5. Return a filtered SignalPayload.
 
 Math:
     Forward-backward filtering combined magnitude response:
@@ -25,11 +25,16 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
+from scipy import signal as ss
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
 
 
 class ZeroPhaseFilter(Knot):
@@ -56,22 +61,22 @@ class ZeroPhaseFilter(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         filter_type: str,
         cutoff_hz: float | tuple[float, float],
         order: int,
         **_: Any,
-    ) -> SignalFrame:
-        """Apply the zero-phase forward-backward IIR filter and return the filtered SignalFrame.
+    ) -> SignalPayload:
+        """Apply the zero-phase forward-backward IIR filter and return the filtered SignalPayload.
 
         Args:
-            signal: The input signal frame.
+            signal: The input signal payload.
             filter_type: One of ``lowpass``, ``highpass``, ``bandpass``, ``bandstop``.
             cutoff_hz: Cutoff frequency or (low, high) pair in Hz.
             order: Filter order (positive integer).
 
         Returns:
-            Filtered SignalFrame with zero phase distortion and the same shape as the input.
+            Filtered SignalPayload with zero phase distortion and the same shape as the input.
 
         Raises:
             ValueError: If filter_type, order, or cutoff_hz are invalid.
@@ -96,9 +101,24 @@ class ZeroPhaseFilter(Knot):
         else:
             if not isinstance(cutoff_hz, (int, float)) or cutoff_hz <= 0:
                 raise ValueError("ZeroPhaseFilter: cutoff_hz must be a positive scalar")
-        return SignalFrame(
-            signal_id=f"{signal.signal_id}:zerophase-{filter_type}",
-            channel_count=signal.channel_count,
-            sample_rate_hz=signal.sample_rate_hz,
-            samples_per_channel=signal.samples_per_channel,
+
+        btype_map = {
+            "lowpass": "low",
+            "highpass": "high",
+            "bandpass": "bandpass",
+            "bandstop": "bandstop",
+        }
+        fs = signal.frame.sample_rate_hz
+        sos = await asyncio.to_thread(
+            ss.butter, order, cutoff_hz, btype=btype_map[filter_type], fs=fs, output="sos"
+        )
+        filtered = await asyncio.to_thread(ss.sosfiltfilt, sos, signal.data, axis=-1)
+        return SignalPayload(
+            metadata=SignalFrame(
+                signal_id=f"{signal.frame.signal_id}:zerophase-{filter_type}",
+                channel_count=signal.frame.channel_count,
+                sample_rate_hz=signal.frame.sample_rate_hz,
+                samples_per_channel=signal.data.shape[-1],
+            ),
+            data=np.asarray(filtered),
         )

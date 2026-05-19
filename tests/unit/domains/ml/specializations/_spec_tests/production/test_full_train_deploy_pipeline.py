@@ -9,7 +9,8 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.production.full_train_deploy_pipeline import (
     FullTrainDeployPipeline,
 )
-from pirn.domains.ml.types.eval_report import EvalReport
+from pirn.domains.ml.types.eval_metadata import EvalMetadata
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.tapestry import Tapestry
 from tests.unit.domains.ml._stubs.recording_database_pool import (
     RecordingDatabasePool,
@@ -60,7 +61,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_returns_model_id_and_eval_report(self) -> None:
-        rows = [(1.0, 0), (2.0, 1), (3.0, 0), (4.0, 1), (5.0, 0)] * 4
+        rows = [{"a": 1.0, "y": 0}, {"a": 2.0, "y": 1}, {"a": 3.0, "y": 0}, {"a": 4.0, "y": 1}, {"a": 5.0, "y": 0}] * 4
         lineage = RecordingLineageStore()
         store = RecordingObjectStore()
         with Tapestry() as t:
@@ -81,7 +82,7 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         out = result.outputs["train-deploy"]
         assert isinstance(out["model_id"], str)
         assert out["model_id"].startswith("logistic:")
-        assert isinstance(out["eval_report"], EvalReport)
+        assert isinstance(out["eval_report"], EvalReportPayload)
         # Model registered with lineage + object store
         assert any(event[0] == "model_registered" for event in lineage.events)
         assert any(

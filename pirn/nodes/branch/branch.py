@@ -19,7 +19,33 @@ from pirn.nodes.branch.branch_output import BranchOutput
 
 
 class Branch(Knot):
-    """Selector-based router."""
+    """Selector-based router that directs one input to exactly one of N named paths.
+
+    A ``Branch`` takes one parent knot and a ``selector`` callable that maps
+    the input value to a branch name.  For each declared branch name a
+    companion ``BranchOutput`` knot is created and registered in the same
+    tapestry.  Downstream knots wire to individual ``BranchOutput`` knots
+    (accessed via ``branch["name"]``) rather than to the ``Branch`` itself.
+
+    Algorithm:
+        1. Construction — for every name in ``branches``, a ``BranchOutput``
+           knot with ID ``{branch_id}:{name}`` is created and registered in the
+           tapestry.  Each ``BranchOutput`` holds a reference to this ``Branch``
+           and its own branch name.
+        2. Resolution — the engine resolves the single parent and passes its
+           output to ``Branch.process()``.
+        3. Selection — ``process()`` calls ``selector(input)`` to obtain the
+           chosen branch name.  If the returned name is not in
+           ``_mutable_branch_names``, a ``RuntimeError`` is raised.
+        4. Branch output dispatch — the engine calls each ``BranchOutput.process``
+           with the ``Branch``'s output (the selected name).  Each
+           ``BranchOutput`` compares its own name to the selected name:
+           matching outputs return the original input value wrapped in ``Ok``;
+           non-matching outputs return ``Skipped(reason="branch_not_selected")``.
+        5. Downstream propagation — knots downstream of a non-selected
+           ``BranchOutput`` receive ``Skipped`` and are themselves skipped,
+           so only the chosen execution path continues.
+    """
 
     def __init__(
         self,

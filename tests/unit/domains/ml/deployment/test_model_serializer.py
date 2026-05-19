@@ -9,13 +9,13 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.domains.ml.deployment.model_serializer import ModelSerializer
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.model_manifest import ModelManifest
 from pirn.tapestry import Tapestry
 
 
 @knot
-async def emit_model() -> TrainedModel:
-    return TrainedModel(
+async def emit_model() -> ModelManifest:
+    return ModelManifest(
         model_id="m1",
         algorithm="rf",
         hyperparameters={"n_estimators": 50},
@@ -24,8 +24,8 @@ async def emit_model() -> TrainedModel:
     )
 
 
-def _make_model() -> TrainedModel:
-    return TrainedModel(
+def _make_model() -> ModelManifest:
+    return ModelManifest(
         model_id="m1",
         algorithm="rf",
         hyperparameters={"n_estimators": 50},

@@ -74,8 +74,16 @@ class GasChromatographyAnalyzer(Knot):
             raise TypeError("GasChromatographyAnalyzer: gc_report must be a dict")
         if not isinstance(normalize_fractions, bool):
             raise TypeError("GasChromatographyAnalyzer: normalize_fractions must be a bool")
-        components: list[dict[str, Any]] = gc_report.get("components", [])
-        total_area: float = float(gc_report.get("total_area", 1.0) or 1.0)
+        if "components" not in gc_report:
+            raise ValueError(
+                "GasChromatographyAnalyzer: required field 'components' missing from input"
+            )
+        if "total_area" not in gc_report:
+            raise ValueError(
+                "GasChromatographyAnalyzer: required field 'total_area' missing from input"
+            )
+        components: list[dict[str, Any]] = gc_report["components"]
+        total_area: float = float(gc_report["total_area"]) or 1.0
         raw: dict[str, float] = {
             c["name"]: float(c["area_percent"]) / total_area * 100.0 for c in components
         }

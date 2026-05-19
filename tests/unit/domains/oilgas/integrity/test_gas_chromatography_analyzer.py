@@ -37,6 +37,19 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(TypeError, "gc_report"):
             await knot.process(gc_report=[], normalize_fractions=True)  # type: ignore[arg-type]
 
+    async def test_rejects_missing_components(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "components"):
+            await knot.process(gc_report={"total_area": 100.0}, normalize_fractions=True)
+
+    async def test_rejects_missing_total_area(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "total_area"):
+            await knot.process(
+                gc_report={"components": [{"name": "methane", "area_percent": 90.0}]},
+                normalize_fractions=True,
+            )
+
     async def test_returns_mole_fractions(self) -> None:
         knot = self._make_knot()
         out = await knot.process(gc_report=_GC_REPORT, normalize_fractions=True)

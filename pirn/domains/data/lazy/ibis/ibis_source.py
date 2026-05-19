@@ -84,7 +84,9 @@ class IbisSource(Source):
         """
         if not isinstance(table, str) or not table:
             raise ValueError("IbisSource: table must be a non-empty string")
-        backend = connection.backend
+        from pirn.domains.data.lazy.ibis.ibis_connection import IbisConnection
+
+        backend = connection.backend if isinstance(connection, IbisConnection) else connection
         resolved_backend_name = backend_name or self._derive_backend_name(backend)
         expression = backend.table(table)
         return IbisTable(

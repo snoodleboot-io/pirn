@@ -113,6 +113,17 @@ class SQLiteHistory(RunHistory):
         conn.execute("CREATE INDEX IF NOT EXISTS idx_runs_parent ON runs(parent_run_id)")
 
     def __init__(self, *, path: str = "pirn.db", connection: Any = None) -> None:
+        """Initialise the history store.
+
+        Args:
+            path: File path for the SQLite database.  Defaults to
+                ``"pirn.db"`` in the current working directory.  Pass
+                ``":memory:"`` for a transient in-process store.  Ignored
+                when ``connection`` is provided.
+            connection: An existing ``sqlite3.Connection`` to reuse.  Useful
+                for sharing a single file between ``SQLiteStore`` and
+                ``SQLiteHistory``.
+        """
         import sqlite3
 
         self._path = path
@@ -120,6 +131,10 @@ class SQLiteHistory(RunHistory):
         self._initialized = False
 
     def _ensure_init(self) -> None:
+        """Create history tables and apply pending migrations on first call.
+
+        Subsequent calls return immediately.
+        """
         if self._initialized:
             return
         self._conn.executescript(self._schema_version_ddl + self._history_ddl)
@@ -133,6 +148,14 @@ class SQLiteHistory(RunHistory):
         self._initialized = True
 
     async def record_run(self, result: Any) -> None:
+        """Persist a run result and all associated lineage records.
+
+        Inserts or replaces the run row, then bulk-inserts lineage rows and
+        per-knot input hash rows in a single commit.
+
+        Args:
+            result: A ``RunResult`` instance to persist.
+        """
         self._ensure_init()
         self._conn.execute(
             """INSERT OR REPLACE INTO runs
@@ -194,6 +217,14 @@ class SQLiteHistory(RunHistory):
         self._conn.commit()
 
     async def get_run(self, run_id: str) -> Any:
+        """Fetch a single run by id.
+
+        Args:
+            run_id: UUID of the run to retrieve.
+
+        Returns:
+            A ``RunResult`` instance, or ``None`` if not found.
+        """
         self._ensure_init()
         cursor = self._conn.execute("SELECT payload_json FROM runs WHERE run_id = ?", (run_id,))
         row = cursor.fetchone()
@@ -204,6 +235,14 @@ class SQLiteHistory(RunHistory):
         return RunResult.model_validate_json(row[0])
 
     async def query_lineage_by_output_hash(self, output_hash: str) -> list[KnotLineage]:
+        """Return all lineage records whose output matched ``output_hash``.
+
+        Args:
+            output_hash: Content hash of the output to search for.
+
+        Returns:
+            List of ``KnotLineage`` records, possibly empty.
+        """
         self._ensure_init()
         cursor = self._conn.execute(
             "SELECT payload_json FROM lineage WHERE output_hash = ?", (output_hash,)
@@ -211,6 +250,17 @@ class SQLiteHistory(RunHistory):
         return [KnotLineage.model_validate_json(r[0]) for r in cursor.fetchall()]
 
     async def query_lineage_by_input_hash(self, input_hash: str) -> list[KnotLineage]:
+        """Return all lineage records that consumed ``input_hash`` as an input.
+
+        Joins ``lineage`` with ``lineage_inputs`` to locate all knots that
+        depended on the given content hash.
+
+        Args:
+            input_hash: Content hash of the input to search for.
+
+        Returns:
+            List of ``KnotLineage`` records, possibly empty.
+        """
         self._ensure_init()
         cursor = self._conn.execute(
             """SELECT l.payload_json FROM lineage l
@@ -221,6 +271,14 @@ class SQLiteHistory(RunHistory):
         return [KnotLineage.model_validate_json(r[0]) for r in cursor.fetchall()]
 
     async def query_lineage_by_knot_id(self, knot_id: str) -> list[KnotLineage]:
+        """Return all lineage records for a specific knot across all runs.
+
+        Args:
+            knot_id: Identifier of the knot whose history is requested.
+
+        Returns:
+            List of ``KnotLineage`` records, possibly empty.
+        """
         self._ensure_init()
         cursor = self._conn.execute(
             "SELECT payload_json FROM lineage WHERE knot_id = ?", (knot_id,)
@@ -228,6 +286,14 @@ class SQLiteHistory(RunHistory):
         return [KnotLineage.model_validate_json(r[0]) for r in cursor.fetchall()]
 
     async def query_runs_by_actor(self, actor: str) -> list[Any]:
+        """Return all runs triggered by ``actor``.
+
+        Args:
+            actor: Actor string to filter by.
+
+        Returns:
+            List of ``RunResult`` objects, possibly empty.
+        """
         self._ensure_init()
         from pirn.core.run_result import RunResult
 
@@ -235,6 +301,14 @@ class SQLiteHistory(RunHistory):
         return [RunResult.model_validate_json(r[0]) for r in cursor.fetchall()]
 
     async def children_of(self, run_id: str) -> list[Any]:
+        """Return all runs whose ``parent_run_id`` matches ``run_id``.
+
+        Args:
+            run_id: UUID of the parent run.
+
+        Returns:
+            List of ``RunResult`` objects for all child runs, possibly empty.
+        """
         self._ensure_init()
         from pirn.core.run_result import RunResult
 
@@ -244,4 +318,9 @@ class SQLiteHistory(RunHistory):
         return [RunResult.model_validate_json(r[0]) for r in cursor.fetchall()]
 
     def close(self) -> None:
+        """Close the underlying SQLite connection.
+
+        Only call this when the store owns the connection (i.e. opened from a
+        file path).  Shared injected connections must be closed by the caller.
+        """
         self._conn.close()

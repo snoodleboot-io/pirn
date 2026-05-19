@@ -45,8 +45,15 @@ class TestParallelSpecialistFanOutProcess(unittest.IsolatedAsyncioTestCase):
     async def test_collects_responses_from_every_specialist(self) -> None:
         spec_a = _make_spec("A", "spec_a")
         spec_b = _make_spec("B", "spec_b")
-        k = _make_knot({"a": spec_a, "b": spec_b})
-        responses = await k.process(task="tell-time", specialists={"a": spec_a, "b": spec_b})
+        with Tapestry() as t:
+            ParallelSpecialistFanOut(
+                task="tell-time",
+                specialists={"a": spec_a, "b": spec_b},
+                _config=KnotConfig(id="fan"),
+            )
+        run = await t.run(RunRequest())
+        assert run.succeeded
+        responses = run.outputs["fan"]
         assert set(responses.keys()) == {"a", "b"}
         assert isinstance(responses["a"], AgentResponse)
         assert responses["a"].content == "A:tell-time"

@@ -7,8 +7,14 @@ Algorithm:
     2. Validate all inputs.
     3. Wire DatasetLoader → TrainTestSplit → Trainer → RankingEvalPipeline
        in an inner Tapestry.
-    4. Run via _run_inner() and return the EvalReport.
+    4. Run via _run_inner() and return the EvalMetadata.
 
+Math:
+    ALS matrix factorisation: minimise
+        sum_{(u,i) in R} (r_ui - p_u^T q_i)^2 + lambda*(||p_u||^2 + ||q_i||^2)
+    Alternating updates: fix Q, solve for P; then fix P, solve for Q.
+
+    SVD low-rank approximation: R ≈ U Sigma V^T  (rank-k truncated SVD)
 
 References:
     N/A — pirn-native implementation.
@@ -29,9 +35,7 @@ from pirn.domains.ml.specializations.evaluation.ranking_eval_pipeline import (
     RankingEvalPipeline,
 )
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.eval_report import EvalReport
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class CollaborativeFilteringPipeline(SubTapestry):
@@ -74,7 +78,7 @@ class CollaborativeFilteringPipeline(SubTapestry):
         algorithm: str = "als",
         top_k: int = 10,
         **_: Any,
-    ) -> EvalReport:
+    ) -> Any:
         """Train a matrix factorisation model and evaluate with ranking metrics.
 
         Args:
@@ -87,7 +91,7 @@ class CollaborativeFilteringPipeline(SubTapestry):
             top_k: Number of recommendations per user; must be int >= 1.
 
         Returns:
-            EvalReport containing ndcg_at_k, mrr, and map_at_k ranking metrics.
+            EvalReportPayload containing ndcg_at_k, mrr, and map_at_k ranking metrics.
 
         Raises:
             ValueError: If any input fails validation.
@@ -116,30 +120,27 @@ class CollaborativeFilteringPipeline(SubTapestry):
         if not isinstance(top_k, int) or top_k < 1:
             raise ValueError("CollaborativeFilteringPipeline: top_k must be an int >= 1")
         feature_names = (user_column, item_column)
-        with Tapestry() as inner:
-            dataset = DatasetLoader(
-                name="collaborative-filtering",
-                feature_names=feature_names,
-                target_name=rating_column,
-                pool=pool,
-                query=query,
-                _config=KnotConfig(id="load"),
-            )
-            split = TrainTestSplit(
-                dataset=dataset,
-                _config=KnotConfig(id="split"),
-            )
-            trained = Trainer(
-                split=split,
-                algorithm=algorithm,
-                hyperparameters={"top_k": top_k},
-                _config=KnotConfig(id="train"),
-            )
-            RankingEvalPipeline(
-                model=trained,
-                split=split,
-                k=top_k,
-                _config=KnotConfig(id="evaluate"),
-            )
-        inner_result = await self._run_inner(inner)
-        return inner_result.outputs["evaluate"]
+        dataset = DatasetLoader(
+            name="collaborative-filtering",
+            feature_names=feature_names,
+            target_name=rating_column,
+            pool=pool,
+            query=query,
+            _config=KnotConfig(id="load"),
+        )
+        split = TrainTestSplit(
+            dataset=dataset,
+            _config=KnotConfig(id="split"),
+        )
+        trained = Trainer(
+            split=split,
+            algorithm=algorithm,
+            hyperparameters={"top_k": top_k},
+            _config=KnotConfig(id="train"),
+        )
+        return RankingEvalPipeline(
+            model=trained,
+            split=split,
+            k=top_k,
+            _config=KnotConfig(id="evaluate"),
+        )

@@ -30,36 +30,36 @@ def _make_knot() -> BaggingEnsembleBuilder:
 
 class TestBaggingEnsembleBuilderValidation(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_n_estimators_less_than_2(self) -> None:
-        from pirn.domains.ml.types.data_split import DataSplit
-        from pirn.domains.ml.types.ml_dataset import MLDataset
+        from pirn.domains.ml.types.split_manifest import SplitManifest
+        from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 
-        split = DataSplit(
-            train=MLDataset(name="tr", feature_names=["x"], target_name="y", row_count=10, source_uri="mem://"),
-            test=MLDataset(name="te", feature_names=["x"], target_name="y", row_count=5, source_uri="mem://"),
+        split = SplitManifest(
+            train=DatasetManifest(name="tr", feature_names=["x"], target_name="y", row_count=10, source_uri="mem://"),
+            test=DatasetManifest(name="te", feature_names=["x"], target_name="y", row_count=5, source_uri="mem://"),
         )
         k = _make_knot()
         with self.assertRaises((ValueError, TypeError)):
             await k.process(split=split, algorithm="dt", n_estimators=1, metrics=["accuracy"])
 
     async def test_rejects_invalid_task(self) -> None:
-        from pirn.domains.ml.types.data_split import DataSplit
-        from pirn.domains.ml.types.ml_dataset import MLDataset
+        from pirn.domains.ml.types.split_manifest import SplitManifest
+        from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 
-        split = DataSplit(
-            train=MLDataset(name="tr", feature_names=["x"], target_name="y", row_count=10, source_uri="mem://"),
-            test=MLDataset(name="te", feature_names=["x"], target_name="y", row_count=5, source_uri="mem://"),
+        split = SplitManifest(
+            train=DatasetManifest(name="tr", feature_names=["x"], target_name="y", row_count=10, source_uri="mem://"),
+            test=DatasetManifest(name="te", feature_names=["x"], target_name="y", row_count=5, source_uri="mem://"),
         )
         k = _make_knot()
         with self.assertRaises((ValueError, TypeError)):
             await k.process(split=split, algorithm="dt", task="clustering", metrics=["accuracy"])
 
     async def test_rejects_empty_algorithm(self) -> None:
-        from pirn.domains.ml.types.data_split import DataSplit
-        from pirn.domains.ml.types.ml_dataset import MLDataset
+        from pirn.domains.ml.types.split_manifest import SplitManifest
+        from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 
-        split = DataSplit(
-            train=MLDataset(name="tr", feature_names=["x"], target_name="y", row_count=10, source_uri="mem://"),
-            test=MLDataset(name="te", feature_names=["x"], target_name="y", row_count=5, source_uri="mem://"),
+        split = SplitManifest(
+            train=DatasetManifest(name="tr", feature_names=["x"], target_name="y", row_count=10, source_uri="mem://"),
+            test=DatasetManifest(name="te", feature_names=["x"], target_name="y", row_count=5, source_uri="mem://"),
         )
         k = _make_knot()
         with self.assertRaises((ValueError, TypeError)):

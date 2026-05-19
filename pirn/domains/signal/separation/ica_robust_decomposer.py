@@ -24,12 +24,23 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
+from sklearn.decomposition import FastICA
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
 from pirn.domains.signal.types.source_frame import SourceFrame
+from pirn.domains.signal.types.source_payload import SourcePayload
+
+
+def _run_robust_ica(data: np.ndarray, source_count: int) -> np.ndarray:
+    ica = FastICA(n_components=source_count, fun="exp", max_iter=500, random_state=0)
+    result: np.ndarray = ica.fit_transform(data.T)  # type: ignore[union-attr]
+    return result.T
 
 
 class ICARobustDecomposer(Knot):
@@ -58,12 +69,12 @@ class ICARobustDecomposer(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         source_count: int,
         contamination_fraction: float,
         **_: Any,
-    ) -> SourceFrame:
-        """Decompose the signal into independent components via robust ICA and return a SourceFrame.
+    ) -> SourcePayload:
+        """Decompose the signal into independent components via robust ICA and return a SourcePayload.
 
         Args:
             signal: Multichannel signal with potential outliers to decompose into independent sources.
@@ -71,7 +82,7 @@ class ICARobustDecomposer(Knot):
             contamination_fraction: Expected fraction of outliers in [0, 1).
 
         Returns:
-            SourceFrame with robustly estimated independent components and mixing matrix shape.
+            SourcePayload with robustly estimated independent components and mixing matrix shape.
 
         Raises:
             ValueError: If source_count or contamination_fraction are invalid.
@@ -83,8 +94,12 @@ class ICARobustDecomposer(Knot):
             or not 0.0 <= contamination_fraction < 1.0
         ):
             raise ValueError("ICARobustDecomposer: contamination_fraction must lie in [0, 1)")
-        return SourceFrame(
-            signal_id=signal.signal_id,
-            source_count=source_count,
-            mixing_matrix_shape=(signal.channel_count, source_count),
+        sources = await asyncio.to_thread(_run_robust_ica, signal.data, source_count)
+        return SourcePayload(
+            metadata=SourceFrame(
+                signal_id=f"{signal.frame.signal_id}:ica_robust",
+                source_count=source_count,
+                mixing_matrix_shape=(signal.frame.channel_count, source_count),
+            ),
+            data=np.asarray(sources),
         )

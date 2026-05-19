@@ -1,11 +1,11 @@
-"""``ModelSerializer`` — serialise a :class:`TrainedModel` reference to bytes.
+"""``ModelSerializer`` — serialise a :class:`ModelManifest` reference to bytes.
 
 The default implementation emits a JSON payload of the model's metadata
 fields. Real subclasses (joblib / pickle / ONNX) override
 :meth:`process` to serialise the actual fitted artifact.
 
 Algorithm:
-    1. Receive ``model`` (TrainedModel) and ``format`` (str) via process().
+    1. Receive ``model`` (ModelManifest) and ``format`` (str) via process().
     2. Validate format against the known set of valid formats.
     3. Build a JSON-serialisable payload from model metadata fields.
     4. Encode the payload to UTF-8 bytes and return.
@@ -22,11 +22,11 @@ from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.model_manifest import ModelManifest
 
 
 class ModelSerializer(Knot):
-    """Serialise a :class:`TrainedModel` reference to ``bytes``."""
+    """Serialise a :class:`ModelManifest` reference to ``bytes``."""
 
     valid_formats: ClassVar[frozenset[str]] = frozenset(
         {"joblib", "pickle", "onnx", "json", "xgboost-json", "pytorch"}
@@ -42,11 +42,11 @@ class ModelSerializer(Knot):
     ) -> None:
         super().__init__(model=model, format=format, _config=_config, **kwargs)
 
-    async def process(self, model: TrainedModel, format: str = "joblib", **_: Any) -> bytes:
-        """Serialise the TrainedModel metadata to bytes in the configured format and return them.
+    async def process(self, model: ModelManifest, format: str = "joblib", **_: Any) -> bytes:
+        """Serialise the ModelManifest metadata to bytes in the configured format and return them.
 
         Args:
-            model: TrainedModel reference whose metadata is serialised.
+            model: ModelManifest reference whose metadata is serialised.
             format: Serialisation format; must be one of ``valid_formats``.
 
         Returns:

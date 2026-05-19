@@ -25,19 +25,25 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import librosa
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.signal.types.signal_frame import SignalFrame
-from pirn.domains.signal.types.spectrum_frame import SpectrumFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+
+def _compute_mfcc(
+    mono: np.ndarray, sr: int, n_mfcc: int, n_fft: int, hop_length: int
+) -> np.ndarray:
+    return librosa.feature.mfcc(y=mono, sr=sr, n_mfcc=n_mfcc, n_fft=n_fft, hop_length=hop_length)
 
 
 class MFCCExtractor(Knot):
-    """Compute MFCC features from an audio signal.
-
-    Production needs ``librosa.feature.mfcc``.
-    """
+    """Compute MFCC features from an audio signal using ``librosa.feature.mfcc``."""
 
     def __init__(
         self,
@@ -60,12 +66,12 @@ class MFCCExtractor(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         n_mfcc: int,
         n_fft: int,
         hop_length: int,
         **_: Any,
-    ) -> SpectrumFrame:
+    ) -> dict[str, Any]:
         """Extract MFCC features from the audio signal.
 
         Args:
@@ -75,7 +81,7 @@ class MFCCExtractor(Knot):
             hop_length: Hop size in samples (positive integer, must not exceed n_fft).
 
         Returns:
-            SpectrumFrame with ``frequency_bins`` equal to ``n_mfcc``.
+            Dictionary with ``mfcc`` (list of lists), ``n_mfcc``, and ``signal_id``.
 
         Raises:
             ValueError: If n_mfcc, n_fft, or hop_length are invalid.
@@ -88,8 +94,11 @@ class MFCCExtractor(Knot):
             raise ValueError("MFCCExtractor: hop_length must be a positive integer")
         if hop_length > n_fft:
             raise ValueError("MFCCExtractor: hop_length must not exceed n_fft")
-        return SpectrumFrame(
-            signal_id=signal.signal_id,
-            frequency_bins=n_mfcc,
-            frequency_resolution_hz=0.0,
-        )
+        mono = signal.data[0] if signal.data.ndim > 1 else signal.data
+        sr = int(signal.frame.sample_rate_hz)
+        mfcc = await asyncio.to_thread(_compute_mfcc, mono, sr, n_mfcc, n_fft, hop_length)
+        return {
+            "mfcc": mfcc.tolist(),
+            "n_mfcc": n_mfcc,
+            "signal_id": signal.frame.signal_id,
+        }

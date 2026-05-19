@@ -2,7 +2,7 @@
 SubTapestry: data load → train/test split → preprocess (scaling) → train
 → evaluate.
 
-The output is the :class:`EvalReport` produced by the final evaluation
+The output is the :class:`EvalMetadata` produced by the final evaluation
 stage so callers can gate downstream knots on the model's score.
 
 Algorithm:
@@ -11,8 +11,13 @@ Algorithm:
     2. Validate all inputs.
     3. Wire DatasetLoader → TrainTestSplit → Scaler → Trainer → Evaluator
        in an inner Tapestry.
-    4. Run via _run_inner() and return the EvalReport.
+    4. Run via _run_inner() and return the EvalMetadata.
 
+Math:
+    Binary cross-entropy loss:
+        L = -(1/n) * sum_i [y_i * log(p_i) + (1 - y_i) * log(1 - p_i)]
+
+    Sigmoid output: p_i = 1 / (1 + exp(-w^T x_i))
 
 References:
     N/A — pirn-native implementation.
@@ -33,9 +38,7 @@ from pirn.domains.ml.data_prep.train_test_split import TrainTestSplit
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.features.scaler import Scaler
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.eval_report import EvalReport
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class BinaryClassificationPipeline(SubTapestry):
@@ -78,8 +81,8 @@ class BinaryClassificationPipeline(SubTapestry):
         feature_names: Sequence[str] = (),
         algorithm: str = "logistic",
         **_: Any,
-    ) -> EvalReport:
-        """Load data, split, scale, train a binary classifier, and return the EvalReport from the evaluation stage.
+    ) -> Any:
+        """Load data, split, scale, train a binary classifier, and return the EvalMetadata from the evaluation stage.
 
         Args:
             pool: DatabaseConnectionPool for loading the dataset.
@@ -89,7 +92,7 @@ class BinaryClassificationPipeline(SubTapestry):
             algorithm: Non-empty algorithm identifier.
 
         Returns:
-            EvalReport containing accuracy, precision, recall, f1, and
+            EvalReportPayload containing accuracy, precision, recall, f1, and
             roc_auc metrics from the evaluation stage.
 
         Raises:
@@ -109,35 +112,32 @@ class BinaryClassificationPipeline(SubTapestry):
             raise ValueError("BinaryClassificationPipeline: feature_names must be non-empty")
         if not isinstance(algorithm, str) or not algorithm:
             raise ValueError("BinaryClassificationPipeline: algorithm must be a non-empty string")
-        with Tapestry() as inner:
-            dataset = DatasetLoader(
-                name="binary-classification",
-                feature_names=feature_tuple,
-                target_name=target_column,
-                pool=pool,
-                query=query,
-                _config=KnotConfig(id="load"),
-            )
-            split = TrainTestSplit(
-                dataset=dataset,
-                _config=KnotConfig(id="split"),
-            )
-            preprocessed = Scaler(
-                split=split,
-                columns=feature_tuple,
-                method="standardise",
-                _config=KnotConfig(id="preprocess"),
-            )
-            trained = Trainer(
-                split=preprocessed,
-                algorithm=algorithm,
-                _config=KnotConfig(id="train"),
-            )
-            Evaluator(
-                model=trained,
-                split=preprocessed,
-                metrics=self._binary_metrics,
-                _config=KnotConfig(id="evaluate"),
-            )
-        inner_result = await self._run_inner(inner)
-        return inner_result.outputs["evaluate"]
+        dataset = DatasetLoader(
+            name="binary-classification",
+            feature_names=feature_tuple,
+            target_name=target_column,
+            pool=pool,
+            query=query,
+            _config=KnotConfig(id="load"),
+        )
+        split = TrainTestSplit(
+            dataset=dataset,
+            _config=KnotConfig(id="split"),
+        )
+        preprocessed = Scaler(
+            split=split,
+            columns=feature_tuple,
+            method="standardise",
+            _config=KnotConfig(id="preprocess"),
+        )
+        trained = Trainer(
+            split=preprocessed,
+            algorithm=algorithm,
+            _config=KnotConfig(id="train"),
+        )
+        return Evaluator(
+            model=trained,
+            split=preprocessed,
+            metrics=self._binary_metrics,
+            _config=KnotConfig(id="evaluate"),
+        )

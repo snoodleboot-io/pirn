@@ -57,10 +57,10 @@ Reads a **single file** by composing an `ObjectStore` (where the bytes live) wit
 ```python
 from pirn.domains.data.sources.file_source import FileSource
 from pirn.domains.connectors.file_formats.parquet_format import ParquetFormat
-from pirn.domains.connectors.object_stores.s3_object_store import S3ObjectStore
+from pirn.backends.s3 import S3DataStore
 
 source = FileSource(
-    store=S3ObjectStore(bucket="my-bucket"),
+    store=S3DataStore(bucket="my-bucket"),
     format=ParquetFormat(),
     key="data/2026/events.parquet",
     schema=my_schema,           # optional
@@ -87,7 +87,7 @@ Reads **every file under a prefix** and emits either one `DataBatch` per file or
 from pirn.domains.data.sources.directory_source import DirectorySource
 
 source = DirectorySource(
-    store=S3ObjectStore(bucket="my-bucket"),
+    store=S3DataStore(bucket="my-bucket"),
     format=ParquetFormat(),
     prefix="data/2026/",
     concatenate=True,           # False = tuple[DataBatch, ...]
@@ -124,7 +124,7 @@ from pirn.domains.connectors.file_formats.parquet_format import ParquetFormat
 
 sink = FileSink(
     batch=transform_knot,
-    store=S3ObjectStore(bucket="my-bucket"),
+    store=S3DataStore(bucket="my-bucket"),
     format=ParquetFormat(compression="zstd"),
     key="output/2026/result.parquet",
     _config=KnotConfig(id="write_result"),

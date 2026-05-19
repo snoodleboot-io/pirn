@@ -252,9 +252,10 @@ Nonlinear dynamics and complexity analysis knots.
 
 High-level audio analysis knots backed by `librosa`.
 
+> **Note:** `AudioFileIngestor` has been removed. Use `SignalObjectStoreAssembler` to receive raw bytes from an `ObjectStoreReadSource` connector and produce a `SignalPayload`. The ingestor pattern is abolished in this domain. See [Connector boundaries](#connector-boundaries) below.
+
 | Knot | Description |
 |---|---|
-| `AudioFileIngestor` | Loads audio from any format supported by `librosa` |
 | `AudioResampler` | Sample rate conversion using `librosa.resample` |
 | `MelSpectrogramExtractor` | Mel-scale spectrogram extraction |
 | `MfccExtractor` | Mel-frequency cepstral coefficients |
@@ -350,5 +351,23 @@ pip install "pirn[signal]"
 | `audio` (separate) | `soundfile`, `numpy`, `pydub` | WAV/FLAC/OGG/MP3/AAC/M4A format connectors |
 
 `scipy` and `pywavelets` are the core dependencies. `librosa` adds the audio analysis knots in `pirn.domains.signal.audio` and pulls in `numpy` and `soundfile` as transitive dependencies.
+
+---
+
+## Connector boundaries
+
+Domain payloads enter and leave the signal domain through assembler/disassembler knots. The ingestor pattern is abolished.
+
+`SignalObjectStoreAssembler` replaces `AudioFileIngestor` — it receives raw bytes from an `ObjectStoreReadSource` connector and produces a `SignalPayload`. No I/O occurs inside the assembler.
+
+Three disassemblers cover the signal domain's output payload types:
+
+| Disassembler | Input | Output |
+|---|---|---|
+| `SignalObjectStoreDisassembler` | `SignalPayload` | `bytes` |
+| `SpectrumObjectStoreDisassembler` | `SpectrumFrame` | `bytes` |
+| `WaveletObjectStoreDisassembler` | `WaveletFrame` | `bytes` |
+
+All assemblers and disassemblers live under `pirn/domains/signal/assemblers/` and `pirn/domains/signal/disassemblers/` respectively.
 
 **See also:** [Health Domain — Biosignal Formats](health.md#healthcare-biosignal-formats), [File Formats — Connectors](../connectors/index.md)

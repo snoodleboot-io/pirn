@@ -1,14 +1,10 @@
 """``RegionOfInterestExtractor`` — extract per-ROI statistics.
 
-Production version applies an atlas-aligned label volume and computes
-mean/std per label. This stub returns an empty mapping
-``roi_label -> mean_intensity``.
-
 Algorithm:
     1. Receive nifti_path, atlas_label_path strings, and roi_labels sequence.
     2. Validate paths are non-empty and roi_labels is list/tuple of ints.
-    3. Load the NIfTI image and atlas label volume.
-    4. For each label, extract voxels and compute mean intensity.
+    3. Load the NIfTI image and atlas label volume via nibabel.
+    4. For each integer label, mask voxels and compute mean intensity.
     5. Return a mapping of label to mean intensity.
 
 Math:
@@ -23,11 +19,31 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+import nibabel as nib
+import numpy as np
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+
+
+def _extract_roi_means(
+    nifti_path: str,
+    atlas_label_path: str,
+    roi_labels: Sequence[int],
+) -> dict[int, float]:
+    img = nib.load(nifti_path)
+    atlas = nib.load(atlas_label_path)
+    intensity: np.ndarray = np.asarray(img.get_fdata(), dtype=float)
+    labels: np.ndarray = np.asarray(atlas.get_fdata())
+    result: dict[int, float] = {}
+    for lbl in roi_labels:
+        mask = labels == lbl
+        result[lbl] = float(intensity[mask].mean()) if mask.any() else 0.0
+    return result
 
 
 class RegionOfInterestExtractor(Knot):
@@ -57,7 +73,7 @@ class RegionOfInterestExtractor(Knot):
         roi_labels: Sequence[int],
         **_: Any,
     ) -> Mapping[int, float]:
-        """Extract mean intensity per ROI label from the atlas-aligned NIfTI and return a label-to-intensity mapping.
+        """Extract mean intensity per ROI label from the atlas-aligned NIfTI.
 
         Args:
             nifti_path: Non-empty path to the input NIfTI file.
@@ -82,4 +98,4 @@ class RegionOfInterestExtractor(Knot):
         for lbl in roi_labels:
             if not isinstance(lbl, int):
                 raise TypeError("RegionOfInterestExtractor: every roi label must be int")
-        return {lbl: 0.0 for lbl in roi_labels}
+        return await asyncio.to_thread(_extract_roi_means, nifti_path, atlas_label_path, roi_labels)

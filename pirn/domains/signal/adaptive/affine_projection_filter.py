@@ -8,7 +8,7 @@ Algorithm:
        w(n+1) = w(n) + step_size * X^T * (X * X^T + delta*I)^{-1} * e(n)
        where e(n) is the projection-order error vector.
     5. Apply updated weights to produce the filtered output.
-    6. Return a SignalFrame with the APA-filtered output.
+    6. Return a SignalPayload with the APA error signal.
 
 Math:
     Weight update equation:
@@ -29,18 +29,52 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+_apf_delta = 1e-6
+
+
+def _apf(
+    signal_data: np.ndarray,
+    reference_data: np.ndarray,
+    filter_length: int,
+    projection_order: int,
+    step_size: float,
+) -> np.ndarray:
+    """Run the affine projection adaptive filter loop and return the error signal."""
+    n_samples = len(signal_data)
+    filter_weights = np.zeros(filter_length)
+    e_out = np.zeros(n_samples)
+    start = filter_length + projection_order - 1
+    for sample_index in range(start, n_samples):
+        input_matrix = np.stack(
+            [
+                signal_data[sample_index - p - filter_length : sample_index - p][::-1]
+                for p in range(projection_order)
+            ],
+            axis=0,
+        )
+        desired_vector = reference_data[sample_index - projection_order + 1 : sample_index + 1][
+            ::-1
+        ]
+        output_vector = input_matrix @ filter_weights
+        e_vec = desired_vector - output_vector
+        gram = input_matrix @ input_matrix.T + _apf_delta * np.eye(projection_order)
+        filter_weights = filter_weights + step_size * input_matrix.T @ np.linalg.solve(gram, e_vec)
+        e_out[sample_index] = e_vec[0]
+    return e_out
 
 
 class AffineProjectionFilter(Knot):
-    """Affine projection adaptive filter.
-
-    Production needs ``padasip`` or a hand-rolled NumPy implementation.
-    """
+    """Affine projection adaptive filter."""
 
     def __init__(
         self,
@@ -65,24 +99,24 @@ class AffineProjectionFilter(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
-        reference: SignalFrame,
+        signal: SignalPayload,
+        reference: SignalPayload,
         filter_length: int,
         projection_order: int,
         step_size: float,
         **_: Any,
-    ) -> SignalFrame:
+    ) -> SignalPayload:
         """Apply the affine projection adaptive filter to the signal using the reference.
 
         Args:
-            signal: Input signal to filter.
-            reference: Reference signal used to drive the adaptive weight update.
+            signal: Input signal payload to filter.
+            reference: Reference signal payload used to drive the adaptive weight update.
             filter_length: Number of filter taps (must be a positive integer).
             projection_order: APA projection order (must be a positive integer).
             step_size: Step size controlling convergence speed (must be positive).
 
         Returns:
-            SignalFrame of the APA-filtered output.
+            SignalPayload of the APA error signal.
 
         Raises:
             ValueError: If filter_length, projection_order, or step_size are invalid.
@@ -93,9 +127,22 @@ class AffineProjectionFilter(Knot):
             raise ValueError("AffineProjectionFilter: projection_order must be a positive integer")
         if not isinstance(step_size, (int, float)) or step_size <= 0:
             raise ValueError("AffineProjectionFilter: step_size must be positive")
-        return SignalFrame(
-            signal_id=f"{signal.signal_id}:apa",
-            channel_count=signal.channel_count,
-            sample_rate_hz=signal.sample_rate_hz,
-            samples_per_channel=signal.samples_per_channel,
+        if signal.frame.sample_rate_hz != reference.frame.sample_rate_hz:
+            raise ValueError("AffineProjectionFilter: signal and reference sample rates must match")
+
+        sig_data = signal.data[0] if signal.data.ndim > 1 else signal.data
+        ref_data = reference.data[0] if reference.data.ndim > 1 else reference.data
+
+        result = await asyncio.to_thread(
+            _apf, sig_data, ref_data, filter_length, projection_order, step_size
+        )
+
+        return SignalPayload(
+            metadata=SignalFrame(
+                signal_id=f"{signal.frame.signal_id}:apa",
+                channel_count=1,
+                sample_rate_hz=signal.frame.sample_rate_hz,
+                samples_per_channel=result.shape[0],
+            ),
+            data=result,
         )

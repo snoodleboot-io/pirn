@@ -40,6 +40,24 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
                 temperature_threshold_c=100.0,
             )
 
+    async def test_rejects_missing_motor_temp(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "motor_temp_c"):
+            await knot.process(
+                telemetry={"vibration_g": 0.1},
+                vibration_threshold_g=1.0,
+                temperature_threshold_c=100.0,
+            )
+
+    async def test_rejects_missing_vibration(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "vibration_g"):
+            await knot.process(
+                telemetry={"motor_temp_c": 80.0},
+                vibration_threshold_g=1.0,
+                temperature_threshold_c=100.0,
+            )
+
     async def test_healthy_esp(self) -> None:
         knot = self._make_knot()
         out = await knot.process(

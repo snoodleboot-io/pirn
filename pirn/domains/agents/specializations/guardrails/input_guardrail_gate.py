@@ -44,7 +44,6 @@ from pirn.domains.agents.specializations.guardrails.input_message_scrubber impor
 )
 from pirn.domains.agents.types.agent_message import AgentMessage
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class InputGuardrailGate(SubTapestry):
@@ -73,7 +72,7 @@ class InputGuardrailGate(SubTapestry):
         deny_patterns: Sequence[str] = (),
         pii_patterns: Sequence[str] = (),
         **_: Any,
-    ) -> tuple[AgentMessage, ...]:
+    ) -> Any:
         """Reject messages matching deny patterns and redact PII, returning the cleaned message tuple.
 
         Args:
@@ -103,15 +102,9 @@ class InputGuardrailGate(SubTapestry):
                         f"InputGuardrailGate: messages[{index}] matched deny "
                         f"pattern {pattern.pattern!r}"
                     )
-        with Tapestry() as inner:
-            InputMessageScrubber(
-                messages=message_tuple,
-                deny_patterns=(),
-                pii_patterns=tuple(pii_patterns),
-                _config=KnotConfig(id="scrub"),
-            )
-        inner_result = await self._run_inner(inner)
-        cleaned = inner_result.outputs.get("scrub")
-        if not isinstance(cleaned, tuple):
-            raise RuntimeError("InputGuardrailGate: inner scrubber did not return a tuple")
-        return cleaned
+        return InputMessageScrubber(
+            messages=message_tuple,
+            deny_patterns=(),
+            pii_patterns=tuple(pii_patterns),
+            _config=KnotConfig(id="scrub"),
+        )

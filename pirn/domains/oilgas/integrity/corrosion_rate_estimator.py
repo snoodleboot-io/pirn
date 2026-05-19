@@ -74,8 +74,12 @@ class CorrosionRateEstimator(Knot):
             raise TypeError("CorrosionRateEstimator: years_between must be numeric")
         if years_between <= 0.0:
             raise ValueError("CorrosionRateEstimator: years_between must be positive")
+        if "feature_count" not in current_run:
+            raise ValueError(
+                "CorrosionRateEstimator: required field 'feature_count' missing from input"
+            )
         return {
             "max_rate_mpy": 5.0,
             "mean_rate_mpy": 1.0,
-            "feature_count": float(current_run.get("feature_count", 0)),
+            "feature_count": float(current_run["feature_count"]),
         }

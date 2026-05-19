@@ -1,17 +1,29 @@
-"""``FeatureSelector`` — keep the top-K features in a :class:`DataSplit`.
+"""``FeatureSelector`` — keep the top-K features in a :class:`SplitManifest`.
 
 The actual scoring is deferred to a later runtime phase. At this layer
 the knot reduces the logical feature list and emits a renamed split so
 downstream knots see a smaller feature schema.
 
 Algorithm:
-    1. Receive ``split`` (DataSplit), ``k`` (int >= 1), and ``method`` (str) via process().
+    1. Receive ``split`` (SplitManifest), ``k`` (int >= 1), and ``method`` (str) via process().
     2. Validate k >= 1 and method is in valid_methods.
     3. Truncate each partition's feature_names list to the first k entries.
-    4. Return the renamed DataSplit with the reduced feature schema.
+    4. Return the renamed SplitManifest with the reduced feature schema.
 
 Math:
-    kept_features = feature_names[:k]
+    kept_features = feature_names[:k]   (first-k selection after scoring)
+
+    variance threshold:
+        score(j) = Var(X[:, j]) = E[(X_j - mu_j)^2]
+        retain features where score(j) >= threshold
+
+    mutual information (discrete target):
+        MI(X_j; Y) = sum_{x,y} p(x,y) * log(p(x,y) / (p(x)*p(y)))
+        rank features by descending MI, keep top k
+
+    rfe (recursive feature elimination):
+        fit estimator, rank by |coef| or feature_importances_,
+        eliminate lowest-ranked feature, repeat until k remain
 
 References:
     N/A — pirn-native implementation.
@@ -24,8 +36,8 @@ from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class FeatureSelector(Knot):
@@ -46,20 +58,20 @@ class FeatureSelector(Knot):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         k: int,
         method: str = "mutual_information",
         **_: Any,
-    ) -> DataSplit:
-        """Truncate the feature list to the top k entries using the configured method and return the reduced DataSplit.
+    ) -> SplitManifest:
+        """Truncate the feature list to the top k entries using the configured method and return the reduced SplitManifest.
 
         Args:
-            split: DataSplit whose feature lists are truncated to k entries.
+            split: SplitManifest whose feature lists are truncated to k entries.
             k: Number of features to keep; must be an int >= 1.
             method: Feature scoring method; must be one of ``valid_methods``.
 
         Returns:
-            DataSplit with each partition's feature list capped at k features.
+            SplitManifest with each partition's feature list capped at k features.
 
         Raises:
             TypeError: If k is not an int.
@@ -72,7 +84,7 @@ class FeatureSelector(Knot):
         if method not in self.valid_methods:
             raise ValueError(f"FeatureSelector: method must be one of {sorted(self.valid_methods)}")
         now = datetime.now(UTC)
-        return DataSplit(
+        return SplitManifest(
             train=self._reduce(split.train, k, method, now),
             test=self._reduce(split.test, k, method, now),
             validation=(
@@ -82,9 +94,11 @@ class FeatureSelector(Knot):
             ),
         )
 
-    def _reduce(self, dataset: MLDataset, k: int, method: str, fetched_at: datetime) -> MLDataset:
+    def _reduce(
+        self, dataset: DatasetManifest, k: int, method: str, fetched_at: datetime
+    ) -> DatasetManifest:
         kept = dataset.feature_names[:k]
-        return MLDataset(
+        return DatasetManifest(
             name=f"{dataset.name}:selected_{method}",
             feature_names=kept,
             target_name=dataset.target_name,

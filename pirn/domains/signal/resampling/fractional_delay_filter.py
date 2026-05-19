@@ -22,11 +22,31 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
+from scipy import signal as ss
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+
+def _lagrange_coeffs(delay: float, order: int) -> np.ndarray:
+    tap_count = order + 1
+    tap_weights = np.ones(tap_count)
+    for tap_index in range(tap_count):
+        for basis_index in range(tap_count):
+            if basis_index != tap_index:
+                tap_weights[tap_index] *= (delay - basis_index) / (tap_index - basis_index)
+    return tap_weights
+
+
+def _apply_fractional_delay(data: np.ndarray, delay: float, order: int) -> np.ndarray:
+    tap_weights = _lagrange_coeffs(delay, order)
+    return np.asarray(ss.lfilter(tap_weights, [1.0], data, axis=-1))
 
 
 class FractionalDelayFilter(Knot):
@@ -54,11 +74,11 @@ class FractionalDelayFilter(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         delay_samples: float,
         filter_order: int,
         **_: Any,
-    ) -> SignalFrame:
+    ) -> SignalPayload:
         """Apply a fractional sample delay to the signal using Lagrange interpolation.
 
         Args:
@@ -67,7 +87,7 @@ class FractionalDelayFilter(Knot):
             filter_order: Order of the Lagrange interpolation FIR filter (positive integer).
 
         Returns:
-            SignalFrame delayed by ``delay_samples`` samples.
+            SignalPayload delayed by ``delay_samples`` samples.
 
         Raises:
             ValueError: If delay_samples or filter_order are invalid.
@@ -76,9 +96,17 @@ class FractionalDelayFilter(Knot):
             raise ValueError("FractionalDelayFilter: delay_samples must be >= 0.0")
         if not isinstance(filter_order, int) or filter_order <= 0:
             raise ValueError("FractionalDelayFilter: filter_order must be a positive integer")
-        return SignalFrame(
-            signal_id=f"{signal.signal_id}:frac_delayed",
-            channel_count=signal.channel_count,
-            sample_rate_hz=signal.sample_rate_hz,
-            samples_per_channel=signal.samples_per_channel,
+
+        result = await asyncio.to_thread(
+            _apply_fractional_delay, signal.data, float(delay_samples), filter_order
+        )
+
+        return SignalPayload(
+            metadata=SignalFrame(
+                signal_id=f"{signal.frame.signal_id}:frac_delayed",
+                channel_count=signal.frame.channel_count,
+                sample_rate_hz=signal.frame.sample_rate_hz,
+                samples_per_channel=signal.frame.samples_per_channel,
+            ),
+            data=result,
         )

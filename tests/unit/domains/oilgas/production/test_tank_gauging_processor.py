@@ -44,6 +44,33 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
                 bsw_correction_factor=1.5,
             )
 
+    async def test_rejects_missing_opening_level(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "opening_level_in"):
+            await knot.process(
+                gauge_readings={"closing_level_in": 200.0, "bsw_pct": 5.0},
+                tank_table=_TANK_TABLE,
+                bsw_correction_factor=0.0,
+            )
+
+    async def test_rejects_missing_closing_level(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "closing_level_in"):
+            await knot.process(
+                gauge_readings={"opening_level_in": 100.0, "bsw_pct": 5.0},
+                tank_table=_TANK_TABLE,
+                bsw_correction_factor=0.0,
+            )
+
+    async def test_rejects_missing_bsw_pct(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "bsw_pct"):
+            await knot.process(
+                gauge_readings={"opening_level_in": 100.0, "closing_level_in": 200.0},
+                tank_table=_TANK_TABLE,
+                bsw_correction_factor=0.0,
+            )
+
     async def test_returns_volumes(self) -> None:
         knot = self._make_knot()
         out = await knot.process(

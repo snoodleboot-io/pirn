@@ -8,20 +8,20 @@ from pirn.core.knot_config import KnotConfig
 from pirn.domains.ml.specializations.production.ab_test_deployer import (
     ABTestDeployer,
 )
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.split_manifest import SplitManifest
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.model_manifest import ModelManifest
 from pirn.tapestry import Tapestry
 
 
 def _fixtures():
-    train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
-    test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
-    split = DataSplit(train=train, test=test)
-    model_a = TrainedModel(
+    train = DatasetManifest(name="d:train", feature_names=("a",), row_count=80)
+    test = DatasetManifest(name="d:test", feature_names=("a",), row_count=20)
+    split = SplitManifest(train=train, test=test)
+    model_a = ModelManifest(
         model_id="ma", algorithm="rf", feature_names=("a",), target_name="y"
     )
-    model_b = TrainedModel(
+    model_b = ModelManifest(
         model_id="mb", algorithm="xgb", feature_names=("a",), target_name="y"
     )
     return model_a, model_b, split

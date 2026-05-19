@@ -1,23 +1,19 @@
 """``WellborePetrophysicsWorkflow`` — full LAS-to-interpreted-logs pipeline.
 
 Composition:
-    LAS ingest -> curve validate -> log normalise -> petrophysical eval ->
+    LAS assemble -> curve validate -> log normalise -> petrophysical eval ->
     porosity -> permeability -> water saturation -> lithology classify.
 
-Construction-time inputs are plain configuration values; the workflow
-builds the inner :class:`Tapestry` and wires every knot in
-``process()``.
-
 Algorithm:
-    1. Receive all LAS file, curve, and petrophysics configuration as
+    1. Receive LAS bytes, curve, and petrophysics configuration as
        ``Knot | scalar`` inputs.
     2. Validate all string and numeric inputs in ``process()``.
-    3. Build and wire an inner ``Tapestry`` with:
-       - ``LasFileIngester``, ``LasCurveValidator``, ``LogNormalizer``,
+    3. Build the inner pipeline inside ``process()``:
+       - ``LasObjectStoreAssembler``, ``LasCurveValidator``, ``LogNormalizer``,
        - ``PetrophysicalEvaluator``, ``PorosityCalculator``,
        - ``PermeabilityEstimator``, ``WaterSaturationCalculator``,
        - ``LithologyClassifier``.
-    4. Execute the inner tapestry and return the ``RunResult``.
+    4. Return the terminal knot; the base class runs the inner tapestry.
 
 
 References:
@@ -34,9 +30,9 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_result import RunResult
+from pirn.core.parameter import Parameter
+from pirn.domains.oilgas.assemblers.las_object_store_assembler import LasObjectStoreAssembler
 from pirn.domains.oilgas.well.las_curve_validator import LasCurveValidator
-from pirn.domains.oilgas.well.las_file_ingester import LasFileIngester
 from pirn.domains.oilgas.well.lithology_classifier import LithologyClassifier
 from pirn.domains.oilgas.well.log_normalizer import LogNormalizer
 from pirn.domains.oilgas.well.permeability_estimator import PermeabilityEstimator
@@ -46,7 +42,6 @@ from pirn.domains.oilgas.well.water_saturation_calculator import (
     WaterSaturationCalculator,
 )
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class WellborePetrophysicsWorkflow(SubTapestry):
@@ -55,7 +50,7 @@ class WellborePetrophysicsWorkflow(SubTapestry):
     def __init__(
         self,
         *,
-        file_path: Knot | str,
+        body: Knot,
         well_id: Knot | str,
         curves: Knot | Sequence[str],
         required_curves: Knot | Sequence[str],
@@ -67,7 +62,7 @@ class WellborePetrophysicsWorkflow(SubTapestry):
         **kwargs: Any,
     ) -> None:
         super().__init__(
-            file_path=file_path,
+            body=body,
             well_id=well_id,
             curves=curves,
             required_curves=required_curves,
@@ -81,7 +76,7 @@ class WellborePetrophysicsWorkflow(SubTapestry):
 
     async def process(
         self,
-        file_path: str,
+        body: bytes,
         well_id: str,
         curves: Sequence[str],
         required_curves: Sequence[str],
@@ -90,11 +85,11 @@ class WellborePetrophysicsWorkflow(SubTapestry):
         matrix_density: float = 2.65,
         fluid_density: float = 1.0,
         **_: Any,
-    ) -> RunResult:
-        """Build and execute the LAS-to-interpreted-logs inner tapestry and return its RunResult.
+    ) -> Any:
+        """Build the LAS-to-interpreted-logs inner pipeline and return its terminal knot.
 
         Args:
-            file_path: Non-empty path to the LAS file on disk.
+            body: Raw LAS file bytes from an object store connector.
             well_id: Non-empty well identifier string.
             curves: Non-empty sequence of curve mnemonic strings.
             required_curves: Non-empty sequence of required curve mnemonics.
@@ -104,10 +99,12 @@ class WellborePetrophysicsWorkflow(SubTapestry):
             fluid_density: Positive borehole fluid density (g/cm³; default 1.0).
 
         Returns:
-            RunResult from the inner pipeline spanning LAS ingest through lithology classification.
+            Terminal knot of the inner pipeline (``LithologyClassifier``).
         """
-        if not isinstance(file_path, str) or not file_path:
-            raise ValueError("WellborePetrophysicsWorkflow: file_path must be a non-empty string")
+        if not isinstance(body, bytes):
+            raise TypeError(
+                f"WellborePetrophysicsWorkflow: body must be bytes, got {type(body).__name__}"
+            )
         if not isinstance(well_id, str) or not well_id:
             raise ValueError("WellborePetrophysicsWorkflow: well_id must be a non-empty string")
         curve_tuple = tuple(curves)
@@ -116,48 +113,47 @@ class WellborePetrophysicsWorkflow(SubTapestry):
             raise ValueError("WellborePetrophysicsWorkflow: curves must be non-empty")
         if not required_tuple:
             raise ValueError("WellborePetrophysicsWorkflow: required_curves must be non-empty")
-        with Tapestry() as inner:
-            ingest = LasFileIngester(
-                file_path=file_path,
-                well_id=well_id,
-                curves=curve_tuple,
-                _config=KnotConfig(id="ingest"),
-            )
-            validated = LasCurveValidator(
-                las_file=ingest,
-                required_curves=required_tuple,
-                _config=KnotConfig(id="validate"),
-            )
-            normalised = LogNormalizer(
-                las_file=validated,
-                target_depth_step=target_depth_step,
-                _config=KnotConfig(id="normalise"),
-            )
-            evaluated = PetrophysicalEvaluator(
-                las_file=normalised,
-                _config=KnotConfig(id="evaluate"),
-            )
-            with_porosity = PorosityCalculator(
-                las_file=evaluated,
-                method="density_neutron",
-                matrix_density=matrix_density,
-                fluid_density=fluid_density,
-                _config=KnotConfig(id="porosity"),
-            )
-            with_perm = PermeabilityEstimator(
-                las_file=with_porosity,
-                method="timur",
-                _config=KnotConfig(id="permeability"),
-            )
-            with_sw = WaterSaturationCalculator(
-                las_file=with_perm,
-                method="archie",
-                rw=rw,
-                _config=KnotConfig(id="water_saturation"),
-            )
-            LithologyClassifier(
-                las_file=with_sw,
-                method="rule_based",
-                _config=KnotConfig(id="lithology"),
-            )
-        return await self._run_inner(inner)
+        body_param = Parameter("body", bytes, default=body, _config=KnotConfig(id="body"))
+        assembled = LasObjectStoreAssembler(
+            body=body_param,
+            well_id=well_id,
+            curves=curve_tuple,
+            _config=KnotConfig(id="assemble"),
+        )
+        validated = LasCurveValidator(
+            payload=assembled,
+            required_curves=required_tuple,
+            _config=KnotConfig(id="validate"),
+        )
+        normalised = LogNormalizer(
+            payload=validated,
+            target_depth_step=target_depth_step,
+            _config=KnotConfig(id="normalise"),
+        )
+        evaluated = PetrophysicalEvaluator(
+            payload=normalised,
+            _config=KnotConfig(id="evaluate"),
+        )
+        porosity_result = PorosityCalculator(
+            payload=evaluated,
+            method="density_neutron",
+            matrix_density=matrix_density,
+            fluid_density=fluid_density,
+            _config=KnotConfig(id="porosity"),
+        )
+        permeability_result = PermeabilityEstimator(
+            payload=porosity_result,
+            method="timur",
+            _config=KnotConfig(id="permeability"),
+        )
+        saturation_result = WaterSaturationCalculator(
+            payload=permeability_result,
+            method="archie",
+            rw=rw,
+            _config=KnotConfig(id="water_saturation"),
+        )
+        return LithologyClassifier(
+            payload=saturation_result,
+            method="rule_based",
+            _config=KnotConfig(id="lithology"),
+        )

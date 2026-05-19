@@ -7,8 +7,13 @@ Algorithm:
     2. Validate all inputs.
     3. Wire DatasetLoader → TrainTestSplit → Trainer → Evaluator in an
        inner Tapestry.
-    4. Run via _run_inner() and return the EvalReport.
+    4. Run via _run_inner() and return the EvalMetadata.
 
+Math:
+    CRF sequence labelling: P(y | x) = (1/Z(x)) * exp(sum_{t,k} lambda_k * f_k(y_t, y_{t-1}, x, t))
+    Entity-level F1 (micro):
+        F1 = 2 * P * R / (P + R)
+        where P = TP / (TP + FP), R = TP / (TP + FN)  over all entity spans.
 
 References:
     N/A — pirn-native implementation.
@@ -27,9 +32,7 @@ from pirn.domains.ml.data_prep.dataset_loader import DatasetLoader
 from pirn.domains.ml.data_prep.train_test_split import TrainTestSplit
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.eval_report import EvalReport
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class NamedEntityRecognitionPipeline(SubTapestry):
@@ -66,8 +69,8 @@ class NamedEntityRecognitionPipeline(SubTapestry):
         label_column: str = "",
         algorithm: str = "crf",
         **_: Any,
-    ) -> EvalReport:
-        """Tokenise, train NER model, and return an EvalReport with entity-level precision/recall/F1.
+    ) -> Any:
+        """Tokenise, train NER model, and return an EvalMetadata with entity-level precision/recall/F1.
 
         Args:
             pool: DatabaseConnectionPool for loading the dataset.
@@ -77,7 +80,7 @@ class NamedEntityRecognitionPipeline(SubTapestry):
             algorithm: Non-empty algorithm identifier.
 
         Returns:
-            EvalReport containing precision, recall, and f1 metrics from the NER evaluation stage.
+            EvalReportPayload containing precision, recall, and f1 metrics from the NER evaluation stage.
 
         Raises:
             ValueError: If any input fails validation.
@@ -97,29 +100,26 @@ class NamedEntityRecognitionPipeline(SubTapestry):
             )
         if not isinstance(algorithm, str) or not algorithm:
             raise ValueError("NamedEntityRecognitionPipeline: algorithm must be a non-empty string")
-        with Tapestry() as inner:
-            dataset = DatasetLoader(
-                name="ner",
-                feature_names=(text_column,),
-                target_name=label_column,
-                pool=pool,
-                query=query,
-                _config=KnotConfig(id="load"),
-            )
-            split = TrainTestSplit(
-                dataset=dataset,
-                _config=KnotConfig(id="split"),
-            )
-            trained = Trainer(
-                split=split,
-                algorithm=algorithm,
-                _config=KnotConfig(id="train"),
-            )
-            Evaluator(
-                model=trained,
-                split=split,
-                metrics=self._ner_metrics,
-                _config=KnotConfig(id="evaluate"),
-            )
-        inner_result = await self._run_inner(inner)
-        return inner_result.outputs["evaluate"]
+        dataset = DatasetLoader(
+            name="ner",
+            feature_names=(text_column,),
+            target_name=label_column,
+            pool=pool,
+            query=query,
+            _config=KnotConfig(id="load"),
+        )
+        split = TrainTestSplit(
+            dataset=dataset,
+            _config=KnotConfig(id="split"),
+        )
+        trained = Trainer(
+            split=split,
+            algorithm=algorithm,
+            _config=KnotConfig(id="train"),
+        )
+        return Evaluator(
+            model=trained,
+            split=split,
+            metrics=self._ner_metrics,
+            _config=KnotConfig(id="evaluate"),
+        )

@@ -73,7 +73,10 @@ class ExactDeduplicator(Knot):
         )
         seen: dict[tuple[Any, ...], dict[str, Any]] = {}
         for row in sorted_rows:
-            key = tuple(row.get(c) for c in key_tuple)
+            for c in key_tuple:
+                if c not in row:
+                    raise ValueError(f"ExactDeduplicator: key column {c!r} missing from row")
+            key = tuple(row[c] for c in key_tuple)
             if key not in seen:
                 seen[key] = row
         return list(seen.values())

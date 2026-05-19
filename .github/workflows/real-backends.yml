@@ -16,7 +16,6 @@ permissions:
 env:
   UV_PROJECT_ENVIRONMENT: /opt/pirn-deps/.venv
   UV_PYTHON_PREFERENCE: only-system
-  UV_FROZEN: "1"
 
 jobs:
   approve:
@@ -56,15 +55,35 @@ jobs:
           --health-timeout 1s
           --health-retries 30
 
+      redpanda:
+        image: apache/kafka:latest
+        ports: ["9092:9092"]
+        env:
+          KAFKA_NODE_ID: "1"
+          KAFKA_PROCESS_ROLES: broker,controller
+          KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://redpanda:9092
+          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+          KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+          KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+          KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+          KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+        options: >-
+          --health-cmd "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list"
+          --health-interval 5s
+          --health-timeout 10s
+          --health-retries 20
+
     env:
-      PIRN_TEST_POSTGRES_URL: postgresql://pirn:pirn@localhost:5432/pirn_test
-      PIRN_TEST_VALKEY_URL: redis://localhost:6379/0
-      PIRN_TEST_KAFKA_URL: localhost:9092
+      PIRN_TEST_POSTGRES_URL: postgresql://pirn:pirn@postgres:5432/pirn_test
+      PIRN_TEST_VALKEY_URL: redis://valkey:6379/0
+      PIRN_TEST_KAFKA_URL: redpanda:9092
       PIRN_TEST_S3_ENDPOINT: http://localhost:9000
       PIRN_TEST_S3_ACCESS_KEY: pirn
       PIRN_TEST_S3_SECRET_KEY: pirntestpassword
       PIRN_TEST_S3_BUCKET: pirn-test
-      PIRN_TEST_CELERY_BROKER: redis://localhost:6379/1
+      PIRN_TEST_CELERY_BROKER: redis://valkey:6379/1
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
@@ -74,33 +93,11 @@ jobs:
 
       - name: Start MinIO
         run: |
-          docker run -d --name minio \
-            -p 9000:9000 \
-            -e MINIO_ROOT_USER=pirn \
-            -e MINIO_ROOT_PASSWORD=pirntestpassword \
-            minio/minio:latest server /data
-          for i in $(seq 1 30); do
-            curl -sf http://localhost:9000/minio/health/live > /dev/null 2>&1 && break
-            sleep 1
-          done
-
-      - name: Start Redpanda
-        run: |
-          docker run -d --name redpanda \
-            -p 9092:9092 \
-            redpandadata/redpanda:latest redpanda start \
-              --overprovisioned \
-              --smp=1 \
-              --memory=512M \
-              --reserve-memory=0M \
-              --check=false \
-              --node-id=0 \
-              --kafka-addr=PLAINTEXT://0.0.0.0:9092 \
-              --advertise-kafka-addr=PLAINTEXT://localhost:9092
-          for i in $(seq 1 30); do
-            docker exec redpanda rpk cluster info > /dev/null 2>&1 && break
-            sleep 1
-          done
+          curl -fsSL https://dl.min.io/server/minio/release/linux-amd64/minio -o /tmp/minio
+          chmod +x /tmp/minio
+          mkdir -p /tmp/minio-data
+          MINIO_ROOT_USER=pirn MINIO_ROOT_PASSWORD=pirntestpassword /tmp/minio server /tmp/minio-data &
+          until curl -sf http://localhost:9000/minio/health/live; do sleep 1; done
 
       - name: Create MinIO bucket
         run: |
@@ -111,6 +108,7 @@ jobs:
 
       - name: Run real-backend tests
         run: |
+          mkdir -p test-results
           uv run python -m pytest tests/integration \
             --real \
             -m "needs_postgres or needs_valkey or needs_kafka or needs_s3 or needs_celery" \

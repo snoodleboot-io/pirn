@@ -39,3 +39,27 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         assert isinstance(out, tuple)
         assert len(out) == 1
         assert out[0]["unit"] == "mmol/L"
+
+    async def test_raises_on_missing_unit_field(self) -> None:
+        with self.assertRaisesRegex(KeyError, "unit"):
+            await _KNOT.process(
+                rows=[{"value": 100.0}],
+                unit_conversions={},
+                target_unit="mg/dL",
+            )
+
+    async def test_raises_on_missing_value_field(self) -> None:
+        with self.assertRaisesRegex(KeyError, "value"):
+            await _KNOT.process(
+                rows=[{"unit": "mg/dL"}],
+                unit_conversions={},
+                target_unit="mg/dL",
+            )
+
+    async def test_raises_on_non_numeric_value(self) -> None:
+        with self.assertRaisesRegex(ValueError, "numeric"):
+            await _KNOT.process(
+                rows=[{"unit": "mg/dL", "value": "bad"}],
+                unit_conversions={},
+                target_unit="mg/dL",
+            )

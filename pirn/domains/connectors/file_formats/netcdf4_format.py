@@ -44,11 +44,11 @@ class Netcdf4Format(BatchFileFormat):
         return "netcdf4"
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        netCDF4 = self._load_netcdf4()
+        netcdf4_lib = self._load_netcdf4()
         tmp_path = self._write_temp(payload, ".nc")
         records: list[Mapping[str, Any]] = []
         try:
-            ds = netCDF4.Dataset(tmp_path, "r")
+            ds = netcdf4_lib.Dataset(tmp_path, "r")
             try:
                 self._collect_group(ds, "/", records)
             finally:
@@ -59,14 +59,14 @@ class Netcdf4Format(BatchFileFormat):
         return records
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
-        netCDF4 = self._load_netcdf4()
+        netcdf4_lib = self._load_netcdf4()
         materialised = [dict(record) for record in records]
         tmp_path = tempfile.mktemp(suffix=".nc")
         try:
-            ds = netCDF4.Dataset(tmp_path, "w", format="NETCDF4")
+            ds = netcdf4_lib.Dataset(tmp_path, "w", format="NETCDF4")
             try:
                 for record in materialised:
-                    self._write_record(ds, record, netCDF4)
+                    self._write_record(ds, record, netcdf4_lib)
             finally:
                 ds.close()
             with open(tmp_path, "rb") as fh:
@@ -119,7 +119,7 @@ class Netcdf4Format(BatchFileFormat):
         return current
 
     @classmethod
-    def _write_record(cls, ds: Any, record: Mapping[str, Any], netCDF4: Any) -> None:
+    def _write_record(cls, ds: Any, record: Mapping[str, Any], netcdf4_lib: Any) -> None:
         import numpy as np
 
         group_path = record.get("group_path", "/")
@@ -153,9 +153,9 @@ class Netcdf4Format(BatchFileFormat):
     @staticmethod
     def _load_netcdf4() -> Any:
         try:
-            import netCDF4
+            import netCDF4 as netcdf4_lib
         except ImportError as exc:
             raise ImportError(
                 "Netcdf4Format requires netCDF4. Install with `pip install pirn[netcdf]`."
             ) from exc
-        return netCDF4
+        return netcdf4_lib

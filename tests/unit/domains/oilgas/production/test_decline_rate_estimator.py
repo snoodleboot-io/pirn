@@ -4,11 +4,17 @@ from __future__ import annotations
 
 import unittest
 
+import numpy as np
+
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.oilgas.production.decline_rate_estimator import DeclineRateEstimator
+from pirn.domains.oilgas.types.scada_payload import ScadaPayload
 from pirn.domains.oilgas.types.scada_time_series import ScadaTimeSeries
 
-_SERIES = ScadaTimeSeries(sensor_id="rate")
+_SERIES = ScadaPayload(
+    metadata=ScadaTimeSeries(sensor_id="rate", sample_count=90, sample_interval_sec=86400.0),
+    data=np.linspace(1000.0, 500.0, 90),
+)
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
@@ -28,4 +34,4 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         knot = self._make_knot(window_days=90)
         out = await knot.process(rate_series=_SERIES, window_days=90)
         assert isinstance(out, float)
-        assert out == 0.15
+        assert out > 0.0

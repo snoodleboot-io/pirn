@@ -78,12 +78,20 @@ class LabResultNormalizer(Knot):
         if not target_unit:
             raise ValueError("LabResultNormalizer: target_unit must be non-empty")
         out: list[Mapping[str, Any]] = []
-        for row in rows:
-            from_unit = str(row.get("unit", ""))
+        for i, row in enumerate(rows):
+            for field in ("unit", "value"):
+                if field not in row:
+                    raise KeyError(
+                        f"LabResultNormalizer: row[{i}] missing required field '{field}'; "
+                        f"got: {list(row)}"
+                    )
+            from_unit = str(row["unit"])
             try:
-                value = float(row.get("value", 0.0))
-            except (TypeError, ValueError):
-                value = 0.0
+                value = float(row["value"])
+            except (TypeError, ValueError) as exc:
+                raise ValueError(
+                    f"LabResultNormalizer: row[{i}] field 'value' must be numeric"
+                ) from exc
             multiplier = unit_conversions.get((from_unit, target_unit), 1.0)
             out.append(
                 {

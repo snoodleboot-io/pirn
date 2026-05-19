@@ -33,7 +33,6 @@ from pirn.domains.agents.specializations.memory_patterns.working_memory_window_w
 )
 from pirn.domains.agents.types.agent_message import AgentMessage
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class WorkingMemoryPipeline(SubTapestry):
@@ -65,7 +64,7 @@ class WorkingMemoryPipeline(SubTapestry):
         store: MemoryStore,
         max_size: int = 20,
         **_: Any,
-    ) -> tuple[AgentMessage, ...]:
+    ) -> Any:
         """Append new_message to the session window and return the trimmed context tuple.
 
         Args:
@@ -94,16 +93,10 @@ class WorkingMemoryPipeline(SubTapestry):
             raise ValueError(
                 f"WorkingMemoryPipeline: max_size must be a positive int, got {max_size!r}"
             )
-        with Tapestry() as inner:
-            WorkingMemoryWindowWriter(
-                new_message=new_message,
-                session_id=session_id,
-                store=store,
-                max_size=max_size,
-                _config=KnotConfig(id="window"),
-            )
-        inner_result = await self._run_inner(inner)
-        window = inner_result.outputs.get("window")
-        if not isinstance(window, tuple):
-            raise RuntimeError("WorkingMemoryPipeline: inner writer did not return a tuple")
-        return window
+        return WorkingMemoryWindowWriter(
+            new_message=new_message,
+            session_id=session_id,
+            store=store,
+            max_size=max_size,
+            _config=KnotConfig(id="window"),
+        )

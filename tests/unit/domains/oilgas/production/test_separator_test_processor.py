@@ -37,6 +37,30 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(TypeError, "separator_stages"):
             await knot.process(test_data=_TEST_DATA, separator_stages=2.0)  # type: ignore[arg-type]
 
+    async def test_rejects_missing_oil_rate(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "oil_rate_bopd"):
+            await knot.process(
+                test_data={"gas_rate_mmscfd": 0.5, "water_rate_bwpd": 200.0},
+                separator_stages=2,
+            )
+
+    async def test_rejects_missing_gas_rate(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "gas_rate_mmscfd"):
+            await knot.process(
+                test_data={"oil_rate_bopd": 500.0, "water_rate_bwpd": 200.0},
+                separator_stages=2,
+            )
+
+    async def test_rejects_missing_water_rate(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "water_rate_bwpd"):
+            await knot.process(
+                test_data={"oil_rate_bopd": 500.0, "gas_rate_mmscfd": 0.5},
+                separator_stages=2,
+            )
+
     async def test_returns_gor_wor_shrinkage(self) -> None:
         knot = self._make_knot()
         out = await knot.process(test_data=_TEST_DATA, separator_stages=2)

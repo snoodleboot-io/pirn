@@ -1,6 +1,6 @@
 # Subscribable stores
 
-Both `PostgresStore` and `ValKeyStore` implement the optional
+`InMemoryStore`, `PostgresStore`, and `ValKeyStore` implement the optional
 `SubscribableStore` protocol, which lets other components react to knot
 registrations in real time.
 
@@ -66,5 +66,5 @@ designed to accommodate it in a future version.
 
 `SQLiteStore` does not implement `SubscribableStore`. SQLite's locking model
 makes reliable cross-connection notification impractical. For local
-single-process use the in-process `InMemoryStore` emits synchronously to any
-interested parties via the `Tapestry.add_emitter` API.
+single-process use `InMemoryStore`, which implements `SubscribableStore` and
+delivers callbacks synchronously within the same process.

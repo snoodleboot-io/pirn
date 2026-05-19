@@ -10,7 +10,7 @@ Subclass `Knot` and implement `async def process(self, ...) -> Any`:
 
 ```python
 from pirn.core.knot import Knot, Optional
-from pirn.core.config import KnotConfig
+from pirn.core.knot_config import KnotConfig
 
 class FilterByScore(Knot):
     async def process(
@@ -79,7 +79,7 @@ class RedisStore:
 For mid-run extension (`extensible=True`), also implement `SubscribableStore`:
 
 ```python
-from pirn.backends.subscribe import SubscribableStore
+from pirn.backends.base.subscribable_store import SubscribableStore
 
 class SubscribableRedisStore(RedisStore):
     def subscribe(self, callback) -> int:
@@ -99,7 +99,7 @@ Implement `pirn.backends.RunHistory`:
 
 ```python
 from pirn.backends import RunHistory
-from pirn.core.context import RunResult
+from pirn.core.run_result import RunResult
 from pirn.core.lineage import KnotLineage
 
 
@@ -220,7 +220,7 @@ Implement three async hooks (all optional — subclass the base and override wha
 ```python
 from pirn.emitters.base import Emitter
 from pirn.core.lineage import KnotLineage
-from pirn.core.context import RunResult
+from pirn.core.run_result import RunResult
 from pirn.managers.status_event import StatusEvent
 
 
@@ -272,7 +272,7 @@ Implement `pirn.triggers.base.Trigger`:
 
 ```python
 from pirn.triggers.base import Trigger, run_forever
-from pirn.core.context import RunRequest
+from pirn.core.run_request import RunRequest
 from collections.abc import AsyncIterator
 import boto3
 

@@ -3,66 +3,49 @@
 from __future__ import annotations
 
 import unittest
-from typing import Any
+
+try:
+    import scipy  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("scipy not installed") from _e
+
+import numpy as np
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
 from pirn.domains.health.eeg_meg.sleep_stage_classifier import SleepStageClassifier
-from pirn.tapestry import Tapestry
+from pirn.domains.health.types.signal_frame import SignalFrame
+from pirn.domains.health.types.signal_payload import SignalPayload
 
-_PSG_DATA: dict[str, Any] = {
-    "epochs": [
-        {"channel_data": {"EEG": [0.1, 0.2], "EOG": [0.0], "EMG": [0.05]}},
-        {"channel_data": {"EEG": [0.3, 0.4], "EOG": [0.1], "EMG": [0.02]}},
-    ],
-    "sample_rate_hz": 256.0,
-}
-
-
-@knot
-async def emit_psg_data() -> dict[str, Any]:
-    return _PSG_DATA
-
-
-def _make_knot() -> SleepStageClassifier:
-    with Tapestry():
-        p = emit_psg_data(_config=KnotConfig(id="p"))
-        return SleepStageClassifier(
-            psg_data=p,
-            epoch_duration_sec=30,
-            _config=KnotConfig(id="sc"),
-        )
+_CFG = KnotConfig(id="sc")
+_SIGNAL = SignalPayload(
+    metadata=SignalFrame(signal_id="s", channel_count=2, sample_rate_hz=256.0, samples_per_channel=512),
+    data=np.random.default_rng(0).standard_normal((2, 512)),
+)
+_KNOT = SleepStageClassifier(signal=_SIGNAL, epoch_duration_sec=30, _config=_CFG)
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
-    async def test_rejects_non_dict_psg_data(self) -> None:
-        knot_inst = _make_knot()
-        with self.assertRaisesRegex(TypeError, "dict"):
-            await knot_inst.process(psg_data="not-a-dict", epoch_duration_sec=30)  # type: ignore[arg-type]
+    async def test_rejects_non_signal(self) -> None:
+        with self.assertRaisesRegex(TypeError, "SignalPayload"):
+            await _KNOT.process(signal="not-a-signal", epoch_duration_sec=30)  # type: ignore[arg-type]
 
     async def test_rejects_non_30_epoch_duration(self) -> None:
-        knot_inst = _make_knot()
         with self.assertRaisesRegex(ValueError, "epoch_duration_sec"):
-            await knot_inst.process(psg_data=_PSG_DATA, epoch_duration_sec=20)
+            await _KNOT.process(signal=_SIGNAL, epoch_duration_sec=20)
 
     async def test_rejects_empty_channels(self) -> None:
-        knot_inst = _make_knot()
         with self.assertRaisesRegex(ValueError, "channels"):
-            await knot_inst.process(psg_data=_PSG_DATA, epoch_duration_sec=30, channels=())
+            await _KNOT.process(signal=_SIGNAL, epoch_duration_sec=30, channels=())
 
     async def test_returns_dict_with_required_keys(self) -> None:
-        knot_inst = _make_knot()
-        out = await knot_inst.process(psg_data=_PSG_DATA, epoch_duration_sec=30)
+        out = await _KNOT.process(signal=_SIGNAL, epoch_duration_sec=30)
         assert isinstance(out, dict)
         assert "stage_labels" in out
         assert "total_epochs" in out
         assert "sleep_efficiency_pct" in out
 
-    async def test_stage_labels_count_matches_epochs(self) -> None:
-        knot_inst = _make_knot()
-        out = await knot_inst.process(psg_data=_PSG_DATA, epoch_duration_sec=30)
-        assert out["total_epochs"] == 2
-        assert len(out["stage_labels"]) == 2
+    async def test_stage_labels_are_valid_stages(self) -> None:
+        out = await _KNOT.process(signal=_SIGNAL, epoch_duration_sec=30)
         valid_stages = {"W", "N1", "N2", "N3", "REM"}
         for label in out["stage_labels"]:
             assert label in valid_stages

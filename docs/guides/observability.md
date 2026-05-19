@@ -19,12 +19,13 @@ class Emitter(Protocol):
 - `on_lineage` — fires once per knot after it completes. Best hook for metrics and tracing.
 - `on_run_result` — fires once per run after `history.record_run()`. Best hook for alerting and webhooks.
 
-A broken emitter never breaks a run — exceptions are swallowed and the run continues.
+By default, emitter exceptions are logged as warnings and the run continues. Control this with `EmitterErrorPolicy` (see [Emitter error policy](#emitter-error-policy) below).
 
 Attach emitters at construction or per-run:
 
 ```python
-from pirn import Tapestry, LogEmitter, OpenTelemetryEmitter
+from pirn import Tapestry
+from pirn.emitters import LogEmitter, OpenTelemetryEmitter
 
 # All runs
 t = Tapestry(emitters=[LogEmitter(), OpenTelemetryEmitter()])
@@ -202,7 +203,7 @@ Subclass `Emitter` and override whichever hooks you need:
 ```python
 from pirn.emitters.base import Emitter
 from pirn.core.lineage import KnotLineage
-from pirn.core.context import RunResult
+from pirn.core.run_result import RunResult
 
 class PrometheusEmitter(Emitter):
     def __init__(self, registry):
@@ -241,6 +242,34 @@ t = Tapestry(emitters=[
     WebhookEmitter(url="https://..."),
     PrometheusEmitter(registry),
 ])
+```
+
+---
+
+## Emitter error policy
+
+`EmitterErrorPolicy` controls what happens when an emitter raises an exception. Set it on the `Tapestry` or override per-run:
+
+```python
+from pirn import Tapestry
+from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
+
+t = Tapestry(
+    emitters=[LogEmitter(), MyFlakeyEmitter()],
+    emitter_error_policy=EmitterErrorPolicy.WARN,  # default
+)
+```
+
+| Value | Behaviour |
+|-------|-----------|
+| `WARN` | Log a warning at `WARNING` level and continue the run. **(default)** |
+| `IGNORE` | Swallow the exception silently and continue. |
+| `RAISE` | Propagate the exception, aborting run finalisation. Use in tests to catch broken emitters early. |
+
+Override for a single run:
+
+```python
+result = await t.run(request, emitter_error_policy=EmitterErrorPolicy.RAISE)
 ```
 
 ---

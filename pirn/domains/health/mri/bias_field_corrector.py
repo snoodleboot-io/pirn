@@ -25,10 +25,30 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+
+try:
+    import SimpleITK as sitk
+
+    _HAS_SITK: bool = True
+except ImportError:
+    sitk = None  # type: ignore[assignment]
+    _HAS_SITK = False
+
+
+def _apply_n4(nifti_path: str, output_nifti_path: str) -> None:
+    if not _HAS_SITK or sitk is None:
+        raise ImportError(
+            "SimpleITK is required for BiasFieldCorrector — install with: pip install 'pirn[mri]'"
+        )
+    img = sitk.ReadImage(nifti_path, sitk.sitkFloat32)
+    corrector = sitk.N4BiasFieldCorrectionImageFilter()
+    corrected = corrector.Execute(img)
+    sitk.WriteImage(corrected, output_nifti_path)
 
 
 class BiasFieldCorrector(Knot):
@@ -73,4 +93,5 @@ class BiasFieldCorrector(Knot):
         ):
             if not isinstance(value, str) or not value:
                 raise ValueError(f"BiasFieldCorrector: {label} must be a non-empty string")
+        await asyncio.to_thread(_apply_n4, nifti_path, output_nifti_path)
         return output_nifti_path

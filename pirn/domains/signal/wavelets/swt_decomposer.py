@@ -23,12 +23,22 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
+import pywt
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
 from pirn.domains.signal.types.wavelet_frame import WaveletFrame
+from pirn.domains.signal.types.wavelet_payload import WaveletPayload
+
+
+def _run_swt(data: np.ndarray, wavelet: str, level: int) -> list[np.ndarray]:
+    pairs = pywt.swt(data, wavelet, level=level, axis=-1)
+    return [c for pair in pairs for c in pair]
 
 
 class SWTDecomposer(Knot):
@@ -53,20 +63,20 @@ class SWTDecomposer(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         wavelet: str,
         level: int,
         **_: Any,
-    ) -> WaveletFrame:
-        """Compute the stationary wavelet transform and return a WaveletFrame.
+    ) -> WaveletPayload:
+        """Compute the stationary wavelet transform and return a WaveletPayload.
 
         Args:
-            signal: The input signal frame.
+            signal: The input signal payload.
             wavelet: Wavelet name (non-empty string).
             level: Number of decomposition levels (positive integer).
 
         Returns:
-            WaveletFrame with scale_count equal to the decomposition level.
+            WaveletPayload with 2*level coefficient arrays (cA, cD pairs flattened).
 
         Raises:
             ValueError: If wavelet or level are invalid.
@@ -75,8 +85,10 @@ class SWTDecomposer(Knot):
             raise ValueError("SWTDecomposer: wavelet must be a non-empty string")
         if not isinstance(level, int) or level <= 0:
             raise ValueError("SWTDecomposer: level must be a positive integer")
-        return WaveletFrame(
-            signal_id=signal.signal_id,
+        coeffs = await asyncio.to_thread(_run_swt, signal.data, wavelet, level)
+        frame = WaveletFrame(
+            signal_id=signal.frame.signal_id,
             wavelet_name=wavelet,
-            scale_count=level,
+            scale_count=len(coeffs),
         )
+        return WaveletPayload(metadata=frame, data=coeffs)

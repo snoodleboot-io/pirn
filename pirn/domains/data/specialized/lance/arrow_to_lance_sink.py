@@ -71,7 +71,7 @@ class ArrowToLanceSink(Sink):
                 "{'create', 'append', 'overwrite'}, got "
                 f"{mode!r}"
             )
-        import lance
+        from lance.dataset import write_dataset
 
-        lance.write_dataset(table, path, mode=mode)
+        write_dataset(table, path, mode=mode)
         return path

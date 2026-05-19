@@ -145,7 +145,10 @@ class Aggregate(Knot):
     ) -> dict[tuple[Any, ...], list[Mapping[str, Any]]]:
         groups: dict[tuple[Any, ...], list[Mapping[str, Any]]] = {}
         for row in batch.rows:
-            key = tuple(Aggregate._hashable(row.get(b)) for b in by)
+            for b in by:
+                if b not in row:
+                    raise ValueError(f"Aggregate: group-by column {b!r} missing from row")
+            key = tuple(Aggregate._hashable(row[b]) for b in by)
             groups.setdefault(key, []).append(row)
         return groups
 

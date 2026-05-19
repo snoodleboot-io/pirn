@@ -1,11 +1,11 @@
 """``PolynomialFeatures`` — emit polynomial / interaction feature names.
 
 Algorithm:
-    1. Receive ``split`` (DataSplit), ``columns`` (sequence of str), and ``degree`` (int) via process().
+    1. Receive ``split`` (SplitManifest), ``columns`` (sequence of str), and ``degree`` (int) via process().
     2. Validate columns is non-empty and degree >= 2.
     3. Enumerate combinations_with_replacement for degrees 2..degree across columns.
     4. Append the new feature names to each partition's feature list.
-    5. Return the augmented DataSplit.
+    5. Return the augmented SplitManifest.
 
 Math:
     new_features = {col_i * col_j * ... (d terms) | d in 2..degree, cols from columns}
@@ -23,12 +23,12 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class PolynomialFeatures(Knot):
-    """Augment a :class:`DataSplit` with polynomial / interaction features."""
+    """Augment a :class:`SplitManifest` with polynomial / interaction features."""
 
     def __init__(
         self,
@@ -43,20 +43,20 @@ class PolynomialFeatures(Knot):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         columns: Sequence[str] = (),
         degree: int = 2,
         **_: Any,
-    ) -> DataSplit:
-        """Derive polynomial and interaction feature names from the configured columns and return an augmented DataSplit.
+    ) -> SplitManifest:
+        """Derive polynomial and interaction feature names from the configured columns and return an augmented SplitManifest.
 
         Args:
-            split: DataSplit whose partitions receive the new polynomial feature names.
+            split: SplitManifest whose partitions receive the new polynomial feature names.
             columns: Non-empty sequence of base feature column names.
             degree: Polynomial degree; must be an int >= 2.
 
         Returns:
-            DataSplit with polynomial and interaction feature names appended to every partition.
+            SplitManifest with polynomial and interaction feature names appended to every partition.
 
         Raises:
             ValueError: If columns is empty or any element is empty.
@@ -75,7 +75,7 @@ class PolynomialFeatures(Knot):
             raise ValueError("PolynomialFeatures: degree must be >= 2")
         new_features = self._derive_feature_names(column_tuple, degree)
         now = datetime.now(UTC)
-        return DataSplit(
+        return SplitManifest(
             train=self._extend(split.train, new_features, degree, now),
             test=self._extend(split.test, new_features, degree, now),
             validation=(
@@ -94,16 +94,16 @@ class PolynomialFeatures(Knot):
 
     def _extend(
         self,
-        dataset: MLDataset,
+        dataset: DatasetManifest,
         new_features: tuple[str, ...],
         degree: int,
         fetched_at: datetime,
-    ) -> MLDataset:
+    ) -> DatasetManifest:
         merged: list[str] = list(dataset.feature_names)
         for feature in new_features:
             if feature not in merged:
                 merged.append(feature)
-        return MLDataset(
+        return DatasetManifest(
             name=f"{dataset.name}:poly{degree}",
             feature_names=tuple(merged),
             target_name=dataset.target_name,

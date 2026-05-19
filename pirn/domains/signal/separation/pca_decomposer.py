@@ -29,12 +29,22 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
+from sklearn.decomposition import PCA
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
 from pirn.domains.signal.types.source_frame import SourceFrame
+from pirn.domains.signal.types.source_payload import SourcePayload
+
+
+def _run_pca(data: np.ndarray, component_count: int, whiten: bool) -> np.ndarray:
+    pca = PCA(n_components=component_count, whiten=whiten)
+    return pca.fit_transform(data.T).T
 
 
 class PCADecomposer(Knot):
@@ -62,12 +72,12 @@ class PCADecomposer(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         component_count: int,
         whiten: bool = False,
         **_: Any,
-    ) -> SourceFrame:
-        """Decompose the signal into principal components via PCA and return a SourceFrame.
+    ) -> SourcePayload:
+        """Decompose the signal into principal components via PCA and return a SourcePayload.
 
         Args:
             signal: Multichannel signal to project onto the configured principal components.
@@ -75,7 +85,7 @@ class PCADecomposer(Knot):
             whiten: If True, scale components to unit variance.
 
         Returns:
-            SourceFrame with ``source_count`` equal to ``component_count`` and the mixing matrix shape.
+            SourcePayload with ``source_count`` equal to ``component_count`` and the mixing matrix shape.
 
         Raises:
             ValueError: If component_count is invalid.
@@ -85,8 +95,12 @@ class PCADecomposer(Knot):
             raise ValueError("PCADecomposer: component_count must be a positive integer")
         if not isinstance(whiten, bool):
             raise TypeError("PCADecomposer: whiten must be a bool")
-        return SourceFrame(
-            signal_id=signal.signal_id,
-            source_count=component_count,
-            mixing_matrix_shape=(signal.channel_count, component_count),
+        components = await asyncio.to_thread(_run_pca, signal.data, component_count, whiten)
+        return SourcePayload(
+            metadata=SourceFrame(
+                signal_id=f"{signal.frame.signal_id}:pca",
+                source_count=component_count,
+                mixing_matrix_shape=(signal.frame.channel_count, component_count),
+            ),
+            data=np.asarray(components),
         )

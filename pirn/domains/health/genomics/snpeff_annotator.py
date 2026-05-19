@@ -18,10 +18,22 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+
+
+async def _run_subprocess(cmd: list[str]) -> None:
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    _, stderr = await proc.communicate()
+    if proc.returncode != 0:
+        raise RuntimeError(f"{cmd[0]} failed: {stderr.decode()}")
 
 
 class SnpEffAnnotator(Knot):
@@ -74,4 +86,6 @@ class SnpEffAnnotator(Knot):
                 raise TypeError(f"SnpEffAnnotator: {label} must be a string")
             if not value:
                 raise ValueError(f"SnpEffAnnotator: {label} must be non-empty")
+        cmd = ["java", "-jar", "snpEff.jar", "ann", genome_db, vcf_path]
+        await _run_subprocess(cmd)
         return output_vcf_path

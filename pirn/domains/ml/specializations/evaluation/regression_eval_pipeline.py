@@ -2,9 +2,9 @@
 evaluation: RMSE, MAE, R-squared, MAPE.
 
 Algorithm:
-    1. Receive ``model`` (TrainedModel) and ``split`` (DataSplit) via process().
+    1. Receive ``model`` (ModelManifest) and ``split`` (SplitManifest) via process().
     2. Wire an inner Tapestry with Evaluator using the canonical regression metrics.
-    3. Run the inner Tapestry via _run_inner() and return the EvalReport.
+    3. Run the inner Tapestry via _run_inner() and return the EvalMetadata.
 
 
 References:
@@ -19,11 +19,9 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.domains.ml.evaluation.evaluator import Evaluator
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
@@ -51,24 +49,21 @@ class RegressionEvalPipeline(SubTapestry):
     ) -> None:
         super().__init__(model=model, split=split, _config=_config, **kwargs)
 
-    async def process(self, model: TrainedModel, split: DataSplit, **_: Any) -> EvalReport:
-        """Evaluate the regressor with RMSE, MAE, R-squared, and MAPE and return the resulting EvalReport.
+    async def process(self, model: ModelManifest, split: SplitManifest, **_: Any) -> Any:
+        """Evaluate the regressor with RMSE, MAE, R-squared, and MAPE and return the resulting EvalMetadata.
 
         Args:
-            model: TrainedModel reference to evaluate.
-            split: DataSplit whose test partition is used for scoring.
+            model: ModelManifest reference to evaluate.
+            split: SplitManifest whose test partition is used for scoring.
 
         Returns:
-            EvalReport containing rmse, mae, r2, and mape metrics.
+            EvalReportPayload containing rmse, mae, r2, and mape metrics.
         """
-        with Tapestry() as inner:
-            model_node = _emit_value(value=model, _config=KnotConfig(id="model"))
-            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
-            Evaluator(
-                model=model_node,
-                split=split_node,
-                metrics=self._regression_metrics,
-                _config=KnotConfig(id="evaluate"),
-            )
-        inner_result = await self._run_inner(inner)
-        return inner_result.outputs["evaluate"]
+        model_node = _emit_value(value=model, _config=KnotConfig(id="model"))
+        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        return Evaluator(
+            model=model_node,
+            split=split_node,
+            metrics=self._regression_metrics,
+            _config=KnotConfig(id="evaluate"),
+        )

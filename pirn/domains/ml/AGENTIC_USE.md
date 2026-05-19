@@ -84,6 +84,15 @@ pirn/domains/ml/
 │   ├── model_registrar.py          # Persist bytes + metadata to LineageStore
 │   ├── predictor.py                # Batch inference from a loaded TrainedModel
 │   └── shadow_deployer.py          # Champion/challenger routing; challenger not surfaced
+├── assemblers/
+│   ├── __init__.py
+│   └── trained_model_object_store_assembler.py — bytes + ModelManifest → TrainedModelPayload
+├── disassemblers/
+│   ├── __init__.py
+│   ├── trained_model_object_store_disassembler.py — TrainedModelPayload → bytes
+│   ├── dataset_object_store_disassembler.py       — DatasetPayload → bytes
+│   ├── data_split_object_store_disassembler.py    — DataSplitPayload → bytes
+│   └── eval_report_database_disassembler.py       — EvalReportPayload → list[tuple]
 └── specializations/                # Pre-built SubTapestry pipelines
     ├── task_pipelines/             # BinaryClassification, Multiclass, Regression, Forecasting, Nlp, ComputerVision,
     │                               # TimeSeriesForecasting, AnomalyDetection, CollaborativeFiltering,
@@ -112,6 +121,38 @@ pirn/domains/ml/
                                     # PerformanceTriggedRetrainer, BatchInferencePipeline,
                                     # SHAPExplainer, LIMEExplainer
 ```
+
+---
+
+## Assembler and Disassembler knots
+
+ML artifacts cross the domain boundary through assembler and disassembler knots.
+
+### Assembler
+
+| Knot | Input | Output |
+|------|-------|--------|
+| `TrainedModelObjectStoreAssembler` | `bytes` + `ModelManifest` | `TrainedModelPayload` |
+
+Receives raw bytes from an `ObjectStoreReadSource` and deserialises via joblib. Does not perform I/O.
+
+### Disassemblers
+
+| Knot | Input | Output | Destination |
+|------|-------|--------|-------------|
+| `TrainedModelObjectStoreDisassembler` | `TrainedModelPayload` | `bytes` | object store |
+| `DatasetObjectStoreDisassembler` | `DatasetPayload` | `bytes` | object store |
+| `DataSplitObjectStoreDisassembler` | `DataSplitPayload` | `bytes` | object store |
+| `EvalReportDatabaseDisassembler` | `EvalReportPayload` | `list[tuple]` | database |
+
+### Note on ModelRegistrar and Predictor
+
+`ModelRegistrar` and `Predictor` are **not** assembler/disassembler knots — they are domain knots that own their I/O by design:
+
+- `ModelRegistrar` — Sink that receives already-serialised bytes from `ModelSerializer` and writes them to an `ObjectStore`, logging lineage. The I/O is intentional and atomic.
+- `Predictor` — Domain knot that loads a model and scores features. Owns its load path by design.
+
+Do not replace these with disassemblers.
 
 ---
 
@@ -182,6 +223,7 @@ async def main():
         model = Trainer(split=scaled, estimator=LogisticRegression(max_iter=500), _config=KnotConfig(id="train"))
         report = Evaluator(model=model, split=scaled, _config=KnotConfig(id="eval"))
         gate = MetricGate(report=report, metric="f1", min_value=0.80, raise_on_fail=True, _config=KnotConfig(id="gate"))
+        # `ModelSerializer` serialises metadata only. Wire a format connector (e.g. `JoblibFormat`) upstream to produce serialised bytes if you need to persist the estimator itself.
         serialized = ModelSerializer(model=model, format="joblib", _config=KnotConfig(id="serialize"))
         ModelRegistrar(serialized=serialized, lineage_store=my_mlflow_store, model_name="fraud-clf", _config=KnotConfig(id="register"))
 
@@ -221,6 +263,8 @@ For dynamic registry sweeps (e.g. evaluating N models in sequence without knowin
 ### Using `ModelSerializer` expecting actual fitted-model bytes
 
 The default `ModelSerializer.process()` serialises only the `TrainedModel` metadata fields (algorithm, hyperparameters, feature names) to JSON — it does not serialise the fitted estimator object. Subclass `ModelSerializer` and override `process()`, or use a format connector directly (`JoblibFormat`, `OnnxFormat`, etc.) alongside your own persistence logic.
+
+To persist the fitted estimator itself, use a format connector (`JoblibFormat`, `SafetensorsFormat`, etc.) to serialise to bytes first, then pass the bytes to `ModelSerializer` or directly to `ModelRegistrar`.
 
 ### Using `TfSavedModelFormat` expecting a plain file path
 

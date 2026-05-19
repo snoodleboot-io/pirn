@@ -9,7 +9,8 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.task_pipelines.collaborative_filtering_pipeline import (
     CollaborativeFilteringPipeline,
 )
-from pirn.domains.ml.types.eval_report import EvalReport
+from pirn.domains.ml.types.eval_metadata import EvalMetadata
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.tapestry import Tapestry
 from tests.unit.domains.ml._stubs.recording_database_pool import (
     RecordingDatabasePool,
@@ -48,7 +49,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_eval_report(self) -> None:
-        rows = [(i % 5, i % 10, float(i % 5 + 1)) for i in range(50)]
+        rows = [{"user": i % 5, "item": i % 10, "rating": float(i % 5 + 1)} for i in range(50)]
         with Tapestry() as t:
             CollaborativeFilteringPipeline(
                 pool=RecordingDatabasePool(rows=rows),
@@ -61,5 +62,5 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert result.succeeded
-        report: EvalReport = result.outputs["cf"]
-        assert isinstance(report, EvalReport)
+        report: EvalReportPayload = result.outputs["cf"]
+        assert isinstance(report, EvalReportPayload)

@@ -75,64 +75,66 @@ class FuzzyDeduplicator(Knot):
         )
 
     @staticmethod
-    def _levenshtein(a: str, b: str) -> float:
-        if a == b:
+    def _levenshtein(str_a: str, str_b: str) -> float:
+        if str_a == str_b:
             return 1.0
-        la, lb = len(a), len(b)
+        la, lb = len(str_a), len(str_b)
         if la == 0 or lb == 0:
             return 0.0
         prev = list(range(lb + 1))
-        for i, ca in enumerate(a, 1):
-            curr = [i] + [0] * lb
-            for j, cb in enumerate(b, 1):
-                curr[j] = min(
-                    prev[j] + 1,
-                    curr[j - 1] + 1,
-                    prev[j - 1] + (0 if ca == cb else 1),
+        for row_idx, char_a in enumerate(str_a, 1):
+            curr = [row_idx] + [0] * lb
+            for col_idx, char_b in enumerate(str_b, 1):
+                curr[col_idx] = min(
+                    prev[col_idx] + 1,
+                    curr[col_idx - 1] + 1,
+                    prev[col_idx - 1] + (0 if char_a == char_b else 1),
                 )
             prev = curr
         return 1.0 - prev[lb] / max(la, lb)
 
     @staticmethod
-    def _jaro_winkler(a: str, b: str) -> float:
-        if a == b:
+    def _jaro_winkler(str_a: str, str_b: str) -> float:
+        if str_a == str_b:
             return 1.0
-        la, lb = len(a), len(b)
+        la, lb = len(str_a), len(str_b)
         if la == 0 or lb == 0:
             return 0.0
         match_dist = max(0, max(la, lb) // 2 - 1)
         a_flags = [False] * la
         b_flags = [False] * lb
         matches = 0
-        for i in range(la):
-            start = max(0, i - match_dist)
-            end = min(i + match_dist + 1, lb)
-            for j in range(start, end):
-                if b_flags[j] or a[i] != b[j]:
+        for pos_a in range(la):
+            start = max(0, pos_a - match_dist)
+            end = min(pos_a + match_dist + 1, lb)
+            for pos_b in range(start, end):
+                if b_flags[pos_b] or str_a[pos_a] != str_b[pos_b]:
                     continue
-                a_flags[i] = True
-                b_flags[j] = True
+                a_flags[pos_a] = True
+                b_flags[pos_b] = True
                 matches += 1
                 break
         if matches == 0:
             return 0.0
-        a_match = [a[i] for i in range(la) if a_flags[i]]
-        b_match = [b[j] for j in range(lb) if b_flags[j]]
-        transpositions = sum(1 for x, y in zip(a_match, b_match, strict=False) if x != y)
+        a_match = [str_a[pos_a] for pos_a in range(la) if a_flags[pos_a]]
+        b_match = [str_b[pos_b] for pos_b in range(lb) if b_flags[pos_b]]
+        transpositions = sum(
+            1 for char_a, char_b in zip(a_match, b_match, strict=False) if char_a != char_b
+        )
         jaro = (matches / la + matches / lb + (matches - transpositions / 2) / matches) / 3.0
         prefix = 0
-        for i in range(min(4, la, lb)):
-            if a[i] == b[i]:
+        for prefix_idx in range(min(4, la, lb)):
+            if str_a[prefix_idx] == str_b[prefix_idx]:
                 prefix += 1
             else:
                 break
         return jaro + prefix * 0.1 * (1.0 - jaro)
 
     @staticmethod
-    def _score(metric: str, a: str, b: str) -> float:
+    def _score(metric: str, str_a: str, str_b: str) -> float:
         if metric == "levenshtein":
-            return FuzzyDeduplicator._levenshtein(a, b)
-        return FuzzyDeduplicator._jaro_winkler(a, b)
+            return FuzzyDeduplicator._levenshtein(str_a, str_b)
+        return FuzzyDeduplicator._jaro_winkler(str_a, str_b)
 
     async def process(
         self,
@@ -165,17 +167,19 @@ class FuzzyDeduplicator(Knot):
         for indices in blocks.values():
             for i_pos in range(len(indices)):
                 for j_pos in range(i_pos + 1, len(indices)):
-                    i, j = indices[i_pos], indices[j_pos]
-                    score = FuzzyDeduplicator._score(similarity_metric, tokens[i], tokens[j])
+                    idx_left, idx_right = indices[i_pos], indices[j_pos]
+                    score = FuzzyDeduplicator._score(
+                        similarity_metric, tokens[idx_left], tokens[idx_right]
+                    )
                     if score >= threshold:
-                        root_i = cluster_of.get(i, i)
-                        root_j = cluster_of.get(j, j)
+                        root_i = cluster_of.get(idx_left, idx_left)
+                        root_j = cluster_of.get(idx_right, idx_right)
                         merged = min(root_i, root_j)
-                        cluster_of[i] = merged
-                        cluster_of[j] = merged
-                        for k, v in cluster_of.items():
-                            if v == max(root_i, root_j):
-                                cluster_of[k] = merged
+                        cluster_of[idx_left] = merged
+                        cluster_of[idx_right] = merged
+                        for member_idx, member_cluster in cluster_of.items():
+                            if member_cluster == max(root_i, root_j):
+                                cluster_of[member_idx] = merged
 
         seen_clusters: set[int] = set()
         result: list[dict[str, Any]] = []

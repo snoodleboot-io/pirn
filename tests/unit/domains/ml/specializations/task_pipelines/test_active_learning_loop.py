@@ -9,7 +9,8 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.task_pipelines.active_learning_loop import (
     ActiveLearningLoop,
 )
-from pirn.domains.ml.types.eval_report import EvalReport
+from pirn.domains.ml.types.eval_metadata import EvalMetadata
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.tapestry import Tapestry
 from tests.unit.domains.ml._stubs.recording_database_pool import (
     RecordingDatabasePool,
@@ -45,7 +46,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_final_round_report(self) -> None:
-        rows = [(float(i), i % 2) for i in range(40)]
+        rows = [{"a": float(i), "y": i % 2} for i in range(40)]
         with Tapestry() as t:
             ActiveLearningLoop(
                 pool=RecordingDatabasePool(rows=rows),
@@ -58,6 +59,6 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert result.succeeded
-        report: EvalReport = result.outputs["al"]
-        assert isinstance(report, EvalReport)
-        assert "accuracy" in report.metrics
+        report: EvalReportPayload = result.outputs["al"]
+        assert isinstance(report, EvalReportPayload)
+        assert "accuracy" in report.metrics.scores

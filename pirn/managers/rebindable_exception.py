@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-class RebindableException(Exception):
+class RebindableError(Exception):
     """Carrier for a placeholder record's identity when re-registering with
     the live ExceptionManager.
 

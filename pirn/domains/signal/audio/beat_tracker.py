@@ -28,19 +28,25 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Mapping
 from typing import Any
 
+import librosa
+import numpy as np
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+
+def _track_beats(mono: np.ndarray, sr: int, hop_length: int) -> tuple[float, np.ndarray]:
+    tempo, beat_frames = librosa.beat.beat_track(y=mono, sr=sr, hop_length=hop_length)
+    return float(np.atleast_1d(tempo)[0]), beat_frames
 
 
 class BeatTracker(Knot):
-    """Estimate tempo and beat times.
-
-    Production needs ``librosa.beat.beat_track``.
-    """
+    """Estimate tempo and beat times using ``librosa.beat.beat_track``."""
 
     def __init__(
         self,
@@ -63,7 +69,7 @@ class BeatTracker(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         hop_length: int,
         tempo_min_bpm: float = 30.0,
         tempo_max_bpm: float = 240.0,
@@ -78,8 +84,7 @@ class BeatTracker(Knot):
             tempo_max_bpm: Maximum tempo in BPM (must exceed tempo_min_bpm).
 
         Returns:
-            Mapping containing ``signal_id``, ``hop_length``, ``tempo_min_bpm``,
-            ``tempo_max_bpm``, and ``feature``.
+            Mapping containing ``tempo_bpm``, ``beat_frames``, and ``signal_id``.
 
         Raises:
             ValueError: If hop_length, tempo_min_bpm, or tempo_max_bpm are invalid.
@@ -90,10 +95,11 @@ class BeatTracker(Knot):
             raise ValueError("BeatTracker: tempo_min_bpm must be positive")
         if not isinstance(tempo_max_bpm, (int, float)) or tempo_max_bpm <= tempo_min_bpm:
             raise ValueError("BeatTracker: tempo_max_bpm must exceed tempo_min_bpm")
+        mono = signal.data[0] if signal.data.ndim > 1 else signal.data
+        sr = int(signal.frame.sample_rate_hz)
+        tempo, beat_frames = await asyncio.to_thread(_track_beats, mono, sr, hop_length)
         return {
-            "signal_id": signal.signal_id,
-            "hop_length": hop_length,
-            "tempo_min_bpm": tempo_min_bpm,
-            "tempo_max_bpm": tempo_max_bpm,
-            "feature": "beats",
+            "tempo_bpm": tempo,
+            "beat_frames": beat_frames.tolist(),
+            "signal_id": signal.frame.signal_id,
         }

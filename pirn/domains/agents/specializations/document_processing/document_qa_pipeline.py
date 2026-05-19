@@ -44,10 +44,8 @@ from pirn.domains.agents.specializations.document_processing._qa_load_and_chunk 
 from pirn.domains.agents.specializations.document_processing._qa_retrieve_and_answer import (
     _QARetrieveAndAnswer,
 )
-from pirn.domains.agents.types.agent_response import AgentResponse
 from pirn.domains.ml.embedding_provider import EmbeddingProvider
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class DocumentQAPipeline(SubTapestry):
@@ -84,7 +82,7 @@ class DocumentQAPipeline(SubTapestry):
         embedder: EmbeddingProvider,
         top_k: int = 3,
         **_: Any,
-    ) -> AgentResponse:
+    ) -> Any:
         """Retrieve the top-k relevant chunks from source and answer the question via the LLM.
 
         Args:
@@ -111,22 +109,16 @@ class DocumentQAPipeline(SubTapestry):
             raise TypeError(
                 f"DocumentQAPipeline: question must be a non-empty string, got {question!r}"
             )
-        with Tapestry() as inner:
-            chunks = _QALoadAndChunk(
-                source=source,
-                chunk_size=self._default_chunk_size,
-                _config=KnotConfig(id="chunk"),
-            )
-            _QARetrieveAndAnswer(
-                chunks=chunks,
-                question=question,
-                llm=llm,
-                embedder=embedder,
-                top_k=top_k,
-                _config=KnotConfig(id="answer"),
-            )
-        inner_result = await self._run_inner(inner)
-        response = inner_result.outputs.get("answer")
-        if not isinstance(response, AgentResponse):
-            return AgentResponse(content="", finish_reason="length")
-        return response
+        chunks = _QALoadAndChunk(
+            source=source,
+            chunk_size=self._default_chunk_size,
+            _config=KnotConfig(id="chunk"),
+        )
+        return _QARetrieveAndAnswer(
+            chunks=chunks,
+            question=question,
+            llm=llm,
+            embedder=embedder,
+            top_k=top_k,
+            _config=KnotConfig(id="answer"),
+        )

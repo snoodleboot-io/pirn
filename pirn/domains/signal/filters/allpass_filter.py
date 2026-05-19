@@ -1,12 +1,12 @@
 """``AllpassFilter`` — phase-shifting allpass IIR filter.
 
 Algorithm:
-    1. Receive the input signal frame and pole_radius.
+    1. Receive the input signal payload and pole_radius.
     2. Validate pole_radius is in the open interval (0, 1) for stability.
     3. Construct the first-order allpass transfer function:
        H(z) = (z^{-1} - a) / (1 - a * z^{-1})  where a = -pole_radius.
-    4. Apply the filter using direct-form II transposed structure.
-    5. Return a SignalFrame with unchanged shape and updated signal_id.
+    4. Apply the filter using scipy.signal.lfilter.
+    5. Return a SignalPayload with unchanged shape and updated signal_id.
 
 Math:
     First-order allpass transfer function:
@@ -24,11 +24,16 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
+from scipy import signal as ss
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
 
 
 class AllpassFilter(Knot):
@@ -51,18 +56,18 @@ class AllpassFilter(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         pole_radius: float,
         **_: Any,
-    ) -> SignalFrame:
-        """Apply the allpass IIR filter and return a phase-shifted SignalFrame.
+    ) -> SignalPayload:
+        """Apply the allpass IIR filter and return a phase-shifted SignalPayload.
 
         Args:
-            signal: The input signal frame.
+            signal: The input signal payload.
             pole_radius: Pole radius in the open interval (0, 1).
 
         Returns:
-            SignalFrame with identical shape and updated signal_id.
+            SignalPayload with identical shape and updated signal_id.
 
         Raises:
             ValueError: If pole_radius is not in (0, 1).
@@ -71,9 +76,19 @@ class AllpassFilter(Knot):
             raise ValueError(
                 "AllpassFilter: pole_radius must be a float in the open interval (0, 1)"
             )
-        return SignalFrame(
-            signal_id=f"{signal.signal_id}:allpass",
-            channel_count=signal.channel_count,
-            sample_rate_hz=signal.sample_rate_hz,
-            samples_per_channel=signal.samples_per_channel,
+
+        a_coeff = -pole_radius
+        numerator_coeffs = np.array([a_coeff, 1.0])
+        denominator_coeffs = np.array([1.0, a_coeff])
+        filtered = await asyncio.to_thread(
+            ss.lfilter, numerator_coeffs, denominator_coeffs, signal.data, axis=-1
+        )
+        return SignalPayload(
+            metadata=SignalFrame(
+                signal_id=f"{signal.frame.signal_id}:allpass",
+                channel_count=signal.frame.channel_count,
+                sample_rate_hz=signal.frame.sample_rate_hz,
+                samples_per_channel=signal.data.shape[-1],
+            ),
+            data=np.asarray(filtered),
         )

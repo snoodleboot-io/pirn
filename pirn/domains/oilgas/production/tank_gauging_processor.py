@@ -88,9 +88,19 @@ class TankGaugingProcessor(Knot):
             raise ValueError("TankGaugingProcessor: bsw_correction_factor must be in [0, 1]")
         if not isinstance(gauge_readings, dict):
             raise TypeError("TankGaugingProcessor: gauge_readings must be a dict")
-        opening = float(gauge_readings.get("opening_level_in", 0.0))
-        closing = float(gauge_readings.get("closing_level_in", 0.0))
-        bsw_pct = float(gauge_readings.get("bsw_pct", 0.0))
+        if "opening_level_in" not in gauge_readings:
+            raise ValueError(
+                "TankGaugingProcessor: required field 'opening_level_in' missing from input"
+            )
+        if "closing_level_in" not in gauge_readings:
+            raise ValueError(
+                "TankGaugingProcessor: required field 'closing_level_in' missing from input"
+            )
+        if "bsw_pct" not in gauge_readings:
+            raise ValueError("TankGaugingProcessor: required field 'bsw_pct' missing from input")
+        opening = float(gauge_readings["opening_level_in"])
+        closing = float(gauge_readings["closing_level_in"])
+        bsw_pct = float(gauge_readings["bsw_pct"])
         opening_vol = self._interpolate(tank_table, opening)
         closing_vol = self._interpolate(tank_table, closing)
         gross_volume = abs(closing_vol - opening_vol)

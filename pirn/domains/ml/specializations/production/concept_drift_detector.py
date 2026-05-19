@@ -8,6 +8,15 @@ Algorithm:
     3. Compute deterministic drift statistic and threshold.
     4. Return drift detection result.
 
+Math:
+    ADWIN: maintains a sliding window W; raises drift when
+        |mean(W_0) - mean(W_1)| >= epsilon_cut
+        where epsilon_cut = sqrt((1/|W_0| + 1/|W_1|) * ln(4|W|/delta) / 2)
+
+    Page-Hinkley: cumulative sum test.
+        m_t = (1/t) * sum_{i=1}^{t} x_i
+        M_t = max_{i in 1..t} (sum_{j=1}^{i} (x_j - m_i - delta))
+        Drift signalled when M_t - min_{i in 1..t} M_i > lambda
 
 References:
     N/A — pirn-native implementation.
@@ -22,8 +31,8 @@ from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class ConceptDriftDetector(Knot):
@@ -52,8 +61,8 @@ class ConceptDriftDetector(Knot):
 
     async def process(
         self,
-        model: TrainedModel,
-        split: DataSplit,
+        model: ModelManifest,
+        split: SplitManifest,
         method: str = "adwin",
         delta: float = 0.002,
         **_: Any,
@@ -61,8 +70,8 @@ class ConceptDriftDetector(Knot):
         """Apply the configured drift detection algorithm and signal if concept drift is detected.
 
         Args:
-            model: TrainedModel whose prediction distribution is being monitored.
-            split: DataSplit representing the current prediction window.
+            model: ModelManifest whose prediction distribution is being monitored.
+            split: SplitManifest representing the current prediction window.
             method: Drift detection method; must be one of {"adwin", "page_hinkley"}.
             delta: Sensitivity parameter; must be a positive number.
 

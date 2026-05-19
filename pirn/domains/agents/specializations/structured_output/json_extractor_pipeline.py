@@ -38,6 +38,7 @@ from pirn.domains.agents.llm_provider import LLMProvider
 from pirn.domains.agents.specializations.structured_output._json_extractor_attempt import (
     _JsonExtractorAttempt,
 )
+from pirn.nodes.source import Source
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -71,7 +72,7 @@ class JsonExtractorPipeline(SubTapestry):
         schema: Mapping[str, Any],
         max_retries: int,
         **_: Any,
-    ) -> Mapping[str, Any]:
+    ) -> Any:
         """Extract a JSON mapping from the LLM response, retrying with error feedback on failure.
 
         Args:
@@ -106,8 +107,9 @@ class JsonExtractorPipeline(SubTapestry):
         schema_dict = dict(schema)
         prior_error = ""
         last_error = "no attempts were made"
+        result_dict: Mapping[str, Any] | None = None
         for attempt_index in range(max_retries):
-            with Tapestry() as inner:
+            with Tapestry() as attempt_tapestry:
                 _JsonExtractorAttempt(
                     prompt=prompt,
                     llm=llm,
@@ -115,12 +117,21 @@ class JsonExtractorPipeline(SubTapestry):
                     prior_error=prior_error,
                     _config=KnotConfig(id=f"attempt_{attempt_index}"),
                 )
-            inner_result = await self._run_inner(inner)
+            inner_result = await self._run_inner(attempt_tapestry)
             outcome = inner_result.outputs.get(f"attempt_{attempt_index}")
             if isinstance(outcome, dict):
-                return outcome
+                result_dict = outcome
+                break
             prior_error = str(outcome) if outcome is not None else "no output"
             last_error = prior_error
-        raise ValueError(
-            f"JsonExtractorPipeline: exhausted {max_retries} attempt(s); last error: {last_error}"
-        )
+        if result_dict is None:
+            raise ValueError(
+                f"JsonExtractorPipeline: exhausted {max_retries} attempt(s); last error: {last_error}"
+            )
+        _result = result_dict
+
+        class _ResultSource(Source):
+            async def process(self, **_: Any) -> Mapping[str, Any]:
+                return _result
+
+        return _ResultSource(_config=KnotConfig(id="result"))

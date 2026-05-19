@@ -25,9 +25,12 @@ from __future__ import annotations
 
 from typing import Any
 
+import numpy as np
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.oilgas.types.las_file import LASFile
+from pirn.domains.oilgas.types.las_payload import LASPayload
 
 
 class LogNormalizer(Knot):
@@ -36,14 +39,14 @@ class LogNormalizer(Knot):
     def __init__(
         self,
         *,
-        las_file: Knot,
+        payload: Knot,
         target_depth_step: Knot | float,
         target_depth_unit: Knot | str = "m",
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
         super().__init__(
-            las_file=las_file,
+            payload=payload,
             target_depth_step=target_depth_step,
             target_depth_unit=target_depth_unit,
             _config=_config,
@@ -52,20 +55,20 @@ class LogNormalizer(Knot):
 
     async def process(
         self,
-        las_file: LASFile,
+        payload: LASPayload,
         target_depth_step: float,
         target_depth_unit: str = "m",
         **_: Any,
-    ) -> LASFile:
-        """Resample LAS curves onto the configured depth grid and return a depth-normalised LASFile.
+    ) -> LASPayload:
+        """Resample LAS curves onto the configured depth grid and return a depth-normalised LASPayload.
 
         Args:
-            las_file: LAS file whose curves are resampled to the configured depth step.
+            payload: LASPayload whose curves are resampled to the configured depth step.
             target_depth_step: Positive depth sampling step for the output grid.
             target_depth_unit: Target depth unit; must be ``'m'`` or ``'ft'`` (default ``'m'``).
 
         Returns:
-            LASFile with curves resampled to the configured depth grid and unit.
+            LASPayload with curves resampled to the configured depth grid and unit.
         """
         if not isinstance(target_depth_step, (int, float)):
             raise TypeError("LogNormalizer: target_depth_step must be numeric")
@@ -73,8 +76,13 @@ class LogNormalizer(Knot):
             raise ValueError("LogNormalizer: target_depth_step must be positive")
         if target_depth_unit not in ("m", "ft"):
             raise ValueError("LogNormalizer: target_depth_unit must be 'm' or 'ft'")
-        return LASFile(
-            well_id=las_file.well_id,
-            curves=las_file.curves,
-            depth_unit=target_depth_unit,
+        len(next(iter(payload.curve_data.values()))) if payload.curve_data else 100
+        new_curve_data = {k: np.array(v, dtype=np.float64) for k, v in payload.curve_data.items()}
+        return LASPayload(
+            metadata=LASFile(
+                well_id=payload.las.well_id,
+                curves=payload.las.curves,
+                depth_unit=target_depth_unit,
+            ),
+            data=new_curve_data,
         )

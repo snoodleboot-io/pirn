@@ -8,14 +8,14 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.domains.ml.data_prep.train_test_split import TrainTestSplit
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.split_manifest import SplitManifest
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 from pirn.tapestry import Tapestry
 
 
 @knot
-async def emit_dataset() -> MLDataset:
-    return MLDataset(
+async def emit_dataset() -> DatasetManifest:
+    return DatasetManifest(
         name="customers",
         feature_names=("a", "b"),
         target_name="y",
@@ -24,8 +24,8 @@ async def emit_dataset() -> MLDataset:
     )
 
 
-def _make_dataset(row_count: int = 1000) -> MLDataset:
-    return MLDataset(
+def _make_dataset(row_count: int = 1000) -> DatasetManifest:
+    return DatasetManifest(
         name="customers",
         feature_names=("a", "b"),
         target_name="y",
@@ -47,8 +47,8 @@ class TestTrainTestSplitHappyPath(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert result.succeeded
-        out: DataSplit = result.outputs["split"]
-        assert isinstance(out, DataSplit)
+        out: SplitManifest = result.outputs["split"]
+        assert isinstance(out, SplitManifest)
         assert out.validation is not None
         total = out.train.row_count + out.validation.row_count + out.test.row_count
         assert total == 1000

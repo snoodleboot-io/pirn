@@ -8,8 +8,8 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.domains.ml.features.feature_store import FeatureStore
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.split_manifest import SplitManifest
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 from pirn.tapestry import Tapestry
 from tests.unit.domains.ml._stubs.recording_feature_store_provider import (
     RecordingFeatureStoreProvider,
@@ -17,10 +17,10 @@ from tests.unit.domains.ml._stubs.recording_feature_store_provider import (
 
 
 @knot
-async def emit_split() -> DataSplit:
-    train = MLDataset(name="d:train", feature_names=("a",), row_count=10)
-    test = MLDataset(name="d:test", feature_names=("a",), row_count=5)
-    return DataSplit(train=train, test=test)
+async def emit_split() -> SplitManifest:
+    train = DatasetManifest(name="d:train", feature_names=("a",), row_count=10)
+    test = DatasetManifest(name="d:test", feature_names=("a",), row_count=5)
+    return SplitManifest(train=train, test=test)
 
 
 class TestFeatureStoreHappyPath(unittest.IsolatedAsyncioTestCase):
@@ -44,9 +44,9 @@ class TestFeatureStoreProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_provider(self) -> None:
         store = FeatureStore.__new__(FeatureStore)
         object.__setattr__(store, "_config", KnotConfig(id="x"))
-        train = MLDataset(name="d:train", feature_names=("a",), row_count=10)
-        test = MLDataset(name="d:test", feature_names=("a",), row_count=5)
-        split = DataSplit(train=train, test=test)
+        train = DatasetManifest(name="d:train", feature_names=("a",), row_count=10)
+        test = DatasetManifest(name="d:test", feature_names=("a",), row_count=5)
+        split = SplitManifest(train=train, test=test)
         with self.assertRaisesRegex(TypeError, "FeatureStoreProvider"):
             await store.process(
                 split=split,

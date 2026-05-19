@@ -2,7 +2,7 @@
 and per-class precision, recall, and F1 with macro/weighted averages.
 
 Algorithm:
-    1. Receive ``model`` (TrainedModel), ``split`` (DataSplit), and
+    1. Receive ``model`` (ModelManifest), ``split`` (SplitManifest), and
        ``class_labels`` (Sequence[str] | None) via process().
     2. Resolve class labels to ("class_0", "class_1") if not provided.
     3. Compute confusion matrix cells and per-class metrics via SHA-256 hashes.
@@ -10,9 +10,23 @@ Algorithm:
     5. Return confusion_matrix, per_class, macro_f1, weighted_f1.
 
 Math:
-    cell[i][j] = sha256(model_id || test_name || i || j)[0:8] / 2^64
-    metric[label][kind] = sha256(model_id || test_name || label || kind)[0:8] / 2^64
-    macro_f1 = mean(per_class[*]["f1"])
+    Confusion matrix cell C[i][j] = number of instances with true class i
+    predicted as class j.  For binary case:
+        TP = C[1][1], FP = C[0][1], TN = C[0][0], FN = C[1][0]
+
+    Per-class metrics for class c:
+        precision(c) = TP_c / (TP_c + FP_c)
+        recall(c)    = TP_c / (TP_c + FN_c)
+        F1(c)        = 2 * precision(c) * recall(c) / (precision(c) + recall(c))
+
+    Aggregates over K classes:
+        macro_F1    = (1/K) * sum(F1(c) for c in 1..K)
+        weighted_F1 = sum(support(c) * F1(c) for c in 1..K) / N
+
+    Stub implementation:
+        cell[i][j]           = sha256(model_id || test_name || i || j)[0:8] / 2^64
+        metric[label][kind]  = sha256(model_id || test_name || label || kind)[0:8] / 2^64
+        macro_f1 = weighted_f1 = mean(per_class[*]["f1"])
 
 References:
     N/A — pirn-native implementation.
@@ -27,8 +41,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class ConfusionMatrixAnalyzer(Knot):
@@ -53,16 +67,16 @@ class ConfusionMatrixAnalyzer(Knot):
 
     async def process(
         self,
-        model: TrainedModel,
-        split: DataSplit,
+        model: ModelManifest,
+        split: SplitManifest,
         class_labels: Sequence[str] | None = None,
         **_: Any,
     ) -> Mapping[str, Any]:
         """Compute the confusion matrix and per-class metrics for the model on the test split.
 
         Args:
-            model: TrainedModel reference to evaluate.
-            split: DataSplit whose test partition is used for predictions.
+            model: ModelManifest reference to evaluate.
+            split: SplitManifest whose test partition is used for predictions.
             class_labels: Optional sequence of class label strings; defaults to ("class_0", "class_1").
 
         Returns:
@@ -73,8 +87,11 @@ class ConfusionMatrixAnalyzer(Knot):
         labels: tuple[str, ...] = (
             tuple(class_labels) if class_labels is not None else ("class_0", "class_1")
         )
-        n = len(labels)
-        matrix = [[self._cell_value(model, split, i, j) for j in range(n)] for i in range(n)]
+        class_count = len(labels)
+        matrix = [
+            [self._cell_value(model, split, row_idx, col_idx) for col_idx in range(class_count)]
+            for row_idx in range(class_count)
+        ]
         per_class: dict[str, dict[str, float]] = {}
         for _idx, label in enumerate(labels):
             per_class[label] = {
@@ -94,8 +111,8 @@ class ConfusionMatrixAnalyzer(Knot):
 
     def _cell_value(
         self,
-        model: TrainedModel,
-        split: DataSplit,
+        model: ModelManifest,
+        split: SplitManifest,
         row: int,
         col: int,
     ) -> float:
@@ -114,8 +131,8 @@ class ConfusionMatrixAnalyzer(Knot):
 
     def _metric_value(
         self,
-        model: TrainedModel,
-        split: DataSplit,
+        model: ModelManifest,
+        split: SplitManifest,
         label: str,
         metric: str,
     ) -> float:

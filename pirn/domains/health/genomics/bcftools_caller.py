@@ -18,10 +18,22 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+
+
+async def _run_subprocess(cmd: list[str]) -> None:
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    _, stderr = await proc.communicate()
+    if proc.returncode != 0:
+        raise RuntimeError(f"{cmd[0]} failed: {stderr.decode()}")
 
 
 class BCFtoolsCaller(Knot):
@@ -74,4 +86,29 @@ class BCFtoolsCaller(Knot):
                 raise TypeError(f"BCFtoolsCaller: {label} must be a string")
             if not value:
                 raise ValueError(f"BCFtoolsCaller: {label} must be non-empty")
+        mpileup_proc = await asyncio.create_subprocess_exec(
+            "bcftools",
+            "mpileup",
+            "-f",
+            reference_path,
+            bam_path,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        call_proc = await asyncio.create_subprocess_exec(
+            "bcftools",
+            "call",
+            "-mv",
+            "-o",
+            output_vcf_path,
+            stdin=mpileup_proc.stdout,  # type: ignore[arg-type]
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        __, call_stderr = await call_proc.communicate()
+        await mpileup_proc.wait()
+        if mpileup_proc.returncode != 0:
+            raise RuntimeError("bcftools mpileup failed")
+        if call_proc.returncode != 0:
+            raise RuntimeError(f"bcftools call failed: {call_stderr.decode()}")
         return output_vcf_path

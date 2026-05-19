@@ -29,10 +29,10 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.ml.lineage_store import LineageStore
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.ml_dataset import MLDataset
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class ModelLineageTracker(Knot):
@@ -61,20 +61,20 @@ class ModelLineageTracker(Knot):
 
     async def process(
         self,
-        dataset: MLDataset,
-        split: DataSplit,
-        model: TrainedModel,
-        report: EvalReport,
+        dataset: DatasetManifest,
+        split: SplitManifest,
+        model: ModelManifest,
+        report: EvalReportPayload,
         lineage: LineageStore | None = None,
         **_: Any,
     ) -> str:
         """Record dataset, split, model, and report as lineage events and return the deterministic lineage_id.
 
         Args:
-            dataset: MLDataset whose metadata is hashed into the lineage chain.
-            split: DataSplit whose train/test partition names are recorded.
-            model: TrainedModel whose model_id and algorithm are logged.
-            report: EvalReport whose metrics are captured in the lineage event.
+            dataset: DatasetManifest whose metadata is hashed into the lineage chain.
+            split: SplitManifest whose train/test partition names are recorded.
+            model: ModelManifest whose model_id and algorithm are logged.
+            report: EvalMetadata whose metrics are captured in the lineage event.
             lineage: LineageStore to record the events into.
 
         Returns:
@@ -100,7 +100,7 @@ class ModelLineageTracker(Knot):
             {
                 "dataset_hash": dataset_hash,
                 "model_id": model.model_id,
-                "report_metrics": dict(report.metrics),
+                "report_metrics": dict(report.metrics.scores),
                 "recorded_at": recorded_at,
             }
         )
@@ -138,8 +138,8 @@ class ModelLineageTracker(Knot):
             {
                 "lineage_id": lineage_id,
                 "model_id": model.model_id,
-                "metrics": {k: float(v) for k, v in report.metrics.items()},
-                "dataset_name": report.dataset_name,
+                "metrics": {k: float(v) for k, v in report.metrics.scores.items()},
+                "dataset_name": report.report.dataset_name,
                 "recorded_at": recorded_at,
             },
         )

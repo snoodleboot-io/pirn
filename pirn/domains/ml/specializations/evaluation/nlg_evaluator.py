@@ -2,7 +2,7 @@
 for generated text versus reference strings.
 
 Algorithm:
-    1. Receive ``model`` (TrainedModel), ``split`` (DataSplit), and
+    1. Receive ``model`` (ModelManifest), ``split`` (SplitManifest), and
        ``metrics`` (Sequence[str] | None) via process().
     2. Resolve metrics to ("bleu", "rouge_l", "bert_score") if not provided.
     3. Validate all requested metrics are in the allowed set.
@@ -25,8 +25,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class NLGEvaluator(Knot):
@@ -51,16 +51,16 @@ class NLGEvaluator(Knot):
 
     async def process(
         self,
-        model: TrainedModel,
-        split: DataSplit,
+        model: ModelManifest,
+        split: SplitManifest,
         metrics: Sequence[str] | None = None,
         **_: Any,
     ) -> Mapping[str, Any]:
         """Compute NLG metrics for generated text versus reference strings from the test split.
 
         Args:
-            model: TrainedModel reference for a text generation task.
-            split: DataSplit whose test partition contains (generated, reference) text pairs.
+            model: ModelManifest reference for a text generation task.
+            split: SplitManifest whose test partition contains (generated, reference) text pairs.
             metrics: Sequence of metric names to compute; defaults to all three NLG metrics.
 
         Returns:
@@ -81,7 +81,7 @@ class NLGEvaluator(Knot):
             result[metric] = self._metric_value(model, split, metric)
         return result
 
-    def _metric_value(self, model: TrainedModel, split: DataSplit, metric: str) -> float:
+    def _metric_value(self, model: ModelManifest, split: SplitManifest, metric: str) -> float:
         payload = json.dumps(
             {
                 "model_id": model.model_id,

@@ -4,19 +4,24 @@ from __future__ import annotations
 
 import unittest
 
+try:
+    import librosa  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("librosa not installed") from _e
+
 import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.domains.signal.audio.pitch_estimator import PitchEstimator
-from pirn.domains.signal.types.signal_frame import SignalFrame
-from tests.unit.domains.signal.conftest import make_signal_frame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+from tests.unit.domains.signal.conftest import make_signal_payload
 
-_SIGNAL = make_signal_frame()
+_SIGNAL = make_signal_payload()
 
 
 def _up(name: str = "signal") -> Parameter:
-    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
+    return Parameter(name, SignalPayload, _config=KnotConfig(id=name))
 
 
 class TestPitchEstimator(unittest.IsolatedAsyncioTestCase):
@@ -47,5 +52,5 @@ class TestPitchEstimator(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, f_min_hz=80.0, f_max_hz=400.0)
         assert isinstance(out, dict)
-        assert out["f_min_hz"] == 80.0
-        assert out["algorithm"] == "yin"
+        assert "f0_hz" in out
+        assert "signal_id" in out

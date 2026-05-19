@@ -28,11 +28,65 @@ References:
 
 from __future__ import annotations
 
+from math import radians, sin
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.signal.types.spectrum_frame import SpectrumFrame
+from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+
+def _steering_vector(
+    num_elements: int,
+    element_spacing: float,
+    scan_angle: float,
+    wave_speed: float,
+    center_freq: float,
+) -> np.ndarray:
+    return np.array(
+        [
+            np.exp(
+                -1j
+                * 2
+                * np.pi
+                * center_freq
+                * element_idx
+                * element_spacing
+                * sin(radians(scan_angle))
+                / wave_speed
+            )
+            for element_idx in range(num_elements)
+        ],
+        dtype=complex,
+    )
+
+
+def _music_spatial(
+    data: np.ndarray,
+    num_elements: int,
+    element_spacing: float,
+    num_sources: int,
+    angle_grid_size: int,
+    wave_speed: float,
+    center_freq: float,
+) -> np.ndarray:
+    n_samples = data.shape[1]
+    covariance_matrix = (data @ data.conj().T) / n_samples
+    _, evecs = np.linalg.eigh(covariance_matrix)
+    en = evecs[:, : num_elements - num_sources]
+    en_outer = en @ en.conj().T
+    angles = np.linspace(-90.0, 90.0, angle_grid_size)
+    spectrum = np.zeros(angle_grid_size)
+    for angle_index, scan_angle in enumerate(angles):
+        steering_vec = _steering_vector(
+            num_elements, element_spacing, scan_angle, wave_speed, center_freq
+        )
+        denom = np.real(steering_vec.conj() @ en_outer @ steering_vec)
+        spectrum[angle_index] = 1.0 / (denom + 1e-30)
+    return spectrum
 
 
 class BeamformerMUSIC(Knot):
@@ -43,67 +97,78 @@ class BeamformerMUSIC(Knot):
         *,
         signal: Knot,
         num_elements: Knot | int,
+        element_spacing_m: Knot | float,
         num_sources: Knot | int,
-        angle_scan_deg: Knot | tuple,
+        n_grid: Knot | int,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
         super().__init__(
             signal=signal,
             num_elements=num_elements,
+            element_spacing_m=element_spacing_m,
             num_sources=num_sources,
-            angle_scan_deg=angle_scan_deg,
+            n_grid=n_grid,
             _config=_config,
             **kwargs,
         )
 
-    @staticmethod
-    def _scan_bins(start: float, stop: float, step: float) -> int:
-        if step == 0:
-            return 0
-        return max(0, int((stop - start) / step))
-
     async def process(
         self,
-        signal: Any,
+        signal: SignalPayload,
         num_elements: int,
+        element_spacing_m: float,
         num_sources: int,
-        angle_scan_deg: tuple[float, float, float],
+        n_grid: int,
         **_: Any,
-    ) -> SpectrumFrame:
-        """Compute the MUSIC spatial pseudo-spectrum and return a SpectrumFrame.
+    ) -> SignalPayload:
+        """Compute the MUSIC spatial pseudo-spectrum and return a SignalPayload.
 
         Args:
-            signal: The multi-element array input signal frame.
+            signal: The multi-element array input signal payload.
             num_elements: Number of array elements (positive integer).
-            num_sources: Number of signal sources (positive integer).
-            angle_scan_deg: Tuple (start, stop, step) defining the scan grid in degrees;
-                step must be non-zero.
+            element_spacing_m: Distance between adjacent elements in metres (positive float).
+            num_sources: Number of signal sources (positive integer, < num_elements).
+            n_grid: Number of angle bins spanning -90 to 90 degrees.
 
         Returns:
-            SpectrumFrame where frequency_bins represents the number of scanned angles.
+            SignalPayload where data is the pseudospectrum (shape 1 x n_grid).
 
         Raises:
-            ValueError: If num_elements, num_sources, or angle_scan_deg are invalid.
+            ValueError: If num_elements, num_sources, or n_grid are invalid.
         """
         if not isinstance(num_elements, int) or num_elements <= 0:
             raise ValueError("BeamformerMUSIC: num_elements must be a positive integer")
+        if not isinstance(element_spacing_m, (int, float)) or element_spacing_m <= 0:
+            raise ValueError("BeamformerMUSIC: element_spacing_m must be a positive scalar")
         if not isinstance(num_sources, int) or num_sources <= 0:
             raise ValueError("BeamformerMUSIC: num_sources must be a positive integer")
-        if (
-            not isinstance(angle_scan_deg, tuple)
-            or len(angle_scan_deg) != 3
-            or any(not isinstance(v, (int, float)) for v in angle_scan_deg)
-        ):
-            raise ValueError(
-                "BeamformerMUSIC: angle_scan_deg must be a (start, stop, step) tuple of floats"
-            )
-        start, stop, step = angle_scan_deg
-        if step == 0:
-            raise ValueError("BeamformerMUSIC: angle_scan_deg step must be non-zero")
-        bins = self._scan_bins(start, stop, step)
-        return SpectrumFrame(
-            signal_id="music",
-            frequency_bins=bins,
-            frequency_resolution_hz=float(abs(step)),
+        if num_sources >= num_elements:
+            raise ValueError("BeamformerMUSIC: num_sources must be less than num_elements")
+        if not isinstance(n_grid, int) or n_grid <= 0:
+            raise ValueError("BeamformerMUSIC: n_grid must be a positive integer")
+
+        import asyncio
+
+        speed_of_sound = 343.0
+        center_freq = signal.frame.sample_rate_hz / 4.0
+        data = signal.data.astype(complex)
+        spectrum = await asyncio.to_thread(
+            _music_spatial,
+            data,
+            num_elements,
+            float(element_spacing_m),
+            num_sources,
+            n_grid,
+            speed_of_sound,
+            center_freq,
+        )
+        return SignalPayload(
+            metadata=SignalFrame(
+                signal_id=f"{signal.frame.signal_id}:music",
+                channel_count=1,
+                sample_rate_hz=1.0,
+                samples_per_channel=n_grid,
+            ),
+            data=spectrum[np.newaxis, :],
         )

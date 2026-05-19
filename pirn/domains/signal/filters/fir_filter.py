@@ -1,11 +1,10 @@
 """``FIRFilter`` — finite impulse response filter.
 
 Algorithm:
-    1. Receive the input signal frame and coefficients sequence.
+    1. Receive the input signal payload and coefficients sequence.
     2. Validate that coefficients is non-empty and all values are real numbers.
-    3. Convolve the input signal with the FIR coefficient sequence using linear convolution.
-    4. Optionally truncate to the original length.
-    5. Return a filtered SignalFrame.
+    3. Apply via scipy.signal.lfilter(h, [1.0], data, axis=-1).
+    4. Return a filtered SignalPayload.
 
 Math:
     FIR convolution:
@@ -22,19 +21,21 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Sequence
 from typing import Any
+
+import numpy as np
+from scipy import signal as ss
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
 
 
 class FIRFilter(Knot):
-    """Apply a pre-designed FIR coefficient set.
-
-    Production needs ``scipy.signal.lfilter`` / ``firwin`` for design.
-    """
+    """Apply a pre-designed FIR coefficient set."""
 
     def __init__(
         self,
@@ -53,18 +54,18 @@ class FIRFilter(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         coefficients: Sequence[float],
         **_: Any,
-    ) -> SignalFrame:
+    ) -> SignalPayload:
         """Convolve the configured FIR coefficients with the input signal.
 
         Args:
-            signal: Signal to convolve with the FIR tap coefficients.
+            signal: Signal payload to convolve with the FIR tap coefficients.
             coefficients: Non-empty sequence of real-valued FIR tap weights.
 
         Returns:
-            SignalFrame of the FIR-filtered output.
+            SignalPayload of the FIR-filtered output.
 
         Raises:
             ValueError: If coefficients is empty.
@@ -76,9 +77,17 @@ class FIRFilter(Knot):
         for c in coeffs:
             if not isinstance(c, (int, float)):
                 raise TypeError("FIRFilter: every coefficient must be a real number")
-        return SignalFrame(
-            signal_id=f"{signal.signal_id}:fir",
-            channel_count=signal.channel_count,
-            sample_rate_hz=signal.sample_rate_hz,
-            samples_per_channel=signal.samples_per_channel,
+
+        tap_weights = np.array(coeffs)
+        filtered = await asyncio.to_thread(
+            ss.lfilter, tap_weights, np.array([1.0]), signal.data, axis=-1
+        )
+        return SignalPayload(
+            metadata=SignalFrame(
+                signal_id=f"{signal.frame.signal_id}:fir",
+                channel_count=signal.frame.channel_count,
+                sample_rate_hz=signal.frame.sample_rate_hz,
+                samples_per_channel=signal.data.shape[-1],
+            ),
+            data=np.asarray(filtered),
         )

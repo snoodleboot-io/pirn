@@ -6,6 +6,12 @@ Algorithm:
     2. Compute deterministic per-feature SHAP importance and mean_abs_shap.
     3. Return feature_importance, mean_abs_shap, and model_id.
 
+Math:
+    SHAP value for feature i:
+        phi_i = sum_{S in subsets \\ {i}} [|S|! * (n - |S| - 1)! / n!] * [v(S + {i}) - v(S)]
+
+    Mean absolute SHAP (global importance):
+        mean_abs_shap_i = (1/n) * sum_{j=1}^{n} |phi_i(x_j)|
 
 References:
     N/A — pirn-native implementation.
@@ -20,8 +26,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class SHAPExplainer(Knot):
@@ -37,12 +43,14 @@ class SHAPExplainer(Knot):
     ) -> None:
         super().__init__(model=model, split=split, _config=_config, **kwargs)
 
-    async def process(self, model: TrainedModel, split: DataSplit, **_: Any) -> Mapping[str, Any]:
+    async def process(
+        self, model: ModelManifest, split: SplitManifest, **_: Any
+    ) -> Mapping[str, Any]:
         """Compute SHAP values for the model on the test split and return per-feature importance.
 
         Args:
-            model: TrainedModel reference to explain.
-            split: DataSplit whose test partition is used as the explanation batch.
+            model: ModelManifest reference to explain.
+            split: SplitManifest whose test partition is used as the explanation batch.
 
         Returns:
             Mapping with ``feature_importance`` (dict[str, float]),
@@ -67,8 +75,8 @@ class SHAPExplainer(Knot):
 
     def _shap_value(
         self,
-        model: TrainedModel,
-        split: DataSplit,
+        model: ModelManifest,
+        split: SplitManifest,
         feature: str,
         kind: str,
     ) -> float:

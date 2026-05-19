@@ -1,6 +1,6 @@
 # Core
 
-Core types: `Knot`, `Parameter`, `KnotConfig`, `ErrorPolicy`, `Result` (`Ok`, `Err`, `Skipped`), `RunRequest`, `RunResult`, `KnotLineage`.
+Core types: `Knot`, `Assembler`, `Disassembler`, `Parameter`, `KnotConfig`, `ErrorPolicy`, `Result` (`Ok`, `Err`, `Skipped`), `RunRequest`, `RunResult`, `KnotLineage`.
 
 ---
 
@@ -103,6 +103,26 @@ Core types: `Knot`, `Parameter`, `KnotConfig`, `ErrorPolicy`, `Result` (`Ok`, `E
 ## KnotLineage
 
 ::: pirn.core.lineage.KnotLineage
+    options:
+      show_source: false
+      members_order: source
+      heading_level: 3
+
+---
+
+## Assembler
+
+::: pirn.core.assembler.Assembler
+    options:
+      show_source: false
+      members_order: source
+      heading_level: 3
+
+---
+
+## Disassembler
+
+::: pirn.core.disassembler.Disassembler
     options:
       show_source: false
       members_order: source

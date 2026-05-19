@@ -8,13 +8,13 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.domains.ml.training.ensemble_builder import EnsembleBuilder
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.model_manifest import ModelManifest
 from pirn.tapestry import Tapestry
 
 
 @knot
-async def emit_first_model() -> TrainedModel:
-    return TrainedModel(
+async def emit_first_model() -> ModelManifest:
+    return ModelManifest(
         model_id="m1",
         algorithm="rf",
         feature_names=("a", "b"),
@@ -23,8 +23,8 @@ async def emit_first_model() -> TrainedModel:
 
 
 @knot
-async def emit_second_model() -> TrainedModel:
-    return TrainedModel(
+async def emit_second_model() -> ModelManifest:
+    return ModelManifest(
         model_id="m2",
         algorithm="gbm",
         feature_names=("a", "b"),
@@ -44,7 +44,7 @@ class TestEnsembleBuilderHappyPath(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert result.succeeded
-        out: TrainedModel = result.outputs["ens"]
+        out: ModelManifest = result.outputs["ens"]
         assert out.algorithm == "ensemble:stacking"
         assert out.feature_names == ("a", "b")
         child_ids = list(out.hyperparameters["child_model_ids"])
@@ -53,7 +53,7 @@ class TestEnsembleBuilderHappyPath(unittest.IsolatedAsyncioTestCase):
 
 class TestEnsembleBuilderConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_single_model(self) -> None:
-        m1 = TrainedModel(model_id="m1", algorithm="rf", feature_names=("a",), target_name="y")
+        m1 = ModelManifest(model_id="m1", algorithm="rf", feature_names=("a",), target_name="y")
         with Tapestry():
             k = EnsembleBuilder.__new__(EnsembleBuilder)
             object.__setattr__(k, "_config", KnotConfig(id="bad"))

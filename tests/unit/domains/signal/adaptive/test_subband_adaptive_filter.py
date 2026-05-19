@@ -9,15 +9,15 @@ import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.domains.signal.adaptive.subband_adaptive_filter import SubbandAdaptiveFilter
-from pirn.domains.signal.types.signal_frame import SignalFrame
-from tests.unit.domains.signal.conftest import make_signal_frame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+from tests.unit.domains.signal.conftest import make_signal_payload
 
-_SIGNAL = make_signal_frame()
-_REF = make_signal_frame(signal_id="reference")
+_SIGNAL = make_signal_payload()
+_REF = make_signal_payload(signal_id="reference")
 
 
 def _up(name: str) -> Parameter:
-    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
+    return Parameter(name, SignalPayload, _config=KnotConfig(id=name))
 
 
 class TestSubbandAdaptiveFilter(unittest.IsolatedAsyncioTestCase):
@@ -49,5 +49,5 @@ class TestSubbandAdaptiveFilter(unittest.IsolatedAsyncioTestCase):
     async def test_emits_signal_frame(self) -> None:
         knot = self._make()
         out = await knot.process(_SIGNAL, _REF, subband_count=4, filter_length_per_band=8, step_size=0.1)
-        assert isinstance(out, SignalFrame)
-        assert out.signal_id == "test:subband-adaptive"
+        assert isinstance(out, SignalPayload)
+        assert out.frame.signal_id == "test:subband-adaptive"

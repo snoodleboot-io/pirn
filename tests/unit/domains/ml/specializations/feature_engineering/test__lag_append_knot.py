@@ -11,8 +11,8 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.feature_engineering._lag_append_knot import (
     _LagAppendKnot,
 )
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.split_manifest import SplitManifest
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 from pirn.tapestry import Tapestry
 
 
@@ -20,9 +20,9 @@ class _SplitSource(Knot):
     def __init__(self, *, _config: KnotConfig, **kwargs: Any) -> None:
         super().__init__(_config=_config, **kwargs)
 
-    async def process(self, **_: Any) -> DataSplit:
-        ds = MLDataset(name="ds", feature_names=("sales",), row_count=30)
-        return DataSplit(train=ds, test=ds)
+    async def process(self, **_: Any) -> SplitManifest:
+        ds = DatasetManifest(name="ds", feature_names=("sales",), row_count=30)
+        return SplitManifest(train=ds, test=ds)
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
@@ -38,6 +38,6 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         split = result.outputs["lag"]
-        self.assertIsInstance(split, DataSplit)
+        self.assertIsInstance(split, SplitManifest)
         self.assertIn("sales_lag_1", split.train.feature_names)
         self.assertIn("sales_lag_7", split.train.feature_names)

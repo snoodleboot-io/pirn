@@ -1,4 +1,9 @@
-"""``EvalReport`` — metrics computed for a model on a dataset."""
+"""``EvalReportPayload`` — metrics computed for a model on a dataset.
+
+.. deprecated::
+    Import :class:`pirn.domains.ml.types.eval_report_payload.EvalReportPayload` instead.
+    This module is retained for backwards compatibility only.
+"""
 
 from __future__ import annotations
 
@@ -12,7 +17,7 @@ from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 
 @dataclass(frozen=True)
-class EvalReport(PirnOpaqueValue):
+class EvalReportPayload(PirnOpaqueValue):
     """Numeric metrics + free-form details for a single evaluation run."""
 
     model_id: str = ""

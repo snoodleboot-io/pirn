@@ -31,7 +31,13 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             await knot.process(t1_nifti_path="x", regions=[1])  # type: ignore[list-item]
 
     async def test_returns_per_region_mapping(self) -> None:
+        from unittest.mock import AsyncMock, MagicMock, patch
+
         knot = self._make_knot()
-        out = await knot.process(t1_nifti_path="x", regions=["frontal", "parietal"])
+        mock_proc = MagicMock()
+        mock_proc.returncode = 0
+        mock_proc.communicate = AsyncMock(return_value=(b"", b""))
+        with patch("asyncio.create_subprocess_exec", AsyncMock(return_value=mock_proc)):
+            out = await knot.process(t1_nifti_path="x", regions=["frontal", "parietal"])
         assert isinstance(out, Mapping)
         assert set(out.keys()) == {"frontal", "parietal"}

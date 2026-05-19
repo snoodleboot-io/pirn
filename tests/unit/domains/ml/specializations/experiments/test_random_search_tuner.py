@@ -51,17 +51,17 @@ class TestConstruction(unittest.TestCase):
 class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_empty_search_space(self) -> None:
         tuner = _make_tuner()
-        from pirn.domains.ml.types.data_split import DataSplit
-        from pirn.domains.ml.types.ml_dataset import MLDataset
+        from pirn.domains.ml.types.split_manifest import SplitManifest
+        from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 
-        ds = MLDataset(
+        ds = DatasetManifest(
             name="ds",
             feature_names=("x",),
             target_name="y",
             row_count=10,
             source_uri="memory://ds",
         )
-        split = DataSplit(
+        split = SplitManifest(
             train=ds,
             test=ds,
         )
@@ -75,17 +75,17 @@ class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_n_trials_less_than_1(self) -> None:
         tuner = _make_tuner()
-        from pirn.domains.ml.types.data_split import DataSplit
-        from pirn.domains.ml.types.ml_dataset import MLDataset
+        from pirn.domains.ml.types.split_manifest import SplitManifest
+        from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 
-        ds = MLDataset(
+        ds = DatasetManifest(
             name="ds",
             feature_names=("x",),
             target_name="y",
             row_count=10,
             source_uri="memory://ds",
         )
-        split = DataSplit(
+        split = SplitManifest(
             train=ds,
             test=ds,
         )
@@ -100,17 +100,17 @@ class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_empty_algorithm(self) -> None:
         tuner = _make_tuner()
-        from pirn.domains.ml.types.data_split import DataSplit
-        from pirn.domains.ml.types.ml_dataset import MLDataset
+        from pirn.domains.ml.types.split_manifest import SplitManifest
+        from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 
-        ds = MLDataset(
+        ds = DatasetManifest(
             name="ds",
             feature_names=("x",),
             target_name="y",
             row_count=10,
             source_uri="memory://ds",
         )
-        split = DataSplit(
+        split = SplitManifest(
             train=ds,
             test=ds,
         )
@@ -124,17 +124,17 @@ class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_empty_primary_metric(self) -> None:
         tuner = _make_tuner()
-        from pirn.domains.ml.types.data_split import DataSplit
-        from pirn.domains.ml.types.ml_dataset import MLDataset
+        from pirn.domains.ml.types.split_manifest import SplitManifest
+        from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 
-        ds = MLDataset(
+        ds = DatasetManifest(
             name="ds",
             feature_names=("x",),
             target_name="y",
             row_count=10,
             source_uri="memory://ds",
         )
-        split = DataSplit(
+        split = SplitManifest(
             train=ds,
             test=ds,
         )

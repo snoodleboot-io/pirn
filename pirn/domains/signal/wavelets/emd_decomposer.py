@@ -30,19 +30,37 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
+from PyEMD import EMD
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
 from pirn.domains.signal.types.wavelet_frame import WaveletFrame
+from pirn.domains.signal.types.wavelet_payload import WaveletPayload
+
+
+def _emd_1d(channel: np.ndarray, max_imf: int) -> np.ndarray:
+    emd = EMD()
+    return emd.emd(channel, max_imf=max_imf)
+
+
+def _run_emd(data: np.ndarray, max_imf: int) -> list[np.ndarray]:
+    if data.ndim == 1:
+        imfs = _emd_1d(data, max_imf)
+        return [imfs[i] for i in range(len(imfs))]
+    results: list[np.ndarray] = []
+    for ch_idx in range(data.shape[0]):
+        imfs = _emd_1d(data[ch_idx], max_imf)
+        results.extend(imfs[i] for i in range(len(imfs)))
+    return results
 
 
 class EMDDecomposer(Knot):
-    """Empirical mode decomposition into intrinsic mode functions.
-
-    Production needs ``EMD-signal`` (PyEMD) or similar.
-    """
+    """Empirical mode decomposition into intrinsic mode functions."""
 
     def __init__(
         self,
@@ -61,26 +79,28 @@ class EMDDecomposer(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         max_imf_count: int,
         **_: Any,
-    ) -> WaveletFrame:
+    ) -> WaveletPayload:
         """Decompose the signal into intrinsic mode functions via empirical mode decomposition.
 
         Args:
-            signal: Signal to decompose into up to ``max_imf_count`` intrinsic mode functions.
+            signal: Signal payload to decompose.
             max_imf_count: Maximum number of IMFs to extract (positive integer).
 
         Returns:
-            WaveletFrame of EMD intrinsic mode functions with up to ``max_imf_count`` scales.
+            WaveletPayload of EMD intrinsic mode functions.
 
         Raises:
             ValueError: If max_imf_count is not a positive integer.
         """
         if not isinstance(max_imf_count, int) or max_imf_count <= 0:
             raise ValueError("EMDDecomposer: max_imf_count must be a positive integer")
-        return WaveletFrame(
-            signal_id=signal.signal_id,
+        imfs = await asyncio.to_thread(_run_emd, signal.data, max_imf_count)
+        frame = WaveletFrame(
+            signal_id=signal.frame.signal_id,
             wavelet_name="emd",
-            scale_count=max_imf_count,
+            scale_count=len(imfs),
         )
+        return WaveletPayload(metadata=frame, data=imfs)

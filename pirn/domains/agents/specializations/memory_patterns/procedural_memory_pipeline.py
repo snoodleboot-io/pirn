@@ -32,7 +32,6 @@ from pirn.domains.agents.specializations.memory_patterns.procedural_memory_write
 )
 from pirn.domains.agents.types.agent_response import AgentResponse
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class ProceduralMemoryPipeline(SubTapestry):
@@ -61,7 +60,7 @@ class ProceduralMemoryPipeline(SubTapestry):
         task_description: str,
         store: MemoryStore,
         **_: Any,
-    ) -> str:
+    ) -> Any:
         """Persist the task-response recipe in the store and return the procedure key.
 
         Args:
@@ -80,15 +79,9 @@ class ProceduralMemoryPipeline(SubTapestry):
             raise TypeError(
                 f"ProceduralMemoryPipeline: store must be a MemoryStore, got {type(store).__name__}"
             )
-        with Tapestry() as inner:
-            ProceduralMemoryWriter(
-                agent_response=agent_response,
-                task_description=task_description,
-                store=store,
-                _config=KnotConfig(id="write_procedure"),
-            )
-        inner_result = await self._run_inner(inner)
-        key = inner_result.outputs.get("write_procedure")
-        if not isinstance(key, str):
-            raise RuntimeError("ProceduralMemoryPipeline: inner write did not return a key")
-        return key
+        return ProceduralMemoryWriter(
+            agent_response=agent_response,
+            task_description=task_description,
+            store=store,
+            _config=KnotConfig(id="write_procedure"),
+        )

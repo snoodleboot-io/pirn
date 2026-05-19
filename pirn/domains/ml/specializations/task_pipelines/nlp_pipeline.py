@@ -3,7 +3,7 @@
 Composes data load → split → embedding extraction → train → evaluate.
 The :class:`EmbeddingExtractor` knot fans the configured
 :class:`EmbeddingProvider` over the named text column so the downstream
-trainer sees an :class:`MLDataset` whose ``feature_names`` carry the
+trainer sees an :class:`DatasetManifest` whose ``feature_names`` carry the
 augmented embedding feature.
 
 Algorithm:
@@ -12,8 +12,11 @@ Algorithm:
     2. Validate all inputs.
     3. Wire DatasetLoader → TrainTestSplit → EmbeddingExtractor → Trainer
        → Evaluator in an inner Tapestry.
-    4. Run via _run_inner() and return the EvalReport.
+    4. Run via _run_inner() and return the EvalMetadata.
 
+Math:
+    Text embedding: e = f_enc(text; theta_enc)  where e in R^d
+    Classification loss: L = -(1/n) * sum_i sum_c y_{i,c} * log(softmax(W * e_i)_c)
 
 References:
     N/A — pirn-native implementation.
@@ -34,9 +37,7 @@ from pirn.domains.ml.embedding_provider import EmbeddingProvider
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.features.embedding_extractor import EmbeddingExtractor
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.eval_report import EvalReport
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class NLPPipeline(SubTapestry):
@@ -81,8 +82,8 @@ class NLPPipeline(SubTapestry):
         embedding_provider: EmbeddingProvider | None = None,
         algorithm: str = "logistic",
         **_: Any,
-    ) -> EvalReport:
-        """Load data, split, embed the text column, train a text classifier, and return the resulting EvalReport.
+    ) -> Any:
+        """Load data, split, embed the text column, train a text classifier, and return the resulting EvalMetadata.
 
         Args:
             pool: DatabaseConnectionPool for loading the dataset.
@@ -93,7 +94,7 @@ class NLPPipeline(SubTapestry):
             algorithm: Non-empty algorithm identifier.
 
         Returns:
-            EvalReport containing accuracy, precision, recall, and f1 metrics
+            EvalReportPayload containing accuracy, precision, recall, and f1 metrics
             from the text-classification evaluation stage.
 
         Raises:
@@ -112,35 +113,32 @@ class NLPPipeline(SubTapestry):
             raise TypeError("NLPPipeline: embedding_provider must be an EmbeddingProvider")
         if not isinstance(algorithm, str) or not algorithm:
             raise ValueError("NLPPipeline: algorithm must be a non-empty string")
-        with Tapestry() as inner:
-            dataset = DatasetLoader(
-                name="nlp",
-                feature_names=(text_column,),
-                target_name=target_column,
-                pool=pool,
-                query=query,
-                _config=KnotConfig(id="load"),
-            )
-            split = TrainTestSplit(
-                dataset=dataset,
-                _config=KnotConfig(id="split"),
-            )
-            embedded = EmbeddingExtractor(
-                split=split,
-                text_column=text_column,
-                embedding_provider=embedding_provider,
-                _config=KnotConfig(id="embed"),
-            )
-            trained = Trainer(
-                split=embedded,
-                algorithm=algorithm,
-                _config=KnotConfig(id="train"),
-            )
-            Evaluator(
-                model=trained,
-                split=embedded,
-                metrics=self._classification_metrics,
-                _config=KnotConfig(id="evaluate"),
-            )
-        inner_result = await self._run_inner(inner)
-        return inner_result.outputs["evaluate"]
+        dataset = DatasetLoader(
+            name="nlp",
+            feature_names=(text_column,),
+            target_name=target_column,
+            pool=pool,
+            query=query,
+            _config=KnotConfig(id="load"),
+        )
+        split = TrainTestSplit(
+            dataset=dataset,
+            _config=KnotConfig(id="split"),
+        )
+        embedded = EmbeddingExtractor(
+            split=split,
+            text_column=text_column,
+            embedding_provider=embedding_provider,
+            _config=KnotConfig(id="embed"),
+        )
+        trained = Trainer(
+            split=embedded,
+            algorithm=algorithm,
+            _config=KnotConfig(id="train"),
+        )
+        return Evaluator(
+            model=trained,
+            split=embedded,
+            metrics=self._classification_metrics,
+            _config=KnotConfig(id="evaluate"),
+        )

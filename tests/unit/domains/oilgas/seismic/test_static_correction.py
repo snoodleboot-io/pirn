@@ -46,4 +46,5 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             replacement_velocity_m_s=1800.0,
         )
         assert isinstance(out, SegyVolume)
-        assert out.volume_id.endswith(":static")
+        assert ":static_" in out.volume_id
+        assert "ms" in out.volume_id

@@ -1,13 +1,13 @@
-"""``CrossValidator`` — produce K logical :class:`DataSplit` folds.
+"""``CrossValidator`` — produce K logical :class:`SplitManifest` folds.
 
 Algorithm:
-    1. Receive ``dataset`` (MLDataset), ``k`` (int >= 2), and ``random_seed`` via process().
+    1. Receive ``dataset`` (DatasetManifest), ``k`` (int >= 2), and ``random_seed`` via process().
     2. Validate k >= 2 and dataset.row_count >= k.
     3. Compute base fold size: ``base = row_count // k``.
     4. Distribute remainder rows: first ``remainder`` folds get one extra row.
     5. For each fold index, compute train count = total - test count.
-    6. Construct a DataSplit with train/test MLDataset references per fold.
-    7. Return a tuple of k DataSplit objects.
+    6. Construct a SplitManifest with train/test DatasetManifest references per fold.
+    7. Return a tuple of k SplitManifest objects.
 
 Math:
     base = total // k
@@ -26,12 +26,13 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.dataset_payload import DatasetPayload
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class CrossValidator(Knot):
-    """Emit ``k`` logical folds of an :class:`MLDataset`."""
+    """Emit ``k`` logical folds of an :class:`DatasetManifest`."""
 
     def __init__(
         self,
@@ -51,22 +52,24 @@ class CrossValidator(Knot):
         )
 
     async def process(
-        self, dataset: MLDataset, k: int = 5, random_seed: int = 42, **_: Any
-    ) -> tuple[DataSplit, ...]:
-        """Partition the dataset into k balanced DataSplit folds and return the tuple of folds.
+        self, dataset: DatasetManifest | DatasetPayload, k: int = 5, random_seed: int = 42, **_: Any
+    ) -> tuple[SplitManifest, ...]:
+        """Partition the dataset into k balanced SplitManifest folds and return the tuple of folds.
 
         Args:
-            dataset: MLDataset reference whose row_count drives fold sizing.
+            dataset: DatasetManifest reference whose row_count drives fold sizing.
             k: Number of folds; must be an int >= 2.
             random_seed: Random seed (reserved for future shuffle logic).
 
         Returns:
-            Tuple of k DataSplit objects, each with a train and test MLDataset partition.
+            Tuple of k SplitManifest objects, each with a train and test DatasetManifest partition.
 
         Raises:
             TypeError: If k or random_seed are not ints.
             ValueError: If k < 2 or dataset.row_count < k.
         """
+        if isinstance(dataset, DatasetPayload):
+            dataset = dataset.manifest
         if not isinstance(k, int):
             raise TypeError("CrossValidator: k must be an int")
         if k < 2:
@@ -79,24 +82,24 @@ class CrossValidator(Knot):
         base = total // k
         remainder = total - base * k
         now = datetime.now(UTC)
-        folds: list[DataSplit] = []
+        folds: list[SplitManifest] = []
         for fold_index in range(k):
             test_count = base + (1 if fold_index < remainder else 0)
             train_count = total - test_count
             train = self._mk(dataset, fold_index, "train", train_count, now)
             test = self._mk(dataset, fold_index, "test", test_count, now)
-            folds.append(DataSplit(train=train, test=test, validation=None))
+            folds.append(SplitManifest(train=train, test=test, validation=None))
         return tuple(folds)
 
     def _mk(
         self,
-        source: MLDataset,
+        source: DatasetManifest,
         fold_index: int,
         partition: str,
         count: int,
         fetched_at: datetime,
-    ) -> MLDataset:
-        return MLDataset(
+    ) -> DatasetManifest:
+        return DatasetManifest(
             name=f"{source.name}:fold{fold_index}:{partition}",
             feature_names=source.feature_names,
             target_name=source.target_name,

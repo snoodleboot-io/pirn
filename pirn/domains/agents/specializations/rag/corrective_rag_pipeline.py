@@ -54,9 +54,7 @@ from pirn.domains.agents.specializations.rag.relevance_gate import (
     RelevanceCheck,
 )
 from pirn.domains.agents.tool import Tool
-from pirn.domains.agents.types.agent_response import AgentResponse
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class CorrectiveRAGPipeline(SubTapestry):
@@ -94,7 +92,7 @@ class CorrectiveRAGPipeline(SubTapestry):
         top_k: int,
         relevance_threshold: float,
         **_: Any,
-    ) -> AgentResponse:
+    ) -> Any:
         """Retrieve, score, correct via fallback if needed, and answer the query using the LLM.
 
         Args:
@@ -106,41 +104,35 @@ class CorrectiveRAGPipeline(SubTapestry):
         Raises:
             TypeError: If query is not a string.
         """
-        with Tapestry() as inner:
-            retrieved = MemorySearchRetriever(
-                store=memory,
-                query=query,
-                top_k=top_k,
-                _config=KnotConfig(id="retrieve"),
-            )
-            relevant = RelevanceCheck(
-                query=query,
-                retrieved=retrieved,
-                threshold=relevance_threshold,
-                _config=KnotConfig(id="score"),
-            )
-            routed = CorrectiveRouter(
-                query=query,
-                relevant_docs=relevant,
-                fallback_tool=fallback_tool,
-                _config=KnotConfig(id="route"),
-            )
-            prompt = RAGPromptBuilder(
-                query=query,
-                retrieved=routed,
-                _config=KnotConfig(id="prompt"),
-            )
-            answer = LLMChatCall(
-                prompt=prompt,
-                llm=llm,
-                _config=KnotConfig(id="generate"),
-            )
-            RAGResponseBuilder(
-                answer=answer,
-                _config=KnotConfig(id="response"),
-            )
-        inner_result = await self._run_inner(inner)
-        response = inner_result.outputs.get("response")
-        if not isinstance(response, AgentResponse):
-            return AgentResponse(content="", finish_reason="length")
-        return response
+        retrieved = MemorySearchRetriever(
+            store=memory,
+            query=query,
+            top_k=top_k,
+            _config=KnotConfig(id="retrieve"),
+        )
+        relevant = RelevanceCheck(
+            query=query,
+            retrieved=retrieved,
+            threshold=relevance_threshold,
+            _config=KnotConfig(id="score"),
+        )
+        routed = CorrectiveRouter(
+            query=query,
+            relevant_docs=relevant,
+            fallback_tool=fallback_tool,
+            _config=KnotConfig(id="route"),
+        )
+        prompt = RAGPromptBuilder(
+            query=query,
+            retrieved=routed,
+            _config=KnotConfig(id="prompt"),
+        )
+        answer = LLMChatCall(
+            prompt=prompt,
+            llm=llm,
+            _config=KnotConfig(id="generate"),
+        )
+        return RAGResponseBuilder(
+            answer=answer,
+            _config=KnotConfig(id="response"),
+        )

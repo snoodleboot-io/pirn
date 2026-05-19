@@ -9,7 +9,8 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.task_pipelines.nlp_pipeline import (
     NLPPipeline,
 )
-from pirn.domains.ml.types.eval_report import EvalReport
+from pirn.domains.ml.types.eval_metadata import EvalMetadata
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.tapestry import Tapestry
 from tests.unit.domains.ml._stubs.recording_database_pool import (
     RecordingDatabasePool,
@@ -35,7 +36,7 @@ class TestConstruction(unittest.TestCase):
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_classification_report(self) -> None:
-        rows = [("text " + str(i), i % 2) for i in range(40)]
+        rows = [{"text": "text " + str(i), "y": i % 2} for i in range(40)]
         provider = RecordingEmbeddingProvider()
         with Tapestry() as t:
             NLPPipeline(
@@ -49,8 +50,8 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert result.succeeded
-        report: EvalReport = result.outputs["nlp"]
-        assert isinstance(report, EvalReport)
-        assert "f1" in report.metrics
+        report: EvalReportPayload = result.outputs["nlp"]
+        assert isinstance(report, EvalReportPayload)
+        assert "f1" in report.metrics.scores
         # Embedding provider was probed.
         assert provider.calls

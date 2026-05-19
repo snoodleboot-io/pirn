@@ -46,6 +46,7 @@ from pirn.domains.agents.specializations.rag.rag_response_builder import (
     RAGResponseBuilder,
 )
 from pirn.domains.agents.types.agent_response import AgentResponse
+from pirn.nodes.source import Source
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
@@ -69,7 +70,7 @@ class AdaptiveRAGPipeline(SubTapestry):
 
     async def process(
         self, query: str, memory: MemoryStore, llm: LLMProvider, top_k: int, **_: Any
-    ) -> AgentResponse:
+    ) -> Any:
         """Classify query complexity and route to the appropriate RAG strategy.
 
         Args:
@@ -99,6 +100,8 @@ class AdaptiveRAGPipeline(SubTapestry):
         classify_result = await self._run_inner(inner_classify)
         complexity = str(classify_result.outputs.get("classify", "")).strip().upper()
 
+        final_response: AgentResponse
+
         if "SIMPLE" in complexity:
             with Tapestry() as inner_direct:
                 answer = LLMChatCall(
@@ -111,12 +114,14 @@ class AdaptiveRAGPipeline(SubTapestry):
                     _config=KnotConfig(id="response"),
                 )
             result = await self._run_inner(inner_direct)
-            response = result.outputs.get("response")
-            if not isinstance(response, AgentResponse):
-                return AgentResponse(content="", finish_reason="length")
-            return response
+            raw = result.outputs.get("response")
+            final_response = (
+                raw
+                if isinstance(raw, AgentResponse)
+                else AgentResponse(content="", finish_reason="length")
+            )
 
-        if "COMPLEX" in complexity:
+        elif "COMPLEX" in complexity:
             decompose_prompt = (
                 "Decompose the following question into exactly three concise "
                 "sub-questions, one per line, no numbering or bullets.\n\n"
@@ -166,34 +171,47 @@ class AdaptiveRAGPipeline(SubTapestry):
                     _config=KnotConfig(id="response"),
                 )
             synth_result = await self._run_inner(inner_synth)
-            response = synth_result.outputs.get("response")
-            if not isinstance(response, AgentResponse):
-                return AgentResponse(content="", finish_reason="length")
-            return response
+            raw = synth_result.outputs.get("response")
+            final_response = (
+                raw
+                if isinstance(raw, AgentResponse)
+                else AgentResponse(content="", finish_reason="length")
+            )
 
-        with Tapestry() as inner_naive:
-            retrieved = MemorySearchRetriever(
-                store=memory,
-                query=query,
-                top_k=top_k,
-                _config=KnotConfig(id="retrieve"),
+        else:
+            with Tapestry() as inner_naive:
+                retrieved = MemorySearchRetriever(
+                    store=memory,
+                    query=query,
+                    top_k=top_k,
+                    _config=KnotConfig(id="retrieve"),
+                )
+                prompt = RAGPromptBuilder(
+                    query=query,
+                    retrieved=retrieved,
+                    _config=KnotConfig(id="prompt"),
+                )
+                answer = LLMChatCall(
+                    prompt=prompt,
+                    llm=llm,
+                    _config=KnotConfig(id="generate"),
+                )
+                RAGResponseBuilder(
+                    answer=answer,
+                    _config=KnotConfig(id="response"),
+                )
+            naive_result = await self._run_inner(inner_naive)
+            raw = naive_result.outputs.get("response")
+            final_response = (
+                raw
+                if isinstance(raw, AgentResponse)
+                else AgentResponse(content="", finish_reason="length")
             )
-            prompt = RAGPromptBuilder(
-                query=query,
-                retrieved=retrieved,
-                _config=KnotConfig(id="prompt"),
-            )
-            answer = LLMChatCall(
-                prompt=prompt,
-                llm=llm,
-                _config=KnotConfig(id="generate"),
-            )
-            RAGResponseBuilder(
-                answer=answer,
-                _config=KnotConfig(id="response"),
-            )
-        naive_result = await self._run_inner(inner_naive)
-        response = naive_result.outputs.get("response")
-        if not isinstance(response, AgentResponse):
-            return AgentResponse(content="", finish_reason="length")
-        return response
+
+        _resp = final_response
+
+        class _ResultSource(Source):
+            async def process(self, **_: Any) -> AgentResponse:
+                return _resp
+
+        return _ResultSource(_config=KnotConfig(id="result"))

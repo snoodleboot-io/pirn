@@ -1,11 +1,12 @@
 """``MEGBeamformer`` — spatial filter (LCMV beamformer) for MEG source localization.
 
 Algorithm:
-    1. Receive meg_data dict, forward_model dict, regularization float, and pick_ori string.
-    2. Validate types and that regularization >= 0 and pick_ori is valid.
-    3. Compute the LCMV spatial filter weights from the data covariance and forward model.
-    4. Apply the beamformer to estimate source power at each source location.
-    5. Return source power, number of sources, and peak source index.
+    1. Receive signal SignalPayload and steering_vector list[float].
+    2. Validate types and dimensions.
+    3. Compute the data covariance matrix R = (data @ data.T) / n_samples.
+    4. Compute MVDR weight vector w = R^{-1} @ sv / (sv.T @ R^{-1} @ sv).
+    5. Compute beamformed output = w.T @ data.
+    6. Return beamformed_power (mean squared output) and weight_vector.
 
 Math:
     $$\\mathbf{W}_k = \\frac{\\mathbf{C}^{-1}\\mathbf{l}_k}{\\mathbf{l}_k^T\\mathbf{C}^{-1}\\mathbf{l}_k}$$
@@ -17,10 +18,35 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.domains.health.types.signal_payload import SignalPayload
+
+
+def _lcmv_beamform(data: np.ndarray, sv: np.ndarray) -> tuple[float, np.ndarray]:
+    """Compute LCMV beamformer weights and beamformed power.
+
+    Args:
+        data: Signal array of shape (n_channels, n_samples).
+        sv: Steering vector of shape (n_channels,).
+
+    Returns:
+        Tuple of (beamformed_power, weight_vector).
+    """
+    n_samples = data.shape[1]
+    cov = (data @ data.T) / n_samples  # (n_channels, n_channels)
+    cov_inv = np.linalg.pinv(cov)
+    numerator = cov_inv @ sv
+    denominator = sv @ cov_inv @ sv
+    weights = numerator / (denominator + 1e-12)
+    beamformed = weights @ data  # (n_samples,)
+    power = float(np.mean(beamformed**2))
+    return power, weights
 
 
 class MEGBeamformer(Knot):
@@ -29,61 +55,51 @@ class MEGBeamformer(Knot):
     def __init__(
         self,
         *,
-        meg_data: Knot | dict[str, Any],
-        forward_model: Knot | dict[str, Any],
-        regularization: Knot | float,
-        pick_ori: Knot | str,
+        signal: Knot | SignalPayload,
+        steering_vector: Knot | list[float],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
         super().__init__(
-            meg_data=meg_data,
-            forward_model=forward_model,
-            regularization=regularization,
-            pick_ori=pick_ori,
+            signal=signal,
+            steering_vector=steering_vector,
             _config=_config,
             **kwargs,
         )
 
     async def process(
         self,
-        meg_data: dict[str, Any],
-        forward_model: dict[str, Any],
-        regularization: float,
-        pick_ori: str,
+        signal: SignalPayload,
+        steering_vector: list[float],
         **_: Any,
     ) -> dict[str, Any]:
-        """Apply LCMV beamformer spatial filter to localize MEG sources.
+        """Apply LCMV beamformer to the signal and return power and weight vector.
 
         Args:
-            meg_data: Dict with n_channels (int), n_samples (int), and
-                sample_rate_hz (float).
-            forward_model: Dict with n_sources (int) and lead_field (list).
-            regularization: Non-negative regularization parameter.
-            pick_ori: Orientation constraint; one of 'max_power', 'normal', 'vector'.
+            signal: The SignalPayload containing MEG sensor data (channels x samples).
+            steering_vector: Lead-field vector of length n_channels pointing at the source.
 
         Returns:
-            Dict with source_power (list of float), n_sources (int), and
-            peak_source_index (int).
+            Dict with beamformed_power (float) and weight_vector (list of float).
 
         Raises:
-            TypeError: If meg_data or forward_model are not dicts.
-            ValueError: If regularization < 0 or pick_ori is invalid.
+            TypeError: If signal is not SignalPayload or steering_vector is not list.
+            ValueError: If steering_vector length does not match signal channel count.
         """
-        if not isinstance(meg_data, dict):
-            raise TypeError("MEGBeamformer: meg_data must be a dict")
-        if not isinstance(forward_model, dict):
-            raise TypeError("MEGBeamformer: forward_model must be a dict")
-        if not isinstance(regularization, (int, float)) or regularization < 0.0:
-            raise ValueError("MEGBeamformer: regularization must be >= 0.0")
-        if pick_ori not in frozenset({"max_power", "normal", "vector"}):
+        if not isinstance(signal, SignalPayload):
+            raise TypeError("MEGBeamformer: signal must be a SignalPayload")
+        if not isinstance(steering_vector, list):
+            raise TypeError("MEGBeamformer: steering_vector must be a list of float")
+        n_channels = signal.frame.channel_count
+        if len(steering_vector) != n_channels:
             raise ValueError(
-                "MEGBeamformer: pick_ori must be one of 'max_power', 'normal', 'vector'"
+                f"MEGBeamformer: steering_vector length {len(steering_vector)} "
+                f"does not match channel_count {n_channels}"
             )
-        n_sources = forward_model.get("n_sources", 0)
-        source_power = [0.0] * n_sources
+        data = signal.data.reshape(n_channels, -1).astype(float)
+        sv = np.array(steering_vector, dtype=float)
+        power, weights = await asyncio.to_thread(_lcmv_beamform, data, sv)
         return {
-            "source_power": source_power,
-            "n_sources": n_sources,
-            "peak_source_index": 0,
+            "beamformed_power": power,
+            "weight_vector": weights.tolist(),
         }

@@ -7,8 +7,12 @@ Algorithm:
     2. Validate all inputs.
     3. Wire DatasetLoader → TrainTestSplit → Trainer → Evaluator in an
        inner Tapestry.
-    4. Run via _run_inner() and return the EvalReport.
+    4. Run via _run_inner() and return the EvalMetadata.
 
+Math:
+    CNN cross-entropy loss: L = -(1/n) * sum_i sum_c y_{i,c} * log(p_{i,c})
+    Top-1 accuracy = (1/n) * sum_i I(argmax_c p_{i,c} == y_i)
+    Top-5 accuracy = (1/n) * sum_i I(y_i in top-5 predictions)
 
 References:
     N/A — pirn-native implementation.
@@ -27,9 +31,7 @@ from pirn.domains.ml.data_prep.dataset_loader import DatasetLoader
 from pirn.domains.ml.data_prep.train_test_split import TrainTestSplit
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.types.eval_report import EvalReport
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class ImageClassificationPipeline(SubTapestry):
@@ -70,8 +72,8 @@ class ImageClassificationPipeline(SubTapestry):
         architecture: str = "cnn",
         augment: bool = True,
         **_: Any,
-    ) -> EvalReport:
-        """Load images, optionally augment, train the configured architecture, and return the EvalReport.
+    ) -> Any:
+        """Load images, optionally augment, train the configured architecture, and return the EvalMetadata.
 
         Args:
             pool: DatabaseConnectionPool for loading the dataset.
@@ -82,7 +84,7 @@ class ImageClassificationPipeline(SubTapestry):
             augment: Whether to apply data augmentation.
 
         Returns:
-            EvalReport containing accuracy, precision, recall, and f1 metrics.
+            EvalReportPayload containing accuracy, precision, recall, and f1 metrics.
 
         Raises:
             ValueError: If any input fails validation.
@@ -100,30 +102,27 @@ class ImageClassificationPipeline(SubTapestry):
             raise ValueError(
                 f"ImageClassificationPipeline: architecture must be one of {sorted(self.valid_architectures)}"
             )
-        with Tapestry() as inner:
-            dataset = DatasetLoader(
-                name="image-classification",
-                feature_names=(image_column,),
-                target_name=label_column,
-                pool=pool,
-                query=query,
-                _config=KnotConfig(id="load"),
-            )
-            split = TrainTestSplit(
-                dataset=dataset,
-                _config=KnotConfig(id="split"),
-            )
-            trained = Trainer(
-                split=split,
-                algorithm=architecture,
-                hyperparameters={"augment": augment},
-                _config=KnotConfig(id="train"),
-            )
-            Evaluator(
-                model=trained,
-                split=split,
-                metrics=self._image_metrics,
-                _config=KnotConfig(id="evaluate"),
-            )
-        inner_result = await self._run_inner(inner)
-        return inner_result.outputs["evaluate"]
+        dataset = DatasetLoader(
+            name="image-classification",
+            feature_names=(image_column,),
+            target_name=label_column,
+            pool=pool,
+            query=query,
+            _config=KnotConfig(id="load"),
+        )
+        split = TrainTestSplit(
+            dataset=dataset,
+            _config=KnotConfig(id="split"),
+        )
+        trained = Trainer(
+            split=split,
+            algorithm=architecture,
+            hyperparameters={"augment": augment},
+            _config=KnotConfig(id="train"),
+        )
+        return Evaluator(
+            model=trained,
+            split=split,
+            metrics=self._image_metrics,
+            _config=KnotConfig(id="evaluate"),
+        )

@@ -67,8 +67,12 @@ class EspHealthMonitor(Knot):
             raise TypeError("EspHealthMonitor: telemetry must be a dict")
         alerts: list[str] = []
         score = 100.0
-        motor_temp = float(telemetry.get("motor_temp_c", 0.0))
-        vibration = float(telemetry.get("vibration_g", 0.0))
+        if "motor_temp_c" not in telemetry:
+            raise ValueError("EspHealthMonitor: required field 'motor_temp_c' missing from input")
+        if "vibration_g" not in telemetry:
+            raise ValueError("EspHealthMonitor: required field 'vibration_g' missing from input")
+        motor_temp = float(telemetry["motor_temp_c"])
+        vibration = float(telemetry["vibration_g"])
         if motor_temp > temperature_threshold_c:
             alerts.append(f"motor_temp_c {motor_temp:.1f} exceeds threshold")
             score -= 30.0

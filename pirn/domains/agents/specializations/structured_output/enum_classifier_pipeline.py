@@ -32,7 +32,6 @@ from pirn.domains.agents.specializations.structured_output._enum_classifier_atte
     _EnumClassifierAttempt,
 )
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class EnumClassifierPipeline(SubTapestry):
@@ -55,7 +54,7 @@ class EnumClassifierPipeline(SubTapestry):
         llm: LLMProvider,
         labels: Sequence[str],
         **_: Any,
-    ) -> str:
+    ) -> Any:
         """Classify the prompt into one of the allowed labels and return the matching label string.
 
         Args:
@@ -87,17 +86,9 @@ class EnumClassifierPipeline(SubTapestry):
             raise TypeError(
                 f"EnumClassifierPipeline: prompt must be a string, got {type(prompt).__name__}"
             )
-        with Tapestry() as inner:
-            _EnumClassifierAttempt(
-                prompt=prompt,
-                llm=llm,
-                labels=labels_tuple,
-                _config=KnotConfig(id="classify"),
-            )
-        inner_result = await self._run_inner(inner)
-        choice = inner_result.outputs.get("classify")
-        if not isinstance(choice, str):
-            raise ValueError(
-                f"EnumClassifierPipeline: classifier produced {type(choice).__name__}, expected str"
-            )
-        return choice
+        return _EnumClassifierAttempt(
+            prompt=prompt,
+            llm=llm,
+            labels=labels_tuple,
+            _config=KnotConfig(id="classify"),
+        )

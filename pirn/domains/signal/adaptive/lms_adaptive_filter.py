@@ -1,13 +1,13 @@
 """``LMSAdaptiveFilter`` — least-mean-squares adaptive filter.
 
 Algorithm:
-    1. Receive the input signal and reference signal frames.
+    1. Receive the input signal and reference signal payloads.
     2. Validate filter_length and step_size.
     3. Verify that signal and reference have matching sample rates.
     4. For each sample n: compute output y(n) = w^T(n) * x(n).
     5. Compute error: e(n) = d(n) - y(n) where d(n) is the reference sample.
     6. Update weights: w(n+1) = w(n) + step_size * e(n) * x(n).
-    7. Return a SignalFrame of the filtered output.
+    7. Return a SignalPayload of the error signal.
 
 Math:
     LMS weight update (Widrow-Hoff):
@@ -26,19 +26,38 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+
+def _lms(
+    signal_data: np.ndarray,
+    reference_data: np.ndarray,
+    filter_length: int,
+    step_size: float,
+) -> np.ndarray:
+    """Run the LMS adaptive filter loop and return the error signal."""
+    n_samples = len(signal_data)
+    output = np.zeros(n_samples)
+    filter_weights = np.zeros(filter_length)
+    for sample_index in range(filter_length, n_samples):
+        input_buffer = signal_data[sample_index - filter_length : sample_index][::-1]
+        filter_output = filter_weights @ input_buffer
+        error = reference_data[sample_index] - filter_output
+        filter_weights = filter_weights + step_size * error * input_buffer
+        output[sample_index] = error
+    return output
 
 
 class LMSAdaptiveFilter(Knot):
-    """Stochastic-gradient LMS adaptive filter.
-
-    Production needs an adaptive-filtering library (``padasip``) or a
-    hand-rolled NumPy implementation.
-    """
+    """Stochastic-gradient LMS adaptive filter."""
 
     def __init__(
         self,
@@ -61,22 +80,22 @@ class LMSAdaptiveFilter(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
-        reference: SignalFrame,
+        signal: SignalPayload,
+        reference: SignalPayload,
         filter_length: int,
         step_size: float,
         **_: Any,
-    ) -> SignalFrame:
-        """Adapt the LMS filter weights against the reference and return the error-minimised SignalFrame.
+    ) -> SignalPayload:
+        """Adapt the LMS filter weights against the reference and return the error SignalPayload.
 
         Args:
-            signal: Input signal to filter.
-            reference: Reference signal used to compute the error and update filter weights.
+            signal: Input signal payload to filter.
+            reference: Reference signal payload used to compute the error and update weights.
             filter_length: Number of adaptive taps (positive integer).
             step_size: LMS step size (must be positive).
 
         Returns:
-            SignalFrame of the LMS-filtered output.
+            SignalPayload containing the LMS error signal.
 
         Raises:
             ValueError: If filter_length or step_size are invalid, or sample rates differ.
@@ -85,11 +104,20 @@ class LMSAdaptiveFilter(Knot):
             raise ValueError("LMSAdaptiveFilter: filter_length must be a positive integer")
         if not isinstance(step_size, (int, float)) or step_size <= 0:
             raise ValueError("LMSAdaptiveFilter: step_size must be positive")
-        if signal.sample_rate_hz != reference.sample_rate_hz:
+        if signal.frame.sample_rate_hz != reference.frame.sample_rate_hz:
             raise ValueError("LMSAdaptiveFilter: signal and reference sample rates must match")
-        return SignalFrame(
-            signal_id=f"{signal.signal_id}:lms",
-            channel_count=signal.channel_count,
-            sample_rate_hz=signal.sample_rate_hz,
-            samples_per_channel=signal.samples_per_channel,
+
+        sig_data = signal.data[0] if signal.data.ndim > 1 else signal.data
+        ref_data = reference.data[0] if reference.data.ndim > 1 else reference.data
+
+        result = await asyncio.to_thread(_lms, sig_data, ref_data, filter_length, step_size)
+
+        return SignalPayload(
+            metadata=SignalFrame(
+                signal_id=f"{signal.frame.signal_id}:lms",
+                channel_count=1,
+                sample_rate_hz=signal.frame.sample_rate_hz,
+                samples_per_channel=result.shape[0],
+            ),
+            data=result,
         )

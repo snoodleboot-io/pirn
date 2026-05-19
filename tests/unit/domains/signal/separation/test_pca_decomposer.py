@@ -4,20 +4,30 @@ from __future__ import annotations
 
 import unittest
 
+try:
+    import sklearn  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("sklearn not installed") from _e
+
+try:
+    import scipy  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("scipy not installed") from _e
+
 import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.domains.signal.separation.pca_decomposer import PCADecomposer
-from pirn.domains.signal.types.signal_frame import SignalFrame
-from pirn.domains.signal.types.source_frame import SourceFrame
-from tests.unit.domains.signal.conftest import make_signal_frame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+from pirn.domains.signal.types.source_payload import SourcePayload
+from tests.unit.domains.signal.conftest import make_signal_payload
 
-_SIGNAL = make_signal_frame()
+_SIGNAL = make_signal_payload(channel_count=8)
 
 
 def _up(name: str = "signal") -> Parameter:
-    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
+    return Parameter(name, SignalPayload, _config=KnotConfig(id=name))
 
 
 class TestPCADecomposer(unittest.IsolatedAsyncioTestCase):
@@ -41,5 +51,5 @@ class TestPCADecomposer(unittest.IsolatedAsyncioTestCase):
     async def test_emits_source_frame(self) -> None:
         knot = self._make()
         out = await knot.process(_SIGNAL, component_count=2)
-        assert isinstance(out, SourceFrame)
-        assert out.source_count == 2
+        assert isinstance(out, SourcePayload)
+        assert out.frame.source_count == 2

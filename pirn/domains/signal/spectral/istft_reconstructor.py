@@ -1,12 +1,10 @@
 """``ISTFTReconstructor`` — reconstruct a time-domain signal from STFT via inverse STFT.
 
 Algorithm:
-    1. Receive the STFT spectrum frame, hop_length, and window.
+    1. Receive the STFT spectrum payload, hop_length, and window.
     2. Validate hop_length (positive integer) and window (one of ``hann``, ``hamming``, ``blackman``).
-    3. For each time frame, apply the IFFT to recover the windowed signal segment.
-    4. Accumulate the windowed segments using overlap-add (OLA) with the synthesis window.
-    5. Normalise by the sum of squared window values at each output sample.
-    6. Return a SignalFrame with samples_per_channel derived from spectrum bin count and hop length.
+    3. Apply ``scipy.signal.istft`` to recover the time-domain signal.
+    4. Return a SignalPayload with the reconstructed samples.
 
 Math:
     Overlap-add synthesis:
@@ -23,16 +21,20 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+from scipy import signal as ss
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
-from pirn.domains.signal.types.spectrum_frame import SpectrumFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+from pirn.domains.signal.types.spectrum_payload import SpectrumPayload
 
 
 class ISTFTReconstructor(Knot):
-    """Apply the inverse STFT to a SpectrumFrame and reconstruct the time-domain SignalFrame."""
+    """Apply the inverse STFT to a SpectrumPayload and reconstruct the time-domain SignalPayload."""
 
     _valid_windows = frozenset({"hann", "hamming", "blackman"})
 
@@ -55,20 +57,20 @@ class ISTFTReconstructor(Knot):
 
     async def process(
         self,
-        spectrum: SpectrumFrame,
+        spectrum: SpectrumPayload,
         hop_length: int,
         window: str,
         **_: Any,
-    ) -> SignalFrame:
+    ) -> SignalPayload:
         """Reconstruct the time-domain signal from the STFT spectrum via inverse STFT.
 
         Args:
-            spectrum: The STFT SpectrumFrame to invert.
+            spectrum: The STFT SpectrumPayload to invert.
             hop_length: Hop size in samples between successive STFT frames (positive integer).
             window: Synthesis window type — ``hann``, ``hamming``, or ``blackman``.
 
         Returns:
-            SignalFrame with samples_per_channel derived from the spectrum bin count and hop.
+            SignalPayload with reconstructed time-domain samples.
 
         Raises:
             ValueError: If hop_length or window are invalid.
@@ -79,11 +81,31 @@ class ISTFTReconstructor(Knot):
             raise ValueError(
                 "ISTFTReconstructor: window must be one of 'hann', 'hamming', 'blackman'"
             )
-        n_frames = max(1, spectrum.frequency_bins)
-        n_samples = (n_frames - 1) * hop_length
-        return SignalFrame(
-            signal_id=f"{spectrum.signal_id}:istft",
-            channel_count=1,
-            sample_rate_hz=0.0,
-            samples_per_channel=n_samples,
+
+        n_fft = (spectrum.frame.frequency_bins - 1) * 2
+        overlap = n_fft - hop_length
+        freq_res = spectrum.frame.frequency_resolution_hz
+        sample_rate = freq_res * n_fft if freq_res > 0 else 1.0
+
+        _, samples = await asyncio.to_thread(
+            ss.istft,
+            spectrum.data,
+            fs=sample_rate,
+            window=window,
+            nperseg=n_fft,
+            noverlap=overlap,
+            freq_axis=-2,
+            time_axis=-1,
+        )
+
+        signal_id = f"{spectrum.frame.signal_id}:istft"
+
+        return SignalPayload(
+            metadata=SignalFrame(
+                signal_id=signal_id,
+                channel_count=1,
+                sample_rate_hz=sample_rate,
+                samples_per_channel=samples.shape[-1],
+            ),
+            data=samples,
         )

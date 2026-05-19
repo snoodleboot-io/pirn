@@ -49,9 +49,7 @@ from pirn.domains.agents.specializations.rag.rag_response_builder import (
 from pirn.domains.agents.specializations.rag.sub_graph_context_builder import (
     SubGraphContextBuilder,
 )
-from pirn.domains.agents.types.agent_response import AgentResponse
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class GraphRAGPipeline(SubTapestry):
@@ -80,7 +78,7 @@ class GraphRAGPipeline(SubTapestry):
 
     async def process(
         self, query: str, graph_memory: MemoryStore, llm: LLMProvider, hop_count: int, **_: Any
-    ) -> AgentResponse:
+    ) -> Any:
         """Retrieve graph entities, build a sub-graph context, and answer the query via the LLM.
 
         Args:
@@ -92,38 +90,32 @@ class GraphRAGPipeline(SubTapestry):
         Raises:
             TypeError: If query is not a string.
         """
-        with Tapestry() as inner:
-            retrieved = MemorySearchRetriever(
-                store=graph_memory,
-                query=query,
-                top_k=self._retrieval_top_k,
-                _config=KnotConfig(id="retrieve"),
-            )
-            sub_graph = SubGraphContextBuilder(
-                retrieved=retrieved,
-                hop_count=hop_count,
-                _config=KnotConfig(id="sub_graph"),
-            )
-            prompt = RAGPromptBuilder(
-                query=query,
-                retrieved=sub_graph,
-                instruction=(
-                    "Answer the question using the retrieved sub-graph "
-                    "context. Cite entities by id when relevant."
-                ),
-                _config=KnotConfig(id="prompt"),
-            )
-            answer = LLMChatCall(
-                prompt=prompt,
-                llm=llm,
-                _config=KnotConfig(id="generate"),
-            )
-            RAGResponseBuilder(
-                answer=answer,
-                _config=KnotConfig(id="response"),
-            )
-        inner_result = await self._run_inner(inner)
-        response = inner_result.outputs.get("response")
-        if not isinstance(response, AgentResponse):
-            return AgentResponse(content="", finish_reason="length")
-        return response
+        retrieved = MemorySearchRetriever(
+            store=graph_memory,
+            query=query,
+            top_k=self._retrieval_top_k,
+            _config=KnotConfig(id="retrieve"),
+        )
+        sub_graph = SubGraphContextBuilder(
+            retrieved=retrieved,
+            hop_count=hop_count,
+            _config=KnotConfig(id="sub_graph"),
+        )
+        prompt = RAGPromptBuilder(
+            query=query,
+            retrieved=sub_graph,
+            instruction=(
+                "Answer the question using the retrieved sub-graph "
+                "context. Cite entities by id when relevant."
+            ),
+            _config=KnotConfig(id="prompt"),
+        )
+        answer = LLMChatCall(
+            prompt=prompt,
+            llm=llm,
+            _config=KnotConfig(id="generate"),
+        )
+        return RAGResponseBuilder(
+            answer=answer,
+            _config=KnotConfig(id="response"),
+        )

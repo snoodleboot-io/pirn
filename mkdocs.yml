@@ -59,7 +59,10 @@ nav:
     - guides/index.md
     - Knot Registration: guides/knot-registration.md
     - YAML Pipelines: guides/yaml-pipelines.md
+    - Sub-Tapestry: guides/sub-tapestry.md
+    - Agentic Loops: guides/agentic-loops.md
     - Error Handling: guides/error-handling.md
+    - Testing: guides/testing.md
     - Backends: guides/backends.md
     - Deployment: guides/deployment.md
     - Observability: guides/observability.md
@@ -101,4 +104,5 @@ nav:
     - contributing/index.md
     - Domain Knots: contributing/domain-knots.md
     - Knot Design Rules: contributing/knot-design-rules.md
+    - Assembler / Disassembler Pattern: contributing/assembler-disassembler-pattern.md
     - Knot Remediation Process: contributing/knot-remediation-process.md

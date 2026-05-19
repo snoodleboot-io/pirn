@@ -13,12 +13,16 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import tempfile
 import time
 
 import pytest
 
+
+from typing import Any
+
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -44,28 +48,56 @@ broker = sys.argv[1]
 app = Celery("pirn_test", broker=broker, backend=broker)
 app.conf.update(
     task_serializer="pickle",
-    accept_content=["pickle"],
+    accept_content=["pickle", "json"],
     result_serializer="pickle",
 )
 register_celery_worker_task(app)
-worker = app.Worker(concurrency=2, loglevel="error")
+worker = app.Worker(concurrency=2, loglevel="info")
 worker.start()
 """
+    worker_log = tempfile.NamedTemporaryFile(
+        mode="w", suffix=".log", prefix="celery_worker_", delete=False
+    )
+    import os
+    worker_env = {**os.environ, "C_FORCE_ROOT": "1"}
     proc = subprocess.Popen(
         [sys.executable, "-c", worker_script, _BROKER],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        stdout=worker_log,
+        stderr=worker_log,
+        env=worker_env,
     )
-    # Give the worker time to connect to the broker.
-    time.sleep(3)
+
+    # Wait for the worker to print "ready." in its log, polling the log file.
+    deadline = time.monotonic() + 90
+    ready = False
+    while time.monotonic() < deadline:
+        if proc.poll() is not None:
+            break  # worker exited unexpectedly
+        worker_log.flush()
+        with open(worker_log.name) as f:
+            if "ready." in f.read():
+                ready = True
+                break
+        time.sleep(2)
+
+    if not ready:
+        proc.terminate()
+        proc.wait(timeout=10)
+        worker_log.flush()
+        with open(worker_log.name) as f:
+            log_contents = f.read()
+        pytest.fail(f"Celery worker did not become ready within 90s.\nWorker log:\n{log_contents}")
+
     yield proc
+
     proc.terminate()
     proc.wait(timeout=10)
+    worker_log.close()
 
 
-@knot
-async def _double(x: int) -> int:
-    return x * 2
+class _Double(Knot):
+    async def process(self, *, x: int, **_: Any) -> int:
+        return x * 2
 
 
 async def test_celery_dispatcher_runs_pipeline(celery_worker):
@@ -76,7 +108,7 @@ async def test_celery_dispatcher_runs_pipeline(celery_worker):
     app = Celery("pirn_test", broker=_BROKER, backend=_BROKER)
     app.conf.update(
         task_serializer="pickle",
-        accept_content=["pickle"],
+        accept_content=["pickle", "json"],
         result_serializer="pickle",
     )
     register_celery_worker_task(app)
@@ -86,7 +118,7 @@ async def test_celery_dispatcher_runs_pipeline(celery_worker):
     dispatcher = CeleryDispatcher(app=app)
     with Tapestry(dispatcher=dispatcher) as t:
         p = Parameter("x", int, _config=KnotConfig(id="x"))
-        _double(x=p, _config=KnotConfig(id="d"))
+        _Double(x=p, _config=KnotConfig(id="d"))
 
     result = await t.run(RunRequest(parameters={"x": 4}))
     assert result.succeeded
@@ -104,7 +136,7 @@ async def test_celery_dispatcher_result_has_correct_dispatcher_name(celery_worke
     app = Celery("pirn_test", broker=_BROKER, backend=_BROKER)
     app.conf.update(
         task_serializer="pickle",
-        accept_content=["pickle"],
+        accept_content=["pickle", "json"],
         result_serializer="pickle",
     )
     register_celery_worker_task(app)
@@ -112,7 +144,7 @@ async def test_celery_dispatcher_result_has_correct_dispatcher_name(celery_worke
     dispatcher = CeleryDispatcher(app=app)
     with Tapestry(dispatcher=dispatcher) as t:
         p = Parameter("x", int, _config=KnotConfig(id="x"))
-        _double(x=p, _config=KnotConfig(id="d"))
+        _Double(x=p, _config=KnotConfig(id="d"))
 
     result = await t.run(RunRequest(parameters={"x": 1}))
     dispatchers = {rec.dispatcher for rec in result.lineage}

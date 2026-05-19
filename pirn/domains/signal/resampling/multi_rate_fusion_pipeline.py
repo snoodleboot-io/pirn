@@ -23,11 +23,28 @@ References:
 
 from __future__ import annotations
 
+import asyncio
+from math import gcd
 from typing import Any
+
+import numpy as np
+from scipy import signal as ss
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+
+def _resample_to_rate(
+    data: np.ndarray,
+    src_rate: float,
+    tgt_rate: float,
+) -> np.ndarray:
+    common = gcd(int(tgt_rate), int(src_rate))
+    up = int(tgt_rate) // common
+    down = int(src_rate) // common
+    return np.asarray(ss.resample_poly(data, up, down, axis=-1))
 
 
 class MultiRateFusionPipeline(Knot):
@@ -55,12 +72,12 @@ class MultiRateFusionPipeline(Knot):
 
     async def process(
         self,
-        signal_a: SignalFrame,
-        signal_b: SignalFrame,
+        signal_a: SignalPayload,
+        signal_b: SignalPayload,
         output_rate_hz: float,
         **_: Any,
-    ) -> tuple[SignalFrame, SignalFrame]:
-        """Resample both input signals to the common output rate.
+    ) -> SignalPayload:
+        """Resample both input signals to the common output rate and average them.
 
         Args:
             signal_a: First input signal at its native rate.
@@ -68,7 +85,7 @@ class MultiRateFusionPipeline(Knot):
             output_rate_hz: Common output sample rate in Hz (positive float).
 
         Returns:
-            Tuple of two SignalFrames, both resampled to ``output_rate_hz``.
+            SignalPayload at ``output_rate_hz`` containing the averaged fused signal.
 
         Raises:
             ValueError: If output_rate_hz is not positive.
@@ -76,13 +93,30 @@ class MultiRateFusionPipeline(Knot):
         if not isinstance(output_rate_hz, (int, float)) or output_rate_hz <= 0:
             raise ValueError("MultiRateFusionPipeline: output_rate_hz must be positive")
 
-        def _resample(sf: SignalFrame, suffix: str) -> SignalFrame:
-            ratio = output_rate_hz / max(sf.sample_rate_hz, 1.0)
-            return SignalFrame(
-                signal_id=f"{sf.signal_id}:{suffix}",
-                channel_count=sf.channel_count,
-                sample_rate_hz=float(output_rate_hz),
-                samples_per_channel=int(sf.samples_per_channel * ratio),
-            )
+        ra, rb = await asyncio.gather(
+            asyncio.to_thread(
+                _resample_to_rate,
+                signal_a.data,
+                signal_a.frame.sample_rate_hz,
+                float(output_rate_hz),
+            ),
+            asyncio.to_thread(
+                _resample_to_rate,
+                signal_b.data,
+                signal_b.frame.sample_rate_hz,
+                float(output_rate_hz),
+            ),
+        )
 
-        return _resample(signal_a, "fused_a"), _resample(signal_b, "fused_b")
+        n_out = min(ra.shape[-1], rb.shape[-1])
+        fused = (ra[..., :n_out] + rb[..., :n_out]) / 2.0
+
+        return SignalPayload(
+            metadata=SignalFrame(
+                signal_id=f"{signal_a.frame.signal_id}:fused",
+                channel_count=signal_a.frame.channel_count,
+                sample_rate_hz=float(output_rate_hz),
+                samples_per_channel=n_out,
+            ),
+            data=fused,
+        )

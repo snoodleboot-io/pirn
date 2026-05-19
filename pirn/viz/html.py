@@ -269,16 +269,16 @@ h1 { margin: 0 0 16px 0; font-size: 22px; }
             return 0
         visiting.add(kid)
         if not parents.get(kid):
-            d = 0
+            layer_depth = 0
         else:
-            d = 1 + max(
+            layer_depth = 1 + max(
                 cls._get_depth(p, depth, parents, all_ids, visiting)
                 for p in parents[kid]
                 if p in all_ids
             )
         visiting.discard(kid)
-        depth[kid] = d
-        return d
+        depth[kid] = layer_depth
+        return layer_depth
 
     @classmethod
     def _layer_nodes(
@@ -295,10 +295,10 @@ h1 { margin: 0 0 16px 0; font-size: 22px; }
             cls._get_depth(kid, depth, parents, all_ids, set())
 
         by_depth: dict[int, list[str]] = defaultdict(list)
-        for kid, d in depth.items():
-            by_depth[d].append(kid)
+        for kid, layer_depth in depth.items():
+            by_depth[layer_depth].append(kid)
 
-        return [sorted(by_depth[d]) for d in sorted(by_depth.keys())]
+        return [sorted(by_depth[layer_depth]) for layer_depth in sorted(by_depth.keys())]
 
     @staticmethod
     def _assign_coordinates(layers: list[list[str]]) -> dict[str, tuple[float, float]]:
@@ -307,14 +307,14 @@ h1 { margin: 0 0 16px 0; font-size: 22px; }
         layer_height = 110
         horizontal_spacing = 200
         for layer_idx, layer in enumerate(layers):
-            n = len(layer)
+            layer_size = len(layer)
             # Center the layer horizontally.
-            total_width = (n - 1) * horizontal_spacing
+            total_width = (layer_size - 1) * horizontal_spacing
             start_x = -total_width / 2
-            for i, kid in enumerate(layer):
-                x = start_x + i * horizontal_spacing
-                y = layer_idx * layer_height + 60
-                coords[kid] = (x, y)
+            for node_index, kid in enumerate(layer):
+                coord_x = start_x + node_index * horizontal_spacing
+                coord_y = layer_idx * layer_height + 60
+                coords[kid] = (coord_x, coord_y)
         return coords
 
     # ----------------------------------------------------------- rendering
@@ -348,8 +348,8 @@ h1 { margin: 0 0 16px 0; font-size: 22px; }
             return '<svg><text x="20" y="40">empty run</text></svg>'
 
         # Compute the SVG viewbox to contain all nodes plus padding.
-        xs = [c[0] for c in coords.values()]
-        ys = [c[1] for c in coords.values()]
+        xs = [coord[0] for coord in coords.values()]
+        ys = [coord[1] for coord in coords.values()]
         pad_x, pad_y = 80, 50
         min_x = min(xs) - pad_x
         max_x = max(xs) + pad_x
@@ -379,12 +379,12 @@ h1 { margin: 0 0 16px 0; font-size: 22px; }
 
         # Nodes.
         for node in nodes:
-            x, y = coords[node["id"]]
+            node_x, node_y = coords[node["id"]]
             css = f"node node-{node['outcome']}"
             if node.get("is_sub_tapestry"):
                 css += " sub-tapestry"
             parts.append(
-                f'<g transform="translate({x},{y})" class="{css}" '
+                f'<g transform="translate({node_x},{node_y})" class="{css}" '
                 f'data-knot-id="{_html_module.escape(node["id"])}" '
                 f'data-class="{_html_module.escape(node["class"])}" '
                 f'data-outcome="{_html_module.escape(node["outcome"])}" '
@@ -413,8 +413,8 @@ h1 { margin: 0 0 16px 0; font-size: 22px; }
         return qualname.rsplit(".", 1)[-1]
 
     @staticmethod
-    def _truncate(s: str, n: int) -> str:
-        return s if len(s) <= n else s[: n - 1] + "…"
+    def _truncate(text: str, max_len: int) -> str:
+        return text if len(text) <= max_len else text[: max_len - 1] + "…"
 
 
 def html_for_tapestry(tapestry: Tapestry, title: str | None = None) -> str:

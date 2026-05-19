@@ -18,6 +18,7 @@ References:
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -91,8 +92,31 @@ class TumorMicrobiotaClassifier(Knot):
                 "TumorMicrobiotaClassifier: taxonomic_level must be one of "
                 "'phylum', 'class', 'order', 'family', 'genus', 'species'"
             )
+        taxa_abundances: dict = sequence_data.get(
+            "taxa_abundances", sequence_data.get("abundances", {})
+        )
+        total_reads = sum(
+            v for v in taxa_abundances.values() if isinstance(v, (int, float)) and v > 0
+        )
+        if not total_reads:
+            return {
+                "sample_id": sequence_data.get("sample_id", ""),
+                "classifications": [],
+                "diversity_index": 0.0,
+            }
+        rel_abunds = {
+            k: v / total_reads
+            for k, v in taxa_abundances.items()
+            if isinstance(v, (int, float)) and v > 0
+        }
+        filtered = {k: v for k, v in rel_abunds.items() if v >= confidence_threshold}
+        H = -sum(p * math.log(p) for p in filtered.values() if p > 0)
+        classifications = [
+            {"taxon": k, "confidence": v, "read_count": int(v * total_reads)}
+            for k, v in sorted(filtered.items(), key=lambda x: -x[1])
+        ]
         return {
             "sample_id": sequence_data.get("sample_id", ""),
-            "classifications": [],
-            "diversity_index": 0.0,
+            "classifications": classifications,
+            "diversity_index": H,
         }

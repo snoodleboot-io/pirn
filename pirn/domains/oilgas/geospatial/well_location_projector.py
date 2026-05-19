@@ -25,10 +25,15 @@ References:
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+
+# Equirectangular scale factors (Snyder, 1987, §4).
+_meters_per_deg_lat = 110_540.0
+_meters_per_deg_lon_at_equator = 111_320.0
 
 
 class WellLocationProjector(Knot):
@@ -85,9 +90,19 @@ class WellLocationProjector(Knot):
             raise ValueError("WellLocationProjector: latitude_deg must lie in [-90, 90]")
         if not isinstance(target_crs, str) or not target_crs:
             raise ValueError("WellLocationProjector: target_crs must be a non-empty string")
+
+        # Equirectangular projection: easting scales by cos(lat) to correct for
+        # meridian convergence (Snyder 1987, eq. 4-1).
+        x_m = (
+            float(longitude_deg)
+            * _meters_per_deg_lon_at_equator
+            * math.cos(math.radians(float(latitude_deg)))
+        )
+        y_m = float(latitude_deg) * _meters_per_deg_lat
+
         return {
             "well_id": well_id,
-            "x": 0.0,
-            "y": 0.0,
+            "x": float(x_m),
+            "y": float(y_m),
             "crs": target_crs,
         }

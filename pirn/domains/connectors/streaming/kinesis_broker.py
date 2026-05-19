@@ -106,15 +106,18 @@ class KinesisBroker(MessageBroker):
                 shard_iterator = iterator_response["ShardIterator"]
                 while shard_iterator is not None:
                     records_response = await client.get_records(ShardIterator=shard_iterator)
-                    records = records_response.get("Records", [])
+                    if "Records" not in records_response:
+                        raise ValueError(
+                            "KinesisBroker: get_records response missing required field 'Records'"
+                        )
+                    records = records_response["Records"]
                     if not records:
+                        await asyncio.sleep(0)
                         break
                     for record in records:
                         yield record
+                    # NextShardIterator is absent at end-of-shard
                     shard_iterator = records_response.get("NextShardIterator")
-                    if not records_response.get("Records"):
-                        await asyncio.sleep(0)
-                        break
 
         return _iter()
 

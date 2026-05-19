@@ -8,7 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.domains.ml.deployment.shadow_deployer import ShadowDeployer
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.model_manifest import ModelManifest
 from pirn.tapestry import Tapestry
 from tests.unit.domains.ml._stubs.recording_lineage_store import (
     RecordingLineageStore,
@@ -16,8 +16,8 @@ from tests.unit.domains.ml._stubs.recording_lineage_store import (
 
 
 @knot
-async def emit_model() -> TrainedModel:
-    return TrainedModel(
+async def emit_model() -> ModelManifest:
+    return ModelManifest(
         model_id="m1",
         algorithm="rf",
         feature_names=("a",),
@@ -25,8 +25,8 @@ async def emit_model() -> TrainedModel:
     )
 
 
-def _make_model() -> TrainedModel:
-    return TrainedModel(
+def _make_model() -> ModelManifest:
+    return ModelManifest(
         model_id="m1",
         algorithm="rf",
         feature_names=("a",),

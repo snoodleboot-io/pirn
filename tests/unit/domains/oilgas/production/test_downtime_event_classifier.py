@@ -40,6 +40,22 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(TypeError, "gap_threshold_hours"):
             await knot.process(production_series=_SERIES_WITH_GAP, gap_threshold_hours="4")  # type: ignore[arg-type]
 
+    async def test_rejects_missing_timestamp(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "timestamp_iso"):
+            await knot.process(
+                production_series=[{"rate_bopd": 0.0}],
+                gap_threshold_hours=4.0,
+            )
+
+    async def test_rejects_missing_rate_bopd(self) -> None:
+        knot = self._make_knot()
+        with self.assertRaisesRegex(ValueError, "rate_bopd"):
+            await knot.process(
+                production_series=[{"timestamp_iso": "2026-01-01T00:00:00Z"}],
+                gap_threshold_hours=4.0,
+            )
+
     async def test_detects_downtime_event(self) -> None:
         knot = self._make_knot(gap_threshold_hours=4.0)
         out = await knot.process(production_series=_SERIES_WITH_GAP, gap_threshold_hours=4.0)

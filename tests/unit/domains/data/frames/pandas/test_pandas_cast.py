@@ -4,6 +4,11 @@ from __future__ import annotations
 
 import unittest
 
+try:
+    import pandas  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("pandas not installed") from _e
+
 import pandas as pd
 
 from pirn.core.knot_config import KnotConfig
@@ -63,8 +68,8 @@ class TestPandasCast(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         out: PandasDataBatch = result.outputs["casted"]
-        # No-op; original dtypes preserved.
-        assert out.frame["id"].dtype == object
+        # No-op; original dtypes preserved (object in pandas <2, StringDtype in pandas 3+).
+        assert pd.api.types.is_string_dtype(out.frame["id"])
 
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):

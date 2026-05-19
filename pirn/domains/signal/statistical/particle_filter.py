@@ -9,8 +9,8 @@ Algorithm:
        a. Propagate particles through the state transition model.
        b. Compute importance weights from the likelihood p(y_k | x_k^i).
        c. Normalise weights.
-       d. Apply the selected resampling strategy when the effective sample size drops.
-    5. Return a SignalFrame of particle mean state estimates.
+       d. Apply systematic resampling when the effective sample size drops.
+    5. Return a SignalPayload of particle mean state estimates.
 
 Math:
     Particle weight update:
@@ -29,19 +29,67 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+
+def _systematic_resample(weights: np.ndarray, particle_count: int) -> np.ndarray:
+    """Systematic resampling; returns array of indices."""
+    positions = (np.arange(particle_count) + np.random.uniform()) / particle_count
+    cumsum = np.cumsum(weights)
+    indices = np.zeros(particle_count, dtype=int)
+    particle_idx, cumsum_idx = 0, 0
+    while particle_idx < particle_count:
+        if positions[particle_idx] < cumsum[cumsum_idx]:
+            indices[particle_idx] = cumsum_idx
+            particle_idx += 1
+        else:
+            cumsum_idx += 1
+    return indices
+
+
+def _particle_filter(
+    observations: np.ndarray,
+    num_particles: int,
+    process_noise_var: float,
+    measurement_noise_var: float,
+) -> np.ndarray:
+    """Bootstrap particle filter with systematic resampling.
+
+    Returns weighted-mean state estimates shaped (len(observations),).
+    """
+    obs_count = len(observations)
+    particles = np.random.randn(num_particles)
+    weights = np.ones(num_particles) / num_particles
+    estimates = np.zeros(obs_count)
+    for obs_index in range(obs_count):
+        # Propagate
+        particles = particles + np.sqrt(process_noise_var) * np.random.randn(num_particles)
+        # Weight: Gaussian likelihood
+        log_w = -0.5 * (observations[obs_index] - particles) ** 2 / measurement_noise_var
+        log_w -= np.max(log_w)
+        weights = np.exp(log_w)
+        weights /= weights.sum()
+        # MMSE estimate
+        estimates[obs_index] = float(weights @ particles)
+        # Effective sample size — resample if needed
+        effective_sample_size = 1.0 / float(np.sum(weights**2))
+        if effective_sample_size < num_particles / 2:
+            indices = _systematic_resample(weights, num_particles)
+            particles = particles[indices]
+            weights = np.ones(num_particles) / num_particles
+    return estimates
 
 
 class ParticleFilter(Knot):
-    """Particle (bootstrap) filter for nonlinear non-Gaussian systems.
-
-    Production needs ``filterpy`` or a custom Sequential Monte Carlo
-    implementation.
-    """
+    """Particle (bootstrap) filter for nonlinear non-Gaussian systems."""
 
     _valid_resampling_strategies = frozenset(
         {"multinomial", "stratified", "systematic", "residual"}
@@ -68,23 +116,23 @@ class ParticleFilter(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         state_dim: int,
         particle_count: int,
         resampling_strategy: str = "systematic",
         **_: Any,
-    ) -> SignalFrame:
+    ) -> SignalPayload:
         """Filter the signal through the sequential Monte Carlo particle filter.
 
         Args:
-            signal: Observed signal to filter through the nonlinear non-Gaussian state estimator.
+            signal: Observed signal payload to filter through the nonlinear non-Gaussian state estimator.
             state_dim: Dimension of the hidden state vector (positive integer).
             particle_count: Number of Monte Carlo particles (positive integer).
             resampling_strategy: Resampling algorithm — ``multinomial``, ``stratified``,
                 ``systematic``, or ``residual``.
 
         Returns:
-            SignalFrame of particle-filter state estimates.
+            SignalPayload of particle-filter state estimates.
 
         Raises:
             ValueError: If state_dim, particle_count, or resampling_strategy are invalid.
@@ -98,9 +146,20 @@ class ParticleFilter(Knot):
                 "ParticleFilter: resampling_strategy must be 'multinomial', "
                 "'stratified', 'systematic', or 'residual'"
             )
-        return SignalFrame(
-            signal_id=f"{signal.signal_id}:particle",
-            channel_count=signal.channel_count,
-            sample_rate_hz=signal.sample_rate_hz,
-            samples_per_channel=signal.samples_per_channel,
+        signal_array = signal.data[0] if signal.data.ndim > 1 else signal.data
+        process_noise = 1e-2
+        measurement_noise = 1e-1
+        filtered = await asyncio.to_thread(
+            _particle_filter,
+            signal_array.astype(float),
+            particle_count,
+            process_noise,
+            measurement_noise,
         )
+        frame = SignalFrame(
+            signal_id=f"{signal.frame.signal_id}:particle",
+            channel_count=1,
+            sample_rate_hz=signal.frame.sample_rate_hz,
+            samples_per_channel=len(filtered),
+        )
+        return SignalPayload(metadata=frame, data=filtered)

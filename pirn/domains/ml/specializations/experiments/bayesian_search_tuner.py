@@ -7,12 +7,18 @@ well-defined offline. Concrete subclasses of :class:`HyperparamSearch`
 override scoring to drive a real BO loop.
 
 Algorithm:
-    1. Receive ``split`` (DataSplit), ``algorithm``, ``search_space``,
+    1. Receive ``split`` (SplitManifest), ``algorithm``, ``search_space``,
        ``primary_metric``, and ``n_trials`` via process().
     2. Validate all inputs.
     3. Wire HyperparamSearch (bayesian) + Evaluator in an inner Tapestry.
     4. Run via _run_inner() and return best_model and eval_report.
 
+Math:
+    Gaussian Process surrogate: f(theta) ~ GP(mu(theta), k(theta, theta'))
+    Acquisition function (Expected Improvement):
+        EI(theta) = E[max(0, f(theta) - f*)]  where f* is the current best.
+
+    Best config: theta* = argmax_{theta} EI(theta)  over n_trials evaluations.
 
 References:
     N/A — pirn-native implementation.
@@ -28,16 +34,23 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.training.hyperparam_search import HyperparamSearch
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 @knot
 async def _emit_value(value: Any) -> Any:
     return value
+
+
+@knot
+async def _combine_search_eval(
+    best_model: ModelManifest,
+    eval_report: EvalReportPayload,
+) -> dict[str, Any]:
+    return {"best_model": best_model, "eval_report": eval_report}
 
 
 class BayesianSearchTuner(SubTapestry):
@@ -66,24 +79,24 @@ class BayesianSearchTuner(SubTapestry):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         algorithm: str = "",
         search_space: Mapping[str, Sequence[Any]] | None = None,
         primary_metric: str = "",
         n_trials: int = 50,
         **_: Any,
-    ) -> dict[str, Any]:
+    ) -> Any:
         """Run a Bayesian hyperparameter search for up to n_trials and return the best model and its evaluation report.
 
         Args:
-            split: DataSplit used for candidate training and evaluation.
+            split: SplitManifest used for candidate training and evaluation.
             algorithm: Non-empty algorithm name string.
             search_space: Non-empty mapping of hyperparameter name to candidate values.
             primary_metric: Non-empty metric name to report.
             n_trials: Maximum number of trials; must be an int >= 1.
 
         Returns:
-            Dict with ``best_model`` (TrainedModel) and ``eval_report`` (EvalReport).
+            Dict with ``best_model`` (ModelManifest) and ``eval_report`` (EvalMetadata).
 
         Raises:
             ValueError: If any input fails validation.
@@ -101,27 +114,23 @@ class BayesianSearchTuner(SubTapestry):
         if n_trials < 1:
             raise ValueError("BayesianSearchTuner: n_trials must be >= 1")
         frozen_space = {k: tuple(v) for k, v in ss.items()}
-        with Tapestry() as inner:
-            split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
-            best = HyperparamSearch(
-                split=split_node,
-                algorithm=algorithm,
-                search_space=frozen_space,
-                strategy="bayesian",
-                n_trials=n_trials,
-                _config=KnotConfig(id="search"),
-            )
-            Evaluator(
-                model=best,
-                split=split_node,
-                metrics=(primary_metric,),
-                _config=KnotConfig(id="evaluate"),
-            )
-        result = await self._run_inner(inner)
-        model = result.outputs["search"]
-        report = result.outputs["evaluate"]
-        if not isinstance(model, TrainedModel):
-            raise TypeError("BayesianSearchTuner: search did not return a TrainedModel")
-        if not isinstance(report, EvalReport):
-            raise TypeError("BayesianSearchTuner: evaluator did not return an EvalReport")
-        return {"best_model": model, "eval_report": report}
+        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        best = HyperparamSearch(
+            split=split_node,
+            algorithm=algorithm,
+            search_space=frozen_space,
+            strategy="bayesian",
+            n_trials=n_trials,
+            _config=KnotConfig(id="search"),
+        )
+        evaluated = Evaluator(
+            model=best,
+            split=split_node,
+            metrics=(primary_metric,),
+            _config=KnotConfig(id="evaluate"),
+        )
+        return _combine_search_eval(
+            best_model=best,
+            eval_report=evaluated,
+            _config=KnotConfig(id="combine"),
+        )

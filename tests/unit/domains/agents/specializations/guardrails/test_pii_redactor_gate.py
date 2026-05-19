@@ -27,24 +27,41 @@ class TestPiiRedactorCheckProcess(unittest.IsolatedAsyncioTestCase):
             content="contact me@x.com or 555-12-3456 today",
             finish_reason="stop",
         )
-        k = _make_knot()
-        result = await k.process(response=response)
+        with Tapestry() as t:
+            PiiRedactorCheck(response=response, _config=KnotConfig(id="pii"))
+        run = await t.run(RunRequest())
+        assert run.succeeded
+        result = run.outputs["pii"]
         assert isinstance(result, AgentResponse)
         assert "me@x.com" not in result.content
         assert "555-12-3456" not in result.content
         assert result.content.count("<redacted>") == 2
 
     async def test_returns_response_unchanged_when_no_match(self) -> None:
-        k = _make_knot()
         response = AgentResponse(content="completely benign content", finish_reason="stop")
-        result = await k.process(response=response, patterns=(r"\bSSN-\d+\b",))
+        with Tapestry() as t:
+            PiiRedactorCheck(
+                response=response,
+                patterns=(r"\bSSN-\d+\b",),
+                _config=KnotConfig(id="pii"),
+            )
+        run = await t.run(RunRequest())
+        assert run.succeeded
+        result = run.outputs["pii"]
         assert isinstance(result, AgentResponse)
         assert result.content == "completely benign content"
 
     async def test_custom_pattern_redacts_match(self) -> None:
-        k = _make_knot()
         response = AgentResponse(content="my id is ID-99999", finish_reason="stop")
-        result = await k.process(response=response, patterns=(r"ID-\d+",))
+        with Tapestry() as t:
+            PiiRedactorCheck(
+                response=response,
+                patterns=(r"ID-\d+",),
+                _config=KnotConfig(id="pii"),
+            )
+        run = await t.run(RunRequest())
+        assert run.succeeded
+        result = run.outputs["pii"]
         assert "<redacted>" in result.content
         assert "ID-99999" not in result.content
 

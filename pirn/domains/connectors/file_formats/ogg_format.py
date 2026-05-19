@@ -28,7 +28,19 @@ from pirn.domains.connectors.file_formats.batch_file_format import (
 
 
 class OggFormat(BatchFileFormat):
-    """Whole-file Ogg Vorbis encoder/decoder backed by ``soundfile``."""
+    """Whole-file Ogg Vorbis encoder/decoder backed by ``soundfile``.
+
+    One record is emitted per file::
+
+        {
+            "sample_rate":  int,
+            "n_channels":   int,
+            "n_frames":     int,
+            "frames":       bytes,  # raw float32 interleaved PCM bytes
+        }
+
+    Encoding reconstructs the Ogg Vorbis file from the same shape.
+    """
 
     @property
     def name(self) -> str:

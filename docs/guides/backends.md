@@ -16,11 +16,11 @@ pirn splits persistence into three independent roles. Pick the right implementat
 |---------|:---:|:---:|:---:|:---:|-------|
 | `InMemoryStore / InMemoryHistory / InMemoryDataStore` | Y | Y | Y | Y | Default. Single-process; lost on exit. Thread-safe via locks. |
 | `SQLiteStore / SQLiteHistory` | Y | Y | — | N | Single-host durable. WAL mode recommended. |
-| `PostgresStore / PostgresHistory` | Y | Y | — | Planned | OLTP. Async via `asyncpg`. Connection pooling required. |
+| `PostgresStore / PostgresHistory` | Y | Y | — | Y | OLTP. Async via `asyncpg`. Connection pooling required. Subscribable via LISTEN/NOTIFY. |
 | `DuckDBHistory` | — | Y | — | N | OLAP queries on lineage. Best as a read-path target. |
 | `LocalDiskDataStore` | — | — | Y | N | Content-addressed files per value; survives restarts. |
 | `S3DataStore` | — | — | Y | N | Distributed object storage. Requires `pirn[s3]`. |
-| `ValkeyStore / ValkeyDataStore` | Y | — | Y | Planned | Low-latency. Optional TTL on data values. Requires `pirn[valkey]`. |
+| `ValKeyStore / ValKeyDataStore` | Y | — | Y | Y | Low-latency. Optional TTL on data values. Requires `pirn[valkey]`. Subscribable via pub/sub. |
 
 ---
 
@@ -56,12 +56,12 @@ t = Tapestry(store=store)
 
 Requires `pip install pirn[postgres]`. Connection pooled via `asyncpg`. Schema is versioned with migrations applied automatically on first connection.
 
-### ValkeyStore
+### ValKeyStore
 
 ```python
-from pirn.backends.valkey import ValkeyStore
+from pirn.backends.valkey import ValKeyStore
 
-store = ValkeyStore(url="redis://localhost:6379", ttl=3600)
+store = ValKeyStore(url="redis://localhost:6379", ttl=3600)
 t = Tapestry(store=store)
 ```
 
@@ -142,19 +142,19 @@ Requires `pip install pirn[s3]`. Uses `aiobotocore`. Suitable for large intermed
 !!! warning "Pickle serialisation"
     `S3DataStore` uses pickle. Only use it when the S3 bucket is not writable by adversaries or untrusted pipelines.
 
-### ValkeyDataStore
+### ValKeyDataStore
 
 ```python
-from pirn.backends.valkey import ValkeyDataStore
+from pirn.backends.valkey import ValKeyDataStore
 
-data = ValkeyDataStore(url="redis://localhost:6379", ttl_seconds=3600)
+data = ValKeyDataStore(url="redis://localhost:6379", ttl_seconds=3600)
 t = Tapestry(data_store=data)
 ```
 
 Requires `pip install pirn[valkey]`. Sub-millisecond get/put. TTL causes values to auto-expire — useful for streaming pipelines where data has a natural expiry.
 
 !!! warning "Pickle serialisation"
-    `ValkeyDataStore` uses pickle. Only use it when the ValKey instance is not writable by adversaries.
+    `ValKeyDataStore` uses pickle. Only use it when the ValKey instance is not writable by adversaries.
 
 ---
 
@@ -223,12 +223,12 @@ ValKey for ephemeral values, Postgres for durable lineage:
 
 ```python
 from pirn.backends.postgres import PostgresHistory
-from pirn.backends.valkey import ValkeyStore, ValkeyDataStore
+from pirn.backends.valkey import ValKeyStore, ValKeyDataStore
 
 t = Tapestry(
-    store=ValkeyStore(url="redis://...", ttl=300),
+    store=ValKeyStore(url="redis://...", ttl=300),
     history=PostgresHistory(dsn="postgresql://..."),
-    data_store=ValkeyDataStore(url="redis://...", ttl_seconds=3600),
+    data_store=ValKeyDataStore(url="redis://...", ttl_seconds=3600),
 )
 ```
 
@@ -247,7 +247,7 @@ t = Tapestry(
 
 ## Subscribable stores
 
-For mid-run extension (knots registered while a run is in progress), the store must implement `SubscribableStore`. Only `InMemoryStore` supports this in Phase 3. Pass `extensible=True` to `tapestry.run()`:
+For mid-run extension (knots registered while a run is in progress), the store must implement `SubscribableStore`. `InMemoryStore`, `PostgresStore`, and `ValKeyStore` all implement this interface. Pass `extensible=True` to `tapestry.run()`:
 
 ```python
 result = await tapestry.run(request, extensible=True)

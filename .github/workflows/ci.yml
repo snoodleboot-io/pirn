@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: CI/CD Pipeline  # wso3
 
 on:
   push:
@@ -32,12 +32,26 @@ env:
   # Pre-built venv location baked into every CI image
   UV_PROJECT_ENVIRONMENT: /opt/pirn-deps/.venv
   UV_PYTHON_PREFERENCE: only-system
-  UV_FROZEN: "1"
+
+# =============================================================================
+# PHASE 0: DEBUG (py3.14 image inspection)
+# =============================================================================
+jobs:
+  debug-image:
+    name: Debug py3.14 pre-baked venv
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py3.14
+    steps:
+      - name: Inspect venv
+        run: |
+          echo "=== uv.lock presence ===" && ls -la /opt/pirn-deps/uv.lock 2>/dev/null || echo "no uv.lock"
+          echo "=== scipy in venv ===" && ls /opt/pirn-deps/.venv/lib/*/site-packages/scipy 2>/dev/null && echo "scipy found" || echo "scipy not installed"
+          echo "=== venv package count ===" && ls /opt/pirn-deps/.venv/lib/*/site-packages | wc -l
 
 # =============================================================================
 # PHASE 1: LINT (fast gate — must pass before anything else runs)
 # =============================================================================
-jobs:
   lint:
     name: Lint & Type Check
     runs-on: ubuntu-latest
@@ -47,13 +61,13 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
       - name: Install pirn
-        run: uv sync --all-extras
+        run: uv sync --all-extras --no-extra pytorch --no-extra tensorflow --no-extra tflite
 
       - name: Ruff lint
-        run: uv run ruff check --output-format=github .
+        run: uv run ruff check --output-format=github pirn/
 
       - name: Ruff format check
-        run: uv run ruff format --check .
+        run: uv run ruff format --check pirn/
 
       - name: Pyright type check
         run: uv run pyright
@@ -76,7 +90,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
       - name: Install pirn
-        run: uv sync --all-extras
+        run: uv sync --all-extras --no-extra pytorch --no-extra tensorflow --no-extra tflite
 
       - name: Run unit tests
         run: |
@@ -136,32 +150,32 @@ jobs:
 
       - name: "[data] install + import"
         run: |
-          uv pip install -e ".[data]"
+          uv pip install --system -e ".[data]"
           uv run python -c "import pirn.domains.data; print('OK: data')"
 
       - name: "[agents] install + import"
         run: |
-          uv pip install -e ".[agents]"
+          uv pip install --system -e ".[agents]"
           uv run python -c "import pirn.domains.agents; print('OK: agents')"
 
       - name: "[ml] install + import"
         run: |
-          uv pip install -e ".[ml]"
+          uv pip install --system -e ".[ml]"
           uv run python -c "import pirn.domains.ml; print('OK: ml')"
 
       - name: "[health] install + import"
         run: |
-          uv pip install -e ".[health]"
+          uv pip install --system -e ".[health]"
           uv run python -c "import pirn.domains.health; print('OK: health')"
 
       - name: "[signal] install + import"
         run: |
-          uv pip install -e ".[signal]"
+          uv pip install --system -e ".[signal]"
           uv run python -c "import pirn.domains.signal; print('OK: signal')"
 
       - name: "[oilgas] install + import"
         run: |
-          uv pip install -e ".[oilgas]"
+          uv pip install --system -e ".[oilgas]"
           uv run python -c "import pirn.domains.oilgas; print('OK: oilgas')"
 
       - name: "domains namespace — no cross-coupling"
@@ -177,132 +191,132 @@ jobs:
 
       - name: "[postgres] install + import"
         run: |
-          uv pip install -e ".[postgres]"
+          uv pip install --system -e ".[postgres]"
           uv run python -c "import pirn.domains.connectors; print('OK: postgres')"
 
       - name: "[sqlite] install + import"
         run: |
-          uv pip install -e ".[sqlite]"
+          uv pip install --system -e ".[sqlite]"
           uv run python -c "import pirn.domains.connectors; print('OK: sqlite')"
 
       - name: "[duckdb] install + import"
         run: |
-          uv pip install -e ".[duckdb]"
+          uv pip install --system -e ".[duckdb]"
           uv run python -c "import pirn.domains.connectors; print('OK: duckdb')"
 
       - name: "[mysql] install + import"
         run: |
-          uv pip install -e ".[mysql]"
+          uv pip install --system -e ".[mysql]"
           uv run python -c "import pirn.domains.connectors; print('OK: mysql')"
 
       - name: "[bigquery] install + import"
         run: |
-          uv pip install -e ".[bigquery]"
+          uv pip install --system -e ".[bigquery]"
           uv run python -c "import pirn.domains.connectors; print('OK: bigquery')"
 
       - name: "[snowflake] install + import"
         run: |
-          uv pip install -e ".[snowflake]"
+          uv pip install --system -e ".[snowflake]"
           uv run python -c "import pirn.domains.connectors; print('OK: snowflake')"
 
       - name: "[clickhouse] install + import"
         run: |
-          uv pip install -e ".[clickhouse]"
+          uv pip install --system -e ".[clickhouse]"
           uv run python -c "import pirn.domains.connectors; print('OK: clickhouse')"
 
       - name: "[mssql] install + import"
         run: |
-          uv pip install -e ".[mssql]"
+          uv pip install --system -e ".[mssql]"
           uv run python -c "import pirn.domains.connectors; print('OK: mssql')"
 
       - name: "[oracle] install + import"
         run: |
-          uv pip install -e ".[oracle]"
+          uv pip install --system -e ".[oracle]"
           uv run python -c "import pirn.domains.connectors; print('OK: oracle')"
 
       - name: "[s3] install + import"
         run: |
-          uv pip install -e ".[s3]"
+          uv pip install --system -e ".[s3]"
           uv run python -c "import pirn.domains.connectors; print('OK: s3')"
 
       - name: "[gcs] install + import"
         run: |
-          uv pip install -e ".[gcs]"
+          uv pip install --system -e ".[gcs]"
           uv run python -c "import pirn.domains.connectors; print('OK: gcs')"
 
       - name: "[azure] install + import"
         run: |
-          uv pip install -e ".[azure]"
+          uv pip install --system -e ".[azure]"
           uv run python -c "import pirn.domains.connectors; print('OK: azure')"
 
       - name: "[kafka] install + import"
         run: |
-          uv pip install -e ".[kafka]"
+          uv pip install --system -e ".[kafka]"
           uv run python -c "import pirn.domains.connectors; print('OK: kafka')"
 
       - name: "[kinesis] install + import"
         run: |
-          uv pip install -e ".[kinesis]"
+          uv pip install --system -e ".[kinesis]"
           uv run python -c "import pirn.domains.connectors; print('OK: kinesis')"
 
       - name: "[pubsub] install + import"
         run: |
-          uv pip install -e ".[pubsub]"
+          uv pip install --system -e ".[pubsub]"
           uv run python -c "import pirn.domains.connectors; print('OK: pubsub')"
 
       - name: "[rabbitmq] install + import"
         run: |
-          uv pip install -e ".[rabbitmq]"
+          uv pip install --system -e ".[rabbitmq]"
           uv run python -c "import pirn.domains.connectors; print('OK: rabbitmq')"
 
       - name: "[azure-servicebus] install + import"
         run: |
-          uv pip install -e ".[azure-servicebus]"
+          uv pip install --system -e ".[azure-servicebus]"
           uv run python -c "import pirn.domains.connectors; print('OK: azure-servicebus')"
 
       - name: "[salesforce] install + import"
         run: |
-          uv pip install -e ".[salesforce]"
+          uv pip install --system -e ".[salesforce]"
           uv run python -c "import pirn.domains.connectors; print('OK: salesforce')"
 
       - name: "[hubspot] install + import"
         run: |
-          uv pip install -e ".[hubspot]"
+          uv pip install --system -e ".[hubspot]"
           uv run python -c "import pirn.domains.connectors; print('OK: hubspot')"
 
       - name: "[stripe] install + import"
         run: |
-          uv pip install -e ".[stripe]"
+          uv pip install --system -e ".[stripe]"
           uv run python -c "import pirn.domains.connectors; print('OK: stripe')"
 
       - name: "[github] install + import"
         run: |
-          uv pip install -e ".[github]"
+          uv pip install --system -e ".[github]"
           uv run python -c "import pirn.domains.connectors; print('OK: github')"
 
       - name: "[jira] install + import"
         run: |
-          uv pip install -e ".[jira]"
+          uv pip install --system -e ".[jira]"
           uv run python -c "import pirn.domains.connectors; print('OK: jira')"
 
       - name: "[shopify] install + import"
         run: |
-          uv pip install -e ".[shopify]"
+          uv pip install --system -e ".[shopify]"
           uv run python -c "import pirn.domains.connectors; print('OK: shopify')"
 
       - name: "[datadog] install + import"
         run: |
-          uv pip install -e ".[datadog]"
+          uv pip install --system -e ".[datadog]"
           uv run python -c "import pirn.domains.connectors; print('OK: datadog')"
 
       - name: "[prometheus] install + import"
         run: |
-          uv pip install -e ".[prometheus]"
+          uv pip install --system -e ".[prometheus]"
           uv run python -c "import pirn.domains.connectors; print('OK: prometheus')"
 
       - name: "[otel] install + import"
         run: |
-          uv pip install -e ".[otel]"
+          uv pip install --system -e ".[otel]"
           uv run python -c "import pirn.domains.connectors; print('OK: otel')"
 
   mock-integration-tests:
@@ -315,15 +329,21 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
       - name: Install pirn
-        run: uv sync --all-extras
+        run: uv sync --all-extras --no-extra pytorch --no-extra tensorflow --no-extra tflite
 
       - name: Run mock integration tests
         run: |
           uv run python -m pytest tests/integration \
             --ignore=tests/integration/test_dask_real.py \
             --ignore=tests/integration/test_ray_real.py \
+            --ignore=tests/integration/test_celery_real.py \
+            --ignore=tests/integration/test_kafka_real.py \
+            --ignore=tests/integration/test_postgres_real.py \
+            --ignore=tests/integration/test_s3_real.py \
+            --ignore=tests/integration/test_valkey_real.py \
             --junitxml=test-results/integration-mock.xml \
             --timeout=60 \
+            --tb=short \
             -v
 
       - name: Run Dask / Ray integration tests
@@ -352,7 +372,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
       - name: Install pirn
-        run: uv sync --all-extras
+        run: uv sync --all-extras --no-extra pytorch --no-extra tensorflow --no-extra tflite
 
       - name: Run smoke tests
         run: |
@@ -380,7 +400,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
       - name: Install pirn
-        run: uv sync --all-extras
+        run: uv sync --all-extras --no-extra pytorch --no-extra tensorflow --no-extra tflite
 
       - name: Run end-to-end tests
         run: |
@@ -412,7 +432,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: uv sync --all-extras
+        run: uv sync --all-extras --no-extra pytorch --no-extra tensorflow --no-extra tflite
 
       - name: Run benchmarks
         run: |

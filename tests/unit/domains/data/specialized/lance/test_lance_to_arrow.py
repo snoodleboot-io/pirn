@@ -7,6 +7,17 @@ that mimics that method exercises the knot without requiring pylance.
 from __future__ import annotations
 
 import unittest
+
+try:
+    import pyarrow  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("pyarrow not installed") from _e
+
+try:
+    import lance  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("lance not installed") from _e
+
 from typing import Any
 
 import pyarrow as pa

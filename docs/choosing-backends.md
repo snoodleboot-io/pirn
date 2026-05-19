@@ -123,8 +123,8 @@ t = Tapestry(store=store, history=history, data=data)
 
 Requires `pirn[postgres]` and `pirn[s3]`.
 
-**Postgres pool sizing:** default pool is 5 connections. Set
-`min_size` / `max_size` via the DSN or via `PostgresStore(pool_kwargs=…)`.
+**Postgres pool sizing:** asyncpg defaults to `min_size=10, max_size=10`. Set
+`min_size` / `max_size` by passing a pre-built pool to `PostgresStore(pool=…)`.
 See `docs/deployment-sizing.md`.
 
 ---

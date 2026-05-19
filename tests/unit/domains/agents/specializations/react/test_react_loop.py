@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
 from pirn.domains.agents.specializations.react.react_loop import ReActLoop
 from pirn.domains.agents.types.agent_message import AgentMessage
 from pirn.domains.agents.types.agent_response import AgentResponse
@@ -61,13 +62,17 @@ class TestReActLoopProcess(unittest.IsolatedAsyncioTestCase):
             ]
         )
         tool = StubTool(name="search", handler="found foo")
-        knot = self._make(llm, tools=(tool,), max_iterations=4)
-        response = await knot.process(
-            messages=(AgentMessage(role="user", content="What is foo?"),),
-            llm=llm,
-            tools=(tool,),
-            max_iterations=4,
-        )
+        with Tapestry() as t:
+            ReActLoop(
+                messages=(AgentMessage(role="user", content="What is foo?"),),
+                llm=llm,
+                tools=(tool,),
+                max_iterations=4,
+                _config=KnotConfig(id="loop"),
+            )
+        run = await t.run(RunRequest())
+        assert run.succeeded
+        response = run.outputs["loop"]
         assert isinstance(response, AgentResponse)
         assert response.finish_reason == "stop"
         assert response.content == "42 is the answer"
@@ -75,13 +80,17 @@ class TestReActLoopProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_falls_through_when_iterations_exhausted(self) -> None:
         llm = StubLLMProvider(["Still thinking about it..."])
-        knot = self._make(llm, max_iterations=2)
-        response = await knot.process(
-            messages=(AgentMessage(role="user", content="ponder"),),
-            llm=llm,
-            tools=(),
-            max_iterations=2,
-        )
+        with Tapestry() as t:
+            ReActLoop(
+                messages=(AgentMessage(role="user", content="ponder"),),
+                llm=llm,
+                tools=(),
+                max_iterations=2,
+                _config=KnotConfig(id="loop"),
+            )
+        run = await t.run(RunRequest())
+        assert run.succeeded
+        response = run.outputs["loop"]
         assert isinstance(response, AgentResponse)
         assert response.finish_reason == "length"
         assert "Still thinking" in response.content

@@ -65,8 +65,8 @@ class FaultProximityAnalyzer(Knot):
         dx, dy = bx - ax, by - ay
         if dx == 0.0 and dy == 0.0:
             return math.hypot(px - ax, py - ay)
-        t = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)))
-        return math.hypot(px - ax - t * dx, py - ay - t * dy)
+        segment_param = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)))
+        return math.hypot(px - ax - segment_param * dx, py - ay - segment_param * dy)
 
     async def process(
         self,
@@ -99,12 +99,12 @@ class FaultProximityAnalyzer(Knot):
             best_fault_id = None
             for fault in faults:
                 vertices: list[list[float]] = fault["vertices"]
-                for i in range(len(vertices) - 1):
-                    ax, ay = float(vertices[i][0]), float(vertices[i][1])
-                    bx, by = float(vertices[i + 1][0]), float(vertices[i + 1][1])
-                    d = self._point_to_segment_dist(wx, wy, ax, ay, bx, by)
-                    if d < best_dist:
-                        best_dist = d
+                for vertex_idx in range(len(vertices) - 1):
+                    ax, ay = float(vertices[vertex_idx][0]), float(vertices[vertex_idx][1])
+                    bx, by = float(vertices[vertex_idx + 1][0]), float(vertices[vertex_idx + 1][1])
+                    segment_dist = self._point_to_segment_dist(wx, wy, ax, ay, bx, by)
+                    if segment_dist < best_dist:
+                        best_dist = segment_dist
                         best_fault_id = fault["fault_id"]
             results.append(
                 {

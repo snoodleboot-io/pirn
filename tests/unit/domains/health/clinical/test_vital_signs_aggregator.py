@@ -23,6 +23,22 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(TypeError, "row"):
             await _KNOT.process(rows=["x"])  # type: ignore[list-item]
 
+    async def test_raises_on_missing_patient_id(self) -> None:
+        with self.assertRaisesRegex(KeyError, "patient_id"):
+            await _KNOT.process(rows=[{"vital_name": "hr", "value": 70.0}])
+
+    async def test_raises_on_missing_vital_name(self) -> None:
+        with self.assertRaisesRegex(KeyError, "vital_name"):
+            await _KNOT.process(rows=[{"patient_id": "P1", "value": 70.0}])
+
+    async def test_raises_on_missing_value(self) -> None:
+        with self.assertRaisesRegex(KeyError, "value"):
+            await _KNOT.process(rows=[{"patient_id": "P1", "vital_name": "hr"}])
+
+    async def test_raises_on_non_numeric_value(self) -> None:
+        with self.assertRaisesRegex(ValueError, "numeric"):
+            await _KNOT.process(rows=[{"patient_id": "P1", "vital_name": "hr", "value": "bad"}])
+
     async def test_aggregates_per_patient(self) -> None:
         rows = (
             {"patient_id": "P1", "vital_name": "hr", "value": 70.0},

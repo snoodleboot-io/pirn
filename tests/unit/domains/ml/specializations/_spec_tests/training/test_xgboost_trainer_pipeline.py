@@ -8,17 +8,17 @@ from pirn.core.knot_config import KnotConfig
 from pirn.domains.ml.specializations.training.xgboost_trainer_pipeline import (
     XGBoostTrainerPipeline,
 )
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.split_manifest import SplitManifest
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 from pirn.tapestry import Tapestry
 from tests.unit.domains.ml._stubs.recording_lineage_store import RecordingLineageStore
 from tests.unit.domains.ml._stubs.recording_object_store import RecordingObjectStore
 
 
-def _split_fixture() -> DataSplit:
-    train = MLDataset(name="d:train", feature_names=("a",), target_name="y", row_count=80)
-    test = MLDataset(name="d:test", feature_names=("a",), target_name="y", row_count=20)
-    return DataSplit(train=train, test=test)
+def _split_fixture() -> SplitManifest:
+    train = DatasetManifest(name="d:train", feature_names=("a",), target_name="y", row_count=80)
+    test = DatasetManifest(name="d:test", feature_names=("a",), target_name="y", row_count=20)
+    return SplitManifest(train=train, test=test)
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

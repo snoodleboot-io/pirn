@@ -75,4 +75,12 @@ class StaticCorrection(Knot):
             raise TypeError("StaticCorrection: replacement_velocity_m_s must be numeric")
         if replacement_velocity_m_s <= 0.0:
             raise ValueError("StaticCorrection: replacement_velocity_m_s must be positive")
-        return SegyVolume(volume_id=f"{gather.volume_id}:static")
+        shift_ms = (0.0 - datum_elevation_m) / replacement_velocity_m_s * 1000.0
+        samples_shifted = int(abs(shift_ms) / 4.0)
+        corrected_sample_count = max(0, gather.sample_count - samples_shifted)
+        return SegyVolume(
+            volume_id=f"{gather.volume_id}:static_{shift_ms:.1f}ms",
+            inline_count=gather.inline_count,
+            xline_count=gather.xline_count,
+            sample_count=corrected_sample_count,
+        )

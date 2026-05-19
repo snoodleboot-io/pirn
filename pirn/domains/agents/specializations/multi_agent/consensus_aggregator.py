@@ -39,7 +39,6 @@ from pirn.domains.agents.specializations.multi_agent.consensus_synthesis_caller 
 )
 from pirn.domains.agents.types.agent_response import AgentResponse
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class ConsensusAggregator(SubTapestry):
@@ -67,7 +66,7 @@ class ConsensusAggregator(SubTapestry):
         llm: LLMProvider,
         strategy: str = "llm_synthesis",
         **_: Any,
-    ) -> AgentResponse:
+    ) -> Any:
         """Apply the configured consensus strategy to the specialist responses and return the winner.
 
         Args:
@@ -90,23 +89,16 @@ class ConsensusAggregator(SubTapestry):
             )
         if not isinstance(responses, Mapping) or not responses:
             raise ValueError("ConsensusAggregator: responses must be a non-empty mapping")
-        with Tapestry() as inner:
-            if strategy == "majority_vote":
-                ConsensusMajorityVotePicker(
-                    responses=dict(responses),
-                    _config=KnotConfig(id="consensus"),
-                )
-            else:
-                ConsensusSynthesisCaller(
-                    responses=dict(responses),
-                    llm=llm,
-                    _config=KnotConfig(id="consensus"),
-                )
-        inner_result = await self._run_inner(inner)
-        consensus = inner_result.outputs.get("consensus")
-        if not isinstance(consensus, AgentResponse):
-            return self._fallback(responses)
-        return consensus
+        if strategy == "majority_vote":
+            return ConsensusMajorityVotePicker(
+                responses=dict(responses),
+                _config=KnotConfig(id="consensus"),
+            )
+        return ConsensusSynthesisCaller(
+            responses=dict(responses),
+            llm=llm,
+            _config=KnotConfig(id="consensus"),
+        )
 
     @staticmethod
     def _fallback(

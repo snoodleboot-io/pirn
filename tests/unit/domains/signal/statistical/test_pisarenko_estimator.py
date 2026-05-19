@@ -7,9 +7,8 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.domains.signal.statistical.pisarenko_estimator import PisarenkoEstimator
-from pirn.domains.signal.types.signal_frame import SignalFrame
 from pirn.tapestry import Tapestry
-from tests.unit.domains.signal.conftest import emit_signal_frame
+from tests.unit.domains.signal.conftest import emit_signal_payload, make_signal_payload
 
 
 class TestConstruction(unittest.IsolatedAsyncioTestCase):
@@ -17,9 +16,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
         with Tapestry():
             k = PisarenkoEstimator.__new__(PisarenkoEstimator)
             object.__setattr__(k, "_config", KnotConfig(id="p"))
-        signal = SignalFrame(
-            signal_id="test", channel_count=1, sample_rate_hz=1000.0, samples_per_channel=1024
-        )
+        signal = make_signal_payload()
         with self.assertRaises((TypeError, ValueError)):
             await k.process(signal=signal, sinusoid_count=0)
 
@@ -27,7 +24,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_estimator_dict(self) -> None:
         with Tapestry() as t:
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
+            sig = emit_signal_payload(_config=KnotConfig(id="sig"))
             PisarenkoEstimator(
                 signal=sig,
                 sinusoid_count=3,
@@ -35,5 +32,5 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         out = result.outputs["p"]
-        assert out["estimator"] == "pisarenko"
-        assert out["sinusoid_count"] == 3
+        assert "frequencies_hz" in out
+        assert out["num_sinusoids"] == 3

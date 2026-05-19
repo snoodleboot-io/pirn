@@ -235,13 +235,12 @@ transforms) without building an inner tapestry, the class must inherit from `Kno
 class ScorePipeline(SubTapestry):
     async def process(
         self, raw: DataBatch, threshold: float, **_: Any
-    ) -> RunResult:
-        with Tapestry() as inner:
-            cleaned = CleanKnot(data=raw, _config=KnotConfig(id="clean"))
-            scored  = ScoreKnot(
-                data=cleaned, threshold=threshold, _config=KnotConfig(id="score")
-            )
-        return await self._run_inner(inner)
+    ) -> Knot:
+        cleaned = CleanKnot(data=raw, _config=KnotConfig(id="clean"))
+        scored  = ScoreKnot(
+            data=cleaned, threshold=threshold, _config=KnotConfig(id="score")
+        )
+        return scored
 
 # Wrong — no inner tapestry; should be plain Knot
 class MergeUpsert(SubTapestry):

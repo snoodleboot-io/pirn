@@ -4,6 +4,11 @@ from __future__ import annotations
 
 import unittest
 
+try:
+    import datafusion  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("datafusion not installed") from _e
+
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.data.frames.datafusion.datafusion_session_context import (
     DatafusionSessionContext,

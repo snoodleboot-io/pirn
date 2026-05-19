@@ -25,18 +25,27 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+
+def _zero_stuff(data: np.ndarray, factor: int) -> np.ndarray:
+    shape = list(data.shape)
+    shape[-1] = shape[-1] * factor
+    out = np.zeros(shape, dtype=data.dtype)
+    out[..., ::factor] = data
+    return out
 
 
 class Upsampler(Knot):
-    """Insert zeros between samples by an integer factor.
-
-    Production needs ``numpy`` for the zero-stuffing step.
-    """
+    """Insert zeros between samples by an integer factor."""
 
     def __init__(
         self,
@@ -55,27 +64,31 @@ class Upsampler(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         upsample_factor: int,
         **_: Any,
-    ) -> SignalFrame:
-        """Zero-stuff the signal by the configured integer factor and return the upsampled SignalFrame.
+    ) -> SignalPayload:
+        """Zero-stuff the signal by the configured integer factor and return the upsampled SignalPayload.
 
         Args:
             signal: Signal to upsample by inserting zeros between each sample.
             upsample_factor: Integer upsampling factor (must be > 1).
 
         Returns:
-            SignalFrame at the higher sample rate with zeros inserted between original samples.
+            SignalPayload at the higher sample rate with zeros inserted between original samples.
 
         Raises:
             ValueError: If upsample_factor is not an integer > 1.
         """
         if not isinstance(upsample_factor, int) or upsample_factor <= 1:
             raise ValueError("Upsampler: upsample_factor must be an integer > 1")
-        return SignalFrame(
-            signal_id=f"{signal.signal_id}:upsample",
-            channel_count=signal.channel_count,
-            sample_rate_hz=signal.sample_rate_hz * upsample_factor,
-            samples_per_channel=signal.samples_per_channel * upsample_factor,
+
+        upsampled = await asyncio.to_thread(_zero_stuff, signal.data, upsample_factor)
+
+        new_frame = SignalFrame(
+            signal_id=f"{signal.frame.signal_id}:upsample",
+            channel_count=signal.frame.channel_count,
+            sample_rate_hz=signal.frame.sample_rate_hz * upsample_factor,
+            samples_per_channel=signal.frame.samples_per_channel * upsample_factor,
         )
+        return SignalPayload(metadata=new_frame, data=upsampled)

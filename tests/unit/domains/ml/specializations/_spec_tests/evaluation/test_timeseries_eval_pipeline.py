@@ -10,23 +10,24 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.evaluation.timeseries_eval_pipeline import (
     TimeSeriesEvalPipeline,
 )
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.eval_report import EvalReport
-from pirn.domains.ml.types.ml_dataset import MLDataset
-from pirn.domains.ml.types.trained_model import TrainedModel
+from pirn.domains.ml.types.split_manifest import SplitManifest
+from pirn.domains.ml.types.eval_metadata import EvalMetadata
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.model_manifest import ModelManifest
 from pirn.tapestry import Tapestry
 
 
 @knot
-async def emit_split() -> DataSplit:
-    train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
-    test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
-    return DataSplit(train=train, test=test)
+async def emit_split() -> SplitManifest:
+    train = DatasetManifest(name="d:train", feature_names=("a",), row_count=80)
+    test = DatasetManifest(name="d:test", feature_names=("a",), row_count=20)
+    return SplitManifest(train=train, test=test)
 
 
 @knot
-async def emit_model() -> TrainedModel:
-    return TrainedModel(
+async def emit_model() -> ModelManifest:
+    return ModelManifest(
         model_id="ts1",
         algorithm="arima",
         feature_names=("a",),
@@ -48,10 +49,10 @@ def _make_pipeline() -> TimeSeriesEvalPipeline:
 
 
 def _fixtures():  # type: ignore[return]
-    train = MLDataset(name="d:train", feature_names=("a",), row_count=80)
-    test = MLDataset(name="d:test", feature_names=("a",), row_count=20)
-    split = DataSplit(train=train, test=test)
-    model = TrainedModel(
+    train = DatasetManifest(name="d:train", feature_names=("a",), row_count=80)
+    test = DatasetManifest(name="d:test", feature_names=("a",), row_count=20)
+    split = SplitManifest(train=train, test=test)
+    model = ModelManifest(
         model_id="ts1", algorithm="arima", feature_names=("a",), target_name="y"
     )
     return model, split
@@ -78,6 +79,6 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert result.succeeded
-        report: EvalReport = result.outputs["ts-eval"]
-        assert set(report.metrics.keys()) == {"mape", "smape", "mase"}
-        assert report.details["time_column"] == "ts"
+        report: EvalReportPayload = result.outputs["ts-eval"]
+        assert set(report.metrics.scores.keys()) == {"mape", "smape", "mase"}
+        assert report.metrics.details["time_column"] == "ts"

@@ -31,7 +31,6 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.agents.types.agent_response import AgentResponse
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 
 class _ResponseEcho(Knot):
@@ -68,7 +67,7 @@ class RoundRobinReview(SubTapestry):
         response: AgentResponse,
         reviewers: Any,
         **_: Any,
-    ) -> AgentResponse:
+    ) -> Any:
         """Send the draft through each reviewer in round-robin order, returning the final result.
 
         Args:
@@ -95,13 +94,7 @@ class RoundRobinReview(SubTapestry):
             result = await reviewer.process(response=current)
             if isinstance(result, AgentResponse):
                 current = result
-        with Tapestry() as inner:
-            _ResponseEcho(
-                response=current,
-                _config=KnotConfig(id="final"),
-            )
-        inner_result = await self._run_inner(inner)
-        final = inner_result.outputs.get("final")
-        if isinstance(final, AgentResponse):
-            return final
-        return current
+        return _ResponseEcho(
+            response=current,
+            _config=KnotConfig(id="final"),
+        )

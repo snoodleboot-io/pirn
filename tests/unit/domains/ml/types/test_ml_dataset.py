@@ -1,17 +1,17 @@
-"""Tests for :class:`MLDataset`."""
+"""Tests for :class:`DatasetManifest`."""
 
 from __future__ import annotations
 
 import unittest
 from datetime import UTC, datetime
 
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 
 
 class TestMLDataset(unittest.TestCase):
     def test_construction_and_audit_dict(self) -> None:
         fetched_at = datetime(2026, 4, 29, 12, 0, tzinfo=UTC)
-        dataset = MLDataset(
+        dataset = DatasetManifest(
             name="customers",
             feature_names=("age", "income"),
             target_name="churned",

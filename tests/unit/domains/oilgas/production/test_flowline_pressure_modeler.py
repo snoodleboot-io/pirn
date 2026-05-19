@@ -4,13 +4,17 @@ from __future__ import annotations
 
 import unittest
 
+import numpy as np
+
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.production.flowline_pressure_modeler import (
-    FlowlinePressureModeler,
-)
+from pirn.domains.oilgas.production.flowline_pressure_modeler import FlowlinePressureModeler
+from pirn.domains.oilgas.types.scada_payload import ScadaPayload
 from pirn.domains.oilgas.types.scada_time_series import ScadaTimeSeries
 
-_SERIES = ScadaTimeSeries(sensor_id="rate", sample_interval_sec=60.0)
+_SERIES = ScadaPayload(
+    metadata=ScadaTimeSeries(sensor_id="rate", sample_count=10, sample_interval_sec=60.0),
+    data=np.full(10, 1000.0),
+)
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
@@ -42,5 +46,5 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             pipe_inner_diameter_in=4.0,
             pipe_length_ft=1000.0,
         )
-        assert isinstance(out, ScadaTimeSeries)
-        assert "dp:" in out.sensor_id
+        assert isinstance(out, ScadaPayload)
+        assert "dp:" in out.series.sensor_id

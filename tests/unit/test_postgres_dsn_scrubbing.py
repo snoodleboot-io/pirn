@@ -33,7 +33,8 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
     
     async def test_create_pool_error_does_not_leak_password(self) -> None:
         """When asyncpg.create_pool raises with DSN in the message, password is redacted."""
-        import asyncpg
+        import pytest
+        asyncpg = pytest.importorskip("asyncpg")
     
         dsn = "postgresql://admin:topsecret@localhost/mydb"
     

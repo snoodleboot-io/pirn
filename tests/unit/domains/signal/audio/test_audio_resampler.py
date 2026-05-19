@@ -4,19 +4,24 @@ from __future__ import annotations
 
 import unittest
 
+try:
+    import librosa  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("librosa not installed") from _e
+
 import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.domains.signal.audio.audio_resampler import AudioResampler
-from pirn.domains.signal.types.signal_frame import SignalFrame
-from tests.unit.domains.signal.conftest import make_signal_frame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+from tests.unit.domains.signal.conftest import make_signal_payload
 
-_SIGNAL = make_signal_frame()
+_SIGNAL = make_signal_payload()
 
 
 def _up(name: str = "signal") -> Parameter:
-    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
+    return Parameter(name, SignalPayload, _config=KnotConfig(id=name))
 
 
 class TestAudioResampler(unittest.IsolatedAsyncioTestCase):
@@ -39,7 +44,7 @@ class TestAudioResampler(unittest.IsolatedAsyncioTestCase):
 
     async def test_emits_signal_frame(self) -> None:
         knot = self._make()
-        out = await knot.process(_SIGNAL, target_sample_rate_hz=22050.0)
-        assert isinstance(out, SignalFrame)
-        assert out.signal_id == "test:resampled"
-        assert out.sample_rate_hz == 22050.0
+        out = await knot.process(_SIGNAL, target_sample_rate_hz=22050.0, quality="polyphase")
+        assert isinstance(out, SignalPayload)
+        assert out.frame.signal_id == "test:resampled"
+        assert out.frame.sample_rate_hz == 22050.0

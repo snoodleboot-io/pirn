@@ -81,12 +81,12 @@ class DateDimGenerator(Knot):
         return f"INSERT INTO {target_table} ({cols}) VALUES ({placeholders})"
 
     @staticmethod
-    def _fiscal_year(d: datetime.date, fiscal_year_start_month: int) -> int:
+    def _fiscal_year(date: datetime.date, fiscal_year_start_month: int) -> int:
         if fiscal_year_start_month == 1:
-            return d.year
-        if d.month >= fiscal_year_start_month:
-            return d.year + 1
-        return d.year
+            return date.year
+        if date.month >= fiscal_year_start_month:
+            return date.year + 1
+        return date.year
 
     async def process(
         self,

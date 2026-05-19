@@ -86,31 +86,59 @@ class AccelerometerActivityClassifier(Knot):
             raise ValueError(
                 "AccelerometerActivityClassifier: activity_classes must be a non-empty tuple"
             )
-        x = accel_data.get("x", [])
-        y = accel_data.get("y", [])
-        z = accel_data.get("z", [])
-        timestamps = accel_data.get("timestamps_iso", [])
+        for field in ("x", "y", "z", "timestamps_iso"):
+            if field not in accel_data:
+                raise KeyError(
+                    f"AccelerometerActivityClassifier: accel_data missing required field '{field}'; "
+                    f"got: {list(accel_data)}"
+                )
+        accel_x = accel_data["x"]
+        accel_y = accel_data["y"]
+        accel_z = accel_data["z"]
+        timestamps = accel_data["timestamps_iso"]
         window_samples = max(1, int(sample_rate_hz * window_sec))
-        results: list[dict[str, Any]] = []
-        n = len(timestamps)
-        for start_idx in range(0, n, window_samples):
-            end_idx = min(start_idx + window_samples, n)
-            window_x = x[start_idx:end_idx]
-            window_y = y[start_idx:end_idx]
-            window_z = z[start_idx:end_idx]
-            vm = 0.0
+        timestamp_count = len(timestamps)
+
+        # First pass: compute per-window VM to establish the activity range.
+        window_vms: list[float] = []
+        for start_idx in range(0, timestamp_count, window_samples):
+            end_idx = min(start_idx + window_samples, timestamp_count)
+            window_x = accel_x[start_idx:end_idx]
+            window_y = accel_y[start_idx:end_idx]
+            window_z = accel_z[start_idx:end_idx]
             if window_x and window_y and window_z:
                 mean_x = sum(window_x) / len(window_x)
                 mean_y = sum(window_y) / len(window_y)
                 mean_z = sum(window_z) / len(window_z)
                 vm = math.sqrt(mean_x**2 + mean_y**2 + mean_z**2)
+            else:
+                vm = 0.0
+            window_vms.append(vm)
+
+        # ENMO-style: remove gravity (≈1 g) and clamp negative to zero.
+        enmo_vals = [max(0.0, vm - 1.0) for vm in window_vms]
+        enmo_max = max(enmo_vals) if enmo_vals else 0.0
+
+        # Evenly-spaced thresholds across [0, enmo_max] for N classes.
+        n_classes = len(activity_classes)
+        step = enmo_max / n_classes if enmo_max > 0 else 1.0
+
+        def _classify(enmo: float) -> str:
+            idx = min(int(enmo / step), n_classes - 1) if step > 0 else 0
+            return activity_classes[idx]
+
+        results: list[dict[str, Any]] = []
+        for window_index, (start_idx, vm) in enumerate(
+            zip(range(0, timestamp_count, window_samples), window_vms, strict=False)
+        ):
+            end_idx = min(start_idx + window_samples, timestamp_count)
             start_iso = timestamps[start_idx] if start_idx < len(timestamps) else ""
             end_iso = timestamps[end_idx - 1] if end_idx - 1 < len(timestamps) else ""
             results.append(
                 {
                     "start_iso": start_iso,
                     "end_iso": end_iso,
-                    "activity_class": activity_classes[0],
+                    "activity_class": _classify(enmo_vals[window_index]),
                     "vector_magnitude": vm,
                 }
             )

@@ -4,12 +4,22 @@ from __future__ import annotations
 
 import unittest
 
+try:
+    import scipy  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("scipy not installed") from _e
+
+try:
+    import pywt  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("pywt not installed") from _e
+
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.signal.types.wavelet_frame import WaveletFrame
+from pirn.domains.signal.types.wavelet_payload import WaveletPayload
 from pirn.domains.signal.wavelets.swt_decomposer import SWTDecomposer
 from pirn.tapestry import Tapestry
-from tests.unit.domains.signal.conftest import emit_signal_frame
+from tests.unit.domains.signal.conftest import emit_signal_payload
 
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
@@ -31,13 +41,14 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
-    async def test_emits_wavelet_frame(self) -> None:
+    async def test_emits_wavelet_payload(self) -> None:
         with Tapestry() as t:
-            sig = emit_signal_frame(_config=KnotConfig(id="sig"))
+            sig = emit_signal_payload(_config=KnotConfig(id="sig"))
             SWTDecomposer(signal=sig, wavelet="db4", level=5, _config=KnotConfig(id="s"))
         result = await t.run(RunRequest())
         out = result.outputs["s"]
-        assert isinstance(out, WaveletFrame)
-        assert out.wavelet_name == "db4"
-        assert out.scale_count == 5
-        assert out.signal_id == "test"
+        assert isinstance(out, WaveletPayload)
+        assert out.frame.wavelet_name == "db4"
+        # pywt.swt with level=5 returns 5 (cA, cD) pairs → flattened to 10 arrays
+        assert out.frame.scale_count == 10
+        assert out.frame.signal_id == "test"

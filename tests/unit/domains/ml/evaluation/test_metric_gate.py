@@ -9,26 +9,31 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.domains.ml.evaluation.metric_gate import MetricCheck
-from pirn.domains.ml.types.eval_report import EvalReport
+from pirn.domains.ml.types.eval_metadata import EvalMetadata
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn.domains.ml.types.eval_metrics import EvalMetrics
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.tapestry import Tapestry
 
 
-def _report(value: float) -> EvalReport:
-    return EvalReport(
-        model_id="m1",
-        metrics={"accuracy": value},
-        dataset_name="d:test",
-        evaluated_at=datetime.now(UTC),
+def _report(value: float) -> EvalReportPayload:
+    return EvalReportPayload(
+        metadata=EvalMetadata(
+            model_id="m1",
+            dataset_name="d:test",
+            evaluated_at=datetime.now(UTC),
+        ),
+        data=EvalMetrics(scores={"accuracy": value}),
     )
 
 
 @knot
-async def emit_passing_report() -> EvalReport:
+async def emit_passing_report() -> EvalReportPayload:
     return _report(0.95)
 
 
 @knot
-async def emit_failing_report() -> EvalReport:
+async def emit_failing_report() -> EvalReportPayload:
     return _report(0.10)
 
 

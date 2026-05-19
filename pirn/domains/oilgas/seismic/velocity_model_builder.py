@@ -27,7 +27,10 @@ References:
 
 from __future__ import annotations
 
+import math
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -77,16 +80,47 @@ class VelocityModelBuilder(Knot):
             raise ValueError(
                 f"VelocityModelBuilder: interpolation_method must be one of {sorted(valid_methods)}"
             )
+        all_nodes = semblance_picks + well_velocities
         all_vels: list[float] = [
-            float(p.get("velocity_m_s", 2000.0))
-            for p in semblance_picks + well_velocities
-            if "velocity_m_s" in p
+            float(p.get("velocity_m_s", 2000.0)) for p in all_nodes if "velocity_m_s" in p
         ] or [2000.0]
+
+        def _idw_interpolate(
+            nodes: list[dict[str, Any]], query_inline: float, query_xline: float, power: float = 2.0
+        ) -> float:
+            weights: list[float] = []
+            vels: list[float] = []
+            for nd in nodes:
+                if "velocity_m_s" not in nd:
+                    continue
+                dx = float(nd.get("inline", 0)) - query_inline
+                dy = float(nd.get("xline", 0)) - query_xline
+                dist = math.sqrt(dx * dx + dy * dy)
+                if dist < 1e-9:
+                    return float(nd["velocity_m_s"])
+                weights.append(1.0 / dist**power)
+                vels.append(float(nd["velocity_m_s"]))
+            if not weights:
+                return 2000.0
+            weight_arr = np.asarray(weights)
+            vel_arr = np.asarray(vels)
+            return float(np.dot(weight_arr, vel_arr) / np.sum(weight_arr))
+
+        if interpolation_method == "idw" and all_nodes:
+            inline_vals = [float(n.get("inline", 0)) for n in all_nodes if "velocity_m_s" in n]
+            xline_vals = [float(n.get("xline", 0)) for n in all_nodes if "velocity_m_s" in n]
+            q_inline = float(np.mean(inline_vals)) if inline_vals else 0.0
+            q_xline = float(np.mean(xline_vals)) if xline_vals else 0.0
+            interpolated_vel = _idw_interpolate(all_nodes, q_inline, q_xline)
+        else:
+            interpolated_vel = float(np.mean(all_vels))
+
         return {
             "velocity_model": {
-                "nodes": len(semblance_picks) + len(well_velocities),
+                "nodes": len(all_nodes),
                 "min_vel_m_s": min(all_vels),
                 "max_vel_m_s": max(all_vels),
+                "interpolated_vel_m_s": interpolated_vel,
             },
             "method": interpolation_method,
         }

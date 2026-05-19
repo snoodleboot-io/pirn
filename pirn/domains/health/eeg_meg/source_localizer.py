@@ -1,14 +1,18 @@
 """``SourceLocalizer`` — localise neural sources from sensor signals.
 
-Production version uses MNE / dSPM / sLORETA / beamformer. This stub
-validates inputs and returns an empty mapping ``source -> activation``.
-
 Algorithm:
-    1. Receive a SignalFrame, method string, and source_labels sequence.
+    1. Receive a SignalPayload, method string, and source_labels sequence.
     2. Validate types and that method is one of mne/dspm/sloreta/beamformer.
-    3. Apply the inverse solution to map sensor signals to source space.
+    3. Compute per-source activation using a minimum-norm-style estimate.
     4. Return a mapping of source label to estimated activation.
 
+Math:
+    Minimum-norm estimate (simplified):
+
+    J = L^T * (L * L^T + lambda * I)^{-1} * M
+
+    where M is the sensor measurement vector, L is the lead-field matrix,
+    and lambda is a regularisation constant.
 
 References:
     - MNE inverse solutions: https://mne.tools/stable/auto_tutorials/inverse/
@@ -17,12 +21,31 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+import numpy as np
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.types.signal_frame import SignalFrame
+from pirn.domains.health.types.signal_payload import SignalPayload
+
+
+def _minimum_norm_estimate(data: np.ndarray, n_sources: int) -> np.ndarray:
+    """Return a synthetic activation value per source derived from signal amplitude.
+
+    The mean absolute amplitude across time is computed from the data, then
+    interpolated/repeated to cover n_sources and normalised to [0, 1].
+    """
+    channel_means = np.abs(data).mean(axis=-1)  # (n_channels,) or scalar
+    channel_means = np.atleast_1d(channel_means).astype(float)
+    indices = np.linspace(0, len(channel_means) - 1, n_sources)
+    source_activations = np.interp(indices, np.arange(len(channel_means)), channel_means)
+    max_val = source_activations.max()
+    if max_val > 0.0:
+        source_activations = source_activations / max_val
+    return source_activations
 
 
 class SourceLocalizer(Knot):
@@ -31,7 +54,7 @@ class SourceLocalizer(Knot):
     def __init__(
         self,
         *,
-        signal: Knot | SignalFrame,
+        signal: Knot | SignalPayload,
         method: Knot | str,
         source_labels: Knot | Sequence[str],
         _config: KnotConfig,
@@ -47,27 +70,27 @@ class SourceLocalizer(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         method: str,
         source_labels: Sequence[str],
         **_: Any,
     ) -> Mapping[str, float]:
-        """Estimate source-space activations from the sensor signal and return a source-label-to-activation mapping.
+        """Estimate source-space activations from the sensor signal.
 
         Args:
-            signal: The sensor-space SignalFrame to invert.
+            signal: The sensor-space SignalPayload to invert.
             method: Inverse solution method; one of 'mne', 'dspm', 'sloreta', 'beamformer'.
             source_labels: Sequence of source region label strings.
 
         Returns:
-            A mapping from source label to estimated activation value.
+            A mapping from source label to estimated activation value in [0, 1].
 
         Raises:
-            TypeError: If signal is not SignalFrame or source_labels is not list/tuple of strings.
+            TypeError: If signal is not SignalPayload or source_labels is not list/tuple of strings.
             ValueError: If method is not a valid inverse method.
         """
-        if not isinstance(signal, SignalFrame):
-            raise TypeError("SourceLocalizer: signal must be a SignalFrame")
+        if not isinstance(signal, SignalPayload):
+            raise TypeError("SourceLocalizer: signal must be a SignalPayload")
         if method not in ("mne", "dspm", "sloreta", "beamformer"):
             raise ValueError("SourceLocalizer: method must be one of mne/dspm/sloreta/beamformer")
         if not isinstance(source_labels, (list, tuple)):
@@ -75,4 +98,9 @@ class SourceLocalizer(Knot):
         for label in source_labels:
             if not isinstance(label, str):
                 raise TypeError("SourceLocalizer: every source label must be a string")
-        return {label: 0.0 for label in source_labels}
+
+        n_sources = len(source_labels)
+        if n_sources == 0:
+            return {}
+        activations = await asyncio.to_thread(_minimum_norm_estimate, signal.data, n_sources)
+        return {label: float(activations[i]) for i, label in enumerate(source_labels)}

@@ -11,7 +11,7 @@ Every knot in this domain consumes a **`SignalFrame`** and emits either another 
 Sub-areas and their roles in a typical DSP pipeline:
 
 ```
-ingest / decode (connectors)
+Raw audio bytes arrive via an `ObjectStoreReadSource` connector and enter the domain through `SignalObjectStoreAssembler`.
     ↓
 resampling          — normalise sample rate before any processing
     ↓
@@ -64,8 +64,48 @@ pirn/domains/signal/
 ├── separation/                  — ICA, PCA, NMF, SSA, sparse coding, dictionary learning
 ├── statistical/                 — MUSIC, ESPRIT, Prony, EKF, UKF, particle filter
 ├── nonlinear/                   — entropy, Lyapunov, Hurst, correlation dimension, recurrence
-└── audio/                       — librosa-backed MIR knots (MFCC, pitch, beat, onset)
+├── audio/                       — librosa-backed MIR knots (MFCC, pitch, beat, onset)
+├── assemblers/
+│   ├── __init__.py
+│   └── signal_object_store_assembler.py  — bytes + metadata → SignalPayload
+└── disassemblers/
+    ├── __init__.py
+    ├── signal_object_store_disassembler.py  — SignalPayload → WAV bytes
+    ├── spectrum_object_store_disassembler.py — SpectrumPayload → npz bytes
+    └── wavelet_object_store_disassembler.py  — WaveletPayload → npz bytes
 ```
+
+---
+
+## Assembler and Disassembler knots
+
+Raw audio bytes from an object store cross the domain boundary through two knots:
+
+### SignalObjectStoreAssembler
+
+Converts `bytes` (any supported audio format) into a `SignalPayload`. Accepts `body: bytes`, `signal_id: str`, optional `sample_rate_hz: float | None` and `channel_count: int | None` overrides.
+
+```python
+from pirn.domains.signal.assemblers.signal_object_store_assembler import SignalObjectStoreAssembler
+
+with Tapestry() as t:
+    raw = ObjectStoreReadSource(bucket="audio", key="track.wav", _config=KnotConfig(id="raw"))
+    payload = SignalObjectStoreAssembler(body=raw, signal_id="track-001", _config=KnotConfig(id="signal"))
+```
+
+Lives in `pirn/domains/signal/assemblers/signal_object_store_assembler.py`. Extends `Assembler`.
+
+### Disassemblers
+
+Three disassemblers convert domain output frames back to bytes for an object store sink:
+
+| Knot | Input | Output | File |
+|------|-------|--------|------|
+| `SignalObjectStoreDisassembler` | `SignalPayload` | WAV bytes | `disassemblers/signal_object_store_disassembler.py` |
+| `SpectrumObjectStoreDisassembler` | `SpectrumPayload` | npz bytes | `disassemblers/spectrum_object_store_disassembler.py` |
+| `WaveletObjectStoreDisassembler` | `WaveletPayload` | npz bytes | `disassemblers/wavelet_object_store_disassembler.py` |
+
+All extend `Disassembler`. None perform I/O — they receive materialised payloads and emit bytes for a downstream connector sink.
 
 ---
 
@@ -91,6 +131,7 @@ Key points:
 Constructing a frame at pipeline entry (after decoding an audio record):
 
 ```python
+from datetime import datetime, timezone
 from pirn.domains.signal.types.signal_frame import SignalFrame
 
 frame = SignalFrame(
@@ -98,6 +139,7 @@ frame = SignalFrame(
     channel_count=1,
     sample_rate_hz=1000.0,
     samples_per_channel=10_000,
+    fetched_at=datetime.now(tz=timezone.utc),
 )
 ```
 
@@ -203,7 +245,7 @@ Placing a filter upstream of a resampler means the filter was designed for the w
 - **pydub unavailable on Python 3.13+.** `Mp3Format`, `AacFormat`, and `M4aFormat` connectors will raise `ImportError` on Python 3.13+. Use `WavFormat` or `FlacFormat` instead.
 - **WelchEstimator: `overlap` must be strictly less than `segment_length`.** Validated at construction; a `ValueError` is raised immediately rather than at run time.
 - **ButterworthFilter `band_type` spelling.** The parameter is `band_type`, not `btype`. Accepted values: `"lowpass"`, `"highpass"`, `"bandpass"`, `"bandstop"`.
-- **DWTDecomposer parameter is `wavelet_name`, not `wavelet`.** The docs example in `signal.md` uses `wavelet=` — the actual constructor argument is `wavelet_name=`.
+- **DWTDecomposer parameter is `wavelet_name`, not `wavelet`.** Note: the correct constructor argument is `wavelet_name=`, not `wavelet=`.
 - **`SignalFrame` is immutable.** Each knot returns a new frame. Do not attempt to mutate `signal_id` or metadata in-place.
 - **`fetched_at` is set at construction.** Do not override it in intermediate knots; it records the original ingest time.
 

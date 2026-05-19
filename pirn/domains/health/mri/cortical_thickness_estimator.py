@@ -22,11 +22,28 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Mapping, Sequence
 from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+
+
+async def _run_subprocess(cmd: list[str]) -> None:
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    _, stderr = await proc.communicate()
+    if proc.returncode != 0:
+        raise RuntimeError(f"{cmd[0]} failed: {stderr.decode()}")
+
+
+def _parse_freesurfer_thickness(regions: Sequence[str]) -> dict[str, float]:
+    """Return per-region thickness stubs until real FreeSurfer parsing is implemented."""
+    return {region: 0.0 for region in regions}
 
 
 class CorticalThicknessEstimator(Knot):
@@ -73,4 +90,6 @@ class CorticalThicknessEstimator(Knot):
         for region in regions:
             if not isinstance(region, str):
                 raise TypeError("CorticalThicknessEstimator: every region must be a string")
-        return {region: 0.0 for region in regions}
+        cmd = ["recon-all", "-i", t1_nifti_path, "-all"]
+        await _run_subprocess(cmd)
+        return await asyncio.to_thread(_parse_freesurfer_thickness, regions)

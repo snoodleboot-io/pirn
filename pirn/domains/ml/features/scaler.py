@@ -1,17 +1,24 @@
 """``Scaler`` — fit a scaler on the train split and emit a transformed
-:class:`DataSplit` reference.
+:class:`SplitManifest` reference.
 
 The actual numeric transformation (standardise / minmax / robust) is
 not applied to data here — pirn manipulates references at this layer.
-The output is a :class:`DataSplit` whose ``MLDataset`` references are
+The output is a :class:`SplitManifest` whose ``DatasetManifest`` references are
 renamed to record that they have been logically scaled.
 
 Algorithm:
-    1. Receive ``split`` (DataSplit), ``columns`` (sequence of str), and ``method`` (str) via process().
+    1. Receive ``split`` (SplitManifest), ``columns`` (sequence of str), and ``method`` (str) via process().
     2. Validate columns is non-empty and method is valid.
-    3. Append the ``scaled_<method>`` suffix to each partition's MLDataset name.
-    4. Return the renamed DataSplit.
+    3. Append the ``scaled_<method>`` suffix to each partition's DatasetManifest name.
+    4. Return the renamed SplitManifest.
 
+Math:
+    standardise (z-score): x_scaled = (x - mu) / sigma
+        where mu = mean(x_train), sigma = std(x_train)
+    minmax:   x_scaled = (x - x_min) / (x_max - x_min)
+        where x_min, x_max are computed on x_train
+    robust:   x_scaled = (x - median(x_train)) / IQR(x_train)
+        where IQR = Q3 - Q1 computed on x_train
 
 References:
     N/A — pirn-native implementation.
@@ -25,13 +32,13 @@ from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.types.data_split import DataSplit
-from pirn.domains.ml.types.ml_dataset import MLDataset
+from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 
 
 class Scaler(Knot):
-    """Apply a logical scaling transformation to every :class:`MLDataset`
-    in a :class:`DataSplit`."""
+    """Apply a logical scaling transformation to every :class:`DatasetManifest`
+    in a :class:`SplitManifest`."""
 
     valid_methods: ClassVar[frozenset[str]] = frozenset({"standardise", "minmax", "robust"})
 
@@ -48,20 +55,20 @@ class Scaler(Knot):
 
     async def process(
         self,
-        split: DataSplit,
+        split: SplitManifest,
         columns: Sequence[str] = (),
         method: str = "standardise",
         **_: Any,
-    ) -> DataSplit:
-        """Logically scale each partition's MLDataset using the configured method and return the renamed DataSplit.
+    ) -> SplitManifest:
+        """Logically scale each partition's DatasetManifest using the configured method and return the renamed SplitManifest.
 
         Args:
-            split: DataSplit whose partitions are logically tagged with the scaling suffix.
+            split: SplitManifest whose partitions are logically tagged with the scaling suffix.
             columns: Non-empty sequence of column names to scale.
             method: Scaling method; must be one of ``valid_methods``.
 
         Returns:
-            DataSplit with each partition renamed to include the ``scaled_<method>`` suffix.
+            SplitManifest with each partition renamed to include the ``scaled_<method>`` suffix.
 
         Raises:
             ValueError: If columns is empty or method is invalid.
@@ -76,7 +83,7 @@ class Scaler(Knot):
             raise ValueError(f"Scaler: method must be one of {sorted(self.valid_methods)}")
         suffix = f"scaled_{method}"
         now = datetime.now(UTC)
-        return DataSplit(
+        return SplitManifest(
             train=self._mark(split.train, suffix, now),
             test=self._mark(split.test, suffix, now),
             validation=(
@@ -84,8 +91,8 @@ class Scaler(Knot):
             ),
         )
 
-    def _mark(self, dataset: MLDataset, suffix: str, fetched_at: datetime) -> MLDataset:
-        return MLDataset(
+    def _mark(self, dataset: DatasetManifest, suffix: str, fetched_at: datetime) -> DatasetManifest:
+        return DatasetManifest(
             name=f"{dataset.name}:{suffix}",
             feature_names=dataset.feature_names,
             target_name=dataset.target_name,

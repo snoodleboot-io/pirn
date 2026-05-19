@@ -12,11 +12,32 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.gate._gate_closed import _GateClosed
+from pirn.nodes.gate._gate_closed import _GateClosedError
 
 
 class Gate(Knot):
-    """Pass-through if predicate is truthy; otherwise Skipped."""
+    """Pass-through if predicate is truthy; otherwise Skipped.
+
+    A ``Gate`` takes exactly one parent knot and a predicate callable.  When the
+    predicate returns truthy the gate's output is the input value unchanged;
+    when it returns falsy the gate's output is ``Skipped``.  Downstream knots
+    that depend on a ``Skipped`` result are also skipped, propagating the skip
+    through the graph automatically.
+
+    Algorithm:
+        1. Resolution — the engine resolves the single parent knot and passes
+           its output as the ``input`` argument to ``process()``.
+        2. Predicate evaluation — ``process()`` calls ``predicate(input)``.
+        3. Pass-through — if the predicate is truthy, ``input`` is returned
+           unchanged and the engine wraps it in ``Ok``.
+        4. Gate closure — if the predicate is falsy, ``_GateClosedError`` is
+           raised inside ``process()``, which the engine would normally wrap as
+           ``Err``.
+        5. Skip conversion — ``Gate.__call__`` intercepts the ``Err`` result
+           produced by step 4.  When the recorded exception type is
+           ``_GateClosedError``, the error is converted to
+           ``Skipped(reason="gate_closed")`` before being returned to the engine.
+    """
 
     def __init__(
         self,
@@ -60,17 +81,17 @@ class Gate(Knot):
             The input value unchanged when the predicate returns truthy.
 
         Raises:
-            _GateClosed: If the predicate returns falsy; converted to Skipped by ``__call__``.
+            _GateClosedError: If the predicate returns falsy; converted to Skipped by ``__call__``.
         """
         if self._mutable_predicate(input):
             return input
-        raise _GateClosed
+        raise _GateClosedError
 
     async def __call__(self, parent_results: Any) -> Any:
         from pirn.core.err import Err as _Err
         from pirn.core.skipped import Skipped as _Skipped
 
         result = await super().__call__(parent_results)
-        if isinstance(result, _Err) and result.record.exc_type == "_GateClosed":
+        if isinstance(result, _Err) and result.record.exc_type == "_GateClosedError":
             return _Skipped(reason="gate_closed")
         return result

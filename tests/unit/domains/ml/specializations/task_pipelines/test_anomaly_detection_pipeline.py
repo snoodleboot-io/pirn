@@ -9,7 +9,8 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.task_pipelines.anomaly_detection_pipeline import (
     AnomalyDetectionPipeline,
 )
-from pirn.domains.ml.types.eval_report import EvalReport
+from pirn.domains.ml.types.eval_metadata import EvalMetadata
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.tapestry import Tapestry
 from tests.unit.domains.ml._stubs.recording_database_pool import (
     RecordingDatabasePool,
@@ -44,7 +45,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_emits_anomaly_report(self) -> None:
-        rows = [(float(i), float(i)) for i in range(40)]
+        rows = [{"a": float(i), "b": float(i)} for i in range(40)]
         with Tapestry() as t:
             AnomalyDetectionPipeline(
                 pool=RecordingDatabasePool(rows=rows),
@@ -55,5 +56,5 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert result.succeeded
-        report: EvalReport = result.outputs["adp"]
-        assert isinstance(report, EvalReport)
+        report: EvalReportPayload = result.outputs["adp"]
+        assert isinstance(report, EvalReportPayload)

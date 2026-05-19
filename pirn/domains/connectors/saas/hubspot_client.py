@@ -96,7 +96,12 @@ class HubSpotClient(ApiClient, TableSource, RecordWriter):
         rows: list[Mapping[str, Any]] = []
         next_cursor: str | None = None
         if isinstance(response, Mapping):
-            rows = list(response.get("results") or ())
+            if "results" not in response:
+                raise ValueError(
+                    "HubSpotClient: response missing required field 'results'; "
+                    f"got: {list(response)}"
+                )
+            rows = list(response["results"])
             paging = response.get("paging")
             if isinstance(paging, Mapping):
                 next_block = paging.get("next")

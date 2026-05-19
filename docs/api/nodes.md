@@ -192,7 +192,7 @@ total = Reduce(
 
 A knot whose execution body is a complete inner tapestry pipeline. Use it when a single logical step in your outer pipeline is itself a multi-step workflow — validation, fulfillment, scoring, enrichment — that you want independently versioned, cached, and inspectable.
 
-Subclass `SubTapestry` and implement `process(**kwargs)`. Inside `process`, construct an inner `Tapestry`, build the pipeline, and return `await self._run_inner(inner_tapestry)`.
+Subclass `SubTapestry` and implement `process(**kwargs)`. Inside `process`, build the inner pipeline and return the terminal `Knot`; the base class calls `_run_inner` automatically.
 
 The outer tapestry's history backend is automatically forwarded to inner runs so they land in the same store and are reachable via the explorer's drill-down navigation.
 
@@ -209,15 +209,14 @@ from pirn.nodes.sub_tapestry import SubTapestry
 from pirn import KnotConfig
 from pirn.tapestry import Tapestry
 from pirn.core.parameter import Parameter
-from pirn.core.run_result import RunResult
+from pirn.core.knot import Knot
 
 class ValidateOrder(SubTapestry):
-    async def process(self, order: Order, **_) -> RunResult:
-        with Tapestry() as inner:
-            p = Parameter("order", Order, default=order, _config=KnotConfig(id="order"))
-            check_inventory(order=p, _config=KnotConfig(id="inventory"))
-            authorize_payment(order=p, _config=KnotConfig(id="payment"))
-        return await self._run_inner(inner)
+    async def process(self, order: Order, **_) -> Knot:
+        p = Parameter("order", Order, default=order, _config=KnotConfig(id="order"))
+        check_inventory(order=p, _config=KnotConfig(id="inventory"))
+        sink = authorize_payment(order=p, _config=KnotConfig(id="payment"))
+        return sink
 
 # Wire into an outer tapestry like any other knot
 with Tapestry() as t:
@@ -296,6 +295,12 @@ continues(search, fn=router, pool=POOL)
 ---
 
 ## LoopSubTapestry
+
+::: pirn.nodes.loop_sub_tapestry.LoopSubTapestry
+    options:
+      show_source: false
+      members_order: source
+      heading_level: 3
 
 An iterative `SubTapestry` where all iterations execute as knots within a single extensible inner run, connected by real data edges. Use when the number of iterations is unknown until runtime and each iteration's structure may depend on the previous result.
 

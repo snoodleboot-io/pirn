@@ -31,11 +31,24 @@ References:
 
 from __future__ import annotations
 
+from math import radians, sin
 from typing import Any
+
+import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+
+def _das_beamform(data: np.ndarray, delays_samples: np.ndarray) -> np.ndarray:
+    n_ch = data.shape[0]
+    out = np.zeros(data.shape[1])
+    for i in range(n_ch):
+        shift = round(delays_samples[i])
+        out += np.roll(data[i], -shift)
+    return out / n_ch
 
 
 class DelayAndSumBeamformer(Knot):
@@ -62,22 +75,22 @@ class DelayAndSumBeamformer(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         num_elements: int,
         element_spacing_m: float,
         steering_angle_deg: float,
         **_: Any,
-    ) -> SignalFrame:
+    ) -> SignalPayload:
         """Apply the delay-and-sum beamformer and return the beamformed SignalFrame.
 
         Args:
-            signal: The multi-element array input signal frame.
+            signal: The multi-element array input signal payload.
             num_elements: Number of array elements (positive integer).
             element_spacing_m: Distance between adjacent elements in metres (positive float).
             steering_angle_deg: Steering direction in degrees (float).
 
         Returns:
-            SignalFrame representing the beamformed output channel.
+            Single-channel SignalPayload representing the beamformed output.
 
         Raises:
             ValueError: If num_elements or element_spacing_m are invalid.
@@ -88,9 +101,28 @@ class DelayAndSumBeamformer(Knot):
             raise ValueError("DelayAndSumBeamformer: element_spacing_m must be a positive scalar")
         if not isinstance(steering_angle_deg, (int, float)):
             raise TypeError("DelayAndSumBeamformer: steering_angle_deg must be a float")
-        return SignalFrame(
-            signal_id=f"{signal.signal_id}:das",
-            channel_count=1,
-            sample_rate_hz=signal.sample_rate_hz,
-            samples_per_channel=signal.samples_per_channel,
+
+        import asyncio
+
+        speed_of_sound = 343.0
+        sample_rate_hz = signal.frame.sample_rate_hz
+        data = signal.data
+        delays_samples = np.array(
+            [
+                element_index
+                * element_spacing_m
+                * sin(radians(steering_angle_deg))
+                / (speed_of_sound / sample_rate_hz)
+                for element_index in range(num_elements)
+            ]
+        )
+        beamformed = await asyncio.to_thread(_das_beamform, data, delays_samples)
+        return SignalPayload(
+            metadata=SignalFrame(
+                signal_id=f"{signal.frame.signal_id}:das",
+                channel_count=1,
+                sample_rate_hz=signal.frame.sample_rate_hz,
+                samples_per_channel=signal.frame.samples_per_channel,
+            ),
+            data=beamformed[np.newaxis, :],
         )

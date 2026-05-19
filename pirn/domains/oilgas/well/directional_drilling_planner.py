@@ -30,6 +30,7 @@ References:
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -92,7 +93,22 @@ class DirectionalDrillingPlanner(Knot):
                 raise TypeError(f"DirectionalDrillingPlanner: {label} must be numeric")
         if max_dogleg_deg_per_30m <= 0.0:
             raise ValueError("DirectionalDrillingPlanner: max_dogleg_deg_per_30m must be positive")
+        current_x, current_y, current_z = 0.0, 0.0, float(current_path.point_count) * 10.0
+        dx = target_x - current_x
+        dy = target_y - current_y
+        dz = target_z - current_z
+        horiz_dist = math.sqrt(dx**2 + dy**2)
+        inclination = (
+            math.degrees(math.atan2(horiz_dist, abs(dz))) if dz != 0.0 or horiz_dist != 0.0 else 0.0
+        )
+        dogleg_deg = inclination
+        build_stations = max(1, math.ceil(dogleg_deg / max_dogleg_deg_per_30m))
+        total_points = (
+            current_path.point_count
+            + build_stations
+            + max(1, int(math.sqrt(dx**2 + dy**2 + dz**2) / 30.0))
+        )
         return WellPath3D(
             well_id=current_path.well_id,
-            point_count=current_path.point_count,
+            point_count=total_points,
         )

@@ -89,8 +89,16 @@ class TaskFMRIModeler(Knot):
             raise ValueError("TaskFMRIModeler: tr_sec must be > 0")
         if not isinstance(high_pass_hz, (int, float)) or float(high_pass_hz) <= 0:
             raise ValueError("TaskFMRIModeler: high_pass_hz must be > 0")
-        conditions = list({e.get("trial_type", "") for e in events})
-        n_volumes: int = bold_data.get("n_volumes", 0)
+        for event_index, event in enumerate(events):
+            if "trial_type" not in event:
+                raise ValueError(
+                    f"TaskFMRIModeler: events[{event_index}] missing required field 'trial_type'; "
+                    f"got: {list(event)}"
+                )
+        conditions = list({event["trial_type"] for event in events})
+        if "n_volumes" not in bold_data:
+            raise ValueError("TaskFMRIModeler: required field 'n_volumes' missing from bold_data")
+        n_volumes: int = bold_data["n_volumes"]
         return {
             "contrast_maps": {cond: [] for cond in conditions},
             "r_squared": 0.0,

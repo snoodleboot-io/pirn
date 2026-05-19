@@ -49,6 +49,18 @@ class EdfFormat(BatchFileFormat):
     PHI fields (``patientname``, ``patientcode``, ``birthdate``,
     ``admincode``) are stripped from decoded records and redacted on
     encode.
+
+    One record is emitted per signal channel::
+
+        {
+            "signal_index":  int,
+            "label":         str,
+            "sample_rate":   int,
+            "n_samples":     int,
+            "physical_min":  float,
+            "physical_max":  float,
+            "data":          bytes,  # raw float64 array bytes
+        }
     """
 
     _phi_header_fields: ClassVar[frozenset[str]] = frozenset(
@@ -121,11 +133,17 @@ class EdfFormat(BatchFileFormat):
                 self._apply_phi_redaction(writer)
                 headers = []
                 signal_arrays = []
-                for rec in signal_records:
-                    data_bytes = rec.get("data", b"")
+                for i, rec in enumerate(signal_records):
+                    for field in ("data", "sample_rate"):
+                        if field not in rec:
+                            raise KeyError(
+                                f"EdfFormat: signal record[{i}] missing required field "
+                                f"'{field}'; got: {list(rec)}"
+                            )
+                    data_bytes = rec["data"]
                     arr = np.frombuffer(data_bytes, dtype=np.float64)
                     n_samples = int(rec.get("n_samples", len(arr)))
-                    sample_rate = int(rec.get("sample_rate", 1))
+                    sample_rate = int(rec["sample_rate"])
                     phys_min = float(rec.get("physical_min", -32768.0))
                     phys_max = float(rec.get("physical_max", 32767.0))
                     label = str(rec.get("label", ""))

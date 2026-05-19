@@ -9,15 +9,15 @@ import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.domains.signal.adaptive.affine_projection_filter import AffineProjectionFilter
-from pirn.domains.signal.types.signal_frame import SignalFrame
-from tests.unit.domains.signal.conftest import make_signal_frame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+from tests.unit.domains.signal.conftest import make_signal_payload
 
-_SIGNAL = make_signal_frame()
-_REF = make_signal_frame(signal_id="reference")
+_SIGNAL = make_signal_payload()
+_REF = make_signal_payload(signal_id="reference")
 
 
 def _upstream(name: str = "signal") -> Parameter:
-    return Parameter(name, SignalFrame, _config=KnotConfig(id=name))
+    return Parameter(name, SignalPayload, _config=KnotConfig(id=name))
 
 
 class TestAffineProjectionFilter(unittest.IsolatedAsyncioTestCase):
@@ -49,5 +49,5 @@ class TestAffineProjectionFilter(unittest.IsolatedAsyncioTestCase):
     async def test_emits_signal_frame(self) -> None:
         knot = self._make()
         out = await knot.process(_SIGNAL, _REF, filter_length=8, projection_order=2, step_size=0.1)
-        assert isinstance(out, SignalFrame)
-        assert out.signal_id == "test:apa"
+        assert isinstance(out, SignalPayload)
+        assert out.frame.signal_id == "test:apa"

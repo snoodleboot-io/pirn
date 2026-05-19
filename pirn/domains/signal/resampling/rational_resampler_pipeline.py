@@ -24,12 +24,21 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 from math import gcd
 from typing import Any
+
+import numpy as np
+from scipy import signal as ss
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn.domains.signal.types.signal_payload import SignalPayload
+
+
+def _resample_poly(data: np.ndarray, up: int, down: int) -> np.ndarray:
+    return np.asarray(ss.resample_poly(data, up, down, axis=-1))
 
 
 class RationalResamplerPipeline(Knot):
@@ -57,11 +66,11 @@ class RationalResamplerPipeline(Knot):
 
     async def process(
         self,
-        signal: SignalFrame,
+        signal: SignalPayload,
         upsample_factor: int,
         downsample_factor: int,
         **_: Any,
-    ) -> SignalFrame:
+    ) -> SignalPayload:
         """Resample the signal at the reduced rational L/M ratio.
 
         Args:
@@ -70,7 +79,7 @@ class RationalResamplerPipeline(Knot):
             downsample_factor: Integer downsampling factor M (positive integer).
 
         Returns:
-            SignalFrame at the new sample rate with GCD-reduced upsample and downsample factors applied.
+            SignalPayload at the new sample rate with GCD-reduced upsample and downsample factors applied.
 
         Raises:
             ValueError: If upsample_factor or downsample_factor are not positive integers.
@@ -83,14 +92,20 @@ class RationalResamplerPipeline(Knot):
             raise ValueError(
                 "RationalResamplerPipeline: downsample_factor must be a positive integer"
             )
+
         common = gcd(upsample_factor, downsample_factor)
         up = upsample_factor // common
-        m = downsample_factor // common
-        new_rate = (signal.sample_rate_hz * up) / m
-        new_samples = (signal.samples_per_channel * up) // m
-        return SignalFrame(
-            signal_id=f"{signal.signal_id}:rational",
-            channel_count=signal.channel_count,
-            sample_rate_hz=new_rate,
-            samples_per_channel=new_samples,
+        down = downsample_factor // common
+
+        result = await asyncio.to_thread(_resample_poly, signal.data, up, down)
+        new_rate = (signal.frame.sample_rate_hz * up) / down
+
+        return SignalPayload(
+            metadata=SignalFrame(
+                signal_id=f"{signal.frame.signal_id}:rational",
+                channel_count=signal.frame.channel_count,
+                sample_rate_hz=new_rate,
+                samples_per_channel=result.shape[-1],
+            ),
+            data=result,
         )
