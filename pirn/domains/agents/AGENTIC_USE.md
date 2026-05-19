@@ -90,7 +90,7 @@ pirn/domains/agents/
     ├── reflection/              SelfCritiqueRevise, ConstitutionalFilter, OutcomeSimulator
     ├── tool_use/                ToolSelector, ParallelToolCaller, ToolChain,
     │                            ToolCallValidator, ToolResultFormatter
-    ├── human_in_the_loop/       ApprovalGate, ClarificationRequester, EscalationRouter
+    ├── human_in_the_loop/       ApprovalCheck, ClarificationRequester, EscalationRouter
     ├── routing/                 IntentRouter, ConfidenceRouter, CapabilityRouter
     └── conversation/            MultiTurnContextAssembler, ConversationMemoryPruner
 ```
@@ -335,6 +335,135 @@ response: AgentResponse = result.outputs["react"]
 
 ---
 
+## Human-in-the-loop patterns
+
+Three knots in `specializations/human_in_the_loop/` handle points in a pipeline where a human (or a supervising agent) must intervene before execution continues.
+
+| Knot | Purpose | Returns |
+|------|---------|---------|
+| `ApprovalCheck` | Emit an approval request for an `AgentResponse`; gate downstream execution on the result | `bool` — `True` if approved |
+| `ClarificationRequester` | Detect ambiguous user messages via LLM; return a clarifying question or the original message | `str` |
+| `EscalationRouter` | Pass high-confidence responses through; return `None` for low-confidence ones that need human review | `AgentResponse \| None` |
+
+**Key points:**
+- All three return plain values, not booleans that auto-block the graph. Wire their outputs to a `Gate` when you need to halt execution on failure.
+- `ApprovalCheck` accepts `auto_approve=True` for non-production or test use — the request record is still emitted, but the knot always returns `True`.
+- `EscalationRouter` reads `response.usage["confidence"]`; providers that do not populate this field will always escalate (confidence is treated as 0).
+
+```python
+from pirn import Tapestry, Parameter, KnotConfig, RunRequest
+from pirn.nodes.gate.gate import Gate
+from pirn.domains.agents.generation.llm_call import LLMCall
+from pirn.domains.agents.generation.output_parser import OutputParser
+from pirn.domains.agents.input.context_builder import ContextBuilder
+from pirn.domains.agents.input.message_parser import MessageParser
+from pirn.domains.agents.specializations.human_in_the_loop.approval_check import ApprovalCheck
+from pirn.domains.agents.specializations.human_in_the_loop.escalation_router import EscalationRouter
+
+# provider defined elsewhere
+async def main():
+    with Tapestry() as t:
+        raw      = Parameter("user_input", str)
+        messages = MessageParser(raw_input=raw,      _config=KnotConfig(id="parse"))
+        context  = ContextBuilder(messages=messages, _config=KnotConfig(id="ctx"))
+        response = LLMCall(context=context, llm=provider, _config=KnotConfig(id="llm"))
+        parsed   = OutputParser(response=response,   _config=KnotConfig(id="out"))
+
+        # Route low-confidence responses to escalation (returns None when confidence < 0.8)
+        routed   = EscalationRouter(
+                       response=parsed,
+                       threshold=0.8,
+                       _config=KnotConfig(id="escalation_router"),
+                   )
+        # Gate blocks downstream knots when routed is None (escalation path)
+        approved = Gate(
+                       input=routed,
+                       predicate=lambda v: v is not None,
+                       _config=KnotConfig(id="escalation_gate"),
+                   )
+
+        # For responses that pass routing, require explicit approval before continuing
+        approval = ApprovalCheck(
+                       response=parsed,
+                       _config=KnotConfig(id="approval"),
+                   )
+        Gate(
+            input=approval,
+            predicate=lambda approved: approved,
+            _config=KnotConfig(id="approval_gate"),
+        )
+
+    result = await t.run(RunRequest(parameters={"user_input": "Summarise our Q3 financials."}))
+```
+
+---
+
+## Plan-and-execute pattern
+
+Three knots in `specializations/plan_and_execute/` decompose a high-level goal into an ordered plan, execute it step by step, and optionally revise the remaining steps when a step fails.
+
+| Knot | Purpose | Input → Output |
+|------|---------|----------------|
+| `TaskPlanner` | Ask the LLM to decompose a goal into ordered steps | `goal: str` → `Plan` |
+| `PlanExecutor` | Execute each step sequentially, feeding prior results as context | `plan: Plan` → `AgentResponse` |
+| `PlanRevisor` | Given partial results and a failure reason, ask the LLM to rewrite the remaining steps | `original_plan, completed_results, failure_reason` → `Plan` |
+
+**Key points:**
+- `PlanExecutor` runs steps sequentially inside its own loop — it is not a `LoopSubTapestry`. All steps share the same `LLMProvider` call context.
+- `PlanRevisor` is optional. Use it when you want the agent to self-correct a stalled plan rather than failing the whole pipeline.
+- `TaskPlanner` parses numbered lines (`1. step one`) from the LLM response. Lines starting with `#` are treated as rationale and excluded from `Plan.steps`.
+
+```python
+from pirn import Tapestry, Parameter, KnotConfig, RunRequest
+from pirn.domains.agents.specializations.plan_and_execute.task_planner import TaskPlanner
+from pirn.domains.agents.specializations.plan_and_execute.plan_executor import PlanExecutor
+
+# provider defined elsewhere
+async def main():
+    with Tapestry() as t:
+        goal     = Parameter("goal", str)
+        plan     = TaskPlanner(
+                       goal=goal,
+                       llm=provider,
+                       _config=KnotConfig(id="planner"),
+                   )
+        result   = PlanExecutor(
+                       plan=plan,
+                       llm=provider,
+                       _config=KnotConfig(id="executor"),
+                   )
+
+    run = await t.run(RunRequest(parameters={
+        "goal": "Write a market analysis report for solar energy in Texas."
+    }))
+    print(run.outputs["executor"].content)
+    await provider.close()
+```
+
+To add revision on failure, wire `PlanRevisor` with `ErrorPolicy.RECEIVE_ERRORS` on `PlanExecutor`:
+
+```python
+from pirn.core.error_policy import ErrorPolicy
+from pirn.domains.agents.specializations.plan_and_execute.plan_revisor import PlanRevisor
+
+with Tapestry() as t:
+    goal     = Parameter("goal", str)
+    plan     = TaskPlanner(goal=goal, llm=provider, _config=KnotConfig(id="planner"))
+    executed = PlanExecutor(
+                   plan=plan, llm=provider,
+                   _config=KnotConfig(id="executor", error_policy=ErrorPolicy.RECEIVE_ERRORS),
+               )
+    PlanRevisor(
+        original_plan=plan,
+        completed_results="",
+        failure_reason=executed,      # Err result passed through when executor fails
+        llm=provider,
+        _config=KnotConfig(id="revisor", error_policy=ErrorPolicy.RECEIVE_ERRORS),
+    )
+```
+
+---
+
 ## Anti-patterns
 
 ### Passing a Plan directly to ToolRouter
@@ -424,7 +553,7 @@ Call `self._clear_credentials()` inside `close()` for every provider, tool, or s
 | Select the right tool | `ToolSelector(context=..., tools=[...], llm=..., _config=...)` |
 | Call tools in parallel | `ParallelToolCaller(calls=..., tools=[...], _config=...)` |
 | Validate tool call args | `ToolCallValidator(call=..., tools=[...], _config=...)` |
-| Human approval gate | `ApprovalGate(request=..., approver=..., _config=...)` |
+| Human approval gate | `ApprovalCheck(request=..., approver=..., _config=...)` |
 | Request clarification | `ClarificationRequester(context=..., llm=..., _config=...)` |
 | Escalation routing | `EscalationRouter(response=..., rules=[...], _config=...)` |
 | Route by intent | `IntentRouter(context=..., routes={...}, _config=...)` |
@@ -441,4 +570,4 @@ Call `self._clear_credentials()` inside `close()` for every provider, tool, or s
 
 ---
 
-*See also: [pirn AGENTIC_USE.md](../../AGENTIC_USE.md)*
+*See also: [pirn AGENTIC_USE.md](../../../AGENTIC_USE.md)*
