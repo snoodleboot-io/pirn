@@ -55,8 +55,11 @@ class TestIdentityEngineWiring(unittest.TestCase):
 
     def test_default_resolver_uses_os_user(self) -> None:
         t = _make_simple_tapestry()
-        with patch("pirn.core.identity.os_identity_resolver.getpass.getuser", return_value="test-os-user"):
-            result = asyncio.run(t.run(RunRequest()))
+        # Clear CI env vars so EnvIdentityResolver yields nothing and falls through to OS user.
+        empty = {"GITHUB_ACTOR": "", "GITLAB_USER_LOGIN": "", "CI_USER": "", "BUILD_USER": ""}
+        with patch.dict("os.environ", empty):
+            with patch("pirn.core.identity.os_identity_resolver.getpass.getuser", return_value="test-os-user"):
+                result = asyncio.run(t.run(RunRequest()))
         self.assertEqual(result.actor, "test-os-user")
 
     def test_env_var_takes_precedence_over_os_user(self) -> None:
