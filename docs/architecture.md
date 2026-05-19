@@ -271,7 +271,8 @@ Type tags (`__model__`, `__map__`, `__seq__`, `__set__`, `__bytes__`) prevent cr
 
 ```python
 from pirn.core.knot import Knot
-from pirn.core.config import KnotConfig, ErrorPolicy
+from pirn.core.knot_config import KnotConfig
+from pirn.core.error_policy import ErrorPolicy
 
 class EnrichUser(Knot):
     async def process(self, user_id: str, lookup_table: dict) -> dict:
@@ -361,7 +362,7 @@ The Shed is not part of the public API. It is an engine internal.
 
 ### 3.3 Execution Layer
 
-**Files:** `pirn/engine/engine.py`, `pirn/engine/shed.py`, `pirn/engine/dispatcher.py`
+**Files:** `pirn/engine/engine.py`, `pirn/engine/shed.py`, `pirn/engine/dispatchers/dispatcher.py`
 
 **Engine:**
 
@@ -423,7 +424,7 @@ When `extensible_store` is passed to `engine.execute`, the engine subscribes to 
 3. Re-runs `_bind_parameters` for any new Parameter knots.
 4. Extends `remaining` with new knot ids.
 
-Requires the store to implement `SubscribableStore` (`pirn/backends/subscribe.py`). `InMemoryStore`, `PostgresStore`, and `ValKeyStore` all implement this protocol (see `docs/subscribable-stores.md`).
+Requires the store to implement `SubscribableStore` (`pirn/backends/base/subscribable_store.py`). `InMemoryStore`, `PostgresStore`, and `ValKeyStore` all implement this protocol (see `docs/subscribable-stores.md`).
 
 ### 3.4 Storage Layer
 
@@ -450,7 +451,7 @@ Three protocols (all `@runtime_checkable`):
 - `has(content_hash)` — check existence.
 - `scrub(content_hash)` — remove value; lineage referencing it remains intact.
 
-**`SubscribableStore`** (optional extension of `TapestryStore`, `pirn/backends/subscribe.py`)
+**`SubscribableStore`** (optional extension of `TapestryStore`, `pirn/backends/base/subscribable_store.py`)
 - `subscribe(callback)` → token — fire callback on each new knot registration.
 - `unsubscribe(token)` — remove subscription.
 
@@ -512,7 +513,7 @@ Consumes `RunRequest`s from `trigger.stream()` and calls `tapestry.run(request)`
 | Trigger | Source |
 |---------|--------|
 | `CronTrigger` | Schedule-based; wraps `croniter` or similar |
-| `HttpTrigger` | Embedded HTTP server (webhook receiver) |
+| `WebhookTrigger` | Embedded HTTP server (webhook receiver) |
 | `KafkaTrigger` | Kafka consumer; one `RunRequest` per message |
 | `ValkeyTrigger` | ValKey pubsub subscriber |
 
@@ -954,7 +955,7 @@ Subclass `Knot` and implement `async def process(self, ...) -> Any`:
 
 ```python
 from pirn.core.knot import Knot, Optional
-from pirn.core.config import KnotConfig
+from pirn.core.knot_config import KnotConfig
 
 class MyKnot(Optional, Knot):
     async def process(self, data: list[dict], threshold: float) -> list[dict]:
@@ -997,7 +998,7 @@ Note: values are arbitrary Python objects. The store is responsible for serializ
 
 ### 9.3 Custom Dispatchers
 
-Implement `pirn/engine/dispatcher.py:Dispatcher`:
+Implement `pirn/engine/dispatchers/dispatcher.py:Dispatcher`:
 
 ```python
 class MyDispatcher:
@@ -1137,7 +1138,7 @@ graph TD
         TrigProto["Trigger protocol\npirn/triggers/base.py"]
         RunForever["run_forever()"]
         CronT["CronTrigger"]
-        HttpT["HttpTrigger"]
+        HttpT["WebhookTrigger"]
         KafkaT["KafkaTrigger"]
     end
 
@@ -1317,7 +1318,7 @@ flowchart TD
 | `pirn/tapestry.py` | `Tapestry`, `_CURRENT_TAPESTRY` ContextVar, `current_tapestry()` |
 | `pirn/engine/engine.py` | `Engine`, wave loop, `_decide`, `_dispatch_with_timing`, `_record_lineage` |
 | `pirn/engine/shed.py` | `Shed`, `Edge`, `ShedError`, BFS construction, `merge_knot` |
-| `pirn/engine/dispatcher.py` | `Dispatcher` protocol, `LocalDispatcher`, `ThreadDispatcher` |
+| `pirn/engine/dispatchers/dispatcher.py` | `Dispatcher` protocol, `LocalDispatcher`, `ThreadDispatcher` |
 | `pirn/engine/celery_dispatcher.py` | `CeleryDispatcher`, `register_celery_worker_task` |
 | `pirn/engine/dask_dispatcher.py` | `DaskDispatcher` |
 | `pirn/engine/ray_dispatcher.py` | `RayDispatcher` |
@@ -1329,7 +1330,7 @@ flowchart TD
 | `pirn/backends/valkey.py` | `ValKeyStore`, `ValKeyDataStore` |
 | `pirn/backends/s3.py` | `S3DataStore` |
 | `pirn/backends/disk.py` | `LocalDiskDataStore` |
-| `pirn/backends/subscribe.py` | `SubscribableStore` protocol |
+| `pirn/backends/base/subscribable_store.py` | `SubscribableStore` protocol |
 | `pirn/emitters/base.py` | `Emitter` protocol |
 | `pirn/triggers/base.py` | `Trigger` protocol, `run_forever()` |
 | `pirn/streaming/base.py` | `StreamingSource` protocol, `run_stream()` |

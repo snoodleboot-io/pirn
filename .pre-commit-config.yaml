@@ -28,3 +28,10 @@ repos:
         types: [python]
         files: ^pirn/
         exclude: ^(tests|examples)/
+
+      - id: stamp-agentic-use-version
+        name: stamp AGENTIC_USE.md major version
+        entry: python scripts/stamp_agentic_use_version.py
+        language: system
+        pass_filenames: false
+        always_run: true

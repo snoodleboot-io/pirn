@@ -40,10 +40,9 @@ pirn/
 │   ├── sub_tapestry.py      ← SubTapestry base: knot whose body is a complete inner tapestry; implement process() returning the terminal Knot
 │   ├── gate/gate.py         ← Gate: one parent + predicate callable → Ok(value) if truthy, Skipped if falsy
 │   ├── aggregator.py        ← Aggregator: N parents merged via a combine callable
-│   ├── branch.py            ← Branch: one parent + selector → tagged paths; non-selected paths are Skipped
+│   ├── branch/branch.py     ← Branch: one parent + selector → tagged paths; non-selected paths are Skipped
 │   ├── map_markers.py       ← Map / ZipMap / DictMap marker wrappers for fan-out construction
-│   ├── map_knot.py          ← Map node: fans a knot over every element of a list parent
-│   ├── reduce.py            ← Reduce node: folds a list parent to one value (whole-list or pairwise)
+│   ├── reduce_.py           ← Reduce node: folds a list parent to one value (whole-list or pairwise)
 │   ├── continuation.py      ← WithContinuation / continues(): deterministic successor attachment post-run
 │   └── loop_sub_tapestry.py ← LoopSubTapestry: iterative SubTapestry with knots in one extensible run
 ├── tapestry.py              ← Tapestry class: context manager, register(), run(), terminals(), get_current_store()
@@ -566,4 +565,4 @@ domain guide alongside this file before writing domain code.
 
 ---
 
-*Generated for agent use. Covers pirn 0.3.0 on branch feat/domain-gap-remediation-plan.*
+*Generated for agent use. Covers pirn 0.x*

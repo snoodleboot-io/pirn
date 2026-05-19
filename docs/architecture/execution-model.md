@@ -227,7 +227,7 @@ With `extensible=True`, the engine subscribes to the store before the wave loop.
 3. Bind any new `Parameter` knots immediately.
 4. Extend `remaining` with new knot ids.
 
-This enables dynamic pipeline patterns such as a knot that decides to spawn N more knots based on its output. Requires a `SubscribableStore` (`InMemoryStore` in Phase 3).
+This enables dynamic pipeline patterns such as a knot that decides to spawn N more knots based on its output. Requires a `SubscribableStore` (`InMemoryStore`, `PostgresStore`, and `ValKeyStore` all implement this protocol).
 
 ---
 
