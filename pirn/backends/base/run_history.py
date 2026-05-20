@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from pirn.core.knot_source import KnotSourceRecord
     from pirn.core.lineage import KnotLineage
 
 
@@ -93,3 +94,25 @@ class RunHistory:
     async def children_of(self, run_id: str) -> list[Any]:
         """Return all runs whose parent_run_id matches run_id."""
         raise NotImplementedError(f"{type(self).__name__} must implement children_of()")
+
+    async def record_knot_source(self, record: KnotSourceRecord) -> None:
+        """Persist a knot source snapshot, ignoring duplicates.
+
+        Implementations must be idempotent: inserting a record whose
+        ``source_hash`` already exists in the store is a no-op.
+
+        Args:
+            record: The ``KnotSourceRecord`` to persist.
+        """
+        raise NotImplementedError(f"{type(self).__name__} must implement record_knot_source()")
+
+    async def get_knot_source(self, source_hash: str) -> KnotSourceRecord | None:
+        """Fetch a knot source snapshot by its content hash.
+
+        Args:
+            source_hash: SHA-256 hex digest as stored in ``KnotLineage.source_hash``.
+
+        Returns:
+            A ``KnotSourceRecord``, or ``None`` if the hash is not found.
+        """
+        raise NotImplementedError(f"{type(self).__name__} must implement get_knot_source()")

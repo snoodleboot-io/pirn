@@ -125,6 +125,7 @@ class Reduce(Knot):
         self._mutable_input_adapters = {}
         self._mutable_output_adapter = None
         self._mutable_mapped_inputs: dict = {}
+        self._mutable_fan_out_extra: dict[str, Any] = {}
 
         from pirn.tapestry import _current_tapestry
 

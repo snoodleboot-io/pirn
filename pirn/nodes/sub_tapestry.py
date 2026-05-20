@@ -131,8 +131,14 @@ class SubTapestry(Knot):
         outer = explicit_tapestry or _current_tapestry.get(None)
         outer_history: RunHistory | None = outer.history if outer is not None else None
         super().__init__(**kwargs)
-        # Bypass freeze guard to stash history for use in _run_inner.
+        # Bypass freeze guard to stash fields that are unknown until after
+        # __init__ completes.  Both follow the _mutable_ convention so the
+        # freeze guard allows them.
         object.__setattr__(self, "_mutable_outer_history", outer_history)
+        object.__setattr__(self, "_mutable_inner_run_meta", {})
+
+    def lineage_extra(self) -> dict[str, Any]:
+        return {**super().lineage_extra(), **self._mutable_inner_run_meta}
 
     async def process(self, **_: Any) -> Knot:
         """Override to declare the inner pipeline and return its terminal knot.
@@ -191,6 +197,11 @@ class SubTapestry(Knot):
         except BaseException as exc:
             return Err(record=ExceptionRecord.for_knot(config.id, exc))
 
+        self._mutable_inner_run_meta = {
+            "inner_run_id": run_result.run_id,
+            "inner_knot_count": len(run_result.lineage),
+            "inner_failures": len(run_result.exceptions),
+        }
         return Ok(value=output)
 
     async def _run_inner(

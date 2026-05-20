@@ -14,9 +14,11 @@ from pathlib import Path
 
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 from pirn.yaml_loader.loader import load_pipeline
 
 YAML_PATH = Path(__file__).parent / "tapestry.yaml"
+DB_PATH = Path(__file__).parent.parent / "pirn.db"
 
 SAMPLES = [
     ("Clean text", "The quick brown fox jumps over the lazy dog."),
@@ -29,13 +31,13 @@ SAMPLES = [
 
 
 async def main() -> None:
-    tapestry = load_pipeline(YAML_PATH.read_text())
-    history = SQLiteHistory(path=str(Path(__file__).parent.parent / "pirn.db"))
+    history = SQLiteHistory(path=str(DB_PATH))
+    base_tapestry = Tapestry(history=history)
+    tapestry = load_pipeline(YAML_PATH.read_text(), tapestry=base_tapestry)
 
     for label, text in SAMPLES:
         print(f"\n── {label} ──")
         result = await tapestry.run(RunRequest(parameters={"raw_text": text}))
-        await history.record_run(result)
         for rec in result.lineage:
             icon = "✓" if rec.outcome == "ok" else ("⊘" if rec.outcome == "skipped" else "✗")
             print(f"  {icon} {rec.knot_id:<18} {rec.outcome}")

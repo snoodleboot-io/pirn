@@ -324,3 +324,23 @@ When the number of steps is not known ahead of time — an LLM agent refining ac
 `LoopSubTapestry` is a `SubTapestry` variant that runs its inner tapestry in extensible mode, allowing each iteration to register the next as a real, traceable knot in run history.  You implement two methods — `step(state)` to plan the next iteration and `fold(state, result)` to integrate its output — and the framework drives the loop.
 
 See [agentic-loops.md](agentic-loops.md) for the full contract, a conversational LLM example, and observability details.
+
+---
+
+## 11. YAML and SubTapestry
+
+`SubTapestry` and `LoopSubTapestry` are **Python-only** constructs. They cannot be declared inline in a YAML pipeline spec because their inner graph is built in `process()` — a Python method, not a YAML stanza.
+
+They can be *referenced* from YAML as a `type: knot` node once the class is defined in Python:
+
+```yaml
+- id: validate
+  type: knot
+  callable: myapp.stages.ValidateOrder
+  parents:
+    order: ingest
+```
+
+The outer pipeline topology (how `ValidateOrder` connects to other outer knots) lives in YAML. The inner pipeline (the `process()` body) stays in Python. The `Optional` wrapper and Assembler knots follow the same rule — Python-defined, YAML-referenced.
+
+See [YAML vs Python boundary](yaml-pipelines.md#yaml-vs-python-what-cannot-be-declared-in-yaml) for the full list of Python-only constructs.

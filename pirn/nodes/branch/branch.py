@@ -69,6 +69,8 @@ class Branch(Knot):
 
         self._mutable_selector = selector
         self._mutable_branch_names = branches
+        self._mutable_execution_extra: dict[str, Any] = {}
+        self._mutable_fan_out_extra: dict[str, Any] = {}
 
         self._mutable_config = _config
         self._mutable_parents = {"input": input}
@@ -107,6 +109,17 @@ class Branch(Knot):
     @property
     def branch_names(self) -> tuple[str, ...]:
         return self._mutable_branch_names
+
+    def lineage_extra(self) -> dict[str, Any]:
+        return {**super().lineage_extra(), **self._mutable_execution_extra}
+
+    async def __call__(self, parent_results: Any) -> Any:
+        from pirn.core.ok import Ok as _Ok
+
+        result = await super().__call__(parent_results)
+        if isinstance(result, _Ok):
+            self._mutable_execution_extra = {"selected_branch": result.value}
+        return result
 
     async def process(self, input: Any, **_: Any) -> str:  # type: ignore[override]
         """Apply the selector to the input value and return the name of the chosen branch.

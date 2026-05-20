@@ -20,6 +20,7 @@ from __future__ import annotations
 from typing import Any
 
 from pirn.backends.base.run_history import RunHistory
+from pirn.core.knot_source import KnotSourceRecord
 from pirn.core.lineage import KnotLineage
 
 
@@ -64,6 +65,12 @@ CREATE TABLE IF NOT EXISTS lineage_inputs (
     input_name VARCHAR NOT NULL,
     input_hash VARCHAR NOT NULL,
     PRIMARY KEY (run_id, knot_id, input_name)
+);
+CREATE TABLE IF NOT EXISTS knot_sources (
+    source_hash VARCHAR PRIMARY KEY,
+    source_text VARCHAR NOT NULL,
+    knot_class VARCHAR NOT NULL,
+    pirn_version VARCHAR NOT NULL
 );
 """
 
@@ -254,6 +261,44 @@ CREATE TABLE IF NOT EXISTS lineage_inputs (
         self._ensure_init()
         rows = self._conn.execute("SELECT COUNT(*) FROM runs").fetchall()
         return int(rows[0][0])
+
+    async def record_knot_source(self, record: KnotSourceRecord) -> None:
+        """Persist a knot source snapshot; no-op if the hash already exists.
+
+        Args:
+            record: The ``KnotSourceRecord`` to persist.
+        """
+        self._ensure_init()
+        self._conn.execute(
+            """INSERT INTO knot_sources (source_hash, source_text, knot_class, pirn_version)
+               VALUES (?, ?, ?, ?)
+               ON CONFLICT (source_hash) DO NOTHING""",
+            (record.source_hash, record.source_text, record.knot_class, record.pirn_version),
+        )
+
+    async def get_knot_source(self, source_hash: str) -> KnotSourceRecord | None:
+        """Fetch a knot source snapshot by content hash.
+
+        Args:
+            source_hash: SHA-256 hex digest as stored in ``KnotLineage.source_hash``.
+
+        Returns:
+            A ``KnotSourceRecord``, or ``None`` if not found.
+        """
+        self._ensure_init()
+        rows = self._conn.execute(
+            "SELECT source_hash, source_text, knot_class, pirn_version "
+            "FROM knot_sources WHERE source_hash = ?",
+            (source_hash,),
+        ).fetchall()
+        if not rows:
+            return None
+        return KnotSourceRecord(
+            source_hash=rows[0][0],
+            source_text=rows[0][1],
+            knot_class=rows[0][2],
+            pirn_version=rows[0][3],
+        )
 
     def close(self) -> None:
         """Close the underlying DuckDB connection."""

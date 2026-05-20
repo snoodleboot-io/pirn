@@ -317,33 +317,26 @@ def _seed_messages(ctx: SessionContext, system: str) -> tuple[AgentMessage, ...]
 class LLMTaskRunner(SubTapestry):
     """ContextBuilder → LLMCall → OutputParser inner pipeline."""
 
-    async def process(self, ctx: SessionContext, action: PlannedAction, **_: Any) -> AgentResponse:
+    async def process(self, ctx: SessionContext, action: PlannedAction, **_: Any) -> Knot:
         msgs = _seed_messages(
             ctx,
             system="You are a helpful assistant. Answer the user's question clearly and concisely.",
         )
-        with Tapestry() as inner:
-            msgs_param = Parameter(
-                "messages",
-                tuple,
-                default=msgs,
-                _config=KnotConfig(id="msgs"),
-            )
-            context_k = ContextBuilder(messages=msgs_param, _config=KnotConfig(id="ctx"))
-            llm_k = LLMCall(context=context_k, llm=_LLM, _config=KnotConfig(id="call"))
-            OutputParser(response=llm_k, _config=KnotConfig(id="out"))
-
-        result = await self._run_inner(inner)
-        resp = result.outputs.get("out")
-        if not isinstance(resp, AgentResponse):
-            return AgentResponse(content="[llm_task: no output]")
-        return resp
+        msgs_param = Parameter(
+            "messages",
+            tuple,
+            default=msgs,
+            _config=KnotConfig(id="msgs"),
+        )
+        context_k = ContextBuilder(messages=msgs_param, _config=KnotConfig(id="ctx"))
+        llm_k = LLMCall(context=context_k, llm=_LLM, _config=KnotConfig(id="call"))
+        return OutputParser(response=llm_k, _config=KnotConfig(id="out"))
 
 
 class ReActRunner(SubTapestry):
     """ReActLoop inner pipeline — reason + act with stub tools."""
 
-    async def process(self, ctx: SessionContext, action: PlannedAction, **_: Any) -> AgentResponse:
+    async def process(self, ctx: SessionContext, action: PlannedAction, **_: Any) -> Knot:
         msgs = _seed_messages(
             ctx,
             system=(
@@ -351,20 +344,13 @@ class ReActRunner(SubTapestry):
                 "as needed. When you have enough information emit: Final Answer: <text>"
             ),
         )
-        with Tapestry() as inner:
-            ReActLoop(
-                messages=list(msgs),
-                llm=_LLM,
-                tools=list(_ALL_TOOLS),
-                max_iterations=3,
-                _config=KnotConfig(id="react_loop"),
-            )
-
-        result = await self._run_inner(inner)
-        resp = result.outputs.get("react_loop")
-        if not isinstance(resp, AgentResponse):
-            return AgentResponse(content="[react: no output]")
-        return resp
+        return ReActLoop(
+            messages=list(msgs),
+            llm=_LLM,
+            tools=list(_ALL_TOOLS),
+            max_iterations=3,
+            _config=KnotConfig(id="react_loop"),
+        )
 
 
 class _PlanFirstStep(Knot):
@@ -378,6 +364,18 @@ class _PlanFirstStep(Knot):
         return str(plan)
 
 
+class _ToolResultWrapper(Knot):
+    """Convert a ToolResult to an AgentResponse for the outer aggregator."""
+
+    async def process(self, exec_out: Any, **_: Any) -> AgentResponse:
+        tool_content = (
+            str(exec_out.result)
+            if exec_out and exec_out.error is None
+            else (str(exec_out.error) if exec_out else "[planner: no output]")
+        )
+        return AgentResponse(content=f"[plan→tool] {tool_content}")
+
+
 class PlannerRunner(SubTapestry):
     """ContextBuilder → Planner → PlanFirstStep → ToolRouter → ToolExecutor.
 
@@ -386,7 +384,7 @@ class PlannerRunner(SubTapestry):
     step string from the ``Plan`` before passing it to ``ToolRouter``.
     """
 
-    async def process(self, ctx: SessionContext, action: PlannedAction, **_: Any) -> AgentResponse:
+    async def process(self, ctx: SessionContext, action: PlannedAction, **_: Any) -> Knot:
         msgs = _seed_messages(
             ctx,
             system=(
@@ -395,35 +393,26 @@ class PlannerRunner(SubTapestry):
                 "followed by a colon and a description. One step per line."
             ),
         )
-        with Tapestry() as inner:
-            msgs_param = Parameter(
-                "messages",
-                tuple,
-                default=msgs,
-                _config=KnotConfig(id="msgs"),
-            )
-            context_k = ContextBuilder(messages=msgs_param, _config=KnotConfig(id="ctx"))
-            plan_k = Planner(context=context_k, llm=_PLANNER_LLM, _config=KnotConfig(id="plan"))
-            step_k = _PlanFirstStep(plan=plan_k, _config=KnotConfig(id="step"))
-            router_k = ToolRouter(
-                step=step_k,
-                tools=list(_ALL_TOOLS),
-                _config=KnotConfig(id="route"),
-            )
-            ToolExecutor(
-                call=router_k,
-                tools=list(_ALL_TOOLS),
-                _config=KnotConfig(id="exec"),
-            )
-
-        result = await self._run_inner(inner)
-        exec_out = result.outputs.get("exec")
-        tool_content = (
-            str(exec_out.result)
-            if exec_out and exec_out.error is None
-            else (str(exec_out.error) if exec_out else "[planner: no output]")
+        msgs_param = Parameter(
+            "messages",
+            tuple,
+            default=msgs,
+            _config=KnotConfig(id="msgs"),
         )
-        return AgentResponse(content=f"[plan→tool] {tool_content}")
+        context_k = ContextBuilder(messages=msgs_param, _config=KnotConfig(id="ctx"))
+        plan_k = Planner(context=context_k, llm=_PLANNER_LLM, _config=KnotConfig(id="plan"))
+        step_k = _PlanFirstStep(plan=plan_k, _config=KnotConfig(id="step"))
+        router_k = ToolRouter(
+            step=step_k,
+            tools=list(_ALL_TOOLS),
+            _config=KnotConfig(id="route"),
+        )
+        exec_k = ToolExecutor(
+            call=router_k,
+            tools=list(_ALL_TOOLS),
+            _config=KnotConfig(id="exec"),
+        )
+        return _ToolResultWrapper(exec_out=exec_k, _config=KnotConfig(id="out"))
 
 
 # ----------------------------------------------------------------- planner knot

@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 from pirn.backends.base.run_history import RunHistory
 
 if TYPE_CHECKING:
+    from pirn.core.knot_source import KnotSourceRecord
     from pirn.core.lineage import KnotLineage
 
 
@@ -23,6 +24,7 @@ class InMemoryHistory(RunHistory):
         self._lineage_by_knot: dict[str, list[KnotLineage]] = {}
         self._runs_by_actor: dict[str, list[Any]] = {}
         self._runs_by_parent: dict[str, list[Any]] = {}
+        self._knot_sources: dict[str, KnotSourceRecord] = {}
         self._lock = Lock()
 
     async def record_run(self, result: Any) -> None:
@@ -115,3 +117,24 @@ class InMemoryHistory(RunHistory):
         """
         with self._lock:
             return list(self._runs_by_parent.get(run_id, []))
+
+    async def record_knot_source(self, record: KnotSourceRecord) -> None:
+        """Persist a knot source snapshot; no-op if the hash already exists.
+
+        Args:
+            record: The ``KnotSourceRecord`` to persist.
+        """
+        with self._lock:
+            self._knot_sources.setdefault(record.source_hash, record)
+
+    async def get_knot_source(self, source_hash: str) -> KnotSourceRecord | None:
+        """Fetch a knot source snapshot by content hash.
+
+        Args:
+            source_hash: SHA-256 hex digest as stored in ``KnotLineage.source_hash``.
+
+        Returns:
+            A ``KnotSourceRecord``, or ``None`` if not found.
+        """
+        with self._lock:
+            return self._knot_sources.get(source_hash)

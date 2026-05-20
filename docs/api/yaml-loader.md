@@ -278,3 +278,79 @@ knot_class = AbstractInverterFactory[Knot].create("my_knot", library="myapp")
 ---
 
 **See also:** [YAML Pipelines Guide](../guides/yaml-pipelines.md), [Architecture — YAML Loader](../architecture/overview.md#yaml-pipeline-loader)
+
+---
+
+## YAML vs Python: what cannot be declared in YAML
+
+Some pirn constructs are Python-only. They can be *referenced* from YAML (as `type: knot` with a `callable:` pointing to their class), but they cannot be *declared* inline in a YAML pipeline spec.
+
+| Construct | Status | How to use with YAML |
+|-----------|--------|----------------------|
+| `SubTapestry` | Python-only | Subclass in Python, reference via `callable:` |
+| `LoopSubTapestry` | Python-only | Subclass in Python, reference via `callable:` |
+| `Optional(MyKnot, ...)` | Python-only | Wrap in Python, reference the wrapper via `callable:` |
+| Assembler knots | Python-only | Write in Python, reference via `callable:` |
+
+**Example — SubTapestry referenced from YAML:**
+
+```python
+# myapp/stages.py
+class ValidateOrder(SubTapestry):
+    async def process(self, order: Order, **_) -> Knot:
+        p = Parameter("order", Order, default=order, _config=KnotConfig(id="order"))
+        authorize_payment(order=p, _config=KnotConfig(id="payment"))
+        return check_inventory(order=p, _config=KnotConfig(id="inventory"))
+```
+
+```yaml
+- id: validate
+  type: knot
+  callable: myapp.stages.ValidateOrder
+  parents:
+    order: ingest
+```
+
+The outer pipeline topology lives in YAML; the inner pipeline logic stays in `process()` in Python.
+
+---
+
+## Field name configuration
+
+Several built-in domain knots accept caller-supplied field name parameters so they work with any input schema without modifying the knot. Pass them via the `config:` dict on any `knot` node.
+
+### Example — `VCFFilter` with custom field names
+
+```yaml
+- id: filter_variants
+  type: knot
+  callable: VCFFilter
+  parents:
+    rows: fetch_rows
+    min_qual: qual_threshold
+    max_af: af_threshold
+  config:
+    qual_field: "qscore"       # default: "qual"
+    af_field: "allele_freq"    # default: "af"
+```
+
+Without `config:`, the knot uses its default field names (matching the original schema). Pass custom names when your data uses different keys.
+
+### Knots with configurable field names (added in v0.3.0)
+
+| Knot | Parameters | Defaults |
+|------|-----------|---------|
+| `VCFFilter` | `qual_field`, `af_field` | `"qual"`, `"af"` |
+| `ProductionRateNormalizer` | `rate_field` | `"rate"` |
+| `GasLiftOptimizer` | `pressure_field`, `rate_field` | `"pressure"`, `"rate"` |
+| `EspHealthMonitor` | `freq_field`, `current_field` | `"frequency"`, `"current"` |
+| `FlaringMeasurementProcessor` | `volume_field`, `duration_field` | `"volume"`, `"duration"` |
+| `DowntimeEventClassifier` | `reason_field`, `duration_field` | `"reason"`, `"duration"` |
+| `RodPumpOptimizer` | `stroke_field`, `load_field` | `"stroke_rate"`, `"rod_load"` |
+| `SeparatorTestProcessor` | `gor_field`, `wc_field` | `"gor"`, `"water_cut"` |
+| `TankGaugingProcessor` | `level_field`, `temp_field` | `"level"`, `"temperature"` |
+| `CorrosionRateEstimator` | `rate_field`, `inhibitor_field` | `"corrosion_rate"`, `"inhibitor_concentration"` |
+| `GasChromatographyAnalyzer` | `component_field`, `pct_field` | `"component"`, `"mole_percent"` |
+| `MudLoggingIngester` | `depth_field`, `gas_field` | `"depth"`, `"gas_reading"` |
+
+Missing required fields now raise `KeyError` with a message listing the expected key and the keys actually present — previously they silently used a default value of `0` or `None`.

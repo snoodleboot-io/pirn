@@ -7,6 +7,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
+from pirn.core.knot_source import KnotSourceRecord
 from pirn.core.lineage import KnotLineage
 from pirn.core.run_result import RunResult
 from pirn.managers.exception_manager import ExceptionManager
@@ -37,6 +38,9 @@ class RunContext:
         self.exceptions = ExceptionManager(run_id, traceback_filter=traceback_filter)
         self.lineage: list[KnotLineage] = []
         self.skipped: list[str] = []
+        # Deduplicated source snapshots keyed by source_hash — populated
+        # during the run, persisted after finalization.
+        self.knot_sources: dict[str, KnotSourceRecord] = {}
         self.started_at = datetime.now(UTC)
         self.parent_run_id = parent_run_id
         self.parent_knot_id = parent_knot_id
@@ -61,10 +65,30 @@ class RunContext:
             "cloudpickle_version": _pkg_version("cloudpickle"),
             "cloudpickle_pickle_protocol": str(cloudpickle.DEFAULT_PROTOCOL),
             "platform": sys.platform,
+            "vcs_commit": self._resolve_vcs_commit(),
         }
+
+    @staticmethod
+    def _resolve_vcs_commit() -> str:
+        """Return the HEAD git SHA of the calling project, or empty string."""
+        import subprocess
+
+        try:
+            result = subprocess.run(
+                ["git", "rev-parse", "--short", "HEAD"],
+                capture_output=True,
+                text=True,
+                timeout=2,
+            )
+            return result.stdout.strip() if result.returncode == 0 else ""
+        except Exception:
+            return ""
 
     def add_lineage(self, record: KnotLineage) -> None:
         self.lineage.append(record)
+
+    def add_knot_source(self, record: KnotSourceRecord) -> None:
+        self.knot_sources.setdefault(record.source_hash, record)
 
     def finalize(self, outputs: dict[str, Any]) -> RunResult:
         return RunResult(

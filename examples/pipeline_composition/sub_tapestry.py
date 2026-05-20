@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import Any
 
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
@@ -144,41 +145,35 @@ async def ship_order(slip: PackingSlip, carrier: str) -> ShipmentLabel:
 class ValidateOrder(SubTapestry):
     """Inner pipeline: inventory check + payment auth, both must succeed."""
 
-    async def process(self, order: Order, **_: Any) -> RunResult:
-        with Tapestry() as inner:
-            p = Parameter("order", Order, default=order, _config=KnotConfig(id="order"))
-            check_inventory(order=p, _config=KnotConfig(id="inventory"))
-            authorize_payment(order=p, _config=KnotConfig(id="payment"))
-        return await self._run_inner(inner)
+    async def process(self, order: Order, **_: Any) -> Knot:
+        p = Parameter("order", Order, default=order, _config=KnotConfig(id="order"))
+        authorize_payment(order=p, _config=KnotConfig(id="payment"))
+        return check_inventory(order=p, _config=KnotConfig(id="inventory"))
 
 
 class FulfillOrder(SubTapestry):
     """Inner pipeline: pack and ship.  Runs only after ValidateOrder succeeds."""
 
     async def process(
-        self, order: Order, validation: RunResult, carrier: str, **_: Any
-    ) -> RunResult:
-        inv: InventoryCheck = validation.outputs["inventory"]
-        with Tapestry() as inner:
-            p_inv = Parameter(
-                "inventory", InventoryCheck, default=inv, _config=KnotConfig(id="inventory")
-            )
-            p_order = Parameter("order", Order, default=order, _config=KnotConfig(id="order"))
-            slip = pack_order(order=p_order, inventory=p_inv, _config=KnotConfig(id="pack"))
-            ship_order(slip=slip, carrier=carrier, _config=KnotConfig(id="ship"))
-        return await self._run_inner(inner)
+        self, order: Order, validation: InventoryCheck, carrier: str, **_: Any
+    ) -> Knot:
+        p_inv = Parameter(
+            "inventory", InventoryCheck, default=validation, _config=KnotConfig(id="inventory")
+        )
+        p_order = Parameter("order", Order, default=order, _config=KnotConfig(id="order"))
+        slip = pack_order(order=p_order, inventory=p_inv, _config=KnotConfig(id="pack"))
+        return ship_order(slip=slip, carrier=carrier, _config=KnotConfig(id="ship"))
 
 
 # ----------------------------------------------------------------- outer knots
 
 
 @knot
-async def notify_customer(order: Order, fulfillment: RunResult) -> Notification:
+async def notify_customer(order: Order, fulfillment: ShipmentLabel) -> Notification:
     """Sends a dispatch notification once fulfillment is confirmed."""
-    label: ShipmentLabel = fulfillment.outputs["ship"]
     msg = (
         f"Hi {order.customer}! Your order {order.order_id} has been shipped "
-        f"via {label.carrier}. Tracking: {label.tracking_number}."
+        f"via {fulfillment.carrier}. Tracking: {fulfillment.tracking_number}."
     )
     return Notification(
         order_id=order.order_id,

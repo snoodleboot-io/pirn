@@ -6,6 +6,7 @@ from typing import Any
 
 from pirn.backends.base.run_history import RunHistory
 from pirn.backends.sqlite._migrations import apply_migrations
+from pirn.core.knot_source import KnotSourceRecord
 from pirn.core.lineage import KnotLineage
 
 
@@ -89,8 +90,14 @@ class SQLiteHistory(RunHistory):
             FOREIGN KEY (run_id, knot_id) REFERENCES lineage(run_id, knot_id)
         );
         CREATE INDEX IF NOT EXISTS idx_lineage_inputs_hash ON lineage_inputs(input_hash);
+        CREATE TABLE IF NOT EXISTS knot_sources (
+            source_hash TEXT PRIMARY KEY,
+            source_text TEXT NOT NULL,
+            knot_class TEXT NOT NULL,
+            pirn_version TEXT NOT NULL
+        );
     """
-    _schema_version = 3
+    _schema_version = 4
 
     @staticmethod
     def __migrate_v2(conn: Any) -> None:
@@ -111,6 +118,18 @@ class SQLiteHistory(RunHistory):
         conn.execute("ALTER TABLE runs ADD COLUMN parent_run_id TEXT")
         conn.execute("ALTER TABLE runs ADD COLUMN parent_knot_id TEXT")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_runs_parent ON runs(parent_run_id)")
+
+    @staticmethod
+    def __migrate_v4(conn: Any) -> None:
+        """Add knot_sources table for content-addressed source snapshots."""
+        conn.execute(
+            """CREATE TABLE IF NOT EXISTS knot_sources (
+                source_hash TEXT PRIMARY KEY,
+                source_text TEXT NOT NULL,
+                knot_class TEXT NOT NULL,
+                pirn_version TEXT NOT NULL
+            )"""
+        )
 
     def __init__(self, *, path: str = "pirn.db", connection: Any = None) -> None:
         """Initialise the history store.
@@ -142,7 +161,7 @@ class SQLiteHistory(RunHistory):
             self._conn,
             "history",
             self._schema_version,
-            {2: self.__migrate_v2, 3: self.__migrate_v3},
+            {2: self.__migrate_v2, 3: self.__migrate_v3, 4: self.__migrate_v4},
         )
         self._conn.commit()
         self._initialized = True
@@ -316,6 +335,43 @@ class SQLiteHistory(RunHistory):
             "SELECT payload_json FROM runs WHERE parent_run_id = ?", (run_id,)
         )
         return [RunResult.model_validate_json(r[0]) for r in cursor.fetchall()]
+
+    async def record_knot_source(self, record: KnotSourceRecord) -> None:
+        """Persist a knot source snapshot; no-op if the hash already exists.
+
+        Args:
+            record: The ``KnotSourceRecord`` to persist.
+        """
+        self._ensure_init()
+        self._conn.execute(
+            """INSERT OR IGNORE INTO knot_sources
+               (source_hash, source_text, knot_class, pirn_version)
+               VALUES (?, ?, ?, ?)""",
+            (record.source_hash, record.source_text, record.knot_class, record.pirn_version),
+        )
+        self._conn.commit()
+
+    async def get_knot_source(self, source_hash: str) -> KnotSourceRecord | None:
+        """Fetch a knot source snapshot by content hash.
+
+        Args:
+            source_hash: SHA-256 hex digest as stored in ``KnotLineage.source_hash``.
+
+        Returns:
+            A ``KnotSourceRecord``, or ``None`` if not found.
+        """
+        self._ensure_init()
+        cursor = self._conn.execute(
+            "SELECT source_hash, source_text, knot_class, pirn_version "
+            "FROM knot_sources WHERE source_hash = ?",
+            (source_hash,),
+        )
+        row = cursor.fetchone()
+        if row is None:
+            return None
+        return KnotSourceRecord(
+            source_hash=row[0], source_text=row[1], knot_class=row[2], pirn_version=row[3]
+        )
 
     def close(self) -> None:
         """Close the underlying SQLite connection.

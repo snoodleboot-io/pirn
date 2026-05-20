@@ -279,4 +279,23 @@ result = await tapestry.run(RunRequest(parameters={"user_id": "u123"}))
 
 ---
 
+---
+
+## YAML vs Python: what cannot be declared in YAML
+
+Some pirn constructs are Python-only. They can be *referenced* from YAML (as `type: knot` with a `callable:` pointing to their class), but they cannot be *declared* inline in a pipeline spec.
+
+| Construct | Status | How to use with YAML |
+|-----------|--------|----------------------|
+| `SubTapestry` | Python-only | Subclass in Python, reference via `callable:` |
+| `LoopSubTapestry` | Python-only | Subclass in Python, reference via `callable:` |
+| `Optional(MyKnot, ...)` | Python-only | Wrap in Python, reference the wrapper via `callable:` |
+| Assembler knots | Python-only | Write in Python, reference via `callable:` |
+
+The YAML loader supports 9 node types: `parameter`, `knot`, `source`, `sink`, `branch`, `gate`, `map`, `reduce`, and `aggregator`. Constructs that require custom Python logic (inner pipelines, conditional wrapping, assembler composition) must be implemented as a class and referenced from YAML rather than declared inline.
+
+**See also:** [YAML Loader API — Field name configuration](../api/yaml-loader.md#field-name-configuration) for configuring domain knot schema params from YAML.
+
+---
+
 **See also:** [Architecture — YAML Loader](../architecture/overview.md#yaml-pipeline-loader), [API — YAML Loader](../api/yaml-loader.md)

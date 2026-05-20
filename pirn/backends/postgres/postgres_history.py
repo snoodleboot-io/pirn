@@ -5,6 +5,7 @@ from typing import Any
 
 from pirn.backends.base.run_history import RunHistory
 from pirn.backends.postgres._lazy_pool import _LazyPool
+from pirn.core.knot_source import KnotSourceRecord
 from pirn.core.lineage import KnotLineage
 
 
@@ -56,8 +57,14 @@ class PostgresHistory(RunHistory):
             PRIMARY KEY (run_id, knot_id, input_name)
         );
         CREATE INDEX IF NOT EXISTS idx_lineage_inputs_hash ON lineage_inputs(input_hash);
+        CREATE TABLE IF NOT EXISTS knot_sources (
+            source_hash TEXT PRIMARY KEY,
+            source_text TEXT NOT NULL,
+            knot_class TEXT NOT NULL,
+            pirn_version TEXT NOT NULL
+        );
     """
-    _schema_version = 2
+    _schema_version = 3
 
     def __init__(self, *, pool: Any = None, dsn: str | None = None) -> None:
         """Initialise the history store.
@@ -105,6 +112,8 @@ class PostgresHistory(RunHistory):
         for v in range(current, self._schema_version):
             if v + 1 == 2:
                 await self.__migrate_v2(conn)
+            elif v + 1 == 3:
+                await self.__migrate_v3(conn)
         await conn.execute(
             """INSERT INTO pirn_schema_version (component, version)
                VALUES ($1, $2)
@@ -120,6 +129,18 @@ class PostgresHistory(RunHistory):
         for col in cols:
             await conn.execute(f"ALTER TABLE runs ADD COLUMN IF NOT EXISTS {col}")
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_runs_actor ON runs(actor)")
+
+    @staticmethod
+    async def __migrate_v3(conn: Any) -> None:
+        """Add knot_sources table for content-addressed source snapshots."""
+        await conn.execute(
+            """CREATE TABLE IF NOT EXISTS knot_sources (
+                   source_hash TEXT PRIMARY KEY,
+                   source_text TEXT NOT NULL,
+                   knot_class TEXT NOT NULL,
+                   pirn_version TEXT NOT NULL
+               )"""
+        )
 
     async def record_run(self, result: Any) -> None:
         """Persist a run result and all associated lineage records.
@@ -290,6 +311,51 @@ class PostgresHistory(RunHistory):
         from pirn.core.run_result import RunResult
 
         return [RunResult.model_validate_json(r["payload_json"]) for r in rows]
+
+    async def record_knot_source(self, record: KnotSourceRecord) -> None:
+        """Persist a knot source snapshot; no-op if the hash already exists.
+
+        Args:
+            record: The ``KnotSourceRecord`` to persist.
+        """
+        await self._ensure_init()
+        pool = await self._pool.get()
+        async with pool.acquire() as conn:
+            await conn.execute(
+                """INSERT INTO knot_sources (source_hash, source_text, knot_class, pirn_version)
+                   VALUES ($1, $2, $3, $4)
+                   ON CONFLICT (source_hash) DO NOTHING""",
+                record.source_hash,
+                record.source_text,
+                record.knot_class,
+                record.pirn_version,
+            )
+
+    async def get_knot_source(self, source_hash: str) -> KnotSourceRecord | None:
+        """Fetch a knot source snapshot by content hash.
+
+        Args:
+            source_hash: SHA-256 hex digest as stored in ``KnotLineage.source_hash``.
+
+        Returns:
+            A ``KnotSourceRecord``, or ``None`` if not found.
+        """
+        await self._ensure_init()
+        pool = await self._pool.get()
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT source_hash, source_text, knot_class, pirn_version "
+                "FROM knot_sources WHERE source_hash = $1",
+                source_hash,
+            )
+        if row is None:
+            return None
+        return KnotSourceRecord(
+            source_hash=row["source_hash"],
+            source_text=row["source_text"],
+            knot_class=row["knot_class"],
+            pirn_version=row["pirn_version"],
+        )
 
     async def close(self) -> None:
         """Close the connection pool if it was created internally from a DSN."""

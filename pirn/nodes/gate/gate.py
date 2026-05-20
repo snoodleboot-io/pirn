@@ -55,6 +55,8 @@ class Gate(Knot):
             raise TypeError("Gate requires _config=KnotConfig(id=...)")
 
         self._mutable_predicate = predicate
+        self._mutable_execution_extra: dict[str, Any] = {}
+        self._mutable_fan_out_extra: dict[str, Any] = {}
 
         self._mutable_config = _config
         self._mutable_parents = {"input": input}
@@ -87,11 +89,16 @@ class Gate(Knot):
             return input
         raise _GateClosedError
 
+    def lineage_extra(self) -> dict[str, Any]:
+        return {**super().lineage_extra(), **self._mutable_execution_extra}
+
     async def __call__(self, parent_results: Any) -> Any:
         from pirn.core.err import Err as _Err
         from pirn.core.skipped import Skipped as _Skipped
 
         result = await super().__call__(parent_results)
         if isinstance(result, _Err) and result.record.exc_type == "_GateClosedError":
+            self._mutable_execution_extra = {"predicate_passed": False}
             return _Skipped(reason="gate_closed")
+        self._mutable_execution_extra = {"predicate_passed": True}
         return result

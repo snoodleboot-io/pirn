@@ -32,6 +32,7 @@ from pirn.core.err import Err
 from pirn.core.error_policy import ErrorPolicy
 from pirn.core.hashing import content_hash
 from pirn.core.knot import Knot
+from pirn.core.knot_source import extract_knot_source
 from pirn.core.lineage import KnotLineage
 from pirn.core.ok import Ok
 from pirn.core.parameter import Parameter
@@ -73,6 +74,7 @@ class Engine:
         parent_run_id: str | None = None,
         parent_knot_id: str | None = None,
         transport: DataTransport | None = None,
+        actor: str | None = None,
     ) -> RunResult:
         shed = Shed.from_terminals(terminals)
 
@@ -84,6 +86,8 @@ class Engine:
             traceback_filter=traceback_filter,
             parent_run_id=parent_run_id,
             parent_knot_id=parent_knot_id,
+            actor=actor,
+            trigger=request.trigger,
         )
 
         # Wire emitters' on_status to the StatusManager.  Async emitters
@@ -287,6 +291,8 @@ class Engine:
         outputs = {kid: r.value for kid, r in results.items() if isinstance(r, Ok)}
 
         run_result = ctx.finalize(outputs)
+        for source_rec in ctx.knot_sources.values():
+            await history.record_knot_source(source_rec)
         await history.record_run(run_result)
 
         succeeded = all(isinstance(r, (Ok, Skipped)) for r in results.values())
@@ -608,6 +614,28 @@ class Engine:
 
         parent_knot_ids = {name: pk.knot_id for name, pk in knot.parents.items()}
 
+        pirn_version = ctx.runtime_info.get("pirn_version", "unknown")
+        source_record = extract_knot_source(knot, pirn_version)
+        if source_record is not None:
+            ctx.add_knot_source(source_record)
+
+        extra: dict[str, Any] = {"parent_knot_ids": parent_knot_ids} if parent_knot_ids else {}
+
+        # Merge structured execution context contributed by the knot itself.
+        extra.update(knot.lineage_extra())
+
+        # L-4: Optional knot — Ok(Skipped) means the knot ran but produced Skipped.
+        from pirn.core.skipped import Skipped as _Skipped
+
+        if isinstance(result, Ok) and isinstance(result.value, _Skipped):
+            skip_info: dict[str, Any] = {"reason": result.value.reason}
+            if result.value.detail:
+                skip_info.update(result.value.detail)
+            extra["optional_skip"] = skip_info
+
+        # L-7: Record the applied error policy.
+        extra["error_policy"] = str(knot.config.error_policy)
+
         record = KnotLineage(
             run_id=ctx.run_id,
             knot_id=knot.knot_id,
@@ -621,6 +649,7 @@ class Engine:
             dispatcher=ctx.dispatcher_name,
             started_at=started or ctx.started_at,
             finished_at=datetime.now(UTC),
-            extra={"parent_knot_ids": parent_knot_ids} if parent_knot_ids else {},
+            extra=extra,
+            source_hash=source_record.source_hash if source_record is not None else None,
         )
         ctx.add_lineage(record)
