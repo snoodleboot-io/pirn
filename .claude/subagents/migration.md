@@ -6,7 +6,7 @@ workflows:
   - migration-workflow
 ---
 
-<!-- path: promptosaurus/prompts/agents/code/subagents/code-migration.md -->
+<!-- path: prompticorn/prompts/agents/code/subagents/code-migration.md -->
 # Subagent - Code Migration
 
 Behavior when migrating code patterns or implementations.

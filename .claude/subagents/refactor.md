@@ -6,7 +6,7 @@ workflows:
   - refactor-workflow
 ---
 
-<!-- path: promptosaurus/prompts/agents/code/subagents/code-refactor.md -->
+<!-- path: prompticorn/prompts/agents/code/subagents/code-refactor.md -->
 # Subagent - Code Refactor
 
 Behavior when the user asks to refactor, simplify, or clean up code.

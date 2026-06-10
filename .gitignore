@@ -47,3 +47,7 @@ site/
 _later_designs/
 _pheenyx_charts/
 .claude/worktrees/
+
+# Local harness working state (sessions are not version-controlled)
+.promptosaurus/sessions/
+.prompticorn/sessions/
