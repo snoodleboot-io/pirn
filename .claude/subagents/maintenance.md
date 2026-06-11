@@ -184,8 +184,8 @@ Actions: [What needs attention this month]
 **Weekly Check:**
 ```bash
 time pytest --cov -q          # Test duration
-radon cc promptosaurus/ -a    # Complexity analysis
-radon mi promptosaurus/       # Maintainability index
+radon cc prompticorn/ -a    # Complexity analysis
+radon mi prompticorn/       # Maintainability index
 ```
 
 **Response Actions:**
