@@ -1,9 +1,12 @@
 name: Real Backend Tests
 
+# CI/CD auto-triggers are FROZEN during the split-core-and-domains migration
+# (#51). The whole pipeline gets rebuilt for the uv workspace — per-package
+# gating + dependency-ordered release trains — once all domains are extracted.
+# Until then every workflow is manual-only; re-enable triggers at the very end.
+# See planning/current/split-core-and-domains/.
 on:
-  pull_request:
-    branches:
-      - main
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

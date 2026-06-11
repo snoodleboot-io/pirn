@@ -1,0 +1,33 @@
+# Skeleton only (Phase 0 / SCD-02). NO source lives here yet — the monolith
+# still ships from the repo-root `pirn/` tree. `pirn-core`'s source moves in
+# during the connectors fold (Phase 1) and is finalized as domains extract
+# (Phase 3). Connector/backend/codec extras (ADR-2) fold onto this package at
+# that time; they are intentionally NOT declared here while there is no src.
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pirn-core"
+version = "0.4.0"                          # lockstep target (ADR-6); stamped by CI
+description = "pirn core — a pipeline framework where everything is a knot."
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+dependencies = [
+    "cloudpickle>=3.0",
+    "numpy>=2.4.4",
+    "pydantic>=2.0",
+    "pyyaml>=6.0",
+    "sweet-tea>=0.2.46",
+]
+
+[project.scripts]
+tapestry-check = "pirn.check.main:main"
+pirn-explore = "pirn.viz._explore_cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pirn"]                    # installs as `pirn-core`, imports as `pirn`
+
+[tool.pyright]
+extends = "../../pyright.base.json"        # shared relaxation rules (SCD-03)
+include = ["src/pirn"]

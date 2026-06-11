@@ -1,0 +1,6 @@
+{
+  "//": "Shared pyright rule body for the whole workspace (SCD-03 / PACKAGING_MIGRATION §4). Each package's [tool.pyright] sets only its own `include` and `extends` this file, so the relaxation rules live in exactly ONE place (anti-drift, PRD Risk #5). Phase 3+ backends/dispatchers import optional packages (asyncpg, aiokafka, dask, ray, celery, valkey-glide, starlette, httpx, opentelemetry, aioboto3) lazily, so reportMissingImports/ModuleSource are off; reportIncompatibleMethodOverride is off for the Knot.process(**kwargs) override pattern.",
+  "reportMissingImports": false,
+  "reportMissingModuleSource": false,
+  "reportIncompatibleMethodOverride": "none"
+}

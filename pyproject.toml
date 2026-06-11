@@ -417,62 +417,21 @@ all = [
 packages = ["pirn"]
 
 
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-asyncio_mode = "auto"
-# Default run excludes slow and mutation; opt in with -m slow / -m mutation.
-addopts = "--strict-markers -ra --ignore=tests/perf -m 'not slow and not mutation and not heavy'"
-markers = [
-    "slow: tests that take meaningful wall-clock time",
-    "mutation: mutation-test-specific assertions",
-    "heavy: requires large ML deps (torch, tensorflow) — excluded from default suite, runs in heavy-tests CI job",
-    "needs_postgres: requires a real Postgres at $PIRN_TEST_POSTGRES_URL",
-    "needs_valkey: requires a real ValKey at $PIRN_TEST_VALKEY_URL",
-    "needs_kafka: requires a real Kafka at $PIRN_TEST_KAFKA_URL",
-    "needs_s3: requires a real S3 (or compatible) endpoint",
-    "needs_dask: requires dask.distributed (no Docker needed; uses LocalCluster)",
-    "needs_ray: requires ray (no Docker needed; uses local Ray instance)",
-    "needs_celery: requires celery + Redis broker at $PIRN_TEST_CELERY_BROKER",
-    "benchmark: pytest-benchmark performance test (run via tests/perf/)",
-]
+# pytest config is centralized in the root `pytest.ini` (SCD-03 / PACKAGING_MIGRATION §4).
+# ruff config is centralized in the root `ruff.toml` (SCD-03 / PACKAGING_MIGRATION §4).
 
 [tool.mutmut]
 paths_to_mutate = "pirn/"
 tests_dir = "tests/"
 runner = ".venv/bin/python -m pytest tests/ -x -q --no-header"
 
-[tool.ruff]
-line-length = 100
-target-version = "py311"
-exclude = ["tests/", "scripts/"]
-
-[tool.ruff.lint]
-select = ["E", "F", "I", "B", "UP", "RUF"]
-ignore = ["E501"]
-
-[tool.ruff.lint.per-file-ignores]
-# Tests often use `var = side_effect_call()` where the variable's purpose is
-# to register the call for later assertions through other channels.
-"tests/**/*.py" = ["F841"]
-# The public API's __all__ is grouped semantically (with comments), not
-# alphabetically — readability over sort order.
-"pirn/__init__.py" = ["RUF022"]
-# Template files — E501 is meaningless inside multi-line HTML/JS/CSS strings.
-"pirn/viz/explorer.py" = ["E501"]
-"pirn/viz/html.py" = ["E501"]
-
 [tool.pyright]
-# Phase 3 backends and dispatchers depend on optional packages
-# (asyncpg, aiokafka, dask, ray, celery, valkey-glide, starlette,
-# httpx, opentelemetry, aioboto3).  Each is imported lazily inside
-# the relevant class so installing pirn without the extra works
-# fine — but pyright can't see that and complains about every
-# unresolved import.  We disable the check selectively for the
-# affected files.
+# Shared relaxation rules live in the workspace-root `pyright.base.json`
+# (SCD-03 / PACKAGING_MIGRATION §4); this block only scopes the include to the
+# monolith tree and inherits the rule body — no duplicated toggles. Each
+# member package's pyproject extends the same base with its own `src/<pkg>`.
+extends = "pyright.base.json"
 include = ["pirn"]
-reportMissingImports = false  # too noisy with optional extras
-reportMissingModuleSource = false
-reportIncompatibleMethodOverride = "none"  # Knot.process(**kwargs) pattern; overrides add typed params intentionally
 
 [dependency-groups]
 dev = [
@@ -480,3 +439,35 @@ dev = [
     "pytest-benchmark>=5.2.3",
     "pytest-timeout>=2.4.0",
 ]
+# Convenience group that pulls every workspace member editable in one shot
+# (ADR-1 / PACKAGING_MIGRATION §2). Inert until the member packages gain
+# source in the extraction phases (R5); `uv lock` resolves it on static
+# metadata without building the empty skeletons.
+all = [
+    "pirn-core",
+    "pirn-signal",
+    "pirn-data",
+    "pirn-ml",
+    "pirn-agents",
+    "pirn-health",
+    "pirn-oilgas",
+]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# uv workspace (split-core-and-domains, ADR-1). The root remains the live
+# monolith `pirn` wheel for now (Phase 0 moves NO source — code stays at
+# `pirn/`); these tables only stand up the target layout so later phases move
+# files into a ready home. Members are empty skeletons until Phase 3 (R5).
+# ─────────────────────────────────────────────────────────────────────────────
+[tool.uv.workspace]
+members = ["packages/*"]
+
+# Resolve intra-workspace deps to local source during dev/CI (never PyPI).
+[tool.uv.sources]
+pirn-core   = { workspace = true }
+pirn-signal = { workspace = true }
+pirn-data   = { workspace = true }
+pirn-ml     = { workspace = true }
+pirn-agents = { workspace = true }
+pirn-health = { workspace = true }
+pirn-oilgas = { workspace = true }

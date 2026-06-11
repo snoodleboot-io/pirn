@@ -1,0 +1,23 @@
+# Skeleton only (Phase 0 / SCD-02). NO source yet — `pirn/domains/data` moves
+# to `src/pirn_data/` during extraction (Phase 3 / R5), at which point the
+# data-domain extras (pandas/pyarrow + the tier/lakehouse extras) are lifted
+# here from the root pyproject. Until then this declares only the
+# intra-workspace dependency so `uv lock` can resolve the graph.
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pirn-data"
+version = "0.4.0"                          # lockstep (ADR-6)
+description = "pirn data domain knots."
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+dependencies = ["pirn-core>=0.4.0,<0.5.0"]  # lockstep floor (ADR-6 / constraint C4)
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pirn_data"]
+
+[tool.pyright]
+extends = "../../pyright.base.json"        # shared relaxation rules (SCD-03)
+include = ["src/pirn_data"]

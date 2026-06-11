@@ -1,14 +1,11 @@
 name: Build CI Base Images
 
+# CI/CD auto-triggers are FROZEN during the split-core-and-domains migration
+# (#51). The whole pipeline gets rebuilt for the uv workspace — per-package
+# gating + dependency-ordered release trains — once all domains are extracted.
+# Until then every workflow is manual-only; re-enable triggers at the very end.
+# See planning/current/split-core-and-domains/.
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'Dockerfile.ci'
-      - 'Dockerfile.ci-heavy'
-      - 'pyproject.toml'
-      - '.github/workflows/build-ci-image.yml'
   workflow_dispatch:
 
 permissions:
