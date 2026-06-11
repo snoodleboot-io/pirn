@@ -1,0 +1,23 @@
+# Shared lint config for the whole uv workspace (SCD-03 / PACKAGING_MIGRATION §4).
+# Ruff auto-discovers this root file for every package — there is intentionally
+# NO per-package ruff config (single source of truth; anti-drift, PRD Risk #5).
+# Globs use `**/` so they match the monolith at `pirn/` today AND the future
+# `packages/pirn-core/src/pirn/` location after extraction.
+line-length = 100
+target-version = "py311"
+exclude = ["tests/", "scripts/"]
+
+[lint]
+select = ["E", "F", "I", "B", "UP", "RUF"]
+ignore = ["E501"]
+
+[lint.per-file-ignores]
+# Tests often use `var = side_effect_call()` where the variable's purpose is
+# to register the call for later assertions through other channels.
+"tests/**/*.py" = ["F841"]
+# The public API's __all__ is grouped semantically (with comments), not
+# alphabetically — readability over sort order.
+"**/pirn/__init__.py" = ["RUF022"]
+# Template files — E501 is meaningless inside multi-line HTML/JS/CSS strings.
+"**/pirn/viz/explorer.py" = ["E501"]
+"**/pirn/viz/html.py" = ["E501"]
