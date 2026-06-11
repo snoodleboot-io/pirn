@@ -1,0 +1,176 @@
+name: Workspace (Phase 0 skeleton)  # SCD-04
+
+# CI matrix SKELETON for the uv workspace (split-core-and-domains, Phase 0).
+# It resolves the single-lock workspace and runs lint / type-check / tests
+# against the still-monolithic code at `pirn/`. It is structured for the later
+# per-package × Python fan-out (SCD-24, Phase 5) but currently fans the package
+# axis to ONE package — see the `log`-style notes on the lint job. It adds NO
+# publish logic and does NOT touch the existing `ci.yml` publish path.
+
+# FROZEN like every other workflow during the split-core-and-domains migration
+# (#51) — manual-only. This file is the SCD-04 *skeleton* of the target
+# per-package × Python matrix; it is intentionally not auto-run. At the end of
+# the migration it (and ci.yml) get rebuilt for the uv workspace, per-package
+# gating, and dependency-ordered release trains, then triggers are re-enabled.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: read
+
+env:
+  # Pre-built venv baked into every CI image (same model as ci.yml).
+  UV_PROJECT_ENVIRONMENT: /opt/pirn-deps/.venv
+  UV_PYTHON_PREFERENCE: only-system
+
+jobs:
+  # ===========================================================================
+  # Change-detection SCAFFOLDING (SCD-04 AC#3 / PRD Risk #4).
+  # Emits a per-package "changed" boolean so later phases can gate the package
+  # matrix and skip untouched packages. Phase 0: the monolith still lives at
+  # `pirn/`, so `core` also tracks `pirn/**` and the shared root config files.
+  # Implemented with a plain git-diff (no external action pinned yet); SCD-24
+  # swaps this for `dorny/paths-filter`. Nothing gates on these outputs yet —
+  # the job exists so the wiring is in place.
+  # ===========================================================================
+  changes:
+    name: Detect changed packages
+    runs-on: ubuntu-latest
+    outputs:
+      core: ${{ steps.filter.outputs.core }}
+      signal: ${{ steps.filter.outputs.signal }}
+      data: ${{ steps.filter.outputs.data }}
+      ml: ${{ steps.filter.outputs.ml }}
+      agents: ${{ steps.filter.outputs.agents }}
+      health: ${{ steps.filter.outputs.health }}
+      oilgas: ${{ steps.filter.outputs.oilgas }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Compute changed package set
+        id: filter
+        run: |
+          set -euo pipefail
+          # On a PR, diff against the merge base; on a branch/main push fall
+          # back to "everything changed" so nothing is silently skipped.
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="origin/${{ github.base_ref }}"
+            git fetch --no-tags --depth=1 origin "${{ github.base_ref }}" || true
+            changed="$(git diff --name-only "$base"...HEAD || git diff --name-only HEAD~1...HEAD || echo '')"
+          else
+            changed=""   # empty => treat all as changed (see default below)
+          fi
+          echo "changed files:"; echo "$changed"
+
+          # Shared roots (root pyproject/lock/ruff/pytest/pyright base, the
+          # whole tests/ tree, CI itself) force ALL packages to run.
+          shared='^(pyproject\.toml|uv\.lock|ruff\.toml|pytest\.ini|pyright\.base\.json|tests/|\.github/)'
+          all_changed=false
+          if [ -z "$changed" ] || echo "$changed" | grep -qE "$shared"; then
+            all_changed=true
+          fi
+
+          emit () {  # emit <name> <path-regex>
+            local name="$1" rx="$2" hit=false
+            if [ "$all_changed" = true ] || echo "$changed" | grep -qE "$rx"; then
+              hit=true
+            fi
+            echo "${name}=${hit}" >> "$GITHUB_OUTPUT"
+            echo "  ${name}=${hit}"
+          }
+
+          # core tracks the monolith tree too while code still lives at pirn/.
+          emit core   '^(packages/pirn-core/|pirn/)'
+          emit signal '^(packages/pirn-signal/|pirn/domains/signal/)'
+          emit data   '^(packages/pirn-data/|pirn/domains/data/)'
+          emit ml     '^(packages/pirn-ml/|pirn/domains/ml/)'
+          emit agents '^(packages/pirn-agents/|pirn/domains/agents/)'
+          emit health '^(packages/pirn-health/|pirn/domains/health/)'
+          emit oilgas '^(packages/pirn-oilgas/|pirn/domains/oilgas/)'
+
+  # ===========================================================================
+  # Workspace resolves to a SINGLE uv.lock (SCD-02 guarantee, enforced in CI).
+  # ===========================================================================
+  workspace-resolve:
+    name: Workspace resolves (single lock)
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py3.12
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      # uv.lock is gitignored in this repo (CI resolves fresh each run), so we
+      # generate the lock rather than `--locked`-checking a committed one.
+      - name: Workspace resolves to a single lockfile
+        run: |
+          set -euo pipefail
+          uv lock
+          n="$(find . -name uv.lock -not -path './.venv/*' | wc -l)"
+          echo "lockfiles found: $n"
+          test "$n" -eq 1
+
+      - name: List workspace members
+        run: uv run --no-sync python -c "import tomllib,glob; [print(tomllib.load(open(p,'rb'))['project']['name']) for p in sorted(glob.glob('packages/*/pyproject.toml'))]"
+
+  # ===========================================================================
+  # Lint + type-check. Package axis is a SKELETON — it fans to one package
+  # (pirn-core) because no domain source has moved yet; SCD-24 expands it to all
+  # seven. Lint/type run against the monolith tree at pirn/ for now.
+  # ===========================================================================
+  lint:
+    name: Lint & Type Check (${{ matrix.package }})
+    needs: changes
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py3.12
+    strategy:
+      fail-fast: false
+      matrix:
+        # SKELETON: one package today; SCD-24 fans to
+        # [pirn-core, pirn-signal, pirn-data, pirn-ml, pirn-agents, pirn-health, pirn-oilgas].
+        package: [pirn-core]
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - name: Install workspace
+        run: uv sync --all-extras --no-extra pytorch --no-extra tensorflow --no-extra tflite
+
+      - name: Ruff lint (shared ruff.toml)
+        run: uv run ruff check --output-format=github pirn/
+
+      - name: Ruff format check
+        run: uv run ruff format --check pirn/
+
+      - name: Pyright type check (shared pyright.base.json)
+        run: uv run pyright
+
+  # ===========================================================================
+  # Tests. Python axis is the real target matrix (3.11–3.14); the suite stays
+  # whole-workspace in one synced env (PACKAGING_MIGRATION §5c) so cross-domain
+  # registry resolution keeps working. No publish logic anywhere in this file.
+  # ===========================================================================
+  test:
+    name: Unit Tests (Python ${{ matrix.python-version }})
+    needs: [changes, lint]
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py${{ matrix.python-version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - name: Install workspace
+        run: uv sync --all-extras --no-extra pytorch --no-extra tensorflow --no-extra tflite
+
+      - name: Run unit tests (whole-workspace)
+        run: uv run python -m pytest tests/unit --timeout=30 -q
