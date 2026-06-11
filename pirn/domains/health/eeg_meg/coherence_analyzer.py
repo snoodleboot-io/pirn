@@ -1,7 +1,7 @@
 """``CoherenceAnalyzer`` — magnitude-squared coherence between channel pairs.
 
 Algorithm:
-    1. Receive a SignalPayload, channel_pairs, band_low_hz, and band_high_hz.
+    1. Receive a HealthSignalPayload, channel_pairs, band_low_hz, and band_high_hz.
     2. Validate types and that band limits are positive with low < high.
     3. For each channel pair, compute magnitude-squared coherence via scipy.signal.coherence.
     4. Average coherence over the specified frequency band.
@@ -25,7 +25,7 @@ from scipy import signal as ss
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.types.signal_payload import SignalPayload
+from pirn.domains.health.types.health_signal_payload import HealthSignalPayload
 
 
 def _band_coherence(
@@ -74,7 +74,7 @@ class CoherenceAnalyzer(Knot):
     def __init__(
         self,
         *,
-        signal: Knot | SignalPayload,
+        signal: Knot | HealthSignalPayload,
         channel_pairs: Knot | Sequence[tuple[str, str]],
         band_low_hz: Knot | float,
         band_high_hz: Knot | float,
@@ -92,7 +92,7 @@ class CoherenceAnalyzer(Knot):
 
     async def process(
         self,
-        signal: SignalPayload,
+        signal: HealthSignalPayload,
         channel_pairs: Sequence[tuple[str, str]],
         band_low_hz: float,
         band_high_hz: float,
@@ -101,7 +101,7 @@ class CoherenceAnalyzer(Knot):
         """Compute magnitude-squared coherence for each channel pair in the configured frequency band.
 
         Args:
-            signal: The SignalPayload to analyze.
+            signal: The HealthSignalPayload to analyze.
             channel_pairs: Sequence of (channel_a, channel_b) string tuples.
             band_low_hz: Lower frequency bound in Hz (positive).
             band_high_hz: Upper frequency bound in Hz (positive, must exceed band_low_hz).
@@ -110,11 +110,11 @@ class CoherenceAnalyzer(Knot):
             A mapping from (channel_a, channel_b) tuples to mean coherence values in the band.
 
         Raises:
-            TypeError: If signal is not SignalPayload, channel_pairs is not list/tuple, or pairs are invalid.
+            TypeError: If signal is not HealthSignalPayload, channel_pairs is not list/tuple, or pairs are invalid.
             ValueError: If band limits are non-positive or band_low_hz >= band_high_hz.
         """
-        if not isinstance(signal, SignalPayload):
-            raise TypeError("CoherenceAnalyzer: signal must be a SignalPayload")
+        if not isinstance(signal, HealthSignalPayload):
+            raise TypeError("CoherenceAnalyzer: signal must be a HealthSignalPayload")
         if not isinstance(channel_pairs, (list, tuple)):
             raise TypeError("CoherenceAnalyzer: channel_pairs must be list/tuple")
         for pair in channel_pairs:

@@ -16,8 +16,8 @@ from pirn.domains.data.specializations.scd.cdc.debezium_source import (
 from pirn.domains.data.specializations.scd.cdc.message_broker_connection import (
     MessageBrokerConnection,
 )
-from pirn.domains.data.specializations.scd.cdc.message_broker_knot import (
-    MessageBrokerKnot,
+from pirn.domains.data.specializations.scd.cdc.cdc_message_broker_knot import (
+    CdcMessageBrokerKnot,
 )
 from pirn.tapestry import Tapestry
 
@@ -108,7 +108,7 @@ class TestDebeziumSourceBehaviour(unittest.IsolatedAsyncioTestCase):
         ]
         broker = _StubBroker(records)
         with Tapestry() as t:
-            broker_knot = MessageBrokerKnot(broker=broker, _config=KnotConfig(id="mb"))
+            broker_knot = CdcMessageBrokerKnot(broker=broker, _config=KnotConfig(id="mb"))
             DebeziumSource(
                 broker=broker_knot,
                 topic="orders.public.customers",
@@ -134,7 +134,7 @@ class TestDebeziumSourceBehaviour(unittest.IsolatedAsyncioTestCase):
         ]
         broker = _StubBroker(records)
         with Tapestry() as t:
-            broker_knot = MessageBrokerKnot(broker=broker, _config=KnotConfig(id="mb"))
+            broker_knot = CdcMessageBrokerKnot(broker=broker, _config=KnotConfig(id="mb"))
             DebeziumSource(
                 broker=broker_knot,
                 topic="t",
@@ -151,7 +151,7 @@ class TestDebeziumSourceBehaviour(unittest.IsolatedAsyncioTestCase):
         records = [_StubRecord(json.dumps([1, 2, 3]))]
         broker = _StubBroker(records)
         with Tapestry() as t:
-            broker_knot = MessageBrokerKnot(broker=broker, _config=KnotConfig(id="mb"))
+            broker_knot = CdcMessageBrokerKnot(broker=broker, _config=KnotConfig(id="mb"))
             DebeziumSource(
                 broker=broker_knot,
                 topic="t",
@@ -165,7 +165,7 @@ class TestDebeziumSourceBehaviour(unittest.IsolatedAsyncioTestCase):
         records = [_StubRecord(json.dumps({"after": {"id": 1}}))]
         broker = _StubBroker(records)
         with Tapestry() as t:
-            broker_knot = MessageBrokerKnot(broker=broker, _config=KnotConfig(id="mb"))
+            broker_knot = CdcMessageBrokerKnot(broker=broker, _config=KnotConfig(id="mb"))
             DebeziumSource(
                 broker=broker_knot,
                 topic="t",
@@ -179,7 +179,7 @@ class TestDebeziumSourceBehaviour(unittest.IsolatedAsyncioTestCase):
         records = [_StubRecord(json.dumps(_envelope("x")))]
         broker = _StubBroker(records)
         with Tapestry() as t:
-            broker_knot = MessageBrokerKnot(broker=broker, _config=KnotConfig(id="mb"))
+            broker_knot = CdcMessageBrokerKnot(broker=broker, _config=KnotConfig(id="mb"))
             DebeziumSource(
                 broker=broker_knot,
                 topic="t",
@@ -193,7 +193,7 @@ class TestDebeziumSourceBehaviour(unittest.IsolatedAsyncioTestCase):
         records = [_StubRecord("{not json")]
         broker = _StubBroker(records)
         with Tapestry() as t:
-            broker_knot = MessageBrokerKnot(broker=broker, _config=KnotConfig(id="mb"))
+            broker_knot = CdcMessageBrokerKnot(broker=broker, _config=KnotConfig(id="mb"))
             DebeziumSource(
                 broker=broker_knot,
                 topic="t",
@@ -211,7 +211,7 @@ class TestDebeziumSourceBehaviour(unittest.IsolatedAsyncioTestCase):
         ]
         broker = _StubBroker(records)
         with Tapestry() as t:
-            broker_knot = MessageBrokerKnot(broker=broker, _config=KnotConfig(id="mb"))
+            broker_knot = CdcMessageBrokerKnot(broker=broker, _config=KnotConfig(id="mb"))
             DebeziumSource(
                 broker=broker_knot,
                 topic="t",

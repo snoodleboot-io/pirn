@@ -7,13 +7,13 @@ from pirn.yaml_loader.specs.branch_spec import BranchSpec
 from pirn.yaml_loader.specs.gate_spec import GateSpec
 from pirn.yaml_loader.specs.knot_spec import KnotSpec
 from pirn.yaml_loader.specs.map_spec import MapSpec
-from pirn.yaml_loader.specs.parameter_spec import ParameterSpec
 from pirn.yaml_loader.specs.reduce_spec import ReduceSpec
 from pirn.yaml_loader.specs.sink_spec import SinkSpec
 from pirn.yaml_loader.specs.source_spec import SourceSpec
+from pirn.yaml_loader.specs.yaml_parameter_spec import YamlParameterSpec
 
 NodeSpecUnion = (
-    ParameterSpec
+    YamlParameterSpec
     | SourceSpec
     | KnotSpec
     | SinkSpec

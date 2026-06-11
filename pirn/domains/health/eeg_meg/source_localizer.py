@@ -1,7 +1,7 @@
 """``SourceLocalizer`` — localise neural sources from sensor signals.
 
 Algorithm:
-    1. Receive a SignalPayload, method string, and source_labels sequence.
+    1. Receive a HealthSignalPayload, method string, and source_labels sequence.
     2. Validate types and that method is one of mne/dspm/sloreta/beamformer.
     3. Compute per-source activation using a minimum-norm-style estimate.
     4. Return a mapping of source label to estimated activation.
@@ -29,7 +29,7 @@ import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.types.signal_payload import SignalPayload
+from pirn.domains.health.types.health_signal_payload import HealthSignalPayload
 
 
 def _minimum_norm_estimate(data: np.ndarray, n_sources: int) -> np.ndarray:
@@ -54,7 +54,7 @@ class SourceLocalizer(Knot):
     def __init__(
         self,
         *,
-        signal: Knot | SignalPayload,
+        signal: Knot | HealthSignalPayload,
         method: Knot | str,
         source_labels: Knot | Sequence[str],
         _config: KnotConfig,
@@ -70,7 +70,7 @@ class SourceLocalizer(Knot):
 
     async def process(
         self,
-        signal: SignalPayload,
+        signal: HealthSignalPayload,
         method: str,
         source_labels: Sequence[str],
         **_: Any,
@@ -78,7 +78,7 @@ class SourceLocalizer(Knot):
         """Estimate source-space activations from the sensor signal.
 
         Args:
-            signal: The sensor-space SignalPayload to invert.
+            signal: The sensor-space HealthSignalPayload to invert.
             method: Inverse solution method; one of 'mne', 'dspm', 'sloreta', 'beamformer'.
             source_labels: Sequence of source region label strings.
 
@@ -86,11 +86,11 @@ class SourceLocalizer(Knot):
             A mapping from source label to estimated activation value in [0, 1].
 
         Raises:
-            TypeError: If signal is not SignalPayload or source_labels is not list/tuple of strings.
+            TypeError: If signal is not HealthSignalPayload or source_labels is not list/tuple of strings.
             ValueError: If method is not a valid inverse method.
         """
-        if not isinstance(signal, SignalPayload):
-            raise TypeError("SourceLocalizer: signal must be a SignalPayload")
+        if not isinstance(signal, HealthSignalPayload):
+            raise TypeError("SourceLocalizer: signal must be a HealthSignalPayload")
         if method not in ("mne", "dspm", "sloreta", "beamformer"):
             raise ValueError("SourceLocalizer: method must be one of mne/dspm/sloreta/beamformer")
         if not isinstance(source_labels, (list, tuple)):

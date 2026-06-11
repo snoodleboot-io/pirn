@@ -1,4 +1,4 @@
-"""``ImageEmbeddingExtractor`` — append an image-column embedding feature
+"""``FeatureEngineeringImageEmbeddingExtractor`` — append an image-column embedding feature
 to every partition of a :class:`SplitManifest` via an
 :class:`ImageEncoderProvider`.
 
@@ -37,7 +37,7 @@ async def _emit_value(value: Any) -> Any:
     return value
 
 
-class ImageEmbeddingExtractor(SubTapestry):
+class FeatureEngineeringImageEmbeddingExtractor(SubTapestry):
     """Append an image-column embedding feature to every split partition."""
 
     def __init__(
@@ -79,10 +79,12 @@ class ImageEmbeddingExtractor(SubTapestry):
             TypeError: If image_encoder is not an ImageEncoderProvider or inner encoder fails.
         """
         if not isinstance(image_column, str) or not image_column:
-            raise ValueError("ImageEmbeddingExtractor: image_column must be a non-empty string")
+            raise ValueError(
+                "FeatureEngineeringImageEmbeddingExtractor: image_column must be a non-empty string"
+            )
         if not isinstance(image_encoder, ImageEncoderProvider):
             raise TypeError(
-                "ImageEmbeddingExtractor: image_encoder must be an ImageEncoderProvider"
+                "FeatureEngineeringImageEmbeddingExtractor: image_encoder must be an ImageEncoderProvider"
             )
         split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
         return _ImageEncoderExtractor(

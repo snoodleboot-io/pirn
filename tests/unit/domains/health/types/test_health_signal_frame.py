@@ -1,16 +1,16 @@
-"""Unit tests for :class:`SignalFrame`."""
+"""Unit tests for :class:`HealthSignalFrame`."""
 
 from __future__ import annotations
 
 import unittest
 from datetime import UTC, datetime
 
-from pirn.domains.health.types.signal_frame import SignalFrame
+from pirn.domains.health.types.health_signal_frame import HealthSignalFrame
 
 
 class TestConstruction(unittest.TestCase):
     def test_default(self) -> None:
-        s = SignalFrame()
+        s = HealthSignalFrame()
         assert s.signal_id == ""
         assert s.channel_count == 0
         assert s.sample_rate_hz == 0.0
@@ -18,7 +18,7 @@ class TestConstruction(unittest.TestCase):
 
     def test_full(self) -> None:
         when = datetime(2026, 1, 1, tzinfo=UTC)
-        s = SignalFrame(
+        s = HealthSignalFrame(
             signal_id="sig",
             channel_count=8,
             sample_rate_hz=250.0,
@@ -35,7 +35,7 @@ class TestConstruction(unittest.TestCase):
 class TestAuditDict(unittest.TestCase):
     def test_audit_dict_primitives(self) -> None:
         when = datetime(2026, 1, 1, tzinfo=UTC)
-        s = SignalFrame(
+        s = HealthSignalFrame(
             signal_id="sig",
             channel_count=8,
             sample_rate_hz=250.0,
@@ -54,9 +54,9 @@ class TestAuditDict(unittest.TestCase):
 
 class TestFrozen(unittest.TestCase):
     def test_frozen_disallows_mutation(self) -> None:
-        s = SignalFrame()
+        s = HealthSignalFrame()
         try:
             s.signal_id = "X"  # type: ignore[misc]
         except Exception:
             return
-        raise AssertionError("SignalFrame must be frozen")
+        raise AssertionError("HealthSignalFrame must be frozen")

@@ -1,4 +1,4 @@
-"""``SignalPayload`` — multi-channel signal metadata bundled with its sample array.
+"""``HealthSignalPayload`` — multi-channel signal metadata bundled with its sample array.
 
 Returned by EEG/MEG and wearable knots that produce or transform time-domain
 signal data.  ``frame`` carries the lineage metadata; ``data`` is the sample
@@ -12,12 +12,12 @@ from __future__ import annotations
 import numpy as np
 
 from pirn.core.payload import Payload
-from pirn.domains.health.types.signal_frame import SignalFrame
+from pirn.domains.health.types.health_signal_frame import HealthSignalFrame
 
 
-class SignalPayload(Payload[SignalFrame, np.ndarray]):
+class HealthSignalPayload(Payload[HealthSignalFrame, np.ndarray]):
     """Time-domain signal: metadata frame + sample array."""
 
     @property
-    def frame(self) -> SignalFrame:
+    def frame(self) -> HealthSignalFrame:
         return self._metadata

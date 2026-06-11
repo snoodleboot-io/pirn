@@ -1,7 +1,7 @@
 """``SleepStageClassifier`` — classify 30-second PSG epochs into sleep stages (W, N1, N2, N3, REM).
 
 Algorithm:
-    1. Receive a SignalPayload, epoch_duration_sec int, and channels tuple.
+    1. Receive a HealthSignalPayload, epoch_duration_sec int, and channels tuple.
     2. Validate types and that epoch_duration_sec == 30 and channels is non-empty.
     3. Segment the signal into 30-second epochs.
     4. For each epoch, compute band power (delta/theta/alpha/beta/gamma) via scipy.signal.welch.
@@ -30,7 +30,7 @@ from scipy import signal as ss
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.types.signal_payload import SignalPayload
+from pirn.domains.health.types.health_signal_payload import HealthSignalPayload
 
 
 def _band_power(epoch: np.ndarray, fs: float, low: float, high: float) -> float:
@@ -73,7 +73,7 @@ class SleepStageClassifier(Knot):
     def __init__(
         self,
         *,
-        signal: Knot | SignalPayload,
+        signal: Knot | HealthSignalPayload,
         epoch_duration_sec: Knot | int,
         channels: Knot | tuple[str, ...] = ("EEG", "EOG", "EMG"),
         _config: KnotConfig,
@@ -89,7 +89,7 @@ class SleepStageClassifier(Knot):
 
     async def process(
         self,
-        signal: SignalPayload,
+        signal: HealthSignalPayload,
         epoch_duration_sec: int,
         channels: tuple[str, ...] = ("EEG", "EOG", "EMG"),
         **_: Any,
@@ -97,7 +97,7 @@ class SleepStageClassifier(Knot):
         """Classify each 30-second epoch of the signal payload into a sleep stage.
 
         Args:
-            signal: The SignalPayload containing the PSG recording.
+            signal: The HealthSignalPayload containing the PSG recording.
             epoch_duration_sec: Must be 30 (the standard PSG epoch length).
             channels: Non-empty tuple of channel name strings to use for classification.
 
@@ -106,11 +106,11 @@ class SleepStageClassifier(Knot):
             stage_labels (list[str]), total_epochs (int), sleep_efficiency_pct (float).
 
         Raises:
-            TypeError: If signal is not a SignalPayload.
+            TypeError: If signal is not a HealthSignalPayload.
             ValueError: If epoch_duration_sec != 30 or channels is empty.
         """
-        if not isinstance(signal, SignalPayload):
-            raise TypeError("SleepStageClassifier: signal must be a SignalPayload")
+        if not isinstance(signal, HealthSignalPayload):
+            raise TypeError("SleepStageClassifier: signal must be a HealthSignalPayload")
         if epoch_duration_sec != 30:
             raise ValueError("SleepStageClassifier: epoch_duration_sec must be 30")
         if not isinstance(channels, tuple) or len(channels) == 0:

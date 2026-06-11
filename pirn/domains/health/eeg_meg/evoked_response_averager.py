@@ -4,7 +4,7 @@ Algorithm:
     1. Receive a non-empty sequence of SignalPayloads and a condition string.
     2. Validate types and that epochs is non-empty and condition is non-empty.
     3. Average the signal data arrays across epochs sample-by-sample.
-    4. Return a SignalPayload representing the trial-averaged evoked response.
+    4. Return a HealthSignalPayload representing the trial-averaged evoked response.
 
 Math:
     $$\\bar{x}[t] = \\frac{1}{N} \\sum_{i=1}^{N} x_i[t]$$
@@ -24,8 +24,8 @@ import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.types.signal_frame import SignalFrame
-from pirn.domains.health.types.signal_payload import SignalPayload
+from pirn.domains.health.types.health_signal_frame import HealthSignalFrame
+from pirn.domains.health.types.health_signal_payload import HealthSignalPayload
 
 
 def _average_epochs(arrays: list[np.ndarray]) -> np.ndarray:
@@ -34,12 +34,12 @@ def _average_epochs(arrays: list[np.ndarray]) -> np.ndarray:
 
 
 class EvokedResponseAverager(Knot):
-    """Average a set of epoch :class:`SignalPayload` objects."""
+    """Average a set of epoch :class:`HealthSignalPayload` objects."""
 
     def __init__(
         self,
         *,
-        epochs: Knot | Sequence[SignalPayload],
+        epochs: Knot | Sequence[HealthSignalPayload],
         condition: Knot | str,
         _config: KnotConfig,
         **kwargs: Any,
@@ -53,10 +53,10 @@ class EvokedResponseAverager(Knot):
 
     async def process(
         self,
-        epochs: Sequence[SignalPayload],
+        epochs: Sequence[HealthSignalPayload],
         condition: str,
         **_: Any,
-    ) -> SignalPayload:
+    ) -> HealthSignalPayload:
         """Average the supplied epoch SignalPayloads and return the evoked response.
 
         Args:
@@ -64,7 +64,7 @@ class EvokedResponseAverager(Knot):
             condition: Non-empty string identifying the experimental condition.
 
         Returns:
-            A SignalPayload whose data is the trial-averaged array and whose frame
+            A HealthSignalPayload whose data is the trial-averaged array and whose frame
             reflects the evoked response metadata.
 
         Raises:
@@ -76,19 +76,19 @@ class EvokedResponseAverager(Knot):
         if not epochs:
             raise ValueError("EvokedResponseAverager: epochs must be non-empty")
         for ep in epochs:
-            if not isinstance(ep, SignalPayload):
-                raise TypeError("EvokedResponseAverager: every epoch must be SignalPayload")
+            if not isinstance(ep, HealthSignalPayload):
+                raise TypeError("EvokedResponseAverager: every epoch must be HealthSignalPayload")
         if not isinstance(condition, str) or not condition:
             raise ValueError("EvokedResponseAverager: condition must be non-empty string")
 
         arrays = [ep.data for ep in epochs]
         averaged = await asyncio.to_thread(_average_epochs, arrays)
         first = epochs[0]
-        frame = SignalFrame(
+        frame = HealthSignalFrame(
             signal_id=f"evoked-{condition}",
             channel_count=first.frame.channel_count,
             sample_rate_hz=first.frame.sample_rate_hz,
             samples_per_channel=averaged.shape[-1],
             fetched_at=first.frame.fetched_at,
         )
-        return SignalPayload(metadata=frame, data=averaged)
+        return HealthSignalPayload(metadata=frame, data=averaged)

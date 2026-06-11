@@ -1,7 +1,7 @@
 """``MEGBeamformer`` — spatial filter (LCMV beamformer) for MEG source localization.
 
 Algorithm:
-    1. Receive signal SignalPayload and steering_vector list[float].
+    1. Receive signal HealthSignalPayload and steering_vector list[float].
     2. Validate types and dimensions.
     3. Compute the data covariance matrix R = (data @ data.T) / n_samples.
     4. Compute MVDR weight vector w = R^{-1} @ sv / (sv.T @ R^{-1} @ sv).
@@ -25,7 +25,7 @@ import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.types.signal_payload import SignalPayload
+from pirn.domains.health.types.health_signal_payload import HealthSignalPayload
 
 
 def _lcmv_beamform(data: np.ndarray, sv: np.ndarray) -> tuple[float, np.ndarray]:
@@ -55,7 +55,7 @@ class MEGBeamformer(Knot):
     def __init__(
         self,
         *,
-        signal: Knot | SignalPayload,
+        signal: Knot | HealthSignalPayload,
         steering_vector: Knot | list[float],
         _config: KnotConfig,
         **kwargs: Any,
@@ -69,25 +69,25 @@ class MEGBeamformer(Knot):
 
     async def process(
         self,
-        signal: SignalPayload,
+        signal: HealthSignalPayload,
         steering_vector: list[float],
         **_: Any,
     ) -> dict[str, Any]:
         """Apply LCMV beamformer to the signal and return power and weight vector.
 
         Args:
-            signal: The SignalPayload containing MEG sensor data (channels x samples).
+            signal: The HealthSignalPayload containing MEG sensor data (channels x samples).
             steering_vector: Lead-field vector of length n_channels pointing at the source.
 
         Returns:
             Dict with beamformed_power (float) and weight_vector (list of float).
 
         Raises:
-            TypeError: If signal is not SignalPayload or steering_vector is not list.
+            TypeError: If signal is not HealthSignalPayload or steering_vector is not list.
             ValueError: If steering_vector length does not match signal channel count.
         """
-        if not isinstance(signal, SignalPayload):
-            raise TypeError("MEGBeamformer: signal must be a SignalPayload")
+        if not isinstance(signal, HealthSignalPayload):
+            raise TypeError("MEGBeamformer: signal must be a HealthSignalPayload")
         if not isinstance(steering_vector, list):
             raise TypeError("MEGBeamformer: steering_vector must be a list of float")
         n_channels = signal.frame.channel_count

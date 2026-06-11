@@ -6,7 +6,7 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
-from pirn.domains.data.specializations.incremental.database_connection_pool_knot import (
+from pirn.domains.connectors.knots.database_connection_pool_knot import (
     DatabaseConnectionPoolKnot,
 )
 from pirn.tapestry import Tapestry

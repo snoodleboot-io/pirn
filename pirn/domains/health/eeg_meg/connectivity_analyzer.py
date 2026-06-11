@@ -1,7 +1,7 @@
 """``ConnectivityAnalyzer`` — pairwise channel connectivity via PLV.
 
 Algorithm:
-    1. Receive a SignalPayload, channel_names sequence, and method string.
+    1. Receive a HealthSignalPayload, channel_names sequence, and method string.
     2. Validate types and that method is one of plv/coherence/wpli.
     3. Compute Phase Locking Value (PLV) for each channel pair via scipy.signal.hilbert.
        PLV = |mean(exp(i * phase_diff))|
@@ -30,7 +30,7 @@ from scipy import signal as ss
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.types.signal_payload import SignalPayload
+from pirn.domains.health.types.health_signal_payload import HealthSignalPayload
 
 
 def _plv(signal_a: np.ndarray, signal_b: np.ndarray) -> float:
@@ -65,7 +65,7 @@ class ConnectivityAnalyzer(Knot):
     def __init__(
         self,
         *,
-        signal: Knot | SignalPayload,
+        signal: Knot | HealthSignalPayload,
         channel_names: Knot | Sequence[str],
         method: Knot | str,
         _config: KnotConfig,
@@ -81,7 +81,7 @@ class ConnectivityAnalyzer(Knot):
 
     async def process(
         self,
-        signal: SignalPayload,
+        signal: HealthSignalPayload,
         channel_names: Sequence[str],
         method: str,
         **_: Any,
@@ -89,7 +89,7 @@ class ConnectivityAnalyzer(Knot):
         """Compute pairwise PLV connectivity between all channel pairs.
 
         Args:
-            signal: The SignalPayload to analyze.
+            signal: The HealthSignalPayload to analyze.
             channel_names: Sequence of channel name strings.
             method: Connectivity method; one of 'plv', 'coherence', 'wpli'.
 
@@ -97,11 +97,11 @@ class ConnectivityAnalyzer(Knot):
             A nested mapping from channel name to a mapping of other channel names to PLV scores.
 
         Raises:
-            TypeError: If signal is not SignalPayload or channel_names is not list/tuple of strings.
+            TypeError: If signal is not HealthSignalPayload or channel_names is not list/tuple of strings.
             ValueError: If method is not one of plv/coherence/wpli.
         """
-        if not isinstance(signal, SignalPayload):
-            raise TypeError("ConnectivityAnalyzer: signal must be a SignalPayload")
+        if not isinstance(signal, HealthSignalPayload):
+            raise TypeError("ConnectivityAnalyzer: signal must be a HealthSignalPayload")
         if not isinstance(channel_names, (list, tuple)):
             raise TypeError("ConnectivityAnalyzer: channel_names must be list/tuple")
         for name in channel_names:

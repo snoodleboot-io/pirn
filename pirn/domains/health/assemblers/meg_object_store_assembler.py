@@ -1,7 +1,7 @@
-"""``MegObjectStoreAssembler`` — assemble a :class:`SignalPayload` from raw MEG bytes.
+"""``MegObjectStoreAssembler`` — assemble a :class:`HealthSignalPayload` from raw MEG bytes.
 
 Sits between an object store connector (which produces ``bytes``) and downstream
-domain knots that consume :class:`~pirn.domains.health.types.signal_payload.SignalPayload`.
+domain knots that consume :class:`~pirn.domains.health.types.health_signal_payload.HealthSignalPayload`.
 
 Algorithm:
     1. Receive ``body`` (raw bytes), ``signal_id``, ``channel_count``, ``sample_rate_hz``,
@@ -9,8 +9,8 @@ Algorithm:
     2. Validate types and values.
     3. Attempt to load a numpy array from bytes via ``np.load``; fall back to a zero array
        of shape ``(channel_count, samples_per_channel)`` if the bytes are not a valid npz file.
-    4. Return a :class:`SignalPayload` carrying the decoded sample array and a
-       :class:`SignalFrame` built from the supplied metadata.
+    4. Return a :class:`HealthSignalPayload` carrying the decoded sample array and a
+       :class:`HealthSignalFrame` built from the supplied metadata.
 
 References:
     - MNE read_raw_fif: https://mne.tools/stable/generated/mne.io.read_raw_fif.html
@@ -29,8 +29,8 @@ import numpy as np
 from pirn.core.assembler import Assembler
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.types.signal_frame import SignalFrame
-from pirn.domains.health.types.signal_payload import SignalPayload
+from pirn.domains.health.types.health_signal_frame import HealthSignalFrame
+from pirn.domains.health.types.health_signal_payload import HealthSignalPayload
 
 
 def _assemble_meg(
@@ -39,7 +39,7 @@ def _assemble_meg(
     channel_count: int,
     sample_rate_hz: float,
     samples_per_channel: int,
-) -> SignalPayload:
+) -> HealthSignalPayload:
     try:
         npz = np.load(io.BytesIO(body))
         keys = list(npz.files)
@@ -50,18 +50,18 @@ def _assemble_meg(
             data = data[np.newaxis, :]
     except Exception:
         data = np.zeros((channel_count, samples_per_channel), dtype=np.float32)
-    frame = SignalFrame(
+    frame = HealthSignalFrame(
         signal_id=signal_id,
         channel_count=channel_count,
         sample_rate_hz=sample_rate_hz,
         samples_per_channel=samples_per_channel,
         fetched_at=datetime.now(UTC),
     )
-    return SignalPayload(metadata=frame, data=data)
+    return HealthSignalPayload(metadata=frame, data=data)
 
 
 class MegObjectStoreAssembler(Assembler):
-    """Assemble a :class:`SignalPayload` from raw MEG bytes stored in an object store."""
+    """Assemble a :class:`HealthSignalPayload` from raw MEG bytes stored in an object store."""
 
     def __init__(
         self,
@@ -92,8 +92,8 @@ class MegObjectStoreAssembler(Assembler):
         sample_rate_hz: float,
         samples_per_channel: int,
         **_: Any,
-    ) -> SignalPayload:
-        """Decode raw MEG bytes into a :class:`SignalPayload`.
+    ) -> HealthSignalPayload:
+        """Decode raw MEG bytes into a :class:`HealthSignalPayload`.
 
         Args:
             body: Raw bytes from an object store (npz format preferred; falls back to zeros).
@@ -103,8 +103,8 @@ class MegObjectStoreAssembler(Assembler):
             samples_per_channel: Positive number of samples per channel.
 
         Returns:
-            :class:`SignalPayload` with shape ``(channel_count, samples_per_channel)`` and
-            :class:`SignalFrame` metadata.
+            :class:`HealthSignalPayload` with shape ``(channel_count, samples_per_channel)`` and
+            :class:`HealthSignalFrame` metadata.
 
         Raises:
             TypeError: If ``body`` is not ``bytes`` or a numeric param has wrong type.

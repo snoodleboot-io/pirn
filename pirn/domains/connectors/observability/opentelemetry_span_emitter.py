@@ -1,7 +1,7 @@
 """OpenTelemetry tracer/emitter wrapper.
 
 Unlike the rest of the observability connectors,
-:class:`OpenTelemetryEmitter` is NOT an :class:`ApiClient`. OTel is an
+:class:`OpenTelemetrySpanEmitter` is NOT an :class:`ApiClient`. OTel is an
 emitter — its calls open spans that the SDK / collector forward to a
 backend, not request/response pairs. The lazy import path pulls
 ``opentelemetry-api`` + ``opentelemetry-sdk`` plus the OTLP exporter,
@@ -19,7 +19,7 @@ from pirn.domains.connectors.observability.opentelemetry_config import (
 )
 
 
-class OpenTelemetryEmitter:
+class OpenTelemetrySpanEmitter:
     """Async-friendly wrapper over an OpenTelemetry tracer.
 
     Tests inject ``tracer=`` directly; production callers pass
@@ -35,7 +35,7 @@ class OpenTelemetryEmitter:
         tracer: Any = None,
     ) -> None:
         if config is None and tracer is None:
-            raise TypeError("OpenTelemetryEmitter requires either config= or tracer=")
+            raise TypeError("OpenTelemetrySpanEmitter requires either config= or tracer=")
         self._config = config
         self._tracer = tracer
         self._closed = False
@@ -57,7 +57,7 @@ class OpenTelemetryEmitter:
         through the configured exporter pipeline.
         """
         if not isinstance(name, str) or not name:
-            raise ValueError("OpenTelemetryEmitter.emit_span: name must be non-empty")
+            raise ValueError("OpenTelemetrySpanEmitter.emit_span: name must be non-empty")
         tracer = await self._ensure_tracer()
         span_attributes = dict(attributes) if attributes is not None else None
         with tracer.start_as_current_span(name, attributes=span_attributes):
@@ -76,7 +76,7 @@ class OpenTelemetryEmitter:
 
     async def _ensure_tracer(self) -> Any:
         if self._closed:
-            raise RuntimeError("OpenTelemetryEmitter is closed")
+            raise RuntimeError("OpenTelemetrySpanEmitter is closed")
         if self._tracer is None:
             self._tracer = await self._create_tracer()
         return self._tracer
@@ -98,13 +98,13 @@ class OpenTelemetryEmitter:
             )
         except ImportError as exc:
             raise ImportError(
-                "OpenTelemetryEmitter requires opentelemetry-api / "
+                "OpenTelemetrySpanEmitter requires opentelemetry-api / "
                 "opentelemetry-sdk / opentelemetry-exporter-otlp; install "
                 "via `pip install pirn[otel]`"
             ) from exc
 
         if self._config is None:
-            raise RuntimeError("OpenTelemetryEmitter: missing config and no injected tracer")
+            raise RuntimeError("OpenTelemetrySpanEmitter: missing config and no injected tracer")
 
         resource_attrs: dict[str, Any] = {}
         if self._config.service_name is not None:

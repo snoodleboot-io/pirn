@@ -1,8 +1,8 @@
 """``ECGRPeakDetector`` — detect R-peaks in an ECG signal using Pan-Tompkins.
 
 Algorithm:
-    1. Receive signal (SignalPayload) and method string.
-    2. Validate signal is a SignalPayload and method is one of pan_tompkins/neurokit/elgendi.
+    1. Receive signal (HealthSignalPayload) and method string.
+    2. Validate signal is a HealthSignalPayload and method is one of pan_tompkins/neurokit/elgendi.
     3. Bandpass filter 5-15 Hz to isolate QRS complex frequency band.
     4. Differentiate, square, and integrate with a moving window.
     5. Threshold at 0.6 * max integrated signal and find peaks.
@@ -32,7 +32,7 @@ import scipy.signal
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.types.signal_payload import SignalPayload
+from pirn.domains.health.types.health_signal_payload import HealthSignalPayload
 
 
 def _pan_tompkins(ecg: np.ndarray, fs: float) -> tuple[int, ...]:
@@ -64,7 +64,7 @@ class ECGRPeakDetector(Knot):
     def __init__(
         self,
         *,
-        signal: Knot | SignalPayload,
+        signal: Knot | HealthSignalPayload,
         method: Knot | str,
         _config: KnotConfig,
         **kwargs: Any,
@@ -73,25 +73,25 @@ class ECGRPeakDetector(Knot):
 
     async def process(
         self,
-        signal: SignalPayload,
+        signal: HealthSignalPayload,
         method: str,
         **_: Any,
     ) -> tuple[int, ...]:
         """Detect R-peak sample indices in the ECG signal using the configured method.
 
         Args:
-            signal: SignalPayload containing the ECG recording.
+            signal: HealthSignalPayload containing the ECG recording.
             method: One of pan_tompkins, neurokit, elgendi.
 
         Returns:
             Tuple of integer sample indices corresponding to detected R-peaks.
 
         Raises:
-            TypeError: If signal is not a SignalPayload.
+            TypeError: If signal is not a HealthSignalPayload.
             ValueError: If method is not one of the supported options.
         """
-        if not isinstance(signal, SignalPayload):
-            raise TypeError("ECGRPeakDetector: signal must be a SignalPayload")
+        if not isinstance(signal, HealthSignalPayload):
+            raise TypeError("ECGRPeakDetector: signal must be a HealthSignalPayload")
         if method not in ("pan_tompkins", "neurokit", "elgendi"):
             raise ValueError(
                 "ECGRPeakDetector: method must be one of pan_tompkins/neurokit/elgendi"
