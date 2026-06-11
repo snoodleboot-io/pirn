@@ -1,4 +1,4 @@
-"""Tests for :class:`ImageEmbeddingExtractor`."""
+"""Tests for :class:`FeatureEngineeringImageEmbeddingExtractor`."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.ml.specializations.feature_engineering.image_embedding_extractor import (
-    ImageEmbeddingExtractor,
+from pirn.domains.ml.specializations.feature_engineering.feature_engineering_image_embedding_extractor import (
+    FeatureEngineeringImageEmbeddingExtractor,
 )
 from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.domains.ml.types.dataset_manifest import DatasetManifest
@@ -41,7 +41,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_empty_image_column(self) -> None:
         with Tapestry():
-            k = ImageEmbeddingExtractor.__new__(ImageEmbeddingExtractor)
+            k = FeatureEngineeringImageEmbeddingExtractor.__new__(FeatureEngineeringImageEmbeddingExtractor)
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaises((TypeError, ValueError)):
             await k.process(
@@ -52,7 +52,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_encoder(self) -> None:
         with Tapestry():
-            k = ImageEmbeddingExtractor.__new__(ImageEmbeddingExtractor)
+            k = FeatureEngineeringImageEmbeddingExtractor.__new__(FeatureEngineeringImageEmbeddingExtractor)
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaises((TypeError, ValueError)):
             await k.process(
@@ -67,7 +67,7 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         encoder = RecordingImageEncoderProvider()
         with Tapestry() as t:
             split = emit_split(_config=KnotConfig(id="split"))
-            ImageEmbeddingExtractor(
+            FeatureEngineeringImageEmbeddingExtractor(
                 split=split,
                 image_column="img",
                 image_encoder=encoder,

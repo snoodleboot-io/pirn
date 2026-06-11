@@ -1,4 +1,4 @@
-"""Unit tests for :class:`OpenTelemetryEmitter`.
+"""Unit tests for :class:`OpenTelemetrySpanEmitter`.
 
 Uses an injected stub tracer that mirrors the
 ``start_as_current_span`` slice of ``opentelemetry.trace``. No real
@@ -15,8 +15,8 @@ from typing import Any
 from pirn.domains.connectors.observability.opentelemetry_config import (
     OpenTelemetryConfig,
 )
-from pirn.domains.connectors.observability.opentelemetry_emitter import (
-    OpenTelemetryEmitter,
+from pirn.domains.connectors.observability.opentelemetry_span_emitter import (
+    OpenTelemetrySpanEmitter,
 )
 
 # ──────────────────────────────────────────────────────────── fake tracer
@@ -50,7 +50,7 @@ class FakeTracer:
 class _StandaloneTests(unittest.TestCase):
     def test_construction_requires_config_or_tracer(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or tracer="):
-            OpenTelemetryEmitter()
+            OpenTelemetrySpanEmitter()
     
     
     def test_sensitive_fields_listed(self) -> None:
@@ -63,7 +63,7 @@ class _StandaloneTests(unittest.TestCase):
 class TestEmitSpan(unittest.IsolatedAsyncioTestCase):
     async def test_emit_span_starts_and_exits_span(self) -> None:
         fake = FakeTracer()
-        emitter = OpenTelemetryEmitter(tracer=fake)
+        emitter = OpenTelemetrySpanEmitter(tracer=fake)
 
         await emitter.emit_span("op", attributes={"k": "v"})
 
@@ -73,14 +73,14 @@ class TestEmitSpan(unittest.IsolatedAsyncioTestCase):
 
     async def test_emit_span_without_attributes(self) -> None:
         fake = FakeTracer()
-        emitter = OpenTelemetryEmitter(tracer=fake)
+        emitter = OpenTelemetrySpanEmitter(tracer=fake)
 
         await emitter.emit_span("op")
 
         assert fake.calls == [("op", None)]
 
     async def test_emit_span_rejects_empty_name(self) -> None:
-        emitter = OpenTelemetryEmitter(tracer=FakeTracer())
+        emitter = OpenTelemetrySpanEmitter(tracer=FakeTracer())
         with self.assertRaisesRegex(ValueError, "non-empty"):
             await emitter.emit_span("")
 
@@ -90,12 +90,12 @@ class TestEmitSpan(unittest.IsolatedAsyncioTestCase):
 
 class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_is_idempotent(self) -> None:
-        emitter = OpenTelemetryEmitter(tracer=FakeTracer())
+        emitter = OpenTelemetrySpanEmitter(tracer=FakeTracer())
         await emitter.close()
         await emitter.close()
 
     async def test_emit_after_close_raises(self) -> None:
-        emitter = OpenTelemetryEmitter(tracer=FakeTracer())
+        emitter = OpenTelemetrySpanEmitter(tracer=FakeTracer())
         await emitter.close()
         with self.assertRaisesRegex(RuntimeError, "closed"):
             await emitter.emit_span("op")

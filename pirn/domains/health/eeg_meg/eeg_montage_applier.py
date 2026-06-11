@@ -1,7 +1,7 @@
 """``EEGMontageApplier`` — apply electrode montage (re-reference, set channel positions) to EEG data.
 
 Algorithm:
-    1. Receive signal SignalPayload, montage_name string, reference string, and drop_channels tuple.
+    1. Receive signal HealthSignalPayload, montage_name string, reference string, and drop_channels tuple.
     2. Validate types and that reference is one of the valid values and montage_name is non-empty.
     3. Remove channels listed in drop_channels from the channel list.
     4. Apply the specified re-reference scheme to the data.
@@ -20,7 +20,7 @@ from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.types.signal_payload import SignalPayload
+from pirn.domains.health.types.health_signal_payload import HealthSignalPayload
 
 
 def _get_standard_positions(n_channels: int) -> dict[str, list[float]]:
@@ -80,7 +80,7 @@ class EEGMontageApplier(Knot):
     def __init__(
         self,
         *,
-        signal: Knot | SignalPayload,
+        signal: Knot | HealthSignalPayload,
         montage_name: Knot | str,
         reference: Knot | str,
         drop_channels: Knot | tuple[str, ...] = (),
@@ -98,7 +98,7 @@ class EEGMontageApplier(Knot):
 
     async def process(
         self,
-        signal: SignalPayload,
+        signal: HealthSignalPayload,
         montage_name: str,
         reference: str,
         drop_channels: tuple[str, ...] = (),
@@ -107,7 +107,7 @@ class EEGMontageApplier(Knot):
         """Apply montage and return channel positions for the EEG payload.
 
         Args:
-            signal: The SignalPayload whose channel count drives position lookup.
+            signal: The HealthSignalPayload whose channel count drives position lookup.
             montage_name: Non-empty string identifying the electrode layout
                 (e.g. '10-20', '10-10', 'biosemi64').
             reference: Re-reference scheme; one of 'average', 'linked_mastoids', 'cz', 'nose'.
@@ -118,11 +118,11 @@ class EEGMontageApplier(Knot):
             (dict of channel name to [x, y, z]).
 
         Raises:
-            TypeError: If signal is not SignalPayload.
+            TypeError: If signal is not HealthSignalPayload.
             ValueError: If montage_name is empty or reference is invalid.
         """
-        if not isinstance(signal, SignalPayload):
-            raise TypeError("EEGMontageApplier: signal must be a SignalPayload")
+        if not isinstance(signal, HealthSignalPayload):
+            raise TypeError("EEGMontageApplier: signal must be a HealthSignalPayload")
         if not isinstance(montage_name, str) or not montage_name:
             raise ValueError("EEGMontageApplier: montage_name must be a non-empty string")
         if reference not in self._valid_references:

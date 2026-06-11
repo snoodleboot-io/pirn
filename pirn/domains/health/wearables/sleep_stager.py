@@ -1,8 +1,8 @@
 """``SleepStager`` — stage sleep epochs as wake / N1 / N2 / N3 / REM.
 
 Algorithm:
-    1. Receive signal (SignalPayload) and epoch_length_sec float.
-    2. Validate signal is a SignalPayload and epoch_length_sec is positive numeric.
+    1. Receive signal (HealthSignalPayload) and epoch_length_sec float.
+    2. Validate signal is a HealthSignalPayload and epoch_length_sec is positive numeric.
     3. Divide signal into fixed-length epochs.
     4. Compute band power per epoch (delta, theta, alpha, beta via scipy.signal.welch).
     5. Apply rule-based staging: high delta → N3, high theta → N2, high alpha → wake.
@@ -29,7 +29,7 @@ import scipy.signal
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.types.signal_payload import SignalPayload
+from pirn.domains.health.types.health_signal_payload import HealthSignalPayload
 
 
 def _band_power(epoch: np.ndarray, fs: float, low: float, high: float) -> float:
@@ -88,7 +88,7 @@ class SleepStager(Knot):
     def __init__(
         self,
         *,
-        signal: Knot | SignalPayload,
+        signal: Knot | HealthSignalPayload,
         epoch_length_sec: Knot | float,
         _config: KnotConfig,
         **kwargs: Any,
@@ -99,25 +99,25 @@ class SleepStager(Knot):
 
     async def process(
         self,
-        signal: SignalPayload,
+        signal: HealthSignalPayload,
         epoch_length_sec: float,
         **_: Any,
     ) -> tuple[str, ...]:
         """Stage the signal into sleep epochs and return a tuple of stage labels.
 
         Args:
-            signal: SignalPayload containing the PSG or EEG recording.
+            signal: HealthSignalPayload containing the PSG or EEG recording.
             epoch_length_sec: Epoch duration in seconds (must be positive).
 
         Returns:
             Tuple of stage label strings (e.g. ``"wake"``, ``"N1"``, ``"N3"``) one per epoch.
 
         Raises:
-            TypeError: If signal is not a SignalPayload or epoch_length_sec is not numeric.
+            TypeError: If signal is not a HealthSignalPayload or epoch_length_sec is not numeric.
             ValueError: If epoch_length_sec is not positive.
         """
-        if not isinstance(signal, SignalPayload):
-            raise TypeError("SleepStager: signal must be a SignalPayload")
+        if not isinstance(signal, HealthSignalPayload):
+            raise TypeError("SleepStager: signal must be a HealthSignalPayload")
         if not isinstance(epoch_length_sec, (int, float)):
             raise TypeError("SleepStager: epoch_length_sec must be numeric")
         if float(epoch_length_sec) <= 0:

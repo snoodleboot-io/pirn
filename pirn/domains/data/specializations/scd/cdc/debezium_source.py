@@ -17,7 +17,7 @@ This source consumes the topic and decodes each envelope into a plain
 feed the parsed events into any downstream Knot — e.g. a relational sink
 (``CDCDebezium`` for a connector-applying target) or a queue.
 
-The message broker connection is supplied via a :class:`MessageBrokerKnot`
+The message broker connection is supplied via a :class:`CdcMessageBrokerKnot`
 upstream, which wraps any concrete :class:`MessageBroker` implementation.
 
 Validation:
@@ -60,11 +60,11 @@ from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.domains.data.specializations.scd.cdc.cdc_message_broker_knot import (
+    CdcMessageBrokerKnot,
+)
 from pirn.domains.data.specializations.scd.cdc.message_broker_connection import (
     MessageBrokerConnection,
-)
-from pirn.domains.data.specializations.scd.cdc.message_broker_knot import (
-    MessageBrokerKnot,
 )
 from pirn.nodes.source import Source
 
@@ -78,7 +78,7 @@ class DebeziumSource(Source):
     def __init__(
         self,
         *,
-        broker: MessageBrokerKnot,
+        broker: CdcMessageBrokerKnot,
         topic: Knot | str,
         max_messages: Knot | int | None = None,
         _config: KnotConfig,

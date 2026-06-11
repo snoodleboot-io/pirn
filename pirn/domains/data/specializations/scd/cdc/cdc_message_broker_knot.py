@@ -1,4 +1,4 @@
-"""``MessageBrokerKnot`` — vending Knot for :class:`MessageBrokerConnection`.
+"""``CdcMessageBrokerKnot`` — vending Knot for :class:`MessageBrokerConnection`.
 
 A :class:`~pirn.domains.connectors.message_broker.MessageBroker` is a live,
 stateful object holding open connections to an external messaging system.
@@ -8,7 +8,7 @@ during ``process()`` and returns it wrapped in a pydantic-opaque
 :class:`MessageBrokerConnection` so that consumer Knots can declare it as
 a typed upstream dependency.
 
-Share a single :class:`MessageBrokerKnot` across all Knots that need to
+Share a single :class:`CdcMessageBrokerKnot` across all Knots that need to
 operate on the same broker connection.
 
 Algorithm:
@@ -34,7 +34,7 @@ from pirn.domains.data.specializations.scd.cdc.message_broker_connection import 
 )
 
 
-class MessageBrokerKnot(Knot):
+class CdcMessageBrokerKnot(Knot):
     """Construct and vend a :class:`MessageBrokerConnection`.
 
     Pass a live :class:`MessageBroker` as ``broker``. Downstream Knots

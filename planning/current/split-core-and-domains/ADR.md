@@ -321,6 +321,27 @@ R1 keeps the shared `library="pirn"` namespace, so every knot key must be global
 
 Only `DatabaseConnectionPoolKnot` is a true duplicate to merge; the other four are genuinely distinct implementations that must keep distinct registry keys. Names above are proposals — executors may refine, but uniqueness under `library="pirn"` is the hard requirement. R2 (per-package `library`) remains rejected as the *primary* strategy, but renaming is cheap because it rides the mass rename already in scope.
 
+#### Decision note — R1 confirmed, B1 amended (SCD-01 / #52 execution outcome, 2026-06-11)
+
+**R1 is CONFIRMED.** Executing SCD-01 against the live registry validated the mechanism end-to-end: `Registry.fill_registry(module=…, library="pirn")` self-registers a separate top-level package's knots under the shared `"pirn"` library, and `BaseFactory.create()` resolves them by bare (lowercased class-name) key, raising `SweetTeaError` only when >1 distinct class matches. The shared-`library` + rename strategy (not R2) holds.
+
+**B1 is AMENDED — the collision count was understated. The real number is 15, not 5.** A ground-truth audit (build the registry as `import pirn` does, then group `Entry` by `(key, library)`) found **15** duplicate keys, every one of which makes bare-name `create()` raise today. The original B1 list (5) was both incomplete and partly mis-specified:
+
+- **Mis-specified:** `bandpassfilter`'s signal sibling is `signal/filters/band_pass_filter.py::BandPassFilter` (not `bandpass_filter_bank.py::BandpassFilterBank`, which is a distinct key); `freshnesscheck` is **intra-`data`** (two `data/` knots), not cross-domain.
+- **Missing (10):** `signalframe`, `signalpayload` (health vs signal — **cross-package**); `datasetmanifest`, `datasetpayload`, `datasplitpayload`, `evalreportpayload`, `trainedmodelpayload`, `imageembeddingextractor` (intra-`ml`); `opentelemetryemitter` (core: `connectors` vs `emitters`); `parameterspec` (core: `core` vs `yaml_loader`).
+
+**Resolution executed (all 15, behavior-preserving):**
+
+| Kind | Count | Items → action |
+|------|------:|----------------|
+| Delete deprecated duplicate stub modules (0 importers) | 5 | `ml/types/{ml_dataset, ml_dataset_payload, data_split, eval_report, trained_model}.py` → `git rm` (canonical `dataset_manifest`/`*_payload` modules retained) |
+| Delete orphaned duplicate (0 importers) | 1 | `data/specializations/incremental/database_connection_pool_knot.py` → `git rm`; test repointed to the `connectors` class |
+| Rename genuine variant (class + `git mv` file + refs) | 9 | health `BandpassFilter`→`EegBandpassFilter`, `NotchFilter`→`EegNotchFilter`, `SignalFrame`→`HealthSignalFrame`, `SignalPayload`→`HealthSignalPayload`; data `MessageBrokerKnot`→`CdcMessageBrokerKnot`, specialization `FreshnessCheck`→`DatabaseTableFreshnessCheck`; core `OpenTelemetryEmitter`(connectors)→`OpenTelemetrySpanEmitter`, `ParameterSpec`(yaml_loader)→`YamlParameterSpec`; ml specialization `ImageEmbeddingExtractor`→`FeatureEngineeringImageEmbeddingExtractor` |
+
+**Architectural correction vs the B1 proposal:** `signalframe`/`signalpayload` are resolved by **renaming the health side** (`HealthSignalFrame`/`HealthSignalPayload`), *not* by consolidating health→signal. Consolidation would introduce a `pirn-health → pirn-signal` package edge, which the ADR-1/ADR-3 target graph forbids (health depends on core only). Health is confirmed self-contained (imports nothing from signal), so the rename keeps the package graph intact.
+
+**Verification:** a new acceptance test `tests/unit/test_registry_uniqueness.py` asserts zero `(key, library)` collisions across the whole registered set — RED at 15 before, GREEN after. `ruff check pirn/` + `ruff format --check pirn/` clean; `pyright` 0 errors; the affected-domain unit tests pass (1067 passed, only a pre-existing nibabel `motion_corrector` env failure remains), including `--real` Postgres/Kafka for the consolidated pool and renamed CDC broker.
+
 ### Alternatives rejected
 
 | Alternative | Reason rejected |

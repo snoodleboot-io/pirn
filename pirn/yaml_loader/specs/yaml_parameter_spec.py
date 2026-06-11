@@ -7,7 +7,7 @@ from pydantic import Field
 from pirn.yaml_loader.specs.node_spec import NodeSpec
 
 
-class ParameterSpec(NodeSpec):
+class YamlParameterSpec(NodeSpec):
     type: Literal["parameter"]
     type_: str = Field(
         ...,

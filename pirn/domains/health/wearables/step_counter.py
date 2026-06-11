@@ -1,8 +1,8 @@
 """``StepCounter`` — derive step count from accelerometer data.
 
 Algorithm:
-    1. Receive signal (SignalPayload) and threshold float.
-    2. Validate signal is a SignalPayload and threshold is non-negative.
+    1. Receive signal (HealthSignalPayload) and threshold float.
+    2. Validate signal is a HealthSignalPayload and threshold is non-negative.
     3. Compute the acceleration magnitude envelope from the tri-axial signal.
     4. Detect peaks above an adaptive threshold using a windowed peak finder.
     5. Return the total number of detected peaks as the step count.
@@ -26,7 +26,7 @@ import scipy.signal
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.types.signal_payload import SignalPayload
+from pirn.domains.health.types.health_signal_payload import HealthSignalPayload
 
 
 def _count_steps(data: np.ndarray, fs: float) -> int:
@@ -57,7 +57,7 @@ class StepCounter(Knot):
     def __init__(
         self,
         *,
-        signal: Knot | SignalPayload,
+        signal: Knot | HealthSignalPayload,
         threshold: Knot | float,
         _config: KnotConfig,
         **kwargs: Any,
@@ -66,14 +66,14 @@ class StepCounter(Knot):
 
     async def process(
         self,
-        signal: SignalPayload,
+        signal: HealthSignalPayload,
         threshold: float,
         **_: Any,
     ) -> int:
         """Count steps by detecting acceleration peaks above the threshold.
 
         Args:
-            signal: SignalPayload containing the tri-axial accelerometer recording.
+            signal: HealthSignalPayload containing the tri-axial accelerometer recording.
             threshold: Minimum peak height threshold (must be >= 0). Unused — adaptive
                 threshold is derived from signal statistics.
 
@@ -81,11 +81,11 @@ class StepCounter(Knot):
             Total number of steps detected in the accelerometer signal.
 
         Raises:
-            TypeError: If signal is not a SignalPayload.
+            TypeError: If signal is not a HealthSignalPayload.
             ValueError: If threshold is negative.
         """
-        if not isinstance(signal, SignalPayload):
-            raise TypeError("StepCounter: signal must be a SignalPayload")
+        if not isinstance(signal, HealthSignalPayload):
+            raise TypeError("StepCounter: signal must be a HealthSignalPayload")
         if not isinstance(threshold, (int, float)) or float(threshold) < 0:
             raise ValueError("StepCounter: threshold must be a non-negative number")
         fs = signal.frame.sample_rate_hz

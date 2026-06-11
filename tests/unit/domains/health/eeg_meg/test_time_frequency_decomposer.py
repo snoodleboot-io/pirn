@@ -11,12 +11,12 @@ from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.eeg_meg.time_frequency_decomposer import (
     TimeFrequencyDecomposer,
 )
-from pirn.domains.health.types.signal_frame import SignalFrame
-from pirn.domains.health.types.signal_payload import SignalPayload
+from pirn.domains.health.types.health_signal_frame import HealthSignalFrame
+from pirn.domains.health.types.health_signal_payload import HealthSignalPayload
 
 _CFG = KnotConfig(id="t")
-_SIGNAL = SignalPayload(
-    metadata=SignalFrame(signal_id="s", channel_count=2, sample_rate_hz=256.0, samples_per_channel=512),
+_SIGNAL = HealthSignalPayload(
+    metadata=HealthSignalFrame(signal_id="s", channel_count=2, sample_rate_hz=256.0, samples_per_channel=512),
     data=np.random.default_rng(0).standard_normal((2, 512)),
 )
 _KNOT = TimeFrequencyDecomposer(signal=_SIGNAL, frequencies_hz=[10.0], method="morlet", _config=_CFG)
@@ -24,7 +24,7 @@ _KNOT = TimeFrequencyDecomposer(signal=_SIGNAL, frequencies_hz=[10.0], method="m
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_signal(self) -> None:
-        with self.assertRaisesRegex(TypeError, "SignalPayload"):
+        with self.assertRaisesRegex(TypeError, "HealthSignalPayload"):
             await _KNOT.process(signal="x", frequencies_hz=[10.0], method="morlet")  # type: ignore[arg-type]
 
     async def test_rejects_non_sequence(self) -> None:

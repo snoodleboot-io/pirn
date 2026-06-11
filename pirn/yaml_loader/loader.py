@@ -51,11 +51,11 @@ from pirn.yaml_loader.specs.branch_spec import BranchSpec
 from pirn.yaml_loader.specs.gate_spec import GateSpec
 from pirn.yaml_loader.specs.knot_spec import KnotSpec
 from pirn.yaml_loader.specs.map_spec import MapSpec
-from pirn.yaml_loader.specs.parameter_spec import ParameterSpec
 from pirn.yaml_loader.specs.pipeline_spec import PipelineSpec
 from pirn.yaml_loader.specs.reduce_spec import ReduceSpec
 from pirn.yaml_loader.specs.sink_spec import SinkSpec
 from pirn.yaml_loader.specs.source_spec import SourceSpec
+from pirn.yaml_loader.specs.yaml_parameter_spec import YamlParameterSpec
 
 
 class PipelineLoader:
@@ -192,7 +192,7 @@ class PipelineLoader:
             tags=tuple(node_spec.tags),
         )
 
-        if isinstance(node_spec, ParameterSpec):
+        if isinstance(node_spec, YamlParameterSpec):
             type_ = PipelineLoader._resolve_type(node_spec.type_)
             kwargs: dict[str, Any] = {
                 "name": node_spec.id.split(":", 1)[-1] if ":" in node_spec.id else node_spec.id,

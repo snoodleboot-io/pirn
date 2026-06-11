@@ -1,4 +1,4 @@
-"""Tests for :class:`FreshnessCheck`."""
+"""Tests for :class:`DatabaseTableFreshnessCheck`."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.domains.connectors.databases.sqlite_config import SqliteConfig
 from pirn.domains.connectors.databases.sqlite_pool import SqlitePool
-from pirn.domains.data.specializations.quality.freshness_check import FreshnessCheck
+from pirn.domains.data.specializations.quality.database_table_freshness_check import DatabaseTableFreshnessCheck
 from pirn.tapestry import Tapestry
 
 _TABLE = "events"
@@ -40,8 +40,8 @@ async def _make_empty_pool() -> SqlitePool:
     return p
 
 
-def _make_knot(pool: SqlitePool) -> FreshnessCheck:
-    return FreshnessCheck(
+def _make_knot(pool: SqlitePool) -> DatabaseTableFreshnessCheck:
+    return DatabaseTableFreshnessCheck(
         pool=pool,
         monitored_table=_TABLE,
         timestamp_column=_TS_COL,
@@ -107,7 +107,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
         with Tapestry() as t:
             age_knot = emit_age(_config=KnotConfig(id="age"))
-            FreshnessCheck(
+            DatabaseTableFreshnessCheck(
                 pool=self.pool,
                 monitored_table=_TABLE,
                 timestamp_column=_TS_COL,
@@ -125,7 +125,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def asyncTearDown(self) -> None:
         await self.pool.close()
 
-    def _make_knot(self, **kwargs: Any) -> FreshnessCheck:
+    def _make_knot(self, **kwargs: Any) -> DatabaseTableFreshnessCheck:
         defaults: dict[str, Any] = {
             "pool": self.pool,
             "monitored_table": _TABLE,
@@ -134,9 +134,9 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
         }
         defaults.update(kwargs)
         with Tapestry():
-            return FreshnessCheck(**defaults, _config=KnotConfig(id="val"))
+            return DatabaseTableFreshnessCheck(**defaults, _config=KnotConfig(id="val"))
 
-    async def _call(self, k: FreshnessCheck, **overrides: Any) -> None:
+    async def _call(self, k: DatabaseTableFreshnessCheck, **overrides: Any) -> None:
         args: dict[str, Any] = {
             "pool": self.pool,
             "monitored_table": _TABLE,

@@ -13,15 +13,15 @@ import numpy as np
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.health.types.signal_frame import SignalFrame
-from pirn.domains.health.types.signal_payload import SignalPayload
+from pirn.domains.health.types.health_signal_frame import HealthSignalFrame
+from pirn.domains.health.types.health_signal_payload import HealthSignalPayload
 from pirn.domains.health.wearables.ecg_r_peak_detector import (
     ECGRPeakDetector,
 )
 from pirn.tapestry import Tapestry
 
-_ECG_SIGNAL = SignalPayload(
-    metadata=SignalFrame(signal_id="ecg", channel_count=1, sample_rate_hz=360.0, samples_per_channel=1024),
+_ECG_SIGNAL = HealthSignalPayload(
+    metadata=HealthSignalFrame(signal_id="ecg", channel_count=1, sample_rate_hz=360.0, samples_per_channel=1024),
     data=np.random.default_rng(0).standard_normal((1, 1024)),
 )
 
@@ -29,7 +29,7 @@ _ECG_SIGNAL = SignalPayload(
 class TestConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_signal(self) -> None:
         inst = object.__new__(ECGRPeakDetector)
-        with self.assertRaisesRegex(TypeError, "SignalPayload"):
+        with self.assertRaisesRegex(TypeError, "HealthSignalPayload"):
             await ECGRPeakDetector.process(
                 inst,
                 signal="x",  # type: ignore[arg-type]

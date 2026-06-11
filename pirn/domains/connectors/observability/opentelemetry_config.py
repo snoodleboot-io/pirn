@@ -1,4 +1,4 @@
-"""Configuration dataclass for :class:`OpenTelemetryEmitter`."""
+"""Configuration dataclass for :class:`OpenTelemetrySpanEmitter`."""
 
 from __future__ import annotations
 

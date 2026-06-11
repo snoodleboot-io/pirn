@@ -1,7 +1,7 @@
 """``TimeFrequencyDecomposer`` — Morlet / Multitaper time-frequency analysis.
 
 Algorithm:
-    1. Receive a SignalPayload, frequencies_hz sequence, and method string.
+    1. Receive a HealthSignalPayload, frequencies_hz sequence, and method string.
     2. Validate types and that all frequencies are positive and method is valid.
     3. For each frequency, compute mean power via scipy.signal.cwt with Morlet wavelets.
     4. Return a mapping of frequency to mean instantaneous power.
@@ -25,7 +25,7 @@ import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.types.signal_payload import SignalPayload
+from pirn.domains.health.types.health_signal_payload import HealthSignalPayload
 
 _morlet_w = 6.0
 
@@ -56,7 +56,7 @@ class TimeFrequencyDecomposer(Knot):
     def __init__(
         self,
         *,
-        signal: Knot | SignalPayload,
+        signal: Knot | HealthSignalPayload,
         frequencies_hz: Knot | Sequence[float],
         method: Knot | str,
         _config: KnotConfig,
@@ -72,7 +72,7 @@ class TimeFrequencyDecomposer(Knot):
 
     async def process(
         self,
-        signal: SignalPayload,
+        signal: HealthSignalPayload,
         frequencies_hz: Sequence[float],
         method: str,
         **_: Any,
@@ -80,7 +80,7 @@ class TimeFrequencyDecomposer(Knot):
         """Decompose the signal at the configured frequencies using Morlet CWT.
 
         Args:
-            signal: The SignalPayload to decompose.
+            signal: The HealthSignalPayload to decompose.
             frequencies_hz: Sequence of positive frequency values in Hz.
             method: Decomposition method; one of 'morlet', 'multitaper', 'stockwell'.
 
@@ -88,11 +88,11 @@ class TimeFrequencyDecomposer(Knot):
             A mapping from frequency (Hz) to mean power estimated via CWT.
 
         Raises:
-            TypeError: If signal is not SignalPayload or frequencies_hz is not list/tuple.
+            TypeError: If signal is not HealthSignalPayload or frequencies_hz is not list/tuple.
             ValueError: If any frequency is non-positive or method is invalid.
         """
-        if not isinstance(signal, SignalPayload):
-            raise TypeError("TimeFrequencyDecomposer: signal must be a SignalPayload")
+        if not isinstance(signal, HealthSignalPayload):
+            raise TypeError("TimeFrequencyDecomposer: signal must be a HealthSignalPayload")
         if not isinstance(frequencies_hz, (list, tuple)):
             raise TypeError("TimeFrequencyDecomposer: frequencies_hz must be list/tuple")
         for freq in frequencies_hz:

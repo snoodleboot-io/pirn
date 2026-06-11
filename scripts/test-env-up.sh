@@ -30,7 +30,7 @@ docker run --rm --network host minio/mc \
     mb local/pirn-test --quiet 2>/dev/null || true
 
 echo "==> Exporting env vars..."
-export PIRN_TEST_POSTGRES_URL="postgresql://pirn:pirn@localhost:5433/pirn_test"
+export PIRN_TEST_POSTGRES_URL="postgresql://pirn:pirn@localhost:5434/pirn_test"
 export PIRN_TEST_VALKEY_URL="redis://localhost:6380/0"
 export PIRN_TEST_KAFKA_URL="localhost:9092"
 export PIRN_TEST_S3_ENDPOINT="http://localhost:9000"

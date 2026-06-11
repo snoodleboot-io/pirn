@@ -1,4 +1,4 @@
-"""Unit tests for :class:`ImageEmbeddingExtractor` (specializations/feature_engineering)."""
+"""Unit tests for :class:`FeatureEngineeringImageEmbeddingExtractor` (specializations/feature_engineering)."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.ml.image_encoder_provider import ImageEncoderProvider
-from pirn.domains.ml.specializations.feature_engineering.image_embedding_extractor import (
-    ImageEmbeddingExtractor,
+from pirn.domains.ml.specializations.feature_engineering.feature_engineering_image_embedding_extractor import (
+    FeatureEngineeringImageEmbeddingExtractor,
 )
 from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.domains.ml.types.dataset_manifest import DatasetManifest
@@ -35,7 +35,7 @@ class _KnotStub(Knot):
 class TestConstruction(unittest.TestCase):
     def test_valid_construction(self) -> None:
         with Tapestry() as t:
-            ImageEmbeddingExtractor(
+            FeatureEngineeringImageEmbeddingExtractor(
                 split=_KnotStub(_config=KnotConfig(id="s")),
                 image_column="img",
                 image_encoder=_StubEncoder(),
@@ -45,8 +45,8 @@ class TestConstruction(unittest.TestCase):
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
-    def _make_knot(self) -> ImageEmbeddingExtractor:
-        k = ImageEmbeddingExtractor.__new__(ImageEmbeddingExtractor)
+    def _make_knot(self) -> FeatureEngineeringImageEmbeddingExtractor:
+        k = FeatureEngineeringImageEmbeddingExtractor.__new__(FeatureEngineeringImageEmbeddingExtractor)
         object.__setattr__(k, "_config", KnotConfig(id="iee"))
         return k
 

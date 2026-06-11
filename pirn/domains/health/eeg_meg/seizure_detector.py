@@ -1,8 +1,8 @@
 """``SeizureDetector`` — detect seizure intervals in an EEG.
 
 Algorithm:
-    1. Receive a SignalPayload and threshold float.
-    2. Validate that signal is a SignalPayload and threshold is non-negative.
+    1. Receive a HealthSignalPayload and threshold float.
+    2. Validate that signal is a HealthSignalPayload and threshold is non-negative.
     3. Compute RMS energy in sliding 1-second windows across all channels.
     4. Mark windows where RMS exceeds threshold as candidate seizures.
     5. Return a sequence of (start_sec, end_sec) interval tuples.
@@ -27,7 +27,7 @@ import numpy as np
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.types.signal_payload import SignalPayload
+from pirn.domains.health.types.health_signal_payload import HealthSignalPayload
 
 
 def _detect_seizures(data: np.ndarray, fs: float, threshold: float) -> list[tuple[float, float]]:
@@ -61,7 +61,7 @@ class SeizureDetector(Knot):
     def __init__(
         self,
         *,
-        signal: Knot | SignalPayload,
+        signal: Knot | HealthSignalPayload,
         threshold: Knot | float,
         _config: KnotConfig,
         **kwargs: Any,
@@ -75,25 +75,25 @@ class SeizureDetector(Knot):
 
     async def process(
         self,
-        signal: SignalPayload,
+        signal: HealthSignalPayload,
         threshold: float,
         **_: Any,
     ) -> Sequence[tuple[float, float]]:
         """Detect seizure intervals in the EEG signal above the configured threshold.
 
         Args:
-            signal: The EEG SignalPayload to scan for seizures.
+            signal: The EEG HealthSignalPayload to scan for seizures.
             threshold: Non-negative RMS energy detection threshold.
 
         Returns:
             A sequence of (start_sec, end_sec) tuples representing detected seizure intervals.
 
         Raises:
-            TypeError: If signal is not a SignalPayload or threshold is not numeric.
+            TypeError: If signal is not a HealthSignalPayload or threshold is not numeric.
             ValueError: If threshold is negative.
         """
-        if not isinstance(signal, SignalPayload):
-            raise TypeError("SeizureDetector: signal must be a SignalPayload")
+        if not isinstance(signal, HealthSignalPayload):
+            raise TypeError("SeizureDetector: signal must be a HealthSignalPayload")
         if not isinstance(threshold, (int, float)):
             raise TypeError("SeizureDetector: threshold must be numeric")
         if float(threshold) < 0:

@@ -13,7 +13,7 @@ The `MriQcGate` knot is MRI-specific; EEG/MEG quality control is handled via sig
 ```
 pirn/domains/health/eeg_meg/
 ├── artifact_remover.py                  ArtifactRemover                  — detects and interpolates bad channels and epochs
-├── bandpass_filter.py                   BandpassFilter                   — zero-phase FIR bandpass filter (cutoff configurable)
+├── bandpass_filter.py                   EegBandpassFilter                   — zero-phase FIR bandpass filter (cutoff configurable)
 ├── coherence_analyzer.py                CoherenceAnalyzer                — inter-channel magnitude-squared coherence
 ├── connectivity_analyzer.py             ConnectivityAnalyzer             — spectral connectivity (PLI, PLV, dwPLI) via MNE-Connectivity
 ├── eeg_ica_decomposer.py                EegIcaDecomposer                 — FastICA/Infomax decomposition and artifact component rejection
@@ -21,7 +21,7 @@ pirn/domains/health/eeg_meg/
 ├── epoch_extractor.py                   EpochExtractor                   — extracts epochs around events with configurable window
 ├── evoked_response_averager.py          EvokedResponseAverager           — averages epochs to produce evoked response
 ├── meg_beamformer.py                    MegBeamformer                    — LCMV/DICS beamformer spatial filter for MEG source imaging
-├── notch_filter.py                      NotchFilter                      — notch filter for line-noise removal (50/60 Hz)
+├── notch_filter.py                      EegNotchFilter                      — notch filter for line-noise removal (50/60 Hz)
 ├── power_spectral_density_estimator.py  PowerSpectralDensityEstimator    — Welch/multitaper PSD estimation per channel
 ├── source_localizer.py                  SourceLocalizer                  — EEG/MEG dipole fitting and distributed source localisation
 └── time_frequency_decomposer.py         TimeFrequencyDecomposer          — Morlet wavelet or multitaper TFR decomposition
@@ -36,8 +36,8 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.domains.health.eeg_meg.eeg_montage_applier import EegMontageApplier
-from pirn.domains.health.eeg_meg.notch_filter import NotchFilter
-from pirn.domains.health.eeg_meg.bandpass_filter import BandpassFilter
+from pirn.domains.health.eeg_meg.eeg_notch_filter import EegNotchFilter
+from pirn.domains.health.eeg_meg.eeg_bandpass_filter import EegBandpassFilter
 from pirn.domains.health.eeg_meg.eeg_ica_decomposer import EegIcaDecomposer
 from pirn.domains.health.eeg_meg.epoch_extractor import EpochExtractor
 from pirn.domains.health.eeg_meg.power_spectral_density_estimator import PowerSpectralDensityEstimator
@@ -53,12 +53,12 @@ with Tapestry() as t:
         montage="standard_1020",
         _config=KnotConfig(id="montage"),
     )
-    notched = NotchFilter(
+    notched = EegNotchFilter(
         raw=montaged,
         freqs=[50.0, 100.0],
         _config=KnotConfig(id="notch"),
     )
-    bandpassed = BandpassFilter(
+    bandpassed = EegBandpassFilter(
         raw=notched,
         l_freq=1.0,
         h_freq=40.0,
@@ -91,7 +91,7 @@ psd = result.outputs["psd"]
 
 ## Anti-patterns
 
-**Applying ICA before filtering** — `EegIcaDecomposer` expects a bandpass-filtered signal. Running ICA on broadband or line-noise-contaminated data inflates component count and makes artifact components harder to identify. Always apply `NotchFilter` and `BandpassFilter` before `EegIcaDecomposer`.
+**Applying ICA before filtering** — `EegIcaDecomposer` expects a bandpass-filtered signal. Running ICA on broadband or line-noise-contaminated data inflates component count and makes artifact components harder to identify. Always apply `EegNotchFilter` and `EegBandpassFilter` before `EegIcaDecomposer`.
 
 **Running `SourceLocalizer` without a forward model** — `SourceLocalizer` and `MegBeamformer` require a precomputed forward solution (leadfield matrix). They do not compute the forward model internally. Provide the forward solution path via `KnotConfig.extra`; omitting it raises `RuntimeError` at process time.
 
@@ -112,8 +112,8 @@ psd = result.outputs["psd"]
 |---|---|
 | Decode EDF/BDF/BrainVision bytes | `EdfFormat` / `BdfFormat` / `BrainVisionFormat` (connector layer) |
 | Apply electrode montage | `EegMontageApplier` |
-| Remove line noise | `NotchFilter` (50 or 60 Hz) |
-| Bandpass for ERP | `BandpassFilter` (1–40 Hz typical) |
+| Remove line noise | `EegNotchFilter` (50 or 60 Hz) |
+| Bandpass for ERP | `EegBandpassFilter` (1–40 Hz typical) |
 | Remove ocular/muscle artifacts | `EegIcaDecomposer` |
 | Extract event-locked epochs | `EpochExtractor` |
 | Compute ERP | `EvokedResponseAverager` on epochs |

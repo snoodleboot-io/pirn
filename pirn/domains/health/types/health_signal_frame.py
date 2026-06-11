@@ -1,4 +1,4 @@
-"""``SignalFrame`` — generic multi-channel signal frame.
+"""``HealthSignalFrame`` — generic multi-channel signal frame.
 
 Used by EEG/MEG and wearable knots once a recording is loaded. The frame
 is a logical handle, not the underlying ndarray (which lives in the
@@ -15,7 +15,7 @@ from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 
 @dataclass(frozen=True)
-class SignalFrame(PirnOpaqueValue):
+class HealthSignalFrame(PirnOpaqueValue):
     """Logical pointer to a multi-channel signal frame."""
 
     signal_id: str = ""

@@ -1,8 +1,8 @@
 """``PowerSpectrumEstimator`` — estimate the PSD of a signal payload.
 
 Algorithm:
-    1. Receive a SignalPayload and method string.
-    2. Validate that signal is a SignalPayload and method is one of welch/multitaper.
+    1. Receive a HealthSignalPayload and method string.
+    2. Validate that signal is a HealthSignalPayload and method is one of welch/multitaper.
     3. Compute the PSD using scipy.signal.welch on the first channel (or mono).
     4. Integrate PSD over standard frequency bands (delta/theta/alpha/beta/gamma) via numpy.trapz.
     5. Return the band-power mapping.
@@ -26,7 +26,7 @@ from scipy import signal as ss
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.types.signal_payload import SignalPayload
+from pirn.domains.health.types.health_signal_payload import HealthSignalPayload
 
 _bands = {
     "delta": (0.5, 4.0),
@@ -53,7 +53,7 @@ class PowerSpectrumEstimator(Knot):
     def __init__(
         self,
         *,
-        signal: Knot | SignalPayload,
+        signal: Knot | HealthSignalPayload,
         method: Knot | str,
         _config: KnotConfig,
         **kwargs: Any,
@@ -67,25 +67,25 @@ class PowerSpectrumEstimator(Knot):
 
     async def process(
         self,
-        signal: SignalPayload,
+        signal: HealthSignalPayload,
         method: str,
         **_: Any,
     ) -> Mapping[str, float]:
         """Estimate per-band power of the signal using the configured method.
 
         Args:
-            signal: The SignalPayload to analyze.
+            signal: The HealthSignalPayload to analyze.
             method: PSD estimation method; one of 'welch', 'multitaper'.
 
         Returns:
             A mapping from frequency band name (delta/theta/alpha/beta/gamma) to estimated power.
 
         Raises:
-            TypeError: If signal is not a SignalPayload.
+            TypeError: If signal is not a HealthSignalPayload.
             ValueError: If method is not one of welch/multitaper.
         """
-        if not isinstance(signal, SignalPayload):
-            raise TypeError("PowerSpectrumEstimator: signal must be a SignalPayload")
+        if not isinstance(signal, HealthSignalPayload):
+            raise TypeError("PowerSpectrumEstimator: signal must be a HealthSignalPayload")
         if method not in ("welch", "multitaper"):
             raise ValueError("PowerSpectrumEstimator: method must be one of welch/multitaper")
 
