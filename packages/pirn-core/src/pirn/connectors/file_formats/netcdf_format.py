@@ -137,7 +137,10 @@ class NetcdfFormat(BatchFileFormat):
                 "(NetCDF compound variables require at least one row)"
             )
         structured = self._records_to_structured_array(materialised, np)
-        tmp_path = tempfile.mktemp(suffix=".nc")
+        # mkstemp creates the file atomically with 0600 perms (no mktemp race);
+        # close our handle so the netCDF4 "w" open can overwrite the path.
+        fd, tmp_path = tempfile.mkstemp(suffix=".nc")
+        os.close(fd)
         try:
             dataset = netcdf4_lib.Dataset(tmp_path, "w", format="NETCDF4")
             try:
@@ -245,9 +248,14 @@ class NetcdfFormat(BatchFileFormat):
 
     @staticmethod
     def _write_temp_payload(payload: bytes) -> str:
-        tmp_path = tempfile.mktemp(suffix=".nc")
-        with open(tmp_path, "wb") as fh:
-            fh.write(payload)
+        # mkstemp creates the file atomically with 0600 perms (no mktemp race).
+        fd, tmp_path = tempfile.mkstemp(suffix=".nc")
+        try:
+            with os.fdopen(fd, "wb") as fh:
+                fh.write(payload)
+        except BaseException:
+            os.remove(tmp_path)
+            raise
         return tmp_path
 
     @staticmethod

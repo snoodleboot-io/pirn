@@ -61,7 +61,10 @@ class Netcdf4Format(BatchFileFormat):
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         netcdf4_lib = self._load_netcdf4()
         materialised = [dict(record) for record in records]
-        tmp_path = tempfile.mktemp(suffix=".nc")
+        # mkstemp creates the file atomically with 0600 perms (no mktemp race);
+        # close our handle so the netCDF4 "w" open can overwrite the path.
+        fd, tmp_path = tempfile.mkstemp(suffix=".nc")
+        os.close(fd)
         try:
             ds = netcdf4_lib.Dataset(tmp_path, "w", format="NETCDF4")
             try:
@@ -145,9 +148,14 @@ class Netcdf4Format(BatchFileFormat):
 
     @staticmethod
     def _write_temp(payload: bytes, suffix: str) -> str:
-        tmp_path = tempfile.mktemp(suffix=suffix)
-        with open(tmp_path, "wb") as fh:
-            fh.write(payload)
+        # mkstemp creates the file atomically with 0600 perms (no mktemp race).
+        fd, tmp_path = tempfile.mkstemp(suffix=suffix)
+        try:
+            with os.fdopen(fd, "wb") as fh:
+                fh.write(payload)
+        except BaseException:
+            os.remove(tmp_path)
+            raise
         return tmp_path
 
     @staticmethod

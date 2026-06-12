@@ -17,6 +17,13 @@ concurrency:
   group: mutation-${{ github.ref }}
   cancel-in-progress: true
 
+# Least-privilege default token for every job (CodeQL
+# actions/missing-workflow-permissions). Jobs here only check out the repo and
+# read; none write to the repo, so read-only contents is sufficient. A job that
+# later needs more (e.g. posting a comment) must opt in with its own block.
+permissions:
+  contents: read
+
 env:
   PYTHON_VERSION: "3.12"
 

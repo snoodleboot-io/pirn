@@ -88,9 +88,14 @@ class RootFormat(BatchFileFormat):
 
     @staticmethod
     def _write_temp(payload: bytes, suffix: str) -> str:
-        tmp_path = tempfile.mktemp(suffix=suffix)
-        with open(tmp_path, "wb") as fh:
-            fh.write(payload)
+        # mkstemp creates the file atomically with 0600 perms (no mktemp race).
+        fd, tmp_path = tempfile.mkstemp(suffix=suffix)
+        try:
+            with os.fdopen(fd, "wb") as fh:
+                fh.write(payload)
+        except BaseException:
+            os.remove(tmp_path)
+            raise
         return tmp_path
 
     @staticmethod
