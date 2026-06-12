@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.databases._bigquery_stub_job_config import (
+from pirn.connectors.databases._bigquery_stub_job_config import (
     BigqueryStubJobConfig,
 )
 

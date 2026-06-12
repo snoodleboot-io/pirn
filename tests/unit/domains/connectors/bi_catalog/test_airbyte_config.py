@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.bi_catalog.airbyte_config.AirbyteConfig`."""
+"""Tests for :class:`pirn.connectors.bi_catalog.airbyte_config.AirbyteConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.bi_catalog.airbyte_config import AirbyteConfig
+from pirn.connectors.bi_catalog.airbyte_config import AirbyteConfig
 
 
 class TestAirbyteConfig(unittest.TestCase):

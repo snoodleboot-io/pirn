@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.saas.salesforce_config.SalesforceConfig`."""
+"""Tests for :class:`pirn.connectors.saas.salesforce_config.SalesforceConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.saas.salesforce_config import SalesforceConfig
+from pirn.connectors.saas.salesforce_config import SalesforceConfig
 
 
 class TestSalesforceConfig(unittest.TestCase):

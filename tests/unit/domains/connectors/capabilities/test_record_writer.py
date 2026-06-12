@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.capabilities.record_writer import RecordWriter
+from pirn.connectors.capabilities.record_writer import RecordWriter
 
 
 class TestRecordWriterInterface(unittest.IsolatedAsyncioTestCase):

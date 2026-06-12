@@ -9,10 +9,10 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.api_client import ApiClient
-from pirn.domains.connectors.capabilities.table_source import TableSource
-from pirn.domains.connectors.saas.jira_client import JiraClient
-from pirn.domains.connectors.saas.jira_config import JiraConfig
+from pirn.connectors.api_client import ApiClient
+from pirn.connectors.capabilities.table_source import TableSource
+from pirn.connectors.saas.jira_client import JiraClient
+from pirn.connectors.saas.jira_config import JiraConfig
 
 # ──────────────────────────────────────────────────────────── fake client
 

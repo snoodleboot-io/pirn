@@ -5,10 +5,10 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.connectors.databases.sqlite_config import SqliteConfig
-from pirn.domains.connectors.databases.sqlite_pool import SqlitePool
-from pirn.domains.connectors.knots.database_connection_pool_knot import DatabaseConnectionPoolKnot
-from pirn.domains.connectors.knots.database_execute_sink import DatabaseExecuteSink
+from pirn.connectors.databases.sqlite_config import SqliteConfig
+from pirn.connectors.databases.sqlite_pool import SqlitePool
+from pirn.connectors.knots.database_connection_pool_knot import DatabaseConnectionPoolKnot
+from pirn.connectors.knots.database_execute_sink import DatabaseExecuteSink
 
 
 class TestDatabaseExecuteSink(unittest.IsolatedAsyncioTestCase):

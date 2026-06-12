@@ -8,10 +8,10 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.api_client import ApiClient
-from pirn.domains.connectors.capabilities.table_source import TableSource
-from pirn.domains.connectors.saas.airtable_client import AirtableClient
-from pirn.domains.connectors.saas.airtable_config import AirtableConfig
+from pirn.connectors.api_client import ApiClient
+from pirn.connectors.capabilities.table_source import TableSource
+from pirn.connectors.saas.airtable_client import AirtableClient
+from pirn.connectors.saas.airtable_config import AirtableConfig
 
 # ──────────────────────────────────────────────────────────── fake client
 

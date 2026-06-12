@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.databases.postgres_config.PostgresConfig`."""
+"""Tests for :class:`pirn.connectors.databases.postgres_config.PostgresConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.databases.postgres_config import PostgresConfig
+from pirn.connectors.databases.postgres_config import PostgresConfig
 
 
 class TestPostgresConfig(unittest.TestCase):

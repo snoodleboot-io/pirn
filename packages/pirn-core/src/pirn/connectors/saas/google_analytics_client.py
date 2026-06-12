@@ -1,0 +1,202 @@
+"""Google Analytics 4 Data API connector wrapping the sync ``BetaAnalyticsDataClient``.
+
+The official ``google-analytics-data`` SDK is synchronous; calls run in a
+worker thread via :func:`asyncio.to_thread` so the connector cooperates
+with pirn's async runtime without blocking the event loop. The generic
+:meth:`request` interface dispatches based on ``path`` to the matching
+SDK method (``run_report``, ``run_realtime_report``, ...).
+
+The connector exposes:
+
+1. **Vendor-typed methods** — :meth:`run_report` wraps the SDK's
+   ``run_report`` for callers who already have a fully-formed
+   ``RunReportRequest`` body.
+2. The :class:`TableSource` capability — :meth:`fetch_page` runs the
+   constructor's ``report_request`` and pages via ``offset`` /
+   ``limit``.
+3. The legacy :meth:`request` escape hatch.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+from collections.abc import Mapping
+from typing import Any
+
+from pirn.connectors.api_client import ApiClient
+from pirn.connectors.capabilities.table_source import TableSource
+from pirn.connectors.dsn_scrubber import DsnScrubber
+from pirn.connectors.saas.google_analytics_config import (
+    GoogleAnalyticsConfig,
+)
+
+
+class GoogleAnalyticsClient(ApiClient, TableSource):
+    """Async wrapper over a sync ``BetaAnalyticsDataClient``."""
+
+    def __init__(
+        self,
+        config: GoogleAnalyticsConfig | None = None,
+        *,
+        client: Any = None,
+        report_request: Mapping[str, Any] | None = None,
+    ) -> None:
+        if config is None and client is None:
+            raise TypeError("GoogleAnalyticsClient requires either config= or client=")
+        if report_request is not None and not isinstance(report_request, Mapping):
+            raise ValueError("GoogleAnalyticsClient: report_request must be a Mapping")
+        self._config = config
+        self._client = client
+        self._closed = False
+        self._report_request = dict(report_request) if report_request is not None else None
+        self._scrubber = DsnScrubber()
+        self._logger = logging.getLogger(self.__class__.__module__)
+
+    @property
+    def config(self) -> GoogleAnalyticsConfig | None:
+        return self._config
+
+    @property
+    def report_request(self) -> Mapping[str, Any] | None:
+        return self._report_request
+
+    async def run_report(self, request: Mapping[str, Any]) -> Any:
+        """Vendor-typed wrapper around ``BetaAnalyticsDataClient.run_report``.
+
+        Forwards through :meth:`request` (``POST /runReport``) so the
+        legacy escape hatch and the typed surface share one path.
+        """
+        if not isinstance(request, Mapping):
+            raise ValueError("GoogleAnalyticsClient.run_report: request must be a Mapping")
+        return await self.request("POST", "runReport", body=request)
+
+    async def fetch_page(
+        self,
+        cursor: str | None = None,
+        *,
+        page_size: int | None = None,
+    ) -> tuple[list[Mapping[str, Any]], str | None]:
+        """:class:`TableSource` adapter — pages ``self.report_request``.
+
+        ``cursor`` encodes the GA4 ``offset``. ``page_size`` becomes the
+        ``limit``. ``next_cursor`` is ``str(offset + len(rows))`` while
+        the response is full (``len(rows) == limit``); otherwise ``None``.
+        """
+        if self._report_request is None:
+            raise RuntimeError("GoogleAnalyticsClient.fetch_page: no report_request configured")
+        offset = int(cursor) if cursor else 0
+        limit = page_size or 1000
+        body = dict(self._report_request)
+        body["offset"] = offset
+        body["limit"] = limit
+        response = await self.request("POST", "runReport", body=body)
+        rows = self._extract_rows(response)
+        next_cursor = str(offset + len(rows)) if len(rows) == limit else None
+        return rows, next_cursor
+
+    @staticmethod
+    def _extract_rows(response: Any) -> list[Mapping[str, Any]]:
+        if isinstance(response, Mapping):
+            rows = response.get("rows")
+            if isinstance(rows, list):
+                return [row for row in rows if isinstance(row, Mapping)]
+        rows_attr = getattr(response, "rows", None)
+        if isinstance(rows_attr, list):
+            return [row for row in rows_attr if isinstance(row, Mapping)]
+        return []
+
+    async def request(
+        self,
+        method: str,
+        path: str,
+        *,
+        params: Mapping[str, Any] | None = None,
+        body: Mapping[str, Any] | None = None,
+        headers: Mapping[str, str] | None = None,
+    ) -> Any:
+        if not isinstance(method, str) or not method:
+            raise ValueError("GoogleAnalyticsClient.request: method must be non-empty")
+        if not isinstance(path, str) or not path:
+            raise ValueError("GoogleAnalyticsClient.request: path must be non-empty")
+        request_body: dict[str, Any] = dict(body) if body is not None else {}
+        operation = self._resolve_operation(path)
+        client = await self._ensure_client()
+
+        def _run() -> Any:
+            sdk_method = getattr(client, operation)
+            return sdk_method(request_body)
+
+        return await asyncio.to_thread(_run)
+
+    async def close(self) -> None:
+        if self._client is not None:
+            transport = getattr(self._client, "transport", None)
+            transport_close = getattr(transport, "close", None)
+            client_close = getattr(self._client, "close", None)
+            if callable(transport_close):
+                await asyncio.to_thread(transport_close)
+            elif callable(client_close):
+                await asyncio.to_thread(client_close)
+            self._client = None
+        self._clear_credentials()
+        self._closed = True
+        self._logger.debug("google_analytics.close")
+
+    @staticmethod
+    def _resolve_operation(path: str) -> str:
+        normalised = path.lstrip("/")
+        mapping = {
+            "runReport": "run_report",
+            "runRealtimeReport": "run_realtime_report",
+            "runPivotReport": "run_pivot_report",
+            "batchRunReports": "batch_run_reports",
+            "batchRunPivotReports": "batch_run_pivot_reports",
+        }
+        if normalised not in mapping:
+            supported = ", ".join(sorted(mapping))
+            raise ValueError(
+                f"GoogleAnalyticsClient.request: unsupported path {path!r}; supported: {supported}"
+            )
+        return mapping[normalised]
+
+    async def _ensure_client(self) -> Any:
+        if self._closed:
+            raise RuntimeError("GoogleAnalyticsClient is closed")
+        if self._client is None:
+            self._client = await self._create_client()
+        return self._client
+
+    async def _create_client(self) -> Any:
+        try:
+            from google.analytics.data_v1beta import (  # type: ignore[import-not-found]
+                BetaAnalyticsDataClient,
+            )
+        except ImportError as exc:
+            raise ImportError(
+                "GoogleAnalyticsClient requires google-analytics-data; install "
+                "via `pip install pirn[google-analytics]`"
+            ) from exc
+        if self._config is None:
+            raise RuntimeError("GoogleAnalyticsClient: missing config and no injected client")
+
+        kwargs: dict[str, Any] = {}
+        if self._config.service_account_json is not None:
+            try:
+                from google.oauth2 import (  # type: ignore[import-not-found]
+                    service_account,
+                )
+            except ImportError as exc:
+                raise ImportError(
+                    "GoogleAnalyticsClient requires google-auth; install via "
+                    "`pip install pirn[google-analytics]`"
+                ) from exc
+            info = json.loads(self._config.service_account_json)
+            kwargs["credentials"] = service_account.Credentials.from_service_account_info(info)
+        try:
+            client = await asyncio.to_thread(BetaAnalyticsDataClient, **kwargs)
+        except Exception as exc:
+            self._reraise_scrubbed(exc)
+        self._logger.debug("google_analytics.connect")
+        return client

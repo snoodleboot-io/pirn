@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.capabilities.table_source import TableSource
+from pirn.connectors.capabilities.table_source import TableSource
 
 
 class TestTableSourceInterface(unittest.IsolatedAsyncioTestCase):

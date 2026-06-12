@@ -5,7 +5,7 @@ from __future__ import annotations
 import dataclasses
 import unittest
 
-from pirn.domains.connectors.connection_config_decorator import connection_config
+from pirn.connectors.connection_config_decorator import connection_config
 
 
 class TestConnectionConfigDecorator(unittest.TestCase):

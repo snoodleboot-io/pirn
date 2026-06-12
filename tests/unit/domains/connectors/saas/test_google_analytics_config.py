@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.saas.google_analytics_config.GoogleAnalyticsConfig`."""
+"""Tests for :class:`pirn.connectors.saas.google_analytics_config.GoogleAnalyticsConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.saas.google_analytics_config import GoogleAnalyticsConfig
+from pirn.connectors.saas.google_analytics_config import GoogleAnalyticsConfig
 
 
 class TestGoogleAnalyticsConfig(unittest.TestCase):

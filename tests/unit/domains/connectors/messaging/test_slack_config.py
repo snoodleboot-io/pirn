@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.messaging.slack_config.SlackConfig`."""
+"""Tests for :class:`pirn.connectors.messaging.slack_config.SlackConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.messaging.slack_config import SlackConfig
+from pirn.connectors.messaging.slack_config import SlackConfig
 
 
 class TestSlackConfig(unittest.TestCase):

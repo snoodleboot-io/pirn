@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
+from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 
 
 class TestDatabaseConnectionPoolInterface(unittest.IsolatedAsyncioTestCase):

@@ -8,9 +8,9 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
-from pirn.domains.connectors.timeseries.timescaledb_config import TimescaleDBConfig
-from pirn.domains.connectors.timeseries.timescaledb_pool import TimescaleDBPool
+from pirn.connectors.database_connection_pool import DatabaseConnectionPool
+from pirn.connectors.timeseries.timescaledb_config import TimescaleDBConfig
+from pirn.connectors.timeseries.timescaledb_pool import TimescaleDBPool
 
 # ──────────────────────────────────────────────────────────── fake pool
 

@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.saas.shopify_config.ShopifyConfig`."""
+"""Tests for :class:`pirn.connectors.saas.shopify_config.ShopifyConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.saas.shopify_config import ShopifyConfig
+from pirn.connectors.saas.shopify_config import ShopifyConfig
 
 
 class TestShopifyConfig(unittest.TestCase):

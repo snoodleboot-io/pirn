@@ -297,7 +297,7 @@ psd = WelchEstimator(
 ### Decoding an audio file and extracting MFCCs
 
 ```python
-from pirn.domains.connectors.file_formats.wav_format import WavFormat
+from pirn.connectors.file_formats.wav_format import WavFormat
 from pirn.domains.signal.audio.mfcc_extractor import MfccExtractor
 
 # Outside the pipeline — load bytes from disk/storage

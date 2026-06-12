@@ -7,7 +7,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
+from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.domains.data.specializations.scd.scd_type_2_merge_knot import ScdType2MergeKnot
 from pirn.tapestry import Tapestry
 

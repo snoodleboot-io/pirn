@@ -1,4 +1,4 @@
-"""Tests for :class:`pirn.domains.connectors.connection_config.ConnectionConfig`."""
+"""Tests for :class:`pirn.connectors.connection_config.ConnectionConfig`."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ import unittest
 from dataclasses import dataclass
 from typing import ClassVar
 
-from pirn.domains.connectors.connection_config import ConnectionConfig
-from pirn.domains.connectors.connection_config_decorator import connection_config
+from pirn.connectors.connection_config import ConnectionConfig
+from pirn.connectors.connection_config_decorator import connection_config
 
 
 @connection_config(frozen=True)

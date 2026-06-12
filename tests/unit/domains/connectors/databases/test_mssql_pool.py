@@ -9,9 +9,9 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
-from pirn.domains.connectors.databases.mssql_config import MssqlConfig
-from pirn.domains.connectors.databases.mssql_pool import MssqlPool
+from pirn.connectors.database_connection_pool import DatabaseConnectionPool
+from pirn.connectors.databases.mssql_config import MssqlConfig
+from pirn.connectors.databases.mssql_pool import MssqlPool
 
 # ──────────────────────────────────────────────────────────── fake pool
 

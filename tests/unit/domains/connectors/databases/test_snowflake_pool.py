@@ -9,9 +9,9 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
-from pirn.domains.connectors.databases.snowflake_config import SnowflakeConfig
-from pirn.domains.connectors.databases.snowflake_pool import SnowflakePool
+from pirn.connectors.database_connection_pool import DatabaseConnectionPool
+from pirn.connectors.databases.snowflake_config import SnowflakeConfig
+from pirn.connectors.databases.snowflake_pool import SnowflakePool
 
 # ──────────────────────────────────────────────────────────── fake client
 

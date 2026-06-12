@@ -15,7 +15,7 @@ Working with real SEG-Y data:
 
     Replace ``_synthetic_traces()`` with bytes decoded by ``SegyFormat``:
 
-        from pirn.domains.connectors.file_formats.segy_format import SegyFormat
+        from pirn.connectors.file_formats.segy_format import SegyFormat
 
         fmt = SegyFormat(sample_rate=2000)
         traces = await fmt.decode(segy_bytes)   # one record per trace

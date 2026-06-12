@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.databases.bigquery_config.BigqueryConfig`."""
+"""Tests for :class:`pirn.connectors.databases.bigquery_config.BigqueryConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.databases.bigquery_config import BigqueryConfig
+from pirn.connectors.databases.bigquery_config import BigqueryConfig
 
 
 class TestBigqueryConfig(unittest.TestCase):

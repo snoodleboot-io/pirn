@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.document.mongodb_config.MongoDBConfig`."""
+"""Tests for :class:`pirn.connectors.document.mongodb_config.MongoDBConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.document.mongodb_config import MongoDBConfig
+from pirn.connectors.document.mongodb_config import MongoDBConfig
 
 
 class TestMongoDBConfig(unittest.TestCase):

@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.timeseries.kdb_config.KdbConfig`."""
+"""Tests for :class:`pirn.connectors.timeseries.kdb_config.KdbConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.timeseries.kdb_config import KdbConfig
+from pirn.connectors.timeseries.kdb_config import KdbConfig
 
 
 class TestKdbConfig(unittest.TestCase):

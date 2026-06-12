@@ -8,9 +8,9 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
-from pirn.domains.connectors.timeseries.questdb_config import QuestDBConfig
-from pirn.domains.connectors.timeseries.questdb_pool import QuestDBPool
+from pirn.connectors.database_connection_pool import DatabaseConnectionPool
+from pirn.connectors.timeseries.questdb_config import QuestDBConfig
+from pirn.connectors.timeseries.questdb_pool import QuestDBPool
 
 # ──────────────────────────────────────────────────────────── fake pool
 

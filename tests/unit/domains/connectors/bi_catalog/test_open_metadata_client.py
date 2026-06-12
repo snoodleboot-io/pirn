@@ -5,17 +5,17 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.api_client import ApiClient
-from pirn.domains.connectors.bi_catalog.open_metadata_client import (
+from pirn.connectors.api_client import ApiClient
+from pirn.connectors.bi_catalog.open_metadata_client import (
     OpenMetadataClient,
 )
-from pirn.domains.connectors.bi_catalog.open_metadata_config import (
+from pirn.connectors.bi_catalog.open_metadata_config import (
     OpenMetadataConfig,
 )
-from pirn.domains.connectors.capabilities.metadata_catalog import (
+from pirn.connectors.capabilities.metadata_catalog import (
     MetadataCatalog,
 )
-from pirn.domains.connectors.capabilities.table_source import TableSource
+from pirn.connectors.capabilities.table_source import TableSource
 
 
 class FakeResponse:

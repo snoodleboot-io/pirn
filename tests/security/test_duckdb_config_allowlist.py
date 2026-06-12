@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.databases.duckdb_config import DuckdbConfig
+from pirn.connectors.databases.duckdb_config import DuckdbConfig
 
 
 class TestDuckdbConfigAllowlist(unittest.TestCase):

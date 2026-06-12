@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.observability.prometheus_config.PrometheusConfig`."""
+"""Tests for :class:`pirn.connectors.observability.prometheus_config.PrometheusConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.observability.prometheus_config import PrometheusConfig
+from pirn.connectors.observability.prometheus_config import PrometheusConfig
 
 
 class TestPrometheusConfig(unittest.TestCase):

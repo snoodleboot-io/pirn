@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.message_broker import MessageBroker
+from pirn.connectors.message_broker import MessageBroker
 
 
 async def _aiter():

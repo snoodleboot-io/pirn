@@ -11,9 +11,9 @@ import unittest
 from collections.abc import AsyncIterator
 from typing import Any
 
-from pirn.domains.connectors.object_storage.gcs_config import GCSConfig
-from pirn.domains.connectors.object_storage.gcs_store import GCSStore
-from pirn.domains.connectors.object_store import ObjectStore
+from pirn.connectors.object_storage.gcs_config import GCSConfig
+from pirn.connectors.object_storage.gcs_store import GCSStore
+from pirn.connectors.object_store import ObjectStore
 
 # ─────────────────────────────────────────────────────────── stub client
 

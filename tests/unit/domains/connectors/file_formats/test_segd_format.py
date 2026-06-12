@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.file_formats.batch_file_format import (
+from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
-from pirn.domains.connectors.file_formats.segd_format import SegdFormat
+from pirn.connectors.file_formats.segd_format import SegdFormat
 
 
 def _synthetic_gh1(

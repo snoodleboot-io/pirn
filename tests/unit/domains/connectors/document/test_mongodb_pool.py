@@ -8,9 +8,9 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
-from pirn.domains.connectors.document.mongodb_config import MongoDBConfig
-from pirn.domains.connectors.document.mongodb_pool import MongoDBPool
+from pirn.connectors.database_connection_pool import DatabaseConnectionPool
+from pirn.connectors.document.mongodb_config import MongoDBConfig
+from pirn.connectors.document.mongodb_pool import MongoDBPool
 
 # ──────────────────────────────────────────────────────────── fakes
 

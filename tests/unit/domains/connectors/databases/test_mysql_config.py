@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.databases.mysql_config.MySQLConfig`."""
+"""Tests for :class:`pirn.connectors.databases.mysql_config.MySQLConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.databases.mysql_config import MySQLConfig
+from pirn.connectors.databases.mysql_config import MySQLConfig
 
 
 class TestMySQLConfig(unittest.TestCase):

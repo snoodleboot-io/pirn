@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.capabilities.event_emitter import EventEmitter
+from pirn.connectors.capabilities.event_emitter import EventEmitter
 
 
 class _CountingEmitter(EventEmitter):

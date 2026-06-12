@@ -56,7 +56,7 @@ Reads a **single file** by composing an `ObjectStore` (where the bytes live) wit
 
 ```python
 from pirn.domains.data.sources.file_source import FileSource
-from pirn.domains.connectors.file_formats.parquet_format import ParquetFormat
+from pirn.connectors.file_formats.parquet_format import ParquetFormat
 from pirn.backends.s3 import S3DataStore
 
 source = FileSource(
@@ -120,7 +120,7 @@ Encodes a `DataBatch` and writes the bytes to an `ObjectStore`.
 
 ```python
 from pirn.domains.data.sinks.file_sink import FileSink
-from pirn.domains.connectors.file_formats.parquet_format import ParquetFormat
+from pirn.connectors.file_formats.parquet_format import ParquetFormat
 
 sink = FileSink(
     batch=transform_knot,
@@ -186,7 +186,7 @@ Null handling in `Aggregate`: aggregations skip `None` values. Empty groups afte
 
 ## File Formats
 
-Formats live under `pirn.domains.connectors.file_formats`. Each format implements the `FileFormat` interface: `read(body: AsyncIterator[bytes]) -> AsyncIterator[Mapping[str, Any]]` and `write(records: ...) -> AsyncIterator[bytes]`.
+Formats live under `pirn.connectors.file_formats`. Each format implements the `FileFormat` interface: `read(body: AsyncIterator[bytes]) -> AsyncIterator[Mapping[str, Any]]` and `write(records: ...) -> AsyncIterator[bytes]`.
 
 ### BatchFileFormat vs StreamingFileFormat
 
@@ -204,9 +204,9 @@ Both bases provide `_drain_bytes(body)` and `_drain_records(records)` helpers th
 Wraps any `FileFormat` with a transparent codec. The resulting format's `name` is `"{inner.name}+{codec}"`.
 
 ```python
-from pirn.domains.connectors.file_formats.compressed_file_format import CompressedFileFormat
-from pirn.domains.connectors.file_formats.parquet_format import ParquetFormat
-from pirn.domains.connectors.file_formats.csv_format import CsvFormat
+from pirn.connectors.file_formats.compressed_file_format import CompressedFileFormat
+from pirn.connectors.file_formats.parquet_format import ParquetFormat
+from pirn.connectors.file_formats.csv_format import CsvFormat
 
 parquet_zst = CompressedFileFormat(ParquetFormat(), codec="zstd")
 csv_gz      = CompressedFileFormat(CsvFormat(), codec="gzip")
@@ -227,8 +227,8 @@ Supported codecs:
 Wraps a `FileFormat` for tar/zip multi-file archives. On read, each archive member is decoded and records are tagged with `{"_archive_member": "<member path>", ...}`. On write, each record must carry `_archive_member`.
 
 ```python
-from pirn.domains.connectors.file_formats.archive_file_format import ArchiveFileFormat
-from pirn.domains.connectors.file_formats.csv_format import CsvFormat
+from pirn.connectors.file_formats.archive_file_format import ArchiveFileFormat
+from pirn.connectors.file_formats.csv_format import CsvFormat
 
 archive = ArchiveFileFormat(CsvFormat(), archive_type="tar.gz")
 # or: archive_type="zip" | "tar" | "tar.bz2" | "tar.zst"

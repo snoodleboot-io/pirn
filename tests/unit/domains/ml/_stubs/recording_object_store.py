@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 
-from pirn.domains.connectors.object_store import ObjectStore
+from pirn.connectors.object_store import ObjectStore
 
 
 class RecordingObjectStore(ObjectStore):

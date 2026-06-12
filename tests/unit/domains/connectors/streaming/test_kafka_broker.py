@@ -5,8 +5,8 @@ from __future__ import annotations
 import unittest
 from unittest.mock import AsyncMock, MagicMock
 
-from pirn.domains.connectors.streaming.kafka_broker import KafkaBroker
-from pirn.domains.connectors.streaming.kafka_config import KafkaConfig
+from pirn.connectors.streaming.kafka_broker import KafkaBroker
+from pirn.connectors.streaming.kafka_config import KafkaConfig
 
 
 def _make_config() -> KafkaConfig:

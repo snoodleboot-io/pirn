@@ -27,14 +27,14 @@ import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.connectors.databases.sqlite_config import SqliteConfig
-from pirn.domains.connectors.databases.sqlite_pool import SqlitePool
-from pirn.domains.connectors.knots.database_execute_sink import DatabaseExecuteSink
-from pirn.domains.connectors.knots.object_store_read_source import ObjectStoreReadSource
-from pirn.domains.connectors.object_storage.local_filesystem_config import (
+from pirn.connectors.databases.sqlite_config import SqliteConfig
+from pirn.connectors.databases.sqlite_pool import SqlitePool
+from pirn.connectors.knots.database_execute_sink import DatabaseExecuteSink
+from pirn.connectors.knots.object_store_read_source import ObjectStoreReadSource
+from pirn.connectors.object_storage.local_filesystem_config import (
     LocalFilesystemConfig,
 )
-from pirn.domains.connectors.object_storage.local_filesystem_store import (
+from pirn.connectors.object_storage.local_filesystem_store import (
     LocalFilesystemStore,
 )
 from pirn.tapestry import Tapestry

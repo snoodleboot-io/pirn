@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.databases.sqlite_config import SqliteConfig
+from pirn.connectors.databases.sqlite_config import SqliteConfig
 
 
 class TestJournalModeAllowlist(unittest.TestCase):

@@ -8,9 +8,9 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
-from pirn.domains.connectors.timeseries.kdb_config import KdbConfig
-from pirn.domains.connectors.timeseries.kdb_pool import KdbPool
+from pirn.connectors.database_connection_pool import DatabaseConnectionPool
+from pirn.connectors.timeseries.kdb_config import KdbConfig
+from pirn.connectors.timeseries.kdb_pool import KdbPool
 
 # ──────────────────────────────────────────────────────────── fake connection
 

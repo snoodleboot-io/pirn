@@ -195,8 +195,8 @@ Complete reference for every file format, codec, archive wrapper, and lakehouse 
 Codecs are not standalone `FileFormat` instances. Wrap any format using `CompressedFileFormat`.
 
 ```python
-from pirn.domains.connectors.file_formats.compressed_file_format import CompressedFileFormat
-from pirn.domains.connectors.file_formats.csv_format import CsvFormat
+from pirn.connectors.file_formats.compressed_file_format import CompressedFileFormat
+from pirn.connectors.file_formats.csv_format import CsvFormat
 
 csv_gz = CompressedFileFormat(CsvFormat(), codec="gzip")
 ```
@@ -218,8 +218,8 @@ The resulting `CompressedFileFormat.name` is `"{inner.name}+{codec}"`, e.g. `"pa
 `ArchiveFileFormat` wraps any `FileFormat` to decode/encode multi-file archives. Records are tagged with `{"_archive_member": "<member path>", ...original fields...}`.
 
 ```python
-from pirn.domains.connectors.file_formats.archive_file_format import ArchiveFileFormat
-from pirn.domains.connectors.file_formats.parquet_format import ParquetFormat
+from pirn.connectors.file_formats.archive_file_format import ArchiveFileFormat
+from pirn.connectors.file_formats.parquet_format import ParquetFormat
 
 archive = ArchiveFileFormat(ParquetFormat(), archive_type="tar.gz")
 ```

@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.document.arangodb_config.ArangoDBConfig`."""
+"""Tests for :class:`pirn.connectors.document.arangodb_config.ArangoDBConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.document.arangodb_config import ArangoDBConfig
+from pirn.connectors.document.arangodb_config import ArangoDBConfig
 
 
 class TestArangoDBConfig(unittest.TestCase):

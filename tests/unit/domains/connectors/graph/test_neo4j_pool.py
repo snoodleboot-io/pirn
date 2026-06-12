@@ -11,9 +11,9 @@ import unittest
 import unittest.mock
 from typing import Any
 
-from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
-from pirn.domains.connectors.graph.neo4j_config import Neo4jConfig
-from pirn.domains.connectors.graph.neo4j_pool import Neo4jPool
+from pirn.connectors.database_connection_pool import DatabaseConnectionPool
+from pirn.connectors.graph.neo4j_config import Neo4jConfig
+from pirn.connectors.graph.neo4j_pool import Neo4jPool
 
 # ──────────────────────────────────────────────────────────────── fakes
 

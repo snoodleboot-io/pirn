@@ -13,7 +13,7 @@ from typing import Any
 from pirn.domains.agents.llm_provider import LLMProvider
 from pirn.domains.agents.memory_store import MemoryStore
 from pirn.domains.agents.tool import Tool
-from pirn.domains.connectors.database_connection_pool import (
+from pirn.connectors.database_connection_pool import (
     DatabaseConnectionPool,
 )
 from pirn.domains.ml.embedding_provider import EmbeddingProvider

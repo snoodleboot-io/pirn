@@ -5,9 +5,9 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.message_broker import MessageBroker
-from pirn.domains.connectors.streaming.rabbitmq_broker import RabbitMQBroker
-from pirn.domains.connectors.streaming.rabbitmq_config import RabbitMQConfig
+from pirn.connectors.message_broker import MessageBroker
+from pirn.connectors.streaming.rabbitmq_broker import RabbitMQBroker
+from pirn.connectors.streaming.rabbitmq_config import RabbitMQConfig
 
 # ──────────────────────────────────────────────────────────── stub layer
 

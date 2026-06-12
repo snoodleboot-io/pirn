@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.databases.mssql_config.MssqlConfig`."""
+"""Tests for :class:`pirn.connectors.databases.mssql_config.MssqlConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.databases.mssql_config import MssqlConfig
+from pirn.connectors.databases.mssql_config import MssqlConfig
 
 
 class TestMssqlConfig(unittest.TestCase):

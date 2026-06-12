@@ -10,10 +10,10 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.api_client import ApiClient
-from pirn.domains.connectors.bi_catalog.fivetran_client import FivetranClient
-from pirn.domains.connectors.bi_catalog.fivetran_config import FivetranConfig
-from pirn.domains.connectors.capabilities.table_source import TableSource
+from pirn.connectors.api_client import ApiClient
+from pirn.connectors.bi_catalog.fivetran_client import FivetranClient
+from pirn.connectors.bi_catalog.fivetran_config import FivetranConfig
+from pirn.connectors.capabilities.table_source import TableSource
 
 # ──────────────────────────────────────────────────────────── fake client
 

@@ -10,11 +10,11 @@ import unittest
 from datetime import UTC, datetime
 from typing import Any
 
-from pirn.domains.connectors.api_client import ApiClient
-from pirn.domains.connectors.capabilities.metric_query import MetricQuery
-from pirn.domains.connectors.capabilities.table_source import TableSource
-from pirn.domains.connectors.observability.grafana_client import GrafanaClient
-from pirn.domains.connectors.observability.grafana_config import GrafanaConfig
+from pirn.connectors.api_client import ApiClient
+from pirn.connectors.capabilities.metric_query import MetricQuery
+from pirn.connectors.capabilities.table_source import TableSource
+from pirn.connectors.observability.grafana_client import GrafanaClient
+from pirn.connectors.observability.grafana_config import GrafanaConfig
 
 # ──────────────────────────────────────────────────────────── fake client
 

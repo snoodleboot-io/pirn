@@ -1,4 +1,4 @@
-"""Tests for :class:`pirn.domains.connectors.object_storage.local_filesystem_config.LocalFilesystemConfig`.
+"""Tests for :class:`pirn.connectors.object_storage.local_filesystem_config.LocalFilesystemConfig`.
 """
 
 from __future__ import annotations
@@ -6,7 +6,7 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from pirn.domains.connectors.object_storage.local_filesystem_config import LocalFilesystemConfig
+from pirn.connectors.object_storage.local_filesystem_config import LocalFilesystemConfig
 
 
 class TestLocalFilesystemConfig(unittest.TestCase):

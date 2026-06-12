@@ -10,12 +10,12 @@ import unittest
 from datetime import UTC, datetime
 from typing import Any
 
-from pirn.domains.connectors.api_client import ApiClient
-from pirn.domains.connectors.capabilities.event_emitter import EventEmitter
-from pirn.domains.connectors.capabilities.metric_query import MetricQuery
-from pirn.domains.connectors.capabilities.table_source import TableSource
-from pirn.domains.connectors.observability.datadog_client import DatadogClient
-from pirn.domains.connectors.observability.datadog_config import DatadogConfig
+from pirn.connectors.api_client import ApiClient
+from pirn.connectors.capabilities.event_emitter import EventEmitter
+from pirn.connectors.capabilities.metric_query import MetricQuery
+from pirn.connectors.capabilities.table_source import TableSource
+from pirn.connectors.observability.datadog_client import DatadogClient
+from pirn.connectors.observability.datadog_config import DatadogConfig
 
 # ──────────────────────────────────────────────────────────── fake client
 

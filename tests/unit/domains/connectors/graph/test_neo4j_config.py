@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.graph.neo4j_config.Neo4jConfig`."""
+"""Tests for :class:`pirn.connectors.graph.neo4j_config.Neo4jConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.graph.neo4j_config import Neo4jConfig
+from pirn.connectors.graph.neo4j_config import Neo4jConfig
 
 
 class TestNeo4jConfig(unittest.TestCase):

@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from pirn.core.transport.transport_error import TransportError
 from pirn.core.transport.transport_handle import TransportHandle
-from pirn.domains.connectors.transports.valkey_transport import ValkeyTransport
+from pirn.connectors.transports.valkey_transport import ValkeyTransport
 
 
 def _make_transport(**kwargs: object) -> ValkeyTransport:

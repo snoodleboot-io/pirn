@@ -7,7 +7,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.connectors.object_store import ObjectStore
+from pirn.connectors.object_store import ObjectStore
 from pirn.domains.ml.lineage_store import LineageStore
 from pirn.domains.ml.specializations.training.sklearn_trainer_pipeline import (
     SklearnTrainerPipeline,

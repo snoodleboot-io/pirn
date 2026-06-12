@@ -9,9 +9,9 @@ import unittest
 from collections.abc import AsyncIterator
 from typing import Any
 
-from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
-from pirn.domains.connectors.document.cosmosdb_config import CosmosDBConfig
-from pirn.domains.connectors.document.cosmosdb_pool import CosmosDBPool
+from pirn.connectors.database_connection_pool import DatabaseConnectionPool
+from pirn.connectors.document.cosmosdb_config import CosmosDBConfig
+from pirn.connectors.document.cosmosdb_pool import CosmosDBPool
 
 # ──────────────────────────────────────────────────────────── fakes
 

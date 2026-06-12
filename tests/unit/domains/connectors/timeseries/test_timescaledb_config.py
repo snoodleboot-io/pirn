@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.timeseries.timescaledb_config.TimescaleDBConfig`."""
+"""Tests for :class:`pirn.connectors.timeseries.timescaledb_config.TimescaleDBConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.timeseries.timescaledb_config import TimescaleDBConfig
+from pirn.connectors.timeseries.timescaledb_config import TimescaleDBConfig
 
 
 class TestTimescaleDBConfig(unittest.TestCase):

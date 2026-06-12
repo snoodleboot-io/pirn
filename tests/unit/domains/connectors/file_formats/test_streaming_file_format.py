@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.file_formats.streaming_file_format import (
+from pirn.connectors.file_formats.streaming_file_format import (
     StreamingFileFormat,
 )
 

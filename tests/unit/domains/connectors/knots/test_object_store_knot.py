@@ -7,9 +7,9 @@ import unittest
 from pathlib import Path
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.connectors.knots.object_store_knot import ObjectStoreKnot
-from pirn.domains.connectors.object_storage.local_filesystem_config import LocalFilesystemConfig
-from pirn.domains.connectors.object_storage.local_filesystem_store import LocalFilesystemStore
+from pirn.connectors.knots.object_store_knot import ObjectStoreKnot
+from pirn.connectors.object_storage.local_filesystem_config import LocalFilesystemConfig
+from pirn.connectors.object_storage.local_filesystem_store import LocalFilesystemStore
 
 
 class TestObjectStoreKnot(unittest.IsolatedAsyncioTestCase):

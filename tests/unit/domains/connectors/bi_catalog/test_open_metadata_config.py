@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.bi_catalog.open_metadata_config.OpenMetadataConfig`."""
+"""Tests for :class:`pirn.connectors.bi_catalog.open_metadata_config.OpenMetadataConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.bi_catalog.open_metadata_config import OpenMetadataConfig
+from pirn.connectors.bi_catalog.open_metadata_config import OpenMetadataConfig
 
 
 class TestOpenMetadataConfig(unittest.TestCase):

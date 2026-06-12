@@ -8,9 +8,9 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
-from pirn.domains.connectors.document.arangodb_config import ArangoDBConfig
-from pirn.domains.connectors.document.arangodb_pool import ArangoDBPool
+from pirn.connectors.database_connection_pool import DatabaseConnectionPool
+from pirn.connectors.document.arangodb_config import ArangoDBConfig
+from pirn.connectors.document.arangodb_pool import ArangoDBPool
 
 # ──────────────────────────────────────────────────────────── fakes
 

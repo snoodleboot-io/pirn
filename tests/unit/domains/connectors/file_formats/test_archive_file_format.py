@@ -5,8 +5,8 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock
 
-from pirn.domains.connectors.file_format import FileFormat
-from pirn.domains.connectors.file_formats.archive_file_format import ArchiveFileFormat
+from pirn.connectors.file_format import FileFormat
+from pirn.connectors.file_formats.archive_file_format import ArchiveFileFormat
 
 
 def _make_inner() -> MagicMock:

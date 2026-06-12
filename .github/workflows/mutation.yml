@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       paths_to_mutate:
-        description: 'Comma-separated pirn/ sub-paths to mutate (blank = full codebase)'
+        description: 'Comma-separated packages/pirn-core/src/pirn/ sub-paths to mutate (blank = full codebase)'
         required: false
         default: ''
 
@@ -45,24 +45,24 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
-        run: uv sync --all-extras --group dev
+        run: uv sync --package pirn-core --all-extras --group dev
 
-      - name: Identify changed pirn/ files
+      - name: Identify changed core source files
         id: changed
         run: |
           BASE=${{ github.event.pull_request.base.sha }}
           HEAD=${{ github.event.pull_request.head.sha }}
           FILES=$(git diff --name-only "$BASE" "$HEAD" \
-            | grep '^pirn/.*\.py$' \
+            | grep '^packages/pirn-core/src/pirn/.*\.py$' \
             | grep -v '__init__\.py' \
             | tr '\n' ',')
           echo "files=$FILES" >> "$GITHUB_OUTPUT"
-          echo "Changed pirn/ files: $FILES"
+          echo "Changed core files: $FILES"
 
-      - name: Skip if no pirn/ changes
+      - name: Skip if no core changes
         if: steps.changed.outputs.files == ''
         run: |
-          echo "No pirn/ Python files changed — skipping mutation run."
+          echo "No core Python files changed — skipping mutation run."
           exit 0
 
       - name: Run mutmut on changed files
@@ -120,7 +120,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
-        run: uv sync --all-extras --group dev
+        run: uv sync --package pirn-core --all-extras --group dev
 
       - name: Resolve paths to mutate
         id: paths
@@ -129,7 +129,7 @@ jobs:
           if [ -n "$INPUT" ]; then
             echo "paths=$INPUT" >> "$GITHUB_OUTPUT"
           else
-            echo "paths=pirn/" >> "$GITHUB_OUTPUT"
+            echo "paths=packages/pirn-core/src/pirn/" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Run mutmut

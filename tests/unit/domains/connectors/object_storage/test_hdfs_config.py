@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.object_storage.hdfs_config.HDFSConfig`."""
+"""Tests for :class:`pirn.connectors.object_storage.hdfs_config.HDFSConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.object_storage.hdfs_config import HDFSConfig
+from pirn.connectors.object_storage.hdfs_config import HDFSConfig
 
 
 class TestHDFSConfig(unittest.TestCase):

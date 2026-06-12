@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.message_broker import MessageBroker
-from pirn.domains.connectors.streaming.valkey_stream_broker import ValkeyStreamBroker
-from pirn.domains.connectors.streaming.valkey_stream_config import ValkeyStreamConfig
+from pirn.connectors.message_broker import MessageBroker
+from pirn.connectors.streaming.valkey_stream_broker import ValkeyStreamBroker
+from pirn.connectors.streaming.valkey_stream_config import ValkeyStreamConfig
 
 # ──────────────────────────────────────────────────────────── stub client
 

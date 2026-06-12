@@ -14,9 +14,9 @@ import unittest
 from dataclasses import dataclass
 from typing import Any
 
-from pirn.domains.connectors.api_client import ApiClient
-from pirn.domains.connectors.capabilities.event_emitter import EventEmitter
-from pirn.domains.connectors.saas.amplitude_config import AmplitudeConfig
+from pirn.connectors.api_client import ApiClient
+from pirn.connectors.capabilities.event_emitter import EventEmitter
+from pirn.connectors.saas.amplitude_config import AmplitudeConfig
 
 
 @dataclass
@@ -44,7 +44,7 @@ class FakeAmplitudeClient:
         self.shutdown_called = True
 
 
-from pirn.domains.connectors.saas.amplitude_client import AmplitudeClient  # noqa: E402
+from pirn.connectors.saas.amplitude_client import AmplitudeClient  # noqa: E402
 
 _fake_amplitude = types.ModuleType("amplitude")
 _fake_amplitude.BaseEvent = FakeBaseEvent  # type: ignore[attr-defined]

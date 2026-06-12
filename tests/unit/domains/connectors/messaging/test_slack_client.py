@@ -9,9 +9,9 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.api_client import ApiClient
-from pirn.domains.connectors.messaging.slack_client import SlackClient
-from pirn.domains.connectors.messaging.slack_config import SlackConfig
+from pirn.connectors.api_client import ApiClient
+from pirn.connectors.messaging.slack_client import SlackClient
+from pirn.connectors.messaging.slack_config import SlackConfig
 
 # ──────────────────────────────────────────────────────────── fake client
 

@@ -19,7 +19,7 @@ Working with real DICOM data:
 
     Replace ``_synthetic_study()`` with bytes decoded by ``DicomFormat``:
 
-        from pirn.domains.connectors.file_formats.dicom_format import DicomFormat
+        from pirn.connectors.file_formats.dicom_format import DicomFormat
 
         fmt = DicomFormat()
         records = await fmt.decode(dicom_bytes)   # one record per DICOM file

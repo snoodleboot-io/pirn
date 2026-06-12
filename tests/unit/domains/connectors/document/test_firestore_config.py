@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.document.firestore_config.FirestoreConfig`."""
+"""Tests for :class:`pirn.connectors.document.firestore_config.FirestoreConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.document.firestore_config import FirestoreConfig
+from pirn.connectors.document.firestore_config import FirestoreConfig
 
 
 class TestFirestoreConfig(unittest.TestCase):

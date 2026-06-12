@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.databases.oracle_config.OracleConfig`."""
+"""Tests for :class:`pirn.connectors.databases.oracle_config.OracleConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.databases.oracle_config import OracleConfig
+from pirn.connectors.databases.oracle_config import OracleConfig
 
 
 class TestOracleConfig(unittest.TestCase):

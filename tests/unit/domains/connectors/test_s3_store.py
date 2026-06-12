@@ -11,9 +11,9 @@ import unittest
 from collections.abc import AsyncIterator
 from typing import Any
 
-from pirn.domains.connectors.object_storage.s3_config import S3Config
-from pirn.domains.connectors.object_storage.s3_store import S3Store
-from pirn.domains.connectors.object_store import ObjectStore
+from pirn.connectors.object_storage.s3_config import S3Config
+from pirn.connectors.object_storage.s3_store import S3Store
+from pirn.connectors.object_store import ObjectStore
 
 # ─────────────────────────────────────────────────────────── stub client
 

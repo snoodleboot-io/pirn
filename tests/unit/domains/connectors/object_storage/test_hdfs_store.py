@@ -5,9 +5,9 @@ from __future__ import annotations
 import unittest
 from collections.abc import AsyncIterator
 
-from pirn.domains.connectors.object_storage.hdfs_config import HDFSConfig
-from pirn.domains.connectors.object_storage.hdfs_store import HDFSStore
-from pirn.domains.connectors.object_store import ObjectStore
+from pirn.connectors.object_storage.hdfs_config import HDFSConfig
+from pirn.connectors.object_storage.hdfs_store import HDFSStore
+from pirn.connectors.object_store import ObjectStore
 
 # ─────────────────────────────────────────────────────────── stub client
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.streaming.azure_servicebus_stub_message import (
+from pirn.connectors.streaming.azure_servicebus_stub_message import (
     AzureServiceBusStubMessage,
 )
 

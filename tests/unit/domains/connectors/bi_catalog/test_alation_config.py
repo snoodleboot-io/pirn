@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.bi_catalog.alation_config.AlationConfig`."""
+"""Tests for :class:`pirn.connectors.bi_catalog.alation_config.AlationConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.bi_catalog.alation_config import AlationConfig
+from pirn.connectors.bi_catalog.alation_config import AlationConfig
 
 
 class TestAlationConfig(unittest.TestCase):

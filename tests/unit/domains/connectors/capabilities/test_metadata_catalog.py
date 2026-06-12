@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.capabilities.metadata_catalog import MetadataCatalog
+from pirn.connectors.capabilities.metadata_catalog import MetadataCatalog
 
 
 class TestMetadataCatalogInterface(unittest.IsolatedAsyncioTestCase):

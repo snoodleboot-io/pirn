@@ -41,7 +41,7 @@ SEG-Y is the industry-standard format for seismic reflection data. Each file con
 **Example:**
 
 ```python
-from pirn.domains.connectors.file_formats.segy_format import SegyFormat
+from pirn.connectors.file_formats.segy_format import SegyFormat
 
 fmt = SegyFormat(sample_rate=4000)   # 4 ms sample interval
 records = await fmt.decode(segy_bytes)
@@ -76,7 +76,7 @@ LAS (Log ASCII Standard) is a widely-used ASCII/binary format for borehole well 
 **Example:**
 
 ```python
-from pirn.domains.connectors.file_formats.las_format import LasFormat
+from pirn.connectors.file_formats.las_format import LasFormat
 
 fmt = LasFormat()
 records = await fmt.decode(las_bytes)

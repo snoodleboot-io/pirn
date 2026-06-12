@@ -5,4 +5,4 @@ FROM ${REGISTRY}/pirn-ci-base:py${PYTHON_VERSION}
 # Add heavy ML deps (torch, nvidia, tensorflow) on top of the base venv.
 # tensorflow is gated to python<3.14 in pyproject.toml — uv handles it.
 WORKDIR /opt/pirn-deps
-RUN uv sync --all-extras --no-install-project && rm -f uv.lock
+RUN uv sync --package pirn-core --all-extras --no-install-project && rm -f uv.lock

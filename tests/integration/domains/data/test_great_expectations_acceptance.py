@@ -36,9 +36,9 @@ from great_expectations.expectations import (
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.connectors.databases.sqlite_config import SqliteConfig
-from pirn.domains.connectors.databases.sqlite_pool import SqlitePool
-from pirn.domains.connectors.knots.database_execute_sink import DatabaseExecuteSink
+from pirn.connectors.databases.sqlite_config import SqliteConfig
+from pirn.connectors.databases.sqlite_pool import SqlitePool
+from pirn.connectors.knots.database_execute_sink import DatabaseExecuteSink
 from pirn.domains.data.data_batch import DataBatch
 from pirn.domains.data.frames.pandas.bridges.data_batch_to_pandas import (
     DataBatchToPandas,

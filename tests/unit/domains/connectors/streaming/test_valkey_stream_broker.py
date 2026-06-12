@@ -5,8 +5,8 @@ from __future__ import annotations
 import unittest
 from unittest.mock import AsyncMock, MagicMock
 
-from pirn.domains.connectors.streaming.valkey_stream_broker import ValkeyStreamBroker
-from pirn.domains.connectors.streaming.valkey_stream_config import ValkeyStreamConfig
+from pirn.connectors.streaming.valkey_stream_broker import ValkeyStreamBroker
+from pirn.connectors.streaming.valkey_stream_config import ValkeyStreamConfig
 
 
 def _make_config(**kwargs) -> ValkeyStreamConfig:

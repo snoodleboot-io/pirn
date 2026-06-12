@@ -9,9 +9,9 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
-from pirn.domains.connectors.databases.databricks_config import DatabricksConfig
-from pirn.domains.connectors.databases.databricks_pool import DatabricksPool
+from pirn.connectors.database_connection_pool import DatabaseConnectionPool
+from pirn.connectors.databases.databricks_config import DatabricksConfig
+from pirn.connectors.databases.databricks_pool import DatabricksPool
 
 # ──────────────────────────────────────────────────────────── fake client
 

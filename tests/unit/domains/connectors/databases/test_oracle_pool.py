@@ -9,9 +9,9 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
-from pirn.domains.connectors.databases.oracle_config import OracleConfig
-from pirn.domains.connectors.databases.oracle_pool import OraclePool
+from pirn.connectors.database_connection_pool import DatabaseConnectionPool
+from pirn.connectors.databases.oracle_config import OracleConfig
+from pirn.connectors.databases.oracle_pool import OraclePool
 
 # ──────────────────────────────────────────────────────────── fake client
 

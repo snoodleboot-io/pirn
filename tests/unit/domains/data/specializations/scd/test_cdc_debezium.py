@@ -8,8 +8,8 @@ from typing import Any
 from unittest.mock import MagicMock
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
-from pirn.domains.connectors.message_broker import MessageBroker
+from pirn.connectors.database_connection_pool import DatabaseConnectionPool
+from pirn.connectors.message_broker import MessageBroker
 from pirn.domains.data.specializations.scd.cdc_debezium import CDCDebezium
 from pirn.tapestry import Tapestry
 

@@ -41,8 +41,8 @@ ML models are whole-artifact blobs — not row-oriented tables. The connector la
 ### Using ML format connectors
 
 ```python
-from pirn.domains.connectors.file_formats.safetensors_format import SafetensorsFormat
-from pirn.domains.connectors.file_formats.joblib_format import JoblibFormat
+from pirn.connectors.file_formats.safetensors_format import SafetensorsFormat
+from pirn.connectors.file_formats.joblib_format import JoblibFormat
 from pirn.backends._signer import _Signer
 
 # SafeTensors — no signer needed.
@@ -277,7 +277,7 @@ asyncio.run(main())
 ```python
 from pirn.domains.ml.deployment.model_serializer import ModelSerializer
 from pirn.domains.ml.deployment.model_registrar import ModelRegistrar
-from pirn.domains.connectors.file_formats.joblib_format import JoblibFormat
+from pirn.connectors.file_formats.joblib_format import JoblibFormat
 from pirn.backends._signer import _Signer
 
 signer = _Signer(secret=b"my-secret")

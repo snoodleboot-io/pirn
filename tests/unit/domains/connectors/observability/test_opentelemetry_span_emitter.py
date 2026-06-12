@@ -12,10 +12,10 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any
 
-from pirn.domains.connectors.observability.opentelemetry_config import (
+from pirn.connectors.observability.opentelemetry_config import (
     OpenTelemetryConfig,
 )
-from pirn.domains.connectors.observability.opentelemetry_span_emitter import (
+from pirn.connectors.observability.opentelemetry_span_emitter import (
     OpenTelemetrySpanEmitter,
 )
 

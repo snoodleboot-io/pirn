@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.observability.grafana_config.GrafanaConfig`."""
+"""Tests for :class:`pirn.connectors.observability.grafana_config.GrafanaConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.observability.grafana_config import GrafanaConfig
+from pirn.connectors.observability.grafana_config import GrafanaConfig
 
 
 class TestGrafanaConfig(unittest.TestCase):

@@ -1,6 +1,6 @@
 # Contributing a New Domain Knot (File Format)
 
-This guide walks through adding a new file format to `pirn.domains.connectors.file_formats`. By the end you will have a format class, passing tests, a registered export, and an optional extra in `pyproject.toml`.
+This guide walks through adding a new file format to `pirn.connectors.file_formats`. By the end you will have a format class, passing tests, a registered export, and an optional extra in `pyproject.toml`.
 
 ---
 
@@ -31,7 +31,7 @@ Read and follow every convention here — these are enforced by CI:
 | Can records be decoded and emitted one-at-a-time from a byte stream? | `StreamingFileFormat` |
 | Is this a line-oriented text format (CSV, FASTQ, SAM) or a framed binary (Arrow IPC)? | `StreamingFileFormat` |
 
-Both bases live in `pirn.domains.connectors.file_formats`:
+Both bases live in `pirn.connectors.file_formats`:
 
 ```
 batch_file_format.py      → BatchFileFormat
@@ -61,7 +61,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from typing import Any, ClassVar
 
-from pirn.domains.connectors.file_formats.batch_file_format import (
+from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 
@@ -148,7 +148,7 @@ from __future__ import annotations
 
 from typing import Any, AsyncIterator, Mapping
 
-from pirn.domains.connectors.file_formats.streaming_file_format import (
+from pirn.connectors.file_formats.streaming_file_format import (
     StreamingFileFormat,
 )
 
@@ -339,7 +339,7 @@ import pytest
 
 pytest.importorskip("widgetlib")   # skip entire module if not installed
 
-from pirn.domains.connectors.file_formats.widget_format import WidgetFormat
+from pirn.connectors.file_formats.widget_format import WidgetFormat
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -404,7 +404,7 @@ Open `pirn/domains/connectors/file_formats/__init__.py` and add your class to th
 ```python
 # In the appropriate section (e.g. "# Scientific" or "# ML artifacts"):
 try:
-    from pirn.domains.connectors.file_formats.widget_format import WidgetFormat
+    from pirn.connectors.file_formats.widget_format import WidgetFormat
 except ImportError:  # widgetlib not installed
     pass
 ```

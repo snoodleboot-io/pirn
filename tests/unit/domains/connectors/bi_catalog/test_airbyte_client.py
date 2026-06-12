@@ -5,10 +5,10 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.api_client import ApiClient
-from pirn.domains.connectors.bi_catalog.airbyte_client import AirbyteClient
-from pirn.domains.connectors.bi_catalog.airbyte_config import AirbyteConfig
-from pirn.domains.connectors.capabilities.table_source import TableSource
+from pirn.connectors.api_client import ApiClient
+from pirn.connectors.bi_catalog.airbyte_client import AirbyteClient
+from pirn.connectors.bi_catalog.airbyte_config import AirbyteConfig
+from pirn.connectors.capabilities.table_source import TableSource
 
 
 class FakeResponse:
