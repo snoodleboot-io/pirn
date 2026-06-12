@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.capabilities.metric_query import MetricQuery
+from pirn.connectors.capabilities.metric_query import MetricQuery
 
 
 class TestMetricQueryInterface(unittest.IsolatedAsyncioTestCase):

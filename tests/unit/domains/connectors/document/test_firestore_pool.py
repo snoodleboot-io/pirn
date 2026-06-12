@@ -8,9 +8,9 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
-from pirn.domains.connectors.document.firestore_config import FirestoreConfig
-from pirn.domains.connectors.document.firestore_pool import FirestorePool
+from pirn.connectors.database_connection_pool import DatabaseConnectionPool
+from pirn.connectors.document.firestore_config import FirestoreConfig
+from pirn.connectors.document.firestore_pool import FirestorePool
 
 # ──────────────────────────────────────────────────────────── fakes
 

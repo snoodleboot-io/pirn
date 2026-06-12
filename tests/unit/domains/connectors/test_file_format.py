@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.file_format import FileFormat
+from pirn.connectors.file_format import FileFormat
 
 
 async def _bytes_iter(*chunks: bytes):

@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.graph.memgraph_config.MemgraphConfig`."""
+"""Tests for :class:`pirn.connectors.graph.memgraph_config.MemgraphConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.graph.memgraph_config import MemgraphConfig
+from pirn.connectors.graph.memgraph_config import MemgraphConfig
 
 
 class TestMemgraphConfig(unittest.TestCase):

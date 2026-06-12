@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.saas.github_config.GitHubConfig`."""
+"""Tests for :class:`pirn.connectors.saas.github_config.GitHubConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.saas.github_config import GitHubConfig
+from pirn.connectors.saas.github_config import GitHubConfig
 
 
 class TestGitHubConfig(unittest.TestCase):

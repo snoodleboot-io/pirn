@@ -5,9 +5,9 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.message_broker import MessageBroker
-from pirn.domains.connectors.streaming.kinesis_broker import KinesisBroker
-from pirn.domains.connectors.streaming.kinesis_config import KinesisConfig
+from pirn.connectors.message_broker import MessageBroker
+from pirn.connectors.streaming.kinesis_broker import KinesisBroker
+from pirn.connectors.streaming.kinesis_config import KinesisConfig
 
 # ──────────────────────────────────────────────────────────── stub client
 

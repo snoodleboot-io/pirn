@@ -17,9 +17,9 @@ try:
 except ImportError as _e:
     raise unittest.SkipTest("aiosqlite not installed") from _e
 
-from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
-from pirn.domains.connectors.databases.sqlite_config import SqliteConfig
-from pirn.domains.connectors.databases.sqlite_pool import SqlitePool
+from pirn.connectors.database_connection_pool import DatabaseConnectionPool
+from pirn.connectors.databases.sqlite_config import SqliteConfig
+from pirn.connectors.databases.sqlite_pool import SqlitePool
 
 # ─────────────────────────────────────────────────────────────── fixtures
 

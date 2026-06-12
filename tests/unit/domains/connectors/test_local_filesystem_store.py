@@ -17,13 +17,13 @@ import unittest
 from collections.abc import AsyncIterator
 from pathlib import Path
 
-from pirn.domains.connectors.object_storage.local_filesystem_config import (
+from pirn.connectors.object_storage.local_filesystem_config import (
     LocalFilesystemConfig,
 )
-from pirn.domains.connectors.object_storage.local_filesystem_store import (
+from pirn.connectors.object_storage.local_filesystem_store import (
     LocalFilesystemStore,
 )
-from pirn.domains.connectors.object_store import ObjectStore
+from pirn.connectors.object_store import ObjectStore
 
 # ───────────────────────────────────────────────────────────── helpers
 

@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.messaging.discord_config.DiscordConfig`."""
+"""Tests for :class:`pirn.connectors.messaging.discord_config.DiscordConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.messaging.discord_config import DiscordConfig
+from pirn.connectors.messaging.discord_config import DiscordConfig
 
 
 class TestDiscordConfig(unittest.TestCase):

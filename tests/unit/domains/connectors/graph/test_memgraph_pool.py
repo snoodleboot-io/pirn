@@ -10,9 +10,9 @@ import logging
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
-from pirn.domains.connectors.graph.memgraph_config import MemgraphConfig
-from pirn.domains.connectors.graph.memgraph_pool import MemgraphPool
+from pirn.connectors.database_connection_pool import DatabaseConnectionPool
+from pirn.connectors.graph.memgraph_config import MemgraphConfig
+from pirn.connectors.graph.memgraph_pool import MemgraphPool
 
 # ──────────────────────────────────────────────────────────────── fakes
 

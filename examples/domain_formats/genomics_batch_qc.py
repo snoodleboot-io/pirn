@@ -23,7 +23,7 @@ This example uses synthetic FASTQ records generated in-process.  To
 process a real ``.fastq`` / ``.fastq.gz`` file, swap ``_synthetic_reads``
 for the ``FastqFormat`` connector::
 
-    from pirn.domains.connectors.file_formats.fastq_format import FastqFormat
+    from pirn.connectors.file_formats.fastq_format import FastqFormat
 
     async def load_reads(path: str) -> list[FastqRead]:
         records = []

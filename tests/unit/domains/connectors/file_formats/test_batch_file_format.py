@@ -6,7 +6,7 @@ import unittest
 from collections.abc import AsyncIterator, Iterable, Mapping
 from typing import Any
 
-from pirn.domains.connectors.file_formats.batch_file_format import BatchFileFormat
+from pirn.connectors.file_formats.batch_file_format import BatchFileFormat
 
 
 async def _bytes_iter(*chunks: bytes) -> AsyncIterator[bytes]:

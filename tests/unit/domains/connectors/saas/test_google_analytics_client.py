@@ -12,12 +12,12 @@ from typing import Any
 
 import pytest
 
-from pirn.domains.connectors.api_client import ApiClient
-from pirn.domains.connectors.capabilities.table_source import TableSource
-from pirn.domains.connectors.saas.google_analytics_client import (
+from pirn.connectors.api_client import ApiClient
+from pirn.connectors.capabilities.table_source import TableSource
+from pirn.connectors.saas.google_analytics_client import (
     GoogleAnalyticsClient,
 )
-from pirn.domains.connectors.saas.google_analytics_config import (
+from pirn.connectors.saas.google_analytics_config import (
     GoogleAnalyticsConfig,
 )
 

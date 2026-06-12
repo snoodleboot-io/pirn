@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.messaging.pagerduty_config.PagerDutyConfig`."""
+"""Tests for :class:`pirn.connectors.messaging.pagerduty_config.PagerDutyConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.messaging.pagerduty_config import PagerDutyConfig
+from pirn.connectors.messaging.pagerduty_config import PagerDutyConfig
 
 
 class TestPagerDutyConfig(unittest.TestCase):

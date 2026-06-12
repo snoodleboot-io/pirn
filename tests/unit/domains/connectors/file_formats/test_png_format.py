@@ -9,10 +9,10 @@ try:
 except ImportError as _e:
     raise unittest.SkipTest("PIL not installed") from _e
 
-from pirn.domains.connectors.file_formats.batch_file_format import (
+from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
-from pirn.domains.connectors.file_formats.png_format import (
+from pirn.connectors.file_formats.png_format import (
     PngFormat,
 )
 from tests.unit.domains.connectors.file_formats._format_round_trip import (

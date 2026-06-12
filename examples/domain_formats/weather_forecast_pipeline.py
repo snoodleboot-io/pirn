@@ -15,7 +15,7 @@ Working with real GRIB data:
 
     Replace ``_synthetic_grib_records()`` with bytes decoded by ``GribFormat``:
 
-        from pirn.domains.connectors.file_formats.grib_format import GribFormat
+        from pirn.connectors.file_formats.grib_format import GribFormat
 
         fmt = GribFormat()
         records = await fmt.decode(grib_bytes)   # one record per GRIB message

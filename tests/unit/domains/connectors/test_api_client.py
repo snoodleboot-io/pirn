@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.api_client import ApiClient
+from pirn.connectors.api_client import ApiClient
 
 
 class TestApiClientInterface(unittest.IsolatedAsyncioTestCase):

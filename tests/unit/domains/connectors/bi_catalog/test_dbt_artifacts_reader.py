@@ -8,13 +8,13 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.bi_catalog.dbt_artifacts_config import (
+from pirn.connectors.bi_catalog.dbt_artifacts_config import (
     DbtArtifactsConfig,
 )
-from pirn.domains.connectors.bi_catalog.dbt_artifacts_reader import (
+from pirn.connectors.bi_catalog.dbt_artifacts_reader import (
     DbtArtifactsReader,
 )
-from pirn.domains.connectors.capabilities.metadata_catalog import (
+from pirn.connectors.capabilities.metadata_catalog import (
     MetadataCatalog,
 )
 

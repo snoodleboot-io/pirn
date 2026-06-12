@@ -5,11 +5,11 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.message_broker import MessageBroker
-from pirn.domains.connectors.streaming.azure_servicebus_broker import (
+from pirn.connectors.message_broker import MessageBroker
+from pirn.connectors.streaming.azure_servicebus_broker import (
     AzureServiceBusBroker,
 )
-from pirn.domains.connectors.streaming.azure_servicebus_config import (
+from pirn.connectors.streaming.azure_servicebus_config import (
     AzureServiceBusConfig,
 )
 

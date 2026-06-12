@@ -12,8 +12,8 @@ try:
 except ImportError as _e:
     raise unittest.SkipTest("pydub not installed") from _e
 
-from pirn.domains.connectors.file_formats.aac_format import AacFormat
-from pirn.domains.connectors.file_formats.batch_file_format import (
+from pirn.connectors.file_formats.aac_format import AacFormat
+from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from tests.unit.domains.connectors.file_formats._format_round_trip import (

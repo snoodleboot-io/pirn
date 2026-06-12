@@ -9,10 +9,10 @@ try:
 except ImportError as _e:
     raise unittest.SkipTest("shapefile not installed") from _e
 
-from pirn.domains.connectors.file_formats.batch_file_format import (
+from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
-from pirn.domains.connectors.file_formats.shapefile_format import (
+from pirn.connectors.file_formats.shapefile_format import (
     ShapefileFormat,
 )
 from tests.unit.domains.connectors.file_formats._format_round_trip import (

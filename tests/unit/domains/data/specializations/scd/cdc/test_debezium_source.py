@@ -9,7 +9,7 @@ from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.connectors.message_broker import MessageBroker
+from pirn.connectors.message_broker import MessageBroker
 from pirn.domains.data.specializations.scd.cdc.debezium_source import (
     DebeziumSource,
 )

@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import unittest
 
-from pirn.domains.connectors.file_formats._sam_utils import _SamUtils
+from pirn.connectors.file_formats._sam_utils import _SamUtils
 
 
 class TestSamUtilsWriteTempfile(unittest.TestCase):

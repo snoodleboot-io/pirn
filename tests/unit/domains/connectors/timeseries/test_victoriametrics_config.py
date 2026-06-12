@@ -1,11 +1,11 @@
-"""Tests for :class:`pirn.domains.connectors.timeseries.victoriametrics_config.VictoriaMetricsConfig`.
+"""Tests for :class:`pirn.connectors.timeseries.victoriametrics_config.VictoriaMetricsConfig`.
 """
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.timeseries.victoriametrics_config import VictoriaMetricsConfig
+from pirn.connectors.timeseries.victoriametrics_config import VictoriaMetricsConfig
 
 
 class TestVictoriaMetricsConfig(unittest.TestCase):

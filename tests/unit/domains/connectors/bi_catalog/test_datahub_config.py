@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.bi_catalog.datahub_config.DataHubConfig`."""
+"""Tests for :class:`pirn.connectors.bi_catalog.datahub_config.DataHubConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.bi_catalog.datahub_config import DataHubConfig
+from pirn.connectors.bi_catalog.datahub_config import DataHubConfig
 
 
 class TestDataHubConfig(unittest.TestCase):

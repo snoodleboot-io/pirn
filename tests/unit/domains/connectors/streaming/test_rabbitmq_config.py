@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.streaming.rabbitmq_config.RabbitMQConfig`."""
+"""Tests for :class:`pirn.connectors.streaming.rabbitmq_config.RabbitMQConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.streaming.rabbitmq_config import RabbitMQConfig
+from pirn.connectors.streaming.rabbitmq_config import RabbitMQConfig
 
 
 class TestRabbitMQConfig(unittest.TestCase):

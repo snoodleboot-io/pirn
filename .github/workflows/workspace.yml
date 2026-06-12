@@ -86,14 +86,16 @@ jobs:
             echo "  ${name}=${hit}"
           }
 
-          # core tracks the monolith tree too while code still lives at pirn/.
-          emit core   '^(packages/pirn-core/|pirn/)'
-          emit signal '^(packages/pirn-signal/|pirn/domains/signal/)'
-          emit data   '^(packages/pirn-data/|pirn/domains/data/)'
-          emit ml     '^(packages/pirn-ml/|pirn/domains/ml/)'
-          emit agents '^(packages/pirn-agents/|pirn/domains/agents/)'
-          emit health '^(packages/pirn-health/|pirn/domains/health/)'
-          emit oilgas '^(packages/pirn-oilgas/|pirn/domains/oilgas/)'
+          # Core source now lives at packages/pirn-core/src/pirn/ (Phase 1
+          # connectors fold). The six domains still ride along inside core's
+          # tree under .../pirn/domains/<x>/ until they extract in Phase 3.
+          emit core   '^packages/pirn-core/'
+          emit signal '^packages/pirn-core/src/pirn/domains/signal/'
+          emit data   '^packages/pirn-core/src/pirn/domains/data/'
+          emit ml     '^packages/pirn-core/src/pirn/domains/ml/'
+          emit agents '^packages/pirn-core/src/pirn/domains/agents/'
+          emit health '^packages/pirn-core/src/pirn/domains/health/'
+          emit oilgas '^packages/pirn-core/src/pirn/domains/oilgas/'
 
   # ===========================================================================
   # Workspace resolves to a SINGLE uv.lock (SCD-02 guarantee, enforced in CI).
@@ -140,13 +142,13 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
       - name: Install workspace
-        run: uv sync --all-extras --no-extra pytorch --no-extra tensorflow --no-extra tflite
+        run: uv sync --package pirn-core --all-extras --no-extra pytorch --no-extra tensorflow --no-extra tflite
 
       - name: Ruff lint (shared ruff.toml)
-        run: uv run ruff check --output-format=github pirn/
+        run: uv run ruff check --output-format=github packages/pirn-core/src/pirn/
 
       - name: Ruff format check
-        run: uv run ruff format --check pirn/
+        run: uv run ruff format --check packages/pirn-core/src/pirn/
 
       - name: Pyright type check (shared pyright.base.json)
         run: uv run pyright
@@ -170,7 +172,29 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
       - name: Install workspace
-        run: uv sync --all-extras --no-extra pytorch --no-extra tensorflow --no-extra tflite
+        run: uv sync --package pirn-core --all-extras --no-extra pytorch --no-extra tensorflow --no-extra tflite
 
       - name: Run unit tests (whole-workspace)
         run: uv run python -m pytest tests/unit --timeout=30 -q
+
+  # ===========================================================================
+  # Import-graph gate (SCD-07 / constraints C2 + ADR-2). Runs against a BARE
+  # pirn-core (no extras), which is the condition SCD-07 AC#2 specifies: with no
+  # backend extras installed, `import pirn` must touch zero backend packages and
+  # core must import no top-level pirn_<domain> package. This is a REQUIRED check
+  # once the migration's frozen triggers are re-enabled.
+  # ===========================================================================
+  import-graph:
+    name: Import-graph gate (C2 + no-backend-at-import)
+    needs: changes
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py3.12
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - name: Install bare pirn-core (no extras)
+        run: uv sync --package pirn-core
+
+      - name: Core imports no domain + no backend at import
+        run: uv run python scripts/check_import_graph.py

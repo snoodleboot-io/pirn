@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.object_store import ObjectStore
+from pirn.connectors.object_store import ObjectStore
 
 
 class TestObjectStoreInterface(unittest.IsolatedAsyncioTestCase):

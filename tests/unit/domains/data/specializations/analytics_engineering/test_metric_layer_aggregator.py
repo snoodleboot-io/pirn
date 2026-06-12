@@ -10,8 +10,8 @@ import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.connectors.databases.sqlite_config import SqliteConfig
-from pirn.domains.connectors.databases.sqlite_pool import SqlitePool
+from pirn.connectors.databases.sqlite_config import SqliteConfig
+from pirn.connectors.databases.sqlite_pool import SqlitePool
 from pirn.domains.data.specializations.analytics_engineering.metric_layer_aggregator import (
     MetricLayerAggregator,
 )

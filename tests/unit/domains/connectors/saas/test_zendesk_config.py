@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.saas.zendesk_config.ZendeskConfig`."""
+"""Tests for :class:`pirn.connectors.saas.zendesk_config.ZendeskConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.saas.zendesk_config import ZendeskConfig
+from pirn.connectors.saas.zendesk_config import ZendeskConfig
 
 
 class TestZendeskConfig(unittest.TestCase):

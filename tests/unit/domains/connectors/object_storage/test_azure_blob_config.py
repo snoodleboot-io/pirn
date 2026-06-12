@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.object_storage.azure_blob_config.AzureBlobConfig`."""
+"""Tests for :class:`pirn.connectors.object_storage.azure_blob_config.AzureBlobConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.object_storage.azure_blob_config import AzureBlobConfig
+from pirn.connectors.object_storage.azure_blob_config import AzureBlobConfig
 
 
 class TestAzureBlobConfig(unittest.TestCase):

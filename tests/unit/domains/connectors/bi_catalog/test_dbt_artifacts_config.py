@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.bi_catalog.dbt_artifacts_config.DbtArtifactsConfig`."""
+"""Tests for :class:`pirn.connectors.bi_catalog.dbt_artifacts_config.DbtArtifactsConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.bi_catalog.dbt_artifacts_config import DbtArtifactsConfig
+from pirn.connectors.bi_catalog.dbt_artifacts_config import DbtArtifactsConfig
 
 
 class TestDbtArtifactsConfig(unittest.TestCase):

@@ -9,9 +9,9 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.api_client import ApiClient
-from pirn.domains.connectors.saas.mixpanel_client import MixpanelClient
-from pirn.domains.connectors.saas.mixpanel_config import MixpanelConfig
+from pirn.connectors.api_client import ApiClient
+from pirn.connectors.saas.mixpanel_client import MixpanelClient
+from pirn.connectors.saas.mixpanel_config import MixpanelConfig
 
 
 class FakeMixpanelClient:

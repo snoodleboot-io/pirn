@@ -114,7 +114,7 @@ nodes:
 
 ## domain_formats
 
-End-to-end examples that wire real `pirn.domains.agents` and `pirn.domains.connectors` knots into runnable pipelines. Synthetic data is used throughout so none of them require external files or network access.
+End-to-end examples that wire real `pirn.domains.agents` and `pirn.connectors` knots into runnable pipelines. Synthetic data is used throughout so none of them require external files or network access.
 
 ### medical_triage_agent.py
 

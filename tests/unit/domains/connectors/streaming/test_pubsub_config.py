@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.streaming.pubsub_config.PubSubConfig`."""
+"""Tests for :class:`pirn.connectors.streaming.pubsub_config.PubSubConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.streaming.pubsub_config import PubSubConfig
+from pirn.connectors.streaming.pubsub_config import PubSubConfig
 
 
 class TestPubSubConfig(unittest.TestCase):

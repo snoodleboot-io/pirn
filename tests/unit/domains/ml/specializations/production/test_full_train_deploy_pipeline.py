@@ -5,8 +5,8 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
-from pirn.domains.connectors.object_store import ObjectStore
+from pirn.connectors.database_connection_pool import DatabaseConnectionPool
+from pirn.connectors.object_store import ObjectStore
 from pirn.domains.ml.lineage_store import LineageStore
 from pirn.domains.ml.specializations.production.full_train_deploy_pipeline import (
     FullTrainDeployPipeline,

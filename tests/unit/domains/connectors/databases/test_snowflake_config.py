@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.databases.snowflake_config.SnowflakeConfig`."""
+"""Tests for :class:`pirn.connectors.databases.snowflake_config.SnowflakeConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.databases.snowflake_config import SnowflakeConfig
+from pirn.connectors.databases.snowflake_config import SnowflakeConfig
 
 
 class TestSnowflakeConfig(unittest.TestCase):

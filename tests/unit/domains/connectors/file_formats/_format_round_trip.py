@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Mapping, Sequence
 from typing import Any
 
-from pirn.domains.connectors.file_format import FileFormat
+from pirn.connectors.file_format import FileFormat
 
 
 class FormatRoundTrip:

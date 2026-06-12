@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.document.cosmosdb_config.CosmosDBConfig`."""
+"""Tests for :class:`pirn.connectors.document.cosmosdb_config.CosmosDBConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.document.cosmosdb_config import CosmosDBConfig
+from pirn.connectors.document.cosmosdb_config import CosmosDBConfig
 
 
 class TestCosmosDBConfig(unittest.TestCase):

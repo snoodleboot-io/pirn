@@ -11,9 +11,9 @@ try:
 except ImportError as _e:
     raise unittest.SkipTest("duckdb not installed") from _e
 
-from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
-from pirn.domains.connectors.databases.duckdb_config import DuckdbConfig
-from pirn.domains.connectors.databases.duckdb_pool import DuckdbPool
+from pirn.connectors.database_connection_pool import DatabaseConnectionPool
+from pirn.connectors.databases.duckdb_config import DuckdbConfig
+from pirn.connectors.databases.duckdb_pool import DuckdbPool
 
 
 class _StandaloneTests(unittest.TestCase):

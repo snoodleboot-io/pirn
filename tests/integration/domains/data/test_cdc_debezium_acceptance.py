@@ -15,9 +15,9 @@ import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.connectors.databases.sqlite_config import SqliteConfig
-from pirn.domains.connectors.databases.sqlite_pool import SqlitePool
-from pirn.domains.connectors.message_broker import MessageBroker
+from pirn.connectors.databases.sqlite_config import SqliteConfig
+from pirn.connectors.databases.sqlite_pool import SqlitePool
+from pirn.connectors.message_broker import MessageBroker
 from pirn.domains.data.specializations.scd.cdc_debezium import CDCDebezium
 from pirn.tapestry import Tapestry
 

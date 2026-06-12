@@ -11,13 +11,13 @@ import unittest
 from collections.abc import AsyncIterator
 from typing import Any
 
-from pirn.domains.connectors.object_storage.azure_blob_config import (
+from pirn.connectors.object_storage.azure_blob_config import (
     AzureBlobConfig,
 )
-from pirn.domains.connectors.object_storage.azure_blob_store import (
+from pirn.connectors.object_storage.azure_blob_store import (
     AzureBlobStore,
 )
-from pirn.domains.connectors.object_store import ObjectStore
+from pirn.connectors.object_store import ObjectStore
 
 # ─────────────────────────────────────────────────────────── stub client
 

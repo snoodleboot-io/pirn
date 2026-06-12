@@ -6,10 +6,10 @@ import unittest
 from collections.abc import AsyncIterator, Mapping
 from typing import Any
 
-from pirn.domains.connectors.file_formats.plain_text_format import (
+from pirn.connectors.file_formats.plain_text_format import (
     PlainTextFormat,
 )
-from pirn.domains.connectors.file_formats.streaming_file_format import (
+from pirn.connectors.file_formats.streaming_file_format import (
     StreamingFileFormat,
 )
 from tests.unit.domains.connectors.file_formats._format_round_trip import (

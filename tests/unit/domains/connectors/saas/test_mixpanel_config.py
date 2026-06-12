@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.saas.mixpanel_config.MixpanelConfig`."""
+"""Tests for :class:`pirn.connectors.saas.mixpanel_config.MixpanelConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.saas.mixpanel_config import MixpanelConfig
+from pirn.connectors.saas.mixpanel_config import MixpanelConfig
 
 
 class TestMixpanelConfig(unittest.TestCase):

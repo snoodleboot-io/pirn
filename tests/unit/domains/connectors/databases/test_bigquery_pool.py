@@ -10,9 +10,9 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
-from pirn.domains.connectors.databases.bigquery_config import BigqueryConfig
-from pirn.domains.connectors.databases.bigquery_pool import BigqueryPool
+from pirn.connectors.database_connection_pool import DatabaseConnectionPool
+from pirn.connectors.databases.bigquery_config import BigqueryConfig
+from pirn.connectors.databases.bigquery_pool import BigqueryPool
 
 # ──────────────────────────────────────────────────────────── fake client
 

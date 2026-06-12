@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.object_storage.gcs_config.GCSConfig`."""
+"""Tests for :class:`pirn.connectors.object_storage.gcs_config.GCSConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.object_storage.gcs_config import GCSConfig
+from pirn.connectors.object_storage.gcs_config import GCSConfig
 
 
 class TestGCSConfig(unittest.TestCase):

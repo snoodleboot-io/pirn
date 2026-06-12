@@ -8,9 +8,9 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.api_client import ApiClient
-from pirn.domains.connectors.messaging.telegram_client import TelegramClient
-from pirn.domains.connectors.messaging.telegram_config import TelegramConfig
+from pirn.connectors.api_client import ApiClient
+from pirn.connectors.messaging.telegram_client import TelegramClient
+from pirn.connectors.messaging.telegram_config import TelegramConfig
 
 # ──────────────────────────────────────────────────────────── fake client
 

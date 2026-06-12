@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.databases.databricks_config.DatabricksConfig`."""
+"""Tests for :class:`pirn.connectors.databases.databricks_config.DatabricksConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.databases.databricks_config import DatabricksConfig
+from pirn.connectors.databases.databricks_config import DatabricksConfig
 
 
 class TestDatabricksConfig(unittest.TestCase):

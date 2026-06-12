@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.databases.redshift_config.RedshiftConfig`."""
+"""Tests for :class:`pirn.connectors.databases.redshift_config.RedshiftConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.databases.redshift_config import RedshiftConfig
+from pirn.connectors.databases.redshift_config import RedshiftConfig
 
 
 class TestRedshiftConfig(unittest.TestCase):

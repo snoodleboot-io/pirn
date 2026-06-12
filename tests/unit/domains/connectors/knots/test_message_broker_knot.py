@@ -7,8 +7,8 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.connectors.knots.message_broker_knot import MessageBrokerKnot
-from pirn.domains.connectors.message_broker import MessageBroker
+from pirn.connectors.knots.message_broker_knot import MessageBrokerKnot
+from pirn.connectors.message_broker import MessageBroker
 
 
 class StubBroker(MessageBroker):

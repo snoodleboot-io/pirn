@@ -8,9 +8,9 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
-from pirn.domains.connectors.timeseries.influxdb_config import InfluxDBConfig
-from pirn.domains.connectors.timeseries.influxdb_pool import InfluxDBPool
+from pirn.connectors.database_connection_pool import DatabaseConnectionPool
+from pirn.connectors.timeseries.influxdb_config import InfluxDBConfig
+from pirn.connectors.timeseries.influxdb_pool import InfluxDBPool
 
 # ──────────────────────────────────────────────────────────── fake objects
 

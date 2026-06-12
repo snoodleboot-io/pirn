@@ -9,8 +9,8 @@ from typing import Any
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.connectors.file_format import FileFormat
-from pirn.domains.connectors.object_store import ObjectStore
+from pirn.connectors.file_format import FileFormat
+from pirn.connectors.object_store import ObjectStore
 from pirn.domains.data.data_batch import DataBatch
 from pirn.domains.data.sinks.file_sink import FileSink
 from pirn.nodes.source import Source

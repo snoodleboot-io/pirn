@@ -14,7 +14,7 @@ plugins:
   - mkdocstrings:
       handlers:
         python:
-          paths: [pirn]
+          paths: [packages/pirn-core/src]
           options:
             show_source: false
             members_order: source

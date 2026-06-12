@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.timeseries.questdb_config.QuestDBConfig`."""
+"""Tests for :class:`pirn.connectors.timeseries.questdb_config.QuestDBConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.timeseries.questdb_config import QuestDBConfig
+from pirn.connectors.timeseries.questdb_config import QuestDBConfig
 
 
 class TestQuestDBConfig(unittest.TestCase):

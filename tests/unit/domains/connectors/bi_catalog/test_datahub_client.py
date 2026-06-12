@@ -5,13 +5,13 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.api_client import ApiClient
-from pirn.domains.connectors.bi_catalog.datahub_client import DataHubClient
-from pirn.domains.connectors.bi_catalog.datahub_config import DataHubConfig
-from pirn.domains.connectors.capabilities.metadata_catalog import (
+from pirn.connectors.api_client import ApiClient
+from pirn.connectors.bi_catalog.datahub_client import DataHubClient
+from pirn.connectors.bi_catalog.datahub_config import DataHubConfig
+from pirn.connectors.capabilities.metadata_catalog import (
     MetadataCatalog,
 )
-from pirn.domains.connectors.capabilities.table_source import TableSource
+from pirn.connectors.capabilities.table_source import TableSource
 
 
 class FakeResponse:

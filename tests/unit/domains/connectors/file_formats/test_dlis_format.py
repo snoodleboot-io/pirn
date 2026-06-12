@@ -8,10 +8,10 @@ import unittest.mock
 
 import pytest
 
-from pirn.domains.connectors.file_formats.batch_file_format import (
+from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
-from pirn.domains.connectors.file_formats.dlis_format import DlisFormat
+from pirn.connectors.file_formats.dlis_format import DlisFormat
 
 
 class TestDlisFormatConstruction(unittest.TestCase):

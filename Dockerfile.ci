@@ -26,13 +26,18 @@ RUN apt-get update -qq && \
 # Install uv from the official distroless image — no shell needed
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# Pre-build all dependencies (excluding pirn itself — installed at runtime)
+# Pre-build all dependencies (excluding the project itself — installed at
+# runtime). The source now lives in the uv workspace under packages/, so the
+# prebake needs the workspace root + every member's manifest to resolve the
+# single lock. pirn-core carries all extras during Phase 1 (domains ride along
+# inside it until Phase 3), so syncing pirn-core's deps covers the whole tree.
 WORKDIR /opt/pirn-deps
 COPY pyproject.toml ./
+COPY packages/ ./packages/
 
 ENV UV_PYTHON_PREFERENCE=only-system \
     UV_PROJECT_ENVIRONMENT=/opt/pirn-deps/.venv
 
-RUN uv sync --all-extras --no-install-project \
+RUN uv sync --package pirn-core --all-extras --no-install-project \
     --no-extra pytorch --no-extra tensorflow --no-extra tflite && \
     rm -f uv.lock

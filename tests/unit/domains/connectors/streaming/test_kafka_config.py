@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.streaming.kafka_config.KafkaConfig`."""
+"""Tests for :class:`pirn.connectors.streaming.kafka_config.KafkaConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.streaming.kafka_config import KafkaConfig
+from pirn.connectors.streaming.kafka_config import KafkaConfig
 
 
 class TestKafkaConfig(unittest.TestCase):

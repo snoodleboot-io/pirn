@@ -10,9 +10,9 @@ import logging
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
-from pirn.domains.connectors.graph.orientdb_config import OrientDBConfig
-from pirn.domains.connectors.graph.orientdb_pool import OrientDBPool
+from pirn.connectors.database_connection_pool import DatabaseConnectionPool
+from pirn.connectors.graph.orientdb_config import OrientDBConfig
+from pirn.connectors.graph.orientdb_pool import OrientDBPool
 
 # ──────────────────────────────────────────────────────────────── fakes
 

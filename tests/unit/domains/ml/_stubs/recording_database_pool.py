@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pirn.domains.connectors.database_connection_pool import (
+from pirn.connectors.database_connection_pool import (
     DatabaseConnectionPool,
 )
 

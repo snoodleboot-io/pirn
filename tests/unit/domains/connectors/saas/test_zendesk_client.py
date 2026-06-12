@@ -11,11 +11,11 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.api_client import ApiClient
-from pirn.domains.connectors.capabilities.record_writer import RecordWriter
-from pirn.domains.connectors.capabilities.table_source import TableSource
-from pirn.domains.connectors.saas.zendesk_client import ZendeskClient
-from pirn.domains.connectors.saas.zendesk_config import ZendeskConfig
+from pirn.connectors.api_client import ApiClient
+from pirn.connectors.capabilities.record_writer import RecordWriter
+from pirn.connectors.capabilities.table_source import TableSource
+from pirn.connectors.saas.zendesk_client import ZendeskClient
+from pirn.connectors.saas.zendesk_config import ZendeskConfig
 
 # ──────────────────────────────────────────────────────────── fake clients
 

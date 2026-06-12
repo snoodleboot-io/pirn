@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.timeseries.influxdb_config.InfluxDBConfig`."""
+"""Tests for :class:`pirn.connectors.timeseries.influxdb_config.InfluxDBConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.timeseries.influxdb_config import InfluxDBConfig
+from pirn.connectors.timeseries.influxdb_config import InfluxDBConfig
 
 
 class TestInfluxDBConfig(unittest.TestCase):

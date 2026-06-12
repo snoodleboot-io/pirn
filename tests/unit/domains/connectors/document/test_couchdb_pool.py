@@ -9,9 +9,9 @@ import json
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
-from pirn.domains.connectors.document.couchdb_config import CouchDBConfig
-from pirn.domains.connectors.document.couchdb_pool import CouchDBPool
+from pirn.connectors.database_connection_pool import DatabaseConnectionPool
+from pirn.connectors.document.couchdb_config import CouchDBConfig
+from pirn.connectors.document.couchdb_pool import CouchDBPool
 
 # ──────────────────────────────────────────────────────────── fakes
 

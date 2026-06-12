@@ -8,9 +8,9 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.api_client import ApiClient
-from pirn.domains.connectors.messaging.teams_client import TeamsClient
-from pirn.domains.connectors.messaging.teams_config import TeamsConfig
+from pirn.connectors.api_client import ApiClient
+from pirn.connectors.messaging.teams_client import TeamsClient
+from pirn.connectors.messaging.teams_config import TeamsConfig
 
 # ──────────────────────────────────────────────────────────── fake client
 

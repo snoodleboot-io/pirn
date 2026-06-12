@@ -10,12 +10,12 @@ import unittest
 from datetime import UTC, datetime
 from typing import Any
 
-from pirn.domains.connectors.api_client import ApiClient
-from pirn.domains.connectors.capabilities.metric_query import MetricQuery
-from pirn.domains.connectors.observability.prometheus_client import (
+from pirn.connectors.api_client import ApiClient
+from pirn.connectors.capabilities.metric_query import MetricQuery
+from pirn.connectors.observability.prometheus_client import (
     PrometheusClient,
 )
-from pirn.domains.connectors.observability.prometheus_config import (
+from pirn.connectors.observability.prometheus_config import (
     PrometheusConfig,
 )
 

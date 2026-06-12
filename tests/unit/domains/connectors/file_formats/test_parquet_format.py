@@ -9,7 +9,7 @@ try:
 except ImportError as _e:
     raise unittest.SkipTest("pyarrow not installed") from _e
 
-from pirn.domains.connectors.file_formats.parquet_format import ParquetFormat
+from pirn.connectors.file_formats.parquet_format import ParquetFormat
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )

@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.messaging.google_chat_config.GoogleChatConfig`."""
+"""Tests for :class:`pirn.connectors.messaging.google_chat_config.GoogleChatConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.messaging.google_chat_config import GoogleChatConfig
+from pirn.connectors.messaging.google_chat_config import GoogleChatConfig
 
 
 class TestGoogleChatConfig(unittest.TestCase):

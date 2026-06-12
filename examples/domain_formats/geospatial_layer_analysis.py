@@ -30,7 +30,7 @@ Working with real GeoJSON:
 --------------------------
 Replace the synthetic features below with data decoded from a real file::
 
-    from pirn.domains.connectors.file_formats.geojson_format import GeoJsonFormat
+    from pirn.connectors.file_formats.geojson_format import GeoJsonFormat
 
     fmt = GeoJsonFormat()
     with open("parcels.geojson", "rb") as fh:

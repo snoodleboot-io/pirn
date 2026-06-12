@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.streaming.rabbitmq_plain_message import (
+from pirn.connectors.streaming.rabbitmq_plain_message import (
     RabbitMQPlainMessage,
 )
 

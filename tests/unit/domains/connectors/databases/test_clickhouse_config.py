@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.databases.clickhouse_config.ClickhouseConfig`."""
+"""Tests for :class:`pirn.connectors.databases.clickhouse_config.ClickhouseConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.databases.clickhouse_config import ClickhouseConfig
+from pirn.connectors.databases.clickhouse_config import ClickhouseConfig
 
 
 class TestClickhouseConfig(unittest.TestCase):

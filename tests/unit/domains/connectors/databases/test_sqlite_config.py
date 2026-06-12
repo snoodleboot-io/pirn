@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.databases.sqlite_config.SqliteConfig`."""
+"""Tests for :class:`pirn.connectors.databases.sqlite_config.SqliteConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.databases.sqlite_config import SqliteConfig
+from pirn.connectors.databases.sqlite_config import SqliteConfig
 
 
 class TestSqliteConfig(unittest.TestCase):

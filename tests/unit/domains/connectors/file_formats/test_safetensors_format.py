@@ -16,10 +16,10 @@ except ImportError as _e:
 
 import numpy as np
 
-from pirn.domains.connectors.file_formats.batch_file_format import (
+from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
-from pirn.domains.connectors.file_formats.safetensors_format import (
+from pirn.connectors.file_formats.safetensors_format import (
     SafetensorsFormat,
 )
 from tests.unit.domains.connectors.file_formats._format_round_trip import (

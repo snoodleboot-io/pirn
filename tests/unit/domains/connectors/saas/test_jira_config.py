@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.saas.jira_config.JiraConfig`."""
+"""Tests for :class:`pirn.connectors.saas.jira_config.JiraConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.saas.jira_config import JiraConfig
+from pirn.connectors.saas.jira_config import JiraConfig
 
 
 class TestJiraConfig(unittest.TestCase):

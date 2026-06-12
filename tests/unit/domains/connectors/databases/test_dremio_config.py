@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.databases.dremio_config.DremioConfig`."""
+"""Tests for :class:`pirn.connectors.databases.dremio_config.DremioConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.databases.dremio_config import DremioConfig
+from pirn.connectors.databases.dremio_config import DremioConfig
 
 
 class TestDremioConfig(unittest.TestCase):

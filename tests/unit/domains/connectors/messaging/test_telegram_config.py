@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.messaging.telegram_config.TelegramConfig`."""
+"""Tests for :class:`pirn.connectors.messaging.telegram_config.TelegramConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.messaging.telegram_config import TelegramConfig
+from pirn.connectors.messaging.telegram_config import TelegramConfig
 
 
 class TestTelegramConfig(unittest.TestCase):

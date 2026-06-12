@@ -10,10 +10,10 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.api_client import ApiClient
-from pirn.domains.connectors.capabilities.record_writer import RecordWriter
-from pirn.domains.connectors.saas.twilio_client import TwilioClient
-from pirn.domains.connectors.saas.twilio_config import TwilioConfig
+from pirn.connectors.api_client import ApiClient
+from pirn.connectors.capabilities.record_writer import RecordWriter
+from pirn.connectors.saas.twilio_client import TwilioClient
+from pirn.connectors.saas.twilio_config import TwilioConfig
 
 # ──────────────────────────────────────────────────────────── fake client
 

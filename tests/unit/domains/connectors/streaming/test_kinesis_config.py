@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.streaming.kinesis_config.KinesisConfig`."""
+"""Tests for :class:`pirn.connectors.streaming.kinesis_config.KinesisConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.streaming.kinesis_config import KinesisConfig
+from pirn.connectors.streaming.kinesis_config import KinesisConfig
 
 
 class TestKinesisConfig(unittest.TestCase):

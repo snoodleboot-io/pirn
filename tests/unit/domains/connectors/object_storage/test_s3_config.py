@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.object_storage.s3_config.S3Config`."""
+"""Tests for :class:`pirn.connectors.object_storage.s3_config.S3Config`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.object_storage.s3_config import S3Config
+from pirn.connectors.object_storage.s3_config import S3Config
 
 
 class TestS3Config(unittest.TestCase):

@@ -54,13 +54,13 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
       - name: Install pirn
-        run: uv sync --all-extras --no-extra pytorch --no-extra tensorflow --no-extra tflite
+        run: uv sync --package pirn-core --all-extras --no-extra pytorch --no-extra tensorflow --no-extra tflite
 
       - name: Ruff lint
-        run: uv run ruff check --output-format=github pirn/
+        run: uv run ruff check --output-format=github packages/pirn-core/src/pirn/
 
       - name: Ruff format check
-        run: uv run ruff format --check pirn/
+        run: uv run ruff format --check packages/pirn-core/src/pirn/
 
       - name: Pyright type check
         run: uv run pyright
@@ -83,7 +83,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
       - name: Install pirn
-        run: uv sync --all-extras --no-extra pytorch --no-extra tensorflow --no-extra tflite
+        run: uv sync --package pirn-core --all-extras --no-extra pytorch --no-extra tensorflow --no-extra tflite
 
       - name: Run unit tests
         run: |
@@ -176,7 +176,7 @@ jobs:
           uv run python -c "
           import pirn.domains
           import pirn.domains.agents
-          import pirn.domains.connectors
+          import pirn.connectors
           print('OK: namespace + agents + connectors import without their own extras')
           "
 
@@ -185,132 +185,132 @@ jobs:
       - name: "[postgres] install + import"
         run: |
           uv pip install --system -e ".[postgres]"
-          uv run python -c "import pirn.domains.connectors; print('OK: postgres')"
+          uv run python -c "import pirn.connectors; print('OK: postgres')"
 
       - name: "[sqlite] install + import"
         run: |
           uv pip install --system -e ".[sqlite]"
-          uv run python -c "import pirn.domains.connectors; print('OK: sqlite')"
+          uv run python -c "import pirn.connectors; print('OK: sqlite')"
 
       - name: "[duckdb] install + import"
         run: |
           uv pip install --system -e ".[duckdb]"
-          uv run python -c "import pirn.domains.connectors; print('OK: duckdb')"
+          uv run python -c "import pirn.connectors; print('OK: duckdb')"
 
       - name: "[mysql] install + import"
         run: |
           uv pip install --system -e ".[mysql]"
-          uv run python -c "import pirn.domains.connectors; print('OK: mysql')"
+          uv run python -c "import pirn.connectors; print('OK: mysql')"
 
       - name: "[bigquery] install + import"
         run: |
           uv pip install --system -e ".[bigquery]"
-          uv run python -c "import pirn.domains.connectors; print('OK: bigquery')"
+          uv run python -c "import pirn.connectors; print('OK: bigquery')"
 
       - name: "[snowflake] install + import"
         run: |
           uv pip install --system -e ".[snowflake]"
-          uv run python -c "import pirn.domains.connectors; print('OK: snowflake')"
+          uv run python -c "import pirn.connectors; print('OK: snowflake')"
 
       - name: "[clickhouse] install + import"
         run: |
           uv pip install --system -e ".[clickhouse]"
-          uv run python -c "import pirn.domains.connectors; print('OK: clickhouse')"
+          uv run python -c "import pirn.connectors; print('OK: clickhouse')"
 
       - name: "[mssql] install + import"
         run: |
           uv pip install --system -e ".[mssql]"
-          uv run python -c "import pirn.domains.connectors; print('OK: mssql')"
+          uv run python -c "import pirn.connectors; print('OK: mssql')"
 
       - name: "[oracle] install + import"
         run: |
           uv pip install --system -e ".[oracle]"
-          uv run python -c "import pirn.domains.connectors; print('OK: oracle')"
+          uv run python -c "import pirn.connectors; print('OK: oracle')"
 
       - name: "[s3] install + import"
         run: |
           uv pip install --system -e ".[s3]"
-          uv run python -c "import pirn.domains.connectors; print('OK: s3')"
+          uv run python -c "import pirn.connectors; print('OK: s3')"
 
       - name: "[gcs] install + import"
         run: |
           uv pip install --system -e ".[gcs]"
-          uv run python -c "import pirn.domains.connectors; print('OK: gcs')"
+          uv run python -c "import pirn.connectors; print('OK: gcs')"
 
       - name: "[azure] install + import"
         run: |
           uv pip install --system -e ".[azure]"
-          uv run python -c "import pirn.domains.connectors; print('OK: azure')"
+          uv run python -c "import pirn.connectors; print('OK: azure')"
 
       - name: "[kafka] install + import"
         run: |
           uv pip install --system -e ".[kafka]"
-          uv run python -c "import pirn.domains.connectors; print('OK: kafka')"
+          uv run python -c "import pirn.connectors; print('OK: kafka')"
 
       - name: "[kinesis] install + import"
         run: |
           uv pip install --system -e ".[kinesis]"
-          uv run python -c "import pirn.domains.connectors; print('OK: kinesis')"
+          uv run python -c "import pirn.connectors; print('OK: kinesis')"
 
       - name: "[pubsub] install + import"
         run: |
           uv pip install --system -e ".[pubsub]"
-          uv run python -c "import pirn.domains.connectors; print('OK: pubsub')"
+          uv run python -c "import pirn.connectors; print('OK: pubsub')"
 
       - name: "[rabbitmq] install + import"
         run: |
           uv pip install --system -e ".[rabbitmq]"
-          uv run python -c "import pirn.domains.connectors; print('OK: rabbitmq')"
+          uv run python -c "import pirn.connectors; print('OK: rabbitmq')"
 
       - name: "[azure-servicebus] install + import"
         run: |
           uv pip install --system -e ".[azure-servicebus]"
-          uv run python -c "import pirn.domains.connectors; print('OK: azure-servicebus')"
+          uv run python -c "import pirn.connectors; print('OK: azure-servicebus')"
 
       - name: "[salesforce] install + import"
         run: |
           uv pip install --system -e ".[salesforce]"
-          uv run python -c "import pirn.domains.connectors; print('OK: salesforce')"
+          uv run python -c "import pirn.connectors; print('OK: salesforce')"
 
       - name: "[hubspot] install + import"
         run: |
           uv pip install --system -e ".[hubspot]"
-          uv run python -c "import pirn.domains.connectors; print('OK: hubspot')"
+          uv run python -c "import pirn.connectors; print('OK: hubspot')"
 
       - name: "[stripe] install + import"
         run: |
           uv pip install --system -e ".[stripe]"
-          uv run python -c "import pirn.domains.connectors; print('OK: stripe')"
+          uv run python -c "import pirn.connectors; print('OK: stripe')"
 
       - name: "[github] install + import"
         run: |
           uv pip install --system -e ".[github]"
-          uv run python -c "import pirn.domains.connectors; print('OK: github')"
+          uv run python -c "import pirn.connectors; print('OK: github')"
 
       - name: "[jira] install + import"
         run: |
           uv pip install --system -e ".[jira]"
-          uv run python -c "import pirn.domains.connectors; print('OK: jira')"
+          uv run python -c "import pirn.connectors; print('OK: jira')"
 
       - name: "[shopify] install + import"
         run: |
           uv pip install --system -e ".[shopify]"
-          uv run python -c "import pirn.domains.connectors; print('OK: shopify')"
+          uv run python -c "import pirn.connectors; print('OK: shopify')"
 
       - name: "[datadog] install + import"
         run: |
           uv pip install --system -e ".[datadog]"
-          uv run python -c "import pirn.domains.connectors; print('OK: datadog')"
+          uv run python -c "import pirn.connectors; print('OK: datadog')"
 
       - name: "[prometheus] install + import"
         run: |
           uv pip install --system -e ".[prometheus]"
-          uv run python -c "import pirn.domains.connectors; print('OK: prometheus')"
+          uv run python -c "import pirn.connectors; print('OK: prometheus')"
 
       - name: "[otel] install + import"
         run: |
           uv pip install --system -e ".[otel]"
-          uv run python -c "import pirn.domains.connectors; print('OK: otel')"
+          uv run python -c "import pirn.connectors; print('OK: otel')"
 
   mock-integration-tests:
     name: Integration Tests (mock backends)
@@ -322,7 +322,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
       - name: Install pirn
-        run: uv sync --all-extras --no-extra pytorch --no-extra tensorflow --no-extra tflite
+        run: uv sync --package pirn-core --all-extras --no-extra pytorch --no-extra tensorflow --no-extra tflite
 
       - name: Run mock integration tests
         run: |
@@ -365,7 +365,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
       - name: Install pirn
-        run: uv sync --all-extras --no-extra pytorch --no-extra tensorflow --no-extra tflite
+        run: uv sync --package pirn-core --all-extras --no-extra pytorch --no-extra tensorflow --no-extra tflite
 
       - name: Run smoke tests
         run: |
@@ -393,7 +393,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
       - name: Install pirn
-        run: uv sync --all-extras --no-extra pytorch --no-extra tensorflow --no-extra tflite
+        run: uv sync --package pirn-core --all-extras --no-extra pytorch --no-extra tensorflow --no-extra tflite
 
       - name: Run end-to-end tests
         run: |
@@ -425,7 +425,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: uv sync --all-extras --no-extra pytorch --no-extra tensorflow --no-extra tflite
+        run: uv sync --package pirn-core --all-extras --no-extra pytorch --no-extra tensorflow --no-extra tflite
 
       - name: Run benchmarks
         run: |

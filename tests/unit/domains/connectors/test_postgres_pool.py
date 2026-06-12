@@ -10,9 +10,9 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
-from pirn.domains.connectors.databases.postgres_config import PostgresConfig
-from pirn.domains.connectors.databases.postgres_pool import PostgresPool
+from pirn.connectors.database_connection_pool import DatabaseConnectionPool
+from pirn.connectors.databases.postgres_config import PostgresConfig
+from pirn.connectors.databases.postgres_pool import PostgresPool
 
 # ──────────────────────────────────────────────────────────── fake pool
 

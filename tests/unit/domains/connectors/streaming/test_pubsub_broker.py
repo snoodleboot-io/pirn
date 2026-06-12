@@ -5,9 +5,9 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.message_broker import MessageBroker
-from pirn.domains.connectors.streaming.pubsub_broker import PubSubBroker
-from pirn.domains.connectors.streaming.pubsub_config import PubSubConfig
+from pirn.connectors.message_broker import MessageBroker
+from pirn.connectors.streaming.pubsub_broker import PubSubBroker
+from pirn.connectors.streaming.pubsub_config import PubSubConfig
 
 # ─────────────────────────────────────────────────────────── stub future
 

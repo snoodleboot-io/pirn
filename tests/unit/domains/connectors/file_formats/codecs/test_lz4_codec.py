@@ -9,7 +9,7 @@ try:
 except ImportError as _e:
     raise unittest.SkipTest("lz4 not installed") from _e
 
-from pirn.domains.connectors.file_formats.codecs.lz4_codec import Lz4Codec
+from pirn.connectors.file_formats.codecs.lz4_codec import Lz4Codec
 from tests.unit.domains.connectors.file_formats.codecs._codec_round_trip import (
     CodecRoundTrip,
 )

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.streaming.valkey_record import ValkeyRecord
+from pirn.connectors.streaming.valkey_record import ValkeyRecord
 
 
 def _make_record(**fields: bytes) -> ValkeyRecord:

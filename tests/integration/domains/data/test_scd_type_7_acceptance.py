@@ -20,8 +20,8 @@ import pytest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.connectors.databases.sqlite_config import SqliteConfig
-from pirn.domains.connectors.databases.sqlite_pool import SqlitePool
+from pirn.connectors.databases.sqlite_config import SqliteConfig
+from pirn.connectors.databases.sqlite_pool import SqlitePool
 from pirn.domains.data.specializations.scd.scd_type_7_hybrid import (
     ScdType7Hybrid,
 )

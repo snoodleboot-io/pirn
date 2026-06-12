@@ -9,9 +9,9 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.api_client import ApiClient
-from pirn.domains.connectors.saas.stripe_client import StripeClient
-from pirn.domains.connectors.saas.stripe_config import StripeConfig
+from pirn.connectors.api_client import ApiClient
+from pirn.connectors.saas.stripe_client import StripeClient
+from pirn.connectors.saas.stripe_config import StripeConfig
 
 # ──────────────────────────────────────────────────────────── fake client
 

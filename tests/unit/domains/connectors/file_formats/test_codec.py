@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from collections.abc import AsyncIterator
 
-from pirn.domains.connectors.file_formats.codec import Codec
+from pirn.connectors.file_formats.codec import Codec
 
 
 async def _bytes_iter(*chunks: bytes) -> AsyncIterator[bytes]:

@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.streaming.valkey_stream_config.ValkeyStreamConfig`."""
+"""Tests for :class:`pirn.connectors.streaming.valkey_stream_config.ValkeyStreamConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.streaming.valkey_stream_config import ValkeyStreamConfig
+from pirn.connectors.streaming.valkey_stream_config import ValkeyStreamConfig
 
 
 class TestValkeyStreamConfig(unittest.TestCase):

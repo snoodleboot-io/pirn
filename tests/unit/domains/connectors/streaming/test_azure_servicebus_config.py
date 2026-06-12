@@ -1,11 +1,11 @@
-"""Tests for :class:`pirn.domains.connectors.streaming.azure_servicebus_config.AzureServiceBusConfig`.
+"""Tests for :class:`pirn.connectors.streaming.azure_servicebus_config.AzureServiceBusConfig`.
 """
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.streaming.azure_servicebus_config import AzureServiceBusConfig
+from pirn.connectors.streaming.azure_servicebus_config import AzureServiceBusConfig
 
 
 class TestAzureServiceBusConfig(unittest.TestCase):

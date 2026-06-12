@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.bi_catalog.fivetran_config.FivetranConfig`."""
+"""Tests for :class:`pirn.connectors.bi_catalog.fivetran_config.FivetranConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.bi_catalog.fivetran_config import FivetranConfig
+from pirn.connectors.bi_catalog.fivetran_config import FivetranConfig
 
 
 class TestFivetranConfig(unittest.TestCase):

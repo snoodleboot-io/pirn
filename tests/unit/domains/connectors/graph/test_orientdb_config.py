@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.graph.orientdb_config.OrientDBConfig`."""
+"""Tests for :class:`pirn.connectors.graph.orientdb_config.OrientDBConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.graph.orientdb_config import OrientDBConfig
+from pirn.connectors.graph.orientdb_config import OrientDBConfig
 
 
 class TestOrientDBConfig(unittest.TestCase):

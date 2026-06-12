@@ -5,8 +5,8 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
-from pirn.domains.connectors.knots.database_connection_pool_knot import (
+from pirn.connectors.database_connection_pool import DatabaseConnectionPool
+from pirn.connectors.knots.database_connection_pool_knot import (
     DatabaseConnectionPoolKnot,
 )
 from pirn.tapestry import Tapestry

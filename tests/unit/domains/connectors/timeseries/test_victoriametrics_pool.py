@@ -8,11 +8,11 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
-from pirn.domains.connectors.timeseries.victoriametrics_config import (
+from pirn.connectors.database_connection_pool import DatabaseConnectionPool
+from pirn.connectors.timeseries.victoriametrics_config import (
     VictoriaMetricsConfig,
 )
-from pirn.domains.connectors.timeseries.victoriametrics_pool import VictoriaMetricsPool
+from pirn.connectors.timeseries.victoriametrics_pool import VictoriaMetricsPool
 
 # ──────────────────────────────────────────────────────────── fake client
 

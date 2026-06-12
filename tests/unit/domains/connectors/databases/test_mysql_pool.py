@@ -9,9 +9,9 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
-from pirn.domains.connectors.databases.mysql_config import MySQLConfig
-from pirn.domains.connectors.databases.mysql_pool import MySQLPool
+from pirn.connectors.database_connection_pool import DatabaseConnectionPool
+from pirn.connectors.databases.mysql_config import MySQLConfig
+from pirn.connectors.databases.mysql_pool import MySQLPool
 
 # ──────────────────────────────────────────────────────────── fake pool
 

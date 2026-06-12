@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.file_formats._html_stripper import _HtmlStripper
+from pirn.connectors.file_formats._html_stripper import _HtmlStripper
 
 
 class TestHtmlStripper(unittest.TestCase):

@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.saas.airtable_config.AirtableConfig`."""
+"""Tests for :class:`pirn.connectors.saas.airtable_config.AirtableConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.saas.airtable_config import AirtableConfig
+from pirn.connectors.saas.airtable_config import AirtableConfig
 
 
 class TestAirtableConfig(unittest.TestCase):

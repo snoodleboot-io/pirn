@@ -85,8 +85,8 @@ class TestDomainImportGuards(unittest.TestCase):
         import pirn.domains.agents  # noqa: F401
 
     def test_connectors_namespace_imports_without_extras(self) -> None:
-        sys.modules.pop("pirn.domains.connectors", None)
-        import pirn.domains.connectors  # noqa: F401
+        sys.modules.pop("pirn.connectors", None)
+        import pirn.connectors  # noqa: F401
 
     def test_data_namespace_imports_without_extras(self) -> None:
         # The data domain defers its ExtrasLoader call to pandas-bound

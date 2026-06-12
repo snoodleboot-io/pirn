@@ -10,10 +10,10 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.api_client import ApiClient
-from pirn.domains.connectors.capabilities.table_source import TableSource
-from pirn.domains.connectors.saas.shopify_client import ShopifyClient
-from pirn.domains.connectors.saas.shopify_config import ShopifyConfig
+from pirn.connectors.api_client import ApiClient
+from pirn.connectors.capabilities.table_source import TableSource
+from pirn.connectors.saas.shopify_client import ShopifyClient
+from pirn.connectors.saas.shopify_config import ShopifyConfig
 
 # ──────────────────────────────────────────────────────────── fake client
 

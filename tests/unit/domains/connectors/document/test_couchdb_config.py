@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.document.couchdb_config.CouchDBConfig`."""
+"""Tests for :class:`pirn.connectors.document.couchdb_config.CouchDBConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.document.couchdb_config import CouchDBConfig
+from pirn.connectors.document.couchdb_config import CouchDBConfig
 
 
 class TestCouchDBConfig(unittest.TestCase):

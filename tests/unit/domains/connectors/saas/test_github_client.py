@@ -10,10 +10,10 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.api_client import ApiClient
-from pirn.domains.connectors.capabilities.table_source import TableSource
-from pirn.domains.connectors.saas.github_client import GitHubClient
-from pirn.domains.connectors.saas.github_config import GitHubConfig
+from pirn.connectors.api_client import ApiClient
+from pirn.connectors.capabilities.table_source import TableSource
+from pirn.connectors.saas.github_client import GitHubClient
+from pirn.connectors.saas.github_config import GitHubConfig
 
 # ──────────────────────────────────────────────────────────── fake client
 

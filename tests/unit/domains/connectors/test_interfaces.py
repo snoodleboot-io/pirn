@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
-from pirn.domains.connectors.file_format import FileFormat
-from pirn.domains.connectors.message_broker import MessageBroker
-from pirn.domains.connectors.object_store import ObjectStore
+from pirn.connectors.database_connection_pool import DatabaseConnectionPool
+from pirn.connectors.file_format import FileFormat
+from pirn.connectors.message_broker import MessageBroker
+from pirn.connectors.object_store import ObjectStore
 
 
 class TestDatabaseConnectionPoolInterface(unittest.IsolatedAsyncioTestCase):

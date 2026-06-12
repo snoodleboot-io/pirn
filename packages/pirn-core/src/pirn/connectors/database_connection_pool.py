@@ -1,0 +1,110 @@
+"""Interface for async database connection pools.
+
+Concrete implementations (asyncpg, aiosqlite, DuckDB, ...) inherit from
+:class:`DatabaseConnectionPool` and override every method. Following the
+existing pirn interface convention (see ``pirn/streaming/base.py``,
+``pirn/triggers/base.py``, ``pirn/backends/base/run_history.py``) — base
+methods raise :class:`NotImplementedError` naming the concrete subclass
+that failed to implement them.
+"""
+
+from __future__ import annotations
+
+import re
+from typing import TYPE_CHECKING, Any, Never
+
+from pirn.core.pirn_opaque_value import PirnOpaqueValue
+
+if TYPE_CHECKING:
+    from pirn.connectors.dsn_scrubber import DsnScrubber
+
+
+class DatabaseConnectionPool(PirnOpaqueValue):
+    """Interface every connector pool implementation must satisfy.
+
+    Implementations:
+      - :class:`pirn.connectors.databases.sqlite_pool.SqlitePool`
+      - :class:`pirn.connectors.databases.duckdb_pool.DuckdbPool`
+      - :class:`pirn.connectors.databases.postgres_pool.PostgresPool`
+
+    Pydantic treats pools as opaque (see
+    :class:`pirn.core.pirn_opaque_value.PirnOpaqueValue`); the default
+    identity-keyed serialiser keeps content-addressing cache stable
+    without descending into live engine state.
+    """
+
+    async def acquire(self) -> Any:
+        """Return a connection (or async-context manager wrapping one)."""
+        raise NotImplementedError(f"{type(self).__name__} must implement acquire()")
+
+    async def release(self, connection: Any) -> None:
+        """Return a previously-acquired connection to the pool."""
+        raise NotImplementedError(f"{type(self).__name__} must implement release()")
+
+    async def close(self) -> None:
+        """Close the pool and release any underlying resources."""
+        raise NotImplementedError(f"{type(self).__name__} must implement close()")
+
+    async def fetch_all(self, query: str, *args: Any) -> list[Any]:
+        """Execute *query* and return all rows as a list."""
+        raise NotImplementedError(f"{type(self).__name__} must implement fetch_all()")
+
+    async def execute(self, query: str, *args: Any) -> Any:
+        """Execute *query* and return a driver-specific result."""
+        raise NotImplementedError(f"{type(self).__name__} must implement execute()")
+
+    async def execute_many(self, query: str, args_seq: Any) -> None:
+        """Execute *query* once per item in *args_seq*."""
+        raise NotImplementedError(f"{type(self).__name__} must implement execute_many()")
+
+    # Per-engine placeholder grammar. The default regex rejects Python
+    # brace interpolation (``{...}``) and printf-style (``%s``/``%d``).
+    # Subclasses override ``_inline_interpolation_pattern`` when their
+    # driver uses one of those forms as a real bind marker:
+    #
+    # * MySQL  — uses ``%s`` as the canonical placeholder.
+    # * Clickhouse — uses ``{name:Type}`` as a typed placeholder.
+    _inline_interpolation_pattern: str = r"\{[^}]*\}|%[sd]"
+    _scrubber: DsnScrubber
+
+    def _reraise_scrubbed(self, exc: BaseException) -> Never:
+        """Re-raise ``exc`` with credential markers scrubbed from the message.
+
+        Concrete pools construct ``self._scrubber`` (a
+        :class:`pirn.connectors.dsn_scrubber.DsnScrubber`) in their
+        ``__init__``. This helper centralises the
+        ``raise type(exc)(scrubber.scrub(str(exc))) from None`` pattern so
+        every concrete pool's connect/auth ``except`` block stays a single
+        line.
+        """
+        raise type(exc)(self._scrubber.scrub(str(exc))) from None
+
+    def _clear_credentials(self) -> None:
+        """Drop the in-memory credential reference held by the pool.
+
+        Concrete pools should call this from ``close()`` after tearing
+        down the live connection. It nulls ``self._config`` so the
+        credential string (password, token, key) becomes garbage-
+        collectable as soon as the caller drops the pool reference.
+        Long-running processes that hold pool references after
+        ``close()`` benefit; default deployments are unaffected.
+        """
+        self._config = None
+
+    def _reject_inline_interpolation(self, query: str) -> None:
+        """Reject Python-string interpolation markers in raw SQL.
+
+        Defends against accidental use of ``str.format`` (``{...}``) or
+        printf-style (``%s``/``%d``) substitution in places where the
+        caller should be using the driver's bind syntax. Every concrete
+        pool calls this from its query-executing methods *before*
+        forwarding to the underlying driver.
+        """
+        if re.search(self._inline_interpolation_pattern, query):
+            hint = (
+                "Use the driver's bind syntax (':name', '?', or '%s' "
+                "depending on the engine) and pass parameters separately."
+            )
+            raise ValueError(
+                f"{type(self).__name__}: query contains inline interpolation markers. {hint}"
+            )

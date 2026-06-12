@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.saas.twilio_config.TwilioConfig`."""
+"""Tests for :class:`pirn.connectors.saas.twilio_config.TwilioConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.saas.twilio_config import TwilioConfig
+from pirn.connectors.saas.twilio_config import TwilioConfig
 
 
 class TestTwilioConfig(unittest.TestCase):

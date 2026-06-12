@@ -1,10 +1,10 @@
-"""Tests for :class:`pirn.domains.connectors.saas.amplitude_config.AmplitudeConfig`."""
+"""Tests for :class:`pirn.connectors.saas.amplitude_config.AmplitudeConfig`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.domains.connectors.saas.amplitude_config import AmplitudeConfig
+from pirn.connectors.saas.amplitude_config import AmplitudeConfig
 
 
 class TestAmplitudeConfig(unittest.TestCase):

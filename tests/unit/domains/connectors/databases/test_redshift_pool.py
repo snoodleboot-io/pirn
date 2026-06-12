@@ -9,9 +9,9 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.domains.connectors.database_connection_pool import DatabaseConnectionPool
-from pirn.domains.connectors.databases.redshift_config import RedshiftConfig
-from pirn.domains.connectors.databases.redshift_pool import RedshiftPool
+from pirn.connectors.database_connection_pool import DatabaseConnectionPool
+from pirn.connectors.databases.redshift_config import RedshiftConfig
+from pirn.connectors.databases.redshift_pool import RedshiftPool
 
 # ──────────────────────────────────────────────────────────── fake pool
 
