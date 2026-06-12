@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import tempfile
 import unittest
 
 import pytest
@@ -121,3 +123,29 @@ class TestZarrFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
         reader = ZarrFormat(dataset_path="missing")
         with self.assertRaises(ValueError):
             await FormatRoundTrip.decode(reader, payload)
+
+
+class TestZarrFormatSecureTempFiles(unittest.IsolatedAsyncioTestCase):
+    """The encode (library-write) and decode (payload-write) paths use
+    ``tempfile.mkstemp`` (atomic create, 0600) and clean up after themselves —
+    no ``.zarr.zip`` working files linger in the system temp dir (issue #87)."""
+
+    @staticmethod
+    def _temp_zarr_files() -> set[str]:
+        tmp_dir = tempfile.gettempdir()
+        return {name for name in os.listdir(tmp_dir) if name.endswith(".zarr.zip")}
+
+    async def test_round_trip_leaves_no_temp_files(self) -> None:
+        before = self._temp_zarr_files()
+        records = [{"id": 1, "name": "alpha", "score": 1.5}]
+        fmt = ZarrFormat()
+        payload = await FormatRoundTrip.encode(fmt, records)  # library-write path
+        await FormatRoundTrip.decode(fmt, payload)            # payload-write path
+        assert self._temp_zarr_files() == before, "encode/decode leaked a temp file"
+
+    async def test_decode_failure_leaves_no_temp_files(self) -> None:
+        before = self._temp_zarr_files()
+        fmt = ZarrFormat()
+        with self.assertRaises(Exception):
+            await FormatRoundTrip.decode(fmt, b"not a valid zarr zip payload")
+        assert self._temp_zarr_files() == before, "failed decode leaked a temp file"

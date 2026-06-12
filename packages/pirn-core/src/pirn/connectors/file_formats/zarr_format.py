@@ -135,7 +135,10 @@ class ZarrFormat(BatchFileFormat):
                 "(zarr structured arrays require at least one row)"
             )
         structured = self._records_to_structured_array(materialised, np)
-        tmp_path = tempfile.mktemp(suffix=".zarr.zip")
+        # mkstemp creates the file atomically with 0600 perms (no mktemp race);
+        # close our handle so ZipStore can (over)write the path in "w" mode.
+        fd, tmp_path = tempfile.mkstemp(suffix=".zarr.zip")
+        os.close(fd)
         try:
             store = zarr_module.storage.ZipStore(tmp_path, mode="w")
             try:
@@ -232,9 +235,14 @@ class ZarrFormat(BatchFileFormat):
 
     @staticmethod
     def _write_temp_payload(payload: bytes) -> str:
-        tmp_path = tempfile.mktemp(suffix=".zarr.zip")
-        with open(tmp_path, "wb") as fh:
-            fh.write(payload)
+        # mkstemp creates the file atomically with 0600 perms (no mktemp race).
+        fd, tmp_path = tempfile.mkstemp(suffix=".zarr.zip")
+        try:
+            with os.fdopen(fd, "wb") as fh:
+                fh.write(payload)
+        except BaseException:
+            os.remove(tmp_path)
+            raise
         return tmp_path
 
     @staticmethod
