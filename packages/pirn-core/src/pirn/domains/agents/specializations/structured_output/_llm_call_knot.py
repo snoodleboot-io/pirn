@@ -8,7 +8,7 @@ Algorithm:
 
 
 References:
-    - :class:`pirn.domains.agents.llm_provider.LLMProvider`
+    - :class:`pirn.core.providers.llm_provider.LLMProvider`
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.agents.llm_provider import LLMProvider
+from pirn.core.providers.llm_provider import LLMProvider
 
 
 class _LLMCallKnot(Knot):

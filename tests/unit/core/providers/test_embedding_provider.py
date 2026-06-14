@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.ml.embedding_provider import EmbeddingProvider
+from pirn.core.providers.embedding_provider import EmbeddingProvider
 
 
 class _StubProvider(EmbeddingProvider):
@@ -18,12 +18,12 @@ class _StubProvider(EmbeddingProvider):
 class TestEmbeddingProviderInterface(unittest.IsolatedAsyncioTestCase):
     async def test_base_embed_raises_not_implemented(self) -> None:
         provider = EmbeddingProvider()
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaisesRegex(NotImplementedError, "embed"):
             await provider.embed(["text"])
 
     async def test_base_close_raises_not_implemented(self) -> None:
         provider = EmbeddingProvider()
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaisesRegex(NotImplementedError, "close"):
             await provider.close()
 
     def test_clear_credentials_nullifies_config(self) -> None:

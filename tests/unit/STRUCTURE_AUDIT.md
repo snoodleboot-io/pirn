@@ -63,7 +63,7 @@
 ## `domains/` — 278 missing
 
 - `pirn/domains/extras_loader.py` → `tests/unit/domains/test_extras_loader.py`
-- `pirn/domains/agents/llm_provider.py` → `tests/unit/domains/agents/test_llm_provider.py`
+- `pirn/core/providers/llm_provider.py` → `tests/unit/core/providers/test_llm_provider.py`
 - `pirn/domains/agents/memory_store.py` → `tests/unit/domains/agents/test_memory_store.py`
 - `pirn/domains/agents/tool.py` → `tests/unit/domains/agents/test_tool.py`
 - `pirn/domains/agents/specializations/document_processing/_chunk_embedder_store.py` → `tests/unit/domains/agents/specializations/document_processing/test__chunk_embedder_store.py`
@@ -277,7 +277,7 @@
 - `pirn/domains/health/clinical/_pass_through.py` → `tests/unit/domains/health/clinical/test__pass_through.py`
 - `pirn/domains/health/clinical/clinical_data_quality_error.py` → `tests/unit/domains/health/clinical/test_clinical_data_quality_error.py`
 - `pirn/domains/health/genomics/genomics_qc_error.py` → `tests/unit/domains/health/genomics/test_genomics_qc_error.py`
-- `pirn/domains/ml/embedding_provider.py` → `tests/unit/domains/ml/test_embedding_provider.py`
+- `pirn/core/providers/embedding_provider.py` → `tests/unit/core/providers/test_embedding_provider.py`
 - `pirn/domains/ml/feature_store_provider.py` → `tests/unit/domains/ml/test_feature_store_provider.py`
 - `pirn/domains/ml/image_encoder_provider.py` → `tests/unit/domains/ml/test_image_encoder_provider.py`
 - `pirn/domains/ml/lineage_store.py` → `tests/unit/domains/ml/test_lineage_store.py`

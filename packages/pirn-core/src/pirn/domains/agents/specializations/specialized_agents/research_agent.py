@@ -31,7 +31,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.agents.llm_provider import LLMProvider
+from pirn.core.providers.llm_provider import LLMProvider
 from pirn.domains.agents.specializations.react.react_loop import ReActLoop
 from pirn.domains.agents.tool import Tool
 from pirn.domains.agents.types.agent_message import AgentMessage

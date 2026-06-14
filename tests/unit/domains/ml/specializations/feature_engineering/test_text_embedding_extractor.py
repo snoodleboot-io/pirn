@@ -7,7 +7,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.embedding_provider import EmbeddingProvider
+from pirn.core.providers.embedding_provider import EmbeddingProvider
 from pirn.domains.ml.specializations.feature_engineering.text_embedding_extractor import (
     TextEmbeddingExtractor,
 )

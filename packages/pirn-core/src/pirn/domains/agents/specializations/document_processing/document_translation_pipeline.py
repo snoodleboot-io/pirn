@@ -30,7 +30,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.agents.llm_provider import LLMProvider
+from pirn.core.providers.llm_provider import LLMProvider
 from pirn.domains.agents.specializations.document_processing._chunk_translator import (
     _ChunkTranslator,
 )

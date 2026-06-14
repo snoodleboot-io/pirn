@@ -6,7 +6,7 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
-from pirn.domains.ml.embedding_provider import EmbeddingProvider
+from pirn.core.providers.embedding_provider import EmbeddingProvider
 from pirn.domains.ml.specializations.task_pipelines.nlp_pipeline import NLPPipeline
 
 

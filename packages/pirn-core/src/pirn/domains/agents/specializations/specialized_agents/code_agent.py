@@ -30,7 +30,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.agents.llm_provider import LLMProvider
+from pirn.core.providers.llm_provider import LLMProvider
 from pirn.domains.agents.specializations.specialized_agents._code_generator import (
     _CodeGenerator,
 )

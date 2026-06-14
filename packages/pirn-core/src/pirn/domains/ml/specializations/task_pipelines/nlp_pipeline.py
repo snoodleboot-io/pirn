@@ -31,9 +31,9 @@ from pirn.connectors.database_connection_pool import (
 )
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.providers.embedding_provider import EmbeddingProvider
 from pirn.domains.ml.data_prep.dataset_loader import DatasetLoader
 from pirn.domains.ml.data_prep.train_test_split import TrainTestSplit
-from pirn.domains.ml.embedding_provider import EmbeddingProvider
 from pirn.domains.ml.evaluation.evaluator import Evaluator
 from pirn.domains.ml.features.embedding_extractor import EmbeddingExtractor
 from pirn.domains.ml.training.trainer import Trainer

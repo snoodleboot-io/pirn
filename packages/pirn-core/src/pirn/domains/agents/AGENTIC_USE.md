@@ -106,7 +106,7 @@ pirn/domains/agents/
 **Must not:** Block the event loop. Both `chat` and `stream_chat` must be fully async. Never store credentials beyond `close()`.
 
 ```python
-from pirn.domains.agents.llm_provider import LLMProvider
+from pirn.core.providers.llm_provider import LLMProvider
 
 class AnthropicProvider(LLMProvider):
     def __init__(self, api_key: str, default_model: str) -> None:
