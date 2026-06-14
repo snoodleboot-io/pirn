@@ -6,14 +6,14 @@ import unittest
 from unittest.mock import patch
 
 import numpy as np
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.signal.statistical.extended_kalman_filter import (
+from pirn.tapestry import Tapestry
+from pirn_signal.statistical.extended_kalman_filter import (
     ExtendedKalmanFilter,
 )
-from pirn.domains.signal.types.signal_payload import SignalPayload
-from pirn.tapestry import Tapestry
+from pirn_signal.types.signal_payload import SignalPayload
+
 from tests.unit.domains.signal.conftest import emit_signal_payload, make_signal_payload
 
 
@@ -47,7 +47,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             )
         stub = np.zeros(1024)
         with patch(
-            "pirn.domains.signal.statistical.extended_kalman_filter._ekf",
+            "pirn_signal.statistical.extended_kalman_filter._ekf",
             return_value=stub,
         ):
             result = await t.run(RunRequest())

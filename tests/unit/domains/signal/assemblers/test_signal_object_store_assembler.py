@@ -14,11 +14,10 @@ from unittest.mock import patch
 
 import numpy as np
 import pytest
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.signal.assemblers.signal_object_store_assembler import SignalObjectStoreAssembler
-from pirn.domains.signal.types.signal_payload import SignalPayload
+from pirn_signal.assemblers.signal_object_store_assembler import SignalObjectStoreAssembler
+from pirn_signal.types.signal_payload import SignalPayload
 
 
 def _body_param() -> Parameter:
@@ -34,7 +33,7 @@ def _make(signal_id: str = "test-signal") -> SignalObjectStoreAssembler:
 
 
 def _fake_decode(body: bytes, signal_id: str) -> SignalPayload:
-    from pirn.domains.signal.types.signal_frame import SignalFrame
+    from pirn_signal.types.signal_frame import SignalFrame
     data = np.zeros((2, 512), dtype=np.float32)
     frame = SignalFrame(
         signal_id=signal_id,
@@ -50,7 +49,7 @@ class TestSignalObjectStoreAssembler(unittest.IsolatedAsyncioTestCase):
     async def test_returns_signal_payload(self) -> None:
         knot = _make("clip-01")
         with patch(
-            "pirn.domains.signal.assemblers.signal_object_store_assembler._decode",
+            "pirn_signal.assemblers.signal_object_store_assembler._decode",
             side_effect=_fake_decode,
         ):
             result = await knot.process(body=b"audio-bytes", signal_id="clip-01")
@@ -59,7 +58,7 @@ class TestSignalObjectStoreAssembler(unittest.IsolatedAsyncioTestCase):
     async def test_metadata_signal_id_matches(self) -> None:
         knot = _make("clip-01")
         with patch(
-            "pirn.domains.signal.assemblers.signal_object_store_assembler._decode",
+            "pirn_signal.assemblers.signal_object_store_assembler._decode",
             side_effect=_fake_decode,
         ):
             result = await knot.process(body=b"audio-bytes", signal_id="clip-01")
@@ -68,7 +67,7 @@ class TestSignalObjectStoreAssembler(unittest.IsolatedAsyncioTestCase):
     async def test_metadata_channel_count_populated(self) -> None:
         knot = _make("clip-01")
         with patch(
-            "pirn.domains.signal.assemblers.signal_object_store_assembler._decode",
+            "pirn_signal.assemblers.signal_object_store_assembler._decode",
             side_effect=_fake_decode,
         ):
             result = await knot.process(body=b"audio-bytes", signal_id="clip-01")

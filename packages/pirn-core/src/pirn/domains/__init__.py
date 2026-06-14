@@ -12,14 +12,16 @@ becomes resolvable by name through
 - ``pirn.domains.ml``          — ML Engineering / Data Science
 - ``pirn.connectors``  — Cross-cutting Source/Sink connectors
 - ``pirn.domains.health``      — Healthcare / Genomics / Imaging / EEG/MEG
-- ``pirn.domains.signal``      — Digital Signal Processing
 - ``pirn.domains.oilgas``      — Oil & Gas
+
+The Digital Signal Processing domain is shipped separately as the
+``pirn_signal`` package (``pip install pirn-signal``).
 
 Heavy dependencies for each domain are isolated via optional extras. Install
 only the domains you use::
 
     pip install pirn[data]
-    pip install pirn[health,signal]
+    pip install pirn[health]
     pip install pirn[all-domains]
 
 User projects that define their own ``Knot`` subclasses must call

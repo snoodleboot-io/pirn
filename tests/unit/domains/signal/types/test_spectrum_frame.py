@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.signal.types.spectrum_frame import SpectrumFrame
+from pirn_signal.types.spectrum_frame import SpectrumFrame
 
 
 class TestRoundtrip(unittest.TestCase):

@@ -10,14 +10,14 @@ except ImportError as _e:
     raise unittest.SkipTest("scipy not installed") from _e
 
 import numpy as np
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.signal.spectral.stft_decomposer import STFTDecomposer
-from pirn.domains.signal.types.signal_frame import SignalFrame
-from pirn.domains.signal.types.signal_payload import SignalPayload
-from pirn.domains.signal.types.spectrum_payload import SpectrumPayload
 from pirn.tapestry import Tapestry
+from pirn_signal.spectral.stft_decomposer import STFTDecomposer
+from pirn_signal.types.signal_frame import SignalFrame
+from pirn_signal.types.signal_payload import SignalPayload
+from pirn_signal.types.spectrum_payload import SpectrumPayload
+
 from tests.unit.domains.signal.conftest import emit_signal_payload
 
 

@@ -5,12 +5,12 @@ from __future__ import annotations
 import unittest
 
 import pytest
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.signal.separation.ssa_decomposer import SSADecomposer
-from pirn.domains.signal.types.signal_payload import SignalPayload
-from pirn.domains.signal.types.source_payload import SourcePayload
+from pirn_signal.separation.ssa_decomposer import SSADecomposer
+from pirn_signal.types.signal_payload import SignalPayload
+from pirn_signal.types.source_payload import SourcePayload
+
 from tests.unit.domains.signal.conftest import make_signal_payload
 
 _SIGNAL = make_signal_payload()

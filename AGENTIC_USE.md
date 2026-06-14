@@ -560,7 +560,7 @@ domain guide alongside this file before writing domain code.
 | Data — tiered dataframe transforms (Polars, DuckDB, Ibis, …) | [pirn/domains/data/AGENTIC_USE.md](pirn/domains/data/AGENTIC_USE.md) | `pirn[data]` |
 | ML — training, evaluation, deployment, artifact formats | [pirn/domains/ml/AGENTIC_USE.md](pirn/domains/ml/AGENTIC_USE.md) | `pirn[ml]` |
 | Health — DICOM, FHIR, HL7v2, EDF, genomics, PHI redaction | [pirn/domains/health/AGENTIC_USE.md](pirn/domains/health/AGENTIC_USE.md) | `pirn[health]` |
-| Signal — DSP, filters, spectral, wavelets, audio | [pirn/domains/signal/AGENTIC_USE.md](pirn/domains/signal/AGENTIC_USE.md) | `pirn[signal]` |
+| Signal — DSP, filters, spectral, wavelets, audio | [packages/pirn-signal/src/pirn_signal/AGENTIC_USE.md](packages/pirn-signal/src/pirn_signal/AGENTIC_USE.md) | `pirn-signal[signal]` |
 | Oil & Gas — SEG-Y, LAS, WITSML, seismic, well, production | [pirn/domains/oilgas/AGENTIC_USE.md](pirn/domains/oilgas/AGENTIC_USE.md) | `pirn[oilgas]` |
 
 ---

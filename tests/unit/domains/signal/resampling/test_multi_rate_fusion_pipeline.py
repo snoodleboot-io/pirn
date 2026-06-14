@@ -10,11 +10,11 @@ except ImportError as _e:
     raise unittest.SkipTest("scipy not installed") from _e
 
 import pytest
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.signal.resampling.multi_rate_fusion_pipeline import MultiRateFusionPipeline
-from pirn.domains.signal.types.signal_payload import SignalPayload
+from pirn_signal.resampling.multi_rate_fusion_pipeline import MultiRateFusionPipeline
+from pirn_signal.types.signal_payload import SignalPayload
+
 from tests.unit.domains.signal.conftest import make_signal_payload
 
 _SIGNAL_A = make_signal_payload()

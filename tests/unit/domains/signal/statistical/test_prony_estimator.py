@@ -6,8 +6,9 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.signal.statistical.prony_estimator import PronyEstimator
 from pirn.tapestry import Tapestry
+from pirn_signal.statistical.prony_estimator import PronyEstimator
+
 from tests.unit.domains.signal.conftest import emit_signal_payload, make_signal_payload
 
 

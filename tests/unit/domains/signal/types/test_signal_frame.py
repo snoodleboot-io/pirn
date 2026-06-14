@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 
-from pirn.domains.signal.types.signal_frame import SignalFrame
+from pirn_signal.types.signal_frame import SignalFrame
 
 
 class TestRoundtrip(unittest.TestCase):

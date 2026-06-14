@@ -16,13 +16,12 @@ except ImportError as _e:
 
 import numpy as np
 import pytest
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.signal.separation.ica_decomposer import ICADecomposer
-from pirn.domains.signal.types.signal_frame import SignalFrame
-from pirn.domains.signal.types.signal_payload import SignalPayload
-from pirn.domains.signal.types.source_payload import SourcePayload
+from pirn_signal.separation.ica_decomposer import ICADecomposer
+from pirn_signal.types.signal_frame import SignalFrame
+from pirn_signal.types.signal_payload import SignalPayload
+from pirn_signal.types.source_payload import SourcePayload
 
 _rng = np.random.default_rng(0)
 _SIGNAL = SignalPayload(
