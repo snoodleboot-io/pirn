@@ -35,6 +35,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.providers.embedding_provider import EmbeddingProvider
 from pirn.domains.agents.memory_store import MemoryStore
 from pirn.domains.agents.specializations.document_processing._chunk_embedder_store import (
     _ChunkEmbedderStore,
@@ -45,7 +46,6 @@ from pirn.domains.agents.specializations.document_processing._document_chunker i
 from pirn.domains.agents.specializations.document_processing._document_loader import (
     _DocumentLoader,
 )
-from pirn.domains.ml.embedding_provider import EmbeddingProvider
 from pirn.nodes.sub_tapestry import SubTapestry
 
 

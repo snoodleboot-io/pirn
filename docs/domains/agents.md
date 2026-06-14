@@ -30,7 +30,7 @@ Specialised pipelines (RAG, ReAct, document processing, multi-agent, structured 
 
 ### LlmProvider
 
-`LLMProvider` (`pirn/domains/agents/llm_provider.py`) is the interface every LLM backend must satisfy. Inherit from it and implement the three async methods:
+`LLMProvider` (`pirn/core/providers/llm_provider.py`) is the interface every LLM backend must satisfy. Inherit from it and implement the three async methods:
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
@@ -43,7 +43,7 @@ Specialised pipelines (RAG, ReAct, document processing, multi-agent, structured 
 `LLMProvider` inherits from `PirnOpaqueValue`, so pirn serialises providers by identity rather than by inspecting their internals. This keeps content-addressing cache stable even when the provider holds live SDK state.
 
 ```python
-from pirn.domains.agents.llm_provider import LLMProvider
+from pirn.core.providers.llm_provider import LLMProvider
 
 class AnthropicProvider(LLMProvider):
     def __init__(self, api_key: str, default_model: str) -> None:

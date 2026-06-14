@@ -65,7 +65,7 @@ fmt = JoblibFormat(allow_unsigned=True)
 
 ### EmbeddingProvider
 
-`EmbeddingProvider` (`pirn/domains/ml/embedding_provider.py`) is the interface for text embedding backends. Implement `embed` and `close`:
+`EmbeddingProvider` (`pirn/core/providers/embedding_provider.py`) is the interface for text embedding backends. Implement `embed` and `close`:
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
@@ -73,7 +73,7 @@ fmt = JoblibFormat(allow_unsigned=True)
 | `close` | `() -> None` | Release underlying connections. Call `_clear_credentials()` to null API key. |
 
 ```python
-from pirn.domains.ml.embedding_provider import EmbeddingProvider
+from pirn.core.providers.embedding_provider import EmbeddingProvider
 
 class OpenAIEmbedder(EmbeddingProvider):
     def __init__(self, api_key: str) -> None:

@@ -10,13 +10,13 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from typing import Any
 
-from pirn.domains.agents.llm_provider import LLMProvider
+from pirn.core.providers.llm_provider import LLMProvider
 from pirn.domains.agents.memory_store import MemoryStore
 from pirn.domains.agents.tool import Tool
 from pirn.connectors.database_connection_pool import (
     DatabaseConnectionPool,
 )
-from pirn.domains.ml.embedding_provider import EmbeddingProvider
+from pirn.core.providers.embedding_provider import EmbeddingProvider
 
 
 class StubLLMProvider(LLMProvider):

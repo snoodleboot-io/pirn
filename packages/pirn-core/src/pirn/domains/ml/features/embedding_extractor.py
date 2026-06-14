@@ -26,7 +26,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.embedding_provider import EmbeddingProvider
+from pirn.core.providers.embedding_provider import EmbeddingProvider
 from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 from pirn.domains.ml.types.split_manifest import SplitManifest
 

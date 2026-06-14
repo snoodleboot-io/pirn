@@ -178,14 +178,18 @@ jobs:
         run: uv run python -m pytest tests/unit --timeout=30 -q
 
   # ===========================================================================
-  # Import-graph gate (SCD-07 / constraints C2 + ADR-2). Runs against a BARE
-  # pirn-core (no extras), which is the condition SCD-07 AC#2 specifies: with no
-  # backend extras installed, `import pirn` must touch zero backend packages and
-  # core must import no top-level pirn_<domain> package. This is a REQUIRED check
-  # once the migration's frozen triggers are re-enabled.
+  # Import-graph gate (SCD-07 + SCD-10 / constraints C1, C2, C3 + ADR-2, ADR-3).
+  # Runs against a BARE pirn-core (no extras), the condition SCD-07 AC#2
+  # specifies: with no backend extras installed, `import pirn` must touch zero
+  # backend packages and core must import no top-level pirn_<domain> package.
+  # The same invocation also runs the SCD-10 acyclic-DAG checks: the domain
+  # import graph and the declared-dependency graph must each be acyclic (C1)
+  # with `ml -> data` as their sole domain->domain edge (C3). All checks are
+  # static (ast + pyproject parsing) so the bare-core env is sufficient. This is
+  # a REQUIRED check once the migration's frozen triggers are re-enabled.
   # ===========================================================================
   import-graph:
-    name: Import-graph gate (C2 + no-backend-at-import)
+    name: Import-graph gate (C1 acyclic + C2 sink + C3 sole edge + no-backend)
     needs: changes
     runs-on: ubuntu-latest
     container:
@@ -196,5 +200,5 @@ jobs:
       - name: Install bare pirn-core (no extras)
         run: uv sync --package pirn-core
 
-      - name: Core imports no domain + no backend at import
+      - name: Core is a sink, no backend at import, package DAG acyclic (one ml->data edge)
         run: uv run python scripts/check_import_graph.py

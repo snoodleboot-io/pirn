@@ -47,7 +47,7 @@ from pirn.core.parameter import Parameter
 from pirn.domains.agents.generation.llm_call import LLMCall
 from pirn.domains.agents.generation.output_parser import OutputParser
 from pirn.domains.agents.input.context_builder import ContextBuilder
-from pirn.domains.agents.llm_provider import LLMProvider
+from pirn.core.providers.llm_provider import LLMProvider
 from pirn.domains.agents.planning.planner import Planner
 from pirn.domains.agents.planning.tool_executor import ToolExecutor
 from pirn.domains.agents.planning.tool_router import ToolRouter
