@@ -7,10 +7,10 @@ from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.oilgas.geospatial.infrastructure_asset_mapper import (
+from pirn.tapestry import Tapestry
+from pirn_oilgas.geospatial.infrastructure_asset_mapper import (
     InfrastructureAssetMapper,
 )
-from pirn.tapestry import Tapestry
 
 _ASSETS: list[dict[str, Any]] = [
     {"asset_id": "W-1", "asset_type": "well", "coordinates": [1.0, 2.0]},

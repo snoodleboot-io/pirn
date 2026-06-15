@@ -5,8 +5,8 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.types.well_path_3d import WellPath3D
-from pirn.domains.oilgas.well.casing_design_evaluator import CasingDesignEvaluator
+from pirn_oilgas.types.well_path_3d import WellPath3D
+from pirn_oilgas.well.casing_design_evaluator import CasingDesignEvaluator
 
 _PATH = WellPath3D(well_id="W", point_count=20)
 

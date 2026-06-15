@@ -113,8 +113,8 @@ class TestDomainImportGuards(unittest.TestCase):
         import pirn_signal  # noqa: F401
 
     def test_oilgas_namespace_imports_without_extras(self) -> None:
-        sys.modules.pop("pirn.domains.oilgas", None)
-        import pirn.domains.oilgas  # noqa: F401
+        sys.modules.pop("pirn_oilgas", None)
+        import pirn_oilgas  # noqa: F401
 
     def test_domains_namespace_always_imports(self) -> None:
         sys.modules.pop("pirn.domains", None)

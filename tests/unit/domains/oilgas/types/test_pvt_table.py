@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.oilgas.types.pvt_table import PVTTable
+from pirn_oilgas.types.pvt_table import PVTTable
 
 
 class TestConstruction(unittest.TestCase):

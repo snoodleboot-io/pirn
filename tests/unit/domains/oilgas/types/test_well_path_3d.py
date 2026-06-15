@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 
-from pirn.domains.oilgas.types.well_path_3d import WellPath3D
+from pirn_oilgas.types.well_path_3d import WellPath3D
 
 
 class TestConstruction(unittest.TestCase):

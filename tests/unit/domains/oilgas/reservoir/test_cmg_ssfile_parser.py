@@ -4,11 +4,10 @@ from __future__ import annotations
 
 import tempfile
 import unittest
-from pathlib import Path
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.reservoir.cmg_ssfile_parser import CmgSsfileParser
-from pirn.domains.oilgas.types.scada_time_series import ScadaTimeSeries
+from pirn_oilgas.reservoir.cmg_ssfile_parser import CmgSsfileParser
+from pirn_oilgas.types.scada_time_series import ScadaTimeSeries
 
 _SSFILE_CONTENT = """\
 * CMG IMEX simulation output

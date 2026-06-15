@@ -6,7 +6,7 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.reservoir.pressure_transient_analyzer import (
+from pirn_oilgas.reservoir.pressure_transient_analyzer import (
     PressureTransientAnalyzer,
 )
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.oilgas.protocols.seismic_volume_store import SeismicVolumeStore
+from pirn_oilgas.protocols.seismic_volume_store import SeismicVolumeStore
 
 
 class TestSeismicVolumeStoreInterface(unittest.IsolatedAsyncioTestCase):

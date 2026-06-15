@@ -5,10 +5,10 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.geospatial.well_location_projector import (
+from pirn.tapestry import Tapestry
+from pirn_oilgas.geospatial.well_location_projector import (
     WellLocationProjector,
 )
-from pirn.tapestry import Tapestry
 
 
 def _make_knot() -> WellLocationProjector:

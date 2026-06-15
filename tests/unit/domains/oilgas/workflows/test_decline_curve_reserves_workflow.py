@@ -14,10 +14,10 @@ from datetime import UTC, datetime
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
-from pirn.domains.oilgas.workflows.decline_curve_reserves_workflow import (
+from pirn.tapestry import Tapestry
+from pirn_oilgas.workflows.decline_curve_reserves_workflow import (
     DeclineCurveReservesWorkflow,
 )
-from pirn.tapestry import Tapestry
 
 _SINCE = datetime(2026, 1, 1, tzinfo=UTC)
 _ROWS = [(datetime(2026, 1, 1, 0, 0, i, tzinfo=UTC), float(100 - i)) for i in range(10)]

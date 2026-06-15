@@ -6,7 +6,7 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.integrity.psv_test_record_parser import PSVTestRecordParser
+from pirn_oilgas.integrity.psv_test_record_parser import PSVTestRecordParser
 
 _FULL_RECORD: dict[str, Any] = {
     "tag": "PSV-101",

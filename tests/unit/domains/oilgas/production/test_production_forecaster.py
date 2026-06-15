@@ -5,8 +5,8 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.production.production_forecaster import ProductionForecaster
-from pirn.domains.oilgas.types.scada_payload import ScadaPayload
+from pirn_oilgas.production.production_forecaster import ProductionForecaster
+from pirn_oilgas.types.scada_payload import ScadaPayload
 
 _PARAMS: dict[str, float] = {"qi": 1000.0, "di_per_year": 0.15, "b": 0.5}
 

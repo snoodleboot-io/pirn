@@ -165,7 +165,7 @@ If `segpy` is installed it is used for decoding; otherwise a minimal pure-Python
 
 ## Sub-domains
 
-### `pirn.domains.oilgas.seismic`
+### `pirn_oilgas.seismic`
 
 Seismic acquisition processing knots.
 
@@ -186,7 +186,7 @@ Seismic acquisition processing knots.
 
 ---
 
-### `pirn.domains.oilgas.well`
+### `pirn_oilgas.well`
 
 Well log and petrophysics knots.
 
@@ -208,7 +208,7 @@ Well log and petrophysics knots.
 
 ---
 
-### `pirn.domains.oilgas.reservoir`
+### `pirn_oilgas.reservoir`
 
 Reservoir engineering and simulation knots.
 
@@ -226,7 +226,7 @@ Reservoir engineering and simulation knots.
 
 ---
 
-### `pirn.domains.oilgas.production`
+### `pirn_oilgas.production`
 
 Production monitoring and optimisation knots.
 
@@ -244,7 +244,7 @@ Production monitoring and optimisation knots.
 
 ---
 
-### `pirn.domains.oilgas.geospatial`
+### `pirn_oilgas.geospatial`
 
 Geospatial and geodetic knots.
 
@@ -258,7 +258,7 @@ Geospatial and geodetic knots.
 
 ---
 
-### `pirn.domains.oilgas.integrity`
+### `pirn_oilgas.integrity`
 
 Asset integrity and inspection knots.
 
@@ -273,7 +273,7 @@ Asset integrity and inspection knots.
 
 ---
 
-### `pirn.domains.oilgas.workflows`
+### `pirn_oilgas.workflows`
 
 End-to-end `SubTapestry` workflows.
 
@@ -286,7 +286,7 @@ End-to-end `SubTapestry` workflows.
 
 ---
 
-### `pirn.domains.oilgas.protocols`
+### `pirn_oilgas.protocols`
 
 Connection interfaces for oilfield data systems.
 
@@ -312,7 +312,7 @@ All domain payload ingestion uses assembler knots — the ingestor pattern is ab
 | `LasObjectStoreDisassembler` | `LASPayload` | `bytes` |
 | `SegyObjectStoreDisassembler` | `SegyVolume` | `bytes` |
 
-All are in `pirn/domains/oilgas/assemblers/` and `pirn/domains/oilgas/disassemblers/`.
+All are in `pirn_oilgas/assemblers/` and `pirn_oilgas/disassemblers/`.
 
 ---
 

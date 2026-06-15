@@ -6,15 +6,14 @@ import unittest
 from typing import Any
 
 import numpy as np
-
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.oilgas.types.deviation_survey import DeviationSurvey
-from pirn.domains.oilgas.types.deviation_survey_payload import DeviationSurveyPayload
-from pirn.domains.oilgas.types.well_path_3d_payload import WellPath3DPayload
-from pirn.domains.oilgas.well.well_path_calculator import WellPathCalculator
 from pirn.tapestry import Tapestry
+from pirn_oilgas.types.deviation_survey import DeviationSurvey
+from pirn_oilgas.types.deviation_survey_payload import DeviationSurveyPayload
+from pirn_oilgas.types.well_path_3d_payload import WellPath3DPayload
+from pirn_oilgas.well.well_path_calculator import WellPathCalculator
 
 _STATIONS = np.array([
     [0.0, 0.0, 0.0],

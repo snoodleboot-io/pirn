@@ -6,7 +6,7 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.well.core_to_log_depth_matcher import CoreToLogDepthMatcher
+from pirn_oilgas.well.core_to_log_depth_matcher import CoreToLogDepthMatcher
 
 _CORE: list[dict[str, Any]] = [
     {"depth_ft": 1000.0, "value": 0.15},

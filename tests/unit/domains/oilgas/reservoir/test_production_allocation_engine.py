@@ -6,7 +6,7 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.reservoir.production_allocation_engine import (
+from pirn_oilgas.reservoir.production_allocation_engine import (
     ProductionAllocationEngine,
 )
 

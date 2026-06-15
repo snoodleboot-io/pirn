@@ -6,7 +6,7 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.well.log_spike_remover import LogSpikeRemover
+from pirn_oilgas.well.log_spike_remover import LogSpikeRemover
 
 _SPIKED: list[dict[str, Any]] = [
     {"depth_ft": float(d), "value": 1.0 if d != 5 else 100.0}

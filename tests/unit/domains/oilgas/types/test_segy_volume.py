@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 
-from pirn.domains.oilgas.types.segy_volume import SegyVolume
+from pirn_oilgas.types.segy_volume import SegyVolume
 
 
 class TestConstruction(unittest.TestCase):

@@ -12,15 +12,14 @@ except ImportError as _e:
 from unittest.mock import patch
 
 import numpy as np
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
-from pirn.domains.oilgas.assemblers.las_object_store_assembler import LasObjectStoreAssembler
-from pirn.domains.oilgas.types.las_file import LASFile
-from pirn.domains.oilgas.types.las_payload import LASPayload
-from pirn.domains.oilgas.well.water_saturation_calculator import WaterSaturationCalculator
 from pirn.tapestry import Tapestry
+from pirn_oilgas.assemblers.las_object_store_assembler import LasObjectStoreAssembler
+from pirn_oilgas.types.las_file import LASFile
+from pirn_oilgas.types.las_payload import LASPayload
+from pirn_oilgas.well.water_saturation_calculator import WaterSaturationCalculator
 
 _LAS = LASPayload(
     metadata=LASFile(well_id="W", curves=("GR",)),
@@ -75,7 +74,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
                 _config=KnotConfig(id="sw"),
             )
         with patch(
-            "pirn.domains.oilgas.assemblers.las_object_store_assembler._decode",
+            "pirn_oilgas.assemblers.las_object_store_assembler._decode",
             side_effect=_fake_decode,
         ):
             result = await t.run(RunRequest(parameters={"body": b"las-bytes"}))

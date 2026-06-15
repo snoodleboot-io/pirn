@@ -6,7 +6,7 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.seismic.fk_denoising_knot import FKDenoisingKnot
+from pirn_oilgas.seismic.fk_denoising_knot import FKDenoisingKnot
 
 _GATHER: dict[str, Any] = {
     "traces": [

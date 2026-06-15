@@ -6,10 +6,10 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.oilgas.geospatial.coordinate_system_transformer import (
+from pirn.tapestry import Tapestry
+from pirn_oilgas.geospatial.coordinate_system_transformer import (
     CoordinateSystemTransformer,
 )
-from pirn.tapestry import Tapestry
 
 _LOC = {"well_id": "W", "x": 100.0, "y": 200.0, "crs": "EPSG:4326"}
 

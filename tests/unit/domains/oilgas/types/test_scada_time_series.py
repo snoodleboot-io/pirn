@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 
-from pirn.domains.oilgas.types.scada_time_series import ScadaTimeSeries
+from pirn_oilgas.types.scada_time_series import ScadaTimeSeries
 
 
 class TestConstruction(unittest.TestCase):

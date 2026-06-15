@@ -6,7 +6,7 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.production.tank_gauging_processor import TankGaugingProcessor
+from pirn_oilgas.production.tank_gauging_processor import TankGaugingProcessor
 
 _GAUGE: dict[str, Any] = {
     "opening_level_in": 100.0,

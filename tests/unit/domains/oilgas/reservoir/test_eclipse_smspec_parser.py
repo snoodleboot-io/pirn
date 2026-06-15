@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import struct
 import tempfile
 import unittest
 from pathlib import Path
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.reservoir.eclipse_smspec_parser import EclipseSmspecParser
-from pirn.domains.oilgas.types.scada_time_series import ScadaTimeSeries
+from pirn_oilgas.reservoir.eclipse_smspec_parser import EclipseSmspecParser
+from pirn_oilgas.types.scada_time_series import ScadaTimeSeries
 
 
 def _write_smspec(path: Path, keywords: list[str], wgnames: list[str], n_steps: int) -> None:

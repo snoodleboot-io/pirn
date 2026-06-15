@@ -6,9 +6,8 @@ import unittest
 from typing import Any
 
 import pytest
-
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.seismic.spherical_divergence_gain import (
+from pirn_oilgas.seismic.spherical_divergence_gain import (
     SphericalDivergenceGain,
 )
 

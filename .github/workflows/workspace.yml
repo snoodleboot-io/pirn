@@ -96,7 +96,7 @@ jobs:
           emit ml     '^packages/pirn-core/src/pirn/domains/ml/'
           emit agents '^packages/pirn-core/src/pirn/domains/agents/'
           emit health '^packages/pirn-core/src/pirn/domains/health/'
-          emit oilgas '^packages/pirn-core/src/pirn/domains/oilgas/'
+          emit oilgas '^packages/pirn-oilgas/'
 
   # ===========================================================================
   # Workspace resolves to a SINGLE uv.lock (SCD-02 guarantee, enforced in CI).

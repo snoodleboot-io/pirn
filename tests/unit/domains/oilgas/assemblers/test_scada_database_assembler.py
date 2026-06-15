@@ -5,13 +5,11 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 
-import numpy as np
 import pytest
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.oilgas.assemblers.scada_database_assembler import ScadaDatabaseAssembler
-from pirn.domains.oilgas.types.scada_payload import ScadaPayload
+from pirn_oilgas.assemblers.scada_database_assembler import ScadaDatabaseAssembler
+from pirn_oilgas.types.scada_payload import ScadaPayload
 
 
 def _rows_param() -> Parameter:

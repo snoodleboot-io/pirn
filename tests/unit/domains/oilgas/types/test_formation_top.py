@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.oilgas.types.formation_top import FormationTop
+from pirn_oilgas.types.formation_top import FormationTop
 
 
 class TestConstruction(unittest.TestCase):

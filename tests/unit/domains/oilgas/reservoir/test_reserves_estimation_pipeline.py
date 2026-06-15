@@ -6,7 +6,7 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.reservoir.reserves_estimation_pipeline import (
+from pirn_oilgas.reservoir.reserves_estimation_pipeline import (
     ReservesEstimationPipeline,
 )
 

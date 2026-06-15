@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.integrity.pig_run_data_processor import PigRunDataProcessor
+from pirn_oilgas.integrity.pig_run_data_processor import PigRunDataProcessor
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

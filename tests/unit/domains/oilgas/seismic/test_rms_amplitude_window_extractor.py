@@ -6,7 +6,7 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.seismic.rms_amplitude_window_extractor import (
+from pirn_oilgas.seismic.rms_amplitude_window_extractor import (
     RMSAmplitudeWindowExtractor,
 )
 

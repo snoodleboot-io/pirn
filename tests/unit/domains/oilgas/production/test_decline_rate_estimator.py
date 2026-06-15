@@ -5,11 +5,10 @@ from __future__ import annotations
 import unittest
 
 import numpy as np
-
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.production.decline_rate_estimator import DeclineRateEstimator
-from pirn.domains.oilgas.types.scada_payload import ScadaPayload
-from pirn.domains.oilgas.types.scada_time_series import ScadaTimeSeries
+from pirn_oilgas.production.decline_rate_estimator import DeclineRateEstimator
+from pirn_oilgas.types.scada_payload import ScadaPayload
+from pirn_oilgas.types.scada_time_series import ScadaTimeSeries
 
 _SERIES = ScadaPayload(
     metadata=ScadaTimeSeries(sensor_id="rate", sample_count=90, sample_interval_sec=86400.0),

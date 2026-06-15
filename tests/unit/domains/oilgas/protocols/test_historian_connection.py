@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 
-from pirn.domains.oilgas.protocols.historian_connection import HistorianConnection
+from pirn_oilgas.protocols.historian_connection import HistorianConnection
 
 
 class TestHistorianConnectionInterface(unittest.IsolatedAsyncioTestCase):

@@ -12,17 +12,15 @@ except ImportError as _e:
 from unittest.mock import patch
 
 import numpy as np
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
-from pirn.domains.oilgas.assemblers.las_object_store_assembler import LasObjectStoreAssembler
-from pirn.domains.oilgas.types.las_file import LASFile
-from pirn.domains.oilgas.types.las_payload import LASPayload
-from pirn.domains.oilgas.workflows.wellbore_petrophysics_workflow import (
+from pirn.tapestry import Tapestry
+from pirn_oilgas.types.las_file import LASFile
+from pirn_oilgas.types.las_payload import LASPayload
+from pirn_oilgas.workflows.wellbore_petrophysics_workflow import (
     WellborePetrophysicsWorkflow,
 )
-from pirn.tapestry import Tapestry
 
 
 def _fake_decode(body: bytes, well_id: str, curves: tuple, depth_unit: str) -> LASPayload:
@@ -88,7 +86,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             self._make_knot()
         with patch(
-            "pirn.domains.oilgas.assemblers.las_object_store_assembler._decode",
+            "pirn_oilgas.assemblers.las_object_store_assembler._decode",
             side_effect=_fake_decode,
         ):
             result = await t.run(RunRequest())

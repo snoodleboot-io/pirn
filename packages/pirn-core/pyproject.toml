@@ -89,7 +89,7 @@ mri = [
 # NOTE: `signal` and `emd` extras moved to the pirn-signal package (SCD-11).
 pyteomics = ["pyteomics>=4.7", "psims>=1.3"]
 bids    = ["pybids>=0.17"]
-oilgas  = ["segyio>=1.9.14", "lasio>=0.32", "resfo>=1.3"]
+# NOTE: `oilgas` extra moved to the pirn-oilgas package (SCD-12).
 # Genomics extra — subset of `health` for callers that only need the
 # genomics file formats (FASTA, FASTQ, VCF, BCF).
 genomics = ["pyfaidx>=0.7", "pysam>=0.22"]
@@ -332,8 +332,7 @@ all-domains = [
     "pyteomics>=4.7", "psims>=1.3",
     # neuroimaging BIDS
     "pybids>=0.17",
-    # oilgas
-    "segyio>=1.9", "lasio>=0.31", "resfo>=1.3",
+    # oilgas extras moved to pirn-oilgas (SCD-12) — install `pirn-oilgas[oilgas]`.
 ]
 all = [
     # persistence backends
@@ -390,9 +389,7 @@ all = [
     # signal extras (scipy/pywavelets/librosa/EMD-signal) moved to pirn-signal (SCD-11).
     "pyteomics>=4.7", "psims>=1.3",
     "pybids>=0.17",
-    "segyio>=1.9.14",
-    "lasio>=0.32",
-    "resfo>=1.3",
+    # oilgas extras (segyio/lasio/resfo) moved to pirn-oilgas (SCD-12).
     # scientific / domain file formats (formerly misplaced in core)
     "asdf>=5.3.0",
     "astropy>=7.2.0",

@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 
-from pirn.domains.oilgas.types.las_file import LASFile
+from pirn_oilgas.types.las_file import LASFile
 
 
 class TestConstruction(unittest.TestCase):

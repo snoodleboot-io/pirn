@@ -6,13 +6,12 @@ import json
 import unittest
 
 import pytest
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.oilgas.assemblers.well_completion_object_store_assembler import (
+from pirn_oilgas.assemblers.well_completion_object_store_assembler import (
     WellCompletionObjectStoreAssembler,
 )
-from pirn.domains.oilgas.types.drilling_parameters import DrillingParameters
+from pirn_oilgas.types.drilling_parameters import DrillingParameters
 
 
 def _body_param() -> Parameter:

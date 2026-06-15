@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.oilgas.types.segy_trace import SegyTrace
+from pirn_oilgas.types.segy_trace import SegyTrace
 
 
 class TestConstruction(unittest.TestCase):

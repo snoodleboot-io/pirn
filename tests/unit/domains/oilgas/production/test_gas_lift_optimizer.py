@@ -6,7 +6,7 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.production.gas_lift_optimizer import GasLiftOptimizer
+from pirn_oilgas.production.gas_lift_optimizer import GasLiftOptimizer
 
 _WELL_DATA: dict[str, Any] = {
     "current_injection_mmscfd": 0.5,
