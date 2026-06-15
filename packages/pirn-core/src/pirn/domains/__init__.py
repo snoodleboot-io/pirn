@@ -12,10 +12,10 @@ becomes resolvable by name through
 - ``pirn.domains.ml``          — ML Engineering / Data Science
 - ``pirn.connectors``  — Cross-cutting Source/Sink connectors
 - ``pirn.domains.health``      — Healthcare / Genomics / Imaging / EEG/MEG
-- ``pirn.domains.oilgas``      — Oil & Gas
 
-The Digital Signal Processing domain is shipped separately as the
-``pirn_signal`` package (``pip install pirn-signal``).
+The Digital Signal Processing and Oil & Gas domains are shipped separately
+as the ``pirn_signal`` and ``pirn_oilgas`` packages
+(``pip install pirn-signal pirn-oilgas``).
 
 Heavy dependencies for each domain are isolated via optional extras. Install
 only the domains you use::

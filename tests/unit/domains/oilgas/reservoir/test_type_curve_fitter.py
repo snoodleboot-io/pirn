@@ -10,11 +10,10 @@ except ImportError as _e:
     raise unittest.SkipTest("scipy not installed") from _e
 
 import numpy as np
-
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.reservoir.type_curve_fitter import TypeCurveFitter
-from pirn.domains.oilgas.types.scada_payload import ScadaPayload
-from pirn.domains.oilgas.types.scada_time_series import ScadaTimeSeries
+from pirn_oilgas.reservoir.type_curve_fitter import TypeCurveFitter
+from pirn_oilgas.types.scada_payload import ScadaPayload
+from pirn_oilgas.types.scada_time_series import ScadaTimeSeries
 
 _SERIES = ScadaPayload(
     metadata=ScadaTimeSeries(sensor_id="s", sample_count=12, sample_interval_sec=86400.0),

@@ -5,8 +5,8 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.reservoir.pvt_table_processor import PvtTableProcessor
-from pirn.domains.oilgas.types.pvt_table import PVTTable
+from pirn_oilgas.reservoir.pvt_table_processor import PvtTableProcessor
+from pirn_oilgas.types.pvt_table import PVTTable
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

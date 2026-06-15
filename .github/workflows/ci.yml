@@ -168,8 +168,8 @@ jobs:
 
       - name: "[oilgas] install + import"
         run: |
-          uv pip install --system -e ".[oilgas]"
-          uv run python -c "import pirn.domains.oilgas; print('OK: oilgas')"
+          uv pip install --system -e "./packages/pirn-oilgas[oilgas]"
+          uv run python -c "import pirn_oilgas; print('OK: oilgas')"
 
       - name: "domains namespace — no cross-coupling"
         run: |

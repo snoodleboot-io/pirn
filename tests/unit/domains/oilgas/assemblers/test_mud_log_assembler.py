@@ -6,10 +6,9 @@ import json
 import unittest
 
 import pytest
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.oilgas.assemblers.mud_log_assembler import MudLogAssembler
+from pirn_oilgas.assemblers.mud_log_assembler import MudLogAssembler
 
 
 def _body_param() -> Parameter:

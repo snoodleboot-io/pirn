@@ -5,11 +5,10 @@ from __future__ import annotations
 import unittest
 
 import numpy as np
-
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.production.water_cut_tracker import WaterCutTracker
-from pirn.domains.oilgas.types.scada_payload import ScadaPayload
-from pirn.domains.oilgas.types.scada_time_series import ScadaTimeSeries
+from pirn_oilgas.production.water_cut_tracker import WaterCutTracker
+from pirn_oilgas.types.scada_payload import ScadaPayload
+from pirn_oilgas.types.scada_time_series import ScadaTimeSeries
 
 _OIL = ScadaPayload(
     metadata=ScadaTimeSeries(sensor_id="oil", sample_count=10, sample_interval_sec=60.0),

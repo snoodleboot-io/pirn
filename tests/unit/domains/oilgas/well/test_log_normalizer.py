@@ -5,11 +5,10 @@ from __future__ import annotations
 import unittest
 
 import numpy as np
-
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.types.las_file import LASFile
-from pirn.domains.oilgas.types.las_payload import LASPayload
-from pirn.domains.oilgas.well.log_normalizer import LogNormalizer
+from pirn_oilgas.types.las_file import LASFile
+from pirn_oilgas.types.las_payload import LASPayload
+from pirn_oilgas.well.log_normalizer import LogNormalizer
 
 _LAS = LASPayload(
     metadata=LASFile(well_id="W", curves=("GR",), depth_unit="m"),

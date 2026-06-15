@@ -6,9 +6,8 @@ import unittest
 from typing import Any
 
 import pytest
-
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.well.environmental_correction_applicator import (
+from pirn_oilgas.well.environmental_correction_applicator import (
     EnvironmentalCorrectionApplicator,
 )
 

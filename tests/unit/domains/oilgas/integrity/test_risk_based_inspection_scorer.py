@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.integrity.risk_based_inspection_scorer import (
+from pirn_oilgas.integrity.risk_based_inspection_scorer import (
     RiskBasedInspectionScorer,
 )
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 
-from pirn.domains.oilgas.types.drilling_parameters import DrillingParameters
+from pirn_oilgas.types.drilling_parameters import DrillingParameters
 
 
 class TestConstruction(unittest.TestCase):

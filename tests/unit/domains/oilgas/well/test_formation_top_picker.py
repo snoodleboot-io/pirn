@@ -5,9 +5,9 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.types.formation_top import FormationTop
-from pirn.domains.oilgas.types.las_file import LASFile
-from pirn.domains.oilgas.well.formation_top_picker import FormationTopPicker
+from pirn_oilgas.types.formation_top import FormationTop
+from pirn_oilgas.types.las_file import LASFile
+from pirn_oilgas.well.formation_top_picker import FormationTopPicker
 
 _LAS = LASFile(well_id="W", curves=("GR",))
 

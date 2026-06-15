@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.reservoir.monte_carlo_simulator import MonteCarloSimulator
+from pirn_oilgas.reservoir.monte_carlo_simulator import MonteCarloSimulator
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

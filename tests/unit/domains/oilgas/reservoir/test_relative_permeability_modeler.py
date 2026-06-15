@@ -5,10 +5,10 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.reservoir.relative_permeability_modeler import (
+from pirn_oilgas.reservoir.relative_permeability_modeler import (
     RelativePermeabilityModeler,
 )
-from pirn.domains.oilgas.types.pvt_table import PVTTable
+from pirn_oilgas.types.pvt_table import PVTTable
 
 _PVT = PVTTable(fluid_id="f")
 

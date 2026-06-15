@@ -6,7 +6,7 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.seismic.seismic_bandpass_filter import SeismicBandpassFilter
+from pirn_oilgas.seismic.seismic_bandpass_filter import SeismicBandpassFilter
 
 _DATA: dict[str, Any] = {
     "traces": [{"samples": [0.0, 1.0, -1.0]}],

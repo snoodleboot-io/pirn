@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.reservoir.volumetric_estimator import VolumetricEstimator
+from pirn_oilgas.reservoir.volumetric_estimator import VolumetricEstimator
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

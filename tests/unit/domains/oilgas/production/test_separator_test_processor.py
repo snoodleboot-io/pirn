@@ -6,7 +6,7 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.production.separator_test_processor import (
+from pirn_oilgas.production.separator_test_processor import (
     SeparatorTestProcessor,
 )
 

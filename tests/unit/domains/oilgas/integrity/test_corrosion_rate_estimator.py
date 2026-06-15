@@ -6,7 +6,7 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.integrity.corrosion_rate_estimator import (
+from pirn_oilgas.integrity.corrosion_rate_estimator import (
     CorrosionRateEstimator,
 )
 

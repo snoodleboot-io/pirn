@@ -6,7 +6,7 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.integrity.scope1_emissions_reporter import (
+from pirn_oilgas.integrity.scope1_emissions_reporter import (
     Scope1EmissionsReporter,
 )
 

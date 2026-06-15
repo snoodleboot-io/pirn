@@ -5,8 +5,8 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.seismic.cmp_gather_extractor import CmpGatherExtractor
-from pirn.domains.oilgas.types.segy_volume import SegyVolume
+from pirn_oilgas.seismic.cmp_gather_extractor import CmpGatherExtractor
+from pirn_oilgas.types.segy_volume import SegyVolume
 
 _VOLUME = SegyVolume(volume_id="vol")
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 
-from pirn.domains.oilgas.types.deviation_survey import DeviationSurvey
+from pirn_oilgas.types.deviation_survey import DeviationSurvey
 
 
 class TestConstruction(unittest.TestCase):

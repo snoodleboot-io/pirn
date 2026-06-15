@@ -6,8 +6,8 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.oilgas.geospatial.field_boundary_definer import FieldBoundaryDefiner
 from pirn.tapestry import Tapestry
+from pirn_oilgas.geospatial.field_boundary_definer import FieldBoundaryDefiner
 
 _VERTICES = ((0.0, 0.0), (1.0, 0.0), (0.5, 1.0))
 

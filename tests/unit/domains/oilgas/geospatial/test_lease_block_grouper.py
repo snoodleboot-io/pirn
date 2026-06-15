@@ -7,8 +7,8 @@ from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.oilgas.geospatial.lease_block_grouper import LeaseBlockGrouper
 from pirn.tapestry import Tapestry
+from pirn_oilgas.geospatial.lease_block_grouper import LeaseBlockGrouper
 
 _LOC: dict[str, Any] = {"well_id": "W", "x": 0.0, "y": 0.0}
 

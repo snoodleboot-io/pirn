@@ -6,10 +6,10 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.oilgas.geospatial.fault_proximity_analyzer import (
+from pirn.tapestry import Tapestry
+from pirn_oilgas.geospatial.fault_proximity_analyzer import (
     FaultProximityAnalyzer,
 )
-from pirn.tapestry import Tapestry
 
 _WELLS = [{"well_id": "W-1", "x": 0.0, "y": 0.0}]
 _FAULTS = [{"fault_id": "F-1", "vertices": [[10.0, 0.0], [20.0, 0.0]]}]

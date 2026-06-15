@@ -8,8 +8,8 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.oilgas.well.witsml_drilling_monitor import WitsmlDrillingMonitor
 from pirn.tapestry import Tapestry
+from pirn_oilgas.well.witsml_drilling_monitor import WitsmlDrillingMonitor
 
 
 class _WitsmlSource(Knot):

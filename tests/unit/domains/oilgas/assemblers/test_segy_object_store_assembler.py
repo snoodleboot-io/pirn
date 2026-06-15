@@ -6,11 +6,10 @@ import unittest
 from unittest.mock import patch
 
 import pytest
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.oilgas.assemblers.segy_object_store_assembler import SegyObjectStoreAssembler
-from pirn.domains.oilgas.types.segy_volume import SegyVolume
+from pirn_oilgas.assemblers.segy_object_store_assembler import SegyObjectStoreAssembler
+from pirn_oilgas.types.segy_volume import SegyVolume
 
 
 def _body_param() -> Parameter:
@@ -34,7 +33,7 @@ class TestSegyObjectStoreAssembler(unittest.IsolatedAsyncioTestCase):
     async def test_returns_segy_volume(self) -> None:
         knot = _make("vol-01")
         with patch(
-            "pirn.domains.oilgas.assemblers.segy_object_store_assembler._decode",
+            "pirn_oilgas.assemblers.segy_object_store_assembler._decode",
             side_effect=_fake_decode,
         ):
             result = await knot.process(body=b"segy-bytes", volume_id="vol-01")
@@ -43,7 +42,7 @@ class TestSegyObjectStoreAssembler(unittest.IsolatedAsyncioTestCase):
     async def test_metadata_volume_id_matches(self) -> None:
         knot = _make("vol-01")
         with patch(
-            "pirn.domains.oilgas.assemblers.segy_object_store_assembler._decode",
+            "pirn_oilgas.assemblers.segy_object_store_assembler._decode",
             side_effect=_fake_decode,
         ):
             result = await knot.process(body=b"segy-bytes", volume_id="vol-01")
@@ -52,7 +51,7 @@ class TestSegyObjectStoreAssembler(unittest.IsolatedAsyncioTestCase):
     async def test_metadata_inline_count_populated(self) -> None:
         knot = _make("vol-01")
         with patch(
-            "pirn.domains.oilgas.assemblers.segy_object_store_assembler._decode",
+            "pirn_oilgas.assemblers.segy_object_store_assembler._decode",
             side_effect=_fake_decode,
         ):
             result = await knot.process(body=b"segy-bytes", volume_id="vol-01")

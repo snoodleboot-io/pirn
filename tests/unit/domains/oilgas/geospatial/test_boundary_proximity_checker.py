@@ -7,10 +7,10 @@ from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.oilgas.geospatial.boundary_proximity_checker import (
+from pirn.tapestry import Tapestry
+from pirn_oilgas.geospatial.boundary_proximity_checker import (
     BoundaryProximityChecker,
 )
-from pirn.tapestry import Tapestry
 
 _LOC: dict[str, Any] = {"well_id": "W", "x": 0.0, "y": 0.0}
 _BOUNDARY: dict[str, Any] = {"field_id": "F1", "vertices": [], "crs": "EPSG:4326"}

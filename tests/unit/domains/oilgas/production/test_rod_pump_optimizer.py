@@ -6,7 +6,7 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.production.rod_pump_optimizer import RodPumpOptimizer
+from pirn_oilgas.production.rod_pump_optimizer import RodPumpOptimizer
 
 _CARD: dict[str, Any] = {
     "surface_load_lbf": [1000.0, 2000.0, 3000.0],

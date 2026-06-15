@@ -5,11 +5,10 @@ from __future__ import annotations
 import unittest
 
 import numpy as np
-
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.types.las_file import LASFile
-from pirn.domains.oilgas.types.las_payload import LASPayload
-from pirn.domains.oilgas.well.lithology_classifier import LithologyClassifier
+from pirn_oilgas.types.las_file import LASFile
+from pirn_oilgas.types.las_payload import LASPayload
+from pirn_oilgas.well.lithology_classifier import LithologyClassifier
 
 _LAS = LASPayload(
     metadata=LASFile(well_id="W", curves=("GR",)),

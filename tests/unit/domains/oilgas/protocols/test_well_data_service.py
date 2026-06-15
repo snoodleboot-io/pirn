@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.oilgas.protocols.well_data_service import WellDataService
+from pirn_oilgas.protocols.well_data_service import WellDataService
 
 
 class TestWellDataServiceInterface(unittest.IsolatedAsyncioTestCase):

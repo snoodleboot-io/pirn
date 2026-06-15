@@ -6,7 +6,7 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.seismic.velocity_model_builder import VelocityModelBuilder
+from pirn_oilgas.seismic.velocity_model_builder import VelocityModelBuilder
 
 _SEMBLANCE: list[dict[str, Any]] = [
     {"x": 0, "y": 0, "time_ms": 1000.0, "velocity_m_s": 2000.0},

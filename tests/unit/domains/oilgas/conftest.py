@@ -13,15 +13,14 @@ from collections.abc import AsyncIterator, Mapping
 from datetime import UTC, datetime
 
 import pytest
-
-from pirn.domains.oilgas.protocols.historian_connection import HistorianConnection
-from pirn.domains.oilgas.protocols.seismic_volume_store import SeismicVolumeStore
-from pirn.domains.oilgas.protocols.well_data_service import WellDataService
-from pirn.domains.oilgas.types.deviation_survey import DeviationSurvey
-from pirn.domains.oilgas.types.las_file import LASFile
-from pirn.domains.oilgas.types.pvt_table import PVTTable
-from pirn.domains.oilgas.types.scada_time_series import ScadaTimeSeries
-from pirn.domains.oilgas.types.segy_volume import SegyVolume
+from pirn_oilgas.protocols.historian_connection import HistorianConnection
+from pirn_oilgas.protocols.seismic_volume_store import SeismicVolumeStore
+from pirn_oilgas.protocols.well_data_service import WellDataService
+from pirn_oilgas.types.deviation_survey import DeviationSurvey
+from pirn_oilgas.types.las_file import LASFile
+from pirn_oilgas.types.pvt_table import PVTTable
+from pirn_oilgas.types.scada_time_series import ScadaTimeSeries
+from pirn_oilgas.types.segy_volume import SegyVolume
 
 
 class StubHistorianConnection(HistorianConnection):

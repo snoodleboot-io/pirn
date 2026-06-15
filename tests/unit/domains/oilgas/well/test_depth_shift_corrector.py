@@ -6,9 +6,8 @@ import unittest
 from typing import Any
 
 import pytest
-
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.oilgas.well.depth_shift_corrector import DepthShiftCorrector
+from pirn_oilgas.well.depth_shift_corrector import DepthShiftCorrector
 
 _LOG: list[dict[str, Any]] = [
     {"depth_ft": 1000.0, "value": 0.15},
