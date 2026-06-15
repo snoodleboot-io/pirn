@@ -16,9 +16,10 @@ except ImportError as _e:
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.signal.types.wavelet_payload import WaveletPayload
-from pirn.domains.signal.wavelets.dwt_decomposer import DWTDecomposer
 from pirn.tapestry import Tapestry
+from pirn_signal.types.wavelet_payload import WaveletPayload
+from pirn_signal.wavelets.dwt_decomposer import DWTDecomposer
+
 from tests.unit.domains.signal.conftest import emit_signal_payload
 
 

@@ -15,12 +15,12 @@ except ImportError as _e:
     raise unittest.SkipTest("scipy not installed") from _e
 
 import pytest
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.signal.separation.pca_decomposer import PCADecomposer
-from pirn.domains.signal.types.signal_payload import SignalPayload
-from pirn.domains.signal.types.source_payload import SourcePayload
+from pirn_signal.separation.pca_decomposer import PCADecomposer
+from pirn_signal.types.signal_payload import SignalPayload
+from pirn_signal.types.source_payload import SourcePayload
+
 from tests.unit.domains.signal.conftest import make_signal_payload
 
 _SIGNAL = make_signal_payload(channel_count=8)

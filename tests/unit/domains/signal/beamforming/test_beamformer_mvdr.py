@@ -6,12 +6,11 @@ import unittest
 
 import numpy as np
 import pytest
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.signal.beamforming.beamformer_mvdr import BeamformerMVDR
-from pirn.domains.signal.types.signal_frame import SignalFrame
-from pirn.domains.signal.types.signal_payload import SignalPayload
+from pirn_signal.beamforming.beamformer_mvdr import BeamformerMVDR
+from pirn_signal.types.signal_frame import SignalFrame
+from pirn_signal.types.signal_payload import SignalPayload
 
 _rng = np.random.default_rng(42)
 _SIGNAL = SignalPayload(

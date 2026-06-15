@@ -5,13 +5,13 @@ from __future__ import annotations
 import unittest
 
 import pytest
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.signal.nonlinear.correlation_dimension_estimator import (
+from pirn_signal.nonlinear.correlation_dimension_estimator import (
     CorrelationDimensionEstimator,
 )
-from pirn.domains.signal.types.signal_payload import SignalPayload
+from pirn_signal.types.signal_payload import SignalPayload
+
 from tests.unit.domains.signal.conftest import make_signal_payload
 
 _SIGNAL = make_signal_payload()

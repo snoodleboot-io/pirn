@@ -108,7 +108,7 @@ M4A (AAC in MP4 container) via `pydub`/ffmpeg. Record shape is identical to `Mp3
 
 ## Signal Processing Sub-packages
 
-### `pirn.domains.signal.filters`
+### `pirn_signal.filters`
 
 Deterministic digital filter knots backed by `scipy.signal`.
 
@@ -134,7 +134,7 @@ Deterministic digital filter knots backed by `scipy.signal`.
 
 ---
 
-### `pirn.domains.signal.spectral`
+### `pirn_signal.spectral`
 
 Spectral analysis knots.
 
@@ -154,7 +154,7 @@ Spectral analysis knots.
 
 ---
 
-### `pirn.domains.signal.wavelets`
+### `pirn_signal.wavelets`
 
 Wavelet transform knots backed by `pywavelets` (`PyWavelets`).
 
@@ -171,7 +171,7 @@ Wavelet transform knots backed by `pywavelets` (`PyWavelets`).
 
 ---
 
-### `pirn.domains.signal.resampling`
+### `pirn_signal.resampling`
 
 Sample rate conversion knots.
 
@@ -187,7 +187,7 @@ Sample rate conversion knots.
 
 ---
 
-### `pirn.domains.signal.adaptive`
+### `pirn_signal.adaptive`
 
 Adaptive filter knots that update coefficients online.
 
@@ -202,7 +202,7 @@ Adaptive filter knots that update coefficients online.
 
 ---
 
-### `pirn.domains.signal.separation`
+### `pirn_signal.separation`
 
 Source separation and blind decomposition knots.
 
@@ -218,7 +218,7 @@ Source separation and blind decomposition knots.
 
 ---
 
-### `pirn.domains.signal.statistical`
+### `pirn_signal.statistical`
 
 Statistical signal processing and spectral estimation knots.
 
@@ -234,7 +234,7 @@ Statistical signal processing and spectral estimation knots.
 
 ---
 
-### `pirn.domains.signal.nonlinear`
+### `pirn_signal.nonlinear`
 
 Nonlinear dynamics and complexity analysis knots.
 
@@ -248,7 +248,7 @@ Nonlinear dynamics and complexity analysis knots.
 
 ---
 
-### `pirn.domains.signal.audio`
+### `pirn_signal.audio`
 
 High-level audio analysis knots backed by `librosa`.
 
@@ -272,8 +272,8 @@ High-level audio analysis knots backed by `librosa`.
 
 ```python
 from pirn import knot, Parameter, Tapestry, KnotConfig, RunRequest
-from pirn.domains.signal.filters.butterworth_filter import ButterworthFilter
-from pirn.domains.signal.spectral.welch_estimator import WelchEstimator
+from pirn_signal.filters.butterworth_filter import ButterworthFilter
+from pirn_signal.spectral.welch_estimator import WelchEstimator
 
 raw_signal = Parameter("signal", bytes, _config=KnotConfig(id="signal"))
 
@@ -298,7 +298,7 @@ psd = WelchEstimator(
 
 ```python
 from pirn.connectors.file_formats.wav_format import WavFormat
-from pirn.domains.signal.audio.mfcc_extractor import MfccExtractor
+from pirn_signal.audio.mfcc_extractor import MfccExtractor
 
 # Outside the pipeline — load bytes from disk/storage
 wav_bytes = Path("recording.wav").read_bytes()
@@ -314,7 +314,7 @@ records = await format_.decode(wav_bytes)
 ### Wavelet decomposition
 
 ```python
-from pirn.domains.signal.wavelets.dwt_decomposer import DwtDecomposer
+from pirn_signal.wavelets.dwt_decomposer import DwtDecomposer
 
 decomposed = DwtDecomposer(
     signal=filtered,
@@ -328,7 +328,7 @@ decomposed = DwtDecomposer(
 
 ## Types
 
-The `pirn.domains.signal.types` package exposes shared typed containers used across sub-packages:
+The `pirn_signal.types` package exposes shared typed containers used across sub-packages:
 
 | Type | Fields | Description |
 |---|---|---|
@@ -342,7 +342,7 @@ The `pirn.domains.signal.types` package exposes shared typed containers used acr
 ## Install Extras
 
 ```bash
-pip install "pirn[signal]"
+pip install "pirn-signal[signal]"
 ```
 
 | Extra | Libraries installed | What it enables |
@@ -350,7 +350,7 @@ pip install "pirn[signal]"
 | `signal` | `scipy>=1.12`, `pywavelets>=1.5`, `librosa>=0.10` | All signal domain knots (filters, spectral, wavelets, resampling, adaptive, separation, nonlinear, audio analysis) |
 | `audio` (separate) | `soundfile`, `numpy`, `pydub` | WAV/FLAC/OGG/MP3/AAC/M4A format connectors |
 
-`scipy` and `pywavelets` are the core dependencies. `librosa` adds the audio analysis knots in `pirn.domains.signal.audio` and pulls in `numpy` and `soundfile` as transitive dependencies.
+`scipy` and `pywavelets` are the core dependencies. `librosa` adds the audio analysis knots in `pirn_signal.audio` and pulls in `numpy` and `soundfile` as transitive dependencies.
 
 ---
 
@@ -368,6 +368,6 @@ Three disassemblers cover the signal domain's output payload types:
 | `SpectrumObjectStoreDisassembler` | `SpectrumFrame` | `bytes` |
 | `WaveletObjectStoreDisassembler` | `WaveletFrame` | `bytes` |
 
-All assemblers and disassemblers live under `pirn/domains/signal/assemblers/` and `pirn/domains/signal/disassemblers/` respectively.
+All assemblers and disassemblers live under `pirn_signal/assemblers/` and `pirn_signal/disassemblers/` respectively.
 
 **See also:** [Health Domain — Biosignal Formats](health.md#healthcare-biosignal-formats), [File Formats — Connectors](../connectors/index.md)

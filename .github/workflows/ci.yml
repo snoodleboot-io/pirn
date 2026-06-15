@@ -163,8 +163,8 @@ jobs:
 
       - name: "[signal] install + import"
         run: |
-          uv pip install --system -e ".[signal]"
-          uv run python -c "import pirn.domains.signal; print('OK: signal')"
+          uv pip install --system -e "./packages/pirn-signal[signal]"
+          uv run python -c "import pirn_signal; print('OK: signal')"
 
       - name: "[oilgas] install + import"
         run: |

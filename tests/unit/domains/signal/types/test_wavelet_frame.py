@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.signal.types.wavelet_frame import WaveletFrame
+from pirn_signal.types.wavelet_frame import WaveletFrame
 
 
 class TestRoundtrip(unittest.TestCase):

@@ -12,12 +12,11 @@ from datetime import UTC, datetime
 
 import numpy as np
 import pytest
-
 from pirn.core.knot_factory import knot
-from pirn.domains.signal.types.signal_frame import SignalFrame
-from pirn.domains.signal.types.signal_payload import SignalPayload
-from pirn.domains.signal.types.spectrum_frame import SpectrumFrame
-from pirn.domains.signal.types.spectrum_payload import SpectrumPayload
+from pirn_signal.types.signal_frame import SignalFrame
+from pirn_signal.types.signal_payload import SignalPayload
+from pirn_signal.types.spectrum_frame import SpectrumFrame
+from pirn_signal.types.spectrum_payload import SpectrumPayload
 
 _FIXED_FETCHED_AT = datetime(2026, 1, 1, tzinfo=UTC)
 

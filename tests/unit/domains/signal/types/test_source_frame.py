@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.signal.types.source_frame import SourceFrame
+from pirn_signal.types.source_frame import SourceFrame
 
 
 class TestRoundtrip(unittest.TestCase):
