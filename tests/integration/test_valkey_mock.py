@@ -10,7 +10,6 @@ from __future__ import annotations
 import pickle
 
 import pytest
-
 from pirn.backends.valkey.valkey_data_store import ValKeyDataStore
 from pirn.backends.valkey.valkey_store import ValKeyStore
 from pirn.core.knot_config import KnotConfig

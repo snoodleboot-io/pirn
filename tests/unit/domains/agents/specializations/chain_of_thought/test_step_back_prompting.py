@@ -10,6 +10,7 @@ from pirn_agents.specializations.chain_of_thought.step_back_prompting import (
 )
 from pirn_agents.types.agent_response import AgentResponse
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 

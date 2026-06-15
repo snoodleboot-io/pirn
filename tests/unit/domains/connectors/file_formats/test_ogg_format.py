@@ -14,11 +14,11 @@ except ImportError as _e:
     raise unittest.SkipTest("numpy not installed") from _e
 
 import numpy as np
-
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.file_formats.ogg_format import OggFormat
+
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )

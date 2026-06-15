@@ -11,6 +11,7 @@ from pirn_agents.specializations.structured_output.format_coercer import (
 )
 from pirn_agents.types.agent_response import AgentResponse
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 

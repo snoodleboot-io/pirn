@@ -11,7 +11,6 @@ import unittest
 from typing import Any
 
 import pytest
-
 from pirn.connectors.api_client import ApiClient
 from pirn.connectors.capabilities.table_source import TableSource
 from pirn.connectors.saas.google_analytics_client import (

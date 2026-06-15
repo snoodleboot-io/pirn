@@ -10,8 +10,8 @@ from pirn.core.knot_config import KnotConfig
 from pirn.domains.ml.specializations.feature_engineering.lag_feature_generator import (
     LagFeatureGenerator,
 )
-from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.tapestry import Tapestry
 
 

@@ -11,6 +11,7 @@ from pirn_agents.types.agent_context import AgentContext
 from pirn_agents.types.agent_message import AgentMessage
 from pirn_agents.types.plan import Plan
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.conftest import StubLLMProvider
 
 

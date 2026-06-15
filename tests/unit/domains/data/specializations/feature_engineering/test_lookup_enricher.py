@@ -8,8 +8,8 @@ from typing import Any
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.specializations.feature_engineering.lookup_enricher import LookupEnricher
 from pirn.tapestry import Tapestry
+from pirn_data.specializations.feature_engineering.lookup_enricher import LookupEnricher
 
 _LOOKUP = [
     {"country_code": "US", "country_name": "United States", "region": "Americas"},

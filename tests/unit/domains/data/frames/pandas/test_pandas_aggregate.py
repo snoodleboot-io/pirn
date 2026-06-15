@@ -11,14 +11,13 @@ except ImportError as _e:
 
 import pandas as pd
 import pytest
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.frames.pandas.pandas_aggregate import PandasAggregate
-from pirn.domains.data.frames.pandas.pandas_data_batch import PandasDataBatch
-from pirn.domains.data.transforms.aggregate_spec import AggregateSpec
 from pirn.tapestry import Tapestry
+from pirn_data.frames.pandas.pandas_aggregate import PandasAggregate
+from pirn_data.frames.pandas.pandas_data_batch import PandasDataBatch
+from pirn_data.transforms.aggregate_spec import AggregateSpec
 
 
 @knot

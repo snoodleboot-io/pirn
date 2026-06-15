@@ -7,8 +7,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from pirn.viz.explorer import ExplorerHtmlGenerator, generate_explorer_html
 from pirn.viz._tapestry_graph import TapestryGraph
+from pirn.viz.explorer import ExplorerHtmlGenerator, generate_explorer_html
 
 
 class TestExplorerHtmlGeneratorGenerate(unittest.TestCase):

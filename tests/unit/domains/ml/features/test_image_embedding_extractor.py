@@ -10,8 +10,8 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.domains.ml.features.image_embedding_extractor import ImageEmbeddingExtractor
 from pirn.domains.ml.image_encoder_provider import ImageEncoderProvider
-from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.tapestry import Tapestry
 
 

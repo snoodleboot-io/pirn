@@ -10,7 +10,6 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-
 from pirn.backends.in_memory.in_memory_store import InMemoryStore
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot

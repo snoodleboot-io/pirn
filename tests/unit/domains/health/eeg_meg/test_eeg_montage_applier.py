@@ -5,7 +5,6 @@ from __future__ import annotations
 import unittest
 
 import numpy as np
-
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.eeg_meg.eeg_montage_applier import EEGMontageApplier
 from pirn.domains.health.types.health_signal_frame import HealthSignalFrame

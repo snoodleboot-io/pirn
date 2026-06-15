@@ -10,11 +10,10 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.experiments.hyperband_tuner import (
     HyperbandTuner,
 )
-from pirn.domains.ml.types.split_manifest import SplitManifest
-from pirn.domains.ml.types.eval_metadata import EvalMetadata
-from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.tapestry import Tapestry
 
 

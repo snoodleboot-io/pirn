@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.data.quality_check import QualityCheck
+from pirn_data.quality_check import QualityCheck
 
 
 class TestQualityCheckConstruction(unittest.TestCase):

@@ -9,6 +9,7 @@ from pirn.domains.ml.specializations.task_pipelines.text_classification_pipeline
     TextClassificationPipeline,
 )
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.ml._stubs.recording_database_pool import RecordingDatabasePool
 
 

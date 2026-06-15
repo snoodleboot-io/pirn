@@ -1,14 +1,14 @@
 """Unit tests for Ok/Err/Skipped."""
 
 from __future__ import annotations
-import unittest
 
-from pydantic import ValidationError
+import unittest
 
 from pirn.core.err import Err
 from pirn.core.ok import Ok
 from pirn.core.skipped import Skipped
 from pirn.managers.exception_record import ExceptionRecord
+from pydantic import ValidationError
 
 
 def _record():

@@ -13,15 +13,14 @@ non-key values overwrite earlier ones.
 from __future__ import annotations
 
 import pytest
-
-from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.connectors.databases.sqlite_config import SqliteConfig
 from pirn.connectors.databases.sqlite_pool import SqlitePool
-from pirn.domains.data.specializations.scd.scd_type_1_overwrite import (
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
+from pirn_data.specializations.scd.scd_type_1_overwrite import (
     ScdType1Overwrite,
 )
-from pirn.tapestry import Tapestry
 
 
 @pytest.fixture

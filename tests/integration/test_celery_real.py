@@ -15,12 +15,9 @@ import subprocess
 import sys
 import tempfile
 import time
-
-import pytest
-
-
 from typing import Any
 
+import pytest
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -102,7 +99,6 @@ class _Double(Knot):
 
 async def test_celery_dispatcher_runs_pipeline(celery_worker):
     from celery import Celery
-
     from pirn.engine.dispatchers.celery_dispatcher import register_celery_worker_task
 
     app = Celery("pirn_test", broker=_BROKER, backend=_BROKER)
@@ -127,7 +123,6 @@ async def test_celery_dispatcher_runs_pipeline(celery_worker):
 
 async def test_celery_dispatcher_result_has_correct_dispatcher_name(celery_worker):
     from celery import Celery
-
     from pirn.engine.dispatchers.celery_dispatcher import (
         CeleryDispatcher,
         register_celery_worker_task,

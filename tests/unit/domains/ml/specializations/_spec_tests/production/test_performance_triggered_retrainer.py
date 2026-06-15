@@ -8,9 +8,9 @@ from pirn.core.knot_config import KnotConfig
 from pirn.domains.ml.specializations.production.performance_triggered_retrainer import (
     PerformanceTriggeredRetrainer,
 )
-from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.tapestry import Tapestry
 
 

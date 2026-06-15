@@ -12,6 +12,7 @@ from pirn.connectors.file_formats.plain_text_format import (
 from pirn.connectors.file_formats.streaming_file_format import (
     StreamingFileFormat,
 )
+
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import unittest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 
 class TestS3HasKeyExceptionPropagation(unittest.IsolatedAsyncioTestCase):

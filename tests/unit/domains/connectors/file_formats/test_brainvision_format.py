@@ -10,13 +10,13 @@ from typing import Any
 from unittest.mock import patch
 
 import numpy as np
-
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.file_formats.brainvision_format import (
     BrainVisionFormat,
 )
+
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )

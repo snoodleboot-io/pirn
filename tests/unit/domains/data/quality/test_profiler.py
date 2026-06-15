@@ -1,4 +1,4 @@
-"""Tests for :class:`pirn.domains.data.quality.profiler.Profiler`."""
+"""Tests for :class:`pirn_data.quality.profiler.Profiler`."""
 
 from __future__ import annotations
 
@@ -7,11 +7,11 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.data_batch import DataBatch
-from pirn.domains.data.data_profile import DataProfile
-from pirn.domains.data.data_schema import DataSchema
-from pirn.domains.data.quality.profiler import Profiler
 from pirn.tapestry import Tapestry
+from pirn_data.data_batch import DataBatch
+from pirn_data.data_profile import DataProfile
+from pirn_data.data_schema import DataSchema
+from pirn_data.quality.profiler import Profiler
 
 
 @knot

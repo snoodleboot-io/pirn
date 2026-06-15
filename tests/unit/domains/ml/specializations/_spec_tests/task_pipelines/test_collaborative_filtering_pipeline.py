@@ -9,6 +9,7 @@ from pirn.domains.ml.specializations.task_pipelines.collaborative_filtering_pipe
     CollaborativeFilteringPipeline,
 )
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.ml._stubs.recording_database_pool import RecordingDatabasePool
 
 

@@ -14,6 +14,7 @@ from pirn_agents.specializations.document_processing.document_ingestion_pipeline
     DocumentIngestionPipeline,
 )
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.specializations.conftest import (
     StubEmbeddingProvider,
 )

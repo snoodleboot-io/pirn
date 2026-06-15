@@ -9,11 +9,11 @@ from typing import Any
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.data_batch import DataBatch
-from pirn.domains.data.lakehouse.lakehouse_table import LakehouseTable
-from pirn.domains.data.lakehouse.lakehouse_table_sink import LakehouseTableSink
 from pirn.nodes.source import Source
 from pirn.tapestry import Tapestry
+from pirn_data.data_batch import DataBatch
+from pirn_data.lakehouse.lakehouse_table import LakehouseTable
+from pirn_data.lakehouse.lakehouse_table_sink import LakehouseTableSink
 
 
 class _FakeTable(LakehouseTable):

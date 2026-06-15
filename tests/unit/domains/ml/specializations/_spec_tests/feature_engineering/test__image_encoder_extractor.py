@@ -8,9 +8,10 @@ from pirn.core.knot_config import KnotConfig
 from pirn.domains.ml.specializations.feature_engineering._image_encoder_extractor import (
     _ImageEncoderExtractor,
 )
-from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.ml._stubs.recording_image_encoder_provider import (
     RecordingImageEncoderProvider,
 )

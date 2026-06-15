@@ -21,13 +21,12 @@ except ImportError as _e:
 from typing import Any
 
 import pyarrow as pa
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.specialized.lance.lance_dataset import LanceDataset
-from pirn.domains.data.specialized.lance.lance_to_arrow import LanceToArrow
 from pirn.tapestry import Tapestry
+from pirn_data.specialized.lance.lance_dataset import LanceDataset
+from pirn_data.specialized.lance.lance_to_arrow import LanceToArrow
 
 
 class _FakeLanceDataset:

@@ -16,17 +16,17 @@ branching logic in this class.
 Supported sources
 -----------------
 * **File** — any ``ObjectStore`` x ``FileFormat`` combination (local disk,
-  S3, GCS, Azure Blob, …) via :class:`~pirn.domains.data.sources.file_source.FileSource`
+  S3, GCS, Azure Blob, …) via :class:`~pirn_data.sources.file_source.FileSource`
 * **Lakehouse** — Delta Lake, Iceberg, Hudi native scan API via
-  :class:`~pirn.domains.data.lakehouse.lakehouse_table_source.LakehouseTableSource`
+  :class:`~pirn_data.lakehouse.lakehouse_table_source.LakehouseTableSource`
 * **SQL** — any ``DatabaseConnectionPool`` (SQLite, DuckDB, Postgres, …) via
-  :class:`~pirn.domains.data.sources.sql_source.SqlSource`
+  :class:`~pirn_data.sources.sql_source.SqlSource`
 
 References
 ----------
-pirn/domains/data/sources/file_source.py
-pirn/domains/data/sources/sql_source.py
-pirn/domains/data/lakehouse/lakehouse_table_source.py
+pirn_data/sources/file_source.py
+pirn_data/sources/sql_source.py
+pirn_data/lakehouse/lakehouse_table_source.py
 pirn/core/optional.py
 """
 
@@ -37,6 +37,8 @@ from datetime import UTC, datetime
 from typing import Any
 
 import numpy as np
+from pirn_data.data_batch import DataBatch
+from pirn_data.lakehouse.lakehouse_table import LakehouseTable
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.file_format import FileFormat
@@ -45,8 +47,6 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.optional import Optional
 from pirn.core.skipped import Skipped
-from pirn.domains.data.data_batch import DataBatch
-from pirn.domains.data.lakehouse.lakehouse_table import LakehouseTable
 from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 from pirn.domains.ml.types.dataset_payload import DatasetPayload
 from pirn.domains.ml.types.ml_features import MLFeatures
@@ -186,9 +186,9 @@ class DatasetLoader(SubTapestry):
         if not feature_names:
             raise ValueError("DatasetLoader: feature_names must be non-empty")
 
-        from pirn.domains.data.lakehouse.lakehouse_table_source import LakehouseTableSource
-        from pirn.domains.data.sources.file_source import FileSource
-        from pirn.domains.data.sources.sql_source import SqlSource
+        from pirn_data.lakehouse.lakehouse_table_source import LakehouseTableSource
+        from pirn_data.sources.file_source import FileSource
+        from pirn_data.sources.sql_source import SqlSource
 
         # All three sources are constructed unconditionally and wrapped in
         # Optional.  Optional intercepts construction failures (e.g. FileSource

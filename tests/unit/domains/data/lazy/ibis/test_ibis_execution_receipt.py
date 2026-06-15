@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 
-from pirn.domains.data.lazy.ibis.ibis_execution_receipt import IbisExecutionReceipt
+from pirn_data.lazy.ibis.ibis_execution_receipt import IbisExecutionReceipt
 
 
 class TestIbisExecutionReceipt(unittest.TestCase):

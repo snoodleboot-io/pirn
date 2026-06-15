@@ -10,6 +10,7 @@ from pirn_agents.specializations.specialized_agents._code_generator import (
     _CodeGenerator,
 )
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 

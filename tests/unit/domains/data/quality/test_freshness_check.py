@@ -1,4 +1,4 @@
-"""Tests for :class:`pirn.domains.data.quality.freshness_check.FreshnessCheck`."""
+"""Tests for :class:`pirn_data.quality.freshness_check.FreshnessCheck`."""
 
 from __future__ import annotations
 
@@ -8,10 +8,10 @@ from datetime import UTC, datetime, timedelta
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.data_batch import DataBatch
-from pirn.domains.data.quality.freshness_check import FreshnessCheck
-from pirn.domains.data.quality_report import QualityReport
 from pirn.tapestry import Tapestry
+from pirn_data.data_batch import DataBatch
+from pirn_data.quality.freshness_check import FreshnessCheck
+from pirn_data.quality_report import QualityReport
 
 
 def _batch_with_newest(age: timedelta):

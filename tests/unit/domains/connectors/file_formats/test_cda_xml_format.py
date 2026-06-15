@@ -19,6 +19,7 @@ from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.file_formats.cda_xml_format import CdaXmlFormat
+
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )

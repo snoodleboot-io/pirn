@@ -6,12 +6,12 @@ import unittest
 from collections.abc import AsyncIterator
 from typing import Any
 
-from pirn.core.knot_config import KnotConfig
 from pirn.connectors.file_format import FileFormat
 from pirn.connectors.object_store import ObjectStore
-from pirn.domains.data.data_batch import DataBatch
-from pirn.domains.data.data_schema import DataSchema
-from pirn.domains.data.sources.directory_source import DirectorySource
+from pirn.core.knot_config import KnotConfig
+from pirn_data.data_batch import DataBatch
+from pirn_data.data_schema import DataSchema
+from pirn_data.sources.directory_source import DirectorySource
 
 
 class _FakeStore(ObjectStore):

@@ -6,7 +6,6 @@ import unittest
 from typing import Any
 from unittest.mock import AsyncMock
 
-from pirn.backends._signer import _Signer
 from pirn.backends.valkey.valkey_data_store import ValKeyDataStore
 
 
@@ -14,7 +13,7 @@ def _make_client_and_store(
     *,
     ttl_seconds: int | None = None,
     allow_unsigned: bool = True,
-) -> tuple[AsyncMock, dict[str, bytes], "ValKeyDataStore"]:
+) -> tuple[AsyncMock, dict[str, bytes], ValKeyDataStore]:
     stored: dict[str, bytes] = {}
 
     async def fake_set(k: str, v: bytes, **kw: Any) -> None:
@@ -87,7 +86,6 @@ class TestValKeyDataStoreTTL(unittest.IsolatedAsyncioTestCase):
     """TTL path calls set with expiry."""
 
     async def test_put_with_ttl_invokes_expiry(self) -> None:
-        import sys
         from unittest.mock import MagicMock, patch
 
         mock_expiry_set = MagicMock()

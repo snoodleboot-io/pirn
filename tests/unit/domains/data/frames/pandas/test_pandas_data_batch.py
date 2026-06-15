@@ -11,8 +11,7 @@ except ImportError as _e:
 from datetime import UTC
 
 import pandas as pd
-
-from pirn.domains.data.frames.pandas.pandas_data_batch import PandasDataBatch
+from pirn_data.frames.pandas.pandas_data_batch import PandasDataBatch
 
 
 class TestPandasDataBatch(unittest.TestCase):

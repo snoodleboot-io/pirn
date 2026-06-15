@@ -6,10 +6,10 @@ import unittest
 from collections.abc import AsyncIterator
 from typing import Any
 
-from pirn.core.knot_config import KnotConfig
 from pirn.connectors.knots.message_broker_knot import MessageBrokerKnot
 from pirn.connectors.knots.message_broker_publish_sink import MessageBrokerPublishSink
 from pirn.connectors.message_broker import MessageBroker
+from pirn.core.knot_config import KnotConfig
 
 
 class StubBroker(MessageBroker):

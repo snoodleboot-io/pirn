@@ -32,29 +32,28 @@ from great_expectations.expectations import (
     ExpectColumnValuesToBeInSet,
     ExpectColumnValuesToNotBeNull,
 )
-
-from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
-from pirn.core.run_request import RunRequest
 from pirn.connectors.databases.sqlite_config import SqliteConfig
 from pirn.connectors.databases.sqlite_pool import SqlitePool
 from pirn.connectors.knots.database_execute_sink import DatabaseExecuteSink
-from pirn.domains.data.data_batch import DataBatch
-from pirn.domains.data.frames.pandas.bridges.data_batch_to_pandas import (
-    DataBatchToPandas,
-)
-from pirn.domains.data.frames.pandas.bridges.pandas_to_data_batch import (
-    PandasToDataBatch,
-)
-from pirn.domains.data.frames.pandas.pandas_aggregate import PandasAggregate
-from pirn.domains.data.frames.pandas.pandas_filter import PandasFilter
-from pirn.domains.data.quality_report import QualityReport
-from pirn.domains.data.transforms.aggregate_spec import AggregateSpec
-from pirn.domains.data.validation.great_expectations.great_expectations_pandas_validator import (
-    GreatExpectationsPandasValidator,
-)
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.run_request import RunRequest
 from pirn.nodes.gate.gate import Gate
 from pirn.tapestry import Tapestry
+from pirn_data.data_batch import DataBatch
+from pirn_data.frames.pandas.bridges.data_batch_to_pandas import (
+    DataBatchToPandas,
+)
+from pirn_data.frames.pandas.bridges.pandas_to_data_batch import (
+    PandasToDataBatch,
+)
+from pirn_data.frames.pandas.pandas_aggregate import PandasAggregate
+from pirn_data.frames.pandas.pandas_filter import PandasFilter
+from pirn_data.quality_report import QualityReport
+from pirn_data.transforms.aggregate_spec import AggregateSpec
+from pirn_data.validation.great_expectations.great_expectations_pandas_validator import (
+    GreatExpectationsPandasValidator,
+)
 
 
 def _orders_suite() -> gx.ExpectationSuite:

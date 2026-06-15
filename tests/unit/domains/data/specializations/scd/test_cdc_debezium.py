@@ -7,11 +7,11 @@ import unittest
 from typing import Any
 from unittest.mock import MagicMock
 
-from pirn.core.knot_config import KnotConfig
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.message_broker import MessageBroker
-from pirn.domains.data.specializations.scd.cdc_debezium import CDCDebezium
+from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
+from pirn_data.specializations.scd.cdc_debezium import CDCDebezium
 
 
 def _make_broker() -> MagicMock:

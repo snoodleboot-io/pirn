@@ -12,11 +12,11 @@ except ImportError as _e:
 
 import onnx as _onnx
 from onnx import TensorProto, helper
-
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.file_formats.onnx_format import OnnxFormat
+
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )

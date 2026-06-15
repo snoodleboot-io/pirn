@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
 pytestmark = pytest.mark.slow
 
-from pirn.domains.data.lazy.ray.ray_execution_receipt import (
+from pirn_data.lazy.ray.ray_execution_receipt import (
     RayExecutionReceipt,
 )
 
@@ -25,7 +25,7 @@ class TestRayExecutionReceipt:
         assert receipt.block_count is None
 
     def test_with_optional_fields(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         receipt = RayExecutionReceipt(
             backend_name="ray",
             target_path="/tmp/out",

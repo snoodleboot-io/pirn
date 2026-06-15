@@ -6,7 +6,7 @@ import unittest
 from collections.abc import AsyncIterator, Mapping
 from typing import Any
 
-from pirn.domains.data.lakehouse.lakehouse_table import LakehouseTable
+from pirn_data.lakehouse.lakehouse_table import LakehouseTable
 
 
 class TestLakehouseTableInterface(unittest.IsolatedAsyncioTestCase):

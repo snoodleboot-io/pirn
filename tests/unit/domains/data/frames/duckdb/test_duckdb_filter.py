@@ -5,18 +5,17 @@ from __future__ import annotations
 import unittest
 
 try:
-    import duckdb  # noqa: F401
+    import duckdb
 except ImportError as _e:
     raise unittest.SkipTest("duckdb not installed") from _e
 
 import duckdb
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.frames.duckdb.duckdb_data_batch import DuckdbDataBatch
-from pirn.domains.data.frames.duckdb.duckdb_filter import DuckdbFilter
 from pirn.tapestry import Tapestry
+from pirn_data.frames.duckdb.duckdb_data_batch import DuckdbDataBatch
+from pirn_data.frames.duckdb.duckdb_filter import DuckdbFilter
 
 
 @knot

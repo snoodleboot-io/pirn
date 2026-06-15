@@ -9,17 +9,17 @@ with the stream of envelopes.
 from __future__ import annotations
 
 import json
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 import pytest
-
-from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.connectors.databases.sqlite_config import SqliteConfig
 from pirn.connectors.databases.sqlite_pool import SqlitePool
 from pirn.connectors.message_broker import MessageBroker
-from pirn.domains.data.specializations.scd.cdc_debezium import CDCDebezium
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+from pirn_data.specializations.scd.cdc_debezium import CDCDebezium
 
 
 class _StubRecord:

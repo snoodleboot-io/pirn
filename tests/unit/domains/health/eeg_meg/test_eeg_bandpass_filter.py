@@ -10,7 +10,6 @@ except ImportError as _e:
     raise unittest.SkipTest("scipy not installed") from _e
 
 import numpy as np
-
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.eeg_meg.eeg_bandpass_filter import EegBandpassFilter
 from pirn.domains.health.types.health_signal_frame import HealthSignalFrame

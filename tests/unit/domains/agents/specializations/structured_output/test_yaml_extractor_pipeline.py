@@ -10,6 +10,7 @@ from pirn_agents.specializations.structured_output.yaml_extractor_pipeline impor
     YamlExtractorPipeline,
 )
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.specializations.conftest import (
     StubLLMProvider,
 )

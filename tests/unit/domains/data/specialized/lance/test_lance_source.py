@@ -10,7 +10,7 @@ except ImportError as _e:
     raise unittest.SkipTest("pyarrow not installed") from _e
 
 try:
-    from lance.dataset import LanceDataset as _LanceDataset  # noqa: F401
+    from lance.dataset import LanceDataset as _LanceDataset
     from lance.dataset import write_dataset as _lance_write_dataset  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("lance not installed") from _e
@@ -19,14 +19,12 @@ import tempfile
 from pathlib import Path
 
 import pyarrow as pa
-from lance.dataset import LanceDataset as _LanceDataset
 from lance.dataset import write_dataset
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.specialized.lance.lance_dataset import LanceDataset
-from pirn.domains.data.specialized.lance.lance_source import LanceSource
 from pirn.tapestry import Tapestry
+from pirn_data.specialized.lance.lance_dataset import LanceDataset
+from pirn_data.specialized.lance.lance_source import LanceSource
 
 
 class TestLanceSourceConstruction(unittest.TestCase):

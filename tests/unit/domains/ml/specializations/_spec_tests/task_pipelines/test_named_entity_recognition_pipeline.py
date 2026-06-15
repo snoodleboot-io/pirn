@@ -9,6 +9,7 @@ from pirn.domains.ml.specializations.task_pipelines.named_entity_recognition_pip
     NamedEntityRecognitionPipeline,
 )
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.ml._stubs.recording_database_pool import RecordingDatabasePool
 
 

@@ -10,6 +10,7 @@ from pirn_agents.specializations.rag.corrective_router import (
     CorrectiveRouter,
 )
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.specializations.conftest import StubTool
 
 

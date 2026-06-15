@@ -10,13 +10,12 @@ except ImportError as _e:
     raise unittest.SkipTest("polars not installed") from _e
 
 import polars as pl
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.frames.polars.polars_data_batch import PolarsDataBatch
-from pirn.domains.data.frames.polars.polars_filter import PolarsFilter
 from pirn.tapestry import Tapestry
+from pirn_data.frames.polars.polars_data_batch import PolarsDataBatch
+from pirn_data.frames.polars.polars_filter import PolarsFilter
 
 
 @knot

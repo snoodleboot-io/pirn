@@ -19,6 +19,7 @@ from pirn.connectors.file_formats.batch_file_format import (
 from pirn.connectors.file_formats.hdf5_format import (
     Hdf5Format,
 )
+
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )

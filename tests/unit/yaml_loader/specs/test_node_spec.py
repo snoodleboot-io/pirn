@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import unittest
 
-from pydantic import ValidationError
-
 from pirn.yaml_loader.specs.node_spec import NodeSpec
+from pydantic import ValidationError
 
 
 class _ConcreteNode(NodeSpec):

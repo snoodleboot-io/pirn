@@ -4,13 +4,12 @@ from __future__ import annotations
 
 import unittest
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
 
 from pirn.backends._signer import _Signer
 from pirn.backends.base._cloud_object_store import _CloudObjectStore
 
 
-def _make_concrete_store(**kwargs: Any) -> "_CloudObjectStore":
+def _make_concrete_store(**kwargs: Any) -> _CloudObjectStore:
     """Build a minimal concrete subclass for testing the mixin."""
 
     class _ConcreteStore(_CloudObjectStore):
@@ -59,10 +58,10 @@ class TestCloudObjectStoreUnsignedGuard(unittest.TestCase):
 class TestCloudObjectStoreOperations(unittest.IsolatedAsyncioTestCase):
     """put/get/has/scrub route through the serialization layer."""
 
-    def _make_unsigned(self) -> "_CloudObjectStore":
+    def _make_unsigned(self) -> _CloudObjectStore:
         return _make_concrete_store(allow_unsigned=True)
 
-    def _make_signed(self) -> "_CloudObjectStore":
+    def _make_signed(self) -> _CloudObjectStore:
         return _make_concrete_store(signer=_Signer.test_signer())
 
     async def test_unsigned_round_trip(self) -> None:

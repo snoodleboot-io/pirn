@@ -7,13 +7,13 @@ import unittest
 from pathlib import Path
 from typing import Any
 
+from pirn.connectors.databases.sqlite_config import SqliteConfig
+from pirn.connectors.databases.sqlite_pool import SqlitePool
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.connectors.databases.sqlite_config import SqliteConfig
-from pirn.connectors.databases.sqlite_pool import SqlitePool
-from pirn.domains.data.specializations.scd.scd_type_2_history import ScdType2History
 from pirn.tapestry import Tapestry
+from pirn_data.specializations.scd.scd_type_2_history import ScdType2History
 
 _SOURCE_QUERY = "SELECT id, region FROM customers ORDER BY id"
 _TARGET_TABLE = "customers"

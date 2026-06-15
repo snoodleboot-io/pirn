@@ -9,11 +9,9 @@ calls so that missing optional dependencies surface as a clean
 from __future__ import annotations
 
 import sys
+import unittest
 from importlib import reload
 from unittest.mock import patch
-import unittest
-
-import pytest
 
 from pirn.domains import extras_loader as loader_module
 from pirn.domains.extras_loader import ExtrasLoader
@@ -91,8 +89,8 @@ class TestDomainImportGuards(unittest.TestCase):
     def test_data_namespace_imports_without_extras(self) -> None:
         # The data domain defers its ExtrasLoader call to pandas-bound
         # submodules, so the package import itself stays clean.
-        sys.modules.pop("pirn.domains.data", None)
-        import pirn.domains.data  # noqa: F401
+        sys.modules.pop("pirn_data", None)
+        import pirn_data  # noqa: F401
 
     def test_ml_namespace_imports_without_extras(self) -> None:
         # The ml domain defers its ExtrasLoader call to dependency-bound

@@ -25,7 +25,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-
 from pirn.backends.base.data_store import DataStore
 from pirn.backends.base.run_history import RunHistory
 from pirn.backends.base.tapestry_store import TapestryStore

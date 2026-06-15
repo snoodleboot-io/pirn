@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.connectors.file_formats.tsv_format import TsvFormat
+
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )

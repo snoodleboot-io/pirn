@@ -8,14 +8,13 @@ pytestmark = pytest.mark.slow
 
 ray = pytest.importorskip("ray")
 ray_data = pytest.importorskip("ray.data")
-from ray.data.aggregate import Sum
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.lazy.ray.ray_aggregate import RayAggregate
-from pirn.domains.data.lazy.ray.ray_dataset import RayDataset
-from pirn.domains.data.lazy.ray.ray_source import RaySource
 from pirn.tapestry import Tapestry
+from pirn_data.lazy.ray.ray_aggregate import RayAggregate
+from pirn_data.lazy.ray.ray_dataset import RayDataset
+from pirn_data.lazy.ray.ray_source import RaySource
+from ray.data.aggregate import Sum
 
 
 def _orders_factory():

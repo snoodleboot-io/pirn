@@ -21,23 +21,22 @@ from __future__ import annotations
 
 import polars as pl
 import pytest
-
-from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
-from pirn.core.run_request import RunRequest
 from pirn.connectors.databases.sqlite_config import SqliteConfig
 from pirn.connectors.databases.sqlite_pool import SqlitePool
 from pirn.connectors.knots.database_execute_sink import DatabaseExecuteSink
-from pirn.domains.data.data_batch import DataBatch
-from pirn.domains.data.frames.polars.bridges.data_batch_to_polars import (
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
+from pirn_data.data_batch import DataBatch
+from pirn_data.frames.polars.bridges.data_batch_to_polars import (
     DataBatchToPolars,
 )
-from pirn.domains.data.frames.polars.bridges.polars_to_data_batch import (
+from pirn_data.frames.polars.bridges.polars_to_data_batch import (
     PolarsToDataBatch,
 )
-from pirn.domains.data.frames.polars.polars_aggregate import PolarsAggregate
-from pirn.domains.data.frames.polars.polars_filter import PolarsFilter
-from pirn.tapestry import Tapestry
+from pirn_data.frames.polars.polars_aggregate import PolarsAggregate
+from pirn_data.frames.polars.polars_filter import PolarsFilter
 
 
 @knot

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import unittest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from pirn.core.transport.inline_transport import InlineTransport
 from pirn.core.transport.smart_transport import SmartTransport

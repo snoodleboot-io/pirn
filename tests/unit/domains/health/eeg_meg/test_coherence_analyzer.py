@@ -12,7 +12,6 @@ except ImportError as _e:
 from collections.abc import Mapping
 
 import numpy as np
-
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.eeg_meg.coherence_analyzer import CoherenceAnalyzer
 from pirn.domains.health.types.health_signal_frame import HealthSignalFrame

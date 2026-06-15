@@ -10,6 +10,7 @@ from pirn_agents.planning.tool_executor import ToolExecutor
 from pirn_agents.types.tool_call import ToolCall
 from pirn_agents.types.tool_result import ToolResult
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.conftest import StubTool
 
 

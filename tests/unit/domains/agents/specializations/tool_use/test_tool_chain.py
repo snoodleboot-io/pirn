@@ -9,6 +9,7 @@ from pirn_agents.specializations.tool_use.tool_chain import ToolChain
 from pirn_agents.types.tool_call import ToolCall
 from pirn_agents.types.tool_result import ToolResult
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.specializations.conftest import StubTool
 
 

@@ -188,9 +188,9 @@ class TrainedModelObjectStoreDisassembler(Disassembler):
 
 The canonical examples of this pattern in the codebase are:
 
-- `pirn/domains/data/specializations/medallion/tuples_to_data_batch_knot.py`
+- `pirn_data/specializations/medallion/tuples_to_data_batch_knot.py`
   (`TuplesToDataBatchKnot`) — Assembler: `list[tuple]` → `DataBatch`
-- `pirn/domains/data/specializations/medallion/data_batch_to_tuples_knot.py`
+- `pirn_data/specializations/medallion/data_batch_to_tuples_knot.py`
   (`DataBatchToTuplesKnot`) — Disassembler: `DataBatch` → `list[tuple]`
 
 Note: `TuplesToDataBatchKnot` and `DataBatchToTuplesKnot` predate the `Assembler`/`Disassembler` base classes and extend `Knot` directly. They are the conceptual reference for the pattern, but do not demonstrate the required base class inheritance. For implementation, follow the pattern of any knot in `pirn/domains/{domain}/assemblers/` or `pirn/domains/{domain}/disassemblers/` — these all correctly extend `Assembler` or `Disassembler`.

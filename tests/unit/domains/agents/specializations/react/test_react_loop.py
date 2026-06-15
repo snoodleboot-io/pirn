@@ -10,6 +10,7 @@ from pirn_agents.specializations.react.react_loop import ReActLoop
 from pirn_agents.types.agent_message import AgentMessage
 from pirn_agents.types.agent_response import AgentResponse
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.specializations.conftest import (
     StubLLMProvider,
     StubTool,

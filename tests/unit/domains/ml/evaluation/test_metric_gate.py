@@ -10,7 +10,6 @@ from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.domains.ml.evaluation.metric_gate import MetricCheck
 from pirn.domains.ml.types.eval_metadata import EvalMetadata
-from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.domains.ml.types.eval_metrics import EvalMetrics
 from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.tapestry import Tapestry

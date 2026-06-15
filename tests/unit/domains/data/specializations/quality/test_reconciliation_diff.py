@@ -5,13 +5,13 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
+from pirn.connectors.databases.sqlite_config import SqliteConfig
+from pirn.connectors.databases.sqlite_pool import SqlitePool
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.connectors.databases.sqlite_config import SqliteConfig
-from pirn.connectors.databases.sqlite_pool import SqlitePool
-from pirn.domains.data.specializations.quality.reconciliation_diff import ReconciliationDiff
 from pirn.tapestry import Tapestry
+from pirn_data.specializations.quality.reconciliation_diff import ReconciliationDiff
 
 _SRC_QUERY = "SELECT id, value FROM records ORDER BY id"
 _TGT_QUERY = "SELECT id, value FROM records ORDER BY id"

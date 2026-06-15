@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.data.transforms.aggregate_spec import AggregateSpec
+from pirn_data.transforms.aggregate_spec import AggregateSpec
 
 
 class TestAggregateSpecConstruction(unittest.TestCase):

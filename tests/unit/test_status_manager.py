@@ -1,11 +1,11 @@
 """StatusManager tests."""
 
 from __future__ import annotations
+
 import unittest
 
 from pirn.managers.knot_state import KnotState
 from pirn.managers.status_manager import StatusManager
-
 
 
 class _StandaloneTests(unittest.TestCase):

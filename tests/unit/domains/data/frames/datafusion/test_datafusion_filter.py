@@ -10,17 +10,16 @@ except ImportError as _e:
     raise unittest.SkipTest("datafusion not installed") from _e
 
 import datafusion as df
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.frames.datafusion.datafusion_data_batch import (
+from pirn.tapestry import Tapestry
+from pirn_data.frames.datafusion.datafusion_data_batch import (
     DatafusionDataBatch,
 )
-from pirn.domains.data.frames.datafusion.datafusion_filter import (
+from pirn_data.frames.datafusion.datafusion_filter import (
     DatafusionFilter,
 )
-from pirn.tapestry import Tapestry
 
 
 def _make_batch() -> DatafusionDataBatch:

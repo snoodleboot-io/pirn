@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.data.transforms.normalize_column_rule import NormalizeColumnRule
+from pirn_data.transforms.normalize_column_rule import NormalizeColumnRule
 
 
 class TestNormalizeColumnRuleConstruction(unittest.TestCase):

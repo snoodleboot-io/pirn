@@ -10,6 +10,7 @@ from pirn_agents.specializations.rag.memory_search_retriever import (
     MemorySearchRetriever,
 )
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.specializations.conftest import StubMemoryStore
 
 

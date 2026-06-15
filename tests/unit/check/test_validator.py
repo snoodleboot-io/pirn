@@ -67,7 +67,6 @@ class TestValidateTapestryManyTerminals(unittest.TestCase):
         self.assertFalse(any("terminal" in m for m in warning_msgs))
 
     def test_many_terminals_warns(self) -> None:
-        from pirn.check.validation_issue import ValidationIssue
         knots = [_make_mock_knot(f"t{i}") for i in range(5)]
         tapestry = _make_tapestry(*knots)
         result = validate_tapestry(tapestry)

@@ -5,14 +5,13 @@ from __future__ import annotations
 import unittest
 
 try:
-    import duckdb  # noqa: F401
+    import duckdb
 except ImportError as _e:
     raise unittest.SkipTest("duckdb not installed") from _e
 from datetime import UTC
 
 import duckdb
-
-from pirn.domains.data.frames.duckdb.duckdb_data_batch import DuckdbDataBatch
+from pirn_data.frames.duckdb.duckdb_data_batch import DuckdbDataBatch
 
 
 class TestDuckdbDataBatch(unittest.TestCase):

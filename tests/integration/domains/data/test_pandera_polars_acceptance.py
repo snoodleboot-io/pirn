@@ -28,27 +28,27 @@ import pytest
 
 pa = pytest.importorskip("pandera.polars")
 
-from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
-from pirn.core.run_request import RunRequest
 from pirn.connectors.databases.sqlite_config import SqliteConfig
 from pirn.connectors.databases.sqlite_pool import SqlitePool
 from pirn.connectors.knots.database_execute_sink import DatabaseExecuteSink
-from pirn.domains.data.data_batch import DataBatch
-from pirn.domains.data.frames.polars.bridges.data_batch_to_polars import (
-    DataBatchToPolars,
-)
-from pirn.domains.data.frames.polars.bridges.polars_to_data_batch import (
-    PolarsToDataBatch,
-)
-from pirn.domains.data.frames.polars.polars_aggregate import PolarsAggregate
-from pirn.domains.data.frames.polars.polars_filter import PolarsFilter
-from pirn.domains.data.quality_report import QualityReport
-from pirn.domains.data.validation.pandera.pandera_polars_validator import (
-    PanderaPolarsValidator,
-)
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.run_request import RunRequest
 from pirn.nodes.gate.gate import Gate
 from pirn.tapestry import Tapestry
+from pirn_data.data_batch import DataBatch
+from pirn_data.frames.polars.bridges.data_batch_to_polars import (
+    DataBatchToPolars,
+)
+from pirn_data.frames.polars.bridges.polars_to_data_batch import (
+    PolarsToDataBatch,
+)
+from pirn_data.frames.polars.polars_aggregate import PolarsAggregate
+from pirn_data.frames.polars.polars_filter import PolarsFilter
+from pirn_data.quality_report import QualityReport
+from pirn_data.validation.pandera.pandera_polars_validator import (
+    PanderaPolarsValidator,
+)
 
 
 class _OrdersSchema(pa.DataFrameModel):

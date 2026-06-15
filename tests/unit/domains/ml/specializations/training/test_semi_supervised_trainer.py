@@ -10,8 +10,8 @@ from pirn.core.knot_config import KnotConfig
 from pirn.domains.ml.specializations.training.semi_supervised_trainer import (
     SemiSupervisedTrainer,
 )
-from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.tapestry import Tapestry
 
 

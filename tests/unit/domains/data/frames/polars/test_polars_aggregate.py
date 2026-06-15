@@ -11,13 +11,12 @@ except ImportError as _e:
 
 import polars as pl
 import pytest
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.frames.polars.polars_aggregate import PolarsAggregate
-from pirn.domains.data.frames.polars.polars_data_batch import PolarsDataBatch
 from pirn.tapestry import Tapestry
+from pirn_data.frames.polars.polars_aggregate import PolarsAggregate
+from pirn_data.frames.polars.polars_data_batch import PolarsDataBatch
 
 
 @knot

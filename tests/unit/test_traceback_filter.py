@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 import unittest
 
-
 from pirn.core.knot_config import KnotConfig
 from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
 from pirn.managers.exception_manager import ExceptionManager

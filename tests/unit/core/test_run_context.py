@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.core.run_context import RunContext
 from pirn.core.lineage import KnotLineage
+from pirn.core.run_context import RunContext
 
 
 class TestRunContext(unittest.TestCase):

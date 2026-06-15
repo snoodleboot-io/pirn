@@ -6,16 +6,15 @@ import unittest
 from typing import Any
 
 import pytest
-
+from pirn.connectors.databases.sqlite_config import SqliteConfig
+from pirn.connectors.databases.sqlite_pool import SqlitePool
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.connectors.databases.sqlite_config import SqliteConfig
-from pirn.connectors.databases.sqlite_pool import SqlitePool
-from pirn.domains.data.specializations.analytics_engineering.metric_layer_aggregator import (
+from pirn.tapestry import Tapestry
+from pirn_data.specializations.analytics_engineering.metric_layer_aggregator import (
     MetricLayerAggregator,
 )
-from pirn.tapestry import Tapestry
 
 _SOURCE_TABLE = "sales"
 _METRIC_NAME = "total_revenue"

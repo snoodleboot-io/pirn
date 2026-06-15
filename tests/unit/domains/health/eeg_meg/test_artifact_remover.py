@@ -15,7 +15,6 @@ except ImportError as _e:
     raise unittest.SkipTest("sklearn not installed") from _e
 
 import numpy as np
-
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.eeg_meg.artifact_remover import ArtifactRemover
 from pirn.domains.health.types.health_signal_frame import HealthSignalFrame

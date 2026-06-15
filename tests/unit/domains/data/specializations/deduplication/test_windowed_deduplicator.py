@@ -10,10 +10,10 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.specializations.deduplication.windowed_deduplicator import (
+from pirn.tapestry import Tapestry
+from pirn_data.specializations.deduplication.windowed_deduplicator import (
     WindowedDeduplicator,
 )
-from pirn.tapestry import Tapestry
 
 _KEY_COLUMNS = ("id",)
 _TIMESTAMP_COLUMN = "ts"

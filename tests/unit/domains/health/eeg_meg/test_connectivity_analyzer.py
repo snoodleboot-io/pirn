@@ -12,7 +12,6 @@ except ImportError as _e:
 from collections.abc import Mapping
 
 import numpy as np
-
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.eeg_meg.connectivity_analyzer import (
     ConnectivityAnalyzer,

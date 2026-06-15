@@ -14,9 +14,9 @@ rich domain dataclasses (``DataBatch`` / ``DataSchema``):
 
 from __future__ import annotations
 
+import unittest
 from dataclasses import dataclass
 from typing import Any
-import unittest
 
 from pirn.core.hashing import content_hash
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
@@ -113,8 +113,8 @@ class TestDataBatchEndToEnd(unittest.TestCase):
     """End-to-end sanity: a real :class:`DataBatch` flows through cleanly."""
 
     def test_data_batch_hash_equals_canonical_form(self) -> None:
-        from pirn.domains.data.data_batch import DataBatch
-        from pirn.domains.data.data_schema import DataSchema
+        from pirn_data.data_batch import DataBatch
+        from pirn_data.data_schema import DataSchema
 
         schema = DataSchema(
             columns={"id": int, "name": str},

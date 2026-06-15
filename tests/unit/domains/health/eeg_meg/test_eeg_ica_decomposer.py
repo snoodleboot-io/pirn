@@ -12,7 +12,6 @@ except ImportError as _e:
 from typing import Any
 
 import numpy as np
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.domains.health.eeg_meg.eeg_ica_decomposer import EEGICADecomposer

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.core.knot_config import KnotConfig
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
+from pirn.core.knot_config import KnotConfig
 from pirn.domains.ml.image_encoder_provider import ImageEncoderProvider
 from pirn.domains.ml.specializations.task_pipelines.computer_vision_pipeline import (
     ComputerVisionPipeline,

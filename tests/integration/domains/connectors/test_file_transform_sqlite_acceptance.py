@@ -23,10 +23,6 @@ import json
 from pathlib import Path
 
 import pytest
-
-from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
-from pirn.core.run_request import RunRequest
 from pirn.connectors.databases.sqlite_config import SqliteConfig
 from pirn.connectors.databases.sqlite_pool import SqlitePool
 from pirn.connectors.knots.database_execute_sink import DatabaseExecuteSink
@@ -37,6 +33,9 @@ from pirn.connectors.object_storage.local_filesystem_config import (
 from pirn.connectors.object_storage.local_filesystem_store import (
     LocalFilesystemStore,
 )
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 

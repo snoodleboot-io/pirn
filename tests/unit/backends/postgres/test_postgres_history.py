@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-import json
 import unittest
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
 
 from pirn.backends.postgres.postgres_history import PostgresHistory
 from pirn.core.lineage import KnotLineage
@@ -155,12 +153,12 @@ class _FakeConn:
     async def remove_listener(self, channel: str, cb: Any) -> None:
         pass
 
-    def transaction(self) -> "_FakeTx":
+    def transaction(self) -> _FakeTx:
         return _FakeTx()
 
 
 class _FakeTx:
-    async def __aenter__(self) -> "_FakeTx":
+    async def __aenter__(self) -> _FakeTx:
         return self
 
     async def __aexit__(self, *args: Any) -> None:

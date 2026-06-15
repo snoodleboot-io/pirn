@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.data.identifier_validator import IdentifierValidator
+from pirn_data.identifier_validator import IdentifierValidator
 
 
 class TestIdentifierValidatorValidateColumn(unittest.TestCase):

@@ -6,11 +6,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from pirn.core.knot_config import KnotConfig
 from pirn.connectors.knots.object_store_knot import ObjectStoreKnot
 from pirn.connectors.knots.object_store_read_source import ObjectStoreReadSource
 from pirn.connectors.object_storage.local_filesystem_config import LocalFilesystemConfig
 from pirn.connectors.object_storage.local_filesystem_store import LocalFilesystemStore
+from pirn.core.knot_config import KnotConfig
 
 
 class TestObjectStoreReadSource(unittest.IsolatedAsyncioTestCase):

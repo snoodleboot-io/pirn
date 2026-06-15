@@ -9,6 +9,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.clinical.clinical_nlp_extractor import (
     ClinicalNLPExtractor,
 )
+
 from tests.unit.domains.agents.conftest import StubLLMProvider
 
 _CFG = KnotConfig(id="x")

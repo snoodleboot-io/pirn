@@ -8,10 +8,10 @@ from typing import Any
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.specializations.feature_engineering.derived_column_calculator import (
+from pirn.tapestry import Tapestry
+from pirn_data.specializations.feature_engineering.derived_column_calculator import (
     DerivedColumnCalculator,
 )
-from pirn.tapestry import Tapestry
 
 
 def _make_knot(expressions: list, **overrides: Any) -> DerivedColumnCalculator:

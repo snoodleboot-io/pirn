@@ -12,17 +12,17 @@ except ImportError:
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.data_batch import DataBatch
-from pirn.domains.data.frames.datafusion.bridges.data_batch_to_datafusion import (
+from pirn.tapestry import Tapestry
+from pirn_data.data_batch import DataBatch
+from pirn_data.frames.datafusion.bridges.data_batch_to_datafusion import (
     DataBatchToDatafusion,
 )
-from pirn.domains.data.frames.datafusion.datafusion_data_batch import (
+from pirn_data.frames.datafusion.datafusion_data_batch import (
     DatafusionDataBatch,
 )
-from pirn.domains.data.frames.datafusion.datafusion_session_context_knot import (
+from pirn_data.frames.datafusion.datafusion_session_context_knot import (
     DatafusionSessionContextKnot,
 )
-from pirn.tapestry import Tapestry
 
 
 @knot

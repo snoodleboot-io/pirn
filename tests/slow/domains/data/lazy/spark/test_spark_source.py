@@ -8,9 +8,9 @@ pytestmark = pytest.mark.slow
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.lazy.spark.spark_dataframe import SparkDataFrame
-from pirn.domains.data.lazy.spark.spark_source import SparkSource
 from pirn.tapestry import Tapestry
+from pirn_data.lazy.spark.spark_dataframe import SparkDataFrame
+from pirn_data.lazy.spark.spark_source import SparkSource
 
 
 def _write_parquet(session, tmp_path) -> str:

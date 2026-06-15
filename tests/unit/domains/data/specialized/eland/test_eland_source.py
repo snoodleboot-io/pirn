@@ -12,15 +12,15 @@ from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.specialized.eland.eland_dataframe import ElandDataFrame
-from pirn.domains.data.specialized.eland.eland_source import ElandSource
-from pirn.domains.data.specialized.eland.elasticsearch_connection import (
+from pirn.tapestry import Tapestry
+from pirn_data.specialized.eland.eland_dataframe import ElandDataFrame
+from pirn_data.specialized.eland.eland_source import ElandSource
+from pirn_data.specialized.eland.elasticsearch_connection import (
     ElasticsearchConnection,
 )
-from pirn.domains.data.specialized.eland.elasticsearch_connection_knot import (
+from pirn_data.specialized.eland.elasticsearch_connection_knot import (
     ElasticsearchConnectionKnot,
 )
-from pirn.tapestry import Tapestry
 
 
 class _StubEsClient:

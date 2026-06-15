@@ -10,9 +10,10 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.feature_engineering.text_embedding_extractor import (
     TextEmbeddingExtractor,
 )
-from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.ml._stubs.recording_embedding_provider import (
     RecordingEmbeddingProvider,
 )

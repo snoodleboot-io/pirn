@@ -1,4 +1,4 @@
-"""Unit tests for :class:`pirn.domains.data.lakehouse.hudi.hudi_table.HudiTable`.
+"""Unit tests for :class:`pirn_data.lakehouse.hudi.hudi_table.HudiTable`.
 
 The Hudi adapter is read-only by design; the write paths
 (:meth:`append`, :meth:`overwrite`, :meth:`merge`) raise
@@ -12,9 +12,9 @@ from collections.abc import AsyncIterator, Mapping
 from datetime import UTC
 from typing import Any
 
-from pirn.domains.data.lakehouse.hudi.hudi_table import HudiTable
-from pirn.domains.data.lakehouse.hudi.hudi_table_config import HudiTableConfig
-from pirn.domains.data.lakehouse.lakehouse_table import LakehouseTable
+from pirn_data.lakehouse.hudi.hudi_table import HudiTable
+from pirn_data.lakehouse.hudi.hudi_table_config import HudiTableConfig
+from pirn_data.lakehouse.lakehouse_table import LakehouseTable
 
 
 class StubTable:

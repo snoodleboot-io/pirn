@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.data.lakehouse.hudi.hudi_table_config import HudiTableConfig
+from pirn_data.lakehouse.hudi.hudi_table_config import HudiTableConfig
 
 
 class TestHudiTableConfigConstruction(unittest.TestCase):

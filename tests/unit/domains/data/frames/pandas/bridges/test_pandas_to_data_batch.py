@@ -10,14 +10,13 @@ except ImportError as _e:
     raise unittest.SkipTest("pandas not installed") from _e
 
 import pandas as pd
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.data.data_batch import DataBatch
-from pirn.domains.data.frames.pandas.bridges.pandas_to_data_batch import (
+from pirn_data.data_batch import DataBatch
+from pirn_data.frames.pandas.bridges.pandas_to_data_batch import (
     PandasToDataBatch,
 )
-from pirn.domains.data.frames.pandas.pandas_data_batch import PandasDataBatch
+from pirn_data.frames.pandas.pandas_data_batch import PandasDataBatch
 
 
 def _upstream() -> Parameter:

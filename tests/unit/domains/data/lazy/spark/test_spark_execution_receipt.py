@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 
-from pirn.domains.data.lazy.spark.spark_execution_receipt import SparkExecutionReceipt
+from pirn_data.lazy.spark.spark_execution_receipt import SparkExecutionReceipt
 
 
 class TestSparkExecutionReceipt(unittest.TestCase):

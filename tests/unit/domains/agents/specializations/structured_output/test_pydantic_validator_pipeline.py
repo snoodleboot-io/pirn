@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import unittest
 
-from pydantic import BaseModel
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn_agents.specializations.structured_output.pydantic_validator_pipeline import (
     PydanticValidatorPipeline,
 )
 from pirn.tapestry import Tapestry
+from pydantic import BaseModel
+
 from tests.unit.domains.agents.specializations.conftest import (
     StubLLMProvider,
 )

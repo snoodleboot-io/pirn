@@ -11,7 +11,7 @@ try:
 except ImportError as _e:
     raise unittest.SkipTest("dask not installed") from _e
 
-from pirn.domains.data.lazy.dask.dask_dataframe import DaskDataFrame
+from pirn_data.lazy.dask.dask_dataframe import DaskDataFrame
 
 
 def _make_dask_frame() -> dd.DataFrame:

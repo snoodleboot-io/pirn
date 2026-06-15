@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
+from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.core.skipped import Skipped
 from pirn.nodes.gate.gate import Gate
-from pirn.nodes.source import Source
 from pirn.nodes.sink import Sink
+from pirn.nodes.source import Source
 from pirn.tapestry import Tapestry
 
 

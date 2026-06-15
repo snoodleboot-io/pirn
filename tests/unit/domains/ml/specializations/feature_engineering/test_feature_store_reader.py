@@ -11,8 +11,8 @@ from pirn.domains.ml.feature_store_provider import FeatureStoreProvider
 from pirn.domains.ml.specializations.feature_engineering.feature_store_reader import (
     FeatureStoreReader,
 )
-from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.tapestry import Tapestry
 
 

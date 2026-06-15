@@ -93,7 +93,7 @@ jobs:
           # core's tree under .../pirn/domains/<x>/ until they extract too.
           emit core   '^packages/pirn-core/'
           emit signal '^packages/pirn-signal/'
-          emit data   '^packages/pirn-core/src/pirn/domains/data/'
+          emit data   '^packages/pirn-data/'
           emit ml     '^packages/pirn-core/src/pirn/domains/ml/'
           emit agents '^packages/pirn-agents/'
           emit health '^packages/pirn-core/src/pirn/domains/health/'

@@ -6,14 +6,14 @@ import unittest
 from unittest.mock import MagicMock
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.data.lazy.spark.spark_dataframe import SparkDataFrame
+from pirn_data.lazy.spark.spark_dataframe import SparkDataFrame
 
 try:
     import pyspark.sql  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("pyspark not installed") from _e
 
-from pirn.domains.data.lazy.spark.spark_source import SparkSource
+from pirn_data.lazy.spark.spark_source import SparkSource
 
 
 def _mock_session(frame: MagicMock | None = None) -> MagicMock:

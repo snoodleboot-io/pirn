@@ -6,14 +6,13 @@ that the optimisations rely on (e.g. TypeAdapter caching).
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import unittest
-
-from pydantic import BaseModel
+from dataclasses import dataclass
 
 from pirn.core import hashing
 from pirn.core.hashing import content_hash
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
+from pydantic import BaseModel
 
 
 @dataclass(frozen=True)

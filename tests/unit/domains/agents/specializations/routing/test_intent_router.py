@@ -9,6 +9,7 @@ from pirn_agents.specializations.routing.intent_router import (
     IntentRouter,
 )
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 

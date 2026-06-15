@@ -10,6 +10,7 @@ from pirn_agents.specializations.multi_agent.orchestrator_router import (
     OrchestratorRouter,
 )
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 

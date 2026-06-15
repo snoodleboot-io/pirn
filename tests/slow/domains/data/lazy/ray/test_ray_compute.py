@@ -12,13 +12,13 @@ ray_data = pytest.importorskip("ray.data")
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.lazy.ray.ray_compute import RayCompute
-from pirn.domains.data.lazy.ray.ray_execution_receipt import (
+from pirn.tapestry import Tapestry
+from pirn_data.lazy.ray.ray_compute import RayCompute
+from pirn_data.lazy.ray.ray_execution_receipt import (
     RayExecutionReceipt,
 )
-from pirn.domains.data.lazy.ray.ray_filter import RayFilter
-from pirn.domains.data.lazy.ray.ray_source import RaySource
-from pirn.tapestry import Tapestry
+from pirn_data.lazy.ray.ray_filter import RayFilter
+from pirn_data.lazy.ray.ray_source import RaySource
 
 
 def _orders_factory():

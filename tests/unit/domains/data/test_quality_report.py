@@ -5,8 +5,8 @@ from __future__ import annotations
 import unittest
 from datetime import datetime
 
-from pirn.domains.data.quality_check import QualityCheck
-from pirn.domains.data.quality_report import QualityReport
+from pirn_data.quality_check import QualityCheck
+from pirn_data.quality_report import QualityReport
 
 
 def _check(name: str, passed: bool) -> QualityCheck:

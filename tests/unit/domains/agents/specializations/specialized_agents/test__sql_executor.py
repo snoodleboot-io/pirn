@@ -12,6 +12,7 @@ from pirn_agents.specializations.specialized_agents._sql_executor import (
     _SQLExecutor,
 )
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.specializations.conftest import (
     StubDatabaseConnectionPool,
 )

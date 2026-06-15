@@ -5,8 +5,8 @@ from __future__ import annotations
 import unittest
 from datetime import datetime
 
-from pirn.domains.data.data_batch import DataBatch
-from pirn.domains.data.data_schema import DataSchema
+from pirn_data.data_batch import DataBatch
+from pirn_data.data_schema import DataSchema
 
 
 class TestDataBatchConstruction(unittest.TestCase):

@@ -5,13 +5,13 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
+from pirn.connectors.databases.sqlite_config import SqliteConfig
+from pirn.connectors.databases.sqlite_pool import SqlitePool
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.connectors.databases.sqlite_config import SqliteConfig
-from pirn.connectors.databases.sqlite_pool import SqlitePool
-from pirn.domains.data.specializations.incremental.delete_safe_sync import DeleteSafeSync
 from pirn.tapestry import Tapestry
+from pirn_data.specializations.incremental.delete_safe_sync import DeleteSafeSync
 
 _SOURCE_QUERY = "SELECT id, name FROM accounts ORDER BY id"
 _TARGET_TABLE = "accounts"

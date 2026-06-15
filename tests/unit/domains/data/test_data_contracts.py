@@ -5,10 +5,10 @@ from __future__ import annotations
 import unittest
 from datetime import UTC
 
-from pirn.domains.data.data_batch import DataBatch
-from pirn.domains.data.data_schema import DataSchema
-from pirn.domains.data.quality_check import QualityCheck
-from pirn.domains.data.quality_report import QualityReport
+from pirn_data.data_batch import DataBatch
+from pirn_data.data_schema import DataSchema
+from pirn_data.quality_check import QualityCheck
+from pirn_data.quality_report import QualityReport
 
 # ────────────────────────────────────────────────────────────── DataSchema
 

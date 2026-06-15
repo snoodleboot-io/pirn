@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.data.data_schema import DataSchema
+from pirn_data.data_schema import DataSchema
 
 
 class TestDataSchemaConstruction(unittest.TestCase):

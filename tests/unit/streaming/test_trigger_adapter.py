@@ -5,7 +5,6 @@ from __future__ import annotations
 import unittest
 from collections.abc import AsyncIterator
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
 
 from pirn.core.run_request import RunRequest
 from pirn.streaming.base import StreamingSource

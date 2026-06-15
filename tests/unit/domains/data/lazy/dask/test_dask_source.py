@@ -12,8 +12,8 @@ except ImportError as _e:
     raise unittest.SkipTest("dask not installed") from _e
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.data.lazy.dask.dask_dataframe import DaskDataFrame
-from pirn.domains.data.lazy.dask.dask_source import DaskSource
+from pirn_data.lazy.dask.dask_dataframe import DaskDataFrame
+from pirn_data.lazy.dask.dask_source import DaskSource
 
 
 def _make_frame() -> dd.DataFrame:

@@ -12,6 +12,7 @@ from pirn_agents.specializations.document_processing.document_summarizer_pipelin
     DocumentSummarizerPipeline,
 )
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.specializations.conftest import (
     StubLLMProvider,
 )

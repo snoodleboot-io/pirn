@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import unittest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
+from pirn.connectors.transports.valkey_transport import ValkeyTransport
 from pirn.core.transport.transport_error import TransportError
 from pirn.core.transport.transport_handle import TransportHandle
-from pirn.connectors.transports.valkey_transport import ValkeyTransport
 
 
 def _make_transport(**kwargs: object) -> ValkeyTransport:

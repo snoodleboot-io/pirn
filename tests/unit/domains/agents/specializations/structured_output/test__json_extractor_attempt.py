@@ -10,6 +10,7 @@ from pirn_agents.specializations.structured_output._json_extractor_attempt impor
     _JsonExtractorAttempt,
 )
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 

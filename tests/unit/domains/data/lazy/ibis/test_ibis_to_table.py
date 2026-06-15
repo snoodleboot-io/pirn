@@ -5,22 +5,21 @@ from __future__ import annotations
 import unittest
 
 try:
-    import ibis  # noqa: F401
+    import ibis
 except ImportError as _e:
     raise unittest.SkipTest("ibis not installed") from _e
 
 import ibis
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.lazy.ibis.ibis_connection import IbisConnection
-from pirn.domains.data.lazy.ibis.ibis_execution_receipt import IbisExecutionReceipt
-from pirn.domains.data.lazy.ibis.ibis_filter import IbisFilter
-from pirn.domains.data.lazy.ibis.ibis_source import IbisSource
-from pirn.domains.data.lazy.ibis.ibis_table import IbisTable
-from pirn.domains.data.lazy.ibis.ibis_to_table import IbisToTable
 from pirn.tapestry import Tapestry
+from pirn_data.lazy.ibis.ibis_connection import IbisConnection
+from pirn_data.lazy.ibis.ibis_execution_receipt import IbisExecutionReceipt
+from pirn_data.lazy.ibis.ibis_filter import IbisFilter
+from pirn_data.lazy.ibis.ibis_source import IbisSource
+from pirn_data.lazy.ibis.ibis_table import IbisTable
+from pirn_data.lazy.ibis.ibis_to_table import IbisToTable
 
 
 def _make_orders_con() -> ibis.BaseBackend:

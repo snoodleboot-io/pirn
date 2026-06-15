@@ -1,11 +1,11 @@
 """Tests for KnotConfig id character validation (security finding L-9)."""
 
 from __future__ import annotations
+
 import unittest
 
-from pydantic import ValidationError
-
 from pirn.core.knot_config import KnotConfig
+from pydantic import ValidationError
 
 
 def make_config(id: str) -> KnotConfig:

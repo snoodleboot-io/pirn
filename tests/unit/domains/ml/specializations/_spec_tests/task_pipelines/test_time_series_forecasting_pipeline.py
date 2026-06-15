@@ -9,6 +9,7 @@ from pirn.domains.ml.specializations.task_pipelines.time_series_forecasting_pipe
     TimeSeriesForecastingPipeline,
 )
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.ml._stubs.recording_database_pool import RecordingDatabasePool
 
 

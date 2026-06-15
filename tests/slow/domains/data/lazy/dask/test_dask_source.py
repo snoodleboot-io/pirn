@@ -10,9 +10,9 @@ pytestmark = pytest.mark.slow
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.lazy.dask.dask_dataframe import DaskDataFrame
-from pirn.domains.data.lazy.dask.dask_source import DaskSource
 from pirn.tapestry import Tapestry
+from pirn_data.lazy.dask.dask_dataframe import DaskDataFrame
+from pirn_data.lazy.dask.dask_source import DaskSource
 
 
 def _users_factory() -> dd.DataFrame:

@@ -13,6 +13,7 @@ from pirn_agents.specializations.reflection.simulation_result import (
     SimulationResult,
 )
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 _SIMULATION_RESPONSE = (

@@ -6,7 +6,6 @@ import unittest
 from collections.abc import Mapping
 
 import numpy as np
-
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.pathology.cell_detector import CellDetector
 from pirn.domains.health.types.wsi_tile import WSITile

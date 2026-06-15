@@ -6,13 +6,13 @@ import unittest
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
-from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.databases.sqlite_config import SqliteConfig
 from pirn.connectors.databases.sqlite_pool import SqlitePool
-from pirn.domains.data.specializations.scd.scd_type_1 import ScdType1
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+from pirn_data.specializations.scd.scd_type_1 import ScdType1
 
 
 def _make_pool() -> MagicMock:

@@ -8,6 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.memory_store import MemoryStore
 from pirn_agents.memory_store_knot import MemoryStoreKnot
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.specializations.conftest import StubMemoryStore
 
 

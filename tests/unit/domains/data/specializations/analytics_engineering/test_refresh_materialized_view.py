@@ -5,14 +5,14 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
+from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.connectors.database_connection_pool import DatabaseConnectionPool
-from pirn.domains.data.specializations.analytics_engineering.refresh_materialized_view import (
+from pirn.tapestry import Tapestry
+from pirn_data.specializations.analytics_engineering.refresh_materialized_view import (
     RefreshMaterializedView,
 )
-from pirn.tapestry import Tapestry
 
 _VIEW_NAME = "revenue_mv"
 _DIALECT = "postgres"

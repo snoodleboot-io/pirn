@@ -10,6 +10,7 @@ from pirn_agents.specializations.memory_patterns.semantic_fact_extractor import 
 )
 from pirn_agents.types.agent_message import AgentMessage
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 
