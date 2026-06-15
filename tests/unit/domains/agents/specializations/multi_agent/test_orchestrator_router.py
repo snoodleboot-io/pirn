@@ -6,7 +6,7 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.agents.specializations.multi_agent.orchestrator_router import (
+from pirn_agents.specializations.multi_agent.orchestrator_router import (
     OrchestratorRouter,
 )
 from pirn.tapestry import Tapestry

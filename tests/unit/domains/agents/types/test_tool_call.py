@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.agents.types.tool_call import ToolCall
+from pirn_agents.types.tool_call import ToolCall
 
 
 class TestRoundtrip(unittest.TestCase):

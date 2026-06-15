@@ -87,14 +87,15 @@ jobs:
           }
 
           # Core source now lives at packages/pirn-core/src/pirn/ (Phase 1
-          # connectors fold). Signal has extracted to packages/pirn-signal/
-          # (Phase 3 / SCD-11); the remaining domains still ride along inside
+          # connectors fold). Signal and agents have extracted to
+          # packages/pirn-signal/ and packages/pirn-agents/ (Phase 3 /
+          # SCD-11, SCD-15); the remaining domains still ride along inside
           # core's tree under .../pirn/domains/<x>/ until they extract too.
           emit core   '^packages/pirn-core/'
           emit signal '^packages/pirn-signal/'
           emit data   '^packages/pirn-core/src/pirn/domains/data/'
           emit ml     '^packages/pirn-core/src/pirn/domains/ml/'
-          emit agents '^packages/pirn-core/src/pirn/domains/agents/'
+          emit agents '^packages/pirn-agents/'
           emit health '^packages/pirn-core/src/pirn/domains/health/'
           emit oilgas '^packages/pirn-oilgas/'
 

@@ -7,10 +7,10 @@ from collections.abc import Mapping
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.agents.specializations.memory_patterns.working_memory_window_writer import (
+from pirn_agents.specializations.memory_patterns.working_memory_window_writer import (
     WorkingMemoryWindowWriter,
 )
-from pirn.domains.agents.types.agent_message import AgentMessage
+from pirn_agents.types.agent_message import AgentMessage
 from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.specializations.conftest import StubMemoryStore
 

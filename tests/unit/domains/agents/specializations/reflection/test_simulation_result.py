@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.agents.specializations.reflection.simulation_result import (
+from pirn_agents.specializations.reflection.simulation_result import (
     SimulationResult,
 )
 

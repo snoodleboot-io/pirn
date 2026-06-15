@@ -5,10 +5,10 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.agents.specializations.document_processing._qa_retrieve_and_answer import (
+from pirn_agents.specializations.document_processing._qa_retrieve_and_answer import (
     _QARetrieveAndAnswer,
 )
-from pirn.domains.agents.types.agent_response import AgentResponse
+from pirn_agents.types.agent_response import AgentResponse
 from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.specializations.conftest import (
     StubEmbeddingProvider,

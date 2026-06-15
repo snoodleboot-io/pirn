@@ -1,0 +1,112 @@
+"""``ReActTerminationCheck`` — decide whether a ReAct loop should stop.
+
+The gate inspects the trailing assistant message produced by the most
+recent :class:`ReActStepExecutor` and emits a boolean ``terminate``
+signal when:
+
+* the message contains the ``Final Answer:`` marker, *or*
+* the current iteration count has reached ``max_iterations``.
+
+The signal is a plain ``bool`` so downstream knots can branch on it
+without needing to introspect a richer record. The gate is lightweight
+on purpose: ReAct termination is a policy decision and the surrounding
+:class:`ReActLoop` already drives the iteration topology by unrolling
+a fixed number of step knots.
+
+Algorithm:
+    1. Extract the trailing assistant message from ``latest_response``.
+    2. If the message content contains ``Final Answer:``, return ``True``.
+    3. If ``current_iteration >= max_iterations``, return ``True``.
+    4. Otherwise return ``False``.
+
+
+References:
+    - Yao et al., "ReAct: Synergizing Reasoning and Acting in Language Models",
+      ICLR 2023. https://arxiv.org/abs/2210.03629
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
+
+from pirn_agents.types.agent_message import AgentMessage
+
+
+class ReActTerminationCheck(Knot):
+    """Stops the ReAct loop on a final-answer marker or iteration cap."""
+
+    _final_answer_marker: str = "Final Answer:"
+
+    def __init__(
+        self,
+        *,
+        latest_response: Knot,
+        max_iterations: Knot | int,
+        current_iteration: Knot | int,
+        _config: KnotConfig,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            latest_response=latest_response,
+            max_iterations=max_iterations,
+            current_iteration=current_iteration,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        latest_response: Any,
+        max_iterations: int,
+        current_iteration: int,
+        **_: Any,
+    ) -> bool:
+        """Return True when the latest step contains a final-answer marker or the iteration cap is reached.
+
+        Args:
+            latest_response: The output of the most recent ReActStepExecutor, used to check for a final-answer marker.
+            max_iterations: The maximum number of iterations before forced termination.
+            current_iteration: The 1-based count of the iteration just completed.
+
+        Returns:
+            True if the final-answer marker is present or current_iteration has reached max_iterations.
+
+        Raises:
+            ValueError: If max_iterations is not a positive int or current_iteration is negative.
+        """
+        if not isinstance(max_iterations, int) or max_iterations <= 0:
+            raise ValueError(
+                "ReActTerminationCheck: max_iterations must be a positive int, "
+                f"got {max_iterations!r}"
+            )
+        if not isinstance(current_iteration, int) or current_iteration < 0:
+            raise ValueError(
+                "ReActTerminationCheck: current_iteration must be a non-negative int, "
+                f"got {current_iteration!r}"
+            )
+        messages = self._coerce_messages(latest_response)
+        for message in reversed(messages):
+            if message.role == "assistant":
+                if self._final_answer_marker in message.content:
+                    return True
+                break
+        if current_iteration >= max_iterations:
+            return True
+        return False
+
+    @staticmethod
+    def _coerce_messages(latest_response: Any) -> tuple[AgentMessage, ...]:
+        if isinstance(latest_response, AgentMessage):
+            return (latest_response,)
+        if isinstance(latest_response, (tuple, list)):
+            collected: list[AgentMessage] = []
+            for item in latest_response:
+                if isinstance(item, AgentMessage):
+                    collected.append(item)
+            return tuple(collected)
+        if hasattr(latest_response, "messages"):
+            return tuple(m for m in latest_response.messages if isinstance(m, AgentMessage))
+        return ()

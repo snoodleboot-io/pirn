@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.agents.specializations.reflection.constitutional_violation_error import (
+from pirn_agents.specializations.reflection.constitutional_violation_error import (
     ConstitutionalViolationError,
 )
 

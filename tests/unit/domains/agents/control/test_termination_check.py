@@ -6,8 +6,8 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
-from pirn.domains.agents.control.termination_check import TerminationCheck
-from pirn.domains.agents.types.agent_response import AgentResponse
+from pirn_agents.control.termination_check import TerminationCheck
+from pirn_agents.types.agent_response import AgentResponse
 from pirn.tapestry import Tapestry
 
 

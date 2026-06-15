@@ -6,11 +6,11 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.agents.specializations.guardrails.output_guardrail_gate import (
+from pirn_agents.specializations.guardrails.output_guardrail_gate import (
     OutputGuardrailGate,
 )
-from pirn.domains.agents.types.agent_response import AgentResponse
-from pirn.domains.agents.types.tool_call import ToolCall
+from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.tool_call import ToolCall
 from pirn.tapestry import Tapestry
 
 

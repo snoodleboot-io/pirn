@@ -6,10 +6,10 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.agents.specializations.guardrails.input_message_scrubber import (
+from pirn_agents.specializations.guardrails.input_message_scrubber import (
     InputMessageScrubber,
 )
-from pirn.domains.agents.types.agent_message import AgentMessage
+from pirn_agents.types.agent_message import AgentMessage
 from pirn.tapestry import Tapestry
 
 

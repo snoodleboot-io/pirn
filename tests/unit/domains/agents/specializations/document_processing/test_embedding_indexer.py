@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.agents.specializations.document_processing.embedding_indexer import (
+from pirn_agents.specializations.document_processing.embedding_indexer import (
     EmbeddingIndexer,
 )
 from pirn.tapestry import Tapestry

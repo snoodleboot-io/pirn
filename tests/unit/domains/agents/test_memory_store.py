@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.agents.memory_store import MemoryStore
+from pirn_agents.memory_store import MemoryStore
 
 
 class TestMemoryStoreInterface(unittest.IsolatedAsyncioTestCase):

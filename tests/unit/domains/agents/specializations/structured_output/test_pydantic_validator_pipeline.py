@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.agents.specializations.structured_output.pydantic_validator_pipeline import (
+from pirn_agents.specializations.structured_output.pydantic_validator_pipeline import (
     PydanticValidatorPipeline,
 )
 from pirn.tapestry import Tapestry

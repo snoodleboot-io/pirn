@@ -6,10 +6,10 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.agents.specializations.guardrails.pii_response_redactor import (
+from pirn_agents.specializations.guardrails.pii_response_redactor import (
     PIIResponseRedactor,
 )
-from pirn.domains.agents.types.agent_response import AgentResponse
+from pirn_agents.types.agent_response import AgentResponse
 from pirn.tapestry import Tapestry
 
 

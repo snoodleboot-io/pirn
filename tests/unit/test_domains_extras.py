@@ -81,8 +81,8 @@ class TestDomainImportGuards(unittest.TestCase):
         pass  # no domains currently call ExtrasLoader at package-init time
 
     def test_agents_imports_without_any_extras(self) -> None:
-        sys.modules.pop("pirn.domains.agents", None)
-        import pirn.domains.agents  # noqa: F401
+        sys.modules.pop("pirn_agents", None)
+        import pirn_agents  # noqa: F401
 
     def test_connectors_namespace_imports_without_extras(self) -> None:
         sys.modules.pop("pirn.connectors", None)

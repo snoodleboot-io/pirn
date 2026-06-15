@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 
-from pirn.domains.agents.types.agent_message import AgentMessage
+from pirn_agents.types.agent_message import AgentMessage
 
 
 class TestRoundtrip(unittest.TestCase):

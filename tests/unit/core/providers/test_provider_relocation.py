@@ -39,7 +39,7 @@ class TestOldPathsAreGone(unittest.TestCase):
 
     def test_llm_provider_old_module_removed(self) -> None:
         with self.assertRaises(ModuleNotFoundError):
-            importlib.import_module("pirn.domains.agents.llm_provider")
+            importlib.import_module("pirn_agents.llm_provider")
 
 
 if __name__ == "__main__":

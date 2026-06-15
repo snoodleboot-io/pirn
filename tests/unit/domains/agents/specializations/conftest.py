@@ -11,8 +11,8 @@ from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from typing import Any
 
 from pirn.core.providers.llm_provider import LLMProvider
-from pirn.domains.agents.memory_store import MemoryStore
-from pirn.domains.agents.tool import Tool
+from pirn_agents.memory_store import MemoryStore
+from pirn_agents.tool import Tool
 from pirn.connectors.database_connection_pool import (
     DatabaseConnectionPool,
 )

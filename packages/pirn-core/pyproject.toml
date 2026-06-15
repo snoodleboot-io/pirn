@@ -70,7 +70,9 @@ otel = ["opentelemetry-api>=1.20", "opentelemetry-sdk>=1.20"]
 # TRANSITIONAL: these move to their own packages as domains extract (Phase 3).
 # ─────────────────────────────────────────────────────────────────────────────
 data    = ["pandas>=2.0", "pyarrow>=14.0"]
-agents  = []  # no heavy core deps; LLM/memory/tool providers are user-supplied
+# NOTE: the `agents` domain extracted to the pirn-agents package (SCD-15).
+# It had no heavy core deps (LLM/memory/tool providers are user-supplied), so
+# there is nothing to install beyond the package itself: `pip install pirn-agents`.
 ml      = ["numpy>=1.26", "pandas>=2.0", "scikit-learn>=1.4"]
 health  = [
     "pydicom>=2.4",

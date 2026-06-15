@@ -1,6 +1,6 @@
 # Agents domain
 
-The agents domain (`pirn/domains/agents/`) provides a library of knots and interfaces for building LLM-backed pipelines in pirn. Every piece of agent behaviour — prompting, streaming, memory, planning, tool execution, control flow, and output parsing — is expressed as an ordinary knot that wires into a tapestry like any other. There is no hidden loop runtime: the agent loop is just your pipeline graph.
+The agents domain (`pirn_agents/`) provides a library of knots and interfaces for building LLM-backed pipelines in pirn. Every piece of agent behaviour — prompting, streaming, memory, planning, tool execution, control flow, and output parsing — is expressed as an ordinary knot that wires into a tapestry like any other. There is no hidden loop runtime: the agent loop is just your pipeline graph.
 
 ```bash
 pip install pirn[agents]
@@ -76,7 +76,7 @@ class AnthropicProvider(LLMProvider):
 
 ### Tool
 
-`Tool` (`pirn/domains/agents/tool.py`) is the interface for any capability an agent can call during planning. Inherit from it and implement four members:
+`Tool` (`pirn_agents/tool.py`) is the interface for any capability an agent can call during planning. Inherit from it and implement four members:
 
 | Member | Kind | Description |
 |--------|------|-------------|
@@ -88,7 +88,7 @@ class AnthropicProvider(LLMProvider):
 Tools are passed as config values to knots that use them (e.g. `ToolRouter`, `ToolExecutor`). Like providers, tools are treated as opaque by pirn's content-addressing.
 
 ```python
-from pirn.domains.agents.tool import Tool
+from pirn_agents.tool import Tool
 
 class WebSearchTool(Tool):
     def __init__(self, api_key: str) -> None:
@@ -121,7 +121,7 @@ class WebSearchTool(Tool):
 For plain functions, use the `@tool` decorator instead of subclassing. It derives `name` from the function name, `description` from the docstring's first paragraph, and `parameters_schema` from type annotations. Both sync and async functions are accepted.
 
 ```python
-from pirn.domains.agents import tool
+from pirn_agents import tool
 
 @tool
 async def web_search(query: str, max_results: int = 5) -> str:
@@ -141,7 +141,7 @@ react = ReActLoop(messages=msgs, llm=provider, tools=[web_search, lookup_policy]
 
 ### MemoryStore
 
-`MemoryStore` (`pirn/domains/agents/memory_store.py`) is the interface for keyed storage with optional similarity search. Inherit from it and implement:
+`MemoryStore` (`pirn_agents/memory_store.py`) is the interface for keyed storage with optional similarity search. Inherit from it and implement:
 
 | Method | Description |
 |--------|-------------|
@@ -251,15 +251,15 @@ The example below wires a simple tool-using chat agent. Raw user text enters thr
 ```python
 import asyncio
 from pirn import Tapestry, Parameter, KnotConfig, RunRequest
-from pirn.domains.agents.input.message_parser import MessageParser
-from pirn.domains.agents.input.context_builder import ContextBuilder
-from pirn.domains.agents.generation.llm_call import LLMCall
-from pirn.domains.agents.generation.output_parser import OutputParser
-from pirn.domains.agents.generation.response_formatter import ResponseFormatter
-from pirn.domains.agents.control.safety_check import SafetyCheck
-from pirn.domains.agents.planning.planner import Planner
-from pirn.domains.agents.planning.tool_router import ToolRouter
-from pirn.domains.agents.planning.tool_executor import ToolExecutor
+from pirn_agents.input.message_parser import MessageParser
+from pirn_agents.input.context_builder import ContextBuilder
+from pirn_agents.generation.llm_call import LLMCall
+from pirn_agents.generation.output_parser import OutputParser
+from pirn_agents.generation.response_formatter import ResponseFormatter
+from pirn_agents.control.safety_check import SafetyCheck
+from pirn_agents.planning.planner import Planner
+from pirn_agents.planning.tool_router import ToolRouter
+from pirn_agents.planning.tool_executor import ToolExecutor
 
 # Your provider and tool implementations.
 from myapp.providers import AnthropicProvider
@@ -329,7 +329,7 @@ asyncio.run(main())
 For higher-level patterns, use the pre-built `SubTapestry` pipelines from `specializations/`. For example, `NaiveRagPipeline` wraps the full retrieve-prompt-answer cycle in a single node:
 
 ```python
-from pirn.domains.agents.specializations.rag.naive_rag_pipeline import NaiveRagPipeline
+from pirn_agents.specializations.rag.naive_rag_pipeline import NaiveRagPipeline
 
 rag = NaiveRagPipeline(
     query=query_knot,

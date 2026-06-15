@@ -5,10 +5,10 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.agents.specializations.react.messages_passthrough import (
+from pirn_agents.specializations.react.messages_passthrough import (
     MessagesPassthrough,
 )
-from pirn.domains.agents.types.agent_message import AgentMessage
+from pirn_agents.types.agent_message import AgentMessage
 from pirn.tapestry import Tapestry
 
 

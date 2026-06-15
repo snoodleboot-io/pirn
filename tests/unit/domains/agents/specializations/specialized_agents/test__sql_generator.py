@@ -6,7 +6,7 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.agents.specializations.specialized_agents._sql_generator import (
+from pirn_agents.specializations.specialized_agents._sql_generator import (
     _SQLGenerator,
 )
 from pirn.tapestry import Tapestry

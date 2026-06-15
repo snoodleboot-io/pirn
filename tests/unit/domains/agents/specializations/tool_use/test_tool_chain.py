@@ -5,9 +5,9 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.agents.specializations.tool_use.tool_chain import ToolChain
-from pirn.domains.agents.types.tool_call import ToolCall
-from pirn.domains.agents.types.tool_result import ToolResult
+from pirn_agents.specializations.tool_use.tool_chain import ToolChain
+from pirn_agents.types.tool_call import ToolCall
+from pirn_agents.types.tool_result import ToolResult
 from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.specializations.conftest import StubTool
 

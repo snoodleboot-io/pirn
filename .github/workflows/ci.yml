@@ -148,8 +148,8 @@ jobs:
 
       - name: "[agents] install + import"
         run: |
-          uv pip install --system -e ".[agents]"
-          uv run python -c "import pirn.domains.agents; print('OK: agents')"
+          uv pip install --system -e "./packages/pirn-agents"
+          uv run python -c "import pirn_agents; print('OK: agents')"
 
       - name: "[ml] install + import"
         run: |
@@ -175,7 +175,7 @@ jobs:
         run: |
           uv run python -c "
           import pirn.domains
-          import pirn.domains.agents
+          import pirn_agents
           import pirn.connectors
           print('OK: namespace + agents + connectors import without their own extras')
           "

@@ -7,7 +7,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.agents.specializations.memory_patterns.semantic_fact_writer import (
+from pirn_agents.specializations.memory_patterns.semantic_fact_writer import (
     SemanticFactWriter,
 )
 from pirn.tapestry import Tapestry
