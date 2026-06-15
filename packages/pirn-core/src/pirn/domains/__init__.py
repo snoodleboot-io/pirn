@@ -8,14 +8,14 @@ becomes resolvable by name through
 :class:`sweet_tea.abstract_inverter_factory.AbstractInverterFactory[Knot]`.
 
 - ``pirn.domains.data``        — Data Engineering / Analytics Engineering
-- ``pirn.domains.agents``      — Agentic Pipelines / Patterns
 - ``pirn.domains.ml``          — ML Engineering / Data Science
 - ``pirn.connectors``  — Cross-cutting Source/Sink connectors
 - ``pirn.domains.health``      — Healthcare / Genomics / Imaging / EEG/MEG
 
-The Digital Signal Processing and Oil & Gas domains are shipped separately
-as the ``pirn_signal`` and ``pirn_oilgas`` packages
-(``pip install pirn-signal pirn-oilgas``).
+The Digital Signal Processing, Oil & Gas, and Agentic Pipelines / Patterns
+domains are shipped separately as the ``pirn_signal``, ``pirn_oilgas``, and
+``pirn_agents`` packages
+(``pip install pirn-signal pirn-oilgas pirn-agents``).
 
 Heavy dependencies for each domain are isolated via optional extras. Install
 only the domains you use::

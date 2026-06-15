@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.agents.types.agent_context import AgentContext
-from pirn.domains.agents.types.agent_message import AgentMessage
+from pirn_agents.types.agent_context import AgentContext
+from pirn_agents.types.agent_message import AgentMessage
 
 
 class TestRoundtrip(unittest.TestCase):

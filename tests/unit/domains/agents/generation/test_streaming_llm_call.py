@@ -6,9 +6,9 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
-from pirn.domains.agents.generation.streaming_llm_call import StreamingLLMCall
-from pirn.domains.agents.types.agent_context import AgentContext
-from pirn.domains.agents.types.agent_message import AgentMessage
+from pirn_agents.generation.streaming_llm_call import StreamingLLMCall
+from pirn_agents.types.agent_context import AgentContext
+from pirn_agents.types.agent_message import AgentMessage
 from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.conftest import StubLLMProvider
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.agents.specializations.routing.confidence_router import (
+from pirn_agents.specializations.routing.confidence_router import (
     ConfidenceRouter,
 )
 from pirn.tapestry import Tapestry

@@ -6,10 +6,10 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
-from pirn.domains.agents.planning.planner import Planner
-from pirn.domains.agents.types.agent_context import AgentContext
-from pirn.domains.agents.types.agent_message import AgentMessage
-from pirn.domains.agents.types.plan import Plan
+from pirn_agents.planning.planner import Planner
+from pirn_agents.types.agent_context import AgentContext
+from pirn_agents.types.agent_message import AgentMessage
+from pirn_agents.types.plan import Plan
 from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.conftest import StubLLMProvider
 

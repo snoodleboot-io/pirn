@@ -8,7 +8,7 @@ from pathlib import Path
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.agents.specializations.document_processing.document_translation_pipeline import (
+from pirn_agents.specializations.document_processing.document_translation_pipeline import (
     DocumentTranslationPipeline,
 )
 from pirn.tapestry import Tapestry

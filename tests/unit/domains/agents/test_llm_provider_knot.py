@@ -6,7 +6,7 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.providers.llm_provider import LLMProvider
-from pirn.domains.agents.llm_provider_knot import LLMProviderKnot
+from pirn_agents.llm_provider_knot import LLMProviderKnot
 from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 

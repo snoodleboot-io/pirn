@@ -6,8 +6,8 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
-from pirn.domains.agents.planning.tool_router import ToolRouter
-from pirn.domains.agents.types.tool_call import ToolCall
+from pirn_agents.planning.tool_router import ToolRouter
+from pirn_agents.types.tool_call import ToolCall
 from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.conftest import StubTool
 

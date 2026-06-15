@@ -5,10 +5,10 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.agents.specializations.human_in_the_loop.escalation_router import (
+from pirn_agents.specializations.human_in_the_loop.escalation_router import (
     EscalationRouter,
 )
-from pirn.domains.agents.types.agent_response import AgentResponse
+from pirn_agents.types.agent_response import AgentResponse
 from pirn.tapestry import Tapestry
 
 

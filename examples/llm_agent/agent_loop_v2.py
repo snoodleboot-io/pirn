@@ -1,10 +1,10 @@
-"""Example: Agent session v2 — dynamic DAG backed by pirn.domains.agents.
+"""Example: Agent session v2 — dynamic DAG backed by pirn_agents.
 
 Identical extensible-tapestry architecture as agent_loop.py: a single
 extensible run grows with each iteration as knots register their successors.
 
 The difference from v1 is that every **action knot** is a real
-``pirn.domains.agents`` composite instead of an ad-hoc helper:
+``pirn_agents`` composite instead of an ad-hoc helper:
 
   llm_task   — ContextBuilder → LLMCall → OutputParser
   react      — ReActLoop (Reason+Act loop, 3 iterations)
@@ -44,17 +44,17 @@ from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.agents.generation.llm_call import LLMCall
-from pirn.domains.agents.generation.output_parser import OutputParser
-from pirn.domains.agents.input.context_builder import ContextBuilder
+from pirn_agents.generation.llm_call import LLMCall
+from pirn_agents.generation.output_parser import OutputParser
+from pirn_agents.input.context_builder import ContextBuilder
 from pirn.core.providers.llm_provider import LLMProvider
-from pirn.domains.agents.planning.planner import Planner
-from pirn.domains.agents.planning.tool_executor import ToolExecutor
-from pirn.domains.agents.planning.tool_router import ToolRouter
-from pirn.domains.agents.specializations.react.react_loop import ReActLoop
-from pirn.domains.agents.tool import Tool
-from pirn.domains.agents.types.agent_message import AgentMessage
-from pirn.domains.agents.types.agent_response import AgentResponse
+from pirn_agents.planning.planner import Planner
+from pirn_agents.planning.tool_executor import ToolExecutor
+from pirn_agents.planning.tool_router import ToolRouter
+from pirn_agents.specializations.react.react_loop import ReActLoop
+from pirn_agents.tool import Tool
+from pirn_agents.types.agent_message import AgentMessage
+from pirn_agents.types.agent_response import AgentResponse
 from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry, get_current_store
@@ -357,7 +357,7 @@ class _PlanFirstStep(Knot):
     """Extract the first step string from a ``Plan`` for ``ToolRouter``."""
 
     async def process(self, plan: Any, **_: Any) -> str:
-        from pirn.domains.agents.types.plan import Plan as _Plan
+        from pirn_agents.types.plan import Plan as _Plan
 
         if isinstance(plan, _Plan) and plan.steps:
             return plan.steps[0]
@@ -421,7 +421,7 @@ class PlannerRunner(SubTapestry):
 class AgentPlanner(Knot):
     """Plans next actions and registers the appropriate agent knots.
 
-    Each action becomes a real ``pirn.domains.agents`` SubTapestry:
+    Each action becomes a real ``pirn_agents`` SubTapestry:
     ``LLMTaskRunner``, ``ReActRunner``, or ``PlannerRunner``.
     """
 
@@ -596,7 +596,7 @@ async def main() -> None:
 
     _TYPE_ICON = {"llm_task": "💬", "react": "🔄", "planner": "📋", "agent": "🤖"}
 
-    print("\n── Agent session v2 (pirn.domains.agents) ──\n")
+    print("\n── Agent session v2 (pirn_agents) ──\n")
 
     result = await t.run(extensible=True)
 

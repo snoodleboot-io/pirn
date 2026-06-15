@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.agents.specializations.document_processing._document_loader import (
+from pirn_agents.specializations.document_processing._document_loader import (
     _DocumentLoader,
 )
 from pirn.tapestry import Tapestry

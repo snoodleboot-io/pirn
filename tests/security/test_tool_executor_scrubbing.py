@@ -7,10 +7,10 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.agents.tool import Tool
-from pirn.domains.agents.types.tool_call import ToolCall
-from pirn.domains.agents.types.tool_result import ToolResult
-from pirn.domains.agents.planning.tool_executor import ToolExecutor
+from pirn_agents.tool import Tool
+from pirn_agents.types.tool_call import ToolCall
+from pirn_agents.types.tool_result import ToolResult
+from pirn_agents.planning.tool_executor import ToolExecutor
 from pirn.tapestry import Tapestry
 
 

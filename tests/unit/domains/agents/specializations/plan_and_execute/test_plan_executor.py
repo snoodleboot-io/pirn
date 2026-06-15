@@ -7,11 +7,11 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.agents.specializations.plan_and_execute.plan_executor import (
+from pirn_agents.specializations.plan_and_execute.plan_executor import (
     PlanExecutor,
 )
-from pirn.domains.agents.types.agent_response import AgentResponse
-from pirn.domains.agents.types.plan import Plan
+from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.plan import Plan
 from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 

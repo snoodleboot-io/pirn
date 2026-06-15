@@ -8,11 +8,11 @@ from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.agents.memory_store import MemoryStore
-from pirn.domains.agents.specializations.memory_patterns.episodic_memory_pipeline import (
+from pirn_agents.memory_store import MemoryStore
+from pirn_agents.specializations.memory_patterns.episodic_memory_pipeline import (
     EpisodicMemoryPipeline,
 )
-from pirn.domains.agents.types.agent_message import AgentMessage
+from pirn_agents.types.agent_message import AgentMessage
 from pirn.tapestry import Tapestry
 
 

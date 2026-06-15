@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.agents.specializations.document_processing._document_loader import (
+from pirn_agents.specializations.document_processing._document_loader import (
     _DocumentLoader,
 )
 from pirn.tapestry import Tapestry
@@ -101,7 +101,7 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
     async def test_loopback_url_raises(self) -> None:
         loader = _build_loader()
         with unittest.mock.patch(
-            "pirn.domains.agents.specializations.document_processing"
+            "pirn_agents.specializations.document_processing"
             "._document_loader.socket.gethostbyname",
             lambda host: "127.0.0.1",
         ):
@@ -111,7 +111,7 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
     async def test_private_ip_raises(self) -> None:
         loader = _build_loader()
         with unittest.mock.patch(
-            "pirn.domains.agents.specializations.document_processing"
+            "pirn_agents.specializations.document_processing"
             "._document_loader.socket.gethostbyname",
             lambda host: "10.0.0.1",
         ):
@@ -121,7 +121,7 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
     async def test_imds_metadata_raises(self) -> None:
         loader = _build_loader()
         with unittest.mock.patch(
-            "pirn.domains.agents.specializations.document_processing"
+            "pirn_agents.specializations.document_processing"
             "._document_loader.socket.gethostbyname",
             lambda host: "169.254.169.254",
         ):
@@ -136,7 +136,7 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
             raise _socket.gaierror("dns failure")
 
         with unittest.mock.patch(
-            "pirn.domains.agents.specializations.document_processing"
+            "pirn_agents.specializations.document_processing"
             "._document_loader.socket.gethostbyname",
             _boom,
         ):
@@ -146,7 +146,7 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
     async def test_host_not_in_allowlist_raises(self) -> None:
         loader = _build_loader()
         with unittest.mock.patch(
-            "pirn.domains.agents.specializations.document_processing"
+            "pirn_agents.specializations.document_processing"
             "._document_loader.socket.gethostbyname",
             lambda host: "93.184.216.34",
         ):
@@ -178,7 +178,7 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
         import httpx
 
         with unittest.mock.patch(
-            "pirn.domains.agents.specializations.document_processing"
+            "pirn_agents.specializations.document_processing"
             "._document_loader.socket.gethostbyname",
             lambda host: "93.184.216.34",
         ):

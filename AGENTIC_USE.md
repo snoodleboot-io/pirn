@@ -556,7 +556,7 @@ domain guide alongside this file before writing domain code.
 
 | Domain | Guide | Install extra |
 |--------|-------|---------------|
-| Agents — LLM pipelines, tool use, RAG, ReAct, multi-agent | [pirn/domains/agents/AGENTIC_USE.md](pirn/domains/agents/AGENTIC_USE.md) | `pirn[agents]` |
+| Agents — LLM pipelines, tool use, RAG, ReAct, multi-agent | [packages/pirn-agents/src/pirn_agents/AGENTIC_USE.md](packages/pirn-agents/src/pirn_agents/AGENTIC_USE.md) | `pirn-agents` |
 | Data — tiered dataframe transforms (Polars, DuckDB, Ibis, …) | [pirn/domains/data/AGENTIC_USE.md](pirn/domains/data/AGENTIC_USE.md) | `pirn[data]` |
 | ML — training, evaluation, deployment, artifact formats | [pirn/domains/ml/AGENTIC_USE.md](pirn/domains/ml/AGENTIC_USE.md) | `pirn[ml]` |
 | Health — DICOM, FHIR, HL7v2, EDF, genomics, PHI redaction | [pirn/domains/health/AGENTIC_USE.md](pirn/domains/health/AGENTIC_USE.md) | `pirn[health]` |

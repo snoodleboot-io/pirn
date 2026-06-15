@@ -6,9 +6,9 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
-from pirn.domains.agents.control.safety_check import SafetyCheck
-from pirn.domains.agents.types.agent_message import AgentMessage
-from pirn.domains.agents.types.agent_response import AgentResponse
+from pirn_agents.control.safety_check import SafetyCheck
+from pirn_agents.types.agent_message import AgentMessage
+from pirn_agents.types.agent_response import AgentResponse
 from pirn.tapestry import Tapestry
 
 

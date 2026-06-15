@@ -5,8 +5,8 @@ from __future__ import annotations
 import asyncio
 import unittest
 
-from pirn.domains.agents.tool import Tool
-from pirn.domains.agents.tool_decorator import FunctionTool, tool
+from pirn_agents.tool import Tool
+from pirn_agents.tool_decorator import FunctionTool, tool
 
 # ----------------------------------------------------------------- fixtures
 
@@ -149,8 +149,8 @@ class _StandaloneTests(unittest.TestCase):
     
     
     def test_top_level_import(self):
-        from pirn.domains.agents import FunctionTool as ImportedFunctionTool
-        from pirn.domains.agents import tool as imported_tool
+        from pirn_agents import FunctionTool as ImportedFunctionTool
+        from pirn_agents import tool as imported_tool
     
         assert imported_tool is tool
         assert ImportedFunctionTool is FunctionTool

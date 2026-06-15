@@ -114,7 +114,7 @@ nodes:
 
 ## domain_formats
 
-End-to-end examples that wire real `pirn.domains.agents` and `pirn.connectors` knots into runnable pipelines. Synthetic data is used throughout so none of them require external files or network access.
+End-to-end examples that wire real `pirn_agents` and `pirn.connectors` knots into runnable pipelines. Synthetic data is used throughout so none of them require external files or network access.
 
 ### medical_triage_agent.py
 
@@ -222,7 +222,7 @@ This is the right starting point for modelling real agent workloads where the ex
 uv run python examples/llm_agent/agent_loop_v2.py
 ```
 
-A second take on the dynamic agent loop that replaces ad-hoc action helpers with real `pirn.domains.agents` composites. The outer dynamic DAG shell is identical to `agent_loop.py` — `AgentPlanner` registers actions, `AgentDecider` integrates results and grows the graph. What changes is the action layer:
+A second take on the dynamic agent loop that replaces ad-hoc action helpers with real `pirn_agents` composites. The outer dynamic DAG shell is identical to `agent_loop.py` — `AgentPlanner` registers actions, `AgentDecider` integrates results and grows the graph. What changes is the action layer:
 
 | Action type | Inner pipeline |
 |-------------|----------------|

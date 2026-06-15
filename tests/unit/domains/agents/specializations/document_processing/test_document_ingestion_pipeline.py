@@ -9,8 +9,8 @@ from pathlib import Path
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.agents.memory_store import MemoryStore
-from pirn.domains.agents.specializations.document_processing.document_ingestion_pipeline import (
+from pirn_agents.memory_store import MemoryStore
+from pirn_agents.specializations.document_processing.document_ingestion_pipeline import (
     DocumentIngestionPipeline,
 )
 from pirn.tapestry import Tapestry

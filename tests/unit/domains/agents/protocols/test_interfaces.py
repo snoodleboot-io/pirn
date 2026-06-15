@@ -9,8 +9,8 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.providers.llm_provider import LLMProvider
-from pirn.domains.agents.memory_store import MemoryStore
-from pirn.domains.agents.tool import Tool
+from pirn_agents.memory_store import MemoryStore
+from pirn_agents.tool import Tool
 
 
 class TestLLMProviderInterface(unittest.IsolatedAsyncioTestCase):

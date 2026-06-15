@@ -8,10 +8,10 @@ from pathlib import Path
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.agents.specializations.document_processing.document_qa_pipeline import (
+from pirn_agents.specializations.document_processing.document_qa_pipeline import (
     DocumentQAPipeline,
 )
-from pirn.domains.agents.types.agent_response import AgentResponse
+from pirn_agents.types.agent_response import AgentResponse
 from pirn.tapestry import Tapestry
 from tests.unit.domains.agents.specializations.conftest import (
     StubEmbeddingProvider,

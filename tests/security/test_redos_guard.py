@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.agents._regex_utils import _max_pattern_length, compile_safe_pattern
+from pirn_agents._regex_utils import _max_pattern_length, compile_safe_pattern
 
 
 class TestCompileSafePattern(unittest.TestCase):
@@ -41,8 +41,8 @@ class TestSafetyCheckReDoSGuard(unittest.TestCase):
     def test_long_pattern_rejected_at_construction(self) -> None:
         from pirn.core.knot_config import KnotConfig
         from pirn.core.knot_factory import knot
-        from pirn.domains.agents.control.safety_check import SafetyCheck
-        from pirn.domains.agents.types.agent_message import AgentMessage
+        from pirn_agents.control.safety_check import SafetyCheck
+        from pirn_agents.types.agent_message import AgentMessage
         from pirn.tapestry import Tapestry
 
         long_pattern = "a" * (_max_pattern_length + 1)
@@ -63,8 +63,8 @@ class TestSafetyCheckReDoSGuard(unittest.TestCase):
     def test_empty_deny_patterns_rejected(self) -> None:
         from pirn.core.knot_config import KnotConfig
         from pirn.core.knot_factory import knot
-        from pirn.domains.agents.control.safety_check import SafetyCheck
-        from pirn.domains.agents.types.agent_message import AgentMessage
+        from pirn_agents.control.safety_check import SafetyCheck
+        from pirn_agents.types.agent_message import AgentMessage
         from pirn.tapestry import Tapestry
 
         @knot
@@ -81,8 +81,8 @@ class TestHandoffCheckReDoSGuard(unittest.TestCase):
     def test_long_pattern_rejected_at_construction(self) -> None:
         from pirn.core.knot_config import KnotConfig
         from pirn.core.knot_factory import knot
-        from pirn.domains.agents.control.handoff_check import HandoffCheck
-        from pirn.domains.agents.types.agent_response import AgentResponse
+        from pirn_agents.control.handoff_check import HandoffCheck
+        from pirn_agents.types.agent_response import AgentResponse
         from pirn.tapestry import Tapestry
 
         long_pattern = "b" * (_max_pattern_length + 1)

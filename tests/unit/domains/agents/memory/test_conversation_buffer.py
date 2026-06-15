@@ -6,8 +6,8 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
-from pirn.domains.agents.memory.conversation_buffer import ConversationBuffer
-from pirn.domains.agents.types.agent_message import AgentMessage
+from pirn_agents.memory.conversation_buffer import ConversationBuffer
+from pirn_agents.types.agent_message import AgentMessage
 from pirn.tapestry import Tapestry
 
 

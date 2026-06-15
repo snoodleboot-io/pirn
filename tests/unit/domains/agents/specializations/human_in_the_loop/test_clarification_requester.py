@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.agents.specializations.human_in_the_loop.clarification_requester import (
+from pirn_agents.specializations.human_in_the_loop.clarification_requester import (
     ClarificationRequester,
 )
 from pirn.tapestry import Tapestry
