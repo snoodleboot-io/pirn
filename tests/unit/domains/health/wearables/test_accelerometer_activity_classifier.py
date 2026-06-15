@@ -8,10 +8,10 @@ from typing import Any
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.health.wearables.accelerometer_activity_classifier import (
+from pirn.tapestry import Tapestry
+from pirn_health.wearables.accelerometer_activity_classifier import (
     AccelerometerActivityClassifier,
 )
-from pirn.tapestry import Tapestry
 
 
 @knot

@@ -7,8 +7,8 @@ from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.health.pathology.tumor_microbiota_classifier import TumorMicrobiotaClassifier
 from pirn.tapestry import Tapestry
+from pirn_health.pathology.tumor_microbiota_classifier import TumorMicrobiotaClassifier
 
 _CFG = KnotConfig(id="tm")
 _SEQUENCE_DATA: dict[str, Any] = {

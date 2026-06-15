@@ -6,10 +6,10 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.health.clinical.medication_reconciliation_pipeline import (
+from pirn.tapestry import Tapestry
+from pirn_health.clinical.medication_reconciliation_pipeline import (
     MedicationReconciliationPipeline,
 )
-from pirn.tapestry import Tapestry
 
 _CFG = KnotConfig(id="m")
 

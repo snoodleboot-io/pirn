@@ -6,7 +6,7 @@ import unittest
 from collections.abc import Mapping
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.genomics.multi_omics_integrator import MultiOmicsIntegrator
+from pirn_health.genomics.multi_omics_integrator import MultiOmicsIntegrator
 
 _CFG = KnotConfig(id="i")
 

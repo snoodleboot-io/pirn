@@ -6,8 +6,8 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.trials.randomized_trial_analyzer import RandomizedTrialAnalyzer
 from pirn.tapestry import Tapestry
+from pirn_health.trials.randomized_trial_analyzer import RandomizedTrialAnalyzer
 
 _TRIAL_DATA: list[dict[str, Any]] = [
     {"patient_id": "P1", "treatment": True, "outcome": True},

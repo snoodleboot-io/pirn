@@ -6,10 +6,10 @@ import unittest
 from collections.abc import Mapping
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.clinical.readmission_risk_scorer import (
+from pirn_health.clinical.readmission_risk_scorer import (
     ReadmissionRiskScorer,
 )
-from pirn.domains.health.types.clinical_record import ClinicalRecord
+from pirn_health.types.clinical_record import ClinicalRecord
 
 _CFG = KnotConfig(id="s")
 _KNOT = ReadmissionRiskScorer(records=[], _config=_CFG)

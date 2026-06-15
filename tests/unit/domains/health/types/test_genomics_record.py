@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.health.types.genomics_record import GenomicsRecord
+from pirn_health.types.genomics_record import GenomicsRecord
 
 
 class TestConstruction(unittest.TestCase):

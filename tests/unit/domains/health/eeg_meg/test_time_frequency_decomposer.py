@@ -7,11 +7,11 @@ from collections.abc import Mapping
 
 import numpy as np
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.eeg_meg.time_frequency_decomposer import (
+from pirn_health.eeg_meg.time_frequency_decomposer import (
     TimeFrequencyDecomposer,
 )
-from pirn.domains.health.types.health_signal_frame import HealthSignalFrame
-from pirn.domains.health.types.health_signal_payload import HealthSignalPayload
+from pirn_health.types.health_signal_frame import HealthSignalFrame
+from pirn_health.types.health_signal_payload import HealthSignalPayload
 
 _CFG = KnotConfig(id="t")
 _SIGNAL = HealthSignalPayload(

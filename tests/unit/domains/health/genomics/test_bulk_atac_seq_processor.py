@@ -6,8 +6,8 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.health.genomics.bulk_atac_seq_processor import BulkATACSeqProcessor
 from pirn.tapestry import Tapestry
+from pirn_health.genomics.bulk_atac_seq_processor import BulkATACSeqProcessor
 
 _CFG = KnotConfig(id="b")
 _BAM = {"aligned_reads": 1000000, "duplication_rate": 0.1, "bam_path": "in.bam"}

@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.mri.motion_corrector import MotionCorrector
+from pirn_health.mri.motion_corrector import MotionCorrector
 
 _CFG = KnotConfig(id="m")
 
@@ -32,14 +32,14 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         mock_nib = MagicMock()
         mock_nib.load.return_value = mock_img
 
-        with patch("pirn.domains.health.mri.motion_corrector.nib", mock_nib), \
-             patch("pirn.domains.health.mri.motion_corrector._HAS_DIPY", True):
+        with patch("pirn_health.mri.motion_corrector.nib", mock_nib), \
+             patch("pirn_health.mri.motion_corrector._HAS_DIPY", True):
             out = await knot.process(nifti_path="in.nii.gz", output_nifti_path="mc.nii.gz")
         assert out == "mc.nii.gz"
 
     async def test_raises_without_dipy(self) -> None:
         knot = self._make_knot()
-        with patch("pirn.domains.health.mri.motion_corrector._HAS_DIPY", False), \
-             patch("pirn.domains.health.mri.motion_corrector.nib", None):
+        with patch("pirn_health.mri.motion_corrector._HAS_DIPY", False), \
+             patch("pirn_health.mri.motion_corrector.nib", None):
             with self.assertRaises(ImportError):
                 await knot.process(nifti_path="in.nii.gz", output_nifti_path="mc.nii.gz")

@@ -5,8 +5,8 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.trials.define_xml_generator import DefineXMLGenerator
 from pirn.tapestry import Tapestry
+from pirn_health.trials.define_xml_generator import DefineXMLGenerator
 
 
 def _make_knot(

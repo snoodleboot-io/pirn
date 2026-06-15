@@ -12,12 +12,12 @@ except ImportError as _e:
 import numpy as np
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.health.types.health_signal_frame import HealthSignalFrame
-from pirn.domains.health.types.health_signal_payload import HealthSignalPayload
-from pirn.domains.health.wearables.ecg_r_peak_detector import (
+from pirn.tapestry import Tapestry
+from pirn_health.types.health_signal_frame import HealthSignalFrame
+from pirn_health.types.health_signal_payload import HealthSignalPayload
+from pirn_health.wearables.ecg_r_peak_detector import (
     ECGRPeakDetector,
 )
-from pirn.tapestry import Tapestry
 
 _ECG_SIGNAL = HealthSignalPayload(
     metadata=HealthSignalFrame(signal_id="ecg", channel_count=1, sample_rate_hz=360.0, samples_per_channel=1024),

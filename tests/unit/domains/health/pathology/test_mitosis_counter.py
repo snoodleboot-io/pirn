@@ -6,9 +6,9 @@ import unittest
 
 import numpy as np
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.pathology.mitosis_counter import MitosisCounter
-from pirn.domains.health.types.wsi_tile import WSITile
-from pirn.domains.health.types.wsi_tile_payload import WSITilePayload
+from pirn_health.pathology.mitosis_counter import MitosisCounter
+from pirn_health.types.wsi_tile import WSITile
+from pirn_health.types.wsi_tile_payload import WSITilePayload
 
 _CFG = KnotConfig(id="m")
 _TILE = WSITile(slide_id="S", tile_x=0, tile_y=0, level=0, width=512, height=512)

@@ -5,9 +5,9 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.genomics.genomics_qc_error import GenomicsQCError
-from pirn.domains.health.genomics.genomics_qc_gate import GenomicsQCCheck, GenomicsQCGate
-from pirn.domains.health.types.genomics_record import GenomicsRecord
+from pirn_health.genomics.genomics_qc_error import GenomicsQCError
+from pirn_health.genomics.genomics_qc_gate import GenomicsQCCheck, GenomicsQCGate
+from pirn_health.types.genomics_record import GenomicsRecord
 
 _CFG = KnotConfig(id="g")
 _RECORD_OK = GenomicsRecord(sample_id="S1", locus="", genotype="", quality_score=20.0)

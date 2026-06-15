@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 
-from pirn.domains.health.types.clinical_record import ClinicalRecord
+from pirn_health.types.clinical_record import ClinicalRecord
 
 
 class TestConstruction(unittest.TestCase):

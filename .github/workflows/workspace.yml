@@ -94,14 +94,9 @@ jobs:
           emit core   '^packages/pirn-core/'
           emit signal '^packages/pirn-signal/'
           emit data   '^packages/pirn-data/'
-<<<<<<< HEAD
-          emit ml     '^packages/pirn-core/src/pirn/domains/ml/'
-          emit agents '^packages/pirn-agents/'
-=======
           emit ml     '^packages/pirn-ml/'
-          emit agents '^packages/pirn-core/src/pirn/domains/agents/'
->>>>>>> f5d60f5 (refactor(ml): extract pirn-ml to standalone package (SCD-14, #65))
-          emit health '^packages/pirn-core/src/pirn/domains/health/'
+          emit agents '^packages/pirn-agents/'
+          emit health '^packages/pirn-health/'
           emit oilgas '^packages/pirn-oilgas/'
 
   # ===========================================================================

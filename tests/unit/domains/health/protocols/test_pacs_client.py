@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.health.protocols.pacs_client import PACSClient
+from pirn_health.protocols.pacs_client import PACSClient
 
 
 class TestPACSClientInterface(unittest.IsolatedAsyncioTestCase):

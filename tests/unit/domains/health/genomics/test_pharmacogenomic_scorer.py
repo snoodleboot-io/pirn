@@ -6,8 +6,8 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.health.genomics.pharmacogenomic_scorer import PharmacogenomicScorer
 from pirn.tapestry import Tapestry
+from pirn_health.genomics.pharmacogenomic_scorer import PharmacogenomicScorer
 
 _CFG = KnotConfig(id="p")
 _VARIANTS = [{"gene": "CYP2D6", "variant_id": "rs1065852", "zygosity": "het"}]

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.health.types.wsi_tile import WSITile
+from pirn_health.types.wsi_tile import WSITile
 
 
 class TestConstruction(unittest.TestCase):

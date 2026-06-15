@@ -12,8 +12,8 @@ except ImportError as _e:
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.trials.survival_analysis_pipeline import SurvivalAnalysisPipeline
 from pirn.tapestry import Tapestry
+from pirn_health.trials.survival_analysis_pipeline import SurvivalAnalysisPipeline
 
 _SURVIVAL_DATA: list[dict[str, Any]] = [
     {"patient_id": "P1", "time": 120, "event": 1, "group": "A"},

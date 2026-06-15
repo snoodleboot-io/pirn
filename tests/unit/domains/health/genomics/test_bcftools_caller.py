@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.genomics.bcftools_caller import BCFtoolsCaller
+from pirn_health.genomics.bcftools_caller import BCFtoolsCaller
 
 _CFG = KnotConfig(id="b")
 

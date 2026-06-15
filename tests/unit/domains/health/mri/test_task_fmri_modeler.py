@@ -6,8 +6,8 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.health.mri.task_fmri_modeler import TaskFMRIModeler
 from pirn.tapestry import Tapestry
+from pirn_health.mri.task_fmri_modeler import TaskFMRIModeler
 
 _CFG = KnotConfig(id="t")
 _BOLD = {"n_volumes": 200, "n_voxels": 50000}

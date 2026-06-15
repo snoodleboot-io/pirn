@@ -6,8 +6,8 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.health.genomics.adapter_trimmer import AdapterTrimmer
 from pirn.tapestry import Tapestry
+from pirn_health.genomics.adapter_trimmer import AdapterTrimmer
 
 _CFG = KnotConfig(id="a")
 _FASTQ = {"reads": [], "total_reads": 0}

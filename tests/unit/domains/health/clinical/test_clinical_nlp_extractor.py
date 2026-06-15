@@ -6,7 +6,7 @@ import unittest
 from collections.abc import Mapping
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.clinical.clinical_nlp_extractor import (
+from pirn_health.clinical.clinical_nlp_extractor import (
     ClinicalNLPExtractor,
 )
 

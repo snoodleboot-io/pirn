@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.health.clinical.clinical_data_quality_error import (
+from pirn_health.clinical.clinical_data_quality_error import (
     ClinicalDataQualityError,
 )
 

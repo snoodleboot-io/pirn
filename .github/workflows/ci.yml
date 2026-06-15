@@ -158,8 +158,8 @@ jobs:
 
       - name: "[health] install + import"
         run: |
-          uv pip install --system -e ".[health]"
-          uv run python -c "import pirn.domains.health; print('OK: health')"
+          uv pip install --system -e "./packages/pirn-health[health]"
+          uv run python -c "import pirn_health; print('OK: health')"
 
       - name: "[signal] install + import"
         run: |

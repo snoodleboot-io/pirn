@@ -6,8 +6,8 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.health.genomics.methylation_array_processor import MethylationArrayProcessor
 from pirn.tapestry import Tapestry
+from pirn_health.genomics.methylation_array_processor import MethylationArrayProcessor
 
 _CFG = KnotConfig(id="m")
 _IDAT = {"red_channel": [0.5], "green_channel": [0.4], "sample_id": "S1"}

@@ -6,8 +6,8 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.health.mri.brain_age_estimator import BrainAgeEstimator
 from pirn.tapestry import Tapestry
+from pirn_health.mri.brain_age_estimator import BrainAgeEstimator
 
 _CFG = KnotConfig(id="b")
 _FEATURES = {

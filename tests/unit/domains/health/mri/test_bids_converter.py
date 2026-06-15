@@ -6,8 +6,8 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.health.mri.bids_converter import BIDSConverter
 from pirn.tapestry import Tapestry
+from pirn_health.mri.bids_converter import BIDSConverter
 
 _CFG = KnotConfig(id="b")
 _DATA = {"nifti_path": "sub.nii.gz", "metadata": {}}

@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.genomics.gatk_caller import GATKCaller
+from pirn_health.genomics.gatk_caller import GATKCaller
 
 _CFG = KnotConfig(id="g")
 

@@ -7,9 +7,9 @@ from collections.abc import Mapping
 
 import numpy as np
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.eeg_meg.source_localizer import SourceLocalizer
-from pirn.domains.health.types.health_signal_frame import HealthSignalFrame
-from pirn.domains.health.types.health_signal_payload import HealthSignalPayload
+from pirn_health.eeg_meg.source_localizer import SourceLocalizer
+from pirn_health.types.health_signal_frame import HealthSignalFrame
+from pirn_health.types.health_signal_payload import HealthSignalPayload
 
 _CFG = KnotConfig(id="s")
 _SIGNAL = HealthSignalPayload(

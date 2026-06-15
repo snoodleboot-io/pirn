@@ -6,7 +6,7 @@ import unittest
 from collections.abc import Mapping
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.mri.volumetric_analyzer import VolumetricAnalyzer
+from pirn_health.mri.volumetric_analyzer import VolumetricAnalyzer
 
 _CFG = KnotConfig(id="v")
 

@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.mri.atlas_aligner import AtlasAligner
+from pirn_health.mri.atlas_aligner import AtlasAligner
 
 _CFG = KnotConfig(id="a")
 

@@ -5,10 +5,10 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.clinical.hl7v2_message_parser import (
+from pirn_health.clinical.hl7v2_message_parser import (
     HL7v2MessageParser,
 )
-from pirn.domains.health.types.clinical_record import ClinicalRecord
+from pirn_health.types.clinical_record import ClinicalRecord
 
 _CFG = KnotConfig(id="p")
 

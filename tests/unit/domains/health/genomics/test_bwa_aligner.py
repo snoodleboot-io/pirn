@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.genomics.bwa_aligner import BWAAligner
+from pirn_health.genomics.bwa_aligner import BWAAligner
 
 _CFG = KnotConfig(id="a")
 

@@ -8,12 +8,11 @@ becomes resolvable by name through
 :class:`sweet_tea.abstract_inverter_factory.AbstractInverterFactory[Knot]`.
 
 - ``pirn.connectors``  — Cross-cutting Source/Sink connectors
-- ``pirn.domains.health``      — Healthcare / Genomics / Imaging / EEG/MEG
 
-The Digital Signal Processing, Oil & Gas, Agentic Pipelines / Patterns, Data
-Engineering, and ML domains are shipped separately as the ``pirn_signal``,
-``pirn_oilgas``, ``pirn_agents``, ``pirn_data``, and ``pirn_ml`` packages
-(``pip install pirn-signal pirn-oilgas pirn-agents pirn-data pirn-ml``).
+The domain knot libraries are shipped as separate packages: ``pirn_signal``,
+``pirn_oilgas``, ``pirn_agents``, ``pirn_data``, ``pirn_ml``, and
+``pirn_health`` (e.g. ``pip install pirn-data pirn-ml pirn-health``). Only
+``pirn.connectors`` remains in core.
 
 Heavy dependencies for each domain are isolated via optional extras. Install
 only the domains you use::

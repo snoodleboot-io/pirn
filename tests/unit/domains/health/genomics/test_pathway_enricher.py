@@ -6,7 +6,7 @@ import unittest
 from collections.abc import Mapping
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.genomics.pathway_enricher import PathwayEnricher
+from pirn_health.genomics.pathway_enricher import PathwayEnricher
 
 _CFG = KnotConfig(id="p")
 

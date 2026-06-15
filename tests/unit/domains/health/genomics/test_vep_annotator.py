@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.genomics.vep_annotator import VEPAnnotator
+from pirn_health.genomics.vep_annotator import VEPAnnotator
 
 _CFG = KnotConfig(id="a")
 

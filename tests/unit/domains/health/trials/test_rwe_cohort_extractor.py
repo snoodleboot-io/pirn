@@ -6,8 +6,8 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.trials.rwe_cohort_extractor import RWECohortExtractor
 from pirn.tapestry import Tapestry
+from pirn_health.trials.rwe_cohort_extractor import RWECohortExtractor
 
 _PATIENTS: list[dict[str, Any]] = [
     {"patient_id": "P1", "age": 65, "diagnosis": "T2D", "index_date": "2024-01-01"},

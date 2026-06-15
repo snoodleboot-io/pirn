@@ -6,8 +6,8 @@ import unittest
 from datetime import UTC, datetime
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.clinical._pass_through import _PassThrough
-from pirn.domains.health.types.clinical_record import ClinicalRecord
+from pirn_health.clinical._pass_through import _PassThrough
+from pirn_health.types.clinical_record import ClinicalRecord
 
 
 def _record(patient_id: str = "P1") -> ClinicalRecord:

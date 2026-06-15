@@ -8,9 +8,9 @@ from datetime import UTC, datetime
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.health.trials.clinical_event_aggregator import ClinicalEventAggregator
-from pirn.domains.health.types.clinical_trial_record import ClinicalTrialRecord
 from pirn.tapestry import Tapestry
+from pirn_health.trials.clinical_event_aggregator import ClinicalEventAggregator
+from pirn_health.types.clinical_trial_record import ClinicalTrialRecord
 
 _CFG = KnotConfig(id="a")
 _RECORDS: tuple[ClinicalTrialRecord, ...] = (

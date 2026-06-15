@@ -6,8 +6,8 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.health.mri.vbm_morphometry_analyzer import VBMMorphometryAnalyzer
 from pirn.tapestry import Tapestry
+from pirn_health.mri.vbm_morphometry_analyzer import VBMMorphometryAnalyzer
 
 _CFG = KnotConfig(id="v")
 _IMAGE = {"nifti_path": "normalized.nii.gz", "voxel_size_mm": [1.5, 1.5, 1.5], "n_voxels": 100000}

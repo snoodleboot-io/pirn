@@ -5,12 +5,12 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.clinical.clinical_data_quality_gate import (
+from pirn_health.clinical.clinical_data_quality_gate import (
     ClinicalDataQualityCheck,
     ClinicalDataQualityError,
     ClinicalDataQualityGate,
 )
-from pirn.domains.health.types.clinical_record import ClinicalRecord
+from pirn_health.types.clinical_record import ClinicalRecord
 
 _CFG = KnotConfig(id="g")
 
