@@ -7,13 +7,13 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.image_encoder_provider import ImageEncoderProvider
-from pirn.domains.ml.specializations.feature_engineering.feature_engineering_image_embedding_extractor import (
+from pirn.tapestry import Tapestry
+from pirn_ml.image_encoder_provider import ImageEncoderProvider
+from pirn_ml.specializations.feature_engineering.feature_engineering_image_embedding_extractor import (
     FeatureEngineeringImageEmbeddingExtractor,
 )
-from pirn.domains.ml.types.dataset_manifest import DatasetManifest
-from pirn.domains.ml.types.split_manifest import SplitManifest
-from pirn.tapestry import Tapestry
+from pirn_ml.types.dataset_manifest import DatasetManifest
+from pirn_ml.types.split_manifest import SplitManifest
 
 
 class _StubEncoder(ImageEncoderProvider):

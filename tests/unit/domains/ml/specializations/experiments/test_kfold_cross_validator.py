@@ -7,10 +7,10 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.specializations.experiments.kfold_cross_validator import (
+from pirn.tapestry import Tapestry
+from pirn_ml.specializations.experiments.kfold_cross_validator import (
     KFoldCrossValidator,
 )
-from pirn.tapestry import Tapestry
 
 
 class _KnotStub(Knot):

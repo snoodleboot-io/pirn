@@ -8,13 +8,13 @@ from typing import Any
 from pirn.connectors.object_store import ObjectStore
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.lineage_store import LineageStore
-from pirn.domains.ml.specializations.training.xgboost_trainer_pipeline import (
+from pirn.tapestry import Tapestry
+from pirn_ml.lineage_store import LineageStore
+from pirn_ml.specializations.training.xgboost_trainer_pipeline import (
     XGBoostTrainerPipeline,
 )
-from pirn.domains.ml.types.dataset_manifest import DatasetManifest
-from pirn.domains.ml.types.split_manifest import SplitManifest
-from pirn.tapestry import Tapestry
+from pirn_ml.types.dataset_manifest import DatasetManifest
+from pirn_ml.types.split_manifest import SplitManifest
 
 
 class _StubStore(ObjectStore):

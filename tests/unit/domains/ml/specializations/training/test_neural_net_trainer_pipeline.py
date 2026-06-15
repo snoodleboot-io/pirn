@@ -8,11 +8,11 @@ from typing import Any
 from pirn.connectors.object_store import ObjectStore
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.lineage_store import LineageStore
-from pirn.domains.ml.specializations.training.neural_net_trainer_pipeline import (
+from pirn.tapestry import Tapestry
+from pirn_ml.lineage_store import LineageStore
+from pirn_ml.specializations.training.neural_net_trainer_pipeline import (
     NeuralNetTrainerPipeline,
 )
-from pirn.tapestry import Tapestry
 
 
 class _StubStore(ObjectStore):
@@ -46,8 +46,8 @@ def _make_knot() -> NeuralNetTrainerPipeline:
 
 
 def _split():
-    from pirn.domains.ml.types.dataset_manifest import DatasetManifest
-    from pirn.domains.ml.types.split_manifest import SplitManifest
+    from pirn_ml.types.dataset_manifest import DatasetManifest
+    from pirn_ml.types.split_manifest import SplitManifest
 
     return SplitManifest(
         train=DatasetManifest(name="tr", feature_names=["x"], target_name="y", row_count=10, source_uri="mem://"),

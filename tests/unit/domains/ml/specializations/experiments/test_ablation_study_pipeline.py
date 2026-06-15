@@ -7,10 +7,10 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.specializations.experiments.ablation_study_pipeline import (
+from pirn.tapestry import Tapestry
+from pirn_ml.specializations.experiments.ablation_study_pipeline import (
     AblationStudyPipeline,
 )
-from pirn.tapestry import Tapestry
 
 
 class _KnotStub(Knot):

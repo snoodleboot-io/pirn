@@ -7,8 +7,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.specializations.experiments.hyperband_tuner import HyperbandTuner
 from pirn.tapestry import Tapestry
+from pirn_ml.specializations.experiments.hyperband_tuner import HyperbandTuner
 
 
 class _KnotStub(Knot):

@@ -5,13 +5,13 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.specializations.production.ab_test_deployer import (
+from pirn.tapestry import Tapestry
+from pirn_ml.specializations.production.ab_test_deployer import (
     ABTestDeployer,
 )
-from pirn.domains.ml.types.dataset_manifest import DatasetManifest
-from pirn.domains.ml.types.model_manifest import ModelManifest
-from pirn.domains.ml.types.split_manifest import SplitManifest
-from pirn.tapestry import Tapestry
+from pirn_ml.types.dataset_manifest import DatasetManifest
+from pirn_ml.types.model_manifest import ModelManifest
+from pirn_ml.types.split_manifest import SplitManifest
 
 
 def _fixtures():

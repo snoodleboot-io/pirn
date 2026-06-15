@@ -6,10 +6,10 @@ import unittest
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.specializations.task_pipelines.forecasting_pipeline import (
+from pirn.tapestry import Tapestry
+from pirn_ml.specializations.task_pipelines.forecasting_pipeline import (
     ForecastingPipeline,
 )
-from pirn.tapestry import Tapestry
 
 
 class _StubPool(DatabaseConnectionPool):

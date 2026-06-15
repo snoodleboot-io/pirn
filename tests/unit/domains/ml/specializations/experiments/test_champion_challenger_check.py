@@ -7,10 +7,10 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.specializations.experiments.champion_challenger_check import (
+from pirn.tapestry import Tapestry
+from pirn_ml.specializations.experiments.champion_challenger_check import (
     ChampionChallengerCheck,
 )
-from pirn.tapestry import Tapestry
 
 
 class _KnotStub(Knot):

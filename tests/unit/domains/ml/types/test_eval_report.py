@@ -5,9 +5,9 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 
-from pirn.domains.ml.types.eval_metadata import EvalMetadata
-from pirn.domains.ml.types.eval_metrics import EvalMetrics
-from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
+from pirn_ml.types.eval_metadata import EvalMetadata
+from pirn_ml.types.eval_metrics import EvalMetrics
+from pirn_ml.types.eval_report_payload import EvalReportPayload
 
 
 class TestEvalReport(unittest.TestCase):

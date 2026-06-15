@@ -73,7 +73,7 @@ otel = ["opentelemetry-api>=1.20", "opentelemetry-sdk>=1.20"]
 # NOTE: the `agents` domain extracted to the pirn-agents package (SCD-15).
 # It had no heavy core deps (LLM/memory/tool providers are user-supplied), so
 # there is nothing to install beyond the package itself: `pip install pirn-agents`.
-ml      = ["numpy>=1.26", "pandas>=2.0", "scikit-learn>=1.4"]
+# NOTE: the `ml` extra (numpy/pandas/scikit-learn) moved to the pirn-ml package (SCD-14).
 health  = [
     "pydicom>=2.4",
     "mne>=1.6",
@@ -259,8 +259,7 @@ all-domains = [
     # data domain moved to pirn-data (SCD-13); pandas/pyarrow retained for
     # core connectors and the (transitional) in-core ml domain.
     "pandas>=2.0", "pyarrow>=14.0",
-    # ml
-    "numpy>=1.26", "scikit-learn>=1.4",
+    # ml extra moved to pirn-ml (SCD-14) — install `pirn-ml[ml]`.
     # health
     "pydicom>=2.4", "mne>=1.6", "nibabel>=5.2", "pyfaidx>=0.7", "pysam>=0.22", "fhir.resources>=7.1",
     # mri
@@ -315,8 +314,7 @@ all = [
     # core connectors + transitional in-core ml)
     "pandas>=2.0",
     "pyarrow>=14.0",
-    "numpy>=1.26",
-    "scikit-learn>=1.4",
+    # ml extra (numpy/pandas/scikit-learn) moved to pirn-ml (SCD-14).
     "pydicom>=2.4",
     "mne>=1.6",
     "nibabel>=5.2",

@@ -98,8 +98,8 @@ class TestDomainImportGuards(unittest.TestCase):
         # orchestration-only core (interfaces, types, data_prep,
         # features, training, evaluation, deployment) is usable
         # without numpy / pandas / scikit-learn installed.
-        sys.modules.pop("pirn.domains.ml", None)
-        import pirn.domains.ml  # noqa: F401
+        sys.modules.pop("pirn_ml", None)
+        import pirn_ml  # noqa: F401
 
     def test_health_namespace_imports_without_extras(self) -> None:
         sys.modules.pop("pirn.domains.health", None)

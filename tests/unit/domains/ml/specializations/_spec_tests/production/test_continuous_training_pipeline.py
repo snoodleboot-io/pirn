@@ -6,10 +6,10 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.ml.specializations.production.continuous_training_pipeline import (
+from pirn.tapestry import Tapestry
+from pirn_ml.specializations.production.continuous_training_pipeline import (
     ContinuousTrainingPipeline,
 )
-from pirn.tapestry import Tapestry
 
 from tests.unit.domains.ml._stubs.recording_database_pool import (
     RecordingDatabasePool,

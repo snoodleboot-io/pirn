@@ -7,13 +7,13 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.specializations.evaluation.ranking_eval_pipeline import (
+from pirn.tapestry import Tapestry
+from pirn_ml.specializations.evaluation.ranking_eval_pipeline import (
     RankingEvalPipeline,
 )
-from pirn.domains.ml.types.dataset_manifest import DatasetManifest
-from pirn.domains.ml.types.model_manifest import ModelManifest
-from pirn.domains.ml.types.split_manifest import SplitManifest
-from pirn.tapestry import Tapestry
+from pirn_ml.types.dataset_manifest import DatasetManifest
+from pirn_ml.types.model_manifest import ModelManifest
+from pirn_ml.types.split_manifest import SplitManifest
 
 
 class _KnotStub(Knot):

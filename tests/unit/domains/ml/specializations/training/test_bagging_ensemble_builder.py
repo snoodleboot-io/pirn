@@ -7,10 +7,10 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.specializations.training.bagging_ensemble_builder import (
+from pirn.tapestry import Tapestry
+from pirn_ml.specializations.training.bagging_ensemble_builder import (
     BaggingEnsembleBuilder,
 )
-from pirn.tapestry import Tapestry
 
 
 class _KnotStub(Knot):
@@ -30,8 +30,8 @@ def _make_knot() -> BaggingEnsembleBuilder:
 
 class TestBaggingEnsembleBuilderValidation(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_n_estimators_less_than_2(self) -> None:
-        from pirn.domains.ml.types.dataset_manifest import DatasetManifest
-        from pirn.domains.ml.types.split_manifest import SplitManifest
+        from pirn_ml.types.dataset_manifest import DatasetManifest
+        from pirn_ml.types.split_manifest import SplitManifest
 
         split = SplitManifest(
             train=DatasetManifest(name="tr", feature_names=["x"], target_name="y", row_count=10, source_uri="mem://"),
@@ -42,8 +42,8 @@ class TestBaggingEnsembleBuilderValidation(unittest.IsolatedAsyncioTestCase):
             await k.process(split=split, algorithm="dt", n_estimators=1, metrics=["accuracy"])
 
     async def test_rejects_invalid_task(self) -> None:
-        from pirn.domains.ml.types.dataset_manifest import DatasetManifest
-        from pirn.domains.ml.types.split_manifest import SplitManifest
+        from pirn_ml.types.dataset_manifest import DatasetManifest
+        from pirn_ml.types.split_manifest import SplitManifest
 
         split = SplitManifest(
             train=DatasetManifest(name="tr", feature_names=["x"], target_name="y", row_count=10, source_uri="mem://"),
@@ -54,8 +54,8 @@ class TestBaggingEnsembleBuilderValidation(unittest.IsolatedAsyncioTestCase):
             await k.process(split=split, algorithm="dt", task="clustering", metrics=["accuracy"])
 
     async def test_rejects_empty_algorithm(self) -> None:
-        from pirn.domains.ml.types.dataset_manifest import DatasetManifest
-        from pirn.domains.ml.types.split_manifest import SplitManifest
+        from pirn_ml.types.dataset_manifest import DatasetManifest
+        from pirn_ml.types.split_manifest import SplitManifest
 
         split = SplitManifest(
             train=DatasetManifest(name="tr", feature_names=["x"], target_name="y", row_count=10, source_uri="mem://"),

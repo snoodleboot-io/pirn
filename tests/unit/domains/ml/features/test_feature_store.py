@@ -7,10 +7,10 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.ml.features.feature_store import FeatureStore
-from pirn.domains.ml.types.dataset_manifest import DatasetManifest
-from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.tapestry import Tapestry
+from pirn_ml.features.feature_store import FeatureStore
+from pirn_ml.types.dataset_manifest import DatasetManifest
+from pirn_ml.types.split_manifest import SplitManifest
 
 from tests.unit.domains.ml._stubs.recording_feature_store_provider import (
     RecordingFeatureStoreProvider,

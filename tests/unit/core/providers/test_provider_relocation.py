@@ -35,7 +35,7 @@ class TestProviderBasesResolveFromCore(unittest.TestCase):
 class TestOldPathsAreGone(unittest.TestCase):
     def test_embedding_provider_old_module_removed(self) -> None:
         with self.assertRaises(ModuleNotFoundError):
-            importlib.import_module("pirn.domains.ml.embedding_provider")
+            importlib.import_module("pirn_ml.embedding_provider")
 
     def test_llm_provider_old_module_removed(self) -> None:
         with self.assertRaises(ModuleNotFoundError):

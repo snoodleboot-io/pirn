@@ -5,10 +5,10 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.specializations.task_pipelines.text_classification_pipeline import (
+from pirn.tapestry import Tapestry
+from pirn_ml.specializations.task_pipelines.text_classification_pipeline import (
     TextClassificationPipeline,
 )
-from pirn.tapestry import Tapestry
 
 from tests.unit.domains.ml._stubs.recording_database_pool import RecordingDatabasePool
 

@@ -1,8 +1,10 @@
-# Skeleton only (Phase 0 / SCD-02). NO source yet — `pirn/domains/ml` moves to
-# `src/pirn_ml/` during extraction (Phase 3 / R5), at which point the ML extras
-# (numpy/pandas/scikit-learn + ML-artefact codec extras) are lifted here from
-# the root pyproject. This package carries the one retained domain→domain edge
-# (`pirn-ml → pirn-data`, ADR-3) in addition to the core floor.
+# pirn-ml — the ML Engineering / Data Science domain, imports as `pirn_ml`
+# (SCD-14, Phase 3). Source relocated from `pirn/domains/ml` to `src/pirn_ml/`;
+# the `ml` extra (numpy/pandas/scikit-learn) moved here from pirn-core. This
+# package carries the one retained domain→domain edge (`pirn-ml → pirn-data`,
+# ADR-3): dataset_loader consumes DataBatch/LakehouseTable/FileSource/SqlSource
+# from pirn_data. ML-artefact codecs (onnx/pytorch/tensorflow) remain core
+# connector file-format extras.
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
@@ -17,6 +19,11 @@ dependencies = [
     "pirn-core>=0.4.0,<0.5.0",             # lockstep floor (ADR-6 / constraint C4)
     "pirn-data>=0.4.0,<0.5.0",             # retained domain edge (ADR-3)
 ]
+
+[project.optional-dependencies]
+# Core ML stack — the orchestration layer imports without these; concrete
+# knots check via pirn_ml.extras_loader.ExtrasLoader.
+ml = ["numpy>=1.26", "pandas>=2.0", "scikit-learn>=1.4"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/pirn_ml"]

@@ -6,11 +6,11 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.ml.specializations.task_pipelines.named_entity_recognition_pipeline import (
+from pirn.tapestry import Tapestry
+from pirn_ml.specializations.task_pipelines.named_entity_recognition_pipeline import (
     NamedEntityRecognitionPipeline,
 )
-from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
-from pirn.tapestry import Tapestry
+from pirn_ml.types.eval_report_payload import EvalReportPayload
 
 from tests.unit.domains.ml._stubs.recording_database_pool import (
     RecordingDatabasePool,

@@ -7,10 +7,10 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.specializations.evaluation.regression_eval_pipeline import (
+from pirn.tapestry import Tapestry
+from pirn_ml.specializations.evaluation.regression_eval_pipeline import (
     RegressionEvalPipeline,
 )
-from pirn.tapestry import Tapestry
 
 
 class _KnotStub(Knot):
