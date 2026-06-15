@@ -7,13 +7,13 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.ml.specializations.experiments.ablation_study_pipeline import (
+from pirn.tapestry import Tapestry
+from pirn_ml.specializations.experiments.ablation_study_pipeline import (
     AblationStudyPipeline,
 )
-from pirn.domains.ml.types.dataset_manifest import DatasetManifest
-from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
-from pirn.domains.ml.types.split_manifest import SplitManifest
-from pirn.tapestry import Tapestry
+from pirn_ml.types.dataset_manifest import DatasetManifest
+from pirn_ml.types.eval_report_payload import EvalReportPayload
+from pirn_ml.types.split_manifest import SplitManifest
 
 
 @knot

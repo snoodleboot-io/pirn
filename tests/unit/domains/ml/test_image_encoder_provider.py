@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.ml.image_encoder_provider import ImageEncoderProvider
+from pirn_ml.image_encoder_provider import ImageEncoderProvider
 
 
 class _StubEncoder(ImageEncoderProvider):

@@ -1,6 +1,6 @@
 # ML domain
 
-The ML domain (`pirn/domains/ml/`) provides knots and interfaces that cover the full machine learning lifecycle: data preparation, feature engineering, training, evaluation, deployment, and lineage tracking. Each stage is a typed, async knot — composable, observable, and content-addressed out of the box.
+The ML domain (`pirn_ml/`) provides knots and interfaces that cover the full machine learning lifecycle: data preparation, feature engineering, training, evaluation, deployment, and lineage tracking. Each stage is a typed, async knot — composable, observable, and content-addressed out of the box.
 
 ```bash
 pip install pirn[ml]
@@ -95,7 +95,7 @@ class OpenAIEmbedder(EmbeddingProvider):
 
 ### FeatureStoreProvider
 
-`FeatureStoreProvider` (`pirn/domains/ml/feature_store_provider.py`) wraps online or offline feature stores (Feast, Tecton, custom catalogs):
+`FeatureStoreProvider` (`pirn_ml/feature_store_provider.py`) wraps online or offline feature stores (Feast, Tecton, custom catalogs):
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
@@ -105,7 +105,7 @@ class OpenAIEmbedder(EmbeddingProvider):
 
 ### ImageEncoderProvider
 
-`ImageEncoderProvider` (`pirn/domains/ml/image_encoder_provider.py`) wraps image embedding models (CLIP, ResNet via remote API, etc.):
+`ImageEncoderProvider` (`pirn_ml/image_encoder_provider.py`) wraps image embedding models (CLIP, ResNet via remote API, etc.):
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
@@ -114,7 +114,7 @@ class OpenAIEmbedder(EmbeddingProvider):
 
 ### LineageStore
 
-`LineageStore` (`pirn/domains/ml/lineage_store.py`) wraps ML registries (MLflow, Weights & Biases, custom catalogs):
+`LineageStore` (`pirn_ml/lineage_store.py`) wraps ML registries (MLflow, Weights & Biases, custom catalogs):
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
@@ -217,12 +217,12 @@ Pre-built `SubTapestry` pipelines for common ML patterns.
 ```python
 import asyncio
 from pirn import Tapestry, Parameter, KnotConfig, RunRequest
-from pirn.domains.ml.data_prep.dataset_loader import DatasetLoader
-from pirn.domains.ml.data_prep.train_test_split import TrainTestSplit
-from pirn.domains.ml.features.scaler import Scaler
-from pirn.domains.ml.training.trainer import Trainer
-from pirn.domains.ml.evaluation.evaluator import Evaluator
-from pirn.domains.ml.evaluation.metric_gate import MetricCheck
+from pirn_ml.data_prep.dataset_loader import DatasetLoader
+from pirn_ml.data_prep.train_test_split import TrainTestSplit
+from pirn_ml.features.scaler import Scaler
+from pirn_ml.training.trainer import Trainer
+from pirn_ml.evaluation.evaluator import Evaluator
+from pirn_ml.evaluation.metric_gate import MetricCheck
 
 from sklearn.linear_model import LogisticRegression
 
@@ -275,8 +275,8 @@ asyncio.run(main())
 ### Registering a model with lineage tracking
 
 ```python
-from pirn.domains.ml.deployment.model_serializer import ModelSerializer
-from pirn.domains.ml.deployment.model_registrar import ModelRegistrar
+from pirn_ml.deployment.model_serializer import ModelSerializer
+from pirn_ml.deployment.model_registrar import ModelRegistrar
 from pirn.connectors.file_formats.joblib_format import JoblibFormat
 from pirn.backends._signer import _Signer
 
@@ -298,7 +298,7 @@ registrar = ModelRegistrar(
 ### Using pre-built task pipelines
 
 ```python
-from pirn.domains.ml.specializations.task_pipelines.binary_classification_pipeline import (
+from pirn_ml.specializations.task_pipelines.binary_classification_pipeline import (
     BinaryClassificationPipeline,
 )
 
@@ -332,7 +332,7 @@ Domain payloads enter and leave the ML domain through assembler/disassembler kno
 | `DataSplitObjectStoreDisassembler` | `DataSplit` | `bytes` |
 | `EvalReportDatabaseDisassembler` | `EvalReport` | `list[tuple]` |
 
-All assemblers and disassemblers live under `pirn/domains/ml/assemblers/` and `pirn/domains/ml/disassemblers/` respectively.
+All assemblers and disassemblers live under `pirn_ml/assemblers/` and `pirn_ml/disassemblers/` respectively.
 
 **Note:** `ModelRegistrar` and `Predictor` are kept as-is — they own I/O by design. `ModelRegistrar` persists model bytes and metadata to a `LineageStore`; `Predictor` runs inference. These are not assembler/disassembler knots.
 

@@ -7,11 +7,11 @@ import unittest
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.object_store import ObjectStore
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.lineage_store import LineageStore
-from pirn.domains.ml.specializations.production.full_train_deploy_pipeline import (
+from pirn.tapestry import Tapestry
+from pirn_ml.lineage_store import LineageStore
+from pirn_ml.specializations.production.full_train_deploy_pipeline import (
     FullTrainDeployPipeline,
 )
-from pirn.tapestry import Tapestry
 
 
 class _StubPool(DatabaseConnectionPool):

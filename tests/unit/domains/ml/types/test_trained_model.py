@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 
-from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn_ml.types.model_manifest import ModelManifest
 
 
 class TestTrainedModel(unittest.TestCase):

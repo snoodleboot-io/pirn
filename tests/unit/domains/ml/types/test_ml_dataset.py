@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 
-from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn_ml.types.dataset_manifest import DatasetManifest
 
 
 class TestMLDataset(unittest.TestCase):

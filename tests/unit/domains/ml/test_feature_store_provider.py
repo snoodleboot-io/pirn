@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.ml.feature_store_provider import FeatureStoreProvider
+from pirn_ml.feature_store_provider import FeatureStoreProvider
 
 
 class _StubStore(FeatureStoreProvider):

@@ -7,10 +7,10 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.specializations.experiments.time_series_cross_validator import (
+from pirn.tapestry import Tapestry
+from pirn_ml.specializations.experiments.time_series_cross_validator import (
     TimeSeriesCrossValidator,
 )
-from pirn.tapestry import Tapestry
 
 
 class _KnotStub(Knot):
@@ -49,7 +49,7 @@ class TestConstruction(unittest.TestCase):
 class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_n_splits_less_than_2(self) -> None:
         validator = _make_validator()
-        from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+        from pirn_ml.types.dataset_manifest import DatasetManifest
 
         ds = DatasetManifest(
             name="ds",
@@ -68,7 +68,7 @@ class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_empty_algorithm(self) -> None:
         validator = _make_validator()
-        from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+        from pirn_ml.types.dataset_manifest import DatasetManifest
 
         ds = DatasetManifest(
             name="ds",
@@ -87,7 +87,7 @@ class TestProcessValidation(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_empty_metrics(self) -> None:
         validator = _make_validator()
-        from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+        from pirn_ml.types.dataset_manifest import DatasetManifest
 
         ds = DatasetManifest(
             name="ds",

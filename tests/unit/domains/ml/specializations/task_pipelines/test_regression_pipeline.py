@@ -6,7 +6,7 @@ import unittest
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.specializations.task_pipelines.regression_pipeline import (
+from pirn_ml.specializations.task_pipelines.regression_pipeline import (
     RegressionPipeline,
 )
 

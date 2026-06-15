@@ -2,7 +2,7 @@
 
 The frame does not embed sample arrays; it carries the metadata
 downstream knots need to load samples on demand. The intent mirrors
-:class:`pirn.domains.ml.types.dataset_manifest.DatasetManifest`: a small lineage
+:class:`pirn_ml.types.dataset_manifest.DatasetManifest`: a small lineage
 record, not a heavy buffer.
 """
 

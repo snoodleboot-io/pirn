@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping, Sequence
 from typing import Any
 
-from pirn.domains.ml.feature_store_provider import FeatureStoreProvider
+from pirn_ml.feature_store_provider import FeatureStoreProvider
 
 
 class RecordingFeatureStoreProvider(FeatureStoreProvider):

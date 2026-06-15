@@ -7,10 +7,10 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.specializations.training.self_supervised_pretrainer import (
+from pirn.tapestry import Tapestry
+from pirn_ml.specializations.training.self_supervised_pretrainer import (
     SelfSupervisedPretrainer,
 )
-from pirn.tapestry import Tapestry
 
 
 class _KnotStub(Knot):
@@ -29,8 +29,8 @@ def _make_knot() -> SelfSupervisedPretrainer:
 
 
 def _split():
-    from pirn.domains.ml.types.dataset_manifest import DatasetManifest
-    from pirn.domains.ml.types.split_manifest import SplitManifest
+    from pirn_ml.types.dataset_manifest import DatasetManifest
+    from pirn_ml.types.split_manifest import SplitManifest
 
     return SplitManifest(
         train=DatasetManifest(name="tr", feature_names=["x"], target_name="y", row_count=10, source_uri="mem://"),

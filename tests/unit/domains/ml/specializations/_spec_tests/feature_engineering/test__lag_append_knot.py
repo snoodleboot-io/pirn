@@ -5,12 +5,12 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.specializations.feature_engineering._lag_append_knot import (
+from pirn.tapestry import Tapestry
+from pirn_ml.specializations.feature_engineering._lag_append_knot import (
     _LagAppendKnot,
 )
-from pirn.domains.ml.types.dataset_manifest import DatasetManifest
-from pirn.domains.ml.types.split_manifest import SplitManifest
-from pirn.tapestry import Tapestry
+from pirn_ml.types.dataset_manifest import DatasetManifest
+from pirn_ml.types.split_manifest import SplitManifest
 
 
 def _split_fixture() -> SplitManifest:

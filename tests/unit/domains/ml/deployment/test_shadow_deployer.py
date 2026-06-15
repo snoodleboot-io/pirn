@@ -7,9 +7,9 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.ml.deployment.shadow_deployer import ShadowDeployer
-from pirn.domains.ml.types.model_manifest import ModelManifest
 from pirn.tapestry import Tapestry
+from pirn_ml.deployment.shadow_deployer import ShadowDeployer
+from pirn_ml.types.model_manifest import ModelManifest
 
 from tests.unit.domains.ml._stubs.recording_lineage_store import (
     RecordingLineageStore,

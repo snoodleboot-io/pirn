@@ -153,8 +153,8 @@ jobs:
 
       - name: "[ml] install + import"
         run: |
-          uv pip install --system -e ".[ml]"
-          uv run python -c "import pirn.domains.ml; print('OK: ml')"
+          uv pip install --system -e "./packages/pirn-ml[ml]"
+          uv run python -c "import pirn_ml; print('OK: ml')"
 
       - name: "[health] install + import"
         run: |

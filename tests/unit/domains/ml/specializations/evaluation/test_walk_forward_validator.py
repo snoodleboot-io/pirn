@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.ml.specializations.evaluation.walk_forward_validator import (
+from pirn_ml.specializations.evaluation.walk_forward_validator import (
     WalkForwardValidator,
 )
-from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn_ml.types.dataset_manifest import DatasetManifest
 
 
 def _dataset(row_count: int = 50) -> DatasetManifest:

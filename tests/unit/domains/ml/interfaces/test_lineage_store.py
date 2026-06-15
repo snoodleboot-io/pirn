@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.ml.lineage_store import LineageStore
+from pirn_ml.lineage_store import LineageStore
 
 
 class TestLineageStoreInterface(unittest.IsolatedAsyncioTestCase):

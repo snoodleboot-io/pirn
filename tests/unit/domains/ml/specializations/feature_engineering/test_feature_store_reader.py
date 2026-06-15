@@ -7,13 +7,13 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.feature_store_provider import FeatureStoreProvider
-from pirn.domains.ml.specializations.feature_engineering.feature_store_reader import (
+from pirn.tapestry import Tapestry
+from pirn_ml.feature_store_provider import FeatureStoreProvider
+from pirn_ml.specializations.feature_engineering.feature_store_reader import (
     FeatureStoreReader,
 )
-from pirn.domains.ml.types.dataset_manifest import DatasetManifest
-from pirn.domains.ml.types.split_manifest import SplitManifest
-from pirn.tapestry import Tapestry
+from pirn_ml.types.dataset_manifest import DatasetManifest
+from pirn_ml.types.split_manifest import SplitManifest
 
 
 class _StubStore(FeatureStoreProvider):

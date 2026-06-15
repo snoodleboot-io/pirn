@@ -7,11 +7,11 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.lineage_store import LineageStore
-from pirn.domains.ml.specializations.production.model_lineage_tracker import (
+from pirn.tapestry import Tapestry
+from pirn_ml.lineage_store import LineageStore
+from pirn_ml.specializations.production.model_lineage_tracker import (
     ModelLineageTracker,
 )
-from pirn.tapestry import Tapestry
 
 
 class _StubLineage(LineageStore):

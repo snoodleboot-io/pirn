@@ -1,0 +1,109 @@
+"""``Imputer`` — missing-value imputation over a :class:`SplitManifest`.
+
+Algorithm:
+    1. Receive ``split`` (SplitManifest), ``columns`` (sequence of str), ``method`` (str),
+       and ``constant_value`` (Any) via process().
+    2. Validate columns is non-empty, method is valid, and constant_value is set when
+       method is ``"constant"``.
+    3. Append the ``imputed_<method>`` suffix to each partition's DatasetManifest name.
+    4. Return the renamed SplitManifest.
+
+Math:
+    mean imputation:    x_fill = (1/n) * sum(x_i for non-missing x_i)
+    median imputation:  x_fill = middle value of sorted non-missing x_i
+    mode imputation:    x_fill = argmax_v count(x_i == v) over non-missing x_i
+    constant:           x_fill = constant_value (user-supplied scalar)
+    Missing entry j is replaced: x_j = x_fill
+
+References:
+    N/A — pirn-native implementation.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Sequence
+from datetime import UTC, datetime
+from typing import Any, ClassVar
+
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
+
+from pirn_ml.types.dataset_manifest import DatasetManifest
+from pirn_ml.types.split_manifest import SplitManifest
+
+
+class Imputer(Knot):
+    """Logical missing-value imputer (mean / median / constant)."""
+
+    valid_methods: ClassVar[frozenset[str]] = frozenset({"mean", "median", "constant"})
+
+    def __init__(
+        self,
+        *,
+        split: Knot,
+        columns: Knot | Sequence[str],
+        method: Knot | str = "median",
+        constant_value: Knot | Any = None,
+        _config: KnotConfig,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            split=split,
+            columns=columns,
+            method=method,
+            constant_value=constant_value,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        split: SplitManifest,
+        columns: Sequence[str] = (),
+        method: str = "median",
+        constant_value: Any = None,
+        **_: Any,
+    ) -> SplitManifest:
+        """Apply the configured imputation method to the split's feature columns and return an updated SplitManifest.
+
+        Args:
+            split: SplitManifest whose partitions are logically tagged with the imputation suffix.
+            columns: Non-empty sequence of column names to impute.
+            method: Imputation method; must be one of ``valid_methods``.
+            constant_value: Required when method is ``"constant"``; the fill value.
+
+        Returns:
+            SplitManifest with each partition renamed to include the ``imputed_<method>`` suffix.
+
+        Raises:
+            ValueError: If columns is empty, method is invalid, or constant method has no value.
+        """
+        column_tuple = tuple(columns)
+        if not column_tuple:
+            raise ValueError("Imputer: columns must be non-empty")
+        for column in column_tuple:
+            if not isinstance(column, str) or not column:
+                raise ValueError("Imputer: every column name must be a non-empty string")
+        if method not in self.valid_methods:
+            raise ValueError(f"Imputer: method must be one of {sorted(self.valid_methods)}")
+        if method == "constant" and constant_value is None:
+            raise ValueError("Imputer: constant method requires constant_value")
+        suffix = f"imputed_{method}"
+        now = datetime.now(UTC)
+        return SplitManifest(
+            train=self._mark(split.train, suffix, now),
+            test=self._mark(split.test, suffix, now),
+            validation=(
+                self._mark(split.validation, suffix, now) if split.validation is not None else None
+            ),
+        )
+
+    def _mark(self, dataset: DatasetManifest, suffix: str, fetched_at: datetime) -> DatasetManifest:
+        return DatasetManifest(
+            name=f"{dataset.name}:{suffix}",
+            feature_names=dataset.feature_names,
+            target_name=dataset.target_name,
+            row_count=dataset.row_count,
+            source_uri=dataset.source_uri,
+            fetched_at=fetched_at,
+        )

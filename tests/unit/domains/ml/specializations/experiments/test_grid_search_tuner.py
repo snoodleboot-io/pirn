@@ -7,10 +7,10 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.ml.specializations.experiments.grid_search_tuner import (
+from pirn.tapestry import Tapestry
+from pirn_ml.specializations.experiments.grid_search_tuner import (
     GridSearchTuner,
 )
-from pirn.tapestry import Tapestry
 
 
 class _KnotStub(Knot):
