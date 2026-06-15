@@ -7,10 +7,10 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.clinical.encounter_timeline_assembler import (
+from pirn_health.clinical.encounter_timeline_assembler import (
     EncounterTimelineAssembler,
 )
-from pirn.domains.health.types.clinical_record import ClinicalRecord
+from pirn_health.types.clinical_record import ClinicalRecord
 
 _CFG = KnotConfig(id="a")
 

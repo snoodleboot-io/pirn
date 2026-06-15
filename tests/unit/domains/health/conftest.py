@@ -11,13 +11,13 @@ from collections.abc import AsyncIterator, Mapping
 from datetime import UTC, datetime
 from typing import Any
 
-from pirn.domains.health.protocols.fhir_client import FHIRClient
-from pirn.domains.health.protocols.lab_instrument_connection import (
+from pirn_health.protocols.fhir_client import FHIRClient
+from pirn_health.protocols.lab_instrument_connection import (
     LabInstrumentConnection,
 )
-from pirn.domains.health.protocols.omop_connection import OMOPConnection
-from pirn.domains.health.protocols.pacs_client import PACSClient
-from pirn.domains.health.types.dicom_series import DICOMSeries
+from pirn_health.protocols.omop_connection import OMOPConnection
+from pirn_health.protocols.pacs_client import PACSClient
+from pirn_health.types.dicom_series import DICOMSeries
 
 
 class StubFHIRClient(FHIRClient):

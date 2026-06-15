@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.mri.intensity_normalizer import IntensityNormalizer
+from pirn_health.mri.intensity_normalizer import IntensityNormalizer
 
 _CFG = KnotConfig(id="n")
 
@@ -34,7 +34,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         mock_img.header = None
         mock_nib.load.return_value = mock_img
         mock_nib.Nifti1Image.return_value = MagicMock()
-        with patch("pirn.domains.health.mri.intensity_normalizer.nib", mock_nib), \
-             patch("pirn.domains.health.mri.intensity_normalizer._HAS_NIB", True):
+        with patch("pirn_health.mri.intensity_normalizer.nib", mock_nib), \
+             patch("pirn_health.mri.intensity_normalizer._HAS_NIB", True):
             out = await knot.process(nifti_path="in.nii.gz", method="zscore", output_nifti_path="out.nii.gz")
         assert out == "out.nii.gz"

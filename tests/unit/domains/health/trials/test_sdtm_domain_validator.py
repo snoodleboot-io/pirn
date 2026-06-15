@@ -6,9 +6,9 @@ import unittest
 from datetime import UTC, datetime
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.trials.sdtm_domain_validator import SDTMDomainValidator
-from pirn.domains.health.types.clinical_trial_record import ClinicalTrialRecord
 from pirn.tapestry import Tapestry
+from pirn_health.trials.sdtm_domain_validator import SDTMDomainValidator
+from pirn_health.types.clinical_trial_record import ClinicalTrialRecord
 
 
 def _record(

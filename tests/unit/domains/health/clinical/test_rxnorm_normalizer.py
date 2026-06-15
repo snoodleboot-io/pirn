@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.clinical.rxnorm_normalizer import RxNormNormalizer
+from pirn_health.clinical.rxnorm_normalizer import RxNormNormalizer
 
 _CFG = KnotConfig(id="n")
 _KNOT = RxNormNormalizer(drug_names=[], mapping={}, _config=_CFG)

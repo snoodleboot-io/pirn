@@ -7,8 +7,8 @@ from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.health.pathology.pathology_stain_normalizer import PathologyStainNormalizer
 from pirn.tapestry import Tapestry
+from pirn_health.pathology.pathology_stain_normalizer import PathologyStainNormalizer
 
 _CFG = KnotConfig(id="n")
 _IMAGE_TILE: dict[str, Any] = {

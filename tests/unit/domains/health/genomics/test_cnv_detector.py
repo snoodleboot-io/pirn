@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.genomics.cnv_detector import CNVDetector
+from pirn_health.genomics.cnv_detector import CNVDetector
 
 _CFG = KnotConfig(id="d")
 

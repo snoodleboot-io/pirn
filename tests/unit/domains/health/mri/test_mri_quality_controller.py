@@ -6,8 +6,8 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.health.mri.mri_quality_controller import MRIQualityController
 from pirn.tapestry import Tapestry
+from pirn_health.mri.mri_quality_controller import MRIQualityController
 
 _CFG = KnotConfig(id="q")
 _MRI = {"nifti_path": "scan.nii.gz", "motion_params": [0.1, 0.2]}

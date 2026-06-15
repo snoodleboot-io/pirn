@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 
-from pirn.domains.health.protocols.lab_instrument_connection import (
+from pirn_health.protocols.lab_instrument_connection import (
     LabInstrumentConnection,
 )
 

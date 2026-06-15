@@ -6,10 +6,10 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.health.mri.functional_connectivity_extractor import (
+from pirn.tapestry import Tapestry
+from pirn_health.mri.functional_connectivity_extractor import (
     FunctionalConnectivityExtractor,
 )
-from pirn.tapestry import Tapestry
 
 _CFG = KnotConfig(id="f")
 _TS_DATA = {

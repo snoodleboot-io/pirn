@@ -8,8 +8,8 @@ from collections.abc import Mapping
 import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.health.pathology.pathology_feature_extractor import PathologyFeatureExtractor
 from pirn.tapestry import Tapestry
+from pirn_health.pathology.pathology_feature_extractor import PathologyFeatureExtractor
 
 _CFG = KnotConfig(id="f")
 _CELL_COUNTS: dict[tuple[int, int], int] = {(0, 0): 10, (0, 512): 4}

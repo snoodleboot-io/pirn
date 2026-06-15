@@ -6,11 +6,11 @@ import unittest
 
 import numpy as np
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.eeg_meg.evoked_response_averager import (
+from pirn_health.eeg_meg.evoked_response_averager import (
     EvokedResponseAverager,
 )
-from pirn.domains.health.types.health_signal_frame import HealthSignalFrame
-from pirn.domains.health.types.health_signal_payload import HealthSignalPayload
+from pirn_health.types.health_signal_frame import HealthSignalFrame
+from pirn_health.types.health_signal_payload import HealthSignalPayload
 
 _CFG = KnotConfig(id="e")
 _EPOCH = HealthSignalPayload(

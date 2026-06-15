@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 
-from pirn.domains.health.types.dicom_series import DICOMSeries
+from pirn_health.types.dicom_series import DICOMSeries
 
 
 class TestConstruction(unittest.TestCase):

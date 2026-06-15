@@ -11,9 +11,9 @@ except ImportError as _e:
 
 import numpy as np
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.eeg_meg.sleep_stage_classifier import SleepStageClassifier
-from pirn.domains.health.types.health_signal_frame import HealthSignalFrame
-from pirn.domains.health.types.health_signal_payload import HealthSignalPayload
+from pirn_health.eeg_meg.sleep_stage_classifier import SleepStageClassifier
+from pirn_health.types.health_signal_frame import HealthSignalFrame
+from pirn_health.types.health_signal_payload import HealthSignalPayload
 
 _CFG = KnotConfig(id="sc")
 _SIGNAL = HealthSignalPayload(

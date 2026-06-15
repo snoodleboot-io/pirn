@@ -6,8 +6,8 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.health.genomics.gene_set_enrichment_runner import GeneSetEnrichmentRunner
 from pirn.tapestry import Tapestry
+from pirn_health.genomics.gene_set_enrichment_runner import GeneSetEnrichmentRunner
 
 _CFG = KnotConfig(id="g")
 _RANKS = [{"gene_id": "TP53", "rank_metric": 2.5}]

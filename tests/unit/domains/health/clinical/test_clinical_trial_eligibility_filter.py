@@ -5,10 +5,10 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.clinical.clinical_trial_eligibility_filter import (
+from pirn_health.clinical.clinical_trial_eligibility_filter import (
     ClinicalTrialEligibilityFilter,
 )
-from pirn.domains.health.types.clinical_record import ClinicalRecord
+from pirn_health.types.clinical_record import ClinicalRecord
 
 _CFG = KnotConfig(id="f")
 _RECORDS: tuple[ClinicalRecord, ...] = ()

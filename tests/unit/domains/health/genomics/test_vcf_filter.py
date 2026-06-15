@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.genomics.vcf_filter import VCFFilter
+from pirn_health.genomics.vcf_filter import VCFFilter
 
 _CFG = KnotConfig(id="f")
 _ROWS = (

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.health.protocols.omop_connection import OMOPConnection
+from pirn_health.protocols.omop_connection import OMOPConnection
 
 
 class TestOMOPConnectionInterface(unittest.IsolatedAsyncioTestCase):

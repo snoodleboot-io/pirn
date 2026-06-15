@@ -6,8 +6,8 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.health.mri.dti_preprocessor import DTIPreprocessor
 from pirn.tapestry import Tapestry
+from pirn_health.mri.dti_preprocessor import DTIPreprocessor
 
 _CFG = KnotConfig(id="d")
 

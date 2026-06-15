@@ -1,8 +1,10 @@
-# Skeleton only (Phase 0 / SCD-02). NO source yet — `pirn/domains/health`
-# moves to `src/pirn_health/` during extraction (Phase 3 / R5), at which point
-# the health extras (pydicom/mne/nibabel/... + mri/genomics/bids/pyteomics)
-# are lifted here from the root pyproject. The `health→agents` edge is broken
-# in Phase 2 (ADR-3), so this depends on core only.
+# pirn-health — the health domain, imports as `pirn_health` (SCD-16, Phase 3).
+# Source relocated from `pirn/domains/health` to `src/pirn_health/`; the
+# domain's heavy-dep extras (pydicom/mne/nibabel/pyfaidx/pysam/fhir.resources/
+# pyedflib for `health`, plus the `mri` and `genomics` subsets) moved here from
+# pirn-core. The `health→agents` edge is broken in Phase 2 (ADR-3), so this
+# depends only on pirn-core. `bids` (pybids) and `pyteomics`/`psims` stay in
+# pirn-core — they are not health-domain-owned.
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
@@ -14,6 +16,29 @@ description = "pirn health domain knots."
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
 dependencies = ["pirn-core>=0.4.0,<0.5.0"]  # lockstep floor (ADR-6 / constraint C4)
+
+[project.optional-dependencies]
+# Heavy clinical/biomedical SDKs — the pure-Python orchestration layer imports
+# without these; the stub knot `process()` bodies are replaced with vendor SDK
+# calls once the extra is installed.
+health  = [
+    "pydicom>=2.4",
+    "mne>=1.6",
+    "nibabel>=5.2",
+    "pyfaidx>=0.7",
+    "pysam>=0.22",
+    "fhir.resources>=7.1",
+    "pyedflib>=0.1.42",
+]
+# MRI/volumetrics subset — resolves independently of the full `health` extra.
+mri = [
+    "SimpleITK>=2.3",
+    "dipy>=1.9",
+    "nibabel>=5.2",
+]
+# Genomics subset — file formats only (FASTA, FASTQ, VCF, BCF); resolves
+# independently of the full `health` extra.
+genomics = ["pyfaidx>=0.7", "pysam>=0.22"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/pirn_health"]

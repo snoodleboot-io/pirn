@@ -5,8 +5,8 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.clinical.phi_redactor import PHIRedactor
-from pirn.domains.health.types.clinical_record import ClinicalRecord
+from pirn_health.clinical.phi_redactor import PHIRedactor
+from pirn_health.types.clinical_record import ClinicalRecord
 
 _CFG = KnotConfig(id="r")
 _RECORD = ClinicalRecord()

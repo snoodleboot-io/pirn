@@ -6,7 +6,7 @@ import unittest
 from collections.abc import Mapping
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.genomics.expression_quantifier import ExpressionQuantifier
+from pirn_health.genomics.expression_quantifier import ExpressionQuantifier
 
 _CFG = KnotConfig(id="q")
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.clinical.icd10_code_validator import (
+from pirn_health.clinical.icd10_code_validator import (
     ICD10CodeValidator,
 )
 

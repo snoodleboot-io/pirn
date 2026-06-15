@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.clinical.diagnosis_code_rollup import (
+from pirn_health.clinical.diagnosis_code_rollup import (
     DiagnosisCodeRollup,
 )
 

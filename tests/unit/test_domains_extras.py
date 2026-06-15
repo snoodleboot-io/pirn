@@ -102,8 +102,8 @@ class TestDomainImportGuards(unittest.TestCase):
         import pirn_ml  # noqa: F401
 
     def test_health_namespace_imports_without_extras(self) -> None:
-        sys.modules.pop("pirn.domains.health", None)
-        import pirn.domains.health  # noqa: F401
+        sys.modules.pop("pirn_health", None)
+        import pirn_health  # noqa: F401
 
     def test_signal_namespace_imports_without_extras(self) -> None:
         # Signal extracted to the standalone pirn_signal package (SCD-11).

@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.clinical._dedup_rx_cuis import _DedupRxCUIs
+from pirn_health.clinical._dedup_rx_cuis import _DedupRxCUIs
 
 
 class TestDedupRxCUIsConstruction(unittest.TestCase):

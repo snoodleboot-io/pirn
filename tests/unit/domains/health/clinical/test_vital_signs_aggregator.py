@@ -6,7 +6,7 @@ import unittest
 from collections.abc import Mapping
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.clinical.vital_signs_aggregator import (
+from pirn_health.clinical.vital_signs_aggregator import (
     VitalSignsAggregator,
 )
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 
-from pirn.domains.health.types.health_signal_frame import HealthSignalFrame
+from pirn_health.types.health_signal_frame import HealthSignalFrame
 
 
 class TestConstruction(unittest.TestCase):

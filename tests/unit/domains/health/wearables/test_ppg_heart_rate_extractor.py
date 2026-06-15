@@ -15,8 +15,8 @@ from typing import Any
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.health.wearables.ppg_heart_rate_extractor import PPGHeartRateExtractor
 from pirn.tapestry import Tapestry
+from pirn_health.wearables.ppg_heart_rate_extractor import PPGHeartRateExtractor
 
 _FS = 25.0  # Hz
 _N = 250    # samples — 10 seconds of data, enough for multiple peaks at 1 Hz

@@ -7,8 +7,8 @@ from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.health.pathology.cell_segmenter import CellSegmenter
 from pirn.tapestry import Tapestry
+from pirn_health.pathology.cell_segmenter import CellSegmenter
 
 _CFG = KnotConfig(id="cs")
 _TILE_DATA: dict[str, Any] = {

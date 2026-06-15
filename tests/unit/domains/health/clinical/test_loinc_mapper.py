@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.clinical.loinc_mapper import LOINCMapper
+from pirn_health.clinical.loinc_mapper import LOINCMapper
 
 _CFG = KnotConfig(id="m")
 _KNOT = LOINCMapper(lab_test_names=[], mapping={}, _config=_CFG)

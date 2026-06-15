@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.health.protocols.fhir_client import FHIRClient
+from pirn_health.protocols.fhir_client import FHIRClient
 
 
 class TestFHIRClientInterface(unittest.IsolatedAsyncioTestCase):

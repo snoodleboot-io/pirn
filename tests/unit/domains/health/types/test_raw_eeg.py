@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 
-from pirn.domains.health.types.raw_eeg import RawEEG
+from pirn_health.types.raw_eeg import RawEEG
 
 
 class TestConstruction(unittest.TestCase):

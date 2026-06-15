@@ -376,13 +376,13 @@ PHI redaction: `.vhdr` keys `SubjectName`, `SubjectID`, and `InstitutionName` ar
 
 ## Sub-domains
 
-### `pirn.domains.health.clinical`
+### `pirn_health.clinical`
 
 Clinical data knots for EHR and CDS workflows.
 
 | Knot | Description |
 |---|---|
-| `FhirPatientAssembler` *(from `pirn.domains.health.assemblers`)* | Assembles sanitised `ClinicalRecord` tuples from `list[dict]` + metadata (replaces removed `FhirPatientIngestor`) |
+| `FhirPatientAssembler` *(from `pirn_health.assemblers`)* | Assembles sanitised `ClinicalRecord` tuples from `list[dict]` + metadata (replaces removed `FhirPatientIngestor`) |
 | `Hl7v2MessageParser` | Parses HL7 v2 messages from bytes |
 | `PhiRedactor` | Explicit pass-through redaction knot for clinical record streams |
 | `PatientCohortBuilder` | Filters a record stream into a named cohort by inclusion criteria |
@@ -403,13 +403,13 @@ Clinical data knots for EHR and CDS workflows.
 
 ---
 
-### `pirn.domains.health.mri`
+### `pirn_health.mri`
 
 MRI acquisition and analysis knots.
 
 | Knot | Description |
 |---|---|
-| `DicomPacsAssembler` *(from `pirn.domains.health.assemblers`)* | Assembles a `DICOMPayload` from a `DICOMSeries` + staging dir (replaces removed `DicomIngestor`) |
+| `DicomPacsAssembler` *(from `pirn_health.assemblers`)* | Assembles a `DICOMPayload` from a `DICOMSeries` + staging dir (replaces removed `DicomIngestor`) |
 | `NiftiConverter` | Converts DICOM volumes to NIfTI format |
 | `BiasFieldCorrector` | N4 bias field correction via ANTs/SimpleITK |
 | `BrainMaskExtractor` | Skull-stripping and brain mask extraction |
@@ -426,14 +426,14 @@ MRI acquisition and analysis knots.
 
 ---
 
-### `pirn.domains.health.eeg_meg`
+### `pirn_health.eeg_meg`
 
 EEG and MEG processing knots backed by `mne`.
 
 | Knot | Description |
 |---|---|
-| `EegObjectStoreAssembler` *(from `pirn.domains.health.assemblers`)* | Assembles a `SignalPayload` from `bytes` + metadata (replaces removed `EEGRawIngestor`) |
-| `MegObjectStoreAssembler` *(from `pirn.domains.health.assemblers`)* | Assembles a `SignalPayload` from `bytes` + metadata (replaces removed `MegRawIngestor`) |
+| `EegObjectStoreAssembler` *(from `pirn_health.assemblers`)* | Assembles a `SignalPayload` from `bytes` + metadata (replaces removed `EEGRawIngestor`) |
+| `MegObjectStoreAssembler` *(from `pirn_health.assemblers`)* | Assembles a `SignalPayload` from `bytes` + metadata (replaces removed `MegRawIngestor`) |
 | `BandpassFilter` | Applies a bandpass filter to raw data |
 | `NotchFilter` | Notch filter for power-line noise removal |
 | `ArtifactRemover` | ICA-based artifact rejection |
@@ -448,7 +448,7 @@ EEG and MEG processing knots backed by `mne`.
 
 ---
 
-### `pirn.domains.health.genomics`
+### `pirn_health.genomics`
 
 NGS pipeline knots.
 
@@ -476,13 +476,13 @@ NGS pipeline knots.
 
 ---
 
-### `pirn.domains.health.pathology`
+### `pirn_health.pathology`
 
 Digital pathology knots for whole-slide image analysis.
 
 | Knot | Description |
 |---|---|
-| `WsiObjectStoreAssembler` *(from `pirn.domains.health.assemblers`)* | Assembles a `tuple[WSITilePayload, ...]` from `bytes` + metadata (replaces removed `WsiTileExtractor`) |
+| `WsiObjectStoreAssembler` *(from `pirn_health.assemblers`)* | Assembles a `tuple[WSITilePayload, ...]` from `bytes` + metadata (replaces removed `WsiTileExtractor`) |
 | `TissueSegmenter` | Identifies tissue regions and discards background tiles |
 | `CellDetector` | Nuclear/cell detection from H&E tiles |
 | `MitosisCounter` | Counts mitotic figures in a tile set |
@@ -490,7 +490,7 @@ Digital pathology knots for whole-slide image analysis.
 
 ---
 
-### `pirn.domains.health.trials`
+### `pirn_health.trials`
 
 Clinical trial data management knots (CDISC/SDTM/ADaM).
 
@@ -506,7 +506,7 @@ Clinical trial data management knots (CDISC/SDTM/ADaM).
 
 ---
 
-### `pirn.domains.health.wearables`
+### `pirn_health.wearables`
 
 Wearable and remote monitoring knots.
 
@@ -521,7 +521,7 @@ Wearable and remote monitoring knots.
 
 ---
 
-### `pirn.domains.health.protocols`
+### `pirn_health.protocols`
 
 Connection interfaces for healthcare system backends.
 
@@ -538,14 +538,14 @@ Connection interfaces for healthcare system backends.
 
 Domain payloads enter and leave the health domain through assembler/disassembler knots. The ingestor pattern is abolished.
 
-**Assemblers** (raw → Payload, no I/O) — all in `pirn.domains.health.assemblers`:
+**Assemblers** (raw → Payload, no I/O) — all in `pirn_health.assemblers`:
 
 ```python
-from pirn.domains.health.assemblers.fhir_patient_assembler import FhirPatientAssembler
-from pirn.domains.health.assemblers.dicom_pacs_assembler import DicomPacsAssembler
-from pirn.domains.health.assemblers.eeg_object_store_assembler import EegObjectStoreAssembler
-from pirn.domains.health.assemblers.meg_object_store_assembler import MegObjectStoreAssembler
-from pirn.domains.health.assemblers.wsi_object_store_assembler import WsiObjectStoreAssembler
+from pirn_health.assemblers.fhir_patient_assembler import FhirPatientAssembler
+from pirn_health.assemblers.dicom_pacs_assembler import DicomPacsAssembler
+from pirn_health.assemblers.eeg_object_store_assembler import EegObjectStoreAssembler
+from pirn_health.assemblers.meg_object_store_assembler import MegObjectStoreAssembler
+from pirn_health.assemblers.wsi_object_store_assembler import WsiObjectStoreAssembler
 ```
 
 | Assembler | Input | Output |
@@ -556,7 +556,7 @@ from pirn.domains.health.assemblers.wsi_object_store_assembler import WsiObjectS
 | `WsiObjectStoreAssembler` | `bytes` + metadata | `tuple[WSITilePayload, ...]` |
 | `FhirPatientAssembler` | `list[dict]` + metadata | `tuple[ClinicalRecord, ...]` |
 
-**Disassemblers** (Payload → raw, no I/O) — all in `pirn.domains.health.disassemblers`:
+**Disassemblers** (Payload → raw, no I/O) — all in `pirn_health.disassemblers`:
 
 | Disassembler | Input | Output |
 |--------------|-------|--------|

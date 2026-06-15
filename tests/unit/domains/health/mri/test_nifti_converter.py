@@ -6,9 +6,9 @@ import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.mri.nifti_converter import NIfTIConverter
-from pirn.domains.health.types.dicom_payload import DICOMPayload
-from pirn.domains.health.types.dicom_series import DICOMSeries
+from pirn_health.mri.nifti_converter import NIfTIConverter
+from pirn_health.types.dicom_payload import DICOMPayload
+from pirn_health.types.dicom_series import DICOMSeries
 
 _CFG = KnotConfig(id="c")
 _PAYLOAD = DICOMPayload(metadata=DICOMSeries(), data="/tmp/dicom")

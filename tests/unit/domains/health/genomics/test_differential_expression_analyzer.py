@@ -12,7 +12,7 @@ except ImportError as _e:
 from collections.abc import Mapping
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.genomics.differential_expression_analyzer import (
+from pirn_health.genomics.differential_expression_analyzer import (
     DifferentialExpressionAnalyzer,
 )
 

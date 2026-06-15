@@ -6,7 +6,7 @@ import unittest
 from collections.abc import Mapping
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.genomics.single_cell_clusterer import SingleCellClusterer
+from pirn_health.genomics.single_cell_clusterer import SingleCellClusterer
 
 _CFG = KnotConfig(id="c")
 

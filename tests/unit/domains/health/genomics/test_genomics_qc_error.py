@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.health.genomics.genomics_qc_error import GenomicsQCError
+from pirn_health.genomics.genomics_qc_error import GenomicsQCError
 
 
 class TestGenomicsQCError(unittest.TestCase):

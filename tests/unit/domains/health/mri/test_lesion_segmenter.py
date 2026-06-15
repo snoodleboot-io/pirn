@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.mri.lesion_segmenter import LesionSegmenter
+from pirn_health.mri.lesion_segmenter import LesionSegmenter
 
 _CFG = KnotConfig(id="s")
 

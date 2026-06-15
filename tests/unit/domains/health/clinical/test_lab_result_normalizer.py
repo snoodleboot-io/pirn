@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.clinical.lab_result_normalizer import (
+from pirn_health.clinical.lab_result_normalizer import (
     LabResultNormalizer,
 )
 

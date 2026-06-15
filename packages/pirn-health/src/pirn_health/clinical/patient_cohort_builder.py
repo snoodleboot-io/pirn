@@ -1,0 +1,106 @@
+"""``PatientCohortBuilder`` — compose multiple eligibility filters.
+
+Pipeline: feed an initial record set through several
+:class:`ClinicalTrialEligibilityFilter` stages (e.g. inclusion then
+exclusion). Implemented as a :class:`SubTapestry` so each stage is a
+visible knot in the run graph.
+
+Algorithm:
+    1. Receive a sequence of ClinicalRecords and a stages mapping of named criteria.
+    2. Validate that records is a list/tuple of ClinicalRecords and stages is a Mapping.
+    3. For each stage, apply the eligibility predicates to filter the current record set.
+    4. Chain stages in order so each stage sees the output of the previous.
+    5. Return the inner RunResult.
+
+
+References:
+    - CDISC CDASH: https://www.cdisc.org/standards/foundational/cdash
+    - HL7 FHIR R4 ResearchSubject: https://hl7.org/fhir/R4/researchsubject.html
+"""
+
+from __future__ import annotations
+
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any
+
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
+from pirn.nodes.sub_tapestry import SubTapestry
+
+from pirn_health.clinical._pass_through import _PassThrough
+from pirn_health.clinical.clinical_trial_eligibility_filter import (
+    ClinicalTrialEligibilityFilter,
+)
+from pirn_health.types.clinical_record import ClinicalRecord
+
+
+class PatientCohortBuilder(SubTapestry):
+    """Apply named filter stages in order to build a final cohort."""
+
+    def __init__(
+        self,
+        *,
+        records: Knot | Sequence[ClinicalRecord],
+        stages: Knot | Mapping[str, Mapping[str, Callable[[ClinicalRecord], bool]]],
+        _config: KnotConfig,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            records=records,
+            stages=stages,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        records: Sequence[ClinicalRecord],
+        stages: Mapping[str, Mapping[str, Callable[[ClinicalRecord], bool]]],
+        **_: Any,
+    ) -> Any:
+        """Apply each named eligibility filter stage in order and return the terminal Knot.
+
+        Args:
+            records: Sequence of ClinicalRecords to filter through each stage.
+            stages: Mapping of stage name to criteria mapping of predicate callables.
+
+        Returns:
+            A RunResult summarising the outcome of the inner tapestry execution.
+
+        Raises:
+            TypeError: If records is not a list/tuple of ClinicalRecords or stages is not a Mapping.
+        """
+        if not isinstance(records, (list, tuple)):
+            raise TypeError("PatientCohortBuilder: records must be a list or tuple")
+        for record in records:
+            if not isinstance(record, ClinicalRecord):
+                raise TypeError("PatientCohortBuilder: every record must be a ClinicalRecord")
+        if not isinstance(stages, Mapping):
+            raise TypeError("PatientCohortBuilder: stages must be a Mapping")
+        for stage_name, criteria in stages.items():
+            if not isinstance(criteria, Mapping):
+                raise TypeError(
+                    f"PatientCohortBuilder: stage {stage_name!r} criteria must be a Mapping"
+                )
+        current = tuple(records)
+        seed = _PassThrough(
+            records=current,
+            _config=KnotConfig(id="cohort-seed"),
+        )
+        previous: Knot = seed
+        for stage_name, criteria in stages.items():
+            # The filter consumes a sequence directly; tie ordering by
+            # naming the stage with a stable id derived from the user
+            # mapping keys.
+            stage_records = tuple(
+                record
+                for record in current
+                if all(predicate(record) for predicate in criteria.values())
+            )
+            current = stage_records
+            previous = ClinicalTrialEligibilityFilter(
+                records=stage_records,
+                criteria=criteria,
+                _config=KnotConfig(id=f"cohort-stage-{stage_name}"),
+            )
+        return previous

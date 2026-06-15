@@ -5,8 +5,8 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.genomics.fastq_quality_controller import FastqQualityController
-from pirn.domains.health.types.genomics_record import GenomicsRecord
+from pirn_health.genomics.fastq_quality_controller import FastqQualityController
+from pirn_health.types.genomics_record import GenomicsRecord
 
 _CFG = KnotConfig(id="q")
 

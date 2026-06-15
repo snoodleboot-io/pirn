@@ -12,10 +12,10 @@ except ImportError as _e:
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.trials.propensity_score_matcher_pipeline import (
+from pirn.tapestry import Tapestry
+from pirn_health.trials.propensity_score_matcher_pipeline import (
     PropensityScoreMatcherPipeline,
 )
-from pirn.tapestry import Tapestry
 
 _COHORT: list[dict[str, Any]] = [
     {"patient_id": "P1", "age": 50, "sex": "M", "treated": True},

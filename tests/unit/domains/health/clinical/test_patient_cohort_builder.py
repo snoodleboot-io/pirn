@@ -6,11 +6,11 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.health.clinical.patient_cohort_builder import (
+from pirn.tapestry import Tapestry
+from pirn_health.clinical.patient_cohort_builder import (
     PatientCohortBuilder,
 )
-from pirn.domains.health.types.clinical_record import ClinicalRecord
-from pirn.tapestry import Tapestry
+from pirn_health.types.clinical_record import ClinicalRecord
 
 _CFG = KnotConfig(id="b")
 _RECORDS: tuple[ClinicalRecord, ...] = ()

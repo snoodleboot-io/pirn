@@ -6,8 +6,8 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.health.mri.spatial_normalizer import SpatialNormalizer
 from pirn.tapestry import Tapestry
+from pirn_health.mri.spatial_normalizer import SpatialNormalizer
 
 _CFG = KnotConfig(id="s")
 _IMAGE = {"nifti_path": "t1.nii.gz", "voxel_size_mm": [1.0, 1.0, 1.0]}

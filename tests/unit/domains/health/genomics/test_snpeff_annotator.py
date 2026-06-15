@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.health.genomics.snpeff_annotator import SnpEffAnnotator
+from pirn_health.genomics.snpeff_annotator import SnpEffAnnotator
 
 _CFG = KnotConfig(id="a")
 
