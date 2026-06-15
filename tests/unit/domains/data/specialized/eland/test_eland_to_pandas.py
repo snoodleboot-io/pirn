@@ -22,14 +22,13 @@ except ImportError as _e:
 from typing import Any
 
 import pandas as pd
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.frames.pandas.pandas_data_batch import PandasDataBatch
-from pirn.domains.data.specialized.eland.eland_dataframe import ElandDataFrame
-from pirn.domains.data.specialized.eland.eland_to_pandas import ElandToPandas
 from pirn.tapestry import Tapestry
+from pirn_data.frames.pandas.pandas_data_batch import PandasDataBatch
+from pirn_data.specialized.eland.eland_dataframe import ElandDataFrame
+from pirn_data.specialized.eland.eland_to_pandas import ElandToPandas
 
 
 class _FakeFrame:

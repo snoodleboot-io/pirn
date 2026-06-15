@@ -8,17 +8,17 @@ from unittest.mock import MagicMock
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
-from pirn.domains.data.lazy.spark.spark_dataframe import SparkDataFrame
-from pirn.domains.data.lazy.spark.spark_execution_receipt import SparkExecutionReceipt
+from pirn_data.lazy.spark.spark_dataframe import SparkDataFrame
+from pirn_data.lazy.spark.spark_execution_receipt import SparkExecutionReceipt
 
 try:
     import pyspark.sql  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("pyspark not installed") from _e
 
-from pirn.domains.data.lazy.spark.spark_write_sink import SparkWriteSink
 from pirn.nodes.source import Source
 from pirn.tapestry import Tapestry
+from pirn_data.lazy.spark.spark_write_sink import SparkWriteSink
 
 
 def _mock_sdf() -> SparkDataFrame:

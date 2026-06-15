@@ -9,9 +9,9 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.task_pipelines.named_entity_recognition_pipeline import (
     NamedEntityRecognitionPipeline,
 )
-from pirn.domains.ml.types.eval_metadata import EvalMetadata
 from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.ml._stubs.recording_database_pool import (
     RecordingDatabasePool,
 )

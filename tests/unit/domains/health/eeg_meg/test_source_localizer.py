@@ -6,7 +6,6 @@ import unittest
 from collections.abc import Mapping
 
 import numpy as np
-
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.eeg_meg.source_localizer import SourceLocalizer
 from pirn.domains.health.types.health_signal_frame import HealthSignalFrame

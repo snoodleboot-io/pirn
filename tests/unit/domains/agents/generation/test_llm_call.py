@@ -10,6 +10,7 @@ from pirn_agents.generation.llm_call import LLMCall
 from pirn_agents.types.agent_context import AgentContext
 from pirn_agents.types.agent_message import AgentMessage
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.conftest import StubLLMProvider
 
 

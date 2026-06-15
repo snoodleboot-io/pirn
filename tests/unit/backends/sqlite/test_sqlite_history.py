@@ -5,7 +5,6 @@ from __future__ import annotations
 import sqlite3
 import unittest
 from datetime import UTC, datetime
-from typing import Any
 from unittest.mock import MagicMock
 
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory

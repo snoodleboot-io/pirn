@@ -6,7 +6,6 @@ import json
 import logging
 
 import pytest
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.lineage import KnotLineage

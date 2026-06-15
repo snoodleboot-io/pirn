@@ -5,7 +5,6 @@ from __future__ import annotations
 import unittest
 
 import numpy as np
-
 from pirn.core.transport.serializers.numpy_serializer import NumpySerializer
 from pirn.core.transport.serializers.serialiser_error import SerialiserError
 

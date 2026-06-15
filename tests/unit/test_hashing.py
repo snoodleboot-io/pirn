@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any
 import unittest
-
-from pydantic import BaseModel
+from dataclasses import dataclass
+from typing import Any
 
 from pirn.core.hashing import content_hash
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
-
+from pydantic import BaseModel
 
 
 class _StandaloneTests(unittest.TestCase):
@@ -150,8 +148,8 @@ class _BothHooks(PirnOpaqueValue):
     
     def test_data_batch_content_hash_stable(self):
         """End-to-end: a real DataBatch with type-bearing schema hashes cleanly."""
-        from pirn.domains.data.data_batch import DataBatch
-        from pirn.domains.data.data_schema import DataSchema
+        from pirn_data.data_batch import DataBatch
+        from pirn_data.data_schema import DataSchema
     
         schema = DataSchema(
             columns={"id": int, "name": str},

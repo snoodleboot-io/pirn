@@ -9,11 +9,11 @@ from unittest.mock import MagicMock
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.data_batch import DataBatch
-from pirn.domains.data.specializations.medallion.tuples_to_data_batch_knot import (
+from pirn.tapestry import Tapestry
+from pirn_data.data_batch import DataBatch
+from pirn_data.specializations.medallion.tuples_to_data_batch_knot import (
     TuplesToDataBatchKnot,
 )
-from pirn.tapestry import Tapestry
 
 
 def _make_knot(column_names: list[str] | None = None) -> TuplesToDataBatchKnot:

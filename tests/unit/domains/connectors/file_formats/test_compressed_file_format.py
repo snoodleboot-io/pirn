@@ -13,6 +13,7 @@ from pirn.connectors.file_formats.compressed_file_format import (
     CompressedFileFormat,
 )
 from pirn.connectors.file_formats.jsonl_format import JsonlFormat
+
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )

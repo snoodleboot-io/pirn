@@ -143,8 +143,8 @@ jobs:
 
       - name: "[data] install + import"
         run: |
-          uv pip install --system -e ".[data]"
-          uv run python -c "import pirn.domains.data; print('OK: data')"
+          uv pip install --system -e "./packages/pirn-data[data]"
+          uv run python -c "import pirn_data; print('OK: data')"
 
       - name: "[agents] install + import"
         run: |

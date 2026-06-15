@@ -11,13 +11,12 @@ except ImportError as _e:
 
 import pyarrow as pa
 import pyarrow.compute as pc
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.frames.pyarrow.pyarrow_data_batch import PyarrowDataBatch
-from pirn.domains.data.frames.pyarrow.pyarrow_filter import PyarrowFilter
 from pirn.tapestry import Tapestry
+from pirn_data.frames.pyarrow.pyarrow_data_batch import PyarrowDataBatch
+from pirn_data.frames.pyarrow.pyarrow_filter import PyarrowFilter
 
 
 def _empty_batch() -> PyarrowDataBatch:

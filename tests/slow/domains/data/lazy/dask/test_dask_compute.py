@@ -10,13 +10,13 @@ pytestmark = pytest.mark.slow
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.lazy.dask.dask_compute import DaskCompute
-from pirn.domains.data.lazy.dask.dask_execution_receipt import (
+from pirn.tapestry import Tapestry
+from pirn_data.lazy.dask.dask_compute import DaskCompute
+from pirn_data.lazy.dask.dask_execution_receipt import (
     DaskExecutionReceipt,
 )
-from pirn.domains.data.lazy.dask.dask_filter import DaskFilter
-from pirn.domains.data.lazy.dask.dask_source import DaskSource
-from pirn.tapestry import Tapestry
+from pirn_data.lazy.dask.dask_filter import DaskFilter
+from pirn_data.lazy.dask.dask_source import DaskSource
 
 
 def _orders_factory() -> dd.DataFrame:

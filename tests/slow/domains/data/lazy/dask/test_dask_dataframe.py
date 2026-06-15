@@ -6,12 +6,11 @@ import pytest
 
 pytestmark = pytest.mark.slow
 
-from datetime import timezone
+from datetime import UTC
 
 import dask.dataframe as dd
 import pandas as pd
-
-from pirn.domains.data.lazy.dask.dask_dataframe import DaskDataFrame
+from pirn_data.lazy.dask.dask_dataframe import DaskDataFrame
 
 
 def _orders_frame() -> dd.DataFrame:
@@ -32,7 +31,7 @@ class TestDaskDataFrame:
 
     def test_default_fetched_at_is_utc(self) -> None:
         batch = DaskDataFrame(frame=_orders_frame())
-        assert batch.fetched_at.tzinfo is timezone.utc
+        assert batch.fetched_at.tzinfo is UTC
 
     def test_npartitions_property(self) -> None:
         batch = DaskDataFrame(frame=_orders_frame())

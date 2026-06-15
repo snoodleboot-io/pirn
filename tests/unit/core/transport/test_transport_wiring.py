@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import unittest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot

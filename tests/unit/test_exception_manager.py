@@ -1,10 +1,10 @@
 """ExceptionManager tests."""
 
 from __future__ import annotations
+
 import unittest
 
 from pirn.managers.exception_manager import ExceptionManager
-
 
 
 class _StandaloneTests(unittest.TestCase):

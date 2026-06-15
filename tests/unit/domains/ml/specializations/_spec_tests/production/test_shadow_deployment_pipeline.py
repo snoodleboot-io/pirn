@@ -12,6 +12,7 @@ from pirn.domains.ml.specializations.production.shadow_deployment_pipeline impor
 )
 from pirn.domains.ml.types.model_manifest import ModelManifest
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.ml._stubs.recording_lineage_store import (
     RecordingLineageStore,
 )

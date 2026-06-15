@@ -11,11 +11,11 @@ except ImportError as _e:
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.domains.data.data_batch import DataBatch
-from pirn.domains.data.frames.pandas.bridges.data_batch_to_pandas import (
+from pirn_data.data_batch import DataBatch
+from pirn_data.frames.pandas.bridges.data_batch_to_pandas import (
     DataBatchToPandas,
 )
-from pirn.domains.data.frames.pandas.pandas_data_batch import PandasDataBatch
+from pirn_data.frames.pandas.pandas_data_batch import PandasDataBatch
 
 
 def _upstream() -> Parameter:

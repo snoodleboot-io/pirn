@@ -1,4 +1,4 @@
-"""Unit tests for :class:`pirn.domains.data.lakehouse.iceberg.iceberg_table.IcebergTable`.
+"""Unit tests for :class:`pirn_data.lakehouse.iceberg.iceberg_table.IcebergTable`.
 
 The vendor SDK (``pyiceberg``) is not required to run these tests — a
 stub vendor table is injected via the ``table=`` constructor kwarg.
@@ -14,11 +14,11 @@ from collections.abc import AsyncIterator, Mapping
 from datetime import UTC, datetime
 from typing import Any
 
-from pirn.domains.data.lakehouse.iceberg.iceberg_table import IcebergTable
-from pirn.domains.data.lakehouse.iceberg.iceberg_table_config import (
+from pirn_data.lakehouse.iceberg.iceberg_table import IcebergTable
+from pirn_data.lakehouse.iceberg.iceberg_table_config import (
     IcebergTableConfig,
 )
-from pirn.domains.data.lakehouse.lakehouse_table import LakehouseTable
+from pirn_data.lakehouse.lakehouse_table import LakehouseTable
 
 
 class _ArrowResult:

@@ -14,15 +14,14 @@ DID load the new ones — the defining property of incremental extraction.
 from __future__ import annotations
 
 import pytest
-
-from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.connectors.databases.sqlite_config import SqliteConfig
 from pirn.connectors.databases.sqlite_pool import SqlitePool
-from pirn.domains.data.specializations.ingestion.watermark_incremental_extract import (
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
+from pirn_data.specializations.ingestion.watermark_incremental_extract import (
     WatermarkIncrementalExtract,
 )
-from pirn.tapestry import Tapestry
 
 
 @pytest.fixture

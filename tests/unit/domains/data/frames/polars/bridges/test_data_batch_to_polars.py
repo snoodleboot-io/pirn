@@ -12,12 +12,12 @@ except ImportError as _e:
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.data_batch import DataBatch
-from pirn.domains.data.frames.polars.bridges.data_batch_to_polars import (
+from pirn.tapestry import Tapestry
+from pirn_data.data_batch import DataBatch
+from pirn_data.frames.polars.bridges.data_batch_to_polars import (
     DataBatchToPolars,
 )
-from pirn.domains.data.frames.polars.polars_data_batch import PolarsDataBatch
-from pirn.tapestry import Tapestry
+from pirn_data.frames.polars.polars_data_batch import PolarsDataBatch
 
 
 @knot

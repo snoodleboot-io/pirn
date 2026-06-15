@@ -6,10 +6,10 @@ import unittest
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
-from pirn.core.knot_config import KnotConfig
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
-from pirn.domains.data.specializations.scd.scd_type_1_merge_knot import ScdType1MergeKnot
+from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
+from pirn_data.specializations.scd.scd_type_1_merge_knot import ScdType1MergeKnot
 
 _TARGET_TABLE = "dim_customer"
 _PRIMARY_KEYS = ("id",)

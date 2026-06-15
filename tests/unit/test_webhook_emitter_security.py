@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import ssl
-from unittest.mock import AsyncMock, MagicMock, patch
 import unittest
-
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from pirn.emitters.webhook import WebhookEmitter
 

@@ -13,6 +13,7 @@ from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.file_formats.netcdf4_format import Netcdf4Format
+
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )

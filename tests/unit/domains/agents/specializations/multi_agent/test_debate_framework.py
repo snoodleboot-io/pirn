@@ -13,6 +13,7 @@ from pirn_agents.specializations.multi_agent.debate_framework import (
 from pirn_agents.types.agent_response import AgentResponse
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 _DEBATER_REGISTRY: dict[str, str] = {}

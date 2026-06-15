@@ -11,6 +11,7 @@ from pirn_agents.specializations.memory_patterns.semantic_fact_writer import (
     SemanticFactWriter,
 )
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.specializations.conftest import StubMemoryStore
 
 

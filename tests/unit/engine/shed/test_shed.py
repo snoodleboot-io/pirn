@@ -7,8 +7,8 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.engine.shed.shed import CycleDetector, Shed, detect_cycle
 from pirn.engine.shed.shed_error import ShedError
-from pirn.nodes.source import Source
 from pirn.nodes.sink import Sink
+from pirn.nodes.source import Source
 from pirn.tapestry import Tapestry
 
 

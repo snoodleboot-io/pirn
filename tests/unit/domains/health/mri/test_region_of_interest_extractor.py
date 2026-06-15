@@ -13,7 +13,6 @@ from collections.abc import Mapping
 from unittest.mock import MagicMock, patch
 
 import numpy as np
-
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.mri.region_of_interest_extractor import RegionOfInterestExtractor
 

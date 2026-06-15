@@ -7,19 +7,19 @@ import unittest
 from collections.abc import AsyncIterator
 from typing import Any
 
+from pirn.connectors.message_broker import MessageBroker
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.connectors.message_broker import MessageBroker
-from pirn.domains.data.specializations.scd.cdc.debezium_source import (
-    DebeziumSource,
-)
-from pirn.domains.data.specializations.scd.cdc.message_broker_connection import (
-    MessageBrokerConnection,
-)
-from pirn.domains.data.specializations.scd.cdc.cdc_message_broker_knot import (
+from pirn.tapestry import Tapestry
+from pirn_data.specializations.scd.cdc.cdc_message_broker_knot import (
     CdcMessageBrokerKnot,
 )
-from pirn.tapestry import Tapestry
+from pirn_data.specializations.scd.cdc.debezium_source import (
+    DebeziumSource,
+)
+from pirn_data.specializations.scd.cdc.message_broker_connection import (
+    MessageBrokerConnection,
+)
 
 
 class _StubRecord:

@@ -1,18 +1,17 @@
-"""Tests for :class:`pirn.domains.data.transforms.aggregate.Aggregate`."""
+"""Tests for :class:`pirn_data.transforms.aggregate.Aggregate`."""
 
 from __future__ import annotations
 
 import unittest
 
 import pytest
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.data_batch import DataBatch
-from pirn.domains.data.transforms.aggregate import Aggregate
-from pirn.domains.data.transforms.aggregate_spec import AggregateSpec
 from pirn.tapestry import Tapestry
+from pirn_data.data_batch import DataBatch
+from pirn_data.transforms.aggregate import Aggregate
+from pirn_data.transforms.aggregate_spec import AggregateSpec
 
 
 @knot

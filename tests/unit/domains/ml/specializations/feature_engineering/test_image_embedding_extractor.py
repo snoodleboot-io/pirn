@@ -11,8 +11,8 @@ from pirn.domains.ml.image_encoder_provider import ImageEncoderProvider
 from pirn.domains.ml.specializations.feature_engineering.feature_engineering_image_embedding_extractor import (
     FeatureEngineeringImageEmbeddingExtractor,
 )
-from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.tapestry import Tapestry
 
 

@@ -9,10 +9,10 @@ from unittest.mock import MagicMock
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.specializations.medallion.stamp_bronze_metadata_knot import (
+from pirn.tapestry import Tapestry
+from pirn_data.specializations.medallion.stamp_bronze_metadata_knot import (
     StampBronzeMetadataKnot,
 )
-from pirn.tapestry import Tapestry
 
 
 def _make_knot(source_uri: str = "db://src/orders") -> StampBronzeMetadataKnot:

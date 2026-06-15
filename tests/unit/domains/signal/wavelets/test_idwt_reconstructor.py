@@ -10,7 +10,7 @@ except ImportError as _e:
     raise unittest.SkipTest("scipy not installed") from _e
 
 try:
-    import pywt  # noqa: F401
+    import pywt
 except ImportError as _e:
     raise unittest.SkipTest("pywt not installed") from _e
 

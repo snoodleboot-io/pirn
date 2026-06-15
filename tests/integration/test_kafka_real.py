@@ -15,7 +15,6 @@ import os
 import uuid
 
 import pytest
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
@@ -87,7 +86,6 @@ async def _consume_n(bootstrap: str, topic: str, group: str, n: int) -> list[byt
 async def test_kafka_trigger_consumes_real_messages():
     """Produce 3 messages; KafkaTrigger must yield 3 RunRequests."""
     from aiokafka import AIOKafkaConsumer
-
     from pirn.triggers.kafka import KafkaTrigger
 
     bootstrap = _bootstrap()
@@ -164,7 +162,6 @@ async def _echo(x: int) -> int:
 async def test_kafka_streaming_source_drives_run_per_message():
     """Produce 5 messages; run_stream must complete 5 runs with correct outputs."""
     from aiokafka import AIOKafkaConsumer
-
     from pirn.streaming.base import run_stream
     from pirn.streaming.kafka import KafkaStreamingSource
 

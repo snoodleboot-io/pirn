@@ -1,8 +1,8 @@
 """Tests for the import allowlist feature in the YAML pipeline loader (H-2)."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.yaml_loader.loader import load_pipeline
 

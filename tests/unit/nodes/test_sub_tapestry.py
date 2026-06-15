@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import unittest
 from datetime import UTC, datetime
 from typing import Any
-import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -13,8 +13,6 @@ from pirn.managers.exception_record import ExceptionRecord
 from pirn.nodes.source import Source
 from pirn.nodes.sub_tapestry import SubTapestry, SubTapestryError
 from pirn.tapestry import Tapestry
-
-
 
 
 def _make_failed_result() -> RunResult:

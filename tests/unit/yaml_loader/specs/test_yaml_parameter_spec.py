@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import unittest
 
-from pydantic import ValidationError
-
 from pirn.yaml_loader.specs.yaml_parameter_spec import YamlParameterSpec
+from pydantic import ValidationError
 
 
 class TestParameterSpecConstruction(unittest.TestCase):

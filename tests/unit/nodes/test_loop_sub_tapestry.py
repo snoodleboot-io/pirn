@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
 import unittest
+from typing import TYPE_CHECKING, Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -31,7 +31,7 @@ class _CounterLoop(LoopSubTapestry[int]):
         self._target = target
         super().__init__(**kwargs)
 
-    def step(self, state: int) -> "tuple[Tapestry, int] | None":
+    def step(self, state: int) -> tuple[Tapestry, int] | None:
         if state >= self._target:
             return None
 
@@ -40,7 +40,7 @@ class _CounterLoop(LoopSubTapestry[int]):
                 cls_self._val = val
                 super().__init__(**kw)
 
-            async def process(self, **_: Any) -> int:  # noqa: E741
+            async def process(self, **_: Any) -> int:
                 return self._val + 1
 
         t = Tapestry()
@@ -48,7 +48,7 @@ class _CounterLoop(LoopSubTapestry[int]):
             _IncrSource(val=state, _config=KnotConfig(id="incr"))
         return t, state + 1
 
-    def fold(self, state: int, result: "RunResult") -> int:
+    def fold(self, state: int, result: RunResult) -> int:
         return result.outputs["incr"]
 
 

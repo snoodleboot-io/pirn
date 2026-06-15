@@ -5,7 +5,6 @@ from __future__ import annotations
 import unittest
 
 import numpy as np
-
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.eeg_meg.evoked_response_averager import (
     EvokedResponseAverager,

@@ -6,15 +6,15 @@ import unittest
 from typing import Any
 from unittest.mock import MagicMock
 
+from pirn.connectors.databases.sqlite_config import SqliteConfig
+from pirn.connectors.databases.sqlite_pool import SqlitePool
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.connectors.databases.sqlite_config import SqliteConfig
-from pirn.connectors.databases.sqlite_pool import SqlitePool
-from pirn.domains.data.specializations.ingestion.query_new_rows_knot import (
+from pirn.tapestry import Tapestry
+from pirn_data.specializations.ingestion.query_new_rows_knot import (
     QueryNewRowsKnot,
 )
-from pirn.tapestry import Tapestry
 
 
 async def _make_source_pool() -> SqlitePool:

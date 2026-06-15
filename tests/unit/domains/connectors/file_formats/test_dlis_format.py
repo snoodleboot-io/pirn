@@ -7,7 +7,6 @@ import unittest
 import unittest.mock
 
 import pytest
-
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )

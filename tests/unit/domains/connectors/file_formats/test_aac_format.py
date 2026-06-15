@@ -16,6 +16,7 @@ from pirn.connectors.file_formats.aac_format import AacFormat
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )

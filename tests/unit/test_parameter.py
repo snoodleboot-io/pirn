@@ -1,13 +1,12 @@
 """Parameter tests."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.tapestry import Tapestry
-
 
 
 class _StandaloneTests(unittest.TestCase):

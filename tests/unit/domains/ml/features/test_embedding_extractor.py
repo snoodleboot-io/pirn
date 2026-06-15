@@ -8,9 +8,10 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.domains.ml.features.embedding_extractor import EmbeddingExtractor
-from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.ml._stubs.recording_embedding_provider import (
     RecordingEmbeddingProvider,
 )

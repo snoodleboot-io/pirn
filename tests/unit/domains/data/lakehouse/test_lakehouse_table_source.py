@@ -8,10 +8,10 @@ from datetime import UTC, datetime
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.data.data_batch import DataBatch
-from pirn.domains.data.data_schema import DataSchema
-from pirn.domains.data.lakehouse.lakehouse_table import LakehouseTable
-from pirn.domains.data.lakehouse.lakehouse_table_source import LakehouseTableSource
+from pirn_data.data_batch import DataBatch
+from pirn_data.data_schema import DataSchema
+from pirn_data.lakehouse.lakehouse_table import LakehouseTable
+from pirn_data.lakehouse.lakehouse_table_source import LakehouseTableSource
 
 
 class _FakeTable(LakehouseTable):

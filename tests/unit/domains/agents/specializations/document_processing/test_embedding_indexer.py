@@ -9,6 +9,7 @@ from pirn_agents.specializations.document_processing.embedding_indexer import (
     EmbeddingIndexer,
 )
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.specializations.conftest import (
     StubEmbeddingProvider,
     StubMemoryStore,

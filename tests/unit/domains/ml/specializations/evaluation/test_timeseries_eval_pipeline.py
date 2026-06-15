@@ -10,9 +10,9 @@ from pirn.core.knot_config import KnotConfig
 from pirn.domains.ml.specializations.evaluation.timeseries_eval_pipeline import (
     TimeSeriesEvalPipeline,
 )
-from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.tapestry import Tapestry
 
 

@@ -6,7 +6,7 @@ import unittest
 from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
-from pirn.domains.data.lazy.spark.spark_dataframe import SparkDataFrame
+from pirn_data.lazy.spark.spark_dataframe import SparkDataFrame
 
 
 def _mock_frame(columns: list) -> MagicMock:

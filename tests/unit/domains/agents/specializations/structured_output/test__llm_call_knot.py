@@ -10,6 +10,7 @@ from pirn_agents.specializations.structured_output._llm_call_knot import (
     _LLMCallKnot,
 )
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 

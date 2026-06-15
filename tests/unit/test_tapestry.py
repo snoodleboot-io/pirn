@@ -1,13 +1,13 @@
 """Tapestry tests."""
 
 from __future__ import annotations
-import unittest
 
+import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
-from pirn.tapestry import _current_tapestry, Tapestry, current_tapestry
+from pirn.tapestry import Tapestry, _current_tapestry, current_tapestry
 
 
 @knot

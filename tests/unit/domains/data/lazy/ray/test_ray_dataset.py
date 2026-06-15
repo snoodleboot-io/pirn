@@ -11,8 +11,7 @@ except ImportError as _e:
     raise unittest.SkipTest("ray not installed") from _e
 
 import pytest
-
-from pirn.domains.data.lazy.ray.ray_dataset import RayDataset
+from pirn_data.lazy.ray.ray_dataset import RayDataset
 
 pytestmark = pytest.mark.slow
 

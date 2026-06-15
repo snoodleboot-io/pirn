@@ -10,6 +10,7 @@ from pirn_agents.specializations.specialized_agents._sql_generator import (
     _SQLGenerator,
 )
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 

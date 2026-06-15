@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import unittest
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 from pirn.backends._signer import _Signer

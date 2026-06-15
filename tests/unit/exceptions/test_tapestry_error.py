@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.exceptions.tapestry_error import TapestryError
 from pirn.exceptions.pirn_error import PirnError
+from pirn.exceptions.tapestry_error import TapestryError
 
 
 class TestTapestryError(unittest.TestCase):

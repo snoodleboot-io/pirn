@@ -20,16 +20,15 @@ from __future__ import annotations
 
 import ibis
 import pytest
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.lazy.ibis.ibis_execution_receipt import IbisExecutionReceipt
-from pirn.domains.data.lazy.ibis.ibis_filter import IbisFilter
-from pirn.domains.data.lazy.ibis.ibis_group_by_aggregate import IbisGroupByAggregate
-from pirn.domains.data.lazy.ibis.ibis_join import IbisJoin
-from pirn.domains.data.lazy.ibis.ibis_source import IbisSource
-from pirn.domains.data.lazy.ibis.ibis_to_table import IbisToTable
 from pirn.tapestry import Tapestry
+from pirn_data.lazy.ibis.ibis_execution_receipt import IbisExecutionReceipt
+from pirn_data.lazy.ibis.ibis_filter import IbisFilter
+from pirn_data.lazy.ibis.ibis_group_by_aggregate import IbisGroupByAggregate
+from pirn_data.lazy.ibis.ibis_join import IbisJoin
+from pirn_data.lazy.ibis.ibis_source import IbisSource
+from pirn_data.lazy.ibis.ibis_to_table import IbisToTable
 
 
 class _ExecutionRecorder:

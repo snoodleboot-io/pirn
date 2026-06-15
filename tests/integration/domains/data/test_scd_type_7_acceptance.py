@@ -17,15 +17,14 @@ Asserts the historical view (``region``, ``tier`` plus
 from __future__ import annotations
 
 import pytest
-
-from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.connectors.databases.sqlite_config import SqliteConfig
 from pirn.connectors.databases.sqlite_pool import SqlitePool
-from pirn.domains.data.specializations.scd.scd_type_7_hybrid import (
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
+from pirn_data.specializations.scd.scd_type_7_hybrid import (
     ScdType7Hybrid,
 )
-from pirn.tapestry import Tapestry
 
 
 @pytest.fixture

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
 import unittest
+from datetime import UTC, datetime, timedelta
 
 from pirn.core.lineage import KnotLineage
 
@@ -45,7 +45,6 @@ class _StandaloneTests(unittest.TestCase):
     
     
     def test_record_is_frozen(self):
-        import pytest
         from pydantic import ValidationError
     
         rec = _make()

@@ -7,7 +7,6 @@ Uses an in-process ``LocalCluster`` — no Docker required. Skips if
 from __future__ import annotations
 
 import pytest
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter

@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
 pytestmark = pytest.mark.slow
 
-from pirn.domains.data.lazy.dask.dask_execution_receipt import (
+from pirn_data.lazy.dask.dask_execution_receipt import (
     DaskExecutionReceipt,
 )
 
@@ -26,7 +26,7 @@ class TestDaskExecutionReceipt:
         assert receipt.row_count is None
 
     def test_with_optional_fields(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         receipt = DaskExecutionReceipt(
             backend_name="dask",
             target_path="/tmp/out.parquet",

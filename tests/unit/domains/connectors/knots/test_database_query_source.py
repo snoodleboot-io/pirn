@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.core.knot_config import KnotConfig
 from pirn.connectors.databases.sqlite_config import SqliteConfig
 from pirn.connectors.databases.sqlite_pool import SqlitePool
 from pirn.connectors.knots.database_connection_pool_knot import DatabaseConnectionPoolKnot
 from pirn.connectors.knots.database_query_source import DatabaseQuerySource
+from pirn.core.knot_config import KnotConfig
 
 
 class TestDatabaseQuerySource(unittest.IsolatedAsyncioTestCase):

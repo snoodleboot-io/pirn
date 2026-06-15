@@ -10,9 +10,8 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.experiments.stratified_kfold_validator import (
     StratifiedKFoldValidator,
 )
-from pirn.domains.ml.types.eval_metadata import EvalMetadata
-from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.eval_report_payload import EvalReportPayload
 from pirn.tapestry import Tapestry
 
 

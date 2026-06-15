@@ -10,6 +10,7 @@ from pirn_agents.specializations.structured_output._enum_classifier_attempt impo
     _EnumClassifierAttempt,
 )
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 

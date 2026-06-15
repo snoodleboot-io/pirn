@@ -29,8 +29,8 @@ def _make_knot() -> SelfSupervisedPretrainer:
 
 
 def _split():
-    from pirn.domains.ml.types.split_manifest import SplitManifest
     from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+    from pirn.domains.ml.types.split_manifest import SplitManifest
 
     return SplitManifest(
         train=DatasetManifest(name="tr", feature_names=["x"], target_name="y", row_count=10, source_uri="mem://"),

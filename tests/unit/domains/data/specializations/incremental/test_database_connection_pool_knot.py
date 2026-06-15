@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.core.knot_config import KnotConfig
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.knots.database_connection_pool_knot import (
     DatabaseConnectionPoolKnot,
 )
+from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
 

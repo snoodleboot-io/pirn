@@ -19,6 +19,7 @@ from pirn.connectors.file_formats.batch_file_format import (
 )
 from pirn.connectors.file_formats.edf_format import EdfFormat
 from pirn.connectors.file_formats.edf_plus_format import EdfPlusFormat
+
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )

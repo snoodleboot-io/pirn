@@ -9,6 +9,7 @@ from pirn.domains.ml.specializations.task_pipelines.dimensionality_reduction_pip
     DimensionalityReductionPipeline,
 )
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.ml._stubs.recording_database_pool import RecordingDatabasePool
 
 

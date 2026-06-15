@@ -1,6 +1,6 @@
 # Data Domain
 
-The `pirn.domains.data` package is pirn's universal layer for reading, transforming, and writing structured data. It positions pirn as an **orchestrator**, not an engine: the heavy computational work is delegated to best-in-class libraries (Polars, PyArrow, Ibis, DuckDB, etc.), while pirn supplies the lineage, scheduling, composition, and typed knot graph around them.
+The `pirn_data` package is pirn's universal layer for reading, transforming, and writing structured data. It positions pirn as an **orchestrator**, not an engine: the heavy computational work is delegated to best-in-class libraries (Polars, PyArrow, Ibis, DuckDB, etc.), while pirn supplies the lineage, scheduling, composition, and typed knot graph around them.
 
 ---
 
@@ -31,8 +31,8 @@ The `pirn[all-frames]` convenience extra installs every Tier-2 single-machine CP
 `DataBatch` is the universal exchange currency across all tiers. It is a Pydantic-validated, immutable value object:
 
 ```python
-from pirn.domains.data.data_batch import DataBatch
-from pirn.domains.data.data_schema import DataSchema
+from pirn_data.data_batch import DataBatch
+from pirn_data.data_schema import DataSchema
 
 batch = DataBatch(
     rows=({"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}),
@@ -55,7 +55,7 @@ Sources are knots that materialise data from external storage into `DataBatch` o
 Reads a **single file** by composing an `ObjectStore` (where the bytes live) with a `FileFormat` (how to decode those bytes).
 
 ```python
-from pirn.domains.data.sources.file_source import FileSource
+from pirn_data.sources.file_source import FileSource
 from pirn.connectors.file_formats.parquet_format import ParquetFormat
 from pirn.backends.s3 import S3DataStore
 
@@ -84,7 +84,7 @@ source = FileSource(
 Reads **every file under a prefix** and emits either one `DataBatch` per file or a single concatenated `DataBatch`.
 
 ```python
-from pirn.domains.data.sources.directory_source import DirectorySource
+from pirn_data.sources.directory_source import DirectorySource
 
 source = DirectorySource(
     store=S3DataStore(bucket="my-bucket"),
@@ -119,7 +119,7 @@ Sinks are knots that persist a `DataBatch` to external storage.
 Encodes a `DataBatch` and writes the bytes to an `ObjectStore`.
 
 ```python
-from pirn.domains.data.sinks.file_sink import FileSink
+from pirn_data.sinks.file_sink import FileSink
 from pirn.connectors.file_formats.parquet_format import ParquetFormat
 
 sink = FileSink(
@@ -146,23 +146,23 @@ sink = FileSink(
 
 ## Transforms
 
-Transform knots accept a `DataBatch` parent and return a new `DataBatch`. They live under `pirn.domains.data.transforms` and all operate on Tier-1 dicts — no extra dependencies required.
+Transform knots accept a `DataBatch` parent and return a new `DataBatch`. They live under `pirn_data.transforms` and all operate on Tier-1 dicts — no extra dependencies required.
 
 | Class | Import | What it does |
 |-------|--------|-------------|
-| `Filter` | `pirn.domains.data.transforms.filter` | Keeps rows where `predicate(row)` is truthy; drops the rest. |
-| `Rename` | `pirn.domains.data.transforms.rename` | Renames columns according to a `dict[str, str]` mapping. |
-| `Cast` | `pirn.domains.data.transforms.cast` | Coerces column values to target Python types. |
-| `Normalize` | `pirn.domains.data.transforms.normalize` | Applies lightweight string-cleanup rules per column (strip, lower, upper, replace). |
-| `Aggregate` | `pirn.domains.data.transforms.aggregate` | Groups by one or more columns and computes per-group aggregations (count, sum, mean, min, max, first, last, count_distinct). |
-| `Deduplicate` | `pirn.domains.data.transforms.deduplicate` | Removes duplicate rows, optionally keyed by a subset of columns. |
+| `Filter` | `pirn_data.transforms.filter` | Keeps rows where `predicate(row)` is truthy; drops the rest. |
+| `Rename` | `pirn_data.transforms.rename` | Renames columns according to a `dict[str, str]` mapping. |
+| `Cast` | `pirn_data.transforms.cast` | Coerces column values to target Python types. |
+| `Normalize` | `pirn_data.transforms.normalize` | Applies lightweight string-cleanup rules per column (strip, lower, upper, replace). |
+| `Aggregate` | `pirn_data.transforms.aggregate` | Groups by one or more columns and computes per-group aggregations (count, sum, mean, min, max, first, last, count_distinct). |
+| `Deduplicate` | `pirn_data.transforms.deduplicate` | Removes duplicate rows, optionally keyed by a subset of columns. |
 
 Example — filter then aggregate:
 
 ```python
-from pirn.domains.data.transforms.filter import Filter
-from pirn.domains.data.transforms.aggregate import Aggregate
-from pirn.domains.data.transforms.aggregate_spec import AggregateSpec
+from pirn_data.transforms.filter import Filter
+from pirn_data.transforms.aggregate import Aggregate
+from pirn_data.transforms.aggregate_spec import AggregateSpec
 
 active = Filter(
     batch=source,
@@ -423,16 +423,16 @@ Codecs are not standalone formats; compose them via `CompressedFileFormat`.
 
 ## Lakehouse
 
-The lakehouse adapters live under `pirn.domains.data.lakehouse` and implement the `LakehouseTable` interface. All three adapters are injectable with a pre-built vendor table for testing, and load their vendor SDKs lazily.
+The lakehouse adapters live under `pirn_data.lakehouse` and implement the `LakehouseTable` interface. All three adapters are injectable with a pre-built vendor table for testing, and load their vendor SDKs lazily.
 
 ### DeltaTable
 
 Full CRUD support backed by the Rust-compiled `deltalake` binding.
 
 ```python
-from pirn.domains.data.lakehouse.delta.delta_table import DeltaTable
-from pirn.domains.data.lakehouse.delta.delta_table_config import DeltaTableConfig
-from pirn.domains.data.lakehouse.lakehouse_table_source import LakehouseTableSource
+from pirn_data.lakehouse.delta.delta_table import DeltaTable
+from pirn_data.lakehouse.delta.delta_table_config import DeltaTableConfig
+from pirn_data.lakehouse.lakehouse_table_source import LakehouseTableSource
 
 config = DeltaTableConfig(
     table_uri="s3://my-bucket/tables/events",
@@ -456,8 +456,8 @@ Supported operations: `scan`, `append`, `overwrite` (full or partition-predicate
 Read + write backed by `pyiceberg`. Merge is not yet implemented natively in `pyiceberg`'s Python writer as of mid-2026 — `IcebergTable.merge()` raises `NotImplementedError` with a pointer to the upstream issue. Use the Java/Scala writer for production merges.
 
 ```python
-from pirn.domains.data.lakehouse.iceberg.iceberg_table import IcebergTable
-from pirn.domains.data.lakehouse.iceberg.iceberg_table_config import IcebergTableConfig
+from pirn_data.lakehouse.iceberg.iceberg_table import IcebergTable
+from pirn_data.lakehouse.iceberg.iceberg_table_config import IcebergTableConfig
 
 config = IcebergTableConfig(
     catalog_name="glue",
@@ -473,8 +473,8 @@ Supported operations: `scan`, `append`, `overwrite`, `history`. `merge` raises `
 Read-only. The Python ecosystem for Hudi is limited as of mid-2026: stable writes require the Spark/Java writer (`hudi-spark-bundle`). The adapter reads the latest commit's Parquet files directly via `pyarrow`. All write methods raise `NotImplementedError` with a pointer to the Spark writer.
 
 ```python
-from pirn.domains.data.lakehouse.hudi.hudi_table import HudiTable
-from pirn.domains.data.lakehouse.hudi.hudi_table_config import HudiTableConfig
+from pirn_data.lakehouse.hudi.hudi_table import HudiTable
+from pirn_data.lakehouse.hudi.hudi_table_config import HudiTableConfig
 
 config = HudiTableConfig(
     table_path="s3://my-bucket/tables/events",
@@ -491,7 +491,7 @@ table = HudiTable(config)
 
 ## Specialisations
 
-The `pirn.domains.data.specialisations` package bundles higher-level knot compositions for common patterns. No new concepts are introduced — these are pre-wired combinations of sources, transforms, sinks, and lakehouse adapters.
+The `pirn_data.specialisations` package bundles higher-level knot compositions for common patterns. No new concepts are introduced — these are pre-wired combinations of sources, transforms, sinks, and lakehouse adapters.
 
 ### Ingestion patterns (`ingestion/`)
 

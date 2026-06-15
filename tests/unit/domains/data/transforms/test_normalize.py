@@ -1,4 +1,4 @@
-"""Tests for :class:`pirn.domains.data.transforms.normalize.Normalize`."""
+"""Tests for :class:`pirn_data.transforms.normalize.Normalize`."""
 
 from __future__ import annotations
 
@@ -7,10 +7,10 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.data_batch import DataBatch
-from pirn.domains.data.transforms.normalize import Normalize
-from pirn.domains.data.transforms.normalize_column_rule import NormalizeColumnRule
 from pirn.tapestry import Tapestry
+from pirn_data.data_batch import DataBatch
+from pirn_data.transforms.normalize import Normalize
+from pirn_data.transforms.normalize_column_rule import NormalizeColumnRule
 
 
 @knot

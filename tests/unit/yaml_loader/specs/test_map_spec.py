@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import unittest
 
-from pydantic import ValidationError
-
 from pirn.yaml_loader.specs.map_spec import MapSpec
+from pydantic import ValidationError
 
 
 class TestMapSpecConstruction(unittest.TestCase):

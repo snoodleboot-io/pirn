@@ -11,6 +11,7 @@ from pirn_agents.specializations.structured_output.retry_on_parse_failure import
     RetryOnParseFailure,
 )
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 

@@ -12,6 +12,7 @@ from pirn_agents.specializations.memory_patterns.working_memory_window_writer im
 )
 from pirn_agents.types.agent_message import AgentMessage
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.specializations.conftest import StubMemoryStore
 
 

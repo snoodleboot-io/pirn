@@ -3,22 +3,21 @@
 from __future__ import annotations
 
 import pytest
-
-from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.connectors.databases.sqlite_config import SqliteConfig
 from pirn.connectors.databases.sqlite_pool import SqlitePool
-from pirn.domains.data.specializations.medallion.bronze_raw_ingest import (
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
+from pirn_data.specializations.medallion.bronze_raw_ingest import (
     BronzeRawIngest,
 )
-from pirn.domains.data.specializations.medallion.gold_aggregation import (
+from pirn_data.specializations.medallion.gold_aggregation import (
     GoldAggregation,
 )
-from pirn.domains.data.specializations.medallion.silver_clean_transform import (
+from pirn_data.specializations.medallion.silver_clean_transform import (
     SilverCleanTransform,
 )
-from pirn.domains.data.transforms.aggregate_spec import AggregateSpec
-from pirn.tapestry import Tapestry
+from pirn_data.transforms.aggregate_spec import AggregateSpec
 
 
 @pytest.fixture

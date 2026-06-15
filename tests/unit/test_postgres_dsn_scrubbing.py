@@ -1,9 +1,8 @@
 """Tests for DSN credential sanitization in the postgres backend (M-4)."""
 
 from __future__ import annotations
+
 import unittest
-
-
 
 
 class _StandaloneTests(unittest.IsolatedAsyncioTestCase):

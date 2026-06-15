@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from pydantic import TypeAdapter
 
 pytestmark = pytest.mark.slow
 
-from pirn.domains.data.lazy.spark.spark_execution_receipt import (
+from pirn_data.lazy.spark.spark_execution_receipt import (
     SparkExecutionReceipt,
 )
 
@@ -26,7 +26,7 @@ class TestSparkExecutionReceipt:
         assert receipt.output_path is None
 
     def test_with_optional_fields(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         receipt = SparkExecutionReceipt(
             succeeded=True,
             row_count=42,
@@ -45,7 +45,7 @@ class TestSparkExecutionReceipt:
             receipt.succeeded = False  # type: ignore[misc]
 
     def test_pydantic_serialises_to_primitive_dict(self) -> None:
-        now = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        now = datetime(2026, 1, 1, tzinfo=UTC)
         receipt = SparkExecutionReceipt(
             succeeded=True,
             row_count=3,

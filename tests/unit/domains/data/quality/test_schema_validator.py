@@ -1,4 +1,4 @@
-"""Tests for :class:`pirn.domains.data.quality.schema_validator.SchemaValidator`.
+"""Tests for :class:`pirn_data.quality.schema_validator.SchemaValidator`.
 
 Each test composes the validator inside a real :class:`Tapestry` so we
 prove the knot integrates with pirn's execution machinery. The validator
@@ -13,11 +13,11 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.data_batch import DataBatch
-from pirn.domains.data.data_schema import DataSchema
-from pirn.domains.data.quality.schema_validator import SchemaValidator
-from pirn.domains.data.quality_report import QualityReport
 from pirn.tapestry import Tapestry
+from pirn_data.data_batch import DataBatch
+from pirn_data.data_schema import DataSchema
+from pirn_data.quality.schema_validator import SchemaValidator
+from pirn_data.quality_report import QualityReport
 
 
 @knot

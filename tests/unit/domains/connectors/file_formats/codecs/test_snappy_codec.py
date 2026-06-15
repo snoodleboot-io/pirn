@@ -10,6 +10,7 @@ except ImportError as _e:
     raise unittest.SkipTest("snappy not installed") from _e
 
 from pirn.connectors.file_formats.codecs.snappy_codec import SnappyCodec
+
 from tests.unit.domains.connectors.file_formats.codecs._codec_round_trip import (
     CodecRoundTrip,
 )

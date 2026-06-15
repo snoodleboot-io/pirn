@@ -8,15 +8,13 @@ wrapped in a ``Parameter`` node rather than silently becoming config.
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Optional, Union
 import unittest
-
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.tapestry import Tapestry
-
 
 # ------------------------------------------------------------------ fixtures
 
@@ -32,7 +30,7 @@ class MultiCoerceKnot(Knot):
 
 
 class TypingUnionRouter(Knot):
-    async def process(self, step: Union[Knot, str], **_: Any) -> str:
+    async def process(self, step: Knot | str, **_: Any) -> str:
         return step
 
 

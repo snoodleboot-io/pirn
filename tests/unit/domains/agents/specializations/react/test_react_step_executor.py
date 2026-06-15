@@ -14,6 +14,7 @@ from pirn_agents.specializations.react.react_step_executor import (
 )
 from pirn_agents.types.agent_message import AgentMessage
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.specializations.conftest import (
     StubLLMProvider,
     StubTool,

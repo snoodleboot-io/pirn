@@ -9,6 +9,7 @@ from pirn_agents.specializations.document_processing._map_reduce_summariser impo
     _MapReduceSummariser,
 )
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 

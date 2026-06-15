@@ -7,9 +7,8 @@ construction-time validation.
 
 from __future__ import annotations
 
-from typing import Any
 import unittest
-
+from typing import Any
 
 from pirn.core.error_policy import ErrorPolicy
 from pirn.core.knot import Knot

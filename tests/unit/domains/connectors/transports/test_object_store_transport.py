@@ -6,10 +6,10 @@ import unittest
 from collections.abc import AsyncIterator
 from unittest.mock import AsyncMock, MagicMock
 
+from pirn.connectors.transports.object_store_transport import ObjectStoreTransport
 from pirn.core.transport.serializers.pickle_serializer import PickleSerializer
 from pirn.core.transport.transport_error import TransportError
 from pirn.core.transport.transport_handle import TransportHandle
-from pirn.connectors.transports.object_store_transport import ObjectStoreTransport
 
 
 def _make_store(*, chunks: list[bytes] | None = None, keys: list[str] | None = None) -> MagicMock:

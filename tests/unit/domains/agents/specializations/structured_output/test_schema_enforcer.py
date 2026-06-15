@@ -4,14 +4,13 @@ from __future__ import annotations
 
 import unittest
 
-from pydantic import BaseModel, ValidationError
-
 from pirn.core.knot_config import KnotConfig
 from pirn_agents.specializations.structured_output.schema_enforcer import (
     SchemaEnforcer,
 )
 from pirn_agents.types.agent_response import AgentResponse
 from pirn.tapestry import Tapestry
+from pydantic import BaseModel, ValidationError
 
 
 class _PersonModel(BaseModel):

@@ -14,6 +14,7 @@ from pirn_agents.specializations.memory_patterns.semantic_memory_pipeline import
 )
 from pirn_agents.types.agent_message import AgentMessage
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 

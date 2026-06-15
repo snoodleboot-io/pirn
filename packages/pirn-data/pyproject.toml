@@ -1,8 +1,10 @@
-# Skeleton only (Phase 0 / SCD-02). NO source yet — `pirn/domains/data` moves
-# to `src/pirn_data/` during extraction (Phase 3 / R5), at which point the
-# data-domain extras (pandas/pyarrow + the tier/lakehouse extras) are lifted
-# here from the root pyproject. Until then this declares only the
-# intra-workspace dependency so `uv lock` can resolve the graph.
+# pirn-data — the Data Engineering / Analytics domain, imports as `pirn_data`
+# (SCD-13, Phase 3). Source relocated from `pirn/domains/data` to
+# `src/pirn_data/`; the data-domain extras (the `data` base + the tiered
+# frame engines, lakehouse formats, validation frameworks, and the
+# all-frames/all-lazy aggregates) moved here from pirn-core. `arrow`/`parquet`
+# (pyarrow, connector-shared) and `dask` (core dispatcher) stay in pirn-core.
+# Depends only on pirn-core.
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
@@ -14,6 +16,61 @@ description = "pirn data domain knots."
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
 dependencies = ["pirn-core>=0.4.0,<0.5.0"]  # lockstep floor (ADR-6 / constraint C4)
+
+[project.optional-dependencies]
+# Tier 1 — DataBatch / dict-based; the domain's foundational extra.
+data = ["pandas>=2.0", "pyarrow>=14.0"]
+
+# Tier 0 — specialized columnar layouts.
+xarray  = ["xarray>=2024.0"]
+awkward = ["awkward>=2.5"]
+
+# Tier 2 — single-machine native frames (CPU).
+polars     = ["polars>=0.20"]
+datafusion = ["datafusion>=40.0"]
+
+# Tier 2.5 — out-of-core / drop-in distributed (pinned <3.14 until wheels land).
+modin = ["modin>=0.30; python_version<'3.14'"]
+
+# Tier 3 — push-down / lazy / distributed.
+ibis     = ["ibis-framework>=9.0", "pyarrow-hotfix>=0.7"]
+spark    = ["pyspark>=4.0"]
+ray-data = ["ray[data]>=2.10"]
+
+# Tier 3 — streaming dataflow (pinned until upstream ships newer wheels).
+pathway = ["pathway>=0.13; python_version<'3.11'"]
+bytewax = ["bytewax>=0.21; python_version<'3.13'"]
+
+# Tier 4 — specialized.
+lance = ["lance>=1.0"]
+eland = ["eland>=8.13"]
+
+# Lakehouse table formats — see pirn_data/lakehouse/. Hudi's Python ecosystem
+# is read-only as of mid-2026; the no-op `hudi` marker reads via pyarrow.
+delta   = ["deltalake>=0.17"]
+iceberg = ["pyiceberg>=0.6"]
+hudi    = []
+
+# Validation frameworks (cross-tier; integrate with quality knots).
+pandera            = ["pandera>=0.20"]
+great-expectations = ["great-expectations>=0.18"]
+
+# Convenience aggregate — every Tier-2 single-machine CPU frame engine.
+all-frames = [
+    "polars>=0.20",
+    "pandas>=2.0",
+    "pyarrow>=14.0",
+    "duckdb>=0.10",
+    "datafusion>=40.0",
+]
+
+# Convenience aggregate — the lazy/push-down tier.
+all-lazy = [
+    "ibis-framework>=9.0",
+    "pyspark>=4.0",
+    "ray[data]>=2.10",
+    "dask[distributed]>=2024.1",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/pirn_data"]

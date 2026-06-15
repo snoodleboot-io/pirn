@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import unittest
-from datetime import datetime, UTC
-
+from datetime import datetime
 
 from pirn.core.run_request import RunRequest
 

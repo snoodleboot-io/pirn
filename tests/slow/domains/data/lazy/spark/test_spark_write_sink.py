@@ -8,13 +8,13 @@ pytestmark = pytest.mark.slow
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.lazy.spark.spark_execution_receipt import (
+from pirn.tapestry import Tapestry
+from pirn_data.lazy.spark.spark_execution_receipt import (
     SparkExecutionReceipt,
 )
-from pirn.domains.data.lazy.spark.spark_filter import SparkFilter
-from pirn.domains.data.lazy.spark.spark_source import SparkSource
-from pirn.domains.data.lazy.spark.spark_write_sink import SparkWriteSink
-from pirn.tapestry import Tapestry
+from pirn_data.lazy.spark.spark_filter import SparkFilter
+from pirn_data.lazy.spark.spark_source import SparkSource
+from pirn_data.lazy.spark.spark_write_sink import SparkWriteSink
 
 
 def _orders_query() -> str:

@@ -11,10 +11,10 @@ ray_data = pytest.importorskip("ray.data")
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.lazy.ray.ray_dataset import RayDataset
-from pirn.domains.data.lazy.ray.ray_map import RayMap
-from pirn.domains.data.lazy.ray.ray_source import RaySource
 from pirn.tapestry import Tapestry
+from pirn_data.lazy.ray.ray_dataset import RayDataset
+from pirn_data.lazy.ray.ray_map import RayMap
+from pirn_data.lazy.ray.ray_source import RaySource
 
 
 def _items_factory():

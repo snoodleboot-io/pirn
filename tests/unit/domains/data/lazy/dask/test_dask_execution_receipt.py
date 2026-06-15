@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 
-from pirn.domains.data.lazy.dask.dask_execution_receipt import DaskExecutionReceipt
+from pirn_data.lazy.dask.dask_execution_receipt import DaskExecutionReceipt
 
 
 class TestDaskExecutionReceipt(unittest.TestCase):

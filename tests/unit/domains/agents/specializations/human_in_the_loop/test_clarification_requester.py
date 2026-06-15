@@ -9,6 +9,7 @@ from pirn_agents.specializations.human_in_the_loop.clarification_requester impor
     ClarificationRequester,
 )
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 

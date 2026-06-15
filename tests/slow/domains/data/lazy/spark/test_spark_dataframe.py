@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import timezone
+from datetime import UTC
 
 import pytest
 
 pytestmark = pytest.mark.slow
 
-from pirn.domains.data.lazy.spark.spark_dataframe import SparkDataFrame
+from pirn_data.lazy.spark.spark_dataframe import SparkDataFrame
 
 
 def _orders_frame():
@@ -29,7 +29,7 @@ class TestSparkDataFrame:
 
     def test_default_fetched_at_is_utc(self) -> None:
         batch = SparkDataFrame(frame=_orders_frame())
-        assert batch.fetched_at.tzinfo is timezone.utc
+        assert batch.fetched_at.tzinfo is UTC
 
     def test_with_frame_preserves_metadata(self) -> None:
         original = SparkDataFrame(

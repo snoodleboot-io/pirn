@@ -11,10 +11,9 @@ except ImportError as _e:
     raise unittest.SkipTest("ray not installed") from _e
 
 import pytest
-
 from pirn.core.knot_config import KnotConfig
-from pirn.domains.data.lazy.ray.ray_dataset import RayDataset
-from pirn.domains.data.lazy.ray.ray_source import RaySource
+from pirn_data.lazy.ray.ray_dataset import RayDataset
+from pirn_data.lazy.ray.ray_source import RaySource
 
 pytestmark = pytest.mark.slow
 

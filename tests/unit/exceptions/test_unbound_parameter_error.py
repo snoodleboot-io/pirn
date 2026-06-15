@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.exceptions.unbound_parameter_error import UnboundParameterError
 from pirn.exceptions.pirn_error import PirnError
+from pirn.exceptions.unbound_parameter_error import UnboundParameterError
 
 
 class TestUnboundParameterError(unittest.TestCase):

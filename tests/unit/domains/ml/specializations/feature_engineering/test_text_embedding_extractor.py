@@ -11,8 +11,8 @@ from pirn.core.providers.embedding_provider import EmbeddingProvider
 from pirn.domains.ml.specializations.feature_engineering.text_embedding_extractor import (
     TextEmbeddingExtractor,
 )
-from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.tapestry import Tapestry
 
 

@@ -5,10 +5,8 @@ from __future__ import annotations
 import unittest
 from collections.abc import AsyncIterator
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.nodes.source import Source
 from pirn.streaming.base import StreamingSource, run_stream
 from pirn.tapestry import Tapestry

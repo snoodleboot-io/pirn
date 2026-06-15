@@ -5,15 +5,15 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
+from pirn.connectors.object_store import ObjectStore
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.connectors.object_store import ObjectStore
 from pirn.domains.ml.lineage_store import LineageStore
 from pirn.domains.ml.specializations.training.sklearn_trainer_pipeline import (
     SklearnTrainerPipeline,
 )
-from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.tapestry import Tapestry
 
 

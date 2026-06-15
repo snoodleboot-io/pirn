@@ -10,6 +10,7 @@ from pirn.domains.ml.specializations.production.continuous_training_pipeline imp
     ContinuousTrainingPipeline,
 )
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.ml._stubs.recording_database_pool import (
     RecordingDatabasePool,
 )

@@ -1,4 +1,4 @@
-"""Unit tests for :class:`pirn.domains.data.lakehouse.delta.delta_table.DeltaTable`.
+"""Unit tests for :class:`pirn_data.lakehouse.delta.delta_table.DeltaTable`.
 
 The vendor SDK (``deltalake``) is not required to run these tests — a
 stub vendor table is injected via the ``dt=`` constructor kwarg, and
@@ -16,9 +16,9 @@ from collections.abc import AsyncIterator, Mapping
 from datetime import UTC
 from typing import Any
 
-from pirn.domains.data.lakehouse.delta.delta_table import DeltaTable
-from pirn.domains.data.lakehouse.delta.delta_table_config import DeltaTableConfig
-from pirn.domains.data.lakehouse.lakehouse_table import LakehouseTable
+from pirn_data.lakehouse.delta.delta_table import DeltaTable
+from pirn_data.lakehouse.delta.delta_table_config import DeltaTableConfig
+from pirn_data.lakehouse.lakehouse_table import LakehouseTable
 
 
 class StubDt:

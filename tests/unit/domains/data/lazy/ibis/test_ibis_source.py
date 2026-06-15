@@ -5,19 +5,18 @@ from __future__ import annotations
 import unittest
 
 try:
-    import ibis  # noqa: F401
+    import ibis
 except ImportError as _e:
     raise unittest.SkipTest("ibis not installed") from _e
 
 import ibis
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.lazy.ibis.ibis_connection import IbisConnection
-from pirn.domains.data.lazy.ibis.ibis_connection_knot import IbisConnectionKnot
-from pirn.domains.data.lazy.ibis.ibis_source import IbisSource
-from pirn.domains.data.lazy.ibis.ibis_table import IbisTable
 from pirn.tapestry import Tapestry
+from pirn_data.lazy.ibis.ibis_connection import IbisConnection
+from pirn_data.lazy.ibis.ibis_connection_knot import IbisConnectionKnot
+from pirn_data.lazy.ibis.ibis_source import IbisSource
+from pirn_data.lazy.ibis.ibis_table import IbisTable
 
 
 class _StandaloneTests(unittest.IsolatedAsyncioTestCase):

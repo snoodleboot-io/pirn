@@ -14,10 +14,10 @@ except ImportError as _e:
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.lazy.dask.dask_aggregate import DaskAggregate
-from pirn.domains.data.lazy.dask.dask_dataframe import DaskDataFrame
 from pirn.nodes.source import Source
 from pirn.tapestry import Tapestry
+from pirn_data.lazy.dask.dask_aggregate import DaskAggregate
+from pirn_data.lazy.dask.dask_dataframe import DaskDataFrame
 
 
 def _make_batch(data: dict) -> DaskDataFrame:

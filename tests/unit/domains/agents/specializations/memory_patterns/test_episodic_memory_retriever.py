@@ -9,6 +9,7 @@ from pirn_agents.specializations.memory_patterns.episodic_memory_retriever impor
     EpisodicMemoryRetriever,
 )
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.specializations.conftest import StubMemoryStore
 
 

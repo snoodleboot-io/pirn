@@ -6,7 +6,6 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 import numpy as np
-
 from pirn.core.knot_config import KnotConfig
 from pirn.domains.health.mri.motion_corrector import MotionCorrector
 

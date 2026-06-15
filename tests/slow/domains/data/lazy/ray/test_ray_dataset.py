@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import timezone
+from datetime import UTC
 
 import pytest
 
@@ -11,7 +11,7 @@ pytestmark = pytest.mark.slow
 ray = pytest.importorskip("ray")
 ray_data = pytest.importorskip("ray.data")
 
-from pirn.domains.data.lazy.ray.ray_dataset import RayDataset
+from pirn_data.lazy.ray.ray_dataset import RayDataset
 
 
 def _people_dataset():
@@ -23,7 +23,7 @@ def _people_dataset():
 class TestRayDataset:
     def test_default_fetched_at_is_utc(self) -> None:
         batch = RayDataset(dataset=_people_dataset())
-        assert batch.fetched_at.tzinfo is timezone.utc
+        assert batch.fetched_at.tzinfo is UTC
 
     def test_with_dataset_preserves_metadata(self) -> None:
         original = RayDataset(

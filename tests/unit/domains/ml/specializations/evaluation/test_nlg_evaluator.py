@@ -10,9 +10,9 @@ from pirn.core.run_request import RunRequest
 from pirn.domains.ml.specializations.evaluation.nlg_evaluator import (
     NLGEvaluator,
 )
-from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.domains.ml.types.dataset_manifest import DatasetManifest
 from pirn.domains.ml.types.model_manifest import ModelManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.tapestry import Tapestry
 
 

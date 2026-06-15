@@ -19,25 +19,20 @@ load — proving the gate halts as designed.
 
 from __future__ import annotations
 
-import json
-
 import pytest
-
-from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
-from pirn.core.run_request import RunRequest
-from pirn.core.skipped import Skipped
 from pirn.connectors.databases.sqlite_config import SqliteConfig
 from pirn.connectors.databases.sqlite_pool import SqlitePool
 from pirn.connectors.knots.database_execute_sink import DatabaseExecuteSink
-from pirn.domains.data.data_batch import DataBatch
-from pirn.domains.data.data_schema import DataSchema
-from pirn.domains.data.quality.row_count_check import RowCountCheck
-from pirn.domains.data.quality.schema_validator import SchemaValidator
-from pirn.domains.data.quality_report import QualityReport
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.run_request import RunRequest
 from pirn.nodes.gate.gate import Gate
 from pirn.tapestry import Tapestry
-
+from pirn_data.data_batch import DataBatch
+from pirn_data.data_schema import DataSchema
+from pirn_data.quality.row_count_check import RowCountCheck
+from pirn_data.quality.schema_validator import SchemaValidator
+from pirn_data.quality_report import QualityReport
 
 _USERS_SCHEMA = DataSchema(
     columns={"id": int, "name": str, "region": str},

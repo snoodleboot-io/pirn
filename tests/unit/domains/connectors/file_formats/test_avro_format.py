@@ -16,6 +16,7 @@ from pirn.connectors.file_formats.avro_format import (
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )

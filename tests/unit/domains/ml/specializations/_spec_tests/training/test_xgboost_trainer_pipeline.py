@@ -8,9 +8,10 @@ from pirn.core.knot_config import KnotConfig
 from pirn.domains.ml.specializations.training.xgboost_trainer_pipeline import (
     XGBoostTrainerPipeline,
 )
-from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.domains.ml.types.dataset_manifest import DatasetManifest
+from pirn.domains.ml.types.split_manifest import SplitManifest
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.ml._stubs.recording_lineage_store import RecordingLineageStore
 from tests.unit.domains.ml._stubs.recording_object_store import RecordingObjectStore
 

@@ -5,9 +5,8 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
+from pirn_data.specialized.eland.eland_dataframe import ElandDataFrame
 from pydantic import TypeAdapter
-
-from pirn.domains.data.specialized.eland.eland_dataframe import ElandDataFrame
 
 
 class _FakeElandFrame:

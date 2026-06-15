@@ -5,16 +5,16 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
+from pirn.connectors.databases.sqlite_config import SqliteConfig
+from pirn.connectors.databases.sqlite_pool import SqlitePool
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.connectors.databases.sqlite_config import SqliteConfig
-from pirn.connectors.databases.sqlite_pool import SqlitePool
-from pirn.domains.data.specializations.medallion.gold_aggregation import (
+from pirn.tapestry import Tapestry
+from pirn_data.specializations.medallion.gold_aggregation import (
     GoldAggregation,
 )
-from pirn.domains.data.transforms.aggregate_spec import AggregateSpec
-from pirn.tapestry import Tapestry
+from pirn_data.transforms.aggregate_spec import AggregateSpec
 
 _SOURCE_QUERY = "SELECT region, amount FROM silver_sales ORDER BY region"
 _SOURCE_COLUMNS = ["region", "amount"]

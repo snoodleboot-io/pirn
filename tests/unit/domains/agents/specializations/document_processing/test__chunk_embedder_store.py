@@ -9,6 +9,7 @@ from pirn_agents.specializations.document_processing._chunk_embedder_store impor
     _ChunkEmbedderStore,
 )
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.specializations.conftest import (
     StubEmbeddingProvider,
     StubMemoryStore,

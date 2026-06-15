@@ -7,14 +7,14 @@ import unittest
 from pathlib import Path
 from typing import Any
 
-from pirn.core.knot_config import KnotConfig
-from pirn.core.run_request import RunRequest
 from pirn.connectors.databases.sqlite_config import SqliteConfig
 from pirn.connectors.databases.sqlite_pool import SqlitePool
-from pirn.domains.data.specializations.scd.scd_type_4_mini_dimension import (
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
+from pirn_data.specializations.scd.scd_type_4_mini_dimension import (
     ScdType4MiniDimension,
 )
-from pirn.tapestry import Tapestry
 
 
 class TestConstruction(unittest.IsolatedAsyncioTestCase):

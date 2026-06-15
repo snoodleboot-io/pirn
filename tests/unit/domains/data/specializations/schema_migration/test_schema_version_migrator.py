@@ -5,15 +5,15 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
+from pirn.connectors.databases.sqlite_config import SqliteConfig
+from pirn.connectors.databases.sqlite_pool import SqlitePool
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.connectors.databases.sqlite_config import SqliteConfig
-from pirn.connectors.databases.sqlite_pool import SqlitePool
-from pirn.domains.data.specializations.schema_migration.schema_version_migrator import (
+from pirn.tapestry import Tapestry
+from pirn_data.specializations.schema_migration.schema_version_migrator import (
     SchemaVersionMigrator,
 )
-from pirn.tapestry import Tapestry
 
 _MIGRATIONS = [
     (1, "CREATE TABLE users (id INTEGER)"),

@@ -11,8 +11,7 @@ except ImportError as _e:
 from datetime import UTC
 
 import pyarrow as pa
-
-from pirn.domains.data.frames.pyarrow.pyarrow_data_batch import PyarrowDataBatch
+from pirn_data.frames.pyarrow.pyarrow_data_batch import PyarrowDataBatch
 
 
 class TestPyarrowDataBatch(unittest.TestCase):

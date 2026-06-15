@@ -9,6 +9,7 @@ from pirn.core.knot_factory import knot
 from pirn_agents.control.reflection_check import ReflectionCheck
 from pirn_agents.types.agent_response import AgentResponse
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.conftest import StubLLMProvider
 
 

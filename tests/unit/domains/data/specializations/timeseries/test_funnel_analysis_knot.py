@@ -6,14 +6,13 @@ import unittest
 from typing import Any
 
 import pytest
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.specializations.timeseries.funnel_analysis_knot import (
+from pirn.tapestry import Tapestry
+from pirn_data.specializations.timeseries.funnel_analysis_knot import (
     FunnelAnalysisKnot,
 )
-from pirn.tapestry import Tapestry
 
 _STEPS = ["view", "click", "purchase"]
 

@@ -10,13 +10,12 @@ except ImportError as _e:
     raise unittest.SkipTest("pandas not installed") from _e
 
 import pandas as pd
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.frames.pandas.pandas_data_batch import PandasDataBatch
-from pirn.domains.data.frames.pandas.pandas_join import PandasJoin
 from pirn.tapestry import Tapestry
+from pirn_data.frames.pandas.pandas_data_batch import PandasDataBatch
+from pirn_data.frames.pandas.pandas_join import PandasJoin
 
 
 @knot

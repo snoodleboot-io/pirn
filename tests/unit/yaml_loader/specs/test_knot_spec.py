@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import unittest
 
-from pydantic import ValidationError
-
 from pirn.yaml_loader.specs.knot_spec import KnotSpec
+from pydantic import ValidationError
 
 
 class TestKnotSpecConstruction(unittest.TestCase):

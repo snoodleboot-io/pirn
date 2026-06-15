@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import unittest
 
-from pydantic import BaseModel
-
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
+from pydantic import BaseModel
 
 
 class _MyOpaque(PirnOpaqueValue):

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.data.lakehouse.delta.delta_table_config import DeltaTableConfig
+from pirn_data.lakehouse.delta.delta_table_config import DeltaTableConfig
 
 
 class TestDeltaTableConfigConstruction(unittest.TestCase):

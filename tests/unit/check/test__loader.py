@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import sys
-import types
 import unittest
-from unittest.mock import patch
 
 
 class TestLoadFactory(unittest.TestCase):

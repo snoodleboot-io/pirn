@@ -1,4 +1,5 @@
 import unittest
+
 """Tests for pirn.check — static tapestry validation."""
 
 from pirn.check.validation_issue import ValidationIssue

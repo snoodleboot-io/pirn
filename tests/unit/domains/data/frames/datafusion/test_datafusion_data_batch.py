@@ -11,8 +11,7 @@ except ImportError as _e:
 from datetime import UTC
 
 import datafusion as df
-
-from pirn.domains.data.frames.datafusion.datafusion_data_batch import (
+from pirn_data.frames.datafusion.datafusion_data_batch import (
     DatafusionDataBatch,
 )
 

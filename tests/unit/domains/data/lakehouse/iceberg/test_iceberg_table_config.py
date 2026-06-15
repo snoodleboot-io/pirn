@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.domains.data.lakehouse.iceberg.iceberg_table_config import IcebergTableConfig
+from pirn_data.lakehouse.iceberg.iceberg_table_config import IcebergTableConfig
 
 
 class TestIcebergTableConfigConstruction(unittest.TestCase):

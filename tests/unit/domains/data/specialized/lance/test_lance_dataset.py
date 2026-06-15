@@ -5,9 +5,8 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
+from pirn_data.specialized.lance.lance_dataset import LanceDataset
 from pydantic import TypeAdapter
-
-from pirn.domains.data.specialized.lance.lance_dataset import LanceDataset
 
 
 class _FakeLanceDataset:

@@ -9,6 +9,7 @@ from pirn_agents.specializations.document_processing._chunk_translator import (
     _ChunkTranslator,
 )
 from pirn.tapestry import Tapestry
+
 from tests.unit.domains.agents.specializations.conftest import StubLLMProvider
 
 

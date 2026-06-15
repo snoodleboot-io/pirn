@@ -19,12 +19,12 @@ except ImportError as _e:
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
-from pirn.domains.data.frames.pandas.pandas_data_batch import PandasDataBatch
-from pirn.domains.data.quality_report import QualityReport
-from pirn.domains.data.validation.pandera.pandera_pandas_validator import (
+from pirn.tapestry import Tapestry
+from pirn_data.frames.pandas.pandas_data_batch import PandasDataBatch
+from pirn_data.quality_report import QualityReport
+from pirn_data.validation.pandera.pandera_pandas_validator import (
     PanderaPandasValidator,
 )
-from pirn.tapestry import Tapestry
 
 
 class _UsersModel(pa.DataFrameModel):
