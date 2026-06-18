@@ -25,12 +25,12 @@ pirn-oilgas = { workspace = true }
 
 [dependency-groups]
 dev = [
-    "pytest>=8.0",
-    "pytest-asyncio>=0.23",
-    "pytest-cov>=4.0",
-    "mutmut>=2.5,<4",
-    "ruff>=0.5",
-    "pyright>=1.1",
+    "pytest>=9.1.0",
+    "pytest-asyncio>=1.4.0",
+    "pytest-cov>=7.1.0",
+    "mutmut>=3.6.0,<4",
+    "ruff>=0.15.17",
+    "pyright>=1.1.410",
     "cyclonedx-bom>=4.0",
     "pre-commit>=4.6.0",
     "pytest-benchmark>=5.2.3",
