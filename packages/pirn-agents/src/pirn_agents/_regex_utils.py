@@ -39,6 +39,40 @@ def compile_safe_pattern(
         raise ValueError(f"{owner}: {field}[{index}] is not a valid regex: {exc}") from exc
 
 
+def compile_patterns(
+    patterns: Sequence[str],
+    *,
+    owner: str,
+    field: str,
+    flags: int = 0,
+) -> list[re.Pattern[str]]:
+    """Validate and compile a non-empty sequence of regex pattern strings.
+
+    Shared by the agent guardrail knots so the same checks run both at
+    construction time (when patterns are supplied as a concrete sequence) and
+    at process time (after a ``Knot`` reference resolves).
+
+    Raises:
+        TypeError: If ``patterns`` is not a sequence of strings.
+        ValueError: If ``patterns`` is empty, or any entry is empty, invalid,
+            or over-length (see :func:`compile_safe_pattern`).
+    """
+    if not isinstance(patterns, Sequence) or isinstance(patterns, (str, bytes)):
+        raise TypeError(f"{owner}: {field} must be a sequence of regex strings")
+    if not patterns:
+        raise ValueError(f"{owner}: {field} must be non-empty")
+    compiled: list[re.Pattern[str]] = []
+    for index, pattern in enumerate(patterns):
+        if not isinstance(pattern, str) or not pattern:
+            raise ValueError(
+                f"{owner}: {field}[{index}] must be a non-empty string, got {pattern!r}"
+            )
+        compiled.append(
+            compile_safe_pattern(pattern, index=index, owner=owner, field=field, flags=flags)
+        )
+    return compiled
+
+
 async def search_any(
     patterns: Sequence[re.Pattern[str]],
     content: str,

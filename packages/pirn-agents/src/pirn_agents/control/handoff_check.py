@@ -21,7 +21,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents._regex_utils import compile_safe_pattern, search_any
+from pirn_agents._regex_utils import compile_patterns, search_any
 from pirn_agents.types.agent_response import AgentResponse
 
 
@@ -47,6 +47,16 @@ class HandoffCheck(Knot):
             _config=_config,
             **kwargs,
         )
+        # Validate concrete patterns up front so a bad escalation-list fails
+        # fast at build time. A ``Knot`` reference resolves later, so it is
+        # validated at process time instead.
+        if not isinstance(escalation_patterns, Knot):
+            compile_patterns(
+                escalation_patterns,
+                owner="HandoffCheck",
+                field="escalation_patterns",
+                flags=re.IGNORECASE,
+            )
 
     async def process(
         self,
@@ -71,27 +81,11 @@ class HandoffCheck(Knot):
             raise TypeError(
                 f"HandoffCheck: response must be an AgentResponse, got {type(response).__name__}"
             )
-        if not isinstance(escalation_patterns, Sequence) or isinstance(
-            escalation_patterns, (str, bytes)
-        ):
-            raise TypeError("HandoffCheck: escalation_patterns must be a sequence of regex strings")
-        if not escalation_patterns:
-            raise ValueError("HandoffCheck: escalation_patterns must be non-empty")
-        compiled: list[re.Pattern[str]] = []
-        for index, pattern in enumerate(escalation_patterns):
-            if not isinstance(pattern, str) or not pattern:
-                raise ValueError(
-                    f"HandoffCheck: escalation_patterns[{index}] must be a "
-                    f"non-empty string, got {pattern!r}"
-                )
-            compiled.append(
-                compile_safe_pattern(
-                    pattern,
-                    index=index,
-                    owner="HandoffCheck",
-                    field="escalation_patterns",
-                    flags=re.IGNORECASE,
-                )
-            )
+        compiled = compile_patterns(
+            escalation_patterns,
+            owner="HandoffCheck",
+            field="escalation_patterns",
+            flags=re.IGNORECASE,
+        )
         match = await search_any(tuple(compiled), response.content)
         return match is not None
