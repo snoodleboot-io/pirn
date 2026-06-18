@@ -4,23 +4,46 @@ The `pirn_data` package is pirn's universal layer for reading, transforming, and
 
 ---
 
+## Install & registration
+
+`pirn_data` is a standalone distribution. Install the base package plus only the tier engines you need:
+
+```bash
+pip install pirn-data                      # Tier-1 (DataBatch / dict) baseline
+pip install 'pirn-data[data]'              # pandas + pyarrow (Tier-1 frames)
+pip install 'pirn-data[polars]'            # Tier-2 Polars
+pip install 'pirn-data[ibis]'              # Tier-3 push-down
+pip install 'pirn-data[delta]'             # Delta Lake lakehouse adapter
+pip install 'pirn-data[all-frames]'        # every Tier-2 single-machine CPU engine
+pip install 'pirn-data[all-lazy]'          # every Tier-3 push-down engine
+```
+
+Available extras: `data`, `xarray`, `awkward`, `polars`, `datafusion`, `modin`, `ibis`, `spark`, `ray-data`, `pathway`, `bytewax`, `lance`, `eland`, `delta`, `iceberg`, `hudi`, `pandera`, `great-expectations`, and the `all-frames` / `all-lazy` aggregates.
+
+**Registration (ADR-4):** `import pirn_data` self-registers the data-domain knots under `library="pirn"`, so a YAML pipeline can resolve them by bare name. In Python you import the knot classes directly (same effect). To register every installed domain at once, call `pirn.discover_installed_domains()`.
+
+!!! warning "Legacy `pirn.domains.data` is deprecated"
+    The old `pirn.domains.data` import path still works for one deprecation cycle via a compat shim (it emits a `DeprecationWarning` and defers to `pirn_data`). Migrate to `pirn_data` — see the [migration guide](../guides/migrating-to-split-packages.md).
+
+---
+
 ## Tiered Architecture
 
 The data domain is organised into six tiers. Each tier is an independent opt-in extra; you only pay for the libraries you actually need.
 
 | Tier | Name | Engine(s) | Extra(s) | Notes |
 |------|------|-----------|----------|-------|
-| **1** | Dict / DataBatch | Pure Python | `pirn[data]` | Always-on baseline; every record is a `dict`. |
-| **2** | Native frames (CPU) | Polars, DataFusion, pandas+PyArrow | `pirn[polars]`, `pirn[datafusion]`, `pirn[data]` | Polars is the preferred Tier-2 engine. |
+| **1** | Dict / DataBatch | Pure Python | `pirn-data[data]` | Always-on baseline; every record is a `dict`. |
+| **2** | Native frames (CPU) | Polars, DataFusion, pandas+PyArrow | `pirn-data[polars]`, `pirn-data[datafusion]`, `pirn-data[data]` | Polars is the preferred Tier-2 engine. |
 | **2-GPU** | Native frames (GPU) | cuDF | user-supplied | CUDA-only; install `cudf-cu12` directly. |
-| **2.5** | Out-of-core / drop-in | Modin | `pirn[modin]` | Pandas-compatible, chunked on disk. |
-| **3** | Push-down / lazy | Ibis, Spark, Dask, Ray Data | `pirn[ibis]`, `pirn[spark]`, etc. | Ibis is the preferred Tier-3 engine. |
-| **3-stream** | Streaming dataflow | Pathway, Bytewax | `pirn[pathway]`, `pirn[bytewax]` | Requires Python < 3.14 until upstream catches up. |
-| **4** | Specialised | Lance (vector), Eland (Elasticsearch) | `pirn[lance]`, `pirn[eland]` | Domain-specific columnar layouts. |
+| **2.5** | Out-of-core / drop-in | Modin | `pirn-data[modin]` | Pandas-compatible, chunked on disk. |
+| **3** | Push-down / lazy | Ibis, Spark, Dask, Ray Data | `pirn-data[ibis]`, `pirn-data[spark]`, etc. | Ibis is the preferred Tier-3 engine. Dask ships with `pirn-core` as a core dispatcher. |
+| **3-stream** | Streaming dataflow | Pathway, Bytewax | `pirn-data[pathway]`, `pirn-data[bytewax]` | Requires Python < 3.14 until upstream catches up. |
+| **4** | Specialised | Lance (vector), Eland (Elasticsearch) | `pirn-data[lance]`, `pirn-data[eland]` | Domain-specific columnar layouts. |
 
-Tier-1 (`DataBatch`) is always included with `pirn[data]`. All higher tiers layer on top and are independent — installing `pirn[polars]` does not pull in Ibis.
+Tier-1 (`DataBatch`) is always included with `pirn-data[data]`. All higher tiers layer on top and are independent — installing `pirn-data[polars]` does not pull in Ibis.
 
-The `pirn[all-frames]` convenience extra installs every Tier-2 single-machine CPU engine. The `pirn[all-lazy]` convenience extra installs every Tier-3 push-down engine.
+The `pirn-data[all-frames]` convenience extra installs every Tier-2 single-machine CPU engine. The `pirn-data[all-lazy]` convenience extra installs every Tier-3 push-down engine.
 
 **See also:** [Connectors — Format Matrix](../connectors/index.md), [Architecture Overview](../architecture/overview.md)
 
@@ -413,9 +436,9 @@ Codecs are not standalone formats; compose them via `CompressedFileFormat`.
 
 | Format | Class | R | W | Merge | Time-travel | Extra |
 |--------|-------|---|---|-------|-------------|-------|
-| Delta Lake | `DeltaTable` | ✓ | ✓ | ✓ | ✓ (snapshot_id / as_of_timestamp) | `pirn[delta]` |
-| Apache Iceberg | `IcebergTable` | ✓ | ✓ | — | ✓ (snapshot_id / as_of_timestamp) | `pirn[iceberg]` |
-| Apache Hudi | `HudiTable` | ✓ | — | — | ✓ (read path only) | `pirn[hudi]` (no-op; reads via pyarrow) |
+| Delta Lake | `DeltaTable` | ✓ | ✓ | ✓ | ✓ (snapshot_id / as_of_timestamp) | `pirn-data[delta]` |
+| Apache Iceberg | `IcebergTable` | ✓ | ✓ | — | ✓ (snapshot_id / as_of_timestamp) | `pirn-data[iceberg]` |
+| Apache Hudi | `HudiTable` | ✓ | — | — | ✓ (read path only) | `pirn-data[hudi]` (no-op; reads via pyarrow) |
 
 **See also:** [Lakehouse](#lakehouse)
 
@@ -483,7 +506,7 @@ config = HudiTableConfig(
 table = HudiTable(config)
 ```
 
-`pirn[hudi]` is currently a no-op marker extra (no vendor SDK on PyPI under a stable name). The read path depends only on `pyarrow`, which ships with `pirn[data]`.
+`pirn-data[hudi]` is currently a no-op marker extra (no vendor SDK on PyPI under a stable name). The read path depends only on `pyarrow`, which ships with `pirn-data[data]`.
 
 **See also:** [Connectors — Format Matrix](../connectors/index.md)
 

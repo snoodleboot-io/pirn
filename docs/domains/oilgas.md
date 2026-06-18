@@ -1,6 +1,24 @@
 # Oil & Gas Domain
 
-pirn's oil & gas domain provides pipeline knots and file format connectors for the full upstream/midstream data stack: seismic acquisition and processing (SEG-Y, SEG-D), well logging and petrophysics (LAS, DLIS), drilling operations (WITSML), production monitoring (PRODML, SCADA), and reservoir characterisation (RESQML, Eclipse/CMG simulator output). All formats are implemented as standard `BatchFileFormat` classes and integrate directly with pirn's lineage and audit machinery.
+pirn's oil & gas domain (`pirn_oilgas`) provides pipeline knots and file format connectors for the full upstream/midstream data stack: seismic acquisition and processing (SEG-Y, SEG-D), well logging and petrophysics (LAS, DLIS), drilling operations (WITSML), production monitoring (PRODML, SCADA), and reservoir characterisation (RESQML, Eclipse/CMG simulator output). All formats are implemented as standard `BatchFileFormat` classes and integrate directly with pirn's lineage and audit machinery.
+
+---
+
+## Install & registration
+
+`pirn_oilgas` is a standalone distribution. Install the package plus the heavy oil & gas SDK extra:
+
+```bash
+pip install pirn-oilgas                      # pure-Python orchestration layer
+pip install 'pirn-oilgas[oilgas]'            # segyio + lasio + resfo (SEG-Y / LAS read-write)
+```
+
+Available extras: `oilgas`.
+
+**Registration (ADR-4):** `import pirn_oilgas` self-registers the oil & gas domain knots under `library="pirn"`, so a YAML pipeline can resolve them by bare name. In Python you import the knot classes directly (same effect). To register every installed domain at once, call `pirn.discover_installed_domains()`.
+
+!!! warning "Legacy `pirn.domains.oilgas` is deprecated"
+    The old `pirn.domains.oilgas` import path still works for one deprecation cycle via a compat shim (it emits a `DeprecationWarning` and defers to `pirn_oilgas`). Migrate to `pirn_oilgas` — see the [migration guide](../guides/migrating-to-split-packages.md).
 
 ---
 
@@ -319,12 +337,12 @@ All are in `pirn_oilgas/assemblers/` and `pirn_oilgas/disassemblers/`.
 ## Install Extras
 
 ```bash
-pip install "pirn[oilgas]"
+pip install "pirn-oilgas[oilgas]"
 ```
 
-| Extra | Libraries installed | What it enables |
-|---|---|---|
-| `oilgas` | `segyio>=1.9`, `lasio>=0.31` | SEG-Y and LAS read/write; all oilgas sub-domain knots. WITSML, PRODML, RESQML, DLIS, SEG-D connectors also included (their dependencies — `defusedxml`, `dlisio` — are declared as transitive) |
+| Extra | Install | Libraries installed | What it enables |
+|---|---|---|---|
+| `oilgas` | `pirn-oilgas[oilgas]` | `segyio>=1.9.14`, `lasio>=0.32`, `resfo>=1.3` | SEG-Y and LAS read/write; all oilgas sub-domain knots. WITSML, PRODML, RESQML, DLIS, SEG-D connectors also included (their dependencies — `defusedxml`, `dlisio` — are declared as transitive) |
 
 Additional optional dependencies that are not automatically installed:
 
@@ -333,6 +351,6 @@ Additional optional dependencies that are not automatically installed:
 | `dlisio` | `pip install dlisio` | `DlisFormat` decode |
 | `segpy` | `pip install segpy` | Improved `SegdFormat` decode (falls back to pure-Python otherwise) |
 | `pyproj` | `pip install pyproj` | `CoordinateSystemTransformer` (geospatial sub-domain) |
-| `pyspark` | `pip install pirn[spark]` | Spark-backed distributed processing for large seismic volumes |
+| `pyspark` | `pip install 'pirn-data[spark]'` | Spark-backed distributed processing for large seismic volumes |
 
-**See also:** [Signal Domain — Spectral Analysis](signal.md#pirndomainssignalspectral), [File Formats — Connectors](../connectors/index.md), [Backends](../guides/backends.md)
+**See also:** [Signal Domain — Spectral Analysis](signal.md#pirn_signalspectral), [File Formats — Connectors](../connectors/index.md), [Backends](../guides/backends.md)

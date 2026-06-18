@@ -1,6 +1,26 @@
 # Health Domain
 
-pirn's health domain covers the full stack of healthcare and life-science data: medical imaging (DICOM, NIfTI, whole-slide), clinical interoperability (FHIR, HL7 v2, CDA), biosignal recording (EDF, BDF, BrainVision), genomics (FASTA, FASTQ, VCF/BCF), clinical trials (SDTM, Define-XML, ADaM), and wearable sensor data. Every connector and format class in this domain treats PHI safety as a first-class requirement, not an afterthought.
+pirn's health domain (`pirn_health`) covers the full stack of healthcare and life-science data: medical imaging (DICOM, NIfTI, whole-slide), clinical interoperability (FHIR, HL7 v2, CDA), biosignal recording (EDF, BDF, BrainVision), genomics (FASTA, FASTQ, VCF/BCF), clinical trials (SDTM, Define-XML, ADaM), and wearable sensor data. Every connector and format class in this domain treats PHI safety as a first-class requirement, not an afterthought.
+
+---
+
+## Install & registration
+
+`pirn_health` is a standalone distribution. Install the package plus the clinical/biomedical SDK extras you need:
+
+```bash
+pip install pirn-health                     # pure-Python orchestration layer
+pip install 'pirn-health[health]'           # full clinical/imaging/genomics SDK stack
+pip install 'pirn-health[mri]'              # MRI/volumetrics subset (SimpleITK, dipy, nibabel)
+pip install 'pirn-health[genomics]'         # genomics file formats only (FASTA/FASTQ/VCF/BCF)
+```
+
+Available extras: `health`, `mri`, `genomics`.
+
+**Registration (ADR-4):** `import pirn_health` self-registers the health-domain knots under `library="pirn"`, so a YAML pipeline can resolve them by bare name. In Python you import the knot classes directly (same effect). To register every installed domain at once, call `pirn.discover_installed_domains()`.
+
+!!! warning "Legacy `pirn.domains.health` is deprecated"
+    The old `pirn.domains.health` import path still works for one deprecation cycle via a compat shim (it emits a `DeprecationWarning` and defers to `pirn_health`). Migrate to `pirn_health` — see the [migration guide](../guides/migrating-to-split-packages.md).
 
 ---
 
@@ -573,16 +593,17 @@ PHI stripping happens at the connector layer (format decoders), before bytes rea
 
 ```bash
 # Core health domain (MRI/imaging, EEG, genomics, FHIR)
-pip install "pirn[health]"
+pip install "pirn-health[health]"
 
 # Genomics only (FASTA, FASTQ, VCF, BCF — subset of health)
-pip install "pirn[genomics]"
+pip install "pirn-health[genomics]"
 ```
 
-| Extra | Libraries installed | What it enables |
-|---|---|---|
-| `health` | `pydicom>=2.4`, `mne>=1.6`, `nibabel>=5.2`, `pyfaidx>=0.7`, `pysam>=0.22`, `fhir.resources>=7.1`, `pyedflib>=0.1.42` | DICOM, NIfTI, BIDS, EDF/EDF+/BDF, BrainVision (via mne), FHIR JSON/XML, HL7 v2, CDA, Define-XML, SDTM XPT, OpenSlide, mzML; all clinical and genomics sub-domain knots |
-| `genomics` | `pyfaidx>=0.7`, `pysam>=0.22` | FASTA, FASTQ, VCF, BCF file format connectors only |
+| Extra | Install | Libraries installed | What it enables |
+|---|---|---|---|
+| `health` | `pirn-health[health]` | `pydicom>=2.4`, `mne>=1.6`, `nibabel>=5.2`, `pyfaidx>=0.7`, `pysam>=0.22`, `fhir.resources>=7.1`, `pyedflib>=0.1.42` | DICOM, NIfTI, BIDS, EDF/EDF+/BDF, BrainVision (via mne), FHIR JSON/XML, HL7 v2, CDA, Define-XML, SDTM XPT, OpenSlide, mzML; all clinical and genomics sub-domain knots |
+| `mri` | `pirn-health[mri]` | `SimpleITK>=2.3`, `dipy>=1.9`, `nibabel>=5.2` | MRI/volumetrics knots (registration, segmentation, volumetrics) — resolves independently of the full `health` extra |
+| `genomics` | `pirn-health[genomics]` | `pyfaidx>=0.7`, `pysam>=0.22` | FASTA, FASTQ, VCF, BCF file format connectors only |
 
 Additional system-level dependencies not installed by pip:
 

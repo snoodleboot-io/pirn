@@ -27,10 +27,18 @@ RUN apt-get update -qq && \
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 # Pre-build all dependencies (excluding the project itself — installed at
-# runtime). The source now lives in the uv workspace under packages/, so the
+# runtime). The source lives in the uv workspace under packages/, so the
 # prebake needs the workspace root + every member's manifest to resolve the
-# single lock. pirn-core carries all extras during Phase 1 (domains ride along
-# inside it until Phase 3), so syncing pirn-core's deps covers the whole tree.
+# single lock. Post-extraction (Phase 3, SCD-11..16) the six domains are
+# separate workspace members (pirn-signal/-data/-ml/-agents/-health/-oilgas),
+# each carrying its OWN extras — they no longer ride along inside pirn-core.
+# `--all-packages --all-extras` therefore syncs every member and every extra
+# across the whole tree (not just pirn-core's). The apt layer above installs
+# gdal/eccodes/openblas/sndfile so the fiona/h5py/eccodes-bound extras build.
+#
+# Image contents: this base (pirn-ci-base) carries ALL workspace members and
+# ALL their extras EXCEPT the heavy ML wheels torch/tensorflow/tflite, which
+# Dockerfile.ci-heavy layers on top.
 WORKDIR /opt/pirn-deps
 COPY pyproject.toml ./
 COPY packages/ ./packages/
@@ -38,6 +46,6 @@ COPY packages/ ./packages/
 ENV UV_PYTHON_PREFERENCE=only-system \
     UV_PROJECT_ENVIRONMENT=/opt/pirn-deps/.venv
 
-RUN uv sync --package pirn-core --all-extras --no-install-project \
+RUN uv sync --all-packages --all-extras --no-install-project \
     --no-extra pytorch --no-extra tensorflow --no-extra tflite && \
     rm -f uv.lock

@@ -2,6 +2,9 @@
 
 Complete reference for every file format, codec, archive wrapper, and lakehouse adapter in pirn. Use this as the definitive "what can I read/write" guide.
 
+!!! note "Connectors are part of core, not a domain"
+    The connector interfaces — file formats, codecs, archive wrappers, object stores, and lakehouse adapters — live on **core's public surface** under `pirn.connectors.*` (ADR-2). They ship with `pirn-core` (`import pirn`) and are available to every pipeline regardless of which domain packages are installed; they are not a domain and do not require `pirn_data` / `pirn_signal` / etc. to import. Concrete format classes import as e.g. `from pirn.connectors.file_formats.parquet_format import ParquetFormat`. The per-format `pip install pirn[<extra>]` flags below select only the heavy decode/encode library for a given format — they do not pull a domain package.
+
 **Columns:**
 - **Read** — decoding bytes → records is supported.
 - **Write** — encoding records → bytes is supported. A dash (—) means read-only.

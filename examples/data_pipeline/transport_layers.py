@@ -78,7 +78,7 @@ async def score(raw: RawBatch, score_field: str) -> ScoredBatch:
     scored = []
     raw_values = [float(r[score_field]) for r in raw.rows]
     max_val = max(raw_values) if raw_values else 1.0
-    for row, val in zip(raw.rows, raw_values):
+    for row, val in zip(raw.rows, raw_values, strict=True):
         scored.append({**row, "score": round(val / max_val, 4)})
     mean = round(sum(r["score"] for r in scored) / len(scored), 4) if scored else 0.0
     return ScoredBatch(rows=scored, mean_score=mean)

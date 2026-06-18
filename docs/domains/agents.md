@@ -3,10 +3,15 @@
 The agents domain (`pirn_agents/`) provides a library of knots and interfaces for building LLM-backed pipelines in pirn. Every piece of agent behaviour — prompting, streaming, memory, planning, tool execution, control flow, and output parsing — is expressed as an ordinary knot that wires into a tapestry like any other. There is no hidden loop runtime: the agent loop is just your pipeline graph.
 
 ```bash
-pip install pirn[agents]
+pip install pirn-agents
 ```
 
-The `agents` extra carries no heavy dependencies of its own. LLM providers, vector stores, and tool implementations are user-supplied; pirn only defines the interfaces they must satisfy.
+`pirn_agents` is a standalone distribution and carries **no optional extras** — it has no heavy dependencies of its own. LLM providers, vector stores, and tool implementations are user-supplied; pirn only defines the interfaces they must satisfy.
+
+**Registration (ADR-4):** `import pirn_agents` self-registers the agent-domain knots under `library="pirn"`, so a YAML pipeline can resolve them by bare name. In Python you import the knot classes directly (same effect). To register every installed domain at once, call `pirn.discover_installed_domains()`.
+
+!!! warning "Legacy `pirn.domains.agents` is deprecated"
+    The old `pirn.domains.agents` import path still works for one deprecation cycle via a compat shim (it emits a `DeprecationWarning` and defers to `pirn_agents`). Migrate to `pirn_agents` — see the [migration guide](../guides/migrating-to-split-packages.md).
 
 ---
 
@@ -346,7 +351,7 @@ rag = NaiveRagPipeline(
 
 ```bash
 # Minimal — agents interfaces only, no heavy deps.
-pip install pirn[agents]
+pip install pirn-agents
 
 # Add your chosen LLM provider's SDK separately:
 pip install anthropic          # Anthropic
@@ -356,6 +361,6 @@ pip install openai             # OpenAI-compatible APIs
 pip install pinecone-client    # or qdrant-client, weaviate-client, etc.
 ```
 
-The `agents` extra deliberately carries no mandatory heavy dependencies. LLM provider SDKs, vector databases, and tool libraries are installed separately so you pull only what your application uses.
+The `pirn-agents` package deliberately carries no mandatory heavy dependencies. LLM provider SDKs, vector databases, and tool libraries are installed separately so you pull only what your application uses.
 
 **See also:** [Concepts](../getting-started/concepts.md), [Backends](../guides/backends.md)

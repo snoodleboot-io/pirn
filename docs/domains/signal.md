@@ -1,12 +1,31 @@
 # Signal Domain
 
-pirn's signal domain provides digital signal processing (DSP) primitives as first-class pipeline knots. It covers three overlapping areas: **audio** (music and speech), **biosignal** (EEG, ECG, and other physiological recordings handled in conjunction with the health domain), and **general DSP** (filters, spectral analysis, wavelets, adaptive filters, source separation, and nonlinear dynamics). All knots are async, typed, and composable with any other pirn pipeline component.
+pirn's signal domain (`pirn_signal`) provides digital signal processing (DSP) primitives as first-class pipeline knots. It covers three overlapping areas: **audio** (music and speech), **biosignal** (EEG, ECG, and other physiological recordings handled in conjunction with the health domain), and **general DSP** (filters, spectral analysis, wavelets, adaptive filters, source separation, and nonlinear dynamics). All knots are async, typed, and composable with any other pirn pipeline component.
+
+---
+
+## Install & registration
+
+`pirn_signal` is a standalone distribution. Install the package plus the DSP backends you need:
+
+```bash
+pip install pirn-signal                     # pure-Python orchestration layer
+pip install 'pirn-signal[signal]'           # scipy + pywavelets + librosa (all DSP knots)
+pip install 'pirn-signal[emd]'              # EMD-signal + scipy (empirical mode decomposition)
+```
+
+Available extras: `signal`, `emd`. (Audio **file-format** decoding — WAV/FLAC/OGG/MP3/AAC/M4A — is a core connector extra, `pirn[audio]`, not a signal-package extra; see [Audio File Formats](#audio-file-formats) below.)
+
+**Registration (ADR-4):** `import pirn_signal` self-registers the signal-domain knots under `library="pirn"`, so a YAML pipeline can resolve them by bare name. In Python you import the knot classes directly (same effect). To register every installed domain at once, call `pirn.discover_installed_domains()`.
+
+!!! warning "Legacy `pirn.domains.signal` is deprecated"
+    The old `pirn.domains.signal` import path still works for one deprecation cycle via a compat shim (it emits a `DeprecationWarning` and defers to `pirn_signal`). Migrate to `pirn_signal` — see the [migration guide](../guides/migrating-to-split-packages.md).
 
 ---
 
 ## Audio File Formats
 
-Audio formats live in `pirn/domains/connectors/file_formats/` and follow the standard `BatchFileFormat` interface: `decode(bytes) -> Iterable[record]` and `encode(Iterable[record]) -> bytes`. All audio formats emit **one record per file**.
+Audio formats live on core's connector surface under `pirn.connectors.file_formats.*` and follow the standard `BatchFileFormat` interface: `decode(bytes) -> Iterable[record]` and `encode(Iterable[record]) -> bytes`. All audio formats emit **one record per file**.
 
 ### WavFormat
 
