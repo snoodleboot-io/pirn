@@ -21,7 +21,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents._regex_utils import compile_safe_pattern, search_any
+from pirn_agents._regex_utils import compile_patterns, search_any
 from pirn_agents.types.agent_message import AgentMessage
 from pirn_agents.types.agent_response import AgentResponse
 
@@ -50,6 +50,16 @@ class SafetyCheck(Knot):
             _config=_config,
             **kwargs,
         )
+        # Validate concrete patterns up front so a bad deny-list fails fast at
+        # build time. A ``Knot`` reference resolves later, so it is validated
+        # at process time instead.
+        if not isinstance(deny_patterns, Knot):
+            compile_patterns(
+                deny_patterns,
+                owner="SafetyCheck",
+                field="deny_patterns",
+                flags=re.IGNORECASE,
+            )
 
     async def process(
         self,
@@ -75,26 +85,12 @@ class SafetyCheck(Knot):
                 "SafetyCheck: message must be an AgentMessage or AgentResponse, "
                 f"got {type(message).__name__}"
             )
-        if not isinstance(deny_patterns, Sequence) or isinstance(deny_patterns, (str, bytes)):
-            raise TypeError("SafetyCheck: deny_patterns must be a sequence of regex strings")
-        if not deny_patterns:
-            raise ValueError("SafetyCheck: deny_patterns must be non-empty")
-        compiled: list[re.Pattern[str]] = []
-        for index, pattern in enumerate(deny_patterns):
-            if not isinstance(pattern, str) or not pattern:
-                raise ValueError(
-                    f"SafetyCheck: deny_patterns[{index}] must be a non-empty "
-                    f"string, got {pattern!r}"
-                )
-            compiled.append(
-                compile_safe_pattern(
-                    pattern,
-                    index=index,
-                    owner="SafetyCheck",
-                    field="deny_patterns",
-                    flags=re.IGNORECASE,
-                )
-            )
+        compiled = compile_patterns(
+            deny_patterns,
+            owner="SafetyCheck",
+            field="deny_patterns",
+            flags=re.IGNORECASE,
+        )
         content = message.content
         match = await search_any(tuple(compiled), content)
         return match is None
