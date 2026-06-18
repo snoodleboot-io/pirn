@@ -1,5 +1,13 @@
 {
-  "include": ["pirn"],
+  "include": [
+    "packages/pirn-core/src/pirn",
+    "packages/pirn-signal/src/pirn_signal",
+    "packages/pirn-data/src/pirn_data",
+    "packages/pirn-ml/src/pirn_ml",
+    "packages/pirn-agents/src/pirn_agents",
+    "packages/pirn-health/src/pirn_health",
+    "packages/pirn-oilgas/src/pirn_oilgas"
+  ],
   "venvPath": ".",
   "venv": ".venv",
   "pythonVersion": "3.12",
