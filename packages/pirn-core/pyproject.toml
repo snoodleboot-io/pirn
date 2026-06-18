@@ -1,12 +1,14 @@
 # pirn-core — the core package, imports as `pirn` (SCD-05/06, Phase 1).
 #
-# The monolith source now lives here at `src/pirn/` (relocated from the repo
-# root during the connectors fold). `connectors` is folded in as a top-level
-# core subpackage (`pirn.connectors.*`, ADR-2). The six domains still ride
-# along under `src/pirn/domains/` and are carved out into their own packages in
-# Phase 3 (SCD-11..16); until then pirn-core carries every extra (core +
-# connector/backend/codec + the per-domain extras) so the transitional wheel
-# stays installable. As each domain extracts, its extras move to its package.
+# The core source lives here at `src/pirn/` (relocated from the repo root
+# during the connectors fold). `connectors` is folded in as a top-level core
+# subpackage (`pirn.connectors.*`, ADR-2). The six domains were carved out into
+# their own packages in Phase 3 (SCD-11..16): pirn-signal/-data/-ml/-agents/
+# -health/-oilgas now own their per-domain extras. pirn-core keeps the core +
+# connector/backend/codec extras; a thin `pirn.domains.*` compat shim defers to
+# the standalone `pirn_<x>` packages for one deprecation cycle. The opt-in
+# `all-domains` extra (below) pulls every domain distribution for callers who
+# want monolith ergonomics (ADR-5 Option C); base deps stay domain-free (C2).
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
@@ -39,8 +41,9 @@ dependencies = [
 ]
 
 [project.scripts]
-tapestry-check = "pirn.check.main:main"
-pirn-explore   = "pirn.viz._explore_cli:main"
+tapestry-check       = "pirn.check.main:main"
+pirn-explore         = "pirn.viz._explore_cli:main"
+pirn-migrate-imports = "pirn._migrate.main:main"
 
 [project.optional-dependencies]
 # ─────────────────────────────────────────────────────────────────────────────
@@ -245,20 +248,21 @@ all-observability = [
     "datadog-api-client>=2.0",
     "prometheus-client>=0.19",
 ]
+# Opt-in monolith-ergonomics convenience (ADR-5 Option C): pull every domain
+# distribution in one shot so callers who want the old `pirn.domains.*` feel
+# can `pip install pirn-core[all-domains]`. This is NOT a base dependency —
+# pirn-core's base deps stay domain-free (constraint C2); only this optional
+# extra references the domain packages. Each pin mirrors the inter-package
+# lockstep style used across the workspace (ADR-6 / constraint C4). Add the
+# heavy per-domain backends separately (e.g. `pirn-data[polars]`,
+# `pirn-signal[signal]`, `pirn-health[health]`).
 all-domains = [
-    # data domain moved to pirn-data (SCD-13); pandas/pyarrow retained for
-    # core connectors and the (transitional) in-core ml domain.
-    "pandas>=2.0", "pyarrow>=14.0",
-    # ml extra moved to pirn-ml (SCD-14) — install `pirn-ml[ml]`.
-    # health
-    # mri
-    # health/mri/genomics extras moved to pirn-health (SCD-16).
-    # signal extras moved to pirn-signal (SCD-11) — install `pirn-signal[signal,emd]`.
-    # proteomics / mass-spec
-    "pyteomics>=4.7", "psims>=1.3",
-    # neuroimaging BIDS
-    "pybids>=0.17",
-    # oilgas extras moved to pirn-oilgas (SCD-12) — install `pirn-oilgas[oilgas]`.
+    "pirn-signal>=0.4.0,<0.5.0",
+    "pirn-oilgas>=0.4.0,<0.5.0",
+    "pirn-data>=0.4.0,<0.5.0",
+    "pirn-ml>=0.4.0,<0.5.0",
+    "pirn-agents>=0.4.0,<0.5.0",
+    "pirn-health>=0.4.0,<0.5.0",
 ]
 all = [
     # persistence backends

@@ -7,9 +7,9 @@ Install with::
 Note: the core orchestration layer (interfaces, types, data_prep,
 features, training, evaluation, deployment) is pure-Python and
 importable without optional ML dependencies. Modules that depend on
-numpy / pandas / scikit-learn / pyarrow / joblib instantiate
-:class:`pirn_ml.extras_loader.ExtrasLoader` at module top so the
-missing-extras error fires only when those modules are imported.
+numpy / pandas / scikit-learn / pyarrow / joblib import those
+dependencies lazily, so the missing-dependency error fires only when
+those modules are imported.
 
 ``pirn-ml`` declares a hard dependency on ``pirn-data`` (ADR-3): the
 dataset-loader knots consume ``DataBatch`` / ``LakehouseTable`` /

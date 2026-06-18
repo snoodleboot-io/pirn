@@ -8,9 +8,9 @@ LAS payloads must install the optional extras::
 
 Without the extras the orchestration graph still imports, type-checks,
 and unit-tests; only the knots that need the real SDKs at runtime fail.
-Concrete backends instantiate
-:class:`pirn_oilgas.extras_loader.ExtrasLoader` at the call boundary so
-the missing-extras error fires only when a real implementation is used.
+Concrete backends import their optional dependencies lazily (at the call
+boundary), so the missing-dependency error fires only when a real
+implementation is used.
 """
 
 import warnings

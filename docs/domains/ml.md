@@ -3,10 +3,17 @@
 The ML domain (`pirn_ml/`) provides knots and interfaces that cover the full machine learning lifecycle: data preparation, feature engineering, training, evaluation, deployment, and lineage tracking. Each stage is a typed, async knot — composable, observable, and content-addressed out of the box.
 
 ```bash
-pip install pirn[ml]
+pip install 'pirn-ml[ml]'
 ```
 
-The `ml` extra pulls `numpy`, `pandas`, and `scikit-learn`. Training backends, deep learning frameworks, and feature stores are user-supplied; pirn only defines the interfaces they must satisfy.
+`pirn_ml` is a standalone distribution. Its `ml` extra pulls `numpy`, `pandas`, and `scikit-learn`. Training backends, deep learning frameworks, and feature stores are user-supplied; pirn only defines the interfaces they must satisfy.
+
+Available extras: `ml`. `pirn_ml` depends on both `pirn-core` and `pirn-data` — it consumes `DataBatch` / `LakehouseTable` / `FileSource` / `SqlSource` from `pirn_data` (the one retained domain→domain edge, ADR-3), so installing `pirn-ml` pulls `pirn-data` automatically.
+
+**Registration (ADR-4):** `import pirn_ml` self-registers the ML-domain knots under `library="pirn"`, so a YAML pipeline can resolve them by bare name. In Python you import the knot classes directly (same effect). To register every installed domain at once, call `pirn.discover_installed_domains()`.
+
+!!! warning "Legacy `pirn.domains.ml` is deprecated"
+    The old `pirn.domains.ml` import path still works for one deprecation cycle via a compat shim (it emits a `DeprecationWarning` and defers to `pirn_ml`). Migrate to `pirn_ml` — see the [migration guide](../guides/migrating-to-split-packages.md).
 
 ---
 
@@ -26,7 +33,7 @@ Each box is a knot. Wire them inside a `Tapestry` context and pirn handles execu
 
 ## ML artifact formats
 
-ML models are whole-artifact blobs — not row-oriented tables. The connector layer treats each artifact as one record and surfaces metadata alongside the bytes. All ML format classes live in `pirn/domains/connectors/file_formats/`.
+ML models are whole-artifact blobs — not row-oriented tables. The connector layer treats each artifact as one record and surfaces metadata alongside the bytes. All ML format classes live on core's connector surface under `pirn.connectors.file_formats.*` (they are part of core, not the ML domain).
 
 | Format | Class | Extra | Security properties |
 |--------|-------|-------|---------------------|
@@ -341,10 +348,10 @@ All assemblers and disassemblers live under `pirn_ml/assemblers/` and `pirn_ml/d
 ## Install
 
 ```bash
-# Core ML domain.
-pip install pirn[ml]
+# Core ML domain (pulls pirn-core + pirn-data automatically).
+pip install 'pirn-ml[ml]'
 
-# Add specific artifact format support:
+# Add specific artifact format support (these are pirn-core connector extras):
 pip install pirn[onnx]          # ONNX validation
 pip install pirn[safetensors]   # Hugging Face safetensors
 pip install pirn[joblib]        # scikit-learn / joblib persistence

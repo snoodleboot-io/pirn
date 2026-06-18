@@ -6,7 +6,12 @@ from __future__ import annotations
 def test_package_imports():
     from importlib.metadata import version
 
-    assert version("pirn") == "0.3.0"
+    import pirn
+
+    # Core ships as the ``pirn-core`` distribution but imports as ``pirn``.
+    # ``pirn.__version__`` must be wired to that distribution's metadata.
+    assert pirn.__version__ == version("pirn-core")
+    assert pirn.__version__ != "unknown"
 
 
 def test_core_public_surface():

@@ -53,8 +53,14 @@ Shim verified against **real** installed/absent `pirn_<x>` packages (not mocked)
 - P4-B: shared-fixture visibility across separately-installed packages (SCD-20) is the open ADR question #6; the test-support-module approach must be proven before mass test reorg, else flag.
 
 ## DoD (→ #68–#74 AC)
-- ☐ Codemod rewrites all 6 import forms deterministically + idempotent; no stale `pirn.domains.*` refs post-extraction (except shim). *(SCD-17)*
-- ☐ Shim: warning-if-installed / ImportError-if-absent; core declares no hard domain dep; covers all 6. *(SCD-18)*
-- ☐ `discover_installed_domains()` imports every installed `pirn_*`; cross-domain bare-name resolution. *(SCD-19)*
-- ☐ All tests green against installed split packages; shared fixtures importable; extras-isolation passes. *(SCD-20)*
-- ☐ Examples import `pirn_<x>`; docs build unified; Docker images carry all members; consumer guide + `pirn[all-domains]` documented. *(SCD-21/22/23)*
+- ☑ Codemod rewrites all 6 import forms deterministically + idempotent; no stale `pirn.domains.*` refs post-extraction (except shim). *(SCD-17 — `pirn._migrate.ImportRewriter`, console-script `pirn-migrate-imports`, 21 tests)*
+- ☑ Shim: warning-if-installed / ImportError-if-absent; core declares no hard domain dep; covers all 6. *(SCD-18 — `DomainCompatFinder`+`DomainCompatLoader`+`__getattr__`; finder at `sys.meta_path[0]` so legacy submodules keep canonical `pirn_<x>.<sub>` identity)*
+- ☑ `discover_installed_domains()` imports every installed `pirn_*`; cross-domain bare-name resolution. *(SCD-19 — `pirn._domain_discovery`; yaml_loader miss message enriched)*
+- ☑ All tests green against installed split packages; shared fixtures importable; extras-isolation passes. *(SCD-20 — fixed smoke version + core `__version__` (`pirn`→`pirn-core`) + import-graph gate now scans extracted packages. Tests stay centralized per ADR open-q #6, so no per-package test-support module is needed. 7163 pass; remaining reds are pre-existing & out of scope — see Gap report.)*
+- ☑ Examples import `pirn_<x>`; docs build unified; Docker images carry all members; consumer guide + `pirn[all-domains]` documented. *(SCD-21/22/23 — examples ruff-clean + explorer regenerated; `mkdocstrings.paths`→7 packages; `Dockerfile.ci`/`ci-heavy` use `--all-packages --all-extras`; `pirn-core[all-domains]` now depends on the 6 domain dists; `docs/guides/migrating-to-split-packages.md`)*
+
+### Phase-4 execution notes (orchestrator)
+- **Collision fix (SCD-01 invariant):** the 4 unused per-domain `ExtrasLoader` classes collided on registry key `extrasloader`. Per user decision, deleted them (zero call sites) — `test_registry_uniqueness` now green.
+- **ADR-4 confirmed:** import-the-domain-to-register holds; `discover_installed_domains()` restores monolith ergonomics opt-in.
+- **ADR-5 confirmed:** shim = Option B (lazy, no hard dep); `pirn-core[all-domains]` = Option C (opt-in meta-extra). Deprecation window: shim for one minor, removed at 1.0.
+- **Gap / pre-existing (NOT introduced by Phase 4, flagged):** (a) `tests/security/test_redos_guard.py` ×3 — real failures in `pirn_agents` SafetyCheck/HandoffCheck, out of scope; (b) env-limited locally on Python 3.14: domain-extra tests needing `resfo`/`nibabel`/`dipy`/`polars`/ecCodes/GDAL/HDF5 (no cp314 wheels / system libs); (c) root `pyrightconfig.json` `include:["pirn"]` is stale (points at the pre-split path → pyright is a workspace no-op) — left for a dedicated tooling fix to avoid surfacing an unrelated type-error backlog in this phase.

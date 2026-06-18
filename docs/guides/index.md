@@ -8,6 +8,7 @@ In-depth guides for common pirn workflows and patterns.
 | [Deployment](deployment.md) | Sizing, dispatcher selection, and production config |
 | [Error Handling](error-handling.md) | Error policies, failure propagation, and recovery |
 | [Knot Registration](knot-registration.md) | Auto-discovery and manual registration via sweet_tea |
+| [Migrating to Split Packages](migrating-to-split-packages.md) | Moving from `pirn.domains.<x>` to the standalone `pirn_<x>` distributions |
 | [Observability](observability.md) | Emitters, OpenTelemetry, and run introspection |
 | [SubTapestry](sub-tapestry.md) | Knots whose execution body is a complete inner pipeline |
 | [Agentic Loops](agentic-loops.md) | Iterative, feedback-driven loops with full run-history observability |

@@ -360,9 +360,12 @@ class PipelineLoader:
         if not allow_imports:
             raise ValueError(
                 f"reference {ref!r} not in known_callables and not registered as a Knot "
-                "in sweet_tea's Registry; set allow_callable_refs=True to enable "
-                "dotted-path imports, or call Registry.fill_registry() in your "
-                "project so your knots are auto-discovered"
+                "in sweet_tea's Registry; if it belongs to a pirn domain, install & "
+                "import the owning package (e.g. pip install pirn-<x> then "
+                "import pirn_<x>, or call pirn.discover_installed_domains()); "
+                "otherwise set allow_callable_refs=True to enable dotted-path imports, "
+                "or call Registry.fill_registry() in your project so your knots are "
+                "auto-discovered"
             )
 
         if "." not in ref:

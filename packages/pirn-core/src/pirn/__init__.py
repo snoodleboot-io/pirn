@@ -49,13 +49,15 @@ with warnings.catch_warnings():
     Registry.fill_registry()
 
 try:
-    __version__ = version("pirn")
+    # Core ships as the ``pirn-core`` distribution but imports as ``pirn``.
+    __version__ = version("pirn-core")
 except PackageNotFoundError:
     __version__ = "unknown"
 
 # Public API re-exports — users may import from pirn directly.
 # Registry.fill_registry() above must run first; noqa: E402 suppresses the
 # "import not at top of file" warnings that follow from that ordering.
+from pirn._domain_discovery import discover_installed_domains
 from pirn.core.assembler import Assembler
 from pirn.core.disassembler import Disassembler
 from pirn.core.error_policy import ErrorPolicy
@@ -86,4 +88,5 @@ __all__ = [
     "Source",
     "SubTapestry",
     "LoopSubTapestry",
+    "discover_installed_domains",
 ]

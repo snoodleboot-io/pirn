@@ -103,8 +103,8 @@ class TestRealTreeGreenAfter(unittest.TestCase):
     no health->agents, ml->data retained)."""
 
     def test_domain_import_dag_is_clean(self) -> None:
-        src = _REPO_ROOT / "packages" / "pirn-core" / "src" / "pirn"
-        self.assertEqual(_gate.check_domain_dag(src), [])
+        packages = _REPO_ROOT / "packages"
+        self.assertEqual(_gate.check_domain_dag(packages), [])
 
     def test_declared_package_dag_is_clean(self) -> None:
         packages = _REPO_ROOT / "packages"

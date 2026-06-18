@@ -24,10 +24,11 @@ No-backend-at-import — *core stays dependency-light.*
     contract boundary).
 
 Domain DAG (real imports) — *acyclic, one domain edge.* (SCD-10 / C1 + C3)
-    Builds the cross-domain edge set from real ``pirn.domains.<x>`` imports and
-    asserts the graph is acyclic and its only domain->domain edge is
-    ``ml -> data``. This proves SCD-08 removed ``agents -> ml`` and SCD-09
-    removed ``health -> agents``, with ``ml -> data`` (ADR-3) retained.
+    Builds the cross-domain edge set from real ``pirn_<x>`` imports across the
+    extracted domain packages and asserts the graph is acyclic and its only
+    domain->domain edge is ``ml -> data``. This proves SCD-08 removed
+    ``agents -> ml`` and SCD-09 removed ``health -> agents``, with ``ml -> data``
+    (ADR-3) retained.
 
 Package DAG (declared deps) — *acyclic, one domain edge.* (SCD-10 / C1 + C3)
     Parses each package's ``pyproject.toml`` dependencies and asserts the
@@ -195,31 +196,33 @@ def _find_cycle(edges: dict[str, set[str]]) -> list[str] | None:
     return None
 
 
-def check_domain_dag(src: Path) -> list[str]:
+def check_domain_dag(packages_root: Path) -> list[str]:
     """C1+C3 over *real imports*: domains form an acyclic graph whose only
     domain->domain edge is ``ml -> data``.
 
-    Scans each ``<src>/domains/<domain>/`` subtree for ``pirn.domains.<other>``
-    imports and asserts (a) the induced graph is acyclic (C1) and (b) the set of
-    cross-domain edges is exactly ``{(ml, data)}`` — i.e. SCD-08 removed the
-    ``agents -> ml`` edge and SCD-09 removed the ``health -> agents`` edge, while
-    the retained ``ml -> data`` edge (ADR-3) is still present.
+    Post-extraction each domain ships as a standalone ``pirn_<domain>`` package
+    under ``packages/pirn-<domain>/src/pirn_<domain>/``. This scans every domain
+    package source for top-level ``pirn_<other>`` imports and asserts (a) the
+    induced graph is acyclic (C1) and (b) the set of cross-domain edges is
+    exactly ``{(ml, data)}`` — i.e. SCD-08 removed the ``agents -> ml`` edge and
+    SCD-09 removed the ``health -> agents`` edge, while the retained
+    ``ml -> data`` edge (ADR-3) — ``pirn_ml`` importing ``pirn_data`` — is still
+    present.
     """
-    domains_root = src / "domains"
     edges: dict[str, set[str]] = {domain: set() for domain in _domain_names}
     for domain in _domain_names:
-        domain_dir = domains_root / domain
-        if not domain_dir.is_dir():
+        domain_src = packages_root / f"pirn-{domain}" / "src" / f"pirn_{domain}"
+        if not domain_src.is_dir():
             continue
-        for path in sorted(domain_dir.rglob("*.py")):
+        for path in sorted(domain_src.rglob("*.py")):
             try:
                 tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
             except SyntaxError:
                 continue
             for module in _imported_module_roots(tree):
-                parts = module.split(".")
-                if len(parts) >= 3 and parts[0] == "pirn" and parts[1] == "domains":
-                    other = parts[2]
+                root = module.split(".", 1)[0]
+                if root.startswith("pirn_"):
+                    other = root[len("pirn_") :]
                     if other in _domain_names and other != domain:
                         edges[domain].add(other)
     return _dag_violations(
@@ -319,7 +322,7 @@ def main() -> int:
         "--src",
         type=Path,
         default=Path("packages/pirn-core/src/pirn"),
-        help="core source tree to scan for the sink + domain-DAG checks",
+        help="core source tree to scan for the C2 core-is-sink check",
     )
     parser.add_argument(
         "--packages-root",
@@ -360,7 +363,7 @@ def main() -> int:
     if run_all or args.no_backend_at_core_import:
         violations.extend(check_no_backend_at_import())
     if run_all or args.domain_dag:
-        violations.extend(check_domain_dag(args.src))
+        violations.extend(check_domain_dag(args.packages_root))
     if run_all or args.package_dag:
         violations.extend(check_package_dag(args.packages_root))
 
