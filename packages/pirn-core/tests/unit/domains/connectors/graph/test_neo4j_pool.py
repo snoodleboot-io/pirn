@@ -187,7 +187,7 @@ class TestCredentialSafety(unittest.TestCase):
     def test_repr_shows_uri_and_user(self) -> None:
         cfg = Neo4jConfig(uri="bolt://db.example.com:7687", user="admin")
         text = repr(cfg)
-        assert "bolt://db.example.com:7687" in text
+        assert f"uri={cfg.uri!r}" in text
         assert "admin" in text
 
 

@@ -160,7 +160,7 @@ class TestCredentialSafety(unittest.TestCase):
     def test_repr_shows_host_and_port(self) -> None:
         cfg = MemgraphConfig(host="memgraph.example.com", port=7687)
         text = repr(cfg)
-        assert "memgraph.example.com" in text
+        assert f"host={cfg.host!r}" in text
         assert "7687" in text
 
 

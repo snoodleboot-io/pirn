@@ -88,7 +88,7 @@ class TestTriggerIncident(unittest.IsolatedAsyncioTestCase):
         client = PagerDutyClient(config=cfg, client=fake)
         result = await client.trigger_incident("Disk full", "server-01", severity="error")
         assert result == {"status": "success", "dedup_key": "abc123"}
-        assert "events.pagerduty.com" in fake.calls[0]["url"]
+        assert fake.calls[0]["url"] == "https://events.pagerduty.com/v2/enqueue"
         payload = fake.calls[0]["json"]
         assert payload["event_action"] == "trigger"
         assert payload["payload"]["summary"] == "Disk full"

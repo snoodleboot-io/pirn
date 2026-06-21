@@ -27,7 +27,8 @@ def _make_single_group_payload() -> bytes:
     import netCDF4
     import numpy as np
 
-    tmp = tempfile.mktemp(suffix=".nc")
+    fd, tmp = tempfile.mkstemp(suffix=".nc")
+    os.close(fd)
     try:
         ds = netCDF4.Dataset(tmp, "w", format="NETCDF4")
         try:
@@ -51,7 +52,8 @@ def _make_multi_group_payload() -> bytes:
     import netCDF4
     import numpy as np
 
-    tmp = tempfile.mktemp(suffix=".nc")
+    fd, tmp = tempfile.mkstemp(suffix=".nc")
+    os.close(fd)
     try:
         ds = netCDF4.Dataset(tmp, "w", format="NETCDF4")
         try:

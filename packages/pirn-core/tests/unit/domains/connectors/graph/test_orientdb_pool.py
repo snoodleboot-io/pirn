@@ -155,7 +155,7 @@ class TestCredentialSafety(unittest.TestCase):
     def test_repr_shows_host_and_port(self) -> None:
         cfg = OrientDBConfig(host="orient.example.com", port=2424, database="mydb")
         text = repr(cfg)
-        assert "orient.example.com" in text
+        assert f"host={cfg.host!r}" in text
         assert "2424" in text
 
 

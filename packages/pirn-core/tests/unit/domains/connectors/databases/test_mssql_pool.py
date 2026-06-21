@@ -226,7 +226,7 @@ class TestCredentialSafety(unittest.TestCase):
             driver="ODBC Driver 18 for SQL Server",
         )
         dsn = cfg.build_dsn()
-        assert "db.example.com" in dsn
+        assert f"SERVER={cfg.host},{cfg.port}" in dsn
         assert "DATABASE=prod" in dsn
         assert "UID=alice" in dsn
         assert "PWD=pw" in dsn

@@ -27,7 +27,8 @@ def _make_root_payload() -> bytes:
     import numpy as np
     import uproot
 
-    tmp = tempfile.mktemp(suffix=".root")
+    fd, tmp = tempfile.mkstemp(suffix=".root")
+    os.close(fd)
     try:
         with uproot.recreate(tmp) as f:
             f["mytree"] = {
