@@ -1,0 +1,158 @@
+name: Publish workspace (N wheels)  # SCD-28
+
+# Lockstep build + publish of every workspace package (split-core-and-domains,
+# Phase 5 / SCD-28, ADR-6). One version is derived, stamped across all packages
+# (SCD-27), built into N wheels, published to TestPyPI on PR / PyPI on main via
+# PyPI Trusted Publishing (OIDC), and then VERIFIED by installing each wheel
+# *from the index* (not the local build) and asserting it imports and that
+# `tapestry-check` runs — the registry-parity-from-PyPI proof.
+#
+# FROZEN during the migration (#51) — manual-only. Re-enable PR + main triggers
+# at the very end, together with ci.yml / workspace.yml.
+#
+# ⚠ P5-B (irreversible, outward-facing): the first real PyPI push is gated TWICE —
+#   (1) it only runs after TestPyPI succeeds, and (2) the `pypi` GitHub Environment
+#   must be configured with required reviewers so a human approves the release.
+#   Each `pirn-<x>` is a separate PyPI project and needs its Trusted Publisher
+#   (this repo + this workflow) configured before the first upload.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  # Lockstep anchor: the version is derived from pirn-core's PyPI history and
+  # stamped onto every package (SCD-27).
+  ANCHOR_PACKAGE: pirn-core
+  MAJOR_VERSION: "0"
+  WHEEL_PACKAGES: '["pirn-core","pirn-signal","pirn-data","pirn-ml","pirn-agents","pirn-health","pirn-oilgas"]'
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Derive the single lockstep version, stamp all packages, build N wheels.
+  # ---------------------------------------------------------------------------
+  build:
+    name: Stamp + build N wheels
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      should_publish_testpypi: ${{ steps.version.outputs.should_publish_testpypi }}
+      should_publish_pypi: ${{ steps.version.outputs.should_publish_pypi }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          enable-cache: true
+          python-version: "3.12"
+      - name: Derive lockstep version (from the anchor's PyPI history)
+        id: version
+        run: python .github/scripts/calculate_version.py
+        env:
+          PACKAGE_NAME: ${{ env.ANCHOR_PACKAGE }}
+          MAJOR_VERSION: ${{ env.MAJOR_VERSION }}
+      - name: Stamp the lockstep version across all packages (SCD-27)
+        run: |
+          python scripts/stamp_workspace_version.py --version "${{ steps.version.outputs.version }}"
+          python scripts/stamp_workspace_version.py --check
+      - name: Build all wheels + sdists (per package, no workspace)
+        run: |
+          set -euo pipefail
+          for p in pirn-core pirn-signal pirn-data pirn-ml pirn-agents pirn-health pirn-oilgas; do
+            uv build "packages/$p" -o dist/
+          done
+      - name: List built distributions
+        run: ls -1 dist/
+      - name: Upload wheelhouse
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: wheelhouse-${{ steps.version.outputs.version }}
+          path: dist/
+          retention-days: 14
+
+  # ---------------------------------------------------------------------------
+  # Publish all wheels to TestPyPI (PR) — trusted publishing, one upload routes
+  # each file to its named project.
+  # ---------------------------------------------------------------------------
+  publish-testpypi:
+    name: Publish → TestPyPI
+    needs: build
+    if: needs.build.outputs.should_publish_testpypi == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+    permissions:
+      id-token: write
+    steps:
+      - name: Download wheelhouse
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
+        with:
+          name: wheelhouse-${{ needs.build.outputs.version }}
+          path: dist/
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b  # release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  # ---------------------------------------------------------------------------
+  # Publish all wheels to PyPI (main) — gated on the `pypi` Environment, which
+  # MUST require a human reviewer (P5-B). Irreversible.
+  # ---------------------------------------------------------------------------
+  publish-pypi:
+    name: Publish → PyPI (human-gated)
+    needs: build
+    if: needs.build.outputs.should_publish_pypi == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+    permissions:
+      id-token: write
+    steps:
+      - name: Download wheelhouse
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
+        with:
+          name: wheelhouse-${{ needs.build.outputs.version }}
+          path: dist/
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b  # release/v1
+
+  # ---------------------------------------------------------------------------
+  # Verify each package FROM THE INDEX (not the local build): install in a clean
+  # venv, import, and run `tapestry-check`. Registry-parity-from-PyPI (SCD-28 AC).
+  # ---------------------------------------------------------------------------
+  verify:
+    name: Verify ${{ matrix.package }} from index
+    needs: [build, publish-testpypi]
+    if: needs.build.outputs.should_publish_testpypi == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJSON('["pirn-core","pirn-signal","pirn-data","pirn-ml","pirn-agents","pirn-health","pirn-oilgas"]') }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          python-version: "3.12"
+      - name: Install ${{ matrix.package }}==${{ needs.build.outputs.version }} from TestPyPI
+        run: |
+          set -euo pipefail
+          uv venv /tmp/verify
+          # TestPyPI for the pirn-* wheels; PyPI as the extra index for third-party deps.
+          uv pip install --python /tmp/verify/bin/python \
+            --index-url https://test.pypi.org/simple/ \
+            --extra-index-url https://pypi.org/simple/ \
+            "${{ matrix.package }}==${{ needs.build.outputs.version }}"
+      - name: Import + dependency-tree closure + tapestry-check
+        run: |
+          set -euo pipefail
+          imp="${{ matrix.package }}"; imp="${imp/pirn-/pirn_}"
+          /tmp/verify/bin/python scripts/check_install_isolation.py --package "${{ matrix.package }}"
+          /tmp/verify/bin/python -c "import $imp; print('import OK:', '$imp')"
+          /tmp/verify/bin/tapestry-check --help

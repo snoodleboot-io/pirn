@@ -480,3 +480,36 @@ Per-package build matrix → N wheels; publish/verify per package; lockstep vers
 | 4 | Versioning policy | **Lockstep** through migration + deprecation window; **independent semver post-1.0** with a compatibility floor + matrix. (ADR-6) |
 | 5 | Connectors naming/identity | Namespaced public surface `pirn.connectors.*` (not flattened); `PirnOpaqueValue`/`DataTransport`/`SerializerRegistry` stay on their existing `pirn.core.*` paths. (ADR-2) |
 | 6 | Cross-package test/conftest | Centralize shared fixtures in `pirn-core` (importable test-support module) rather than a separate `pirn-test-support` package, until fixture sharing proves it needs its own wheel. (Sequenced in Phase 4; FEATURES details.) |
+
+---
+
+## Amendment A1 — Flat layout + per-package tests (2026-06-19, Phase 5 / SCD-24)
+
+**Supersedes:** the `src/` layout decision (§"Layout", line ~74) and open question #6's
+"tests stay in the root `tests/` tree."
+
+**Decision (owner directive):** each package is **flat** — source at
+`packages/pirn-<x>/pirn_<x>/` (no `src/`), tests at `packages/pirn-<x>/tests/`.
+The central `tests/` tree is dissolved; the 1,384 tests move to their owning
+package (domain tests by directory; everything else, including the folded
+connectors, to `pirn-core`).
+
+**Why the reversal is safe despite losing the src-layout's "import the installed
+package" guarantee:** that property is now enforced *directly* by SCD-25's
+clean-env install-isolation + dependency-tree assertions (a domain that imports
+an undeclared sibling fails its isolation job), so it no longer needs to ride on
+the directory layout.
+
+**Mechanics that replace what src-layout/central-tests gave us:**
+- **Shared fixtures/env/`--real`** live in a repo-root `conftest.py` (ancestor of
+  every `packages/*/tests/`), discovered for every per-package run.
+- **Per-package invocation** is canonical: each test root is its own top-level
+  `tests` package, so two cannot be collected in one process (prepend import
+  mode keeps the intra-`tests.` helper imports resolving). The SCD-24 matrix
+  runs each package separately; a bare whole-tree `pytest` is unsupported.
+- **Cross-domain tests** (registry parity, the `pirn.domains.*` shim,
+  per-domain extras-isolation, the import-rewrite codemod, and a few
+  domain-coupled security/hashing/example-integration tests) stay in
+  `pirn-core` but carry a `cross_domain` marker + an `importorskip` guard: they
+  **skip** in core's isolated run and are **run by the SCD-24 unified suite**
+  with all packages installed — the registry-parity proof (AC#3).

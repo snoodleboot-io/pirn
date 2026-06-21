@@ -5,7 +5,7 @@ Four independent checks, all run by default (pass a ``--*`` selector to run a
 subset):
 
 C2 — *core is a sink.*
-    No module under ``packages/pirn-core/src/pirn/`` may import a top-level
+    No module under ``packages/pirn-core/pirn/`` may import a top-level
     domain package (``pirn_signal``, ``pirn_data``, ``pirn_ml``, ``pirn_agents``,
     ``pirn_health``, ``pirn_oilgas``). Core must depend on zero domains.
 
@@ -201,7 +201,7 @@ def check_domain_dag(packages_root: Path) -> list[str]:
     domain->domain edge is ``ml -> data``.
 
     Post-extraction each domain ships as a standalone ``pirn_<domain>`` package
-    under ``packages/pirn-<domain>/src/pirn_<domain>/``. This scans every domain
+    under ``packages/pirn-<domain>/pirn_<domain>/``. This scans every domain
     package source for top-level ``pirn_<other>`` imports and asserts (a) the
     induced graph is acyclic (C1) and (b) the set of cross-domain edges is
     exactly ``{(ml, data)}`` — i.e. SCD-08 removed the ``agents -> ml`` edge and
@@ -211,7 +211,7 @@ def check_domain_dag(packages_root: Path) -> list[str]:
     """
     edges: dict[str, set[str]] = {domain: set() for domain in _domain_names}
     for domain in _domain_names:
-        domain_src = packages_root / f"pirn-{domain}" / "src" / f"pirn_{domain}"
+        domain_src = packages_root / f"pirn-{domain}" / f"pirn_{domain}"
         if not domain_src.is_dir():
             continue
         for path in sorted(domain_src.rglob("*.py")):
@@ -321,7 +321,7 @@ def main() -> int:
     parser.add_argument(
         "--src",
         type=Path,
-        default=Path("packages/pirn-core/src/pirn"),
+        default=Path("packages/pirn-core/pirn"),
         help="core source tree to scan for the C2 core-is-sink check",
     )
     parser.add_argument(

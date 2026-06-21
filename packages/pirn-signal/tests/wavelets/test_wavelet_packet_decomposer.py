@@ -1,0 +1,61 @@
+"""Unit tests for :class:`WaveletPacketDecomposer`."""
+
+from __future__ import annotations
+
+import unittest
+
+try:
+    import scipy  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("scipy not installed") from _e
+
+try:
+    import pywt  # noqa: F401
+except ImportError as _e:
+    raise unittest.SkipTest("pywt not installed") from _e
+
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
+from pirn_signal.types.wavelet_payload import WaveletPayload
+from pirn_signal.wavelets.wavelet_packet_decomposer import (
+    WaveletPacketDecomposer,
+)
+
+from tests.conftest import emit_signal_payload
+
+
+class TestValidation(unittest.IsolatedAsyncioTestCase):
+    def _make_bare_knot(self) -> WaveletPacketDecomposer:
+        with Tapestry():
+            k = WaveletPacketDecomposer.__new__(WaveletPacketDecomposer)
+            object.__setattr__(k, "_config", KnotConfig(id="x"))
+        return k
+
+    async def test_rejects_empty_wavelet_name(self) -> None:
+        k = self._make_bare_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(signal=None, wavelet_name="", level_count=3)  # type: ignore[arg-type]
+
+    async def test_rejects_non_positive_level_count(self) -> None:
+        k = self._make_bare_knot()
+        with self.assertRaises((TypeError, ValueError)):
+            await k.process(signal=None, wavelet_name="db4", level_count=0)  # type: ignore[arg-type]
+
+
+class TestProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_emits_wavelet_payload_with_packet_count(self) -> None:
+        with Tapestry() as t:
+            sig = emit_signal_payload(_config=KnotConfig(id="sig"))
+            WaveletPacketDecomposer(
+                signal=sig,
+                wavelet_name="db4",
+                level_count=4,
+                _config=KnotConfig(id="w"),
+            )
+        result = await t.run(RunRequest())
+        out = result.outputs["w"]
+        assert isinstance(out, WaveletPayload)
+        assert out.frame.wavelet_name == "db4"
+        assert out.frame.scale_count == 16
+        assert len(out.data) == 16

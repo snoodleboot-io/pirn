@@ -271,7 +271,7 @@ Land the codemod across the repo, the `pirn.domains.*` compat shim, the registry
   - [ ] All unit/integration/smoke/e2e tests pass against installed split packages (no behaviour change).
   - [ ] Shared fixtures import from a `pirn-core` test-support module; no fixture-visibility gaps across packages.
   - [ ] Per-package extras-isolation tests pass (each `pirn-<x>` imports without extras and raises a clean `ImportError` when a required dep is missing).
-  - [ ] `src/` layout forces tests to run against the installed package, not in-tree source.
+  - [ ] ~~`src/` layout forces tests to run against the installed package, not in-tree source.~~ **Superseded by [ADR Amendment A1](./ADR.md#amendment-a1--flat-layout--per-package-tests-2026-06-19-phase-5--scd-24):** flat layout + per-package `tests/`; the "import the installed package, not in-tree source" guarantee is now enforced by SCD-25 clean-env install-isolation instead of the directory layout. Shared fixtures live in the repo-root `conftest.py`.
 
 #### SCD-21 — Migrate examples to per-package imports
 - **size:** M · **type:** chore · **agent:** migration-agent
@@ -314,12 +314,12 @@ Turn the CI skeleton into a per-package matrix with isolation/coverage gates, ap
 #### SCD-24 — Build the per-package CI matrix with change-detection gates
 - **size:** L · **type:** chore · **agent:** devops-agent
 - **dependencies:** SCD-04, SCD-16
-- **Description:** Expand the CI skeleton (SCD-04) into a per-package × Python (3.11–3.14) matrix with change-detection so only affected packages run on a PR, plus one unified cross-domain integration suite. Mitigates the ~192-job explosion (PRD Risk #4).
+- **Description:** Expand the CI skeleton (SCD-04) into a per-package × Python (3.11–3.14) matrix with change-detection so only affected packages run on a PR, plus one unified cross-domain integration suite. Mitigates the ~192-job explosion (PRD Risk #4). **Change-detection is dependency-aware (closure):** a package runs when its own files change, an upstream `pirn-*` dependency changes (core → all; data → ml), or a shared-root file changes. Built on the **flat layout + per-package `tests/`** of [ADR Amendment A1](./ADR.md#amendment-a1--flat-layout--per-package-tests-2026-06-19-phase-5--scd-24); the unified suite selects the `cross_domain`-marked tests with all packages installed.
 - **Acceptance Criteria:**
-  - [ ] Each package lints, type-checks, and tests on Python 3.11–3.14.
-  - [ ] Change detection runs only the affected package(s) + the unified integration suite on a PR.
-  - [ ] One cross-domain integration suite (data + ml + agents) runs the registry-parity check.
-  - [ ] CI green across the full matrix on `main`.
+  - [x] Each package lints, type-checks, and tests on Python 3.11–3.14. *(per-package fan-out via `fromJSON`)*
+  - [x] Change detection runs only the affected package(s) + the unified integration suite on a PR. *(dependency closure)*
+  - [x] One cross-domain integration suite (data + ml + agents) runs the registry-parity check. *(`-m cross_domain`, 80 tests green)*
+  - [ ] CI green across the full matrix on `main`. *(pending trigger re-enable at end of migration)*
 
 #### SCD-25 — Add clean-env install-isolation and dependency-tree assertions per domain
 - **size:** M · **type:** test · **agent:** test-agent

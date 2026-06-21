@@ -17,7 +17,6 @@ permissions:
   packages: read
 
 env:
-  UV_PROJECT_ENVIRONMENT: /opt/pirn-deps/.venv
   UV_PYTHON_PREFERENCE: only-system
 
 jobs:
@@ -41,16 +40,26 @@ jobs:
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
 
-      - name: Install pirn
-        run: uv pip install --system -e packages/pirn-core
-
-      - name: Run heavy tests
+      - name: Build wheelhouse + install core & ml (+ heavy ML deps)
         run: |
-          uv run python -m pytest tests/unit \
-            -m heavy \
-            --junitxml=test-results/heavy-${{ matrix.python-version }}.xml \
-            --timeout=120 \
-            -v
+          set -euo pipefail
+          for p in pirn-core pirn-data pirn-ml; do uv build "packages/$p" -o dist/; done
+          uv venv .venv
+          uv pip install --find-links dist/ -e packages/pirn-core -e packages/pirn-ml \
+            torch tensorflow pytest pytest-timeout anyio || \
+          uv pip install --find-links dist/ -e packages/pirn-core -e packages/pirn-ml \
+            torch pytest pytest-timeout anyio
+
+      - name: Run heavy tests (core + ml, marked heavy)
+        run: |
+          mkdir -p test-results
+          for pkg in pirn-core pirn-ml; do
+            uv run --no-sync python -m pytest "packages/$pkg/tests" \
+              -c "packages/$pkg/pyproject.toml" --rootdir "packages/$pkg" \
+              -m heavy \
+              --junitxml="test-results/heavy-$pkg-${{ matrix.python-version }}.xml" \
+              --timeout=120 -v
+          done
 
       - name: Upload test results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1

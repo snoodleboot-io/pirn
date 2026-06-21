@@ -27,11 +27,16 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Install dependencies
-        run: uv sync --package pirn-core --extra docs
+      - name: Build wheelhouse + install all packages + docs deps
+        run: |
+          set -euo pipefail
+          for p in pirn-core pirn-signal pirn-data pirn-ml pirn-agents pirn-health pirn-oilgas; do uv build "packages/$p" -o dist/; done
+          uv venv .venv
+          uv pip install --find-links dist/ "pirn-core[docs]" \
+            pirn-signal pirn-data pirn-ml pirn-agents pirn-health pirn-oilgas
 
       - name: Build docs
-        run: uv run mkdocs build
+        run: uv run --no-sync mkdocs build
         env:
           DISABLE_MKDOCS_2_WARNING: "true"
 

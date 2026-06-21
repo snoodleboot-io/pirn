@@ -26,26 +26,28 @@ RUN apt-get update -qq && \
 # Install uv from the official distroless image — no shell needed
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# Pre-build all dependencies (excluding the project itself — installed at
-# runtime). The source lives in the uv workspace under packages/, so the
-# prebake needs the workspace root + every member's manifest to resolve the
-# single lock. Post-extraction (Phase 3, SCD-11..16) the six domains are
-# separate workspace members (pirn-signal/-data/-ml/-agents/-health/-oilgas),
-# each carrying its OWN extras — they no longer ride along inside pirn-core.
-# `--all-packages --all-extras` therefore syncs every member and every extra
-# across the whole tree (not just pirn-core's). The apt layer above installs
-# gdal/eccodes/openblas/sndfile so the fiona/h5py/eccodes-bound extras build.
-#
-# Image contents: this base (pirn-ci-base) carries ALL workspace members and
-# ALL their extras EXCEPT the heavy ML wheels torch/tensorflow/tflite, which
-# Dockerfile.ci-heavy layers on top.
-WORKDIR /opt/pirn-deps
-COPY pyproject.toml ./
-COPY packages/ ./packages/
+ENV UV_PYTHON_PREFERENCE=only-system
 
-ENV UV_PYTHON_PREFERENCE=only-system \
-    UV_PROJECT_ENVIRONMENT=/opt/pirn-deps/.venv
-
-RUN uv sync --all-packages --all-extras --no-install-project \
-    --no-extra pytorch --no-extra tensorflow --no-extra tflite && \
-    rm -f uv.lock
+# Per-package dependency pre-bake (independent libraries, no workspace).
+#   * PACKAGE="" → plain base image (system libs + python + uv only). Used by the
+#     orchestration / cross-package jobs (build-wheelhouse, unified, isolation,
+#     import-graph, version-lockstep), which install from the per-run wheelhouse.
+#   * PACKAGE=pirn-<x> → bake THIS package + all its extras (minus the heavy ML
+#     wheels torch/tensorflow/tflite, which Dockerfile.ci-heavy layers on) into
+#     the system environment. The matching lint/test job (pirn-ci-<x>) then
+#     re-installs the package editable in milliseconds — every third-party and
+#     cross-package dep is already present and compiled.
+ARG PACKAGE=""
+COPY packages/ /opt/src/packages/
+WORKDIR /opt/src
+RUN set -eux; \
+    if [ -n "${PACKAGE}" ]; then \
+      for p in pirn-core pirn-signal pirn-data pirn-ml pirn-agents pirn-health pirn-oilgas; do \
+        uv build "packages/$p" -o /tmp/wh; \
+      done; \
+      extras=$(python3 -c "import tomllib;d=tomllib.load(open('packages/${PACKAGE}/pyproject.toml','rb'));print(','.join(k for k in d.get('project',{}).get('optional-dependencies',{}) if k not in {'pytorch','tensorflow','tflite'}))"); \
+      spec="${PACKAGE}"; [ -n "${extras}" ] && spec="${PACKAGE}[${extras}]"; \
+      uv pip install --system --find-links /tmp/wh "${spec}"; \
+    fi; \
+    rm -rf /opt/src /tmp/wh
+WORKDIR /

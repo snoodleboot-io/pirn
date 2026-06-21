@@ -14,7 +14,7 @@ plugins:
   - mkdocstrings:
       handlers:
         python:
-          paths: [packages/pirn-core/src, packages/pirn-signal/src, packages/pirn-data/src, packages/pirn-ml/src, packages/pirn-agents/src, packages/pirn-health/src, packages/pirn-oilgas/src]
+          paths: [packages/pirn-core, packages/pirn-signal, packages/pirn-data, packages/pirn-ml, packages/pirn-agents, packages/pirn-health, packages/pirn-oilgas]
           options:
             show_source: false
             members_order: source
@@ -58,6 +58,7 @@ nav:
   - Guides:
     - guides/index.md
     - Migrating to Split Packages: guides/migrating-to-split-packages.md
+    - Versioning & Compatibility: guides/versioning.md
     - Knot Registration: guides/knot-registration.md
     - YAML Pipelines: guides/yaml-pipelines.md
     - Sub-Tapestry: guides/sub-tapestry.md
@@ -73,6 +74,7 @@ nav:
     - Overview: architecture/overview.md
     - Execution Model: architecture/execution-model.md
     - Extension Points: architecture/extension-points.md
+    - CI Pipelines: architecture/ci-pipelines.md
   - API Reference:
     - api/index.md
     - Tapestry: api/tapestry.md
